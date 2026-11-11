@@ -12,14 +12,15 @@ import java.util.List;
 
 /**
  * An Outsider room's four edges as two linked gate pairs, so the room wraps:
- * the square bounding its grown cells has a gate on each side, on the outer
- * face of the outermost cells, facing into the room, east linked to west and
- * south to north. Each pair faces opposite ways with the same up, so the
- * passage through it moves a body the square's width and turns nothing, and
- * a body walking off one side carries on in from the other. Each edge opens
- * over its whole rectangle, from the void catch's depth up to the pocket's
- * build height.
- * outsider-room-wraps-and-repeats-at-the-platform-edge
+ * the square its {@link RoomExtent} bounds has a gate on each side, standing
+ * on the boundary's plane, even partway through a block, facing into the
+ * room, east linked to west and south to north. Each pair faces opposite
+ * ways with the same up, so the passage through it moves a body twice the
+ * extent and turns nothing, and a body walking off one side carries on in
+ * from the other. Each edge opens over its whole rectangle, from the void
+ * catch's depth up to the pocket's build height.
+ * decision outsider-room-wraps-and-repeats-at-the-platform-edge
+ * decision grown-extent-is-the-one-wrap-and-build-boundary
  */
 public final class RoomEdges {
 
@@ -49,19 +50,21 @@ public final class RoomEdges {
     }
 
     /**
-     * The edges around a room's grown cells: the square of the ring the last
-     * grown cell stands in, 2R + 1 cells across.
+     * The edges around a room: each plane exactly the room's extent from the
+     * middle of its center voidstone, partway through a block where the
+     * extent ends there, so the room repeats every twice its extent.
+     * decision grown-extent-is-the-one-wrap-and-build-boundary
      *
      * @param center the room's center voidstone
-     * @param cells  the platform's cell count
+     * @param extent the room's extent
      * @return the four edges
      */
-    public static Edges around(BlockPos center, int cells) {
-        int ring = PlatformSpiral.ringOf(cells - 1);
-        int west = center.getX() - ring;
-        int east = center.getX() + ring + 1;
-        int north = center.getZ() - ring;
-        int south = center.getZ() + ring + 1;
+    public static Edges around(BlockPos center, double extent) {
+        RoomExtent.Planes planes = RoomExtent.planesAround(center, extent);
+        double west = planes.west();
+        double east = planes.east();
+        double north = planes.north();
+        double south = planes.south();
         int bottom = OutsiderRooms.ROOM_FLOOR_Y - OutsiderRooms.CATCH_DEPTH;
         return new Edges(
                 edge(new AABB(east, bottom, north, east + 1, ROOM_CEILING_Y, south), Direction.WEST),
@@ -71,14 +74,14 @@ public final class RoomEdges {
     }
 
     /**
-     * A room's edge pairs, around the square of blocks its extent holds whole.
+     * A room's edge pairs.
      *
      * @param room   the room number
      * @param extent the room's extent
      * @return east paired with west and south with north
      */
     public static List<GatePassage.Pair> pairsOf(int room, double extent) {
-        return around(OutsiderRooms.voidstoneOf(room), RoomExtent.wholeCells(extent)).pairs();
+        return around(OutsiderRooms.voidstoneOf(room), extent).pairs();
     }
 
     /**

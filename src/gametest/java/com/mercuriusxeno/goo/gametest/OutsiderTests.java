@@ -2,7 +2,10 @@ package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.outsider.OutsiderRooms;
-import com.mercuriusxeno.goo.ability.outsider.PlatformSpiral;
+import com.mercuriusxeno.goo.ability.outsider.RoomEdges;
+import com.mercuriusxeno.goo.ability.outsider.RoomExtent;
+import com.mercuriusxeno.goo.ability.outsider.VoidPockets;
+import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooStreamHandler;
 import com.mercuriusxeno.goo.network.GooStreamPayload;
@@ -72,6 +75,8 @@ public final class OutsiderTests {
                 OutsiderTests::showsItsChargeAndGrowth);
         GooTestFunctions.registerTest(registrar, ROOM_EDGE_CARRIES_A_BODY_TO_THE_OPPOSITE_SIDE,
                 OutsiderTests::roomEdgeCarriesABodyToTheOppositeSide);
+        GooTestFunctions.registerTest(registrar, ROOM_EDGE_CARRIES_A_WALKER_AT_A_FRACTIONAL_EXTENT,
+                OutsiderTests::roomEdgeCarriesAWalkerAtAFractionalExtent);
         GooTestFunctions.registerTest(registrar, OUTSIDER_REFUSES_BUILDING_PAST_THE_PLATFORM,
                 OutsiderTests::refusesBuildingPastThePlatform);
     }
@@ -118,7 +123,7 @@ public final class OutsiderTests {
         helper.assertTrue(pocket != null, "The server should hold the pocket dimension");
         int room = OutsiderRooms.layRoomFor(pocket, java.util.UUID.randomUUID());
         BlockPos center = OutsiderRooms.voidstoneOf(room);
-        int across = 2 * PlatformSpiral.ringOf(PlatformSpiral.START_CELLS - 1) + 1;
+        int across = (int) (2 * RoomExtent.LAID);
         // The room's square may straddle chunks, and the item lands in whichever holds the west edge, so every
         // chunk around the square is held ticking, else the carried item stops ticking where it lands.
         List<ChunkPos> chunks = chunksAround(center, across);
@@ -144,6 +149,58 @@ public final class OutsiderTests {
                             && Math.abs(now.y() - start.y()) < KEPT && Math.abs(now.z() - start.z()) < KEPT,
                     String.format(SHOULD_CARRY_ACROSS, across, start, MOVED_ON, now));
             helper.assertTrue(motion.x() > 0, String.format(SHOULD_KEEP_MOTION, motion));
+            helper.succeed();
+        });
+    }
+
+    private static final String ROOM_EDGE_CARRIES_A_WALKER_AT_A_FRACTIONAL_EXTENT =
+            "room_edge_carries_a_walker_at_a_fractional_extent";
+    /** An extent ending three tenths of the way into the blocks two out from the center. */
+    private static final double PARTWAY = 2.3;
+    /** How far past the east edge the walker's eye stands as its client says it crossed. */
+    private static final double PAST_THE_EDGE = 0.3;
+    /** Ticks after the extent is set by which the server has gathered the room's new edges. */
+    private static final int EDGES_GATHERED = 2;
+    private static final Vec3 WALKING_EAST = new Vec3(0.21, -0.08, 0.04);
+    private static final float WALKER_YAW = -84f;
+    private static final float WALKER_PITCH = 12f;
+    /** The drift a heading picks up from Minecraft's table sine turning it through the pair, in degrees. */
+    private static final float TABLE_TRIG = 0.01f;
+    private static final String SHOULD_ARRIVE_INSIDE = "A walker %.2f past the east edge at %.2f should arrive that far "
+            + "inside the west edge, at %s, stands at %s";
+    private static final String SHOULD_KEEP_WALKING = "The walker should keep moving %s facing %.1f, moves %s facing %.1f";
+
+    /**
+     * A player in their room whose extent ends partway through a block walks
+     * past the east edge, its client saying so as a client does, and the
+     * server sets it the same distance inside the west edge, moving and
+     * facing as it went (decision grown-extent-is-the-one-wrap-and-build-boundary).
+     *
+     * @param helper the gametest helper
+     */
+    public static void roomEdgeCarriesAWalkerAtAFractionalExtent(GameTestHelper helper) {
+        ServerPlayer walker = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        holdFor(helper, walker, CHARGE_TICKS);
+        int[] room = new int[1];
+        helper.runAfterDelay(CHARGE_TICKS + 1, () -> {
+            room[0] = assertEntered(helper, walker);
+            VoidPockets.get((ServerLevel) walker.level()).keepPlatform(walker.getUUID(),
+                    new VoidPockets.Platform(PARTWAY));
+        });
+        helper.runAfterDelay(CHARGE_TICKS + 1 + EDGES_GATHERED, () -> {
+            BlockPos center = OutsiderRooms.voidstoneOf(room[0]);
+            RoomEdges.Edges edges = RoomEdges.around(center, PARTWAY);
+            double middleX = center.getX() + HALF;
+            Vec3 feet = new Vec3(middleX + PARTWAY + PAST_THE_EDGE, center.getY() + 1, center.getZ() + HALF);
+            walker.setPos(feet);
+            GatePassage.announced(walker, edges.east(), feet, WALKING_EAST, WALKER_YAW, WALKER_PITCH);
+            Vec3 arrival = new Vec3(middleX - PARTWAY + PAST_THE_EDGE, feet.y(), feet.z());
+            helper.assertTrue(walker.position().distanceTo(arrival) < KEPT,
+                    String.format(SHOULD_ARRIVE_INSIDE, PAST_THE_EDGE, middleX + PARTWAY, arrival, walker.position()));
+            helper.assertTrue(walker.getDeltaMovement().distanceTo(WALKING_EAST) < KEPT
+                            && Math.abs(walker.getYRot() - WALKER_YAW) < TABLE_TRIG,
+                    String.format(SHOULD_KEEP_WALKING, WALKING_EAST, WALKER_YAW, walker.getDeltaMovement(),
+                            walker.getYRot()));
             helper.succeed();
         });
     }

@@ -221,9 +221,11 @@ public final class OutsiderRooms {
     }
 
     /**
-     * Sends a room's new edges once its extent holds another whole ring, so
-     * its player's client carries them across the grown square's edges.
+     * Sends a room's new edges whenever a feed moved its extent, every fed
+     * tick, so its player's client carries them across, and draws the room
+     * through them, at the planes where they stand now.
      * decision outsider-room-wraps-and-repeats-at-the-platform-edge
+     * decision grown-extent-is-the-one-wrap-and-build-boundary
      *
      * @param room         the room number
      * @param extentBefore the room's extent before the feed
@@ -232,7 +234,7 @@ public final class OutsiderRooms {
      */
     static void announceGrowth(int room, double extentBefore, double extentAfter,
             Consumer<RoomEdgesSyncPayload> send) {
-        if (RoomExtent.wholeRings(extentAfter) > RoomExtent.wholeRings(extentBefore)) {
+        if (Double.compare(extentAfter, extentBefore) != 0) {
             send.accept(new RoomEdgesSyncPayload(RoomEdges.pairsOf(room, extentAfter)));
         }
     }

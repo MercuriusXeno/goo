@@ -45,24 +45,24 @@ class OutsiderRoomsTest {
     @Nested
     class Growth {
 
-        /** Past the first whole-block mark: the 5 by 5 and a share of the next ring. */
-        private static final double PAST_THE_MARK = 2.6;
-        /** Short of the first whole-block mark. */
-        private static final double SHORT_OF_THE_MARK = 2.4;
-        /** The cells of the 5 by 5 the first whole-block mark completes. */
-        private static final int FIVE_BY_FIVE = 25;
+        /** A fifth of a block past the starting extent, short of any whole-block mark. */
+        private static final double A_FRACTION_ON = 1.7;
+        private static final double EXACT = 1.0E-9;
 
         @Test
-        void crossingAWholeBlockMarkSendsTheRoomsNewEdges() {
+        void feedingAFractionOfABlockSendsTheNewPlanesOnce() {
             List<RoomEdgesSyncPayload> sent = new ArrayList<>();
-            OutsiderRooms.announceGrowth(ROOM, SHORT_OF_THE_MARK, PAST_THE_MARK, sent::add);
-            assertEquals(List.of(new RoomEdgesSyncPayload(RoomEdges.around(CENTER, FIVE_BY_FIVE).pairs())), sent);
+            OutsiderRooms.announceGrowth(ROOM, RoomExtent.LAID, A_FRACTION_ON, sent::add);
+
+            assertEquals(List.of(new RoomEdgesSyncPayload(RoomEdges.around(CENTER, A_FRACTION_ON).pairs())), sent);
+            assertEquals(CENTER.getX() + 0.5 + A_FRACTION_ON, sent.getFirst().edges().getFirst().one().center().x(),
+                    EXACT, "the east plane sent");
         }
 
         @Test
-        void feedingShortOfAWholeBlockMarkSendsNothing() {
+        void aFeedLeavingTheExtentWhereItStoodSendsNothing() {
             List<RoomEdgesSyncPayload> sent = new ArrayList<>();
-            OutsiderRooms.announceGrowth(ROOM, RoomExtent.LAID, SHORT_OF_THE_MARK, sent::add);
+            OutsiderRooms.announceGrowth(ROOM, A_FRACTION_ON, A_FRACTION_ON, sent::add);
             assertEquals(List.of(), sent);
         }
     }
