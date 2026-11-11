@@ -3,6 +3,8 @@ package com.mercuriusxeno.goo.ability.hole;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.pocket.PocketShelves;
 import com.mercuriusxeno.goo.network.PortableHolesSyncPayload;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -36,6 +38,7 @@ public final class PortableHoles {
     private static final Map<UUID, PortableHole> OPEN = new LinkedHashMap<>();
     private static final float SWALLOW_VOLUME = 0.4F;
     private static final float SWALLOW_PITCH = 0.6F;
+    private static final double HALF = 0.5;
 
     private PortableHoles() {
     }
@@ -92,6 +95,29 @@ public final class PortableHoles {
         if (changed) {
             sync(server);
         }
+    }
+
+    /**
+     * Closes the hole whose mouth covers a punched block's face, any block of
+     * its footprint on the face its mouth stands on; what it stored stays on
+     * the shelf.
+     * decision punching-the-hole-closes-it-early
+     *
+     * @param level the level punched in
+     * @param block the punched block
+     * @param face  the punched face
+     * @return true when a hole closed
+     */
+    public static boolean dismissAt(ServerLevel level, BlockPos block, Direction face) {
+        boolean dismissed = OPEN.values().removeIf(hole -> hole.dimension().equals(level.dimension())
+                && hole.face() == face && hole.footprint().contains(block));
+        if (dismissed) {
+            Vec3 at = Vec3.atCenterOf(block).add(Vec3.atLowerCornerOf(face.getUnitVec3i()).scale(HALF));
+            level.playSound(null, at.x(), at.y(), at.z(), SoundEvents.ENDER_CHEST_CLOSE, SoundSource.PLAYERS,
+                    1.0F, 1.0F);
+            sync(level.getServer());
+        }
+        return dismissed;
     }
 
     /**
