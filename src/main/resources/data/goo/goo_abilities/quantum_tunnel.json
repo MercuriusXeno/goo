@@ -1,6 +1,6 @@
 {
   "gooType": "quantum",
-  "displayName": "goo.ability.quantum.hole",
+  "displayName": "goo.ability.quantum.tunnel",
   "badge": "world",
   "order": 10,
   "cost": 2000,

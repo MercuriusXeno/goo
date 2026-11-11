@@ -70,7 +70,7 @@ class AbilityPoseTableTest {
             Map.entry("pulse_extender", ArmPose.HELD_UP),
             Map.entry("pulse_pulser", ArmPose.HELD_OUT),
             Map.entry("pulse_zap", ArmPose.HELD_OUT),
-            Map.entry("quantum_hole", ArmPose.SWUNG),
+            Map.entry("quantum_tunnel", ArmPose.SWUNG),
             Map.entry("quantum_link", ArmPose.SWUNG),
             Map.entry("quantum_portal", ArmPose.SWUNG),
             Map.entry("quantum_phase", ArmPose.HELD_UP),
