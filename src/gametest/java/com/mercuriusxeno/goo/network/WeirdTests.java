@@ -89,7 +89,7 @@ public final class WeirdTests {
     private static final double FALL_SPEED = -1.0;
     private static final String NOT_LAUNCHED = "A pig falling onto the slime coat should leave it moving upward";
     private static final String HURT = "A pig falling onto the slime coat should keep its full health, has ";
-    private static final String SLIME = "goo:weird_slime";
+    private static final String MITOSIS = "goo:weird_mitosis";
     private static final String HELD_JUMPS_RAMP = "coat_held_jumps_ramp_to_the_ceiling";
     /** A floor cell in the bay's roof, open sky above it. */
     private static final BlockPos OPEN_SKY_FLOOR = new BlockPos(2, 6, 2);
@@ -300,7 +300,7 @@ public final class WeirdTests {
     }
 
     /**
-     * A Weird Slime blob lands on stone: no slime stands anywhere while the
+     * A Weird Mitosis blob lands on stone: no slime stands anywhere while the
      * blob morphs, and once the morph ends a slime stands in the cell the
      * blob landed in.
      * slime-blob-morphs-into-the-slime-it-becomes
@@ -310,7 +310,7 @@ public final class WeirdTests {
     public static void slimeBlobMakesASlime(GameTestHelper helper) {
         helper.setBlock(POOL_FLOOR, Blocks.STONE);
         GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.WEIRD,
-                NO_ENTITY, helper.absolutePos(POOL_FLOOR), Direction.UP, SLIME));
+                NO_ENTITY, helper.absolutePos(POOL_FLOOR), Direction.UP, MITOSIS));
         helper.assertEntityNotPresent(EntityType.SLIME);
         helper.runAfterDelay(SLIME_MORPH_TICKS - 1, () -> helper.assertEntityNotPresent(EntityType.SLIME));
         helper.runAfterDelay(SLIME_MORPH_TICKS + 1, () -> {

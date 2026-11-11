@@ -656,7 +656,7 @@ class AbilityLoaderTest {
             Set<String> weird = scanned.values().stream().filter(def -> def.gooType() == GooTypes.WEIRD)
                     .map(def -> def.id().getPath()).collect(Collectors.toSet());
 
-            assertEquals(Set.of("weird_goop", "weird_slime"), weird);
+            assertEquals(Set.of("weird_goop", "weird_mitosis"), weird);
             assertFalse(scanned.containsKey(Identifier.fromNamespaceAndPath(Goo.MODID, "weird_wobble")),
                     "weird_wobble still loads");
             assertFalse(scanned.containsKey(Identifier.fromNamespaceAndPath(Goo.MODID, "weird_magma")),
@@ -667,6 +667,12 @@ class AbilityLoaderTest {
         @Test
         void goopShipsUnderWeirdNamedGoopWithItsIcon() throws IOException {
             assertWeirdPetalShipsAs("weird_goop", "Goop");
+        }
+
+        /** decision slime-is-renamed-mitosis-with-a-dividing-cell-icon */
+        @Test
+        void mitosisShipsUnderWeirdNamedMitosisWithItsIcon() throws IOException {
+            assertWeirdPetalShipsAs("weird_mitosis", "Mitosis");
         }
 
         @Test
