@@ -258,6 +258,45 @@ public final class GooRenderTypes {
     /** RenderType for Void's portable hole mouth. */
     public static final RenderType PORTABLE_HOLE_MOUTH_TYPE = burnoutType(PORTABLE_HOLE_MOUTH);
 
+    /** The sampler the portable hole carve reads a copy of the world's depth through. */
+    public static final String PORTABLE_HOLE_DEPTH_SAMPLER = "HoleDepthSampler";
+
+    /**
+     * Void's portable hole carve (decision hole-items-are-a-three-dimensional-soup-sunk-in-the-hole):
+     * the mouth's oval through {@code portable_hole_carve.vsh / .fsh}, pushing the depth
+     * to the far plane wherever the oval is the nearest thing seen, read against a copy
+     * of the world's depth, so the pit and the items sunk behind the face draw through
+     * the mouth and nowhere else.
+     */
+    public static final RenderPipeline PORTABLE_HOLE_CARVE = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "portable_hole_carve"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "portable_hole_carve"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "portable_hole_carve"))
+            .withSampler(PORTABLE_HOLE_DEPTH_SAMPLER)
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, true))
+            .withCull(false)
+            .build();
+
+    /**
+     * Void's portable hole pit (decision hole-items-are-a-three-dimensional-soup-sunk-in-the-hole):
+     * the dark walls and floor of the space behind the mouth, plain colored quads depth
+     * tested and writing depth, so they show only where the carve opened the depth and
+     * hide whatever lies past the pit.
+     */
+    public static final RenderPipeline PORTABLE_HOLE_PIT = RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "portable_hole_pit"))
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), true))
+            .withCull(false)
+            .build();
+
+    /** RenderType for Void's portable hole pit. */
+    public static final RenderType PORTABLE_HOLE_PIT_TYPE = burnoutType(PORTABLE_HOLE_PIT);
+
     /**
      * Meteo's rock (decision meteo-winds-up-then-drops-in-a-second-trailing-fire):
      * plain colored quads that write depth, so the rock's near faces hide its
@@ -1712,6 +1751,8 @@ public final class GooRenderTypes {
         event.registerPipeline(METEOR_SCORCH);
         event.registerPipeline(METEOR_ROCK);
         event.registerPipeline(PORTABLE_HOLE_MOUTH);
+        event.registerPipeline(PORTABLE_HOLE_CARVE);
+        event.registerPipeline(PORTABLE_HOLE_PIT);
     }
 
     /**

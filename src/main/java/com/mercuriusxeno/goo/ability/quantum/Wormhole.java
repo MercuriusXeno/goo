@@ -193,6 +193,20 @@ public final class Wormhole {
         return mouths;
     }
 
+    /**
+     * Every mouth shape a struck face can open, in the order a hole tries
+     * them, as {@link #mouthsOver(BlockPos, Direction[])} answers for the
+     * face's two directions across.
+     * decision hole-mouth-opens-three-by-three-and-fits-its-room
+     *
+     * @param struck the struck block
+     * @param face   the struck face
+     * @return each mouth's cells, the largest first
+     */
+    public static List<List<BlockPos>> mouthsOn(BlockPos struck, Direction face) {
+        return mouthsOver(struck, acrossOf(face.getOpposite()));
+    }
+
     private static double heightOf(List<BlockPos> mouth) {
         return mouth.stream().mapToInt(BlockPos::getY).average().orElseThrow();
     }

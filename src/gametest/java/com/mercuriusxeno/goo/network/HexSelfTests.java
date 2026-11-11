@@ -114,7 +114,6 @@ public final class HexSelfTests {
     private static final int HOLD_TICKS = 20;
     private static final String SHOULD_SPARE_OWN = "Drain should leave the caster's own %s at %.2f, stands at %.2f";
     private static final String SHOULD_DRAIN_UNOWNED = "Drain should take health from the unowned zombie, %.2f of %.2f";
-    private static final long RALLY_TICKS = 1000L;
     private static final float RALLY_DAMAGE = 6f;
 
     private HexSelfTests() {
@@ -159,19 +158,20 @@ public final class HexSelfTests {
     public static void drainSparesRalliedCow(GameTestHelper helper) {
         Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, NEAR_ZOMBIE_POS);
         drainSparesOwn(helper, cow, "rallied cow", caster -> cow.setData(GooAttachments.RALLIED,
-                new Rallied(caster.getUUID(), helper.getLevel().getGameTime() + RALLY_TICKS, RALLY_DAMAGE)));
+                new Rallied(caster.getUUID(), RALLY_DAMAGE)));
     }
 
     /**
-     * Drain held over a zombie its caster charmed and an unowned zombie
+     * Drain held over a husk its caster charmed and an unowned zombie
      * leaves the charmed one whole and drains the other
      * (decision drain-skips-your-rallied-and-charmed-mobs).
      *
      * @param helper the gametest helper
      */
     public static void drainSparesCharmedMob(GameTestHelper helper) {
-        Mob charmed = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, NEAR_ZOMBIE_POS);
-        drainSparesOwn(helper, charmed, "charmed zombie",
+        // a husk, since a zombie catches fire in the bay's daylight and the burn reads as a drain
+        Mob charmed = helper.spawnWithNoFreeWill(EntityType.HUSK, NEAR_ZOMBIE_POS);
+        drainSparesOwn(helper, charmed, "charmed husk",
                 caster -> charmed.setData(GooAttachments.CHARMED, new Charmed(caster.getUUID())));
     }
 
