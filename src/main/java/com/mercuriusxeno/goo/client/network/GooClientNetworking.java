@@ -16,6 +16,7 @@ import com.mercuriusxeno.goo.client.ability.MeteorScorches;
 import com.mercuriusxeno.goo.client.ability.PartnerView;
 import com.mercuriusxeno.goo.client.ability.ReapSwells;
 import com.mercuriusxeno.goo.client.ability.ScanVisuals;
+import com.mercuriusxeno.goo.client.ability.StreamMotes;
 import com.mercuriusxeno.goo.client.ability.SunbeamVisual;
 import com.mercuriusxeno.goo.client.ability.Tomes;
 import com.mercuriusxeno.goo.client.ability.VitalityVisual;
@@ -61,6 +62,7 @@ import com.mercuriusxeno.goo.network.ScanWavePayload;
 import com.mercuriusxeno.goo.network.SculkerHeardPayload;
 import com.mercuriusxeno.goo.network.SculkerVibrationPayload;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
+import com.mercuriusxeno.goo.network.StreamMotesPayload;
 import com.mercuriusxeno.goo.network.SunbeamPayload;
 import com.mercuriusxeno.goo.network.TomePayload;
 import com.mercuriusxeno.goo.network.TransformationPayload;
@@ -139,6 +141,7 @@ public final class GooClientNetworking {
         event.register(GhostTrailPayload.TYPE, GhostTrailHandler::handle);
         event.register(StreamHealedPayload.TYPE, VitalityVisual::handleHealed);
         event.register(GnatSeekPayload.TYPE, GnatSeek::handle);
+        event.register(StreamMotesPayload.TYPE, StreamMotes::handle);
         event.register(BlockAfterimagePayload.TYPE, AfterimageHandler::handleBlock);
     }
 

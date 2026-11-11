@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.GrabStep;
 import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
 import com.mercuriusxeno.goo.ability.quantum.PortalChoice;
@@ -894,8 +895,8 @@ public final class GrabChannelTests {
     }
 
     private static final String GRAB_REFUSES_A_SENT_PIG_BEYOND_ITS_RANGE = "grab_refuses_a_sent_pig_beyond_its_range";
-    /** Where the player stands for the range test: eighteen blocks west of the pig, past Grab's 16. */
-    private static final Vec3 BEYOND_GRABS_RANGE = new Vec3(-14.5, 1, 2.5);
+    /** How far past Grab's shipped reach the player stands west of the pig for the range test. */
+    private static final double PAST_THE_REACH = 2;
 
     /**
      * A pig named by the tick but standing past Grab's range is refused and
@@ -905,7 +906,9 @@ public final class GrabChannelTests {
      */
     public static void grabRefusesASentPigBeyondItsRange(GameTestHelper helper) {
         ServerPlayer player = grabber(helper);
-        Vec3 stand = helper.absoluteVec(BEYOND_GRABS_RANGE);
+        AbilityDefinition grab = AbilityRegistry.of(helper.getLevel()).getAbility(KINETIC_GRAB);
+        double reach = GrabStep.reachOf(grab.behaviors(), null).orElseThrow();
+        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(ZOMBIE_POS)).subtract(reach + PAST_THE_REACH, 0, 0);
         player.setPos(stand.x, stand.y, stand.z);
         Pig pig = helper.spawn(EntityType.PIG, ZOMBIE_POS);
         player.lookAt(EntityAnchorArgument.Anchor.EYES, pig.getBoundingBox().getCenter());

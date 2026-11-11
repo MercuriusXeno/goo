@@ -47,7 +47,7 @@ class GooFlightThroughAGateTest {
     private static GooFlightManager.GooFlight flight() {
         GateArc.Hop hop = GateRay.hopThrough(List.of(new GatePassage.Pair(NEAR, FAR)), NEAR, FACE).orElseThrow();
         return new GooFlightManager.GooFlight(HAND, TARGET, -1, BlockPos.containing(TARGET), GooTypes.CRYSTAL,
-                Delivery.ARC, TRAVEL_TICKS, false, NEAR, hop);
+                Delivery.ARC, TRAVEL_TICKS, false, NEAR, hop, Vec3.ZERO);
     }
 
     private static Vec3 at(GooFlightManager.GooFlight flight, int tick) {

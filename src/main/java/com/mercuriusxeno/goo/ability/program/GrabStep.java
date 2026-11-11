@@ -47,7 +47,7 @@ import java.util.stream.Stream;
  * decision grab-holds-slightly-closer-in-open-space
  * decision grab-cone-picks-more-aggressively-than-other-goo-types
  *
- * @param range        how far the look reaches for an entity to lift, in blocks, before Telekinesis adds its reach
+ * @param range        how far the look reaches for an entity to lift, in blocks, which Telekinesis doubles while it holds
  * @param holdDistance how far from the eye the held entity hangs where the look meets no block
  * @param throwSpeed   the speed a throw launches the held entity at, in blocks per tick
  * @param pullSpeed    the speed a pulled item entity flies to the player at, in blocks per tick
@@ -355,16 +355,19 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
     /** How many gates a held body's look is carried through at most. */
     private static final int MOST_HOPS = 4;
 
+    /** How many times its own range Grab reaches while Telekinesis holds. */
+    private static final double TELEKINESIS_REACH_FACTOR = 2;
+
     /**
      * How far Grab's look reaches for an entity to lift: its own range, and
-     * Telekinesis's reach on top while Telekinesis holds.
+     * twice that while Telekinesis holds, whatever reach Telekinesis lays.
      * decision grab-reaches-telekinesis-range
      *
      * @param telekinesisReach the modifier Telekinesis lays on the player's entity reach, or null where none stands
      * @return the reach, in blocks
      */
     double reachWith(@Nullable AttributeModifier telekinesisReach) {
-        return telekinesisReach == null ? range : range + telekinesisReach.amount();
+        return telekinesisReach == null ? range : range * TELEKINESIS_REACH_FACTOR;
     }
 
     /**
@@ -375,7 +378,8 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
      *
      * @param sent             the entity the tick named
      * @param distanceSquared  the squared distance from the eye to the entity's middle
-     * @param telekinesisReach the modifier Telekinesis lays on the player's entity reach, or null where none stands
+     * @param telekinesisReach the modifier Telekinesis lays on the player's entity reach, which doubles the range
+     *                         where it stands, or null where none stands
      * @return true where Grab takes it
      */
     boolean takesSent(Entity sent, double distanceSquared, @Nullable AttributeModifier telekinesisReach) {
@@ -387,7 +391,8 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
      * How far an ability's Grab reaches, so the glove aims no farther than it lifts.
      *
      * @param behaviors        the ability's behaviors
-     * @param telekinesisReach the modifier Telekinesis lays on the player's entity reach, or null where none stands
+     * @param telekinesisReach the modifier Telekinesis lays on the player's entity reach, which doubles the range
+     *                         where it stands, or null where none stands
      * @return the reach, in blocks, or empty where the ability holds no grab
      */
     public static OptionalDouble reachOf(List<Step> behaviors, @Nullable AttributeModifier telekinesisReach) {
