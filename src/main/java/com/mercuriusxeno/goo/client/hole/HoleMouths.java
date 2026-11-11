@@ -7,19 +7,23 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import java.util.List;
 
 /**
- * Draws each Void portable hole's mouth on the face it opens on: a round
- * opening, black at its heart, ringed in void violet that swirls slowly
- * inward, growing open from nothing and shrinking shut as its time runs out.
+ * Draws each Void portable hole's mouth across the faces it opens on: an oval
+ * opening filling its footprint, black at its heart, ringed in void violet
+ * that swirls slowly inward, growing open from nothing and shrinking shut as
+ * its time runs out.
  * It is a look of its own, a flat vortex on the face, not the tunnel's oval
  * view through the wall.
  * decision hole-is-an-in-world-portable-hole-for-items
@@ -27,8 +31,6 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class HoleMouths {
 
-    /** The mouth's radius once fully open, a little inside its block's face. */
-    private static final double FULL_RADIUS = 0.42;
     /** How far the mouth stands off its face, so it never sinks into it. */
     private static final double FACE_LIFT = 0.004;
     /** Ticks the mouth takes to grow open. */
@@ -54,7 +56,7 @@ public final class HoleMouths {
     /** The violet a band's darkest stretch keeps, as a share of the rim's. */
     private static final float VIOLET_FLOOR = 0.55F;
     private static final float HALF = 0.5F;
-    /** A block face's distance from its block's center. */
+    /** A box's face's distance from its center, as a share of the box's size. */
     private static final double FACE_OFFSET = 0.5;
 
     private HoleMouths() {
@@ -99,26 +101,51 @@ public final class HoleMouths {
         return (float) Mth.smoothstep(grown) * shrunk;
     }
 
+    /**
+     * The flat rectangle a mouth opens across: the faces of its footprint's
+     * blocks on the side the mouth stands on, the oval of its opening
+     * inscribed in it.
+     * decision hole-mouth-opens-three-by-three-and-fits-its-room
+     *
+     * @param footprint the blocks whose faces the mouth covers
+     * @param face      the face it opens on
+     * @return the rectangle, flat along the face's normal
+     */
+    static AABB openingOn(List<BlockPos> footprint, Direction face) {
+        AABB cells = footprint.stream().map(AABB::new).reduce(AABB::minmax).orElseThrow();
+        Direction.Axis normal = face.getAxis();
+        double plane = face.getAxisDirection() == Direction.AxisDirection.POSITIVE ? cells.max(normal)
+                : cells.min(normal);
+        return new AABB(cells.getMinPosition().with(normal, plane), cells.getMaxPosition().with(normal, plane));
+    }
+
     private static void drawMouth(PoseStack.Pose pose, VertexConsumer consumer, PortableHolesSyncPayload.Mouth mouth,
                                   Vec3 camera, float open, float time) {
         Direction face = mouth.face();
         Vec3 normal = Vec3.atLowerCornerOf(face.getUnitVec3i());
-        Vec3 centre = Vec3.atCenterOf(mouth.block()).add(normal.scale(FACE_OFFSET + FACE_LIFT)).subtract(camera);
+        AABB opening = openingOn(mouth.footprint(), face);
+        Vec3 centre = opening.getCenter().add(normal.scale(FACE_LIFT)).subtract(camera);
         Vec3 across = face.getAxis() == Direction.Axis.X ? new Vec3(0, 0, 1) : new Vec3(1, 0, 0);
         Vec3 along = normal.cross(across);
-        double radius = FULL_RADIUS * open;
+        Vec3 acrossRadius = across.scale(halfSpan(opening, across) * open);
+        Vec3 alongRadius = along.scale(halfSpan(opening, along) * open);
         for (int ring = 0; ring < RINGS; ring++) {
             float inner = (float) ring / RINGS;
             float outer = (float) (ring + 1) / RINGS;
             for (int segment = 0; segment < SEGMENTS; segment++) {
                 float from = Mth.TWO_PI * segment / SEGMENTS;
                 float to = Mth.TWO_PI * (segment + 1) / SEGMENTS;
-                emit(pose, consumer, centre, across, along, radius * inner, from, colorAt(inner, from, time));
-                emit(pose, consumer, centre, across, along, radius * outer, from, colorAt(outer, from, time));
-                emit(pose, consumer, centre, across, along, radius * outer, to, colorAt(outer, to, time));
-                emit(pose, consumer, centre, across, along, radius * inner, to, colorAt(inner, to, time));
+                emit(pose, consumer, centre, acrossRadius, alongRadius, inner, from, colorAt(inner, from, time));
+                emit(pose, consumer, centre, acrossRadius, alongRadius, outer, from, colorAt(outer, from, time));
+                emit(pose, consumer, centre, acrossRadius, alongRadius, outer, to, colorAt(outer, to, time));
+                emit(pose, consumer, centre, acrossRadius, alongRadius, inner, to, colorAt(inner, to, time));
             }
         }
+    }
+
+    private static double halfSpan(AABB opening, Vec3 axis) {
+        return (Math.abs(axis.x()) * opening.getXsize() + Math.abs(axis.y()) * opening.getYsize()
+                + Math.abs(axis.z()) * opening.getZsize()) * FACE_OFFSET;
     }
 
     /**
@@ -139,9 +166,9 @@ public final class HoleMouths {
         return ARGB.color(alpha, rgb);
     }
 
-    private static void emit(PoseStack.Pose pose, VertexConsumer consumer, Vec3 centre, Vec3 across, Vec3 along,
-                             double radius, float angle, int color) {
-        Vec3 at = centre.add(across.scale(radius * Mth.cos(angle))).add(along.scale(radius * Mth.sin(angle)));
+    private static void emit(PoseStack.Pose pose, VertexConsumer consumer, Vec3 centre, Vec3 acrossRadius,
+                             Vec3 alongRadius, float out, float angle, int color) {
+        Vec3 at = centre.add(acrossRadius.scale(out * Mth.cos(angle))).add(alongRadius.scale(out * Mth.sin(angle)));
         consumer.addVertex(pose, (float) at.x(), (float) at.y(), (float) at.z()).setColor(color);
     }
 }

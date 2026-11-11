@@ -168,7 +168,7 @@ public final class PortableHoles {
         PocketShelves shelves = PocketShelves.get(player.level());
         PortableHolesSyncPayload payload = new PortableHolesSyncPayload(OPEN.values().stream()
                 .filter(hole -> hole.dimension().equals(player.level().dimension()))
-                .map(hole -> new PortableHolesSyncPayload.Mouth(hole.block(), hole.face(), hole.closesAt(),
+                .map(hole -> new PortableHolesSyncPayload.Mouth(hole.footprint(), hole.face(), hole.closesAt(),
                         storedOf(shelves, hole.owner())))
                 .toList());
         // A listener that never negotiated the mod's channels, a gametest's mock player, gets no sync.

@@ -27,14 +27,14 @@ public final class ClientPortableHoles {
      * Where a mouth stands and until when, which a resync after a swallow keeps,
      * so the mouth does not grow open again.
      *
-     * @param block    the block whose face it opens on
-     * @param face     the face it opens on
-     * @param closesAt the game time it closes
+     * @param footprint the blocks whose faces it opens across
+     * @param face      the face it opens on
+     * @param closesAt  the game time it closes
      */
-    private record Spot(BlockPos block, Direction face, long closesAt) {
+    private record Spot(List<BlockPos> footprint, Direction face, long closesAt) {
 
         static Spot of(PortableHolesSyncPayload.Mouth mouth) {
-            return new Spot(mouth.block(), mouth.face(), mouth.closesAt());
+            return new Spot(mouth.footprint(), mouth.face(), mouth.closesAt());
         }
     }
 
