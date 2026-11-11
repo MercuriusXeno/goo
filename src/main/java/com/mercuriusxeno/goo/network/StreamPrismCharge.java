@@ -162,13 +162,12 @@ final class StreamPrismCharge {
      */
     private static void showCharging(ServerPlayer player, PrismBlockEntity prism, Vec3 apex,
                                      AbilityDefinition ability, int hold) {
-        ServerLevel level = player.level();
         BlockPos pos = prism.getBlockPos();
         // the operator's ruling: the prism is the gnats' homing target until it converts fully
-        GooStreamHandler.sprayParticles(level, apex, moteAxis(apex, pos),
+        GooStreamHandler.sprayParticles(player, apex, moteAxis(apex, pos),
                 ability.delivery().withCone(ability.delivery().range(), 0), apex.distanceTo(Vec3.atCenterOf(pos)),
                 GooStreamHandler.travelOf(player));
-        warm(level, prism, ability, hold);
+        warm(player.level(), prism, ability, hold);
     }
 
     /**
