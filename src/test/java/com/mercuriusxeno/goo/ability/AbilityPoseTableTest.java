@@ -60,7 +60,7 @@ class AbilityPoseTableTest {
             Map.entry("leaf_bio", ArmPose.SWUNG),
             Map.entry("leaf_bloom", ArmPose.SWUNG),
             Map.entry("leaf_growth", ArmPose.HELD_OUT),
-            Map.entry("leaf_reap", ArmPose.SWUNG),
+            Map.entry("leaf_reap", ArmPose.HELD_OUT),
             Map.entry("leaf_vines", ArmPose.SWUNG),
             Map.entry("metal_javelin", ArmPose.SWUNG),
             Map.entry("metal_magnet", ArmPose.HELD_UP),
