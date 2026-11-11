@@ -51,5 +51,9 @@ public final class GooSounds {
         SOUND_EVENTS.register("effects.earth_rumble",
             () -> SoundEvent.createVariableRangeEvent(GooSoundIds.EARTH_RUMBLE));
 
+    /** Click's click, rung at 15 under Sculker (decision sculker-echo-intensity-follows-vibration-rank). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> CLICK =
+        SOUND_EVENTS.register("ability.click", () -> SoundEvent.createVariableRangeEvent(GooSoundIds.CLICK));
+
     private GooSounds() {}
 }

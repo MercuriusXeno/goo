@@ -64,6 +64,7 @@ public final class GooNetworking {
         r.playToClient(ChainBurnoutPayload.TYPE, ChainBurnoutPayload.STREAM_CODEC);
         r.playToClient(LurkerPulsePayload.TYPE, LurkerPulsePayload.STREAM_CODEC);
         r.playToClient(SculkerHeardPayload.TYPE, SculkerHeardPayload.STREAM_CODEC);
+        r.playToClient(SculkerVibrationPayload.TYPE, SculkerVibrationPayload.STREAM_CODEC);
         registerClientEffectPayloads(r);
     }
 
