@@ -52,6 +52,8 @@ public final class GooValueLifecycleTests {
             valuesAfterStop = GooValues.of(helper.getLevel()).size();
         } finally {
             GooValues.attach(server);
+            // The fresh registry reads the packs alone; the later batches read the gametests' owned values.
+            GametestOwnedValues.apply(server);
         }
         helper.assertTrue(valuesAfterStop == 0, STOPPED_KEPT_VALUES);
         helper.assertTrue(GooValues.registryOf(server) != stopped, START_REUSED_REGISTRY);
