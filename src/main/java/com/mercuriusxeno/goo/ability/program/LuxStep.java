@@ -8,7 +8,7 @@ import java.util.stream.Stream;
 
 /**
  * Grants the host's target Lux and finishes: night vision without
- * particles, and the glow glisten on the mob it looks at, while Lux stands.
+ * particles, and the glow outline on the mob it looks at, while Lux stands.
  * Cast from the glove it stands as a held effect, paying its upkeep until
  * ended (decisions
  * lux-night-vision-without-particles, self-effects-trickle-until-ended).
