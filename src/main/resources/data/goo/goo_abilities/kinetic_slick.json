@@ -12,7 +12,7 @@
     "particle": "goo:kinetic_mist"
   },
   "behaviors": [
-    { "type": "slick", "ticks": 20, "ramp": 1.06, "top_speed": 1.0 }
+    { "type": "slick", "ticks": 20, "start_ramp": 1.03, "strongest_ramp": 1.08, "build_ticks": 40, "top_speed": 1.0 }
   ],
   "tags": ["stream"]
 }

@@ -1,14 +1,30 @@
 package com.mercuriusxeno.goo.block.ability;
 
+import com.mercuriusxeno.goo.ability.program.SlickStep;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * The ramp Kinetic's slick gives whatever moves on it each tick.
+ * The ramp Kinetic's slick gives a thing trying to move on it each tick: it
+ * starts at the slick step's starting ramp and grows evenly to its strongest
+ * over the step's build ticks, under the one fixed top speed.
  * slick-coats-the-ground-with-kinetic-speed
+ * slick-ramp-grows-while-a-thing-keeps-moving
  */
 public final class SlickRamp {
 
     private SlickRamp() {
+    }
+
+    /**
+     * The ramp for a tick of trying.
+     *
+     * @param triedBefore the ticks the thing kept trying before this one
+     * @param slick       the slick step naming the ramp
+     * @return the factor this tick multiplies its horizontal velocity by
+     */
+    public static double ramp(int triedBefore, SlickStep slick) {
+        double built = Math.min(1, (double) triedBefore / slick.buildTicks());
+        return slick.startRamp() + (slick.strongestRamp() - slick.startRamp()) * built;
     }
 
     /**
