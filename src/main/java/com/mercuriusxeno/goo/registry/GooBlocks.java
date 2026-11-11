@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.FungalBudBlock;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
+import com.mercuriusxeno.goo.block.ability.KineticSlickBlock;
 import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
@@ -169,6 +170,22 @@ public class GooBlocks {
                     .replaceable()
                     .noLootTable()
                     .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
+    /**
+     * Slick: the thin electric blue and white film Kinetic's Slick lays on a
+     * block's top, slippery as ice and ramping what moves on it
+     * (decisions slick-coats-the-ground-with-kinetic-speed, kinetic-is-electric-blue-and-white).
+     */
+    public static final DeferredBlock<KineticSlickBlock> KINETIC_SLICK = BLOCKS.registerBlock(
+            "kinetic_slick", KineticSlickBlock::new,
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_LIGHT_BLUE)
+                    .friction(KineticSlickBlock.SLIPPERY)
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
     /**
      * Prism: the milky quartz crystal Crystal's Prism grows, the host every
      * prism combo grows on (decision prism-blob-becomes-a-milky-quartz-crystal).

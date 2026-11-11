@@ -59,9 +59,11 @@ public final class StepTypes {
         register(FreezeBlocksStep.TYPE);
         register(CoolLavaStep.TYPE);
         register(CoatStep.TYPE);
+        register(SlickStep.TYPE);
         register(WobbleStep.TYPE);
         register(DetectOreStep.TYPE);
         register(WindStep.TYPE);
+        register(HexMistStep.TYPE);
         register(BreakBlocksStep.TYPE);
         register(ExtinguishStep.TYPE);
         register(TravelingStep.TYPE);

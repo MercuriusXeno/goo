@@ -63,6 +63,13 @@ public final class AbilityTags {
      */
     public static final String EXPLOSIVE = "explosive";
 
+    /**
+     * An ability that harms what it strikes; one wearing the mob badge
+     * refuses its caster's own rallied and charmed mobs.
+     * mob-targeted-attacks-refuse-your-minions
+     */
+    public static final String HARMFUL = "harmful";
+
     private AbilityTags() {
     }
 }
