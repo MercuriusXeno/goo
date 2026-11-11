@@ -26,7 +26,7 @@ import java.util.stream.Stream;
  * own amount up to the tilt around it, its middle under the line of sight,
  * hollow toward the slasher and bulging away, sized at random with its width, thickness and
  * bulge together, as often small or huge as middling; each appears thick and
- * bright, then thins to a sliver and dims as it travels outward; and every
+ * bright, then narrows and dims as it travels outward; and every
  * ripe plant inside the box a slash cuts is reaped and replanted and every
  * living body there but the slasher cut once. Leaf Reap is {@code slash
  * fewest_ticks=2 most_ticks=3 fewest_slashes=1 most_slashes=2 near=0
