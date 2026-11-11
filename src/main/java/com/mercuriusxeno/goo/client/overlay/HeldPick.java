@@ -49,4 +49,14 @@ final class HeldPick {
         }
         return frame;
     }
+
+    /**
+     * Whether the press the last frame resolved holds a mob, the one the aim stays on.
+     * grab-hides-the-reticle-once-a-mob-is-held
+     *
+     * @return true while this Grab press holds a mob
+     */
+    boolean holds() {
+        return pinned != null;
+    }
 }
