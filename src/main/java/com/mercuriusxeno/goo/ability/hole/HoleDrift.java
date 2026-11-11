@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.client.hole;
+package com.mercuriusxeno.goo.ability.hole;
 
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
