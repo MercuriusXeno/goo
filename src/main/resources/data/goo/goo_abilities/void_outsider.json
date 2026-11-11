@@ -8,7 +8,7 @@
   "cost_formula": "6 + 10/cell",
   "delivery": { "kind": "self", "ticks_per_charge": 20 },
   "behaviors": [
-    { "type": "outsider", "charge": 20, "enter": 6, "ring_ticks": 40, "cell_cost": 10, "distance_cost": 1 }
+    { "type": "outsider", "charge": 20, "enter": 6, "ring_ticks": 20, "cell_cost": 10, "distance_cost": 1 }
   ],
   "tags": ["self"],
   "pose": "held_out"
