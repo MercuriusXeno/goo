@@ -78,7 +78,13 @@ public enum EntityFilter {
      * every tick spaces its hits by the immunity each hit leaves, as Bore's
      * tunnel strike does (decision bore-vortex-with-a-worldspace-shake).
      */
-    VULNERABLE;
+    VULNERABLE,
+    /**
+     * Keeps a living entity the run's caster neither rallied nor charmed;
+     * Drain spares the caster's own minions
+     * (decision drain-skips-your-rallied-and-charmed-mobs).
+     */
+    NOT_OWN_MINION;
 
     private static final String WHAT = "entity filter";
 
