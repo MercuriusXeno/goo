@@ -21,7 +21,9 @@ final class SwarmStrike {
     }
 
     /**
-     * Tells the caster's watchers to launch this tick's gnats.
+     * Tells the caster's watchers to launch this tick's gnats, each carrying
+     * the caster's travel velocity.
+     * glove-stream-motes-carry-the-players-travel-velocity
      *
      * @param player    the streaming player
      * @param glove     the glove hand the gnats leave from
@@ -35,7 +37,8 @@ final class SwarmStrike {
         int preyId = chased.isEmpty() ? GnatSeekPayload.NO_PREY : chased.getFirst().getId();
         AABB block = SwarmMotes.moteTarget(crosshair);
         EntityVisuals.sendToWatchers(player, new GnatSeekPayload(player.getId(), glove, aim, delivery.coneDegrees(),
-                preyId, new Vec3(block.minX, block.minY, block.minZ), new Vec3(block.maxX, block.maxY, block.maxZ)));
+                preyId, new Vec3(block.minX, block.minY, block.minZ), new Vec3(block.maxX, block.maxY, block.maxZ),
+                GooStreamHandler.travelOf(player)));
     }
 
     /**

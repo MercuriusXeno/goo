@@ -6,7 +6,7 @@
   "cost": 500,
   "delivery": { "kind": "self", "ticks_per_charge": 20 },
   "behaviors": [
-    { "type": "grab", "range": 16, "hold_distance": 3, "throw_speed": 1.5, "pull_speed": 1, "pick_cone": 10 }
+    { "type": "grab", "range": 24, "hold_distance": 3, "throw_speed": 1.5, "pull_speed": 1, "pick_cone": 10 }
   ],
   "tags": ["self"],
   "pose": "held_out"
