@@ -256,6 +256,8 @@ public final class CrucibleTests {
     private static final String RESERVOIR_AT_CAP = "reservoir filled to the cap";
     private static final String UNFIT_GOO_STAY = "goo that did not fit stay in hand";
     private static final String PUDDLE_SHORT_OF_WALLS = "drawn %s for %d mB melted, %d mB unmelted";
+    /** The melting item's rock, a cobblestone's worth and well short of the spread volume. */
+    private static final int PUDDLE_ROCK = 12;
     /** Blaze goo stocked to buy heat: enough for every melt clock these tests run. */
     private static final int BLAZE_STOCK = 1_000;
     private static final double DROP_REACH = 2.0;
@@ -789,14 +791,16 @@ public final class CrucibleTests {
     }
 
     /**
-     * One cobblestone melting into an empty crucible draws a puddle short of the
-     * walls a few ticks in, not the whole floor (decision puddle-touches-walls-at-a-thousand).
+     * A melting item holding less than the spread volume, melting into an empty crucible, draws a puddle short of
+     * the walls a few ticks in, not the whole floor (decision puddle-touches-walls-at-a-thousand). The test owns
+     * the item's goo, so tuning cobblestone leaves it standing (decision no-test-asserts-a-shipped-base-value).
      *
      * @param helper the gametest helper
      */
     public static void firstMeltTicksDrawAPuddle(GameTestHelper helper) {
         CrucibleBlockEntity crucible = placeFueledCrucible(helper);
-        spawnInBasin(helper, new ItemStack(Items.COBBLESTONE));
+        spawnInBasin(helper, PartiallyMeltedItem.createWith(
+            new GooContents(Map.of(GooTypes.ROCK, PUDDLE_ROCK))));
         helper.runAfterDelay(ABSORB_DELAY, () -> {
             long melted = crucible.getSurfaceVolume();
             CrucibleBasin.PuddleFootprint drawn = CrucibleBasin.footprintForVolume(melted);
