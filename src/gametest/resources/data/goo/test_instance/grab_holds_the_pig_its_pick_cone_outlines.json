@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:grab_holds_a_sent_pig_inside_its_pick_cone",
+  "function": "goo:grab_holds_the_pig_its_pick_cone_outlines",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
   "max_ticks": 60,
