@@ -1,7 +1,7 @@
 plugins {
     id 'java-library'
     id 'maven-publish'
-    id 'net.neoforged.gradle.userdev' version '7.1.21'
+    id 'net.neoforged.moddev' version '2.0.148'
     id 'jacoco'
     id 'checkstyle'
     id 'pmd'
@@ -45,71 +45,92 @@ configurations {
     toolsRuntimeOnly.extendsFrom runtimeOnly
 }
 
-// Apply access transformers at compile time so AT-widened members are visible to javac
-minecraft.accessTransformers.file rootProject.file('src/main/resources/META-INF/accesstransformer.cfg')
+// Goo builds on ModDevGradle, NeoForge's recommended plugin (decision goo-build-switches-to-moddevgradle).
+neoForge {
+    version = neo_version
+    // Access transformers apply at compile time, so AT-widened members are visible to javac
+    accessTransformers = ['src/main/resources/META-INF/accesstransformer.cfg']
 
-runs {
-    configureEach {
-        systemProperty 'forge.logging.markers', 'REGISTRIES'
-        systemProperty 'forge.logging.console.level', 'debug'
-        systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
-        modSource project.sourceSets.main
-    }
-    client {
-        // 4GB heap + ZGC for low-latency recording sessions
-        jvmArguments.addAll '-Xmx4G', '-Xms4G', '-XX:+UseZGC', '-XX:+AlwaysPreTouch'
-        // The window title ends in this worktree's branch, so each running client names its own (decision dev-window-title-carries-the-branch)
-        var devBranch = providers.exec {
-            commandLine 'git', 'rev-parse', '--abbrev-ref', 'HEAD'
-            workingDir = project.projectDir
-            ignoreExitValue = true
-        }.standardOutput.asText.get().trim()
-        systemProperty 'goo.devBranch', devBranch
-    }
-    gameTestServer {
-        modSource project.sourceSets.gametest
-        // JUnit XML report for sca-digest.py consumption
-        arguments.addAll '--report', file("${buildDir.get()}/test-results/gameTest/TEST-gametest.xml").absolutePath
-        // -PgameTestSelect=goo:fx_program_* runs one selector instead of every registered test
-        if (project.hasProperty('gameTestSelect')) {
-            arguments.addAll '--tests', project.property('gameTestSelect').toString()
+    addModdingDependenciesTo sourceSets.gametest
+    addModdingDependenciesTo sourceSets.tools
+    addModdingDependenciesTo sourceSets.test
+
+    mods {
+        goo {
+            sourceSet sourceSets.main
         }
-        // Folder datapacks the gametest world loads, such as the seventeenth goo type; -PgameTestPacks=<folder>
-        // names another root. No workbench draft rides here: the in-game manager runs its dumps in-process
-        // (decision hosted-workbench-and-image-captures-leave-tools).
-        arguments.addAll '--packs', project.findProperty('gameTestPacks') ?: file('src/test/resources/datapacks').absolutePath
-        // The Goo Lab template that goo:lab_template_loads opens through the game's save loader
-        systemProperty 'goo.labTemplate', file('dev/lab').absolutePath
-        // JaCoCo agent so gametest coverage merges with unit-test coverage.
-        // The jacocoAgent configuration resolves to a wrapper jar; extract jacocoagent.jar from it.
-        var wrapperJar = configurations.jacocoAgent.singleFile
-        var agentJar = zipTree(wrapperJar).matching { include 'jacocoagent.jar' }.singleFile
-        jvmArguments.add("-javaagent:${agentJar}=destfile=${buildDir.get()}/jacoco/gameTest.exec,includes=com.mercuriusxeno.goo.*")
+        // The gametests register under the goo mod id, so the gameTestServer run loads them as part of goo
+        // (decision gametest-and-tools-source-sets).
+        gooWithGametests {
+            sourceSet sourceSets.main
+            sourceSet sourceSets.gametest
+        }
     }
-    clientData {
-        arguments.addAll '--mod', project.mod_id, '--all',
-            '--output', file('src/generated/resources/').absolutePath,
-            '--existing', file('src/main/resources/').absolutePath
+
+    runs {
+        configureEach { run ->
+            run.gameDirectory = file("runs/${run.name}")
+            run.loadedMods = [mods.goo]
+            run.logLevel = org.slf4j.event.Level.DEBUG
+            run.systemProperty 'forge.logging.markers', 'REGISTRIES'
+            run.systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+        client {
+            client()
+            // 4GB heap + ZGC for low-latency recording sessions
+            jvmArguments.addAll '-Xmx4G', '-Xms4G', '-XX:+UseZGC', '-XX:+AlwaysPreTouch'
+            // The window title ends in this worktree's branch, so each running client names its own (decision dev-window-title-carries-the-branch)
+            var devBranch = providers.exec {
+                commandLine 'git', 'rev-parse', '--abbrev-ref', 'HEAD'
+                workingDir = project.projectDir
+                ignoreExitValue = true
+            }.standardOutput.asText.get().trim()
+            systemProperty 'goo.devBranch', devBranch
+        }
+        gameTestServer {
+            type = 'gameTestServer'
+            sourceSet = sourceSets.gametest
+            loadedMods = [mods.gooWithGametests]
+            // JUnit XML report for sca-digest.py consumption
+            programArguments.addAll '--report', file("${buildDir.get()}/test-results/gameTest/TEST-gametest.xml").absolutePath
+            // -PgameTestSelect=goo:fx_program_* runs one selector instead of every registered test
+            if (project.hasProperty('gameTestSelect')) {
+                programArguments.addAll '--tests', project.property('gameTestSelect').toString()
+            }
+            // Folder datapacks the gametest world loads, such as the seventeenth goo type; -PgameTestPacks=<folder>
+            // names another root. No workbench draft rides here: the in-game manager runs its dumps in-process
+            // (decision hosted-workbench-and-image-captures-leave-tools).
+            programArguments.addAll '--packs', (project.findProperty('gameTestPacks') ?: file('src/test/resources/datapacks').absolutePath).toString()
+            // The Goo Lab template that goo:lab_template_loads opens through the game's save loader
+            systemProperty 'goo.labTemplate', file('dev/lab').absolutePath
+            // JaCoCo agent so gametest coverage merges with unit-test coverage.
+            // The jacocoAgent configuration resolves to a wrapper jar; extract jacocoagent.jar from it.
+            var wrapperJar = configurations.jacocoAgent.singleFile
+            var agentJar = zipTree(wrapperJar).matching { include 'jacocoagent.jar' }.singleFile
+            jvmArgument "-javaagent:${agentJar}=destfile=${buildDir.get()}/jacoco/gameTest.exec,includes=com.mercuriusxeno.goo.*".toString()
+        }
+        clientData {
+            clientData()
+            programArguments.addAll '--mod', project.mod_id, '--all',
+                '--output', file('src/generated/resources/').absolutePath,
+                '--existing', file('src/main/resources/').absolutePath
+        }
     }
 }
 
 // JUnitLikeTestReporter writes the XML without creating parent dirs first.
-// afterEvaluate defers the lookup until NeoGradle has registered runGameTestServer.
-afterEvaluate {
-    tasks.named('runGameTestServer').configure {
-        var reportDir = file("${buildDir.get()}/test-results/gameTest")
-        doFirst { reportDir.mkdirs() }
-        // GooValues.attach derives values only when no cache file stands, so a cache left by an
-        // earlier run would serve values from before the current data; each run derives afresh.
-        var valueCache = file('runs/gameTestServer/config/goo_derived_values.json')
-        doFirst { valueCache.delete() }
-    }
+tasks.named('runGameTestServer').configure {
+    var reportDir = file("${buildDir.get()}/test-results/gameTest")
+    doFirst { reportDir.mkdirs() }
+    // GooValues.attach derives values only when no cache file stands, so a cache left by an
+    // earlier run would serve values from before the current data; each run derives afresh.
+    var valueCache = file('runs/gameTestServer/config/goo_derived_values.json')
+    doFirst { valueCache.delete() }
 }
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 dependencies {
-    implementation "net.neoforged:neoforge:${neo_version}"
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
     // MinecraftBootstrapSession implements the launcher's session listener
     testImplementation 'org.junit.platform:junit-platform-launcher'
@@ -334,11 +355,9 @@ tasks.register('seedFirstLaunchOptions') {
     }
 }
 
-afterEvaluate {
-    tasks.named('runClient').configure {
-        dependsOn 'seedLab', 'seedSoundOptions', 'seedFirstLaunchOptions'
-        finalizedBy 'saveSoundOptions'
-    }
+tasks.named('runClient').configure {
+    dependsOn 'seedLab', 'seedSoundOptions', 'seedFirstLaunchOptions'
+    finalizedBy 'saveSoundOptions'
 }
 
 // The save is scratch: freshLab deletes it so the next runClient reseeds it (decision lab-save-is-disposable)
@@ -371,21 +390,11 @@ tasks.withType(ProcessResources).configureEach {
     }
 }
 
-// UTF-8 applies everywhere; deprecation-as-error is scoped to mod sources so
-// NeoGradle's transformed-vanilla recompile step stays clean of vanilla's
-// own deprecated internals.
+// UTF-8 applies everywhere; deprecation-as-error is scoped to the four mod compile tasks.
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     if (name in ['compileJava', 'compileTestJava', 'compileGametestJava', 'compileToolsJava']) {
         options.compilerArgs += ['-Xlint:deprecation', '-Werror']
-    }
-}
-
-// NeoGradle run init scripts use Task.project and Gradle.addListener at execution
-// time, which the configuration cache rejects in Gradle 9.
-tasks.configureEach {
-    if (name.contains('net.neoforged.fml.startup')) {
-        notCompatibleWithConfigurationCache('NeoGradle run tasks use Task.project at execution time')
     }
 }
 

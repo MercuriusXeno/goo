@@ -17,14 +17,21 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * The slime coat's bounce: a landing with jump held launches higher than it
  * arrived and higher than the bounce before, ramping each bounce; without
- * jump held the bounce decays, and sneaking decays it far faster; each
- * bounce sounds a boing made of the vanilla slime sounds
- * (decision bounce-ramps-jump-height-while-jump-is-held).
+ * jump held the bounce is near-lossless, and sneaking dampens it as the
+ * neutral bounce once did; each
+ * bounce sounds a boing made of the vanilla slime sounds; a standing jump
+ * held reaches the ceiling on the fourth bounce
+ * (decisions bounce-ramps-jump-height-while-jump-is-held,
+ * ramp-tops-out-on-the-fourth-held-bounce-at-fourteen-blocks).
  */
 class SlimeCoatBounceTest {
 
     private static final double ARRIVING = 0.5;
     private static final double NO_PREVIOUS = 0;
+    /** A standing jump's upward speed in blocks a tick, the fall a first held bounce catches. */
+    private static final double STANDING_JUMP = 0.42;
+    /** The share of its fall the neutral bounce kept before it went near-lossless, which sneaking now keeps. */
+    private static final double FORMER_NEUTRAL_DECAY = 0.7;
     private static final String SOUNDS_JSON = "/assets/goo/sounds.json";
     private static final String VANILLA_SLIME = "minecraft:mob/slime/";
 
@@ -62,6 +69,29 @@ class SlimeCoatBounceTest {
 
             assertEquals(SlimeCoatBounce.HIGHEST_LAUNCH, launch, 1e-9);
         }
+
+        @Test
+        void eachHeldBounceLaunchesHalfAgainTheLast() {
+            double launch = SlimeCoatBounce.launch(STANDING_JUMP, NO_PREVIOUS, true, false);
+
+            assertEquals(STANDING_JUMP * 1.5, launch, 1e-9);
+            assertEquals(launch * 1.5, SlimeCoatBounce.launch(STANDING_JUMP, launch, true, false), 1e-9);
+        }
+
+        @Test
+        void aStandingJumpReachesTheCeilingOnTheFourthHeldBounce() {
+            double launch = NO_PREVIOUS;
+            double third = 0;
+            for (int bounce = 1; bounce <= 4; bounce++) {
+                launch = SlimeCoatBounce.launch(STANDING_JUMP, launch, true, false);
+                if (bounce == 3) {
+                    third = launch;
+                }
+            }
+
+            assertTrue(third < SlimeCoatBounce.HIGHEST_LAUNCH, "the third launch " + third + " reached the ceiling");
+            assertEquals(SlimeCoatBounce.HIGHEST_LAUNCH, launch, 1e-9);
+        }
     }
 
     @Nested
@@ -72,6 +102,18 @@ class SlimeCoatBounceTest {
             double launch = SlimeCoatBounce.launch(ARRIVING, 1.2, false, false);
 
             assertEquals(ARRIVING * SlimeCoatBounce.RELEASED_DECAY, launch, 1e-9);
+        }
+
+        /** decision neutral-bounce-is-near-lossless-and-bounces-every-entity */
+        @Test
+        void twentyBouncesKeepMoreThanHalfTheFirst() {
+            double first = SlimeCoatBounce.launch(ARRIVING, NO_PREVIOUS, false, false);
+            double launch = first;
+            for (int bounce = 2; bounce <= 20; bounce++) {
+                launch = SlimeCoatBounce.launch(launch, launch, false, false);
+            }
+
+            assertTrue(launch > first / 2, "the twentieth bounce launched " + launch + " after a first of " + first);
         }
 
         @Test
@@ -245,13 +287,26 @@ class SlimeCoatBounceTest {
     @Nested
     class Sneaking {
 
+        /** decision sneak-bounce-dampens-as-the-neutral-bounce-did */
         @Test
-        void decaysFarFasterThanAReleasedJump() {
+        void dampensAsTheNeutralBounceDidBefore() {
             double sneaking = SlimeCoatBounce.launch(ARRIVING, NO_PREVIOUS, false, true);
 
-            assertEquals(ARRIVING * SlimeCoatBounce.SNEAK_DECAY, sneaking, 1e-9);
-            assertTrue(SlimeCoatBounce.SNEAK_DECAY * 2 < SlimeCoatBounce.RELEASED_DECAY,
-                    "sneaking should decay at least twice as hard as a released jump");
+            assertEquals(FORMER_NEUTRAL_DECAY, SlimeCoatBounce.SNEAK_DECAY, 1e-9);
+            assertEquals(ARRIVING * FORMER_NEUTRAL_DECAY, sneaking, 1e-9);
+            assertTrue(SlimeCoatBounce.SNEAK_DECAY < SlimeCoatBounce.RELEASED_DECAY,
+                    "sneaking should dampen below the neutral bounce");
+        }
+
+        /** decision sneak-bounce-dampens-as-the-neutral-bounce-did */
+        @Test
+        void everyInputSendsALanderBackUp() {
+            for (boolean jumpHeld : new boolean[] {false, true}) {
+                for (boolean sneaking : new boolean[] {false, true}) {
+                    double launch = SlimeCoatBounce.launch(ARRIVING, NO_PREVIOUS, jumpHeld, sneaking);
+                    assertTrue(launch > 0, "jump " + jumpHeld + ", sneak " + sneaking + " launched " + launch);
+                }
+            }
         }
 
         @Test

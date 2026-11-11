@@ -2,6 +2,10 @@ package com.mercuriusxeno.goo.client.network;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.ability.AbilityPoses;
+import com.mercuriusxeno.goo.client.ability.ClientGateCarry;
+import com.mercuriusxeno.goo.client.ability.ClientHoles;
+import com.mercuriusxeno.goo.client.ability.ClientPortals;
+import com.mercuriusxeno.goo.client.ability.ClientRoomEdges;
 import com.mercuriusxeno.goo.client.ability.GlassKnives;
 import com.mercuriusxeno.goo.client.ability.GnatSeek;
 import com.mercuriusxeno.goo.client.ability.HeaterFlames;
@@ -9,12 +13,16 @@ import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
 import com.mercuriusxeno.goo.client.ability.LeechWisps;
 import com.mercuriusxeno.goo.client.ability.MeltAbsorbs;
 import com.mercuriusxeno.goo.client.ability.MeteorScorches;
+import com.mercuriusxeno.goo.client.ability.PartnerView;
 import com.mercuriusxeno.goo.client.ability.ReapSlashBlades;
 import com.mercuriusxeno.goo.client.ability.ReapSwells;
+import com.mercuriusxeno.goo.client.ability.ScanVisuals;
+import com.mercuriusxeno.goo.client.ability.StreamMotes;
 import com.mercuriusxeno.goo.client.ability.SunbeamVisual;
 import com.mercuriusxeno.goo.client.ability.Tomes;
 import com.mercuriusxeno.goo.client.ability.VitalityVisual;
-import com.mercuriusxeno.goo.client.pocket.PocketScreens;
+import com.mercuriusxeno.goo.client.hole.ClientPortableHoles;
+import com.mercuriusxeno.goo.client.outsider.ClientConjuredDoors;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.network.AfterimagePayload;
 import com.mercuriusxeno.goo.network.AilmentPayload;
@@ -23,7 +31,8 @@ import com.mercuriusxeno.goo.network.BlockAfterimagePayload;
 import com.mercuriusxeno.goo.network.BlockExposurePayload;
 import com.mercuriusxeno.goo.network.BlockTransformPayload;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
-import com.mercuriusxeno.goo.network.DrinkPayload;
+import com.mercuriusxeno.goo.network.ConjuredDoorPayload;
+import com.mercuriusxeno.goo.network.GateCarriedPayload;
 import com.mercuriusxeno.goo.network.GhostTrailPayload;
 import com.mercuriusxeno.goo.network.GlassKnifePayload;
 import com.mercuriusxeno.goo.network.GnatSeekPayload;
@@ -31,6 +40,7 @@ import com.mercuriusxeno.goo.network.GooFlightPayload;
 import com.mercuriusxeno.goo.network.GooValueSyncPayload;
 import com.mercuriusxeno.goo.network.HeaterFlamePayload;
 import com.mercuriusxeno.goo.network.HeldSweepPayload;
+import com.mercuriusxeno.goo.network.HolesSyncPayload;
 import com.mercuriusxeno.goo.network.KnownItemLearnedPayload;
 import com.mercuriusxeno.goo.network.KnownItemsSyncPayload;
 import com.mercuriusxeno.goo.network.LeechPayload;
@@ -43,16 +53,22 @@ import com.mercuriusxeno.goo.network.NovaRingPayload;
 import com.mercuriusxeno.goo.network.OpenNamingScreenPayload;
 import com.mercuriusxeno.goo.network.OpenValuesManagerPayload;
 import com.mercuriusxeno.goo.network.OreRevealPayload;
-import com.mercuriusxeno.goo.network.PocketContentsPayload;
+import com.mercuriusxeno.goo.network.PartnerChunkPayload;
+import com.mercuriusxeno.goo.network.PartnerChunksDropPayload;
+import com.mercuriusxeno.goo.network.PortableHolesSyncPayload;
+import com.mercuriusxeno.goo.network.PortalsSyncPayload;
 import com.mercuriusxeno.goo.network.ReapSlashPayload;
 import com.mercuriusxeno.goo.network.ReapSwellPayload;
+import com.mercuriusxeno.goo.network.RoomEdgesSyncPayload;
+import com.mercuriusxeno.goo.network.ScanWavePayload;
 import com.mercuriusxeno.goo.network.SculkerHeardPayload;
+import com.mercuriusxeno.goo.network.SculkerVibrationPayload;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
+import com.mercuriusxeno.goo.network.StreamMotesPayload;
 import com.mercuriusxeno.goo.network.SunbeamPayload;
 import com.mercuriusxeno.goo.network.TomePayload;
 import com.mercuriusxeno.goo.network.TransformationPayload;
 import com.mercuriusxeno.goo.network.TunerFeedbackPayload;
-import com.mercuriusxeno.goo.network.UnmadePayload;
 import com.mercuriusxeno.goo.network.WorkbenchReplyPayload;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -86,7 +102,14 @@ public final class GooClientNetworking {
         event.register(KnownItemLearnedPayload.TYPE, KnownItemsHandler::handleLearned);
         event.register(OpenValuesManagerPayload.TYPE, ValuesManagerHandlers::handleOpen);
         event.register(WorkbenchReplyPayload.TYPE, ValuesManagerHandlers::handleReply);
-        event.register(PocketContentsPayload.TYPE, PocketScreens::handleContents);
+        event.register(PortalsSyncPayload.TYPE, ClientPortals::handle);
+        event.register(HolesSyncPayload.TYPE, ClientHoles::handle);
+        event.register(RoomEdgesSyncPayload.TYPE, ClientRoomEdges::handle);
+        event.register(ConjuredDoorPayload.TYPE, ClientConjuredDoors::handle);
+        event.register(GateCarriedPayload.TYPE, ClientGateCarry::handle);
+        event.register(PartnerChunkPayload.TYPE, PartnerView::handle);
+        event.register(PartnerChunksDropPayload.TYPE, PartnerView::handleDrop);
+        event.register(PortableHolesSyncPayload.TYPE, ClientPortableHoles::handle);
         registerAbilityVisualHandlers(event);
     }
 
@@ -99,8 +122,7 @@ public final class GooClientNetworking {
         event.register(ChainBurnoutPayload.TYPE, ChainBurnoutHandler::handle);
         event.register(LurkerPulsePayload.TYPE, LurkerPulseHandler::handle);
         event.register(SculkerHeardPayload.TYPE, SculkerHeardHandler::handle);
-        event.register(DrinkPayload.TYPE, UnmakeHandler::handleDrink);
-        event.register(UnmadePayload.TYPE, UnmakeHandler::handleUnmade);
+        event.register(SculkerVibrationPayload.TYPE, SculkerVibrationHandler::handle);
         registerEffectHandlers(event);
     }
 
@@ -121,6 +143,7 @@ public final class GooClientNetworking {
         event.register(GhostTrailPayload.TYPE, GhostTrailHandler::handle);
         event.register(StreamHealedPayload.TYPE, VitalityVisual::handleHealed);
         event.register(GnatSeekPayload.TYPE, GnatSeek::handle);
+        event.register(StreamMotesPayload.TYPE, StreamMotes::handle);
         event.register(BlockAfterimagePayload.TYPE, AfterimageHandler::handleBlock);
     }
 
@@ -146,5 +169,6 @@ public final class GooClientNetworking {
         event.register(MeteorScorchPayload.TYPE, MeteorScorches::onPayload);
         event.register(GlassKnifePayload.TYPE, GlassKnives::onPayload);
         event.register(ArmPosePayload.TYPE, AbilityPoses::onPayload);
+        event.register(ScanWavePayload.TYPE, ScanVisuals::onPayload);
     }
 }

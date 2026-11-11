@@ -49,7 +49,6 @@ public final class StepTypes {
         register(LeafSteps.WAIT.type());
         register(AwaitEntityStep.TYPE);
         register(WatchStep.TYPE);
-        register(SiphonStep.TYPE);
         register(BusterStep.TYPE);
         register(ExplodeStep.TYPE);
         register(DamageStep.TYPE);
@@ -60,9 +59,11 @@ public final class StepTypes {
         register(FreezeBlocksStep.TYPE);
         register(CoolLavaStep.TYPE);
         register(CoatStep.TYPE);
+        register(SlickStep.TYPE);
         register(WobbleStep.TYPE);
         register(DetectOreStep.TYPE);
         register(WindStep.TYPE);
+        register(HexMistStep.TYPE);
         register(BreakBlocksStep.TYPE);
         register(ExtinguishStep.TYPE);
         register(TravelingStep.TYPE);
@@ -136,11 +137,14 @@ public final class StepTypes {
         register(ShifterStep.TYPE);
         register(ShriekStep.TYPE);
         register(SculkerStep.TYPE);
+        register(LeaderStep.TYPE);
+        register(VibrateStep.TYPE);
+        register(ScanVisualStep.TYPE);
         register(EndStep.TYPE);
-        register(PocketOpenStep.TYPE);
+        register(HoleOpenStep.TYPE);
         register(OutsiderStep.TYPE);
         register(MeteorStep.TYPE);
-        register(PhaseBlocksStep.TYPE);
+        register(WormholeStep.TYPE);
         register(RootStep.TYPE);
         register(HitOrMissStep.TYPE);
         register(BloomStep.TYPE);
@@ -152,7 +156,7 @@ public final class StepTypes {
         register(SlashStep.TYPE);
         register(CharmStep.TYPE);
         register(PhaseStep.TYPE);
-        register(QuantumAnchorStep.TYPE);
+        register(PortalStep.TYPE);
         register(QuantumSwapStep.TYPE);
         register(QuantumLinkStep.TYPE);
         register(LeafSteps.ENCHANT_BOOK.type());

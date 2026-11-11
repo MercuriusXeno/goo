@@ -91,6 +91,8 @@ public final class AbilityManagerTests {
                 if (Files.isRegularFile(valuesAside)) {
                     Files.move(valuesAside, paths.draft(), StandardCopyOption.REPLACE_EXISTING);
                 }
+                // The promote and discard lay the values draft over the gametests' owned values; lay them back.
+                GametestOwnedValues.apply(server);
             }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -121,6 +123,9 @@ public final class AbilityManagerTests {
                     + heldCost + ", not the shipped " + shippedCost);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
+        } finally {
+            // The discard lays the values draft over the gametests' owned values; lay them back.
+            GametestOwnedValues.apply(server);
         }
         helper.succeed();
     }

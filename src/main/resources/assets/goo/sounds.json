@@ -74,6 +74,16 @@
       }
     ]
   },
+  "ability.click": {
+    "category": "blocks",
+    "subtitle": "subtitles.block.comparator.click",
+    "sounds": [
+      {
+        "name": "minecraft:block.comparator.click",
+        "type": "event"
+      }
+    ]
+  },
   "effects.earth_rumble": {
     "category": "blocks",
     "subtitle": "subtitles.goo.earth_rumble",
@@ -88,6 +98,62 @@
       },
       {
         "name": "goo:effects/earth_rumble3",
+        "stream": false
+      }
+    ]
+  },
+  "effects.portal_place": {
+    "category": "blocks",
+    "subtitle": "subtitles.goo.portal_place",
+    "sounds": [
+      {
+        "name": "goo:effects/portal_place",
+        "stream": false
+      }
+    ]
+  },
+  "effects.portal_cross": {
+    "category": "blocks",
+    "subtitle": "subtitles.goo.portal_cross",
+    "sounds": [
+      {
+        "name": "goo:effects/portal_cross",
+        "stream": false
+      }
+    ]
+  },
+  "effects.portal_hum": {
+    "category": "blocks",
+    "subtitle": "subtitles.goo.portal_hum",
+    "sounds": [
+      {
+        "name": "goo:effects/portal_hum",
+        "volume": 0.4,
+        "attenuation_distance": 10,
+        "stream": false
+      }
+    ]
+  },
+  "effects.outsider_wub": {
+    "category": "players",
+    "subtitle": "subtitles.goo.outsider_wub",
+    "sounds": [
+      {
+        "name": "goo:effects/outsider_wub",
+        "stream": false
+      },
+      {
+        "name": "goo:effects/outsider_wub2",
+        "stream": false
+      }
+    ]
+  },
+  "effects.outsider_conjure": {
+    "category": "players",
+    "subtitle": "subtitles.goo.outsider_conjure",
+    "sounds": [
+      {
+        "name": "goo:effects/outsider_conjure",
         "stream": false
       }
     ]

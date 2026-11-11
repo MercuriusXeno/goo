@@ -37,6 +37,49 @@ public final class GooSoundIds {
      */
     public static final Identifier EARTH_RUMBLE = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.earth_rumble");
 
+    /**
+     * Click's click: vanilla's comparator click under an id of the mod's own,
+     * so Sculker's sub-rank table rings it at 15 and a real comparator keeps
+     * its own rank (decision sculker-echo-intensity-follows-vibration-rank).
+     */
+    public static final Identifier CLICK = Identifier.fromNamespaceAndPath(Goo.MODID, "ability.click");
+
+    /**
+     * A portal standing: the mod's own synthesized zap opening into a brief
+     * hum, like a portal gun shot landing
+     * (decision portal-placement-plays-a-zap-that-opens-into-a-hum).
+     */
+    public static final Identifier PORTAL_PLACE = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.portal_place");
+
+    /**
+     * A body stepping through a portal or a wormhole mouth: the mod's own
+     * synthesized quick soft airy whoosh, at both ends
+     * (decision stepping-through-plays-a-soft-whoosh-at-both-ends).
+     */
+    public static final Identifier PORTAL_CROSS = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.portal_cross");
+
+    /**
+     * A standing portal or wormhole mouth: the mod's own synthesized soft
+     * ambient hum, one seamless loop
+     * (decision standing-portals-loop-a-soft-ambient-hum).
+     */
+    public static final Identifier PORTAL_HUM = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.portal_hum");
+
+    /**
+     * An Outsider room gaining a full block on every side: a dull low wub,
+     * a synthesized placeholder the operator may swap
+     * (decision full-block-growth-wubs-and-raises-void-motes).
+     */
+    public static final Identifier OUTSIDER_WUB = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.outsider_wub");
+
+    /**
+     * A door conjured before a player channeling Outsider toward the pocket:
+     * a rising shimmer, a synthesized placeholder the operator may swap
+     * (decision channeling-to-the-pocket-conjures-a-door-that-envelops-the-player).
+     */
+    public static final Identifier OUTSIDER_CONJURE =
+            Identifier.fromNamespaceAndPath(Goo.MODID, "effects.outsider_conjure");
+
     private GooSoundIds() {
     }
 }

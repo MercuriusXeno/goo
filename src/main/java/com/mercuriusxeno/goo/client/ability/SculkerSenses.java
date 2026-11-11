@@ -28,7 +28,7 @@ import java.util.Map;
 
 /**
  * What a Sculker senses, while its brew stands. Every sound heard sends its
- * rings out across the block faces open to air near its source, whose
+ * rings out at its vibration rank across the block faces open to air near its source, whose
  * blocks SculkerEchoRenderer draws tinted sculk teal ({@link SculkerEchoes}).
  * A mob that makes a sound shows a soft blurred sculk-teal glow around its
  * body, through walls, for its outline's time, fading; all of it draws
@@ -37,6 +37,7 @@ import java.util.Map;
  * from anywhere within render distance. The brew's end
  * forgets it all.
  * decision sculker-sight-persists-where-echoes-have-touched
+ * decision sculker-echo-intensity-follows-vibration-rank
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class SculkerSenses {
@@ -48,6 +49,8 @@ public final class SculkerSenses {
     private static final int BLOCKS_PER_CHUNK = 16;
 
     private static final SculkerEchoes ECHOES = new SculkerEchoes();
+    /** Joins each sound heard to the vibration the server forwards for it, so it rings once at its rank. */
+    private static final SculkerNoises NOISES = new SculkerNoises(SculkerSoundRanks.shipped(), SculkerSenses::ring);
     /** Each mob heard making a sound, by entity id. */
     private static final Map<Integer, Heard> HEARD = new HashMap<>();
 
@@ -138,10 +141,12 @@ public final class SculkerSenses {
         ClientLevel level = mc.level;
         if (player == null || level == null || !SculkerSwim.dives(player)) {
             ECHOES.clear();
+            NOISES.clear();
             HEARD.clear();
             return;
         }
         long now = level.getGameTime();
+        NOISES.advance(now);
         ECHOES.advance(now, pos -> lightsUp(level, pos), pos -> passesSound(level, pos));
         HEARD.entrySet().removeIf(heard -> level.getEntity(heard.getKey()) == null || now >= heard.getValue().fadedAt());
     }
@@ -154,66 +159,60 @@ public final class SculkerSenses {
      */
     @SubscribeEvent
     public static void onPlaySound(PlaySoundEvent event) {
-        Minecraft mc = Minecraft.getInstance();
-        LocalPlayer player = mc.player;
-        if (player == null || mc.level == null || event.getSound() == null || !SculkerSwim.dives(player)) {
-            return;
-        }
         SoundInstance sound = event.getSound();
-        float loudness = loudnessOf(mc, sound);
-        hear(new Vec3(sound.getX(), sound.getY(), sound.getZ()), loudness, rangeOf(sound, loudness));
-    }
-
-    /**
-     * How far a sound carries, as its own attenuation reaches: its
-     * attenuation distance, times its loudness past ordinary.
-     *
-     * @param sound    the sound, resolved
-     * @param loudness its loudness
-     * @return its range, in blocks
-     */
-    private static double rangeOf(SoundInstance sound, float loudness) {
-        return sound.getSound() == null ? SculkerEchoes.rangeFor(loudness)
-                : sound.getSound().getAttenuationDistance() * Math.max(1f, loudness);
-    }
-
-    /**
-     * A sound's loudness: its volume, 1 for an ordinary sound, read once the
-     * sound has been resolved to the file it plays.
-     *
-     * @param mc    the client
-     * @param sound the sound about to play
-     * @return its loudness
-     */
-    private static float loudnessOf(Minecraft mc, SoundInstance sound) {
-        if (sound.getSound() == null) {
-            sound.resolve(mc.getSoundManager());
+        if (sound != null) {
+            hear(sound.getIdentifier().toString(), new Vec3(sound.getX(), sound.getY(), sound.getZ()));
         }
-        return sound.getSound() == null ? 1f : sound.getVolume();
     }
 
     /**
-     * Hears a sound within render distance: its rings ripple out of its
-     * source, and every mob standing at the source outlines, as a sound the
-     * game plays or one the server carries from far off alike.
+     * Hears a sound within render distance, one the game plays or one the
+     * server carries from far off alike; it rings once its rank is known
+     * ({@link SculkerNoises}), whatever volume it plays at.
      *
-     * @param at       where the sound played
-     * @param loudness its loudness, 1 for an ordinary sound
-     * @param range    how far it carries, in blocks
+     * @param sound the sound's id
+     * @param at    where it played
      */
-    public static void hear(Vec3 at, float loudness, double range) {
+    public static void hear(String sound, Vec3 at) {
         Minecraft mc = Minecraft.getInstance();
-        LocalPlayer player = mc.player;
-        if (!hearsAt(mc, at)) {
+        if (hearsAt(mc, at)) {
+            NOISES.sound(sound, at, mc.level.getGameTime());
+        }
+    }
+
+    /**
+     * Takes a vibration the server forwards, which lends its frequency to
+     * the sound its noise played.
+     *
+     * @param at   where it went off
+     * @param rank its vibration frequency
+     */
+    public static void feel(Vec3 at, int rank) {
+        Minecraft mc = Minecraft.getInstance();
+        if (hearsAt(mc, at)) {
+            NOISES.vibration(at, mc.level.getGameTime(), rank);
+        }
+    }
+
+    /**
+     * Rings a noise at its rank: its rings ripple out of its source, and
+     * every mob standing at the source outlines for as long as the rank holds.
+     *
+     * @param at      where its sound played
+     * @param heardAt the game time its sound was heard
+     * @param rank    its rank
+     */
+    private static void ring(Vec3 at, long heardAt, int rank) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) {
             return;
         }
-        long now = mc.level.getGameTime();
-        ECHOES.hear(at, now, loudness, range);
-        List<Entity> mobs = mc.level.getEntities(player, new AABB(at, at).inflate(SOUND_OWNER_REACH),
+        ECHOES.hear(at, heardAt, rank);
+        List<Entity> mobs = mc.level.getEntities(mc.player, new AABB(at, at).inflate(SOUND_OWNER_REACH),
                 LivingEntity.class::isInstance);
-        int ticks = SculkerEchoes.outlineTicksFor(loudness);
+        int ticks = SculkerEchoes.outlineTicksFor(rank);
         for (Entity mob : mobs) {
-            HEARD.merge(mob.getId(), new Heard(now, ticks),
+            HEARD.merge(mob.getId(), new Heard(heardAt, ticks),
                     (old, fresh) -> fresh.fadedAt() >= old.fadedAt() ? fresh : old);
         }
     }

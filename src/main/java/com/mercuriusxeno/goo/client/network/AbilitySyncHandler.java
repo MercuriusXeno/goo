@@ -13,21 +13,15 @@ import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.ExtenderStep;
-import com.mercuriusxeno.goo.ability.program.PocketOpenStep;
 import com.mercuriusxeno.goo.ability.program.SpireStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.TerrakinesisStep;
-import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.client.ClientGooValues;
 import com.mercuriusxeno.goo.client.throwing.BlinkAim;
-import com.mercuriusxeno.goo.data.GooFraction;
-import com.mercuriusxeno.goo.data.GooValue;
-import com.mercuriusxeno.goo.data.IGooValueLookup;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
-import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -36,6 +30,7 @@ import java.util.IllegalFormatException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 /**
  * Client-side handler for the ability sync payload. Hands the abilities to
@@ -126,6 +121,8 @@ public final class AbilitySyncHandler {
      *                    (decision zero-cost-field-formats-the-cost-mechanics)
      * @param costFormula the short formula a dynamically priced ability's petal reads, empty for none
      *                    (decision dynamic-costs-keep-the-mb-quantity)
+     * @param freeWhile   the self ability whose standing makes a throw free, empty for none
+     *                    (decision click-costs-one-mb-and-nothing-under-sculker)
      */
     public record ClientAbility(Identifier id, String displayName, String icon,
                                 int order, List<String> tags,
@@ -133,7 +130,43 @@ public final class AbilitySyncHandler {
                                 AbilityBadge badge, List<Identifier> requires, AbilityArea area,
                                 IndicatorShowing indicator, List<Identifier> consumes, AbilityPrice upkeepPrice,
                                 DistancePrice distancePrice, List<Step> onPrism, ArmPose pose, String description,
-                                Optional<String> costMechanics, Optional<String> costFormula) {
+                                Optional<String> costMechanics, Optional<String> costFormula,
+                                Optional<Identifier> freeWhile) {
+
+        /**
+         * A client ability no standing self ability makes free.
+         *
+         * @param id            the ability resource identifier
+         * @param displayName   the translation key
+         * @param icon          the icon texture path override
+         * @param order         the sort order
+         * @param tags          categorical tags
+         * @param behaviors     the ability's step program
+         * @param costPrice     what a throw costs
+         * @param delivery      how the ability leaves the glove
+         * @param badge         the target kind the radial marks on the icon
+         * @param requires      the items the player must know before its radial petal unlocks
+         * @param area          the area the glove draws while right click is held
+         * @param indicator     when the ability's indicator shows
+         * @param consumes      the items a throw takes, one of each
+         * @param upkeepPrice   what a held durative effect pays each tick it stands
+         * @param distancePrice what a blink adds to the cost for its trip
+         * @param onPrism       the steps a landing on a prism runs, empty for none
+         * @param pose          the arm pose the glove arm takes in place of the swing
+         * @param description   the translation key for what the ability does
+         * @param costMechanics the format key explaining how a zero-cost ability charges, empty for none
+         * @param costFormula   the short formula a dynamically priced ability's petal reads, empty for none
+         */
+        public ClientAbility(Identifier id, String displayName, String icon, int order, List<String> tags,
+                             List<Step> behaviors, AbilityPrice costPrice, Delivery delivery, AbilityBadge badge,
+                             List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
+                             List<Identifier> consumes, AbilityPrice upkeepPrice, DistancePrice distancePrice,
+                             List<Step> onPrism, ArmPose pose, String description, Optional<String> costMechanics,
+                             Optional<String> costFormula) {
+            this(id, displayName, icon, order, tags, behaviors, costPrice, delivery, badge, requires, area,
+                    indicator, consumes, upkeepPrice, distancePrice, onPrism, pose, description, costMechanics,
+                    costFormula, Optional.empty());
+        }
 
         /**
          * A client ability whose cost and upkeep are whole numbers of mB.
@@ -206,7 +239,6 @@ public final class AbilitySyncHandler {
         private static final String PER_SECOND = "/s";
         private static final String COUNT_SEPARATOR = " | ";
         private static final String NO_COUNT = "";
-        private static final Identifier SPIRE_BLOCK = Identifier.withDefaultNamespace("stone");
 
         /**
          * A client ability naming no cost mechanics.
@@ -452,7 +484,20 @@ public final class AbilitySyncHandler {
                     entry.order(), entry.tags(), entry.behaviors(),
                     entry.cost(), entry.delivery(), entry.badge(), entry.requires(), entry.area(),
                     entry.indicator(), entry.consumes(), entry.upkeep(), entry.distancePrice(), entry.onPrism(),
-                    entry.pose(), entry.description(), entry.costMechanics(), entry.costFormula());
+                    entry.pose(), entry.description(), entry.costMechanics(), entry.costFormula(),
+                    entry.freeWhile());
+        }
+
+        /**
+         * Whether a throw costs nothing now, the self ability this one names
+         * standing on the thrower.
+         * click-costs-one-mb-and-nothing-under-sculker
+         *
+         * @param stands whether a self ability, by id, stands on the thrower now
+         * @return true while that ability stands
+         */
+        public boolean freeFor(Predicate<Identifier> stands) {
+            return freeWhile.filter(stands).isPresent();
         }
 
         /**
@@ -525,7 +570,9 @@ public final class AbilitySyncHandler {
                 return GooFormat.formatAmount(upkeepPerSecond()) + PER_SECOND;
             }
             // dynamic-costs-keep-the-mb-quantity: nothing up front reads the formula, never a zero
-            if (costPrice.isFree() && costFormula.isPresent()) {
+            // spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block: a per-block price reads it too
+            // click-costs-one-mb-and-nothing-under-sculker: a price a standing ability waives reads its rule too
+            if ((costPrice.isFree() || pricedPerBlockGrown() || freeWhile.isPresent()) && costFormula.isPresent()) {
                 return formula().orElseThrow();
             }
             // panel-and-petals-count-uses-or-seconds: a stream or channel reads its cost a second
@@ -558,9 +605,10 @@ public final class AbilitySyncHandler {
         /**
          * The short formula the petal and the panel read, its number filled
          * from the ability's own numbers so it stays true when one is tuned: a
-         * Spire's the rock value of a block of stone, live from the connection's
+         * Spire's cost, its price per block grown, live from the connection's
          * goo values, a Terrakinesis's its fixed price a tear.
          * dynamic-costs-keep-the-mb-quantity
+         * spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
          *
          * @return the formula filled, or empty for an ability naming none
          */
@@ -569,21 +617,21 @@ public final class AbilitySyncHandler {
         }
 
         private List<String> formulaArguments() {
-            if (behaviors.stream().anyMatch(SpireStep.class::isInstance)) {
-                return List.of(GooFormat.formatMixed(stoneRockValue(ClientGooValues.current())));
+            if (pricedPerBlockGrown()) {
+                return List.of(GooFormat.formatMixed(costPrice.exactIn(ClientGooValues::current)));
             }
             return terrakinesis().map(step -> List.of(GooFormat.formatAmount(step.cost()))).orElse(List.of());
         }
 
         /**
-         * The rock goo a block of stone is worth, what Spire charges for each block it raises.
+         * Whether the ability's cost is its price for each block it grows, a Spire's, charged by the blocks its plan
+         * grows rather than once a throw.
+         * spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
          *
-         * @param values the goo values
-         * @return the exact value, zero where stone has none
+         * @return true for an ability running the spire step
          */
-        static GooFraction stoneRockValue(IGooValueLookup values) {
-            GooValue value = values.lookup(SPIRE_BLOCK);
-            return value == null ? GooFraction.ZERO : value.exact(GooTypes.ROCK);
+        private boolean pricedPerBlockGrown() {
+            return behaviors.stream().anyMatch(SpireStep.class::isInstance);
         }
 
         private Optional<TerrakinesisStep> terrakinesis() {
@@ -713,7 +761,7 @@ public final class AbilitySyncHandler {
         /**
          * The numbers a cost-mechanics format fills from, in the order its kind reads them:
          * a durative ability its upkeep a second; a blink its per-block price, its wall price and its
-         * oculus percent; a Spire stone's goo value per block; Pocket its void per slot; any other none.
+         * oculus percent; a Spire its cost, the price per block grown; any other none.
          *
          * @param lookup the goo values the numbers read from
          * @return the arguments, formatted
@@ -727,15 +775,15 @@ public final class AbilitySyncHandler {
                         GooFormat.formatAmount(distancePrice.wallCost()),
                         Integer.toString(distancePrice.nodePercent()));
             }
-            if (behaviors.stream().anyMatch(SpireStep.class::isInstance)) {
-                return List.of(GooFormat.formatMixed(lookup.valueOf(SPIRE_BLOCK)));
+            if (pricedPerBlockGrown()) {
+                return List.of(GooFormat.formatMixed(costPrice.exactIn(lookup.values())));
             }
             return stepPriceArguments();
         }
 
         /**
-         * The price a step names for itself: Terrakinesis its fixed price a tear,
-         * Pocket its void per slot; any other none.
+         * The price a step names for itself: Terrakinesis its fixed price a tear;
+         * any other none.
          *
          * @return the arguments, formatted
          */
@@ -743,12 +791,6 @@ public final class AbilitySyncHandler {
             Optional<TerrakinesisStep> terrakinesis = terrakinesis();
             if (terrakinesis.isPresent()) {
                 return List.of(GooFormat.formatAmount(terrakinesis.get().cost()));
-            }
-            // pocket-is-a-void-reserving-container-with-scroll-and-search: Pocket reads its void per slot
-            Optional<PocketOpenStep> pocket = behaviors.stream().filter(PocketOpenStep.class::isInstance)
-                    .map(PocketOpenStep.class::cast).findFirst();
-            if (pocket.isPresent()) {
-                return List.of(GooFormat.formatAmount(pocket.get().slotCost().evaluateInt(Variables.NONE)));
             }
             return List.of();
         }

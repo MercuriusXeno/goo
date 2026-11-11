@@ -38,7 +38,7 @@ class HeldEffectIconsTest {
 
     private static final String SIGHT_ICON = "textures/goo/ability/shroom_sight.png";
     private static final List<ResourceKey<GooTypeDefinition>> GRANTING_NONE = List.of(
-            GooTypes.INFINITY, GooTypes.METAL, GooTypes.OPULENT, GooTypes.VOID, GooTypes.WEIRD);
+            GooTypes.ASTRAL, GooTypes.INFINITY, GooTypes.METAL, GooTypes.OPULENT, GooTypes.VOID, GooTypes.WEIRD);
 
     private static AbilityRegistry shipped;
     private Map<ResourceKey<GooTypeDefinition>, IClientMobEffectExtensions> extensions;
@@ -76,10 +76,11 @@ class HeldEffectIconsTest {
     }
 
     @ParameterizedTest
-    @MethodSource("bundledKeysButShroom")
+    @MethodSource("bundledKeysGrantingABrewButShroom")
     void brewEffectDrawsItsGrantedAbilitysIcon(ResourceKey<GooTypeDefinition> type) {
         HeldEffectIcons.AbilityIconExtension extension =
                 assertInstanceOf(HeldEffectIcons.AbilityIconExtension.class, extensions.get(type));
+        assertNotNull(extension.iconTexture(), () -> GooTypes.id(type) + " draws no brew effect icon");
         assertEquals(HeldEffectIcon.textureOf(shipped.durativeAbilityFor(type)), extension.iconTexture(),
                 () -> GooTypes.id(type) + "'s brew effect icon");
     }
@@ -94,7 +95,8 @@ class HeldEffectIconsTest {
         }
     }
 
-    static Stream<ResourceKey<GooTypeDefinition>> bundledKeysButShroom() {
-        return GooTypes.BUNDLED.stream().filter(type -> !type.equals(GooTypes.SHROOM));
+    static Stream<ResourceKey<GooTypeDefinition>> bundledKeysGrantingABrewButShroom() {
+        return GooTypes.BUNDLED.stream()
+                .filter(type -> !type.equals(GooTypes.SHROOM) && !GRANTING_NONE.contains(type));
     }
 }

@@ -4,7 +4,7 @@
   "cost_mechanics": "goo.ability.rock.spire.cost_mechanics",
   "badge": "world",
   "order": 40,
-  "cost": 0,
+  "cost": "$mundane_block",
   "cost_formula": "%s/m³",
   "requires": ["minecraft:gravel", "minecraft:sand"],
   "delivery": { "kind": "arc" },

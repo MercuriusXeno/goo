@@ -4,16 +4,20 @@ import org.junit.jupiter.api.Test;
 import java.util.EnumSet;
 import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The ailment table carries every ailment the type lists name, each with its
- * own color and pattern (decision ailment-overlay-shader-per-ailment).
+ * own color and either a pattern or an outline (decisions ailment-overlay-shader-per-ailment,
+ * ailment-glisten-becomes-a-pulsing-outline).
  */
 class AilmentKindTest {
 
     private static final int RGB_MASK = 0xFFFFFF;
+    private static final Set<AilmentKind> OUTLINED =
+            EnumSet.of(AilmentKind.STASIS, AilmentKind.HEX, AilmentKind.GLOW, AilmentKind.ASTRAL);
 
     @Test
     void tableCarriesEveryAilmentTheListsName() {
@@ -28,8 +32,8 @@ class AilmentKindTest {
     }
 
     @Test
-    void stasisIsAGoldenGlint() {
-        assertEquals(AilmentPattern.GLINT, AilmentKind.STASIS.pattern());
+    void stasisIsAGoldenOutline() {
+        assertTrue(AilmentKind.STASIS.drawsOutline());
         assertTrue(isGolden(AilmentKind.STASIS.rgb()));
     }
 
@@ -45,18 +49,38 @@ class AilmentKindTest {
         assertEquals(AilmentPattern.SHIMMER, AilmentKind.ZONE.pattern());
         assertEquals(AilmentKind.ZONE.rgb(), AilmentKind.SHIFTER.rgb());
         assertEquals(AilmentPattern.SHIMMER, AilmentKind.SHIFTER.pattern());
-        assertEquals(AilmentPattern.GLINT, AilmentKind.HEX.pattern());
+        assertTrue(AilmentKind.HEX.drawsOutline());
         assertNotEquals(AilmentKind.STASIS.rgb(), AilmentKind.HEX.rgb());
         assertEquals(AilmentPattern.STONE, AilmentKind.PETRIFY.pattern());
         assertEquals(AilmentPattern.FROST, AilmentKind.FROZEN.pattern());
     }
 
-    /** Grab's ailment drives the held mob's flail and draws no overlay (decision kinetic-is-electric-blue-and-white). */
+    /**
+     * Every ailment drawing an overlay field names one of the patterns left
+     * once the glisten went, and the four marking kinds draw the outline
+     * alone (decision ailment-glisten-becomes-a-pulsing-outline).
+     */
     @Test
-    void grabDrawsNoOverlayAndEveryOtherAilmentDoes() {
+    void everyKindDrawingAFieldNamesARemainingPattern() {
+        Set<AilmentPattern> remaining = EnumSet.of(AilmentPattern.FACETS, AilmentPattern.SHIMMER,
+                AilmentPattern.STONE, AilmentPattern.FROST, AilmentPattern.WOBBLE);
+
+        assertEquals(remaining, EnumSet.allOf(AilmentPattern.class));
         for (AilmentKind kind : AilmentKind.values()) {
-            assertEquals(kind != AilmentKind.GRABBED, kind.drawsOverlay(), kind.name());
+            assertEquals(OUTLINED.contains(kind), kind.drawsOutline(), kind.name());
+            if (kind.drawsOverlay()) {
+                assertTrue(remaining.contains(kind.pattern()), kind.name());
+            }
         }
+    }
+
+    /** Grab's ailment drives the held mob's flail and draws neither a field nor an outline (decision kinetic-is-electric-blue-and-white). */
+    @Test
+    void grabDrawsNothingAndEveryOtherAilmentDrawsAFieldOrAnOutline() {
+        for (AilmentKind kind : AilmentKind.values()) {
+            assertEquals(kind != AilmentKind.GRABBED && !OUTLINED.contains(kind), kind.drawsOverlay(), kind.name());
+        }
+        assertFalse(AilmentKind.GRABBED.drawsOutline());
     }
 
     private static boolean isGolden(int rgb) {

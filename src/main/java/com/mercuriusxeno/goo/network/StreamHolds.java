@@ -47,6 +47,9 @@ public final class StreamHolds {
                 : new Hold(tick, 1, new HoldMarks());
         if (!continues) {
             paidHolds.remove(player);
+            if (last != null) {
+                last.marks().gradualBreak().release();
+            }
         }
         holds.put(player, next);
         return next.held();
@@ -81,6 +84,21 @@ public final class StreamHolds {
      */
     public boolean paid(UUID player) {
         return paidHolds.contains(player);
+    }
+
+    /**
+     * Clears the cracks of every hold that has gone past its gap without a
+     * stream tick, which is a hold its player let go.
+     * decision gradual-breaks-share-one-break-texture-piece
+     *
+     * @param tick the server tick now
+     */
+    public void releaseLapsed(int tick) {
+        for (Hold hold : holds.values()) {
+            if (tick - hold.tick() > LATEST_CONTINUING_GAP) {
+                hold.marks().gradualBreak().release();
+            }
+        }
     }
 
     /** Drops every hold, as a server stop does. */

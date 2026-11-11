@@ -2,12 +2,11 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.ability.frost.GlacialFields;
 import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
-import com.mercuriusxeno.goo.ability.program.Drinks;
 import com.mercuriusxeno.goo.ability.program.MorphBirths;
-import com.mercuriusxeno.goo.ability.program.UnmakeDrops;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
 import com.mercuriusxeno.goo.network.FleckLaunches;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
+import com.mercuriusxeno.goo.network.ScanWaves;
 import com.mercuriusxeno.goo.network.StreamHolds;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.Level;
@@ -23,13 +22,12 @@ public final class GooServerState {
 
     private final GooEffectScheduler gooEffects = new GooEffectScheduler();
     private final FleckLaunches fleckLaunches = new FleckLaunches();
-    private final UnmakeDrops unmakeDrops = new UnmakeDrops();
     private final MorphBirths morphBirths = new MorphBirths();
-    private final Drinks drinks = new Drinks();
     private final BlockExposures blockExposures = new BlockExposures();
     private final AbilityBlockFallScheduler markerFalls = new AbilityBlockFallScheduler();
     private final StreamHolds streamHolds = new StreamHolds();
     private final GlacialFields glacialFields = new GlacialFields();
+    private final ScanWaves scanWaves = new ScanWaves();
 
     /**
      * Answers the state the server holds.
@@ -60,20 +58,19 @@ public final class GooServerState {
     }
 
     /**
+     * The scan waves yet to reach their landings (decision click-is-a-hit-scan-drawn-as-a-delayed-wave).
+     *
+     * @return the scan waves
+     */
+    public ScanWaves scanWaves() {
+        return scanWaves;
+    }
+
+    /**
      * @return the slung flecks yet to leave the hand
      */
     public FleckLaunches fleckLaunches() {
         return fleckLaunches;
-    }
-
-    /**
-     * The goo unmade blocks and mobs leave, held back while their remains
-     * morph (decision unmake-waves-dissolve-by-crucible-cost).
-     *
-     * @return the held drops
-     */
-    public UnmakeDrops unmakeDrops() {
-        return unmakeDrops;
     }
 
     /**
@@ -84,15 +81,6 @@ public final class GooServerState {
      */
     public MorphBirths morphBirths() {
         return morphBirths;
-    }
-
-    /**
-     * Returns every player's Unmake drink (decision unmake-waves-dissolve-by-crucible-cost).
-     *
-     * @return the drinks
-     */
-    public Drinks drinks() {
-        return drinks;
     }
 
     /**
@@ -144,10 +132,12 @@ public final class GooServerState {
         if (markerFalls.hasPending()) {
             markerFalls.drainArrivedFalls(currentTick);
         }
-        drinks.tick(server);
-        unmakeDrops.dropArrived(currentTick);
+        if (scanWaves.hasPending()) {
+            scanWaves.drainArrived(currentTick);
+        }
         morphBirths.bearArrived(currentTick);
         blockExposures.decay(server);
+        streamHolds.releaseLapsed(currentTick);
     }
 
     /**
@@ -159,9 +149,8 @@ public final class GooServerState {
         blockExposures.clear();
         markerFalls.clear();
         streamHolds.clear();
-        unmakeDrops.clear();
         morphBirths.clear();
-        drinks.clear();
         glacialFields.clear();
+        scanWaves.clear();
     }
 }

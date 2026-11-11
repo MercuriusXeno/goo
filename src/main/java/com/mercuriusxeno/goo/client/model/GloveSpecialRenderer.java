@@ -4,6 +4,9 @@ import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.ability.GloveGlow;
 import com.mercuriusxeno.goo.client.ability.KnivesCharge;
+import com.mercuriusxeno.goo.client.ability.PhaseLook;
+import com.mercuriusxeno.goo.client.ability.PhasedHands;
+import com.mercuriusxeno.goo.client.ability.PortalView;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.item.GooGloveItem;
@@ -151,10 +154,13 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
     private static void submitGloveBody(PoseStack poseStack,
                                         SubmitNodeCollector nodeCollector, int packedLight, Item gloveItem) {
         QuadCollection model = GloveBodyModels.getModel(gloveItem);
-        nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.cutoutOnBlockAtlas(),
+        // phased-things-draw-as-a-ghostly-image: a phased player's own held glove draws under the phase fade
+        boolean ghost = PhasedHands.ghosting();
+        nodeCollector.submitCustomGeometry(poseStack, ghost ? GooSubmitter.renderType()
+                        : GooSubmitter.cutoutOnBlockAtlas(),
                 (pose, c) -> {
                     QuadInstance qi = new QuadInstance();
-                    qi.setColor(COLOR_WHITE);
+                    qi.setColor(ghost ? PhaseLook.bodyTint(COLOR_WHITE) : COLOR_WHITE);
                     qi.setLightCoords(packedLight);
                     qi.setOverlayCoords(OverlayTexture.NO_OVERLAY);
                     for (BakedQuad quad : model.getAll()) {
@@ -241,6 +247,12 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      */
     private static void captureGooCenter(PoseStack poseStack,
                                           float cx, float cy, float cz) {
+        // portals-link-by-looking-through-portal-vision: a glove drawn on the player's body in a view through a
+        // portal stands where that view's camera sees it, not before the player's eyes, so it leaves the aim line's
+        // hand where the first-person glove put it.
+        if (PortalView.drawing()) {
+            return;
+        }
         Vector4f pos = new Vector4f(cx, cy, cz, 1.0f);
         poseStack.last().pose().transform(pos);
         Vec3 raw = new Vec3(pos.x(), pos.y(), pos.z());

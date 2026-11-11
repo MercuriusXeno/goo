@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client;
 
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.SelfEatRoute;
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.client.ability.HunkCrumbles;
 import com.mercuriusxeno.goo.client.knownitems.KnownItemsOverlay;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -17,6 +18,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 
 /**
  * Client-side proxy implementation. References {@link Minecraft} directly;
@@ -48,6 +50,12 @@ public final class ClientProxy implements ISidedProxy {
     public boolean syncedAbilityEats(String abilityId) {
         ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
         return ability != null && SelfEatRoute.eats(ability.delivery(), ability.badge());
+    }
+
+    @Override
+    public List<Step> syncedAbilityProgram(String abilityId) {
+        ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
+        return ability == null ? List.of() : ability.behaviors();
     }
 
     @Override

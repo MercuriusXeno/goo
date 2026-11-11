@@ -133,7 +133,7 @@ class AimTargetsTest {
             TargetResult target = AimTargets.pointOf(BlockHitResult.miss(reach, Direction.UP, BlockPos.containing(reach)),
                     reach);
 
-            assertEquals(new TargetResult.PointTarget(reach, new BlockPos(10, 120, -41), Direction.UP, false), target);
+            assertEquals(new TargetResult.PointTarget(reach, new BlockPos(10, 120, -41), Direction.UP, false, null), target);
         }
 
         @Test

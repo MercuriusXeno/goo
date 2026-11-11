@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:heal_touches_a_full_health_cow",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}

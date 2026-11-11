@@ -7,7 +7,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -15,15 +15,18 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Weird Coat's block step, run each held tick of the stream: the slime
+ * Weird Goop's block step, run each held tick of the stream: the slime
  * paints the open cell over every block it reaches whose top can hold a
  * coat, and every cell the hold has painted builds toward a slime coat while
  * the hold lasts, whether or not the aim is still on it, coating once it has
  * built the JSON's ticks. A painted cell past nine tenths of its coat is left to
  * finish alone, even after the hold ends, and a cell the hold has coated
- * once it coats no more in that hold. The block under the coat is left as it stood.
+ * once it coats no more in that hold. A cell already holding slime takes
+ * one layer more, once per hold. The block under the coat is left as it stood.
  * coat-is-a-green-slime-film-over-the-blocks-own-texture
+ * slime-is-a-layered-cell-that-levels-out
  * decay-gnats-degrade-each-block-once
+ * bounce-leaves-the-mod-and-goop-stands-alone
  *
  * @param ticks the ticks of stream a cell takes to coat
  */
@@ -58,13 +61,16 @@ public record CoatStep(int ticks) implements TakesNoEntity {
                 paintOpenTops(host, PaintedHold.seenReach(host, aim), marks);
             }
             // the coat mingles in wearing its own green
-            PaintedHold.buildPainted(host, CoatStep::coatOver, marks, 1f / ticks, OptionalInt.empty());
+            PaintedHold.buildPaintedStates(host, CoatStep::coatOver, CoatStep::sameLayers, marks, 1f / ticks,
+                    raw -> OptionalInt.empty(), (pos, raw, into) -> host.transformBlock(pos, into));
         });
         return true;
     }
 
     /**
-     * Paints the open cell over each reached block whose top can hold a coat.
+     * Paints the open cell over each reached block whose top can hold a
+     * coat, and each reached cell already holding slime.
+     * slime-is-a-layered-cell-that-levels-out
      *
      * @param host  the channel host
      * @param seen  the cells the stream's rays reached
@@ -73,20 +79,38 @@ public record CoatStep(int ticks) implements TakesNoEntity {
     private static void paintOpenTops(ChannelHost host, Collection<BlockPos> seen, HoldMarks marks) {
         for (BlockPos pos : seen) {
             BlockPos over = pos.above();
+            if (SlimeCoatBlock.layersOf(host.stateAt(pos)) > 0) {
+                marks.paint(pos, host.stateAt(pos));
+            }
             if (!host.airAt(pos) && host.airAt(over) && SlimeCoatBlock.liesOn(host.level(), over)) {
-                marks.paint(over, host.blockAt(over));
+                marks.paint(over, host.stateAt(over));
             }
         }
     }
 
     /**
-     * The block a painted cell becomes: an open cell takes a slime coat, anything else nothing.
+     * What a painted cell becomes: an open cell takes a coat of one layer,
+     * a slime cell one layer more, anything else nothing.
+     * slime-is-a-layered-cell-that-levels-out
      *
-     * @param standing the block the cell held when painted
-     * @return the slime coat over an open cell, empty otherwise
+     * @param standing the state the cell held when painted
+     * @return the thickened state, empty where the cell takes no layer
      */
-    private static Optional<Block> coatOver(Block standing) {
-        return standing.defaultBlockState().isAir() ? Optional.of(GooBlocks.SLIME_COAT.get()) : Optional.empty();
+    private static Optional<BlockState> coatOver(BlockState standing) {
+        return SlimeCoatBlock.thickened(standing, GooBlocks.SLIME_COAT.get());
+    }
+
+    /**
+     * Whether a painted cell still stands as painted: the same block holding
+     * the same layers, so a slime cell that thickened alone is built no
+     * further while its drips may change beside a new coat.
+     *
+     * @param now the cell's state now
+     * @param raw the state it held when painted
+     * @return true while the hold builds on it
+     */
+    private static boolean sameLayers(BlockState now, BlockState raw) {
+        return now.getBlock() == raw.getBlock() && SlimeCoatBlock.layersOf(now) == SlimeCoatBlock.layersOf(raw);
     }
 
     @Override

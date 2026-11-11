@@ -1,0 +1,33 @@
+{
+  "render_type": "minecraft:translucent",
+  "ambientocclusion": false,
+  "textures": {
+    "particle": "goo:block/slime_coat",
+    "drips": "goo:block/slime_coat_drips"
+  },
+  "elements": [
+    {
+      "from": [
+        0,
+        8,
+        -0.05
+      ],
+      "to": [
+        16,
+        16,
+        -0.05
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            8
+          ],
+          "texture": "#drips"
+        }
+      }
+    }
+  ]
+}
