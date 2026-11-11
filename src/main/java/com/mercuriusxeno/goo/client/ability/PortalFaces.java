@@ -83,18 +83,30 @@ public final class PortalFaces {
      * mouth's torn edge. The halo's strength is the shader's own.
      */
     /**
-     * How far the swirl band's arch peaks off the face along its normal,
-     * right over the rim, in blocks: two sixteenths, the most the operator's
-     * reference stands out, tuned by eye.
+     * How far the swirl band's arch peaks out of the wall along the face's
+     * normal, right over its line, in blocks: one sixteenth, as the operator
+     * set it.
      */
-    static final double BAND_DEPTH = 2.0 / 16;
+    static final double BAND_DEPTH = 1.0 / 16;
     /**
-     * How far inside the rim the swirl band lands on the face, over the
+     * How far the swirl band's sleeve runs back into the portal behind its
+     * face, in blocks: one sixteenth, as the operator set it, so the band
+     * straddles the block face.
+     */
+    static final double BAND_SLEEVE = 1.0 / 16;
+    /**
+     * How far inside the oval's edge the swirl band's line runs, in blocks:
+     * half a texel, through the middle of the rim's pixel ring, so the band's
+     * smooth line cuts the pixel staircase.
+     */
+    static final double BAND_INSET = 0.5 / 16;
+    /**
+     * How far inside its line the swirl band lands on the face, over the
      * portal's view, in blocks: one texel, so the band runs no wider than the
      * rim's own pixel ring, tuned by eye.
      */
     static final double BAND_INSIDE = 1.0 / 16;
-    /** How far outside the rim the swirl band lands on the face, on the wall, in blocks: one texel, tuned by eye. */
+    /** How far outside its line the swirl band lands on the face, on the wall, in blocks: one texel, tuned by eye. */
     static final double BAND_OUTSIDE = 1.0 / 16;
     /** How many rings the swirl band's arch runs across in, from inside the rim to outside. */
     private static final int BAND_RINGS = 6;
@@ -347,20 +359,6 @@ public final class PortalFaces {
     }
 
     /**
-     * Draws the halo of every placed portal, waiting or linked, blinking or
-     * not, and of both mouths of each hole, glowing onto the wall around its
-     * edge in its own color, and beside it each portal's swirl band rising off
-     * the wall.
-     * portal-halo-glows-additively-onto-the-wall
-     * hole-mouths-wear-the-portal-halo
-     * tornadic-halo-spirals-out-from-the-rim
-     *
-     * @param pose    the pose
-     * @param buffers the frame's buffers
-     * @param camera  the camera's position
-     * @param gates   the gates the frame draws
-     */
-    /**
      * The gates that wear a halo and swirl band in the pass drawing now:
      * every gate, but inside a view through a pair, never the partner the
      * view looks out of, whose own halo and band would ring the near gate's
@@ -375,41 +373,48 @@ public final class PortalFaces {
     }
 
     /**
-     * The gates that wear a swirl band in the pass drawing now, each in the
-     * color it wears. The band passes through its portal's face, so inside a
-     * view through a pair the partner the view looks out of wears the near
-     * gate's band: looking into the orange portal, its orange band runs on
-     * into it around the rim the view sees. Where the near gate is none the
-     * frame draws, the partner wears none.
+     * The gate whose swirl band's sleeve the pass drawing now shows: the band
+     * straddles its portal's face, and the half behind the face runs back
+     * into the portal, where only the view through it sees it. So inside a
+     * view through a pair, the partner the view looks out of wears the near
+     * gate's sleeve in the near gate's color: looking into the orange
+     * portal, its orange swirl recedes into it. Outside a view, or where the
+     * near gate is none the frame draws, no gate wears one.
      * tornadic-halo-spirals-out-from-the-rim
      *
      * @param gates   the gates the frame draws
      * @param viewing the gate the view drawing now looks into, then its partner, empty outside a view
-     * @return the gates that wear a band, in its color
+     * @return the partner in the near gate's color, or none
      */
-    static List<Drawn> bandedIn(List<Drawn> gates, Optional<GatePassage.Pair> viewing) {
-        if (viewing.isEmpty()) {
-            return gates;
-        }
-        Gate near = viewing.get().one();
-        Gate far = viewing.get().other();
-        Optional<Integer> nearRgb = gates.stream().filter(drawn -> drawn.gate().equals(near)).map(Drawn::rgb)
-                .findFirst();
-        return gates.stream()
-                .flatMap(drawn -> drawn.gate().equals(far)
-                        ? nearRgb.map(rgb -> new Drawn(far, rgb, drawn.hole())).stream()
-                        : java.util.stream.Stream.of(drawn))
-                .toList();
+    static List<Drawn> sleevedIn(List<Drawn> gates, Optional<GatePassage.Pair> viewing) {
+        return viewing.flatMap(pair -> gates.stream().filter(drawn -> drawn.gate().equals(pair.one())).findFirst()
+                .map(near -> new Drawn(pair.other(), near.rgb(), near.hole()))).stream().toList();
     }
 
+    /**
+     * Draws the halo of every placed portal, waiting or linked, blinking or
+     * not, and of both mouths of each hole, glowing onto the wall around its
+     * edge in its own color; beside it each one's swirl band standing out of
+     * the wall; and inside a view through a pair, the near gate's band's
+     * sleeve running back into it.
+     * portal-halo-glows-additively-onto-the-wall
+     * hole-mouths-wear-the-portal-halo
+     * tornadic-halo-spirals-out-from-the-rim
+     *
+     * @param pose    the pose
+     * @param buffers the frame's buffers
+     * @param camera  the camera's position
+     * @param gates   the gates the frame draws
+     */
     private static void drawHalos(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
             List<Drawn> gates) {
         Optional<GatePassage.Pair> viewing = PortalView.viewing();
-        emitHalos(pose, buffers.getBuffer(GooRenderTypes.GOO_PORTAL_HALO_TYPE),
-                wornIn(gates, viewing.map(GatePassage.Pair::other)), drawn -> drawn.drawnBox(camera));
+        List<Drawn> worn = wornIn(gates, viewing.map(GatePassage.Pair::other));
+        emitHalos(pose, buffers.getBuffer(GooRenderTypes.GOO_PORTAL_HALO_TYPE), worn, drawn -> drawn.drawnBox(camera));
         buffers.endBatch(GooRenderTypes.GOO_PORTAL_HALO_TYPE);
-        emitSwirlBands(pose, buffers.getBuffer(GooRenderTypes.GOO_PORTAL_SWIRL_BAND_TYPE), bandedIn(gates, viewing),
-                drawn -> drawn.drawnBox(camera));
+        VertexConsumer bands = buffers.getBuffer(GooRenderTypes.GOO_PORTAL_SWIRL_BAND_TYPE);
+        emitSwirlBands(pose, bands, worn, drawn -> drawn.drawnBox(camera));
+        emitSleeves(pose, bands, sleevedIn(gates, viewing), drawn -> drawn.drawnBox(camera));
         buffers.endBatch(GooRenderTypes.GOO_PORTAL_SWIRL_BAND_TYPE);
     }
 
@@ -429,36 +434,67 @@ public final class PortalFaces {
     static void emitSwirlBands(PoseStack.Pose pose, VertexConsumer consumer, List<Drawn> gates,
             Function<Drawn, AABB> boxOf) {
         for (Drawn drawn : gates) {
-            Arch arch = Arch.over(boxOf.apply(drawn), drawn.gate().face(), drawn.hole() ? TORN_MIDDLE : 1);
-            emitSwirlBand(pose, consumer, arch, ARGB.color(drawn.hole() ? TORN_EDGE : CLEAN_EDGE, drawn.rgb()));
+            emitSwirlBand(pose, consumer, Arch.of(drawn, boxOf), colorOf(drawn), false);
         }
     }
 
     /**
-     * Emits a gate's swirl band as an arch straddling the rim: rings trace
-     * the rim's oval from the named distance inside it to the named distance
-     * outside, rising off the face to the named depth right over the rim and
-     * landing on the face at both edges. Each quad maps zero to one around
-     * the rim and across the arch from inside to outside, and every vertex
-     * carries the texels around the rim and across the arch at sixteen a
-     * block.
+     * Emits the sleeve of each gate given: the half of its swirl band behind
+     * its portal's face, a ring at the band's line running the named sleeve
+     * depth back into the portal, which the view through the pair draws in
+     * front of the partner's face.
+     * tornadic-halo-spirals-out-from-the-rim
+     *
+     * @param pose     the pose
+     * @param consumer the swirl band pipeline's vertex consumer
+     * @param gates    the gates whose sleeves show, each in the color it wears
+     * @param boxOf    the box each gate draws over, camera-relative
+     */
+    static void emitSleeves(PoseStack.Pose pose, VertexConsumer consumer, List<Drawn> gates,
+            Function<Drawn, AABB> boxOf) {
+        for (Drawn drawn : gates) {
+            emitSwirlBand(pose, consumer, Arch.of(drawn, boxOf), colorOf(drawn), true);
+        }
+    }
+
+    /**
+     * @param drawn a gate the frame draws
+     * @return its swirl band's packed ARGB color, its alpha the edge mark
+     */
+    private static int colorOf(Drawn drawn) {
+        return ARGB.color(drawn.hole() ? TORN_EDGE : CLEAN_EDGE, drawn.rgb());
+    }
+
+    /**
+     * Emits a gate's swirl band: before the face, an arch from the named
+     * distance inside its line to the named distance outside, rising to the
+     * named depth right over the line; or, for the sleeve, a ring at the line
+     * running back into the portal. Each quad maps zero to one around the
+     * rim, and across the arch zero to one from inside to outside, or along
+     * the sleeve a half to one from the face back, the arch's line and the
+     * sleeve's mouth meeting at a half; every vertex carries the texels
+     * around the rim and across the arch at sixteen a block.
      * tornadic-halo-spirals-out-from-the-rim
      *
      * @param pose     the pose
      * @param consumer the vertex consumer
      * @param arch     the arch over the gate's rim
      * @param color    the packed ARGB color, its alpha the edge mark
+     * @param sleeve   whether to emit the sleeve rather than the arch
      */
-    private static void emitSwirlBand(PoseStack.Pose pose, VertexConsumer consumer, Arch arch, int color) {
+    private static void emitSwirlBand(PoseStack.Pose pose, VertexConsumer consumer, Arch arch, int color,
+            boolean sleeve) {
         int[][] corners = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
         int[] texels = arch.texels();
         for (int level = 0; level < BAND_RINGS; level++) {
             for (int segment = 0; segment < BAND_SEGMENTS; segment++) {
                 for (int[] corner : corners) {
-                    Vec3 at = arch.point(segment + corner[0], level + corner[1]);
+                    double share = (double) (level + corner[1]) / BAND_RINGS;
+                    Vec3 at = sleeve ? arch.sleevePoint(segment + corner[0], share)
+                            : arch.point(segment + corner[0], share);
                     consumer.addVertex(pose, (float) at.x(), (float) at.y(), (float) at.z())
                             .setUv((float) (segment + corner[0]) / BAND_SEGMENTS,
-                                    (float) (level + corner[1]) / BAND_RINGS)
+                                    (float) (sleeve ? HALF_WAVE + HALF_WAVE * share : share))
                             .setUv2(texels[0], texels[1]).setColor(color);
                 }
             }
@@ -489,17 +525,43 @@ public final class PortalFaces {
         }
 
         /**
+         * @param drawn a gate the frame draws
+         * @param boxOf the box each gate draws over, camera-relative
+         * @return the arch over its rim, over the middle of its tear for a hole's mouth
+         */
+        static Arch of(Drawn drawn, Function<Drawn, AABB> boxOf) {
+            return over(boxOf.apply(drawn), drawn.gate().face(), drawn.hole() ? TORN_MIDDLE : 1);
+        }
+
+        /**
          * @param segment how many segments around the rim, of the named count
-         * @param level   how many rings across the arch from inside the rim, of the named count
+         * @param share   how far across the arch from inside its line to outside, zero to one
          * @return the arch's point there
          */
-        Vec3 point(int segment, int level) {
-            double share = (double) level / BAND_RINGS;
-            double off = Mth.lerp(share, -BAND_INSIDE, BAND_OUTSIDE);
+        Vec3 point(int segment, double share) {
+            return around(segment, Mth.lerp(share, -BAND_INSIDE, BAND_OUTSIDE))
+                    .add(side.getUnitVec3().scale(BAND_DEPTH * Math.sin(Math.PI * share)));
+        }
+
+        /**
+         * @param segment how many segments around the rim, of the named count
+         * @param share   how far along the sleeve from the face back into the portal, zero to one
+         * @return the sleeve's point there
+         */
+        Vec3 sleevePoint(int segment, double share) {
+            return around(segment, 0).add(side.getUnitVec3().scale(BAND_SLEEVE * share));
+        }
+
+        /**
+         * @param segment how many segments around the rim, of the named count
+         * @param off     how far out past the band's line, in blocks
+         * @return the point on the face that far out past the line at that segment
+         */
+        private Vec3 around(int segment, double off) {
             double angle = Mth.TWO_PI * segment / BAND_SEGMENTS;
-            Vec3 across = Vec3.ZERO.with(firstAxisOf(side), (half[0] * base + off) * Math.cos(angle))
-                    .with(secondAxisOf(side), (half[1] * base + off) * Math.sin(angle));
-            return center.add(across).add(side.getUnitVec3().scale(BAND_DEPTH * Math.sin(Math.PI * share)));
+            double out = off - BAND_INSET;
+            return center.add(Vec3.ZERO.with(firstAxisOf(side), (half[0] * base + out) * Math.cos(angle))
+                    .with(secondAxisOf(side), (half[1] * base + out) * Math.sin(angle)));
         }
 
         /**
