@@ -12,32 +12,30 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * The rally a peaceful mob holds until it fades: the caster it fights for,
- * the game time it fades at, the damage each of its strikes deals, and the
- * player who attacked the caster, whom the mob fights first. Saved with the
- * mob and synced to every client drawing it.
+ * The rally a peaceful mob holds until its rallier strikes it: the caster it
+ * fights for, the damage each of its strikes deals, and the player who
+ * attacked the caster, whom the mob fights first. Saved with the mob and
+ * synced to every client drawing it.
  * zoo-rally-arms-the-peaceful
+ * rally-is-a-mob-effect-on-one-target
  * rallied-mobs-turn-on-a-player-who-attacks-their-rallier
  *
- * @param caster    the entity the mob fights for
- * @param expiresAt the game time the rally fades at
- * @param damage    the damage one strike deals
- * @param attacker  the player who attacked the caster, empty for none
+ * @param caster   the entity the mob fights for
+ * @param damage   the damage one strike deals
+ * @param attacker the player who attacked the caster, empty for none
  */
-public record Rallied(UUID caster, long expiresAt, float damage, Optional<UUID> attacker) {
+public record Rallied(UUID caster, float damage, Optional<UUID> attacker) {
 
     /** No rally: the mob fights for no one. */
-    public static final Rallied NONE = new Rallied(new UUID(0L, 0L), 0L, 0f);
+    public static final Rallied NONE = new Rallied(new UUID(0L, 0L), 0f);
 
     private static final String FIELD_CASTER = "caster";
-    private static final String FIELD_EXPIRES_AT = "expires_at";
     private static final String FIELD_DAMAGE = "damage";
     private static final String FIELD_ATTACKER = "attacker";
 
-    /** Saves the rally with the mob; a save from before the attacker field loads with none. */
+    /** Saves the rally with the mob; a save's older expires_at field is ignored on load. */
     public static final MapCodec<Rallied> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             UUIDUtil.CODEC.fieldOf(FIELD_CASTER).forGetter(Rallied::caster),
-            Codec.LONG.fieldOf(FIELD_EXPIRES_AT).forGetter(Rallied::expiresAt),
             Codec.FLOAT.fieldOf(FIELD_DAMAGE).forGetter(Rallied::damage),
             UUIDUtil.CODEC.optionalFieldOf(FIELD_ATTACKER).forGetter(Rallied::attacker)
     ).apply(inst, Rallied::new));
@@ -48,7 +46,6 @@ public record Rallied(UUID caster, long expiresAt, float damage, Optional<UUID> 
      */
     public static final StreamCodec<ByteBuf, Rallied> STREAM_CODEC = StreamCodec.composite(
             UUIDUtil.STREAM_CODEC, Rallied::caster,
-            ByteBufCodecs.VAR_LONG, Rallied::expiresAt,
             ByteBufCodecs.FLOAT, Rallied::damage,
             ByteBufCodecs.optional(UUIDUtil.STREAM_CODEC), Rallied::attacker,
             Rallied::new);
@@ -56,22 +53,22 @@ public record Rallied(UUID caster, long expiresAt, float damage, Optional<UUID> 
     /**
      * A rally recording no attacker.
      *
-     * @param caster    the entity the mob fights for
-     * @param expiresAt the game time the rally fades at
-     * @param damage    the damage one strike deals
+     * @param caster the entity the mob fights for
+     * @param damage the damage one strike deals
      */
-    public Rallied(UUID caster, long expiresAt, float damage) {
-        this(caster, expiresAt, damage, Optional.empty());
+    public Rallied(UUID caster, float damage) {
+        this(caster, damage, Optional.empty());
     }
 
     /**
-     * Whether the rally still stands at a game time.
+     * Whether a hit from an attacker breaks the rally: only the rallier's does.
+     * rally-is-a-mob-effect-on-one-target
      *
-     * @param gameTime the game time
-     * @return true before the rally fades
+     * @param attacker the uuid of the entity behind the damage, or null for none
+     * @return true when the rallier dealt the damage
      */
-    public boolean standsAt(long gameTime) {
-        return gameTime < expiresAt;
+    public boolean brokenBy(@Nullable UUID attacker) {
+        return caster.equals(attacker);
     }
 
     /**
@@ -82,7 +79,7 @@ public record Rallied(UUID caster, long expiresAt, float damage, Optional<UUID> 
      * @return the rally recording the attacker
      */
     public Rallied withAttacker(UUID player) {
-        return new Rallied(caster, expiresAt, damage, Optional.of(player));
+        return new Rallied(caster, damage, Optional.of(player));
     }
 
     /**
@@ -92,34 +89,31 @@ public record Rallied(UUID caster, long expiresAt, float damage, Optional<UUID> 
      * @return the rally recording no attacker
      */
     public Rallied withoutAttacker() {
-        return new Rallied(caster, expiresAt, damage);
+        return new Rallied(caster, damage);
     }
 
     /**
-     * The attacker a refreshed rally carries: the standing rally's, and none
-     * where the mob holds no rally or its rally has ended.
+     * The attacker a second rally on a mob carries: the standing rally's, and
+     * none where the mob holds no rally.
      * rallied-mobs-turn-on-a-player-who-attacks-their-rallier
      *
      * @param standing the rally the mob holds, null for none
-     * @param gameTime the game time
      * @return the attacker, empty for none
      */
-    public static Optional<UUID> attackerAfter(@Nullable Rallied standing, long gameTime) {
-        return standing != null && standing.standsAt(gameTime) ? standing.attacker() : Optional.empty();
+    public static Optional<UUID> attackerAfter(@Nullable Rallied standing) {
+        return standing != null ? standing.attacker() : Optional.empty();
     }
 
     /**
      * Whom a mob fights for once a rally reaches it: the first rallier while
-     * that rally stands, the caller where the mob holds no rally or its rally
-     * has ended.
+     * that rally stands, the caller where the mob holds no rally.
      * rally-remembers-the-first-rallier
      *
      * @param standing the rally the mob holds, null for none
      * @param caller   the caster whose rally reaches the mob
-     * @param gameTime the game time
      * @return the rallier's UUID
      */
-    public static UUID rallierAfter(@Nullable Rallied standing, UUID caller, long gameTime) {
-        return standing != null && standing.standsAt(gameTime) ? standing.caster() : caller;
+    public static UUID rallierAfter(@Nullable Rallied standing, UUID caller) {
+        return standing != null ? standing.caster() : caller;
     }
 }
