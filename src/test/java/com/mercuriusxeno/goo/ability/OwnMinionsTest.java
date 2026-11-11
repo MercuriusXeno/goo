@@ -18,8 +18,6 @@ class OwnMinionsTest {
 
     private static final UUID CASTER = new UUID(1L, 1L);
     private static final UUID OTHER_PLAYER = new UUID(2L, 2L);
-    private static final long NOW = 1000L;
-    private static final long LATER = NOW + 100L;
     private static final float STRIKE = 6f;
 
     @Nested
@@ -27,29 +25,25 @@ class OwnMinionsTest {
 
         @Test
         void aMobTheCasterRalliedIsTheCastersMinion() {
-            assertTrue(OwnMinions.ownMinionOf(CASTER, new Rallied(CASTER, LATER, STRIKE), Charmed.NONE, NOW));
+            assertTrue(OwnMinions.ownMinionOf(CASTER, new Rallied(CASTER, STRIKE), Charmed.NONE));
         }
 
         @Test
         void aMobTheCasterCharmedIsTheCastersMinion() {
-            assertTrue(OwnMinions.ownMinionOf(CASTER, Rallied.NONE, new Charmed(CASTER), NOW));
+            assertTrue(OwnMinions.ownMinionOf(CASTER, Rallied.NONE, new Charmed(CASTER)));
         }
 
         @Test
         void anotherPlayersMinionIsNotTheCasters() {
-            assertFalse(OwnMinions.ownMinionOf(CASTER, new Rallied(OTHER_PLAYER, LATER, STRIKE),
-                    new Charmed(OTHER_PLAYER), NOW));
+            assertFalse(OwnMinions.ownMinionOf(CASTER, new Rallied(OTHER_PLAYER, STRIKE),
+                    new Charmed(OTHER_PLAYER)));
         }
 
         @Test
         void aMobWithNeitherAttachmentIsNoMinion() {
-            assertFalse(OwnMinions.ownMinionOf(CASTER, Rallied.NONE, Charmed.NONE, NOW));
+            assertFalse(OwnMinions.ownMinionOf(CASTER, Rallied.NONE, Charmed.NONE));
         }
 
-        @Test
-        void aRallyThatFadedLeavesNoMinion() {
-            assertFalse(OwnMinions.ownMinionOf(CASTER, new Rallied(CASTER, NOW, STRIKE), Charmed.NONE, NOW));
-        }
     }
 
     @Nested

@@ -3,6 +3,8 @@ package com.mercuriusxeno.goo.ability.hole;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.pocket.PocketShelves;
 import com.mercuriusxeno.goo.network.PortableHolesSyncPayload;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -36,6 +38,7 @@ public final class PortableHoles {
     private static final Map<UUID, PortableHole> OPEN = new LinkedHashMap<>();
     private static final float SWALLOW_VOLUME = 0.4F;
     private static final float SWALLOW_PITCH = 0.6F;
+    private static final double HALF = 0.5;
 
     private PortableHoles() {
     }
@@ -80,13 +83,41 @@ public final class PortableHoles {
             return;
         }
         boolean changed = OPEN.values().removeIf(hole -> closes(server, hole));
-        for (PortableHole hole : OPEN.values()) {
-            // a swallow changes what the mouth shows swimming in it, so the clients hear of it
-            changed |= hole.swallows() && swallow(server.getLevel(hole.dimension()), hole);
+        for (Map.Entry<UUID, PortableHole> open : OPEN.entrySet()) {
+            PortableHole hole = open.getValue();
+            ServerLevel level = server.getLevel(hole.dimension());
+            // a swallow changes what the mouth shows swimming in it and when it closes, so the clients hear of it
+            if (hole.swallows() && swallow(level, hole)) {
+                open.setValue(hole.fedAt(level.getGameTime()));
+                changed = true;
+            }
         }
         if (changed) {
             sync(server);
         }
+    }
+
+    /**
+     * Closes the hole whose mouth covers a punched block's face, any block of
+     * its footprint on the face its mouth stands on; what it stored stays on
+     * the shelf.
+     * decision punching-the-hole-closes-it-early
+     *
+     * @param level the level punched in
+     * @param block the punched block
+     * @param face  the punched face
+     * @return true when a hole closed
+     */
+    public static boolean dismissAt(ServerLevel level, BlockPos block, Direction face) {
+        boolean dismissed = OPEN.values().removeIf(hole -> hole.dimension().equals(level.dimension())
+                && hole.face() == face && hole.footprint().contains(block));
+        if (dismissed) {
+            Vec3 at = Vec3.atCenterOf(block).add(Vec3.atLowerCornerOf(face.getUnitVec3i()).scale(HALF));
+            level.playSound(null, at.x(), at.y(), at.z(), SoundEvents.ENDER_CHEST_CLOSE, SoundSource.PLAYERS,
+                    1.0F, 1.0F);
+            sync(level.getServer());
+        }
+        return dismissed;
     }
 
     /**
@@ -168,7 +199,8 @@ public final class PortableHoles {
         PocketShelves shelves = PocketShelves.get(player.level());
         PortableHolesSyncPayload payload = new PortableHolesSyncPayload(OPEN.values().stream()
                 .filter(hole -> hole.dimension().equals(player.level().dimension()))
-                .map(hole -> new PortableHolesSyncPayload.Mouth(hole.block(), hole.face(), hole.closesAt(),
+                .map(hole -> new PortableHolesSyncPayload.Mouth(hole.footprint(), hole.face(), hole.openedAt(),
+                        hole.closesAt(),
                         storedOf(shelves, hole.owner())))
                 .toList());
         // A listener that never negotiated the mod's channels, a gametest's mock player, gets no sync.

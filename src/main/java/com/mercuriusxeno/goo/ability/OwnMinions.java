@@ -18,17 +18,18 @@ public final class OwnMinions {
     }
 
     /**
-     * Whether a mob is the caster's own minion: its standing rally or its
-     * charm names the caster.
+     * Whether a mob is the caster's own minion: its rally or its charm names
+     * the caster. A rally stands until its rallier strikes the mob, which
+     * takes the rally off it, so a rally the mob holds is a standing one.
+     * rally-is-a-mob-effect-on-one-target
      *
-     * @param caster   the caster asked about
-     * @param rallied  the rally the mob holds, {@link Rallied#NONE} for none
-     * @param charmed  the charm the mob holds, {@link Charmed#NONE} for none
-     * @param gameTime the game time, which a rally must stand at
+     * @param caster  the caster asked about
+     * @param rallied the rally the mob holds, {@link Rallied#NONE} for none
+     * @param charmed the charm the mob holds, {@link Charmed#NONE} for none
      * @return true for a mob the caster rallied or charmed
      */
-    public static boolean ownMinionOf(UUID caster, Rallied rallied, Charmed charmed, long gameTime) {
-        return (rallied.caster().equals(caster) && rallied.standsAt(gameTime)) || charmed.charmer().equals(caster);
+    public static boolean ownMinionOf(UUID caster, Rallied rallied, Charmed charmed) {
+        return rallied.caster().equals(caster) || charmed.charmer().equals(caster);
     }
 
     /**
@@ -42,7 +43,7 @@ public final class OwnMinions {
     public static boolean ownMinionOf(Entity caster, Entity mob) {
         Rallied rallied = mob.hasData(GooAttachments.RALLIED) ? mob.getData(GooAttachments.RALLIED) : Rallied.NONE;
         Charmed charmed = mob.hasData(GooAttachments.CHARMED) ? mob.getData(GooAttachments.CHARMED) : Charmed.NONE;
-        return ownMinionOf(caster.getUUID(), rallied, charmed, mob.level().getGameTime());
+        return ownMinionOf(caster.getUUID(), rallied, charmed);
     }
 
     /**
