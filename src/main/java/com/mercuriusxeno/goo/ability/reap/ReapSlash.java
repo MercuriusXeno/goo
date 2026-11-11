@@ -13,7 +13,8 @@ import net.minecraft.world.phys.Vec3;
  * the game each slash is a huge thick crescent standing out ahead of Alucard,
  * hollow toward him and bulging away, at its own angle, appearing whole and
  * bright and then dimming to an afterimage that drifts a little further out.
- * Here the crescent lies nearly flat in a plane along the slasher's look,
+ * Here each slash appears thick, then thins to a sliver and dims as it
+ * travels outward, keeping six tenths of its width. The crescent lies nearly flat in a plane along the slasher's look,
  * its chord running along its span axis with its tips out at the near
  * distance and its middle bulging farther out along the look; the plane sits
  * under the line of sight, so the slasher looks down onto its face and the
@@ -28,19 +29,18 @@ import net.minecraft.world.phys.Vec3;
  * @param width     its chord's length, tip to tip, in blocks
  * @param thickness how thick its middle is, in blocks
  * @param bulge     how far its middle bows out beyond its tips, in blocks
- * @param drift      how far its body travels outward over its life, in blocks
- * @param outerDrift how far its outer blade travels outward over its life, in blocks
+ * @param drift     how far it travels outward over its life, in blocks
  * @param lifeTicks the ticks from it appearing to its dimming away
  */
 public record ReapSlash(Vec3 origin, Vec3 forward, Vec3 span, double width, double thickness, double bulge,
-                        double drift, double outerDrift, int lifeTicks) {
+                        double drift, int lifeTicks) {
 
     /** How far under the eye line a tilted slash's raised tip still stands, in blocks. */
     static final double TIP_CLEARANCE = 0.2;
-    /** The outer blade's thickness, as a share of the body's. */
-    static final double OUTER_SHARE = 0.25;
-    /** How far beyond the body's bulge the outer blade's appears, in blocks. */
-    static final double OUTER_GAP = 0.3;
+    /** The share of its width a slash keeps by the end of its life. */
+    static final double WIDTH_KEPT = 0.6;
+    /** The share of its thickness a slash keeps by the end of its life, a sliver. */
+    static final double SLIVER = 0.1;
     /** How far past the crescent the box it cuts reaches, in blocks. */
     static final double BOX_SLACK = 0.3;
     /** The points sampled along the crescent for the box it cuts. */
@@ -63,7 +63,6 @@ public record ReapSlash(Vec3 origin, Vec3 forward, Vec3 span, double width, doub
             ByteBufCodecs.DOUBLE, ReapSlash::thickness,
             ByteBufCodecs.DOUBLE, ReapSlash::bulge,
             ByteBufCodecs.DOUBLE, ReapSlash::drift,
-            ByteBufCodecs.DOUBLE, ReapSlash::outerDrift,
             ByteBufCodecs.VAR_INT, ReapSlash::lifeTicks,
             ReapSlash::new);
 
@@ -79,13 +78,12 @@ public record ReapSlash(Vec3 origin, Vec3 forward, Vec3 span, double width, doub
      * @param dropLeast the least its plane stands under the line of sight, in blocks
      * @param dropMost  the most its plane stands under the line of sight, in blocks
      * @param maxTilt   the farthest it tilts from flat either way, in radians
-     * @param drift      how far its body travels outward over its life, in blocks
-     * @param outerDrift how far its outer blade travels outward over its life, in blocks
+     * @param drift     how far it travels outward over its life, in blocks
      * @param lifeTicks the ticks from it appearing to its dimming away
      */
     public record Shape(double near, double narrowest, double widest, double thinnest, double thickest,
                         double bulge, double dropLeast, double dropMost, double maxTilt, double drift,
-                        double outerDrift, int lifeTicks) {
+                        int lifeTicks) {
     }
 
     /**
@@ -117,7 +115,7 @@ public record ReapSlash(Vec3 origin, Vec3 forward, Vec3 span, double width, doub
         Vec3 under = normal.dot(up) > 0 ? normal.reverse() : normal;
         Vec3 origin = eye.add(look.scale(shape.near())).add(under.scale(drop));
         return new ReapSlash(origin, look, span, width, thickness, width * shape.bulge(), shape.drift(),
-                shape.outerDrift(), shape.lifeTicks());
+                shape.lifeTicks());
     }
     /**
      * The level axis to the right of a look.
@@ -131,8 +129,9 @@ public record ReapSlash(Vec3 origin, Vec3 forward, Vec3 span, double width, doub
     }
 
     /**
-     * A point on the crescent's body an age into its life: its apex travels
-     * outward while the body shrinks about it to nothing.
+     * A point on the crescent an age into its life: its apex travels outward
+     * along the look while the crescent narrows about it to six tenths of its
+     * width, its bow with it, and thins to a sliver.
      *
      * @param age   ticks since it appeared
      * @param along how far along the arc, 0 at one tip and 1 at the other
@@ -140,42 +139,14 @@ public record ReapSlash(Vec3 origin, Vec3 forward, Vec3 span, double width, doub
      * @return the point
      */
     public Vec3 pointAt(double age, double along, double layer) {
-        return bladePointAt(age, along, layer, bulge, drift, thickness);
-    }
-
-    /**
-     * A point on the outer blade an age into its life: a thinner crescent
-     * running out beyond the body's bulge, farther than the body travels,
-     * shrinking with it.
-     *
-     * @param age   ticks since it appeared
-     * @param along how far along the arc, 0 at one tip and 1 at the other
-     * @param layer its layer, 1 on the bulging edge and 0 on the hollow one
-     * @return the point
-     */
-    public Vec3 outerPointAt(double age, double along, double layer) {
-        return bladePointAt(age, along, layer, bulge + OUTER_GAP, outerDrift, thickness * OUTER_SHARE);
-    }
-
-    /**
-     * A point on one blade an age into its life: the blade's apex travels
-     * outward along the look while the crescent shrinks about it to nothing.
-     *
-     * @param age       ticks since it appeared
-     * @param along     how far along the arc, 0 at one tip and 1 at the other
-     * @param layer     its layer, 1 on the bulging edge and 0 on the hollow one
-     * @param reach     how far its apex stands beyond the tips as it appears, in blocks
-     * @param travel    how far its apex travels outward over its life, in blocks
-     * @param bladeBody how thick its middle is as it appears, in blocks
-     * @return the point
-     */
-    private Vec3 bladePointAt(double age, double along, double layer, double reach, double travel, double bladeBody) {
         double progress = Math.clamp(age / lifeTicks, 0, 1);
-        double kept = 1 - progress;
+        double widthNow = 1 - (1 - WIDTH_KEPT) * progress;
+        double thicknessNow = 1 - (1 - SLIVER) * progress;
         double offCentre = along * SPAN - 1;
-        double fromApex = -bulge * offCentre * offCentre - bladeBody * Math.sin(Math.PI * along) * (1 - layer);
-        return origin.add(forward.scale(reach + travel * progress + fromApex * kept))
-                .add(span.scale(offCentre * width * HALF * kept));
+        double fromApex = -bulge * widthNow * offCentre * offCentre
+                - thickness * thicknessNow * Math.sin(Math.PI * along) * (1 - layer);
+        return origin.add(forward.scale(bulge + drift * progress + fromApex))
+                .add(span.scale(offCentre * width * HALF * widthNow));
     }
 
     /**
@@ -190,8 +161,8 @@ public record ReapSlash(Vec3 origin, Vec3 forward, Vec3 span, double width, doub
     }
 
     /**
-     * The box the slash cuts: around the whole crescent and its outer blade
-     * from where they appear to where they have run out, a little past them.
+     * The box the slash cuts: around the whole crescent from where it
+     * appears to where it has travelled, a little past it.
      *
      * @return the box
      */
@@ -200,9 +171,8 @@ public record ReapSlash(Vec3 origin, Vec3 forward, Vec3 span, double width, doub
         for (double age : new double[] {0, lifeTicks}) {
             for (int step = 0; step <= BOX_SAMPLES; step++) {
                 for (double layer : new double[] {0, 1}) {
-                    Vec3 body = pointAt(age, (double) step / BOX_SAMPLES, layer);
-                    Vec3 outer = outerPointAt(age, (double) step / BOX_SAMPLES, layer);
-                    box = box.minmax(new AABB(body, body)).minmax(new AABB(outer, outer));
+                    Vec3 point = pointAt(age, (double) step / BOX_SAMPLES, layer);
+                    box = box.minmax(new AABB(point, point));
                 }
             }
         }

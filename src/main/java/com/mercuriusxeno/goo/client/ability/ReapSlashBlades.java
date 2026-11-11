@@ -24,7 +24,7 @@ import java.util.List;
  * Reap's slashes on the client, the Crissaegrim's from Symphony of the Night
  * as its frames show them: each a huge thick crescent drawn whole from the
  * very slash the server cuts with, its bulge glowing pale and its hollow
- * side shading to Leaf's green, dimming away as it drifts outward.
+ * side shading to Leaf's green, thinning and dimming as it travels outward.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -37,8 +37,6 @@ public final class ReapSlashBlades {
     private static final int OPAQUE = 0xFF;
     /** The hollow edge's share of the bulge's brightness. */
     private static final float HOLLOW_SHARE = 0.45f;
-    /** The outer blade's share of the body's brightness, a fainter blade running out ahead. */
-    private static final float OUTER_SHARE = 0.55f;
     private static final double HOLLOW = 0;
     private static final double BULGE = 1;
 
@@ -104,16 +102,9 @@ public final class ReapSlashBlades {
         buffers.endBatch(GooRenderTypes.GLOW_SHELL_TYPE);
     }
 
-    /** A point on one of a slash's blades, the body or the outer one. */
-    @FunctionalInterface
-    private interface Blade {
-        Vec3 at(double along, double layer);
-    }
-
     /**
-     * Draws one slash an age into its life: its body whole, its bulge glowing
-     * pale and its hollow edge Leaf's green, and its thinner outer blade
-     * running out beyond it fainter, all dimming together as they shrink.
+     * Draws one slash an age into its life, its bulge glowing pale and its
+     * hollow edge Leaf's green, dimming as it thins.
      *
      * @param quads  the context the quads emit through
      * @param slash  the slash
@@ -126,21 +117,15 @@ public final class ReapSlashBlades {
         if (strength <= 0f) {
             return;
         }
-        drawBlade(quads, (along, layer) -> slash.pointAt(age, along, layer), camera, strength, leaf);
-        drawBlade(quads, (along, layer) -> slash.outerPointAt(age, along, layer), camera, strength * OUTER_SHARE,
-                leaf);
-    }
-
-    private static void drawBlade(FlatQuadContext quads, Blade blade, Vec3 camera, float strength, int leaf) {
         int bulge = ARGB.color(Mth.floor(OPAQUE * strength), BULGE_RGB);
         int hollow = ARGB.color(Mth.floor(OPAQUE * strength * HOLLOW_SHARE), leaf);
         for (int segment = 0; segment < SEGMENTS; segment++) {
             double from = (double) segment / SEGMENTS;
             double to = (double) (segment + 1) / SEGMENTS;
-            emit(quads, blade.at(from, BULGE).subtract(camera), bulge);
-            emit(quads, blade.at(to, BULGE).subtract(camera), bulge);
-            emit(quads, blade.at(to, HOLLOW).subtract(camera), hollow);
-            emit(quads, blade.at(from, HOLLOW).subtract(camera), hollow);
+            emit(quads, slash.pointAt(age, from, BULGE).subtract(camera), bulge);
+            emit(quads, slash.pointAt(age, to, BULGE).subtract(camera), bulge);
+            emit(quads, slash.pointAt(age, to, HOLLOW).subtract(camera), hollow);
+            emit(quads, slash.pointAt(age, from, HOLLOW).subtract(camera), hollow);
         }
     }
 
