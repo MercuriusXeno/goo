@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.network.HoldMarks;
+import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mercuriusxeno.goo.throwing.StreamCone;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ClipContext;
@@ -45,8 +46,6 @@ final class PaintedHold {
     private static final int RAYS_PER_RING = 8;
     /** Points a ray is sampled at per block, fine enough to cross no cell unseen but a corner's sliver. */
     private static final int SAMPLES_PER_BLOCK = 8;
-    /** How far past a struck face a ray runs, so the struck block's own cell is reached. */
-    private static final double INTO_THE_BLOCK = 0.01;
 
     private PaintedHold() {
     }
@@ -65,15 +64,47 @@ final class PaintedHold {
     static Set<BlockPos> seenReach(ChannelHost host, ChannelAim aim) {
         Vec3 eye = host.eye();
         Vec3 look = aim.aimPoint().subtract(eye);
-        double range = look.length();
         Set<BlockPos> cells = new LinkedHashSet<>();
-        if (range == 0) {
+        if (look.length() == 0) {
             return cells;
         }
-        for (Vec3 ray : rayDirections(look, aim.coneDegrees())) {
-            cells.addAll(cellsAlong(eye, rayEnd(host, eye, eye.add(ray.scale(range)))));
+        for (Vec3 end : rayEnds(CoatRay.clipping(host.level()), eye, look, aim.coneDegrees())) {
+            cells.addAll(cellsAlong(eye, end));
         }
         return cells;
+    }
+
+    /**
+     * Where each of the stream's rays stops, read as Goop's and Slick's
+     * motes read their ends.
+     * goop-and-slick-spray-follows-the-coat
+     *
+     * @param clip        the blocks the rays meet
+     * @param eye         the rays' start
+     * @param look        the cone's axis, as long as the stream's reach
+     * @param coneDegrees the cone's apex angle in degrees
+     * @return each ray's end, in the order {@link #rayShares()} names them
+     */
+    static List<Vec3> rayEnds(CoatRay.BlockClip clip, Vec3 eye, Vec3 look, double coneDegrees) {
+        double range = look.length();
+        return rayShares().stream().map(share -> CoatRay.end(clip, eye, look, coneDegrees, range, share)).toList();
+    }
+
+    /**
+     * The places in the cone the stream's rays run: the axis, then rings of
+     * rays out to the cone's rim.
+     *
+     * @return the shares, the axis first
+     */
+    static List<CoatRay.ConeShare> rayShares() {
+        List<CoatRay.ConeShare> shares = new ArrayList<>();
+        shares.add(new CoatRay.ConeShare(0, 0));
+        for (int ring = 1; ring <= RAY_RINGS; ring++) {
+            for (int turn = 0; turn < RAYS_PER_RING; turn++) {
+                shares.add(new CoatRay.ConeShare((double) ring / RAY_RINGS, (double) turn / RAYS_PER_RING));
+            }
+        }
+        return shares;
     }
 
     /**
@@ -98,33 +129,8 @@ final class PaintedHold {
      * @return the unit directions, the axis first
      */
     static List<Vec3> rayDirections(Vec3 axis, double coneDegrees) {
-        List<Vec3> rays = new ArrayList<>();
-        rays.add(axis.normalize());
-        for (int ring = 1; ring <= RAY_RINGS; ring++) {
-            for (int turn = 0; turn < RAYS_PER_RING; turn++) {
-                rays.add(StreamCone.launchDirection(axis, coneDegrees, (double) ring / RAY_RINGS,
-                        (double) turn / RAYS_PER_RING));
-            }
-        }
-        return rays;
-    }
-
-    /**
-     * Where one ray stops: just inside the first block it meets, foliage
-     * included, or at its reach where it meets none.
-     *
-     * @param host  the channel host
-     * @param from  the ray's start
-     * @param reach the ray's end at the stream's reach
-     * @return the ray's end
-     */
-    private static Vec3 rayEnd(ChannelHost host, Vec3 from, Vec3 reach) {
-        BlockHitResult hit = host.level().clip(new ClipContext(from, reach, ClipContext.Block.OUTLINE,
-                ClipContext.Fluid.NONE, CollisionContext.empty()));
-        if (hit.getType() != HitResult.Type.BLOCK) {
-            return reach;
-        }
-        return hit.getLocation().add(reach.subtract(from).normalize().scale(INTO_THE_BLOCK));
+        return rayShares().stream()
+                .map(share -> StreamCone.launchDirection(axis, coneDegrees, share.tilt(), share.turn())).toList();
     }
 
     /**
