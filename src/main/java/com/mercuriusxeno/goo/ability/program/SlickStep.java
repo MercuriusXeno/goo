@@ -20,28 +20,43 @@ import java.util.stream.Stream;
  * paints the open cell over every block it reaches whose top can hold a
  * coat, and every cell the hold has painted builds toward a slick layer while
  * the hold lasts, laying it once it has built the JSON's ticks, as Goop lays
- * its slime. The slick it lays reads the ramp and top speed from this step,
- * so the JSON names how fast the slick drives what moves on it.
+ * its slime. The slick it lays reads its ramp and top speed from this step,
+ * so the JSON names how fast the slick drives a thing trying to move on it:
+ * the ramp starts gentle and grows to its strongest over the build's ticks
+ * the thing keeps trying, and a thing stepping on slower than the start
+ * speed is raised to it.
  * slick-coats-the-ground-with-kinetic-speed
+ * slick-ramp-grows-while-a-thing-keeps-moving
+ * slick-raises-a-slow-entry-to-a-start-speed
  *
- * @param ticks    the ticks of stream a cell takes to slick
- * @param ramp     the factor the slick multiplies the horizontal velocity of a thing on it by each tick
- * @param topSpeed the horizontal speed the ramp holds a thing to, in blocks a tick
+ * @param ticks         the ticks of stream a cell takes to slick
+ * @param startRamp     the factor the slick multiplies a trying thing's horizontal velocity by on its first tick
+ * @param strongestRamp the factor the ramp grows to
+ * @param buildTicks    the ticks of trying the ramp takes to grow from its start to its strongest
+ * @param topSpeed      the horizontal speed the ramp holds a thing to, in blocks a tick
+ * @param startSpeed    the horizontal speed a trying thing stepping on slower is raised to, in blocks a tick
  */
-public record SlickStep(int ticks, double ramp, double topSpeed) implements TakesNoEntity {
+public record SlickStep(int ticks, double startRamp, double strongestRamp, int buildTicks, double topSpeed,
+                        double startSpeed) implements TakesNoEntity {
 
     private static final String NAME = "slick";
     private static final String FIELD_TICKS = "ticks";
-    private static final String FIELD_RAMP = "ramp";
+    private static final String FIELD_START_RAMP = "start_ramp";
+    private static final String FIELD_STRONGEST_RAMP = "strongest_ramp";
+    private static final String FIELD_BUILD_TICKS = "build_ticks";
     private static final String FIELD_TOP_SPEED = "top_speed";
+    private static final String FIELD_START_SPEED = "start_speed";
 
     /**
      * Codec for the step's params.
      */
     public static final MapCodec<SlickStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             Codec.intRange(1, Integer.MAX_VALUE).fieldOf(FIELD_TICKS).forGetter(SlickStep::ticks),
-            Codec.doubleRange(1, Double.MAX_VALUE).fieldOf(FIELD_RAMP).forGetter(SlickStep::ramp),
-            Codec.doubleRange(0, Double.MAX_VALUE).fieldOf(FIELD_TOP_SPEED).forGetter(SlickStep::topSpeed)
+            Codec.doubleRange(1, Double.MAX_VALUE).fieldOf(FIELD_START_RAMP).forGetter(SlickStep::startRamp),
+            Codec.doubleRange(1, Double.MAX_VALUE).fieldOf(FIELD_STRONGEST_RAMP).forGetter(SlickStep::strongestRamp),
+            Codec.intRange(1, Integer.MAX_VALUE).fieldOf(FIELD_BUILD_TICKS).forGetter(SlickStep::buildTicks),
+            Codec.doubleRange(0, Double.MAX_VALUE).fieldOf(FIELD_TOP_SPEED).forGetter(SlickStep::topSpeed),
+            Codec.doubleRange(0, Double.MAX_VALUE).fieldOf(FIELD_START_SPEED).forGetter(SlickStep::startSpeed)
     ).apply(inst, SlickStep::new));
 
     /**
