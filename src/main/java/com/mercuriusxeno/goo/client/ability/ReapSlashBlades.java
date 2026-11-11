@@ -103,12 +103,22 @@ public final class ReapSlashBlades {
         FlatQuadContext quads = new FlatQuadContext(event.getPoseStack().last(),
                 buffers.getBuffer(GooRenderTypes.GLOW_SHELL_TYPE));
         int leaf = ClientGooTypes.color(GooTypes.LEAF);
-        int firstPersonId = mc.player != null && mc.options.getCameraType().isFirstPerson() ? mc.player.getId() : NOBODY;
+        int firstPersonId = firstPersonSlasher(mc);
         for (Shown shown : LIVE) {
             ReapSlash drawn = shown.slasherId() == firstPersonId ? shown.slash().tippedUp(FIRST_PERSON_TIP) : shown.slash();
             drawSlash(quads, drawn, time - shown.launchTick(), camera, leaf);
         }
         buffers.endBatch(GooRenderTypes.GLOW_SHELL_TYPE);
+    }
+
+    /**
+     * The id of the player viewing in first person, whose own slashes draw tipped up.
+     *
+     * @param mc the client
+     * @return the local player's id in first person, otherwise no entity's id
+     */
+    private static int firstPersonSlasher(Minecraft mc) {
+        return mc.player != null && mc.options.getCameraType().isFirstPerson() ? mc.player.getId() : NOBODY;
     }
 
     /**
