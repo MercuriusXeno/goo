@@ -310,6 +310,10 @@ public final class GooFlightManager {
             return Math.min(1.0f, (ticksElapsed + partialTick) / travelTicks);
         }
 
+        private double progressAt(double ticks) {
+            return Math.clamp(ticks / travelTicks, 0.0, 1.0);
+        }
+
         /**
          * Where the flight stands at a point of its progress: along its arc,
          * or along its two legs where it passes a gate, pushed by the
@@ -351,6 +355,30 @@ public final class GooFlightManager {
          */
         public Vec3 getPosition(float partialTick) {
             return along(progress(partialTick));
+        }
+
+        /**
+         * The blob's velocity in blocks per tick, drift included: how far its
+         * position moves over the next tick, or over the last one where the
+         * next steps across a gate from its face to the partner.
+         * thrown-blob-trail-takes-the-blobs-velocity
+         *
+         * @param partialTick the partial tick for interpolation
+         * @return the velocity, blocks per tick
+         */
+        public Vec3 getTickVelocity(float partialTick) {
+            double ticks = ticksElapsed + partialTick;
+            double now = progressAt(ticks);
+            double next = progressAt(ticks + 1);
+            if (crossesTheGate(now, next)) {
+                return along(now).subtract(along(progressAt(ticks - 1)));
+            }
+            return along(next).subtract(along(now));
+        }
+
+        private boolean crossesTheGate(double from, double to) {
+            return hop != null && GateArc.onNearLeg(start, hop, getEnd(), from)
+                    != GateArc.onNearLeg(start, hop, getEnd(), to);
         }
 
         /**
