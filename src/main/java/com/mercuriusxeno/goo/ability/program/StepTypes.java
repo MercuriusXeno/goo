@@ -138,7 +138,7 @@ public final class StepTypes {
         register(VibrateStep.TYPE);
         register(ScanVisualStep.TYPE);
         register(EndStep.TYPE);
-        register(PocketOpenStep.TYPE);
+        register(HoleOpenStep.TYPE);
         register(OutsiderStep.TYPE);
         register(MeteorStep.TYPE);
         register(WormholeStep.TYPE);

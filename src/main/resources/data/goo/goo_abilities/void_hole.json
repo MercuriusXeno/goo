@@ -1,0 +1,12 @@
+{
+  "gooType": "void",
+  "displayName": "goo.ability.void.hole",
+  "badge": "world",
+  "order": 10,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "hole_open", "lifetime": 600 }
+  ],
+  "tags": []
+}

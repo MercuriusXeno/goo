@@ -30,6 +30,8 @@ public interface BlockBreakHost extends StepHost {
     double DEBRIS_SPREAD = 0.3;
     /** How fast its debris flies out. */
     double DEBRIS_SPEED = 0.3;
+    /** The highest breaker id a block's cracks travel under, below every entity's id. */
+    int HIGHEST_CRACKER_ID = -1;
 
     /**
      * The level the host's blocks stand in.
@@ -175,6 +177,30 @@ public interface BlockBreakHost extends StepHost {
      */
     default boolean finishingAlone(BlockPos pos) {
         return GooServerState.of(level().getServer()).blockExposures().finishingAt(level(), pos);
+    }
+
+    /**
+     * Draws the vanilla block break texture on a block at a stage, seen by
+     * every player near it, the breaking player too.
+     * decision gradual-breaks-share-one-break-texture-piece
+     *
+     * @param pos   the block
+     * @param stage the crack stage, 0 to 9, or {@link GradualBreak#CLEARED} to clear it
+     */
+    default void crackBlock(BlockPos pos, int stage) {
+        level().destroyBlockProgress(crackerId(pos), pos, stage);
+    }
+
+    /**
+     * The breaker id a block's cracks travel under. A client keeps one crack
+     * per breaker id and the server skips the player whose id it is, so each
+     * block takes its own negative id, one no entity holds.
+     *
+     * @param pos the block
+     * @return the id, below zero
+     */
+    static int crackerId(BlockPos pos) {
+        return HIGHEST_CRACKER_ID - (Long.hashCode(pos.asLong()) & Integer.MAX_VALUE);
     }
 
     /**

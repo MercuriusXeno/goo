@@ -76,6 +76,15 @@ public interface ChannelHost extends BlockBreakHost {
     HoldMarks holdMarks();
 
     /**
+     * The gradual break the channeling player's current hold progresses its
+     * blocks through, fresh for each hold.
+     * decision gradual-breaks-share-one-break-texture-piece
+     *
+     * @return the hold's gradual break
+     */
+    GradualBreak gradualBreak();
+
+    /**
      * Toggles every lever, button, door, trapdoor or fence gate standing in
      * the cells as a hand would, each once however many of its cells the
      * list holds, with no memory of earlier toggles

@@ -60,21 +60,22 @@ class GooConstantResolverTest {
     }
 
     /**
-     * Resolving a type its referent lacks (decision type-the-referent-lacks-loads-no-value-and-reads-a-red-line).
+     * Resolving a type its referent lacks, read as zero beside the workbench's red line
+     * (decision type-the-referent-lacks-loads-no-value-and-reads-a-red-line).
      */
     @Nested
     class ReferentLackingTheType {
 
         /**
-         * stripped_stem reading $stem.leaf, stem holding shroom and nether, answers no per-type value and an error
-         * naming stem and leaf.
+         * stripped_stem reading $stem.leaf / 2 + 1, stem holding shroom and nether, answers shroom 1, leaf read as
+         * zero, and an error naming stem and leaf.
          */
         @Test
-        void typedPrefabReadingATypeItsPrefabLacksErrorsNamingBoth() {
+        void typedPrefabReadingATypeItsPrefabLacksResolvesAndErrorsNamingBoth() {
             GooConstantResolver.ResolvedConstant stripped = GooConstantResolver.resolve(JsonParser.parseString("""
-                    {"stem": {"shroom": 2, "nether": 2}, "stripped_stem": {"shroom": "$stem.leaf / 2"}}
+                    {"stem": {"shroom": 2, "nether": 2}, "stripped_stem": {"shroom": "$stem.leaf / 2 + 1"}}
                     """).getAsJsonObject()).get(1);
-            assertTrue(stripped.perType().isEmpty(), String.valueOf(stripped.perType()));
+            assertEquals("1", stripped.perType().get("shroom"), String.valueOf(stripped.perType()));
             assertTrue(stripped.error() != null && stripped.error().contains("stem holds no leaf"), stripped.error());
         }
 
@@ -83,12 +84,12 @@ class GooConstantResolverTest {
          * $hyphae.leaf errors from the evaluator where the validator cannot see hyphae's types.
          */
         @Test
-        void typedPrefabReadingATypeItsStringFormReferentLacksErrors() {
+        void typedPrefabReadingATypeItsStringFormReferentLacksResolvesAndErrors() {
             GooConstantResolver.ResolvedConstant stripped = GooConstantResolver.resolve(JsonParser.parseString("""
                     {"stem": {"shroom": 3, "nether": 3}, "hyphae": "4 $stem / 3",
-                     "stripped_hyphae": {"shroom": "$hyphae.leaf"}}
+                     "stripped_hyphae": {"shroom": "$hyphae.leaf + 2"}}
                     """).getAsJsonObject()).get(2);
-            assertTrue(stripped.perType().isEmpty(), String.valueOf(stripped.perType()));
+            assertEquals("2", stripped.perType().get("shroom"), String.valueOf(stripped.perType()));
             assertTrue(stripped.error() != null && stripped.error().contains("hyphae holds no leaf"), stripped.error());
         }
 
