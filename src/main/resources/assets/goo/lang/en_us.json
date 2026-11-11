@@ -93,6 +93,7 @@
   "effect.goo.opulent_held": "Fortune",
   "effect.goo.void_held": "Emptiness",
   "effect.goo.weird_held": "Bounce",
+  "effect.goo.zoo_held": "Menagerie",
   "effect.goo.mycosis": "Mycosis",
   "effect.goo.bio_toxin": "Bio Toxin",
 
@@ -313,7 +314,7 @@
   "goo.ability.zoo.allure": "Allure",
   "goo.ability.zoo.allure.description": "Drives an animal to mate, if it can.",
   "goo.ability.zoo.rally": "Rally",
-  "goo.ability.zoo.rally.description": "Peaceful creatures around you fight your enemies with more health and speed.",
+  "goo.ability.zoo.rally.description": "The peaceful creature it lands on fights your enemies with more health and speed, until you strike it.",
   "goo.ability.zoo.shape": "Shape",
   "goo.ability.zoo.shape.description": "Turns a slime into a random peaceful mob of its biome.",
   "goo.ability.zoo.spawn": "Spawn",

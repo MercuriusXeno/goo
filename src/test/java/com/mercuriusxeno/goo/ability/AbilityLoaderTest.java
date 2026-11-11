@@ -592,9 +592,10 @@ class AbilityLoaderTest {
         }
 
         @Test
-        void shippedBlazeLeafAndZooEachCarryExactlyOneBrew() {
+        void shippedBlazeAndLeafEachCarryExactlyOneBrew() {
             Map<Identifier, AbilityDefinition> shipped = scanShipped(AbilityJson.files());
-            List<ResourceKey<GooTypeDefinition>> carriers = List.of(GooTypes.BLAZE, GooTypes.LEAF, GooTypes.ZOO);
+            // rally-is-a-mob-effect-on-one-target: Zoo's brew left with Rally, and its new brew is still to be cut
+            List<ResourceKey<GooTypeDefinition>> carriers = List.of(GooTypes.BLAZE, GooTypes.LEAF);
 
             List<ResourceKey<GooTypeDefinition>> lacking = AbilityLoader.typesLackingADurative(shipped, GooTypes.BUNDLED);
 
@@ -607,36 +608,15 @@ class AbilityLoaderTest {
             }
         }
 
-        /** decision zoo-rally-is-a-brew-ability */
+        /** decision rally-is-a-mob-effect-on-one-target */
         @Test
-        void shippedZooBrewIsRally() {
-            List<Identifier> zooBrews = scanShipped(AbilityJson.files()).values().stream()
-                    .filter(def -> def.gooType() == GooTypes.ZOO && SelfEatRoute.eats(def.delivery(), def.badge()))
-                    .map(AbilityDefinition::id)
-                    .toList();
-
-            assertEquals(List.of(Identifier.fromNamespaceAndPath(Goo.MODID, "zoo_rally")), zooBrews);
-        }
-
-        /** decision zoo-rally-is-a-brew-ability */
-        @Test
-        void shippedZooRallyEatsAsABrewPayingUpkeep() {
+        void shippedZooRallyThrowsAtOneMobForAFlatCost() {
             AbilityDefinition rally = AbilityJson.decode("zoo_rally");
 
-            assertEquals(AbilityBadge.DURATIVE, rally.badge());
-            assertEquals(DeliveryKind.SELF, rally.delivery().kind());
-            assertTrue(rally.upkeep().in(GooValueTable.EMPTY) > 0, "upkeep " + rally.upkeep().in(GooValueTable.EMPTY));
-            assertEquals(0, rally.cost().in(GooValueTable.EMPTY));
-            assertTrue(SelfEatRoute.eats(rally.delivery(), rally.badge()));
-        }
-
-        /** decision zoo-rally-holds-for-the-brew */
-        @Test
-        void shippedZooRallyLaysTheRallyItsEndingClears() {
-            AbilityDefinition rally = AbilityJson.decode("zoo_rally");
-
-            assertTrue(LaidState.laidBy(rally.behaviors()).contains(LaidState.RALLY),
-                    LaidState.laidBy(rally.behaviors()).toString());
+            assertEquals(AbilityBadge.MOB, rally.badge());
+            assertEquals(DeliveryKind.ARC, rally.delivery().kind());
+            assertTrue(rally.cost().in(GooValueTable.EMPTY) > 0, "cost " + rally.cost().in(GooValueTable.EMPTY));
+            assertEquals(0, rally.upkeep().in(GooValueTable.EMPTY));
         }
     }
 
