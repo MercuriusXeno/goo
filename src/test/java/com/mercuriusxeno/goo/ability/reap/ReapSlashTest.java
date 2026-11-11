@@ -201,6 +201,29 @@ class ReapSlashTest {
         }
 
         @Test
+        void skimmingTheGroundItsLowestEdgeClearsItHoweverItLeansAndIsNudged() {
+            ReapSlash sunk = new ReapSlash(new Vec3(0, -0.2, 0), SOUTH, Math.toRadians(-10), 1.17, SHAPE);
+            double plane = sunk.skimming(0.05);
+            assertEquals(0.05 + 0.2 + 2.65 * Math.sin(Math.toRadians(10)), plane, TOLERANCE);
+            double lowest = Double.MAX_VALUE;
+            for (double age : new double[] {0, 2, 4, 6}) {
+                for (int step = 0; step <= 40; step++) {
+                    for (double layer : new double[] {0, 1}) {
+                        lowest = Math.min(lowest, sunk.pointAt(FEET, plane, age, step / 40.0, layer).y - FEET.y);
+                    }
+                }
+            }
+            assertTrue(lowest >= 0.05 - TOLERANCE, "its lowest point stands " + lowest + " over the ground");
+        }
+
+        @Test
+        void skimmingTheGroundALevelSlashLiesJustOverItAndARaisedOneStaysWhereItIs() {
+            assertEquals(0.05, LEVEL.skimming(0.05), TOLERANCE);
+            ReapSlash raised = new ReapSlash(new Vec3(0, 0.2, 0), SOUTH, 0, 1.17, SHAPE);
+            assertEquals(0, raised.skimming(0.05), TOLERANCE);
+        }
+
+        @Test
         void itsLeanRaisesOneSideAndLowersTheOther() {
             ReapSlash leant = new ReapSlash(Vec3.ZERO, SOUTH, Math.toRadians(10), 1.17, SHAPE);
             double rightSide = leant.pointAt(FEET, 1.17, 0, 0.9, 1).y - (FEET.y + 1.17);
