@@ -58,6 +58,7 @@ class StepCodecTest {
             Map.entry("detect_ore", new DetectOreStep(TagKey.create(Registries.BLOCK,
                     Identifier.fromNamespaceAndPath("goo", "gem_ores")), GooTypes.CRYSTAL, 64, 100)),
             Map.entry("wind", new WindStep(true, Optional.of(new WindStep.Tailwind(6, 30)))),
+            Map.entry("hex_mist", new HexMistStep()),
             Map.entry("glacial", new GlacialStep(5)),
             Map.entry("traveling", new TravelingStep(3f, List.of(new FreezeBlocksStep(Expr.literal(2.5), false)))),
             Map.entry("break_blocks", new BreakBlocksStep(TagKey.create(Registries.BLOCK,
@@ -200,8 +201,7 @@ class StepCodecTest {
             Map.entry("enchant_book", LeafSteps.ENCHANT_BOOK.step(Unit.INSTANCE)),
             Map.entry("fuse_books", new FuseBooksStep(Optional.of(new SoundCue(
                     Identifier.withDefaultNamespace("block.fire.extinguish"), SoundKind.PLAYERS, 0.4f, 1.6f)))),
-            Map.entry("rally", new RallyStep(Expr.literal(600), Expr.literal(6), Expr.literal(1.5),
-                    Expr.literal(0.5))),
+            Map.entry("rally", new RallyStep(Expr.literal(6), Expr.literal(1.5), Expr.literal(0.5))),
             Map.entry("transmute_slime", new SlimeTransmuteStep(GooTypes.ZOO, true, 20,
                     List.of(new AilmentOverlayStep(AilmentKind.HEX, Expr.literal(60))))),
             Map.entry("lifetap", new LifetapStep(Expr.literal(0.3))),
