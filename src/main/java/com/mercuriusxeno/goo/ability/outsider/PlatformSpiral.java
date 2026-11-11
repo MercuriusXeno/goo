@@ -1,17 +1,16 @@
 package com.mercuriusxeno.goo.ability.outsider;
 
 /**
- * The order Outsider's platform grows in, and what each cell costs. The
- * platform walks a square spiral out from the voidstone, cell 0: ring k holds
- * the 8k cells k blocks out, walked south down the east side, west along the
- * south side, north up the west side and east along the north side, so each
- * cell shares an edge with the one before and a room's starting 3 by 3 is
- * cells 0 to 8. The next cell follows from the platform's cell count alone.
- * A grown cell costs a base plus a little for each block of Manhattan
- * distance from the center, as the operator ruled, and the hold feeds each
- * ring's whole cost over the same ring time, so every ring takes about as
- * long as the last and a bigger platform costs more void, not more waiting.
+ * A square spiral out from a center, cell 0, and what each of its rings
+ * costs. Ring k holds the 8k cells k blocks out, walked south down the east
+ * side, west along the south side, north up the west side and east along
+ * the north side, so each cell shares an edge with the one before and the
+ * 3 by 3 around the center is cells 0 to 8. {@link RoomGrid} lays the rooms
+ * along it. A cell costs a base plus a little for each block of Manhattan
+ * distance from the center, as the operator ruled, and a room's
+ * {@link RoomExtent} pays a ring's whole cost to grow through it.
  * decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform
+ * decision outsider-room-grows-fractionally-on-all-sides-at-once
  */
 public final class PlatformSpiral {
 
@@ -21,7 +20,6 @@ public final class PlatformSpiral {
     private static final int EAST_SIDE = 0;
     private static final int SOUTH_SIDE = 1;
     private static final int WEST_SIDE = 2;
-    private static final int NORTH_SIDE = 3;
     /** A ring k out runs 2k cells along each side, so its square is 2k + 1 cells across. */
     private static final int PER_RING = 2;
 
@@ -64,42 +62,6 @@ public final class PlatformSpiral {
     }
 
     /**
-     * The void a cell costs to grow: the base, plus the step for each block
-     * of Manhattan distance between the cell and the center.
-     *
-     * @param index       the cell's place along the spiral
-     * @param base        the void a cell costs at the center (mB)
-     * @param perDistance the void each block of Manhattan distance adds (mB)
-     * @return the cell's cost (mB)
-     */
-    /**
-     * A cell's place along the spiral, the inverse of {@link #cellAt}.
-     *
-     * @param cell the cell's offset from the center
-     * @return its place along the spiral
-     */
-    public static long indexOf(Cell cell) {
-        long ring = Math.max(Math.abs((long) cell.x()), Math.abs((long) cell.z()));
-        if (ring == 0) {
-            return 0;
-        }
-        long side = PER_RING * ring;
-        long start = (side - 1) * (side - 1);
-        long x = cell.x();
-        long z = cell.z();
-        if (x == ring && z > -ring) {
-            return start + z + ring - 1;
-        }
-        if (z == ring) {
-            return start + SOUTH_SIDE * side + ring - 1 - x;
-        }
-        if (x == -ring) {
-            return start + WEST_SIDE * side + ring - 1 - z;
-        }
-        return start + NORTH_SIDE * side + x + ring - 1;
-    }
-
-    /**
      * The ring a cell sits in: ring k holds the cells of the square 2k + 1
      * across that the square 2k - 1 across leaves out.
      *
@@ -133,21 +95,14 @@ public final class PlatformSpiral {
     }
 
     /**
-     * The void a tick feeds while the platform grows its current ring: the
-     * ring's whole cost spread over the ring time, rounded up so the ring
-     * finishes within it.
+     * The void a cell costs: the base, plus the step for each block of
+     * Manhattan distance between the cell and the center.
      *
-     * @param cells       the platform's cell count
+     * @param index       the cell's place along the spiral
      * @param base        the void a cell costs at the center (mB)
      * @param perDistance the void each block of Manhattan distance adds (mB)
-     * @param ringTicks   the ticks every ring takes
-     * @return the feed (mB)
+     * @return the cell's cost (mB)
      */
-    public static long feedFor(int cells, int base, int perDistance, int ringTicks) {
-        long ringCost = ringCost(ringOf(cells), base, perDistance);
-        return (ringCost + ringTicks - 1) / ringTicks;
-    }
-
     public static long costOf(int index, int base, int perDistance) {
         Cell cell = cellAt(index);
         return base + (long) perDistance * (Math.abs(cell.x()) + Math.abs(cell.z()));
