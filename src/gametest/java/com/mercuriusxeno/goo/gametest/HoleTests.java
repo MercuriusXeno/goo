@@ -179,10 +179,10 @@ public final class HoleTests {
     private static final int HOLE_COST = 1000;
     /** Void the caster holds past the casts' cost, which no storing may touch. */
     private static final int SPARE_VOID = 500;
-    /** void_hole.json's lifetime: the hole closes after twelve seconds. */
-    static final int LIFETIME = 240;
-    /** void_hole.json's refresh: a swallow floors the time left at six seconds. */
-    static final int REFRESH = 120;
+    /** void_hole.json's lifetime: the hole closes after ten seconds. */
+    static final int LIFETIME = 200;
+    /** void_hole.json's refresh: a swallow floors the time left at five seconds. */
+    static final int REFRESH = 100;
     /** The floor block, relative, whose top face the hole opens on. */
     static final BlockPos FLOOR = new BlockPos(2, 0, 2);
     /** A second floor block, relative, a second cast opens on. */
