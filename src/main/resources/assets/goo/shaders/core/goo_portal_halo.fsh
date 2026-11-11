@@ -25,7 +25,7 @@ out vec4 fragColor;
 const float HALO_MARGIN_TEXELS = 8.0;
 // How many texels out from the oval's edge the halo fades to nothing at its longest tongue's still
 // reach, short of the quad's border.
-const float HALO_REACH_TEXELS = 2.5;
+const float HALO_REACH_TEXELS = 1.0;
 // How strongly the halo glows on the texels touching the oval's edge.
 const float HALO_STRENGTH = 0.5;
 // GameTime runs from zero to one over a day of 24000 ticks; this many seconds make one day. Each
@@ -42,8 +42,9 @@ const float HALO_RIPPLE_TEXELS = 0.5;
 const float HALO_TONGUES = 5.0;
 // The share of the reach a tongue's gap still keeps, so the halo thins between tongues and never parts.
 const float HALO_GAP_REACH = 0.45;
-// The texel distance a ripple never carries the reach past: the quad's border, half a texel in.
-const float HALO_REACH_LIMIT = HALO_MARGIN_TEXELS - 0.5;
+// The texel distance a ripple never carries the reach past: a border of a texel and a half round the
+// rim, the most the operator set it to.
+const float HALO_REACH_LIMIT = 1.5;
 // How deep the turning noise breaks the glow's strength between tongues, the band by the rim among it,
 // as a share of full strength, so no texel of the glow sits still (decision
 // surface-glow-reaches-shorter-and-moves-inside). Tuned by eye.
