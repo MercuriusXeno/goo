@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.client.ability.ClientRoomEdges;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.AffordedCount;
@@ -29,6 +30,7 @@ import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalDouble;
 
 /**
  * A nine-slice panel at the bottom right of the screen while a glove with a
@@ -126,11 +128,32 @@ public final class CrosshairFuelPanel {
      */
     public static List<FuelCell> rowCells(ResourceKey<GooTypeDefinition> type, ClientAbility ability, int holdings,
                                           int reagentSets, StandingUpkeep standing, String aimedCostLabel) {
+        return rowCells(type, ability, holdings, reagentSets, standing, OptionalDouble.empty(), aimedCostLabel);
+    }
+
+    /**
+     * Builds the panel's row for the selected ability beside the upkeep standing on its type and the
+     * Outsider room the player stands in.
+     * time-counts-net-standing-upkeep
+     * decision outsider-panel-reads-the-seconds-the-void-affords
+     *
+     * @param type           the selected goo type
+     * @param ability        the selected ability's synced copy
+     * @param holdings       the mB the player holds of the type across the inventory
+     * @param reagentSets    the whole sets of the ability's consumed items the inventory holds
+     * @param standing       the upkeep already standing on the type
+     * @param roomExtent     the extent of the Outsider room the player stands in, empty outside the pocket
+     * @param aimedCostLabel the live cost at the aim, which a dynamic ability's row reads
+     * @return the row's cells, left to right
+     */
+    public static List<FuelCell> rowCells(ResourceKey<GooTypeDefinition> type, ClientAbility ability, int holdings,
+                                          int reagentSets, StandingUpkeep standing, OptionalDouble roomExtent,
+                                          String aimedCostLabel) {
         List<FuelCell> cells = new ArrayList<>(List.of(new TypeIcon(type), new AbilityName(ability.displayName()),
                 new AbilityIcon(ability.iconTexture())));
         // dynamic-costs-keep-the-mb-quantity: a dynamic ability's row reads the live mB at the aim
-        cells.add(new Count(AffordedCount.reckon(ability, holdings, reagentSets, standing).map(AffordedCount::label)
-                .orElse(aimedCostLabel)));
+        cells.add(new Count(AffordedCount.reckon(ability, holdings, reagentSets, standing, roomExtent)
+                .map(AffordedCount::label).orElse(aimedCostLabel)));
         ability.consumes().forEach(item -> cells.add(new ItemIcon(item)));
         return cells;
     }
@@ -163,7 +186,8 @@ public final class CrosshairFuelPanel {
         }
         int holdings = GooSourceScanner.aggregateAvailable(player).getOrDefault(type, 0);
         List<FuelCell> cells = rowCells(type, ability, holdings, ReagentScanner.setsHeld(player, ability.consumes()),
-                StandingUpkeep.on(player.getData(GooAttachments.HELD_EFFECTS), type), cost.get());
+                StandingUpkeep.on(player.getData(GooAttachments.HELD_EFFECTS), type),
+                ClientRoomEdges.extentWhereStanding(player.level().dimension()), cost.get());
         paint(graphics, font, cells, graphics.guiWidth(), graphics.guiHeight());
     }
 
