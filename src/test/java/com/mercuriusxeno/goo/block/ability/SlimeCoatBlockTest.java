@@ -31,8 +31,7 @@ import static org.mockito.Mockito.when;
 class SlimeCoatBlockTest {
 
     private static final String BLOCKSTATE_JSON = "/assets/goo/blockstates/slime_coat.json";
-    private static final String COAT_JSON = "/data/goo/goo_abilities/weird_coat.json";
-    private static final String BOUNCE_JSON = "/data/goo/goo_abilities/weird_bounce.json";
+    private static final String GOOP_JSON = "/data/goo/goo_abilities/weird_goop.json";
 
     @Nested
     class Faces {
@@ -110,23 +109,8 @@ class SlimeCoatBlockTest {
         }
 
         @Test
-        void coatsStreamCostsOneLayer() throws IOException {
-            assertEquals(SlimeCoatBlock.MB_PER_LAYER, classpathJson(COAT_JSON).get("cost").getAsInt());
-        }
-
-        @Test
-        void bouncesThrowCostsTheLayersItLays() throws IOException {
-            JsonObject bounce = classpathJson(BOUNCE_JSON);
-            int layers = 0;
-            for (JsonElement behavior : bounce.getAsJsonArray("behaviors")) {
-                JsonObject step = behavior.getAsJsonObject();
-                if ("coat".equals(step.get("type").getAsString())) {
-                    layers = step.get("layers").getAsInt();
-                }
-            }
-
-            assertTrue(layers > 0, "weird_bounce.json's coat step names no layers");
-            assertEquals(layers * SlimeCoatBlock.MB_PER_LAYER, bounce.get("cost").getAsInt());
+        void goopsStreamCostsOneLayer() throws IOException {
+            assertEquals(SlimeCoatBlock.MB_PER_LAYER, classpathJson(GOOP_JSON).get("cost").getAsInt());
         }
     }
 

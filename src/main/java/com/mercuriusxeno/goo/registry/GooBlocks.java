@@ -153,7 +153,7 @@ public class GooBlocks {
                     .replaceable()
                     .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
     /**
-     * Slime coat: the layered green slime Weird's Coat and Bounce lay on a
+     * Slime coat: the layered green slime Weird's Goop lays on a
      * block's top, standing until destroyed and then dropping the weird goo
      * its layers cost through SlimeCoatBlock.getDrops, no loot table
      * (decisions coat-is-a-green-slime-film-over-the-blocks-own-texture,

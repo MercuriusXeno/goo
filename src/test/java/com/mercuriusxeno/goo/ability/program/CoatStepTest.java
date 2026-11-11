@@ -9,31 +9,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The coat step reads one of two deliveries: ticks for a stream's hold,
- * which needs the channel, or layers for a splat, which needs a cell to lay
- * them in, and refuses a step naming both or neither
- * (decision bounce-throw-dumps-layers-that-flow-out).
+ * The coat step reads the ticks of a stream's hold, which needs the channel,
+ * and refuses a step naming none (decision bounce-leaves-the-mod-and-goop-stands-alone).
  */
 class CoatStepTest {
 
     @Test
-    void layersAloneDecodeAndNeedACellToLayThemIn() {
-        assertEquals(Set.of(HostCapability.PLACE_BLOCK), decoded("{\"layers\": 4}").getOrThrow().requires());
-    }
-
-    @Test
-    void ticksAloneDecodeAndNeedTheChannel() {
+    void ticksDecodeAndNeedTheChannel() {
         assertEquals(Set.of(HostCapability.CHANNEL), decoded("{\"ticks\": 20}").getOrThrow().requires());
     }
 
     @Test
-    void bothTicksAndLayersRefuse() {
-        assertTrue(decoded("{\"ticks\": 20, \"layers\": 4}").isError(), "a coat step naming both should refuse");
-    }
-
-    @Test
-    void neitherTicksNorLayersRefuse() {
-        assertTrue(decoded("{}").isError(), "a coat step naming neither should refuse");
+    void noTicksRefuse() {
+        assertTrue(decoded("{}").isError(), "a coat step naming no ticks should refuse");
     }
 
     private static DataResult<CoatStep> decoded(String json) {

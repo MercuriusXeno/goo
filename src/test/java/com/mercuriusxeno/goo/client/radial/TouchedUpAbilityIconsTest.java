@@ -226,13 +226,13 @@ class TouchedUpAbilityIconsTest {
 
         @Test
         void keepsTheFormerSlime() throws IOException {
-            assertTrue(opaqueColors(read("weird_coat")).containsAll(FORMER_SLIME),
+            assertTrue(opaqueColors(read("weird_goop")).containsAll(FORMER_SLIME),
                     "the Goop icon should keep the former slime's four colors");
         }
 
         @Test
         void standsOnAStraightSidedBlock() throws IOException {
-            BufferedImage icon = read("weird_coat");
+            BufferedImage icon = read("weird_goop");
             int bottom = lastOpaqueRow(icon);
             List<int[]> base = opaqueRuns(icon, bottom);
             int left = base.get(0)[0];

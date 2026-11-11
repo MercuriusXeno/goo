@@ -14,10 +14,14 @@ import java.util.WeakHashMap;
  * The slime coat's bounce: a landing with jump held launches the lander
  * higher than it arrived and higher than its bounce before, so held jumps
  * ramp up bounce on bounce to a ceiling reached on the fourth held bounce,
- * fourteen blocks up; without jump held the bounce decays, and sneaking
- * decays it far faster. Each bounce sounds a short boing.
+ * fourteen blocks up; without jump held the bounce is near-lossless, a small
+ * decay a bounce so it takes a long time to die out, and sneaking dampens it
+ * as the neutral bounce once did. Each bounce sounds a short boing. Every
+ * entity bounces: players, mobs, items and projectiles.
  * bounce-ramps-jump-height-while-jump-is-held
  * ramp-tops-out-on-the-fourth-held-bounce-at-fourteen-blocks
+ * neutral-bounce-is-near-lossless-and-bounces-every-entity
+ * sneak-bounce-dampens-as-the-neutral-bounce-did
  */
 public final class SlimeCoatBounce {
 
@@ -28,10 +32,18 @@ public final class SlimeCoatBounce {
      * ramp-tops-out-on-the-fourth-held-bounce-at-fourteen-blocks
      */
     static final double RAMP_PER_BOUNCE = 1.5;
-    /** The share of its fall a lander keeps on the way back up without jump held. */
-    static final double RELEASED_DECAY = 0.7;
-    /** The share of its fall a sneaking lander keeps, a far faster decay. */
-    static final double SNEAK_DECAY = 0.25;
+    /**
+     * The share of its fall a lander keeps on the way back up without jump held:
+     * twenty bounces still keep more than half the first.
+     * neutral-bounce-is-near-lossless-and-bounces-every-entity
+     */
+    static final double RELEASED_DECAY = 0.97;
+    /**
+     * The share of its fall a sneaking lander keeps, the neutral bounce's share
+     * before it went near-lossless.
+     * sneak-bounce-dampens-as-the-neutral-bounce-did
+     */
+    static final double SNEAK_DECAY = 0.7;
     /**
      * The fastest launch a ramp reaches, in blocks a tick, set for a peak
      * fourteen blocks over the coat: the launch tick takes gravity's 0.08
