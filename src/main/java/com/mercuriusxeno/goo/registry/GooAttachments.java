@@ -333,10 +333,10 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The rally a peaceful mob holds: the caster it fights for, the game
-     * time it fades at and its strike damage, saved with the mob and synced
-     * to every client drawing it, which floats the rally fist over its head
-     * and outlines it.
+     * The rally a peaceful mob holds until its rallier strikes it: the caster
+     * it fights for and its strike damage, saved with the mob and synced to
+     * every client drawing it, which floats the rally fist over its head and
+     * outlines it.
      * zoo-rally-arms-the-peaceful
      * rallied-mobs-wear-a-red-clenched-fist
      */

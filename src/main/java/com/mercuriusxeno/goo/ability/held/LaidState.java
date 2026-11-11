@@ -11,7 +11,6 @@ import com.mercuriusxeno.goo.ability.program.LifetapStep;
 import com.mercuriusxeno.goo.ability.program.LowerCaseEnumCodec;
 import com.mercuriusxeno.goo.ability.program.LuxStep;
 import com.mercuriusxeno.goo.ability.program.PhaseStep;
-import com.mercuriusxeno.goo.ability.program.RallyStep;
 import com.mercuriusxeno.goo.ability.program.SculkerStep;
 import com.mercuriusxeno.goo.ability.program.ShifterStep;
 import com.mercuriusxeno.goo.ability.program.SightStep;
@@ -61,7 +60,10 @@ public enum LaidState {
     ANCIENT,
     /** Standing out of phase (decision phase-shares-a-plane-between-the-phased). */
     PHASE,
-    /** Zoo's Rally over the peaceful mobs around the holder (decision zoo-rally-holds-for-the-brew). */
+    /**
+     * Laid by no step, Rally being a mob ability (decision rally-is-a-mob-effect-on-one-target);
+     * it stands so a saved held effect naming it still loads.
+     */
     RALLY,
     /** The dive's swim through stone and its vision (decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks). */
     SCULKER;
@@ -106,7 +108,6 @@ public enum LaidState {
             Map.entry(BusterStep.class, BUSTER),
             Map.entry(AncientStep.class, ANCIENT),
             Map.entry(PhaseStep.class, PHASE),
-            Map.entry(RallyStep.class, RALLY),
             Map.entry(SculkerStep.class, SCULKER));
 
     private static Stream<Step> withDescendants(Step step) {
