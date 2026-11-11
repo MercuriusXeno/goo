@@ -44,7 +44,8 @@ public final class HoleMouths {
     private static final float WIND = 2.5F;
     private static final int HEART_RGB = 0x050008;
     private static final int RIM_RGB = 0x8A3CFF;
-    private static final int HEART_ALPHA = 245;
+    /** The heart's alpha, faint, so the items sunk in the pit behind it show through. */
+    private static final int HEART_ALPHA = 40;
     private static final int RIM_ALPHA = 150;
     /** The share of its alpha the outermost edge keeps, so the rim feathers out. */
     private static final float RIM_FEATHER = 0.35F;
@@ -130,7 +131,14 @@ public final class HoleMouths {
         }
     }
 
-    private static double halfSpan(AABB opening, Vec3 axis) {
+    /**
+     * How far an opening reaches from its middle along an axis across its face.
+     *
+     * @param opening the opening's flat rectangle
+     * @param axis    a unit axis along the face
+     * @return the half span, in blocks
+     */
+    static double halfSpan(AABB opening, Vec3 axis) {
         return (Math.abs(axis.x()) * opening.getXsize() + Math.abs(axis.y()) * opening.getYsize()
                 + Math.abs(axis.z()) * opening.getZsize()) * FACE_OFFSET;
     }
