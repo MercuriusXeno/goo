@@ -26,11 +26,13 @@ import java.util.Optional;
 
 /**
  * Kinetic's slick: a sixteenth-thin film of electric blue and white goo laid
- * on a block's top, slippery as ice, ramping the horizontal velocity of
- * whatever moves on it each tick by the factor kinetic_slick.json's slick step
- * names. The client reads that step from the abilities it was synced, since
+ * on a block's top, slippery as ice. A thing trying to move on it has its
+ * horizontal velocity ramped each tick by a ramp that grows the longer it
+ * keeps trying, as kinetic_slick.json's slick step names; anything else only
+ * slides. The client reads that step from the abilities it was synced, since
  * it moves its own player.
  * slick-coats-the-ground-with-kinetic-speed
+ * slick-ramp-grows-while-a-thing-keeps-moving
  * kinetic-is-electric-blue-and-white
  */
 public class KineticSlickBlock extends Block {
@@ -51,13 +53,12 @@ public class KineticSlickBlock extends Block {
     }
 
     /**
-     * Ramps the horizontal velocity of what moves on the slick.
+     * Ramps the horizontal velocity of a thing trying to move on the slick.
      */
     @Override
     public void stepOn(@NonNull Level level, @NonNull BlockPos pos, @NonNull BlockState state,
                        @NonNull Entity entity) {
-        SlickStep.in(slickProgram(level)).ifPresent(slick -> entity.setDeltaMovement(
-                SlickRamp.ramped(entity.getDeltaMovement(), slick.ramp(), slick.topSpeed())));
+        SlickStep.in(slickProgram(level)).ifPresent(slick -> SlickBuild.slide(entity, slick));
         super.stepOn(level, pos, state, entity);
     }
 
