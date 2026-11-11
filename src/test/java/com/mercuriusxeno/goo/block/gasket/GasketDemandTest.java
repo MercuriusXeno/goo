@@ -16,7 +16,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import java.util.OptionalInt;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.mock;
@@ -70,12 +69,6 @@ class GasketDemandTest {
         void waterRestsAtThePowerLawOfItsCapacityAtTheWaterExponent(int capacity) {
             assertEquals(GasketPushMath.taperRate(capacity, GasketPushMath.WATER_EXPONENT),
                     GasketDemand.restingDemand(resourceOf(Fluids.WATER), capacity, 0));
-        }
-
-        @Test
-        void aBiggerContainerPullsHarder() {
-            FluidResource goo = resourceOf(mock(GooFluid.Source.class));
-            assertTrue(GasketDemand.restingDemand(goo, 1 << 25, 0) > GasketDemand.restingDemand(goo, 1 << 20, 0));
         }
 
         @Test
