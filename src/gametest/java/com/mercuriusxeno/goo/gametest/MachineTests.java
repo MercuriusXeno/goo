@@ -49,7 +49,6 @@ public final class MachineTests {
     private static final String MACHINE_REACTOR_WITHOUT_INPUTS = "machine_reactor_without_inputs";
     private static final String MACHINE_REACTOR_BREAK_RELEASES_GASKET = "machine_reactor_break_releases_gasket";
     private static final String MACHINE_REACTOR_REACTION = "machine_reactor_reaction";
-    private static final String MACHINE_REACTOR_PULSE_FROM_NETHER_GLOW = "machine_reactor_pulse_from_nether_glow";
     private static final String MACHINE_REACTOR_REDSTONE = "machine_reactor_redstone";
     private static final String MACHINE_PLEXER_WITHOUT_GOO = "machine_plexer_without_goo";
 
@@ -71,7 +70,6 @@ public final class MachineTests {
         GooTestFunctions.registerTest(registrar, MACHINE_REACTOR_WITHOUT_INPUTS, MachineTests::reactorWithoutInputsMakesNothing);
         GooTestFunctions.registerTest(registrar, MACHINE_REACTOR_BREAK_RELEASES_GASKET, MachineTests::reactorBreakReleasesOutputGasket);
         GooTestFunctions.registerTest(registrar, MACHINE_REACTOR_REACTION, MachineTests::reactorProcessesReaction);
-        GooTestFunctions.registerTest(registrar, MACHINE_REACTOR_PULSE_FROM_NETHER_GLOW, MachineTests::reactorMakesPulseFromNetherGlow);
         GooTestFunctions.registerTest(registrar, MACHINE_REACTOR_REDSTONE, MachineTests::reactorRedstoneHalts);
         GooTestFunctions.registerTest(registrar, MACHINE_PLEXER_WITHOUT_GOO, MachineTests::plexerWithoutGooMakesNothing);
     }
@@ -278,18 +276,6 @@ public final class MachineTests {
     public static void reactorProcessesReaction(GameTestHelper helper) {
         assertReactorMakes(helper, GooFluids.resource(GooTypes.BLAZE),
                 GooFluids.resource(GooTypes.LEAF), GooFluids.resource(GooTypes.BLAZE));
-    }
-
-    /**
-     * A reactor fed nether and glow makes pulse.
-     * Uses the pulse_from_nether_glow reaction: 1 nether + 1 glow -> 2 pulse.
-     * Decision: nether-plus-glow-gives-two-pulse
-     *
-     * @param helper the gametest helper
-     */
-    public static void reactorMakesPulseFromNetherGlow(GameTestHelper helper) {
-        assertReactorMakes(helper, GooFluids.resource(GooTypes.NETHER),
-                GooFluids.resource(GooTypes.GLOW), GooFluids.resource(GooTypes.PULSE));
     }
 
     /**

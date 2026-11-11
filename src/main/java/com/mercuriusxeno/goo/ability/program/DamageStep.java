@@ -143,12 +143,28 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
      * @return the damage source
      */
     private DamageSource damageSource(LivingEntity target, @Nullable Entity thrower) {
-        if (source == DamageKind.EXPIRE || source == DamageKind.STALAGMITE) {
+        Optional<ResourceKey<DamageType>> owned = gooTypeOf(source);
+        if (owned.isPresent()) {
             return new DamageSource(target.level().registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE)
-                    .getOrThrow(source == DamageKind.EXPIRE ? EXPIRE : STALAGMITE));
+                    .getOrThrow(owned.get()));
         }
         DamageSources sources = target.damageSources();
         return source == DamageKind.ATTACK ? attackBy(sources, thrower) : sourceOfItsOwn(sources);
+    }
+
+    /**
+     * The damage type goo owns for a kind, read from the level's registry
+     * when the step hurts; a kind vanilla's damage sources answer owns none.
+     *
+     * @param kind the step's damage kind
+     * @return goo's damage type key, or empty for a vanilla kind
+     */
+    static Optional<ResourceKey<DamageType>> gooTypeOf(DamageKind kind) {
+        return switch (kind) {
+            case EXPIRE -> Optional.of(EXPIRE);
+            case STALAGMITE -> Optional.of(STALAGMITE);
+            case MAGIC, FREEZE, CACTUS, FORCE, ATTACK -> Optional.empty();
+        };
     }
 
     /**

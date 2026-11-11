@@ -26,8 +26,7 @@ import java.util.function.Consumer;
  * with no key pressed into a block; a player that only walks into a wall
  * stays outside it; a diver that rises out of a top face and jumps clear
  * stands on that block, out of the dive; a diver below the world's floor
- * rises back in; nothing in the stone suffocates a player whose brew stands;
- * and a sculk sensor never hears a player under Sculker walk or jump
+ * rises back in; and a sculk sensor never hears a player under Sculker walk or jump
  * (decisions sculker-swims-solid-blocks-and-surfaces-at-will,
  * sculker-grants-suffocation-immunity and sculker-mutes-your-movement-sounds). The client moves a real player, so
  * each test ticks the mock player as its connection would and sets the swim
@@ -41,7 +40,6 @@ public final class SculkerTests {
     private static final String SCULKER_WALL_HOLDS = "sculker_wall_holds_a_walker";
     private static final String SCULKER_SURFACES = "sculker_surfaces_onto_the_top_face";
     private static final String SCULKER_RISES_BACK = "sculker_rises_back_into_the_world";
-    private static final String SCULKER_BREATHES = "sculker_breathes_in_stone";
     private static final String SCULKER_WALKS_SILENT = "sculker_walks_silent_past_a_sensor";
     private static final String SCULKER_HANGS_STILL = "sculker_hangs_still_in_stone";
     private static final String SCULKER_STOPS_AT_BEDROCK = "sculker_stops_at_bedrock";
@@ -58,7 +56,6 @@ public final class SculkerTests {
         GooTestFunctions.registerTest(registrar, SCULKER_WALL_HOLDS, SculkerTests::sculkerWallHoldsAWalker);
         GooTestFunctions.registerTest(registrar, SCULKER_SURFACES, SculkerTests::sculkerSurfacesOntoTheTopFace);
         GooTestFunctions.registerTest(registrar, SCULKER_RISES_BACK, SculkerTests::sculkerRisesBackIntoTheWorld);
-        GooTestFunctions.registerTest(registrar, SCULKER_BREATHES, SculkerTests::sculkerBreathesInStone);
         GooTestFunctions.registerTest(registrar, SCULKER_WALKS_SILENT, SculkerTests::sculkerWalksSilentPastASensor);
         GooTestFunctions.registerTest(registrar, SCULKER_HANGS_STILL, SculkerTests::sculkerHangsStillInStone);
         GooTestFunctions.registerTest(registrar, SCULKER_STOPS_AT_BEDROCK, SculkerTests::sculkerStopsAtBedrock);
@@ -74,12 +71,6 @@ public final class SculkerTests {
     private static final int LAYERS = 5;
     /** Ticks a test holds its keys, long enough to swim several blocks. */
     private static final int STROKE_TICKS = 40;
-    /**
-     * Ticks a buried player waits: past a joining player's sixty ticks of
-     * spawn invulnerability, and long enough after for suffocation to strike
-     * several times.
-     */
-    private static final int BURIED_TICKS = 120;
     /** The yaw that faces a player east, along +x. */
     private static final float FACING_EAST = -90f;
     /** How far below the stone's top a diver that sank should stand at least. */
@@ -88,8 +79,6 @@ public final class SculkerTests {
     private static final double SWUM_AT_LEAST = 1.0;
     /** How far below the world's floor the stranded diver hangs, as a fall out of the world leaves one. */
     private static final double BELOW_THE_FLOOR = 1.8;
-    /** A food level short of the eighteen that heals and above the none that starves, so a hit taken stays taken. */
-    private static final int NO_HEALING_FOOD = 17;
     private static final Input NONE = Input.EMPTY;
     private static final Input SNEAK_AND_JUMP = new Input(false, false, false, false, true, true, false);
     private static final Input JUMP = new Input(false, false, false, false, true, false, false);
@@ -111,7 +100,6 @@ public final class SculkerTests {
     private static final String SHOULD_STAY_OUT = "Walking into the wall should leave the player outside it, its east edge at x=%.2f past the wall at x=%d";
     private static final String SHOULD_STAND = "The diver should stand on the stone's top at y=%d out of the dive: y=%.2f, on ground %b, diving %b";
     private static final String SHOULD_RETURN = "A diver below the world's floor at y=%d should rise back in, it reached y=%.2f";
-    private static final String SHOULD_BREATHE = "The player should take no suffocation buried in stone, health %.1f of %.1f";
     /** How far a diver holding no key may drift in two seconds and still read as hanging still. */
     private static final double STILL_WITHIN = 0.05;
     private static final String SHOULD_HANG = "A diver holding no key should hang still in stone, it drifted %.2f in y";
@@ -226,27 +214,8 @@ public final class SculkerTests {
     }
 
     /**
-     * A survival player under Sculker, out of the dive, set inside stone,
-     * waits six seconds there and stands at full health.
-     *
-     * @param helper the gametest helper
-     */
-    public static void sculkerBreathesInStone(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        BlockPos top = layStone(helper);
-        ServerPlayer player = brewed(helper);
-        player.teleportTo(top.getX() + 0.5, top.getY() - 2, top.getZ() + 0.5);
-        float lowest = swimFor(player, NONE, BURIED_TICKS);
-        float maxHealth = player.getMaxHealth();
-        level.getServer().getPlayerList().remove(player);
-        clearStone(level, top);
-        helper.assertTrue(lowest >= maxHealth, String.format(SHOULD_BREATHE, lowest, maxHealth));
-        helper.succeed();
-    }
-
-    /**
      * A survival player that entered the dive, buried in stone, swims a
-     * block east through it and, after six seconds buried, stands at full health.
+     * block east through it. SculkerEventsTest holds the suffocation it never takes.
      *
      * @param helper the gametest helper
      */
@@ -256,15 +225,12 @@ public final class SculkerTests {
         ServerPlayer player = diving(helper);
         player.setYRot(FACING_EAST);
         player.teleportTo(top.getX() + 0.5, top.getY() - 2, top.getZ() + 0.5);
-        float lowest = swimFor(player, NONE, BURIED_TICKS);
         double before = player.getX();
         swimFor(player, FORWARD, STROKE_TICKS / 2);
         double swum = player.getX() - before;
-        float maxHealth = player.getMaxHealth();
         level.getServer().getPlayerList().remove(player);
         clearStone(level, top);
         helper.assertTrue(swum >= SWUM_AT_LEAST, String.format(SHOULD_MOVE, swum));
-        helper.assertTrue(lowest >= maxHealth, String.format(SHOULD_BREATHE, lowest, maxHealth));
         helper.succeed();
     }
 
@@ -412,16 +378,13 @@ public final class SculkerTests {
     }
 
     /**
-     * A survival player holding Sculker from the glove, out of the dive, fed
-     * short of healing so any hit it takes shows in its health.
+     * A survival player holding Sculker from the glove, out of the dive.
      *
      * @param helper the gametest helper
      * @return the player
      */
     private static ServerPlayer brewed(GameTestHelper helper) {
-        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.DEEP, DEEP_SCULKER);
-        player.getFoodData().setFoodLevel(NO_HEALING_FOOD);
-        return player;
+        return HeartOverlayTests.selfInvoked(helper, GooTypes.DEEP, DEEP_SCULKER);
     }
 
     /**
@@ -445,14 +408,12 @@ public final class SculkerTests {
      * @param player the player
      * @param keys   the keys its client reports held
      * @param ticks  how many ticks to hold them
-     * @return the lowest health the player stood at across the ticks
      */
-    private static float swimFor(ServerPlayer player, Input keys, int ticks) {
+    private static void swimFor(ServerPlayer player, Input keys, int ticks) {
         player.setLastClientInput(keys);
         player.setJumping(keys.jump());
         player.setShiftKeyDown(keys.shift());
         double forward = keys.forward() ? 1 : 0;
-        float lowest = player.getHealth();
         Vec3 lastStroke = null;
         for (int tick = 0; tick < ticks; tick++) {
             player.doTick();
@@ -463,9 +424,7 @@ public final class SculkerTests {
             } else {
                 lastStroke = null;
             }
-            lowest = Math.min(lowest, player.getHealth());
         }
-        return lowest;
     }
 
     /**

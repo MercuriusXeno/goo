@@ -112,27 +112,20 @@ public final class ReapTests {
     /**
      * A ripe crop's seeds settle against the seed it was replanted from: the
      * seeds split across its drops are tallied and one is paid out of the
-     * tally, a lone seed drops none, and a drop holding no seed stays at none
-     * rather than owing one; the other loot drops untouched.
+     * tally, and the other loot drops untouched. ReapingSeedsTest holds the
+     * count left, clamped at none; the unit suite cannot build an ItemStack,
+     * so the drops settle here.
      *
      * @param helper the gametest helper
      */
     public static void reapSettlesSeedsAgainstTheReplant(GameTestHelper helper) {
         List<ItemStack> split = new ArrayList<>(List.of(new ItemStack(Items.WHEAT),
                 new ItemStack(Items.WHEAT_SEEDS, 1), new ItemStack(Items.WHEAT_SEEDS, 2)));
-        List<ItemStack> lone = new ArrayList<>(List.of(new ItemStack(Items.WHEAT), new ItemStack(Items.WHEAT_SEEDS)));
-        List<ItemStack> none = new ArrayList<>(List.of(new ItemStack(Items.WHEAT)));
 
         Reaping.settleSeeds(split, Items.WHEAT_SEEDS, 1);
-        Reaping.settleSeeds(lone, Items.WHEAT_SEEDS, 1);
-        Reaping.settleSeeds(none, Items.WHEAT_SEEDS, 1);
 
         helper.assertTrue(counted(split, Items.WHEAT_SEEDS) == 2 && counted(split, Items.WHEAT) == 1,
                 String.format(SEEDS_SETTLED, "three split seeds", 2, split));
-        helper.assertTrue(counted(lone, Items.WHEAT_SEEDS) == 0 && counted(lone, Items.WHEAT) == 1,
-                String.format(SEEDS_SETTLED, "a lone seed", 0, lone));
-        helper.assertTrue(counted(none, Items.WHEAT_SEEDS) == 0 && counted(none, Items.WHEAT) == 1,
-                String.format(SEEDS_SETTLED, "no seed", 0, none));
         helper.succeed();
     }
 

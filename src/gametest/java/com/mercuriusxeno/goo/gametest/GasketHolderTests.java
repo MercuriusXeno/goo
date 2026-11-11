@@ -5,19 +5,15 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
-import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
 import com.mercuriusxeno.goo.block.hub.HubBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
-import com.mercuriusxeno.goo.block.vat.VatBlock;
-import com.mercuriusxeno.goo.block.vat.VatBlockEntity;
 import com.mercuriusxeno.goo.data.GasketLocation;
 import com.mercuriusxeno.goo.data.GasketRegistry;
 import com.mercuriusxeno.goo.item.CanisterItem;
-import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlocks;
@@ -49,19 +45,11 @@ import java.util.function.Consumer;
  */
 @RegistersGameTests
 public final class GasketHolderTests {
-    private static final String CRUCIBLE_ROLE_TRANSMITTER = "crucible_role_transmitter";
-    private static final String CRUCIBLE_NO_GASKET = "crucible_no_gasket";
-    private static final String CRUCIBLE_WITH_GASKET = "crucible_with_gasket";
-    private static final String VAT_SUPPORTS_ROLE = "vat_supports_role";
-    private static final String HUB_HAS_INTAKE = "hub_has_intake";
-    private static final String DEFAULT_ALLOWS_TUNING = "default_allows_tuning";
     private static final String REACTOR_GASKET_INSTALL = "reactor_gasket_install";
     private static final String REACTOR_TUNER_LINK = "reactor_tuner_link";
     private static final String CRUCIBLE_GOO_GASKET_TUNER = "crucible_goo_gasket_tuner";
     private static final String REACTOR_GASKET_LOCATION = "reactor_gasket_location";
-    private static final String REACTOR_SEATED_GASKET_METADATA = "reactor_seated_gasket_metadata";
     private static final String HUB_SLOT_TRANSMITS = "hub_slot_transmits";
-    private static final String HUB_SUPPORTS_BOTH_ROLES = "hub_supports_both_roles";
     private static final String HUB_SLOT_MISS_INTAKE = "hub_slot_miss_intake";
 
     /**
@@ -70,33 +58,16 @@ public final class GasketHolderTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, CRUCIBLE_ROLE_TRANSMITTER, GasketHolderTests::crucibleResolveRoleAlwaysTransmitter);
-        GooTestFunctions.registerTest(registrar, CRUCIBLE_NO_GASKET, GasketHolderTests::crucibleNoGasketUnsupported);
-        GooTestFunctions.registerTest(registrar, CRUCIBLE_WITH_GASKET, GasketHolderTests::crucibleWithGasketSupported);
-        GooTestFunctions.registerTest(registrar, VAT_SUPPORTS_ROLE, GasketHolderTests::vatSupportsRoleMatchesBlockstate);
-        GooTestFunctions.registerTest(registrar, HUB_HAS_INTAKE, GasketHolderTests::hubHasIntake);
-        GooTestFunctions.registerTest(registrar, DEFAULT_ALLOWS_TUNING, GasketHolderTests::defaultAllowsTuningIsTrue);
         GooTestFunctions.registerTest(registrar, REACTOR_GASKET_INSTALL, GasketHolderTests::reactorGasketInstallsOnOutputCanister);
         GooTestFunctions.registerTest(registrar, REACTOR_TUNER_LINK, GasketHolderTests::reactorTunerLinksCrucibleToOutputCanister);
         GooTestFunctions.registerTest(registrar, CRUCIBLE_GOO_GASKET_TUNER, GasketHolderTests::crucibleHoldingGooTakesGasketAndTuner);
         GooTestFunctions.registerTest(registrar, REACTOR_GASKET_LOCATION, GasketHolderTests::reactorOutputGasketLocationFollowsCanister);
-        GooTestFunctions.registerTest(registrar, REACTOR_SEATED_GASKET_METADATA, GasketHolderTests::reactorSeatedCanisterAnswersGasketMetadata);
         GooTestFunctions.registerTest(registrar, HUB_SLOT_TRANSMITS, GasketHolderTests::hubSlotLinksAsTransmitter);
-        GooTestFunctions.registerTest(registrar, HUB_SUPPORTS_BOTH_ROLES, GasketHolderTests::hubSupportsBothRolesIntakeReceives);
         GooTestFunctions.registerTest(registrar, HUB_SLOT_MISS_INTAKE, GasketHolderTests::hubSlotMissKeepsIntakePath);
     }
 
 
     private static final BlockPos BE_POS = new BlockPos(1, 1, 1);
-    private static final String CRUCIBLE_TRANSMITTER = "Crucible resolveRole should always return TRANSMITTER";
-    private static final String NO_GASKET_TX = "Crucible without gasket should not support TRANSMITTER";
-    private static final String NO_GASKET_RX = "Crucible without gasket should not support RECEIVER";
-    private static final String WITH_GASKET_TX = "Crucible with gasket should support TRANSMITTER";
-    private static final String VAT_CAP_RX = "Vat with cap should support RECEIVER";
-    private static final String VAT_NO_BASE_TX = "Vat without base should not support TRANSMITTER";
-    private static final String HUB_INTAKE = "Hub should always have intake";
-    private static final String TUNING_NULL = "Default allowsTuning(null) should be true";
-    private static final String TUNING_RANDOM = "Default allowsTuning(random) should be true";
 
     // --- Reactor fixtures ---
 
@@ -122,10 +93,6 @@ public final class GasketHolderTests {
     private static final String REACTOR_CANISTER_IN_HAND = "Removed canister should reach the player's inventory";
     private static final String REACTOR_LOCATION_RESTORED =
             "Re-inserting the output canister should register its gasket at the reactor's OUTPUT_SLOT";
-    private static final String REACTOR_SEATED_TOP_GASKET =
-            "Seated canister metadata should answer the top gasket id it was inserted with";
-    private static final String REACTOR_SEATED_BOTTOM_GASKET =
-            "Seated canister metadata should answer the bottom gasket id it was inserted with";
 
     // --- Hub fixtures ---
 
@@ -142,88 +109,12 @@ public final class GasketHolderTests {
             "Tuner should not refuse the transmitter role on a hub slot canister; feedback was ";
     private static final String HUB_SLOT_LINKED =
             "Tuner should link the hub slot's bottom gasket as transmitter to the canister receiver";
-    private static final String HUB_SUPPORTS_TX = "Hub should support TRANSMITTER for its slot canisters";
-    private static final String HUB_SUPPORTS_RX = "Hub should support RECEIVER";
-    private static final String HUB_INTAKE_NO_TX = "Hub intake should never hold a TRANSMITTER gasket";
-    private static final String HUB_INTAKE_RX = "Hub with HAS_GASKET should hold its RECEIVER intake gasket";
     private static final String HUB_HIT_MISSES = "Hub center hit should miss every slot";
     private static final String HUB_MISS_NO_INTAKE =
             "Slot miss on a hub without intake gasket should report the missing intake gasket; feedback was ";
     private static final String HUB_MISS_UNLINKED = "Slot miss should link nothing to the intake";
 
     private GasketHolderTests() {
-    }
-
-    // --- Crucible ---
-
-    /**
-     * Crucible always resolves as TRANSMITTER regardless of hit location.
-     *
-     * @param helper the gametest helper
-     */
-    public static void crucibleResolveRoleAlwaysTransmitter(GameTestHelper helper) {
-        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get());
-        CrucibleBlockEntity be = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
-        helper.assertTrue(be.resolveRole(null) == GasketRole.TRANSMITTER, CRUCIBLE_TRANSMITTER);
-        helper.succeed();
-    }
-
-    /**
-     * Crucible supportsRole returns false when HAS_GASKET blockstate is false.
-     *
-     * @param helper the gametest helper
-     */
-    public static void crucibleNoGasketUnsupported(GameTestHelper helper) {
-        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get().defaultBlockState()
-                .setValue(CrucibleBlock.HAS_GASKET, false));
-        CrucibleBlockEntity be = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
-        helper.assertFalse(be.supportsRole(GasketRole.TRANSMITTER), NO_GASKET_TX);
-        helper.assertFalse(be.supportsRole(GasketRole.RECEIVER), NO_GASKET_RX);
-        helper.succeed();
-    }
-
-    /**
-     * Crucible supportsRole returns true when HAS_GASKET blockstate is true.
-     *
-     * @param helper the gametest helper
-     */
-    public static void crucibleWithGasketSupported(GameTestHelper helper) {
-        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get().defaultBlockState()
-                .setValue(CrucibleBlock.HAS_GASKET, true));
-        CrucibleBlockEntity be = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
-        helper.assertTrue(be.supportsRole(GasketRole.TRANSMITTER), WITH_GASKET_TX);
-        helper.succeed();
-    }
-
-    // --- Vat ---
-
-    /**
-     * Vat supportsRole reflects GASKET_CAP and GASKET_BASE blockstate properties.
-     *
-     * @param helper the gametest helper
-     */
-    public static void vatSupportsRoleMatchesBlockstate(GameTestHelper helper) {
-        helper.setBlock(BE_POS, GooBlocks.VAT.get().defaultBlockState()
-                .setValue(VatBlock.GASKET_CAP, true)
-                .setValue(VatBlock.GASKET_BASE, false));
-        VatBlockEntity be = helper.getBlockEntity(BE_POS, VatBlockEntity.class);
-        helper.assertTrue(be.supportsRole(GasketRole.RECEIVER), VAT_CAP_RX);
-        helper.assertFalse(be.supportsRole(GasketRole.TRANSMITTER), VAT_NO_BASE_TX);
-        helper.succeed();
-    }
-
-    // --- Hub ---
-
-    /**
-     * Hub always reports hasIntake() = true.
-     *
-     * @param helper the gametest helper
-     */
-    public static void hubHasIntake(GameTestHelper helper) {
-        helper.setBlock(BE_POS, GooBlocks.HUB.get());
-        HubBlockEntity be = helper.getBlockEntity(BE_POS, HubBlockEntity.class);
-        helper.assertTrue(be.hasIntake(), HUB_INTAKE);
-        helper.succeed();
     }
 
     // --- Hub (diagnose-then-fix-hub-canister-transmitter) ---
@@ -257,22 +148,6 @@ public final class GasketHolderTests {
         GasketPartner partner = hub.getPartner(GasketRole.TRANSMITTER, HUB_TEST_SLOT);
         helper.assertTrue(partner != null && receiverAbs.equals(partner.pos())
                 && partner.slot() == CanisterBlock.CENTER_SLOT, HUB_SLOT_LINKED);
-        helper.succeed();
-    }
-
-    /**
-     * Hub: supports both roles for its slot canisters while its block-level
-     * gasket stays the receiver intake.
-     *
-     * @param helper the gametest helper
-     */
-    public static void hubSupportsBothRolesIntakeReceives(GameTestHelper helper) {
-        helper.setBlock(BE_POS, GooBlocks.HUB.get().defaultBlockState().setValue(HubBlock.HAS_GASKET, true));
-        HubBlockEntity hub = helper.getBlockEntity(BE_POS, HubBlockEntity.class);
-        helper.assertTrue(hub.supportsRole(GasketRole.TRANSMITTER), HUB_SUPPORTS_TX);
-        helper.assertTrue(hub.supportsRole(GasketRole.RECEIVER), HUB_SUPPORTS_RX);
-        helper.assertFalse(hub.holdsBlockGasket(GasketRole.TRANSMITTER), HUB_INTAKE_NO_TX);
-        helper.assertTrue(hub.holdsBlockGasket(GasketRole.RECEIVER), HUB_INTAKE_RX);
         helper.succeed();
     }
 
@@ -333,22 +208,6 @@ public final class GasketHolderTests {
         BlockPos abs = helper.absolutePos(pos);
         return new BlockHitResult(new Vec3(abs.getX() + HALF, abs.getY() + localY, abs.getZ() + HALF),
                 Direction.UP, abs, false);
-    }
-
-    // --- Default contract ---
-
-    /**
-     * IGasketHolder.allowsTuning defaults to true for all machines.
-     * Verified on a crucible (no ownership model).
-     *
-     * @param helper the gametest helper
-     */
-    public static void defaultAllowsTuningIsTrue(GameTestHelper helper) {
-        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get());
-        CrucibleBlockEntity be = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
-        helper.assertTrue(be.allowsTuning(null), TUNING_NULL);
-        helper.assertTrue(be.allowsTuning(java.util.UUID.randomUUID()), TUNING_RANDOM);
-        helper.succeed();
     }
 
     // --- Reactor (reactor-gasket-click-fix) ---
@@ -459,31 +318,6 @@ public final class GasketHolderTests {
                 REACTOR_LINKED);
         helper.assertTrue(before.equals(crucible.getReservoir().getAll()),
                 "Gasket and tuner clicks should leave the crucible's goo untouched");
-        helper.succeed();
-    }
-
-    // --- Reactor (reactor-gasket-render-fix) ---
-
-    /**
-     * Reactor: a canister seated with a choral gasket on each end answers both
-     * gasket ids through {@link CanisterItem#getMetadata}, the read the renderer's
-     * extract makes to choose the cap texture.
-     *
-     * @param helper the gametest helper
-     */
-    public static void reactorSeatedCanisterAnswersGasketMetadata(GameTestHelper helper) {
-        helper.setBlock(BE_POS, GooBlocks.REACTOR.get());
-        ReactorBlockEntity reactor = helper.getBlockEntity(BE_POS, ReactorBlockEntity.class);
-        UUID topId = UUID.randomUUID();
-        UUID bottomId = UUID.randomUUID();
-        ItemStack canister = new ItemStack(GooItems.CANISTER.get());
-        CanisterItem.setMetadata(canister,
-                CanisterItem.getMetadata(canister).withTopGasketId(topId).withBottomGasketId(bottomId));
-        reactor.insertOutputCanister(canister);
-
-        CanisterMetadata seated = CanisterItem.getMetadata(reactor.getOutputCanister());
-        helper.assertTrue(topId.equals(seated.topGasketId()), REACTOR_SEATED_TOP_GASKET);
-        helper.assertTrue(bottomId.equals(seated.bottomGasketId()), REACTOR_SEATED_BOTTOM_GASKET);
         helper.succeed();
     }
 

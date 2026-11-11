@@ -16,8 +16,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Tests the audit as a walk over its rules: the discovered rules write every section the audit dump test
- * reads, in order, and a rule added beside them adds its section to the text and the JSON with nothing
+ * Tests the audit as a walk over its rules: the discovered rules write every section of the audit dump,
+ * in order, and a rule added beside them adds its section to the text and the JSON with nothing
  * else changed (decision each-check-is-one-rule-added-alone).
  */
 class GooAuditRulesTest {
@@ -60,7 +60,7 @@ class GooAuditRulesTest {
     }
 
     /**
-     * The discovered rules alone write every section the audit dump test reads, in that order, and the
+     * The discovered rules alone write all thirteen sections of the audit dump, in order, and the
      * scratch clique dump's header stands nowhere.
      */
     @Test

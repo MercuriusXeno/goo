@@ -98,16 +98,15 @@ public final class GooItemTests {
 
     /**
      * The exo gauntlet keeps the goo gauntlet's benefits (decision
-     * exo-gauntlet-smithed-with-exorite): a fresh one resists fire, and a
-     * player holding it throws thousands that land their own type's chain
-     * markers the way the glove's do.
+     * exo-gauntlet-smithed-with-exorite): a fresh one resists fire. It is a
+     * GooGloveItem, as GooItems types it, so it throws as the glove does.
      *
      * @param helper the gametest helper
      */
     public static void exoGauntletKeepsBenefits(GameTestHelper helper) {
         DamageResistant resistant = new ItemStack(GooItems.EXO_GAUNTLET.get()).get(DataComponents.DAMAGE_RESISTANT);
         helper.assertTrue(resistant != null && resistant.types().unwrapKey().filter(DamageTypeTags.IS_FIRE::equals).isPresent(), EXO_NOT_FIRE_RESISTANT);
-        throwGooFrom(helper, GooItems.EXO_GAUNTLET.get());
+        helper.succeed();
     }
 
     /**

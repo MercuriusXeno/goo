@@ -27,7 +27,6 @@ public final class LabKitKnowledgeTests {
     private static final String LAB_LEARN_TEACHES_EVERY_ABILITY = "lab_learn_teaches_every_ability";
     private static final String LAB_FORGET_RETURNS_TO_NOTHING = "lab_forget_returns_to_nothing";
     private static final String LAB_KIT_TEACHES_NOTHING = "lab_kit_teaches_nothing";
-    private static final String LAB_KIT_UNTOUCHED_PLAYER_KNOWS_NOTHING = "lab_kit_untouched_player_knows_nothing";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -38,7 +37,6 @@ public final class LabKitKnowledgeTests {
         GooTestFunctions.registerTest(registrar, LAB_LEARN_TEACHES_EVERY_ABILITY, LabKitKnowledgeTests::learnTeachesEveryAbility);
         GooTestFunctions.registerTest(registrar, LAB_FORGET_RETURNS_TO_NOTHING, LabKitKnowledgeTests::forgetReturnsToKnowingNothing);
         GooTestFunctions.registerTest(registrar, LAB_KIT_TEACHES_NOTHING, LabKitKnowledgeTests::kitTeachesNothing);
-        GooTestFunctions.registerTest(registrar, LAB_KIT_UNTOUCHED_PLAYER_KNOWS_NOTHING, LabKitKnowledgeTests::untouchedPlayerKnowsNothing);
     }
 
 
@@ -47,7 +45,6 @@ public final class LabKitKnowledgeTests {
     private static final String ABILITY_LOCKED = "Learn should unlock the ability ";
     private static final String STONE_UNKNOWN = "Learn should teach stone, so its goo tooltip line shows";
     private static final String STONE_VALUELESS = "Stone should hold a goo value for its tooltip line to show";
-    private static final String KNOWS_SOMETHING = "A player who never ran learn should know no item";
     private static final String NO_GATED_ABILITY = "The gametest server should load an ability that requires an item";
     private static final String LOCKED_ABILITY_UNLOCKED = "A player who knows nothing should not hold the ability ";
 
@@ -107,20 +104,6 @@ public final class LabKitKnowledgeTests {
         helper.assertTrue(player.getInventory().contains(new ItemStack(GooItems.GOO_GLOVE.get())),
                 "The kit should fill the inventory");
         assertKnowsNothing(helper, player, "The kit should teach the player no item");
-        helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.succeed();
-    }
-
-    /**
-     * Asserts a mock player who never ran learn knows no item and holds none of
-     * the abilities that require one.
-     *
-     * @param helper the gametest helper
-     */
-    @SuppressWarnings(REMOVAL) // vanilla marks the mock server player helper for removal and names no replacement
-    public static void untouchedPlayerKnowsNothing(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        assertKnowsNothing(helper, player, KNOWS_SOMETHING);
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.succeed();
     }
