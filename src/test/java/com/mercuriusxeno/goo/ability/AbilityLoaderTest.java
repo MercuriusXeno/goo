@@ -592,10 +592,10 @@ class AbilityLoaderTest {
         }
 
         @Test
-        void shippedBlazeAndLeafEachCarryExactlyOneBrew() {
+        void shippedBlazeLeafAndZooEachCarryExactlyOneBrew() {
             Map<Identifier, AbilityDefinition> shipped = scanShipped(AbilityJson.files());
-            // rally-is-a-mob-effect-on-one-target: Zoo's brew left with Rally, and its new brew is still to be cut
-            List<ResourceKey<GooTypeDefinition>> carriers = List.of(GooTypes.BLAZE, GooTypes.LEAF);
+            // leader-is-zoos-brew-ability
+            List<ResourceKey<GooTypeDefinition>> carriers = List.of(GooTypes.BLAZE, GooTypes.LEAF, GooTypes.ZOO);
 
             List<ResourceKey<GooTypeDefinition>> lacking = AbilityLoader.typesLackingADurative(shipped, GooTypes.BUNDLED);
 
@@ -617,6 +617,18 @@ class AbilityLoaderTest {
             assertEquals(DeliveryKind.ARC, rally.delivery().kind());
             assertTrue(rally.cost().in(GooValueTable.EMPTY) > 0, "cost " + rally.cost().in(GooValueTable.EMPTY));
             assertEquals(0, rally.upkeep().in(GooValueTable.EMPTY));
+        }
+
+        /** decision leader-is-zoos-brew-ability */
+        @Test
+        void shippedZooLeaderHoldsOnAnUpkeep() {
+            AbilityDefinition leader = AbilityJson.decode("zoo_leader");
+
+            assertEquals(GooTypes.ZOO, leader.gooType());
+            assertEquals(AbilityBadge.DURATIVE, leader.badge());
+            assertEquals(DeliveryKind.SELF, leader.delivery().kind());
+            assertTrue(leader.upkeep().in(GooValueTable.EMPTY) > 0, "upkeep " + leader.upkeep().in(GooValueTable.EMPTY));
+            assertTrue(SelfEatRoute.eats(leader.delivery(), leader.badge()));
         }
     }
 

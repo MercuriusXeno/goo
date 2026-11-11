@@ -26,6 +26,7 @@ import com.mercuriusxeno.goo.client.ability.GhostTrails;
 import com.mercuriusxeno.goo.client.ability.GlassKnives;
 import com.mercuriusxeno.goo.client.ability.GrabFlail;
 import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
+import com.mercuriusxeno.goo.client.ability.LeaderOutline;
 import com.mercuriusxeno.goo.client.ability.LiftWind;
 import com.mercuriusxeno.goo.client.ability.MeteorScorches;
 import com.mercuriusxeno.goo.client.ability.MobAilments;
@@ -372,6 +373,7 @@ public final class GooClientSetup {
     public static void registerRenderStateModifiers(
             RegisterRenderStateModifiersEvent event) {
         List<BiConsumer<Entity, EntityRenderState>> stamps = List.of(
+                LeaderOutline::stampOutline,
                 RallyOutline::stampOutline,
                 AilmentOverlayLayer::stampAilments,
                 AimTracker::modifyEntityRenderState,
