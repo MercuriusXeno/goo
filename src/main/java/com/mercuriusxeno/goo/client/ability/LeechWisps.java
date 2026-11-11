@@ -15,8 +15,8 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
  * heals as hex wisps. Lifetap splashes once per point of health healed, each
  * splash a burst of wisps scattering off the victim before they curl home,
  * the splashes a beat apart; Drain trickles a few wisps at a time, staggered
- * so a held field keeps a steady stream, and bursts a few on the victim and
- * tethers it to the caster at each strike.
+ * so a held field keeps a steady stream, and bursts a few on the victim at
+ * each strike.
  * lifetap-trades-regen-for-leech
  * drain-field-heals-with-the-lifetap-visuals
  * drained-mobs-show-stream-burst-and-tether
@@ -87,7 +87,6 @@ public final class LeechWisps {
             } else {
                 trickle(mc, level.getRandom(), from, healed);
                 burst(mc, level.getRandom(), victim);
-                DrainTethers.CLIENT.record(payload, level.getGameTime());
             }
         });
     }
