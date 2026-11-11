@@ -60,13 +60,14 @@ public final class HoleContents {
     @SubscribeEvent
     public static void onSubmitCustomGeometry(SubmitCustomGeometryEvent event) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || ClientPortableHoles.mouths().isEmpty()) {
+        if (mc.level == null) {
             return;
         }
         float time = mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         Vec3 camera = event.getLevelRenderState().cameraRenderState.pos;
-        for (PortableHolesSyncPayload.Mouth mouth : ClientPortableHoles.mouths()) {
-            float open = HoleMouths.openShare(time - ClientPortableHoles.firstSeen(mouth), mouth.closesAt() - time);
+        // decision hole-animates-open-and-closed: the soup grows and shrinks with its mouth
+        for (PortableHolesSyncPayload.Mouth mouth : ClientPortableHoles.drawn(time)) {
+            float open = ClientPortableHoles.openShare(mouth, time);
             if (open > 0F) {
                 submitMouth(mc, event, mouth, camera, open, time);
             }

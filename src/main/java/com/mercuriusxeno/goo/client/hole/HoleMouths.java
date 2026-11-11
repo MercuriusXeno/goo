@@ -22,21 +22,18 @@ import java.util.List;
 /**
  * Draws each Void portable hole's mouth across the faces it opens on: an oval
  * opening filling its footprint, black at its heart, ringed in void violet
- * that swirls slowly inward, growing open from nothing and shrinking shut as
- * its time runs out.
+ * that swirls slowly inward, growing open from nothing and shrinking shut once
+ * it closes.
  * It is a look of its own, a flat vortex on the face, not the tunnel's oval
  * view through the wall.
  * decision hole-is-an-in-world-portable-hole-for-items
+ * decision hole-animates-open-and-closed
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class HoleMouths {
 
     /** How far the mouth stands off its face, so it never sinks into it. */
     private static final double FACE_LIFT = 0.004;
-    /** Ticks the mouth takes to grow open. */
-    private static final float GROW_TICKS = 8F;
-    /** Ticks before closing the mouth starts to shrink shut. */
-    private static final float SHRINK_TICKS = 20F;
     private static final int RINGS = 6;
     private static final int SEGMENTS = 32;
     /** The radians a swirl band turns each tick at the rim; the heart turns faster. */
@@ -70,35 +67,25 @@ public final class HoleMouths {
     @SubscribeEvent
     public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || ClientPortableHoles.mouths().isEmpty()) {
+        if (mc.level == null) {
             return;
         }
         float time = mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        List<PortableHolesSyncPayload.Mouth> drawn = ClientPortableHoles.drawn(time);
+        if (drawn.isEmpty()) {
+            return;
+        }
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         PoseStack.Pose pose = event.getPoseStack().last();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.PORTABLE_HOLE_MOUTH_TYPE);
-        for (PortableHolesSyncPayload.Mouth mouth : ClientPortableHoles.mouths()) {
-            float open = openShare(time - ClientPortableHoles.firstSeen(mouth), mouth.closesAt() - time);
+        for (PortableHolesSyncPayload.Mouth mouth : drawn) {
+            float open = ClientPortableHoles.openShare(mouth, time);
             if (open > 0F) {
                 drawMouth(pose, consumer, mouth, camera, open, time);
             }
         }
         buffers.endBatch(GooRenderTypes.PORTABLE_HOLE_MOUTH_TYPE);
-    }
-
-    /**
-     * How far open a mouth stands: growing from nothing as it opens, and
-     * shrinking shut over its last second.
-     *
-     * @param age  ticks since the client first saw it
-     * @param left ticks until it closes
-     * @return the share of its full size, in [0, 1]
-     */
-    static float openShare(float age, float left) {
-        float grown = Mth.clamp(age / GROW_TICKS, 0F, 1F);
-        float shrunk = Mth.clamp(left / SHRINK_TICKS, 0F, 1F);
-        return (float) Mth.smoothstep(grown) * shrunk;
     }
 
     /**
