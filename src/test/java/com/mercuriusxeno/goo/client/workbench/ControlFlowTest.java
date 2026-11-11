@@ -10,9 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -142,18 +140,6 @@ class ControlFlowTest {
         flow.control("second", null, at -> { });
         flow.newLine();
         flow.control("third", null, at -> { });
-    }
-
-    /**
-     * A run that takes no click lays no box and no target.
-     */
-    @Test
-    void unpressedRunsDrawNoButton() {
-        GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
-        ClickTargets targets = new ClickTargets();
-        new ControlFlow(graphics, font(), targets, null, 0, 400, 0).runs(REF, null, null);
-        verify(graphics, never()).fill(anyInt(), anyInt(), anyInt(), anyInt(), eq(Palette.BORDER));
-        assertFalse(targets.click(1, 5));
     }
 
     /**

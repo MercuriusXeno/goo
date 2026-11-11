@@ -59,7 +59,7 @@ final class AbilityExplanationPanel {
         if (offered.locked()) {
             return;
         }
-        int left = frame.centerX() + frame.radius() + WHEEL_GAP;
+        int left = panelLeft(frame);
         int textWidth = textWidth(frame.centerX() * HALF - EDGE_MARGIN - left);
         ToIntFunction<String> widthOf = text -> font.width(Component.literal(text));
         List<PanelRow> rows = rows(offered.ability(), frame.look().costMechanicsLookup(), textWidth, widthOf);
@@ -67,6 +67,16 @@ final class AbilityExplanationPanel {
         int top = frame.centerY() - Math.round(size.height()) / HALF;
         NineSlice.blit(graphics, new PanelRectangle(left, top, Math.round(size.width()), Math.round(size.height())));
         drawRows(graphics, font, rows, left + Math.round(NineSlice.BORDER), top + Math.round(NineSlice.BORDER));
+    }
+
+    /**
+     * The panel's left edge: a gap past the wheel's outer radius, right of the wheel.
+     *
+     * @param frame what the frame draws from
+     * @return the left edge in pixels
+     */
+    static int panelLeft(RadialWheelRenderer.Frame frame) {
+        return frame.centerX() + frame.radius() + WHEEL_GAP;
     }
 
     /**

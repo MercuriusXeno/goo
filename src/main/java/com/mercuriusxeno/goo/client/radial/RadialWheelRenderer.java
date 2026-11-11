@@ -317,14 +317,26 @@ final class RadialWheelRenderer {
      * @param frame    what the frame draws from
      */
     private static void blitHub(GuiGraphicsExtractor graphics, Frame frame) {
-        double scale = frame.wheel().displayedHubRadius(frame.partialTick()) / RadialWheel.HUB_REST_FRACTION;
-        int reach = (int) Math.round(frame.radius() * scale);
+        int reach = hubReach(frame);
         int size = reach * HALF;
         graphics.blit(RenderPipelines.GUI_TEXTURED, frame.look().hubMask(), frame.centerX() - reach,
                 frame.centerY() - reach, 0.0f, 0.0f, size, size,
                 RadialTextures.TEX_SIZE, RadialTextures.TEX_SIZE, RadialTextures.TEX_SIZE, RadialTextures.TEX_SIZE,
                 HUB_COLOR);
     }
+
+    /**
+     * How far the hub's mask reaches from the center this frame: the radius scaled by the displayed hub
+     * radius over the rest size the mask was baked at.
+     *
+     * @param frame what the frame draws from
+     * @return the reach in pixels
+     */
+    static int hubReach(Frame frame) {
+        double scale = frame.wheel().displayedHubRadius(frame.partialTick()) / RadialWheel.HUB_REST_FRACTION;
+        return (int) Math.round(frame.radius() * scale);
+    }
+
     /**
      * Draws a type's petal with its icon alone, shrunken or at rest.
      * decision abilities-replace-the-hovered-type
@@ -436,9 +448,8 @@ final class RadialWheelRenderer {
                 frame.reagentSets().applyAsInt(ability.consumes()), StandingUpkeep.on(frame.standing(), key));
         // locked-petal-stays-on-the-wheel: a locked petal takes the unaffordable petal's dimmed look
         boolean dimmed = offered.locked() || slotLabels.dimmed();
-        // wheel-pulses-the-active-effect: a held effect's petal pulses
         PetalPainter.paint(graphics, frame, frame.look().fluidFace(key), petal,
-                tint(hovered, dimmed, frame.pulseOf(ability.id()), frame.gameTime()));
+                abilityPetalTint(frame, petal, offered, slotLabels));
         int[] restingTip = tipCenter(frame, petal);
         if (offered.locked()) {
             return new Words(List.of(), null, restingTip, DISABLED_TEXT_COLOR, requiredIcons(frame, petal, offered),
@@ -449,6 +460,24 @@ final class RadialWheelRenderer {
                 dimmed ? computeOverlayTint(false, true) : COLOR_WHITE);
         return new Words(splitNameLines(buildLabel(ability).getString()), Component.literal(slotLabels.costLabel()),
                 restingTip, textColorOf(dimmed, hovered), List.of(), badges);
+    }
+
+    /**
+     * The tint an ability petal's fill blits under: hovered while the cursor rests on it, dimmed while it is
+     * locked or its holdings afford none, pulsing while its effect is held.
+     * locked-petal-stays-on-the-wheel
+     * wheel-pulses-the-active-effect
+     *
+     * @param frame      what the frame draws from
+     * @param petal      the ability's petal
+     * @param offered    the ability as offered, locked or not
+     * @param slotLabels the petal's cost labels, dimmed where the holdings afford none
+     * @return the packed ARGB tint
+     */
+    static int abilityPetalTint(Frame frame, RadialWheel.PetalArc petal, OfferedAbility offered, FanSlot slotLabels) {
+        boolean hovered = petal.ability() == frame.wheel().hoveredAbility();
+        boolean dimmed = offered.locked() || slotLabels.dimmed();
+        return tint(hovered, dimmed, frame.pulseOf(offered.ability().id()), frame.gameTime());
     }
 
     private static int textColorOf(boolean dimmed, boolean hovered) {
@@ -465,7 +494,7 @@ final class RadialWheelRenderer {
      * @param offered the locked ability and its required items
      * @return each item's icon, from the hub outward
      */
-    private static List<ItemIcon> requiredIcons(Frame frame, RadialWheel.PetalArc petal, OfferedAbility offered) {
+    static List<ItemIcon> requiredIcons(Frame frame, RadialWheel.PetalArc petal, OfferedAbility offered) {
         List<OfferedAbility.RequiredItem> required = offered.required();
         List<ItemRect> rects = itemCluster(frame, petal, required.size());
         return IntStream.range(0, rects.size())
@@ -888,7 +917,7 @@ final class RadialWheelRenderer {
      * @param frame    what the frame draws from
      * @param icons    every required item icon the frame drew
      */
-    private static void slashLearnedItems(GuiGraphicsExtractor graphics, Frame frame, List<ItemIcon> icons) {
+    static void slashLearnedItems(GuiGraphicsExtractor graphics, Frame frame, List<ItemIcon> icons) {
         if (icons.stream().noneMatch(ItemIcon::learned)) {
             return;
         }
@@ -977,10 +1006,21 @@ final class RadialWheelRenderer {
         ResourceKey<GooTypeDefinition> type = frame.types().get(wheel.selectedType());
         int holdings = frame.available().getOrDefault(type, 0);
         int textColor = holdings <= 0 ? DISABLED_TEXT_COLOR : COLOR_WHITE;
-        outlinedText(graphics, font, Component.translatable(GooTypeNames.translationKey(type)),
-                frame.centerX(), frame.centerY() - font.lineHeight, textColor);
-        outlinedText(graphics, font, Component.literal(holdingsLabel(holdings)),
-                frame.centerX(), frame.centerY() + LABEL_GAP, textColor);
+        List<Component> lines = centerLabelLines(frame);
+        outlinedText(graphics, font, lines.getFirst(), frame.centerX(), frame.centerY() - font.lineHeight, textColor);
+        outlinedText(graphics, font, lines.getLast(), frame.centerX(), frame.centerY() + LABEL_GAP, textColor);
+    }
+
+    /**
+     * What the hub reads with a type open: the open type's translated name, then its holdings.
+     *
+     * @param frame what the frame draws from, a type open
+     * @return the name line, then the holdings line
+     */
+    static List<Component> centerLabelLines(Frame frame) {
+        ResourceKey<GooTypeDefinition> type = frame.types().get(frame.wheel().selectedType());
+        return List.of(Component.translatable(GooTypeNames.translationKey(type)),
+                Component.literal(holdingsLabel(frame.available().getOrDefault(type, 0))));
     }
 
 
@@ -1003,11 +1043,22 @@ final class RadialWheelRenderer {
      * @param color    the packed ARGB color the icon draws under
      */
     private static void blitIcon(GuiGraphicsExtractor graphics, Icon icon, double[] center, int color) {
-        double half = icon.size() / (double) HALF;
-        int left = (int) Math.round(center[0] - half);
-        int top = (int) Math.round(center[1] - half);
-        graphics.blit(RenderPipelines.GUI_TEXTURED, icon.texture(), left, top,
+        int[] corner = iconCorner(center, icon.size());
+        graphics.blit(RenderPipelines.GUI_TEXTURED, icon.texture(), corner[0], corner[1],
                 0.0f, 0.0f, icon.size(), icon.size(), icon.size(), icon.size(), color);
+    }
+
+    /**
+     * An icon square's top left corner, rounded once from the unrounded center, so the square's center
+     * sits within half a pixel of the point.
+     *
+     * @param center the point the icon centers on, unrounded
+     * @param size   the icon's side
+     * @return the corner's x and y
+     */
+    static int[] iconCorner(double[] center, int size) {
+        double half = size / (double) HALF;
+        return new int[]{(int) Math.round(center[0] - half), (int) Math.round(center[1] - half)};
     }
 
 

@@ -101,6 +101,43 @@ class PetalMeshTest {
                 BASE_LENGTH));
     }
 
+    /** How near a grid line a corner sits to read either edge of its tile, as a fraction of a tile. */
+    private static final double TILE_TOLERANCE = 1e-6;
+
+    /**
+     * Each fill corner samples the fraction its place falls within its tile
+     * of the fixed grid; a corner on a grid line may read either edge.
+     * decision petals-render-the-live-fluid
+     */
+    @Test
+    void eachFillCornerSamplesTheFractionItsPlaceFallsWithinItsTile() {
+        List<PetalMesh.Vertex> corners = PetalMesh.fill(new PetalMask.Petal(START, ARC, RadialWheel.HUB_FRACTION, 1.0))
+                .stream().flatMap(quad -> quad.corners().stream()).toList();
+
+        assertTrue(corners.size() >= 4, corners.size() + " corners");
+        assertAll(corners.stream().map(corner -> (Executable) () -> {
+            assertTiled(corner.u(), corner.x(), corner + " u");
+            assertTiled(corner.v(), corner.y(), corner + " v");
+        }));
+    }
+
+    private static void assertTiled(double sampled, double place, String what) {
+        double across = (place - PetalMesh.TILE_ORIGIN) / PetalMesh.TILE;
+        double fraction = across - Math.floor(across);
+        boolean onGridLine = fraction < TILE_TOLERANCE || fraction > 1 - TILE_TOLERANCE;
+        assertTrue(Math.abs(sampled - fraction) < TILE_TOLERANCE
+                || onGridLine && (sampled < TILE_TOLERANCE || sampled > 1 - TILE_TOLERANCE),
+                what + " sampled " + sampled + ", expected " + fraction);
+    }
+
+    @Test
+    void aSpriteBoxMapsAFractionAcrossItsSpriteOntoTheAtlas() {
+        PetalLook.SpriteBox sprite = new PetalLook.SpriteBox(0.25f, 0.5f, 0.125f, 0.25f);
+
+        assertEquals(List.of(0.25f, 0.375f, 0.5f, 0.125f, 0.1875f, 0.25f),
+                List.of(sprite.u(0), sprite.u(0.5), sprite.u(1), sprite.v(0), sprite.v(0.5), sprite.v(1)));
+    }
+
     /** How far, in normalized units, a cut corner may sit off the petal: float rounding at the border. */
     static final double EDGE_SLACK = 1e-6;
 
