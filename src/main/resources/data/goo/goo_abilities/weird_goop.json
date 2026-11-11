@@ -9,7 +9,7 @@
     "range": 8,
     "cone": 16,
     "ticks_per_charge": 20,
-    "particle": "minecraft:item_slime"
+    "particle": "goo:slime_mist"
   },
   "behaviors": [
     { "type": "cool_lava" },
