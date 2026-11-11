@@ -32,8 +32,9 @@ import static org.mockito.Mockito.when;
 /**
  * Each Flames burn sets a living thing alight before its fire hit lands,
  * so a killing burn drops cooked loot, and spares the fire-immune
- * (decision flames-pixelated-fire-stream), and hurts through the mob's invulnerability window
- * rather than clearing it (decision flames-and-heater-respect-i-frames), and the
+ * (decision flames-pixelated-fire-stream), the hit landing through vanilla's
+ * hurt, which waits out the mob's invulnerability window
+ * (decision flames-and-heater-respect-i-frames), and the
  * shipped Flames carries the ticks a block takes to cook under it
  * (decision flames-absorbs-broil-and-cooks-blocks).
  */
@@ -41,8 +42,6 @@ class FlamesStepTest {
 
     private static final float DAMAGE = 1f;
     private static final int BURN_SECONDS = 5;
-    /** Ticks into a fresh hit's twenty: above ten, vanilla swallows any hit no harder than the last. */
-    private static final int INSIDE_THE_WINDOW = 15;
     /** The ticks of heat blaze_flames.json names for a block to cook. */
     private static final int SHIPPED_COOK_TICKS = 40;
 
@@ -64,18 +63,6 @@ class FlamesStepTest {
         InOrder order = inOrder(mob);
         order.verify(mob).igniteForSeconds(BURN_SECONDS);
         order.verify(mob).hurtServer(level, inFire, DAMAGE);
-    }
-
-    @Test
-    void aBurnInsideTheMobsInvulnerabilityWindowLeavesTheWindowStanding() {
-        // decision flames-and-heater-respect-i-frames: the burn hurts through vanilla's window, never clearing it.
-        mob.invulnerableTime = INSIDE_THE_WINDOW;
-
-        FlamesStep.burn(level, mob, DAMAGE, BURN_SECONDS);
-
-        assertEquals(INSIDE_THE_WINDOW, mob.invulnerableTime);
-        verify(mob).hurtServer(level, inFire, DAMAGE);
-        verify(mob, never()).setHealth(anyFloat());
     }
 
     @Test

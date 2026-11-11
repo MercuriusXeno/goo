@@ -1,13 +1,19 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import net.minecraft.world.level.storage.ValueOutput;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.Test;
+import java.util.Set;
+import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockingDetails;
 
 /**
  * A field trap's pickup is worth a whole throw times the charges left over
- * the charges bought (decision recollect-returns-charges-left).
+ * the charges bought (decision recollect-returns-charges-left), and its
+ * saved state holds its seven run-state fields.
  */
 class FieldEffectStateTest {
 
@@ -25,5 +31,18 @@ class FieldEffectStateTest {
     @Test
     void aMarkerWithNoTrapIsWorthAWholeThrow() {
         assertEquals(WHOLE, new FieldEffectState().worthLeft(WHOLE));
+    }
+
+    @Test
+    void theSavedStateHoldsItsSevenRunStateFields() {
+        ValueOutput output = mock(ValueOutput.class);
+
+        new FieldEffectState().save(output);
+
+        Set<String> savedTags = mockingDetails(output).getInvocations().stream()
+                .map(invocation -> invocation.<String>getArgument(0))
+                .collect(Collectors.toSet());
+        assertEquals(Set.of("FieldStrikes", "FieldCooldown", "FieldChargesSpent", "FieldTicks",
+                "FieldTeardownTicks", "FieldChargesLeft", "FieldMaxCharges"), savedTags);
     }
 }

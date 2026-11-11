@@ -1,8 +1,10 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import org.junit.jupiter.api.Test;
-import java.util.EnumSet;
-import java.util.Set;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -13,18 +15,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class AilmentKindTest {
 
-    private static final int RGB_MASK = 0xFFFFFF;
-
     @Test
-    void tableCarriesEveryAilmentTheListsName() {
-        Set<AilmentKind> named = EnumSet.of(AilmentKind.STASIS, AilmentKind.SCALES,
-                AilmentKind.ZONE, AilmentKind.HEX, AilmentKind.PETRIFY, AilmentKind.FROZEN);
+    void eachAilmentTheListsNameCarriesItsColor() {
+        Map<AilmentKind, Integer> named = Stream.of(AilmentKind.STASIS, AilmentKind.SCALES, AilmentKind.ZONE,
+                AilmentKind.HEX, AilmentKind.PETRIFY, AilmentKind.FROZEN)
+                .collect(Collectors.toMap(Function.identity(), AilmentKind::rgb));
 
-        assertTrue(EnumSet.allOf(AilmentKind.class).containsAll(named));
-        for (AilmentKind kind : AilmentKind.values()) {
-            assertNotEquals(0, kind.rgb(), kind + " has no color");
-            assertEquals(kind.rgb(), kind.rgb() & RGB_MASK, kind + " color is not 0xRRGGBB");
-        }
+        assertEquals(Map.of(AilmentKind.STASIS, 0xFFD447, AilmentKind.SCALES, 0x4AEDD9, AilmentKind.ZONE, 0xB05CFF,
+                AilmentKind.HEX, 0x6A1FB0, AilmentKind.PETRIFY, 0x8C8A86, AilmentKind.FROZEN, 0xC4ECFF), named);
     }
 
     @Test
