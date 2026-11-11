@@ -4,6 +4,8 @@ import com.mercuriusxeno.goo.ability.AbilityJson;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -12,6 +14,7 @@ import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -60,6 +63,7 @@ class NetherBlackHoleProgramTest {
     private static final int POPPING_TICK = LAST_CONTRACT_TICK + 1;
     private static final Identifier BLACK_HOLE_SOUND = Identifier.parse("goo:effects.black_hole");
     private static final float PROGRESS_TOLERANCE = 1e-6f;
+    private static final String HEALTH = "health";
 
     /** The ticks, counted from one on the splat tick, on which each host act ran. */
     private final Map<String, List<Integer>> actTicks = new LinkedHashMap<>();
@@ -234,6 +238,26 @@ class NetherBlackHoleProgramTest {
         runToTheEnd();
 
         assertEquals(List.of(POPPING_TICK), ticksOf("drop sphere"));
+    }
+
+    /**
+     * The operator's ruling on decision black-hole-leaves-a-compression-sphere:
+     * each cut takes a quarter of current health, rounded up to the half heart,
+     * and never the last half heart; every phase's cut reads the one expression.
+     */
+    @ParameterizedTest
+    @CsvSource({"20, 5", "3, 1", "2, 1", "1, 0"})
+    void eachCutTakesAQuarterOfHealthRoundedUpAndLeavesTheLastHalfHeart(double health, double cut) {
+        List<DamageStep> cuts = program().stream().flatMap(NetherBlackHoleProgramTest::stepAndDescendants)
+                .filter(DamageStep.class::isInstance).map(DamageStep.class::cast)
+                .filter(damage -> damage.invulnerableTicks().isPresent()).toList();
+        Variables atHealth = name -> HEALTH.equals(name) ? OptionalDouble.of(health) : OptionalDouble.empty();
+
+        assertEquals(List.of(cut, cut, cut, cut), cuts.stream().map(damage -> damage.amount().evaluate(atHealth)).toList());
+    }
+
+    private static Stream<Step> stepAndDescendants(Step step) {
+        return Stream.concat(Stream.of(step), step.children().flatMap(NetherBlackHoleProgramTest::stepAndDescendants));
     }
 
     @Test

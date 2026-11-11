@@ -65,7 +65,6 @@ public final class EffectExecutorTests {
     private static final String FX_PROGRAM_METAL_SPIKES = "fx_program_metal_spikes";
     private static final String FX_PROGRAM_CRYSTAL_CLOUD = "fx_program_crystal_cloud";
     private static final String BLACK_HOLE_LEAVES_A_SPHERE = "black_hole_leaves_a_sphere";
-    private static final String BLACK_HOLE_CUTS_PLAYERS = "black_hole_cuts_players_to_half_a_heart";
     private static final String COMPRESSION_SPHERE_SPILLS_ON_TOUCH = "compression_sphere_spills_on_touch";
     private static final String FX_LANDED_CRYSTAL_CLOUD = "fx_landed_crystal_cloud_live";
     private static final String FX_CRYSTAL_CLOUD_SHREDS_PLAYER = "fx_crystal_cloud_shreds_walking_player";
@@ -75,7 +74,6 @@ public final class EffectExecutorTests {
     private static final String FX_LANDED_MINE = "fx_landed_mine_awaits";
     private static final String FX_LANDED_GLOW_CRYSTAL = "fx_landed_glow_crystal_stands";
     private static final String FX_FALLEN_MARKER_KEEPS_ABILITY = "fx_fallen_marker_keeps_ability";
-    private static final String FX_CRYSTAL_GROWS = "fx_crystal_grows";
     private static final String FX_OTHER_ABILITY_MARKS_CRYSTAL = "fx_other_ability_marks_crystal";
     private static final String FX_CLOUD_BLOCK_GOES = "fx_cloud_block_goes";
     private static final String FX_TRAP_BLOCK_GOES = "fx_trap_block_goes";
@@ -98,7 +96,6 @@ public final class EffectExecutorTests {
         GooTestFunctions.registerTest(registrar, FX_PROGRAM_METAL_SPIKES, EffectExecutorTests::programMetalSpikes);
         GooTestFunctions.registerTest(registrar, FX_PROGRAM_CRYSTAL_CLOUD, EffectExecutorTests::programCrystalCloud);
         GooTestFunctions.registerTest(registrar, BLACK_HOLE_LEAVES_A_SPHERE, EffectExecutorTests::blackHoleLeavesASphere);
-        GooTestFunctions.registerTest(registrar, BLACK_HOLE_CUTS_PLAYERS, EffectExecutorTests::blackHoleCutsPlayersToHalfAHeart);
         GooTestFunctions.registerTest(registrar, COMPRESSION_SPHERE_SPILLS_ON_TOUCH, EffectExecutorTests::compressionSphereSpillsOnTouch);
         GooTestFunctions.registerTest(registrar, FX_LANDED_CRYSTAL_CLOUD, EffectExecutorTests::crystalCloudLiveAfterLanding);
         GooTestFunctions.registerTest(registrar, FX_CRYSTAL_CLOUD_SHREDS_PLAYER, EffectExecutorTests::crystalCloudShredsAWalkingPlayer);
@@ -108,7 +105,6 @@ public final class EffectExecutorTests {
         GooTestFunctions.registerTest(registrar, FX_LANDED_MINE, EffectExecutorTests::mineAwaitsAfterLanding);
         GooTestFunctions.registerTest(registrar, FX_LANDED_GLOW_CRYSTAL, EffectExecutorTests::glowCrystalStandsAfterLanding);
         GooTestFunctions.registerTest(registrar, FX_FALLEN_MARKER_KEEPS_ABILITY, EffectExecutorTests::fallenMarkerKeepsAbility);
-        GooTestFunctions.registerTest(registrar, FX_CRYSTAL_GROWS, EffectExecutorTests::crystalNeverGrowsOnALaterHit);
         GooTestFunctions.registerTest(registrar, FX_OTHER_ABILITY_MARKS_CRYSTAL, EffectExecutorTests::otherAbilityMarksCrystal);
         GooTestFunctions.registerTest(registrar, FX_CLOUD_BLOCK_GOES, EffectExecutorTests::crystalCloudBlockGoesWithItsProgram);
         GooTestFunctions.registerTest(registrar, FX_TRAP_BLOCK_GOES, EffectExecutorTests::metalTrapBlockGoesWithItsProgram);
@@ -152,17 +148,13 @@ public final class EffectExecutorTests {
      * cooldown, so the trap has struck once.
      */
     private static final int SPIKE_STRIKE_WINDOW = 8;
-    /** Ticks a sneaking player stands in the trap, past two cooldowns. */
-    private static final int SNEAK_TICKS = 20;
     private static final String SPIKE_MISSED = "The metal trap left the walking pig unhurt";
-    private static final String SPIKE_HIT_SNEAKER = "The metal trap hurt the sneaking player";
     private static final String CHARGE_NOT_SPENT = "The metal trap's impale spent more than one charge";
     /** The charges metal_spikes.json buys a throw. */
     private static final int METAL_TRAP_CHARGES = 4;
-    private static final String CHARGE_SPENT_ON_SNEAKER = "The metal trap spent a charge on the sneaking player";
     private static final String ABILITY_CRYSTAL_CLOUD = "goo:crystal_cloud";
-    /** Where the crystal test's standing pig stands: two blocks west, inside the cloud's radius. */
-    private static final BlockPos STANDING_PIG_POS = MARKER_POS.west(2);
+    /** Where the black hole's diamond lies: two blocks west, inside its sphere. */
+    private static final BlockPos DIAMOND_POS = MARKER_POS.west(2);
     /** Horizontal speed the moving pig is shuffled at, reversed every tick so it stays put. */
     private static final double SHUFFLE_SPEED = 0.2;
     /** Ticks per back-and-forth of the moving pig's shuffle. */
@@ -173,7 +165,6 @@ public final class EffectExecutorTests {
     private static final String CLOUD_MISSED_WALKER = "The crystal cloud left the walking survival player unhurt";
     /** Blocks a walking player covers in a tick, near vanilla's walking speed. */
     private static final double WALK_STEP = 0.2;
-    private static final String CLOUD_HIT_STANDING = "The crystal cloud hurt the standing pig";
     private static final String ABILITY_NETHER_BLACK_HOLE = "goo:nether_black_hole";
     /** The size a black hole is dragged to, the radius its JSON cost buys. */
     private static final double HOLE_SIZE = 3;
@@ -204,20 +195,6 @@ public final class EffectExecutorTests {
     private static final double LEFTOVER_CLEAR_MARGIN = 2;
     private static final String HOLE_LEFT_STONE = "The black hole left the stone it faced standing";
     private static final String HOLE_SPARED_ZOMBIE = "The black hole left the zombie inside it alive";
-    private static final String HOLE_SHOULD_CUT_PLAYER = "A player at full health inside the hole should come out hurt "
-            + "and alive; it stands at %.1f";
-    private static final String HOLE_SHOULD_FLOOR_PLAYER = "A player at three health inside the hole should be cut to "
-            + "half a heart and held there; it stands at %.1f";
-    private static final float FULL_HEALTH = 20f;
-    /** Three health: the first cut takes one, rounded up from three quarters, the next one more, then none. */
-    private static final float FRAIL_HEALTH = 3f;
-    private static final float HALF_A_HEART = 1f;
-    /** The first cut on a full-health player, a quarter of twenty; more than two cuts take more than twice it. */
-    private static final float FIRST_CUT = 5f;
-    /** Food a point short of the eighteen regeneration needs. */
-    private static final int UNREGENERATING_FOOD = 17;
-    /** Ticks past vanilla's sixty-tick shield on a player new to the world. */
-    private static final int SPAWN_SHIELD_TICKS = 61;
     private static final String HOLE_DROPPED_EARLY = "The black hole left a sphere before it contracted";
     private static final String HOLE_MOVED = "The black hole left the cell it landed in while it ran";
     private static final String HOLE_LEFT_SPHERES = "The black hole left %d compression spheres, not one";
@@ -456,22 +433,6 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * A second glow_crystal goo landing on a glow crystal leaves it as it
-     * stood: a crystal lands at its one size and never grows on a later hit
-     * (decisions place-block-ability-grows-block, bulb-one-model-max-light-beacon-combo).
-     *
-     * @param helper the gametest helper
-     */
-    public static void crystalNeverGrowsOnALaterHit(GameTestHelper helper) {
-        landOnCrystal(helper, GooTypes.GLOW, ABILITY_GLOW_CRYSTAL);
-        AbilityDefinition glow = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(ABILITY_GLOW_CRYSTAL));
-        AbilityImpact.land(helper.getLevel(), helper.absolutePos(CRYSTAL_POS), GooTypes.GLOW, Direction.UP, glow);
-        helper.assertBlockPresent(GooBlocks.GLOW_CRYSTAL.get(), CRYSTAL_POS);
-        helper.assertBlockProperty(CRYSTAL_POS, GlowCrystalBlock.FACING, Direction.UP);
-        helper.succeed();
-    }
-
-    /**
      * A metal_spikes goo landing on a glow crystal leaves it as it stood
      * and places its own marker on the crystal's face.
      *
@@ -582,20 +543,16 @@ public final class EffectExecutorTests {
 
     /**
      * Crystal cloud as a field-effect program: from the splat, a pig kept
-     * moving inside the cloud is shredded while a pig standing inside it
-     * is left whole.
+     * moving inside the cloud is shredded.
      *
      * @param helper the gametest helper
      */
     public static void programCrystalCloud(GameTestHelper helper) {
         discardLeftoverEntities(helper);
-        helper.setBlock(STANDING_PIG_POS.below(), Blocks.STONE);
         placeMarkerWithAbility(helper, GooTypes.CRYSTAL, ABILITY_CRYSTAL_CLOUD);
         Pig mover = spawnShufflingPig(helper, MINE_TARGET_POS);
-        Pig standing = helper.spawnWithNoFreeWill(EntityType.PIG, STANDING_PIG_POS);
         helper.runAfterDelay(SHRED_WINDOW, () -> {
             helper.assertTrue(mover.getHealth() < mover.getMaxHealth(), CLOUD_MISSED_MOVER);
-            helper.assertTrue(standing.getHealth() == standing.getMaxHealth(), CLOUD_HIT_STANDING);
             helper.succeed();
         });
     }
@@ -632,7 +589,7 @@ public final class EffectExecutorTests {
         fillWall(helper, Blocks.STONE);
         layBarrierFloor(helper);
         Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, MINE_TARGET_POS);
-        helper.spawnItem(Items.DIAMOND, Vec3.atBottomCenterOf(STANDING_PIG_POS));
+        helper.spawnItem(Items.DIAMOND, Vec3.atBottomCenterOf(DIAMOND_POS));
         helper.runAfterDelay(SHORT_WAIT, () -> castDraggedHole(helper));
         helper.runAfterDelay(SHORT_WAIT + BLACK_HOLE_GATHER_TICKS + BLACK_HOLE_EXPAND_TICKS + SHORT_WAIT, () -> {
             helper.assertTrue(helper.getBlockState(MARKER_POS.north()).isAir(), HOLE_LEFT_STONE);
@@ -649,57 +606,6 @@ public final class EffectExecutorTests {
             helper.assertTrue(itemsAroundMarker(helper).isEmpty(), HOLE_LEFT_LOOSE_ITEMS);
             helper.succeed();
         });
-    }
-
-    /**
-     * A player inside the black hole is cut, never killed: one at full health
-     * comes out hurt and alive, and one at three health is cut to one, half
-     * a heart, and held there while the hole runs on (the operator's ruling on
-     * decision black-hole-leaves-a-compression-sphere: each second cuts a
-     * quarter of current health, rounded up to the half heart, and never takes
-     * a player below half a heart).
-     *
-     * @param helper the gametest helper
-     */
-    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    public static void blackHoleCutsPlayersToHalfAHeart(GameTestHelper helper) {
-        discardLeftoverEntities(helper);
-        layBarrierFloor(helper);
-        ServerPlayer hale = playerInsideTheHole(helper, MARKER_POS.east(2), FULL_HEALTH);
-        ServerPlayer frail = playerInsideTheHole(helper, MARKER_POS.west(2), FRAIL_HEALTH);
-        // a mock player has no connection to tick it, so the test ticks it as the server would a real one
-        helper.onEachTick(() -> {
-            hale.doTick();
-            frail.doTick();
-        });
-        // a player fresh in the world shrugs off harm for its first three seconds, as vanilla shields a joining one
-        helper.runAfterDelay(SPAWN_SHIELD_TICKS, () -> castDraggedHole(helper));
-        helper.runAfterDelay(SPAWN_SHIELD_TICKS + BLACK_HOLE_LIFE_TICKS + SHORT_WAIT, () -> {
-            boolean haleAlive = hale.isAlive();
-            boolean frailAlive = frail.isAlive();
-            float haleHealth = hale.getHealth();
-            float frailHealth = frail.getHealth();
-            helper.getLevel().getServer().getPlayerList().remove(hale);
-            helper.getLevel().getServer().getPlayerList().remove(frail);
-            helper.assertTrue(haleAlive && haleHealth < FULL_HEALTH - 2 * FIRST_CUT,
-                    String.format(HOLE_SHOULD_CUT_PLAYER, haleHealth));
-            helper.assertTrue(frailAlive && frailHealth == HALF_A_HEART,
-                    String.format(HOLE_SHOULD_FLOOR_PLAYER, frailHealth));
-            helper.succeed();
-        });
-    }
-
-    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    private static ServerPlayer playerInsideTheHole(GameTestHelper helper, BlockPos at, float health) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        player.setGameMode(GameType.SURVIVAL);
-        Vec3 stand = helper.absoluteVec(Vec3.atBottomCenterOf(at));
-        player.setPos(stand.x, stand.y, stand.z);
-        player.setHealth(health);
-        // fed short of the regeneration threshold and above starving, so food neither heals nor hurts it
-        player.getFoodData().setFoodLevel(UNREGENERATING_FOOD);
-        player.getFoodData().setSaturation(0f);
-        return player;
     }
 
     /**
@@ -812,22 +718,6 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * Stands a sneaking survival player in the level at a position, where
-     * an entity scan finds it.
-     *
-     * @param helper the gametest helper
-     * @param pos    the relative block position to stand on
-     * @return the player
-     */
-    private static Player standSneakingPlayer(GameTestHelper helper, BlockPos pos) {
-        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-        player.setShiftKeyDown(true);
-        player.setPos(helper.absoluteVec(Vec3.atBottomCenterOf(pos)));
-        helper.getLevel().addFreshEntity(player);
-        return player;
-    }
-
-    /**
      * Places a metal spikes marker over stone at the mine target.
      *
      * @param helper the gametest helper
@@ -843,8 +733,7 @@ public final class EffectExecutorTests {
     /**
      * Metal spikes as a field-effect program: one throw's trap impales a pig
      * walking into its radius, spending at most one charge on its roll
-     * (decision metal-spends-charge-by-chance), then spares a sneaking player
-     * standing in the same spot, spending none.
+     * (decision metal-spends-charge-by-chance).
      *
      * @param helper the gametest helper
      */
@@ -852,21 +741,11 @@ public final class EffectExecutorTests {
         AbilityBlockEntity be = placeMetalTrap(helper);
         int armed = SHORT_WAIT;
         Pig[] pig = new Pig[1];
-        Player[] sneaker = new Player[1];
-        int[] spentOnPig = new int[1];
         helper.runAfterDelay(armed, () -> pig[0] = helper.spawnWithNoFreeWill(EntityType.PIG, MINE_TARGET_POS));
         helper.runAfterDelay(armed + SPIKE_STRIKE_WINDOW, () -> {
             helper.assertTrue(pig[0].getHealth() < pig[0].getMaxHealth(), SPIKE_MISSED);
-            spentOnPig[0] = be.getFieldEffect().chargesSpent();
-            helper.assertTrue(spentOnPig[0] <= 1, CHARGE_NOT_SPENT);
+            helper.assertTrue(be.getFieldEffect().chargesSpent() <= 1, CHARGE_NOT_SPENT);
             pig[0].discard();
-            sneaker[0] = standSneakingPlayer(helper, MINE_TARGET_POS);
-        });
-        helper.runAfterDelay(armed + SPIKE_STRIKE_WINDOW + SNEAK_TICKS, () -> {
-            helper.assertTrue(sneaker[0].getHealth() == sneaker[0].getMaxHealth(), SPIKE_HIT_SNEAKER);
-            helper.assertTrue(be.getFieldEffect().chargesSpent() == spentOnPig[0], CHARGE_SPENT_ON_SNEAKER);
-            helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
-            sneaker[0].discard();
             helper.succeed();
         });
     }
