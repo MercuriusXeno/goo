@@ -58,7 +58,16 @@
           "biome": "goo:pocket_void",
           "features": false,
           "lakes": false,
-          "layers": [],
+          "layers": [
+            {
+              "block": "minecraft:air",
+              "height": 63
+            },
+            {
+              "block": "goo:voidstone",
+              "height": 1
+            }
+          ],
           "structure_overrides": []
         }
       }

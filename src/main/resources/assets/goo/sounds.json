@@ -133,5 +133,29 @@
         "stream": false
       }
     ]
+  },
+  "effects.outsider_wub": {
+    "category": "players",
+    "subtitle": "subtitles.goo.outsider_wub",
+    "sounds": [
+      {
+        "name": "goo:effects/outsider_wub",
+        "stream": false
+      },
+      {
+        "name": "goo:effects/outsider_wub2",
+        "stream": false
+      }
+    ]
+  },
+  "effects.outsider_conjure": {
+    "category": "players",
+    "subtitle": "subtitles.goo.outsider_conjure",
+    "sounds": [
+      {
+        "name": "goo:effects/outsider_conjure",
+        "stream": false
+      }
+    ]
   }
 }
