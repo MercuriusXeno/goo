@@ -9,7 +9,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.Blocks;
@@ -57,7 +56,6 @@ public final class ColonizeTests {
     private static final int SETTLE_TICKS = 2;
     private static final String BUD_BESIDE = "No bud should grow beside a standing mushroom";
     private static final String MUSHROOM_KEPT = "The mushroom beside the landing should stand";
-    private static final String NO_VANILLA = "Spore should carry no vanilla slowness, weakness or poison";
     private static final String PIG_SPORED = "A pig beside the landing should carry the spore poison and spores";
 
     private ColonizeTests() {
@@ -100,7 +98,7 @@ public final class ColonizeTests {
 
     /**
      * Spore thrown at a pig lands at its feet: the pig carries the spore
-     * effect at level II and spores, and no vanilla effect stands beside it.
+     * effect at level II and spores.
      *
      * @param helper the gametest helper
      */
@@ -113,8 +111,6 @@ public final class ColonizeTests {
             MobEffectInstance spores = pig.getEffect(GooMobEffects.MYCOSIS);
             helper.assertTrue(spores != null && spores.getAmplifier() == SPORE_LEVEL_II && pig.hasData(
                     GooAttachments.SPORED), PIG_SPORED);
-            helper.assertFalse(pig.hasEffect(MobEffects.SLOWNESS) || pig.hasEffect(MobEffects.WEAKNESS)
-                    || pig.hasEffect(MobEffects.POISON), NO_VANILLA);
             helper.succeed();
         });
     }

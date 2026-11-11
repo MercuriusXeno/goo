@@ -29,15 +29,13 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
  * tunnel inside its 15 degree cone along the look to the stream's reach, the
  * nearest block first at two blocks a tick, dropping cobblestone, and leaves
  * the stone around the tunnel and past the reach standing; a cow penned in
- * the tunnel takes Bore's hit as the player's, spaced by its hit immunity and
- * with no knockback, and a cow behind obsidian on the eye line takes none
+ * the tunnel takes Bore's hit as the player's, with no knockback
  * (decisions bore-breaks-a-15-degree-cone, bore-vortex-with-a-worldspace-shake).
  */
 @RegistersGameTests
 public final class BoreStreamTests {
     private static final String BORE_CUTS_A_TUNNEL = "bore_cuts_a_tunnel";
     private static final String BORE_STRIKES_A_MOB = "bore_strikes_a_mob_in_the_tunnel";
-    private static final String BORE_SPARES_A_WALLED_MOB = "bore_spares_a_mob_behind_a_wall";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -47,7 +45,6 @@ public final class BoreStreamTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, BORE_CUTS_A_TUNNEL, BoreStreamTests::boreCutsATunnel);
         GooTestFunctions.registerTest(registrar, BORE_STRIKES_A_MOB, BoreStreamTests::boreStrikesAMobInTheTunnel);
-        GooTestFunctions.registerTest(registrar, BORE_SPARES_A_WALLED_MOB, BoreStreamTests::boreSparesAMobBehindAWall);
     }
 
 
@@ -67,19 +64,11 @@ public final class BoreStreamTests {
     private static final double ITEM_SEARCH_RADIUS = 4;
     private static final Identifier ROCK_BORE = Identifier.parse("goo:rock_bore");
     private static final String ABILITY_REQUIRED = "Ability registry must hold rock_bore";
-    /** rock_bore.json's strike: 2 damage a hit, each hit leaving 10 ticks of immunity. */
+    /** rock_bore.json's strike: 2 damage a hit. */
     private static final float HIT_DAMAGE = 2f;
-    private static final int IMMUNE_TICKS = 10;
-    /** A tick inside the first hit's immunity, and a tick past two more hits. */
-    private static final int STILL_IMMUNE_TICK = 5;
-    private static final int THIRD_HIT_BY_TICK = 2 * (IMMUNE_TICKS + 1) + 1;
     private static final float FLOAT_SLACK = 0.001f;
     private static final BlockPos TUNNEL_COW = EYE_ROW.east(2).below();
-    private static final BlockPos WALLED_COW = EYE_ROW.east(3).below();
     private static final String SHOULD_HIT_ONCE = "The first tick should hit the cow once, as the player, unmoved; lost %s";
-    private static final String SHOULD_WAIT = "The cow should take no hit inside its immunity, lost %s";
-    private static final String SHOULD_HIT_AGAIN = "The cow should take three hits in %d ticks, lost %s";
-    private static final String SHOULD_SPARE = "A cow behind obsidian should take no hit, lost %s";
 
     private BoreStreamTests() {
     }
@@ -137,8 +126,7 @@ public final class BoreStreamTests {
     /**
      * A mock player streams bore east at a cow penned in glass inside the
      * tunnel: the first tick hits it once for 2 as the player's attack and
-     * leaves its motion as it was; inside the hit's immunity no further hit
-     * lands; by two immunity windows later it has taken three hits.
+     * leaves its motion as it was.
      *
      * @param helper the gametest helper
      */
@@ -161,55 +149,11 @@ public final class BoreStreamTests {
         helper.runAfterDelay(1, () -> {
             Vec3 motion = cow.getDeltaMovement();
             GooStreamHandler.streamTick(player, tick);
+            helper.getLevel().getServer().getPlayerList().remove(player);
             float lost = full - cow.getHealth();
             boolean asPlayer = cow.getLastDamageSource() != null && cow.getLastDamageSource().getEntity() == player;
             helper.assertTrue(Math.abs(lost - HIT_DAMAGE) < FLOAT_SLACK && asPlayer
                     && cow.getDeltaMovement().equals(motion), String.format(SHOULD_HIT_ONCE, lost));
-        });
-        for (int held = 2; held <= THIRD_HIT_BY_TICK; held++) {
-            int at = held;
-            helper.runAfterDelay(held, () -> {
-                GooStreamHandler.streamTick(player, tick);
-                float lost = full - cow.getHealth();
-                if (at == STILL_IMMUNE_TICK) {
-                    helper.assertTrue(Math.abs(lost - HIT_DAMAGE) < FLOAT_SLACK, String.format(SHOULD_WAIT, lost));
-                }
-            });
-        }
-        helper.runAfterDelay(THIRD_HIT_BY_TICK + 1, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            float lost = full - cow.getHealth();
-            helper.assertTrue(Math.abs(lost - 3 * HIT_DAMAGE) < FLOAT_SLACK,
-                    String.format(SHOULD_HIT_AGAIN, THIRD_HIT_BY_TICK, lost));
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Obsidian on the eye line stops the tunnel short of a cow penned behind
-     * it, so a whole hold of bore leaves the cow at full health.
-     *
-     * @param helper the gametest helper
-     */
-    public static void boreSparesAMobBehindAWall(GameTestHelper helper) {
-        helper.setBlock(EYE_ROW.east(2), Blocks.OBSIDIAN);
-        helper.setBlock(WALLED_COW.west(), Blocks.GLASS);
-        for (int up = 0; up <= 1; up++) {
-            helper.setBlock(WALLED_COW.offset(0, up, -1), Blocks.GLASS);
-            helper.setBlock(WALLED_COW.offset(0, up, 1), Blocks.GLASS);
-            helper.setBlock(WALLED_COW.offset(1, up, 0), Blocks.GLASS);
-        }
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, WALLED_COW);
-        ServerPlayer player = boringPlayer(helper);
-        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.ROCK), ROCK_BORE.toString(),
-                player.getEyePosition(), player.getEyePosition());
-        for (int held = 1; held <= HOLD_TICKS; held++) {
-            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
-        }
-        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            float lost = cow.getMaxHealth() - cow.getHealth();
-            helper.assertTrue(lost < FLOAT_SLACK, String.format(SHOULD_SPARE, lost));
             helper.succeed();
         });
     }

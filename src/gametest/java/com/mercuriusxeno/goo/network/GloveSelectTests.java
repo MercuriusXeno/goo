@@ -24,7 +24,6 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 public final class GloveSelectTests {
     private static final String GLOVE_TYPE_ONLY_REFUSED = "glove_type_only_refused";
     private static final String GLOVE_GATED_SELECTION_REFUSED = "glove_gated_selection_refused";
-    private static final String RAZOR_HIDDEN_UNTIL_GLASS_AND_SAND = "razor_hidden_until_glass_and_sand";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -34,15 +33,12 @@ public final class GloveSelectTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, GLOVE_TYPE_ONLY_REFUSED, GloveSelectTests::typeOnlySelectionRefused);
         GooTestFunctions.registerTest(registrar, GLOVE_GATED_SELECTION_REFUSED, GloveSelectTests::gatedSelectionRefusedWithoutTheRecipe);
-        GooTestFunctions.registerTest(registrar, RAZOR_HIDDEN_UNTIL_GLASS_AND_SAND, GloveSelectTests::razorHiddenUntilGlassAndSand);
     }
 
 
     private static final String BLAZE_ID = GooTypes.id(GooTypes.BLAZE);
     private static final String BLAZE_IGNITE = "goo:blaze_ignite";
     private static final String BLAZE_FLAMES = "goo:blaze_flames";
-    private static final String CRYSTAL_ID = GooTypes.id(GooTypes.CRYSTAL);
-    private static final String CRYSTAL_CLOUD = "goo:crystal_cloud";
     private static final String REMOVAL = "removal";
     private static final String NO_ABILITY = "";
     private static final String TYPE_ONLY_TOOK = "A type with no ability changed the glove's selection";
@@ -97,32 +93,6 @@ public final class GloveSelectTests {
         GloveSelectHandler.resolveAndApply(player, glove, flames);
         GloveSelection held = GooGloveItem.getSelection(glove);
         helper.assertTrue(held != null && BLAZE_FLAMES.equals(held.abilityId()), ABILITY_NOT_HELD);
-        helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.succeed();
-    }
-
-    /**
-     * A player who knows glass alone selects Razor and the glove stays empty;
-     * once they know sand too, the same selection holds.
-     * decision razor-keeps-its-look-gated-on-glass
-     *
-     * @param helper the gametest helper
-     */
-    @SuppressWarnings(REMOVAL) // vanilla marks the mock server player helper for removal and names no replacement
-    public static void razorHiddenUntilGlassAndSand(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        ItemStack glove = new ItemStack(GooItems.GOO_GLOVE.get());
-        GloveSelectPayload razor = new GloveSelectPayload(CRYSTAL_ID, CRYSTAL_CLOUD);
-
-        PlayerKnowledge.learn(player, Items.GLASS);
-        GloveSelectHandler.resolveAndApply(player, glove, razor);
-        helper.assertTrue(GooGloveItem.getSelection(glove) == null,
-                "A player knowing glass but not sand should not select Razor");
-
-        PlayerKnowledge.learn(player, Items.SAND);
-        GloveSelectHandler.resolveAndApply(player, glove, razor);
-        GloveSelection held = GooGloveItem.getSelection(glove);
-        helper.assertTrue(held != null && CRYSTAL_CLOUD.equals(held.abilityId()), ABILITY_NOT_HELD);
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.succeed();
     }

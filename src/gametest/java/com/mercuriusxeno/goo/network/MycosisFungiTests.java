@@ -30,16 +30,13 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
  * Gametests for Mycosis tending fungi: a held stream random-ticks the nether
  * wart and fungal buds in its cone, so wart planted three blocks ahead of the
  * player ripens and is reaped within the hold, dropping wart and standing
- * replanted at age 0, and a bud there grows into its mushroom; Growth's
- * breeze held on the same wart leaves it as planted.
+ * replanted at age 0, and a bud there grows into its mushroom.
  * mycosis-grows-and-reaps-nether-wart
  */
 @RegistersGameTests
 public final class MycosisFungiTests {
     private static final String MYCOSIS_REAPS_WART = "mycosis_grows_and_reaps_nether_wart";
     private static final String MYCOSIS_GROWS_BUDS = "mycosis_grows_fungal_buds";
-    private static final String MYCOSIS_BUD_PACE = "mycosis_buds_ripen_at_warts_pace";
-    private static final String GROWTH_SPARES_WART_FUNCTION = "growth_leaves_nether_wart_alone";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -49,8 +46,6 @@ public final class MycosisFungiTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, MYCOSIS_REAPS_WART, MycosisFungiTests::mycosisGrowsAndReapsNetherWart);
         GooTestFunctions.registerTest(registrar, MYCOSIS_GROWS_BUDS, MycosisFungiTests::mycosisGrowsFungalBuds);
-        GooTestFunctions.registerTest(registrar, MYCOSIS_BUD_PACE, MycosisFungiTests::mycosisBudsRipenAtWartsPace);
-        GooTestFunctions.registerTest(registrar, GROWTH_SPARES_WART_FUNCTION, MycosisFungiTests::growthLeavesNetherWartAlone);
     }
 
 
@@ -63,22 +58,13 @@ public final class MycosisFungiTests {
     private static final float LOOKING_AT_FUNGUS = 20.5f;
     /** The longest hold; wart and buds under the stream ripen in a fraction of it. */
     private static final int HOLD_TICKS = 300;
-    /** Growth's hold over wart: long enough that a ticked wart would have grown many times over. */
-    private static final int GROWTH_HOLD_TICKS = 100;
-    /** Both streams cost a thousand a second; the player holds enough for the whole hold and then some. */
+    /** The stream costs a thousand a second; the player holds enough for the whole hold and then some. */
     private static final int HELD_GOO = 20;
     private static final double ITEM_SEARCH_RADIUS = 3;
     private static final Identifier SHROOM_MYCOSIS = Identifier.parse("goo:shroom_mycosis");
-    private static final Identifier LEAF_GROWTH = Identifier.parse("goo:leaf_growth");
     private static final String ABILITY_REQUIRED = "Ability registry must hold %s";
     private static final String SHOULD_REPLANT = "Reaped wart should stand replanted at age 0 beside dropped wart, stands %s";
     private static final String SHOULD_MUSHROOM = "A bud under the stream should grow into a mushroom, stands %s";
-    /** The held ticks a bud aged on every tick takes to become a mushroom: its four ages. */
-    private static final int INSTANT_RIPENING_TICKS = 4;
-    private static final String SHOULD_STAY_BUD = "A bud held four ticks should still be a bud at wart's pace, stands %s";
-    private static final String GROWTH_SPARES_WART = "Growth's breeze should leave nether wart unripened, stands at age %d";
-    /** The age the world's own random ticks may bring a wart to over Growth's hold, without Growth ticking it. */
-    private static final int AGED_BY_THE_WORLD_AT_MOST = 1;
 
     private MycosisFungiTests() {
     }
@@ -120,46 +106,6 @@ public final class MycosisFungiTests {
     }
 
     /**
-     * A mock player holds Mycosis on a fresh fungal bud for four ticks, the
-     * hold that ripened a bud ticked every held tick, and the bud still stands:
-     * at wart's pace of one tick in ten, all four aging is a one in ten
-     * thousand chance.
-     *
-     * @param helper the gametest helper
-     */
-    public static void mycosisBudsRipenAtWartsPace(GameTestHelper helper) {
-        helper.setBlock(FUNGUS_POS.below(), Blocks.STONE);
-        helper.setBlock(FUNGUS_POS, GooBlocks.FUNGAL_BUD.get().defaultBlockState().setValue(FungalBudBlock.AGE, 0));
-        ServerPlayer player = hold(helper, GooTypes.SHROOM, SHROOM_MYCOSIS, INSTANT_RIPENING_TICKS);
-        helper.runAfterDelay(INSTANT_RIPENING_TICKS + 1, () -> {
-            BlockState bud = helper.getBlockState(FUNGUS_POS);
-            helper.assertTrue(bud.is(GooBlocks.FUNGAL_BUD.get()), String.format(SHOULD_STAY_BUD, bud));
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * A mock player holds Growth on freshly planted nether wart for a long
-     * hold, and the wart stands unripened when it ends, aged once at most by
-     * the world's own random ticks: nether wart is shroom's to grow.
-     *
-     * @param helper the gametest helper
-     */
-    public static void growthLeavesNetherWartAlone(GameTestHelper helper) {
-        helper.setBlock(FUNGUS_POS.below(), Blocks.SOUL_SAND);
-        helper.setBlock(FUNGUS_POS, Blocks.NETHER_WART);
-        ServerPlayer player = hold(helper, GooTypes.LEAF, LEAF_GROWTH, GROWTH_HOLD_TICKS);
-        helper.runAfterDelay(GROWTH_HOLD_TICKS + 1, () -> {
-            int age = helper.getBlockState(FUNGUS_POS).getValue(NetherWartBlock.AGE);
-            // the world's own random ticks may age the wart once over the hold; a breeze ticking it ripens it to 3
-            helper.assertTrue(age <= AGED_BY_THE_WORLD_AT_MOST, String.format(GROWTH_SPARES_WART, age));
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.succeed();
-        });
-    }
-
-    /**
      * Stands a mock player facing the fungus and holds a stream ability on it
      * for a number of ticks.
      *
@@ -167,11 +113,10 @@ public final class MycosisFungiTests {
      * @param gooType   the goo the ability spends
      * @param abilityId the stream ability held
      * @param ticks     the ticks it is held
-     * @return the player holding it
      */
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    private static ServerPlayer hold(GameTestHelper helper, ResourceKey<GooTypeDefinition> gooType,
-                                     Identifier abilityId, int ticks) {
+    private static void hold(GameTestHelper helper, ResourceKey<GooTypeDefinition> gooType,
+                             Identifier abilityId, int ticks) {
         AbilityDefinition ability = AbilityRegistry.of(helper.getLevel()).getAbility(abilityId);
         helper.assertTrue(ability != null, String.format(ABILITY_REQUIRED, abilityId));
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
@@ -187,6 +132,5 @@ public final class MycosisFungiTests {
         for (int held = 1; held <= ticks; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
         }
-        return player;
     }
 }

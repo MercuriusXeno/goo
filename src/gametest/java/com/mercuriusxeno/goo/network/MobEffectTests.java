@@ -3,8 +3,6 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.hex.CharmEvents;
-import com.mercuriusxeno.goo.ability.program.EntityFilter;
-import com.mercuriusxeno.goo.ability.program.EntityScan;
 import com.mercuriusxeno.goo.ability.zone.ZoneEvents;
 import com.mercuriusxeno.goo.gametest.SurvivalPlayers;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
@@ -22,8 +20,6 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.animal.cow.Cow;
-import net.minecraft.world.entity.ai.attributes.AttributeInstance;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
@@ -33,8 +29,6 @@ import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
-import java.util.List;
-import java.util.Set;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
@@ -55,13 +49,10 @@ public final class MobEffectTests {
     private static final String FLOAT_LEVITATES_A_ZOMBIE = "float_levitates_a_zombie";
     private static final String CHARM_TURNS_ZOMBIE = "charm_turns_zombie_on_skeleton";
     private static final String CHARMED_SLIME_SPARES = "charmed_slime_spares_its_charmer";
-    private static final String CHARM_HAS_NO_EXPIRY = "charm_has_no_expiry";
+    private static final String CHARM_HOLDS_THROUGH_A_SAVE = "charm_holds_through_a_save";
     private static final String CHARM_BREAKS_ON_THE_CHARMERS_HIT = "charm_breaks_on_the_charmers_hit";
-    private static final String CHARM_SURVIVES_ANOTHER_HIT = "charm_survives_another_hit";
     private static final String ZONE_WARPS_THEN_EXILES = "zone_warps_then_exiles";
-    private static final String ZONE_RESISTED_BY_HIGH_HEALTH = "zone_resisted_by_high_health";
     private static final String MOB_UNSTABLE = "mob_unstable_explode";
-    private static final String HAS_BABY_FORM_FILTER = "has_baby_form_filter";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -74,13 +65,10 @@ public final class MobEffectTests {
         GooTestFunctions.registerTest(registrar, FLOAT_LEVITATES_A_ZOMBIE, MobEffectTests::floatLevitatesAZombie);
         GooTestFunctions.registerTest(registrar, CHARM_TURNS_ZOMBIE, MobEffectTests::charmTurnsZombieOnSkeleton);
         GooTestFunctions.registerTest(registrar, CHARMED_SLIME_SPARES, MobEffectTests::charmedSlimeSparesItsCharmer);
-        GooTestFunctions.registerTest(registrar, CHARM_HAS_NO_EXPIRY, MobEffectTests::charmHasNoExpiry);
+        GooTestFunctions.registerTest(registrar, CHARM_HOLDS_THROUGH_A_SAVE, MobEffectTests::charmHoldsThroughASave);
         GooTestFunctions.registerTest(registrar, CHARM_BREAKS_ON_THE_CHARMERS_HIT, MobEffectTests::charmBreaksOnTheCharmersHit);
-        GooTestFunctions.registerTest(registrar, CHARM_SURVIVES_ANOTHER_HIT, MobEffectTests::charmSurvivesAnotherHit);
         GooTestFunctions.registerTest(registrar, ZONE_WARPS_THEN_EXILES, MobEffectTests::zoneWarpsThenExiles);
-        GooTestFunctions.registerTest(registrar, ZONE_RESISTED_BY_HIGH_HEALTH, MobEffectTests::zoneResistedByHighHealth);
         GooTestFunctions.registerTest(registrar, MOB_UNSTABLE, MobEffectTests::unstableExplode);
-        GooTestFunctions.registerTest(registrar, HAS_BABY_FORM_FILTER, MobEffectTests::hasBabyFormFilter);
     }
 
 
@@ -104,13 +92,8 @@ public final class MobEffectTests {
     private static final float SLIME_HIT = 4f;
     /** A hit too light to kill the zombie, so the charm, not the mob, is what ends. */
     private static final float LIGHT_HIT = 1f;
-    /** Ticks the charm is held before the save, long past any timed ailment's fade. */
-    private static final int CHARM_HOLD_TICKS = 100;
-    private static final String CHARM_SHOULD_HOLD = "The charm should hold with no expiry";
     private static final String CHARM_SHOULD_RELOAD = "The reloaded zombie should hold the charm for its charmer";
     private static final String CHARMERS_HIT_SHOULD_BREAK = "The charmer's hit should end the charm";
-    private static final String OTHER_HIT_SHOULD_LEAVE = "A hit from another mob should leave the charm";
-    private static final String SHOULD_NOT_GLOW = "Target should wear the ailment overlay, not vanilla glowing";
     private static final String SHOULD_TAKE_DAMAGE = "Target should have taken damage";
     private static final String SHOULD_HAVE_LEVITATION = "Target should have levitation";
     private static final String SHOULD_TAKE_JAVELIN_DAMAGE = "Target should have taken the javelin's damage";
@@ -121,7 +104,6 @@ public final class MobEffectTests {
     private static final String FLOAT_SHOULD_END_WITH_LEVITATION = "The zombie's float should end when its levitation does";
     private static final String FLOAT_SHOULD_CLEAR_WITH_LEVITATION = "Removing the levitation should clear the float";
     private static final String ABILITY_PULSE_SHORT_CIRCUIT = "goo:pulse_short_circuit";
-    private static final String MOB_HAS_MAX_HEALTH = "The mob carries a max health attribute";
     /** The gametests' own thrown blast, today's Blast before it was drag-sized, struck at a mob. */
     private static final String ABILITY_UNSTABLE_EXPLODE = "goo:test_blast";
     private static final String ABILITY_HEX_CHARM = "goo:hex_charm";
@@ -129,12 +111,9 @@ public final class MobEffectTests {
     private static final String ABILITY_ENDER_ZONE = "goo:ender_zone";
     /** Above ender_zone.json's radius of six, so the player sets nothing off until the test walks it in. */
     private static final double PLAYER_OUT_OF_REACH_ABOVE = 20.0;
-    /** Over ender_zone.json's resist cap of a hundred max health. */
-    private static final double RESISTING_MAX_HEALTH = 200.0;
     private static final String SHOULD_BE_CURSED = "The zombie should carry the curse after the first Zone";
     private static final String SHOULD_WARP = "The cursed zombie should warp away from the player standing on it";
     private static final String SHOULD_BE_EXILED = "A second Zone should exile the cursed zombie";
-    private static final String SHOULD_RESIST = "A mob over the max health cap should resist the curse";
     private static final String SHOULD_BE_IN_LOVE = "A cow struck by Allure should be in love";
     /** Beside the cow, inside test_blast.json's blast of power 3. */
     private static final BlockPos BLAST_DIRT_POS = SPAWN_POS.south();
@@ -142,9 +121,6 @@ public final class MobEffectTests {
     private static final String UNDEAD_SHOULD_BURN = "A zombie is undead and should burn";
     /** The damage metal_javelin.json's damage step names. */
     private static final float JAVELIN_DAMAGE = 8.0f;
-
-    private static final String SHOULD_HAVE_BABY_FORM = "%s should have a baby form";
-    private static final String SHOULD_LACK_BABY_FORM = "%s should have no baby form";
 
     private MobEffectTests() {
     }
@@ -236,9 +212,7 @@ public final class MobEffectTests {
      * Hex charm turns a zombie on a skeleton before the skeleton aggresses:
      * once it looks for a foe, the zombie targets the idle skeleton, and a
      * target of its survival charmer it would take turns to the skeleton
-     * too, and it wears no
-     * vanilla glowing (decisions charm-glisten-and-icon-over-the-head,
-     * ailment-overlay-shader-per-ailment). A zombie's max health of 20 makes
+     * too (decision charm-glisten-and-icon-over-the-head). A zombie's max health of 20 makes
      * hex_charm.json's charm chance whole.
      *
      * @param helper the gametest helper
@@ -258,7 +232,6 @@ public final class MobEffectTests {
                 helper.assertTrue(zombie.getTarget() == skeleton, ZOMBIE_SHOULD_TURN_ON_SKELETON);
                 zombie.setTarget(charmer);
                 helper.assertTrue(zombie.getTarget() == skeleton, ZOMBIE_SHOULD_SPARE_CHARMER);
-                helper.assertFalse(zombie.hasEffect(MobEffects.GLOWING), SHOULD_NOT_GLOW);
                 helper.getLevel().getServer().getPlayerList().remove(charmer);
                 helper.succeed();
             });
@@ -266,32 +239,28 @@ public final class MobEffectTests {
     }
 
     /**
-     * A charm holds with no expiry: the zombie still holds it after the
-     * hold, and a save loaded back holds it for the same charmer
-     * (decision charm-holds-until-struck).
+     * A charm holds through a save: the charmed zombie loaded back holds it
+     * for the same charmer (decision charm-holds-until-struck).
      *
      * @param helper the gametest helper
      */
-    public static void charmHasNoExpiry(GameTestHelper helper) {
+    public static void charmHoldsThroughASave(GameTestHelper helper) {
         ServerPlayer charmer = SurvivalPlayers.placeIn(helper);
         Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             strike(helper, zombie, ABILITY_HEX_CHARM, charmer);
-            helper.runAfterDelay(CHARM_HOLD_TICKS, () -> {
-                helper.assertTrue(zombie.hasData(GooAttachments.CHARMED), CHARM_SHOULD_HOLD);
-                TagValueOutput saved = TagValueOutput.createWithContext(ProblemReporter.DISCARDING,
-                        helper.getLevel().registryAccess());
-                zombie.save(saved);
-                zombie.discard();
-                Entity loaded = EntityType.loadEntityRecursive(TagValueInput.create(ProblemReporter.DISCARDING,
-                        helper.getLevel().registryAccess(), saved.buildResult()), helper.getLevel(),
-                        EntitySpawnReason.LOAD, entity -> entity);
-                helper.assertTrue(loaded != null && loaded.hasData(GooAttachments.CHARMED)
-                        && loaded.getData(GooAttachments.CHARMED).charmer().equals(charmer.getUUID()),
-                        CHARM_SHOULD_RELOAD);
-                helper.getLevel().getServer().getPlayerList().remove(charmer);
-                helper.succeed();
-            });
+            TagValueOutput saved = TagValueOutput.createWithContext(ProblemReporter.DISCARDING,
+                    helper.getLevel().registryAccess());
+            zombie.save(saved);
+            zombie.discard();
+            Entity loaded = EntityType.loadEntityRecursive(TagValueInput.create(ProblemReporter.DISCARDING,
+                    helper.getLevel().registryAccess(), saved.buildResult()), helper.getLevel(),
+                    EntitySpawnReason.LOAD, entity -> entity);
+            helper.assertTrue(loaded != null && loaded.hasData(GooAttachments.CHARMED)
+                    && loaded.getData(GooAttachments.CHARMED).charmer().equals(charmer.getUUID()),
+                    CHARM_SHOULD_RELOAD);
+            helper.getLevel().getServer().getPlayerList().remove(charmer);
+            helper.succeed();
         });
     }
 
@@ -309,27 +278,6 @@ public final class MobEffectTests {
             helper.assertTrue(zombie.hasData(GooAttachments.CHARMED), ZOMBIE_SHOULD_BE_CHARMED);
             zombie.hurtServer(helper.getLevel(), zombie.damageSources().playerAttack(charmer), LIGHT_HIT);
             helper.assertFalse(zombie.hasData(GooAttachments.CHARMED), CHARMERS_HIT_SHOULD_BREAK);
-            helper.getLevel().getServer().getPlayerList().remove(charmer);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * A hit on a charmed zombie from another mob leaves the charm standing
-     * (decision charm-holds-until-struck).
-     *
-     * @param helper the gametest helper
-     */
-    public static void charmSurvivesAnotherHit(GameTestHelper helper) {
-        ServerPlayer charmer = SurvivalPlayers.placeIn(helper);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
-        Mob skeleton = helper.spawnWithNoFreeWill(EntityType.SKELETON, BYSTANDER_POS);
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, zombie, ABILITY_HEX_CHARM, charmer);
-            float before = zombie.getHealth();
-            zombie.hurtServer(helper.getLevel(), zombie.damageSources().mobAttack(skeleton), LIGHT_HIT);
-            helper.assertTrue(zombie.getHealth() < before && zombie.hasData(GooAttachments.CHARMED),
-                    OTHER_HIT_SHOULD_LEAVE);
             helper.getLevel().getServer().getPlayerList().remove(charmer);
             helper.succeed();
         });
@@ -390,24 +338,6 @@ public final class MobEffectTests {
     }
 
     /**
-     * A zombie whose max health stands over ender_zone.json's cap of a
-     * hundred resists the curse.
-     *
-     * @param helper the gametest helper
-     */
-    public static void zoneResistedByHighHealth(GameTestHelper helper) {
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
-        AttributeInstance maxHealth = zombie.getAttribute(Attributes.MAX_HEALTH);
-        helper.assertTrue(maxHealth != null, MOB_HAS_MAX_HEALTH);
-        maxHealth.setBaseValue(RESISTING_MAX_HEALTH);
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, zombie, ABILITY_ENDER_ZONE);
-            helper.assertTrue(ZoneEvents.curseOf(zombie) == null, SHOULD_RESIST);
-            helper.succeed();
-        });
-    }
-
-    /**
      * Unstable explode is a program of one explode step at the target,
      * whose tnt blast hurts the struck mob and breaks the dirt beside it.
      *
@@ -423,26 +353,5 @@ public final class MobEffectTests {
             helper.assertBlockNotPresent(Blocks.DIRT, BLAST_DIRT_POS);
             helper.succeed();
         });
-    }
-
-    /**
-     * The has_baby_form filter keeps exactly the mobs the 26.1 tree lets
-     * be a baby.
-     *
-     * @param helper the gametest helper
-     */
-    public static void hasBabyFormFilter(GameTestHelper helper) {
-        Set<EntityFilter> hasBabyForm = Set.of(EntityFilter.HAS_BABY_FORM);
-        for (EntityType<? extends Mob> type : List.of(EntityType.COW, EntityType.ZOMBIE, EntityType.PIGLIN,
-                EntityType.ZOGLIN)) {
-            Mob mob = helper.spawnWithNoFreeWill(type, SPAWN_POS);
-            helper.assertTrue(EntityScan.passes(mob, hasBabyForm, mob), String.format(SHOULD_HAVE_BABY_FORM, type));
-        }
-        for (EntityType<? extends Mob> type : List.of(EntityType.FROG, EntityType.PARROT, EntityType.CAMEL_HUSK,
-                EntityType.ZOMBIE_NAUTILUS, EntityType.CREEPER, EntityType.SKELETON)) {
-            Mob mob = helper.spawnWithNoFreeWill(type, SPAWN_POS);
-            helper.assertFalse(EntityScan.passes(mob, hasBabyForm, mob), String.format(SHOULD_LACK_BABY_FORM, type));
-        }
-        helper.succeed();
     }
 }

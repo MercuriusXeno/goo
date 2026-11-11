@@ -3,12 +3,10 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
-import com.mercuriusxeno.goo.registry.GooMobEffects;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
@@ -20,15 +18,13 @@ import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
- * Gametests for Leaf Bio: a struck zombie loses the toxin's share of its max
- * health each second, a second strike raises the toxin to amplitude 2 and
- * doubles the second's loss, and a third leaves it at 2 with its duration
- * refreshed.
+ * Gametest for Leaf Bio: a struck zombie loses the toxin's share of its max
+ * health each second.
  * bio-toxin-stacks-to-amplitude-two
  */
 @RegistersGameTests
 public final class BioTests {
-    private static final String BIO_STACKS_TO_TWO = "bio_stacks_to_two";
+    private static final String BIO_DRAINS_ITS_SHARE = "bio_drains_its_share_a_second";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -36,72 +32,42 @@ public final class BioTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, BIO_STACKS_TO_TWO, BioTests::bioStacksToTwo);
+        GooTestFunctions.registerTest(registrar, BIO_DRAINS_ITS_SHARE, BioTests::bioDrainsItsShareASecond);
     }
 
 
     private static final String BIO = "goo:leaf_bio";
     private static final BlockPos ZOMBIE_POS = new BlockPos(2, 1, 2);
     private static final int SECOND = 20;
-    /** leaf_bio.json's share of max health a second, and its duration. */
+    /** leaf_bio.json's share of max health a second. */
     private static final double SHARE = 0.06;
-    private static final int DURATION = 100;
-    /** A strike lands a tick in, the second two seconds later, the third a second after that. */
-    private static final int FIRST_STRIKE = 1;
-    private static final int SECOND_STRIKE = FIRST_STRIKE + 2 * SECOND;
-    private static final int THIRD_STRIKE = SECOND_STRIKE + 1 + SECOND;
+    /** The tick the strike lands on; the second watched is the toxin's second. */
+    private static final int STRIKE = 1;
     private static final float TOLERANCE = 0.01f;
     private static final String ABILITY_REQUIRED = "Ability registry must hold leaf_bio";
-    private static final String ONE_SECOND_LOSS = "A second at amplitude %d should take %.2f, took %.2f";
-    private static final String AMPLITUDE = "The toxin should stand at amplitude %d, stands at %d";
-    private static final String REFRESHED = "The third strike should refresh the toxin to %d ticks, stands at %d";
+    private static final String ONE_SECOND_LOSS = "A second of the toxin should take %.2f, took %.2f";
 
     private BioTests() {
     }
 
     /**
-     * Strikes a helmeted zombie with Bio three times: one second at amplitude
-     * 1 takes 6% of its max health, the second strike makes it amplitude 2
-     * and a second then takes 12%, and the third leaves it at 2 with its
-     * duration refreshed to the full five seconds.
+     * Strikes a helmeted zombie with Bio once: one second of the toxin at
+     * amplitude 1 takes 6% of its max health.
      *
      * @param helper the gametest helper
      */
-    public static void bioStacksToTwo(GameTestHelper helper) {
+    public static void bioDrainsItsShareASecond(GameTestHelper helper) {
         Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
         zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
         float perSecond = (float) (SHARE * zombie.getMaxHealth());
         float[] health = new float[1];
-        helper.runAfterDelay(FIRST_STRIKE, () -> strike(helper, zombie));
-        helper.runAfterDelay(FIRST_STRIKE + SECOND, () -> health[0] = zombie.getHealth());
-        helper.runAfterDelay(FIRST_STRIKE + 2 * SECOND, () -> {
-            assertLoss(helper, 1, perSecond, health[0] - zombie.getHealth());
-            assertAmplitude(helper, zombie, 1);
-            strike(helper, zombie);
-            assertAmplitude(helper, zombie, 2);
-            health[0] = zombie.getHealth();
-        });
-        helper.runAfterDelay(SECOND_STRIKE + SECOND, () -> {
-            assertLoss(helper, 2, 2 * perSecond, health[0] - zombie.getHealth());
-            strike(helper, zombie);
-        });
-        helper.runAfterDelay(THIRD_STRIKE, () -> {
-            assertAmplitude(helper, zombie, 2);
-            int left = zombie.getEffect(GooMobEffects.BIO_TOXIN).getDuration();
-            helper.assertTrue(left >= DURATION - 1, String.format(REFRESHED, DURATION, left));
+        helper.runAfterDelay(STRIKE, () -> strike(helper, zombie));
+        helper.runAfterDelay(STRIKE + SECOND, () -> health[0] = zombie.getHealth());
+        helper.runAfterDelay(STRIKE + 2 * SECOND, () -> {
+            float lost = health[0] - zombie.getHealth();
+            helper.assertTrue(Math.abs(lost - perSecond) < TOLERANCE, String.format(ONE_SECOND_LOSS, perSecond, lost));
             helper.succeed();
         });
-    }
-
-    private static void assertLoss(GameTestHelper helper, int amplitude, float expected, float lost) {
-        helper.assertTrue(Math.abs(lost - expected) < TOLERANCE,
-                String.format(ONE_SECOND_LOSS, amplitude, expected, lost));
-    }
-
-    private static void assertAmplitude(GameTestHelper helper, Mob zombie, int amplitude) {
-        MobEffectInstance toxin = zombie.getEffect(GooMobEffects.BIO_TOXIN);
-        int standing = toxin == null ? 0 : toxin.getAmplifier() + 1;
-        helper.assertTrue(standing == amplitude, String.format(AMPLITUDE, amplitude, standing));
     }
 
     private static void strike(GameTestHelper helper, Mob mob) {

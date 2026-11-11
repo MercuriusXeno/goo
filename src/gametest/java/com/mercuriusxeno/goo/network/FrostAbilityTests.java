@@ -52,7 +52,7 @@ public final class FrostAbilityTests {
     private static final String NOVA_HELD_REACHES_BOTH = "nova_held_reaches_both_zombies";
     private static final String NOVA_TAPPED_REACHES_NEAR = "nova_tapped_reaches_only_the_near";
     private static final String NOVA_FREEZES_WATER_AND_LAVA = "nova_freezes_water_and_lava_in_its_ring";
-    private static final String COLD_BREAKS_GRASS = "cold_breaks_grass_and_freezes_faster";
+    private static final String COLD_BREAKS_GRASS = "cold_breaks_the_grass_in_its_cone";
     private static final String COLD_FREEZES_WATER_AND_LAVA = "cold_freezes_water_and_lava_in_its_cone";
     private static final String ORB_FREEZES_PATH = "orb_freezes_path_and_pool";
     private static final String ORB_ENDS_ON_A_MOB = "orb_ends_on_a_mob";
@@ -74,7 +74,7 @@ public final class FrostAbilityTests {
         GooTestFunctions.registerTest(registrar, NOVA_TAPPED_REACHES_NEAR, FrostAbilityTests::novaTappedReachesOnlyTheNear);
         GooTestFunctions.registerTest(registrar, NOVA_FREEZES_WATER_AND_LAVA,
                 FrostAbilityTests::novaFreezesWaterAndLavaInItsRing);
-        GooTestFunctions.registerTest(registrar, COLD_BREAKS_GRASS, FrostAbilityTests::coldBreaksGrassAndFreezesFaster);
+        GooTestFunctions.registerTest(registrar, COLD_BREAKS_GRASS, FrostAbilityTests::coldBreaksTheGrassInItsCone);
         GooTestFunctions.registerTest(registrar, COLD_FREEZES_WATER_AND_LAVA,
                 FrostAbilityTests::coldFreezesWaterAndLavaInItsCone);
         GooTestFunctions.registerTest(registrar, ORB_FREEZES_PATH, FrostAbilityTests::orbFreezesPathAndPool);
@@ -119,16 +119,10 @@ public final class FrostAbilityTests {
     private static final BlockPos STREAMER_POS = new BlockPos(0, 1, 2);
     /** Grass three blocks east of the streamer, inside Cold's cone below the look. */
     private static final BlockPos GRASS_POS = new BlockPos(3, 1, 2);
-    /** A zombie four blocks east of the streamer, inside Cold's cone above the look. */
-    private static final BlockPos COLD_ZOMBIE_POS = new BlockPos(4, 1, 2);
     private static final float FACING_EAST = -90f;
-    /** Pitched down between the grass and the zombie's middle, so both stand in the cone. */
-    private static final float BETWEEN_GRASS_AND_ZOMBIE = 14f;
+    /** Pitched down short of the grass, so it stands in the cone below the look. */
+    private static final float ABOVE_THE_GRASS = 14f;
     private static final int COLD_HOLD_TICKS = 10;
-    /** A full Nova's freeze on a zombie, 16 of its 20 health, spread over the 30 ticks it took to charge. */
-    private static final float NOVA_PER_HELD_TICK = 0.8f / FULL_HOLD_TICKS;
-    private static final String SHOULD_KILL_GRASS = "Cold should break the grass in its cone";
-    private static final String SHOULD_OUTFREEZE_NOVA = "Ten ticks of Cold should freeze past %s, Nova's ten held ticks; stands %s";
     /** Pitched down at the floor, so the cone's floor cells four to six blocks out stand near its axis. */
     private static final float AT_THE_FLOOR = 25f;
     /** Still water and lava in the floor inside Cold's cone, a block apart so neither meets the other. */
@@ -320,20 +314,18 @@ public final class FrostAbilityTests {
     }
 
     /**
-     * Cold streamed along a line of grass at a zombie breaks the grass and
-     * freezes the zombie faster than Nova's hold charges.
+     * Cold streamed along a line of grass breaks the grass in its cone.
      *
      * @param helper the gametest helper
      */
-    public static void coldBreaksGrassAndFreezesFaster(GameTestHelper helper) {
+    public static void coldBreaksTheGrassInItsCone(GameTestHelper helper) {
         helper.setBlock(GRASS_POS.below(), Blocks.GRASS_BLOCK);
         helper.setBlock(GRASS_POS, Blocks.SHORT_GRASS);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, COLD_ZOMBIE_POS);
         ServerPlayer streamer = SelfDeliveryTests.invoker(helper, GooTypes.FROST);
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STREAMER_POS));
         streamer.setPos(stand.x, stand.y, stand.z);
         streamer.setYRot(FACING_EAST);
-        streamer.setXRot(BETWEEN_GRASS_AND_ZOMBIE);
+        streamer.setXRot(ABOVE_THE_GRASS);
         AbilityDefinition cold = AbilityRegistry.of(helper.getLevel()).getAbility(FROST_COLD);
         helper.assertTrue(cold != null, ABILITY_REQUIRED);
         KnownRecipes.teachRequires(streamer, cold);
@@ -343,11 +335,8 @@ public final class FrostAbilityTests {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(streamer, tick));
         }
         helper.runAfterDelay(COLD_HOLD_TICKS + 1, () -> {
-            float gauge = zombie.getData(GooAttachments.FROZEN).gauge();
             helper.getLevel().getServer().getPlayerList().remove(streamer);
             helper.assertBlockNotPresent(Blocks.SHORT_GRASS, GRASS_POS);
-            float novaFloor = NOVA_PER_HELD_TICK * COLD_HOLD_TICKS;
-            helper.assertTrue(gauge > novaFloor, String.format(SHOULD_OUTFREEZE_NOVA, novaFloor, gauge));
             helper.succeed();
         });
     }

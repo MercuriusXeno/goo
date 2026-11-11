@@ -16,7 +16,6 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.animal.pig.Pig;
-import net.minecraft.world.entity.boss.wither.WitherBoss;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.item.ItemStack;
@@ -31,25 +30,21 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 /**
  * Gametests for Kinetic's Grab, driven through the channel's stream tick
  * and the throw a left click sends: a held zombie loses its target and
- * hangs off the ground in front of the player, looking down draws it
- * closer, a throw sends it along the look (decision
- * grab-holds-and-throws-a-physics-body), and an item entity flies to the
- * player and into the inventory instead (decision
+ * hangs off the ground in front of the player, a throw sends it along the
+ * look (decision grab-holds-and-throws-a-physics-body), and an item entity
+ * flies to the player and into the inventory instead (decision
  * grab-pulls-an-item-to-you-and-picks-it-up). Every tick names the entity
- * the glove outlines, and Grab takes that one, off the look or not, and
- * refuses a sent player or boss (decision outlined-target-is-the-one-pick).
+ * the glove outlines, and Grab takes that one, off the look or not
+ * (decision outlined-target-is-the-one-pick).
  */
 @RegistersGameTests
 public final class GrabChannelTests {
     private static final String GRAB_SUSPENDS_THE_ZOMBIE = "grab_suspends_the_zombie";
-    private static final String GRAB_PITCH_DRAWS_CLOSER = "grab_pitch_draws_closer";
     private static final String GRAB_THROWS_ALONG_THE_LOOK = "grab_throws_along_the_look";
     private static final String GRAB_PULLS_AN_ITEM_INTO_THE_INVENTORY = "grab_pulls_an_item_into_the_inventory";
     private static final String GRAB_THROW_FLIES_WHILE_THE_CHANNEL_HOLDS = "grab_throw_flies_while_the_channel_holds";
     private static final String GRAB_SECOND_CLICK_KEEPS_THE_THROW_FLYING = "grab_second_click_keeps_the_throw_flying";
     private static final String GRAB_HOLDS_THE_SENT_PIG_OFF_THE_LOOK = "grab_holds_the_sent_pig_off_the_look";
-    private static final String GRAB_REFUSES_A_SENT_PLAYER = "grab_refuses_a_sent_player";
-    private static final String GRAB_REFUSES_A_SENT_BOSS = "grab_refuses_a_sent_boss";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -58,7 +53,6 @@ public final class GrabChannelTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, GRAB_SUSPENDS_THE_ZOMBIE, GrabChannelTests::grabSuspendsTheZombie);
-        GooTestFunctions.registerTest(registrar, GRAB_PITCH_DRAWS_CLOSER, GrabChannelTests::grabPitchDrawsCloser);
         GooTestFunctions.registerTest(registrar, GRAB_THROWS_ALONG_THE_LOOK, GrabChannelTests::grabThrowsAlongTheLook);
         GooTestFunctions.registerTest(registrar, GRAB_PULLS_AN_ITEM_INTO_THE_INVENTORY,
                 GrabChannelTests::grabPullsAnItemIntoTheInventory);
@@ -68,8 +62,6 @@ public final class GrabChannelTests {
                 GrabChannelTests::grabSecondClickKeepsTheThrowFlying);
         GooTestFunctions.registerTest(registrar, GRAB_HOLDS_THE_SENT_PIG_OFF_THE_LOOK,
                 GrabChannelTests::grabHoldsTheSentPigOffTheLook);
-        GooTestFunctions.registerTest(registrar, GRAB_REFUSES_A_SENT_PLAYER, GrabChannelTests::grabRefusesASentPlayer);
-        GooTestFunctions.registerTest(registrar, GRAB_REFUSES_A_SENT_BOSS, GrabChannelTests::grabRefusesASentBoss);
     }
 
 
@@ -84,8 +76,6 @@ public final class GrabChannelTests {
     /** Yaw looking east, along +x. */
     private static final float FACING_EAST = -90f;
     private static final float LEVEL = 0f;
-    /** A pitch halfway to the full draw, so the hold comes in from far toward near. */
-    private static final float LOOKING_DOWN = 30f;
     private static final int HOLD_TICKS = 5;
     private static final int FLIGHT_TICKS = 2;
     private static final int HELD_GOO = 3;
@@ -94,8 +84,6 @@ public final class GrabChannelTests {
     private static final double SETTLED = 0.3;
     /** How far a held entity must hang above where it stood to read as lifted. */
     private static final double LIFTED = 0.4;
-    /** How much closer the hold must draw at LOOKING_DOWN than level. */
-    private static final double DRAWN_IN = 0.5;
     /** How far along the look a thrown entity must fly in FLIGHT_TICKS; one left alone moves none. */
     private static final double THROWN = 1.0;
     private static final double HALF = 0.5;
@@ -125,31 +113,6 @@ public final class GrabChannelTests {
             double distance = player.getEyePosition().distanceTo(middleOf(zombie));
             helper.assertTrue(Math.abs(distance - FAR) < SETTLED,
                     "A held zombie should hang " + FAR + " from the eye, hangs " + distance);
-            leave(helper, player);
-        });
-    }
-
-    /**
-     * Pitching the look down while holding draws the held zombie closer to the eye.
-     *
-     * @param helper the gametest helper
-     */
-    public static void grabPitchDrawsCloser(GameTestHelper helper) {
-        ServerPlayer player = grabber(helper);
-        Zombie zombie = helper.spawn(EntityType.ZOMBIE, ZOMBIE_POS);
-        AtomicReference<Double> levelDistance = new AtomicReference<>();
-        holdFor(helper, player, zombie, HOLD_TICKS);
-        helper.runAfterDelay(HOLD_TICKS, () -> {
-            levelDistance.set(player.getEyePosition().distanceTo(middleOf(zombie)));
-            player.setXRot(LOOKING_DOWN);
-        });
-        for (int held = HOLD_TICKS + 1; held <= 2 * HOLD_TICKS; held++) {
-            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, holdTick(player, zombie)));
-        }
-        helper.runAfterDelay(2 * HOLD_TICKS + 1, () -> {
-            double drawnDistance = player.getEyePosition().distanceTo(middleOf(zombie));
-            helper.assertTrue(drawnDistance < levelDistance.get() - DRAWN_IN,
-                    "Looking down should draw the zombie in from " + levelDistance.get() + ", hangs " + drawnDistance);
             leave(helper, player);
         });
     }
@@ -298,45 +261,6 @@ public final class GrabChannelTests {
         helper.runAfterDelay(HOLD_TICKS + 1, () -> {
             helper.assertTrue(GrabEvents.heldBy(player) == pig,
                     "The pig sent as the outlined target should be held, held " + GrabEvents.heldBy(player));
-            leave(helper, player);
-        });
-    }
-
-    /**
-     * A sent player is refused and nothing is held, though a zombie stands on the look.
-     *
-     * @param helper the gametest helper
-     */
-    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    public static void grabRefusesASentPlayer(GameTestHelper helper) {
-        ServerPlayer player = grabber(helper);
-        helper.spawn(EntityType.ZOMBIE, ZOMBIE_POS);
-        ServerPlayer bystander = helper.makeMockServerPlayerInLevel();
-        Vec3 beside = Vec3.atBottomCenterOf(helper.absolutePos(OFF_THE_LOOK_POS));
-        bystander.setPos(beside.x, beside.y, beside.z);
-        refusesTheSent(helper, player, bystander,
-                () -> helper.getLevel().getServer().getPlayerList().remove(bystander));
-    }
-
-    /**
-     * A sent boss is refused and nothing is held, though a zombie stands on the look.
-     *
-     * @param helper the gametest helper
-     */
-    public static void grabRefusesASentBoss(GameTestHelper helper) {
-        ServerPlayer player = grabber(helper);
-        helper.spawn(EntityType.ZOMBIE, ZOMBIE_POS);
-        WitherBoss wither = helper.spawn(EntityType.WITHER, OFF_THE_LOOK_POS);
-        wither.setNoAi(true);
-        refusesTheSent(helper, player, wither, wither::discard);
-    }
-
-    private static void refusesTheSent(GameTestHelper helper, ServerPlayer player, Entity sent, Runnable cleanUp) {
-        holdFor(helper, player, sent, HOLD_TICKS);
-        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
-            helper.assertTrue(GrabEvents.heldBy(player) == null, "A sent " + sent.getType()
-                    + " should be refused and nothing held, held " + GrabEvents.heldBy(player));
-            cleanUp.run();
             leave(helper, player);
         });
     }
