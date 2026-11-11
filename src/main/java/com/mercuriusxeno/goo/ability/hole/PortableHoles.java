@@ -80,9 +80,14 @@ public final class PortableHoles {
             return;
         }
         boolean changed = OPEN.values().removeIf(hole -> closes(server, hole));
-        for (PortableHole hole : OPEN.values()) {
-            // a swallow changes what the mouth shows swimming in it, so the clients hear of it
-            changed |= hole.swallows() && swallow(server.getLevel(hole.dimension()), hole);
+        for (Map.Entry<UUID, PortableHole> open : OPEN.entrySet()) {
+            PortableHole hole = open.getValue();
+            ServerLevel level = server.getLevel(hole.dimension());
+            // a swallow changes what the mouth shows swimming in it and when it closes, so the clients hear of it
+            if (hole.swallows() && swallow(level, hole)) {
+                open.setValue(hole.fedAt(level.getGameTime()));
+                changed = true;
+            }
         }
         if (changed) {
             sync(server);
@@ -168,7 +173,8 @@ public final class PortableHoles {
         PocketShelves shelves = PocketShelves.get(player.level());
         PortableHolesSyncPayload payload = new PortableHolesSyncPayload(OPEN.values().stream()
                 .filter(hole -> hole.dimension().equals(player.level().dimension()))
-                .map(hole -> new PortableHolesSyncPayload.Mouth(hole.footprint(), hole.face(), hole.closesAt(),
+                .map(hole -> new PortableHolesSyncPayload.Mouth(hole.footprint(), hole.face(), hole.openedAt(),
+                        hole.closesAt(),
                         storedOf(shelves, hole.owner())))
                 .toList());
         // A listener that never negotiated the mod's channels, a gametest's mock player, gets no sync.

@@ -11,7 +11,8 @@ public interface HoleHost extends StepHost {
      * pouring the shelf out on a bottom face.
      *
      * @param lifetime the ticks the hole stands
+     * @param refresh  the ticks left each swallow raises the hole's time left to when less remains
      * @return true when the hole opened
      */
-    boolean openPortableHole(int lifetime);
+    boolean openPortableHole(int lifetime, int refresh);
 }

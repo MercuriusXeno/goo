@@ -44,15 +44,18 @@ public record PortableHolesSyncPayload(List<Mouth> mouths) implements CustomPack
      *
      * @param footprint the blocks whose faces it opens across
      * @param face      the face it opens on
+     * @param openedAt  the game time it opened, which tells one hole from the next opened in its place
      * @param closesAt  the game time it closes
      * @param stored    the first kinds its owner stored, in shelf order
      */
-    public record Mouth(List<BlockPos> footprint, Direction face, long closesAt, List<Stored> stored) {
+    public record Mouth(List<BlockPos> footprint, Direction face, long openedAt, long closesAt,
+                        List<Stored> stored) {
 
         /** Sends a mouth. */
         public static final StreamCodec<ByteBuf, Mouth> STREAM_CODEC = StreamCodec.composite(
                 BlockPos.STREAM_CODEC.apply(ByteBufCodecs.list(MOST_FOOTPRINT_CELLS)), Mouth::footprint,
                 Direction.STREAM_CODEC, Mouth::face,
+                ByteBufCodecs.VAR_LONG, Mouth::openedAt,
                 ByteBufCodecs.VAR_LONG, Mouth::closesAt,
                 Stored.STREAM_CODEC.apply(ByteBufCodecs.list(MOST_STORED_SHOWN)), Mouth::stored,
                 Mouth::new);

@@ -23,7 +23,8 @@ class PortableHolesSyncPayloadTest {
                 new PortableHolesSyncPayload.Stored(Identifier.withDefaultNamespace("cobblestone"), 200),
                 new PortableHolesSyncPayload.Stored(Identifier.withDefaultNamespace("diamond"), 3));
         PortableHolesSyncPayload sent = new PortableHolesSyncPayload(List.of(
-                new PortableHolesSyncPayload.Mouth(List.of(new BlockPos(4, 64, -2)), Direction.UP, 1200L, stored)));
+                new PortableHolesSyncPayload.Mouth(List.of(new BlockPos(4, 64, -2)), Direction.UP, 960L, 1200L,
+                        stored)));
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
 
         PortableHolesSyncPayload.STREAM_CODEC.encode(buf, sent);
@@ -44,8 +45,8 @@ class PortableHolesSyncPayloadTest {
         }
         List<BlockPos> oneByTwo = List.of(new BlockPos(4, 64, -2), new BlockPos(5, 64, -2));
         PortableHolesSyncPayload sent = new PortableHolesSyncPayload(List.of(
-                new PortableHolesSyncPayload.Mouth(threeByThree, Direction.UP, 1200L, List.of()),
-                new PortableHolesSyncPayload.Mouth(oneByTwo, Direction.DOWN, 1200L, List.of())));
+                new PortableHolesSyncPayload.Mouth(threeByThree, Direction.UP, 960L, 1200L, List.of()),
+                new PortableHolesSyncPayload.Mouth(oneByTwo, Direction.DOWN, 960L, 1200L, List.of())));
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
 
         PortableHolesSyncPayload.STREAM_CODEC.encode(buf, sent);
