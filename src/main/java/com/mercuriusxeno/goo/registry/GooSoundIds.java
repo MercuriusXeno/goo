@@ -44,6 +44,27 @@ public final class GooSoundIds {
      */
     public static final Identifier CLICK = Identifier.fromNamespaceAndPath(Goo.MODID, "ability.click");
 
+    /**
+     * A portal standing: the mod's own synthesized zap opening into a brief
+     * hum, like a portal gun shot landing
+     * (decision portal-placement-plays-a-zap-that-opens-into-a-hum).
+     */
+    public static final Identifier PORTAL_PLACE = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.portal_place");
+
+    /**
+     * A body stepping through a portal or a wormhole mouth: the mod's own
+     * synthesized quick soft airy whoosh, at both ends
+     * (decision stepping-through-plays-a-soft-whoosh-at-both-ends).
+     */
+    public static final Identifier PORTAL_CROSS = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.portal_cross");
+
+    /**
+     * A standing portal or wormhole mouth: the mod's own synthesized soft
+     * ambient hum, one seamless loop
+     * (decision standing-portals-loop-a-soft-ambient-hum).
+     */
+    public static final Identifier PORTAL_HUM = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.portal_hum");
+
     private GooSoundIds() {
     }
 }
