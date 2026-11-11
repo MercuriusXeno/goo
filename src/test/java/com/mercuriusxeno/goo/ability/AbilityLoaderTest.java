@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.ability;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.held.LaidState;
 import com.mercuriusxeno.goo.ability.program.AfterimageStep;
@@ -48,7 +50,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.lang.reflect.Modifier;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -64,6 +70,7 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -79,6 +86,7 @@ import static org.mockito.Mockito.when;
 class AbilityLoaderTest {
 
     private static final String DIRECTORY = "goo_abilities";
+    private static final String EN_US = "/assets/goo/lang/en_us.json";
     private static final int CHARM_ROLLS = 1000;
     private static final int RARE_CHARMS = 50;
     private static final double ZOMBIE_MAX_HEALTH = 20;
@@ -633,7 +641,7 @@ class AbilityLoaderTest {
     }
 
     /**
-     * Weird's abilities are the make-this-harmless family: Coat's stream coats
+     * Weird's abilities are the make-this-harmless family: Goop's stream coats
      * what it hits, Bounce stays the long-range pad, and Slime stands apart.
      * weird-bounces-and-softens-harm
      */
@@ -641,33 +649,39 @@ class AbilityLoaderTest {
     class WeirdHarmlessFamily {
 
         @Test
-        void weirdLoadsBounceCoatAndSlimeAlone() {
+        void weirdLoadsBounceGoopAndSlimeAlone() {
             Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
 
             Set<String> weird = scanned.values().stream().filter(def -> def.gooType() == GooTypes.WEIRD)
                     .map(def -> def.id().getPath()).collect(Collectors.toSet());
 
-            assertEquals(Set.of("weird_bounce", "weird_coat", "weird_slime"), weird);
+            assertEquals(Set.of("weird_bounce", "weird_goop", "weird_slime"), weird);
             assertFalse(scanned.containsKey(Identifier.fromNamespaceAndPath(Goo.MODID, "weird_wobble")),
                     "weird_wobble still loads");
             assertFalse(scanned.containsKey(Identifier.fromNamespaceAndPath(Goo.MODID, "weird_magma")),
                     "weird_magma still loads");
         }
 
+        /** decision coat-is-renamed-goop */
         @Test
-        void coatStreamsCoolingLavaAndCoatingBlocksInTheBlockPass() {
-            AbilityDefinition coat = AbilityJson.decode("weird_coat");
-            List<Step> blockPass = ChannelHost.passSteps(coat.behaviors(), true);
+        void goopShipsUnderWeirdNamedGoopWithItsIcon() throws IOException {
+            assertWeirdPetalShipsAs("weird_goop", "Goop");
+        }
 
-            assertEquals(DeliveryKind.STREAM, coat.delivery().kind());
+        @Test
+        void goopStreamsCoolingLavaAndCoatingBlocksInTheBlockPass() {
+            AbilityDefinition goop = AbilityJson.decode("weird_goop");
+            List<Step> blockPass = ChannelHost.passSteps(goop.behaviors(), true);
+
+            assertEquals(DeliveryKind.STREAM, goop.delivery().kind());
             // coat-is-a-green-slime-film-over-the-blocks-own-texture
             assertEquals(List.of(CoolLavaStep.class, CoatStep.class), blockPass.stream().map(Object::getClass).toList());
             assertTrue(ProgramBehavior.serves(blockPass, HostKind.PLAYER), "the channeling player runs the block pass");
         }
 
         @Test
-        void coatWobblesTheMobItHitsUnderTheWobbleOverlay() {
-            List<Step> entityPass = ChannelHost.passSteps(AbilityJson.decode("weird_coat").behaviors(), false);
+        void goopWobblesTheMobItHitsUnderTheWobbleOverlay() {
+            List<Step> entityPass = ChannelHost.passSteps(AbilityJson.decode("weird_goop").behaviors(), false);
 
             TargetStep onMob = entityPass.stream().filter(TargetStep.class::isInstance).map(TargetStep.class::cast)
                     .findFirst().orElseThrow();
@@ -683,8 +697,32 @@ class AbilityLoaderTest {
             AbilityDefinition bounce = AbilityJson.decode("weird_bounce");
 
             assertEquals(DeliveryKind.ARC, bounce.delivery().kind());
-            // bounce-throw-dumps-layers-that-flow-out: Bounce's blob lays the coat Coat lays, k layers at once
+            // bounce-throw-dumps-layers-that-flow-out: Bounce's blob lays the coat Goop lays, k layers at once
             assertEquals(List.of(CoatStep.splatted(4)), bounce.behaviors());
+        }
+    }
+
+    /**
+     * Asserts a shipped ability stands under Weird, its lang key reads the given name, and its
+     * icon resolves to the convention path and ships on the classpath.
+     */
+    private static void assertWeirdPetalShipsAs(String path, String name) throws IOException {
+        Identifier id = Identifier.fromNamespaceAndPath(Goo.MODID, path);
+        AbilityDefinition petal = scanShipped(AbilityJson.files()).get(id);
+        assertNotNull(petal, id + " ships");
+        assertEquals(GooTypes.WEIRD, petal.gooType());
+        assertEquals(name, shippedLang().get(petal.displayName()).getAsString(), petal.displayName());
+        Identifier icon = AbilityIconTexture.of(id, petal.icon());
+        assertEquals(Identifier.fromNamespaceAndPath(Goo.MODID, "textures/goo/ability/" + path + ".png"), icon);
+        try (InputStream in = AbilityLoaderTest.class.getResourceAsStream("/assets/goo/" + icon.getPath())) {
+            assertNotNull(in, icon + " ships");
+        }
+    }
+
+    private static JsonObject shippedLang() throws IOException {
+        try (InputStream in = AbilityLoaderTest.class.getResourceAsStream(EN_US)) {
+            assertNotNull(in, EN_US);
+            return JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
         }
     }
 
