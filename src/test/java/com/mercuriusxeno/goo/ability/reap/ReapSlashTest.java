@@ -22,8 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * middle under the crosshair line, hollow toward the slasher and bulging
  * away, its tips about a block out and its bulge growing with its size, which
  * runs from small to huge with its thickness, as often small or huge as middling;
- * appearing thick, then thinning to a sliver as it travels outward, keeping
- * six tenths of its width; the box it cuts; and the shipped Reap channeled
+ * appearing whole, then narrowing as it travels outward, keeping six tenths
+ * of its width and its thickness; the box it cuts; and the shipped Reap channeled
  * with nothing thrown.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  */
@@ -204,10 +204,12 @@ class ReapSlashTest {
         }
 
         @Test
-        void itAppearsThickThenThinsToASliver() {
+        void itsThicknessKeepsStepWithItsWidth() {
             double life = SHAPE.lifeTicks();
             assertEquals(slash.thickness(), slash.pointAt(0, 0.5, 1).distanceTo(slash.pointAt(0, 0.5, 0)), TOLERANCE);
-            assertEquals(slash.thickness() * 0.1, slash.pointAt(life, 0.5, 1).distanceTo(slash.pointAt(life, 0.5, 0)),
+            assertEquals(slash.thickness() * 0.8,
+                    slash.pointAt(life / 2, 0.5, 1).distanceTo(slash.pointAt(life / 2, 0.5, 0)), TOLERANCE);
+            assertEquals(slash.thickness() * 0.6, slash.pointAt(life, 0.5, 1).distanceTo(slash.pointAt(life, 0.5, 0)),
                     TOLERANCE);
         }
     }

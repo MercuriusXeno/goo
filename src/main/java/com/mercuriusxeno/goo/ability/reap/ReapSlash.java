@@ -13,8 +13,8 @@ import net.minecraft.world.phys.Vec3;
  * the game each slash is a huge thick crescent standing out ahead of Alucard,
  * hollow toward him and bulging away, at its own angle, appearing whole and
  * bright and then dimming to an afterimage that drifts a little further out.
- * Here each slash appears thick, then thins to a sliver and dims as it
- * travels outward, keeping six tenths of its width. The crescent lies in a
+ * Here each slash appears whole, then dims as it travels outward, keeping
+ * six tenths of its width and of its thickness. The crescent lies in a
  * plane along its heading, rolled a little around it, its chord running
  * along its span axis with its tips at the near distance, at the slasher's
  * chest so the slasher stands inside the curve, and its middle
@@ -38,8 +38,6 @@ public record ReapSlash(Vec3 origin, Vec3 forward, Vec3 span, double width, doub
 
     /** The share of its width a slash keeps by the end of its life. */
     static final double WIDTH_KEPT = 0.6;
-    /** The share of its thickness a slash keeps by the end of its life, a sliver. */
-    static final double SLIVER = 0.1;
     /** How far past the crescent the box it cuts reaches, in blocks. */
     static final double BOX_SLACK = 0.3;
     /** The points sampled along the crescent for the box it cuts. */
@@ -135,7 +133,7 @@ public record ReapSlash(Vec3 origin, Vec3 forward, Vec3 span, double width, doub
     /**
      * A point on the crescent an age into its life: its apex travels outward
      * along the look while the crescent narrows about it to six tenths of its
-     * width, its bow with it, and thins to a sliver.
+     * width, its bow and its thickness with it.
      *
      * @param age   ticks since it appeared
      * @param along how far along the arc, 0 at one tip and 1 at the other
@@ -145,10 +143,9 @@ public record ReapSlash(Vec3 origin, Vec3 forward, Vec3 span, double width, doub
     public Vec3 pointAt(double age, double along, double layer) {
         double progress = Math.clamp(age / lifeTicks, 0, 1);
         double widthNow = 1 - (1 - WIDTH_KEPT) * progress;
-        double thicknessNow = 1 - (1 - SLIVER) * progress;
         double offCentre = along * SPAN - 1;
         double fromApex = -bulge * widthNow * offCentre * offCentre
-                + thickness * thicknessNow * Math.sin(Math.PI * along) * layer;
+                + thickness * widthNow * Math.sin(Math.PI * along) * layer;
         return origin.add(forward.scale(bulge + drift * progress + fromApex))
                 .add(span.scale(offCentre * width * HALF * widthNow));
     }
