@@ -1,6 +1,7 @@
 #version 330
 
 #moj_import <minecraft:globals.glsl>
+#moj_import <goo:void_stars.glsl>
 
 // Voidstone (decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform):
 // near-black stone holding a field of pale stars. Every star sits on a sixteenth-of-a-block texel picked by
@@ -16,13 +17,10 @@ out vec4 fragColor;
 
 const float TEXELS = 16.0;
 const float TICKS_PER_CLOCK = 24000.0;
-const float BRIGHT_STARS = 0.012;
-const float DIM_STARS = 0.035;
 const int NEBULA_TEXELS = 40;
 const float NEBULA_DRIFT = 0.004;
 const vec3 STONE = vec3(0.010, 0.009, 0.016);
 const vec3 NEBULA = vec3(0.030, 0.020, 0.055);
-const vec3 STAR = vec3(0.87, 0.86, 0.96);
 
 uint mixBits(uint value) {
     value ^= value >> 16;
@@ -87,10 +85,10 @@ void main() {
 
     float pick = hash(ivec3(across, seed));
     float rate = 0.03 + 0.09 * hash(ivec3(across, seed + 7));
-    float twinkle = 0.55 + 0.45 * sin(ticks * rate + pick * 61.0);
-    float bright = step(1.0 - BRIGHT_STARS, pick) * (0.7 + 0.3 * hash(ivec3(across, seed + 3)));
-    float dim = step(1.0 - BRIGHT_STARS - DIM_STARS, pick) * (1.0 - step(1.0 - BRIGHT_STARS, pick)) * 0.28;
-    color += STAR * (bright + dim) * twinkle;
+    float bright = step(1.0 - BRIGHT_STARS, pick)
+            * mix(BRIGHT_STAR_FLOOR, BRIGHT_STAR_PEAK, hash(ivec3(across, seed + 3)));
+    float dim = step(1.0 - BRIGHT_STARS - DIM_STARS, pick) * (1.0 - step(1.0 - BRIGHT_STARS, pick)) * DIM_STAR_GLOW;
+    color += STAR * (bright + dim) * twinkle(ticks, rate, pick * 61.0);
 
     fragColor = vec4(color, 1.0);
 }
