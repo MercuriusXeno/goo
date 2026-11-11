@@ -79,25 +79,33 @@ public final class OutsiderTests {
             "outsider_refuses_building_past_the_platform";
     private static final String SHOULD_REFUSE = "A block placed past the platform's edge at %s should be refused, %s stands there";
     private static final String SHOULD_PLACE = "A block placed on the platform at %s should stand, %s stands there";
-    /** Ticks a freshly forced chunk takes before the entities in it tick. */
-    private static final int CHUNK_SETTLES = 20;
-    /** Ticks the item takes to cross the east edge and come out of the west one. */
-    private static final int CROSSING_TICKS = 2;
+    /**
+     * The item's own ticks after which it has crossed the east edge and come
+     * out of the west one: one tick to be seen before the edge, one to cross
+     * it, and one more so the server's carry that tick has run before the
+     * test reads it.
+     */
+    private static final int CROSSED_BY = 3;
     /** How far inside the east edge the item starts, its middle. */
     private static final double INSIDE_THE_EDGE = 0.3;
     /** The item's eastward speed, enough to cross the edge within a tick. */
     private static final double EASTWARD = 0.4;
-    /** How far past the square's width the item may have moved on, its speed over the crossing ticks. */
-    private static final double MOVED_ON = CROSSING_TICKS * EASTWARD;
+    /**
+     * How far past the square's width the item may have moved on: its speed
+     * over the ticks it took, and a tick more, its start's own lead on the edge.
+     */
+    private static final double MOVED_ON = (CROSSED_BY + 1) * EASTWARD;
     private static final double KEPT = 1.0E-6;
     private static final String SHOULD_CARRY_ACROSS = "An item crossing the room's east edge should stand the square's "
             + "width %d west of %s, moved on by at most %.2f, with its y and z kept, stands at %s";
     private static final String SHOULD_KEEP_MOTION = "The carried item should keep moving east, moves %s";
 
     /**
-     * An item moving east across a room's east edge stands, two ticks on,
-     * the square's width west, just inside the west edge, with its height,
-     * its z and its eastward motion kept
+     * An item moving east across a room's east edge stands, once it has
+     * ticked across, the square's width west, just inside the west edge,
+     * with its height, its z and its eastward motion kept. The test reads the
+     * item by its own tick count, since a freshly forced chunk starts ticking
+     * its entities a varying number of server ticks on
      * (decision outsider-room-wraps-and-repeats-at-the-platform-edge).
      *
      * @param helper the gametest helper
@@ -107,30 +115,54 @@ public final class OutsiderTests {
         helper.assertTrue(pocket != null, "The server should hold the pocket dimension");
         int room = OutsiderRooms.layRoomFor(pocket, java.util.UUID.randomUUID());
         BlockPos center = OutsiderRooms.voidstoneOf(room);
-        ChunkPos chunk = ChunkPos.containing(center);
-        pocket.setChunkForced(chunk.x(), chunk.z(), true);
         int across = 2 * PlatformSpiral.ringOf(PlatformSpiral.START_CELLS - 1) + 1;
+        // The room's square may straddle chunks, and the item lands in whichever holds the west edge, so every
+        // chunk around the square is held ticking, else the carried item stops ticking where it lands.
+        List<ChunkPos> chunks = chunksAround(center, across);
+        chunks.forEach(chunk -> pocket.setChunkForced(chunk.x(), chunk.z(), true));
         double eastEdge = center.getX() + (across + 1) / 2.0;
         Vec3 start = new Vec3(eastEdge - INSIDE_THE_EDGE, center.getY() + 1.5, center.getZ() + HALF);
-        ItemEntity[] item = new ItemEntity[1];
-        helper.runAfterDelay(CHUNK_SETTLES, () -> {
-            item[0] = new ItemEntity(pocket, start.x(), start.y(), start.z(), new ItemStack(Items.STONE),
-                    EASTWARD, 0, 0);
-            item[0].setNoGravity(true);
-            pocket.addFreshEntity(item[0]);
-        });
-        helper.runAfterDelay(CHUNK_SETTLES + CROSSING_TICKS, () -> {
-            Vec3 now = item[0].position();
+        ItemEntity item = new ItemEntity(pocket, start.x(), start.y(), start.z(), new ItemStack(Items.STONE),
+                EASTWARD, 0, 0);
+        item.setNoGravity(true);
+        pocket.addFreshEntity(item);
+        boolean[] read = {false};
+        helper.onEachTick(() -> {
+            if (read[0] || item.tickCount < CROSSED_BY) {
+                return;
+            }
+            read[0] = true;
+            Vec3 now = item.position();
             double moved = now.x() - start.x();
-            item[0].discard();
-            pocket.setChunkForced(chunk.x(), chunk.z(), false);
+            Vec3 motion = item.getDeltaMovement();
+            item.discard();
+            chunks.forEach(chunk -> pocket.setChunkForced(chunk.x(), chunk.z(), false));
             helper.assertTrue(moved > -across && moved < -across + MOVED_ON
                             && Math.abs(now.y() - start.y()) < KEPT && Math.abs(now.z() - start.z()) < KEPT,
                     String.format(SHOULD_CARRY_ACROSS, across, start, MOVED_ON, now));
-            helper.assertTrue(item[0].getDeltaMovement().x() > 0,
-                    String.format(SHOULD_KEEP_MOTION, item[0].getDeltaMovement()));
+            helper.assertTrue(motion.x() > 0, String.format(SHOULD_KEEP_MOTION, motion));
             helper.succeed();
         });
+    }
+
+    /**
+     * The chunks a room's square and the block past each of its edges stand in.
+     *
+     * @param center the room's center voidstone
+     * @param across the square's width in blocks
+     * @return the chunks
+     */
+    private static List<ChunkPos> chunksAround(BlockPos center, int across) {
+        int reach = across / 2 + 1;
+        ChunkPos low = ChunkPos.containing(center.offset(-reach, 0, -reach));
+        ChunkPos high = ChunkPos.containing(center.offset(reach, 0, reach));
+        List<ChunkPos> chunks = new java.util.ArrayList<>();
+        for (int x = low.x(); x <= high.x(); x++) {
+            for (int z = low.z(); z <= high.z(); z++) {
+                chunks.add(new ChunkPos(x, z));
+            }
+        }
+        return chunks;
     }
 
     /**

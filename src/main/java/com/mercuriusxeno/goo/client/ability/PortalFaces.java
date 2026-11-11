@@ -435,14 +435,17 @@ public final class PortalFaces {
      * The gates that wear a halo and swirl band in the pass drawing now:
      * every gate, but inside a view through a pair, never the partner the
      * view looks out of, whose own halo and band would ring the near gate's
-     * view in the partner's color, blue on the orange portal.
+     * view in the partner's color, blue on the orange portal. A room's edge
+     * wears none, so the room runs on past it unringed.
+     * outsider-room-wraps-and-repeats-at-the-platform-edge
      *
      * @param gates        the gates the frame draws
      * @param lookingOutOf the partner the view drawing now looks out of, empty outside a view
      * @return the gates that wear theirs
      */
     static List<Drawn> wornIn(List<Drawn> gates, Optional<Gate> lookingOutOf) {
-        return gates.stream().filter(drawn -> lookingOutOf.filter(drawn.gate()::equals).isEmpty()).toList();
+        return gates.stream().filter(drawn -> drawn.gate().mask() != Gate.Mask.RECTANGLE
+                && lookingOutOf.filter(drawn.gate()::equals).isEmpty()).toList();
     }
 
     /**
@@ -452,15 +455,17 @@ public final class PortalFaces {
      * view through a pair, the partner the view looks out of wears the near
      * gate's sleeve in the near gate's color: looking into the orange
      * portal, its orange swirl recedes into it. Outside a view, or where the
-     * near gate is none the frame draws, no gate wears one.
+     * near gate is none the frame draws, or a room's edge, no gate wears one.
      * tornadic-halo-spirals-out-from-the-rim
+     * outsider-room-wraps-and-repeats-at-the-platform-edge
      *
      * @param gates   the gates the frame draws
      * @param viewing the gate the view drawing now looks into, then its partner, empty outside a view
      * @return the partner in the near gate's color, or none
      */
     static List<Drawn> sleevedIn(List<Drawn> gates, Optional<GatePassage.Pair> viewing) {
-        return viewing.flatMap(pair -> gates.stream().filter(drawn -> drawn.gate().equals(pair.one())).findFirst()
+        return viewing.flatMap(pair -> gates.stream().filter(drawn -> drawn.gate().equals(pair.one())
+                        && drawn.gate().mask() != Gate.Mask.RECTANGLE).findFirst()
                 .map(near -> new Drawn(pair.other(), near.rgb(), near.hole()))).stream().toList();
     }
 
