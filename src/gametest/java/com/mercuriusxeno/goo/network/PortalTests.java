@@ -888,7 +888,7 @@ public final class PortalTests {
     }
 
     private static final String SLIME_SPAWNS_IN_PLACE_THROUGH_A_PAIR = "portal_slime_spawns_in_place_through_a_pair";
-    private static final Identifier WEIRD_SLIME = Identifier.fromNamespaceAndPath("goo", "weird_slime");
+    private static final Identifier WEIRD_MITOSIS = Identifier.fromNamespaceAndPath("goo", "weird_mitosis");
     /** How far from its landing cell a slime born through a pair may stand and still be in place. */
     private static final double IN_PLACE = 1.5;
     /** Ticks the slime is watched after the throw: its flight, its morph and a little life after. */
@@ -907,7 +907,7 @@ public final class PortalTests {
         ServerLevel level = helper.getLevel();
         ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.WEIRD);
         player.getInventory().add(GooStacks.createForOutput(GooTypes.WEIRD, PRISM_GOO * GooStacks.THOUSAND));
-        KnownRecipes.teachRequires(player, AbilityRegistry.of(level).getAbility(WEIRD_SLIME));
+        KnownRecipes.teachRequires(player, AbilityRegistry.of(level).getAbility(WEIRD_MITOSIS));
         standAt(helper, player, A_BLOCK_OFF);
         Portal near = castAt(helper, player, FIRST, Direction.SOUTH);
         // A hostile mob with no player within 128 blocks despawns on its first tick, so the far side stands
@@ -928,7 +928,7 @@ public final class PortalTests {
         PortalChoice.link(player, far);
         Vec3 landing = Vec3.atBottomCenterOf(floor.above());
         GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.WEIRD), NO_ENTITY, floor,
-                Direction.UP.ordinal(), false, WEIRD_SLIME.toString(), player.getEyePosition(),
+                Direction.UP.ordinal(), false, WEIRD_MITOSIS.toString(), player.getEyePosition(),
                 landing).through(near.gate(), near.gate().center()));
         long thrownAt = helper.getTick();
         // A slime hops about once alive, so the test reads where it first stands, its birth.

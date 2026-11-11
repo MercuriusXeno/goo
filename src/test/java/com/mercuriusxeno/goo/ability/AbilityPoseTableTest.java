@@ -98,7 +98,7 @@ class AbilityPoseTableTest {
             Map.entry("void_outsider", ArmPose.HELD_OUT),
             Map.entry("void_pocket", ArmPose.HELD_UP),
             Map.entry("weird_goop", ArmPose.HELD_OUT),
-            Map.entry("weird_slime", ArmPose.SWUNG),
+            Map.entry("weird_mitosis", ArmPose.SWUNG),
             Map.entry("xeno_eldritch", ArmPose.HELD_UP),
             Map.entry("yore_age", ArmPose.SWUNG),
             Map.entry("yore_ancient", ArmPose.HELD_UP),
