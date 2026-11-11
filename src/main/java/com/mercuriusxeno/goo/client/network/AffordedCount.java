@@ -1,8 +1,10 @@
 package com.mercuriusxeno.goo.client.network;
 
+import com.mercuriusxeno.goo.ability.program.OutsiderStep;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.item.GooFormat;
 import java.util.Optional;
+import java.util.OptionalDouble;
 
 /**
  * How many times, or how long, the goo a player holds affords an ability.
@@ -43,6 +45,44 @@ public record AffordedCount(long count, boolean timed) {
      */
     public static Optional<AffordedCount> reckon(ClientAbility ability, int holdings, int reagentSets,
                                                  StandingUpkeep standing) {
+        return reckon(ability, holdings, reagentSets, standing, OptionalDouble.empty());
+    }
+
+    /**
+     * Reckons what the holdings afford of an ability beside the upkeep already standing on its
+     * type and the Outsider room the player stands in: in the room, Outsider counts the seconds
+     * the holdings sustain its growth, the price rising as the room widens.
+     * time-counts-net-standing-upkeep
+     * decision outsider-panel-reads-the-seconds-the-void-affords
+     *
+     * @param ability     the synced ability
+     * @param holdings    the mB the player holds of the ability's type across the inventory
+     * @param reagentSets the whole sets of the ability's consumed items the inventory holds
+     * @param standing    the upkeep already standing on the ability's type
+     * @param roomExtent  the extent of the Outsider room the player stands in, empty outside the pocket
+     * @return the count, empty for a dynamically priced ability
+     */
+    public static Optional<AffordedCount> reckon(ClientAbility ability, int holdings, int reagentSets,
+                                                 StandingUpkeep standing, OptionalDouble roomExtent) {
+        Optional<OutsiderStep> outsider = ability.outsider();
+        if (outsider.isPresent() && roomExtent.isPresent()) {
+            return Optional.of(new AffordedCount(outsider.get().growthTicksAfforded(roomExtent.getAsDouble(),
+                    holdings, standing.perTick()), true));
+        }
+        return fixedPriceCount(ability, holdings, reagentSets, standing);
+    }
+
+    /**
+     * The uses or time a fixed price affords, beside the upkeep standing on the type.
+     *
+     * @param ability     the synced ability
+     * @param holdings    the mB the player holds of the ability's type across the inventory
+     * @param reagentSets the whole sets of the ability's consumed items the inventory holds
+     * @param standing    the upkeep already standing on the ability's type
+     * @return the count, empty for a dynamically priced ability
+     */
+    private static Optional<AffordedCount> fixedPriceCount(ClientAbility ability, int holdings, int reagentSets,
+                                                           StandingUpkeep standing) {
         if (!ability.countsUses()) {
             return Optional.empty();
         }

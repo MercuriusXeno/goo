@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.outsider.SustainedGrowth;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import java.util.Set;
@@ -90,6 +91,21 @@ public record OutsiderStep(Expr charge, Expr enter, Expr ringTicks, Expr cellCos
         } else {
             host.showCharge(held, charged);
         }
+    }
+
+    /**
+     * The ticks a void holding sustains the room's growth from an extent at
+     * this step's own prices, beside the void upkeep already standing.
+     * decision outsider-panel-reads-the-seconds-the-void-affords
+     *
+     * @param extent          the room's extent
+     * @param holding         the void held (mB)
+     * @param standingPerTick the void upkeep already standing each tick (mB)
+     * @return the ticks paid
+     */
+    public long growthTicksAfforded(double extent, int holding, double standingPerTick) {
+        return SustainedGrowth.ticksAfforded(extent, holding, standingPerTick, cellCost.evaluateInt(Variables.NONE),
+                distanceCost.evaluateInt(Variables.NONE), ringTicks.evaluateInt(Variables.NONE));
     }
 
     @Override
