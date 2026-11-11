@@ -6,7 +6,8 @@
 // A hole's mouth showing the view through it (decision hole-closes-the-space-to-an-opening-ahead):
 // the far side rendered from the camera mirrored through the pair, sampled at this fragment's own
 // screen point, laid over the wall see-through, inside an edge torn and shifting rather than a clean
-// oval, a band of the mouth's color along the tear. The torn edge and the band draw on sixteen
+// oval, a band of the mouth's color along the tear, cut by the swirl band's line so it paints only
+// outside it (decision vortex-mouth-cuts-the-pixel-rim). The torn edge and the band draw on sixteen
 // texels a block, each texel inside or outside the mouth whole, while the tear keeps shifting in
 // time; the view through stays at full resolution
 // (decision portals-and-wormhole-draw-sixteen-texels-a-block).
@@ -30,8 +31,9 @@ void main() {
         discard;
     }
     vec3 view = texture(Sampler0, gl_FragCoord.xy / ScreenSize).rgb;
-    float inside = portalTexelsInside(across, texels, edge);
-    float band = portalTexelRim(inside);
+    vec2 exact = frameCoord * 2.0 - 1.0;
+    float exactEdge = holeTornEdge(atan(exact.y, exact.x), GameTime);
+    float band = portalTexelRim(portalTexelsInside(across, texels, edge), portalTexelsInside(exact, texels, exactEdge));
     vec3 color = mix(view, frameColor.rgb * 1.4, band);
-    fragColor = vec4(color, min(mix(VIEW_OPACITY, 1.0, band), portalTexelEdgeAlpha(inside)));
+    fragColor = vec4(color, min(mix(VIEW_OPACITY, 1.0, band), portalTexelEdgeAlpha(band)));
 }
