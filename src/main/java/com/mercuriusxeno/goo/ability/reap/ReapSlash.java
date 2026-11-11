@@ -16,7 +16,8 @@ import net.minecraft.world.phys.Vec3;
  * Here each slash appears thick, then thins to a sliver and dims as it
  * travels outward, keeping six tenths of its width. The crescent lies in a
  * plane along its heading, rolled a little around it, its chord running
- * along its span axis with its tips out at the near distance and its middle
+ * along its span axis with its tips at the near distance, at the slasher's
+ * chest so the slasher stands inside the curve, and its middle
  * bulging farther out along the heading; its middle sits under the line of
  * sight. A point on it is named by how far along the arc it
  * lies, 0 at one tip and 1 at the other, and by its layer, 1 on the bulging
@@ -28,7 +29,7 @@ import net.minecraft.world.phys.Vec3;
  * @param span      the unit axis its chord runs along, square to its heading and rolled a little off level
  * @param width     its chord's length, tip to tip, in blocks
  * @param thickness how thick its middle is, in blocks
- * @param bulge     how far its middle bows out beyond its tips, in blocks
+ * @param bulge     how far its inside edge bows out beyond its tips, its outside edge a thickness farther, in blocks
  * @param drift     how far it travels outward over its life, in blocks
  * @param lifeTicks the ticks from it appearing to its dimming away
  */
@@ -72,7 +73,7 @@ public record ReapSlash(Vec3 origin, Vec3 forward, Vec3 span, double width, doub
      * @param widest    the largest slash's width, in blocks
      * @param thinnest  the smallest slash's thickness, in blocks
      * @param thickest  the largest slash's thickness, in blocks
-     * @param bulge     how far its middle bows out beyond its tips, as a share of its width
+     * @param bulge     how far its inside edge bows out beyond its tips, as a share of its width
      * @param dropLeast the least its plane stands under the line of sight, in blocks
      * @param dropMost  the most its plane stands under the line of sight, in blocks
      * @param maxTilt   the farthest it rolls around the aim either way, in radians
@@ -147,7 +148,7 @@ public record ReapSlash(Vec3 origin, Vec3 forward, Vec3 span, double width, doub
         double thicknessNow = 1 - (1 - SLIVER) * progress;
         double offCentre = along * SPAN - 1;
         double fromApex = -bulge * widthNow * offCentre * offCentre
-                - thickness * thicknessNow * Math.sin(Math.PI * along) * (1 - layer);
+                + thickness * thicknessNow * Math.sin(Math.PI * along) * layer;
         return origin.add(forward.scale(bulge + drift * progress + fromApex))
                 .add(span.scale(offCentre * width * HALF * widthNow));
     }

@@ -31,7 +31,7 @@ class ReapSlashTest {
 
     private static final Vec3 EYE = new Vec3(0.5, 1.62, 0.5);
     private static final Vec3 LEVEL_SOUTH = new Vec3(0, 0, 1);
-    private static final ReapSlash.Shape SHAPE = new ReapSlash.Shape(1, 2, 5, 1.5, 4, 0.8, 0.3, 0.6,
+    private static final ReapSlash.Shape SHAPE = new ReapSlash.Shape(0, 2, 5, 1.5, 4, 0.8, 0.3, 0.6,
             Math.toRadians(10), Math.toRadians(15), 2.5, 6);
     private static final int SAMPLES = 2000;
     private static final double TOLERANCE = 1e-6;
@@ -121,14 +121,17 @@ class ReapSlashTest {
         }
 
         @Test
-        void itIsHollowTowardTheSlasherWithItsTipsABlockOutAndItsBulgeGrowingWithIt() {
+        void itsTipsStartAtTheChestItsInsideEdgeBowsOutEightTenthsAndItsOutsideEdgeAThicknessBeyond() {
             RandomSource random = RandomSource.create(6L);
             for (int i = 0; i < SAMPLES; i++) {
                 ReapSlash slash = ReapSlash.launch(EYE, LEVEL_SOUTH, SHAPE, random);
                 double width = slash.pointAt(0, 0, 1).distanceTo(slash.pointAt(0, 1, 1));
-                assertEquals(1, ahead(slash, slash.pointAt(0, 0, 1)), TOLERANCE, "near tip");
-                assertEquals(1, ahead(slash, slash.pointAt(0, 1, 1)), TOLERANCE, "far tip");
-                assertEquals(1 + width * 0.8, ahead(slash, slash.pointAt(0, 0.5, 1)), TOLERANCE, "bulge");
+                assertEquals(0, ahead(slash, slash.pointAt(0, 0, 1)), TOLERANCE, "one tip at the chest");
+                assertEquals(0, ahead(slash, slash.pointAt(0, 1, 1)), TOLERANCE, "the other tip at the chest");
+                assertEquals(width * 0.8, ahead(slash, slash.pointAt(0, 0.5, 0)), TOLERANCE, "inside edge");
+                assertEquals(width * 0.8 + slash.thickness(), ahead(slash, slash.pointAt(0, 0.5, 1)), TOLERANCE,
+                        "outside edge");
+                assertTrue(ahead(slash, slash.pointAt(0, 0.25, 0)) > width * 0.8 * 0.7, "the inside edge curves");
             }
         }
 
@@ -193,7 +196,7 @@ class ReapSlashTest {
         @Test
         void itTravelsTwoAndAHalfBlocksOutKeepingSixTenthsOfItsWidth() {
             double life = SHAPE.lifeTicks();
-            double travelled = ahead(slash, slash.pointAt(life, 0.5, 1)) - ahead(slash, slash.pointAt(0, 0.5, 1));
+            double travelled = ahead(slash, slash.pointAt(life, 0.5, 0)) - ahead(slash, slash.pointAt(0, 0.5, 0));
             assertEquals(2.5, travelled, TOLERANCE);
             assertEquals(slash.width() * 0.8, slash.pointAt(life / 2, 0, 1).distanceTo(slash.pointAt(life / 2, 1, 1)),
                     TOLERANCE);
@@ -247,6 +250,7 @@ class ReapSlashTest {
             assertEquals(1.5, step.thinnest().evaluate(null), TOLERANCE);
             assertEquals(4, step.thickest().evaluate(null), TOLERANCE);
             assertEquals(0.8, step.bulge().evaluate(null), TOLERANCE);
+            assertEquals(0, step.near().evaluate(null), TOLERANCE);
             assertEquals(10, step.tilt().evaluate(null), TOLERANCE);
             assertEquals(15, step.fan().evaluate(null), TOLERANCE);
             assertEquals(0.3, step.dropLeast().evaluate(null), TOLERANCE);

@@ -29,7 +29,7 @@ import java.util.stream.Stream;
  * bright, then thins to a sliver and dims as it travels outward; and every
  * ripe plant inside the box a slash cuts is reaped and replanted and every
  * living body there but the slasher cut once. Leaf Reap is {@code slash
- * fewest_ticks=2 most_ticks=3 fewest_slashes=1 most_slashes=2 near=1
+ * fewest_ticks=2 most_ticks=3 fewest_slashes=1 most_slashes=2 near=0
  * narrowest=2 widest=5 thinnest=1.5 thickest=4 bulge=0.8
  * drop_least=0.3 drop_most=0.6 tilt=10 fan=15 drift=2.5 life_ticks=6
  * damage=1}.
@@ -44,7 +44,7 @@ import java.util.stream.Stream;
  * @param widest      the largest slash's width, in blocks
  * @param thinnest    the smallest slash's thickness, in blocks
  * @param thickest    the largest slash's thickness, in blocks
- * @param bulge       how far its middle bows out beyond its tips, as a share of its width
+ * @param bulge       how far its inside edge bows out beyond its tips, as a share of its width
  * @param dropLeast   the least its plane stands under the line of sight, in blocks
  * @param dropMost    the most its plane stands under the line of sight, in blocks
  * @param tilt        the farthest it rolls around the aim either way, in degrees
