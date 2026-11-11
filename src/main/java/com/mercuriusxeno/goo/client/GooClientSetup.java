@@ -64,6 +64,8 @@ import com.mercuriusxeno.goo.client.entity.MeteorRenderer;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.client.outsider.PocketStarSky;
+import com.mercuriusxeno.goo.client.outsider.PocketStarSkyRenderer;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.client.overlay.OreSightings;
 import com.mercuriusxeno.goo.client.particle.*;
@@ -433,6 +435,18 @@ public final class GooClientSetup {
     @SubscribeEvent
     public static void registerRenderPipelines(RegisterRenderPipelinesEvent event) {
         GooRenderTypes.registerPipelines(event);
+    }
+
+    /**
+     * Registers goo:pocket's star sky under the custom skybox its dimension
+     * type names.
+     * outsider-room-draws-a-skybox-of-stars
+     *
+     * @param event the event instance
+     */
+    @SubscribeEvent
+    public static void registerCustomSkies(RegisterCustomEnvironmentEffectRendererEvent event) {
+        event.registerSkyboxRenderer(PocketStarSky.ID, new PocketStarSkyRenderer());
     }
 
     /**
