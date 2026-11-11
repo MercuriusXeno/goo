@@ -31,6 +31,8 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -49,6 +51,7 @@ public final class HoleTests {
 
     private static final String SWALLOWS_A_DROPPED_ITEM = "hole_swallows_a_dropped_item";
     private static final String POURS_ITS_SHELF_FROM_A_CEILING = "hole_pours_its_shelf_from_a_ceiling";
+    private static final String POUR_FALLS_STRAIGHT_DOWN = "hole_pour_falls_straight_down";
     private static final String STANDS_ONE_AT_A_TIME = "hole_stands_one_at_a_time";
     private static final String DISMISSED_BY_LEAVING_ITS_DIMENSION = "hole_dismissed_by_leaving_its_dimension";
 
@@ -60,6 +63,7 @@ public final class HoleTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, SWALLOWS_A_DROPPED_ITEM, HoleTests::swallowsADroppedItem);
         GooTestFunctions.registerTest(registrar, POURS_ITS_SHELF_FROM_A_CEILING, HoleTests::poursItsShelfFromACeiling);
+        GooTestFunctions.registerTest(registrar, POUR_FALLS_STRAIGHT_DOWN, HoleTests::pourFallsStraightDown);
         GooTestFunctions.registerTest(registrar, STANDS_ONE_AT_A_TIME, HoleTests::standsOneAtATime);
         GooTestFunctions.registerTest(registrar, DISMISSED_BY_LEAVING_ITS_DIMENSION,
                 HoleTests::dismissedByLeavingItsDimension);
@@ -197,6 +201,10 @@ public final class HoleTests {
     static final int LANDED = 30;
     /** Ticks a dropped item is given to fall into the mouth. */
     private static final int SWALLOWED = 5;
+    /** Ticks past the opening a poured stack is given to fall to the floor and settle. */
+    private static final int POUR_FALLEN = 40;
+    /** How far, on x and on z, a poured stack may land from the pour's middle. */
+    private static final double POUR_COLUMN_SLACK = 0.05;
     static final int DROPPED = 5;
     static final int SEEDED_STONE = 70;
     static final int SEEDED_DIAMONDS = 3;
@@ -259,6 +267,52 @@ public final class HoleTests {
             helper.assertTrue(diamonds == SEEDED_DIAMONDS, "The hole should pour " + SEEDED_DIAMONDS
                     + " diamonds, poured " + diamonds);
             helper.assertTrue(left == 0, "The shelf should stand empty, holds " + left + " entries");
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Cast on a ceiling's bottom face, every stack the hole pours leaves the
+     * mouth with no sideways and no upward velocity, and lands in the column
+     * beneath the pour's middle. Each poured item's velocity is read the first
+     * tick it is seen, and its place once the pour has had time to land.
+     * decision hole-pour-falls-straight-down
+     *
+     * @param helper the gametest helper
+     */
+    public static void pourFallsStraightDown(GameTestHelper helper) {
+        helper.setBlock(CEILING, Blocks.STONE);
+        ServerPlayer caster = caster(helper, 1);
+        PocketShelves shelves = PocketShelves.get(helper.getLevel());
+        shelves.add(caster.getUUID(), new ItemStack(Items.COBBLESTONE), SEEDED_STONE + Items.COBBLESTONE
+                .getDefaultMaxStackSize());
+        shelves.add(caster.getUUID(), new ItemStack(Items.DIAMOND), SEEDED_DIAMONDS);
+        castAt(caster, helper.absolutePos(CEILING), Direction.DOWN);
+        AABB below = new AABB(helper.absolutePos(CEILING.below(2))).expandTowards(0, 2, 0).inflate(1);
+        Map<Integer, Vec3> firstVelocity = new HashMap<>();
+        Vec3[] pourMiddle = new Vec3[1];
+        helper.onEachTick(() -> {
+            if (pourMiddle[0] == null) {
+                PortableHoles.of(caster.getUUID()).ifPresent(hole -> pourMiddle[0] = hole.blocks().getBottomCenter());
+            }
+            for (ItemEntity item : helper.getLevel().getEntitiesOfClass(ItemEntity.class, below)) {
+                firstVelocity.putIfAbsent(item.getId(), item.getDeltaMovement());
+            }
+        });
+        helper.runAfterDelay(LANDED + POUR_FALLEN, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(pourMiddle[0] != null, "The ceiling hole should stand");
+            helper.assertTrue(firstVelocity.size() > 1, "The hole should pour several stacks, poured "
+                    + firstVelocity.size());
+            firstVelocity.values().forEach(velocity -> helper.assertTrue(velocity.x() == 0 && velocity.z() == 0
+                    && velocity.y() <= 0, "A poured stack should leave with no sideways or upward velocity, left at "
+                    + velocity));
+            for (ItemEntity item : helper.getLevel().getEntitiesOfClass(ItemEntity.class, below)) {
+                double off = Math.max(Math.abs(item.getX() - pourMiddle[0].x()), Math.abs(item.getZ() - pourMiddle[0].z()));
+                helper.assertTrue(item.onGround() && off <= POUR_COLUMN_SLACK, "A poured stack should land within "
+                        + POUR_COLUMN_SLACK + " of the pour's middle " + pourMiddle[0] + ", stands at "
+                        + item.position() + (item.onGround() ? "" : " in the air"));
+            }
             helper.succeed();
         });
     }
