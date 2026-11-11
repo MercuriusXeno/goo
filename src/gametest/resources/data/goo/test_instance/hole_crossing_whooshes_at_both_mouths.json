@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:hole_crossing_whooshes_at_both_mouths",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 80,
+  "setup_ticks": 0,
+  "required": true
+}
