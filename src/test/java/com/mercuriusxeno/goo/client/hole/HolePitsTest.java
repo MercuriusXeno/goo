@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.client.hole;
 
+import com.mercuriusxeno.goo.ability.hole.HoleDrift;
+import com.mercuriusxeno.goo.ability.hole.HoleFrame;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.AABB;
@@ -47,7 +49,7 @@ class HolePitsTest {
         HolePits.CarveSpans carved = HolePits.carvedSpansAt(footprint, Direction.UP, halfOpen);
         assertEquals(full.across() / 2, carved.across(), "half-open oval across");
         assertEquals(full.along() / 2, carved.along(), "half-open oval along");
-        AABB rim = HolePits.pitOf(footprint, Direction.UP).rim();
+        AABB rim = HoleFrame.pitOf(footprint, Direction.UP).rim();
         for (int kinds : KIND_COUNTS) {
             int sealedOver = 0;
             for (int index = 0; index < kinds; index++) {
@@ -74,7 +76,7 @@ class HolePitsTest {
 
     private static void assertPitInside(List<BlockPos> footprint, Direction face) {
         AABB blocks = footprint.stream().map(AABB::new).reduce(AABB::minmax).orElseThrow();
-        HolePits.Pit pit = HolePits.pitOf(footprint, face);
+        HoleFrame.Pit pit = HoleFrame.pitOf(footprint, face);
         for (AABB plane : new AABB[] {pit.rim(), pit.floor()}) {
             String where = face + " pit plane " + plane + " in blocks " + blocks;
             assertTrue(plane.minX - blocks.minX >= LEAST_CLEARANCE && blocks.maxX - plane.maxX >= LEAST_CLEARANCE,

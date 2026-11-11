@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.client.hole;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.hole.HoleDrift;
+import com.mercuriusxeno.goo.ability.hole.HoleFrame;
 import com.mercuriusxeno.goo.network.PortableHolesSyncPayload;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
@@ -176,42 +178,36 @@ public final class HoleContents {
     }
 
     /**
-     * A mouth's own frame: its middle, the unit axes across its face, off it
-     * and along it, the half spans its pit leaves the items, and its light.
+     * A mouth's own frame, the one the server pours from, with the face it
+     * opens on and its light.
      *
-     * @param centre     the opening's middle
-     * @param across     the axis across the face
-     * @param normal     the face's outward normal
-     * @param along      the axis along the face
-     * @param halfAcross the pit rim's half span across
-     * @param halfAlong  the pit rim's half span along
-     * @param face       the face it opens on
-     * @param light      the packed light just off the face
+     * @param hole  the mouth's frame
+     * @param face  the face it opens on
+     * @param light the packed light just off the face
      */
-    private record MouthFrame(Vec3 centre, Vec3 across, Vec3 normal, Vec3 along, double halfAcross,
-                              double halfAlong, Direction face, int light) {
+    private record MouthFrame(HoleFrame hole, Direction face, int light) {
 
         static MouthFrame of(Minecraft mc, PortableHolesSyncPayload.Mouth mouth) {
-            Direction face = mouth.face();
-            Vec3 normal = Vec3.atLowerCornerOf(face.getUnitVec3i());
-            Vec3 centre = HoleMouths.openingOn(mouth.footprint(), face).getCenter();
-            Vec3 across = face.getAxis() == Direction.Axis.X ? new Vec3(0, 0, 1) : new Vec3(1, 0, 0);
-            Vec3 along = normal.cross(across);
-            // the items keep within the pit's walls, which stand inside the footprint's outer faces
-            AABB pitRim = HolePits.pitOf(mouth.footprint(), face).rim();
+            HoleFrame hole = HoleFrame.of(mouth.footprint(), mouth.face());
             int light = LevelRenderer.getLightCoords(mc.level,
-                    BlockPos.containing(centre.add(normal.scale(FACE_OFFSET))));
-            return new MouthFrame(centre, across, normal, along, HoleMouths.halfSpan(pitRim, across),
-                    HoleMouths.halfSpan(pitRim, along), face, light);
+                    BlockPos.containing(hole.centre().add(hole.normal().scale(FACE_OFFSET))));
+            return new MouthFrame(hole, mouth.face(), light);
+        }
+
+        double halfAcross() {
+            return hole.halfAcross();
+        }
+
+        double halfAlong() {
+            return hole.halfAlong();
         }
 
         Vec3 toWorld(Vec3 offset) {
-            return centre.add(across.scale(offset.x())).add(normal.scale(offset.y())).add(along.scale(offset.z()));
+            return hole.toWorld(offset);
         }
 
         Vec3 toFrame(Vec3 world) {
-            Vec3 off = world.subtract(centre);
-            return new Vec3(off.dot(across), off.dot(normal), off.dot(along));
+            return hole.toFrame(world);
         }
     }
 

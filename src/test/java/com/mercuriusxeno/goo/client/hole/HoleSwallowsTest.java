@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.hole;
 
+import com.mercuriusxeno.goo.ability.hole.HoleDrift;
 import com.mercuriusxeno.goo.network.PortableHolesSyncPayload;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

@@ -95,8 +95,9 @@ public final class PortableHoles {
     }
 
     /**
-     * Swallows what meets each open mouth and closes the holes whose time is
-     * up or whose owner left their level, telling the clients when one closes.
+     * Swallows what meets each open mouth, pours each ceiling's hole once it
+     * stands fully open, and closes the holes whose time is up or whose owner
+     * left their level, telling the clients when one closes or pours.
      *
      * @param event the post-tick event
      */
@@ -114,6 +115,12 @@ public final class PortableHoles {
         for (Map.Entry<UUID, PortableHole> open : OPEN.entrySet()) {
             PortableHole hole = open.getValue();
             ServerLevel level = server.getLevel(hole.dimension());
+            // decision hole-pours-each-kind-from-where-it-swims-once-open: the clients hear of the emptied shelf
+            if (hole.poursAt(level.getGameTime())) {
+                HoleOpening.pour(level, hole);
+                open.setValue(hole.pouredOut());
+                changed = true;
+            }
             // a swallow changes what the mouth shows swimming in it and when it closes, so the clients hear of it
             List<PortableHolesSyncPayload.Swallowed> swallowed = hole.swallows() ? swallow(level, hole) : List.of();
             if (!swallowed.isEmpty()) {
