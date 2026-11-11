@@ -38,14 +38,13 @@ import static org.mockito.Mockito.when;
  * Tests where Grab hangs a held body, its reach with and without
  * Telekinesis, and which left clicks throw through it
  * (decisions grab-holds-and-throws-a-physics-body, grab-reaches-telekinesis-range,
- * grab-holds-the-mob-against-the-surface-you-look-at).
+ * grab-holds-the-mob-against-the-surface-you-look-at, grab-holds-slightly-closer-in-open-space).
  */
 class GrabStepTest {
 
-    private static final double NEAR = 2;
-    private static final double FAR = 4;
+    private static final double HOLD_DISTANCE = 4;
     private static final double EPSILON = 1e-6;
-    private static final GrabStep GRAB = new GrabStep(8, NEAR, FAR, 1.5, 1);
+    private static final GrabStep GRAB = new GrabStep(8, HOLD_DISTANCE, 1.5, 1);
 
     /**
      * Where Grab hangs a held body's middle: against the first block the look
@@ -88,8 +87,43 @@ class GrabStepTest {
             for (float pitch : new float[] {0f, -45f, 45f, 80f}) {
                 Vec3 look = Vec3.directionFromRotation(pitch, -90f);
                 Vec3 middle = GRAB.restingMiddle(List.of(), OVERWORLD, EYE, look, OPEN_AIR, WIDTH, HEIGHT);
-                assertEquals(FAR, middle.distanceTo(EYE), EPSILON, "A clear look at pitch " + pitch
+                assertEquals(HOLD_DISTANCE, middle.distanceTo(EYE), EPSILON, "A clear look at pitch " + pitch
                         + " should hold at the open-air distance");
+            }
+        }
+
+        /** The distance decision grab-holds-slightly-closer-in-open-space holds a body closer than. */
+        private static final double FOUR_BLOCKS = 4;
+        /** A large slime's box, the widest body Grab commonly holds. */
+        private static final double LARGE_SLIME = 2.08;
+        /** A player's box, its eye this far above its feet. */
+        private static final double HOLDER_WIDTH = 0.6;
+        private static final double HOLDER_HEIGHT = 1.8;
+
+        @Test
+        void theShippedGrabHoldsSlightlyCloserThanFourBlocks() {
+            JsonObject behavior = Reach.firstBehavior("kinetic_grab.json");
+            assertTrue(behavior.has("hold_distance"), "kinetic_grab.json should carry one hold_distance, has "
+                    + behavior.keySet());
+            double holdDistance = behavior.get("hold_distance").getAsDouble();
+            assertTrue(holdDistance < FOUR_BLOCKS, "The open-air hold should sit under 4 blocks, sits " + holdDistance);
+            GrabStep shipped = GrabStep.CODEC.codec().parse(JsonOps.INSTANCE, behavior).getOrThrow();
+            Vec3 middle = shipped.restingMiddle(List.of(), OVERWORLD, EYE, new Vec3(1, 0, 0), OPEN_AIR, WIDTH, HEIGHT);
+            assertEquals(holdDistance, middle.distanceTo(EYE), EPSILON);
+        }
+
+        @Test
+        void aLargeSlimeHeldAtTheShippedDistanceClearsItsHolder() {
+            GrabStep shipped = GrabStep.CODEC.codec().parse(JsonOps.INSTANCE,
+                    Reach.firstBehavior("kinetic_grab.json")).getOrThrow();
+            AABB holder = new AABB(EYE.x - HOLDER_WIDTH / 2, EYE.y - 1.62, EYE.z - HOLDER_WIDTH / 2,
+                    EYE.x + HOLDER_WIDTH / 2, EYE.y - 1.62 + HOLDER_HEIGHT, EYE.z + HOLDER_WIDTH / 2);
+            for (float pitch : new float[] {-90f, -45f, 0f, 45f, 90f}) {
+                Vec3 middle = shipped.restingMiddle(List.of(), OVERWORLD, EYE, Vec3.directionFromRotation(pitch, -90f),
+                        OPEN_AIR, LARGE_SLIME, LARGE_SLIME);
+                AABB slime = new AABB(middle, middle).inflate(LARGE_SLIME / 2);
+                assertFalse(slime.intersects(holder), "A large slime held at pitch " + pitch + " should clear its "
+                        + "holder, held at " + middle);
             }
         }
 

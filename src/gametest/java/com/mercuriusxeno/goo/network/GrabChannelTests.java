@@ -117,8 +117,8 @@ public final class GrabChannelTests {
     private static final int HOLD_TICKS = 5;
     private static final int FLIGHT_TICKS = 2;
     private static final int HELD_GOO = 3;
-    /** The ability's far hold distance, eye to the held entity's middle. */
-    private static final double FAR = 4;
+    /** The ability's hold distance, eye to the held entity's middle. */
+    private static final double FAR = 3;
     private static final double SETTLED = 0.3;
     /** How far a held entity must hang above where it stood to read as lifted. */
     private static final double LIFTED = 0.4;
@@ -512,8 +512,8 @@ public final class GrabChannelTests {
     private static final BlockPos NEAR_PILLAR = new BlockPos(PILLAR_X, 1, 2);
     /** The far pillar's lower block, three blocks south and one nearer, the far portal on its east face. */
     private static final BlockPos FAR_PILLAR = new BlockPos(PILLAR_X - 1, 1, 5);
-    /** Where Grab holds a body's middle for the player at STAND_POS looking level east: the far distance on. */
-    private static final Vec3 HOLD_MIDDLE = new Vec3(4.5, 2.62, 2.5);
+    /** Where Grab holds a body's middle for the player at STAND_POS looking level east: the hold distance on. */
+    private static final Vec3 HOLD_MIDDLE = new Vec3(3.5, 2.62, 2.5);
     /** The zombie, east of the far pillar on the line out of the far portal, in plain sight of the hold point. */
     private static final BlockPos IN_PLAIN_SIGHT = new BlockPos(PILLAR_X, 1, 5);
 
@@ -635,16 +635,16 @@ public final class GrabChannelTests {
 
     private static final String GRAB_HOLDS_A_MOB_PAST_THE_PORTAL_IT_IS_AIMED_INTO =
             "grab_holds_a_mob_past_the_portal_it_is_aimed_into";
-    /** The west portal's block, its face the plane x 1, facing east. */
-    private static final BlockPos AIMED_INTO = new BlockPos(0, 1, 2);
-    /** The east portal's block, its face the plane x 4, facing west, three blocks across from the west one. */
+    /** The west portal's block, its face the plane x 2, facing east. */
+    private static final BlockPos AIMED_INTO = new BlockPos(1, 1, 2);
+    /** The east portal's block, its face the plane x 4, facing west, two blocks across from the west one. */
     private static final BlockPos BEHIND_THE_HOLDER = new BlockPos(4, 1, 2);
     /** Where the player stands, half a block before the east portal, looking west into the west one. */
     private static final Vec3 BEFORE_THE_EAST_PORTAL = new Vec3(3.5, 1, 2.5);
     /** Where the pig starts, between the pair. */
     private static final BlockPos BETWEEN_THE_PAIR = new BlockPos(2, 1, 2);
     /**
-     * Where the look, four blocks long, ends carried through the pair: two and a half to the west face, the
+     * Where the look, three blocks long, ends carried through the pair: a block and a half to the west face, the
      * last block and a half on west out of the east face.
      */
     private static final double HELD_PAST_THE_PORTAL_X = 2.5;
@@ -711,8 +711,8 @@ public final class GrabChannelTests {
     private static final BlockPos CUSP_WEST = new BlockPos(0, 1, 2);
     /** The east portal's block, its face the plane x 6, facing west, five blocks across from the west one. */
     private static final BlockPos CUSP_EAST = new BlockPos(6, 1, 2);
-    /** Where the player stands: its look, four blocks long, ends five hundredths short of the west face. */
-    private static final Vec3 LOOK_ENDS_AT_THE_FACE = new Vec3(5.05, 1, 2.5);
+    /** Where the player stands: its look, three blocks long, ends five hundredths short of the west face. */
+    private static final Vec3 LOOK_ENDS_AT_THE_FACE = new Vec3(4.05, 1, 2.5);
     /** Where the mob starts: before the west portal, where the operator held a slime at the portal's edge. */
     private static final Vec3 BEFORE_THE_WEST_FACE = new Vec3(1.5, 1, 2.5);
     /** How many ticks the mob is watched held, a carry each tick were it looping. */
@@ -778,12 +778,12 @@ public final class GrabChannelTests {
     private static final BlockPos AHEAD_WEST = new BlockPos(0, 1, 2);
     /** The east portal's block behind the player, its face the plane x 6, facing west. */
     private static final BlockPos BEHIND_EAST = new BlockPos(6, 1, 2);
-    /** Where the player stands: its level look, four blocks long, ends a block past the west face. */
-    private static final Vec3 BETWEEN_FACING_WEST = new Vec3(4, 1, 2.5);
+    /** Where the player stands: its level look, three blocks long, ends a block past the west face. */
+    private static final Vec3 BETWEEN_FACING_WEST = new Vec3(3, 1, 2.5);
     /** Where the mob starts: where that look hangs it, a block before the east portal behind the player. */
     private static final Vec3 HUNG_PAST_THE_PORTAL = new Vec3(5, 1.5, 2.5);
-    /** A look pitched down far enough to draw the hold back before the west portal's face. */
-    private static final float PULLED_BACK = 30f;
+    /** A look pitched down far enough to meet the west wall under its portal, drawing the hold back before its face. */
+    private static final float PULLED_BACK = 45f;
 
     /**
      * A mob held past the portal before the player, which hangs it just

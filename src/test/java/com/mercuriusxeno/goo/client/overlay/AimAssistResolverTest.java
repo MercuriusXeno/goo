@@ -42,7 +42,7 @@ class AimAssistResolverTest {
     @Nested
     class Candidates {
 
-        private final List<Step> grab = List.of(new GrabStep(16, 2, 4, 1.5, 1));
+        private final List<Step> grab = List.of(new GrabStep(16, 3, 1.5, 1));
         private final List<Step> heal = List.of(LeafSteps.HEAL.step(Expr.literal(1)));
 
         @Test
