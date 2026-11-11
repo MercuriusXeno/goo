@@ -220,6 +220,48 @@ class GatePassageTest {
                 "A body at rest just before the face should find the gate open, as it always has");
     }
 
+    /** The near mouth's face again, opening over its whole rectangle as a room's edge does. */
+    private static final Gate NEAR_RECTANGLE = new Gate(OVERWORLD, NEAR.blocks(), NEAR.face(), NEAR.up(),
+            Gate.Mask.RECTANGLE);
+    /** Just before the face, by its top east corner, outside the oval. */
+    private static final Vec3 CORNER_BEFORE = new Vec3(1.9, 2.9, -0.2);
+    /** Just past the margin by the same corner. */
+    private static final Vec3 CORNER_NOW = new Vec3(1.9, 2.9, -0.03);
+
+    /**
+     * Crossing, opening and carrying through a gate all read the gate's own
+     * mask, so a body crossing a room's edge at its corner is carried
+     * (decision outsider-room-wraps-and-repeats-at-the-platform-edge).
+     */
+    @org.junit.jupiter.api.Nested
+    class ByTheGatesOwnMask {
+
+        @Test
+        void aPointCrossingARectangularGateAtItsCornerCrosses() {
+            assertTrue(GatePassage.crossed(NEAR_RECTANGLE, CORNER_BEFORE, CORNER_NOW),
+                    "A point crossing a rectangular gate at its corner should cross");
+        }
+
+        @Test
+        void aPointCrossingAnOvalGateAtItsCornerDoesNot() {
+            org.junit.jupiter.api.Assertions.assertFalse(GatePassage.crossed(NEAR, CORNER_BEFORE, CORNER_NOW),
+                    "A point by an oval gate's corner should not cross");
+        }
+
+        @Test
+        void aRectangularGateOpensToABodyAtItsCorner() {
+            assertTrue(GatePassage.opensToPath(NEAR_RECTANGLE, CORNER_BEFORE, Vec3.ZERO, ARROW_WIDTH),
+                    "A rectangular gate's blocks should stand open to a body by its corner");
+        }
+
+        @Test
+        void aBodyAtARectangularGatesCornerIsHeldBehindIt() {
+            Vec3 feet = CORNER_NOW.subtract(0, 1.62, 0);
+            assertTrue(GatePassage.heldBehind(NEAR_RECTANGLE, feet, 1.62, 1.8, Vec3.ZERO).isPresent(),
+                    "A body whose eye crossed a rectangular gate at its corner should be carried through it");
+        }
+    }
+
     /** The far mouth's face, the plane z 3. */
     private static final double FAR_FACE_Z = 3.0;
 

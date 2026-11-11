@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.outsider;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.network.RoomEdgesSyncPayload;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
@@ -16,9 +17,11 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.network.PacketDistributor;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 /**
  * Void's Outsider rooms in goo:pocket, an empty dimension where each
@@ -28,12 +31,13 @@ import java.util.UUID;
  * standing alone on the center cell, as the operator ruled, and the player
  * arrives on the cell just south of the doorway, facing it. Walking into the
  * doorway leads back to where the player cast Outsider from; the doorway and
- * every platform cell stand again if anything removes them; and a player
- * falling below the floor is set back south of the door unharmed, the pocket
- * folding them back; a room's bounds are exactly its grown cells, so a
- * player whose feet leave them is folded back the same way and no block may
- * be placed outside them. Each player's room is saved to them forever, and
- * every way in, catch and bound reads that room alone. Rooms stand a million
+ * every platform cell stand again if anything removes them. The room wraps:
+ * its edges are linked gates, {@link RoomEdges}, so a player walking off one
+ * side of the grown square carries on in from the opposite side, and only a
+ * player falling below the floor, a failsafe for creative flight, is set
+ * back south of the door unharmed, the pocket folding them back. No block
+ * may be placed outside the grown cells. Each player's room is saved to them
+ * forever, and every way in, catch and bound reads that room alone. Rooms stand a million
  * blocks apart along {@link RoomGrid}. Held on inside, Outsider feeds void into the platform,
  * which grows in voidstone along {@link PlatformSpiral}. Each part shows
  * itself: void motes spiral in and a hum rises while the hold charges, void
@@ -41,6 +45,7 @@ import java.util.UUID;
  * while they feed the platform, and each grown cell puffs void and chimes,
  * higher the farther out it stands.
  * decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform
+ * decision outsider-room-wraps-and-repeats-at-the-platform-edge
  */
 public final class OutsiderRooms {
 
@@ -218,6 +223,7 @@ public final class OutsiderRooms {
             cost = PlatformSpiral.costOf(cells, base, perDistance);
         }
         pockets.keepPlatform(player.getUUID(), new VoidPockets.Platform(cells, fed));
+        announceGrowth(room, platform.cells(), cells, payload -> sendTo(player, payload));
     }
 
     /**
@@ -240,8 +246,8 @@ public final class OutsiderRooms {
     }
 
     /**
-     * Whether a column stands over one of a room's grown cells: a room's
-     * bounds are exactly the cells its platform has grown.
+     * Whether a column stands over one of a room's grown cells, the only
+     * columns a block may be placed in.
      *
      * @param room  the room number
      * @param cells the platform's cell count
@@ -256,6 +262,57 @@ public final class OutsiderRooms {
             return false;
         }
         return PlatformSpiral.indexOf(cell) < cells;
+    }
+
+    /**
+     * Whether the pocket folds a player back onto their arrival cell: only
+     * once they fall the catch depth below the floor, a failsafe for a
+     * player flying in creative, since walking off an edge carries them in
+     * from the opposite one.
+     * outsider-room-wraps-and-repeats-at-the-platform-edge
+     *
+     * @param feet the player's feet
+     * @return true where the pocket folds them back
+     */
+    static boolean foldsBack(Vec3 feet) {
+        return feet.y() < ROOM_FLOOR_Y - CATCH_DEPTH;
+    }
+
+    /**
+     * Sends a room's new edges once its platform grew, so its player's
+     * client carries them across the grown square's edges.
+     * outsider-room-wraps-and-repeats-at-the-platform-edge
+     *
+     * @param room        the room number
+     * @param cellsBefore the platform's cell count before the feed
+     * @param cellsAfter  its cell count after
+     * @param send        sends the payload to the room's player
+     */
+    static void announceGrowth(int room, int cellsBefore, int cellsAfter, Consumer<RoomEdgesSyncPayload> send) {
+        if (cellsAfter > cellsBefore) {
+            send.accept(new RoomEdgesSyncPayload(RoomEdges.pairsOf(room, cellsAfter)));
+        }
+    }
+
+    /**
+     * Tells a player standing in the pocket their room's edges.
+     *
+     * @param player the player
+     */
+    public static void sendEdges(ServerPlayer player) {
+        VoidPockets pockets = VoidPockets.get(player.level());
+        Integer room = pockets.roomOf(player.getUUID());
+        if (room != null && player.level().dimension() == POCKET) {
+            sendTo(player, new RoomEdgesSyncPayload(RoomEdges.pairsOf(room,
+                    pockets.platformOf(player.getUUID()).cells())));
+        }
+    }
+
+    private static void sendTo(ServerPlayer player, RoomEdgesSyncPayload payload) {
+        // A listener that never negotiated the mod's channels, a gametest's mock player, gets no sync.
+        if (player.connection.hasChannel(payload)) {
+            PacketDistributor.sendToPlayer(player, payload);
+        }
     }
 
     /**
@@ -291,12 +348,8 @@ public final class OutsiderRooms {
             return false;
         }
         VoidPockets pockets = VoidPockets.get(pocket);
-        Integer room = pockets.roomOf(player.getUUID());
-        if (room == null) {
-            room = pockets.handOut(player.getUUID());
-        }
         // The room is laid whole on the way in, so a room the grid moved stands again at once.
-        restoreRoom(pocket, room, pockets.platformOf(player.getUUID()).cells());
+        int room = layRoomFor(pocket, player.getUUID());
         pockets.keepReturn(player.getUUID(), new VoidPockets.ReturnPoint(player.level().dimension(),
                 player.position(), player.getYRot(), player.getXRot()));
         burst(player.level(), player.position());
@@ -304,6 +357,7 @@ public final class OutsiderRooms {
         player.teleport(new TeleportTransition(pocket, arrival, Vec3.ZERO, FACING_DOOR, 0f,
                 TeleportTransition.PLAY_PORTAL_SOUND));
         burst(pocket, arrival);
+        sendEdges(player);
         return true;
     }
 
@@ -400,12 +454,13 @@ public final class OutsiderRooms {
     }
 
     /**
-     * Keeps a player in the pocket inside their own room, the one saved to
-     * them forever: a player who falls below its floor, or whose feet leave
-     * the cells its platform has grown, whether by stepping, flying or being
-     * put elsewhere, is set back on their own arrival cell with no fall built
-     * up, the pocket folding them back in a burst of void. A player in the
+     * Catches a player who falls out of their room: one fallen the catch
+     * depth below the floor is set back on their own arrival cell with no
+     * fall built up, the pocket folding them back in a burst of void. A
+     * player past the grown cells stays where they are, since the room's
+     * edges carry a walker across to the opposite side. A player in the
      * pocket with no room of their own is sent back where they came from.
+     * outsider-room-wraps-and-repeats-at-the-platform-edge
      *
      * @param player the player
      * @return true when the player was moved
@@ -421,10 +476,7 @@ public final class OutsiderRooms {
             player.teleport(wayHome(player));
             return true;
         }
-        boolean fell = player.getY() < ROOM_FLOOR_Y - CATCH_DEPTH;
-        boolean strayed = !overGrownCell(room, pockets.platformOf(player.getUUID()).cells(), player.getBlockX(),
-                player.getBlockZ());
-        if (!fell && !strayed) {
+        if (!foldsBack(player.position())) {
             return false;
         }
         Vec3 arrival = arrivalOf(room);
@@ -438,12 +490,18 @@ public final class OutsiderRooms {
         return true;
     }
 
-    private static void layRoom(ServerLevel pocket, int room) {
-        for (int index = 0; index < PlatformSpiral.START_CELLS; index++) {
-            pocket.setBlock(platformCellOf(room, index), GooBlocks.VOIDSTONE.get().defaultBlockState(),
-                    Block.UPDATE_ALL);
-        }
-        doorwayOf(room).forEach(doorway -> pocket.setBlock(doorway,
-                GooBlocks.DIMENSION_DOOR.get().defaultBlockState(), Block.UPDATE_ALL));
+    /**
+     * Lays an owner's room whole, handing the owner one first where they hold none.
+     *
+     * @param pocket the pocket dimension
+     * @param owner  the owner's id
+     * @return the room number
+     */
+    public static int layRoomFor(ServerLevel pocket, UUID owner) {
+        VoidPockets pockets = VoidPockets.get(pocket);
+        Integer room = pockets.roomOf(owner);
+        int laid = room == null ? pockets.handOut(owner) : room;
+        restoreRoom(pocket, laid, pockets.platformOf(owner).cells());
+        return laid;
     }
 }
