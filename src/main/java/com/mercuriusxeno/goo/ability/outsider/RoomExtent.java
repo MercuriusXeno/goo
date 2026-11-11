@@ -38,6 +38,32 @@ public final class RoomExtent {
     }
 
     /**
+     * A room's boundary in world blocks: its center voidstone's column and
+     * its extent, which the server's build test and the client's star test
+     * both read, so the blocks a build refuses at the boundary are the blocks
+     * drawn without stars.
+     * decision grown-extent-is-the-one-wrap-and-build-boundary
+     * decision boundary-cut-voidstone-draws-without-its-stars
+     *
+     * @param centerX the center voidstone's x
+     * @param centerZ the center voidstone's z
+     * @param extent  the room's extent
+     */
+    public record Bounds(int centerX, int centerZ, double extent) {
+
+        /**
+         * Whether a block's column lies wholly inside the boundary.
+         *
+         * @param x the block's x
+         * @param z the block's z
+         * @return true where the block's whole footprint stands inside
+         */
+        public boolean holdsWholeBlock(int x, int z) {
+            return RoomExtent.holdsWholeBlock(extent, x - centerX, z - centerZ);
+        }
+    }
+
+    /**
      * The planes an extent stands on around a room's center voidstone.
      *
      * @param center the room's center voidstone
