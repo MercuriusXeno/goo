@@ -18,6 +18,7 @@ import net.neoforged.fml.loading.FMLLoader;
 import net.neoforged.neoforge.attachment.AttachmentHolder;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.MockedStatic;
@@ -36,8 +37,9 @@ import static org.mockito.Mockito.withSettings;
 /**
  * Every machine block entity runs the lifecycle the base owns, each hook reaching the
  * gasket attachment or the machine's held slots exactly once (decision
- * machine-base-owns-the-lifecycle). Each machine is a real-method spy whose attachment
- * and held slots are mocks, so the base's forwarding is all that runs.
+ * machine-base-owns-the-lifecycle), and its update tag is its full metadata save. Each
+ * machine is a real-method spy whose attachment and held slots are mocks, so the base's
+ * forwarding is all that runs.
  */
 class GooMachineBlockEntityTest {
 
@@ -158,14 +160,16 @@ class GooMachineBlockEntityTest {
         }
     }
 
+    /**
+     * The update tag is final in {@link GooSyncedBlockEntity}, so one machine stands for every one.
+     */
     @Nested
     class UpdateTag {
 
-        @ParameterizedTest
-        @MethodSource("com.mercuriusxeno.goo.block.GooMachineBlockEntityTest#machines")
-        void carriesTheFullMetadataSave(Class<? extends GooMachineBlockEntity> type) {
-            SlottedCanisterData slots = mock(SlottedCanisterData.class);
-            GooMachineBlockEntity be = spyMachine(type, mock(GasketAttachment.class), slots);
+        @Test
+        void carriesTheFullMetadataSave() {
+            GooMachineBlockEntity be = mock(CanisterBlockEntity.class,
+                    withSettings().defaultAnswer(CALLS_REAL_METHODS));
             HolderLookup.Provider registries = mock(HolderLookup.Provider.class);
             CompoundTag saved = new CompoundTag();
             doReturn(saved).when(be).saveWithFullMetadata(registries);

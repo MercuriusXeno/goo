@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.item;
 
+import com.mercuriusxeno.goo.item.GooCarrierItem.DepletionPass;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.SharedConstants;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedStatic;
+import java.util.List;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -29,7 +31,6 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
@@ -78,11 +79,29 @@ class GooSourceScannerTest {
         ItemStack vat = carrierStack(VatBlockItem.class);
         ItemStack goo = carrierStack(GooItem.class);
         Player player = playerHolding(vat, goo);
-        GooCarrierItem vatItem = (GooCarrierItem) vat.getItem();
+        GooCarrierItem gooItem = (GooCarrierItem) goo.getItem();
 
         assertSame(goo, GooSourceScanner.firstSource(player, ROCK));
         assertEquals(50, GooSourceScanner.deplete(player, ROCK, 50));
-        verify(vatItem, never()).drawGoo(any(), any(), anyInt());
+        verify(gooItem).drawGoo(goo, ROCK, 50);
+    }
+
+    @Test
+    void thePassesRunGooThenCanisterThenVat() {
+        assertEquals(List.of(DepletionPass.GOO, DepletionPass.CANISTER, DepletionPass.VAT),
+                List.of(DepletionPass.values()));
+    }
+
+    @Test
+    void eachCarrierDrainsInItsOwnPass() {
+        assertEquals(DepletionPass.GOO, passOf(GooItem.class));
+        assertEquals(DepletionPass.CANISTER, passOf(CanisterItem.class));
+        assertEquals(DepletionPass.CANISTER, passOf(HubBlockItem.class));
+        assertEquals(DepletionPass.VAT, passOf(VatBlockItem.class));
+    }
+
+    private static DepletionPass passOf(Class<? extends Item> type) {
+        return ((GooCarrierItem) mock(type, withSettings().defaultAnswer(CALLS_REAL_METHODS))).depletionPass();
     }
 
     /**
