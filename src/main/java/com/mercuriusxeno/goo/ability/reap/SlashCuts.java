@@ -116,19 +116,32 @@ public final class SlashCuts {
             return false;
         }
         Throw thrown = cut.thrown();
-        ReapSlash slash = thrown.slash();
         Entity slasher = level.getEntity(thrown.slasherId());
         Vec3 feet = slasher != null ? slasher.position() : thrown.thrownFrom();
-        AABB box = slash.reachBox(feet);
-        reapReached(level, slash, feet, age);
-        for (LivingEntity body : level.getEntitiesOfClass(LivingEntity.class, box,
+        reapReached(level, thrown.slash(), feet, age);
+        cutReached(level, cut, feet, age);
+        return age >= thrown.slash().lifeTicks();
+    }
+
+    /**
+     * Cuts every living body the slash has reached and not yet cut, but its slasher.
+     *
+     * @param level the server level
+     * @param cut   the slash cutting
+     * @param feet  where its slasher's feet stand now
+     * @param age   ticks since the slash appeared
+     */
+    private static void cutReached(ServerLevel level, Cut cut, Vec3 feet, long age) {
+        Throw thrown = cut.thrown();
+        ReapSlash slash = thrown.slash();
+        DamageSource attack = cutBy(level.damageSources(), level.getEntity(thrown.slasherId()));
+        for (LivingEntity body : level.getEntitiesOfClass(LivingEntity.class, slash.reachBox(feet),
                 body -> body.getId() != thrown.slasherId() && body.isAlive())) {
             if (slash.reaches(feet, body.position(), body.getBbWidth() * HALF, age)
                     && cut.struck().add(body.getId())) {
-                hurt(level, body, cutBy(level.damageSources(), slasher), cut.damage());
+                hurt(level, body, attack, cut.damage());
             }
         }
-        return age >= slash.lifeTicks();
     }
 
     /**
