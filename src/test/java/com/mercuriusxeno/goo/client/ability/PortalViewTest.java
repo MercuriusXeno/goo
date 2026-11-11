@@ -4,7 +4,9 @@ import com.mercuriusxeno.goo.ability.outsider.OutsiderRooms;
 import com.mercuriusxeno.goo.ability.outsider.RoomEdges;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
+import com.mercuriusxeno.goo.client.outsider.SkyResources;
 import com.mercuriusxeno.goo.network.RoomEdgesSyncPayload;
+import net.minecraft.world.level.material.FogType;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,7 +22,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * portal pair's two and a hole's two; an edge standing partway through a
  * block draws like any other, and a moved edge replaces the one before it
  * (decisions outsider-room-wraps-and-repeats-at-the-platform-edge and
- * grown-extent-is-the-one-wrap-and-build-boundary).
+ * grown-extent-is-the-one-wrap-and-build-boundary), and a view of the pocket
+ * runs the sky pass its star sky draws through (decision
+ * outsider-room-draws-a-skybox-of-stars).
  */
 class PortalViewTest {
 
@@ -75,5 +79,11 @@ class PortalViewTest {
     void theFramesViewsHoldARoomsEdgesBesideAPortalPairAndAHole() {
         assertTrue(PortalView.MOST_VIEWS >= VIEWS_A_ROOM_NEEDS,
                 "a frame should draw at least " + VIEWS_A_ROOM_NEEDS + " views, draws " + PortalView.MOST_VIEWS);
+    }
+
+    @Test
+    void aViewOfThePocketsSkyRunsItsSkyPass() {
+        assertTrue(PortalView.skyDraws(SkyResources.skyboxOf(SkyResources.POCKET), FogType.NONE, false),
+                "a room edge view of the pocket should run the sky pass its stars draw through");
     }
 }

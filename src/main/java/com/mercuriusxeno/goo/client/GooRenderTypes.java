@@ -935,6 +935,21 @@ public final class GooRenderTypes {
             .withCull(false)
             .build();
 
+    /**
+     * The pocket's sky stars: small quads round the camera drawn by
+     * PocketStarSkyRenderer in the sky pass, added onto the dark with no depth
+     * test, as vanilla's stars draw (decision outsider-room-draws-a-skybox-of-stars).
+     */
+    public static final RenderPipeline POCKET_SKY = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "pocket_sky"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "pocket_sky"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "pocket_sky"))
+            .withColorTargetState(new ColorTargetState(BlendFunction.ADDITIVE))
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .build();
+
     /** The render type voidstone's faces draw through. */
     public static final RenderType VOIDSTONE_TYPE = RenderType.create(
             "goo_voidstone",
@@ -1744,6 +1759,7 @@ public final class GooRenderTypes {
         event.registerPipeline(BLOCK_MINGLE);
         event.registerPipeline(BLOCK_MINGLE_TRANSLUCENT);
         event.registerPipeline(VOIDSTONE);
+        event.registerPipeline(POCKET_SKY);
         event.registerPipeline(PETRIFY_FOG);
         event.registerPipeline(FIRE_FIELD);
         event.registerPipeline(BORE_VORTEX);
