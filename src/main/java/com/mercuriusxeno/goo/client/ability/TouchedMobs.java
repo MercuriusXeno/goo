@@ -6,17 +6,23 @@ import java.util.Map;
 /**
  * The mobs Heal or Drain touched lately, each until the tick its life mark
  * lapses: a payload naming a mob touches it, and a later payload renews it.
- * The mark holds whole while touched and fades over its last ticks.
+ * The mark holds whole while touched, then fades slowly to nothing.
  * touched-mobs-show-hearts-or-a-count-over-max
+ * heal-and-drain-life-bar-fades-slowly
  */
 public final class TouchedMobs {
 
     /** The client's touched mobs, fed by the Heal and Drain payloads and read by the head marks. */
     public static final TouchedMobs CLIENT = new TouchedMobs();
-    /** Ticks a mob wears its life mark after the last touch, longer than Drain's gap between trickles. */
-    static final int MARK_TICKS = 40;
-    /** The last ticks before the lapse, over which the mark fades out. */
-    static final int FADE_TICKS = 15;
+    /**
+     * Ticks the mark holds whole after a touch, longer than Drain's 10-tick gap between trickles
+     * (a hit leaves 10 immunity ticks) with room for a late payload, so a held drain shows no dip.
+     */
+    static final int HOLD_TICKS = 15;
+    /** Ticks over which the mark fades out once the hold ends, about 4 seconds. */
+    static final int FADE_TICKS = 80;
+    /** Ticks a mob wears its life mark after the last touch. */
+    static final int MARK_TICKS = HOLD_TICKS + FADE_TICKS;
 
     private final Map<Integer, Long> lapseTicks = new HashMap<>();
 
