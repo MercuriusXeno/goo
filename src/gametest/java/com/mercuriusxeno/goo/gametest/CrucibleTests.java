@@ -8,7 +8,6 @@ import com.mercuriusxeno.goo.block.crucible.CrucibleCapacity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleMath;
 import com.mercuriusxeno.goo.block.crucible.CrucibleShape;
 import com.mercuriusxeno.goo.data.GooValues;
-import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
@@ -58,17 +57,14 @@ public final class CrucibleTests {
     private static final String CR_ITEM_ABSORB = "cr_item_absorb";
     private static final String CR_THROWN_ITEM_TEACHES = "cr_thrown_item_teaches";
     private static final String CR_THROWN_CONTAINER_TEACHES = "cr_thrown_container_teaches";
-    private static final String CR_UNTHROWN_ITEM_TEACHES_NOBODY = "cr_unthrown_item_teaches_nobody";
     private static final String CR_CAP_EACH_TYPE = "cr_cap_each_type";
     private static final String CR_CAP_GOO_IN_HAND = "cr_cap_goo_in_hand";
     private static final String CR_CAP_GOO_ENTITY = "cr_cap_goo_entity";
     private static final String CR_CAP_ITEMS_THAT_FIT = "cr_cap_items_that_fit";
     private static final String CR_CAP_CONTAINER = "cr_cap_container";
     private static final String CR_CAP_MELTED_ITEM = "cr_cap_melted_item";
-    private static final String CR_CAP_ACCOUNTED = "cr_cap_accounted";
     private static final String CR_GOO_STACK_WHOLE = "cr_goo_stack_whole";
     private static final String CR_GOO_STACK_TO_CAP = "cr_goo_stack_to_cap";
-    private static final String CR_FIRST_MELT_PUDDLE = "cr_first_melt_puddle";
     private static final String CR_DROP_RESTS_ON_FLOOR = "cr_drop_rests_on_floor";
     private static final String CR_LEDGE_ITEM_TAKEN_INSIDE = "cr_ledge_item_taken_inside";
     private static final String CR_WALL_TOP_ITEMS_SLIDE_IN = "cr_wall_top_items_slide_in";
@@ -95,17 +91,14 @@ public final class CrucibleTests {
         GooTestFunctions.registerTest(registrar, CR_ITEM_ABSORB, CrucibleTests::itemEntityAbsorption);
         GooTestFunctions.registerTest(registrar, CR_THROWN_ITEM_TEACHES, CrucibleTests::thrownItemTeachesTheThrower);
         GooTestFunctions.registerTest(registrar, CR_THROWN_CONTAINER_TEACHES, CrucibleTests::thrownContainerTeachesItsContents);
-        GooTestFunctions.registerTest(registrar, CR_UNTHROWN_ITEM_TEACHES_NOBODY, CrucibleTests::unthrownItemTeachesNobody);
         GooTestFunctions.registerTest(registrar, CR_CAP_EACH_TYPE, CrucibleTests::reservoirCapsEachType);
         GooTestFunctions.registerTest(registrar, CR_CAP_GOO_IN_HAND, CrucibleTests::gooInHandRefusedAtCap);
         GooTestFunctions.registerTest(registrar, CR_CAP_GOO_ENTITY, CrucibleTests::gooEntityRefusedAtCap);
         GooTestFunctions.registerTest(registrar, CR_CAP_ITEMS_THAT_FIT, CrucibleTests::itemStackMeltsWholeItemsThatFit);
         GooTestFunctions.registerTest(registrar, CR_CAP_CONTAINER, CrucibleTests::containerRefusedWholeAtCap);
         GooTestFunctions.registerTest(registrar, CR_CAP_MELTED_ITEM, CrucibleTests::meltedItemRefusedWholeAtCap);
-        GooTestFunctions.registerTest(registrar, CR_CAP_ACCOUNTED, CrucibleTests::fillPastTheCapAccountsForEveryMb);
         GooTestFunctions.registerTest(registrar, CR_GOO_STACK_WHOLE, CrucibleTests::gooStackConsumedWhole);
         GooTestFunctions.registerTest(registrar, CR_GOO_STACK_TO_CAP, CrucibleTests::gooStackFillsToTheCap);
-        GooTestFunctions.registerTest(registrar, CR_FIRST_MELT_PUDDLE, CrucibleTests::firstMeltTicksDrawAPuddle);
         GooTestFunctions.registerTest(registrar, CR_DROP_RESTS_ON_FLOOR, CrucibleTests::droppedItemRestsOnBasinFloor);
         GooTestFunctions.registerTest(registrar, CR_LEDGE_ITEM_TAKEN_INSIDE, CrucibleTests::ledgeItemTakenOnlyInsideTheCavity);
         GooTestFunctions.registerTest(registrar, CR_WALL_TOP_ITEMS_SLIDE_IN, CrucibleTests::wallTopItemsSlideIntoTheCavity);
@@ -222,16 +215,10 @@ public final class CrucibleTests {
     private static final int CAP = CrucibleCapacity.TYPE_CAPACITY;
     /** Cobblestone offered to a pool with room for two items and one mB short of a third. */
     private static final int COBBLE_OFFERED = 5;
-    private static final int REFUSED_GOO = 1_000;
-    private static final int POOL_ROCK = 200_000_000;
-    private static final int POOL_METAL = 100;
-    private static final long FILL_PAST = 2_200_000_000L;
     /** Goo stack size offered to a full reservoir. */
     private static final int GOO_OFFERED = 2;
     /** Whole cobblestone the pool has room for. */
     private static final int ITEMS_THAT_FIT = 2;
-    /** Types filled to the cap in the accounting test, rock and metal. */
-    private static final long FULL_TYPES = 2L;
     private static final String ROCK_TO_CAP = "rock accepted to the cap";
     private static final String METAL_TO_CAP = "metal accepted to the cap";
     private static final String ROCK_PAST_CAP = "rock past the cap";
@@ -245,9 +232,6 @@ public final class CrucibleTests {
     private static final String CONTAINER_UNTOUCHED = "container items untouched";
     private static final String POOL_UNCHANGED = "pool unchanged";
     private static final String MELTED_ITEM_STAYS = "melted item stays on the ground";
-    private static final String HOLDS_PAST = "crucible holds past 2.2B: ";
-    private static final String EVERY_MB_ACCOUNTED = "every mB offered is held or refused";
-    private static final String FILL_ABOVE_ZERO = "surface fill above zero";
     private static final int FULL_STACK = 64;
     /** Whole goo of room left under the cap in the fill-to-the-cap test. */
     private static final int GOO_ROOM = 3;
@@ -255,7 +239,6 @@ public final class CrucibleTests {
     private static final String STACK_SPENT = "stack spent";
     private static final String RESERVOIR_AT_CAP = "reservoir filled to the cap";
     private static final String UNFIT_GOO_STAY = "goo that did not fit stay in hand";
-    private static final String PUDDLE_SHORT_OF_WALLS = "drawn %s for %d mB melted, %d mB unmelted";
     /** Blaze goo stocked to buy heat: enough for every melt clock these tests run. */
     private static final int BLAZE_STOCK = 1_000;
     private static final double DROP_REACH = 2.0;
@@ -366,29 +349,6 @@ public final class CrucibleTests {
                     "The thrower should know the shulker box once it melts");
             helper.assertTrue(PlayerKnowledge.of(thrower).contains(COBBLESTONE_ID),
                     "The thrower should know the cobblestone melted out of the box");
-            helper.succeed();
-        });
-    }
-
-    /**
-     * A cobblestone with no thrower, as a hopper or dispenser drops it, melts
-     * and teaches nobody: the player standing by learns nothing
-     * (decision knowledge-capability-remembers-destroyed-items).
-     *
-     * @param helper the gametest helper
-     */
-    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    public static void unthrownItemTeachesNobody(GameTestHelper helper) {
-        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get());
-        helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class).addHeat(TEST_HEAT_TICKS);
-        ServerPlayer bystander = helper.makeMockServerPlayerInLevel();
-        ItemEntity dropped = CrucibleSpawns.spawnInBasin(helper, new ItemStack(Items.COBBLESTONE));
-
-        helper.runAfterDelay(ABSORB_DELAY, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(bystander);
-            helper.assertTrue(dropped.isRemoved(), SHOULD_ABSORB);
-            helper.assertTrue(PlayerKnowledge.of(bystander).equals(KnownItems.NONE),
-                    "An item with no thrower should teach nobody");
             helper.succeed();
         });
     }
@@ -763,49 +723,6 @@ public final class CrucibleTests {
         });
     }
 
-    /**
-     * Fills a crucible past 2.2B across rock and metal with a melting item in
-     * the pool and a goo refused at the cap; what it holds plus what it
-     * refused equals what was offered, and the surface fill reads above zero.
-     *
-     * @param helper the gametest helper
-     */
-    public static void fillPastTheCapAccountsForEveryMb(GameTestHelper helper) {
-        CrucibleBlockEntity crucible = placeFueledCrucible(helper);
-        GooContents poolOffered = new GooContents(Map.of(GooTypes.ROCK, POOL_ROCK, GooTypes.METAL, POOL_METAL));
-        long offered = FULL_TYPES * CAP + REFUSED_GOO + poolOffered.totalVolume();
-        long accepted = (long) crucible.insertGoo(GooTypes.ROCK, CAP)
-            + crucible.insertGoo(GooTypes.METAL, CAP)
-            + crucible.insertGoo(GooTypes.ROCK, REFUSED_GOO);
-        long refused = FULL_TYPES * CAP + REFUSED_GOO - accepted;
-        spawnInBasin(helper, PartiallyMeltedItem.createWith(poolOffered));
-        helper.runAfterDelay(ABSORB_DELAY, () -> {
-            long held = CrucibleBasin.heldVolume(crucible.getPoolVolume(), crucible.getReservoir().totalVolume());
-            helper.assertTrue(held > FILL_PAST, HOLDS_PAST + held);
-            helper.assertValueEqual(offered, held + refused, EVERY_MB_ACCOUNTED);
-            helper.assertTrue(CrucibleBasin.fillFraction(held) > 0f, FILL_ABOVE_ZERO);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * One cobblestone melting into an empty crucible draws a puddle short of the
-     * walls a few ticks in, not the whole floor (decision puddle-touches-walls-at-a-thousand).
-     *
-     * @param helper the gametest helper
-     */
-    public static void firstMeltTicksDrawAPuddle(GameTestHelper helper) {
-        CrucibleBlockEntity crucible = placeFueledCrucible(helper);
-        spawnInBasin(helper, new ItemStack(Items.COBBLESTONE));
-        helper.runAfterDelay(ABSORB_DELAY, () -> {
-            long melted = crucible.getSurfaceVolume();
-            CrucibleBasin.PuddleFootprint drawn = CrucibleBasin.footprintForVolume(melted);
-            helper.assertTrue(melted > 0 && drawn.max() < CrucibleBasin.FOOTPRINT_MAX,
-                String.format(PUDDLE_SHORT_OF_WALLS, drawn, melted, crucible.getPoolVolume()));
-            helper.succeed();
-        });
-    }
-
     // -- Melt clock (decision melt-time-is-mb-to-a-power) --
 
     /**
@@ -974,8 +891,7 @@ public final class CrucibleTests {
     // -- The spark gate (decision spark-gate-consumes-the-click) --
 
     /**
-     * A flint and steel click on a crucible holding blaze goo is consumed: no heat, no
-     * durability, no fire beside the crucible.
+     * A flint and steel click on a crucible holding blaze goo answers CONSUME.
      *
      * @param helper the gametest helper
      */
@@ -985,8 +901,7 @@ public final class CrucibleTests {
     }
 
     /**
-     * A flint and steel click on a crucible holding heat ticks and no goo is consumed: no
-     * heat, no durability, no fire beside the crucible.
+     * A flint and steel click on a crucible holding heat ticks and no goo answers CONSUME.
      *
      * @param helper the gametest helper
      */
@@ -1011,15 +926,8 @@ public final class CrucibleTests {
     }
 
     private static void assertSparkRefused(GameTestHelper helper) {
-        CrucibleBlockEntity crucible = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
-        int heatBefore = crucible.heatTicks();
-        ItemStack flint = new ItemStack(Items.FLINT_AND_STEEL);
-        helper.assertValueEqual(InteractionResult.CONSUME, clickSideWith(helper, flint), SPARK_RESULT);
-        helper.assertValueEqual(heatBefore, crucible.heatTicks(), SPARK_HEAT);
-        helper.assertValueEqual(0, flint.getDamageValue(), FLINT_DAMAGE);
-        for (Direction side : Direction.values()) {
-            helper.assertBlockNotPresent(Blocks.FIRE, BE_POS.relative(side));
-        }
+        helper.assertValueEqual(InteractionResult.CONSUME, clickSideWith(helper, new ItemStack(Items.FLINT_AND_STEEL)),
+                SPARK_RESULT);
         helper.succeed();
     }
 

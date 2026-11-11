@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.block.ability;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.block.CompiledStateDefinition;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.AABB;
 import org.junit.jupiter.api.Test;
@@ -11,6 +12,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -50,6 +52,12 @@ class GlowCrystalBlockTest {
                 assertEquals(MIDDLE, (bounds.min(axis) + bounds.max(axis)) / 2, EPSILON);
             }
         }
+    }
+
+    // decision place-block-ability-grows-block: a crystal lands at its one size, so a later hit has nothing to grow
+    @Test
+    void theCrystalsOneStatePropertyIsItsFacing() {
+        assertEquals(List.of("facing"), List.copyOf(CompiledStateDefinition.of(GlowCrystalBlock.class).keySet()));
     }
 
     @Test

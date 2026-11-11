@@ -26,17 +26,14 @@ import java.util.function.Consumer;
 /**
  * Gametests for Blast cast by its drag: the release explodes at once at the
  * pinned epicenter at the radius dragged, throwing no blob, breaking nothing
- * outside that radius and charging the volume price, 1000 mB at radius 3 and
- * 8000 at radius 6; a drag past what the player's unstable pays for opens at
- * the radius it does pay for; and a player who lacks the gunpowder recipe
- * spends nothing and explodes nothing
+ * outside that radius and charging 1000 mB at radius 3; and a player who
+ * lacks the gunpowder recipe spends nothing and explodes nothing. DragSizeTest
+ * holds the volume price and the cap at the holdings
  * (decisions blast-is-drag-sized-like-the-black-hole, blast-keeps-its-explosion-gated-on-gunpowder).
  */
 @RegistersGameTests
 public final class BlastDragTests {
     private static final String BLAST_DRAG_EXPLODES_AT_THE_PIN = "blast_drag_explodes_at_the_pin";
-    private static final String BLAST_DRAG_PRICES_BY_VOLUME = "blast_drag_prices_by_volume";
-    private static final String BLAST_DRAG_CAPS_AT_THE_HOLDINGS = "blast_drag_caps_at_the_holdings";
     private static final String BLAST_DRAG_NEEDS_GUNPOWDER = "blast_drag_needs_gunpowder";
 
     /**
@@ -46,8 +43,6 @@ public final class BlastDragTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, BLAST_DRAG_EXPLODES_AT_THE_PIN, BlastDragTests::blastDragExplodesAtThePinAtTheDraggedRadius);
-        GooTestFunctions.registerTest(registrar, BLAST_DRAG_PRICES_BY_VOLUME, BlastDragTests::blastDragPricesByVolume);
-        GooTestFunctions.registerTest(registrar, BLAST_DRAG_CAPS_AT_THE_HOLDINGS, BlastDragTests::blastDragCapsAtTheHoldings);
         GooTestFunctions.registerTest(registrar, BLAST_DRAG_NEEDS_GUNPOWDER, BlastDragTests::blastDragNeedsGunpowder);
     }
 
@@ -64,14 +59,9 @@ public final class BlastDragTests {
     private static final BlockPos STAND = new BlockPos(8, FLOOR_TOP + 1, 1);
     /** The radius 1000 mB buys. */
     private static final double REFERENCE_RADIUS = DragSize.REFERENCE_RADIUS;
-    /** A drag to twice the reference radius, eight times the price. */
-    private static final double WIDE_RADIUS = 6;
-    /** Unstable enough for the widest cast. */
+    /** Unstable enough for the reference cast. */
     private static final int AMPLE_UNSTABLE = 10000;
-    /** Unstable for the reference radius alone. */
-    private static final int SCANT_UNSTABLE = 1000;
     private static final int REFERENCE_COST = 1000;
-    private static final int WIDE_COST = 8000;
     private static final String ABILITY_REQUIRED = "Ability registry must hold unstable_explode";
     private static final String WRONG_CHARGE = "The drag cast at radius %.0f should charge %d mB, charged %d";
     private static final String BLOB_THROWN = "A drag cast should throw no blob, %d flying";
@@ -95,35 +85,6 @@ public final class BlastDragTests {
         helper.assertTrue(spent == REFERENCE_COST, String.format(WRONG_CHARGE, REFERENCE_RADIUS, REFERENCE_COST, spent));
         int flying = helper.getLevel().getEntitiesOfClass(RollingGoo.class, helper.getBounds()).size();
         helper.assertTrue(flying == 0, String.format(BLOB_THROWN, flying));
-        assertCraterWithin(helper, REFERENCE_RADIUS);
-        helper.succeed();
-    }
-
-    /**
-     * A drag to twice the reference radius charges eight times the price and
-     * breaks nothing beyond six blocks of the pin.
-     *
-     * @param helper the gametest helper
-     */
-    public static void blastDragPricesByVolume(GameTestHelper helper) {
-        int spent = castBlast(helper, WIDE_RADIUS, AMPLE_UNSTABLE, true);
-
-        helper.assertTrue(spent == WIDE_COST, String.format(WRONG_CHARGE, WIDE_RADIUS, WIDE_COST, spent));
-        assertCraterWithin(helper, WIDE_RADIUS);
-        helper.succeed();
-    }
-
-    /**
-     * A drag past what the player's unstable pays for opens at the radius it
-     * does pay for: 1000 mB held and radius 6 dragged opens at radius 3 and
-     * charges the 1000.
-     *
-     * @param helper the gametest helper
-     */
-    public static void blastDragCapsAtTheHoldings(GameTestHelper helper) {
-        int spent = castBlast(helper, WIDE_RADIUS, SCANT_UNSTABLE, true);
-
-        helper.assertTrue(spent == REFERENCE_COST, String.format(WRONG_CHARGE, WIDE_RADIUS, REFERENCE_COST, spent));
         assertCraterWithin(helper, REFERENCE_RADIUS);
         helper.succeed();
     }

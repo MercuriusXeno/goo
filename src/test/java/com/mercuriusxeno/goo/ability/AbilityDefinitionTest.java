@@ -91,6 +91,13 @@ class AbilityDefinitionTest {
         assertEquals(List.of(), spawn.requires());
     }
 
+    // decision blast-keeps-its-explosion-gated-on-gunpowder
+    @Test
+    void blastRequiresGunpowder() {
+        assertEquals(List.of(Identifier.withDefaultNamespace("gunpowder")),
+                AbilityJson.decode("unstable_explode").requires());
+    }
+
     /**
      * A cost and an upkeep decode written as a number and as an expression alike, an item in the
      * expression reading its value in the ability's own goo type

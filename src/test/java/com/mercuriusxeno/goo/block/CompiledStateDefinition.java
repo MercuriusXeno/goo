@@ -28,7 +28,7 @@ import java.util.Optional;
  * field's value is rebuilt by evaluating the ldc, getstatic and invokestatic run its static initializer assigns it
  * from; a field built any other way, such as an enum constant, is read from its loaded class instead.
  */
-final class CompiledStateDefinition {
+public final class CompiledStateDefinition {
 
     private static final String STATE_DEFINITION_METHOD = "createBlockStateDefinition";
     private static final String STATIC_INITIALIZER = "<clinit>";
@@ -43,7 +43,7 @@ final class CompiledStateDefinition {
      * @param block the block class, never initialized here
      * @return the properties in the order the block adds them
      */
-    static Map<String, List<String>> of(Class<?> block) {
+    public static Map<String, List<String>> of(Class<?> block) {
         Map<String, List<String>> properties = new LinkedHashMap<>();
         for (AbstractInsnNode insn : method(Type.getInternalName(block), STATE_DEFINITION_METHOD).instructions) {
             if (insn instanceof FieldInsnNode read && read.getOpcode() == Opcodes.GETSTATIC) {
