@@ -32,8 +32,11 @@ import java.util.Map;
  * are found once by scanning the section's palette and blocks, kept until the
  * level renderer marks that section dirty, and drawn in one batch a frame,
  * and again in each view through a room's edge, around that view's camera.
+ * Only voidstone {@link VoidstoneStars} stars draws them; the block the
+ * room's boundary cuts keeps its plain dark faces.
  * decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform
  * decision outsider-room-wraps-and-repeats-at-the-platform-edge
+ * decision boundary-cut-voidstone-draws-without-its-stars
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class VoidstoneFaces {
@@ -118,10 +121,16 @@ public final class VoidstoneFaces {
                                     int sectionX, int sectionY, int sectionZ) {
         int[] faces = SECTIONS.computeIfAbsent(SectionPos.asLong(sectionX, sectionY, sectionZ),
                 key -> scan(level, sectionX, sectionY, sectionZ));
-        double originX = SectionPos.sectionToBlockCoord(sectionX) - camera.x;
+        int cornerX = SectionPos.sectionToBlockCoord(sectionX);
+        int cornerZ = SectionPos.sectionToBlockCoord(sectionZ);
+        double originX = cornerX - camera.x;
         double originY = SectionPos.sectionToBlockCoord(sectionY) - camera.y;
-        double originZ = SectionPos.sectionToBlockCoord(sectionZ) - camera.z;
+        double originZ = cornerZ - camera.z;
         for (int face : faces) {
+            // decision boundary-cut-voidstone-draws-without-its-stars: read each frame, so a moved boundary shows
+            if (!VoidstoneStars.starred(cornerX + (face & AXIS_MASK), cornerZ + (face >> Z_SHIFT & AXIS_MASK))) {
+                continue;
+            }
             float blockX = (float) (originX + (face & AXIS_MASK));
             float blockY = (float) (originY + (face >> AXIS_BITS & AXIS_MASK));
             float blockZ = (float) (originZ + (face >> Z_SHIFT & AXIS_MASK));
