@@ -3,7 +3,15 @@ package com.mercuriusxeno.goo.ability.program;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
@@ -27,9 +35,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Tests Grab's hold distance by pitch, its reach with and without
+ * Tests where Grab hangs a held body, its reach with and without
  * Telekinesis, and which left clicks throw through it
- * (decisions grab-holds-and-throws-a-physics-body, grab-reaches-telekinesis-range).
+ * (decisions grab-holds-and-throws-a-physics-body, grab-reaches-telekinesis-range,
+ * grab-holds-the-mob-against-the-surface-you-look-at).
  */
 class GrabStepTest {
 
@@ -38,20 +47,75 @@ class GrabStepTest {
     private static final double EPSILON = 1e-6;
     private static final GrabStep GRAB = new GrabStep(8, NEAR, FAR, 1.5, 1);
 
+    /**
+     * Where Grab hangs a held body's middle: against the first block the look
+     * meets short of the open-air distance, else at that distance
+     * (decision grab-holds-the-mob-against-the-surface-you-look-at).
+     */
     @Nested
-    class HoldDistance {
+    class HoldPoint {
+
+        private static final ResourceKey<Level> OVERWORLD =
+                ResourceKey.create(Registries.DIMENSION, Identifier.withDefaultNamespace("overworld"));
+        private static final Vec3 EYE = new Vec3(0.5, 1.62, 0.5);
+        /** A zombie's box. */
+        private static final double WIDTH = 0.6;
+        private static final double HEIGHT = 1.95;
+        private static final GrabStep.LookClip OPEN_AIR = (dimension, from, to) ->
+                BlockHitResult.miss(to, Direction.UP, BlockPos.containing(to));
 
         @Test
-        void levelOrUpwardLookHoldsAtFar() {
-            assertEquals(FAR, GrabStep.holdDistance(0f, NEAR, FAR), EPSILON);
-            assertEquals(FAR, GrabStep.holdDistance(-45f, NEAR, FAR), EPSILON);
+        void aWallAheadHoldsTheBodyFlushAgainstIt() {
+            double wallX = 2.5;
+            Vec3 middle = GRAB.restingMiddle(List.of(), OVERWORLD, EYE, new Vec3(1, 0, 0),
+                    plane(Direction.WEST, wallX), WIDTH, HEIGHT);
+            AABB box = boxAround(middle);
+            assertEquals(wallX, box.maxX, EPSILON, "The body's box should touch the wall, its middle at " + middle);
+            assertEquals(EYE.y, middle.y, EPSILON, "The body should hang on the level look");
         }
 
         @Test
-        void downwardLookDrawsInLinearlyToNear() {
-            assertEquals(3, GrabStep.holdDistance(GrabStep.FULL_DRAW_PITCH / 2, NEAR, FAR), EPSILON);
-            assertEquals(NEAR, GrabStep.holdDistance(GrabStep.FULL_DRAW_PITCH, NEAR, FAR), EPSILON);
-            assertEquals(NEAR, GrabStep.holdDistance(90f, NEAR, FAR), EPSILON);
+        void aLookAtTheFloorSetsTheBodyOnTheFloor() {
+            Vec3 down = Vec3.directionFromRotation(45f, -90f);
+            Vec3 middle = GRAB.restingMiddle(List.of(), OVERWORLD, EYE, down, plane(Direction.UP, 0), WIDTH, HEIGHT);
+            AABB box = boxAround(middle);
+            assertEquals(0, box.minY, EPSILON, "The body's box should rest on the floor, its middle at " + middle);
+            assertTrue(middle.x > EYE.x, "The body should rest ahead of the holder along the look, at " + middle);
+        }
+
+        @Test
+        void aClearLookHoldsAtTheOpenAirDistanceAtAnyPitch() {
+            for (float pitch : new float[] {0f, -45f, 45f, 80f}) {
+                Vec3 look = Vec3.directionFromRotation(pitch, -90f);
+                Vec3 middle = GRAB.restingMiddle(List.of(), OVERWORLD, EYE, look, OPEN_AIR, WIDTH, HEIGHT);
+                assertEquals(FAR, middle.distanceTo(EYE), EPSILON, "A clear look at pitch " + pitch
+                        + " should hold at the open-air distance");
+            }
+        }
+
+        private static AABB boxAround(Vec3 middle) {
+            return new AABB(middle.x - WIDTH / 2, middle.y - HEIGHT / 2, middle.z - WIDTH / 2,
+                    middle.x + WIDTH / 2, middle.y + HEIGHT / 2, middle.z + WIDTH / 2);
+        }
+
+        /**
+         * A clip meeting one solid plane, the face of the blocks behind it
+         * looking the way {@code face} points.
+         */
+        private static GrabStep.LookClip plane(Direction face, double at) {
+            Direction.Axis axis = face.getAxis();
+            return (dimension, from, to) -> {
+                double start = from.get(axis);
+                double end = to.get(axis);
+                boolean crosses = face.getAxisDirection() == Direction.AxisDirection.POSITIVE
+                        ? start >= at && end < at : start <= at && end > at;
+                if (!crosses) {
+                    return BlockHitResult.miss(to, face, BlockPos.containing(to));
+                }
+                Vec3 hit = from.lerp(to, (at - start) / (end - start));
+                return new BlockHitResult(hit, face, BlockPos.containing(hit.subtract(face.getUnitVec3().scale(0.5))),
+                        false);
+            };
         }
     }
 
