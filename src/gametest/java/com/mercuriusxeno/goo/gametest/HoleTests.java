@@ -58,6 +58,7 @@ public final class HoleTests {
     private static final String SWALLOW_TELLS_ITS_CLIENTS = "hole_swallow_tells_its_clients";
     private static final String STANDS_ONE_AT_A_TIME = "hole_stands_one_at_a_time";
     private static final String DISMISSED_BY_LEAVING_ITS_DIMENSION = "hole_dismissed_by_leaving_its_dimension";
+    private static final String MOUTH_LISTS_EVERY_KIND_STORED = "hole_mouth_lists_every_kind_stored";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -76,6 +77,7 @@ public final class HoleTests {
         GooTestFunctions.registerTest(registrar, MOUTH_FITS_A_ONE_BY_TWO_PLATFORM,
                 HoleTests::mouthFitsAOneByTwoPlatform);
         GooTestFunctions.registerTest(registrar, MOUTH_FITS_A_LONE_PILLAR, HoleTests::mouthFitsALonePillar);
+        GooTestFunctions.registerTest(registrar, MOUTH_LISTS_EVERY_KIND_STORED, HoleTests::mouthListsEveryKindStored);
     }
 
     private static final String MOUTH_COVERS_THREE_BY_THREE = "hole_mouth_covers_three_by_three";
@@ -213,6 +215,8 @@ public final class HoleTests {
     static final int DROPPED = 5;
     static final int SEEDED_STONE = 70;
     static final int SEEDED_DIAMONDS = 3;
+    /** More kinds than the twelve a mouth once showed at most. */
+    private static final int MANY_KINDS = 20;
 
     private HoleTests() {
     }
@@ -360,6 +364,33 @@ public final class HoleTests {
                         + POUR_COLUMN_SLACK + " of the pour's middle " + pourMiddle[0] + ", stands at "
                         + item.position() + (item.onGround() ? "" : " in the air"));
             }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * With more kinds on the shelf than the twelve a mouth once showed, the
+     * mouth the clients are told of lists every kind, in shelf order.
+     * decision hole-shows-every-kind-stored
+     *
+     * @param helper the gametest helper
+     */
+    public static void mouthListsEveryKindStored(GameTestHelper helper) {
+        helper.setBlock(FLOOR, Blocks.STONE);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        PocketShelves shelves = PocketShelves.get(helper.getLevel());
+        List<Identifier> seeded = BuiltInRegistries.ITEM.stream().filter(item -> item != Items.AIR)
+                .limit(MANY_KINDS).map(BuiltInRegistries.ITEM::getKey).toList();
+        seeded.forEach(kind -> shelves.add(caster.getUUID(), new ItemStack(BuiltInRegistries.ITEM.getValue(kind)), 1));
+        HoleOpening.open(helper.getLevel(), caster, helper.absolutePos(FLOOR), Direction.UP, LIFETIME, REFRESH);
+        helper.runAfterDelay(1, () -> {
+            Optional<PortableHole> hole = PortableHoles.of(caster.getUUID());
+            List<Identifier> told = hole.map(open -> PortableHoles.mouthOf(shelves, open).stored().stream()
+                    .map(PortableHolesSyncPayload.Stored::item).toList()).orElse(List.of());
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(hole.isPresent(), "The caster's hole should stand");
+            helper.assertTrue(told.equals(seeded), "The mouth should list all " + seeded.size()
+                    + " seeded kinds in shelf order, lists " + told.size() + ": " + told);
             helper.succeed();
         });
     }

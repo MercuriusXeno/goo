@@ -192,7 +192,7 @@ public final class PortableHoles {
      *
      * @param level the hole's level
      * @param hole  the hole
-     * @return each item swallowed, as many as a mouth shows stored, for the clients to draw easing in
+     * @return each item swallowed, as many as one sync tells of, for the clients to draw easing in
      */
     private static List<PortableHolesSyncPayload.Swallowed> swallow(ServerLevel level, PortableHole hole) {
         List<ItemEntity> fallen = level.getEntitiesOfClass(ItemEntity.class, hole.mouth(), ItemEntity::isAlive);
@@ -202,7 +202,7 @@ public final class PortableHoles {
         PocketShelves shelves = PocketShelves.get(level);
         List<PortableHolesSyncPayload.Swallowed> swallowed = new ArrayList<>();
         for (ItemEntity item : fallen) {
-            if (swallowed.size() < PortableHolesSyncPayload.MOST_STORED_SHOWN) {
+            if (swallowed.size() < PortableHolesSyncPayload.MOST_SWALLOWS_TOLD) {
                 swallowed.add(new PortableHolesSyncPayload.Swallowed(
                         BuiltInRegistries.ITEM.getKey(item.getItem().getItem()), item.position(), level.getGameTime()));
             }
@@ -266,8 +266,7 @@ public final class PortableHoles {
         PocketShelves shelves = PocketShelves.get(player.level());
         PortableHolesSyncPayload payload = new PortableHolesSyncPayload(OPEN.values().stream()
                 .filter(hole -> hole.dimension().equals(player.level().dimension()))
-                .map(hole -> new PortableHolesSyncPayload.Mouth(hole.footprint(), hole.face(), hole.openedAt(),
-                        hole.closesAt(), storedOf(shelves, hole.owner()), swallowedInto(hole.owner())))
+                .map(hole -> mouthOf(shelves, hole))
                 .toList());
         // A listener that never negotiated the mod's channels, a gametest's mock player, gets no sync.
         if (player.connection.hasChannel(payload)) {
@@ -276,15 +275,28 @@ public final class PortableHoles {
     }
 
     /**
-     * The first kinds an owner stored, as many as a mouth shows, for the
-     * client to draw swimming in the mouth.
+     * The mouth the clients are told of for a hole: where it stands, its
+     * span, the kinds its owner stored and what it swallowed last.
+     *
+     * @param shelves the server's shelves
+     * @param hole    the hole
+     * @return the mouth as a sync carries it
+     */
+    public static PortableHolesSyncPayload.Mouth mouthOf(PocketShelves shelves, PortableHole hole) {
+        return new PortableHolesSyncPayload.Mouth(hole.footprint(), hole.face(), hole.openedAt(), hole.closesAt(),
+                storedOf(shelves, hole.owner()), swallowedInto(hole.owner()));
+    }
+
+    /**
+     * Every kind an owner stored, for the client to draw swimming in the mouth.
+     * decision hole-shows-every-kind-stored
      *
      * @param shelves the server's shelves
      * @param owner   the hole's owner
      * @return the kinds and their counts, in shelf order
      */
     private static List<PortableHolesSyncPayload.Stored> storedOf(PocketShelves shelves, UUID owner) {
-        return shelves.shelfOf(owner).stream().limit(PortableHolesSyncPayload.MOST_STORED_SHOWN)
+        return shelves.shelfOf(owner).stream()
                 .map(entry -> new PortableHolesSyncPayload.Stored(
                         BuiltInRegistries.ITEM.getKey(entry.kind().getItem()), entry.count()))
                 .toList();

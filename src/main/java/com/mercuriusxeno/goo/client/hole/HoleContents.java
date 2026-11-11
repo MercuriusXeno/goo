@@ -21,6 +21,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
 import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -33,6 +34,7 @@ import java.util.List;
  * decision hole-is-an-in-world-portable-hole-for-items
  * decision hole-items-are-a-three-dimensional-soup-sunk-in-the-hole
  * decision swallowed-item-transitions-into-the-hole-smoothly
+ * decision hole-shows-every-kind-stored
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class HoleContents {
@@ -49,19 +51,30 @@ public final class HoleContents {
 
     private static final double HALF = 0.5;
 
-    private static final ItemStackRenderState[] SHOWN = newShown();
+    /**
+     * The render states the soup draws through, one per stored kind, grown to the most kinds a mouth stores.
+     * decision hole-shows-every-kind-stored
+     */
+    private static final List<ItemStackRenderState> SHOWN = new ArrayList<>();
     /** The render states the items easing in draw through, as many as one swallow tells of. */
-    private static final ItemStackRenderState[] EASING = newShown();
+    private static final ItemStackRenderState[] EASING = newEasing();
 
     private HoleContents() {
     }
 
-    private static ItemStackRenderState[] newShown() {
-        ItemStackRenderState[] shown = new ItemStackRenderState[HoleDrift.MOST_SHOWN];
-        for (int index = 0; index < shown.length; index++) {
-            shown[index] = new ItemStackRenderState();
+    private static ItemStackRenderState[] newEasing() {
+        ItemStackRenderState[] easing = new ItemStackRenderState[PortableHolesSyncPayload.MOST_SWALLOWS_TOLD];
+        for (int slot = 0; slot < easing.length; slot++) {
+            easing[slot] = new ItemStackRenderState();
         }
-        return shown;
+        return easing;
+    }
+
+    private static ItemStackRenderState shownState(int index) {
+        while (SHOWN.size() <= index) {
+            SHOWN.add(new ItemStackRenderState());
+        }
+        return SHOWN.get(index);
     }
 
     /**
@@ -90,11 +103,12 @@ public final class HoleContents {
     private static void submitMouth(Minecraft mc, SubmitCustomGeometryEvent event,
                                     PortableHolesSyncPayload.Mouth mouth, Vec3 camera, float open, float time) {
         MouthFrame frame = MouthFrame.of(mc, mouth);
+        float kinds = ClientPortableHoles.kindsShownAt(mouth, time);
         // decision swallowed-item-transitions-into-the-hole-smoothly: a kind easing in first waits out its transit
         for (int index : ClientPortableHoles.soupDrawn(mouth, time)) {
-            ItemStackRenderState item = modelOf(mc, SHOWN[index], mouth.stored().get(index).item(), index);
+            ItemStackRenderState item = modelOf(mc, shownState(index), mouth.stored().get(index).item(), index);
             if (item != null) {
-                HoleDrift.Placement placement = HoleDrift.placementAt(index, time, frame.halfAcross(),
+                HoleDrift.Placement placement = HoleDrift.placementAt(index, kinds, time, frame.halfAcross(),
                         frame.halfAlong(), open);
                 submitItem(event, item, frame.toWorld(placement.offset()).subtract(camera), frame, placement.size(),
                         TURN * time + index * TURN_PHASE);
@@ -102,13 +116,13 @@ public final class HoleContents {
         }
         List<HoleSwallows.Transit> transits = ClientPortableHoles.transitsInto(mouth, time);
         for (int slot = 0; slot < Math.min(transits.size(), EASING.length); slot++) {
-            submitTransit(mc, event, mouth, frame, transits.get(slot).swallowed(), slot, camera, time);
+            submitTransit(mc, event, mouth, frame, transits.get(slot).swallowed(), slot, camera, kinds, time);
         }
     }
 
     /**
      * Submits one swallowed item partway along its glide from where it stood
-     * into its kind's place in the soup, or down into the pit unseen.
+     * into its kind's place in the soup.
      * decision swallowed-item-transitions-into-the-hole-smoothly
      *
      * @param mc        the client
@@ -118,24 +132,26 @@ public final class HoleContents {
      * @param swallowed the item as the server told of it
      * @param slot      the render state slot it draws through
      * @param camera    the camera's world position
+     * @param kinds     the count of kinds the soup spreads over
      * @param time      the client's game time, partial tick included
      */
     private static void submitTransit(Minecraft mc, SubmitCustomGeometryEvent event,
                                       PortableHolesSyncPayload.Mouth mouth, MouthFrame frame,
                                       PortableHolesSyncPayload.Swallowed swallowed, int slot, Vec3 camera,
-                                      float time) {
+                                      float kinds, float time) {
+        int index = HoleSwallows.shownIndexOf(mouth, swallowed.item());
         ItemStackRenderState item = modelOf(mc, EASING[slot], swallowed.item(), slot);
-        if (item == null) {
+        // a swallow whose kind the mouth no longer stores has no place in the soup to ease to
+        if (item == null || index == HoleSwallows.NOT_SHOWN) {
             return;
         }
         // a dropped item draws its ground model unscaled, its middle about half its span over where it stands
         double droppedSize = largestSpanOf(item);
         Vec3 from = frame.toFrame(swallowed.at().add(0, droppedSize * HALF, 0));
-        int index = HoleSwallows.shownIndexOf(mouth, swallowed.item());
-        HoleDrift.Placement end = HoleSwallows.endOf(index, time, frame.halfAcross(), frame.halfAlong());
+        HoleDrift.Placement end = HoleSwallows.endOf(index, kinds, time, frame.halfAcross(), frame.halfAlong());
         HoleDrift.Placement placement = HoleSwallows.transitAt(from, droppedSize, end, time - swallowed.time());
         submitItem(event, item, frame.toWorld(placement.offset()).subtract(camera), frame, placement.size(),
-                TURN * time + Math.max(index, 0) * TURN_PHASE);
+                TURN * time + index * TURN_PHASE);
     }
 
     /**
