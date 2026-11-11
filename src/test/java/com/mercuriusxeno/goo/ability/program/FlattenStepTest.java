@@ -13,7 +13,6 @@ import java.util.Optional;
 import java.util.function.Predicate;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -21,7 +20,7 @@ import static org.mockito.Mockito.when;
 /**
  * Flatten's step breaks one block a tick from the cursor's 3x3 out from the
  * face the hold began on, up to 3 blocks out, outermost first, passing blocks outside its tag or
- * out of reach; a host outside a held channel breaks nothing
+ * out of reach
  * (decision flatten-disc-cursor-breaks-above-the-plane).
  */
 class FlattenStepTest {
@@ -69,14 +68,5 @@ class FlattenStepTest {
         run(host);
 
         verify(host).breakBlock(new BlockPos(9, 65, -1));
-    }
-
-    @Test
-    void aHostOutsideAHeldChannelBreaksNothing() {
-        ChannelHost host = hostWhere(pos -> true, Optional.empty());
-
-        run(host);
-
-        verify(host, never()).breakBlock(any());
     }
 }

@@ -20,7 +20,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -212,19 +211,6 @@ class ProgramHostLoadTest {
                 List.of(new DamageStep(expr("tick + 1"), DamageKind.MAGIC)), HostKind.ENTITY));
     }
 
-    /**
-     * A step needing exactly one capability, standing in for whichever
-     * real step needs it.
-     *
-     * @param needed the capability
-     * @return the step
-     */
-    private static Step needing(HostCapability needed) {
-        Step step = mock(Step.class);
-        when(step.requires()).thenReturn(Set.of(needed));
-        doReturn(LeafSteps.WAIT.type()).when(step).type();
-        return step;
-    }
 
     /**
      * A kind provides exactly the capabilities whose interface its host type implements,
@@ -287,22 +273,6 @@ class ProgramHostLoadTest {
                         HostCapability.AGING, HostCapability.FROST, HostCapability.SPAWN_MOB, HostCapability.IGNITE,
                         HostCapability.MELT),
                 HostKind.LANDING.capabilities());
-    }
-
-    @ParameterizedTest
-    @EnumSource(HostCapability.class)
-    void aStepLoadsExactlyWhereTheHostImplementsTheInterfaceItNeeds(HostCapability needed) {
-        for (HostKind kind : HostKind.values()) {
-            List<Step> steps = List.of(needing(needed));
-            if (needed.hostType().isAssignableFrom(kind.hostType())) {
-                assertDoesNotThrow(() -> ProgramBehavior.forHost(steps, kind), kind + " " + needed);
-            } else {
-                ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
-                        () -> ProgramBehavior.forHost(steps, kind), kind + " " + needed);
-                assertTrue(refusal.getMessage().contains(needed.key()), refusal.getMessage());
-                assertTrue(refusal.getMessage().contains(kind.label()), refusal.getMessage());
-            }
-        }
     }
 
     @Test

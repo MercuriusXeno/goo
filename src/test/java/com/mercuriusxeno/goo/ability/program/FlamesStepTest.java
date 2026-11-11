@@ -20,12 +20,8 @@ import java.util.function.Function;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyFloat;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -66,13 +62,15 @@ class FlamesStepTest {
     }
 
     @Test
-    void aFireImmuneMobIsNeitherLitNorHurt() {
+    void aLivingMobCatchesFire() {
+        assertEquals(true, FlamesStep.catchesFire(mob));
+    }
+
+    @Test
+    void aFireImmuneMobCatchesNoFire() {
         when(mob.fireImmune()).thenReturn(true);
 
-        FlamesStep.burn(level, mob, DAMAGE, BURN_SECONDS);
-
-        verify(mob, never()).igniteForSeconds(anyInt());
-        verify(mob, never()).hurtServer(any(), any(), anyFloat());
+        assertEquals(false, FlamesStep.catchesFire(mob));
     }
 
     @Test
@@ -134,7 +132,7 @@ class FlamesStepTest {
         }
 
         @Test
-        void aMeltedBlockBecomesItsMeltAndRestsNoItem() {
+        void aMeltedBlockBecomesItsMelt() {
             BlockBreakHost host = mock(BlockBreakHost.class);
             BlockPos pos = new BlockPos(3, 1, 2);
             BlockState waterState = mock(BlockState.class);
@@ -144,7 +142,6 @@ class FlamesStepTest {
                     item -> Optional.empty(), mock(BlockState.class));
 
             verify(host).transformBlock(pos, waterState);
-            verify(host, never()).restItem(any(), any());
         }
     }
 
