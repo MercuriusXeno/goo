@@ -31,7 +31,7 @@ class ReapSlashTest {
 
     private static final Vec3 EYE = new Vec3(0.5, 1.62, 0.5);
     private static final Vec3 LEVEL_SOUTH = new Vec3(0, 0, 1);
-    private static final ReapSlash.Shape SHAPE = new ReapSlash.Shape(1, 0.8, 6, 0.3, 2.0, 0.55, 0.3, 0.6,
+    private static final ReapSlash.Shape SHAPE = new ReapSlash.Shape(1, 2, 5, 1.5, 4, 0.8, 0.3, 0.6,
             Math.toRadians(10), Math.toRadians(15), 2.5, 6);
     private static final int SAMPLES = 2000;
     private static final double TOLERANCE = 1e-6;
@@ -78,7 +78,7 @@ class ReapSlashTest {
                 assertTrue(Math.abs(roll) <= 10 + TOLERANCE, "roll " + roll);
                 rolledLeft |= roll < -5;
                 rolledRight |= roll > 5;
-                if (slash.width() > 5) {
+                if (slash.width() > 4.5) {
                     steepestWide = Math.max(steepestWide, Math.abs(roll));
                 }
             }
@@ -128,12 +128,12 @@ class ReapSlashTest {
                 double width = slash.pointAt(0, 0, 1).distanceTo(slash.pointAt(0, 1, 1));
                 assertEquals(1, ahead(slash, slash.pointAt(0, 0, 1)), TOLERANCE, "near tip");
                 assertEquals(1, ahead(slash, slash.pointAt(0, 1, 1)), TOLERANCE, "far tip");
-                assertEquals(1 + width * 0.55, ahead(slash, slash.pointAt(0, 0.5, 1)), TOLERANCE, "bulge");
+                assertEquals(1 + width * 0.8, ahead(slash, slash.pointAt(0, 0.5, 1)), TOLERANCE, "bulge");
             }
         }
 
         @Test
-        void itsSizeRunsFromUnderABlockToSixAcrossThickeningWithIt() {
+        void itsSizeRunsFromTwoToFiveAcrossThickeningWithIt() {
             RandomSource random = RandomSource.create(5L);
             double narrowest = Double.MAX_VALUE;
             double widest = 0;
@@ -141,12 +141,12 @@ class ReapSlashTest {
                 ReapSlash slash = ReapSlash.launch(EYE, LEVEL_SOUTH, SHAPE, random);
                 double width = slash.pointAt(0, 0, 1).distanceTo(slash.pointAt(0, 1, 1));
                 double thickness = slash.pointAt(0, 0.5, 1).distanceTo(slash.pointAt(0, 0.5, 0));
-                assertTrue(width >= 0.8 - TOLERANCE && width <= 6 + TOLERANCE, "width " + width);
-                assertEquals((width - 0.8) / 5.2, (thickness - 0.3) / 1.7, 0.001, "width " + width + ", thick " + thickness);
+                assertTrue(width >= 2 - TOLERANCE && width <= 5 + TOLERANCE, "width " + width);
+                assertEquals((width - 2) / 3, (thickness - 1.5) / 2.5, 0.001, "width " + width + ", thick " + thickness);
                 narrowest = Math.min(narrowest, width);
                 widest = Math.max(widest, width);
             }
-            assertTrue(narrowest < 1.0 && widest > 5.8, "sizes " + narrowest + " to " + widest);
+            assertTrue(narrowest < 2.1 && widest > 4.9, "sizes " + narrowest + " to " + widest);
         }
 
         @Test
@@ -157,7 +157,7 @@ class ReapSlashTest {
             int huge = 0;
             for (int i = 0; i < SAMPLES; i++) {
                 ReapSlash slash = ReapSlash.launch(EYE, LEVEL_SOUTH, SHAPE, random);
-                double share = (slash.width() - 0.8) / 5.2;
+                double share = (slash.width() - 2) / 3;
                 if (share < 1 / 3.0) {
                     small++;
                 } else if (share > 2 / 3.0) {
@@ -240,12 +240,13 @@ class ReapSlashTest {
         }
 
         @Test
-        void reapsSlashesRunUnderABlockToSixAcrossFlatAndUnderTheEye() {
+        void reapsSlashesRunTwoToFiveAcrossAndOneAndAHalfToFourThickBowingOutEightTenths() {
             SlashStep step = (SlashStep) reap.behaviors().getFirst();
-            assertEquals(0.8, step.narrowest().evaluate(null), TOLERANCE);
-            assertEquals(6, step.widest().evaluate(null), TOLERANCE);
-            assertEquals(0.3, step.thinnest().evaluate(null), TOLERANCE);
-            assertEquals(2.0, step.thickest().evaluate(null), TOLERANCE);
+            assertEquals(2, step.narrowest().evaluate(null), TOLERANCE);
+            assertEquals(5, step.widest().evaluate(null), TOLERANCE);
+            assertEquals(1.5, step.thinnest().evaluate(null), TOLERANCE);
+            assertEquals(4, step.thickest().evaluate(null), TOLERANCE);
+            assertEquals(0.8, step.bulge().evaluate(null), TOLERANCE);
             assertEquals(10, step.tilt().evaluate(null), TOLERANCE);
             assertEquals(15, step.fan().evaluate(null), TOLERANCE);
             assertEquals(0.3, step.dropLeast().evaluate(null), TOLERANCE);
