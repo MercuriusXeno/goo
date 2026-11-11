@@ -165,8 +165,9 @@ final class StreamPrismCharge {
         BlockPos pos = prism.getBlockPos();
         // the operator's ruling: the prism is the gnats' homing target until it converts fully
         GooStreamHandler.sprayParticles(player, apex, moteAxis(apex, pos),
-                ability.delivery().withCone(ability.delivery().range(), 0), apex.distanceTo(Vec3.atCenterOf(pos)),
-                GooStreamHandler.travelOf(player));
+                ability.delivery().withCone(ability.delivery().range(), 0),
+                GooStreamHandler.restingSpeed(apex.distanceTo(Vec3.atCenterOf(pos))), GooStreamHandler.travelOf(player),
+                Optional.empty());
         warm(player.level(), prism, ability, hold);
     }
 
