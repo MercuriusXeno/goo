@@ -17,8 +17,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Covers Reap's slash, the Crissaegrim's from Symphony of the Night as its
- * frames show it: a thick crescent lying nearly flat in a plane along the
- * look, wholly below the eye line, hollow toward the slasher and bulging
+ * frames show it: a thick crescent rolled its own amount up to 10 degrees
+ * around the aim and turned its own heading up to 15 degrees off it, its
+ * middle under the crosshair line, hollow toward the slasher and bulging
  * away, its tips about a block out and its bulge growing with its size, which
  * runs from small to huge with its thickness, as often small or huge as middling;
  * appearing thick, then thinning to a sliver as it travels outward, keeping
@@ -31,7 +32,7 @@ class ReapSlashTest {
     private static final Vec3 EYE = new Vec3(0.5, 1.62, 0.5);
     private static final Vec3 LEVEL_SOUTH = new Vec3(0, 0, 1);
     private static final ReapSlash.Shape SHAPE = new ReapSlash.Shape(1, 0.8, 6, 0.3, 2.0, 0.55, 0.3, 0.6,
-            Math.toRadians(3), 2.5, 6);
+            Math.toRadians(10), Math.toRadians(15), 2.5, 6);
     private static final int SAMPLES = 2000;
     private static final double TOLERANCE = 1e-6;
 
@@ -39,8 +40,8 @@ class ReapSlashTest {
         return ReapSlash.launch(EYE, LEVEL_SOUTH, SHAPE, RandomSource.create(seed));
     }
 
-    private static double ahead(Vec3 point) {
-        return point.subtract(EYE).dot(LEVEL_SOUTH);
+    private static double ahead(ReapSlash slash, Vec3 point) {
+        return point.subtract(EYE).dot(slash.forward());
     }
 
     @Nested
@@ -54,7 +55,7 @@ class ReapSlashTest {
             for (int i = 0; i < SAMPLES; i++) {
                 ReapSlash slash = ReapSlash.launch(EYE, LEVEL_SOUTH, SHAPE, random);
                 Vec3 normal = slash.forward().cross(slash.span()).normalize();
-                assertEquals(0, slash.span().dot(LEVEL_SOUTH), TOLERANCE, "span " + slash.span());
+                assertEquals(0, slash.span().dot(slash.forward()), TOLERANCE, "span " + slash.span());
                 double offPlane = slash.pointAt(0, 0.5, 1).subtract(EYE).dot(normal);
                 double under = Math.abs(offPlane);
                 assertTrue(under >= 0.3 - TOLERANCE && under <= 0.6 + TOLERANCE, "under " + under);
@@ -66,32 +67,57 @@ class ReapSlashTest {
         }
 
         @Test
-        void itLiesWithinThreeDegreesOfFlat() {
+        void everySlashRollsItsOwnAmountUpToTenDegreesEitherWayWhateverItsSize() {
             RandomSource random = RandomSource.create(3L);
-            double steepest = 0;
+            double steepestWide = 0;
+            boolean rolledLeft = false;
+            boolean rolledRight = false;
             for (int i = 0; i < SAMPLES; i++) {
-                double tilt = Math.toDegrees(Math.asin(Math.abs(ReapSlash.launch(EYE, LEVEL_SOUTH, SHAPE, random).span().y)));
-                assertTrue(tilt <= 3 + TOLERANCE, "tilt " + tilt);
-                steepest = Math.max(steepest, tilt);
+                ReapSlash slash = ReapSlash.launch(EYE, LEVEL_SOUTH, SHAPE, random);
+                double roll = Math.toDegrees(Math.asin(slash.span().y));
+                assertTrue(Math.abs(roll) <= 10 + TOLERANCE, "roll " + roll);
+                rolledLeft |= roll < -5;
+                rolledRight |= roll > 5;
+                if (slash.width() > 5) {
+                    steepestWide = Math.max(steepestWide, Math.abs(roll));
+                }
             }
-            assertTrue(steepest > 0.5, "steepest " + steepest);
+            assertTrue(rolledLeft && rolledRight, "it rolls both ways");
+            assertTrue(steepestWide > 9.5, "a wide slash rolls the full 10, steepest " + steepestWide);
         }
 
         @Test
-        void everyPointStandsWhollyBelowTheEyeLine() {
+        void everySlashTurnsItsOwnHeadingUpToFifteenDegreesOffTheAim() {
+            RandomSource random = RandomSource.create(9L);
+            double widest = 0;
+            boolean turnedLeft = false;
+            boolean turnedRight = false;
+            for (int i = 0; i < SAMPLES; i++) {
+                ReapSlash slash = ReapSlash.launch(EYE, LEVEL_SOUTH, SHAPE, random);
+                double turn = Math.toDegrees(Math.atan2(slash.forward().x, slash.forward().z));
+                assertEquals(0, slash.forward().y, TOLERANCE, "it stays level with a level aim");
+                assertTrue(Math.abs(turn) <= 15 + TOLERANCE, "turn " + turn);
+                turnedLeft |= turn < -10;
+                turnedRight |= turn > 10;
+                widest = Math.max(widest, Math.abs(turn));
+            }
+            assertTrue(turnedLeft && turnedRight, "it turns both ways");
+            assertTrue(widest > 14.5, "widest turn " + widest);
+        }
+
+        @Test
+        void itsMiddleStaysUnderTheCrosshairLine() {
             RandomSource random = RandomSource.create(4L);
             double highest = Double.NEGATIVE_INFINITY;
             for (int i = 0; i < SAMPLES; i++) {
                 ReapSlash slash = ReapSlash.launch(EYE, LEVEL_SOUTH, SHAPE, random);
                 for (double age : new double[] {0, SHAPE.lifeTicks() / 2.0, SHAPE.lifeTicks()}) {
-                    for (int step = 0; step <= 20; step++) {
-                        for (double layer : new double[] {0, 1}) {
-                            highest = Math.max(highest, slash.pointAt(age, step / 20.0, layer).y - EYE.y);
-                        }
+                    for (double layer : new double[] {0, 1}) {
+                        highest = Math.max(highest, slash.pointAt(age, 0.5, layer).y - EYE.y);
                     }
                 }
             }
-            assertTrue(highest < -0.15, "the highest point stands " + highest + " from the eye line");
+            assertTrue(highest < -0.25, "the middle stands " + highest + " from the crosshair line");
         }
 
         @Test
@@ -100,9 +126,9 @@ class ReapSlashTest {
             for (int i = 0; i < SAMPLES; i++) {
                 ReapSlash slash = ReapSlash.launch(EYE, LEVEL_SOUTH, SHAPE, random);
                 double width = slash.pointAt(0, 0, 1).distanceTo(slash.pointAt(0, 1, 1));
-                assertEquals(1, ahead(slash.pointAt(0, 0, 1)), TOLERANCE, "near tip");
-                assertEquals(1, ahead(slash.pointAt(0, 1, 1)), TOLERANCE, "far tip");
-                assertEquals(1 + width * 0.55, ahead(slash.pointAt(0, 0.5, 1)), TOLERANCE, "bulge");
+                assertEquals(1, ahead(slash, slash.pointAt(0, 0, 1)), TOLERANCE, "near tip");
+                assertEquals(1, ahead(slash, slash.pointAt(0, 1, 1)), TOLERANCE, "far tip");
+                assertEquals(1 + width * 0.55, ahead(slash, slash.pointAt(0, 0.5, 1)), TOLERANCE, "bulge");
             }
         }
 
@@ -167,7 +193,7 @@ class ReapSlashTest {
         @Test
         void itTravelsTwoAndAHalfBlocksOutKeepingSixTenthsOfItsWidth() {
             double life = SHAPE.lifeTicks();
-            double travelled = ahead(slash.pointAt(life, 0.5, 1)) - ahead(slash.pointAt(0, 0.5, 1));
+            double travelled = ahead(slash, slash.pointAt(life, 0.5, 1)) - ahead(slash, slash.pointAt(0, 0.5, 1));
             assertEquals(2.5, travelled, TOLERANCE);
             assertEquals(slash.width() * 0.8, slash.pointAt(life / 2, 0, 1).distanceTo(slash.pointAt(life / 2, 1, 1)),
                     TOLERANCE);
@@ -220,7 +246,8 @@ class ReapSlashTest {
             assertEquals(6, step.widest().evaluate(null), TOLERANCE);
             assertEquals(0.3, step.thinnest().evaluate(null), TOLERANCE);
             assertEquals(2.0, step.thickest().evaluate(null), TOLERANCE);
-            assertEquals(3, step.tilt().evaluate(null), TOLERANCE);
+            assertEquals(10, step.tilt().evaluate(null), TOLERANCE);
+            assertEquals(15, step.fan().evaluate(null), TOLERANCE);
             assertEquals(0.3, step.dropLeast().evaluate(null), TOLERANCE);
             assertEquals(0.6, step.dropMost().evaluate(null), TOLERANCE);
         }

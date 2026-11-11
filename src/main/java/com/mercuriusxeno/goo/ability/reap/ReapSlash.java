@@ -14,18 +14,18 @@ import net.minecraft.world.phys.Vec3;
  * hollow toward him and bulging away, at its own angle, appearing whole and
  * bright and then dimming to an afterimage that drifts a little further out.
  * Here each slash appears thick, then thins to a sliver and dims as it
- * travels outward, keeping six tenths of its width. The crescent lies nearly flat in a plane along the slasher's look,
- * its chord running along its span axis with its tips out at the near
- * distance and its middle bulging farther out along the look; the plane sits
- * under the line of sight, so the slasher looks down onto its face and the
- * whole of it stays below the eye line. A point on it is named by how far along the arc it
+ * travels outward, keeping six tenths of its width. The crescent lies in a
+ * plane along its heading, rolled a little around it, its chord running
+ * along its span axis with its tips out at the near distance and its middle
+ * bulging farther out along the heading; its middle sits under the line of
+ * sight. A point on it is named by how far along the arc it
  * lies, 0 at one tip and 1 at the other, and by its layer, 1 on the bulging
  * edge and 0 on the hollow one; the two edges meet at the tips.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  *
  * @param origin    the middle of its chord as it appears, out at its tips' distance and off the line of sight
- * @param forward   the slasher's unit look, which it bulges and drifts along
- * @param span      the unit axis its chord runs along, square to the look and nearly level
+ * @param forward   its unit heading, the look turned a little left or right, which it bulges and drifts along
+ * @param span      the unit axis its chord runs along, square to its heading and rolled a little off level
  * @param width     its chord's length, tip to tip, in blocks
  * @param thickness how thick its middle is, in blocks
  * @param bulge     how far its middle bows out beyond its tips, in blocks
@@ -35,8 +35,6 @@ import net.minecraft.world.phys.Vec3;
 public record ReapSlash(Vec3 origin, Vec3 forward, Vec3 span, double width, double thickness, double bulge,
                         double drift, int lifeTicks) {
 
-    /** How far under the eye line a tilted slash's raised tip still stands, in blocks. */
-    static final double TIP_CLEARANCE = 0.2;
     /** The share of its width a slash keeps by the end of its life. */
     static final double WIDTH_KEPT = 0.6;
     /** The share of its thickness a slash keeps by the end of its life, a sliver. */
@@ -77,23 +75,26 @@ public record ReapSlash(Vec3 origin, Vec3 forward, Vec3 span, double width, doub
      * @param bulge     how far its middle bows out beyond its tips, as a share of its width
      * @param dropLeast the least its plane stands under the line of sight, in blocks
      * @param dropMost  the most its plane stands under the line of sight, in blocks
-     * @param maxTilt   the farthest it tilts from flat either way, in radians
+     * @param maxTilt   the farthest it rolls around the aim either way, in radians
+     * @param maxFan    the farthest its heading turns off the aim either way, in radians
      * @param drift     how far it travels outward over its life, in blocks
      * @param lifeTicks the ticks from it appearing to its dimming away
      */
     public record Shape(double near, double narrowest, double widest, double thinnest, double thickest,
-                        double bulge, double dropLeast, double dropMost, double maxTilt, double drift,
-                        int lifeTicks) {
+                        double bulge, double dropLeast, double dropMost, double maxTilt, double maxFan,
+                        double drift, int lifeTicks) {
     }
 
     /**
-     * A slash appearing out ahead of the slasher: its plane along the look,
-     * tilted at random within the shape's tilt of flat and set under the line
-     * of sight by a random drop, so the slasher looks down onto its face, its
-     * tilt held low enough that its raised tip stays below the eye line; sized
-     * at random, as often small or huge as middling, its width, thickness and
-     * bulge drawn together so a small slash is narrow and thin and a large one
-     * wide, thick and deep.
+     * A slash appearing out ahead of the slasher: its heading turned its own
+     * random amount off the aim, up to the shape's fan either way, so two
+     * slashes of one swing point different ways; rolled its own random amount
+     * around the aim, up to the shape's tilt either way whatever its size, so
+     * a wide slash's raised end may rise above the crosshair line; its middle
+     * set under the line of sight by a random drop; sized at random, as often
+     * small or huge as middling, its width, thickness and bulge drawn
+     * together so a small slash is narrow and thin and a large one wide,
+     * thick and deep.
      *
      * @param eye    the slasher's eye
      * @param look   the slasher's unit look
@@ -102,19 +103,21 @@ public record ReapSlash(Vec3 origin, Vec3 forward, Vec3 span, double width, doub
      * @return the slash
      */
     public static ReapSlash launch(Vec3 eye, Vec3 look, Shape shape, RandomSource random) {
-        Vec3 right = rightOf(look);
-        Vec3 up = right.cross(look).normalize();
+        Vec3 aimRight = rightOf(look);
+        double fan = (random.nextDouble() * SPAN - 1) * shape.maxFan();
+        Vec3 heading = look.scale(Math.cos(fan)).add(aimRight.scale(Math.sin(fan))).normalize();
+        Vec3 right = rightOf(heading);
+        Vec3 up = right.cross(heading).normalize();
         double drop = shape.dropLeast() + (shape.dropMost() - shape.dropLeast()) * random.nextDouble();
         double size = (1 - Math.cos(Math.PI * random.nextDouble())) * HALF;
         double width = shape.narrowest() + (shape.widest() - shape.narrowest()) * size;
         double thickness = shape.thinnest() + (shape.thickest() - shape.thinnest()) * size;
-        double steepest = Math.min(shape.maxTilt(), Math.asin(Math.clamp((drop - TIP_CLEARANCE) / (width * HALF), 0, 1)));
-        double tilt = (random.nextDouble() * SPAN - 1) * steepest;
+        double tilt = (random.nextDouble() * SPAN - 1) * shape.maxTilt();
         Vec3 span = right.scale(Math.cos(tilt)).add(up.scale(Math.sin(tilt)));
-        Vec3 normal = look.cross(span).normalize();
+        Vec3 normal = heading.cross(span).normalize();
         Vec3 under = normal.dot(up) > 0 ? normal.reverse() : normal;
-        Vec3 origin = eye.add(look.scale(shape.near())).add(under.scale(drop));
-        return new ReapSlash(origin, look, span, width, thickness, width * shape.bulge(), shape.drift(),
+        Vec3 origin = eye.add(heading.scale(shape.near())).add(under.scale(drop));
+        return new ReapSlash(origin, heading, span, width, thickness, width * shape.bulge(), shape.drift(),
                 shape.lifeTicks());
     }
     /**
