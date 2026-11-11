@@ -653,7 +653,9 @@ public final class GooThrowHandler {
             int travelTicks) {
         Vec3 hand = ThrowArc.clampToReach(player.getEyePosition(), payload.origin(),
                 ThrowArc.HAND_REACH * player.getScale());
-        GooFlightPayload flight = buildFlightPayload(hand, payload, delivery, travelTicks);
+        // thrown-blob-leaves-the-hand-with-a-fading-drift
+        GooFlightPayload flight = buildFlightPayload(hand, payload, delivery, travelTicks,
+                GooStreamHandler.travelOf(player));
         // A listener that never negotiated the mod's channels, a gametest's mock player, gets no flight.
         EntityVisuals.sendToWatchers(player, flight);
     }
@@ -664,10 +666,11 @@ public final class GooThrowHandler {
      * @param payload     the throw payload data
      * @param delivery    the delivery the flight flies by
      * @param travelTicks the number of ticks until arrival
+     * @param travel      the thrower's travel velocity, blocks per tick
      * @return the constructed flight payload
      */
     private static GooFlightPayload buildFlightPayload(Vec3 hand, GooThrowPayload payload, Delivery delivery,
-            int travelTicks) {
+            int travelTicks, Vec3 travel) {
         return new GooFlightPayload(
                 hand.x, hand.y, hand.z,
                 payload.gooTypeId(),
@@ -680,7 +683,8 @@ public final class GooThrowHandler {
                 delivery,
                 payload.targetPoint(),
                 payload.gate(),
-                payload.facePoint()
+                payload.facePoint(),
+                travel
         );
     }
 
