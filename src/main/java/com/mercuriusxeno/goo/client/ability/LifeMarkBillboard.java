@@ -16,12 +16,14 @@ import net.minecraft.world.phys.Vec3;
 import java.util.List;
 
 /**
- * Draws the life mark over each mob Heal or Drain touched lately, turned to
+ * Draws the life mark over each mob Heal or Drain touched lately or Leader
+ * senses, turned to
  * face the camera in vanilla's heart sprites: an empty heart's outline under
  * every heart, the full or half heart over it, and a clustered mark's count
  * beside its one heart. The mark draws see-through, over any block between
  * it and the camera, so a wall or ceiling the mark floats into cuts none of it.
  * touched-mobs-show-hearts-or-a-count-over-max
+ * leader-shows-life-bars-while-it-stands
  */
 final class LifeMarkBillboard {
 
@@ -65,7 +67,39 @@ final class LifeMarkBillboard {
     }
 
     /**
-     * Draws every touched mob's life mark, the outlines first, then the
+     * Whether a mob draws a life mark: Heal or Drain touched it lately, or
+     * Leader senses it.
+     * leader-shows-life-bars-while-it-stands
+     *
+     * @param entityId the mob's id
+     * @param tick     the game tick
+     * @param touched  the mobs Heal or Drain touched
+     * @param leader   the mobs Leader senses
+     * @return true for a touched or a sensed mob
+     */
+    static boolean showsLifeMark(int entityId, long tick, TouchedMobs touched, LeaderSense leader) {
+        return touched.marked(entityId, tick) || leader.appearsGlowing(entityId);
+    }
+
+    /**
+     * How strongly a mob's life mark draws: whole while Leader senses it and
+     * stands, fading with Leader's outline after it ends, and at TouchedMobs'
+     * own fade where only a touch marks it; the stronger of the two answers.
+     * leader-shows-life-bars-while-it-stands
+     *
+     * @param entityId the mob's id
+     * @param time     the game time including the partial tick
+     * @param touched  the mobs Heal or Drain touched
+     * @param leader   the mobs Leader senses
+     * @return the strength, zero to one
+     */
+    static float markStrength(int entityId, float time, TouchedMobs touched, LeaderSense leader) {
+        float touchedStrength = touched.opacity(entityId, time);
+        return leader.appearsGlowing(entityId) ? Math.max(leader.strength(time), touchedStrength) : touchedStrength;
+    }
+
+    /**
+     * Draws every marked mob's life mark, the outlines first, then the
      * fills, then the counts, one batch each.
      *
      * @param poseStack   the level's pose stack
@@ -78,11 +112,7 @@ final class LifeMarkBillboard {
             return;
         }
         float time = mc.level.getGameTime() + partialTick;
-        List<Shown> marks = shown.stream().map(living -> {
-            LifeMark mark = LifeMark.of(living.getHealth(), living.getMaxHealth());
-            return new Shown(living, mark, tint(TouchedMobs.CLIENT.opacity(living.getId(), time)),
-                    leftOf(mark, mc.font));
-        }).toList();
+        List<Shown> marks = shown.stream().map(living -> shownAt(living, time, mc.font)).toList();
         Camera camera = mc.gameRenderer.getMainCamera();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         drawHearts(poseStack, camera, buffers, marks, partialTick, CONTAINER);
@@ -96,6 +126,20 @@ final class LifeMarkBillboard {
             }
         }
         buffers.endBatch();
+    }
+
+    /**
+     * One mob's life mark at a moment, tinted by its mark's strength.
+     *
+     * @param living the mob
+     * @param time   the game time including the partial tick
+     * @param font   the font the count draws in
+     * @return the mark as the frame draws it
+     */
+    private static Shown shownAt(LivingEntity living, float time, Font font) {
+        LifeMark mark = LifeMark.of(living.getHealth(), living.getMaxHealth());
+        return new Shown(living, mark, tint(markStrength(living.getId(), time, TouchedMobs.CLIENT, LeaderSense.CLIENT)),
+                leftOf(mark, font));
     }
 
     /**
