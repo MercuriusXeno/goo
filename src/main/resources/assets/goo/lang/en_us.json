@@ -294,16 +294,12 @@
   "goo.ability.void.erase": "Erase",
   "goo.ability.void.erase.description": "Removes the struck mob from the world, with no reward.",
   "goo.ability.void.hole": "Hole",
-  "goo.ability.void.hole.description": "A hole that stores items, holding void goo while items are inside.",
-  "goo.ability.void.hole.cost_mechanics": "Open freely, items reserve %s void per slot to store, returned when retrieved.",
-  "goo.pocket.title": "Pocket",
+  "goo.ability.void.hole.description": "Opens a hole on a floor for thirty seconds that keeps every item thrown in; opened on a ceiling it pours them all back out.",
   "goo.ability.void.outsider": "Outsider",
   "goo.ability.void.outsider.description": "Hold to enter your own dimension and, inside, to grow its floor; the doorway takes you back.",
   "goo.ability.void.outsider.cost_mechanics": "6 void to enter. Growing the floor costs void per block.",
   "block.goo.voidstone": "Voidstone",
   "block.goo.dimension_door": "Dimension Doorway",
-  "goo.pocket.search": "Search",
-  "goo.pocket.void_held": "%s void held",
   "goo.ability.weird.bounce": "Bounce",
   "goo.ability.weird.bounce.description": "Leaves a bouncy pad where the blob lands.",
   "goo.ability.weird.slime": "Slime",
@@ -336,7 +332,5 @@
   "goo.ability.param.outsider.distance_cost": "Distance cost",
   "goo.ability.param.outsider.distance_cost.description": "Void goo in mB each block a cell stands from the room's center adds to its cost.",
   "goo.ability.param.outsider.enter": "Entry cost",
-  "goo.ability.param.outsider.enter.description": "Void goo in mB the trip into your pocket room costs.",
-  "goo.ability.param.pocket_open.slot_cost": "Slot cost",
-  "goo.ability.param.pocket_open.slot_cost.description": "Void goo in mB the Pocket reserves for each slot its stored items fill."
+  "goo.ability.param.outsider.enter.description": "Void goo in mB the trip into your pocket room costs."
 }

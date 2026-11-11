@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:pocket_opens_with_its_own_sound",
+  "function": "goo:hole_stands_one_at_a_time",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 20,
+  "max_ticks": 100,
   "setup_ticks": 0,
   "required": true
 }

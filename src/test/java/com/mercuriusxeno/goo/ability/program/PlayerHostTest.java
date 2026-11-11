@@ -228,10 +228,10 @@ class PlayerHostTest {
         }
 
         @Test
-        void playerHostProvidesTargetExplodeEntityScanChannelBlockBreaksFrostPocketAndOutsider() {
+        void playerHostProvidesTargetExplodeEntityScanChannelBlockBreaksFrostAndOutsider() {
             assertEquals(Set.of(HostCapability.TARGET, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN,
                             HostCapability.CHANNEL, HostCapability.BREAK_BLOCKS,
-                            HostCapability.FROST, HostCapability.POCKET, HostCapability.OUTSIDER),
+                            HostCapability.FROST, HostCapability.OUTSIDER),
                     HostKind.PLAYER.capabilities());
         }
     }
