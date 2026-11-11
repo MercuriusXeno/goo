@@ -128,10 +128,10 @@ final class ConeSections {
             for (int segment = 0; segment < SEGMENTS; segment++) {
                 double a0 = TWO_PI * segment / SEGMENTS;
                 double a1 = TWO_PI * (segment + 1) / SEGMENTS;
-                rim(quads, nearer.frame(), nearer.radius(), a0, nearer.along());
-                rim(quads, farther.frame(), farther.radius(), a0, farther.along());
-                rim(quads, farther.frame(), farther.radius(), a1, farther.along());
-                rim(quads, nearer.frame(), nearer.radius(), a1, nearer.along());
+                wall(quads, nearer, a0);
+                wall(quads, farther, a0);
+                wall(quads, farther, a1);
+                wall(quads, nearer, a1);
             }
         }
     }
@@ -148,6 +148,23 @@ final class ConeSections {
      */
     static double ringDistance(int ring, double near, double range, int sections) {
         return near + (range - near) * ring / sections;
+    }
+
+    /**
+     * Emits a wall vertex: on its ring, its normal pointing out from the
+     * axis, so the shader can thin the wall where the view grazes it.
+     *
+     * @param quads the quad emitter
+     * @param ring  the ring
+     * @param angle the vertex's angle about the axis
+     */
+    private static void wall(FlatQuadContext quads, Ring ring, double angle) {
+        Frame frame = ring.frame();
+        Vec3 outward = frame.side().scale(Math.cos(angle)).add(frame.up().scale(Math.sin(angle)));
+        Vec3 at = frame.center().add(outward.scale(ring.radius()));
+        int color = sectionColor(ring.along(), (float) Math.cos(angle), (float) Math.sin(angle));
+        quads.vertex((float) at.x, (float) at.y, (float) at.z, color, (float) outward.x, (float) outward.y,
+                (float) outward.z);
     }
 
     private static Ring ring(Volume volume, int ring, Vec3 side, Vec3 up) {
