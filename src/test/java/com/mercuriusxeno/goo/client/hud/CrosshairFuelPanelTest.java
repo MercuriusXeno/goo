@@ -159,6 +159,15 @@ class CrosshairFuelPanelTest {
             assertEquals(expected, CrosshairFuelPanel.rowCells(GooTypes.VOID, outsider, HOLDING, Integer.MAX_VALUE,
                     StandingUpkeep.NONE, OptionalDouble.of(RoomExtent.LAID), NOT_READ));
         }
+
+        /** Outside the pocket the row counts the trips in (decision outsider-reads-its-entry-as-uses-outside-the-pocket). */
+        @Test
+        void outsideThePocketTheRowReadsTheTripsTheVoidAffords() {
+            List<FuelCell> row = CrosshairFuelPanel.rowCells(GooTypes.VOID, outsider, 1000, Integer.MAX_VALUE,
+                    StandingUpkeep.NONE, OptionalDouble.empty(), NOT_READ);
+
+            assertEquals(new Count("x166"), row.get(row.size() - 1));
+        }
     }
 
     /** A 60 by 22 panel at (100, 50) cuts the 24x24 effect background into nine slices with a 3px border (decision diagnose-then-fix-aiming-panel-stretch). */
