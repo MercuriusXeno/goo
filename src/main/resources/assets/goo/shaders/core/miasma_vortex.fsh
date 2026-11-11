@@ -80,11 +80,17 @@ const float STREAK_SHARPNESS = 4.0;
 const float CLUMP_DENSITY = 1.0;
 const float STREAK_DENSITY = 1.4;
 const float HAZE_DENSITY = 0.06;
-// The vortex fills the whole area Drain strikes: its rim and far end fray only in a thin band at the
-// strike's own edge, as shares of the radius and of the length, ragged by the body noise this far.
+// The vortex fills the whole area Drain strikes: its rim frays only in a thin band at the strike's own edge,
+// as a share of the radius, ragged by the body noise this far.
 const float RIM_FROM = 0.9;
-const float FAR_FROM = 0.88;
 const float FRAY = 0.12;
+// Its far end tatters: from this share of the length out it is torn into strands and gaps by a fine, fast
+// noise flowing toward the hand, ragged this far, so the end is messy and never holds still.
+const float FAR_FROM = 0.62;
+const float TATTER = 0.75;
+const float TATTER_ACROSS = 5.0;
+const float TATTER_ALONG = 2.4;
+const float TATTER_FLOW = 1.5;
 // The miasma thickens toward the rim, from this share of the radius out, by this much a block, so the edge
 // of the hit area reads.
 const float WALL_FROM = 0.75;
@@ -219,8 +225,10 @@ vec3 miasmaAt(vec3 point, float seconds) {
 
     float ragged = body - 0.5;
     float reach = along / reachLength;
+    float tatter = plainNoise(vec3(section * TATTER_ACROSS, (along + seconds * TATTER_FLOW) * TATTER_ALONG));
+    float torn = 0.6 * (tatter - 0.5) + 0.4 * ragged;
     float frayed = (1.0 - smoothstep(RIM_FROM, 1.0, share + FRAY * ragged))
-            * (1.0 - smoothstep(FAR_FROM, 1.0, reach + FRAY * ragged))
+            * (1.0 - smoothstep(FAR_FROM, 1.0, reach + TATTER * torn))
             * smoothstep(0.0, HAND_CLEAR, along)
             * (1.0 - smoothstep(0.0, FORM_FEATHER, along - Shown.y * (reachLength + FORM_FEATHER)));
     float streaked = STREAK_DENSITY * streak * (0.35 + 0.65 * clump) * Shown.x;
