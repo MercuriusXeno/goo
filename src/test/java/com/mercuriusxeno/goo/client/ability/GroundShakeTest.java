@@ -165,13 +165,13 @@ class GroundShakeTest {
         @Test
         void aHeldBoreAndAHeldFlattenEachShakeTheGround() {
             assertTrue(GroundShake.shakes(ability(new BoreStep(BREAKABLE, ONE_BLOCK_A_TICK)), true, HELD_LONG));
-            assertTrue(GroundShake.shakes(ability(new FlattenStep(BREAKABLE)), true, HELD_LONG));
+            assertTrue(GroundShake.shakes(ability(new FlattenStep(BREAKABLE, ONE_BLOCK_A_TICK)), true, HELD_LONG));
         }
 
         @Test
         void neitherShakesUnheldAndOtherAbilitiesNever() {
             assertFalse(GroundShake.shakes(ability(new BoreStep(BREAKABLE, ONE_BLOCK_A_TICK)), false, HELD_LONG));
-            assertFalse(GroundShake.shakes(ability(new FlattenStep(BREAKABLE)), false, HELD_LONG));
+            assertFalse(GroundShake.shakes(ability(new FlattenStep(BREAKABLE, ONE_BLOCK_A_TICK)), false, HELD_LONG));
             assertFalse(GroundShake.shakes(ability(mock(Step.class)), true, HELD_LONG));
             assertFalse(GroundShake.shakes(null, true, HELD_LONG));
         }
