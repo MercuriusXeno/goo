@@ -58,7 +58,7 @@ public final class Telekinesis {
 
     /**
      * The modifier Telekinesis lays on a player's entity interaction range,
-     * which Grab adds to its own range (decision grab-reaches-telekinesis-range).
+     * whose presence doubles Grab's own range (decision grab-reaches-telekinesis-range).
      *
      * @param target the player
      * @return the modifier, or null while Telekinesis lays none
