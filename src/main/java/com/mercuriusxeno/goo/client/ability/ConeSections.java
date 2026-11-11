@@ -7,17 +7,14 @@ import java.util.function.DoubleUnaryOperator;
 
 /**
  * The volume a held ability's shader fills, as stacked cross-sections
- * square to its axis or as the tube walls around it: Petrify's fog in its
+ * square to its axis or as the tube walls around it: Growth's breeze in its
  * cone and Bore's vortex down its tunnel
- * (decisions petrify-stone-encasement-and-calcify-map,
- * bore-vortex-with-a-worldspace-shake). Each vertex's color carries how far
+ * (decision bore-vortex-with-a-worldspace-shake). Each vertex's color carries how far
  * along the look its section stands in red and where on the section it sits
  * in green and blue, since a core pipeline takes no per-draw uniforms.
  */
 final class ConeSections {
 
-    /** Where the first section stands by default, in blocks past the apex, clear of the view. */
-    static final double NEAR = 0.6;
     private static final int SEGMENTS = 32;
     private static final int OPAQUE = 0xFF;
     private static final float SIGNED_TO_UNIT = 0.5f;

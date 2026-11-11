@@ -1154,8 +1154,9 @@ public final class GooRenderTypes {
 
     /**
      * Petrify's fog pipeline (decision petrify-stone-encasement-and-calcify-map):
-     * cross-sections of the cone drawn through {@code petrify_fog.vsh / .fsh},
-     * undulating dust-fog waves washing forward through them.
+     * puffs of dust poured over the cone, each a quad facing the camera drawn
+     * through {@code petrify_fog.vsh / .fsh}, churning as it billows out
+     * (decision petrify-fog-is-billowing-roiling-dust).
      */
     public static final RenderPipeline PETRIFY_FOG = burnoutPipeline("petrify_fog", BlendFunction.TRANSLUCENT);
 
