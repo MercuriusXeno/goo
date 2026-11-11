@@ -110,7 +110,8 @@ public final class GatePassage {
 
     /**
      * Whether a block stands open to a body: it is one a linked gate lies on,
-     * and the body stands at the gate, before its face and within its oval.
+     * and the body stands at the gate, before its face and within its
+     * opening, the oval or rectangle its mask names.
      *
      * @param entity the body
      * @param pos    the block
@@ -135,7 +136,7 @@ public final class GatePassage {
     /**
      * Whether one gate opens a block to a body: the gate lies on the block
      * in the body's level, or the block frames the gate and the body moves
-     * in, and the body's middle stands at its face, within its oval.
+     * in, and the body's middle stands at its face, within its opening.
      *
      * @param gate   the gate
      * @param entity the body
