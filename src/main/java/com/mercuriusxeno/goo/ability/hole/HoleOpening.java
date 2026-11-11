@@ -59,10 +59,11 @@ public final class HoleOpening {
         payBack(owner, shelves.settleReserve(owner.getUUID()));
         PortableHole hole = new PortableHole(owner.getUUID(), level.dimension(), block, face,
                 level.getGameTime() + lifetime);
-        PortableHoles.stand(level.getServer(), hole);
         if (!hole.swallows()) {
             pour(level, hole, shelves);
         }
+        // stood after the pour, so the clients are told the emptied shelf
+        PortableHoles.stand(level.getServer(), hole);
         Vec3 middle = hole.mouth().getCenter();
         level.playSound(null, middle.x(), middle.y(), middle.z(), SoundEvents.ENDER_CHEST_OPEN, SoundSource.PLAYERS,
                 SOUND_VOLUME, 1.0F);
