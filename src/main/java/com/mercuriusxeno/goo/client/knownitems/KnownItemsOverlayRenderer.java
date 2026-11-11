@@ -148,6 +148,26 @@ public final class KnownItemsOverlayRenderer {
     }
 
     /**
+     * A span across the top row.
+     *
+     * @param left  its left edge
+     * @param right its right edge
+     */
+    record Span(int left, int right) {
+    }
+
+    /**
+     * The search bar's span: from two gaps right of the title to one gap left of the close button.
+     *
+     * @param frameWidth the frame's width
+     * @param titleWidth the title's drawn width
+     * @return the bar's left and right edges
+     */
+    static Span searchBarSpan(int frameWidth, int titleWidth) {
+        return new Span(MARGIN + titleWidth + SIDES * GAP, closeButton(frameWidth).left() - GAP);
+    }
+
+    /**
      * What a frame drew that the overlay's input reads back.
      *
      * @param icons  every icon drawn, where it drew
@@ -192,8 +212,8 @@ public final class KnownItemsOverlayRenderer {
         // The title marks the overlay as a menu without a panel around it.
         Component title = Component.translatable(TITLE_KEY);
         graphics.text(font, title, MARGIN, MARGIN + SEARCH_INSET, TITLE_TEXT);
-        drawSearchBar(graphics, font, MARGIN + font.width(title) + SIDES * GAP,
-                closeButton(frame.width()).left() - GAP, frame.query());
+        Span bar = searchBarSpan(frame.width(), font.width(title));
+        drawSearchBar(graphics, font, bar.left(), bar.right(), frame.query());
         // The Cancel cell takes slot 0, so every item sits one slot on.
         int slots = frame.items().size() + 1;
         ScrollModel scroll = ScrollModel.of((slots + grid.columns() - 1) / grid.columns(), grid.rowsVisible(),

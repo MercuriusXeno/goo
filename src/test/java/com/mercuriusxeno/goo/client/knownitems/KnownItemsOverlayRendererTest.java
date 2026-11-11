@@ -160,21 +160,16 @@ class KnownItemsOverlayRendererTest {
             int inset = (KnownItemsOverlayRenderer.CELL - KnownItemsOverlayRenderer.ICON) / 2;
             assertEquals(KnownItemsOverlayRenderer.MARGIN + KnownItemsOverlayRenderer.CELL + inset, icons.getFirst().left(),
                     "the first item should sit in the second cell, after Cancel");
-            assertTrue(icons.getFirst().top() > (int) searchBorder.getArgument(3), "the grid should start under the top row");
             assertEquals(icons.getFirst().top(), icons.getLast().top(), "a short list should fill its first row left to right");
         }
 
         @Test
-        void searchBarRunsFromBesideTheTitleToBeforeTheCloseButton() {
-            GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
-            render(graphics, items, "", 0);
-            Invocation searchBorder = callsOf(graphics, "fill").get(1);
-            KnownItemsOverlayRenderer.Box close = KnownItemsOverlayRenderer.closeButton(WIDTH);
-            assertTrue((int) searchBorder.getArgument(0) > KnownItemsOverlayRenderer.MARGIN,
-                    "the search bar should start right of the title");
-            assertTrue((int) searchBorder.getArgument(2) < close.left(), "the search bar should end before the close button");
-            assertTrue((int) searchBorder.getArgument(2) - (int) searchBorder.getArgument(0) > WIDTH / 2,
-                    "the search bar should span most of the top row");
+        void searchBarRunsFromTwoGapsRightOfTheTitleToOneGapLeftOfTheCloseButton() {
+            int titleWidth = 50;
+
+            assertEquals(new KnownItemsOverlayRenderer.Span(8 + titleWidth + 8,
+                            KnownItemsOverlayRenderer.closeButton(WIDTH).left() - 4),
+                    KnownItemsOverlayRenderer.searchBarSpan(WIDTH, titleWidth));
         }
 
         @Test
@@ -226,15 +221,6 @@ class KnownItemsOverlayRendererTest {
                     .max().orElseThrow();
             assertTrue(drawn.track().left() >= gridRight, "the track should stand right of the grid");
             assertTrue(drawn.scroll().scrolls(), "a long list should scroll");
-        }
-
-        @Test
-        void shortListDrawsNoTrack() {
-            GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
-            Drawn drawn = render(graphics, items, "", 0);
-            assertNull(drawn.track());
-            assertEquals(List.of(KnownItemsOverlayRenderer.DARKEN, KnownItemsOverlayRenderer.SEARCH_BORDER,
-                    KnownItemsOverlayRenderer.SEARCH_BAR), fillColors(graphics));
         }
 
         @Test

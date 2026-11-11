@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.block.crucible.CrucibleBasin;
+import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mercuriusxeno.goo.client.RenderContext;
@@ -11,7 +12,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
 
 /**
  * Tests that no vat or crucible surface vertex can ripple down to its
@@ -29,18 +29,17 @@ class SurfaceStaysAboveFloorTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {false, true})
-    void vatSurfaceStaysAboveTheBaseFloor(boolean agitated) {
-        // BlockEntityRenderState's constructor bootstraps Blocks, so the state is built without it.
-        VatRenderState state = mock(VatRenderState.class);
-        state.stackSize = 1;
-        float localHeight = VatBlockEntityRenderer.CAP_CEILING - VatBlockEntityRenderer.BASE_FLOOR;
-        state.fillFraction = THIN_FILL / localHeight;
-        state.rippleAmplitude = amplitude(agitated);
+    void aSurfaceGridAndItsDownwardTwinStayAboveTheFloorOfABoxThinnerThanTheirRipple(boolean agitated) {
         RecordingVertexConsumer recorder = new RecordingVertexConsumer();
+        RenderContext ctx = new RenderContext(new PoseStack().last(), recorder, 0);
+        float floor = VatBlockEntityRenderer.BASE_FLOOR;
+        CuboidBounds thin = new CuboidBounds(0.125f, 0.875f, 0.125f, 0.875f, floor, floor + THIN_FILL);
+        GooRenderUtil.UvRect uv = new GooRenderUtil.UvRect(0f, 0f, 1f, 1f);
 
-        VatFluidRenderer.renderFluid(new RenderContext(new PoseStack().last(), recorder, 0), state);
+        ctx.liquidSurfaceGrid(thin, uv, amplitude(agitated));
+        ctx.liquidSurfaceGridDown(thin, uv, amplitude(agitated));
 
-        assertEveryLowestHeightAbove(surfaceGridVertices(recorder.vertices()), VatBlockEntityRenderer.BASE_FLOOR);
+        assertEveryLowestHeightAbove(recorder.vertices(), floor);
     }
 
     @ParameterizedTest
@@ -58,12 +57,6 @@ class SurfaceStaysAboveFloorTest {
 
     private static float amplitude(boolean agitated) {
         return RenderContext.RESTING_RIPPLE_AMPLITUDE + (agitated ? SurfaceAgitation.AGITATION_CEILING : 0f);
-    }
-
-    /** The vat emits its top grid and downward twin first, then its four side faces. */
-    private static List<RecordingVertexConsumer.Vertex> surfaceGridVertices(List<RecordingVertexConsumer.Vertex> all) {
-        int gridVertices = RenderContext.SURFACE_GRID_CELLS * RenderContext.SURFACE_GRID_CELLS * 4;
-        return all.subList(0, 2 * gridVertices);
     }
 
     private static void assertEveryLowestHeightAbove(List<RecordingVertexConsumer.Vertex> vertices, float floor) {

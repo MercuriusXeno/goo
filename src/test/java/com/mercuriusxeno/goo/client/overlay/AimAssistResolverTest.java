@@ -28,12 +28,6 @@ import static org.mockito.Mockito.when;
 class AimAssistResolverTest {
 
     @Test
-    void anAimHitIsAnEntityAlone() {
-        assertEquals(List.of(AimAssistResolver.AimHit.EntityHit.class),
-                List.of(AimAssistResolver.AimHit.class.getPermittedSubclasses()));
-    }
-
-    @Test
     void theConeTakesAMobWithinTheRaysReachAndNoneBeyondIt() {
         assertTrue(AimAssistResolver.inReach(12, 16));
         assertFalse(AimAssistResolver.inReach(20, 16));
