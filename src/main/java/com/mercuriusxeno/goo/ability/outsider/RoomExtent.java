@@ -166,6 +166,19 @@ public final class RoomExtent {
     }
 
     /**
+     * The price of the ring an extent is growing through, which a ring time of the hold feeds.
+     * decision outsider-petal-reads-rate-and-time-in-the-room
+     *
+     * @param extent      the room's extent
+     * @param base        the void a cell costs at the center (mB)
+     * @param perDistance the void each block of Manhattan distance adds (mB)
+     * @return the ring's price (mB)
+     */
+    public static long priceOfRingGrowing(double extent, int base, int perDistance) {
+        return ringPrice(ringGrowing(extent), base, perDistance);
+    }
+
+    /**
      * The void growing through a ring costs, never less than 1 mB, so
      * every feed moves the extent.
      *

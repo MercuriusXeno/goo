@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.outsider.RoomExtent;
 import com.mercuriusxeno.goo.ability.outsider.SustainedGrowth;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -36,6 +37,7 @@ public record OutsiderStep(Expr charge, Expr enter, Expr ringTicks, Expr cellCos
     private static final String FIELD_RING_TICKS = "ring_ticks";
     private static final String FIELD_CELL_COST = "cell_cost";
     private static final String FIELD_DISTANCE_COST = "distance_cost";
+    private static final int TICKS_PER_SECOND = 20;
 
     /**
      * Codec for the step's params.
@@ -106,6 +108,20 @@ public record OutsiderStep(Expr charge, Expr enter, Expr ringTicks, Expr cellCos
     public long growthTicksAfforded(double extent, int holding, double standingPerTick) {
         return SustainedGrowth.ticksAfforded(extent, holding, standingPerTick, cellCost.evaluateInt(Variables.NONE),
                 distanceCost.evaluateInt(Variables.NONE), ringTicks.evaluateInt(Variables.NONE));
+    }
+
+    /**
+     * The void a second of the hold feeds the room at an extent: the price of
+     * the ring it grows through, scaled from the ring time to a second.
+     * decision outsider-petal-reads-rate-and-time-in-the-room
+     *
+     * @param extent the room's extent
+     * @return the void a second (mB)
+     */
+    public long growthPricePerSecond(double extent) {
+        long ringPrice = RoomExtent.priceOfRingGrowing(extent, cellCost.evaluateInt(Variables.NONE),
+                distanceCost.evaluateInt(Variables.NONE));
+        return ringPrice * TICKS_PER_SECOND / ringTicks.evaluateInt(Variables.NONE);
     }
 
     @Override
