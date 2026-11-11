@@ -15,6 +15,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
@@ -41,8 +42,11 @@ import java.util.Optional;
  * stands before them. While choosing, every portal of the owner's shows a
  * thin outline through the blocks, to find and pick one from afar. Inside a
  * view's own pass the views within it draw, and only an inert gate swirls.
+ * The edges of the Outsider room the player stands in show the opposite side
+ * of the room flush over their whole face, with no rim and no swirl.
  * portals-link-by-looking-through-portal-vision
  * hole-closes-the-space-to-an-opening-ahead
+ * outsider-room-wraps-and-repeats-at-the-platform-edge
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class PortalFaces {
@@ -101,6 +105,9 @@ public final class PortalFaces {
          */
         AABB drawnBox(Vec3 camera) {
             AABB box = gate.blocks().move(camera.reverse());
+            if (gate.mask() == Gate.Mask.RECTANGLE) {
+                return box;
+            }
             float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
             // a portal, as a hole's mouth, grows in from nothing to its size as it is placed
             float grown = hole ? ClientHoles.grownOpen(gate, partialTick) : ClientPortals.grownOpen(gate, partialTick);
@@ -223,7 +230,7 @@ public final class PortalFaces {
      * @param dimension the level drawn
      * @return the gates
      */
-    private static List<Drawn> gatesIn(ResourceKey<Level> dimension) {
+    static List<Drawn> gatesIn(ResourceKey<Level> dimension) {
         List<Drawn> gates = new ArrayList<>();
         ClientPortals.portals().forEach(portal -> gates.add(new Drawn(portal.gate(),
                 colorOf(portal, ClientPortals.links()), false)));
@@ -237,6 +244,11 @@ public final class PortalFaces {
         ClientHoles.holes().forEach(hole -> {
             gates.add(new Drawn(hole.entry(), BLUE_RGB, true));
             gates.add(new Drawn(hole.exit(), ORANGE_RGB, true));
+        });
+        // outsider-room-wraps-and-repeats-at-the-platform-edge: a room's edges wear no color, drawing no rim
+        ClientRoomEdges.edges().forEach(pair -> {
+            gates.add(new Drawn(pair.one(), 0, false));
+            gates.add(new Drawn(pair.other(), 0, false));
         });
         gates.removeIf(drawn -> !drawn.gate().dimension().equals(dimension));
         return gates;
@@ -254,13 +266,71 @@ public final class PortalFaces {
             List<Drawn> gates) {
         for (Drawn drawn : gates) {
             PortalView.viewOf(drawn.gate()).ifPresent(view -> {
-                // hole-closes-the-space-to-an-opening-ahead
-                RenderType type = drawn.hole() ? GooRenderTypes.gooHoleView(view) : GooRenderTypes.gooPortalView(view);
+                Face face = faceOf(drawn.gate(), true, PortalView.drawing(), false);
+                if (face == Face.NONE) {
+                    return;
+                }
+                RenderType type = viewTypeOf(face, drawn.hole(), view);
                 emitOval(pose, buffers.getBuffer(type), drawn.drawnBox(camera), drawn.gate().face(),
                         ARGB.color(OPAQUE, drawn.rgb()));
                 buffers.endBatch(type);
             });
         }
+    }
+
+    /**
+     * The render type a gate's view draws through: a room edge's over its
+     * whole rectangle, a hole's mouth see-through with a torn edge, a
+     * portal's inside its oval under its rim.
+     *
+     * @param face how the gate's face draws
+     * @param hole whether the gate is a hole's mouth
+     * @param view the view's texture
+     * @return the render type
+     */
+    private static RenderType viewTypeOf(Face face, boolean hole, Identifier view) {
+        if (face == Face.RECTANGLE_VIEW) {
+            // outsider-room-wraps-and-repeats-at-the-platform-edge
+            return GooRenderTypes.gooRoomEdgeView(view);
+        }
+        // hole-closes-the-space-to-an-opening-ahead
+        return hole ? GooRenderTypes.gooHoleView(view) : GooRenderTypes.gooPortalView(view);
+    }
+
+    /**
+     * How a gate's face draws this frame.
+     */
+    enum Face {
+        /** The view through, inside an oval under a rim of the gate's color. */
+        OVAL_VIEW,
+        /** The view through, over the face's whole rectangle with no rim. */
+        RECTANGLE_VIEW,
+        /** The idle swirl. */
+        SWIRL,
+        /** Nothing. */
+        NONE
+    }
+
+    /**
+     * How a gate's face draws: the view through it where one drew, else the
+     * idle swirl, which inside a view's own pass only an inert gate shows.
+     *
+     * @param gate   the gate
+     * @param viewed whether a view through it drew for the pass drawing
+     * @param inPass whether a view's own pass is drawing
+     * @param inert  whether no link the client knows holds it
+     * @return how its face draws
+     */
+    static Face faceOf(Gate gate, boolean viewed, boolean inPass, boolean inert) {
+        if (gate.mask() == Gate.Mask.RECTANGLE) {
+            // outsider-room-wraps-and-repeats-at-the-platform-edge: one copy of the room shows past each edge, the
+            // void beyond it, so an edge with no view, or one met inside a view, shows nothing
+            return viewed && !inPass ? Face.RECTANGLE_VIEW : Face.NONE;
+        }
+        if (viewed) {
+            return Face.OVAL_VIEW;
+        }
+        return !inPass || inert ? Face.SWIRL : Face.NONE;
     }
 
     /**
@@ -278,8 +348,9 @@ public final class PortalFaces {
             List<Drawn> gates) {
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.GOO_PORTAL_IDLE_TYPE);
         for (Drawn drawn : gates) {
-            boolean swirls = PortalView.drawing() ? inert(drawn.gate()) : PortalView.viewOf(drawn.gate()).isEmpty();
-            if (swirls) {
+            Face face = faceOf(drawn.gate(), PortalView.viewOf(drawn.gate()).isPresent(), PortalView.drawing(),
+                    inert(drawn.gate()));
+            if (face == Face.SWIRL) {
                 emitOval(pose, consumer, drawn.drawnBox(camera), drawn.gate().face(),
                         ARGB.color(SWIRL_ALPHA, drawn.rgb()));
             }
