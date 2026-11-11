@@ -7,7 +7,7 @@
   "requires": ["minecraft:wheat", "minecraft:wheat_seeds"],
   "delivery": { "kind": "self", "ticks_per_charge": 20 },
   "behaviors": [
-    { "type": "slash", "fewest_ticks": 2, "most_ticks": 3, "fewest_slashes": 1, "most_slashes": 2, "near": 1,
+    { "type": "slash", "fewest_ticks": 2, "most_ticks": 3, "fewest_slashes": 1, "most_slashes": 2, "near": 0,
       "narrowest": 2, "widest": 5, "thinnest": 1.5, "thickest": 4, "bulge": 0.8, "drop_least": 0.3,
       "drop_most": 0.6, "tilt": 10, "fan": 15, "drift": 2.5, "life_ticks": 6, "damage": 1 }
   ],
