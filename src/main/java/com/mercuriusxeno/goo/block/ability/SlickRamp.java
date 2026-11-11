@@ -28,6 +28,34 @@ public final class SlickRamp {
     }
 
     /**
+     * The velocity a thing leaves a tick on the slick with: a thing trying
+     * to move that steps on from other ground slower than the start speed is
+     * raised to it along its heading, since a ramp on a small speed gives
+     * almost nothing; a thing trying otherwise is ramped; a thing not trying
+     * only slides.
+     * slick-raises-a-slow-entry-to-a-start-speed
+     *
+     * @param velocity           the velocity of the thing on the slick
+     * @param stoodOnSlickBefore whether it stood on slick the tick before
+     * @param trying             whether it tries to move
+     * @param triedBefore        the ticks it kept trying before this one
+     * @param slick              the slick step naming the ramp and the start speed
+     * @return the velocity it leaves the tick with
+     */
+    public static Vec3 slid(Vec3 velocity, boolean stoodOnSlickBefore, boolean trying, int triedBefore,
+                            SlickStep slick) {
+        if (!trying) {
+            return velocity;
+        }
+        double speed = velocity.horizontalDistance();
+        if (!stoodOnSlickBefore && speed > 0 && speed < slick.startSpeed()) {
+            double scale = slick.startSpeed() / speed;
+            return new Vec3(velocity.x * scale, velocity.y, velocity.z * scale);
+        }
+        return ramped(velocity, ramp(triedBefore, slick), slick.topSpeed());
+    }
+
+    /**
      * A velocity ramped by the slick.
      *
      * @param velocity the velocity of the thing on the slick

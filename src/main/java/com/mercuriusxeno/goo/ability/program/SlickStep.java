@@ -23,18 +23,21 @@ import java.util.stream.Stream;
  * its slime. The slick it lays reads its ramp and top speed from this step,
  * so the JSON names how fast the slick drives a thing trying to move on it:
  * the ramp starts gentle and grows to its strongest over the build's ticks
- * the thing keeps trying.
+ * the thing keeps trying, and a thing stepping on slower than the start
+ * speed is raised to it.
  * slick-coats-the-ground-with-kinetic-speed
  * slick-ramp-grows-while-a-thing-keeps-moving
+ * slick-raises-a-slow-entry-to-a-start-speed
  *
  * @param ticks         the ticks of stream a cell takes to slick
  * @param startRamp     the factor the slick multiplies a trying thing's horizontal velocity by on its first tick
  * @param strongestRamp the factor the ramp grows to
  * @param buildTicks    the ticks of trying the ramp takes to grow from its start to its strongest
  * @param topSpeed      the horizontal speed the ramp holds a thing to, in blocks a tick
+ * @param startSpeed    the horizontal speed a trying thing stepping on slower is raised to, in blocks a tick
  */
-public record SlickStep(int ticks, double startRamp, double strongestRamp, int buildTicks, double topSpeed)
-        implements TakesNoEntity {
+public record SlickStep(int ticks, double startRamp, double strongestRamp, int buildTicks, double topSpeed,
+                        double startSpeed) implements TakesNoEntity {
 
     private static final String NAME = "slick";
     private static final String FIELD_TICKS = "ticks";
@@ -42,6 +45,7 @@ public record SlickStep(int ticks, double startRamp, double strongestRamp, int b
     private static final String FIELD_STRONGEST_RAMP = "strongest_ramp";
     private static final String FIELD_BUILD_TICKS = "build_ticks";
     private static final String FIELD_TOP_SPEED = "top_speed";
+    private static final String FIELD_START_SPEED = "start_speed";
 
     /**
      * Codec for the step's params.
@@ -51,7 +55,8 @@ public record SlickStep(int ticks, double startRamp, double strongestRamp, int b
             Codec.doubleRange(1, Double.MAX_VALUE).fieldOf(FIELD_START_RAMP).forGetter(SlickStep::startRamp),
             Codec.doubleRange(1, Double.MAX_VALUE).fieldOf(FIELD_STRONGEST_RAMP).forGetter(SlickStep::strongestRamp),
             Codec.intRange(1, Integer.MAX_VALUE).fieldOf(FIELD_BUILD_TICKS).forGetter(SlickStep::buildTicks),
-            Codec.doubleRange(0, Double.MAX_VALUE).fieldOf(FIELD_TOP_SPEED).forGetter(SlickStep::topSpeed)
+            Codec.doubleRange(0, Double.MAX_VALUE).fieldOf(FIELD_TOP_SPEED).forGetter(SlickStep::topSpeed),
+            Codec.doubleRange(0, Double.MAX_VALUE).fieldOf(FIELD_START_SPEED).forGetter(SlickStep::startSpeed)
     ).apply(inst, SlickStep::new));
 
     /**

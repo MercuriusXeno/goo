@@ -15,9 +15,12 @@ import java.util.WeakHashMap;
  * a ramp that grows the longer it keeps trying, and a thing not trying, an
  * item, a projectile or a player who let go of the keys, is left to slide on
  * the film unmultiplied. The build follows no heading, since the ramp
- * multiplies whatever the velocity is, so a turn keeps it.
+ * multiplies whatever the velocity is, so a turn keeps it. A thing trying to
+ * move that steps on from other ground slower than the start speed is raised
+ * to it that tick.
  * slick-coats-the-ground-with-kinetic-speed
  * slick-ramp-grows-while-a-thing-keeps-moving
+ * slick-raises-a-slow-entry-to-a-start-speed
  */
 public final class SlickBuild {
 
@@ -38,13 +41,18 @@ public final class SlickBuild {
     private static final Map<Object, Build> CLIENT_BUILDS = Collections.synchronizedMap(new WeakHashMap<>());
     private static final Map<Object, Build> SERVER_BUILDS = Collections.synchronizedMap(new WeakHashMap<>());
 
+    /** The game time a slider that never tried last tried at, far enough back to have been forgotten. */
+    private static final long NEVER_TRIED = -FORGET_TICKS - 1;
+
     /**
-     * A slider's build.
+     * A slider's build, and when it last stood on the slick, which tells a
+     * tick stepping on from other ground from one sliding on.
      *
-     * @param tried       the ticks it has kept trying
-     * @param lastTriedAt the game time of the last tick it tried
+     * @param tried         the ticks it has kept trying
+     * @param lastTriedAt   the game time of the last tick it tried
+     * @param lastOnSlickAt the game time of the last tick it stood on the slick
      */
-    private record Build(int tried, long lastTriedAt) {
+    private record Build(int tried, long lastTriedAt, long lastOnSlickAt) {
     }
 
     /**
@@ -100,26 +108,45 @@ public final class SlickBuild {
     }
 
     /**
-     * Ramps a slider trying to move by its build's ramp and grows the build;
-     * a slider not trying keeps its velocity.
+     * Raises a slider trying to move that steps on slowly, else ramps it by
+     * its build's ramp, and grows the build; a slider not trying keeps its
+     * velocity. Every tick on the slick is remembered, so stepping from one
+     * slick block to the next, or starting to move where it stood still on
+     * the slick, is no entry.
      *
      * @param slider the slider
-     * @param slick  the slick step naming the ramp
+     * @param slick  the slick step naming the ramp and the start speed
      */
     static void slide(Slider slider, SlickStep slick) {
-        if (!slider.tryingToMove()) {
-            return;
-        }
         Map<Object, Build> builds = slider.clientSide() ? CLIENT_BUILDS : SERVER_BUILDS;
         Build before = builds.get(slider.identity());
         long now = slider.gameTime();
-        if (before != null && before.lastTriedAt() == now) {
+        if (before != null && before.lastOnSlickAt() == now) {
             // a second step on the slick within one tick ramps nothing more
             return;
         }
+        boolean trying = slider.tryingToMove();
         int tried = triedBefore(before, now);
-        slider.slide(SlickRamp.ramped(slider.velocity(), SlickRamp.ramp(tried, slick), slick.topSpeed()));
-        builds.put(slider.identity(), new Build(tried + 1, now));
+        slider.slide(SlickRamp.slid(slider.velocity(), stoodOnSlickBefore(before, now), trying, tried, slick));
+        builds.put(slider.identity(),
+                trying ? new Build(tried + 1, now, now) : new Build(tried, lastTriedAt(before), now));
+    }
+
+    /**
+     * @param before the slider's build, null where it has none
+     * @param now    the game time it slides at
+     * @return whether it stood on the slick the tick before
+     */
+    private static boolean stoodOnSlickBefore(Build before, long now) {
+        return before != null && before.lastOnSlickAt() == now - 1;
+    }
+
+    /**
+     * @param before the slider's build, null where it has none
+     * @return the game time it last tried at
+     */
+    private static long lastTriedAt(Build before) {
+        return before == null ? NEVER_TRIED : before.lastTriedAt();
     }
 
     /**

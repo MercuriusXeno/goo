@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.SlickStep;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
@@ -33,6 +34,7 @@ public final class SlickTests {
     private static final String ABILITY_REQUIRED = "Ability registry must hold goo:kinetic_slick";
     private static final String SLICK_SLIDES_AN_ITEM = "slick_slides_an_item_without_speeding_it";
     private static final String SLICK_SPEEDS_A_MOB = "slick_speeds_up_a_mob_walking_on_it";
+    private static final String SLICK_RAISES_A_WALKER = "slick_raises_a_slow_walker_to_its_start_speed";
     private static final BlockPos STREAMER_POS = new BlockPos(0, 1, 2);
     private static final float FACING_EAST = -90f;
     /** Pitch down from the eye toward the stone's center three blocks off. */
@@ -71,6 +73,10 @@ public final class SlickTests {
             + " slick %s, ice %s";
     private static final String NOT_FASTER_THAN_STONE = "A husk %d ticks onto slick should outpace its walk on stone:"
             + " %.4f on stone, %.4f on slick";
+    private static final String NOT_SLOW_ON_STONE = "The husk should walk the stone slower than the start speed:"
+            + " %.4f against %.4f";
+    private static final String NOT_RAISED = "A husk stepping onto slick slowly should leave its first slick tick"
+            + " at the start speed or faster: %.4f against %.4f";
     private static final String NOT_FASTER_THAN_ICE = "A husk %d ticks onto slick should outpace a husk %d ticks"
             + " onto ice: %.4f on ice, %.4f on slick";
 
@@ -85,6 +91,7 @@ public final class SlickTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, SLICK_SLIDES_AN_ITEM, SlickTests::slickSlidesAnItemWithoutSpeedingIt);
         GooTestFunctions.registerTest(registrar, SLICK_SPEEDS_A_MOB, SlickTests::slickSpeedsUpAMobWalkingOnIt);
+        GooTestFunctions.registerTest(registrar, SLICK_RAISES_A_WALKER, SlickTests::slickRaisesASlowWalkerToItsStartSpeed);
     }
 
     /**
@@ -139,6 +146,34 @@ public final class SlickTests {
             Walker onSlick = walkTheLane(helper, slickStart);
             Walker onIce = walkTheLane(helper, iceStart);
             watchTheWalk(helper, onSlick, onIce);
+        });
+    }
+
+    /**
+     * Slick's stream lays slick over a strip of stone; a husk walks from
+     * stone onto it slower than the slick step's start speed and moves at
+     * the start speed or faster the first tick it stands on the slick.
+     * slick-raises-a-slow-entry-to-a-start-speed
+     *
+     * @param helper the gametest helper
+     */
+    public static void slickRaisesASlowWalkerToItsStartSpeed(GameTestHelper helper) {
+        laySlick(helper, () -> {
+            BlockPos slickStart = SLICKED_STONE.east(STRIP_WEST);
+            layLane(helper, slickStart, null);
+            Walker walker = walkTheLane(helper, slickStart);
+            double startSpeed = SlickStep.in(AbilityRegistry.of(helper.getLevel()).getAbility(SLICK).behaviors())
+                    .orElseThrow().startSpeed();
+            // a sequence ticks apart from the delays this callback runs among, which take no new delay mid-tick
+            helper.startSequence().thenWaitUntil(() -> {
+                walker.watch(helper);
+                helper.assertTrue(walker.stepped(), String.format(NEVER_WALKED, walker, "unwalked"));
+            }).thenExecute(() -> {
+                helper.assertTrue(walker.onStone < startSpeed,
+                        String.format(NOT_SLOW_ON_STONE, walker.onStone, startSpeed));
+                helper.assertTrue(walker.firstOnSlippery >= startSpeed,
+                        String.format(NOT_RAISED, walker.firstOnSlippery, startSpeed));
+            }).thenSucceed();
         });
     }
 
@@ -216,6 +251,7 @@ public final class SlickTests {
         private final Mob mob;
         private double onStone = -1;
         private int slipperyTicks;
+        private double firstOnSlippery = -1;
         private double onSlippery = -1;
 
         Walker(Mob mob) {
@@ -229,9 +265,18 @@ public final class SlickTests {
             double speed = mob.getDeltaMovement().horizontalDistance();
             if (helper.getLevel().getBlockState(mob.getOnPos()).is(Blocks.STONE)) {
                 onStone = speed;
-            } else if (onStone >= 0 && ++slipperyTicks == SLIPPERY_TICKS) {
+                return;
+            }
+            if (onStone >= 0 && ++slipperyTicks == 1) {
+                firstOnSlippery = speed;
+            }
+            if (slipperyTicks == SLIPPERY_TICKS) {
                 onSlippery = speed;
             }
+        }
+
+        boolean stepped() {
+            return firstOnSlippery >= 0;
         }
 
         boolean crossed() {

@@ -15,8 +15,38 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class SlickBuildTest {
 
     private static final double EXACT = 1e-9;
-    private static final Vec3 EASTWARD = new Vec3(0.02, 0, 0);
+    /** Faster than kinetic_slick.json's start speed, so its entry is ramped alone, and short of its top speed. */
+    private static final Vec3 EASTWARD = new Vec3(0.4, 0, 0);
     private static final int EASTWARD_TICKS = 10;
+
+    @Test
+    void theRaiseIsTheEntryTicksAlone() {
+        SlickStep slick = SlickRampTest.shippedSlick();
+        Vec3 slow = new Vec3(slick.startSpeed() / 4, 0, 0);
+        FakeSlider slider = new FakeSlider(slow, new Object(), false);
+
+        slider.tick(slick);
+        double entered = slider.velocity.horizontalDistance();
+        slider.velocity = slow;
+        slider.tick(slick);
+
+        assertEquals(slick.startSpeed(), entered, EXACT);
+        assertEquals(SlickRamp.ramped(slow, SlickRamp.ramp(1, slick), slick.topSpeed()), slider.velocity);
+    }
+
+    @Test
+    void aSliderThatStoodStillOnTheSlickIsNoEntryWhenItStarts() {
+        SlickStep slick = SlickRampTest.shippedSlick();
+        Vec3 slow = new Vec3(slick.startSpeed() / 4, 0, 0);
+        FakeSlider slider = new FakeSlider(slow, new Object(), false);
+        slider.trying = false;
+        slider.tick(slick);
+
+        slider.trying = true;
+        slider.tick(slick);
+
+        assertEquals(SlickRamp.ramped(slow, SlickRamp.ramp(0, slick), slick.topSpeed()), slider.velocity);
+    }
 
     @Test
     void aSliderThatStopsTryingKeepsTheVelocityItHeld() {
