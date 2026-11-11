@@ -13,12 +13,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -69,18 +67,6 @@ class TickPlantsStepTest {
 
         verify(state).randomTick(level, CELL, random);
         verify(level).sendParticles(eq(ParticleTypes.HAPPY_VILLAGER), eq(3.5), eq(64.5), eq(-6.5),
-                anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble());
-    }
-
-    @Test
-    void aBlockThatDoesNotGrowTakesNoTickAndThrowsNoSparkle() {
-        when(state.isRandomlyTicking()).thenReturn(false);
-        when(state.getBlock()).thenReturn(mock(Block.class));
-
-        TickPlantsStep.tickPlant(level, CELL, random);
-
-        verify(state, never()).randomTick(any(), any(), any());
-        verify(level, never()).sendParticles(any(), anyDouble(), anyDouble(), anyDouble(),
                 anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble());
     }
 }

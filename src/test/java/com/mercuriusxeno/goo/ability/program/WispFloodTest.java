@@ -14,8 +14,8 @@ import static org.mockito.Mockito.when;
 
 /**
  * WispFlood: the flood lights the cells nearest the eyes first, within a
- * tick's budget, keeps every placed wisp out of another's light and clear
- * of the eyes, passes only through open cells, places only where the eyes
+ * tick's budget, reckons a placed wisp's light out to its lit steps,
+ * passes only through open cells, places only where the eyes
  * see, stops at its range, and picks a dark, sighted cell on a roll under
  * the density, so the wisps scatter at random among the dark.
  * decision radiant-wisps-where-light-is-low
@@ -43,16 +43,14 @@ class WispFloodTest {
     }
 
     @Test
-    void noWispSitsInAnotherWispsLightNorAtTheEyes() {
-        Grid grid = new Grid(WispFloodTest::inTheRoom, cell -> true);
-        new WispFlood(EYES, RANGE, 0).walk(TICK_BUDGET * 3, grid, ROLL);
-        for (BlockPos wisp : grid.placed) {
-            assertTrue(wisp.distManhattan(EYES) > WispFlood.CLEAR_OF_THE_EYES, wisp + " sits at the eyes");
-            for (BlockPos other : grid.placed) {
-                assertTrue(wisp.equals(other) || wisp.distManhattan(other) > WispFlood.LIT_STEPS,
-                        wisp + " sits in the light of " + other);
-            }
-        }
+    void aPlacedWispLightsTheCellsWithinItsLitStepsAndNoFurther() {
+        BlockPos wisp = EYES.east(ROOM_HALF - 1);
+        WispFlood flood = new WispFlood(EYES, RANGE, 0);
+        flood.walk(TICK_BUDGET * 3, new Grid(WispFloodTest::inTheRoom, wisp::equals), ROLL);
+
+        assertEquals(List.of(wisp), flood.placed());
+        assertEquals(true, flood.litByThisFlood(wisp.west(WispFlood.LIT_STEPS)));
+        assertEquals(false, flood.litByThisFlood(wisp.west(WispFlood.LIT_STEPS + 1)));
     }
 
     @Test

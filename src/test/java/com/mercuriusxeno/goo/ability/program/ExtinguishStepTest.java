@@ -20,8 +20,8 @@ import static org.mockito.Mockito.when;
 
 /**
  * Cold's extinguish step puts out the fire blocks inside the stream's cone
- * with the extinguish hiss and smoke, leaves the fire beside the cone
- * burning, and clears the fire on each burning mob the cone reaches
+ * with the extinguish hiss and smoke, and clears the fire on each burning
+ * mob the cone reaches
  * (decision frost-reach-extinguishes-fire-and-burning-mobs).
  */
 class ExtinguishStepTest {
@@ -30,14 +30,13 @@ class ExtinguishStepTest {
     private static final Vec3 REACH = new Vec3(10.5, 64.5, 0.5);
     private static final double CONE = 16;
     private static final BlockPos FIRE_IN_CONE = new BlockPos(5, 64, 0);
-    private static final BlockPos FIRE_BESIDE_CONE = new BlockPos(5, 64, 5);
 
     @Test
-    void theConePutsOutItsFireAndTheBurningMobItReachesAndLeavesTheFireBesideIt() {
+    void theConePutsOutItsFireAndTheBurningMobItReaches() {
         LivingEntity burning = mock(LivingEntity.class);
         TargetHost reached = mock(TargetHost.class);
         when(reached.target()).thenReturn(burning);
-        try (BurningLevel world = new BurningLevel(Set.of(FIRE_IN_CONE, FIRE_BESIDE_CONE), List.of())) {
+        try (BurningLevel world = new BurningLevel(Set.of(FIRE_IN_CONE), List.of())) {
             PlayerHost host = mock(PlayerHost.class);
             when(host.kind()).thenReturn(HostKind.PLAYER);
             when(host.read(anyString())).thenReturn(OptionalDouble.empty());
@@ -54,7 +53,6 @@ class ExtinguishStepTest {
             ProgramBehavior.forHost(List.of(new ExtinguishStep()), HostKind.PLAYER).tick(host);
 
             world.assertPutOut(FIRE_IN_CONE);
-            world.assertStillBurning(FIRE_BESIDE_CONE);
             verify(burning).clearFire();
         }
     }

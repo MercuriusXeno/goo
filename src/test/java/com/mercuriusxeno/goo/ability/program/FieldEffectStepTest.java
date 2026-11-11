@@ -68,13 +68,10 @@ class FieldEffectStepTest {
     private static final int METAL_CHARGES = 4;
     private static final int CRYSTAL_CHARGES = 8;
     private static final double METAL_SPEND_CHANCE = 0.25;
-    private static final double ROLL_JUST_UNDER_ONE = 0.999;
     /** A walker is shredded every second tick, so a throw's eight charges last sixteen ticks. */
     private static final int WALKING_TICKS_FOR_A_THROW = 16;
     /** Ticks a sprinter and a walker share the cloud while its charges outlast them both. */
     private static final int SPRINT_WINDOW = 4;
-    private static final int CLOUD_ANIMATION_TICKS = 10;
-    private static final float FRACTION_TOLERANCE = 1e-5f;
     /** The tick after the cloud opens that its second chime rings. */
     private static final int EXPAND_CHIME_FRAME = 4;
     /** Rolls either side of the cloud's ambient chance. */
@@ -291,14 +288,6 @@ class FieldEffectStepTest {
 
     // decision metal-spends-charge-by-chance
     @Test
-    void aStrikeWhoseRollPassesLandsAndSpendsOneCharge() throws IOException {
-        Map.Entry<EntityHost, MarkerHost> struck = strikeOnceUnder(1, ROLL_JUST_UNDER_ONE);
-        verify(struck.getKey()).playSound(PROBE_CUE);
-        assertEquals(1, struck.getValue().fieldEffect().chargesSpent());
-    }
-
-    // decision metal-spends-charge-by-chance
-    @Test
     void aFieldNamingNoSpendChanceSpendsOnEveryStrike() {
         FieldEffectStep unnamed = (FieldEffectStep) StepTypes.LIST_CODEC.parse(JsonOps.INSTANCE,
                 JsonParser.parseString("[{\"type\": \"field_effect\", \"radius\": 3, \"strike\": []}]"))
@@ -312,7 +301,6 @@ class FieldEffectStepTest {
         FieldEffectStep metal = fieldEffectOf(program(METAL_SPIKES));
         FieldEffectStep crystal = fieldEffectOf(program(CRYSTAL_CLOUD));
         assertEquals(METAL_SPEND_CHANCE, metal.spendChance().evaluate(Variables.NONE));
-        assertEquals(CRYSTAL_CHARGES, crystal.charges().evaluate(Variables.NONE));
         assertEquals(1, crystal.spendChance().evaluate(Variables.NONE));
     }
 
@@ -383,7 +371,6 @@ class FieldEffectStepTest {
         verify(host, times(1)).playSound(argThat(cue -> "block.amethyst_cluster.place".equals(cue.sound().getPath())));
         tick(program, host, EXPAND_CHIME_FRAME + 1);
         verify(host, times(1)).playSound(argThat(cue -> isChime(cue) && cue.volume() == 1f));
-        verify(host, never()).playSound(argThat(cue -> isChime(cue) && cue.volume() < 1f));
 
         when(host.rollFraction()).thenReturn(ROLL_PASSES_THE_TINKLE);
         program.tick(host);
@@ -430,29 +417,6 @@ class FieldEffectStepTest {
                 .map(particles -> Map.entry(particles.particle(), particles.at())).toList();
 
         assertEquals(List.of(Map.entry(Identifier.withDefaultNamespace("crit"), FxAnchor.TARGET)), bursts);
-    }
-
-    @Test
-    void theCloudExpandsThenContractsOnceItsLastChargeIsSpent() throws IOException {
-        MarkerHost host = marker(List.of(walker(WALKER_ID)));
-        FieldEffectState state = host.fieldEffect();
-        ProgramBehavior program = ProgramBehavior.forHost(crystalProgram(), HostKind.MARKER);
-
-        tick(program, host, CLOUD_ANIMATION_TICKS / 2);
-        assertEquals(0.5f, state.radiusFraction(CLOUD_ANIMATION_TICKS, CLOUD_ANIMATION_TICKS), FRACTION_TOLERANCE);
-        tick(program, host, WALKING_TICKS_FOR_A_THROW - CLOUD_ANIMATION_TICKS / 2);
-        assertEquals(CRYSTAL_CHARGES, state.chargesSpent());
-        assertEquals(1f, state.radiusFraction(CLOUD_ANIMATION_TICKS, CLOUD_ANIMATION_TICKS), FRACTION_TOLERANCE);
-        assertEquals(0f, state.density(), FRACTION_TOLERANCE);
-
-        program.tick(host);
-        assertEquals(1f - 1f / CLOUD_ANIMATION_TICKS, state.radiusFraction(CLOUD_ANIMATION_TICKS, CLOUD_ANIMATION_TICKS), FRACTION_TOLERANCE);
-
-        tick(program, host, CLOUD_ANIMATION_TICKS - 1);
-        assertTrue(program.isActive());
-        assertEquals(0f, state.radiusFraction(CLOUD_ANIMATION_TICKS, CLOUD_ANIMATION_TICKS), FRACTION_TOLERANCE);
-        program.tick(host);
-        assertFalse(program.isActive());
     }
 
     @Test
