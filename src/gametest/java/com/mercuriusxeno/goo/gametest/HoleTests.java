@@ -73,7 +73,7 @@ public final class HoleTests {
     private static final String MOUTH_FITS_A_ONE_BY_TWO_PLATFORM = "hole_mouth_fits_a_one_by_two_platform";
     private static final String MOUTH_FITS_A_LONE_PILLAR = "hole_mouth_fits_a_lone_pillar";
     /** The cell, relative, a 3x3 mouth centred on FLOOR covers at its corner. */
-    private static final BlockPos CORNER = new BlockPos(1, 0, 1);
+    static final BlockPos CORNER = new BlockPos(1, 0, 1);
     /** The cell, relative, beside FLOOR that a 1x2 platform runs onto. */
     private static final BlockPos PLATFORM_END = new BlockPos(3, 0, 2);
     /** The cell, relative, beside FLOOR that no small mouth covers. */
@@ -155,7 +155,7 @@ public final class HoleTests {
     }
 
     /** Lays the 3x3 around FLOOR as stone where the cell is solid and air elsewhere, with air above each. */
-    private static void layFloor(GameTestHelper helper, Predicate<BlockPos> solid) {
+    static void layFloor(GameTestHelper helper, Predicate<BlockPos> solid) {
         for (int x = FLOOR.getX() - 1; x <= FLOOR.getX() + 1; x++) {
             for (int z = FLOOR.getZ() - 1; z <= FLOOR.getZ() + 1; z++) {
                 BlockPos cell = new BlockPos(x, FLOOR.getY(), z);
@@ -198,8 +198,8 @@ public final class HoleTests {
     /** Ticks a dropped item is given to fall into the mouth. */
     private static final int SWALLOWED = 5;
     static final int DROPPED = 5;
-    private static final int SEEDED_STONE = 70;
-    private static final int SEEDED_DIAMONDS = 3;
+    static final int SEEDED_STONE = 70;
+    static final int SEEDED_DIAMONDS = 3;
 
     private HoleTests() {
     }
