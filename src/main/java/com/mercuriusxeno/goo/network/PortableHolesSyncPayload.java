@@ -8,6 +8,7 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.NonNull;
 import java.util.List;
 
@@ -47,9 +48,10 @@ public record PortableHolesSyncPayload(List<Mouth> mouths) implements CustomPack
      * @param openedAt  the game time it opened, which tells one hole from the next opened in its place
      * @param closesAt  the game time it closes
      * @param stored    the first kinds its owner stored, in shelf order
+     * @param swallowed the items it swallowed last, as many as it shows stored
      */
     public record Mouth(List<BlockPos> footprint, Direction face, long openedAt, long closesAt,
-                        List<Stored> stored) {
+                        List<Stored> stored, List<Swallowed> swallowed) {
 
         /** Sends a mouth. */
         public static final StreamCodec<ByteBuf, Mouth> STREAM_CODEC = StreamCodec.composite(
@@ -58,7 +60,27 @@ public record PortableHolesSyncPayload(List<Mouth> mouths) implements CustomPack
                 ByteBufCodecs.VAR_LONG, Mouth::openedAt,
                 ByteBufCodecs.VAR_LONG, Mouth::closesAt,
                 Stored.STREAM_CODEC.apply(ByteBufCodecs.list(MOST_STORED_SHOWN)), Mouth::stored,
+                Swallowed.STREAM_CODEC.apply(ByteBufCodecs.list(MOST_STORED_SHOWN)), Mouth::swallowed,
                 Mouth::new);
+    }
+
+    /**
+     * One item a hole swallowed, which the client draws easing from where it
+     * stood into the soup.
+     * decision swallowed-item-transitions-into-the-hole-smoothly
+     *
+     * @param item the swallowed item's id
+     * @param at   the place the item stood as it was swallowed
+     * @param time the game time it was swallowed
+     */
+    public record Swallowed(Identifier item, Vec3 at, long time) {
+
+        /** Sends a swallowed item. */
+        public static final StreamCodec<ByteBuf, Swallowed> STREAM_CODEC = StreamCodec.composite(
+                Identifier.STREAM_CODEC, Swallowed::item,
+                Vec3.STREAM_CODEC, Swallowed::at,
+                ByteBufCodecs.VAR_LONG, Swallowed::time,
+                Swallowed::new);
     }
 
     /**

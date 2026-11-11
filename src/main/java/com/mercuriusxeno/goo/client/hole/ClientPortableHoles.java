@@ -12,10 +12,12 @@ import java.util.List;
  * and shrinking shut once the server stops listing it.
  * decision hole-is-an-in-world-portable-hole-for-items
  * decision hole-animates-open-and-closed
+ * decision swallowed-item-transitions-into-the-hole-smoothly
  */
 public final class ClientPortableHoles {
 
     private static final HoleSightings SIGHTINGS = new HoleSightings();
+    private static final HoleSwallows SWALLOWS = new HoleSwallows();
     /** The level the holes were last told for, so a hole left behind in another is not drawn shrinking here. */
     private static Level toldFor;
 
@@ -33,10 +35,31 @@ public final class ClientPortableHoles {
             Minecraft mc = Minecraft.getInstance();
             if (mc.level != toldFor) {
                 SIGHTINGS.forget();
+                SWALLOWS.forget();
                 toldFor = mc.level;
             }
-            SIGHTINGS.seen(payload.mouths(), mc.level == null ? 0 : mc.level.getGameTime());
+            long gameTime = mc.level == null ? 0 : mc.level.getGameTime();
+            SIGHTINGS.seen(payload.mouths(), gameTime);
+            SWALLOWS.heard(payload.mouths(), gameTime);
         });
+    }
+
+    /**
+     * @param mouth a drawn mouth
+     * @param time  the client's game time, partial tick included
+     * @return the items easing into it from where they were swallowed
+     */
+    static List<HoleSwallows.Transit> transitsInto(PortableHolesSyncPayload.Mouth mouth, float time) {
+        return SWALLOWS.runningIn(mouth, time);
+    }
+
+    /**
+     * @param mouth a drawn mouth
+     * @param time  the client's game time, partial tick included
+     * @return the indices of its stored kinds its soup draws, holding back each kind still easing in first
+     */
+    static List<Integer> soupDrawn(PortableHolesSyncPayload.Mouth mouth, float time) {
+        return SWALLOWS.soupDrawn(mouth, time);
     }
 
     /**
