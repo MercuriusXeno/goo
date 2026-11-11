@@ -82,9 +82,8 @@ final class ItemOperandResolver {
      * @param itemId     the namespaced item identifier string
      * @param type       the goo type to extract
      * @param baseValues item values for lookups
-     * @return the item's exact amount for the given type
+     * @return the item's exact amount for the given type, zero where its value holds none
      * @throws UnresolvedItemReference where the item holds no value, which leaves the whole entry unvalued
-     * @throws ReferentLacksType       where the item's value holds no amount of the type
      */
     private static GooFraction lookupItemValue(String itemId, ResourceKey<GooTypeDefinition> type,
                                                Map<Identifier, GooValue> baseValues) {
@@ -92,6 +91,6 @@ final class ItemOperandResolver {
         if (value == null) {
             throw new UnresolvedItemReference(itemId);
         }
-        return ReferentLacksType.amountHeld(itemId, value, type);
+        return LackedTypeReads.amountHeld(itemId, value, type);
     }
 }

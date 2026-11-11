@@ -66,7 +66,6 @@ public final class SpireTests {
     private static final String ABILITY_REQUIRED = "goo:rock_spire must be loaded";
     private static final String STONE_MISSING = "The cell at %s should hold %s, holds %s";
     private static final String GROUND_MOVED = "The ground at %s should still hold %s, holds %s";
-    private static final String UNPRICED = "Spire's cost should price each block grown above zero rock goo";
     private static final String CHARGED_WRONG = "The growth should spend %d mB of rock goo, spent %d";
     private static final String CELL_FILLED_EARLY = "The cell at %s should stand empty while the stone rises, holds %s";
     private static final String NO_HUNK = "One rising hunk should carry the %d stone blocks, found %s";
@@ -128,8 +127,8 @@ public final class SpireTests {
                 }
             }
             groundBefore.forEach((ground, before) -> assertHolds(helper, ground, before, GROUND_MOVED));
+            // Decision no-test-asserts-a-shipped-base-value: the charge matches whatever $mundane_block prices.
             GooFraction perBlock = spire(helper).cost().exactIn(GooValues.of(helper.getLevel()));
-            helper.assertTrue(!perBlock.isZero(), UNPRICED);
             int expected = perBlock.times((long) GROUND.size() * RISE).ceiling();
             helper.assertTrue(spent == expected, String.format(CHARGED_WRONG, expected, spent));
         });
