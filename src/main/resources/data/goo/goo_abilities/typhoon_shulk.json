@@ -9,5 +9,5 @@
   "behaviors": [
     { "type": "float", "duration": 100, "amplifier": 1 }
   ],
-  "tags": ["entity"]
+  "tags": ["entity", "harmful"]
 }
