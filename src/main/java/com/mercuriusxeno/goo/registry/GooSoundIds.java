@@ -72,6 +72,14 @@ public final class GooSoundIds {
      */
     public static final Identifier OUTSIDER_WUB = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.outsider_wub");
 
+    /**
+     * A door conjured before a player channeling Outsider toward the pocket:
+     * a rising shimmer, a synthesized placeholder the operator may swap
+     * (decision channeling-to-the-pocket-conjures-a-door-that-envelops-the-player).
+     */
+    public static final Identifier OUTSIDER_CONJURE =
+            Identifier.fromNamespaceAndPath(Goo.MODID, "effects.outsider_conjure");
+
     private GooSoundIds() {
     }
 }
