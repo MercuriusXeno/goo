@@ -6,7 +6,7 @@
   "cost": 1000,
   "delivery": { "kind": "arc" },
   "behaviors": [
-    { "type": "hole_open", "lifetime": 240, "refresh": 120 }
+    { "type": "hole_open", "lifetime": 200, "refresh": 100 }
   ],
   "tags": []
 }

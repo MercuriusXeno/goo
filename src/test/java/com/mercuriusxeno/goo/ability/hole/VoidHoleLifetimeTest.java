@@ -22,13 +22,13 @@ class VoidHoleLifetimeTest {
 
     private static final String EN_US = "/assets/goo/lang/en_us.json";
     private static final String DESCRIPTION = "goo.ability.void.hole.description";
-    /** Twelve seconds of ticks. */
-    private static final int LIFETIME = 240;
-    /** Six seconds of ticks. */
-    private static final int REFRESH = 120;
+    /** Ten seconds of ticks. */
+    private static final int LIFETIME = 200;
+    /** Five seconds of ticks. */
+    private static final int REFRESH = 100;
 
     @Test
-    void holeOpensForTwelveSecondsAndASwallowFloorsSix() {
+    void holeOpensForTenSecondsAndASwallowFloorsFive() {
         JsonObject hole = JsonParser.parseString(AbilityJson.read("void_hole")).getAsJsonObject();
         JsonObject open = hole.getAsJsonArray("behaviors").get(0).getAsJsonObject();
 

@@ -14,8 +14,8 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * Gametests for how long Void's hole stands: 240 ticks when nothing is thrown
- * in, and each item it swallows raises the time left to 120 ticks when less
+ * Gametests for how long Void's hole stands: 200 ticks when nothing is thrown
+ * in, and each item it swallows raises the time left to 100 ticks when less
  * remains and leaves it be when more remains. Each test watches the hole every
  * tick from the tick it is first seen standing, so a check one tick either side
  * of a closing reads the closing itself, not the throw's flight.
@@ -28,9 +28,9 @@ public final class HoleLifetimeTests {
     private static final String LATE_SWALLOW_FLOORS_TIME_LEFT = "hole_late_swallow_floors_time_left";
     private static final String EARLY_SWALLOW_CHANGES_NOTHING = "hole_early_swallow_changes_nothing";
     /** The hole's age a late item falls in at, with less than the refresh left. */
-    private static final int LATE_DROP_AGE = 200;
+    private static final int LATE_DROP_AGE = 160;
     /** The hole's age a late-fed hole is checked still standing at, past its untouched lifetime. */
-    private static final int LATE_CHECK_AGE = 300;
+    private static final int LATE_CHECK_AGE = 250;
     /** The hole's age an early item falls in at, with more than the refresh left. */
     private static final int EARLY_DROP_AGE = 20;
     /** Ticks after the last check the test ends, so every check has its tick watched. */
@@ -53,8 +53,8 @@ public final class HoleLifetimeTests {
     }
 
     /**
-     * A hole nothing is thrown into stands at tick 239 of its life and is gone
-     * after tick 240.
+     * A hole nothing is thrown into stands at tick 199 of its life and is gone
+     * after tick 200.
      *
      * @param helper the gametest helper
      */
@@ -68,8 +68,8 @@ public final class HoleLifetimeTests {
     }
 
     /**
-     * An item swallowed at tick 200, with 40 ticks left, raises the time left to
-     * 120: the hole stands at tick 300 and is gone 120 ticks after the swallow.
+     * An item swallowed at tick 160, with 40 ticks left, raises the time left to
+     * 100: the hole stands at tick 250 and is gone 100 ticks after the swallow.
      *
      * @param helper the gametest helper
      */
@@ -86,8 +86,8 @@ public final class HoleLifetimeTests {
     }
 
     /**
-     * An item swallowed at tick 20, with 220 ticks left, changes nothing: the
-     * hole is gone after tick 240 as an untouched hole is.
+     * An item swallowed at tick 20, with 180 ticks left, changes nothing: the
+     * hole is gone after tick 200 as an untouched hole is.
      *
      * @param helper the gametest helper
      */
