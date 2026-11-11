@@ -83,29 +83,31 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, List<EntityFilter> 
         Predicate<BlockPos> breakable = pos -> host.blockIn(pos, breaks);
         host.channelAim().ifPresent(aim -> {
             List<BlockPos> line = eyeLine(host.eye(), aim, host::airAt, breakable);
-            List<BlockPos> progressing = line.stream().filter(breakable).toList();
-            host.gradualBreak().progress(pace.ratesNearestFirst(progressing), host);
+            host.gradualBreak().progress(pace.ratesNearestFirst(breakableOn(line, breakable)), host);
             strikeIn(host, line);
         });
         return true;
     }
 
     /**
-     * The nearest blocks the bore is progressing while the aim holds: the
-     * same pick its tick hands the gradual break, so a client shakes the
-     * blocks the server is breaking.
+     * The blocks the bore is progressing while the aim holds: the pick its
+     * tick hands the gradual break, so a client shakes exactly the blocks the
+     * server is cracking.
      * decision only-the-blocks-about-to-break-shake-briefly-and-gently
      *
      * @param eye       the eye the line runs from
      * @param aim       the stream's aim: its reach along the look
      * @param air       whether a cell holds air
      * @param breakable whether a cell holds a block in the tag
-     * @param most      the most blocks answered
      * @return the blocks, nearest the eye first
      */
-    public List<BlockPos> breaksAhead(Vec3 eye, ChannelAim aim, Predicate<BlockPos> air,
-                                      Predicate<BlockPos> breakable, int most) {
-        return eyeLine(eye, aim, air, breakable).stream().filter(breakable).limit(most).toList();
+    public static List<BlockPos> progressing(Vec3 eye, ChannelAim aim, Predicate<BlockPos> air,
+                                             Predicate<BlockPos> breakable) {
+        return breakableOn(eyeLine(eye, aim, air, breakable), breakable);
+    }
+
+    private static List<BlockPos> breakableOn(List<BlockPos> line, Predicate<BlockPos> breakable) {
+        return line.stream().filter(breakable).toList();
     }
 
     /**

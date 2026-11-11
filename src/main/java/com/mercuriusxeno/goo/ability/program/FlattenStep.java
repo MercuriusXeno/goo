@@ -67,26 +67,29 @@ public record FlattenStep(TagKey<Block> breaks, BreakPace pace) implements Takes
      */
     private void breakUnderCursor(ChannelHost host, ChannelAim aim) {
         Predicate<BlockPos> breakable = pos -> host.blockIn(pos, breaks) && host.reaches(pos);
-        List<List<BlockPos>> layers = aim.swathLayersOutermostFirst(aim.aimedBlock(host.eye())).stream()
-                .map(layer -> layer.stream().filter(breakable).toList()).toList();
+        List<List<BlockPos>> layers = progressingLayers(aim, aim.aimedBlock(host.eye()), breakable);
         host.gradualBreak().progress(pace.ratesByGroup(layers), host);
     }
 
     /**
-     * The outermost blocks the swath is progressing while the cursor rests:
-     * the same pick its tick hands the gradual break, so a client shakes the
-     * blocks the server is breaking.
+     * The blocks the swath is progressing while the cursor rests: the pick
+     * its tick hands the gradual break, so a client shakes exactly the blocks
+     * the server is cracking.
      * decision only-the-blocks-about-to-break-shake-briefly-and-gently
      *
      * @param aim       the hold's aim
      * @param aimed     the block the cursor rests on
      * @param breakable whether a cell holds a block in the tag and in reach
-     * @param most      the most blocks answered
      * @return the blocks, outermost first
      */
-    public static List<BlockPos> breaksAhead(ChannelAim aim, BlockPos aimed, Predicate<BlockPos> breakable,
-                                             int most) {
-        return aim.swathOutermostFirst(aimed).stream().filter(breakable).limit(most).toList();
+    public static List<BlockPos> progressing(ChannelAim aim, BlockPos aimed, Predicate<BlockPos> breakable) {
+        return progressingLayers(aim, aimed, breakable).stream().flatMap(List::stream).toList();
+    }
+
+    private static List<List<BlockPos>> progressingLayers(ChannelAim aim, BlockPos aimed,
+                                                          Predicate<BlockPos> breakable) {
+        return aim.swathLayersOutermostFirst(aimed).stream()
+                .map(layer -> layer.stream().filter(breakable).toList()).toList();
     }
 
     @Override
