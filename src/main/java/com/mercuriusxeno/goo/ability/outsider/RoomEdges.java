@@ -9,6 +9,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * An Outsider room's four edges as two linked gate pairs, so the room wraps:
@@ -27,6 +28,8 @@ public final class RoomEdges {
     /** The top of every room edge: the pocket's build height. */
     static final int ROOM_CEILING_Y = 256;
     private static final Vec3 UP = Direction.UP.getUnitVec3();
+    /** Halves the span between opposite planes, to their middle or to either from it. */
+    private static final double HALF = 0.5;
 
     private RoomEdges() {
     }
@@ -40,6 +43,9 @@ public final class RoomEdges {
      * @param north the north edge, facing south
      */
     public record Edges(Gate east, Gate west, Gate south, Gate north) {
+
+        /** The pairs a room's four edges make. */
+        static final int PAIRS = 2;
 
         /**
          * @return east paired with west and south with north
@@ -82,6 +88,27 @@ public final class RoomEdges {
      */
     public static List<GatePassage.Pair> pairsOf(int room, double extent) {
         return around(OutsiderRooms.voidstoneOf(room), extent).pairs();
+    }
+
+    /**
+     * The boundary a room's edge pairs stand on, read back from their
+     * planes: east paired with west gives the center's x and the extent,
+     * south paired with north the center's z.
+     * decision boundary-cut-voidstone-draws-without-its-stars
+     *
+     * @param pairs the room's edge pairs, as {@link Edges#pairs} orders them
+     * @return the boundary, empty for a player standing in no room
+     */
+    public static Optional<RoomExtent.Bounds> boundsOf(List<GatePassage.Pair> pairs) {
+        if (pairs.size() != Edges.PAIRS) {
+            return Optional.empty();
+        }
+        double east = pairs.get(0).one().center().x();
+        double west = pairs.get(0).other().center().x();
+        double south = pairs.get(1).one().center().z();
+        double north = pairs.get(1).other().center().z();
+        return Optional.of(new RoomExtent.Bounds((int) Math.floor((east + west) * HALF),
+                (int) Math.floor((south + north) * HALF), (east - west) * HALF));
     }
 
     /**

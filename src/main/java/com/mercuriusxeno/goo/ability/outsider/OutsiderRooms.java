@@ -281,8 +281,8 @@ public final class OutsiderRooms {
             return false;
         }
         BlockPos center = voidstoneOf(room);
-        return RoomExtent.holdsWholeBlock(pockets.platformOf(player.getUUID()).extent(),
-                pos.getX() - center.getX(), pos.getZ() - center.getZ());
+        return new RoomExtent.Bounds(center.getX(), center.getZ(), pockets.platformOf(player.getUUID()).extent())
+                .holdsWholeBlock(pos.getX(), pos.getZ());
     }
 
     /**
