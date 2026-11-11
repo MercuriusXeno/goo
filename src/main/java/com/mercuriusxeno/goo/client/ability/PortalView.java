@@ -575,7 +575,7 @@ public final class PortalView {
             mc.levelRenderer.cloudRenderer = cloudsFor(currentPass);
             mc.mainRenderTarget = target;
             placeGlobalCamera(mc, delta, camera.pos);
-            if (skyDraws(state, camera)) {
+            if (skyDraws(state.skyRenderState.skybox, camera.fogType, camera.entityRenderState.doesMobEffectBlockSky)) {
                 clippedAfterSky = camera.projectionMatrix;
                 RenderSystem.setProjectionMatrix(skyProjectionBuffer().getBuffer(unclipped),
                         ProjectionType.PERSPECTIVE);
@@ -599,14 +599,18 @@ public final class PortalView {
     /**
      * Whether the level renderer draws a sky for this view, as its sky pass
      * decides: a skybox stands and nothing the camera is in or under hides it.
+     * The pocket's star sky draws through this same pass, so a room edge view
+     * draws the stars the frame draws.
+     * outsider-room-draws-a-skybox-of-stars
      *
-     * @param state  the level render state
-     * @param camera the view's camera state
+     * @param skybox        the skybox the view's level draws
+     * @param fog           the fog the view's camera stands in
+     * @param effectBlocked whether a mob effect on the camera hides the sky
      * @return true where the sky pass runs
      */
-    private static boolean skyDraws(LevelRenderState state, CameraRenderState camera) {
-        return state.skyRenderState.skybox != DimensionType.Skybox.NONE && camera.fogType != FogType.POWDER_SNOW
-                && camera.fogType != FogType.LAVA && !camera.entityRenderState.doesMobEffectBlockSky;
+    static boolean skyDraws(DimensionType.Skybox skybox, FogType fog, boolean effectBlocked) {
+        return skybox != DimensionType.Skybox.NONE && fog != FogType.POWDER_SNOW && fog != FogType.LAVA
+                && !effectBlocked;
     }
 
     /**

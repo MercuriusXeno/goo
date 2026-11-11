@@ -18,7 +18,8 @@ root, climbing a semitone over rising air.
 Run from the repository root:
     python tools/outsider_sounds.py               # writes every shipped take
     python tools/outsider_sounds.py wub           # writes the named sounds' shipped takes alone
-    python tools/outsider_sounds.py --takes DIR   # writes every take to DIR to listen to
+    python tools/outsider_sounds.py --takes DIR   # writes every take to DIR to listen to, each reversed take beside
+                                                  # the forward take it reverses
 Needs numpy, scipy and soundfile (libsndfile with Ogg Vorbis).
 """
 
@@ -256,6 +257,14 @@ SOUND_TAKES = {"wub": WUB_TAKES, "conjure": CONJURE_TAKES}
 # asked for both in a pool, so sounds.json lists both under the one wub event and the game picks one each time; for
 # the conjuring they picked c3, the open fifth from a low root climbing a semitone.
 SHIPPED = {"wub": {"b3": "outsider_wub.ogg", "c3": "outsider_wub2.ogg"}, "conjure": {"c3": "outsider_conjure.ogg"}}
+# Decision hole-closes-with-the-outsider-wub-reversed-and-pitched-down: Void's hole closes on the wub played
+# backwards. Minecraft plays a file forward only, so each shipped wub take also ships reversed, its samples in reverse
+# order, as the file named here.
+REVERSED = {"wub": {"b3": "outsider_wub_reversed.ogg", "c3": "outsider_wub2_reversed.ogg"}}
+
+
+def reversed_take(signal):
+    return signal[::-1].copy()
 
 
 def write(path, signal):
@@ -273,13 +282,20 @@ def main():
     for sound, takes in SOUND_TAKES.items():
         if args.sounds and sound not in args.sounds:
             continue
+        reversed_files = REVERSED.get(sound, {})
         if args.takes:
             for name, (synthesize, spec) in takes.items():
-                write(args.takes / f"outsider_{sound}_{name}.ogg", synthesize(spec))
+                signal = synthesize(spec)
+                write(args.takes / f"outsider_{sound}_{name}.ogg", signal)
+                if name in reversed_files:
+                    write(args.takes / f"outsider_{sound}_{name}_reversed.ogg", reversed_take(signal))
         else:
             for name, file in SHIPPED[sound].items():
                 synthesize, spec = takes[name]
-                write(SOUNDS / file, synthesize(spec))
+                signal = synthesize(spec)
+                write(SOUNDS / file, signal)
+                if name in reversed_files:
+                    write(SOUNDS / reversed_files[name], reversed_take(signal))
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.pocket.PocketShelves;
 import com.mercuriusxeno.goo.item.GooDeposit;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.item.PlayerUtils;
+import com.mercuriusxeno.goo.registry.GooSounds;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -30,6 +31,11 @@ public final class HoleOpening {
     private static final double FACE_LIFT = 0.55;
     private static final float SOUND_VOLUME = 1.0F;
     private static final float REFUSED_PITCH = 0.6F;
+    /**
+     * The Outsider room's wub pitched up, so the hole opens on a rising note.
+     * decision hole-opens-with-the-outsider-wub-pitched-up
+     */
+    private static final float OPENING_PITCH = 1.375F;
 
     private HoleOpening() {
     }
@@ -67,8 +73,8 @@ public final class HoleOpening {
         // stood after the pour, so the clients are told the emptied shelf
         PortableHoles.stand(level.getServer(), hole);
         Vec3 middle = hole.mouth().getCenter();
-        level.playSound(null, middle.x(), middle.y(), middle.z(), SoundEvents.ENDER_CHEST_OPEN, SoundSource.PLAYERS,
-                SOUND_VOLUME, 1.0F);
+        level.playSound(null, middle.x(), middle.y(), middle.z(), GooSounds.HOLE_OPEN.get(), SoundSource.PLAYERS,
+                SOUND_VOLUME, OPENING_PITCH);
     }
 
     /**
