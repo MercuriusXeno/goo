@@ -31,6 +31,7 @@ import java.util.IllegalFormatException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.function.Predicate;
 
 /**
@@ -730,8 +731,52 @@ public final class AbilitySyncHandler {
          * @return true when the petal reads unaffordable
          */
         public boolean dimsAt(int holdings, int reagentSets, StandingUpkeep standing) {
-            return AffordedCount.reckon(this, holdings, reagentSets, standing).map(AffordedCount::affordsNone)
-                    .orElse(price() > holdings);
+            return dimsAt(holdings, reagentSets, standing, OptionalDouble.empty());
+        }
+
+        /**
+         * Whether the petal dims beside the Outsider room the player stands in: in the room,
+         * Outsider dims short of a second's growth, as every timed petal dims short of a second.
+         * decision outsider-petal-reads-rate-and-time-in-the-room
+         *
+         * @param holdings    the mB the player holds of the ability's type across the inventory
+         * @param reagentSets the whole sets of the ability's consumed items the inventory holds
+         * @param standing    the upkeep already standing on the ability's type
+         * @param roomExtent  the extent of the Outsider room the player stands in, empty outside the pocket
+         * @return true when the petal reads unaffordable
+         */
+        public boolean dimsAt(int holdings, int reagentSets, StandingUpkeep standing, OptionalDouble roomExtent) {
+            return AffordedCount.reckon(this, holdings, reagentSets, standing, roomExtent)
+                    .map(AffordedCount::affordsNone).orElse(price() > holdings);
+        }
+
+        /**
+         * What the petal reads beside the Outsider room the player stands in: in the room,
+         * Outsider reads the price a second of the ring it grows through, then the seconds the
+         * holdings sustain, as "208/s | 12s".
+         * decision outsider-petal-reads-rate-and-time-in-the-room
+         *
+         * @param holdings    the mB the player holds of the ability's type across the inventory
+         * @param reagentSets the whole sets of the ability's consumed items the inventory holds
+         * @param standing    the upkeep already standing on the ability's type
+         * @param roomExtent  the extent of the Outsider room the player stands in, empty outside the pocket
+         * @return the petal's cost line
+         */
+        public String petalLabel(int holdings, int reagentSets, StandingUpkeep standing, OptionalDouble roomExtent) {
+            Optional<String> growthRate = growthRateLabel(roomExtent);
+            if (growthRate.isEmpty()) {
+                return petalLabel(holdings, reagentSets, standing);
+            }
+            return growthRate.get() + AffordedCount.reckon(this, holdings, reagentSets, standing, roomExtent)
+                    .map(count -> COUNT_SEPARATOR + count.label()).orElse(NO_COUNT);
+        }
+
+        private Optional<String> growthRateLabel(OptionalDouble roomExtent) {
+            if (roomExtent.isEmpty()) {
+                return Optional.empty();
+            }
+            return outsider().map(step -> GooFormat.formatAmount(step.growthPricePerSecond(roomExtent.getAsDouble()))
+                    + PER_SECOND);
         }
 
         /**
