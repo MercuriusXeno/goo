@@ -53,7 +53,7 @@ public final class GooAmountGrid implements ClientTooltipComponent {
         this(amounts.amounts(), amounts.reduced(), sizeOf, squareColumns(amounts.amounts().size()), false);
     }
 
-    private static int squareColumns(int count) {
+    static int squareColumns(int count) {
         return Math.max(1, (int) Math.ceil(Math.sqrt(count)));
     }
 
