@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.program.GradualBreak;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -25,6 +26,17 @@ public final class HoldMarks {
     private int chasedId = GnatSeekPayload.NO_PREY;
     /** The hold tick the swarm's gnats reach the mob they chase. */
     private int reachedOn;
+    private final GradualBreak gradualBreak = new GradualBreak();
+
+    /**
+     * The blocks the hold is breaking over several ticks, each with its progress
+     * (decision gradual-breaks-share-one-break-texture-piece).
+     *
+     * @return the hold's gradual break
+     */
+    public GradualBreak gradualBreak() {
+        return gradualBreak;
+    }
 
     /**
      * Paints a block, unless the hold already painted or stepped it.

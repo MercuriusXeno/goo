@@ -18,7 +18,6 @@ public final class GooConstantParser {
     private static final String LOG_LOADED_CONSTANTS = "Loaded {} constants ({} scalar, {} tree)";
     private static final String LOG_UNRESOLVED_ITEM = "Constant ${} names {}, which holds no value, so it loads no value";
     private static final String LOG_CYCLE = "Prefabs {}";
-    private static final String LOG_LACKED_TYPE = "Constant ${}: {}, so it loads no value";
 
     private GooConstantParser() {
     }
@@ -69,19 +68,14 @@ public final class GooConstantParser {
      * @param value the JSON value (object for tree, string for scalar/expression)
      * @param state mutable parsing state
      * @return the error naming a referent and a goo type the constant reads that the referent holds no amount of,
-     *     where it reads one and so loads no value, or null
+     *     which the constant reads as zero, or null where it reads none
      */
     static @Nullable String parseOneConstant(String name, JsonElement value, GooValueLoader.ParseState state) {
         try {
-            parseConstantValue(name, value, state);
+            // Decision lacked-type-log-line-leaves-and-the-workbench-line-stays.
+            return LackedTypeReads.lackedDuring(() -> parseConstantValue(name, value, state));
         } catch (UnresolvedItemReference unresolved) {
             Goo.LOGGER.warn(LOG_UNRESOLVED_ITEM, name, unresolved.item());
-        } catch (ReferentLacksType lacking) {
-            // Decision type-the-referent-lacks-loads-no-value-and-reads-a-red-line.
-            if (Goo.LOGGER.isErrorEnabled()) {
-                Goo.LOGGER.error(LOG_LACKED_TYPE, name, lacking.getMessage());
-            }
-            return lacking.getMessage();
         }
         return null;
     }
@@ -107,10 +101,11 @@ public final class GooConstantParser {
     static void parseScalarConstant(String name, JsonElement value, GooValueLoader.ParseState state) {
         String expr = value.getAsString().trim();
         if (referencesTreeConstant(expr, state.treeConstants)) {
-            GooValue tree = GooValueExpression.evaluate(expr, Map.of(),
-                    state.constants, state.treeConstants);
-            if (!tree.isEmpty()) {
-                state.treeConstants.put(name, tree);
+            LackedTypeReads.Recorded<GooValue> tree = LackedTypeReads.recording(
+                    () -> GooValueExpression.evaluate(expr, Map.of(), state.constants, state.treeConstants));
+            // Decision absent-goo-type-reads-zero-in-the-game: a tree reading only lacked types is the empty tree.
+            if (!tree.value().isEmpty() || tree.lacked() != null) {
+                state.treeConstants.put(name, tree.value());
                 return;
             }
         }

@@ -88,7 +88,7 @@ public final class GooBaseValuesPreview {
      * @param unresolved each entry naming an item no line values, with that item, which only the recipes may value
      *                   (decision diagnose-and-correct-item-reference-unrecognized-token)
      * @param lackedTypes each entry reading a goo type its referent holds no amount of, with the error naming both;
-     *                    such an entry loads no value
+     *                    such an entry reads that type as zero
      *                    (decision type-the-referent-lacks-loads-no-value-and-reads-a-red-line)
      */
     public record Loaded(Map<Identifier, GooValue> baseValues, Set<Identifier> denied, Set<Identifier> restricted,
