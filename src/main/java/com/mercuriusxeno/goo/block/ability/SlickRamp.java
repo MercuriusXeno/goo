@@ -49,10 +49,30 @@ public final class SlickRamp {
         }
         double speed = velocity.horizontalDistance();
         if (!stoodOnSlickBefore && speed > 0 && speed < slick.startSpeed()) {
-            double scale = slick.startSpeed() / speed;
-            return new Vec3(velocity.x * scale, velocity.y, velocity.z * scale);
+            return raisedTo(velocity, speed, slick.startSpeed());
         }
         return ramped(velocity, ramp(triedBefore, slick), slick.topSpeed());
+    }
+
+    /**
+     * A velocity scaled along its heading to a horizontal speed no less than
+     * the one asked: scaling by the ratio alone can round an ulp short, so
+     * the scale climbs an ulp at a time until the speed is reached.
+     * slick-raises-a-slow-entry-to-a-start-speed
+     *
+     * @param velocity the velocity to raise
+     * @param speed    its horizontal speed, above zero
+     * @param to       the horizontal speed it is raised to
+     * @return the raised velocity
+     */
+    private static Vec3 raisedTo(Vec3 velocity, double speed, double to) {
+        double scale = to / speed;
+        Vec3 raised = new Vec3(velocity.x * scale, velocity.y, velocity.z * scale);
+        while (raised.horizontalDistance() < to) {
+            scale = Math.nextUp(scale);
+            raised = new Vec3(velocity.x * scale, velocity.y, velocity.z * scale);
+        }
+        return raised;
     }
 
     /**
