@@ -30,7 +30,7 @@ import java.util.stream.Stream;
  * ripe plant inside the box a slash cuts is reaped and replanted and every
  * living body there but the slasher cut once. Leaf Reap is {@code slash
  * fewest_ticks=2 most_ticks=3 fewest_slashes=1 most_slashes=2 near=1
- * narrowest=0.8 widest=6 thinnest=0.3 thickest=2.0 bulge=0.55
+ * narrowest=2 widest=5 thinnest=1.5 thickest=4 bulge=0.8
  * drop_least=0.3 drop_most=0.6 tilt=10 fan=15 drift=2.5 life_ticks=6
  * damage=1}.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
