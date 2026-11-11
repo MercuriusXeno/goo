@@ -214,6 +214,21 @@ class ReapSlashTest {
         }
     }
     @Nested
+    class ItsOwnAngles {
+
+        @Test
+        void itTellsItsRollAndItsTurnOffTheAim() {
+            RandomSource random = RandomSource.create(29L);
+            for (int i = 0; i < SAMPLES; i++) {
+                ReapSlash slash = ReapSlash.launch(EYE, LEVEL_SOUTH, SHAPE, random);
+                assertEquals(Math.asin(slash.span().y), slash.roll(), TOLERANCE, "roll");
+                double turn = Math.atan2(slash.forward().x, slash.forward().z);
+                assertEquals(-turn, slash.turnFrom(LEVEL_SOUTH), TOLERANCE, "turn, rightward positive");
+            }
+        }
+    }
+
+    @Nested
     class Box {
 
         @Test
