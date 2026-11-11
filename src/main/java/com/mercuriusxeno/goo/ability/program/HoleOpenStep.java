@@ -13,7 +13,7 @@ import java.util.stream.Stream;
  * Opens the caster's portable hole on the struck face and finishes: on a top
  * face it swallows what is thrown in onto the caster's shelf, on a bottom face
  * it pours the shelf out. A throw at a wall's face is refused before it is
- * paid. Void's hole is {@code hole_open lifetime=240 refresh=120}.
+ * paid. Void's hole is {@code hole_open lifetime=200 refresh=100}.
  * decision hole-is-an-in-world-portable-hole-for-items
  * decision hole-holds-twelve-seconds-and-each-throw-in-floors-six
  *

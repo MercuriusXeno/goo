@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.hole;
 
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -74,6 +75,24 @@ class HoleDriftTest {
                         + " at " + time + " in a mouth " + half * 2 + " wide");
             }
         }
+    }
+
+    /**
+     * The mouth's open share moves no item and resizes none, through the opening span and the closing one.
+     * decision hole-seals-over-items-of-fixed-scale
+     */
+    @Test
+    void theOpenShareChangesNoItemsPlaceOrSize() {
+        float moment = 137.5F;
+        for (float open : new float[] {0.1F, 0.5F, 1F}) {
+            for (int index = 0; index < INDICES; index++) {
+                HoleDrift.Placement placement = HoleDrift.placementAt(index, moment, THREE_WIDE, THREE_WIDE, open);
+                String where = "index " + index + " at open share " + open;
+                assertEquals(HoleDrift.offset(index, moment, THREE_WIDE, THREE_WIDE), placement.offset(), where);
+                assertEquals(HoleDrift.ITEM_SIZE, placement.size(), where);
+            }
+        }
+        assertEquals(0, HoleDrift.placementAt(0, moment, THREE_WIDE, THREE_WIDE, 0F).size(), "a shut mouth's item");
     }
 
     @Test

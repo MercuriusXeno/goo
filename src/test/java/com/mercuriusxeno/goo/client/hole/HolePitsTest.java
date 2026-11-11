@@ -3,8 +3,10 @@ package com.mercuriusxeno.goo.client.hole;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -26,13 +28,43 @@ class HolePitsTest {
 
     @Test
     void aFloorPitOnAThreeByThreeStandsInsideItsBlocks() {
+        assertPitInside(threeByThreeFloor(), Direction.UP);
+    }
+
+    /**
+     * Half open, the carved oval spans half the full oval while the items keep their full drift places, so
+     * some item lies past the oval's edge, behind the face plane, where the uncarved block face hides it.
+     * decision hole-seals-over-items-of-fixed-scale
+     */
+    @Test
+    void halfOpenTheOvalAloneShrinksAndSealsOverAnItem() {
+        float halfOpen = 0.5F;
+        float moment = 137.5F;
+        List<BlockPos> footprint = threeByThreeFloor();
+        HolePits.CarveSpans full = HolePits.carveSpansOf(footprint, Direction.UP);
+        HolePits.CarveSpans carved = HolePits.carvedSpansAt(footprint, Direction.UP, halfOpen);
+        assertEquals(full.across() / 2, carved.across(), "half-open oval across");
+        assertEquals(full.along() / 2, carved.along(), "half-open oval along");
+        AABB rim = HolePits.pitOf(footprint, Direction.UP).rim();
+        int sealedOver = 0;
+        for (int index = 0; index < HoleDrift.MOST_SHOWN; index++) {
+            Vec3 at = HoleDrift.placementAt(index, moment, rim.getXsize() / 2, rim.getZsize() / 2, halfOpen).offset();
+            double reach = Math.pow(at.x() / carved.across(), 2) + Math.pow(at.z() / carved.along(), 2);
+            if (reach > 1 && at.y() < 0) {
+                sealedOver++;
+            }
+        }
+        assertTrue(sealedOver > 0, "no item of " + HoleDrift.MOST_SHOWN + " lies past the half-open oval " + carved);
+    }
+
+    private static List<BlockPos> threeByThreeFloor() {
         List<BlockPos> footprint = new java.util.ArrayList<>();
         for (int x = -1; x <= 1; x++) {
             for (int z = -1; z <= 1; z++) {
                 footprint.add(new BlockPos(4 + x, 64, -2 + z));
             }
         }
-        assertPitInside(footprint, Direction.UP);
+        return footprint;
     }
 
     private static void assertPitInside(List<BlockPos> footprint, Direction face) {

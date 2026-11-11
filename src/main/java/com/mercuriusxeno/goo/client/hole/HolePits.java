@@ -163,10 +163,9 @@ public final class HolePits {
             Direction face = mouth.face();
             Vec3 normal = Vec3.atLowerCornerOf(face.getUnitVec3i());
             Vec3 across = acrossOf(face);
-            CarveSpans spans = carveSpansOf(mouth.footprint(), face);
-            float open = ClientPortableHoles.openShare(mouth, time);
-            Vec3 acrossRadius = across.scale(spans.across() * open);
-            Vec3 alongRadius = normal.cross(across).scale(spans.along() * open);
+            CarveSpans spans = carvedSpansAt(mouth.footprint(), face, ClientPortableHoles.openShare(mouth, time));
+            Vec3 acrossRadius = across.scale(spans.across());
+            Vec3 alongRadius = normal.cross(across).scale(spans.along());
             Vec3 centre = pitOf(mouth.footprint(), face).rim().getCenter().add(normal.scale(FACE_LIFT))
                     .subtract(camera);
             for (int segment = 0; segment < SEGMENTS; segment++) {
@@ -230,6 +229,21 @@ public final class HolePits {
         Vec3 across = acrossOf(face);
         Vec3 along = Vec3.atLowerCornerOf(face.getUnitVec3i()).cross(across);
         return new CarveSpans(HoleMouths.halfSpan(rim, across), HoleMouths.halfSpan(rim, along));
+    }
+
+    /**
+     * The carved oval's half spans for a mouth standing open by a share: the
+     * oval alone shrinks as the mouth closes, sealing over the items behind it.
+     * decision hole-seals-over-items-of-fixed-scale
+     *
+     * @param footprint the blocks whose faces the mouth covers
+     * @param face      the face it opens on
+     * @param open      the share the mouth stands open, 0 shut to 1 fully open
+     * @return the oval's half spans at that share
+     */
+    static CarveSpans carvedSpansAt(List<BlockPos> footprint, Direction face, float open) {
+        CarveSpans full = carveSpansOf(footprint, face);
+        return new CarveSpans(full.across() * open, full.along() * open);
     }
 
     private static Vec3 acrossOf(Direction face) {
