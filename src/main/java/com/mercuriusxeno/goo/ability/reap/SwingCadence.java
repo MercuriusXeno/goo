@@ -9,7 +9,7 @@ import java.util.WeakHashMap;
  * The cadence Reap's held channel slashes at, uneven so the slashes come as a
  * flurry rather than a beat: a slash on the hold's first tick, then each next
  * a random few ticks after the last, between the fewest and the most the JSON
- * names. Each slasher's next slash is kept here for as long as the slasher
+ * names, each swing throwing a random few. Each slasher's next slash is kept here for as long as the slasher
  * stands, and never saved.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  */
@@ -52,6 +52,20 @@ public final class SwingCadence {
     static long nextSwingAt(long now, int fewest, int most, RandomSource random) {
         int least = Math.max(1, fewest);
         return now + least + random.nextInt(Math.max(least, most) - least + 1);
+    }
+
+    /**
+     * The slashes one swing throws: a random count from the fewest to the
+     * most, both included, so some swings throw more than one.
+     *
+     * @param fewest the fewest slashes a swing throws
+     * @param most   the most slashes a swing throws
+     * @param random the random source
+     * @return the slashes this swing throws
+     */
+    public static int slashesThisSwing(int fewest, int most, RandomSource random) {
+        int least = Math.max(1, fewest);
+        return least + random.nextInt(Math.max(least, most) - least + 1);
     }
 
     /**

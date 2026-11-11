@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Covers the cadence Reap's held channel slashes at: a slash on the hold's
  * first tick, then each next a random two or three ticks after the last, both
- * gaps turning up.
+ * gaps turning up, each swing throwing one or two slashes.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  */
 class SwingCadenceTest {
@@ -28,6 +28,16 @@ class SwingCadenceTest {
             gaps.add(SwingCadence.nextSwingAt(NOW, FEWEST, MOST, random) - NOW);
         }
         assertEquals(Set.of(2L, 3L), gaps);
+    }
+
+    @Test
+    void everySwingThrowsOneOrTwoSlashesAndBothTurnUp() {
+        RandomSource random = RandomSource.create(5L);
+        Set<Integer> counts = new HashSet<>();
+        for (int i = 0; i < 500; i++) {
+            counts.add(SwingCadence.slashesThisSwing(1, 2, random));
+        }
+        assertEquals(Set.of(1, 2), counts);
     }
 
     @Test
