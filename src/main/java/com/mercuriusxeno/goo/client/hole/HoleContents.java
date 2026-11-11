@@ -19,6 +19,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Draws the items a hole's owner has stored swimming sunk inside it: each
@@ -68,7 +69,8 @@ public final class HoleContents {
         }
         float time = mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         Vec3 camera = event.getLevelRenderState().cameraRenderState.pos;
-        // decision hole-animates-open-and-closed: the soup grows and shrinks with its mouth
+        // decision hole-seals-over-items-of-fixed-scale: the soup keeps its size while the mouth's oval
+        // opens and closes over it, and draws nothing once the oval is shut
         for (PortableHolesSyncPayload.Mouth mouth : ClientPortableHoles.drawn(time)) {
             float open = ClientPortableHoles.openShare(mouth, time);
             if (open > 0F) {
@@ -92,20 +94,36 @@ public final class HoleContents {
         int light = LevelRenderer.getLightCoords(mc.level, BlockPos.containing(centre.add(normal.scale(FACE_OFFSET))));
         int shown = Math.min(mouth.stored().size(), SHOWN.length);
         for (int index = 0; index < shown; index++) {
-            ItemStackRenderState item = SHOWN[index];
-            ItemStack stack = BuiltInRegistries.ITEM.getValue(mouth.stored().get(index).item()).getDefaultInstance();
-            mc.getItemModelResolver().updateForTopItem(item, stack, ItemDisplayContext.GROUND, mc.level, null, index);
-            if (stack.isEmpty() || item.isEmpty()) {
+            ItemStackRenderState item = shownItem(mc, mouth, index);
+            if (item == null) {
                 continue;
             }
-            Vec3 drift = HoleDrift.offset(index, time, halfAcross, halfAlong).scale(open);
+            HoleDrift.Placement placement = HoleDrift.placementAt(index, time, halfAcross, halfAlong, open);
+            Vec3 drift = placement.offset();
             Vec3 at = centre.add(across.scale(drift.x())).add(normal.scale(drift.y())).add(along.scale(drift.z()));
-            submitItem(event, item, at.subtract(camera), face, open, TURN * time + index * TURN_PHASE, light);
+            submitItem(event, item, at.subtract(camera), face, placement.size(), TURN * time + index * TURN_PHASE,
+                    light);
         }
     }
 
+    /**
+     * The model state a mouth's stored kind draws through.
+     *
+     * @param mc    the client
+     * @param mouth the mouth whose stored kinds draw
+     * @param index the kind's place among the shown kinds
+     * @return the kind's model state, or null where the kind draws nothing
+     */
+    private static @Nullable ItemStackRenderState shownItem(Minecraft mc, PortableHolesSyncPayload.Mouth mouth,
+                                                            int index) {
+        ItemStackRenderState item = SHOWN[index];
+        ItemStack stack = BuiltInRegistries.ITEM.getValue(mouth.stored().get(index).item()).getDefaultInstance();
+        mc.getItemModelResolver().updateForTopItem(item, stack, ItemDisplayContext.GROUND, mc.level, null, index);
+        return stack.isEmpty() || item.isEmpty() ? null : item;
+    }
+
     private static void submitItem(SubmitCustomGeometryEvent event, ItemStackRenderState item, Vec3 fromCamera,
-                                   Direction face, float open, float turn, int light) {
+                                   Direction face, double size, float turn, int light) {
         PoseStack poseStack = event.getPoseStack();
         poseStack.pushPose();
         poseStack.translate(fromCamera.x(), fromCamera.y(), fromCamera.z());
@@ -113,10 +131,10 @@ public final class HoleContents {
             poseStack.mulPose(Axis.XP.rotationDegrees(HALF_TURN_DEGREES));
         }
         poseStack.mulPose(Axis.YP.rotation(turn));
-        // every model draws HoleDrift.ITEM_SIZE across at its largest span, so its drift keeps it in the pit
+        // every model draws the placement's size across at its largest span, so its drift keeps it in the pit
         AABB model = item.getModelBoundingBox();
         double largest = Math.max(model.getXsize(), Math.max(model.getYsize(), model.getZsize()));
-        float scale = (float) (HoleDrift.ITEM_SIZE / Math.max(largest, MIN_MODEL_SPAN)) * open;
+        float scale = (float) (size / Math.max(largest, MIN_MODEL_SPAN));
         poseStack.scale(scale, scale, scale);
         Vec3 middle = model.getCenter();
         poseStack.translate(-middle.x(), -middle.y(), -middle.z());
