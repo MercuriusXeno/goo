@@ -21,10 +21,12 @@ import java.util.UUID;
  * @param block     the block the cast struck
  * @param face      the face it opens on
  * @param footprint the blocks whose faces its mouth covers, the struck block among them
+ * @param openedAt  the game time it opened
  * @param closesAt  the game time it closes
+ * @param refresh   the ticks left each swallow raises its time left to when less remains
  */
 public record PortableHole(UUID owner, ResourceKey<Level> dimension, BlockPos block, Direction face,
-                           List<BlockPos> footprint, long closesAt) {
+                           List<BlockPos> footprint, long openedAt, long closesAt, int refresh) {
 
     /** How far the mouth reaches out from its face, so an item resting on the face stands in it. */
     private static final double MOUTH_DEPTH = 0.25;
@@ -34,6 +36,20 @@ public record PortableHole(UUID owner, ResourceKey<Level> dimension, BlockPos bl
      */
     public boolean swallows() {
         return face == Direction.UP;
+    }
+
+    /**
+     * The hole after it swallows: its time left raised to the refresh when
+     * less remains, and left be when more remains.
+     * decision hole-holds-twelve-seconds-and-each-throw-in-floors-six
+     *
+     * @param now the game time it swallowed
+     * @return the hole as it stands after the swallow
+     */
+    public PortableHole fedAt(long now) {
+        long floored = Math.max(closesAt, now + refresh);
+        return floored == closesAt ? this
+                : new PortableHole(owner, dimension, block, face, footprint, openedAt, floored, refresh);
     }
 
     /**

@@ -40,8 +40,8 @@ import java.util.function.Predicate;
  * Gametests for Void's hole, an in-world portable hole: cast on a block's top
  * face it opens there and swallows the items dropped into its mouth onto the
  * caster's shelf for a fixed cost and no void reserved; cast on a bottom face
- * it pours the shelf out beneath; one stands per player, it closes after 600
- * ticks, and the owner leaving its dimension dismisses it.
+ * it pours the shelf out beneath; one stands per player, and the owner leaving
+ * its dimension dismisses it.
  * decision hole-is-an-in-world-portable-hole-for-items
  */
 @RegistersGameTests
@@ -50,7 +50,6 @@ public final class HoleTests {
     private static final String SWALLOWS_A_DROPPED_ITEM = "hole_swallows_a_dropped_item";
     private static final String POURS_ITS_SHELF_FROM_A_CEILING = "hole_pours_its_shelf_from_a_ceiling";
     private static final String STANDS_ONE_AT_A_TIME = "hole_stands_one_at_a_time";
-    private static final String CLOSES_AFTER_ITS_LIFETIME = "hole_closes_after_its_lifetime";
     private static final String DISMISSED_BY_LEAVING_ITS_DIMENSION = "hole_dismissed_by_leaving_its_dimension";
 
     /**
@@ -62,7 +61,6 @@ public final class HoleTests {
         GooTestFunctions.registerTest(registrar, SWALLOWS_A_DROPPED_ITEM, HoleTests::swallowsADroppedItem);
         GooTestFunctions.registerTest(registrar, POURS_ITS_SHELF_FROM_A_CEILING, HoleTests::poursItsShelfFromACeiling);
         GooTestFunctions.registerTest(registrar, STANDS_ONE_AT_A_TIME, HoleTests::standsOneAtATime);
-        GooTestFunctions.registerTest(registrar, CLOSES_AFTER_ITS_LIFETIME, HoleTests::closesAfterItsLifetime);
         GooTestFunctions.registerTest(registrar, DISMISSED_BY_LEAVING_ITS_DIMENSION,
                 HoleTests::dismissedByLeavingItsDimension);
         GooTestFunctions.registerTest(registrar, MOUTH_COVERS_THREE_BY_THREE, HoleTests::mouthCoversThreeByThree);
@@ -181,10 +179,12 @@ public final class HoleTests {
     private static final int HOLE_COST = 1000;
     /** Void the caster holds past the casts' cost, which no storing may touch. */
     private static final int SPARE_VOID = 500;
-    /** void_hole.json's lifetime: the hole closes after thirty seconds. */
-    private static final int LIFETIME = 600;
+    /** void_hole.json's lifetime: the hole closes after twelve seconds. */
+    static final int LIFETIME = 240;
+    /** void_hole.json's refresh: a swallow floors the time left at six seconds. */
+    static final int REFRESH = 120;
     /** The floor block, relative, whose top face the hole opens on. */
-    private static final BlockPos FLOOR = new BlockPos(2, 0, 2);
+    static final BlockPos FLOOR = new BlockPos(2, 0, 2);
     /** A second floor block, relative, a second cast opens on. */
     private static final BlockPos SECOND_FLOOR = new BlockPos(3, 0, 3);
     /** The ceiling block, relative, whose bottom face the hole pours from. */
@@ -192,12 +192,12 @@ public final class HoleTests {
     /** Where the caster stands. */
     private static final Vec3 START = new Vec3(2.5, 1, 0.5);
     /** Just over the floor's top face, inside the hole's mouth. */
-    private static final Vec3 IN_THE_MOUTH = new Vec3(2.5, 1.05, 2.5);
+    static final Vec3 IN_THE_MOUTH = new Vec3(2.5, 1.05, 2.5);
     /** Ticks the throw is given to land and open the hole. */
-    private static final int LANDED = 30;
+    static final int LANDED = 30;
     /** Ticks a dropped item is given to fall into the mouth. */
     private static final int SWALLOWED = 5;
-    private static final int DROPPED = 5;
+    static final int DROPPED = 5;
     private static final int SEEDED_STONE = 70;
     private static final int SEEDED_DIAMONDS = 3;
 
@@ -286,23 +286,6 @@ public final class HoleTests {
     }
 
     /**
-     * A hole standing past its 600 ticks is gone.
-     *
-     * @param helper the gametest helper
-     */
-    public static void closesAfterItsLifetime(GameTestHelper helper) {
-        ServerPlayer caster = caster(helper, 1);
-        castAt(caster, helper.absolutePos(FLOOR), Direction.UP);
-        helper.runAfterDelay(LANDED, () -> assertHoleOn(helper, caster, FLOOR, Direction.UP));
-        helper.runAfterDelay(LANDED + LIFETIME, () -> {
-            Optional<PortableHole> hole = PortableHoles.of(caster.getUUID());
-            helper.getLevel().getServer().getPlayerList().remove(caster);
-            helper.assertTrue(hole.isEmpty(), "The hole should close after " + LIFETIME + " ticks, stands " + hole);
-            helper.succeed();
-        });
-    }
-
-    /**
      * The owner gone to the Nether leaves no hole standing the next tick.
      *
      * @param helper the gametest helper
@@ -311,7 +294,7 @@ public final class HoleTests {
         // A cast leaves synced attachments a mock connection refuses on a level change, so the hole opens uncast.
         helper.setBlock(FLOOR, Blocks.STONE);
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
-        HoleOpening.open(helper.getLevel(), caster, helper.absolutePos(FLOOR), Direction.UP, LIFETIME);
+        HoleOpening.open(helper.getLevel(), caster, helper.absolutePos(FLOOR), Direction.UP, LIFETIME, REFRESH);
         helper.runAfterDelay(1, () -> {
             assertHoleOn(helper, caster, FLOOR, Direction.UP);
             ServerLevel nether = helper.getLevel().getServer().getLevel(Level.NETHER);
@@ -338,7 +321,7 @@ public final class HoleTests {
     }
 
     /** A survival Void caster knowing the hole and holding its cost for some casts and a spare. */
-    private static ServerPlayer caster(GameTestHelper helper, int casts) {
+    static ServerPlayer caster(GameTestHelper helper, int casts) {
         helper.setBlock(FLOOR, Blocks.STONE);
         helper.setBlock(SECOND_FLOOR, Blocks.STONE);
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
@@ -352,7 +335,7 @@ public final class HoleTests {
         return caster;
     }
 
-    private static void castAt(ServerPlayer caster, BlockPos struck, Direction face) {
+    static void castAt(ServerPlayer caster, BlockPos struck, Direction face) {
         GooGloveItem.setSelection(caster.getMainHandItem(), GloveSelection.ofAbility(GooTypes.VOID, VOID_HOLE));
         GooThrowHandler.execute(caster, new GooThrowPayload(GooTypes.id(GooTypes.VOID), -1, struck,
                 face.ordinal(), false, VOID_HOLE.toString(), caster.getEyePosition()));

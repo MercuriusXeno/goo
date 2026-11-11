@@ -297,7 +297,7 @@
   "goo.ability.void.erase": "Erase",
   "goo.ability.void.erase.description": "Removes the struck mob from the world, with no reward.",
   "goo.ability.void.hole": "Hole",
-  "goo.ability.void.hole.description": "Opens a hole on a floor for thirty seconds that keeps every item thrown in; opened on a ceiling it pours them all back out.",
+  "goo.ability.void.hole.description": "Opens a hole on a floor that stands open temporarily and keeps every item thrown in; opened on a ceiling it pours them all back out.",
   "goo.ability.void.outsider": "Outsider",
   "goo.ability.void.outsider.description": "Hold to enter your own dimension and, inside, to grow its floor; the doorway takes you back.",
   "goo.ability.void.outsider.cost_mechanics": "6 void to enter. Growing the floor costs void per block.",
