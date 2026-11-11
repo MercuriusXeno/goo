@@ -212,6 +212,31 @@ class ReapSlashTest {
         }
     }
     @Nested
+    class FirstPersonTip {
+
+        private final ReapSlash slash = slash(23L);
+        private final ReapSlash tipped = slash.tippedUp(Math.toRadians(25));
+
+        @Test
+        void itsFarEdgeLiftsTwentyFiveDegreesAboutItsTips() {
+            double turned = Math.toDegrees(Math.acos(Math.clamp(tipped.forward().dot(slash.forward()), -1, 1)));
+            assertEquals(25, turned, TOLERANCE);
+            assertTrue(tipped.pointAt(0, 0.5, 1).y > slash.pointAt(0, 0.5, 1).y, "the far edge lifts");
+            assertEquals(0, tipped.forward().dot(slash.span()), TOLERANCE, "it turns about its tips' line");
+        }
+
+        @Test
+        void itKeepsItsTipsItsSizeAndItsRoll() {
+            assertEquals(0, tipped.pointAt(0, 0, 1).distanceTo(slash.pointAt(0, 0, 1)), TOLERANCE);
+            assertEquals(0, tipped.pointAt(0, 1, 1).distanceTo(slash.pointAt(0, 1, 1)), TOLERANCE);
+            assertEquals(slash.span(), tipped.span());
+            assertEquals(slash.width(), tipped.width(), TOLERANCE);
+            assertEquals(slash.thickness(), tipped.thickness(), TOLERANCE);
+            assertEquals(slash.bulge(), tipped.bulge(), TOLERANCE);
+        }
+    }
+
+    @Nested
     class Box {
 
         @Test
