@@ -417,6 +417,8 @@ public final class OutsiderRooms {
                 TeleportTransition.PLAY_PORTAL_SOUND));
         burst(pocket, arrival);
         sendEdges(player);
+        // decision matching-doorway-opens-in-the-room-and-releases-you
+        ConjuredDoors.release(player);
         return true;
     }
 

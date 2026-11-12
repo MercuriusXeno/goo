@@ -76,7 +76,8 @@ public final class ConjuredDoorRenderer {
             return ClientConjuredDoors.drawnAt(time);
         }
         return ClientConjuredDoors.drawnAt(time, player.getId(),
-                new ClientConjuredDoors.Look(player.getPosition(partialTick), player.getViewYRot(partialTick)));
+                new ClientConjuredDoors.Look(player.getPosition(partialTick), player.getViewYRot(partialTick)),
+                EntryCover.LOCAL.covering());
     }
 
     /**

@@ -43,7 +43,31 @@ public record ConjuredDoor(Vec3 at, float yaw, double size, double crossed, Phas
         /** Standing before the caster, growing with the charge. */
         GROWING,
         /** Full size, moving into the caster. */
-        ENVELOPING
+        ENVELOPING,
+        /** In the room, moving off the arriver the way they face and closing back to a crack. */
+        RELEASING
+    }
+
+    /** The ticks a releasing door takes to move off its arriver and close. */
+    public static final int RELEASE_TICKS = 10;
+
+    /**
+     * The door releasing a player into their room, the entry's motion
+     * reversed: on their feet at full size as they arrive, then moving off
+     * them the way they face to its stand-off, narrowing back to a crack as
+     * it goes.
+     * decision matching-doorway-opens-in-the-room-and-releases-you
+     *
+     * @param feet         the arriver's feet
+     * @param yaw          the arriver's yaw, in degrees
+     * @param tick         the release's ticks so far, partial between ticks
+     * @param releaseTicks the ticks the release takes
+     * @return the door
+     */
+    public static ConjuredDoor releasing(Vec3 feet, float yaw, double tick, int releaseTicks) {
+        double released = Math.clamp(tick / Math.max(1, releaseTicks), 0, 1);
+        double crossed = 1 - released;
+        return new ConjuredDoor(placedAt(feet, yaw, crossed), yaw, crossed, crossed, Phase.RELEASING);
     }
 
     /**

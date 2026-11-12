@@ -31,6 +31,8 @@ public final class ClientConjuredDoors {
     static final int COLLAPSE_TICKS = 5;
 
     private static final Map<Integer, Seen> DOORS = new HashMap<>();
+    /** The local player's release into their room while one waits or plays. */
+    private static @Nullable LocalRelease localRelease;
 
     private ClientConjuredDoors() {
     }
@@ -64,13 +66,74 @@ public final class ClientConjuredDoors {
     public static void handle(ConjuredDoorPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             Minecraft mc = Minecraft.getInstance();
-            if (mc.level != null) {
-                take(payload, mc.level.getGameTime());
-            }
-            if (mc.player != null) {
+            boolean local = mc.player != null && payload.casterId() == mc.player.getId();
+            if (local) {
                 EntryCover.LOCAL.doorSeen(payload.casterId(), mc.player.getId(), payload.door());
             }
+            if (local && payload.door().phase() == ConjuredDoor.Phase.RELEASING) {
+                takeLocalRelease(payload.door());
+            } else if (mc.level != null) {
+                take(payload, mc.level.getGameTime());
+            }
         });
+    }
+
+    /**
+     * The local player's own release into their room, held while the
+     * starfield cover stands and played on this client's clock once it
+     * clears, so the arriver sees all of it however long the room takes.
+     * decision matching-doorway-opens-in-the-room-and-releases-you
+     *
+     * @param startedAt the client game tick it began playing, NaN while it waits on the cover
+     */
+    record LocalRelease(double startedAt) {
+    }
+
+    /**
+     * Takes the server's release of the local player: its first door, at
+     * full size, starts one; the server's later doors are its own clock's,
+     * which this client plays on its own.
+     *
+     * @param door the releasing door the server sent
+     */
+    static void takeLocalRelease(ConjuredDoor door) {
+        if (localRelease == null && door.size() >= 1) {
+            localRelease = new LocalRelease(Double.NaN);
+        }
+    }
+
+    /**
+     * Forgets the local player's release, as the client leaves the server.
+     */
+    static void forgetRelease() {
+        localRelease = null;
+    }
+
+    /**
+     * The local player's release as a frame draws it: nothing while the
+     * cover stands, then from the frame the cover clears, the door moving
+     * off the look's feet the way it faces and closing, gone once its
+     * release ticks pass.
+     *
+     * @param time    the client game tick and the frame's partial tick
+     * @param look    the local player's look this frame
+     * @param covered whether the starfield cover stands
+     * @return the door drawn, empty while none shows
+     */
+    static Optional<Drawn> releasedAt(double time, Look look, boolean covered) {
+        if (localRelease == null || covered) {
+            return Optional.empty();
+        }
+        if (Double.isNaN(localRelease.startedAt())) {
+            localRelease = new LocalRelease(time);
+        }
+        double tick = time - localRelease.startedAt();
+        if (tick > ConjuredDoor.RELEASE_TICKS) {
+            localRelease = null;
+            return Optional.empty();
+        }
+        ConjuredDoor door = ConjuredDoor.releasing(look.feet(), look.yaw(), tick, ConjuredDoor.RELEASE_TICKS);
+        return Optional.of(new Drawn(door.at(), look.yaw(), door.size()));
     }
 
     /**
@@ -109,19 +172,21 @@ public final class ClientConjuredDoors {
      * @return the doors drawn, by caster
      */
     static Map<Integer, Drawn> drawnAt(double time) {
-        return drawnAt(time, NO_LOCAL_CASTER, null);
+        return drawnAt(time, NO_LOCAL_CASTER, null, false);
     }
 
     /**
      * Each caster's door as a frame draws it, the local player's own stood
-     * from the frame's look, dropping each door done collapsing.
+     * from the frame's look, their release in its place while one plays,
+     * dropping each door done collapsing.
      *
      * @param time        the client game tick and the frame's partial tick
      * @param localCaster the local player's entity id
      * @param localLook   the local player's look this frame, null while none stands
+     * @param covered     whether the starfield cover stands
      * @return the doors drawn, by caster
      */
-    static Map<Integer, Drawn> drawnAt(double time, int localCaster, @Nullable Look localLook) {
+    static Map<Integer, Drawn> drawnAt(double time, int localCaster, @Nullable Look localLook, boolean covered) {
         Map<Integer, Drawn> drawn = new HashMap<>();
         DOORS.entrySet().removeIf(entry -> {
             Optional<Drawn> door = entry.getKey() == localCaster && localLook != null
@@ -129,6 +194,9 @@ public final class ClientConjuredDoors {
             door.ifPresent(shown -> drawn.put(entry.getKey(), shown));
             return door.isEmpty();
         });
+        if (localLook != null) {
+            releasedAt(time, localLook, covered).ifPresent(door -> drawn.put(localCaster, door));
+        }
         return drawn;
     }
 

@@ -39,7 +39,8 @@ public final class EntryCover {
      * @param door     the door
      */
     public void doorSeen(int casterId, int localId, ConjuredDoor door) {
-        if (casterId == localId && door.crossed() >= 1 && stage == Stage.CLEAR) {
+        if (casterId == localId && door.phase() == ConjuredDoor.Phase.ENVELOPING && door.crossed() >= 1
+                && stage == Stage.CLEAR) {
             stage = Stage.AWAITING_CHANGE;
             waitLeft = WAITS_FOR_CHANGE;
         }
