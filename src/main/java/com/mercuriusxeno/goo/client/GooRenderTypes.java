@@ -314,7 +314,7 @@ public final class GooRenderTypes {
     public static final RenderType METEOR_ROCK_TYPE = burnoutType(METEOR_ROCK);
 
     /**
-     * Nether black-hole pipeline: POSITION_COLOR billboard quad with a custom
+     * Black-hole pipeline: POSITION_COLOR billboard quad with a custom
      * vertex + fragment shader pair (nether_blackhole.vsh / .fsh). Reads the
      * implosion progress from the vertex Color.r channel and animates swirl
      * bands with {@code GameTime}. Depth write ON so the sphere solidly
@@ -332,7 +332,7 @@ public final class GooRenderTypes {
             .withCull(false)
             .build();
 
-    /** RenderType that submits the nether black-hole billboard quad. */
+    /** RenderType that submits the black-hole billboard quad. */
     public static final RenderType NETHER_BLACKHOLE_TYPE = RenderType.create(
             "goo_nether_blackhole",
             RenderSetup.builder(NETHER_BLACKHOLE)
@@ -341,7 +341,7 @@ public final class GooRenderTypes {
     );
 
     /**
-     * Nether black-hole corona pipeline: second render pass that emits
+     * Black-hole corona pipeline: second render pass that emits
      * the same sphere mesh at a slightly larger radius with additive
      * LIGHTNING blend and depth-write OFF, producing an emissive halo
      * that sits in the annular gap just outside the main sphere's
@@ -461,12 +461,14 @@ public final class GooRenderTypes {
     public static final RenderType FROST_EXPLOSION_THROUGH_BLOCKS_TYPE = burnoutType(FROST_EXPLOSION_THROUGH_BLOCKS);
 
     /**
-     * Nether goo's burnout explosion pipeline: the inward rush, additive,
-     * through {@code nether_explosion.vsh / .fsh}.
+     * The black hole's burnout explosion pipeline: the inward rush, through
+     * {@code nether_explosion.vsh / .fsh}, blended translucent since its
+     * streaks are black and black adds nothing.
+     * black-hole-build-up-draws-black
      */
-    public static final RenderPipeline NETHER_EXPLOSION = burnoutPipeline("nether_explosion", BlendFunction.LIGHTNING);
+    public static final RenderPipeline NETHER_EXPLOSION = burnoutPipeline("nether_explosion", BlendFunction.TRANSLUCENT);
 
-    /** RenderType that draws nether goo's burnout explosion. */
+    /** RenderType that draws the black hole's burnout explosion. */
     public static final RenderType NETHER_EXPLOSION_TYPE = burnoutType(NETHER_EXPLOSION);
 
     /**
@@ -663,7 +665,7 @@ public final class GooRenderTypes {
     public static final RenderType SUNBEAM_SCORCH_GLOW_TYPE = burnoutType(SUNBEAM_SCORCH_GLOW);
 
     /**
-     * Nether black-hole accretion-disk pipeline: third render pass that
+     * Black-hole accretion-disk pipeline: third render pass that
      * emits a flat annular ring in the world XZ plane around the sphere,
      * inner radius pinned to the main sphere radius and outer radius at
      * {@code DISK_OUTER_SCALE * main}. Additive LIGHTNING blend with
@@ -1199,6 +1201,35 @@ public final class GooRenderTypes {
             .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(DepthStencilState.DEFAULT)
+            .withCull(true)
+            .build();
+
+    /** The uniform block the miasma vortex pipeline reads Drain's cone and colors from. */
+    public static final String MIASMA_VORTEX_BLOCK = "MiasmaVortex";
+
+    /** The sampler the miasma vortex reads a copy of the world's depth through. */
+    public static final String MIASMA_DEPTH_SAMPLER = "MiasmaDepthSampler";
+
+    /**
+     * Drain's miasma vortex pipeline: a box around the cone Drain strikes
+     * whose fragments march the cone through {@code miasma_vortex.vsh / .fsh},
+     * filling it with a turning cloud of miasma and rifling streaks, stopping
+     * at a copy of the world's depth so the miasma lies in front of whatever
+     * stands in it. Blended translucent; it passes every depth test and writes
+     * none, since the march clips itself against the world.
+     * drain-casts-a-filled-tornadic-miasma-vortex-along-the-look
+     */
+    public static final RenderPipeline MIASMA_VORTEX = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "miasma_vortex"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "miasma_vortex"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "miasma_vortex"))
+            .withUniform(MIASMA_VORTEX_BLOCK, UniformType.UNIFORM_BUFFER)
+            .withSampler(MIASMA_DEPTH_SAMPLER)
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(true)
             .build();
 
@@ -1758,6 +1789,7 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_PORTAL_VISION);
         event.registerPipeline(GOO_PORTAL_HALO);
         event.registerPipeline(GOO_PORTAL_SWIRL_BAND);
+        event.registerPipeline(MIASMA_VORTEX);
         event.registerPipeline(GLOW_BEAM);
         event.registerPipeline(GLOW_COLUMN);
         event.registerPipeline(SUNBEAM_SCORCH);
@@ -1772,7 +1804,7 @@ public final class GooRenderTypes {
     }
 
     /**
-     * Registers the nether black hole's pipelines: its body, corona, disk and
+     * Registers the black hole's pipelines: its body, corona, disk and
      * cube edges, and their held and through-blocks twins.
      *
      * @param event the event instance

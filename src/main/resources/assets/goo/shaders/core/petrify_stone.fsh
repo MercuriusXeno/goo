@@ -21,11 +21,12 @@ in vec4 stoneColor;
 in vec4 lightMapColor;
 in vec2 skinCoord;
 in vec3 skinNormal;
+// The skin's texels across and down, which the stone and the patch field lay their grid on
+// (decision diagnose-and-correct-petrify-stone-stretching-off-native-texels).
+flat in vec2 skinTexels;
 
 out vec4 fragColor;
 
-// A 64-texel skin across [0, 1] holds four 16-texel stone tiles, so the stone keeps the skin's texel size.
-const float STONE_TILES = 4.0;
 // Noise cells across the skin's coordinates: a handful of patches over a body.
 const float PATCH_CELLS = 6.0;
 // Width of the crack ringing each patch, in field units, and how dark it runs.
@@ -45,13 +46,15 @@ void main() {
         // The field is read at the skin texel grid's corners and blended per pixel, so the stone's edge runs
         // through the skin's texels, its shape pinned to them (decision cut-edge-blends-texel-corners).
         float threshold = mingleThreshold(share);
-        float field = mingleCornerField(skinCoord, MINGLE_SKIN_TEXELS, PATCH_CELLS, stoneColor.rgb * SEED_SPREAD);
+        float field = mingleCornerField(skinCoord, skinTexels, PATCH_CELLS, stoneColor.rgb * SEED_SPREAD);
         if (field < threshold) {
             discard;
         }
         seam = 1.0 - step(threshold + SEAM_BAND, field);
     }
-    vec4 stone = texture(Sampler0, fract(skinCoord * STONE_TILES + stoneColor.rg));
+    // One stone texel per skin texel along either axis, so the stone's texels are square and the mob's own size
+    // on a skin of any shape (decision diagnose-and-correct-petrify-stone-stretching-off-native-texels).
+    vec4 stone = texture(Sampler0, fract(skinCoord * skinTexels / vec2(textureSize(Sampler0, 0)) + stoneColor.rg));
     float shade = 0.7 + 0.3 * abs(normalize(skinNormal).y);
     vec3 lit = stone.rgb * shade * mix(1.0, SEAM_SHADE, seam);
     lit *= lightMapColor.rgb;

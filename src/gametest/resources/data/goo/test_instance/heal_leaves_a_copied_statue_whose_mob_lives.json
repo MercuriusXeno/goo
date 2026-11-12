@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:heal_leaves_a_copied_statue_whose_mob_lives",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 160,
+  "setup_ticks": 0,
+  "required": true
+}

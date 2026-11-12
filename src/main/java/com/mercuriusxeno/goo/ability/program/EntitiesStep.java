@@ -19,7 +19,7 @@ import java.util.stream.Stream;
  * <p>The children run to completion in the tick the selection runs, so
  * they are instant steps, and each runs on a host bound to the selected
  * entity, so the load check holds them to the struck entity host whatever
- * host the selection runs on. On the marker, the nether black hole blinds
+ * host the selection runs on. On the marker, the black hole blinds
  * what stands in its sphere this way.
  *
  * @param shape  the volume shape
