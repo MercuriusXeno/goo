@@ -364,6 +364,36 @@ public final class SculkerEchoes {
     }
 
     /**
+     * Hands a changed block's light to the faces it uncovers, where it was
+     * lit and now lets sound through: each block beside it that lights and
+     * holds no light of its own glows as the changed block did and fades in
+     * step, and the changed block, lighting no more, leaves the memory. An
+     * echo draws through every depth test, so with no light on the faces a
+     * broken block uncovers, the lit faces beyond show through the hole until
+     * a ring reaches them.
+     * decision diagnose-sculkers-lag-and-prove-it-improved-significantly
+     *
+     * @param changed     the block that changed
+     * @param lights      whether a block lights where an echo reaches it
+     * @param passesSound whether sound passes through a block
+     */
+    public void uncover(BlockPos changed, Predicate<BlockPos> lights, Predicate<BlockPos> passesSound) {
+        Lit gone = remembered.get(changed);
+        if (gone == null || !passesSound.test(changed)) {
+            return;
+        }
+        if (!lights.test(changed)) {
+            forget(changed);
+        }
+        for (Direction side : Direction.values()) {
+            BlockPos face = changed.relative(side);
+            if (!remembered.containsKey(face) && lights.test(face)) {
+                remember(face.immutable(), gone);
+            }
+        }
+    }
+
+    /**
      * @return each lit face and its lighting
      */
     public Map<BlockPos, Lit> remembered() {
