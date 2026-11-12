@@ -129,11 +129,28 @@ public final class BoreDrill {
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        ConeSections.Volume full = volume(player.getEyePosition(partialTick).subtract(camera),
+        ConeSections.Volume full = volume(eyeSeenFrom(mc, player, partialTick, camera),
                 player.getViewVector(partialTick), player.getViewYRot(partialTick), bore.delivery().range(),
                 step.vortexNearRadius(), step.vortexFarRadius());
         BoreDrillPass.draw(emerged(full, emergedShare(GloveUseTracker.channelTicks() + partialTick)), camera,
                 event.getModelViewMatrix());
+    }
+
+    /**
+     * Where the vortex's eye stands, camera relative: the camera itself in
+     * first person, which eases down as the player sneaks, so the vortex
+     * eases with the view rather than snapping to the pose; the player's eye
+     * in any other view.
+     *
+     * @param mc          the client
+     * @param player      the local player
+     * @param partialTick the frame's partial tick
+     * @param camera      the camera's world position
+     * @return the eye, camera relative
+     */
+    private static Vec3 eyeSeenFrom(Minecraft mc, LocalPlayer player, float partialTick, Vec3 camera) {
+        return mc.options.getCameraType().isFirstPerson() ? Vec3.ZERO
+                : player.getEyePosition(partialTick).subtract(camera);
     }
 
     private static Optional<BoreStep> stepOf(ClientAbility bore) {
