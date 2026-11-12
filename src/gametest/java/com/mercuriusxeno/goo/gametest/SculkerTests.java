@@ -27,11 +27,12 @@ import java.util.function.Consumer;
  * stays outside it; a diver that rises out of a top face and jumps clear
  * stands on that block, out of the dive; a diver that swims out of the
  * stone into open air is out of the dive and falls, hurt where it lands; a
- * diver below the world's floor rises back in; nothing in the stone
- * suffocates a player whose brew stands; and a sculk sensor never hears a
- * player under Sculker walk or jump
+ * creative flier that switches flight off falls; a diver below the world's
+ * floor rises back in; nothing in the stone suffocates a player whose brew
+ * stands; and a sculk sensor never hears a player under Sculker walk or jump
  * (decisions sculker-swims-solid-blocks-and-surfaces-at-will,
- * diagnose-and-correct-sculker-flying-through-air, sculker-grants-suffocation-immunity
+ * diagnose-and-correct-sculker-flying-through-air,
+ * diagnose-and-correct-creative-flight-stuck-on-under-sculker, sculker-grants-suffocation-immunity
  * and sculker-mutes-your-movement-sounds). The client moves a real player, so
  * each test ticks the mock player as its connection would, reporting each
  * move for the fall it builds, and sets the swim velocity after each tick as
@@ -52,6 +53,7 @@ public final class SculkerTests {
     private static final String SCULKER_LEAVES_BEDROCK = "sculker_leaves_bedrock";
     private static final String SCULKER_DIVE_ENDS_IN_AIR = "sculker_dive_ends_in_open_air";
     private static final String SCULKER_FALLS_FROM_THE_DIVE = "sculker_falls_from_where_the_dive_ended";
+    private static final String SCULKER_FLIGHT_SWITCHES_OFF = "sculker_creative_flight_switches_off";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -71,6 +73,7 @@ public final class SculkerTests {
         GooTestFunctions.registerTest(registrar, SCULKER_LEAVES_BEDROCK, SculkerTests::sculkerLeavesBedrock);
         GooTestFunctions.registerTest(registrar, SCULKER_DIVE_ENDS_IN_AIR, SculkerTests::sculkerDiveEndsInOpenAir);
         GooTestFunctions.registerTest(registrar, SCULKER_FALLS_FROM_THE_DIVE, SculkerTests::sculkerFallsFromWhereTheDiveEnded);
+        GooTestFunctions.registerTest(registrar, SCULKER_FLIGHT_SWITCHES_OFF, SculkerTests::sculkerCreativeFlightSwitchesOff);
     }
 
     private static final Identifier DEEP_SCULKER = Identifier.parse("goo:deep_sculker");
@@ -154,6 +157,15 @@ public final class SculkerTests {
     private static final String SHOULD_BUILD_A_FALL =
             "A diver whose dive ended in open air should build fall distance as it falls: diving %b, fell %.2f then %.2f";
     private static final String SHOULD_HURT_ON_LANDING = "A diver that fell from the stone should take fall damage on landing, health %.1f of %.1f, resting at y=%.2f";
+
+    /** How far above the stone's top face a creative flier hovers, past a jump's height so no top face lies under it. */
+    private static final int FLIES_ABOVE = 4;
+    /** Ticks a creative flier holds sneak and jump together, as a flier does sinking and rising at once. */
+    private static final int FLIER_KEY_TICKS = 5;
+    /** How far a flier with flight switched off should fall in half a second, well past what a dying swim stroke drifts. */
+    private static final double FELL_AT_LEAST = 1.0;
+    private static final String SHOULD_FALL_WITH_FLIGHT_OFF =
+            "A creative flier under Sculker that switched flight off should fall: flying %b, diving %b, y=%.2f then y=%.2f";
 
     private SculkerTests() {
     }
@@ -568,6 +580,37 @@ public final class SculkerTests {
         if (moved.y > 0) {
             player.resetFallDistance();
         }
+    }
+
+    /**
+     * A creative player under Sculker flies in open air above the stone and
+     * holds sneak and jump together, then switches creative flight off as the
+     * double tap of jump does, and falls: flying reads false and nothing holds
+     * it up (decision diagnose-and-correct-creative-flight-stuck-on-under-sculker).
+     *
+     * @param helper the gametest helper
+     */
+    public static void sculkerCreativeFlightSwitchesOff(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos top = layStone(helper);
+        ServerPlayer player = brewed(helper);
+        player.setGameMode(GameType.CREATIVE);
+        player.getAbilities().flying = true;
+        player.onUpdateAbilities();
+        player.teleportTo(top.getX() + 0.5, top.getY() + 1 + FLIES_ABOVE, top.getZ() + 0.5);
+        swimFor(player, SNEAK_AND_JUMP, FLIER_KEY_TICKS);
+        player.getAbilities().flying = false;
+        player.onUpdateAbilities();
+        double switchedOffAt = player.getY();
+        swimFor(player, NONE, FALL_TICKS);
+        double fellTo = player.getY();
+        boolean flying = player.getAbilities().flying;
+        boolean diving = player.getData(GooAttachments.SCULKER).diving();
+        level.getServer().getPlayerList().remove(player);
+        clearStone(level, top);
+        helper.assertTrue(!flying && switchedOffAt - fellTo >= FELL_AT_LEAST,
+                String.format(SHOULD_FALL_WITH_FLIGHT_OFF, flying, diving, switchedOffAt, fellTo));
+        helper.succeed();
     }
 
     /**
