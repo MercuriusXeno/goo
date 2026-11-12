@@ -225,7 +225,7 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         ShellWalk.Cursor next = HoardedBlocks.takeSome(level, pos, state.takeRadius(), state.takeCursor(),
                 BLOCKS_TAKEN_PER_TICK, state.hoard());
         if (state.tookTo(next)) {
-            CompressionSphere.leave(level, Vec3.atCenterOf(pos), state.hoard(), SphereCore.MAROON);
+            CompressionSphere.leave(level, Vec3.atCenterOf(pos), state.hoard(), SphereCore.BLACK);
         }
     }
 
@@ -237,7 +237,7 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     @Override
     public void dropSphere() {
         if (!be.programState().putOffDrop()) {
-            CompressionSphere.leave(level, Vec3.atCenterOf(pos), be.programState().hoard(), SphereCore.MAROON);
+            CompressionSphere.leave(level, Vec3.atCenterOf(pos), be.programState().hoard(), SphereCore.BLACK);
         }
     }
 
