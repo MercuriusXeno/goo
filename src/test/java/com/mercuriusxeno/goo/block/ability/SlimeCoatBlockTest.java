@@ -3,6 +3,10 @@ package com.mercuriusxeno.goo.block.ability;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -12,6 +16,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -31,7 +36,6 @@ import static org.mockito.Mockito.when;
 class SlimeCoatBlockTest {
 
     private static final String BLOCKSTATE_JSON = "/assets/goo/blockstates/slime_coat.json";
-    private static final String GOOP_JSON = "/data/goo/goo_abilities/weird_goop.json";
 
     @Nested
     class Faces {
@@ -108,9 +112,15 @@ class SlimeCoatBlockTest {
                     "a coat layer costs " + SlimeCoatBlock.MB_PER_LAYER + " mb");
         }
 
+        /** goop-drains-per-cubic-meter-of-slime-placed */
         @Test
-        void goopsStreamCostsOneLayer() throws IOException {
-            assertEquals(SlimeCoatBlock.MB_PER_LAYER, classpathJson(GOOP_JSON).get("cost").getAsInt());
+        void goopsCostPricesACubicMeterAndALayerReclaimsItsEighth() {
+            AbilityDefinition goop = AbilityJson.decode("weird_goop");
+
+            assertEquals(Optional.of("%s/m³"), goop.costFormula());
+            GooFraction layerPrice = goop.cost().exactIn(GooValueTable.EMPTY).dividedBy(SlimeCoatBlock.MAX_LAYERS);
+            assertEquals(0, GooFraction.of(SlimeCoatBlock.reclaimed(1)).compareTo(layerPrice),
+                    "a layer costs " + layerPrice + " and reclaims " + SlimeCoatBlock.reclaimed(1));
         }
     }
 

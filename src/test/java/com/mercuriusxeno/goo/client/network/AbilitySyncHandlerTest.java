@@ -6,9 +6,12 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.data.GooValueTable;
+import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import java.io.IOException;
@@ -62,6 +65,28 @@ class AbilitySyncHandlerTest {
             ClientAbility client = ClientAbility.fromEntry(entry);
             assertEquals(jsonCost, client.cost(), definition.id() + " synced cost");
             assertEquals(jsonUpkeep, client.upkeep(), definition.id() + " synced upkeep");
+        }
+    }
+
+    /**
+     * A stream draining by what it lays reads its price per placement on the
+     * petal, never a rate a second or the seconds the holdings afford.
+     * goop-drains-per-cubic-meter-of-slime-placed
+     * dynamic-costs-keep-the-mb-quantity
+     */
+    @Nested
+    class PlacementPricedPetals {
+
+        private static final int PLENTY = 1000;
+
+        @Test
+        void goopsPetalReadsItsCostPerCubicMeter() {
+            AbilityDefinition goop = AbilityJson.decode("weird_goop");
+            String perCubicMeter = GooFormat.formatMixed(goop.cost().exactIn(GooValueTable.EMPTY)) + "/m³";
+
+            for (AbilitySyncPayload.Entry entry : roundTrip(goop)) {
+                assertEquals(perCubicMeter, ClientAbility.fromEntry(entry).petalLabel(PLENTY, 0));
+            }
         }
     }
 }

@@ -7,6 +7,9 @@ import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.ability.weird.Wobbled;
 import com.mercuriusxeno.goo.block.ability.SlimeCoatBlock;
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooValues;
+import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -65,6 +68,14 @@ public final class WeirdTests {
     private static final String GOOP_LAYERS_WHILE_HELD = "goop_layers_a_reached_cell_again_while_held";
     private static final String GOOP_STOPS_AT_WHOLE = "goop_stops_a_reached_cell_at_a_whole_block";
     private static final String GOOP_LEFT_CELL_STOPS = "goop_lays_no_layer_on_a_cell_the_aim_left";
+    private static final String GOOP_DRAINS_PER_LAYER = "goop_drains_a_layers_price_for_each_layer_it_lays";
+    private static final String GOOP_LAYING_NOTHING_DRAINS_NOTHING = "goop_laying_no_layer_drains_no_goo";
+    private static final String GOOP_UNPAID_LAYER_STAYS_OUT = "goop_lays_no_layer_the_streamer_cannot_pay_for";
+    /** Pitched straight up, at the slab over the streamer's head. */
+    private static final float STRAIGHT_UP = -90f;
+    /** Blocks over the streamer's stand to the slab over its head, close enough that the whole cone meets it. */
+    private static final int OVERHEAD = 3;
+    private static final String DRAINED_WRONG = "The hold should drain %s mb of weird goo, drained %d";
     private static final String GOOP_PAST_NINE_TENTHS_FINISHES = "goop_past_nine_tenths_finishes_after_release";
     /** Three blocks east of the streamer, at its height, on a block the test lays. */
     private static final BlockPos COATED_POS = STREAMER_POS.east(3);
@@ -160,6 +171,12 @@ public final class WeirdTests {
         GooTestFunctions.registerTest(registrar, GOOP_LAYERS_WHILE_HELD, WeirdTests::goopLayersAReachedCellAgainWhileHeld);
         GooTestFunctions.registerTest(registrar, GOOP_STOPS_AT_WHOLE, WeirdTests::goopStopsAReachedCellAtAWholeBlock);
         GooTestFunctions.registerTest(registrar, GOOP_LEFT_CELL_STOPS, WeirdTests::goopLaysNoLayerOnACellTheAimLeft);
+        GooTestFunctions.registerTest(registrar, GOOP_DRAINS_PER_LAYER,
+                WeirdTests::goopDrainsALayersPriceForEachLayerItLays);
+        GooTestFunctions.registerTest(registrar, GOOP_LAYING_NOTHING_DRAINS_NOTHING,
+                WeirdTests::goopLayingNoLayerDrainsNoGoo);
+        GooTestFunctions.registerTest(registrar, GOOP_UNPAID_LAYER_STAYS_OUT,
+                WeirdTests::goopLaysNoLayerTheStreamerCannotPayFor);
         GooTestFunctions.registerTest(registrar, GOOP_PAST_NINE_TENTHS_FINISHES,
                 WeirdTests::goopPastNineTenthsFinishesAfterRelease);
         GooTestFunctions.registerTest(registrar, PAD_BREAKS_THE_FALL, WeirdTests::weirdPadBreaksTheFall);
@@ -568,6 +585,104 @@ public final class WeirdTests {
             assertLayers(helper, TURNED_TO, TWO_COATS);
             helper.succeed();
         });
+    }
+
+    /**
+     * A Goop hold laying three layers on a walled cell drains three layers'
+     * price, each an eighth of Goop's cost, and nothing for the ticks held.
+     * goop-drains-per-cubic-meter-of-slime-placed
+     *
+     * @param helper the gametest helper
+     */
+    public static void goopDrainsALayersPriceForEachLayerItLays(GameTestHelper helper) {
+        ServerPlayer streamer = goopStreamerOverStone(helper);
+        streamer.setXRot(AT_THE_SLIME);
+        BlockPos sprayed = COATED_POS.above();
+        wallInFacingWest(helper, sprayed);
+        int before = weirdHeld(streamer);
+        int held = COAT_STEP_TICKS * THREE_COATS + HOLD_SLACK_TICKS;
+        holdGoopFor(helper, streamer, held);
+        helper.runAfterDelay(held + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
+            assertLayers(helper, sprayed, THREE_COATS);
+            assertDrained(helper, layerPrice(helper).times(THREE_COATS), before - weirdHeld(streamer));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A Goop hold aimed straight up at a bottom slab over the streamer's
+     * head, whose top holds no coat, so no cell the stream reaches can take
+     * one, lasting three coats, drains no weird goo.
+     * goop-drains-per-cubic-meter-of-slime-placed
+     *
+     * @param helper the gametest helper
+     */
+    public static void goopLayingNoLayerDrainsNoGoo(GameTestHelper helper) {
+        helper.setBlock(STREAMER_POS.above(OVERHEAD), Blocks.STONE_SLAB);
+        ServerPlayer streamer = goopStreamerAt(helper, STRAIGHT_UP);
+        int before = weirdHeld(streamer);
+        int held = COAT_STEP_TICKS * THREE_COATS + HOLD_SLACK_TICKS;
+        holdGoopFor(helper, streamer, held);
+        helper.runAfterDelay(held + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
+            assertDrained(helper, GooFraction.ZERO, before - weirdHeld(streamer));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A streamer holding one layer's price of weird goo, what a broken layer
+     * gives back, holds Goop on a walled cell for three coats: one layer
+     * lands and the goo runs out.
+     * goop-drains-per-cubic-meter-of-slime-placed
+     *
+     * @param helper the gametest helper
+     */
+    public static void goopLaysNoLayerTheStreamerCannotPayFor(GameTestHelper helper) {
+        ServerPlayer streamer = goopStreamerOverStone(helper);
+        streamer.setXRot(AT_THE_SLIME);
+        BlockPos sprayed = COATED_POS.above();
+        wallInFacingWest(helper, sprayed);
+        GooSourceScanner.deplete(streamer, GooTypes.WEIRD, weirdHeld(streamer) - SlimeCoatBlock.MB_PER_LAYER);
+        int held = COAT_STEP_TICKS * THREE_COATS + HOLD_SLACK_TICKS;
+        holdGoopFor(helper, streamer, held);
+        helper.runAfterDelay(held + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
+            assertLayers(helper, sprayed, 1);
+            helper.assertTrue(weirdHeld(streamer) == 0, "The streamer should hold no weird goo, holds "
+                    + weirdHeld(streamer));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * One slime layer's price: Goop's cost, the price of a cubic meter of
+     * slime, over the layers a whole block holds.
+     *
+     * @param helper the gametest helper
+     * @return the exact price in mb
+     */
+    private static GooFraction layerPrice(GameTestHelper helper) {
+        AbilityDefinition goop = AbilityRegistry.of(helper.getLevel()).getAbility(GOOP);
+        helper.assertTrue(goop != null, ABILITY_REQUIRED);
+        return goop.cost().exactIn(GooValues.of(helper.getLevel())).dividedBy(SlimeCoatBlock.MAX_LAYERS);
+    }
+
+    private static int weirdHeld(ServerPlayer player) {
+        return GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.WEIRD, 0);
+    }
+
+    /**
+     * Asserts a hold drained the whole mb an exact price comes to, the part
+     * of a mb overpaid banked in the player's remainder.
+     *
+     * @param helper  the gametest helper
+     * @param price   the exact price the hold should pay
+     * @param drained the mb the hold drained
+     */
+    private static void assertDrained(GameTestHelper helper, GooFraction price, int drained) {
+        helper.assertTrue(drained == price.ceiling(), String.format(DRAINED_WRONG, price, drained));
     }
 
     /**
