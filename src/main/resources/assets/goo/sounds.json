@@ -158,6 +158,16 @@
       }
     ]
   },
+  "effects.outsider_door": {
+    "category": "players",
+    "subtitle": "subtitles.goo.outsider_door",
+    "sounds": [
+      {
+        "name": "goo:effects/outsider_conjure",
+        "stream": false
+      }
+    ]
+  },
   "effects.hole_open": {
     "category": "players",
     "subtitle": "subtitles.goo.hole_open",

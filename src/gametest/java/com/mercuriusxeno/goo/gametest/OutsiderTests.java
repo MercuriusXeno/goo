@@ -30,6 +30,7 @@ import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.protocol.game.ClientboundLevelEventPacket;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.resources.ResourceKey;
@@ -101,6 +102,8 @@ public final class OutsiderTests {
         GooTestFunctions.registerTest(registrar, OUTSIDER_GROWS_A_BLOCK_A_SECOND, OutsiderTests::growsOneBlockASecond);
         GooTestFunctions.registerTest(registrar, OUTSIDER_ENTRY_WAIT_MEASURED, OutsiderTests::entryWaitMeasured);
         GooTestFunctions.registerTest(registrar, OUTSIDER_RELEASES_THE_ARRIVER, OutsiderTests::releasesTheArriver);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_DOOR_SOUNDS_THROUGH_THE_CHANGE,
+                OutsiderTests::doorSoundsThroughTheChange);
         GooTestFunctions.registerTest(registrar, OUTSIDER_ARRIVAL_LOADS_DURING_THE_CHARGE,
                 OutsiderTests::arrivalLoadsDuringTheCharge);
         GooTestFunctions.registerTest(registrar, OUTSIDER_GROWS_FOR_THE_RECKONED_TICKS,
@@ -538,6 +541,42 @@ public final class OutsiderTests {
         helper.runAfterDelay(CHARGE_TICKS + ConjuredDoor.RELEASE_TICKS + 2, () -> {
             Optional<ConjuredDoor> door = ConjuredDoors.releaseOf(caster.getUUID());
             helper.assertTrue(door.isEmpty(), String.format(SHOULD_BE_RELEASED, door));
+            helper.succeed();
+        });
+    }
+
+    private static final String OUTSIDER_DOOR_SOUNDS_THROUGH_THE_CHANGE = "outsider_door_sounds_through_the_change";
+    /** Vanilla's level event for the nether portal's travel sound, which a portal-sound transition sends. */
+    private static final int PORTAL_TRAVEL_EVENT = 1032;
+    private static final String SHOULD_SOUND_THE_DOOR = "Entering should send the door's own sound at the envelop, "
+            + "near %s, and at arrival, near %s; door sounds sent at %s";
+    private static final String SHOULD_NOT_TRAVEL = "Entering should send no portal travel sound, sends %d";
+
+    /**
+     * Entering the pocket sends the entering player the door's own sound as
+     * the door envelops them, where they cast from, and again on arrival,
+     * and no nether portal travel sound: the transition does nothing of its
+     * own (decision door-carries-its-own-sound-through-the-change).
+     *
+     * @param helper the gametest helper
+     */
+    public static void doorSoundsThroughTheChange(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        PacketRecorder packets = PacketRecorder.attachTo(caster);
+        Vec3 castFrom = caster.position();
+        holdFor(helper, caster, CHARGE_TICKS);
+        helper.runAfterDelay(CHARGE_TICKS + 1, () -> {
+            Vec3 arrival = arrivalOf(assertEntered(helper, caster));
+            List<Vec3> doorSounds = packets.sentOf(ClientboundSoundPacket.class).stream()
+                    .filter(sound -> GooSoundIds.OUTSIDER_DOOR.equals(sound.getSound().value().location()))
+                    .map(sound -> new Vec3(sound.getX(), sound.getY(), sound.getZ())).toList();
+            boolean atEnvelop = doorSounds.stream().anyMatch(at -> at.distanceTo(castFrom) < 1);
+            boolean atArrival = doorSounds.stream().anyMatch(at -> at.distanceTo(arrival) < 1);
+            helper.assertTrue(atEnvelop && atArrival, String.format(SHOULD_SOUND_THE_DOOR, castFrom, arrival,
+                    doorSounds));
+            long travel = packets.sentOf(ClientboundLevelEventPacket.class).stream()
+                    .filter(event -> event.getType() == PORTAL_TRAVEL_EVENT).count();
+            helper.assertTrue(travel == 0, String.format(SHOULD_NOT_TRAVEL, travel));
             helper.succeed();
         });
     }
