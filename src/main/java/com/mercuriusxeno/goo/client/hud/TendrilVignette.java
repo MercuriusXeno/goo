@@ -417,6 +417,19 @@ public final class TendrilVignette {
      * @param look     the sight's colors
      */
     public void draw(GuiGraphicsExtractor graphics, float time, float strength, Look look) {
+        draw(VignetteCanvas.of(graphics), time, strength, look);
+    }
+
+    /**
+     * Runs the population to the frame's time, then draws the mist and the
+     * tendrils at a strength on a canvas.
+     *
+     * @param graphics the canvas
+     * @param time     the game time with the frame's partial tick
+     * @param strength how fully the vignette stands, zero to one
+     * @param look     the sight's colors
+     */
+    void draw(VignetteCanvas graphics, float time, float strength, Look look) {
         advance(time);
         if (strength <= 0f) {
             if (veins != null) {
@@ -436,7 +449,7 @@ public final class TendrilVignette {
         live.forEach(brush::draw);
     }
 
-    private static void drawMist(GuiGraphicsExtractor graphics, float time, float strength, int mistRgb) {
+    private static void drawMist(VignetteCanvas graphics, float time, float strength, int mistRgb) {
         int width = graphics.guiWidth();
         int height = graphics.guiHeight();
         float depth = Math.min(width, height) * MIST_DEPTH;
@@ -461,7 +474,7 @@ public final class TendrilVignette {
      * @param strength how fully the vignette stands
      * @param rgb      the growth's color
      */
-    private void drawFringe(GuiGraphicsExtractor graphics, float time, float strength, int rgb) {
+    private void drawFringe(VignetteCanvas graphics, float time, float strength, int rgb) {
         Screen screen = new Screen(graphics.guiWidth(), graphics.guiHeight());
         float shorter = Math.min(screen.width(), screen.height());
         for (int layer = 0; layer < LAYER_REACH.length; layer++) {
@@ -482,7 +495,7 @@ public final class TendrilVignette {
      * @param time     the game time with the frame's partial tick
      * @param color    the layer's color
      */
-    private void drawBand(GuiGraphicsExtractor graphics, Screen screen, int edge, float scale, float time, int color) {
+    private void drawBand(VignetteCanvas graphics, Screen screen, int edge, float scale, float time, int color) {
         int span = edge == EDGE_TOP || edge == EDGE_BOTTOM ? screen.width() : screen.height();
         for (int at = 0; at < span; at += STRIP) {
             float depth = fringeDepth(edge, (at + HALF * STRIP) / span, time) * scale;
@@ -493,7 +506,7 @@ public final class TendrilVignette {
         }
     }
 
-    private static void drawRing(GuiGraphicsExtractor graphics, int outer, int inner, int width, int height,
+    private static void drawRing(VignetteCanvas graphics, int outer, int inner, int width, int height,
                                  int color) {
         if (inner <= outer) {
             return;
@@ -514,7 +527,7 @@ public final class TendrilVignette {
      * @param strength   how fully the vignette stands
      * @param tendrilRgb the tendrils' color
      */
-    private record Brush(GuiGraphicsExtractor graphics, Screen screen, float time, float strength, int tendrilRgb) {
+    private record Brush(VignetteCanvas graphics, Screen screen, float time, float strength, int tendrilRgb) {
 
         /**
          * Draws a tendril as far as it has grown, and its fork where it has

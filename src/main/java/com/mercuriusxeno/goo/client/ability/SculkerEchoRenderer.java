@@ -63,9 +63,76 @@ public final class SculkerEchoRenderer {
         PoseStack poseStack = event.getPoseStack();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         RenderType echo = GooRenderTypes.fungusXray(mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location());
-        VertexConsumer consumer = buffers.getBuffer(echo);
-        lit.forEach((pos, block) -> drawLitSides(mc, poseStack, consumer, camera, pos, block));
+        drawLit(new LevelEchoWorld(mc), poseStack, buffers.getBuffer(echo), camera, lit);
         buffers.endBatch(echo);
+    }
+
+    /**
+     * What an echo draw reads of the world: each lit block's state, its
+     * model's parts and which of its neighbours sound passes through, so a
+     * test counts one draw's work headless.
+     * decision diagnose-sculkers-lag-and-prove-it-improved-significantly
+     */
+    interface EchoWorld {
+
+        /**
+         * @param pos the block
+         * @return the block standing there
+         */
+        BlockState stateAt(BlockPos pos);
+
+        /**
+         * Collects the parts of a block's model, as the world draws it there.
+         *
+         * @param pos   the block
+         * @param state the block standing there
+         * @param parts where the parts are gathered
+         */
+        void collectParts(BlockPos pos, BlockState state, List<BlockStateModelPart> parts);
+
+        /**
+         * @param pos the block
+         * @return true for air or a block that does not fill its cell
+         */
+        boolean passesSound(BlockPos pos);
+    }
+
+    /**
+     * The loaded level, read through the client's model set.
+     *
+     * @param mc the client, its level loaded
+     */
+    private record LevelEchoWorld(Minecraft mc) implements EchoWorld {
+
+        @Override
+        public BlockState stateAt(BlockPos pos) {
+            return mc.level.getBlockState(pos);
+        }
+
+        @Override
+        public void collectParts(BlockPos pos, BlockState state, List<BlockStateModelPart> parts) {
+            BlockStateModel model = mc.getModelManager().getBlockStateModelSet().get(state);
+            model.collectParts(mc.level, pos, state, RandomSource.create(pos.asLong()), parts);
+        }
+
+        @Override
+        public boolean passesSound(BlockPos pos) {
+            return SculkerSenses.passesSound(mc.level, pos);
+        }
+    }
+
+    /**
+     * Draws every lit block at its strength.
+     *
+     * @param world     the world the blocks stand in
+     * @param poseStack the pose stack
+     * @param consumer  the vertex consumer
+     * @param camera    the camera's position
+     * @param lit       each lit block and how strongly it draws
+     */
+    static void drawLit(EchoWorld world, PoseStack poseStack, VertexConsumer consumer, Vec3 camera,
+                        Map<BlockPos, Float> lit) {
+        lit.forEach((pos, strength) -> drawLitSides(world, poseStack, consumer, camera, pos, strength));
     }
 
     /**
@@ -92,29 +159,28 @@ public final class SculkerEchoRenderer {
      * Draws a lit block's own quads on every side of it facing a block sound
      * passes through, tinted teal at its strength.
      *
-     * @param mc        the client, its level loaded
+     * @param world     the world the block stands in
      * @param poseStack the pose stack
      * @param consumer  the vertex consumer
      * @param camera    the camera's position
      * @param pos       the block
      * @param strength  how strongly it draws, zero to one
      */
-    private static void drawLitSides(Minecraft mc, PoseStack poseStack, VertexConsumer consumer, Vec3 camera,
+    private static void drawLitSides(EchoWorld world, PoseStack poseStack, VertexConsumer consumer, Vec3 camera,
                                      BlockPos pos, float strength) {
-        BlockState state = mc.level.getBlockState(pos);
+        BlockState state = world.stateAt(pos);
         if (state.isAir()) {
             return;
         }
-        BlockStateModel model = mc.getModelManager().getBlockStateModelSet().get(state);
         List<BlockStateModelPart> parts = new ArrayList<>();
-        model.collectParts(mc.level, pos, state, RandomSource.create(pos.asLong()), parts);
+        world.collectParts(pos, state, parts);
         QuadInstance look = FungusXray.instance(ARGB.color(Math.round(MOST_OPACITY * strength * OPAQUE),
                 SculkerSenses.SCULK_RGB));
         poseStack.pushPose();
         poseStack.translate(pos.getX() - camera.x, pos.getY() - camera.y, pos.getZ() - camera.z);
         for (BlockStateModelPart part : parts) {
             for (Direction side : Direction.values()) {
-                if (SculkerSenses.passesSound(mc.level, pos.relative(side))) {
+                if (world.passesSound(pos.relative(side))) {
                     part.getQuads(side).forEach(quad -> consumer.putBakedQuad(poseStack.last(), quad, look));
                 }
             }
