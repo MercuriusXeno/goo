@@ -28,8 +28,6 @@ import java.util.Map;
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class ConjuredDoorRenderer {
 
-    /** The outline's two halves, each a quad of the outline's corners, split down the crack's middle. */
-    private static final int[][] HALVES = {{0, 1, 2, 3}, {0, 3, 4, 5}};
 
     private static @Nullable ClientLevel drawnIn;
 
@@ -118,13 +116,11 @@ public final class ConjuredDoorRenderer {
     }
 
     private static void emitBothWaysRound(PoseStack.Pose pose, VertexConsumer consumer, Vec3[] corners) {
-        for (int[] half : HALVES) {
-            for (int index : half) {
-                vertex(pose, consumer, corners[index]);
-            }
-            for (int index = half.length - 1; index >= 0; index--) {
-                vertex(pose, consumer, corners[half[index]]);
-            }
+        for (Vec3 corner : corners) {
+            vertex(pose, consumer, corner);
+        }
+        for (int index = corners.length - 1; index >= 0; index--) {
+            vertex(pose, consumer, corners[index]);
         }
     }
 
