@@ -35,7 +35,35 @@ public final class RoomBodyCopyRenderer {
     /** How far round a body's box its copy still counts as seen, for what its model draws past the box. */
     private static final double MODEL_MARGIN = 1.0;
 
+    private static boolean drawingCopies;
+
     private RoomBodyCopyRenderer() {
+    }
+
+    /**
+     * Whether a body's copy is being submitted now, so what draws on a body
+     * and reads its place, as the glove reads the hand the aim line starts
+     * from, knows the place is a copy's and not the body's own.
+     *
+     * @return true while a copy is submitted
+     */
+    public static boolean drawingCopies() {
+        return drawingCopies;
+    }
+
+    /**
+     * Runs a submit as a body's copy.
+     *
+     * @param submit the submit
+     */
+    public static void whileDrawingCopies(Runnable submit) {
+        boolean was = drawingCopies;
+        drawingCopies = true;
+        try {
+            submit.run();
+        } finally {
+            drawingCopies = was;
+        }
     }
 
     /**
@@ -91,8 +119,9 @@ public final class RoomBodyCopyRenderer {
                 state.outlineColor = level.haveGlowingEntities ? state.outlineColor : 0;
             }
             Vec3 at = place.add(state.x - drawn.x(), state.y - drawn.y(), state.z - drawn.z());
-            dispatcher.submit(state, level.cameraRenderState, at.x() - camera.x(), at.y() - camera.y(),
-                    at.z() - camera.z(), event.getPoseStack(), event.getSubmitNodeCollector());
+            EntityRenderState copy = state;
+            whileDrawingCopies(() -> dispatcher.submit(copy, level.cameraRenderState, at.x() - camera.x(),
+                    at.y() - camera.y(), at.z() - camera.z(), event.getPoseStack(), event.getSubmitNodeCollector()));
         }
     }
 }
