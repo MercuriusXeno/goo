@@ -3,6 +3,8 @@ package com.mercuriusxeno.goo.client.ability;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -13,6 +15,7 @@ import net.minecraft.world.phys.Vec3;
  * Another caster, and the local player in third person, keep the entity eye,
  * since that body does drop at once.
  * decision diagnose-and-correct-eye-drawn-visuals-jumping-on-sneak
+ * decision diagnose-and-correct-eye-aimed-visuals-jumping-on-sneak
  */
 public final class CameraEye {
 
@@ -25,7 +28,34 @@ public final class CameraEye {
     public record Sight(Vec3 eye, Vec3 look) {
     }
 
+    /**
+     * Clips a sight line against the world's blocks.
+     */
+    @FunctionalInterface
+    public interface ViewClip {
+
+        /**
+         * Clips the line.
+         *
+         * @param from the line's start
+         * @param to   the line's end
+         * @return the clip result, a miss at the end in open air
+         */
+        BlockHitResult clip(Vec3 from, Vec3 to);
+    }
+
     private CameraEye() {
+    }
+
+    /**
+     * The blocks an entity sees: outlines clipped, fluids passed through, the entity ignored.
+     *
+     * @param viewer the entity the line is traced for
+     * @return the clip
+     */
+    public static ViewClip blocksSeenBy(Entity viewer) {
+        return (from, to) -> viewer.level().clip(new ClipContext(from, to, ClipContext.Block.OUTLINE,
+                ClipContext.Fluid.NONE, viewer));
     }
 
     /**

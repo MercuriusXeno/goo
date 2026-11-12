@@ -267,14 +267,28 @@ public final class FireStream {
      * @param axis the jet's unit vector, from the glove
      * @param wall where the crosshair meets a block within the reach, in world coordinates, or null
      */
-    private record Aim(Vec3 axis, @Nullable Wall wall) {
+    record Aim(Vec3 axis, @Nullable Wall wall) {
     }
 
     private static Aim aimAtCrosshair(LocalPlayer player, Vec3 hand, float partialTick, double range) {
-        Vec3 eye = player.getEyePosition(partialTick);
-        Vec3 look = player.getViewVector(partialTick);
-        BlockHitResult hit = player.level().clip(new ClipContext(eye, eye.add(look.scale(range)),
-                ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player));
+        return aimAlong(CameraEye.of(Minecraft.getInstance(), player, partialTick), hand, range,
+                CameraEye.blocksSeenBy(player));
+    }
+
+    /**
+     * The jet's aim along a sight: the block and face the sight line meets
+     * within the reach, the jet pouring from the glove toward that point.
+     * decision diagnose-and-correct-eye-aimed-visuals-jumping-on-sneak
+     *
+     * @param sight  the eye and look the crosshair's line leaves from, {@link CameraEye#of}'s
+     * @param hand   the glove's world position
+     * @param range  the jet's reach
+     * @param blocks the clip the line is traced against
+     * @return the aim
+     */
+    static Aim aimAlong(CameraEye.Sight sight, Vec3 hand, double range, CameraEye.ViewClip blocks) {
+        Vec3 look = sight.look();
+        BlockHitResult hit = blocks.clip(sight.eye(), sight.eye().add(look.scale(range)));
         if (hit.getType() != HitResult.Type.BLOCK) {
             return new Aim(look, null);
         }
