@@ -11,10 +11,11 @@ import net.minecraft.util.context.ContextKey;
 import net.minecraft.world.entity.Entity;
 
 /**
- * How a phased entity draws: its body through the phase render type, grey
- * and translucent, in place of its own. The flag rides the render state,
- * stamped from the phase the server synced.
+ * How a phased entity draws: its body through the phase render type, grey,
+ * translucent and faintly outlined, in place of its own, to every viewer.
+ * The flag rides the render state, stamped from the phase the server synced.
  * phase-shares-a-plane-between-the-phased
+ * phased-things-draw-as-a-ghostly-image
  */
 public final class PhaseLook {
 

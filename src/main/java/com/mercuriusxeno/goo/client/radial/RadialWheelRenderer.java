@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalDouble;
 import java.util.function.ToIntFunction;
 import java.util.stream.IntStream;
 
@@ -149,11 +150,13 @@ final class RadialWheelRenderer {
      * @param gameTime    the game time, fraction included, which the pulse runs on
      * @param reagentSets the whole sets of a list of consumed items the inventory holds
      * @param standing    the effects standing on the player, whose upkeep the time counts subtract
+     * @param roomExtent  the extent of the Outsider room the player stands in, empty outside the pocket
      */
     record Frame(RadialWheel wheel, List<ResourceKey<GooTypeDefinition>> types,
                  List<List<OfferedAbility>> abilities, Map<ResourceKey<GooTypeDefinition>, Integer> available,
                  int centerX, int centerY, int radius, PetalLook look, float partialTick, Map<Identifier, Float> active,
-                 float gameTime, ToIntFunction<List<Identifier>> reagentSets, HeldEffects standing) {
+                 float gameTime, ToIntFunction<List<Identifier>> reagentSets, HeldEffects standing,
+                 OptionalDouble roomExtent) {
 
         /**
          * How strongly an ability's petal pulses this frame.
@@ -166,7 +169,7 @@ final class RadialWheelRenderer {
         }
 
         /**
-         * A frame whose inventory reads every reagent as plentiful and holds no standing effect.
+         * A frame whose inventory reads every reagent as plentiful, holding no standing effect, outside the pocket.
          *
          * @param wheel       the wheel's state
          * @param types       the types, one per petal at rest
@@ -184,7 +187,7 @@ final class RadialWheelRenderer {
               Map<ResourceKey<GooTypeDefinition>, Integer> available, int centerX, int centerY, int radius,
               PetalLook look, float partialTick, Map<Identifier, Float> active, float gameTime) {
             this(wheel, types, abilities, available, centerX, centerY, radius, look, partialTick, active, gameTime,
-                    reagents -> Integer.MAX_VALUE, HeldEffects.NONE);
+                    reagents -> Integer.MAX_VALUE, HeldEffects.NONE, OptionalDouble.empty());
         }
 
         /**
@@ -445,7 +448,8 @@ final class RadialWheelRenderer {
         ClientAbility ability = offered.ability();
         boolean hovered = petal.ability() == frame.wheel().hoveredAbility();
         FanSlot slotLabels = fanSlot(ability, frame.available().getOrDefault(key, 0),
-                frame.reagentSets().applyAsInt(ability.consumes()), StandingUpkeep.on(frame.standing(), key));
+                frame.reagentSets().applyAsInt(ability.consumes()), StandingUpkeep.on(frame.standing(), key),
+                frame.roomExtent());
         // locked-petal-stays-on-the-wheel: a locked petal takes the unaffordable petal's dimmed look
         boolean dimmed = offered.locked() || slotLabels.dimmed();
         PetalPainter.paint(graphics, frame, frame.look().fluidFace(key), petal,
@@ -983,8 +987,25 @@ final class RadialWheelRenderer {
      * @return the wedge's labels
      */
     static FanSlot fanSlot(ClientAbility ability, int holdings, int reagentSets, StandingUpkeep standing) {
-        return new FanSlot(ability.petalLabel(holdings, reagentSets, standing),
-                ability.dimsAt(holdings, reagentSets, standing));
+        return fanSlot(ability, holdings, reagentSets, standing, OptionalDouble.empty());
+    }
+
+    /**
+     * Reads an ability wedge's cost and what the type's holdings afford beside the Outsider
+     * room the player stands in.
+     * decision outsider-petal-reads-rate-and-time-in-the-room
+     *
+     * @param ability     the synced ability
+     * @param holdings    the amount the player holds of its type
+     * @param reagentSets the whole sets of the ability's consumed items the inventory holds
+     * @param standing    the upkeep already standing on its type
+     * @param roomExtent  the extent of the Outsider room the player stands in, empty outside the pocket
+     * @return the wedge's labels
+     */
+    static FanSlot fanSlot(ClientAbility ability, int holdings, int reagentSets, StandingUpkeep standing,
+                           OptionalDouble roomExtent) {
+        return new FanSlot(ability.petalLabel(holdings, reagentSets, standing, roomExtent),
+                ability.dimsAt(holdings, reagentSets, standing, roomExtent));
     }
 
     /**

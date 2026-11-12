@@ -8,7 +8,7 @@ import net.minecraft.util.ARGB;
 import net.minecraft.world.level.Level;
 
 /**
- * The nether black hole's flat accretion disc, one mesh every hole style
+ * The black hole's flat accretion disc, one mesh every hole style
  * submits through {@code NETHER_DISK_TYPE} (decision one-disc-mesh-config-lens).
  * The disc is an annulus of quads in the world XZ plane; each vertex packs
  * R = radialT (0 inner, 1 outer), G = angularT (0..1 around the ring) and

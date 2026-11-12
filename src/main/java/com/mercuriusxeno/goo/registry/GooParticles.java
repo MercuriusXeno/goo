@@ -38,11 +38,33 @@ public class GooParticles {
         PARTICLE_TYPES.register("gnat", () -> new SimpleParticleType(false));
 
     /**
+     * A mote of slime mist in Goop's stream, flying as Decay's gnats do in
+     * slime greens (decision goop-sprays-a-slime-colored-mist).
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> SLIME_MIST =
+        PARTICLE_TYPES.register("slime_mist", () -> new SimpleParticleType(false));
+
+    /**
+     * A mote of kinetic mist in Slick's stream, flying as Goop's slime mist
+     * does in Kinetic's electric blue and white
+     * (decisions slick-coats-the-ground-with-kinetic-speed, kinetic-is-electric-blue-and-white).
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> KINETIC_MIST =
+        PARTICLE_TYPES.register("kinetic_mist", () -> new SimpleParticleType(false));
+
+    /**
      * A snowflake crystal flitting weightlessly along Cold's wind (decision
      * cold-streams-wind-lines-and-snowflakes).
      */
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> SNOWFLAKE =
         PARTICLE_TYPES.register("snowflake", () -> new SimpleParticleType(false));
+
+    /**
+     * A ring of Deep Click's sound wave, the shriek held square to its line
+     * (decision click-is-a-hit-scan-drawn-as-a-delayed-wave).
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> CLICK_WAVE =
+        PARTICLE_TYPES.register("click_wave", () -> new SimpleParticleType(false));
 
     /**
      * The particle a ability block's explosion names in place of vanilla's
@@ -85,6 +107,14 @@ public class GooParticles {
         PARTICLE_TYPES.register("restore_mote", () -> new SimpleParticleType(false));
 
     /**
+     * The light mote: a mote of glow's warm light rising gently out of
+     * Sunbeam's beam.
+     * sunbeam-sheds-motes-rising-from-the-beam
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> LIGHT_MOTE =
+        PARTICLE_TYPES.register("light_mote", () -> new SimpleParticleType(false));
+
+    /**
      * The homing mote: a mote of jelly goo homing on a target the client
      * reads each tick: Reserve's life drawn into the glove, and Vitality's
      * goo homing from the glove onto each thing it heals.
@@ -94,6 +124,14 @@ public class GooParticles {
         PARTICLE_TYPES.register("vital_mote", () -> new SimpleParticleType(false));
 
     /**
+     * The void mote: a violet mote of void floating slowly up off the floor
+     * along an Outsider room's walls as the room gains a full block.
+     * full-block-growth-wubs-and-raises-void-motes
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> VOID_MOTE =
+        PARTICLE_TYPES.register("void_mote", () -> new SimpleParticleType(false));
+
+    /**
      * The hex wisp: a wisp of drawn life in hex purple, scattering off a
      * victim then curling home to whoever it heals: Lifetap's splashes and
      * Drain's trickle.
@@ -101,6 +139,14 @@ public class GooParticles {
      */
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> HEX_WISP =
         PARTICLE_TYPES.register("hex_wisp", () -> new SimpleParticleType(false));
+
+    /**
+     * The hex mist: a faint hex-purple puff, many of which fill Drain's flat
+     * cone while held, drifting toward the glove hand.
+     * drain-casts-a-hex-mist-cone-toward-the-hand
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> HEX_MIST =
+        PARTICLE_TYPES.register("hex_mist", () -> new SimpleParticleType(false));
 
     /**
      * The hex glyph: an enchanting glyph in hex purple flying into Enchant's

@@ -61,7 +61,7 @@ class HeldDomeRendererTest {
         void blockTargetCentersTheDomeInTheCellBesideTheStruckFace() {
             Vec3 point = new Vec3(3.5, 65, -6.5);
             HeldDomeRenderer.DomeAnchor anchor = HeldDomeRenderer.anchorOf(
-                    new TargetResult.BlockTarget(FLOOR, Direction.UP, false, point));
+                    new TargetResult.BlockTarget(FLOOR, Direction.UP, false, point, null));
             assertEquals(new Vec3(3, 65, -7), anchor.domeCorner());
             assertEquals(new Vec3(3.5, 65, -6.5), anchor.ringCenter());
             assertEquals(Direction.UP, anchor.face());
@@ -71,7 +71,7 @@ class HeldDomeRendererTest {
         void pointInOpenAirCentersTheDomeOnThePoint() {
             Vec3 point = new Vec3(10, 70, 10);
             HeldDomeRenderer.DomeAnchor anchor = HeldDomeRenderer.anchorOf(
-                    new TargetResult.PointTarget(point, FLOOR, Direction.UP, false));
+                    new TargetResult.PointTarget(point, FLOOR, Direction.UP, false, null));
             assertEquals(new Vec3(9.5, 69.5, 9.5), anchor.domeCorner());
             assertEquals(point, anchor.ringCenter());
         }
@@ -117,7 +117,13 @@ class HeldDomeRendererTest {
                 GooRenderTypes.NETHER_BLACKHOLE_THROUGH_BLOCKS.getDepthStencilState().depthTest());
         assertEquals(CompareOp.ALWAYS_PASS,
                 GooRenderTypes.NETHER_CORONA_THROUGH_BLOCKS.getDepthStencilState().depthTest());
-        assertSame(NetherHeldGhost.INSTANCE, HeldDomeRenderer.ghostOf(GooTypes.NETHER));
+    }
+
+    /** anti-moves-from-nether-to-void: the black hole's ghost is Void's, and Nether holds none. */
+    @Test
+    void voidHoldsTheBlackHolesGhost() {
+        assertSame(NetherHeldGhost.INSTANCE, HeldDomeRenderer.ghostOf(GooTypes.VOID));
+        assertNull(HeldDomeRenderer.ghostOf(GooTypes.NETHER));
     }
 
     @Test

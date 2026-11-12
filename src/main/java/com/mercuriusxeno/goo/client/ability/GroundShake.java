@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.BoreStep;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.FlattenStep;
+import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.TerrakinesisStep;
 import com.mercuriusxeno.goo.client.ClientGooValues;
@@ -32,6 +33,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
@@ -44,18 +46,21 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 
 /**
- * The ground shake bore and flatten play while they run: each solid block
- * within a radius of the working point is drawn again over itself, swollen a
- * hair and jittered in world space by a sum of fast sines, so the ground
- * itself trembles and sheds chips of itself while the camera stays still.
+ * The ground shake bore and flatten play while they run: each block the
+ * ability is progressing toward broken is drawn again over itself, for as
+ * long as it gains progress, swollen a hair and jittered gently in world
+ * space by a sum of fast sines, so the cracking blocks tremble and shed chips
+ * of themselves while the ground around them and the camera stay still.
  * decision bore-shakes-the-blocks-around-the-tunnel-and-never-the-camera
  * decision flatten-plays-bores-ground-shake
+ * decision only-the-blocks-about-to-break-shake-briefly-and-gently
  *
  * A winding-up Terrakinesis shakes exactly the cells it is about to tear
  * free, read on the client from the same rule the server lifts by.
@@ -64,10 +69,11 @@ import java.util.function.Predicate;
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class GroundShake {
 
-    /** The farthest a block at the working point moves on any one axis, in blocks. */
-    static final double AMPLITUDE = 0.04;
-    /** How far from the tunnel's line or the swath's middle the ground shakes, in blocks. */
-    static final double RADIUS = 2.25;
+    /**
+     * The farthest a shaking block moves on any one axis, in blocks.
+     * decision only-the-blocks-about-to-break-shake-briefly-and-gently
+     */
+    static final double AMPLITUDE = 0.02;
     /** The most blocks one frame redraws, so a wide open shake stays cheap. */
     private static final int MOST_SHAKEN = 384;
     /** Crumbs a tick shakes loose from the shaking blocks. */
@@ -87,8 +93,6 @@ public final class GroundShake {
     private static final int X_AXIS = 0;
     private static final int Y_AXIS = 1;
     private static final int Z_AXIS = 2;
-    /** Flatten's swath reaches this many layers out past the layer touching its face. */
-    private static final int SWATH_LAYERS_PAST_THE_FIRST = 2;
 
     /** The blocks the last frame shook, which the tick sheds dust from. */
     private static final List<BlockPos> shaken = new ArrayList<>();
@@ -120,47 +124,6 @@ public final class GroundShake {
          * @return the block
          */
         BlockPos high();
-    }
-
-    /**
-     * The ground within a radius of a line, the bore's tunnel or the flatten
-     * swath's spine, shaking fullest on the line.
-     *
-     * @param from   the line's start
-     * @param to     the line's end
-     * @param radius how far from the line the ground shakes, in blocks
-     */
-    record Capsule(Vec3 from, Vec3 to, double radius) implements Zone {
-
-        /**
-         * How far a point lies from the line.
-         *
-         * @param point the point
-         * @return the distance in blocks
-         */
-        double distanceTo(Vec3 point) {
-            Vec3 line = to.subtract(from);
-            double lengthSqr = line.lengthSqr();
-            double along = lengthSqr == 0 ? 0 : Math.clamp(point.subtract(from).dot(line) / lengthSqr, 0, 1);
-            return point.distanceTo(from.add(line.scale(along)));
-        }
-
-        @Override
-        public double strengthAt(BlockPos pos) {
-            return Math.max(0, 1 - distanceTo(Vec3.atCenterOf(pos)) / radius);
-        }
-
-        @Override
-        public BlockPos low() {
-            return BlockPos.containing(Math.min(from.x, to.x) - radius, Math.min(from.y, to.y) - radius,
-                    Math.min(from.z, to.z) - radius);
-        }
-
-        @Override
-        public BlockPos high() {
-            return BlockPos.containing(Math.max(from.x, to.x) + radius, Math.max(from.y, to.y) + radius,
-                    Math.max(from.z, to.z) + radius);
-        }
     }
 
     /**
@@ -196,40 +159,45 @@ public final class GroundShake {
      * @param cells the cells the hunk would lift
      * @return the zone
      */
-    static Zone cellsZone(Set<BlockPos> cells) {
+    static Zone cellsZone(Collection<BlockPos> cells) {
         return new Cells(Set.copyOf(cells));
     }
 
     /**
-     * Where a bore shakes the ground: around its tunnel, from the eye out to its reach.
+     * Where a bore shakes the ground: every block on the eye line it is
+     * progressing, the pick its tick hands the gradual break, so the shaking
+     * blocks are the cracking blocks.
+     * decision only-the-blocks-about-to-break-shake-briefly-and-gently
      *
-     * @param eye   the boring player's eye
-     * @param look  the player's view vector
-     * @param range the bore's reach in blocks
+     * @param eye       the boring player's eye
+     * @param aim       the stream's aim: its reach along the look
+     * @param air       whether a cell holds air
+     * @param breakable whether a cell holds a block the bore breaks
      * @return the zone
      */
-    static Zone boreZone(Vec3 eye, Vec3 look, double range) {
-        return new Capsule(eye, eye.add(look.normalize().scale(range)), RADIUS);
+    static Zone boreZone(Vec3 eye, ChannelAim aim, Predicate<BlockPos> air, Predicate<BlockPos> breakable) {
+        return cellsZone(BoreStep.progressing(eye, aim, air, breakable));
     }
 
     /**
-     * Where a flatten shakes the ground: around the swath it breaks, from the
-     * layer touching the face out to its last layer, the face's own ground with it.
+     * Where a flatten shakes the ground: every swath block it is
+     * progressing, the pick its tick hands the gradual break, so the shaking
+     * blocks are the cracking blocks.
+     * decision only-the-blocks-about-to-break-shake-briefly-and-gently
      *
-     * @param plane the face the hold began on
-     * @param aimed the block the cursor rests on
+     * @param aim       the hold's aim, holding the face the hold began on
+     * @param aimed     the block the cursor rests on
+     * @param breakable whether a cell holds a block the flatten breaks, in reach
      * @return the zone
      */
-    static Zone flattenZone(ChannelAim.FacePlane plane, BlockPos aimed) {
-        BlockPos first = plane.cellOutFrom(aimed);
-        BlockPos last = first.relative(plane.face(), SWATH_LAYERS_PAST_THE_FIRST);
-        return new Capsule(Vec3.atCenterOf(first), Vec3.atCenterOf(last), RADIUS);
+    static Zone flattenZone(ChannelAim aim, BlockPos aimed, Predicate<BlockPos> breakable) {
+        return cellsZone(FlattenStep.progressing(aim, aimed, breakable));
     }
 
     /**
      * A block's offset from its cell at a moment: a sum of two sines on each
-     * axis, out of step with its neighbors, scaled by how near the working
-     * point it stands; zero past the radius.
+     * axis, out of step with its neighbors, scaled by the zone's strength
+     * there; zero outside the zone.
      *
      * @param pos  the block
      * @param zone where the ground shakes
@@ -283,8 +251,7 @@ public final class GroundShake {
     }
 
     private static @Nullable TerrakinesisStep terrakinesisOf(@Nullable ClientAbility ability) {
-        return ability == null ? null : ability.behaviors().stream().filter(TerrakinesisStep.class::isInstance)
-                .map(TerrakinesisStep.class::cast).findFirst().orElse(null);
+        return ability == null ? null : stepOf(ability, TerrakinesisStep.class);
     }
 
     /**
@@ -319,12 +286,56 @@ public final class GroundShake {
         if (terrakinesis != null) {
             return terrakinesisZone(player, terrakinesis, eye, partialTick);
         }
-        if (ability.behaviors().stream().anyMatch(BoreStep.class::isInstance)) {
-            return boreZone(eye, player.getViewVector(partialTick), ability.delivery().range());
+        BoreStep bore = stepOf(ability, BoreStep.class);
+        if (bore != null) {
+            return liveBoreZone(player, bore, ability, eye, partialTick);
         }
+        FlattenStep flatten = stepOf(ability, FlattenStep.class);
+        return flatten == null ? null : liveFlattenZone(player, flatten, eye);
+    }
+
+    private static <T extends Step> @Nullable T stepOf(ClientAbility ability, Class<T> kind) {
+        return ability.behaviors().stream().filter(kind::isInstance).map(kind::cast).findFirst().orElse(null);
+    }
+
+    /**
+     * The line blocks the local player's bore is progressing, read off the
+     * client's level along the aim the server bores by.
+     *
+     * @param player      the local player
+     * @param bore        the selected bore
+     * @param ability     the selected ability, whose delivery holds the reach
+     * @param eye         the player's eye this frame
+     * @param partialTick the frame's partial tick
+     * @return the zone
+     */
+    private static Zone liveBoreZone(LocalPlayer player, BoreStep bore, ClientAbility ability, Vec3 eye,
+                                     float partialTick) {
+        Level level = player.level();
+        ChannelAim aim = new ChannelAim(eye.add(player.getViewVector(partialTick).scale(ability.delivery().range())),
+                null, ability.delivery().coneDegrees());
+        return boreZone(eye, aim, cell -> level.getBlockState(cell).isAir(),
+                cell -> level.getBlockState(cell).is(bore.breaks()));
+    }
+
+    /**
+     * The swath blocks the local player's flatten is progressing, read off
+     * the client's level under the cursor the disc rests on.
+     *
+     * @param player  the local player
+     * @param flatten the selected flatten
+     * @param eye     the player's eye this frame
+     * @return the zone, or null where the hold began on no face
+     */
+    private static @Nullable Zone liveFlattenZone(LocalPlayer player, FlattenStep flatten, Vec3 eye) {
         ChannelAim.FacePlane plane = GloveUseTracker.pressPlane();
-        return plane == null ? null
-                : flattenZone(plane, new ChannelAim(GloveThrowSender.cursorPoint(player), plane).aimedBlock(eye));
+        if (plane == null) {
+            return null;
+        }
+        Level level = player.level();
+        ChannelAim aim = new ChannelAim(GloveThrowSender.cursorPoint(player), plane);
+        return flattenZone(aim, aim.aimedBlock(eye), cell -> level.getBlockState(cell).is(flatten.breaks())
+                && player.isWithinBlockInteractionRange(cell, PlayerHost.REACH_SLACK));
     }
 
     /**

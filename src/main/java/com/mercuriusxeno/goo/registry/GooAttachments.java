@@ -32,12 +32,12 @@ import com.mercuriusxeno.goo.ability.weird.Wobbled;
 import com.mercuriusxeno.goo.ability.xeno.Eldritch;
 import com.mercuriusxeno.goo.ability.zone.Shifter;
 import com.mercuriusxeno.goo.ability.zone.ZoneCurse;
+import com.mercuriusxeno.goo.ability.zoo.Leader;
 import com.mercuriusxeno.goo.ability.zoo.Rallied;
 import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
 import com.mojang.serialization.Codec;
-import net.minecraft.core.GlobalPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.attachment.AttachmentType;
@@ -172,6 +172,17 @@ public final class GooAttachments {
                             .build());
 
     /**
+     * Whether a goo:pocket chunk holds its voidstone floor, saved with the
+     * chunk so the floor is laid into a chunk once, and a chunk a save
+     * generated before the floor gains it on its first load (decision
+     * voidstone-floor-stands-whole-and-growth-moves-the-boundary).
+     */
+    public static final Supplier<AttachmentType<Boolean>> POCKET_FLOOR_LAID =
+            ATTACHMENT_TYPES.register("pocket_floor_laid",
+                    () -> AttachmentType.builder(() -> false)
+                            .serialize(Codec.BOOL.fieldOf("laid"), laid -> laid).build());
+
+    /**
      * Where an entity stood before its latest goo teleport, kept for the
      * steps after the teleport in the same program, a ghost trail among
      * them, and never saved (decision ghost-trail-spans-the-blink).
@@ -300,8 +311,8 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The shifter a player holds, saved with the player.
-     * shifter-blinks-along-the-cursor-on-hit
+     * The Elude a player holds, saved with the player.
+     * elude-moves-you-to-a-random-safe-spot-on-mob-or-projectile-damage
      */
     public static final Supplier<AttachmentType<Shifter>> SHIFTER =
             ATTACHMENT_TYPES.register("shifter",
@@ -323,20 +334,26 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The charm a mob holds, the player it fights for and when it fades,
-     * saved with the mob and synced to every client drawing it, which floats
-     * the charmed heart over its head.
-     * charm-glisten-and-icon-over-the-head
-     */
-    /**
-     * The rally a peaceful mob holds: the caster it fights for, the game
-     * time it fades at and its strike damage, saved with the mob.
+     * The rally a peaceful mob holds until its rallier strikes it: the caster
+     * it fights for and its strike damage, saved with the mob and synced to
+     * every client drawing it, which floats the rally fist over its head and
+     * outlines it.
      * zoo-rally-arms-the-peaceful
+     * rallied-mobs-wear-a-red-clenched-fist
      */
     public static final Supplier<AttachmentType<Rallied>> RALLIED =
             ATTACHMENT_TYPES.register("rallied",
-                    () -> AttachmentType.builder(() -> Rallied.NONE).serialize(Rallied.CODEC).build());
+                    () -> AttachmentType.builder(() -> Rallied.NONE)
+                            .serialize(Rallied.CODEC)
+                            .sync(GooAttachments::syncsToWatcher, Rallied.STREAM_CODEC)
+                            .build());
 
+    /**
+     * The charm a mob holds, the player it fights for, saved with the mob
+     * and synced to every client drawing it, which floats the charmed heart
+     * over its head.
+     * charm-glisten-and-icon-over-the-head
+     */
     public static final Supplier<AttachmentType<Charmed>> CHARMED =
             ATTACHMENT_TYPES.register("charmed",
                     () -> AttachmentType.builder(() -> Charmed.NONE)
@@ -391,15 +408,6 @@ public final class GooAttachments {
                             .serialize(OutOfPhase.CODEC, OutOfPhase::laid)
                             .sync(GooAttachments::syncsToWatcher, OutOfPhase.STREAM_CODEC)
                             .build());
-
-    /**
-     * The quantum anchor a player last arrived at, held until they step away
-     * from it, so arriving never carries them straight back. Not saved.
-     * quantum-anchors-link-two-points
-     */
-    public static final Supplier<AttachmentType<Optional<GlobalPos>>> ANCHOR_ARRIVAL =
-            ATTACHMENT_TYPES.register("anchor_arrival",
-                    () -> AttachmentType.<Optional<GlobalPos>>builder(Optional::empty).build());
 
     /**
      * The swap body a player has standing, saved with the player while one stands.
@@ -468,6 +476,18 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> Sculker.NONE)
                             .serialize(Sculker.CODEC, sculker -> sculker.expiresAt() > 0L)
                             .sync(GooAttachments::syncsToOwner, Sculker.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The Leader a player holds, saved while it stands and synced to the
+     * owning client, which outlines the mobs it senses.
+     * leader-is-zoos-brew-ability
+     */
+    public static final Supplier<AttachmentType<Leader>> LEADER =
+            ATTACHMENT_TYPES.register("leader",
+                    () -> AttachmentType.builder(() -> Leader.NONE)
+                            .serialize(Leader.CODEC, Leader::stands)
+                            .sync(GooAttachments::syncsToOwner, Leader.STREAM_CODEC)
                             .build());
 
     /**

@@ -27,9 +27,10 @@ import java.util.stream.Stream;
  * glove onto each thing being healed, and amber healing stars on it, like
  * bonemeal's green ones. The fog stands in for any wireframe area indicator
  * (decision right-click-held-previews-release-throws); the server names
- * what each tick healed.
+ * what each tick healed, and each mob it touched shows its life overhead.
  * vitality-waves-regenerate-and-court
  * nourish-and-healing-ship-on-jelly
+ * touched-mobs-show-hearts-or-a-count-over-max
  */
 public final class VitalityVisual {
 
@@ -148,6 +149,9 @@ public final class VitalityVisual {
         ClientLevel level = mc.level;
         if (level == null) {
             return;
+        }
+        for (int id : payload.touchedIds()) {
+            TouchedMobs.CLIENT.touch(id, level.getGameTime());
         }
         Supplier<Vec3> glove = gloveOf(mc, payload);
         for (int id : payload.healedIds()) {

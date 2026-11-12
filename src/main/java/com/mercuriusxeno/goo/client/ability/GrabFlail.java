@@ -34,7 +34,13 @@ public final class GrabFlail {
         }
     }
 
-    private static boolean grabbed(Entity entity) {
+    /**
+     * Whether a Grab holds an entity now, as this client sees its ailment.
+     *
+     * @param entity the entity
+     * @return true while a standing Grab holds it
+     */
+    public static boolean grabbed(Entity entity) {
         return flails(MobAilments.CLIENT.ailmentsOf(entity.getId(), entity.level().getGameTime()));
     }
 

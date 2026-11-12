@@ -69,9 +69,10 @@ public final class LabSupplyTests {
     private static final String WRONG_CANISTER = "Station canister should hold goo of its type: ";
     private static final String NO_CHEST = "Station should stand a chest: ";
     private static final String STRAY_ITEM = "Station chest holds an item whose goo value lacks its type: ";
-    private static final String EMPTY_CHEST = "The rock station's chest should hold the items that decompose into rock";
+    private static final String EMPTY_CHEST = "Some station's chest should hold the items that decompose into its type";
     private static final String KIT_MISSING = "Kit should put in the inventory: ";
-    private static final String KIT_VAT = "Kit should hold one vat holding void and an even share of every other registered goo type";
+    private static final String KIT_VAT =
+            "Kit should hold one vat holding void and an even share of every other registered goo type save infinity";
     private static final String BUILD_NO_KIT = "Build handler should hand the kit to its invoking player";
     private static final String BUILD_FAILED = "Lab build failed: ";
     private static final String SEPARATOR = " ";
@@ -98,11 +99,14 @@ public final class LabSupplyTests {
         for (LabSupply.Station station : plan.supply().stations()) {
             assertStation(helper, origin, station);
         }
-        LabSupply.Station rock = plan.supply().stations().stream()
-                .filter(s -> LabStock.gooType(s).equals(GooTypes.ROCK)).findFirst().orElseThrow();
-        ChestBlockEntity rockChest = (ChestBlockEntity) helper.getLevel().getBlockEntity(
-                LabBuilder.worldPos(origin, rock.chestOffset()));
-        helper.assertFalse(rockChest == null || rockChest.isEmpty(), EMPTY_CHEST);
+        // Decision no-test-asserts-a-shipped-base-value: which type's chest the shipped values stock is the
+        // operator's to tune, so the row is graded on stocking some chest.
+        boolean anyStocked = plan.supply().stations().stream().anyMatch(station -> {
+            ChestBlockEntity chest = (ChestBlockEntity) helper.getLevel().getBlockEntity(
+                    LabBuilder.worldPos(origin, station.chestOffset()));
+            return chest != null && !chest.isEmpty();
+        });
+        helper.assertTrue(anyStocked, EMPTY_CHEST);
         helper.succeed();
     }
 
@@ -157,7 +161,8 @@ public final class LabSupplyTests {
 
     /**
      * Asserts an inventory holds every fixed kit item and one vat holding void and an even share of
-     * every other goo type (decision each-void-mb-adds-n-plus-one-capacity).
+     * every other goo type save infinity (decisions each-void-mb-adds-n-plus-one-capacity and
+     * lab-kit-vat-leaves-infinity-out).
      *
      * @param helper    the gametest helper
      * @param inventory the inventory
@@ -181,6 +186,8 @@ public final class LabSupplyTests {
         Set<String> held = new TreeSet<>();
         contents.contents().keySet().forEach(type -> held.add(type.identifier().toString()));
         Set<String> registered = new TreeSet<>(LabStock.gooTypeIds(helper.getLevel()));
+        // decision lab-kit-vat-leaves-infinity-out
+        registered.remove(GooTypes.INFINITY.identifier().toString());
         Set<Integer> shares = new HashSet<>();
         contents.contents().forEach((type, volume) -> {
             if (!GooTypes.VOID.equals(type)) {

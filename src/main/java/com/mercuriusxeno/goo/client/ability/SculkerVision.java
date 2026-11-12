@@ -41,7 +41,7 @@ public final class SculkerVision {
     /** The share of the gap to full or no presence the vision closes each tick, about a second and a half to settle. */
     static final float EASE_PER_TICK = 0.05f;
     /** Below this presence the vision is gone and its chain stops running. */
-    static final float GONE = 0.01f;
+    public static final float GONE = 0.01f;
     private static final float BLOCKS_PER_CHUNK = 16f;
     /** The camera's far plane past its render distance, as {@code Camera} sets it up. */
     private static final float FAR_PER_RENDER_BLOCK = 4f;

@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.client.particle;
 
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.ParticleProvider;
-import net.minecraft.client.particle.SingleQuadParticle;
 import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.util.RandomSource;
@@ -18,7 +17,7 @@ import java.util.function.Supplier;
  * weightless and fades out over two seconds or so
  * (decision decay-gnats-degrade-each-block-once).
  */
-public final class GnatParticle extends SingleQuadParticle {
+public final class GnatParticle extends GloveMote {
 
     /** The share of its speed a gnat keeps each tick; a hive's launch is sized by it. */
     public static final float SWARM_FRICTION = 0.9f;
@@ -29,18 +28,12 @@ public final class GnatParticle extends SingleQuadParticle {
     private static final float BASE_QUAD_SIZE = 0.06f;
     private static final float QUAD_SIZE_VARIANCE = 0.04f;
     private static final float START_ALPHA = 0.95f;
-    private static final float MAROON_RED = 0.75f;
-    private static final float MAROON_GREEN = 0.12f;
-    private static final float MAROON_BLUE = 0.2f;
-    private static final float DARK_RED = 0.5f;
-    private static final float DARK_GREEN = 0.06f;
-    private static final float DARK_BLUE = 0.11f;
     private static final double HALF = 0.5;
 
     private @Nullable Supplier<Vec3> prey;
 
     private GnatParticle(ClientLevel level, double x, double y, double z, double vx, double vy, double vz,
-                         SpriteSet sprites) {
+                         SpriteSet sprites, GnatPalette palette) {
         super(level, x, y, z, sprites.get(0, 1));
         this.xd = vx;
         this.yd = vy;
@@ -48,16 +41,16 @@ public final class GnatParticle extends SingleQuadParticle {
         this.gravity = 0f;
         this.friction = SWARM_FRICTION;
         this.hasPhysics = true;
-        tint(level.getRandom());
+        tint(level.getRandom(), palette);
     }
 
-    private void tint(RandomSource random) {
+    private void tint(RandomSource random, GnatPalette palette) {
         float blend = random.nextFloat();
         this.lifetime = BASE_LIFETIME + random.nextInt(LIFETIME_VARIANCE);
         this.quadSize = BASE_QUAD_SIZE + random.nextFloat() * QUAD_SIZE_VARIANCE;
-        this.rCol = MAROON_RED + (DARK_RED - MAROON_RED) * blend;
-        this.gCol = MAROON_GREEN + (DARK_GREEN - MAROON_GREEN) * blend;
-        this.bCol = MAROON_BLUE + (DARK_BLUE - MAROON_BLUE) * blend;
+        this.rCol = palette.lightRed() + (palette.darkRed() - palette.lightRed()) * blend;
+        this.gCol = palette.lightGreen() + (palette.darkGreen() - palette.lightGreen()) * blend;
+        this.bCol = palette.lightBlue() + (palette.darkBlue() - palette.lightBlue()) * blend;
         this.alpha = START_ALPHA;
     }
 
@@ -73,9 +66,14 @@ public final class GnatParticle extends SingleQuadParticle {
         this.friction = 1f;
     }
 
-    /** Steers a seeking gnat, darts the gnat a little off its heading and fades it over its life. */
+    /**
+     * Swings the gnat with the glove over its opening ticks, steers a seeking
+     * gnat, darts the gnat a little off its heading and fades it over its life.
+     */
     @Override
     public void tick() {
+        // glove-stream-motes-swing-with-the-glove-at-launch: the swing runs before the prey pulls
+        swingWithTheGlove();
         if (prey != null) {
             Vec3 velocity = GnatSteering.steer(new Vec3(this.xd, this.yd, this.zd), new Vec3(this.x, this.y, this.z),
                     prey.get());
@@ -97,26 +95,38 @@ public final class GnatParticle extends SingleQuadParticle {
     }
 
     /**
-     * Makes gnats from the server's spray, keeping its speed.
+     * Makes gnats from the server's spray, keeping its speed, in one palette.
      */
     public static class Provider implements ParticleProvider<SimpleParticleType> {
 
         private final SpriteSet sprites;
+        private final GnatPalette palette;
 
         /**
-         * Creates a provider over the gnat sprite.
+         * Creates a provider over the gnat sprite, drawing Decay's maroon gnats.
          *
          * @param sprites the sprite set
          */
         public Provider(SpriteSet sprites) {
+            this(sprites, GnatPalette.MAROON);
+        }
+
+        /**
+         * Creates a provider over the gnat sprite in a palette.
+         *
+         * @param sprites the sprite set
+         * @param palette the colors its gnats blend between
+         */
+        public Provider(SpriteSet sprites, GnatPalette palette) {
             this.sprites = sprites;
+            this.palette = palette;
         }
 
         @Override
         public @Nullable GnatParticle createParticle(SimpleParticleType type, ClientLevel level, double x, double y,
                                                      double z, double xSpeed, double ySpeed, double zSpeed,
                                                      RandomSource random) {
-            return new GnatParticle(level, x, y, z, xSpeed, ySpeed, zSpeed, sprites);
+            return new GnatParticle(level, x, y, z, xSpeed, ySpeed, zSpeed, sprites, palette);
         }
     }
 }

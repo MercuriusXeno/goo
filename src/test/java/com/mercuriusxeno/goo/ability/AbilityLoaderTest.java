@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.ability;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.held.LaidState;
 import com.mercuriusxeno.goo.ability.program.AfterimageStep;
@@ -46,7 +48,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.lang.reflect.Modifier;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -59,6 +65,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -74,6 +81,11 @@ import static org.mockito.Mockito.when;
 class AbilityLoaderTest {
 
     private static final String DIRECTORY = "goo_abilities";
+    private static final String EN_US = "/assets/goo/lang/en_us.json";
+    private static final int CHARM_ROLLS = 1000;
+    private static final int RARE_CHARMS = 50;
+    private static final double ZOMBIE_MAX_HEALTH = 20;
+    private static final double TOP_MAX_HEALTH = 1024;
     /** The one brew that starts silent (decision rally-drops-its-sound-and-gets-its-sprite). */
     private static final Identifier SILENT_BREW = Identifier.fromNamespaceAndPath(Goo.MODID, "zoo_rally");
     /** The proving example of a world ability that stays after its blob lands. */
@@ -417,7 +429,7 @@ class AbilityLoaderTest {
 
         private static final Map<String, String> SHIPPED_FORMULAS = Map.of(
                 "ender_blink", "200 + 100/block",
-                "nether_black_hole", "1K x r\u00B3",
+                "void_black_hole", "1K x r\u00B3",
                 "unstable_explode", "1K x r\u00B3",
                 "rock_spire", "%s/m³",
                 "rock_terrakinesis", "%s",
@@ -427,6 +439,19 @@ class AbilityLoaderTest {
         void eachDynamicAbilityCarriesItsFormula() {
             SHIPPED_FORMULAS.forEach((name, formula) ->
                     assertEquals(Optional.of(formula), AbilityJson.decode(name).costFormula(), name));
+        }
+
+        /**
+         * Outsider's price is its step's entry, read live, so its file names no formula and loads
+         * (decision outsider-cost-text-reads-the-new-mechanics).
+         */
+        @Test
+        void outsiderNamesNoFormulaAndLoads() {
+            JsonObject outsider = JsonParser.parseString(AbilityJson.read("void_outsider")).getAsJsonObject();
+
+            assertFalse(outsider.has("cost_formula"), () -> "cost_formula reads " + outsider.get("cost_formula"));
+            assertEquals(Identifier.fromNamespaceAndPath(Goo.MODID, "void_outsider"),
+                    AbilityJson.decode("void_outsider").id());
         }
 
         @Test
@@ -532,7 +557,8 @@ class AbilityLoaderTest {
 
         @Test
         void shippedBlazeLeafAndZooEachCarryExactlyOneBrew() {
-            Map<Identifier, AbilityDefinition> shipped = shippedById();
+            Map<Identifier, AbilityDefinition> shipped = scanShipped(AbilityJson.files());
+            // leader-is-zoos-brew-ability
             List<ResourceKey<GooTypeDefinition>> carriers = List.of(GooTypes.BLAZE, GooTypes.LEAF, GooTypes.ZOO);
 
             for (ResourceKey<GooTypeDefinition> type : carriers) {
@@ -543,59 +569,75 @@ class AbilityLoaderTest {
             }
         }
 
-        /** decision zoo-rally-is-a-brew-ability */
+        /** decision rally-is-a-mob-effect-on-one-target */
         @Test
-        void shippedZooBrewIsRally() {
-            List<Identifier> zooBrews = shippedById().values().stream()
-                    .filter(def -> def.gooType() == GooTypes.ZOO && SelfEatRoute.eats(def.delivery(), def.badge()))
-                    .map(AbilityDefinition::id)
-                    .toList();
-
-            assertEquals(List.of(Identifier.fromNamespaceAndPath(Goo.MODID, "zoo_rally")), zooBrews);
-        }
-
-        /** decision zoo-rally-holds-for-the-brew */
-        @Test
-        void shippedZooRallyLaysTheRallyItsEndingClears() {
+        void shippedZooRallyThrowsAtOneMobForAFlatCost() {
             AbilityDefinition rally = AbilityJson.decode("zoo_rally");
 
-            assertTrue(LaidState.laidBy(rally.behaviors()).contains(LaidState.RALLY),
-                    LaidState.laidBy(rally.behaviors()).toString());
+            assertEquals(AbilityBadge.MOB, rally.badge());
+            assertEquals(DeliveryKind.ARC, rally.delivery().kind());
+            assertTrue(rally.cost().in(GooValueTable.EMPTY) > 0, "cost " + rally.cost().in(GooValueTable.EMPTY));
+            assertEquals(0, rally.upkeep().in(GooValueTable.EMPTY));
+        }
+
+        /** decision leader-is-zoos-brew-ability */
+        @Test
+        void shippedZooLeaderHoldsOnAnUpkeep() {
+            AbilityDefinition leader = AbilityJson.decode("zoo_leader");
+
+            assertEquals(GooTypes.ZOO, leader.gooType());
+            assertEquals(AbilityBadge.DURATIVE, leader.badge());
+            assertEquals(DeliveryKind.SELF, leader.delivery().kind());
+            assertTrue(leader.upkeep().in(GooValueTable.EMPTY) > 0, "upkeep " + leader.upkeep().in(GooValueTable.EMPTY));
+            assertTrue(SelfEatRoute.eats(leader.delivery(), leader.badge()));
         }
     }
 
     /**
-     * Weird's abilities are the make-this-harmless family: Coat's stream coats
-     * what it hits, Bounce stays the long-range pad, and Slime stands apart.
+     * Weird's abilities are the make-this-harmless family: Goop's stream coats
+     * what it hits and is the one petal laying slime, and Slime stands apart.
      * weird-bounces-and-softens-harm
      */
     @Nested
     class WeirdHarmlessFamily {
 
+        /** decision bounce-leaves-the-mod-and-goop-stands-alone */
         @Test
-        void weirdLoadsBounceCoatAndSlimeAlone() {
-            Map<Identifier, AbilityDefinition> scanned = shippedById();
+        void weirdLoadsGoopAndSlimeAlone() {
+            Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
 
             Set<String> weird = scanned.values().stream().filter(def -> def.gooType() == GooTypes.WEIRD)
                     .map(def -> def.id().getPath()).collect(Collectors.toSet());
 
-            assertEquals(Set.of("weird_bounce", "weird_coat", "weird_slime"), weird);
+            assertEquals(Set.of("weird_goop", "weird_mitosis"), weird);
+        }
+
+        /** decision coat-is-renamed-goop */
+        @Test
+        void goopShipsUnderWeirdNamedGoopWithItsIcon() throws IOException {
+            assertWeirdPetalShipsAs("weird_goop", "Goop");
+        }
+
+        /** decision slime-is-renamed-mitosis-with-a-dividing-cell-icon */
+        @Test
+        void mitosisShipsUnderWeirdNamedMitosisWithItsIcon() throws IOException {
+            assertWeirdPetalShipsAs("weird_mitosis", "Mitosis");
         }
 
         @Test
-        void coatStreamsCoolingLavaAndCoatingBlocksInTheBlockPass() {
-            AbilityDefinition coat = AbilityJson.decode("weird_coat");
-            List<Step> blockPass = ChannelHost.passSteps(coat.behaviors(), true);
+        void goopStreamsCoolingLavaAndCoatingBlocksInTheBlockPass() {
+            AbilityDefinition goop = AbilityJson.decode("weird_goop");
+            List<Step> blockPass = ChannelHost.passSteps(goop.behaviors(), true);
 
-            assertEquals(DeliveryKind.STREAM, coat.delivery().kind());
+            assertEquals(DeliveryKind.STREAM, goop.delivery().kind());
             // coat-is-a-green-slime-film-over-the-blocks-own-texture
             assertEquals(List.of(CoolLavaStep.class, CoatStep.class), blockPass.stream().map(Object::getClass).toList());
             assertTrue(ProgramBehavior.serves(blockPass, HostKind.PLAYER), "the channeling player runs the block pass");
         }
 
         @Test
-        void coatWobblesTheMobItHitsUnderTheWobbleOverlay() {
-            List<Step> entityPass = ChannelHost.passSteps(AbilityJson.decode("weird_coat").behaviors(), false);
+        void goopWobblesTheMobItHitsUnderTheWobbleOverlay() {
+            List<Step> entityPass = ChannelHost.passSteps(AbilityJson.decode("weird_goop").behaviors(), false);
 
             TargetStep onMob = entityPass.stream().filter(TargetStep.class::isInstance).map(TargetStep.class::cast)
                     .findFirst().orElseThrow();
@@ -605,15 +647,63 @@ class AbilityLoaderTest {
                     && overlay.kind() == AilmentKind.WOBBLE), "no wobble overlay on the mob");
             assertTrue(ProgramBehavior.serves(entityPass, HostKind.ENTITY), "the struck entity runs the entity pass");
         }
+    }
+
+    /**
+     * Slick ships among Kinetic's abilities under its own name, description and icon.
+     * slick-coats-the-ground-with-kinetic-speed
+     */
+    @Nested
+    class KineticSlick {
+
+        private static final String SLICK = "kinetic_slick";
 
         @Test
-        void bounceLaysTheSlimeCoatWhereItsArcLands() {
-            AbilityDefinition bounce = AbilityJson.decode("weird_bounce");
+        void slickShipsUnderKineticNamedSlickWithItsIcon() throws IOException {
+            Set<String> kinetic = scanShipped(AbilityJson.files()).values().stream()
+                    .filter(def -> def.gooType() == GooTypes.KINETIC)
+                    .map(def -> def.id().getPath()).collect(Collectors.toSet());
 
-            assertEquals(DeliveryKind.ARC, bounce.delivery().kind());
-            // bounce-ramps-jump-height-while-jump-is-held: Bounce's blob lays the coat Coat lays
-            assertEquals(List.of(new PlaceBlockStep(Identifier.fromNamespaceAndPath(Goo.MODID, "slime_coat"), Map.of())),
-                    bounce.behaviors());
+            assertTrue(kinetic.contains(SLICK), "Kinetic's abilities " + kinetic + " lack " + SLICK);
+            assertPetalShipsAs(GooTypes.KINETIC, SLICK, "Slick");
+        }
+
+        @Test
+        void slickCarriesADescription() throws IOException {
+            AbilityDefinition slick = AbilityJson.decode(SLICK);
+            JsonObject lang = shippedLang();
+
+            assertTrue(lang.has(slick.description()), slick.description() + " has no lang entry");
+            assertFalse(lang.get(slick.description()).getAsString().isBlank(), slick.description() + " is blank");
+        }
+    }
+
+    private static void assertWeirdPetalShipsAs(String path, String name) throws IOException {
+        assertPetalShipsAs(GooTypes.WEIRD, path, name);
+    }
+
+    /**
+     * Asserts a shipped ability stands under the type, its lang key reads the given name, and its
+     * icon resolves to the convention path and ships on the classpath.
+     */
+    private static void assertPetalShipsAs(ResourceKey<GooTypeDefinition> type, String path, String name)
+            throws IOException {
+        Identifier id = Identifier.fromNamespaceAndPath(Goo.MODID, path);
+        AbilityDefinition petal = scanShipped(AbilityJson.files()).get(id);
+        assertNotNull(petal, id + " ships");
+        assertEquals(type, petal.gooType());
+        assertEquals(name, shippedLang().get(petal.displayName()).getAsString(), petal.displayName());
+        Identifier icon = AbilityIconTexture.of(id, petal.icon());
+        assertEquals(Identifier.fromNamespaceAndPath(Goo.MODID, "textures/goo/ability/" + path + ".png"), icon);
+        try (InputStream in = AbilityLoaderTest.class.getResourceAsStream("/assets/goo/" + icon.getPath())) {
+            assertNotNull(in, icon + " ships");
+        }
+    }
+
+    private static JsonObject shippedLang() throws IOException {
+        try (InputStream in = AbilityLoaderTest.class.getResourceAsStream(EN_US)) {
+            assertNotNull(in, EN_US);
+            return JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
         }
     }
 

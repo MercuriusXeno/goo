@@ -1,14 +1,20 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.program.BlockBreakHost;
+import com.mercuriusxeno.goo.ability.program.GradualBreak;
 import com.mercuriusxeno.goo.data.GooFraction;
 import net.minecraft.core.BlockPos;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 /**
  * A stream hold counts consecutive server ticks per player, and its ticks
@@ -121,6 +127,47 @@ class StreamHoldsTest {
             holds.advance(OTHER, 100);
             holds.marks(PLAYER).noteStepped(BLOCK);
             assertFalse(holds.marks(OTHER).stepped(BLOCK));
+        }
+    }
+
+    /**
+     * A hold that ends clears the cracks its gradual break drew, whether the
+     * player let go or a new hold replaced it
+     * (decision gradual-breaks-share-one-break-texture-piece).
+     */
+    @Nested
+    class AnEndedHoldClearsItsCracks {
+
+        private static final BlockPos BLOCK = new BlockPos(4, 64, -2);
+        private static final double QUARTER = 0.25;
+        private final BlockBreakHost host = mock(BlockBreakHost.class);
+
+        private StreamHolds crackingAt(int tick) {
+            StreamHolds holds = new StreamHolds();
+            holds.advance(PLAYER, tick);
+            holds.marks(PLAYER).gradualBreak().progress(Map.of(BLOCK, QUARTER), host);
+            return holds;
+        }
+
+        @Test
+        void aHoldStillWithinItsGapKeepsItsCracks() {
+            StreamHolds holds = crackingAt(100);
+            holds.releaseLapsed(102);
+            verify(host, never()).crackBlock(BLOCK, GradualBreak.CLEARED);
+        }
+
+        @Test
+        void aHoldLetGoPastItsGapClearsItsCracks() {
+            StreamHolds holds = crackingAt(100);
+            holds.releaseLapsed(103);
+            verify(host).crackBlock(BLOCK, GradualBreak.CLEARED);
+        }
+
+        @Test
+        void aNewHoldClearsTheLastHoldsCracks() {
+            StreamHolds holds = crackingAt(100);
+            holds.advance(PLAYER, 110);
+            verify(host).crackBlock(BLOCK, GradualBreak.CLEARED);
         }
     }
 

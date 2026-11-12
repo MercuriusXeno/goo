@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:leader_lays_its_state_and_ending_clears_it",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}

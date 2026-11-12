@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:placing_a_block_keeps_the_slimes_goo",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

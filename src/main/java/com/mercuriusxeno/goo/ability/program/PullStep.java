@@ -11,7 +11,7 @@ import java.util.stream.Stream;
  * the anchor's center and finishes; the push goes through the entity's
  * knockback resistance. With {@code items} set it also draws in item
  * entities, taking each that reaches the anchor into the host's hoard. The
- * nether black hole pulls from three times its blast radius each tick it
+ * black hole pulls from three times its blast radius each tick it
  * expands and holds: {@code pull radius=9 speed=0.15 items=true}.
  *
  * @param radius the sphere radius in blocks, evaluated when the step runs

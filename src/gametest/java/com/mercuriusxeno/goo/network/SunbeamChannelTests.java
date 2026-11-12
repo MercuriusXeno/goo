@@ -75,8 +75,9 @@ public final class SunbeamChannelTests {
 
     private static final BlockPos STAND_POS = new BlockPos(1, 1, 3);
     private static final BlockPos PRISM_POS = new BlockPos(4, 1, 3);
+    /** Three cells around the prism, each inside test_bay's 6 by 6 by 6 bounds, where no neighbouring test reaches. */
     private static final List<BlockPos> AROUND_THE_PRISM = List.of(new BlockPos(4, 1, 1), new BlockPos(4, 1, 5),
-            new BlockPos(6, 1, 3));
+            new BlockPos(5, 1, 3));
     private static final BlockPos STRUCK_POS = new BlockPos(4, 1, 3);
     private static final BlockPos NEAR_CORNER_POS = new BlockPos(0, 1, 0);
     private static final BlockPos FAR_ZOMBIE_POS = new BlockPos(5, 1, 5);
@@ -84,9 +85,8 @@ public final class SunbeamChannelTests {
     private static final BlockPos WALL_POS = new BlockPos(4, 2, 3);
     /** A sound packet carries its position in eighths of a block, read back as a float. */
     private static final double SOUND_GRID = 0.125;
-    private static final String NO_BURST = "The impact's light burst should reach the player at %s";
     private static final String NO_SOUND = "The impact's sound should reach the player once at %s on the hit, it reached %d";
-    private static final String NO_STEADY_BURST = "The impact's light burst should reach the player at %s between hits too";
+    private static final String NO_FLAME = "The impact's flame should reach the player at %s on the hold's second tick";
     private static final String SOUND_BETWEEN_HITS = "The impact's sound at %s should play on hits alone";
     /** Sunbeam's direct hit on an undead mob: 4 doubled. */
     private static final float UNDEAD_HIT = 8f;
@@ -132,8 +132,7 @@ public final class SunbeamChannelTests {
             helper.getLevel().getServer().getPlayerList().remove(player);
             float sum = 0;
             for (int i = 0; i < zombies.size(); i++) {
-                float lost = before.get(i) - zombies.get(i).getHealth();
-                helper.assertTrue(lost > 0, String.format(UNTOUCHED, i, lost));
+                float lost = before.get(i) - zombies.get(i).getHealth();                helper.assertTrue(lost > 0, String.format(UNTOUCHED, i, lost));
                 sum += lost;
             }
             helper.assertTrue(sum > UNDEAD_HIT, String.format(SUM_TOO_LOW, UNDEAD_HIT, sum));
@@ -193,9 +192,12 @@ public final class SunbeamChannelTests {
 
     /**
      * A mock player holds Sunbeam on a stone block's face for two ticks, the
-     * first hitting and the second between hits: the impact's light burst
-     * reaches the player at the point the ray lands on both ticks, and its
-     * sound on the hit tick alone (decision sunbeam-lands-with-impact-and-aim).
+     * first hitting and the second between hits: the impact's sound reaches
+     * the player at the point the ray lands on the hit tick alone, and its
+     * flame on the hold's second tick, glow_sunbeam.json's impact branch on
+     * held (decision sunbeam-lands-with-impact-and-aim). The end_rod burst
+     * left the impact for the client's rising motes
+     * (decision sunbeam-sheds-motes-rising-from-the-beam).
      *
      * @param helper the gametest helper
      */
@@ -206,26 +208,24 @@ public final class SunbeamChannelTests {
         Vec3 eye = player.getEyePosition();
         Vec3 face = new Vec3(helper.absolutePos(WALL_POS).getX(), eye.y, eye.z);
         GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.GLOW), SUNBEAM.toString(), eye, face);
-        long[] afterTheHit = new long[2];
+        long[] soundsAfterTheHit = new long[1];
         helper.runAfterDelay(1, () -> GooStreamHandler.streamTick(player, tick));
         helper.runAfterDelay(2, () -> {
-            afterTheHit[0] = burstsAt(recorder, face);
-            afterTheHit[1] = soundsAt(recorder, face);
+            soundsAfterTheHit[0] = soundsAt(recorder, face);
             GooStreamHandler.streamTick(player, tick);
         });
         helper.runAfterDelay(3, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(afterTheHit[0] > 0, String.format(NO_BURST, face));
-            helper.assertTrue(afterTheHit[1] == 1, String.format(NO_SOUND, face, afterTheHit[1]));
-            helper.assertTrue(burstsAt(recorder, face) > afterTheHit[0], String.format(NO_STEADY_BURST, face));
+            helper.assertTrue(soundsAfterTheHit[0] == 1, String.format(NO_SOUND, face, soundsAfterTheHit[0]));
+            helper.assertTrue(flamesAt(recorder, face) > 0, String.format(NO_FLAME, face));
             helper.assertTrue(soundsAt(recorder, face) == 1, String.format(SOUND_BETWEEN_HITS, face));
             helper.succeed();
         });
     }
 
-    private static long burstsAt(PacketRecorder recorder, Vec3 point) {
+    private static long flamesAt(PacketRecorder recorder, Vec3 point) {
         return recorder.sentOf(ClientboundLevelParticlesPacket.class).stream().filter(packet ->
-                packet.getParticle().getType() == ParticleTypes.END_ROD
+                packet.getParticle().getType() == ParticleTypes.SMALL_FLAME
                         && point.distanceTo(new Vec3(packet.getX(), packet.getY(), packet.getZ())) < TOLERANCE).count();
     }
 

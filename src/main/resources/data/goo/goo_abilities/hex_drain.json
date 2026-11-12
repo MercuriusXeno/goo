@@ -9,9 +9,10 @@
     "sound": { "id": "minecraft:particle.soul_escape", "every": 5, "volume": 0.7, "pitch_spread": 0.4 } },
   "area": { "shape": "cone", "size": 4.0, "angle": 70.0 },
   "behaviors": [
+    { "type": "hex_mist" },
     {
       "type": "target",
-      "where": ["vulnerable"],
+      "where": ["vulnerable", "not_own_minion"],
       "steps": [
         {
           "type": "leech",

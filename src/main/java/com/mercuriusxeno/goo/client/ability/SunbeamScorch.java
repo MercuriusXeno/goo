@@ -63,13 +63,15 @@ public final class SunbeamScorch {
     }
 
     /**
-     * Draws every mark still showing once the world has drawn, dropping the
-     * faded ones first.
+     * Draws every mark still showing right after the solid blocks it marks,
+     * dropping the faded ones first: ahead of every block entity's beam and
+     * the Sunbeam ray, so a beam passing in front of a mark lies over it
+     * rather than under its char (operator UAT 2026-11-10).
      *
      * @param event the level render stage event
      */
     @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void onAfterOpaqueBlocks(RenderLevelStageEvent.AfterOpaqueBlocks event) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
             TRAILS.clear();

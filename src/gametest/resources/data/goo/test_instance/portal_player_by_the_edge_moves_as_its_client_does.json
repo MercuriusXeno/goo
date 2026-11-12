@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:portal_player_by_the_edge_moves_as_its_client_does",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 80,
+  "setup_ticks": 0,
+  "required": true
+}

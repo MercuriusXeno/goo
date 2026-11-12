@@ -1,0 +1,138 @@
+package com.mercuriusxeno.goo.client.hole;
+
+import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.hole.HoleFrame;
+import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.network.PortableHolesSyncPayload;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.core.Direction;
+import net.minecraft.util.ARGB;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import java.util.List;
+
+/**
+ * Draws each Void portable hole's mouth across the faces it opens on: an oval
+ * opening filling its footprint, black at its heart, ringed in void violet
+ * that swirls slowly inward, growing open from nothing and shrinking shut once
+ * it closes.
+ * It is a look of its own, a flat vortex on the face, not the tunnel's oval
+ * view through the wall.
+ * decision hole-is-an-in-world-portable-hole-for-items
+ * decision hole-animates-open-and-closed
+ */
+@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
+public final class HoleMouths {
+
+    /** How far the mouth stands off its face, so it never sinks into it. */
+    private static final double FACE_LIFT = 0.004;
+    private static final int RINGS = 6;
+    private static final int SEGMENTS = 32;
+    /** The radians a swirl band turns each tick at the rim; the heart turns faster. */
+    private static final float SPIN = 0.06F;
+    /** How many violet bands wind around the mouth. */
+    private static final int BANDS = 3;
+    /** How far the bands wind inward across the mouth, in radians from rim to heart. */
+    private static final float WIND = 2.5F;
+    private static final int HEART_RGB = 0x050008;
+    private static final int RIM_RGB = 0x8A3CFF;
+    /** The heart's alpha, faint, so the items sunk in the pit behind it show through. */
+    private static final int HEART_ALPHA = 40;
+    private static final int RIM_ALPHA = 150;
+    /** The share of its alpha the outermost edge keeps, so the rim feathers out. */
+    private static final float RIM_FEATHER = 0.35F;
+    /** How much faster than the rim the heart swirls. */
+    private static final float HEART_SPIN = 2F;
+    /** The violet a band's darkest stretch keeps, as a share of the rim's. */
+    private static final float VIOLET_FLOOR = 0.55F;
+    private static final float HALF = 0.5F;
+
+    private HoleMouths() {
+    }
+
+    /**
+     * Draws every open mouth once the world's translucent blocks have drawn.
+     *
+     * @param event the level render stage event
+     */
+    @SubscribeEvent
+    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) {
+            return;
+        }
+        float time = mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        List<PortableHolesSyncPayload.Mouth> drawn = ClientPortableHoles.drawn(time);
+        if (drawn.isEmpty()) {
+            return;
+        }
+        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        PoseStack.Pose pose = event.getPoseStack().last();
+        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.PORTABLE_HOLE_MOUTH_TYPE);
+        for (PortableHolesSyncPayload.Mouth mouth : drawn) {
+            float open = ClientPortableHoles.openShare(mouth, time);
+            if (open > 0F) {
+                drawMouth(pose, consumer, mouth, camera, open, time);
+            }
+        }
+        buffers.endBatch(GooRenderTypes.PORTABLE_HOLE_MOUTH_TYPE);
+    }
+
+    private static void drawMouth(PoseStack.Pose pose, VertexConsumer consumer, PortableHolesSyncPayload.Mouth mouth,
+                                  Vec3 camera, float open, float time) {
+        Direction face = mouth.face();
+        Vec3 normal = Vec3.atLowerCornerOf(face.getUnitVec3i());
+        // decision hole-mouth-opens-three-by-three-and-fits-its-room: the oval fills the footprint's faces
+        AABB opening = HoleFrame.openingOn(mouth.footprint(), face);
+        Vec3 centre = opening.getCenter().add(normal.scale(FACE_LIFT)).subtract(camera);
+        Vec3 across = HoleFrame.acrossOf(face);
+        Vec3 along = normal.cross(across);
+        Vec3 acrossRadius = across.scale(HoleFrame.halfSpan(opening, across) * open);
+        Vec3 alongRadius = along.scale(HoleFrame.halfSpan(opening, along) * open);
+        for (int ring = 0; ring < RINGS; ring++) {
+            float inner = (float) ring / RINGS;
+            float outer = (float) (ring + 1) / RINGS;
+            for (int segment = 0; segment < SEGMENTS; segment++) {
+                float from = Mth.TWO_PI * segment / SEGMENTS;
+                float to = Mth.TWO_PI * (segment + 1) / SEGMENTS;
+                emit(pose, consumer, centre, acrossRadius, alongRadius, inner, from, colorAt(inner, from, time));
+                emit(pose, consumer, centre, acrossRadius, alongRadius, outer, from, colorAt(outer, from, time));
+                emit(pose, consumer, centre, acrossRadius, alongRadius, outer, to, colorAt(outer, to, time));
+                emit(pose, consumer, centre, acrossRadius, alongRadius, inner, to, colorAt(inner, to, time));
+            }
+        }
+    }
+
+    /**
+     * The mouth's color at a point: black at the heart, darkening violet bands
+     * swirling toward it from the rim, the rim itself feathered out.
+     *
+     * @param out   the point's share of the radius, 0 at the heart
+     * @param angle the point's angle around the mouth
+     * @param time  the game time, partial tick included
+     * @return the packed ARGB color
+     */
+    static int colorAt(float out, float angle, float time) {
+        float swirl = Mth.sin(BANDS * angle + WIND * (1F - out) - time * SPIN * (HEART_SPIN - out));
+        float band = HALF + HALF * swirl;
+        float violet = out * out * Mth.lerp(band, VIOLET_FLOOR, 1F);
+        int rgb = ARGB.srgbLerp(violet, ARGB.opaque(HEART_RGB), ARGB.opaque(RIM_RGB));
+        int alpha = Math.round(Mth.lerp(out * out, HEART_ALPHA, RIM_ALPHA) * (out >= 1F ? RIM_FEATHER : 1F));
+        return ARGB.color(alpha, rgb);
+    }
+
+    private static void emit(PoseStack.Pose pose, VertexConsumer consumer, Vec3 centre, Vec3 acrossRadius,
+                             Vec3 alongRadius, float out, float angle, int color) {
+        Vec3 at = centre.add(acrossRadius.scale(out * Mth.cos(angle))).add(alongRadius.scale(out * Mth.sin(angle)));
+        consumer.addVertex(pose, (float) at.x(), (float) at.y(), (float) at.z()).setColor(color);
+    }
+}

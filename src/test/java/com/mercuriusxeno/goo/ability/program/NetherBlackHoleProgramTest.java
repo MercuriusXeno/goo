@@ -19,7 +19,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * The nether_black_hole program, decoded from its JSON and loaded for the
+ * The void_black_hole program, decoded from its JSON and loaded for the
  * marker host, runs its phases in order on a Mockito marker host holding a
  * real phase cursor; each phase holds the steps of its part of the hole, its
  * renderer radius is the cast size, and every cut takes a quarter of health.
@@ -56,7 +56,7 @@ class NetherBlackHoleProgramTest {
     private MarkerHost host;
 
     private static List<Step> program() {
-        return LingerStep.bodyOf(AbilityJson.decode("nether_black_hole").behaviors()).orElseThrow();
+        return LingerStep.bodyOf(AbilityJson.decode("void_black_hole").behaviors()).orElseThrow();
     }
 
     /**

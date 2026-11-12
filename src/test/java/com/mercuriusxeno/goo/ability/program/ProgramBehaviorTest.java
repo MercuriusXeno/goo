@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -52,7 +53,7 @@ class ProgramBehaviorTest {
 
         program.tick(host);
 
-        verify(host).explode(eq(4f), anyDouble(), eq(ExplosionMode.TNT));
+        verify(host).explode(eq(4f), anyDouble(), anyBoolean(), eq(ExplosionMode.TNT));
         assertFalse(program.isActive());
     }
 
@@ -66,7 +67,7 @@ class ProgramBehaviorTest {
         assertTrue(program.isActive());
 
         program.tick(host);
-        verify(host).explode(eq(1f), anyDouble(), eq(ExplosionMode.TNT));
+        verify(host).explode(eq(1f), anyDouble(), anyBoolean(), eq(ExplosionMode.TNT));
         assertFalse(program.isActive());
     }
 
@@ -83,7 +84,7 @@ class ProgramBehaviorTest {
         assertTrue(program.isActive());
 
         program.tick(host);
-        verify(host).explode(eq(3.5f), anyDouble(), eq(ExplosionMode.TNT));
+        verify(host).explode(eq(3.5f), anyDouble(), anyBoolean(), eq(ExplosionMode.TNT));
         assertFalse(program.isActive());
     }
 
@@ -94,8 +95,8 @@ class ProgramBehaviorTest {
 
         program.tick(host);
 
-        verify(host).explode(eq(1f), anyDouble(), eq(ExplosionMode.TNT));
-        verify(host).explode(eq(2f), anyDouble(), eq(ExplosionMode.TNT));
+        verify(host).explode(eq(1f), anyDouble(), anyBoolean(), eq(ExplosionMode.TNT));
+        verify(host).explode(eq(2f), anyDouble(), anyBoolean(), eq(ExplosionMode.TNT));
         assertEquals(3, program.stepIndex());
     }
 

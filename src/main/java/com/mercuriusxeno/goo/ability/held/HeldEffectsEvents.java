@@ -17,7 +17,7 @@ import com.mercuriusxeno.goo.ability.unstable.BusterEvents;
 import com.mercuriusxeno.goo.ability.xeno.EldritchEvents;
 import com.mercuriusxeno.goo.ability.zone.Shifter;
 import com.mercuriusxeno.goo.ability.zone.ShifterEvents;
-import com.mercuriusxeno.goo.ability.zoo.RallyEvents;
+import com.mercuriusxeno.goo.ability.zoo.Leader;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.data.GooValues;
@@ -267,7 +267,7 @@ public final class HeldEffectsEvents {
 
     /**
      * Clears the state an ended effect laid on how the player moves and on
-     * the mobs around it: its flight and its rally.
+     * the mobs around it: its flight and its Leader.
      *
      * @param player the player
      * @param lays   the states the ended effect laid
@@ -277,9 +277,9 @@ public final class HeldEffectsEvents {
             // tailwind-and-airborn-merge-into-float: Float's flight ends with its held effect
             player.setData(GooAttachments.AIRBORN, Airborn.NONE);
         }
-        if (lays.contains(LaidState.RALLY)) {
-            // zoo-rally-holds-for-the-brew: every mob the player rallied stands down with the held effect
-            RallyEvents.standDown(player);
+        if (lays.contains(LaidState.LEADER)) {
+            // leader-is-zoos-brew-ability: Leader stops sensing and leading with its held effect
+            player.setData(GooAttachments.LEADER, Leader.NONE);
         }
     }
 
@@ -306,7 +306,7 @@ public final class HeldEffectsEvents {
      */
     private static void clearAbilityState(ServerPlayer player, Set<LaidState> lays) {
         if (lays.contains(LaidState.SHIFTER)) {
-            // shifter-blinks-along-the-cursor-on-hit: the shifter ends with its held effect
+            // elude-moves-you-to-a-random-safe-spot-on-mob-or-projectile-damage: Elude ends with its held effect
             player.setData(GooAttachments.SHIFTER, Shifter.NONE);
             ShifterEvents.clearShimmer(player);
         }
