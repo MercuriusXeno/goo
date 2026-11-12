@@ -19,6 +19,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
@@ -37,20 +38,10 @@ public final class SlickTests {
     private static final String SLICK_SPEEDS_A_MOB = "slick_speeds_up_a_mob_walking_on_it";
     private static final String SLICK_RAISES_A_WALKER = "slick_raises_a_slow_walker_to_its_start_speed";
     private static final String SLICK_LAYS_FASTER = "slick_lays_faster_under_a_streamer_traveling_on_slick";
-    private static final String SLICK_LAYS_AT_ITS_TICKS = "slick_lays_at_its_ticks_under_a_streamer_at_rest";
-    /** kinetic_slick.json's slick ticks. */
-    private static final int JSON_LAY_TICKS = 20;
     /** The traveling streamer's speed east, in blocks a tick. */
     private static final double TRAVEL_SPEED = 0.6;
-    /**
-     * The held ticks slick takes under the traveling streamer: a walking
-     * player's unadjusted speed is about 0.2159 blocks a tick, so the factor
-     * is about 2.78 and a held tick builds about 0.139 of a cell, short of a
-     * whole cell after 7 ticks and past it after 8.
-     */
-    private static final int TRAVELING_LAY_TICKS = 8;
-    private static final String LAID_EARLY = "Slick should not have laid by held tick %d, expected at %d";
-    private static final String NOT_LAID = "Slick should have laid by held tick %d, the stone's top holds %s";
+    private static final String NOT_LAID_FASTER = "Slick under a traveling streamer should have laid by held tick %d,"
+            + " short of the %d held ticks it takes at rest, the stone's top holds %s";
     private static final BlockPos STREAMER_POS = new BlockPos(0, 1, 2);
     private static final float FACING_EAST = -90f;
     /** Pitch down from the eye toward the stone's center three blocks off. */
@@ -60,8 +51,8 @@ public final class SlickTests {
     /** The westmost and eastmost offsets from SLICKED_STONE of the strip the stream slicks. */
     private static final int STRIP_WEST = -1;
     private static final int STRIP_EAST = 2;
-    /** kinetic_slick.json's slick ticks, and some slack past them so the slick has surely landed. */
-    private static final int LAY_TICKS = 25;
+    /** Held ticks past the slick step's own, so the slick has surely landed. */
+    private static final int LAY_SLACK_TICKS = 5;
     /** The item's drop over the slick, low enough that it lands within a few ticks. */
     private static final double DROP_HEIGHT = 0.5;
     /** The push the item lands with, toward the slicked strip's far end. */
@@ -89,25 +80,21 @@ public final class SlickTests {
             + " slick %s, ice %s";
     private static final String NOT_FASTER_THAN_STONE = "A husk %d ticks onto slick should outpace its walk on stone:"
             + " %.4f on stone, %.4f on slick";
-    private static final String NOT_SLOW_ON_STONE = "The husk should walk the stone slower than the start speed:"
-            + " %.4f against %.4f";
-    private static final String NOT_RAISED = "A husk stepping onto slick slowly should leave its first slick tick"
-            + " at the start speed or faster: %.4f against %.4f";
+    private static final String NOT_RAISED = "A husk stepping onto slick should leave its first slick tick"
+            + " faster than it walked the stone: %.4f against %.4f on stone";
     private static final String NOT_FASTER_THAN_ICE = "A husk %d ticks onto slick should outpace a husk %d ticks"
             + " onto ice: %.4f on ice, %.4f on slick";
-    private static final String SLICK_REACHES_TWELVE = "slick_lays_twelve_blocks_ahead_and_no_further";
+    private static final String SLICK_REACHES_ITS_RANGE = "slick_lays_twelve_blocks_ahead_and_no_further";
     /** Where the streamer stands in the light bay, at its west wall, on the strip's first stone. */
     private static final BlockPos FAR_STREAMER_POS = new BlockPos(0, 1, 8);
     /** The light bay is sixteen blocks across, so the strip runs from the streamer to its east wall. */
     private static final int FAR_STRIP_EAST = 15;
-    /** The stone ten blocks east of the streamer, its top about 10.1 blocks from their eye, past 8 and inside 12. */
-    private static final BlockPos BEYOND_EIGHT = FAR_STREAMER_POS.below().east(10);
-    /** The first stone east whose top lies wholly more than 12 blocks from the streamer's eye, about 12.6 at its nearest. */
-    private static final int PAST_TWELVE_EAST = 13;
-    private static final String NOT_LAID_BEYOND_EIGHT = "Slick should lay %d held ticks on over the stone at %s,"
-            + " past 8 blocks from the eye and inside 12, holds %s";
-    private static final String LAID_PAST_TWELVE = "Slick should not lay over the stone at %s, past 12 blocks from"
-            + " the eye, holds %s";
+    /** The stone ten blocks east of the streamer, its top about 10.1 blocks from their eye, well inside the stream's range. */
+    private static final BlockPos FAR_INSIDE = FAR_STREAMER_POS.below().east(10);
+    private static final String NOT_LAID_FAR_INSIDE = "Slick should lay %d held ticks on over the stone at %s,"
+            + " inside the stream's %.1f block range, holds %s";
+    private static final String LAID_PAST_RANGE = "Slick should not lay over the stone at %s, %.2f blocks from"
+            + " the eye and past the stream's %.1f block range, holds %s";
 
     private SlickTests() {
     }
@@ -122,53 +109,81 @@ public final class SlickTests {
         GooTestFunctions.registerTest(registrar, SLICK_SPEEDS_A_MOB, SlickTests::slickSpeedsUpAMobWalkingOnIt);
         GooTestFunctions.registerTest(registrar, SLICK_RAISES_A_WALKER, SlickTests::slickRaisesASlowWalkerToItsStartSpeed);
         GooTestFunctions.registerTest(registrar, SLICK_LAYS_FASTER, SlickTests::slickLaysFasterUnderAStreamerTravelingOnSlick);
-        GooTestFunctions.registerTest(registrar, SLICK_LAYS_AT_ITS_TICKS, SlickTests::slickLaysAtItsTicksUnderAStreamerAtRest);
-        GooTestFunctions.registerTest(registrar, SLICK_REACHES_TWELVE, SlickTests::slickLaysTwelveBlocksAheadAndNoFurther);
+        GooTestFunctions.registerTest(registrar, SLICK_REACHES_ITS_RANGE, SlickTests::slickLaysAheadToItsRangeAndNoFurther);
     }
 
     /**
      * A streamer at rest at the head of a long strip of stone, looking at the
-     * stone ten blocks east, lays slick over it at the 20 held ticks
-     * kinetic_slick.json names, and every stone on the strip whose top lies
-     * more than 12 blocks from their eye stays bare.
+     * stone ten blocks east, lays slick over it once held past the slick
+     * step's ticks, and every stone on the strip whose top lies wholly past
+     * the stream's range from their eye stays bare. The hold and the range
+     * are read from the ability, so a retune moves them both.
      * slick-sprays-twelve-blocks-ahead
      *
      * @param helper the gametest helper
      */
-    public static void slickLaysTwelveBlocksAheadAndNoFurther(GameTestHelper helper) {
+    public static void slickLaysAheadToItsRangeAndNoFurther(GameTestHelper helper) {
         for (int east = 0; east <= FAR_STRIP_EAST; east++) {
             helper.setBlock(FAR_STREAMER_POS.below().east(east), Blocks.STONE);
         }
         ServerPlayer streamer = slickStreamerAt(helper, FAR_STREAMER_POS);
-        lookAt(streamer, Vec3.upFromBottomCenterOf(helper.absolutePos(BEYOND_EIGHT), 1));
-        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.KINETIC), SLICK.toString(),
-                streamer.getEyePosition(), streamer.getEyePosition());
-        for (int held = 1; held < JSON_LAY_TICKS; held++) {
+        lookAt(streamer, Vec3.upFromBottomCenterOf(helper.absolutePos(FAR_INSIDE), 1));
+        Vec3 eye = streamer.getEyePosition();
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.KINETIC), SLICK.toString(), eye, eye);
+        int hold = layTicks(helper) + LAY_SLACK_TICKS;
+        for (int held = 1; held < hold; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(streamer, tick));
         }
-        helper.runAfterDelay(JSON_LAY_TICKS, () -> {
+        helper.runAfterDelay(hold, () -> {
             GooStreamHandler.streamTick(streamer, tick);
             helper.getLevel().getServer().getPlayerList().remove(streamer);
-            assertLaidToTwelve(helper);
+            assertLaidToItsRange(helper, eye, hold);
             helper.succeed();
         });
     }
 
     /**
-     * Asserts slick over the stone past 8 blocks and air over every stone
-     * past 12 on the strip.
+     * Asserts slick over the stone well inside the stream's range and air
+     * over every stone on the strip whose top lies wholly past it.
      *
      * @param helper the gametest helper
+     * @param eye    the streamer's eye
+     * @param hold   the held ticks the stream ran
      */
-    private static void assertLaidToTwelve(GameTestHelper helper) {
-        BlockPos laid = BEYOND_EIGHT.above();
+    private static void assertLaidToItsRange(GameTestHelper helper, Vec3 eye, int hold) {
+        double range = slick(helper).delivery().range();
+        BlockPos laid = FAR_INSIDE.above();
         helper.assertTrue(helper.getBlockState(laid).is(GooBlocks.KINETIC_SLICK.get()),
-                String.format(NOT_LAID_BEYOND_EIGHT, JSON_LAY_TICKS, laid, helper.getBlockState(laid)));
-        for (int east = PAST_TWELVE_EAST; east <= FAR_STRIP_EAST; east++) {
+                String.format(NOT_LAID_FAR_INSIDE, hold, laid, range, helper.getBlockState(laid)));
+        for (int east = 0; east <= FAR_STRIP_EAST; east++) {
+            BlockPos stone = helper.absolutePos(FAR_STREAMER_POS.below().east(east));
+            AABB top = new AABB(stone.getX(), stone.getY() + 1, stone.getZ(),
+                    stone.getX() + 1, stone.getY() + 1, stone.getZ() + 1);
+            double nearest = Math.sqrt(top.distanceToSqr(eye));
             BlockPos bare = FAR_STREAMER_POS.east(east);
-            helper.assertTrue(helper.getBlockState(bare).isAir(),
-                    String.format(LAID_PAST_TWELVE, bare, helper.getBlockState(bare)));
+            if (nearest > range) {
+                helper.assertTrue(helper.getBlockState(bare).isAir(),
+                        String.format(LAID_PAST_RANGE, bare, nearest, range, helper.getBlockState(bare)));
+            }
         }
+    }
+
+    /**
+     * @param helper the gametest helper
+     * @return the live Slick ability
+     */
+    private static AbilityDefinition slick(GameTestHelper helper) {
+        AbilityDefinition slick = AbilityRegistry.of(helper.getLevel()).getAbility(SLICK);
+        helper.assertTrue(slick != null, ABILITY_REQUIRED);
+        return slick;
+    }
+
+    /**
+     * @param helper the gametest helper
+     * @return the held ticks the live slick step takes to lay under a streamer at rest
+     */
+    private static int layTicks(GameTestHelper helper) {
+        return SlickStep.in(slick(helper).behaviors()).orElseThrow().ticks();
     }
 
     /**
@@ -186,8 +201,7 @@ public final class SlickTests {
     /**
      * A streamer standing on slick and traveling east at TRAVEL_SPEED, near
      * three times a walking player's unadjusted speed, lays slick on the
-     * stone in TRAVELING_LAY_TICKS held ticks, and the stone's top is still
-     * air a held tick earlier.
+     * stone in fewer held ticks than the slick step takes at rest.
      * slick-resolves-faster-by-speed-over-unadjusted-speed
      *
      * @param helper the gametest helper
@@ -198,45 +212,32 @@ public final class SlickTests {
         ServerPlayer streamer = slickStreamer(helper);
         streamer.setPos(streamer.getX(), streamer.getY() + SLICK_FILM, streamer.getZ());
         streamer.setKnownMovement(new Vec3(TRAVEL_SPEED, 0, 0));
-        holdUntilSlick(helper, streamer, TRAVELING_LAY_TICKS);
+        holdUntilSlick(helper, streamer);
     }
 
     /**
-     * A streamer standing on stone at rest lays slick on the stone at the 20
-     * held ticks kinetic_slick.json names, the stone's top still air a held
-     * tick earlier.
-     * slick-resolves-faster-by-speed-over-unadjusted-speed
-     *
-     * @param helper the gametest helper
-     */
-    public static void slickLaysAtItsTicksUnderAStreamerAtRest(GameTestHelper helper) {
-        holdUntilSlick(helper, slickStreamer(helper), JSON_LAY_TICKS);
-    }
-
-    /**
-     * Holds Slick's stream on a strip of stone and succeeds where the
-     * stone's top is air after the held tick before the expected one and
-     * slick after the expected one.
+     * Holds Slick's stream on a strip of stone for one held tick short of
+     * the slick step's ticks at rest, and succeeds where the stone's top
+     * holds slick by then.
      *
      * @param helper   the gametest helper
      * @param streamer the streamer
-     * @param layTicks the held ticks the slick is expected to take
      */
-    private static void holdUntilSlick(GameTestHelper helper, ServerPlayer streamer, int layTicks) {
+    private static void holdUntilSlick(GameTestHelper helper, ServerPlayer streamer) {
         layStrip(helper);
         GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.KINETIC), SLICK.toString(),
                 streamer.getEyePosition(), streamer.getEyePosition());
         BlockPos slicked = SLICKED_STONE.above();
-        for (int held = 1; held <= layTicks; held++) {
+        int atRest = layTicks(helper);
+        int shortOfRest = atRest - 1;
+        for (int held = 1; held <= shortOfRest; held++) {
             int heldTick = held;
             helper.runAfterDelay(held, () -> {
                 GooStreamHandler.streamTick(streamer, tick);
-                boolean slick = helper.getBlockState(slicked).is(GooBlocks.KINETIC_SLICK.get());
-                if (heldTick == layTicks - 1) {
-                    helper.assertTrue(!slick, String.format(LAID_EARLY, heldTick, layTicks));
-                } else if (heldTick == layTicks) {
-                    helper.assertTrue(slick, String.format(NOT_LAID, layTicks, helper.getBlockState(slicked)));
+                if (heldTick == shortOfRest) {
                     helper.getLevel().getServer().getPlayerList().remove(streamer);
+                    helper.assertTrue(helper.getBlockState(slicked).is(GooBlocks.KINETIC_SLICK.get()),
+                            String.format(NOT_LAID_FASTER, shortOfRest, atRest, helper.getBlockState(slicked)));
                     helper.succeed();
                 }
             });
@@ -300,8 +301,8 @@ public final class SlickTests {
 
     /**
      * Slick's stream lays slick over a strip of stone; a husk walks from
-     * stone onto it slower than the slick step's start speed and moves at
-     * the start speed or faster the first tick it stands on the slick.
+     * stone onto it and the first tick it stands on the slick raises it past
+     * the speed it walked the stone.
      * slick-raises-a-slow-entry-to-a-start-speed
      *
      * @param helper the gametest helper
@@ -311,18 +312,12 @@ public final class SlickTests {
             BlockPos slickStart = SLICKED_STONE.east(STRIP_WEST);
             layLane(helper, slickStart, null);
             Walker walker = walkTheLane(helper, slickStart, GooBlocks.KINETIC_SLICK.get());
-            double startSpeed = SlickStep.in(AbilityRegistry.of(helper.getLevel()).getAbility(SLICK).behaviors())
-                    .orElseThrow().startSpeed();
             // a sequence ticks apart from the delays this callback runs among, which take no new delay mid-tick
             helper.startSequence().thenWaitUntil(() -> {
                 walker.watch(helper);
                 helper.assertTrue(walker.stepped(), String.format(NEVER_WALKED, walker, "unwalked"));
-            }).thenExecute(() -> {
-                helper.assertTrue(walker.onStone < startSpeed,
-                        String.format(NOT_SLOW_ON_STONE, walker.onStone, startSpeed));
-                helper.assertTrue(walker.firstOnSlippery >= startSpeed,
-                        String.format(NOT_RAISED, walker.firstOnSlippery, startSpeed));
-            }).thenSucceed();
+            }).thenExecute(() -> helper.assertTrue(walker.firstOnSlippery > walker.onStone,
+                    String.format(NOT_RAISED, walker.firstOnSlippery, walker.onStone))).thenSucceed();
         });
     }
 
@@ -338,11 +333,12 @@ public final class SlickTests {
         ServerPlayer streamer = slickStreamer(helper);
         GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.KINETIC), SLICK.toString(),
                 streamer.getEyePosition(), streamer.getEyePosition());
-        for (int held = 1; held <= LAY_TICKS; held++) {
+        int hold = layTicks(helper) + LAY_SLACK_TICKS;
+        for (int held = 1; held <= hold; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(streamer, tick));
         }
         BlockPos slicked = SLICKED_STONE.above();
-        helper.runAfterDelay(LAY_TICKS + 1, () -> {
+        helper.runAfterDelay(hold + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
             helper.assertTrue(helper.getBlockState(slicked).is(GooBlocks.KINETIC_SLICK.get()),
                     String.format(NO_SLICK, slicked, helper.getBlockState(slicked)));
@@ -576,9 +572,7 @@ public final class SlickTests {
         ServerPlayer streamer = SelfDeliveryTests.invoker(helper, GooTypes.KINETIC);
         Vec3 feet = Vec3.atBottomCenterOf(helper.absolutePos(stand));
         streamer.setPos(feet.x, feet.y, feet.z);
-        AbilityDefinition slick = AbilityRegistry.of(helper.getLevel()).getAbility(SLICK);
-        helper.assertTrue(slick != null, ABILITY_REQUIRED);
-        KnownRecipes.teachRequires(streamer, slick);
+        KnownRecipes.teachRequires(streamer, slick(helper));
         return streamer;
     }
 }

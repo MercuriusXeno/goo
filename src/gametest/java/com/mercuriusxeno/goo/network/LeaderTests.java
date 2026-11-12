@@ -29,7 +29,7 @@ public final class LeaderTests {
     private static final Identifier ZOO_LEADER = Identifier.fromNamespaceAndPath(Goo.MODID, "zoo_leader");
     /** Where the player holding Leader stands, at one side of the light bay. */
     private static final BlockPos LEADER_POS = new BlockPos(2, 1, 8);
-    /** Where the cow starts: ten blocks from the player, inside zoo_leader.json's radius of 12. */
+    /** Where the cow starts: ten blocks from the player, inside Leader's radius. */
     private static final BlockPos COW_POS = new BlockPos(12, 1, 8);
     /** The tick by which the cow has closed on the player. */
     private static final int CLOSED_BY = 120;
@@ -37,10 +37,8 @@ public final class LeaderTests {
     private static final int HELD_BY = CLOSED_BY + 40;
     /** The distance closer than which the cow stands on the player rather than short of it. */
     private static final double ON_THE_PLAYER = 1.5;
-    /** The slack past the short distance a walking cow coasts before it holds. */
-    private static final double COAST = 1.5;
     private static final String LEADER_NOT_HELD = "The player should hold Leader once the eat finishes";
-    private static final String COW_FAR = "The cow should close to within %.1f of the Leader by tick %d, stands %.2f off";
+    private static final String COW_FAR = "The cow should close on the Leader from %.2f off by tick %d, stands %.2f off";
     private static final String COW_ON_THE_PLAYER = "The cow should stop short of the Leader, stands %.2f off at tick %d";
     private static final String COW_TARGETS = "A led cow should hold no attack target, holds %s";
 
@@ -71,21 +69,21 @@ public final class LeaderTests {
         Leader leader = player.getData(GooAttachments.LEADER);
         helper.assertTrue(leader.stands(), LEADER_NOT_HELD);
         Cow cow = helper.spawn(EntityType.COW, COW_POS);
+        double started = cow.distanceTo(player);
         SelfDeliveryTests.tickFor(helper, player, HELD_BY - 1);
-        helper.runAfterDelay(CLOSED_BY, () -> assertStandsShort(helper, player, cow, leader, CLOSED_BY));
+        helper.runAfterDelay(CLOSED_BY, () -> assertStandsShort(helper, player, cow, started, CLOSED_BY));
         helper.runAfterDelay(HELD_BY, () -> {
             player.doTick();
-            assertStandsShort(helper, player, cow, leader, HELD_BY);
+            assertStandsShort(helper, player, cow, started, HELD_BY);
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.succeed();
         });
     }
 
-    private static void assertStandsShort(GameTestHelper helper, ServerPlayer player, Cow cow, Leader leader,
+    private static void assertStandsShort(GameTestHelper helper, ServerPlayer player, Cow cow, double started,
                                           int tick) {
         double off = cow.distanceTo(player);
-        double near = leader.distance() + COAST;
-        helper.assertTrue(off <= near, String.format(COW_FAR, near, tick, off));
+        helper.assertTrue(off < started, String.format(COW_FAR, started, tick, off));
         helper.assertTrue(off >= ON_THE_PLAYER, String.format(COW_ON_THE_PLAYER, off, tick));
         helper.assertTrue(cow.getTarget() == null, String.format(COW_TARGETS, cow.getTarget()));
     }

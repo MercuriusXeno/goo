@@ -54,7 +54,7 @@ public final class ReapTests {
     private static final BlockPos INSIDE = new BlockPos(3, GROUND_Y + 1, INSIDE_Z);
     private static final BlockPos OUTSIDE = new BlockPos(3, GROUND_Y + 1, OUTSIDE_Z);
     private static final BlockPos BUSH = new BlockPos(4, GROUND_Y + 1, INSIDE_Z);
-    /** leaf_reap.json's slash life. */
+    /** The test slash's own life, set here and not read from the ability. */
     private static final int LIFE_TICKS = 4;
     /**
      * A small slash's area and band: 2.4 wide reaching 3 blocks ahead, so

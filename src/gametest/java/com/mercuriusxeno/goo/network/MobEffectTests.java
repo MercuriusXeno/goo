@@ -18,6 +18,7 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.animal.cow.Cow;
 import net.minecraft.util.ProblemReporter;
@@ -87,6 +88,11 @@ public final class MobEffectTests {
     private static final float SLIME_HIT = 4f;
     /** A hit too light to kill the zombie, so the charm, not the mob, is what ends. */
     private static final float LIGHT_HIT = 1f;
+    /**
+     * The max health a charm test gives the mob it charms: half a zombie's twenty, low enough that the charm's
+     * chance, which falls as max health rises, stands whole with a wide margin for its tuning.
+     */
+    private static final double CERTAIN_CHARM_HEALTH = 10;
     private static final String CHARM_SHOULD_RELOAD = "The reloaded zombie should hold the charm for its charmer";
     private static final String CHARMERS_HIT_SHOULD_BREAK = "The charmer's hit should end the charm";
     private static final String SHOULD_TAKE_DAMAGE = "Target should have taken damage";
@@ -101,7 +107,7 @@ public final class MobEffectTests {
     private static final String ABILITY_HEX_CHARM = "goo:hex_charm";
     private static final String ABILITY_ZOO_ALLURE = "goo:zoo_allure";
     private static final String ABILITY_ENDER_ZONE = "goo:ender_zone";
-    /** Above ender_zone.json's radius of six, so the player sets nothing off until the test walks it in. */
+    /** Well above Zone's radius, so the player sets nothing off until the test walks it in. */
     private static final double PLAYER_OUT_OF_REACH_ABOVE = 20.0;
     private static final String SHOULD_BE_CURSED = "The zombie should carry the curse after the first Zone";
     private static final String SHOULD_WARP = "The cursed zombie should warp away from the player standing on it";
@@ -184,14 +190,14 @@ public final class MobEffectTests {
      * Hex charm turns a zombie on a skeleton before the skeleton aggresses:
      * once it looks for a foe, the zombie targets the idle skeleton, and a
      * target of its survival charmer it would take turns to the skeleton
-     * too (decision charm-glisten-and-icon-over-the-head). A zombie's max health of 20 makes
-     * hex_charm.json's charm chance whole.
+     * too (decision charm-glisten-and-icon-over-the-head). The zombie stands at a max
+     * health low enough that the charm always takes.
      *
      * @param helper the gametest helper
      */
     public static void charmTurnsZombieOnSkeleton(GameTestHelper helper) {
         ServerPlayer charmer = SurvivalPlayers.placeIn(helper);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
+        Mob zombie = charmable(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS));
         Mob skeleton = helper.spawnWithNoFreeWill(EntityType.SKELETON, BYSTANDER_POS);
         // spawnWithNoFreeWill leaves the target goals, which can lock the skeleton onto the survival
         // charmer on its first tick; the test stands a skeleton that has not aggressed
@@ -218,7 +224,7 @@ public final class MobEffectTests {
      */
     public static void charmHoldsThroughASave(GameTestHelper helper) {
         ServerPlayer charmer = SurvivalPlayers.placeIn(helper);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
+        Mob zombie = charmable(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS));
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             strike(helper, zombie, ABILITY_HEX_CHARM, charmer);
             TagValueOutput saved = TagValueOutput.createWithContext(ProblemReporter.DISCARDING,
@@ -244,7 +250,7 @@ public final class MobEffectTests {
      */
     public static void charmBreaksOnTheCharmersHit(GameTestHelper helper) {
         ServerPlayer charmer = SurvivalPlayers.placeIn(helper);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
+        Mob zombie = charmable(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS));
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             strike(helper, zombie, ABILITY_HEX_CHARM, charmer);
             helper.assertTrue(zombie.hasData(GooAttachments.CHARMED), ZOMBIE_SHOULD_BE_CHARMED);
@@ -264,7 +270,7 @@ public final class MobEffectTests {
      */
     public static void charmedSlimeSparesItsCharmer(GameTestHelper helper) {
         ServerPlayer charmer = SurvivalPlayers.placeIn(helper);
-        Slime charmed = helper.spawnWithNoFreeWill(EntityType.SLIME, SPAWN_POS);
+        Slime charmed = charmable(helper.spawnWithNoFreeWill(EntityType.SLIME, SPAWN_POS));
         Slime wild = helper.spawnWithNoFreeWill(EntityType.SLIME, BYSTANDER_POS);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             strike(helper, charmed, ABILITY_HEX_CHARM, charmer);
@@ -280,6 +286,18 @@ public final class MobEffectTests {
     }
 
     /**
+     * Stands a mob a charm test charms at a max health its charm's chance stands whole at.
+     *
+     * @param mob the mob
+     * @param <T> the mob's class
+     * @return the mob, at full health
+     */
+    private static <T extends Mob> T charmable(T mob) {
+        mob.getAttribute(Attributes.MAX_HEALTH).setBaseValue(CERTAIN_CHARM_HEALTH);
+        mob.setHealth(mob.getMaxHealth());
+        return mob;
+    }
+
     /**
      * Zone's first hit curses a zombie: a player walked onto it sets off a
      * warp away, and a second Zone hit exiles it from existence

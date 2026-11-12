@@ -41,7 +41,7 @@ public final class GluttonyTests {
     }
 
     private static final Identifier JELLY_GLUTTONY = Identifier.parse("goo:jelly_gluttony");
-    /** The upkeep the eating player holds, at jelly_gluttony.json's one mB a tick: more than the meal spends. */
+    /** The upkeep the eating player holds, many ticks of it: more than the meal spends. */
     private static final int LONG_UPKEEP = 520;
     /** The upkeep the healed player holds, run dry within the watch. */
     private static final int SHORT_UPKEEP = 20;

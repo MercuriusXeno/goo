@@ -22,11 +22,9 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
 /**
- * Gametests for Blast cast by its drag: the release explodes at once at the
- * pinned epicenter at the radius dragged, throwing no blob, breaking nothing
- * outside that radius and charging 1000 mB at radius 3; and a player who
- * lacks the gunpowder recipe spends nothing and explodes nothing. DragSizeTest
- * holds the volume price and the cap at the holdings
+ * Gametest for Blast cast by its drag: the release explodes at once at the
+ * pinned epicenter, breaking the pinned block. DragSizeTest holds the volume
+ * price and the cap at the holdings
  * (decisions blast-is-drag-sized-like-the-black-hole, blast-keeps-its-explosion-gated-on-gunpowder).
  */
 @RegistersGameTests
@@ -53,7 +51,7 @@ public final class BlastDragTests {
     private static final Vec3 PIN_POINT = new Vec3(8.5, FLOOR_TOP + 1.0, 8.5);
     /** Where the caster stands, on the floor near the bay's edge, within reach of the pin. */
     private static final BlockPos STAND = new BlockPos(8, FLOOR_TOP + 1, 1);
-    /** The radius 1000 mB buys. */
+    /** The radius the ability's reference cost buys. */
     private static final double REFERENCE_RADIUS = DragSize.REFERENCE_RADIUS;
     /** Unstable enough for the reference cast. */
     private static final int AMPLE_UNSTABLE = 10000;

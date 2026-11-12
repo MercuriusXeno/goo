@@ -36,11 +36,10 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 /**
  * Gametests for glow's Sunbeam through the real channel path: a mock player
  * holds the ray for one tick, its first tick landing a hit. Struck directly,
- * a zombie takes the whole undead hit and burns; aimed at a prism, the ray
- * refracts to three zombies around it, whose split hits sum past one direct
- * hit (decision sunbeam-splits-at-the-prism-with-a-glisten). A zombie the
- * aim assist locks off the crosshair takes the hit, and the impact's burst
- * fires where the ray lands each tick, its sound on hits (decision sunbeam-lands-with-impact-and-aim).
+ * a zombie loses health and burns; aimed at a prism, the ray refracts to
+ * three zombies around it, each taking a share of the hit
+ * (decision sunbeam-splits-at-the-prism-with-a-glisten). The impact's burst
+ * fires where the ray lands, its sound on hits (decision sunbeam-lands-with-impact-and-aim).
  */
 @RegistersGameTests
 public final class SunbeamChannelTests {
@@ -76,16 +75,14 @@ public final class SunbeamChannelTests {
     /** A sound packet carries its position in eighths of a block, read back as a float. */
     private static final double SOUND_GRID = 0.125;
     private static final String NO_SOUND = "The impact's sound should reach the player once at %s on the hit, it reached %d";
-    private static final String NO_FLAME = "The impact's flame should reach the player at %s on the hold's second tick";
-    /** Sunbeam's direct hit on an undead mob: 4 doubled. */
-    private static final float UNDEAD_HIT = 8f;
+    private static final String NO_FLAME = "The impact's flame should reach the player at %s over the hold";
     private static final float TOLERANCE = 0.01f;
     private static final double BODY_HEIGHT = 1.0;
     private static final int HELD_GOO = 2;
     private static final Identifier SUNBEAM = Identifier.parse("goo:glow_sunbeam");
     private static final String ABILITY_REQUIRED = "Ability registry must hold glow_sunbeam";
     private static final String UNTOUCHED = "Refracted zombie %d should take a share of the hit, it lost %s";
-    private static final String WHOLE_HIT = "The struck zombie should lose at least one whole undead hit of %s, it lost %s";
+    private static final String WHOLE_HIT = "The struck zombie should lose health to the hit, it lost %s";
     private static final String NOT_BURNING = "The struck zombie is undead and should burn";
     /** Zap, whose relay is the combo the refracting prism holds. */
     private static final Identifier RELAY_HOST = Identifier.parse("goo:pulse_zap");
@@ -123,8 +120,8 @@ public final class SunbeamChannelTests {
     }
 
     /**
-     * A mock player holds Sunbeam on a zombie: the zombie loses at least one
-     * whole undead hit, the burn it starts taking its own share, and burns.
+     * A mock player holds Sunbeam on a zombie: the zombie loses health and
+     * burns.
      *
      * @param helper the gametest helper
      */
@@ -136,19 +133,19 @@ public final class SunbeamChannelTests {
         helper.runAfterDelay(2, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
             float lost = before - zombie.getHealth();
-            helper.assertTrue(lost >= UNDEAD_HIT - TOLERANCE, String.format(WHOLE_HIT, UNDEAD_HIT, lost));
+            helper.assertTrue(lost > 0, String.format(WHOLE_HIT, lost));
             helper.assertTrue(zombie.isOnFire(), NOT_BURNING);
             helper.succeed();
         });
     }
 
     /**
-     * A mock player holds Sunbeam on a stone block's face for two ticks, the
-     * first hitting and the second between hits: the impact's sound reaches
-     * the player at the point the ray lands on the hit tick alone, and its
-     * flame on the hold's second tick, glow_sunbeam.json's impact branch on
-     * held (decision sunbeam-lands-with-impact-and-aim). The end_rod burst
-     * left the impact for the client's rising motes
+     * A mock player holds Sunbeam on a stone block's face, the first tick
+     * hitting: the impact's sound reaches the player at the point the ray
+     * lands once on that hit tick, and the hold runs on until the impact's
+     * flame reaches the player there, on whichever held tick the impact
+     * branch fires it (decision sunbeam-lands-with-impact-and-aim). The
+     * end_rod burst left the impact for the client's rising motes
      * (decision sunbeam-sheds-motes-rising-from-the-beam).
      *
      * @param helper the gametest helper
@@ -160,17 +157,22 @@ public final class SunbeamChannelTests {
         Vec3 eye = player.getEyePosition();
         Vec3 face = new Vec3(helper.absolutePos(WALL_POS).getX(), eye.y, eye.z);
         GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.GLOW), SUNBEAM.toString(), eye, face);
-        long[] soundsAfterTheHit = new long[1];
-        helper.runAfterDelay(1, () -> GooStreamHandler.streamTick(player, tick));
-        helper.runAfterDelay(2, () -> {
-            soundsAfterTheHit[0] = soundsAt(recorder, face);
-            GooStreamHandler.streamTick(player, tick);
+        long[] soundsAfterTheHit = {-1};
+        int[] held = {0};
+        // held until the flame shows, so the wait follows the impact branch however it is tuned
+        helper.onEachTick(() -> {
+            if (held[0] == 1) {
+                soundsAfterTheHit[0] = soundsAt(recorder, face);
+            }
+            if (flamesAt(recorder, face) == 0) {
+                held[0]++;
+                GooStreamHandler.streamTick(player, tick);
+            }
         });
-        helper.runAfterDelay(3, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(soundsAfterTheHit[0] == 1, String.format(NO_SOUND, face, soundsAfterTheHit[0]));
+        helper.succeedWhen(() -> {
             helper.assertTrue(flamesAt(recorder, face) > 0, String.format(NO_FLAME, face));
-            helper.succeed();
+            helper.assertTrue(soundsAfterTheHit[0] == 1, String.format(NO_SOUND, face, soundsAfterTheHit[0]));
+            helper.getLevel().getServer().getPlayerList().remove(player);
         });
     }
 

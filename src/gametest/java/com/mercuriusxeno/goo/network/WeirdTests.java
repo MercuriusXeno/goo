@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.CoatStep;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
@@ -67,12 +68,8 @@ public final class WeirdTests {
     private static final BlockPos COATED_POS = STREAMER_POS.east(3);
     /** Pitch down from the eye toward the stone's center three blocks off. */
     private static final float AT_THE_STONE = 20.5f;
-    /** weird_goop.json's coat ticks: twenty ticks of stream coat a block. */
-    private static final int COAT_STEP_TICKS = 20;
     /** Ticks past a coat's worth, so a coat has surely landed. */
     private static final int COAT_SLACK_TICKS = 5;
-    /** A hold past nine tenths of a coat, short of the whole. */
-    private static final int PAST_NINE_TENTHS_TICKS = COAT_STEP_TICKS - 1;
     private static final String LAVA_LEFT = "Goop's stream should leave magma where the lava stood at ";
     private static final String PAD_BREAKS_THE_FALL = "weird_pad_breaks_the_fall";
     private static final String BOUNCES_ITEM_AND_ARROW = "slime_bounces_an_item_and_an_arrow";
@@ -210,8 +207,9 @@ public final class WeirdTests {
             helper.setBlock(COATED_POS.relative(side), Blocks.STONE);
             helper.setBlock(slimed.relative(side), slimeOf(1));
         }
-        holdGoopFor(helper, streamer, COAT_STEP_TICKS + COAT_SLACK_TICKS);
-        helper.runAfterDelay(COAT_STEP_TICKS + COAT_SLACK_TICKS + 1, () -> {
+        int hold = coatTicks(helper) + COAT_SLACK_TICKS;
+        holdGoopFor(helper, streamer, hold);
+        helper.runAfterDelay(hold + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
             assertLayers(helper, slimed, 2);
             helper.succeed();
@@ -444,8 +442,9 @@ public final class WeirdTests {
      */
     public static void goopLaysASlimeCoatOverTheBlock(GameTestHelper helper) {
         ServerPlayer streamer = goopStreamerOverStone(helper);
-        holdGoopFor(helper, streamer, COAT_STEP_TICKS + COAT_SLACK_TICKS);
-        helper.runAfterDelay(COAT_STEP_TICKS + COAT_SLACK_TICKS + 1, () -> {
+        int hold = coatTicks(helper) + COAT_SLACK_TICKS;
+        holdGoopFor(helper, streamer, hold);
+        helper.runAfterDelay(hold + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
             helper.assertBlockPresent(GooBlocks.SLIME_COAT.get(), COATED_POS.above());
             helper.assertBlockPresent(Blocks.STONE, COATED_POS);
@@ -454,21 +453,35 @@ public final class WeirdTests {
     }
 
     /**
-     * Goop's stream held on a stone block past nine tenths of a coat and
-     * released: the coat finishes on its own.
+     * Goop's stream held on a stone block one held tick short of the live
+     * coat step's ticks, past nine tenths of a coat, and released: the coat
+     * finishes on its own.
      *
      * @param helper the gametest helper
      */
     public static void goopPastNineTenthsFinishesAfterRelease(GameTestHelper helper) {
         ServerPlayer streamer = goopStreamerOverStone(helper);
-        holdGoopFor(helper, streamer, PAST_NINE_TENTHS_TICKS);
-        helper.runAfterDelay(PAST_NINE_TENTHS_TICKS, () -> {
+        int coat = coatTicks(helper);
+        int pastNineTenths = coat - 1;
+        holdGoopFor(helper, streamer, pastNineTenths);
+        helper.runAfterDelay(pastNineTenths, () -> {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
         });
-        helper.runAfterDelay(PAST_NINE_TENTHS_TICKS + COAT_STEP_TICKS, () -> {
+        helper.runAfterDelay(pastNineTenths + coat, () -> {
             helper.assertBlockPresent(GooBlocks.SLIME_COAT.get(), COATED_POS.above());
             helper.succeed();
         });
+    }
+
+    /**
+     * @param helper the gametest helper
+     * @return the held ticks the live Goop's coat step takes to coat a block
+     */
+    private static int coatTicks(GameTestHelper helper) {
+        AbilityDefinition goop = AbilityRegistry.of(helper.getLevel()).getAbility(GOOP);
+        helper.assertTrue(goop != null, ABILITY_REQUIRED);
+        return goop.behaviors().stream().filter(CoatStep.class::isInstance).map(CoatStep.class::cast)
+                .findFirst().orElseThrow().ticks();
     }
 
     /**
