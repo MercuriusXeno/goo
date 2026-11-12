@@ -13,6 +13,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Draws the life mark over each rallied or charmed mob, and each mob Heal or
@@ -39,10 +40,8 @@ final class LifeMarkBillboard {
     private static final int INK_COLUMNS = 7;
     /** Slack under a whole column, so a share landing on a column edge fills no extra column. */
     private static final float COLUMN_SLACK = 1e-4f;
-    /** Blocks between a bare head and the mark's bottom edge. */
-    private static final double OVER_BARE_HEAD = 0.3;
-    /** Blocks between a head and the mark's bottom edge where a head mark floats there too. */
-    private static final double OVER_HEAD_MARK = 0.75;
+    /** Blocks between the head and the row's bottom edge. */
+    private static final double OVER_HEAD = 0.3;
     private static final double SIGHT_RANGE = 48.0;
     private static final int WHITE = 0xFFFFFF;
     private static final int ALPHA_SHIFT = 24;
@@ -58,24 +57,29 @@ final class LifeMarkBillboard {
 
     /**
      * Where one mark's parts stand, in blocks: x rightward from the head's
-     * center, y downward from the mark's top edge, the heart then the count,
-     * the whole mark centered over the head.
+     * center, y downward from the row's top edge, the rally or charm icon on
+     * a head-marked mob, then the heart, then the count, the whole row
+     * centered over the head.
      * health-bar-draws-two-thirds-with-half-font
+     * rally-and-charm-icons-sit-left-of-the-heart
      *
-     * @param left      the heart's left edge, the mark's left edge
+     * @param left      the row's left edge, the icon's where it draws
+     * @param heartLeft the heart's left edge
      * @param countLeft the count's left edge
      * @param countTop  the top of the count's digits
-     * @param right     the count's right edge, the mark's right edge
+     * @param right     the count's right edge, the row's right edge
      */
-    record Layout(float left, float countLeft, float countTop, float right) {
+    record Layout(float left, float heartLeft, float countLeft, float countTop, float right) {
 
         /** The heart's side, 2/3 of the 0.225 blocks it drew at name-tag scale. */
         private static final float HEART_WIDTH = 0.15f;
+        /** The icon's side, the heart's, so the fist reads the heart's size. */
+        private static final float ICON_WIDTH = HEART_WIDTH;
         /** Blocks per font pixel, half of name-tag scale's 0.025. */
         private static final float COUNT_SCALE = 0.0125f;
         /** Blocks per heart sprite pixel. */
         private static final float HEART_PIXEL = HEART_WIDTH / HEART_SIZE;
-        /** Between the heart and its count: two of the heart's pixels. */
+        /** Between one part and the next: two of the heart's pixels. */
         private static final float GAP = 2f * HEART_PIXEL;
         /** A digit's height in font pixels, the count's ink with no descender under it. */
         private static final float DIGIT_HEIGHT = 7f;
@@ -84,13 +88,40 @@ final class LifeMarkBillboard {
          * The layout of a mark whose count is as wide as given.
          *
          * @param countFontWidth the count's width in font pixels
+         * @param withIcon       whether the row leads with the rally or charm icon
          * @return the parts' places
          */
-        static Layout of(float countFontWidth) {
-            float width = HEART_WIDTH + GAP + countFontWidth * COUNT_SCALE;
+        static Layout of(float countFontWidth, boolean withIcon) {
+            float iconSlot = withIcon ? ICON_WIDTH + GAP : 0f;
+            float width = iconSlot + HEART_WIDTH + GAP + countFontWidth * COUNT_SCALE;
             float left = -width / HALVED;
+            float heartLeft = left + iconSlot;
             float countTop = (HEART_WIDTH - DIGIT_HEIGHT * COUNT_SCALE) / HALVED;
-            return new Layout(left, left + HEART_WIDTH + GAP, countTop, left + width);
+            return new Layout(left, heartLeft, heartLeft + HEART_WIDTH + GAP, countTop, left + width);
+        }
+
+        float iconLeft() {
+            return left;
+        }
+
+        float iconWidth() {
+            return ICON_WIDTH;
+        }
+
+        float iconTop() {
+            return heartBottom() - ICON_WIDTH;
+        }
+
+        float iconBottom() {
+            return heartBottom();
+        }
+
+        float heartTop() {
+            return 0f;
+        }
+
+        float heartBottom() {
+            return HEART_WIDTH;
         }
 
         float heartWidth() {
@@ -116,9 +147,10 @@ final class LifeMarkBillboard {
      * @param living the mob
      * @param mark   what its life draws
      * @param color  the white tint, its alpha the mark's fade
-     * @param layout where the mark's parts stand over the head
+     * @param layout   where the mark's parts stand over the head
+     * @param headMark the rally or charm icon leading the row, empty on a bare mob
      */
-    private record Shown(LivingEntity living, LifeMark mark, int color, Layout layout) {
+    private record Shown(LivingEntity living, LifeMark mark, int color, Layout layout, Optional<HeadMark> headMark) {
     }
 
     /**
@@ -164,8 +196,8 @@ final class LifeMarkBillboard {
     }
 
     /**
-     * Draws every marked mob's life mark, the empty hearts first, then the
-     * fills, then the counts, one batch each.
+     * Draws every marked mob's life mark, the rally and charm icons first,
+     * then the empty hearts, then the fills, then the counts, one batch each.
      *
      * @param poseStack   the level's pose stack
      * @param shown       the living in sight that wear a life mark
@@ -180,6 +212,9 @@ final class LifeMarkBillboard {
         List<Shown> marks = shown.stream().map(living -> shownAt(living, time, mc.font)).toList();
         Camera camera = mc.gameRenderer.getMainCamera();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        for (HeadMark headMark : HeadMark.values()) {
+            drawIcons(poseStack, camera, buffers, marks, partialTick, headMark);
+        }
         drawHearts(poseStack, camera, buffers, marks, partialTick, CONTAINER);
         drawHearts(poseStack, camera, buffers, marks, partialTick, FULL);
         for (Shown mark : marks) {
@@ -224,9 +259,11 @@ final class LifeMarkBillboard {
      */
     private static Shown shownAt(LivingEntity living, float time, Font font) {
         LifeMark mark = LifeMark.of(living.getHealth(), living.getMaxHealth());
+        Optional<HeadMark> headMark = HeadMarks.headMarkOf(living);
         float strength = markStrength(living.getId(), time, TouchedMobs.CLIENT, LeaderSense.CLIENT,
-                HeadMarks.wearsHeadMark(living));
-        return new Shown(living, mark, tint(strength), Layout.of(font.width(mark.count())));
+                headMark.isPresent());
+        return new Shown(living, mark, tint(strength), Layout.of(font.width(mark.count()), headMark.isPresent()),
+                headMark);
     }
 
     private static int tint(float opacity) {
@@ -252,8 +289,36 @@ final class LifeMarkBillboard {
         for (Shown mark : marks) {
             float edge = sprite.equals(CONTAINER) ? HEART_SIZE : fillEdge(mark.mark().fill());
             if (edge > 0f) {
-                faceCamera(poseStack, camera, mark.living(), partialTick,
-                        () -> quad(consumer, poseStack.last(), mark.layout(), edge, mark.color()));
+                Layout layout = mark.layout();
+                faceCamera(poseStack, camera, mark.living(), partialTick, () -> quad(consumer, poseStack.last(),
+                        layout.heartLeft(), layout.heartTop(), layout.heartWidth(), edge / HEART_SIZE,
+                        mark.color()));
+            }
+        }
+        buffers.endBatch(icon);
+    }
+
+    /**
+     * Draws one head mark's icon at the left of the row on every mob wearing
+     * it, in the row's see-through pass and at the row's strength.
+     * rally-and-charm-icons-sit-left-of-the-heart
+     *
+     * @param poseStack   the level's pose stack
+     * @param camera      the render camera
+     * @param buffers     the frame's buffers
+     * @param marks       the marks to draw
+     * @param partialTick the frame's partial tick
+     * @param headMark    the charm heart or the rally fist
+     */
+    private static void drawIcons(PoseStack poseStack, Camera camera, MultiBufferSource.BufferSource buffers,
+                                  List<Shown> marks, float partialTick, HeadMark headMark) {
+        RenderType icon = RenderTypes.textSeeThrough(headMark.texture());
+        VertexConsumer consumer = buffers.getBuffer(icon);
+        for (Shown mark : marks) {
+            if (mark.headMark().filter(headMark::equals).isPresent()) {
+                Layout layout = mark.layout();
+                faceCamera(poseStack, camera, mark.living(), partialTick, () -> quad(consumer, poseStack.last(),
+                        layout.iconLeft(), layout.iconTop(), layout.iconWidth(), 1f, mark.color()));
             }
         }
         buffers.endBatch(icon);
@@ -282,8 +347,7 @@ final class LifeMarkBillboard {
      */
     private static void faceCamera(PoseStack poseStack, Camera camera, LivingEntity living, float partialTick,
                                    Runnable draw) {
-        double over = HeadMarks.wearsHeadMark(living) ? OVER_HEAD_MARK : OVER_BARE_HEAD;
-        Vec3 above = living.getPosition(partialTick).add(0, living.getBbHeight() + over, 0)
+        Vec3 above = living.getPosition(partialTick).add(0, living.getBbHeight() + OVER_HEAD, 0)
                 .subtract(camera.position());
         if (above.lengthSqr() > SIGHT_RANGE * SIGHT_RANGE) {
             return;
@@ -298,23 +362,24 @@ final class LifeMarkBillboard {
     }
 
     /**
-     * One heart quad cut at a sprite column, the quad's width and its u cut
-     * together so the texels keep their size.
+     * One square sprite quad, its left part kept up to a share of its width,
+     * the quad's width and its u cut together so the texels keep their size.
      *
      * @param consumer the sprite's buffer
      * @param pose     the pose in block space
-     * @param layout   where the mark's heart stands
-     * @param edge     the sprite column the quad ends at, at most the heart's side
+     * @param x        the quad's left edge
+     * @param y        the quad's top edge
+     * @param side     the whole sprite's side
+     * @param u        the share of the sprite kept from its left edge, one for all of it
      * @param color    the tint
      */
-    private static void quad(VertexConsumer consumer, PoseStack.Pose pose, Layout layout, float edge, int color) {
-        float u = edge / HEART_SIZE;
-        float side = layout.heartWidth();
-        float x = layout.left();
+    private static void quad(VertexConsumer consumer, PoseStack.Pose pose, float x, float y, float side, float u,
+                             int color) {
         float right = x + side * u;
-        InWorldHud.iconVertex(consumer, pose, x, 0f, 0f, 0f, 0f, color);
-        InWorldHud.iconVertex(consumer, pose, x, side, 0f, 0f, 1f, color);
-        InWorldHud.iconVertex(consumer, pose, right, side, 0f, u, 1f, color);
-        InWorldHud.iconVertex(consumer, pose, right, 0f, 0f, u, 0f, color);
+        float bottom = y + side;
+        InWorldHud.iconVertex(consumer, pose, x, y, 0f, 0f, 0f, color);
+        InWorldHud.iconVertex(consumer, pose, x, bottom, 0f, 0f, 1f, color);
+        InWorldHud.iconVertex(consumer, pose, right, bottom, 0f, u, 1f, color);
+        InWorldHud.iconVertex(consumer, pose, right, y, 0f, u, 0f, color);
     }
 }

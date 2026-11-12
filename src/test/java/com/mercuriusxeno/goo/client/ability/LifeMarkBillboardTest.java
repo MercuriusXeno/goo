@@ -22,6 +22,7 @@ import static org.mockito.Mockito.when;
  * its own method, so no fade constant is pinned here.
  * leader-shows-life-bars-while-it-stands
  * rallied-and-charmed-mobs-always-show-their-health-bar
+ * rally-and-charm-icons-sit-left-of-the-heart
  */
 class LifeMarkBillboardTest {
 
@@ -92,18 +93,18 @@ class LifeMarkBillboardTest {
 
         @Test
         void heartDrawsTwoThirdsOfItsOldSize() {
-            assertEquals(0.15f, LifeMarkBillboard.Layout.of(NARROW_COUNT).heartWidth(), EPSILON);
+            assertEquals(0.15f, LifeMarkBillboard.Layout.of(NARROW_COUNT, BARE).heartWidth(), EPSILON);
         }
 
         @Test
         void countDrawsAtHalfTheOldFont() {
-            assertEquals(0.0125f, LifeMarkBillboard.Layout.of(NARROW_COUNT).countScale(), EPSILON);
+            assertEquals(0.0125f, LifeMarkBillboard.Layout.of(NARROW_COUNT, BARE).countScale(), EPSILON);
         }
 
         @Test
         void markStandsCenteredOverTheHead() {
             for (float countWidth : new float[] {NARROW_COUNT, WIDE_COUNT}) {
-                LifeMarkBillboard.Layout layout = LifeMarkBillboard.Layout.of(countWidth);
+                LifeMarkBillboard.Layout layout = LifeMarkBillboard.Layout.of(countWidth, BARE);
                 assertEquals(-layout.left(), layout.right(), EPSILON, "count width " + countWidth);
             }
         }
@@ -111,16 +112,46 @@ class LifeMarkBillboardTest {
         @Test
         void countLineCentersOnTheHeartsMiddle() {
             for (float countWidth : new float[] {NARROW_COUNT, WIDE_COUNT}) {
-                LifeMarkBillboard.Layout layout = LifeMarkBillboard.Layout.of(countWidth);
+                LifeMarkBillboard.Layout layout = LifeMarkBillboard.Layout.of(countWidth, BARE);
                 assertEquals(layout.heartMiddle(), layout.countMiddle(), EPSILON, "count width " + countWidth);
             }
         }
 
         @Test
         void countStandsRightOfTheHeart() {
-            LifeMarkBillboard.Layout layout = LifeMarkBillboard.Layout.of(NARROW_COUNT);
-            assertTrue(layout.countLeft() > layout.left() + layout.heartWidth());
+            LifeMarkBillboard.Layout layout = LifeMarkBillboard.Layout.of(NARROW_COUNT, BARE);
+            assertTrue(layout.countLeft() > layout.heartLeft() + layout.heartWidth());
             assertEquals(layout.right(), layout.countLeft() + NARROW_COUNT * layout.countScale(), EPSILON);
+        }
+
+        @Test
+        void bareMobDrawsTheHeartAtTheRowsLeftEdge() {
+            for (float countWidth : new float[] {NARROW_COUNT, WIDE_COUNT}) {
+                LifeMarkBillboard.Layout layout = LifeMarkBillboard.Layout.of(countWidth, BARE);
+                assertEquals(layout.left(), layout.heartLeft(), EPSILON, "count width " + countWidth);
+                assertEquals(-layout.left(), layout.right(), EPSILON, "count width " + countWidth);
+            }
+        }
+
+        @Test
+        void iconDrawsTheHeartsSize() {
+            LifeMarkBillboard.Layout layout = LifeMarkBillboard.Layout.of(NARROW_COUNT, HEAD_MARKED);
+            assertEquals(layout.heartWidth(), layout.iconWidth(), EPSILON);
+            assertEquals(0.15f, layout.iconWidth(), EPSILON);
+        }
+
+        @Test
+        void iconHeartAndCountStandLeftToRightInOneRow() {
+            for (float countWidth : new float[] {NARROW_COUNT, WIDE_COUNT}) {
+                LifeMarkBillboard.Layout layout = LifeMarkBillboard.Layout.of(countWidth, HEAD_MARKED);
+                String at = "count width " + countWidth;
+                assertTrue(layout.iconLeft() + layout.iconWidth() < layout.heartLeft(), at);
+                assertTrue(layout.heartLeft() + layout.heartWidth() < layout.countLeft(), at);
+                assertEquals(layout.heartTop(), layout.iconTop(), EPSILON, at);
+                assertEquals(layout.heartBottom(), layout.iconBottom(), EPSILON, at);
+                assertEquals(layout.left(), layout.iconLeft(), EPSILON, at);
+                assertEquals(-layout.left(), layout.right(), EPSILON, at);
+            }
         }
     }
 
