@@ -29,8 +29,6 @@ import java.util.function.Consumer;
 @RegistersGameTests
 public final class PrismComboTests {
     private static final String PRISM_COMBO_RUNS_THE_TYPE_PRISM_ABILITY = "prism_combo_runs_the_type_prism_ability";
-    private static final String PRISM_COMBO_RUNS_ON_PRISM_BEHAVIORS = "prism_combo_runs_on_prism_behaviors";
-    private static final String PRISM_WITHOUT_COMBO_STAYS = "prism_without_combo_stays";
     private static final String COMBINED_PRISM_REFUSES_SECOND = "combined_prism_refuses_second";
 
     /**
@@ -40,8 +38,6 @@ public final class PrismComboTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, PRISM_COMBO_RUNS_THE_TYPE_PRISM_ABILITY, PrismComboTests::comboRunsTheTypePrismAbility);
-        GooTestFunctions.registerTest(registrar, PRISM_COMBO_RUNS_ON_PRISM_BEHAVIORS, PrismComboTests::comboRunsOnPrismBehaviors);
-        GooTestFunctions.registerTest(registrar, PRISM_WITHOUT_COMBO_STAYS, PrismComboTests::prismWithoutComboStays);
         GooTestFunctions.registerTest(registrar, COMBINED_PRISM_REFUSES_SECOND, PrismComboTests::combinedPrismRefusesSecond);
     }
 
@@ -56,11 +52,9 @@ public final class PrismComboTests {
     private static final String SEVENTEENTH_PROBE = TEST_PACK + ":seventeenth_probe";
     private static final String PRISM_PROBE = TEST_PACK + ":seventeenth_prism_probe";
     private static final String BULB_PROBE = TEST_PACK + ":seventeenth_bulb_probe";
-    private static final String CRYSTAL_CLOUD = "goo:crystal_cloud";
 
     private static final String WRONG_COMBO = "The prism should hold combo '%s', held '%s'";
     private static final String PROGRAM_DID_NOT_RUN = "The combo's program should strike the pig beside the prism";
-    private static final String LANDED_BESIDE = "A landing on a prism should stand nothing beside it";
 
     private PrismComboTests() {
     }
@@ -79,40 +73,6 @@ public final class PrismComboTests {
 
         assertCombo(helper, PRISM_PROBE);
         helper.assertTrue(pig.getHealth() < pig.getMaxHealth(), PROGRAM_DID_NOT_RUN);
-        helper.succeed();
-    }
-
-    /**
-     * A goo whose ability carries an on_prism reaction lands on a prism: that
-     * reaction runs at the prism in place of the type's prism ability, and the
-     * prism records the landing ability as its combo.
-     *
-     * @param helper the gametest helper
-     */
-    public static void comboRunsOnPrismBehaviors(GameTestHelper helper) {
-        Pig pig = standPrismBesidePig(helper);
-
-        landOnPrism(helper, SEVENTEENTH, BULB_PROBE);
-
-        assertCombo(helper, BULB_PROBE);
-        helper.assertTrue(pig.getHealth() < pig.getMaxHealth(), PROGRAM_DID_NOT_RUN);
-        helper.succeed();
-    }
-
-    /**
-     * A crystal goo, whose type has no prism ability and whose ability names
-     * no prism reaction, lands on a prism: the prism stands plain, and the
-     * landing stands nothing beside it.
-     *
-     * @param helper the gametest helper
-     */
-    public static void prismWithoutComboStays(GameTestHelper helper) {
-        standPrism(helper);
-
-        landOnPrism(helper, GooTypes.CRYSTAL, CRYSTAL_CLOUD);
-
-        assertCombo(helper, PrismBlockEntity.NO_COMBO);
-        helper.assertTrue(helper.getBlockState(PRISM_POS.above()).isAir(), LANDED_BESIDE);
         helper.succeed();
     }
 

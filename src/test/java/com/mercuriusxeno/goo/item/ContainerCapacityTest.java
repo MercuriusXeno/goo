@@ -118,4 +118,13 @@ class ContainerCapacityTest {
             assertEquals(0, ContainerCapacity.releasableVoid(1_000, 2_000, 3));
         }
     }
+
+    /** The void voidToReach names for a vat grows the vat's base to at least the target, here the lab kit's 2^30 mB. */
+    @Test
+    void theVoidToReachATargetGrowsAVatToIt() {
+        int target = 1 << 30;
+
+        assertTrue(ContainerCapacity.capacity(ContainerCapacity.VAT_BASE,
+                ContainerCapacity.voidToReach(ContainerCapacity.VAT_BASE, target)) >= target);
+    }
 }

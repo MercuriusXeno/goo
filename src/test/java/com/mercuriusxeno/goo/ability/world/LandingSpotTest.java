@@ -32,4 +32,15 @@ class LandingSpotTest {
 
         assertEquals(Optional.of(new LandingSpot(CORNER.above(), false)), spot);
     }
+
+    /** A blob striking a replaceable block, as grass on soil, lands in that block's own cell. */
+    @Test
+    void aBlobStrikingAReplaceableBlockLandsInItsOwnCell() {
+        CandidateState grass = new CandidateState(false, true, false, false, false);
+
+        Optional<LandingSpot> spot = LandingSpot.resolve(pos -> pos.equals(CORNER) ? grass : AIR, CORNER,
+                Direction.UP, Vec3.atCenterOf(CORNER));
+
+        assertEquals(Optional.of(new LandingSpot(CORNER, false)), spot);
+    }
 }

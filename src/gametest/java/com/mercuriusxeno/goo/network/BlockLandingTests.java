@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
-import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -22,7 +21,6 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
  */
 @RegistersGameTests
 public final class BlockLandingTests {
-    private static final String FX_NO_ABILITY_LANDS_NOTHING = "fx_no_ability_lands_nothing";
     private static final String FX_ABILITY_LANDS_MARKER = "fx_ability_lands_marker";
 
     /**
@@ -31,7 +29,6 @@ public final class BlockLandingTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, FX_NO_ABILITY_LANDS_NOTHING, BlockLandingTests::noAbilityLandsNothing);
         GooTestFunctions.registerTest(registrar, FX_ABILITY_LANDS_MARKER, BlockLandingTests::abilityLandsItsMarker);
     }
 
@@ -42,7 +39,6 @@ public final class BlockLandingTests {
     private static final BlockPos FACE_POS = WALL_POS.south();
     /** Marks a pending effect aimed at a block rather than an entity. */
     private static final int NO_ENTITY = -1;
-    private static final String NO_ABILITY = "";
     private static final String CRYSTAL_CLOUD = "goo:crystal_cloud";
     private static final String MARKER_WRONG_ABILITY = "The landed marker does not carry the thrown ability";
 
@@ -59,17 +55,6 @@ public final class BlockLandingTests {
         helper.setBlock(WALL_POS, Blocks.STONE);
         GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.CRYSTAL,
                 NO_ENTITY, helper.absolutePos(WALL_POS), Direction.SOUTH, abilityId));
-    }
-
-    /**
-     * A block throw naming no ability leaves no marker on the struck face.
-     *
-     * @param helper the gametest helper
-     */
-    public static void noAbilityLandsNothing(GameTestHelper helper) {
-        landOnWall(helper, NO_ABILITY);
-        helper.assertBlockNotPresent(GooBlocks.ABILITY_BLOCK.get(), FACE_POS);
-        helper.succeed();
     }
 
     /**

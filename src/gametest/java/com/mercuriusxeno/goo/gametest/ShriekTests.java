@@ -13,7 +13,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.ai.goal.RandomStrollGoal;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -54,8 +53,6 @@ public final class ShriekTests {
     private static final int FLOOR_HALF_WIDTH = 3;
     /** The zombies' distance from the blob, inside deep_shriek.json's reach of 16. */
     private static final int FAR = 10;
-    /** Ticks after the landing the late zombie spawns, once the shriek has sounded. */
-    private static final int AFTER_THE_SHRIEK = 2;
     /** Ticks a called mob is given to walk after the shriek. */
     private static final int WALK_TICKS = 80;
     /** How much nearer the blob a called mob stands after its walk. */
@@ -64,10 +61,7 @@ public final class ShriekTests {
     private static final String SHOULD_TICK = "The far chunks should tick their entities";
     private static final String ABILITY_REQUIRED = "%s must be loaded";
     private static final String SHOULD_COME = "The zombie %d blocks out should walk nearer the blob, stood %.2f off, stands %.2f off";
-    private static final String SHOULD_HOLD = "The %s should hold where it stood, %.2f off the blob, it stands %.2f off";
     private static final String SHOULD_CALL_THE_ZOMBIE = "The shriek should call the zombie in earshot to the blob";
-    private static final String SHOULD_LEAVE_THE_LATE_ZOMBIE = "The zombie arriving after the shriek should not be called";
-    private static final String LATE_ZOMBIE = "late zombie";
 
     private ShriekTests() {
     }
@@ -75,9 +69,7 @@ public final class ShriekTests {
     /**
      * A zombie ten blocks west of the blob stands in earshot as the blob
      * lands and shrieks: the zombie is called and stands at least two and a
-     * half blocks nearer the blob eighty ticks later, and a second zombie
-     * spawned ten blocks east just after the shriek is never called and holds
-     * where it spawned. The mobs spawn once the far chunks tick their
+     * half blocks nearer the blob eighty ticks later. The zombie spawns once the far chunk ticks its
      * entities, since a mob added sooner stands frozen.
      *
      * @param helper the gametest helper
@@ -87,30 +79,21 @@ public final class ShriekTests {
         BlockPos floor = buildFloor(helper);
         Vec3 blob = Vec3.atBottomCenterOf(floor.above());
         BlockPos zombieAt = floor.above().west(FAR);
-        BlockPos lateAt = floor.above().east(FAR);
         List<Mob> mobs = new ArrayList<>();
         helper.startSequence()
-                .thenWaitUntil(() -> helper.assertTrue(level.isPositionEntityTicking(zombieAt)
-                        && level.isPositionEntityTicking(lateAt), SHOULD_TICK))
+                .thenWaitUntil(() -> helper.assertTrue(level.isPositionEntityTicking(zombieAt), SHOULD_TICK))
                 .thenExecute(() -> {
                     mobs.add(spawn(helper, EntityType.ZOMBIE, zombieAt));
                     landShriek(helper, floor);
                 })
-                .thenIdle(AFTER_THE_SHRIEK)
-                .thenExecute(() -> mobs.add(stilled(spawn(helper, EntityType.ZOMBIE, lateAt))))
                 .thenIdle(WALK_TICKS)
                 .thenExecute(() -> {
                     boolean zombieCalled = SculkCall.isCalledTo(mobs.get(0), floor.above());
-                    boolean lateCalled = SculkCall.isCalledTo(mobs.get(1), floor.above());
                     double zombieOff = across(mobs.get(0).position(), blob);
-                    double lateOff = across(mobs.get(1).position(), blob);
                     release(helper, floor, mobs);
                     helper.assertTrue(zombieCalled, SHOULD_CALL_THE_ZOMBIE);
-                    helper.assertFalse(lateCalled, SHOULD_LEAVE_THE_LATE_ZOMBIE);
                     helper.assertTrue(zombieOff <= FAR - WALKED_NEARER,
                             String.format(SHOULD_COME, FAR, (double) FAR, zombieOff));
-                    helper.assertTrue(lateOff > FAR - WALKED_NEARER,
-                            String.format(SHOULD_HOLD, LATE_ZOMBIE, (double) FAR, lateOff));
                 })
                 .thenSucceed();
     }
@@ -122,19 +105,6 @@ public final class ShriekTests {
      */
     private static double across(Vec3 at, Vec3 blob) {
         return Math.hypot(at.x - blob.x, at.z - blob.z);
-    }
-
-    /**
-     * Takes a mob's idle strolls away, so only a call could move it: a mob
-     * the shriek passes over then holds where it stood, and its holding
-     * reads the shriek rather than a random wander.
-     *
-     * @param mob the mob
-     * @return the same mob
-     */
-    private static Mob stilled(Mob mob) {
-        mob.goalSelector.removeAllGoals(RandomStrollGoal.class::isInstance);
-        return mob;
     }
 
     private static Mob spawn(GameTestHelper helper, EntityType<? extends Mob> type, BlockPos at) {

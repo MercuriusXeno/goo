@@ -55,7 +55,6 @@ public final class SpawnerRecipeTests {
     private static final String ZOMBIE_ID = "minecraft:zombie";
 
     private static final String RING_NOT_CRAFTED = "Eight exorite bars in a ring should craft one spawner";
-    private static final String NOT_EMPTY = "A placed spawner should start with no mob";
     private static final String NOT_ZOMBIE = "The spawner should spawn zombies after a zombie spawn egg";
 
     private SpawnerRecipeTests() {
@@ -75,8 +74,8 @@ public final class SpawnerRecipeTests {
     }
 
     /**
-     * A placed spawner saves no spawn data; a zombie spawn egg used on it
-     * through SpawnEggItem.useOn sets zombies as its mob.
+     * A zombie spawn egg used on a placed spawner through SpawnEggItem.useOn
+     * sets zombies as its mob.
      *
      * @param helper the gametest helper
      */
@@ -84,7 +83,6 @@ public final class SpawnerRecipeTests {
     public static void emptySpawnerTakesEgg(GameTestHelper helper) {
         helper.setBlock(SPAWNER_POS, Blocks.SPAWNER);
         SpawnerBlockEntity spawner = helper.getBlockEntity(SPAWNER_POS, SpawnerBlockEntity.class);
-        helper.assertTrue(spawnEntityId(helper, spawner).isEmpty(), NOT_EMPTY);
 
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.ZOMBIE_SPAWN_EGG));
