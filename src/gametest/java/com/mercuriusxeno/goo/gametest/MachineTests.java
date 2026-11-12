@@ -2,30 +2,36 @@ package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
+import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
 import com.mercuriusxeno.goo.data.GasketRegistry;
+import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mercuriusxeno.goo.registry.GooItems;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.storage.TagValueInput;
+import net.neoforged.neoforge.registries.RegisterEvent;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 import org.slf4j.Logger;
 import java.util.UUID;
-import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
 /**
@@ -41,6 +47,9 @@ public final class MachineTests {
     private static final String MACHINE_REACTOR_BREAK_RELEASES_GASKET = "machine_reactor_break_releases_gasket";
     private static final String MACHINE_REACTOR_REACTION = "machine_reactor_reaction";
     private static final String MACHINE_REACTOR_REDSTONE = "machine_reactor_redstone";
+    private static final String MACHINE_PLEXER_RECONSTITUTES = "machine_plexer_reconstitutes";
+    private static final String STONE_HAS_VALUE = "Stone should hold a goo value for the plexer to fabricate";
+    private static final String PLEXER_MADE_NOTHING = "A plexer with its target's goo above should reconstitute the target";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -55,6 +64,8 @@ public final class MachineTests {
         GooTestFunctions.registerTest(registrar, MACHINE_REACTOR_BREAK_RELEASES_GASKET, MachineTests::reactorBreakReleasesOutputGasket);
         GooTestFunctions.registerTest(registrar, MACHINE_REACTOR_REACTION, MachineTests::reactorProcessesReaction);
         GooTestFunctions.registerTest(registrar, MACHINE_REACTOR_REDSTONE, MachineTests::reactorRedstoneHalts);
+        GooTestFunctions.registerTest(registrar, MACHINE_PLEXER_RECONSTITUTES,
+                MachineTests::plexerReconstitutesItsTargetFromTheGooAbove);
     }
 
 
@@ -429,5 +440,36 @@ public final class MachineTests {
         ItemStack canister = new ItemStack(GooItems.CANISTER.get());
         CanisterItem.setFluidContent(canister, CanisterFluidContent.of(fluid, amount));
         be.insertCanister(slot, canister, false);
+    }
+
+    /**
+     * A plexer targeting stone, a canister of each of stone's goo types standing above it, reconstitutes a stone
+     * from that goo.
+     *
+     * @param helper the gametest helper
+     */
+    public static void plexerReconstitutesItsTargetFromTheGooAbove(GameTestHelper helper) {
+        helper.setBlock(BE_POS, GooBlocks.PLEXER.get());
+        helper.setBlock(BE_POS.above(), GooBlocks.CANISTER.get());
+        PlexerBlockEntity plexer = helper.getBlockEntity(BE_POS, PlexerBlockEntity.class);
+        CanisterBlockEntity above = helper.getBlockEntity(BE_POS.above(), CanisterBlockEntity.class);
+        ItemStack stone = new ItemStack(Items.STONE);
+        GooValue value = GooValues.of(helper.getLevel()).lookup(stone);
+        helper.assertTrue(value != null && !value.isEmpty(), STONE_HAS_VALUE);
+        int slot = 0;
+        for (ResourceKey<GooTypeDefinition> type : GooTypes.order()) {
+            int needed = value.fabricateCeiling(type);
+            if (needed > 0) {
+                ItemStack canister = new ItemStack(GooItems.CANISTER.get());
+                CanisterItem.addGoo(canister, type, needed);
+                above.insertCanister(slot++, canister, false);
+            }
+        }
+        plexer.setTargetItem(stone);
+
+        ItemStack made = plexer.tryReconstitute();
+
+        helper.assertTrue(made.is(Items.STONE), PLEXER_MADE_NOTHING);
+        helper.succeed();
     }
 }
