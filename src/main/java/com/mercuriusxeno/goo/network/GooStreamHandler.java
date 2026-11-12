@@ -652,6 +652,19 @@ public final class GooStreamHandler {
     }
 
     /**
+     * The point a mote's launch aims it at: a mote slowing by a tenth each
+     * tick comes to rest there, and a spray drip flies there and splats.
+     * goop-and-slick-spray-throws-goo-drips-that-splat
+     *
+     * @param apex   the glove the mote leaves
+     * @param launch the mote's launch velocity, blocks per tick
+     * @return the point the launch aims at
+     */
+    public static Vec3 launchEnd(Vec3 apex, Vec3 launch) {
+        return apex.add(launch.scale(1.0 / LAUNCH_SPEED_PER_BLOCK));
+    }
+
+    /**
      * The spraying player's travel velocity: the known movement, since the
      * server moves a player by its client's packets and leaves its delta
      * movement at rest (decision diagnose-then-restore-razor-harm).
