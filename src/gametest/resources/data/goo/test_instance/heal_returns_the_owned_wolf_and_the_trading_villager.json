@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:heal_returns_the_owned_wolf_and_the_trading_villager",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 160,
+  "setup_ticks": 0,
+  "required": true
+}
