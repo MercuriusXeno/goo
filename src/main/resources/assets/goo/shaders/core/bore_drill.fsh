@@ -4,23 +4,26 @@
 #moj_import <minecraft:projection.glsl>
 #moj_import <minecraft:globals.glsl>
 
-// Bore's drill (decision bore-shows-a-big-drill-from-the-glove): a drill-shaped vortex of earth magic,
-// marched as Drain's vortex is (decision drain-casts-a-filled-tornadic-miasma-vortex-along-the-look).
-// Wide at the glove and pointed at the tip, it is a churning swirl of earthy dust: clumps and thin spots
-// carried forward toward the tip and round the axis, two flutes of thicker, paler dust wound round it
-// as a drill's are, screwing forward as it spins, its rim ragged rather than round. Each sample is read
-// at the middle of the world's sixteenth-of-a-block cell it falls in, as Flames' fire field is, so the
-// dust stands in blocky texels. Each ray stops at whatever the world drew there when that surface stands
-// outside the bit, so what stands in front of the bit hides it; a surface inside the bit is a block Bore
-// is breaking, which hides nothing, so the bit draws over the blocks it breaks rather than under them.
-// TRANSLUCENT blend, capped so what it drills still shows.
+// Bore's vortex (decisions bore-shows-a-big-drill-from-the-glove, bore-breaks-what-is-in-the-vortex): a
+// vortex of earth magic along the line of sight, marched as Drain's vortex is (decision
+// drain-casts-a-filled-tornadic-miasma-vortex-along-the-look). From the eye out to Bore's reach it widens
+// from its near radius to its far radius, never wider than a block, and its far end is open, tattering
+// away rather than closing to a point. It is a churning swirl of earthy dust: clumps and thin spots poured
+// outward and swirled round the axis, fine streaks wound through it screwing outward, its rim ragged inside
+// the vortex's edge rather than round. The first stretch from the eye stays clear, so the vortex opens out
+// in front of the player rather than over their view. Each sample is read at the middle of the world's
+// sixteenth-of-a-block cell it falls in, as Flames' fire field is, so the dust stands in blocky texels.
+// Each ray stops at whatever the world drew there when that surface stands outside the vortex, so what
+// stands in front of it hides it; a surface inside the vortex is a block Bore is breaking, which hides
+// nothing. TRANSLUCENT blend, capped so what it drills still shows.
 
 // Must match BoreDrillPass.pack: four std140 rows.
 layout(std140) uniform BoreDrill {
-    vec4 ApexRadius;  // the glove, camera relative, and the bit's radius there
-    vec4 AxisLength;  // the unit axis from the glove to the tip, and the bit's length along it
-    vec4 SideDepth;   // a unit direction square to the axis, and whether depth runs 0 to 1
-    vec4 Grid;        // the camera's world position modulo 16, so the texels hold to the world
+    vec4 ApexRadius;  // the eye, camera relative, and the vortex's radius there
+    vec4 AxisLength;  // the unit look, and how far along it the vortex reaches
+    vec4 SideDepth;   // a unit direction square to the look, and whether depth runs 0 to 1
+    vec4 Grid;        // the camera's world position modulo 16, so the texels hold to the world, and the
+                      // vortex's radius at its far end
 };
 
 uniform sampler2D BoreDrillDepthSampler;
@@ -32,24 +35,25 @@ out vec4 fragColor;
 // GameTime runs from zero to one over a day of 24000 ticks; this many seconds make one day.
 const float SECONDS_PER_DAY = 1200.0;
 const float TAU = 6.28318530718;
-// Samples along each ray through the bit, and the world's cells to the block each sample snaps to.
+// Samples along each ray through the vortex, and the world's cells to the block each sample snaps to.
 const int STEPS = 48;
 const float TEXELS_PER_BLOCK = 16.0;
 
 // Seconds one phase of the flow carries the dust before it starts over; divides the day whole.
 const float FLOW_SECONDS = 2.0;
-// Blocks a second the dust pours toward the tip, and turns a second it swirls round the axis.
+// Blocks a second the dust pours outward, and turns a second it swirls round the axis.
 const float POUR = 1.6;
 const float SWIRL_TURNS = 0.8;
 
-// The flutes: how many wind round the bit, the turns each makes a block along it, how fast the bit spins
-// (whole turns a day), and a flute's half width as a share of its period round the bit.
-const float FLUTES = 2.0;
-const float FLUTE_TURNS_PER_BLOCK = 0.9;
-const float SPIN_TURNS_PER_SECOND = 1.5;
-const float FLUTE_HALF = 0.22;
+// The streaks: how tight they wind round the axis per block along it, how fast they turn (whole turns a
+// day), noise cells round the axis and per block along, and how sharply a streak stands out.
+const float STREAK_SCREW = 2.0;
+const float STREAK_TURNS_PER_SECOND = 1.5;
+const float STREAK_ACROSS = 3.5;
+const float STREAK_ALONG = 0.8;
+const float STREAK_SHARPNESS = 4.0;
 
-// The body: noise cells across the bit's width and per block along it, and where a clump starts, as a
+// The body: noise cells across the vortex's width and per block along it, and where a clump starts, as a
 // noise level, with how softly; the rest is the thin spots between clumps.
 const float BODY_ACROSS = 2.2;
 const float BODY_ALONG = 1.4;
@@ -57,30 +61,31 @@ const float CLUMP_FROM = 0.45;
 const float CLUMP_SOFT = 0.1;
 const float CORE_DEPTH = 0.18;
 
-// How much dust a block of clump holds, of flute, and of the haze between.
-const float CLUMP_DENSITY = 3.0;
-const float FLUTE_DENSITY = 5.0;
-const float HAZE_DENSITY = 0.6;
-// The rim frays from this share of the radius, ragged by the body noise this far.
-const float RIM_FROM = 0.7;
-const float FRAY = 0.45;
-// A sliver of width the bit keeps at its tip, in blocks, so the point frays rather than vanishing.
-const float TIP_WIDTH = 0.04;
-// How far past the bit, in blocks, a surface still counts as inside it: a texel, so the face of a block
-// the bit just touches still reads as a block it is breaking.
+// How much dust a block of clump holds, of streak, and of the haze between.
+const float CLUMP_DENSITY = 2.6;
+const float STREAK_DENSITY = 4.0;
+const float HAZE_DENSITY = 0.5;
+// The rim frays inward from this share of the radius, ragged by the body noise this far; no dust stands
+// past the vortex's edge, so the vortex is never drawn wider than it breaks.
+const float RIM_FROM = 0.6;
+const float FRAY = 0.4;
+// The open far end tatters from this share of the length out, torn by the body noise this far.
+const float FAR_FROM = 0.75;
+const float TATTER = 0.5;
+// Blocks from the eye the vortex stays clear over, then thickens across, so it opens out ahead.
+const float EYE_CLEAR = 0.7;
+const float EYE_THICKEN = 0.6;
+// How far past the vortex, in blocks, a surface still counts as inside it: a texel, so the face of a
+// block the vortex just touches still reads as a block it is breaking.
 const float SURFACE_SLACK = 0.0625;
-// Blocks from the glove the dust thickens over, so the glove itself stays clear.
-const float GLOVE_CLEAR = 0.25;
 // The most the dust covers what lies behind it, so the blocks it drills still show.
-const float MOST_COVER = 0.9;
+const float MOST_COVER = 0.85;
 
 // Rock's tones (rock_explosion.fsh, rock_bore.png): pale dust, tan dust, dark earth, stone grey.
 const vec3 PALE_DUST = vec3(0.918, 0.816, 0.565);
 const vec3 TAN_DUST = vec3(0.761, 0.659, 0.408);
 const vec3 DARK_EARTH = vec3(0.345, 0.247, 0.165);
 const vec3 STONE = vec3(0.561, 0.561, 0.561);
-// How far the glove end glows toward the pale dust, as the earth magic pours from it.
-const float GLOVE_GLOW = 0.5;
 
 float hash(vec3 p) {
     p = fract(p * vec3(0.1031, 0.1030, 0.0973));
@@ -102,6 +107,11 @@ float fbm(vec3 at) {
     return 0.55 * noise(at + 64.0) + 0.3 * noise(at * 2.03 + 81.0) + 0.15 * noise(at * 4.07 + 105.0);
 }
 
+// The vortex's radius a distance along it: widening from its near radius to its far radius.
+float radiusAt(float along) {
+    return mix(ApexRadius.w, Grid.w, clamp(along / AxisLength.w, 0.0, 1.0));
+}
+
 // The distance from the eye to whatever the world drew at this fragment, camera relative.
 float sceneDistance(vec3 eye, mat4 viewToWorld) {
     float depth = texelFetch(BoreDrillDepthSampler, ivec2(gl_FragCoord.xy), 0).r;
@@ -111,22 +121,21 @@ float sceneDistance(vec3 eye, mat4 viewToWorld) {
     return length(world - eye);
 }
 
-// Whether a point stands inside the bit, its ragged rim and a texel's slack included: a surface there is a
-// block Bore is breaking.
-bool insideBit(vec3 point) {
+// Whether a point stands inside the vortex, a texel's slack included: a surface there is a block Bore is
+// breaking.
+bool insideVortex(vec3 point) {
     vec3 offset = point - ApexRadius.xyz;
     float along = dot(offset, AxisLength.xyz);
     if (along < -SURFACE_SLACK || along > AxisLength.w + SURFACE_SLACK) {
         return false;
     }
-    float radius = ApexRadius.w * (1.0 - clamp(along / AxisLength.w, 0.0, 1.0)) + TIP_WIDTH;
-    return length(offset - along * AxisLength.xyz) <= radius * (1.0 + FRAY) + SURFACE_SLACK;
+    return length(offset - along * AxisLength.xyz) <= radiusAt(along) + SURFACE_SLACK;
 }
 
-// Where the ray enters and leaves the ball holding the whole bit, as distances along it.
+// Where the ray enters and leaves the ball holding the whole vortex, as distances along it.
 vec2 throughBall(vec3 eye, vec3 dir) {
     vec3 middle = ApexRadius.xyz + AxisLength.xyz * (0.5 * AxisLength.w);
-    float radius = length(vec2(0.5 * AxisLength.w, ApexRadius.w)) + 0.1;
+    float radius = length(vec2(0.5 * AxisLength.w, max(ApexRadius.w, Grid.w))) + 0.1;
     vec3 offset = eye - middle;
     float b = dot(offset, dir);
     float c = dot(offset, offset) - radius * radius;
@@ -138,8 +147,8 @@ vec2 throughBall(vec3 eye, vec3 dir) {
     return vec2(-b - h, -b + h);
 }
 
-// The body's noise at a point of the bit for one phase of the flow: the point carried back to where its
-// dust stood when the phase began, and the noise read there.
+// The body's noise at a point of the vortex for one phase of the flow: the point carried back to where
+// its dust stood when the phase began, and the noise read there.
 float bodyAt(float along, float share, float theta, float carried, float seed) {
     float back = along - POUR * carried;
     float turned = theta - TAU * SWIRL_TURNS * carried;
@@ -147,18 +156,17 @@ float bodyAt(float along, float share, float theta, float carried, float seed) {
     return fbm(at + seed);
 }
 
-// The dust at a point: its density, how much of it is clump core, and how much is flute.
+// The dust at a point: its density, how much of it is clump core, and how much is streak.
 vec3 dustAt(vec3 point, float seconds) {
     vec3 offset = point - ApexRadius.xyz;
     float along = dot(offset, AxisLength.xyz);
-    float bitLength = AxisLength.w;
-    if (along <= 0.0 || along > bitLength) {
+    float vortexLength = AxisLength.w;
+    if (along <= EYE_CLEAR || along > vortexLength) {
         return vec3(0.0);
     }
     vec3 radial = offset - along * AxisLength.xyz;
-    float radius = ApexRadius.w * (1.0 - along / bitLength) + TIP_WIDTH;
-    float share = length(radial) / radius;
-    if (share > 1.0 + FRAY) {
+    float share = length(radial) / radiusAt(along);
+    if (share >= 1.0) {
         return vec3(0.0);
     }
     vec3 lift = cross(AxisLength.xyz, SideDepth.xyz);
@@ -177,13 +185,16 @@ vec3 dustAt(vec3 point, float seconds) {
 
     float clump = smoothstep(CLUMP_FROM - CLUMP_SOFT, CLUMP_FROM + CLUMP_SOFT, body);
     float core = smoothstep(CLUMP_FROM, CLUMP_FROM + CORE_DEPTH, body);
-    float flutePhase = fract((theta / TAU - along * FLUTE_TURNS_PER_BLOCK + seconds * SPIN_TURNS_PER_SECOND) * FLUTES);
-    float flute = smoothstep(FLUTE_HALF, FLUTE_HALF * 0.3, abs(flutePhase - 0.5)) * (0.5 + 0.5 * clump);
+    float wound = theta + STREAK_SCREW * along - TAU * STREAK_TURNS_PER_SECOND * seconds;
+    vec3 streakAt = vec3(cos(wound) * STREAK_ACROSS, sin(wound) * STREAK_ACROSS, along * STREAK_ALONG + share);
+    float streak = pow(noise(streakAt + 23.0), STREAK_SHARPNESS) * (0.4 + 0.6 * clump);
 
-    float frayed = (1.0 - smoothstep(RIM_FROM, 1.0, share + FRAY * (body - 0.5)))
-            * smoothstep(0.0, GLOVE_CLEAR, along);
-    float density = frayed * (CLUMP_DENSITY * clump + FLUTE_DENSITY * flute + HAZE_DENSITY);
-    return vec3(density, core, clamp(FLUTE_DENSITY * flute / max(density / max(frayed, 1e-3), 1e-3), 0.0, 1.0));
+    float ragged = body - 0.5;
+    float frayed = (1.0 - smoothstep(RIM_FROM, 1.0, share + FRAY * ragged))
+            * (1.0 - smoothstep(FAR_FROM, 1.0, along / vortexLength + TATTER * ragged))
+            * smoothstep(EYE_CLEAR, EYE_CLEAR + EYE_THICKEN, along);
+    float density = frayed * (CLUMP_DENSITY * clump + STREAK_DENSITY * streak + HAZE_DENSITY);
+    return vec3(density, core, clamp(STREAK_DENSITY * streak / max(density / max(frayed, 1e-3), 1e-3), 0.0, 1.0));
 }
 
 void main() {
@@ -193,7 +204,7 @@ void main() {
     vec2 span = throughBall(eye, dir);
     float near = max(span.x, 0.0);
     float scene = sceneDistance(eye, viewToWorld);
-    float far = insideBit(eye + dir * scene) ? span.y : min(span.y, scene);
+    float far = insideVortex(eye + dir * scene) ? span.y : min(span.y, scene);
     if (far <= near) {
         discard;
     }
@@ -207,10 +218,8 @@ void main() {
         if (dust.x <= 0.0) {
             continue;
         }
-        float reach = clamp(dot(snapped - ApexRadius.xyz, AxisLength.xyz) / AxisLength.w, 0.0, 1.0);
         vec3 earth = mix(mix(TAN_DUST, STONE, 0.35), DARK_EARTH, dust.y);
         vec3 color = mix(earth, PALE_DUST, dust.z);
-        color = mix(color, PALE_DUST, GLOVE_GLOW * (1.0 - reach) * (1.0 - reach) * (1.0 - dust.y));
         float taken = 1.0 - exp(-dust.x * stride);
         gathered.rgb += (1.0 - gathered.a) * taken * color;
         gathered.a += (1.0 - gathered.a) * taken;

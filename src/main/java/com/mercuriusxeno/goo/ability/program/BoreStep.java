@@ -18,8 +18,9 @@ import java.util.stream.Stream;
 /**
  * Rock bore's step, run each held tick of the stream: it drills the blocks
  * the eye line crosses out to the stream's reach, whatever the stream's
- * cone, and every block its vortex crosses besides, the vortex a cone from
- * the glove, the JSON's radius wide there, to the reach on the eye line
+ * cone, and every block its vortex crosses besides, the vortex a cone along
+ * the eye line from the eye to the reach, widening from the JSON's near
+ * radius to its far radius, never wider than a block
  * ({@link BorePick}). Every breakable block picked progresses toward broken
  * each tick through the hold's gradual break, the nearest at the pace its
  * JSON names and each one farther out slower, so the tunnel breaks nearest
@@ -35,18 +36,22 @@ import java.util.stream.Stream;
  *
  * @param breaks       the block tag naming the blocks bore may break
  * @param pace         how fast the line's blocks progress toward broken
- * @param vortexRadius the vortex's radius at the glove, in blocks; 0 breaks the eye line alone
+ * @param vortexNearRadius the vortex's radius at the eye, in blocks
+ * @param vortexFarRadius  the vortex's radius at the reach, in blocks; both 0 break the eye line alone
  * @param where        the filters an entity in the tunnel must pass to be struck
  * @param strike       the steps run on each struck entity; empty strikes nothing
  */
-public record BoreStep(TagKey<Block> breaks, BreakPace pace, double vortexRadius, List<EntityFilter> where,
-                       List<Step> strike) implements Step {
+public record BoreStep(TagKey<Block> breaks, BreakPace pace, double vortexNearRadius, double vortexFarRadius,
+                       List<EntityFilter> where, List<Step> strike) implements Step {
 
     private static final String NAME = "bore";
     private static final String FIELD_BREAKS = "breaks";
     private static final String FIELD_WHERE = "where";
     private static final String FIELD_STRIKE = "strike";
-    private static final String FIELD_VORTEX_RADIUS = "vortex_radius";
+    private static final String FIELD_VORTEX_NEAR_RADIUS = "vortex_near_radius";
+    private static final String FIELD_VORTEX_FAR_RADIUS = "vortex_far_radius";
+    /** The widest a vortex's radius runs: half a block, so the vortex is never wider than a block. */
+    private static final double WIDEST_RADIUS = 0.5;
     /** The distance between samples along the look, fine enough to visit every block it crosses. */
     private static final double SAMPLE_STEP = 0.05;
 
@@ -57,8 +62,10 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, double vortexRadius
     public static final MapCodec<BoreStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             TagKey.codec(Registries.BLOCK).fieldOf(FIELD_BREAKS).forGetter(BoreStep::breaks),
             BreakPace.CODEC.forGetter(BoreStep::pace),
-            Codec.doubleRange(0, Double.MAX_VALUE).optionalFieldOf(FIELD_VORTEX_RADIUS, 0.0)
-                    .forGetter(BoreStep::vortexRadius),
+            Codec.doubleRange(0, WIDEST_RADIUS).optionalFieldOf(FIELD_VORTEX_NEAR_RADIUS, 0.0)
+                    .forGetter(BoreStep::vortexNearRadius),
+            Codec.doubleRange(0, WIDEST_RADIUS).optionalFieldOf(FIELD_VORTEX_FAR_RADIUS, 0.0)
+                    .forGetter(BoreStep::vortexFarRadius),
             EntityFilter.CODEC.listOf().optionalFieldOf(FIELD_WHERE, List.of()).forGetter(BoreStep::where),
             Codec.lazyInitialized(() -> StepTypes.LIST_CODEC).optionalFieldOf(FIELD_STRIKE, List.of())
                     .forGetter(BoreStep::strike)
@@ -76,7 +83,7 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, double vortexRadius
      * @param pace   how fast the line's blocks progress toward broken
      */
     public BoreStep(TagKey<Block> breaks, BreakPace pace) {
-        this(breaks, pace, 0, List.of(), List.of());
+        this(breaks, pace, 0, 0, List.of(), List.of());
     }
 
     /**
@@ -88,7 +95,7 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, double vortexRadius
      * @param strike the steps run on each struck entity
      */
     public BoreStep(TagKey<Block> breaks, BreakPace pace, List<EntityFilter> where, List<Step> strike) {
-        this(breaks, pace, 0, where, strike);
+        this(breaks, pace, 0, 0, where, strike);
     }
 
     @Override
@@ -101,8 +108,8 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, double vortexRadius
         ChannelHost host = context.hostAs(ChannelHost.class);
         Predicate<BlockPos> breakable = pos -> host.blockIn(pos, breaks);
         host.channelAim().ifPresent(aim -> {
-            Vec3 glove = vortexRadius > 0 ? host.glove() : host.eye();
-            BorePick pick = BorePick.of(host.eye(), glove, vortexRadius, aim, host::airAt, breakable);
+            BorePick pick = BorePick.of(host.eye(), vortexNearRadius, vortexFarRadius, aim, host::airAt,
+                    breakable);
             host.gradualBreak().progress(pace.ratesByGroup(pick.groups()), host);
             strikeIn(host, pick.tunnel());
         });
@@ -117,17 +124,17 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, double vortexRadius
      *
      * decision bore-breaks-what-is-in-the-vortex
      *
-     * @param eye          the eye the line runs from
-     * @param glove        the glove the vortex opens from
-     * @param vortexRadius the vortex's radius at the glove; 0 picks the eye line alone
-     * @param aim          the stream's aim: its reach along the look
-     * @param air          whether a cell holds air
-     * @param breakable    whether a cell holds a block in the tag
+     * @param eye        the eye the line and the vortex run from
+     * @param nearRadius the vortex's radius at the eye
+     * @param farRadius  the vortex's radius at the reach; both 0 pick the eye line alone
+     * @param aim        the stream's aim: its reach along the look
+     * @param air        whether a cell holds air
+     * @param breakable  whether a cell holds a block in the tag
      * @return the blocks, the nearest group first
      */
-    public static List<BlockPos> progressing(Vec3 eye, Vec3 glove, double vortexRadius, ChannelAim aim,
+    public static List<BlockPos> progressing(Vec3 eye, double nearRadius, double farRadius, ChannelAim aim,
                                              Predicate<BlockPos> air, Predicate<BlockPos> breakable) {
-        return BorePick.of(eye, glove, vortexRadius, aim, air, breakable).blocks();
+        return BorePick.of(eye, nearRadius, farRadius, aim, air, breakable).blocks();
     }
 
     /**

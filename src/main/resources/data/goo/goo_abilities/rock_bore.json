@@ -8,7 +8,7 @@
   "delivery": { "kind": "stream", "range": 4, "cone": 15, "ticks_per_charge": 20 },
   "behaviors": [
     {
-      "type": "bore", "breaks": "goo:bore_breakable", "break_ticks": 5, "slowdown": 1.5, "vortex_radius": 0.3,
+      "type": "bore", "breaks": "goo:bore_breakable", "break_ticks": 5, "slowdown": 1.5, "vortex_near_radius": 0.1, "vortex_far_radius": 0.45,
       "where": ["vulnerable"],
       "strike": [
         { "type": "damage", "amount": 2, "source": "attack", "knockback": false, "invulnerable_ticks": 10 }

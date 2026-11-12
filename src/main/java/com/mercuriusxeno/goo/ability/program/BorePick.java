@@ -13,8 +13,10 @@ import java.util.function.Predicate;
  * What a held Bore breaks this tick: the breakable blocks its eye line
  * crosses out to the reach, short of the first solid block outside its tag,
  * and every breakable block its vortex crosses besides. The vortex is a cone
- * whose base, the JSON's radius wide, stands at the glove and whose tip
- * stands at the reach on the eye line. The stopping block shields the
+ * along the eye line from the eye to the reach, widening from the JSON's
+ * near radius to its far radius, never wider than a block, so aiming where
+ * four blocks meet drills four, at the edge between two drills two, and at
+ * a block's middle drills one. The stopping block shields the
  * vortex's blocks at its depth and beyond, as it shields the line's. The
  * blocks break in groups by depth along the look, each vortex block with
  * the eye line block nearest its depth, so a nearer block gains progress
@@ -36,15 +38,15 @@ record BorePick(List<List<BlockPos>> groups, List<BlockPos> tunnel) {
     /**
      * Picks what a bore breaks this tick.
      *
-     * @param eye          the eye the line runs from
-     * @param glove        the glove the vortex opens from
-     * @param vortexRadius the vortex's radius at the glove; 0 picks the eye line alone
-     * @param aim          the stream's aim: its reach along the look
-     * @param air          whether a cell holds air
-     * @param breakable    whether a cell holds a block in the tag
+     * @param eye        the eye the line and the vortex run from
+     * @param nearRadius the vortex's radius at the eye
+     * @param farRadius  the vortex's radius at the reach; both 0 pick the eye line alone
+     * @param aim        the stream's aim: its reach along the look
+     * @param air        whether a cell holds air
+     * @param breakable  whether a cell holds a block in the tag
      * @return the pick
      */
-    static BorePick of(Vec3 eye, Vec3 glove, double vortexRadius, ChannelAim aim, Predicate<BlockPos> air,
+    static BorePick of(Vec3 eye, double nearRadius, double farRadius, ChannelAim aim, Predicate<BlockPos> air,
                        Predicate<BlockPos> breakable) {
         List<BlockPos> crossed = BoreStep.blocksAlong(eye, aim.aimPoint());
         int stop = stoppingIndex(crossed, air, breakable);
@@ -54,7 +56,7 @@ record BorePick(List<List<BlockPos>> groups, List<BlockPos> tunnel) {
         Sight sight = new Sight(eye, look, shield, crossed.getFirst());
         List<List<BlockPos>> groups = lineGroups(line, breakable);
         Set<BlockPos> tunnel = new LinkedHashSet<>(line);
-        for (BlockPos cell : vortexCells(glove, aim.aimPoint(), vortexRadius)) {
+        for (BlockPos cell : vortexCells(new Widening(eye, aim.aimPoint(), nearRadius, farRadius))) {
             if (sight.reaches(cell) && tunnel.add(cell) && breakable.test(cell)) {
                 groups.get(nearestByDepth(line, sight.depthOf(cell), sight)).add(cell);
             }
@@ -111,64 +113,73 @@ record BorePick(List<List<BlockPos>> groups, List<BlockPos> tunnel) {
     }
 
     /**
-     * Every cell the vortex crosses: the cells whose sample points, faces
-     * among them, lie inside the cone.
+     * The vortex: a cone from its near end to its far end, its radius
+     * widening from one to the other.
      *
-     * @param glove  the cone's base, at the glove
-     * @param tip    the cone's tip
-     * @param radius the cone's radius at the glove
+     * @param near       the near end, at the eye
+     * @param far        the far end, at the reach
+     * @param nearRadius the radius at the near end
+     * @param farRadius  the radius at the far end
+     */
+    record Widening(Vec3 near, Vec3 far, double nearRadius, double farRadius) {
+
+        /**
+         * Whether a point lies inside: between the ends, and nearer the axis
+         * than the radius there, so a vortex whose edge only meets a block's
+         * face misses the block.
+         *
+         * @param point the point
+         * @return true for a point inside
+         */
+        boolean holds(Vec3 point) {
+            double length = far.distanceTo(near);
+            Vec3 axis = far.subtract(near).scale(1 / length);
+            Vec3 offset = point.subtract(near);
+            double along = offset.dot(axis);
+            if (along < 0 || along > length) {
+                return false;
+            }
+            double radius = nearRadius + (farRadius - nearRadius) * along / length;
+            return offset.subtract(axis.scale(along)).length() < radius;
+        }
+    }
+
+    /**
+     * Every cell the vortex crosses: the cells whose sample points, faces
+     * among them, lie inside it.
+     *
+     * @param vortex the vortex
      * @return the cells, each once
      */
-    static List<BlockPos> vortexCells(Vec3 glove, Vec3 tip, double radius) {
-        double length = tip.distanceTo(glove);
-        if (radius <= 0 || length <= 0) {
+    static List<BlockPos> vortexCells(Widening vortex) {
+        double widest = Math.max(vortex.nearRadius(), vortex.farRadius());
+        if (widest <= 0 || vortex.far().distanceTo(vortex.near()) <= 0) {
             return List.of();
         }
-        Vec3 axis = tip.subtract(glove).scale(1 / length);
-        AABB bounds = new AABB(glove, tip).inflate(radius);
+        AABB bounds = new AABB(vortex.near(), vortex.far()).inflate(widest);
         List<BlockPos> cells = new ArrayList<>();
         for (BlockPos cell : BlockPos.betweenClosed(BlockPos.containing(bounds.minX, bounds.minY, bounds.minZ),
                 BlockPos.containing(bounds.maxX, bounds.maxY, bounds.maxZ))) {
-            if (crossesCone(cell, glove, axis, length, radius)) {
+            if (crosses(cell, vortex)) {
                 cells.add(cell.immutable());
             }
         }
         return cells;
     }
 
-    private static boolean crossesCone(BlockPos cell, Vec3 glove, Vec3 axis, double length, double radius) {
+    private static boolean crosses(BlockPos cell, Widening vortex) {
         double step = 1.0 / (CELL_SAMPLES - 1);
         for (int x = 0; x < CELL_SAMPLES; x++) {
             for (int y = 0; y < CELL_SAMPLES; y++) {
                 for (int z = 0; z < CELL_SAMPLES; z++) {
-                    Vec3 point = new Vec3(cell.getX() + x * step, cell.getY() + y * step, cell.getZ() + z * step);
-                    if (inCone(point, glove, axis, length, radius)) {
+                    if (vortex.holds(new Vec3(cell.getX() + x * step, cell.getY() + y * step,
+                            cell.getZ() + z * step))) {
                         return true;
                     }
                 }
             }
         }
         return false;
-    }
-
-    /**
-     * Whether a point lies inside the cone: past its base, short of its
-     * tip, and no farther off its axis than its radius there.
-     *
-     * @param point  the point
-     * @param glove  the cone's base
-     * @param axis   the unit axis from the base to the tip
-     * @param length the cone's length
-     * @param radius the cone's radius at the base
-     * @return true for a point inside
-     */
-    static boolean inCone(Vec3 point, Vec3 glove, Vec3 axis, double length, double radius) {
-        Vec3 offset = point.subtract(glove);
-        double along = offset.dot(axis);
-        if (along < 0 || along > length) {
-            return false;
-        }
-        return offset.subtract(axis.scale(along)).length() <= radius * (1 - along / length);
     }
 
     private static double depthOf(BlockPos cell, Vec3 eye, Vec3 look) {

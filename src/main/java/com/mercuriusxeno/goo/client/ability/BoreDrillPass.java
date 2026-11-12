@@ -28,12 +28,12 @@ import java.util.OptionalDouble;
 import java.util.OptionalInt;
 
 /**
- * Draws Bore's drill in one render pass on its own pipeline, as Drain's
- * vortex draws: the box around the bit as an {@link InwardBox}, inside
- * which {@code bore_drill.fsh} marches the bit's churning earth dust,
+ * Draws Bore's vortex in one render pass on its own pipeline, as Drain's
+ * vortex draws: the box around the vortex as an {@link InwardBox}, inside
+ * which {@code bore_drill.fsh} marches the vortex's churning earth dust,
  * sampled on the world's grid of sixteen texels a block. It reads a copy of
- * the world's depth: a surface standing outside the bit hides the bit behind
- * it, and a surface inside the bit, a block Bore is breaking, hides nothing.
+ * the world's depth: a surface standing outside the vortex hides it behind
+ * it, and a surface inside the vortex, a block Bore is breaking, hides nothing.
  * decision bore-shows-a-big-drill-from-the-glove
  */
 final class BoreDrillPass {
@@ -93,14 +93,14 @@ final class BoreDrillPass {
     }
 
     /**
-     * The box holding the whole bit: its base disc at the apex and its tip,
-     * standing out by the margin.
+     * The box holding the whole vortex: its near and far ends, standing out
+     * by its widest radius and the margin.
      *
-     * @param bit the bit
+     * @param bit the vortex
      * @return the box
      */
     static AABB boxAround(ConeSections.Volume bit) {
-        double radius = bit.radiusAt().applyAsDouble(0);
+        double radius = Math.max(bit.radiusAt().applyAsDouble(0), bit.radiusAt().applyAsDouble(bit.range()));
         Vec3 tip = bit.apex().add(bit.axis().scale(bit.range()));
         return new AABB(bit.apex(), bit.apex()).minmax(new AABB(tip, tip)).inflate(radius + BOX_MARGIN);
     }
@@ -146,7 +146,8 @@ final class BoreDrillPass {
         row(rows, bit.apex(), bit.radiusAt().applyAsDouble(0));
         row(rows, bit.axis(), bit.range());
         row(rows, FireField.sideOf(bit.axis()), zeroToOne ? 1 : 0);
-        row(rows, new Vec3(gridOf(camera.x), gridOf(camera.y), gridOf(camera.z)), 0);
+        row(rows, new Vec3(gridOf(camera.x), gridOf(camera.y), gridOf(camera.z)),
+                bit.radiusAt().applyAsDouble(bit.range()));
     }
 
     private static double gridOf(double value) {

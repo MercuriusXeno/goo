@@ -1,12 +1,10 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.crystal.KnifeRain;
 import com.mercuriusxeno.goo.ability.outsider.OutsiderRooms;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.HoldMarks;
-import com.mercuriusxeno.goo.network.KnifeRainSling;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -190,19 +188,6 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
     @Override
     public Vec3 eye() {
         return player.getEyePosition();
-    }
-
-    /**
-     * The glove hand's point, where Knives leaves from too: the one point
-     * the server breaks Bore's vortex from and the client shakes it from.
-     * decision bore-breaks-what-is-in-the-vortex
-     *
-     * @return the glove's position
-     */
-    @Override
-    public Vec3 glove() {
-        return KnifeRain.handPoint(player.getEyePosition(), player.getYRot(), player.getViewVector(1f),
-                KnifeRainSling.gloveOnTheRight(player));
     }
 
     @Override

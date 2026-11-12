@@ -15,15 +15,18 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
+import java.util.Optional;
 
 /**
- * Bore's drill: while right click holds a bore stream, a big drill emerges
- * from the glove, a drill-shaped vortex of earth magic widest at the glove and pointed at the
- * tip, out to the bore's reach on the eye line, hidden by what stands in
- * front of it and never by the blocks it breaks. {@link BoreDrillPass} marches it as Drain's vortex is marched: a
- * churning swirl of earthy dust in rock's tones, two thicker flutes wound
- * round it as a drill's are, spinning while Bore runs, ragged and blocky.
+ * Bore's vortex: while right click holds a bore stream, a vortex of earth
+ * magic runs along the player's line of sight from the eye out to the
+ * bore's reach, widening to an open far end never wider than a block, the
+ * very vortex the bore breaks, hidden by what stands in front of it and
+ * never by the blocks it breaks. {@link BoreDrillPass} marches it as Drain's
+ * vortex is marched: a churning swirl of earthy dust in rock's tones, fine
+ * streaks wound through it, ragged and blocky.
  * decision bore-shows-a-big-drill-from-the-glove
+ * decision bore-breaks-what-is-in-the-vortex
  * decision bore-vortex-with-a-worldspace-shake
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -31,57 +34,47 @@ public final class BoreDrill {
 
     /** The volume's section count, unread by the march, which needs none. */
     private static final int RINGS = 1;
-    /** How many ticks the bit takes to emerge from the glove to its full length. */
+    /** How many ticks the vortex takes to pour out from the eye to its full length. */
     static final double EMERGE_TICKS = 5;
 
     private BoreDrill() {
     }
 
     /**
-     * The bit at its full length: a cone from the glove to the bore's reach
-     * on the eye line it drills, as wide at the glove as the vortex the bore
-     * breaks.
+     * The vortex at its full length: a cone along the eye line from the eye
+     * to the bore's reach, widening from the bore step's near radius to its
+     * far radius, the vortex the bore breaks.
      * decision bore-breaks-what-is-in-the-vortex
      *
-     * @param eye    the eye, camera relative
-     * @param hand   the glove, camera relative
-     * @param look   the look's unit vector
-     * @param yaw    the look's yaw in degrees
-     * @param reach  the bore's reach from the eye
-     * @param radius the vortex's radius at the glove, the bore step's JSON number
-     * @return the bit, its apex at the glove
+     * @param eye        the eye, camera relative
+     * @param look       the look's unit vector
+     * @param yaw        the look's yaw in degrees
+     * @param reach      the bore's reach from the eye
+     * @param nearRadius the vortex's radius at the eye, the bore step's JSON number
+     * @param farRadius  the vortex's radius at the reach, the bore step's JSON number
+     * @return the vortex, its apex at the eye
      */
-    static ConeSections.Volume volume(Vec3 eye, Vec3 hand, Vec3 look, float yaw, double reach, double radius) {
-        Vec3 toTip = eye.add(look.scale(reach)).subtract(hand);
-        return cone(hand, toTip.normalize(), yaw, toTip.length(), radius);
+    static ConeSections.Volume volume(Vec3 eye, Vec3 look, float yaw, double reach, double nearRadius,
+                                      double farRadius) {
+        return new ConeSections.Volume(eye, look, yaw, 0, reach, RINGS,
+                distance -> nearRadius + (farRadius - nearRadius) * Math.clamp(distance / reach, 0, 1));
     }
 
     /**
-     * The vortex's radius at the glove, the synced bore step's JSON number.
+     * The vortex part way poured out: as long as its share of its full
+     * length, as wide at each distance as the full vortex is there.
      *
-     * @param bore the running bore
-     * @return the radius in blocks, 0 where the ability holds no bore step
-     */
-    private static double vortexRadiusOf(ClientAbility bore) {
-        return bore.behaviors().stream().filter(BoreStep.class::isInstance).map(BoreStep.class::cast)
-                .mapToDouble(BoreStep::vortexRadius).findFirst().orElse(0);
-    }
-
-    /**
-     * The bit part way out of the glove: as long as its share of its full
-     * length, keeping its width at the glove and its point at the tip.
-     *
-     * @param full  the bit at its full length
-     * @param share how far it has emerged, 0 to 1
-     * @return the bit
+     * @param full  the vortex at its full length
+     * @param share how far it has poured out, 0 to 1
+     * @return the vortex
      */
     static ConeSections.Volume emerged(ConeSections.Volume full, double share) {
-        return cone(full.apex(), full.axis(), full.yaw(), full.range() * Math.clamp(share, 0, 1),
-                full.radiusAt().applyAsDouble(0));
+        return new ConeSections.Volume(full.apex(), full.axis(), full.yaw(), full.near(),
+                full.range() * Math.clamp(share, 0, 1), full.sections(), full.radiusAt());
     }
 
     /**
-     * How far the bit has emerged, by how long the bore has run.
+     * How far the vortex has poured out, by how long the bore has run.
      *
      * @param ticks the ticks the bore has run, with the partial tick
      * @return the share of its full length, 0 to 1
@@ -90,13 +83,8 @@ public final class BoreDrill {
         return Math.clamp(ticks / EMERGE_TICKS, 0, 1);
     }
 
-    private static ConeSections.Volume cone(Vec3 apex, Vec3 axis, float yaw, double length, double radius) {
-        return new ConeSections.Volume(apex, axis, yaw, 0, length, RINGS,
-                distance -> length <= 0 ? 0 : radius * Math.max(0, 1 - distance / length));
-    }
-
     /**
-     * Draws the bit after the translucent blocks while a bore runs, after
+     * Draws the vortex after the translucent blocks while a bore runs, after
      * the ground shake has drawn its blocks, so the blocks it is breaking
      * never paint over it.
      *
@@ -107,17 +95,21 @@ public final class BoreDrill {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         ClientAbility bore = player == null ? null : runningBore(player);
-        if (bore == null || mc.level == null) {
+        BoreStep step = bore == null ? null : stepOf(bore).orElse(null);
+        if (step == null || mc.level == null) {
             return;
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         ConeSections.Volume full = volume(player.getEyePosition(partialTick).subtract(camera),
-                GloveAim.handPosition(mc.gameRenderer.getMainCamera()).subtract(camera),
                 player.getViewVector(partialTick), player.getViewYRot(partialTick), bore.delivery().range(),
-                vortexRadiusOf(bore));
+                step.vortexNearRadius(), step.vortexFarRadius());
         BoreDrillPass.draw(emerged(full, emergedShare(GloveUseTracker.channelTicks() + partialTick)), camera,
                 event.getModelViewMatrix());
+    }
+
+    private static Optional<BoreStep> stepOf(ClientAbility bore) {
+        return bore.behaviors().stream().filter(BoreStep.class::isInstance).map(BoreStep.class::cast).findFirst();
     }
 
     /**
