@@ -56,8 +56,15 @@ public final class HexWispParticle extends SingleQuadParticle {
     private static final double BOTH_WAYS = 2;
     /** Below this squared length a heading has no direction to sway across. */
     private static final double NO_HEADING = 1e-6;
+    /**
+     * How much larger a streamed wisp draws, so its sprite's purple rim and
+     * pink core read, and the dimmest it shades its sprite's own colors.
+     */
+    private static final float STREAM_SIZE = 1.8f;
+    private static final float STREAM_DIMMEST = 0.8f;
 
     private final RandomSource random;
+    private final SpriteSet sprites;
     private final double swayPhase;
     private final double swayReach;
     private final double sways;
@@ -78,6 +85,7 @@ public final class HexWispParticle extends SingleQuadParticle {
         this.gravity = 0f;
         this.hasPhysics = false;
         this.random = level.getRandom();
+        this.sprites = sprites;
         this.quadSize = BASE_QUAD_SIZE + random.nextFloat() * QUAD_SIZE_VARIANCE;
         float shade = random.nextFloat();
         this.rCol = Mth.lerp(shade, DEEP[RED], BRIGHT[RED]);
@@ -116,6 +124,8 @@ public final class HexWispParticle extends SingleQuadParticle {
      * Streams the wisp as Decay's gnats fly: after its delay it bursts off
      * with the velocity given, then darts, swirls and is pulled in by the
      * target every tick as {@link WispStream} steps it, until it lands there.
+     * It wears the stream's own sprite, a pink core in a purple rim after
+     * Drain's icon, in its own colors, shaded a little.
      * drain-casts-a-filled-tornadic-miasma-vortex-along-the-look
      *
      * @param delay  ticks it waits unseen before it shows
@@ -126,6 +136,12 @@ public final class HexWispParticle extends SingleQuadParticle {
         this.delayTicks = delay;
         this.target = home;
         this.streamed = true;
+        this.setSprite(sprites.get(1, 1));
+        this.quadSize *= STREAM_SIZE;
+        float shade = Mth.lerp(random.nextFloat(), STREAM_DIMMEST, 1f);
+        this.rCol = shade;
+        this.gCol = shade;
+        this.bCol = shade;
         this.xd = launch.x;
         this.yd = launch.y;
         this.zd = launch.z;
