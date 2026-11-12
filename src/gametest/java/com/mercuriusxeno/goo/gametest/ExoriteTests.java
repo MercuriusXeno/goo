@@ -1,14 +1,10 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.item.ExoriteUpgradeTemplate;
 import com.mercuriusxeno.goo.registry.GooCreativeTabs;
 import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.locale.Language;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.CreativeModeTab;
@@ -75,12 +71,9 @@ public final class ExoriteTests {
     private static final long LOOT_SEED = 261L;
     private static final int GRID_SIDE = 3;
     private static final int DUPLICATED_COUNT = 2;
-    private static final String NOT_TRANSLATABLE = "<literal, not a translation key>";
 
     private static final String NOT_REGISTERED = "Registry should hold " + TEMPLATE_ID;
     private static final String NOT_A_TEMPLATE = TEMPLATE_ID + " should be a smithing template item";
-    private static final String UNNAMED = "en_us.json should name the template: ";
-    private static final String UNDESCRIBED = "en_us.json should carry the template description line ";
     private static final String NOT_IN_LOOT = "Ancient city chests should yield the template in "
             + ANCIENT_CITY_ROLLS + " seeded rolls";
     private static final String NO_DUPLICATION = "The duplication grid should craft two exorite templates";
@@ -88,7 +81,6 @@ public final class ExoriteTests {
     private static final String NETHERITE_PREFIX = "netherite_";
     private static final String PIECE_NOT_REGISTERED = "Registry should hold ";
     private static final String PIECE_NOT_IN_TAB = "Goo creative tab should show ";
-    private static final String PIECE_UNNAMED = "en_us.json should name ";
     private static final String NOT_SMITHED = "Exorite template, netherite piece and exorite should smith ";
     private static final String NOT_REPAIRED = "Exorite should repair ";
 
@@ -96,8 +88,7 @@ public final class ExoriteTests {
     }
 
     /**
-     * The registry holds the template as a smithing template item whose name
-     * and four description lines each have a translation in en_us.json.
+     * The registry holds the template as a smithing template item; ExoriteLangTest holds its translations.
      *
      * @param helper the gametest helper
      */
@@ -105,17 +96,6 @@ public final class ExoriteTests {
         Item item = BuiltInRegistries.ITEM.getValue(Identifier.parse(TEMPLATE_ID));
         helper.assertTrue(item == GooItems.EXORITE_UPGRADE_SMITHING_TEMPLATE.get(), NOT_REGISTERED);
         helper.assertTrue(item instanceof SmithingTemplateItem, NOT_A_TEMPLATE);
-        Language language = Language.getInstance();
-        String nameKey = item.getDescriptionId();
-        helper.assertTrue(language.has(nameKey), UNNAMED + nameKey);
-        SmithingTemplateItem template = (SmithingTemplateItem) item;
-        List<Component> lines = List.of(template.getBaseSlotDescription(), template.getAdditionSlotDescription());
-        for (Component line : lines) {
-            assertTranslated(helper, language, line);
-        }
-        for (String key : List.of(ExoriteUpgradeTemplate.APPLIES_TO_KEY, ExoriteUpgradeTemplate.INGREDIENTS_KEY)) {
-            helper.assertTrue(language.has(key), UNDESCRIBED + key);
-        }
         helper.succeed();
     }
 
@@ -162,8 +142,8 @@ public final class ExoriteTests {
     }
 
     /**
-     * All nine exorite pieces stand in the item registry, in the goo creative
-     * tab's display items, and under a name in en_us.json.
+     * All nine exorite pieces stand in the item registry and in the goo creative
+     * tab's display items; ExoriteLangTest holds their names.
      *
      * @param helper the gametest helper
      */
@@ -172,12 +152,10 @@ public final class ExoriteTests {
         tab.buildContents(new CreativeModeTab.ItemDisplayParameters(
                 helper.getLevel().enabledFeatures(), false, helper.getLevel().registryAccess()));
         Collection<ItemStack> shown = tab.getDisplayItems();
-        Language language = Language.getInstance();
         for (DeferredItem<? extends Item> piece : GooItems.EXORITE_SET) {
             Identifier id = piece.getId();
             helper.assertTrue(BuiltInRegistries.ITEM.getValue(id) == piece.get(), PIECE_NOT_REGISTERED + id);
             helper.assertTrue(shown.stream().anyMatch(stack -> stack.is(piece.get())), PIECE_NOT_IN_TAB + id);
-            helper.assertTrue(language.has(piece.get().getDescriptionId()), PIECE_UNNAMED + id);
         }
         helper.succeed();
     }
@@ -240,8 +218,4 @@ public final class ExoriteTests {
                 .orElse(ItemStack.EMPTY);
     }
 
-    private static void assertTranslated(GameTestHelper helper, Language language, Component line) {
-        String key = line.getContents() instanceof TranslatableContents translatable ? translatable.getKey() : NOT_TRANSLATABLE;
-        helper.assertTrue(language.has(key), UNDESCRIBED + key);
-    }
 }

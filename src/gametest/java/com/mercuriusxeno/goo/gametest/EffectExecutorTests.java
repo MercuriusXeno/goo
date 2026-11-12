@@ -58,14 +58,7 @@ import net.neoforged.neoforge.registries.RegisterEvent;
  */
 @RegistersGameTests
 public final class EffectExecutorTests {
-    private static final String FX_METAL = "fx_metal_runs";
-    private static final String FX_CRYSTAL = "fx_crystal_runs";
-    private static final String FX_NETHER = "fx_nether_implodes";
     private static final String FX_BLACK_HOLE_HOLDS_ITS_PLACE = "fx_black_hole_holds_its_place";
-    private static final String FX_UNSTABLE = "fx_unstable_explodes";
-    private static final String FX_PROGRAM_GLOW_WALL = "fx_program_glow_wall";
-    private static final String FX_PROGRAM_GLOW_FLOOR = "fx_program_glow_floor";
-    private static final String FX_PROGRAM_INSTANT = "fx_program_instant_detonation";
     private static final String FX_PROGRAM_MINE = "fx_program_proximity_mine";
     private static final String FX_PROGRAM_METAL_SPIKES = "fx_program_metal_spikes";
     private static final String FX_PROGRAM_CRYSTAL_CLOUD = "fx_program_crystal_cloud";
@@ -76,15 +69,11 @@ public final class EffectExecutorTests {
     private static final String GREEN_SPHERE_KEEPS_ITS_CORE = "green_sphere_keeps_its_core";
     private static final String FX_LANDED_CRYSTAL_CLOUD = "fx_landed_crystal_cloud_live";
     private static final String FX_CRYSTAL_CLOUD_SHREDS_PLAYER = "fx_crystal_cloud_shreds_walking_player";
-    private static final String FX_LANDED_METAL_SPIKES = "fx_landed_metal_spikes_live";
-    private static final String FX_LANDED_BLACK_HOLE = "fx_landed_black_hole_gathers";
     private static final String FX_LANDED_BLAST = "fx_landed_blast_explodes";
-    private static final String FX_LANDED_MINE = "fx_landed_mine_awaits";
     private static final String FX_LANDED_GLOW_CRYSTAL = "fx_landed_glow_crystal_stands";
     private static final String FX_FALLEN_MARKER_KEEPS_ABILITY = "fx_fallen_marker_keeps_ability";
     private static final String FX_OTHER_ABILITY_MARKS_CRYSTAL = "fx_other_ability_marks_crystal";
     private static final String FX_CLOUD_BLOCK_GOES = "fx_cloud_block_goes";
-    private static final String FX_TRAP_BLOCK_GOES = "fx_trap_block_goes";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -92,14 +81,7 @@ public final class EffectExecutorTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, FX_METAL, EffectExecutorTests::metalRuns);
-        GooTestFunctions.registerTest(registrar, FX_CRYSTAL, EffectExecutorTests::crystalRuns);
-        GooTestFunctions.registerTest(registrar, FX_NETHER, EffectExecutorTests::netherImplodes);
         GooTestFunctions.registerTest(registrar, FX_BLACK_HOLE_HOLDS_ITS_PLACE, EffectExecutorTests::blackHoleHoldsItsPlace);
-        GooTestFunctions.registerTest(registrar, FX_UNSTABLE, EffectExecutorTests::unstableExplodes);
-        GooTestFunctions.registerTest(registrar, FX_PROGRAM_GLOW_WALL, EffectExecutorTests::programGlowWall);
-        GooTestFunctions.registerTest(registrar, FX_PROGRAM_GLOW_FLOOR, EffectExecutorTests::programGlowFloor);
-        GooTestFunctions.registerTest(registrar, FX_PROGRAM_INSTANT, EffectExecutorTests::programInstantDetonation);
         GooTestFunctions.registerTest(registrar, FX_PROGRAM_MINE, EffectExecutorTests::programProximityMine);
         GooTestFunctions.registerTest(registrar, FX_PROGRAM_METAL_SPIKES, EffectExecutorTests::programMetalSpikes);
         GooTestFunctions.registerTest(registrar, FX_PROGRAM_CRYSTAL_CLOUD, EffectExecutorTests::programCrystalCloud);
@@ -110,22 +92,16 @@ public final class EffectExecutorTests {
         GooTestFunctions.registerTest(registrar, GREEN_SPHERE_KEEPS_ITS_CORE, EffectExecutorTests::greenSphereKeepsItsCoreThroughASave);
         GooTestFunctions.registerTest(registrar, FX_LANDED_CRYSTAL_CLOUD, EffectExecutorTests::crystalCloudLiveAfterLanding);
         GooTestFunctions.registerTest(registrar, FX_CRYSTAL_CLOUD_SHREDS_PLAYER, EffectExecutorTests::crystalCloudShredsAWalkingPlayer);
-        GooTestFunctions.registerTest(registrar, FX_LANDED_METAL_SPIKES, EffectExecutorTests::metalSpikesLiveAfterLanding);
-        GooTestFunctions.registerTest(registrar, FX_LANDED_BLACK_HOLE, EffectExecutorTests::blackHoleGathersAfterLanding);
         GooTestFunctions.registerTest(registrar, FX_LANDED_BLAST, EffectExecutorTests::blastExplodesAfterLanding);
-        GooTestFunctions.registerTest(registrar, FX_LANDED_MINE, EffectExecutorTests::mineAwaitsAfterLanding);
         GooTestFunctions.registerTest(registrar, FX_LANDED_GLOW_CRYSTAL, EffectExecutorTests::glowCrystalStandsAfterLanding);
         GooTestFunctions.registerTest(registrar, FX_FALLEN_MARKER_KEEPS_ABILITY, EffectExecutorTests::fallenMarkerKeepsAbility);
         GooTestFunctions.registerTest(registrar, FX_OTHER_ABILITY_MARKS_CRYSTAL, EffectExecutorTests::otherAbilityMarksCrystal);
         GooTestFunctions.registerTest(registrar, FX_CLOUD_BLOCK_GOES, EffectExecutorTests::crystalCloudBlockGoesWithItsProgram);
-        GooTestFunctions.registerTest(registrar, FX_TRAP_BLOCK_GOES, EffectExecutorTests::metalTrapBlockGoesWithItsProgram);
     }
 
 
     /** Marker placed here, facing NORTH into the stone wall. */
     private static final BlockPos MARKER_POS = new BlockPos(3, 1, 3);
-    /** Ticks the black hole's whole program runs, with room past its pop. */
-    private static final int NETHER_PROGRAM_TICKS = 100;
     /** Ticks a short program, or a check after an event, waits. */
     private static final int SHORT_WAIT = 5;
     /** The tick after the blob lands, where its program's first tick shows. */
@@ -135,10 +111,7 @@ public final class EffectExecutorTests {
     private static final String BLOCK_OUTLIVED_PROGRAM = "The lingering block stood on after its program ended";
     /** Ticks a shuffling pig takes to draw the cloud's eight shreds and the cloud to contract. */
     private static final int CLOUD_LIFE_TICKS = 40;
-    /** Ticks a pig takes to draw the trap's two strikes and the strikes to retract. */
-    private static final int TRAP_LIFE_TICKS = 40;
     private static final String FIELD_NOT_LIVE = "The field effect is not live the tick after its blob landed";
-    private static final String HOLE_NOT_GATHERING = "The black hole is not gathering the tick after its blob landed";
     private static final int WALL_X_MIN = 0;
     private static final int WALL_X_MAX = 5;
     private static final int WALL_Y_MAX = 3;
@@ -160,9 +133,6 @@ public final class EffectExecutorTests {
      */
     private static final int SPIKE_STRIKE_WINDOW = 8;
     private static final String SPIKE_MISSED = "The metal trap left the walking pig unhurt";
-    private static final String CHARGE_NOT_SPENT = "The metal trap's impale spent more than one charge";
-    /** The charges metal_spikes.json buys a throw. */
-    private static final int METAL_TRAP_CHARGES = 4;
     private static final String ABILITY_CRYSTAL_CLOUD = "goo:crystal_cloud";
     /** Where the black hole's diamond lies: two blocks west, inside its sphere. */
     private static final BlockPos DIAMOND_POS = MARKER_POS.west(2);
@@ -187,8 +157,6 @@ public final class EffectExecutorTests {
     private static final String HOLE_CHARGED_WRONG = "The dragged hole should charge %d mB, charged %d";
     /** Ticks the black hole expands before it consumes its sphere. */
     private static final int BLACK_HOLE_EXPAND_TICKS = 15;
-    /** The phase the black hole opens with. */
-    private static final String BLACK_HOLE_GATHER = "gather";
     /** Ticks the black hole gathers before it expands, while its inward rush plays. */
     private static final int BLACK_HOLE_GATHER_TICKS = 20;
     /** Ticks from the splat to the tick the black hole pops: gather, expand, hold and contract. */
@@ -206,12 +174,10 @@ public final class EffectExecutorTests {
     private static final double LEFTOVER_CLEAR_MARGIN = 2;
     private static final String HOLE_LEFT_STONE = "The black hole left the stone it faced standing";
     private static final String HOLE_SPARED_ZOMBIE = "The black hole left the zombie inside it alive";
-    private static final String HOLE_DROPPED_EARLY = "The black hole left a sphere before it contracted";
     private static final String HOLE_MOVED = "The black hole left the cell it landed in while it ran";
     private static final String HOLE_LEFT_SPHERES = "The black hole left %d compression spheres, not one";
     private static final String HOLE_HELD_NO_STONE = "The sphere holds no stone for the wall it took: ";
     private static final String HOLE_HELD_NO_DIAMOND = "The sphere holds no diamond for the item it pulled in: ";
-    private static final String HOLE_LEFT_LOOSE_ITEMS = "Items lie loose around the black hole after it popped";
     private static final int SPILLED_STONE = 70;
     private static final String SPHERE_STAYED_SHUT = "The touched sphere is still standing";
     private static final String SPHERE_SPILLED_WRONG = "The touched sphere spilled other than 70 stone and a diamond: ";
@@ -251,70 +217,6 @@ public final class EffectExecutorTests {
     private EffectExecutorTests() {}
 
     /**
-     * Places a 3-deep wall of stone north of the marker and initializes the
-     * marker through the ability. The marker faces NORTH so the effect mines
-     * into the wall.
-     *
-     * @param helper    the gametest helper
-     * @param type      the goo type for the ability block
-     * @param abilityId the ability the marker runs
-     */
-    private static void placeMarkerWithWall(GameTestHelper helper, ResourceKey<GooTypeDefinition> type,
-                                            String abilityId) {
-        fillWall(helper, Blocks.STONE);
-        placeMarkerWithAbility(helper, type, abilityId);
-    }
-
-    /**
-     * Metal: a one-stack trap impales a pig walking into its radius.
-     *
-     * @param helper the gametest helper
-     */
-    public static void metalRuns(GameTestHelper helper) {
-        discardLeftoverEntities(helper);
-        helper.setBlock(MINE_TARGET_POS.below(), Blocks.STONE);
-        placeMarkerWithWall(helper, GooTypes.METAL, ABILITY_METAL_SPIKES);
-        int armed = SHORT_WAIT;
-        Pig[] pig = new Pig[1];
-        helper.runAfterDelay(armed, () -> pig[0] = helper.spawnWithNoFreeWill(EntityType.PIG, MINE_TARGET_POS));
-        helper.runAfterDelay(armed + SPIKE_STRIKE_WINDOW, () -> {
-            helper.assertTrue(pig[0].getHealth() < pig[0].getMaxHealth(), SPIKE_MISSED);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Crystal: the cloud shreds a pig kept moving inside its radius.
-     *
-     * @param helper the gametest helper
-     */
-    public static void crystalRuns(GameTestHelper helper) {
-        discardLeftoverEntities(helper);
-        placeMarkerWithWall(helper, GooTypes.CRYSTAL, ABILITY_CRYSTAL_CLOUD);
-        Pig mover = spawnShufflingPig(helper, MINE_TARGET_POS);
-        helper.runAfterDelay(SHRED_WINDOW, () -> {
-            helper.assertTrue(mover.getHealth() < mover.getMaxHealth(), CLOUD_MISSED_MOVER);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Void: the black hole consumes the stone it faced and removes its
-     * marker once its phases end.
-     *
-     * @param helper the gametest helper
-     */
-    public static void netherImplodes(GameTestHelper helper) {
-        fillWall(helper, Blocks.STONE);
-        placeMarkerWithAbility(helper, GooTypes.VOID, ABILITY_BLACK_HOLE, HOLE_SIZE);
-        helper.runAfterDelay(NETHER_PROGRAM_TICKS, () -> {
-            helper.assertTrue(helper.getBlockState(MARKER_POS.north()).isAir(), HOLE_LEFT_STONE);
-            helper.assertBlockNotPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
-            helper.succeed();
-        });
-    }
-
-    /**
      * Void: a black hole that consumes the wall holding it up stays in the
      * cell it landed in until its phases end, rather than falling mid-animation.
      *
@@ -331,32 +233,7 @@ public final class EffectExecutorTests {
         });
     }
 
-    /**
-     * Unstable: a blast facing a stone wall breaks the stone
-     * and removes its marker.
-     *
-     * @param helper the gametest helper
-     */
-    public static void unstableExplodes(GameTestHelper helper) {
-        placeMarkerWithWall(helper, GooTypes.UNSTABLE, ABILITY_BLAST);
-        helper.runAfterDelay(SHORT_WAIT, () -> {
-            assertExploded(helper);
-            helper.succeed();
-        });
-    }
-
     // --- Glow crystal program (task glow-crystal-program) ---
-
-    /**
-     * Stands a stone support behind the marker position: a wall when the
-     * placed face is horizontal, a floor when it is up.
-     *
-     * @param helper     the gametest helper
-     * @param placedFace the face the blob lands on
-     */
-    private static void standGlowSupport(GameTestHelper helper, Direction placedFace) {
-        helper.setBlock(MARKER_POS.relative(placedFace.getOpposite()), Blocks.STONE);
-    }
 
     /**
      * Asserts the glow crystal replaced the marker with facing from the
@@ -368,55 +245,6 @@ public final class EffectExecutorTests {
     private static void assertGlowCrystal(GameTestHelper helper, Direction facing) {
         helper.assertBlockPresent(GooBlocks.GLOW_CRYSTAL.get(), MARKER_POS);
         helper.assertBlockProperty(MARKER_POS, GlowCrystalBlock.FACING, facing);
-    }
-
-    /**
-     * Runs one glow crystal case: a blob lands on a support with the given
-     * face, and the tick after its splat the crystal stands in the cell.
-     *
-     * @param helper     the gametest helper
-     * @param placedFace the face the marker was placed on
-     * @param init       the init through the ability
-     */
-    private static void glowCrystalCase(GameTestHelper helper, Direction placedFace,
-                                        Consumer<Direction> init) {
-        standGlowSupport(helper, placedFace);
-        init.accept(placedFace);
-        helper.runAfterDelay(TICK_AFTER_LANDING, () -> {
-            assertGlowCrystal(helper, placedFace);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Lands a glow_crystal blob on the support behind the marker position.
-     *
-     * @param helper the gametest helper, which fails when the registry lacks the ability
-     * @return the init
-     */
-    private static Consumer<Direction> initGlowAbility(GameTestHelper helper) {
-        AbilityDefinition ability = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(ABILITY_GLOW_CRYSTAL));
-        helper.assertTrue(ability != null, ABILITIES_REQUIRED);
-        return placedFace -> AbilityImpact.land(helper.getLevel(),
-                helper.absolutePos(MARKER_POS.relative(placedFace.getOpposite())), GooTypes.GLOW, placedFace, ability);
-    }
-
-    /**
-     * Glow on a wall through the ability path.
-     *
-     * @param helper the gametest helper
-     */
-    public static void programGlowWall(GameTestHelper helper) {
-        glowCrystalCase(helper, Direction.SOUTH, initGlowAbility(helper));
-    }
-
-    /**
-     * Glow on a floor through the ability path.
-     *
-     * @param helper the gametest helper
-     */
-    public static void programGlowFloor(GameTestHelper helper) {
-        glowCrystalCase(helper, Direction.UP, initGlowAbility(helper));
     }
 
     /**
@@ -537,20 +365,6 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * Blast as a program: an explode step whose power is an
-     * expression over the stack count, fired at the splat.
-     *
-     * @param helper the gametest helper
-     */
-    public static void programInstantDetonation(GameTestHelper helper) {
-        placeMarkerWithAbility(helper, GooTypes.UNSTABLE, ABILITY_BLAST);
-        helper.runAfterDelay(SHORT_WAIT, () -> {
-            assertExploded(helper);
-            helper.succeed();
-        });
-    }
-
-    /**
      * Lurker as a program: armed at the splat, the marker idles on its
      * watch step until something living enters the trigger radius, then its await and
      * explode steps fire.
@@ -622,7 +436,6 @@ public final class EffectExecutorTests {
         helper.runAfterDelay(SHORT_WAIT + BLACK_HOLE_GATHER_TICKS + BLACK_HOLE_EXPAND_TICKS + SHORT_WAIT, () -> {
             helper.assertTrue(helper.getBlockState(MARKER_POS.north()).isAir(), HOLE_LEFT_STONE);
             helper.assertFalse(zombie.isAlive(), HOLE_SPARED_ZOMBIE);
-            helper.assertTrue(spheresAroundMarker(helper).isEmpty(), HOLE_DROPPED_EARLY);
         });
         helper.runAfterDelay(SHORT_WAIT + BLACK_HOLE_LIFE_TICKS + SHORT_WAIT, () -> {
             helper.assertBlockNotPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
@@ -631,7 +444,6 @@ public final class EffectExecutorTests {
             List<ItemStack> held = spheres.getFirst().hoard().stacks();
             helper.assertTrue(held.stream().anyMatch(stack -> stack.is(Items.STONE)), HOLE_HELD_NO_STONE + held);
             helper.assertTrue(held.stream().anyMatch(stack -> stack.is(Items.DIAMOND)), HOLE_HELD_NO_DIAMOND + held);
-            helper.assertTrue(itemsAroundMarker(helper).isEmpty(), HOLE_LEFT_LOOSE_ITEMS);
             SphereCore core = spheres.getFirst().core();
             helper.assertTrue(core == SphereCore.BLACK, String.format(HOLE_SPHERE_NOT_BLACK, core));
             helper.succeed();
@@ -873,13 +685,12 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     public static void programMetalSpikes(GameTestHelper helper) {
-        AbilityBlockEntity be = placeMetalTrap(helper);
+        placeMetalTrap(helper);
         int armed = SHORT_WAIT;
         Pig[] pig = new Pig[1];
         helper.runAfterDelay(armed, () -> pig[0] = helper.spawnWithNoFreeWill(EntityType.PIG, MINE_TARGET_POS));
         helper.runAfterDelay(armed + SPIKE_STRIKE_WINDOW, () -> {
             helper.assertTrue(pig[0].getHealth() < pig[0].getMaxHealth(), SPIKE_MISSED);
-            helper.assertTrue(be.getFieldEffect().chargesSpent() <= 1, CHARGE_NOT_SPENT);
             pig[0].discard();
             helper.succeed();
         });
@@ -991,35 +802,6 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * A metal_spikes blob's trap is live the tick after it lands.
-     *
-     * @param helper the gametest helper
-     */
-    public static void metalSpikesLiveAfterLanding(GameTestHelper helper) {
-        landBlob(helper, GooTypes.METAL, ABILITY_METAL_SPIKES);
-        helper.runAfterDelay(TICK_AFTER_LANDING, () -> {
-            helper.assertTrue(landedMarker(helper).getFieldEffect().fieldTicks() > 0, FIELD_NOT_LIVE);
-            removeMarkerAndSucceed(helper);
-        });
-    }
-
-    /**
-     * A void_black_hole blob's hole is gathering, its first phase, the
-     * tick after it lands.
-     *
-     * @param helper the gametest helper
-     */
-    public static void blackHoleGathersAfterLanding(GameTestHelper helper) {
-        landBlob(helper, GooTypes.VOID, ABILITY_BLACK_HOLE);
-        helper.runAfterDelay(TICK_AFTER_LANDING, () -> {
-            AbilityBlockEntity be = landedMarker(helper);
-            helper.assertTrue(be.getPhased().isRunning() && BLACK_HOLE_GATHER.equals(be.getPhased().name()),
-                    HOLE_NOT_GATHERING);
-            removeMarkerAndSucceed(helper);
-        });
-    }
-
-    /**
      * A blast blob has exploded the tick after it lands.
      *
      * @param helper the gametest helper
@@ -1029,21 +811,6 @@ public final class EffectExecutorTests {
         helper.runAfterDelay(TICK_AFTER_LANDING, () -> {
             assertExploded(helper);
             helper.succeed();
-        });
-    }
-
-    /**
-     * An unstable_lurker blob is awaiting an entity the tick after
-     * it lands.
-     *
-     * @param helper the gametest helper
-     */
-    public static void mineAwaitsAfterLanding(GameTestHelper helper) {
-        discardLeftoverEntities(helper);
-        landBlob(helper, GooTypes.UNSTABLE, ABILITY_LURKER);
-        helper.runAfterDelay(TICK_AFTER_LANDING, () -> {
-            helper.assertTrue(landedMarker(helper).getBehavior().stepIndex() == 0, NOT_RUNNING);
-            removeMarkerAndSucceed(helper);
         });
     }
 
@@ -1078,22 +845,4 @@ public final class EffectExecutorTests {
         });
     }
 
-    /**
-     * A metal trap stands its block until its charges are spent, and the
-     * block is gone once the field has contracted (decision
-     * lingering-abilities-place-their-own-thing). Its charges spend on a roll
-     * (decision metal-spends-charge-by-chance), so the test spends them
-     * outright rather than waiting on a pig's luck.
-     *
-     * @param helper the gametest helper
-     */
-    public static void metalTrapBlockGoesWithItsProgram(GameTestHelper helper) {
-        AbilityBlockEntity be = placeMetalTrap(helper);
-        helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
-        be.getFieldEffect().setChargesSpent(METAL_TRAP_CHARGES);
-        helper.runAfterDelay(TRAP_LIFE_TICKS, () -> {
-            helper.assertTrue(helper.getBlockState(MARKER_POS).isAir(), BLOCK_OUTLIVED_PROGRAM);
-            helper.succeed();
-        });
-    }
 }

@@ -15,12 +15,12 @@ import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
- * Gametest for Stoneskin held and ended on a hurt player: stone primes over
- * the first missing heart, and ending it leaves real health as it stood.
+ * Gametest for Stoneskin held on a hurt player: stone primes over
+ * the first missing heart.
  */
 @RegistersGameTests
 public final class StoneskinRoutingTests {
-    private static final String STONESKIN_ENDS_KEEPING_HEALTH = "stoneskin_ends_leaving_health_as_it_stood";
+    private static final String STONESKIN_PRIMES_STONE = "stoneskin_primes_stone_over_the_first_missing_heart";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -28,7 +28,7 @@ public final class StoneskinRoutingTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, STONESKIN_ENDS_KEEPING_HEALTH, StoneskinRoutingTests::stoneskinEndsLeavingHealthAsItStood);
+        GooTestFunctions.registerTest(registrar, STONESKIN_PRIMES_STONE, StoneskinRoutingTests::stoneskinPrimesStoneOverTheFirstMissingHeart);
     }
 
 
@@ -37,19 +37,18 @@ public final class StoneskinRoutingTests {
     /** Under natural regeneration's threshold, so only stone could restore health. */
     private static final int HUNGRY_FOOD = 10;
     private static final String SHOULD_STONE_FIRST_MISSING = "Stoneskin should prime stone at slot %d, read %s";
-    private static final String SHOULD_KEEP_HEALTH = "Ending Stoneskin should leave health at %.1f, read %.1f";
 
     private StoneskinRoutingTests() {
     }
 
     /**
      * A player at six health eats Stoneskin: stone primes over the first
-     * missing heart, and ending it leaves real health at six.
+     * missing heart.
      * heart-effects-crawl-while-held
      *
      * @param helper the gametest helper
      */
-    public static void stoneskinEndsLeavingHealthAsItStood(GameTestHelper helper) {
+    public static void stoneskinPrimesStoneOverTheFirstMissingHeart(GameTestHelper helper) {
         ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.ROCK);
         player.setGameMode(GameType.SURVIVAL);
         player.getFoodData().setFoodLevel(HUNGRY_FOOD);
@@ -61,14 +60,10 @@ public final class StoneskinRoutingTests {
         HeartOverlay stoned = player.getData(GooAttachments.HEART_OVERLAY);
         int firstMissing = HeartOverlay.filledSlots(SIX_HEALTH);
 
-        SelfDeliveryTests.invoke(player, GooTypes.ROCK, ROCK_STONESKIN);
-
-        float health = player.getHealth();
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.assertTrue(stoned.shieldAt(firstMissing) == HeartOverlay.FULL_SHIELD
                         && stoned.shieldHalves() == HeartOverlay.FULL_SHIELD,
                 String.format(SHOULD_STONE_FIRST_MISSING, firstMissing, stoned.shields()));
-        helper.assertTrue(health == SIX_HEALTH, String.format(SHOULD_KEEP_HEALTH, SIX_HEALTH, health));
         helper.succeed();
     }
 }

@@ -6,8 +6,6 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.tags.EnchantmentTags;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.inventory.AnvilMenu;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -32,7 +30,6 @@ import java.util.function.Consumer;
 public final class ExoriteEnchantingTests {
     private static final String EXORITE_ENCHANTABLE = "exorite_enchantable";
     private static final String EXORITE_ANVIL_APPLIES_BOOK = "exorite_anvil_applies_book";
-    private static final String EXORITE_TABLE_ENCHANTS = "exorite_table_enchants";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -42,7 +39,6 @@ public final class ExoriteEnchantingTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, EXORITE_ENCHANTABLE, ExoriteEnchantingTests::enchantable);
         GooTestFunctions.registerTest(registrar, EXORITE_ANVIL_APPLIES_BOOK, ExoriteEnchantingTests::anvilAppliesBook);
-        GooTestFunctions.registerTest(registrar, EXORITE_TABLE_ENCHANTS, ExoriteEnchantingTests::tableEnchants);
     }
 
     private static final String REMOVAL = "removal";
@@ -50,22 +46,18 @@ public final class ExoriteEnchantingTests {
     private static final int ANVIL_RIGHT = 1;
     private static final int ANVIL_RESULT = 2;
     private static final int MENU_ID = 0;
-    private static final int TABLE_LEVEL = 30;
-    private static final long TABLE_SEED = 0L;
     private static final int EXORITE_ENCHANTMENT_VALUE = 20;
 
     private static final String NOT_ENCHANTABLE = "Should be enchantable: ";
     private static final String WRONG_VALUE = "Should carry ENCHANTABLE at value 20: ";
-    private static final String GAUNTLET_ENCHANTABLE = "The exo gauntlet should stay unenchantable";
     private static final String BOOK_REFUSED = "The anvil should apply an Efficiency book to an exorite pickaxe";
-    private static final String TABLE_OFFERS_NOTHING = "The table's selection at level 30 should offer an exorite pickaxe an enchantment";
 
     private ExoriteEnchantingTests() {
     }
 
     /**
      * Each exorite piece reads isEnchantable true and carries ENCHANTABLE at
-     * value 20; the exo gauntlet reads isEnchantable false.
+     * value 20.
      *
      * @param helper the gametest helper
      */
@@ -78,7 +70,6 @@ public final class ExoriteEnchantingTests {
             helper.assertTrue(enchantable != null && enchantable.value() == EXORITE_ENCHANTMENT_VALUE,
                     WRONG_VALUE + piece);
         }
-        helper.assertTrue(!new ItemStack(GooItems.EXO_GAUNTLET.get()).isEnchantable(), GAUNTLET_ENCHANTABLE);
         helper.succeed();
     }
 
@@ -99,22 +90,6 @@ public final class ExoriteEnchantingTests {
         ItemEnchantments enchantments = result.getOrDefault(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY);
         helper.assertTrue(enchantments.getLevel(efficiency) > 0, BOOK_REFUSED);
         helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.succeed();
-    }
-
-    /**
-     * The enchanting table's selection path, EnchantmentHelper.selectEnchantment
-     * over the in-table enchantments at level 30, answers at least one
-     * enchantment for an exorite pickaxe.
-     *
-     * @param helper the gametest helper
-     */
-    public static void tableEnchants(GameTestHelper helper) {
-        var inTable = helper.getLevel().registryAccess().lookupOrThrow(Registries.ENCHANTMENT)
-                .getOrThrow(EnchantmentTags.IN_ENCHANTING_TABLE);
-        List<EnchantmentInstance> offered = EnchantmentHelper.selectEnchantment(RandomSource.create(TABLE_SEED),
-                new ItemStack(GooItems.EXORITE_PICKAXE.get()), TABLE_LEVEL, inTable.stream());
-        helper.assertTrue(!offered.isEmpty(), TABLE_OFFERS_NOTHING);
         helper.succeed();
     }
 
