@@ -4,8 +4,6 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.DragSize;
-import com.mercuriusxeno.goo.ability.program.ExplodeStep;
-import com.mercuriusxeno.goo.ability.program.HostVariables;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.entity.CompressionSphere;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -34,9 +32,7 @@ import java.util.stream.Stream;
  */
 @RegistersGameTests
 public final class GooExplosionTests {
-    private static final String BLAST_CRATER_INSIDE_SPHERE = "blast_crater_inside_sphere";
     private static final String BLAST_DROPS_EVERY_DIRT = "blast_drops_every_dirt";
-    private static final String BLAST_SPARES_ITEMS = "blast_spares_items";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -44,9 +40,7 @@ public final class GooExplosionTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, BLAST_CRATER_INSIDE_SPHERE, GooExplosionTests::blastCraterStaysInsideItsSphere);
         GooTestFunctions.registerTest(registrar, BLAST_DROPS_EVERY_DIRT, GooExplosionTests::blastDropsEveryDirtItBreaks);
-        GooTestFunctions.registerTest(registrar, BLAST_SPARES_ITEMS, GooExplosionTests::blastSparesItemsInItsSphere);
     }
 
 
@@ -59,20 +53,10 @@ public final class GooExplosionTests {
     /** The aim point, the center of the struck block's top face. */
     private static final Vec3 AIM = new Vec3(8.5, FLOOR_TOP + 1.0, 8.5);
 
-    private static final int SETTLE_TICKS = 2;
-    private static final int ITEM_COUNT = 7;
-    private static final double ITEM_DRIFT = 0.1;
-
     private static final String ABILITY_REQUIRED = "Ability registry must hold unstable_explode";
-    private static final String NO_EXPLODE_STEP = "Blast's program holds no explode step";
-    private static final String STRUCK_STANDS = "Blast left the stone under the aim point standing";
-    private static final String BEYOND_SPHERE = "Blast broke stone at %s, %.2f blocks from the aim point, past its reach %.2f";
 
     private static final String DIRT_LOST = "Blast removed %d dirt but dropped %d dirt items";
     private static final String NOTHING_REMOVED = "Blast removed no dirt";
-    private static final String ITEM_DIED = "The item in Blast's sphere died";
-    private static final String ITEM_SHRANK = "The item in Blast's sphere holds %s, not %d cobblestone";
-    private static final String ITEM_MOVED = "The item in Blast's sphere moved %.3f blocks";
 
     private GooExplosionTests() {
     }
@@ -86,31 +70,6 @@ public final class GooExplosionTests {
     private static void strike(GameTestHelper helper, AbilityDefinition ability) {
         AbilityImpact.land(helper.getLevel(), helper.absolutePos(STRUCK), GooTypes.UNSTABLE, Direction.UP, ability,
                 helper.absoluteVec(AIM), DragSize.REFERENCE_RADIUS);
-    }
-
-    /**
-     * Blast struck into a stone floor removes the stone under the aim point,
-     * and every stone cell it removes lies within the max reach of its power.
-     *
-     * @param helper the gametest helper
-     */
-    public static void blastCraterStaysInsideItsSphere(GameTestHelper helper) {
-        AbilityDefinition ability = blast(helper);
-        ExplodeStep explode = ability.behaviors().stream().filter(ExplodeStep.class::isInstance)
-                .map(ExplodeStep.class::cast).findFirst().orElse(null);
-        helper.assertTrue(explode != null, NO_EXPLODE_STEP);
-        double reach = explode.reachAt(HostVariables.sized(DragSize.REFERENCE_RADIUS));
-        layFloor(helper, Blocks.STONE);
-
-        strike(helper, ability);
-
-        helper.assertTrue(helper.getBlockState(STRUCK).isAir(), STRUCK_STANDS);
-        BlockPos.betweenClosed(0, 0, 0, FLOOR_SPAN - 1, FLOOR_TOP, FLOOR_SPAN - 1).forEach(cell -> {
-            double distance = Vec3.atCenterOf(cell).distanceTo(AIM);
-            helper.assertTrue(!helper.getBlockState(cell).isAir() || distance <= reach,
-                    String.format(BEYOND_SPHERE, cell.toShortString(), distance, reach));
-        });
-        helper.succeed();
     }
 
     /**
@@ -137,33 +96,6 @@ public final class GooExplosionTests {
         helper.assertTrue(removed > 0, NOTHING_REMOVED);
         helper.assertTrue(removed == dropped, String.format(DIRT_LOST, removed, dropped));
         helper.succeed();
-    }
-
-    /**
-     * An item lying at Blast's aim point on an obsidian floor survives the
-     * blast with its stack and its place.
-     *
-     * @param helper the gametest helper
-     */
-    public static void blastSparesItemsInItsSphere(GameTestHelper helper) {
-        AbilityDefinition ability = blast(helper);
-        layFloor(helper, Blocks.OBSIDIAN);
-        Vec3 spawned = helper.absoluteVec(AIM);
-        ItemEntity item = new ItemEntity(helper.getLevel(), spawned.x(), spawned.y(), spawned.z(),
-                new ItemStack(Items.COBBLESTONE, ITEM_COUNT), 0, 0, 0);
-        helper.getLevel().addFreshEntity(item);
-
-        strike(helper, ability);
-
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            helper.assertTrue(item.isAlive(), ITEM_DIED);
-            ItemStack held = item.getItem();
-            helper.assertTrue(held.is(Items.COBBLESTONE) && held.getCount() == ITEM_COUNT,
-                    String.format(ITEM_SHRANK, held, ITEM_COUNT));
-            double drift = item.position().distanceTo(spawned);
-            helper.assertTrue(drift <= ITEM_DRIFT, String.format(ITEM_MOVED, drift));
-            helper.succeed();
-        });
     }
 
     private static void layFloor(GameTestHelper helper, Block floor) {

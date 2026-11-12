@@ -121,6 +121,26 @@ class GooSourceScannerTest {
                 () -> assertEquals(0, GooSourceScanner.deplete(player, GooTypes.INFINITY, 1)));
     }
 
+    /** Each pass walks the main inventory bottom-up, slots 0 to 35, then the offhand. */
+    @Test
+    void thePassesWalkTheMainSlotsInOrderThenTheOffhand() {
+        List<Integer> expected = new java.util.ArrayList<>(java.util.stream.IntStream.range(0, 36).boxed().toList());
+        expected.add(Inventory.SLOT_OFFHAND);
+        assertEquals(expected, java.util.Arrays.stream(GooSourceScanner.carriedSlots()).boxed().toList());
+    }
+
+    /** Within a pass the first source is the lowest slot holding the type, past a stack holding none of it. */
+    @Test
+    void theFirstSourceIsTheLowestSlotHoldingTheTypePastOneHoldingNone() {
+        ItemStack otherType = carrierStack(GooItem.class);
+        GooCarrierItem otherCarrier = (GooCarrierItem) otherType.getItem();
+        doReturn(0).when(otherCarrier).gooVolume(otherType, ROCK);
+        ItemStack first = carrierStack(GooItem.class);
+        Player player = playerHolding(otherType, first, carrierStack(GooItem.class));
+
+        assertSame(first, GooSourceScanner.firstSource(player, ROCK));
+    }
+
     private static ItemStack carrierStack(Class<? extends Item> type) {
         Item item = mock(type, withSettings().defaultAnswer(CALLS_REAL_METHODS));
         GooCarrierItem carrier = (GooCarrierItem) item;

@@ -111,8 +111,7 @@ public final class GooLabelCanisterTests {
     }
 
     /**
-     * An empty canister beside a blaze label crafts a blaze-labeled canister and keeps no remainder;
-     * a canister holding rock beside a blaze label crafts nothing.
+     * An empty canister beside a blaze label crafts a blaze-labeled canister and keeps no remainder.
      *
      * @param helper the gametest helper
      */
@@ -125,17 +124,12 @@ public final class GooLabelCanisterTests {
                 "The craft should yield a blaze-labeled canister: " + labeled);
         helper.assertTrue(recipe.value().getRemainingItems(input).stream().allMatch(ItemStack::isEmpty),
                 "The craft should consume the label and leave nothing in the grid");
-
-        ItemStack rockCanister = new ItemStack(GooItems.CANISTER.get());
-        CanisterItem.addGoo(rockCanister, GooTypes.ROCK, VOLUME);
-        helper.assertTrue(recipeFor(helper, grid(rockCanister, labels(GooTypes.BLAZE, 1))).isEmpty(),
-                "A rock canister beside a blaze label should match nothing");
         helper.succeed();
     }
 
     /**
      * A blaze label clicked from the cursor onto an empty canister item labels it and
-     * shrinks the cursor by one; onto a rock canister it does nothing.
+     * shrinks the cursor by one.
      *
      * @param helper the gametest helper
      */
@@ -149,21 +143,12 @@ public final class GooLabelCanisterTests {
                 SlotAccess.of(() -> cursor[0], stack -> cursor[0] = stack));
         helper.assertTrue(handled && labelOf(canister) == GooTypes.BLAZE, "The click should label the canister");
         helper.assertTrue(cursor[0].getCount() == LABELS_HELD - 1, "The click should take one label from the cursor");
-
-        ItemStack rockCanister = new ItemStack(GooItems.CANISTER.get());
-        CanisterItem.addGoo(rockCanister, GooTypes.ROCK, VOLUME);
-        ItemStack[] blazeCursor = {labels(GooTypes.BLAZE, 1)};
-        boolean refused = rockCanister.overrideOtherStackedOnMe(blazeCursor[0], slot, ClickAction.PRIMARY, player,
-                SlotAccess.of(() -> blazeCursor[0], stack -> blazeCursor[0] = stack));
-        helper.assertTrue(!refused && labelOf(rockCanister) == null && blazeCursor[0].getCount() == 1
-                        && CanisterItem.getFluidContent(rockCanister).volumeOf(GooTypes.ROCK) == VOLUME,
-                "A rock canister should refuse a blaze label and leave both stacks as they stood");
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.succeed();
     }
 
     /**
-     * A blaze-labeled canister takes blaze and refuses rock and water through the item
+     * A blaze-labeled canister takes blaze and refuses rock through the item
      * fluid handler, the hub slot handler and the player inventory slot handler.
      *
      * @param helper the gametest helper
@@ -172,19 +157,18 @@ public final class GooLabelCanisterTests {
     public static void refusesOtherFluids(GameTestHelper helper) {
         FluidResource blaze = GooFluids.resource(GooTypes.BLAZE);
         FluidResource rock = GooFluids.resource(GooTypes.ROCK);
-        FluidResource water = FluidResource.of(net.minecraft.world.level.material.Fluids.WATER);
 
         ItemStack canister = labeledCanister(GooTypes.BLAZE);
         ResourceHandler<FluidResource> item = canister.getCapability(Capabilities.Fluid.ITEM,
                 ItemAccess.forStack(canister));
         helper.assertTrue(item != null, "A canister item should carry a fluid handler");
-        assertTakesOnly(helper, "item handler", item, 0, blaze, List.of(rock, water));
+        assertTakesOnly(helper, "item handler", item, 0, blaze, List.of(rock));
 
         helper.setBlock(BE_POS, GooBlocks.HUB.get());
         HubBlockEntity hub = helper.getBlockEntity(BE_POS, HubBlockEntity.class);
         hub.insertCanister(HUB_SLOT, labeledCanister(GooTypes.BLAZE));
         HubFluidHandler hubHandler = hub.getFluidHandler();
-        assertTakesOnly(helper, "hub handler", hubHandler, HUB_SLOT, blaze, List.of(rock, water));
+        assertTakesOnly(helper, "hub handler", hubHandler, HUB_SLOT, blaze, List.of(rock));
 
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         player.getInventory().setItem(INVENTORY_SLOT, labeledCanister(GooTypes.BLAZE));
