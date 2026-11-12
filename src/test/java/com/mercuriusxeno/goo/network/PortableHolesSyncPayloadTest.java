@@ -18,6 +18,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  */
 class PortableHolesSyncPayloadTest {
 
+    /** More kinds than the twelve a mouth once carried at most. */
+    private static final int MANY_KINDS = 40;
+
     @Test
     void storedEntriesRoundTripThroughTheStreamCodec() {
         List<PortableHolesSyncPayload.Stored> stored = List.of(
@@ -31,6 +34,25 @@ class PortableHolesSyncPayloadTest {
         PortableHolesSyncPayload.STREAM_CODEC.encode(buf, sent);
 
         assertEquals(stored, PortableHolesSyncPayload.STREAM_CODEC.decode(buf).mouths().getFirst().stored());
+    }
+
+    /**
+     * decision hole-shows-every-kind-stored
+     */
+    @Test
+    void aMouthStoringMoreThanTwelveKindsRoundTripsWhole() {
+        List<PortableHolesSyncPayload.Stored> stored = new ArrayList<>();
+        for (int kind = 0; kind < MANY_KINDS; kind++) {
+            stored.add(new PortableHolesSyncPayload.Stored(Identifier.fromNamespaceAndPath("goo", "kind_" + kind),
+                    kind + 1L));
+        }
+        PortableHolesSyncPayload.Mouth sent = new PortableHolesSyncPayload.Mouth(List.of(new BlockPos(4, 64, -2)),
+                Direction.DOWN, 960L, 1200L, stored, List.of());
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+
+        PortableHolesSyncPayload.STREAM_CODEC.encode(buf, new PortableHolesSyncPayload(List.of(sent)));
+
+        assertEquals(sent, PortableHolesSyncPayload.STREAM_CODEC.decode(buf).mouths().getFirst());
     }
 
     /**

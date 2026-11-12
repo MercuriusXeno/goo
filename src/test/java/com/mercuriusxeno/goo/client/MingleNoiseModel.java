@@ -81,22 +81,39 @@ public final class MingleNoiseModel {
      */
     public static float cornerField(float px, float py, float texelsPerUnit, float cellsPerUnit, float[] offset,
                                     float ease) {
-        float gx = px * texelsPerUnit;
-        float gy = py * texelsPerUnit;
+        return cornerField(px, py, texelsPerUnit, texelsPerUnit, cellsPerUnit, offset, ease);
+    }
+
+    /**
+     * mingleCornerField over a grid whose texels per unit differ along x and y,
+     * as a skin wider than it is tall reads it.
+     *
+     * @param px           the point's x in its own units
+     * @param py           the point's y in its own units
+     * @param texelsX      the grid's texels per unit along x
+     * @param texelsY      the grid's texels per unit along y
+     * @param cellsPerUnit field cells per unit
+     * @param offset       the field offset, {x, y, z}
+     * @param ease         MINGLE_CORNER_EASE
+     * @return the blended field value
+     */
+    public static float cornerField(float px, float py, float texelsX, float texelsY, float cellsPerUnit,
+                                    float[] offset, float ease) {
+        float gx = px * texelsX;
+        float gy = py * texelsY;
         float bx = (float) Math.floor(gx);
         float by = (float) Math.floor(gy);
         float wx = cornerWeight(gx - bx, ease);
         float wy = cornerWeight(gy - by, ease);
-        float c00 = gridCorner(bx, by, texelsPerUnit, cellsPerUnit, offset);
-        float c10 = gridCorner(bx + 1f, by, texelsPerUnit, cellsPerUnit, offset);
-        float c01 = gridCorner(bx, by + 1f, texelsPerUnit, cellsPerUnit, offset);
-        float c11 = gridCorner(bx + 1f, by + 1f, texelsPerUnit, cellsPerUnit, offset);
+        float c00 = gridCorner(bx / texelsX, by / texelsY, cellsPerUnit, offset);
+        float c10 = gridCorner((bx + 1f) / texelsX, by / texelsY, cellsPerUnit, offset);
+        float c01 = gridCorner(bx / texelsX, (by + 1f) / texelsY, cellsPerUnit, offset);
+        float c11 = gridCorner((bx + 1f) / texelsX, (by + 1f) / texelsY, cellsPerUnit, offset);
         return mix(mix(c00, c10, wx), mix(c01, c11, wx), wy);
     }
 
-    private static float gridCorner(float cx, float cy, float texelsPerUnit, float cellsPerUnit, float[] offset) {
-        return field(cx / texelsPerUnit * cellsPerUnit + offset[0], cy / texelsPerUnit * cellsPerUnit + offset[1],
-            offset[2]);
+    private static float gridCorner(float cornerX, float cornerY, float cellsPerUnit, float[] offset) {
+        return field(cornerX * cellsPerUnit + offset[0], cornerY * cellsPerUnit + offset[1], offset[2]);
     }
 
     /**
