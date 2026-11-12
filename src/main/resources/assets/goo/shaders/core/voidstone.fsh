@@ -18,9 +18,15 @@
 // in the nebula or the star lattice, and away from the east and south bands a star holds its texel as the
 // room grows. VoidstoneRoom packs the room's center and extent into TextureMat; an extent of 0 means no room
 // is known, and the field draws unwrapped.
+//
+// The block the boundary cuts draws a sparser starfield (decisions boundary-cut-voidstone-draws-without-its-stars
+// and room-edge-draws-a-sparser-starfield): its faces come black, and fewer of its texels hold a star. The cut
+// block reaches past the boundary plane, where the neighbouring copy's cut block lies too, so every face draws
+// only between the room's planes and the two meet at the plane as one field.
 
 in vec3 voidLocal;
 flat in vec3 voidNormal;
+flat in float voidSparse;
 
 out vec4 fragColor;
 
@@ -65,15 +71,18 @@ float valueNoise(ivec2 texel, vec2 within, int seed) {
     return mix(mix(a, b, into.x), mix(c, d, into.x), into.y);
 }
 
-// The field at one texel: the nebula's glow there and its star's brightness on the clock.
-vec2 fieldAt(ivec2 texel, vec2 within, int seed, float ticks) {
+// The field at one texel: the nebula's glow there and its star's brightness on the clock. The star share
+// keeps that share of the voidstone's stars, bright and dim alike, 1 for the full field.
+vec2 fieldAt(ivec2 texel, vec2 within, int seed, float ticks, float starShare) {
     ivec2 drift = ivec2(int(ticks * NEBULA_DRIFT), int(ticks * NEBULA_DRIFT * 0.6));
     float glow = smoothstep(0.45, 1.0, valueNoise(texel + drift, within, seed + 11));
     float pick = hash(ivec3(texel, seed));
     float rate = 0.03 + 0.09 * hash(ivec3(texel, seed + 7));
-    float bright = step(1.0 - BRIGHT_STARS, pick)
+    float brightShare = BRIGHT_STARS * starShare;
+    float starredShare = (BRIGHT_STARS + DIM_STARS) * starShare;
+    float bright = step(1.0 - brightShare, pick)
             * mix(BRIGHT_STAR_FLOOR, BRIGHT_STAR_PEAK, hash(ivec3(texel, seed + 3)));
-    float dim = step(1.0 - BRIGHT_STARS - DIM_STARS, pick) * (1.0 - step(1.0 - BRIGHT_STARS, pick)) * DIM_STAR_GLOW;
+    float dim = step(1.0 - starredShare, pick) * (1.0 - step(1.0 - brightShare, pick)) * DIM_STAR_GLOW;
     return vec2(glow, (bright + dim) * twinkle(ticks, rate, pick * 61.0));
 }
 
@@ -81,11 +90,9 @@ int roomCenter(float high, float low) {
     return int(high) * CENTER_SPLIT + int(low);
 }
 
-// How far the field at a place has faded into the field one room width back: none a band or more inside the
-// far plane, wholly at the plane and past it.
-float wrapWeight(int center, float extent, int texel, float within, float band) {
-    float toPlane = float(center * BLOCK_TEXELS + HALF_BLOCK_TEXELS - texel) + extent * TEXELS - within;
-    return 1.0 - smoothstep(0.0, band, toPlane);
+// How far a place stands inside the room's far plane along one axis, east or south, in texels.
+float toFarPlane(int center, float extent, int texel, float within) {
+    return float(center * BLOCK_TEXELS + HALF_BLOCK_TEXELS - texel) + extent * TEXELS - within;
 }
 
 // A place one room width back along one axis: the width's whole texels and its part counted apart, so the
@@ -125,29 +132,37 @@ void main() {
     int seed = plane * 3 + side;
     float ticks = GameTime * TICKS_PER_CLOCK;
 
-    // The axes across the face that run east or south wrap: a top face's both, a side's horizontal one alone.
+    // The axes across the face that run east or south wrap and clip: a top face's both, a side's horizontal one
+    // alone, its vertical axis standing mid-room. The weight is how far the field has faded into the field one
+    // room width back: none a band or more inside the far plane, wholly at the plane.
     float extent = TextureMat[1][0];
+    float width = 2.0 * extent * TEXELS;
     vec2 weight = vec2(0.0);
     if (extent > 0.0) {
         int centerX = roomCenter(TextureMat[0][0], TextureMat[0][1]);
         int centerZ = roomCenter(TextureMat[0][2], TextureMat[0][3]);
-        float band = min(WRAP_BAND, extent * TEXELS);
+        vec2 toFar = vec2(extent * TEXELS);
         if (facing.y > 0.5) {
-            weight = vec2(wrapWeight(centerX, extent, across.x, within.x, band),
-                    wrapWeight(centerZ, extent, across.y, within.y, band));
+            toFar = vec2(toFarPlane(centerX, extent, across.x, within.x),
+                    toFarPlane(centerZ, extent, across.y, within.y));
         } else {
-            weight.x = wrapWeight(facing.x > 0.5 ? centerZ : centerX, extent, across.x, within.x, band);
+            toFar.x = toFarPlane(facing.x > 0.5 ? centerZ : centerX, extent, across.x, within.x);
         }
+        if (any(lessThan(toFar, vec2(0.0))) || any(greaterThan(toFar, vec2(width)))) {
+            discard;
+        }
+        float band = min(WRAP_BAND, extent * TEXELS);
+        weight = vec2(1.0) - smoothstep(vec2(0.0), vec2(band), toFar);
     }
-    float width = 2.0 * extent * TEXELS;
+    float starShare = voidSparse > 0.5 ? EDGE_STARS / (BRIGHT_STARS + DIM_STARS) : 1.0;
     ivec2 back;
     vec2 withinBack;
     widthBack(across.x, within.x, width, back.x, withinBack.x);
     widthBack(across.y, within.y, width, back.y, withinBack.y);
-    vec2 here = fieldAt(across, within, seed, ticks);
-    vec2 behindX = fieldAt(ivec2(back.x, across.y), vec2(withinBack.x, within.y), seed, ticks);
-    vec2 behindY = fieldAt(ivec2(across.x, back.y), vec2(within.x, withinBack.y), seed, ticks);
-    vec2 behindBoth = fieldAt(back, withinBack, seed, ticks);
+    vec2 here = fieldAt(across, within, seed, ticks, starShare);
+    vec2 behindX = fieldAt(ivec2(back.x, across.y), vec2(withinBack.x, within.y), seed, ticks, starShare);
+    vec2 behindY = fieldAt(ivec2(across.x, back.y), vec2(within.x, withinBack.y), seed, ticks, starShare);
+    vec2 behindBoth = fieldAt(back, withinBack, seed, ticks, starShare);
     vec2 field = mix(mix(here, behindX, weight.x), mix(behindY, behindBoth, weight.x), weight.y);
 
     vec3 color = STONE + NEBULA * field.x + STAR * field.y;
