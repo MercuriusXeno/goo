@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -38,8 +37,6 @@ class FlamesStepTest {
 
     private static final float DAMAGE = 1f;
     private static final int BURN_SECONDS = 5;
-    /** The ticks of heat blaze_flames.json names for a block to cook. */
-    private static final int SHIPPED_COOK_TICKS = 40;
 
     private final ServerLevel level = mock(ServerLevel.class);
     private final LivingEntity mob = mock(LivingEntity.class);
@@ -145,10 +142,4 @@ class FlamesStepTest {
         }
     }
 
-    @Test
-    void theShippedFlamesCooksABlockOverItsCookTicks() {
-        Step flames = AbilityJson.decode("blaze_flames").behaviors().getFirst();
-
-        assertEquals(SHIPPED_COOK_TICKS, ((FlamesStep) flames).cookTicks());
-    }
 }

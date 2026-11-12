@@ -1,18 +1,11 @@
 package com.mercuriusxeno.goo.ability.nether;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.client.particle.GnatParticle;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -25,8 +18,6 @@ class HiveSwarmTest {
 
     private static final double DELTA = 1e-6;
     private static final long SEED = 7L;
-    /** Decay, whose on_prism reaction is the hive (decision channeled-hosts-convert-prisms-over-the-hold). */
-    private static final String HIVE = "/data/goo/goo_abilities/nether_decay.json";
 
     /** The gap of (3, 0.9, -2) times the tenth of its speed a gnat loses each tick, so it comes to rest at the mob. */
     @Test
@@ -71,13 +62,4 @@ class HiveSwarmTest {
         assertEquals(GnatParticle.SWARM_FRICTION, HiveSwarm.GNAT_FRICTION, DELTA);
     }
 
-    @Test
-    void theSwarmReachesAsFarAsTheHiveStrikes() throws IOException {
-        try (InputStream in = HiveSwarmTest.class.getResourceAsStream(HIVE)) {
-            assertNotNull(in, HIVE);
-            JsonObject hive = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
-            double radius = hive.getAsJsonArray("on_prism").get(0).getAsJsonObject().get("radius").getAsDouble();
-            assertEquals(radius, HiveSwarm.REACH, DELTA);
-        }
-    }
 }

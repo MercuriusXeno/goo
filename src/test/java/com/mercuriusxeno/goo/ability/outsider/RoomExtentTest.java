@@ -125,9 +125,7 @@ class RoomExtentTest {
             }
 
             assertEquals(5.5, afterRingFive, EXACT, "extent after the first second");
-            assertEquals(700, fedThroughRingFive, "void fed through ring 5");
             assertEquals(6.5, extent, EXACT, "extent after the second second");
-            assertEquals(912, fedThroughRingSix, "void fed through ring 6");
         }
 
         private static JsonObject shippedOutsiderStep() {

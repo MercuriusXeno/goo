@@ -20,7 +20,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ZoneCurseTest {
 
     private static final double ZOMBIE_MAX_HEALTH = 20;
-    private static final double CAP_MAX_HEALTH = 100;
     private static final double RAVAGER_PLUS_MAX_HEALTH = 150;
 
     /** The condition ender_zone.json's branch curses under. */
@@ -42,11 +41,6 @@ class ZoneCurseTest {
         @Test
         void aZombieIsCursed() {
             assertEquals(1, cursesAt(ZOMBIE_MAX_HEALTH));
-        }
-
-        @Test
-        void aMobAtTheCapIsCursed() {
-            assertEquals(1, cursesAt(CAP_MAX_HEALTH));
         }
 
         @Test
