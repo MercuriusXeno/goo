@@ -20,9 +20,15 @@ import org.jspecify.annotations.Nullable;
  */
 public final class VoidMoteParticle extends DriftingGlowParticle {
 
+    /**
+     * The velocity a speck keeps each tick, which Vacuum's wind sizes a mote's
+     * flight by so it ends at the glove
+     * (decision vacuum-wind-lines-run-straight-and-far-in-void-colors-with-motes).
+     */
+    public static final float FRICTION = 0.99f;
     private static final float START_ALPHA = 0.95f;
     /** Slow to lose its rise, long lived and small, in the void's violet. */
-    private static final Look SPECK = new Look(0.99f, 0.02f, 40, 30, 0.05f, 0.05f,
+    private static final Look SPECK = new Look(FRICTION, 0.02f, 40, 30, 0.05f, 0.05f,
             new float[] {0.62f, 0.38f, 1.0f}, START_ALPHA);
     /** The slowest and fastest a speck twinkles, radians of its glint a tick. */
     private static final float SLOWEST_TWINKLE = 0.25f;

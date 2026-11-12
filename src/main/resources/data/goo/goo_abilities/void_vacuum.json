@@ -12,7 +12,7 @@
   },
   "behaviors": [
     { "type": "vacuum", "ticks_per_block": 1.25, "decay_ticks": 5 },
-    { "type": "wind", "inward": true, "pitch": 0.6 },
+    { "type": "wind", "inward": true, "pitch": 0.6, "light_color": "#b48ce8", "dark_color": "#7a52b0", "void_motes": true },
     { "type": "vacuum_pull", "item_speed": 1, "mob_speed": 0.2, "stop_distance": 1.5 }
   ],
   "tags": ["stream"]
