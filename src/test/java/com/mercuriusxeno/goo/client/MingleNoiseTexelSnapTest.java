@@ -185,7 +185,7 @@ class MingleNoiseTexelSnapTest {
             int stoneAt = indexAfter(stone, "float field = mingleCornerField(skinCoord, skinTexels, PATCH_CELLS,", 0);
 
             assertTrue(indexAfter(stone, "if (field < threshold)", stoneAt) > stoneAt);
-            assertTrue(vine.contains("mingleCornerField(skinCoord, MINGLE_SKIN_TEXELS, PATCH_CELLS, vec3(0.0)) "
+            assertTrue(vine.contains("mingleCornerField(skinCoord, skinTexels, PATCH_CELLS, vec3(0.0)) "
                 + "< mingleThreshold(share)"), "the tangle thresholds the blend");
             assertTrue(!stone.contains("mingleTexelSnap") && !vine.contains("mingleTexelSnap"),
                 "a skin shader still snaps to texel centres instead of blending corners");

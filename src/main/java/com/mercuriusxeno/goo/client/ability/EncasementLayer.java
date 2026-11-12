@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.model.EntityModel;
-import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
@@ -19,8 +18,6 @@ import net.minecraft.util.ARGB;
 import net.minecraft.util.context.ContextKey;
 import net.minecraft.world.entity.Entity;
 import org.jspecify.annotations.Nullable;
-import java.util.IdentityHashMap;
-import java.util.Map;
 
 /**
  * Draws a mob being encased: its model, and the shell it wears over it such
@@ -67,8 +64,6 @@ public final class EncasementLayer<S extends LivingEntityRenderState, M extends 
     private final ContextKey<Float> shareKey;
     /** The render type sampling this encasement's texture. */
     private final RenderType renderType;
-    /** Each drawn model's skin size, packed as overlay coordinates, by the model's root part. */
-    private final Map<ModelPart, Integer> skinSizeCoordsByRoot = new IdentityHashMap<>();
 
     /**
      * @param parent     the living entity renderer the layer draws over
@@ -188,7 +183,7 @@ public final class EncasementLayer<S extends LivingEntityRenderState, M extends 
      * @param model the model the encasement draws
      * @return the skin size as overlay coordinates, the width in u and the height in v
      */
-    private int skinSizeCoords(EntityModel<?> model) {
-        return skinSizeCoordsByRoot.computeIfAbsent(model.root(), root -> ModelSkinSize.of(root).overlayCoords());
+    private static int skinSizeCoords(EntityModel<?> model) {
+        return ModelSkinSizeCache.sizeOf(model.root()).overlayCoords();
     }
 }
