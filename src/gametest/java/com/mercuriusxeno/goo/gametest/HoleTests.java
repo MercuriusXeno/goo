@@ -68,6 +68,7 @@ public final class HoleTests {
     private static final String WAITS_TO_OPEN_BEFORE_IT_POURS = "hole_waits_to_open_before_it_pours";
     private static final String POURS_EACH_KIND_FROM_WHERE_IT_SWIMS = "hole_pours_each_kind_from_where_it_swims";
     private static final String CLOSED_WHILE_OPENING_KEEPS_ITS_SHELF = "hole_closed_while_opening_keeps_its_shelf";
+    private static final String CLOSES_WHEN_ITS_BLOCK_BREAKS = "hole_closes_when_its_block_breaks";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -92,6 +93,7 @@ public final class HoleTests {
                 HoleTests::poursEachKindFromWhereItSwims);
         GooTestFunctions.registerTest(registrar, CLOSED_WHILE_OPENING_KEEPS_ITS_SHELF,
                 HoleTests::closedWhileOpeningKeepsItsShelf);
+        GooTestFunctions.registerTest(registrar, CLOSES_WHEN_ITS_BLOCK_BREAKS, HoleTests::closesWhenItsBlockBreaks);
     }
 
     private static final String MOUTH_COVERS_THREE_BY_THREE = "hole_mouth_covers_three_by_three";
@@ -229,6 +231,8 @@ public final class HoleTests {
     /** How far, on x and on z, a poured stack may appear from where its kind swims: a float's rounding. */
     private static final double SAME_PLACE = 1e-4;
     static final int SEEDED_GOLD = 5;
+    /** Ticks past the opening the hole's block is broken and the hole given to close. */
+    private static final int BROKEN_SETTLED = 3;
     static final int DROPPED = 5;
     static final int SEEDED_STONE = 70;
     static final int SEEDED_DIAMONDS = 3;
@@ -598,6 +602,28 @@ public final class HoleTests {
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.assertTrue(standing == 1, "One hole should stand for the caster, " + standing + " stand");
             assertHoleOn(helper, caster, SECOND_FLOOR, Direction.UP);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Breaking the block a hole stands on closes the hole: its mouth has no
+     * face left to open across.
+     *
+     * @param helper the gametest helper
+     */
+    public static void closesWhenItsBlockBreaks(GameTestHelper helper) {
+        helper.setBlock(FLOOR, Blocks.STONE);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        HoleOpening.open(helper.getLevel(), caster, helper.absolutePos(FLOOR), Direction.UP, LIFETIME, REFRESH);
+        helper.runAfterDelay(1, () -> {
+            assertHoleOn(helper, caster, FLOOR, Direction.UP);
+            helper.getLevel().destroyBlock(helper.absolutePos(FLOOR), false);
+        });
+        helper.runAfterDelay(BROKEN_SETTLED, () -> {
+            Optional<PortableHole> hole = PortableHoles.of(caster.getUUID());
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(hole.isEmpty(), "Breaking the hole's block should close it, stands " + hole);
             helper.succeed();
         });
     }
