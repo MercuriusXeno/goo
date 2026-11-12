@@ -16,9 +16,10 @@ import java.util.stream.Stream;
 /**
  * Rock petrify's mob step, run on each mob the fog holds each held tick: the
  * mob's petrify gauge fills by the JSON's amount and the mob slows with it,
- * and the tick it fills the mob becomes a statue block, which is permanent
- * until mined. A target that is no mob is left alone.
+ * and the tick it fills the mob becomes a statue block, which stands until
+ * mined or until Heal's stream wakes it. A target that is no mob is left alone.
  * decision petrify-stone-encasement-and-calcify-map
+ * decision heal-wakes-a-statue-at-a-nearly-full-gauge
  *
  * @param fill how much the gauge fills each tick, evaluated on the mob
  */
