@@ -1226,12 +1226,20 @@ public final class GooRenderTypes {
     /** The leaf ghost's through-blocks render type. */
     public static final RenderType LEAF_GHOST_THROUGH_BLOCKS_TYPE = burnoutType(LEAF_GHOST_THROUGH_BLOCKS);
 
+    /** The uniform block the bore drill pipeline reads the bit's shape from. */
+    public static final String BORE_DRILL_BLOCK = "BoreDrill";
+
+    /** The sampler the bore drill reads a copy of the world's depth through. */
+    public static final String BORE_DRILL_DEPTH_SAMPLER = "BoreDrillDepthSampler";
+
     /**
-     * Bore's drill pipeline (decision bore-shows-a-big-drill-from-the-glove):
-     * a solid cone bit from the glove drawn through {@code bore_drill.vsh / .fsh},
-     * spiral grooves spinning about it. Opaque, depth tested and depth written,
-     * both faces drawn, so the bit stands solid and the blocks it sinks into
-     * hide its buried length.
+     * Bore's drill pipeline (decision bore-shows-a-big-drill-from-the-glove),
+     * built as Drain's vortex pipeline is: a box around the bit whose
+     * fragments march to the bit's grooved surface through
+     * {@code bore_drill.vsh / .fsh}, stopping at a copy of the world's depth
+     * so the blocks it sinks into hide its buried length. Opaque where the
+     * march strikes the bit; it passes every depth test and writes none,
+     * since the march clips itself against the world.
      */
     public static final RenderPipeline BORE_DRILL = RenderPipeline.builder(
                     RenderPipelines.MATRICES_PROJECTION_SNIPPET,
@@ -1239,14 +1247,13 @@ public final class GooRenderTypes {
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "bore_drill"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "bore_drill"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "bore_drill"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.QUADS)
+            .withUniform(BORE_DRILL_BLOCK, UniformType.UNIFORM_BUFFER)
+            .withSampler(BORE_DRILL_DEPTH_SAMPLER)
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
             .withColorTargetState(ColorTargetState.DEFAULT)
-            .withDepthStencilState(DepthStencilState.DEFAULT)
-            .withCull(false)
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+            .withCull(true)
             .build();
-
-    /** The bore drill render type. */
-    public static final RenderType BORE_DRILL_TYPE = burnoutType(BORE_DRILL);
 
     /**
      * Ghost trail pipeline (decision ghost-trail-spans-the-blink): an entity's
