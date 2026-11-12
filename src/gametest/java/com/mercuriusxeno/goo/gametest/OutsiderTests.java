@@ -99,6 +99,9 @@ public final class OutsiderTests {
         GooTestFunctions.registerTest(registrar, OUTSIDER_WUB_REACHES_THE_CORNER,
                 OutsiderTests::wubReachesTheRoomsCorner);
         GooTestFunctions.registerTest(registrar, OUTSIDER_GROWS_A_BLOCK_A_SECOND, OutsiderTests::growsOneBlockASecond);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_ENTRY_WAIT_MEASURED, OutsiderTests::entryWaitMeasured);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_ARRIVAL_LOADS_DURING_THE_CHARGE,
+                OutsiderTests::arrivalLoadsDuringTheCharge);
         GooTestFunctions.registerTest(registrar, OUTSIDER_GROWS_FOR_THE_RECKONED_TICKS,
                 OutsiderTests::growsForTheReckonedTicks);
     }
@@ -506,6 +509,81 @@ public final class OutsiderTests {
         });
     }
 
+    private static final String OUTSIDER_ENTRY_WAIT_MEASURED = "outsider_entry_wait_measured";
+    /** The prefix every reading of the entry's wait logs under, one grep finds them. */
+    private static final String ENTRY_WAIT_TAG = "[goo-entry-wait]";
+    /** Ticks past the full charge by which the arrival's chunk must stand loaded and tracked. */
+    private static final int TRACKED_WITHIN = 60;
+    private static final long NANOS_A_MILLI = 1_000_000L;
+    private static final String SHOULD_TRACK_ARRIVAL = "The arrival's chunk should stand loaded and tracked for the "
+            + "caster within %d ticks of the full charge";
+
+    /**
+     * Measures the wait entering the room on the headless server: the
+     * wall-clock time the full charge's tick takes, which carries the caster
+     * in, timed around the hold that completes it; and the ticks from that
+     * hold until the chunk the caster arrives in stands loaded in the pocket
+     * and tracked for them, its sending begun. Each reading logs under one
+     * tag (decision diagnose-and-correct-the-slow-load-into-the-room).
+     *
+     * @param helper the gametest helper
+     */
+    public static void entryWaitMeasured(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        holdFor(helper, caster, CHARGE_TICKS - 1);
+        long[] enterNanos = {-1};
+        int[] ticksSince = {-1};
+        helper.runAfterDelay(CHARGE_TICKS, () -> {
+            long start = System.nanoTime();
+            GooStreamHandler.streamTick(caster, holdOf(caster));
+            enterNanos[0] = System.nanoTime() - start;
+            ticksSince[0] = 0;
+        });
+        helper.onEachTick(() -> {
+            if (ticksSince[0] < 0) {
+                return;
+            }
+            ServerLevel level = (ServerLevel) caster.level();
+            ChunkPos arrival = ChunkPos.containing(caster.blockPosition());
+            boolean loaded = level.getChunkSource().getChunkNow(arrival.x(), arrival.z()) != null;
+            boolean tracked = caster.getChunkTrackingView().contains(arrival);
+            if (level.dimension() == OutsiderRooms.POCKET && loaded && tracked) {
+                Goo.LOGGER.info("{} full charge tick took {} ms; arrival chunk loaded and tracked {} ticks after it",
+                        ENTRY_WAIT_TAG, String.format("%.2f", enterNanos[0] / (double) NANOS_A_MILLI), ticksSince[0]);
+                helper.succeed();
+                ticksSince[0] = Integer.MIN_VALUE;
+                return;
+            }
+            ticksSince[0]++;
+            helper.assertTrue(ticksSince[0] <= TRACKED_WITHIN, String.format(SHOULD_TRACK_ARRIVAL, TRACKED_WITHIN));
+        });
+    }
+
+    private static final String OUTSIDER_ARRIVAL_LOADS_DURING_THE_CHARGE = "outsider_arrival_loads_during_the_charge";
+    private static final String SHOULD_LOAD_ARRIVAL = "The caster's room should stand handed out with its center chunk "
+            + "loaded in the pocket before the charge completes, room %s, loaded %s";
+
+    /**
+     * A caster channeling toward the pocket finds their room's center chunk
+     * loaded before the charge completes, the charge's length spent loading
+     * it, so the full charge's tick does not load it on the server thread
+     * (decision diagnose-and-correct-the-slow-load-into-the-room).
+     *
+     * @param helper the gametest helper
+     */
+    public static void arrivalLoadsDuringTheCharge(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        holdFor(helper, caster, CHARGE_TICKS - 1);
+        helper.runAfterDelay(CHARGE_TICKS - 1, () -> {
+            ServerLevel pocket = helper.getLevel().getServer().getLevel(OutsiderRooms.POCKET);
+            Integer room = pocket == null ? null : OutsiderRooms.roomOf(pocket, caster.getUUID());
+            ChunkPos center = room == null ? null : ChunkPos.containing(OutsiderRooms.voidstoneOf(room));
+            boolean loaded = center != null && pocket.getChunkSource().getChunkNow(center.x(), center.z()) != null;
+            helper.assertTrue(loaded, String.format(SHOULD_LOAD_ARRIVAL, room, loaded));
+            helper.succeed();
+        });
+    }
+
     private static ConjuredDoor doorOf(GameTestHelper helper, ServerPlayer caster, int tick) {
         Optional<ConjuredDoor> door = ConjuredDoors.doorOf(caster.getUUID());
         helper.assertTrue(door.isPresent(), String.format(SHOULD_CONJURE, tick));
@@ -806,10 +884,13 @@ public final class OutsiderTests {
     }
 
     private static void holdAt(GameTestHelper helper, ServerPlayer caster, int tick) {
-        helper.runAfterDelay(tick, () -> GooStreamHandler.streamTick(caster,
-                new GooStreamPayload(GooTypes.id(GooTypes.VOID), OUTSIDER.toString(), caster.getEyePosition(),
-                        caster.getEyePosition().add(caster.getLookAngle()), caster.blockPosition().below(),
-                        GooStreamPayload.NO_FACE)));
+        helper.runAfterDelay(tick, () -> GooStreamHandler.streamTick(caster, holdOf(caster)));
+    }
+
+    private static GooStreamPayload holdOf(ServerPlayer caster) {
+        return new GooStreamPayload(GooTypes.id(GooTypes.VOID), OUTSIDER.toString(), caster.getEyePosition(),
+                caster.getEyePosition().add(caster.getLookAngle()), caster.blockPosition().below(),
+                GooStreamPayload.NO_FACE);
     }
 
     private static int assertEntered(GameTestHelper helper, ServerPlayer caster) {
