@@ -33,17 +33,30 @@ class SkyFunnelTest {
     class Profile {
 
         @Test
-        void theRadiusGrowsWithTheSquareOfTheHeight() {
-            double step = SkyFunnel.HEIGHT / 4;
-            double spout = SkyFunnel.radiusAt(0);
-            double first = SkyFunnel.radiusAt(step);
-            double second = SkyFunnel.radiusAt(2 * step);
-            double third = SkyFunnel.radiusAt(3 * step);
+        void theWallsMeetInAPointOnTheDoorwaysTop() {
+            BlockPos upperCell = OutsiderRooms.doorOf(0).above();
+            List<Vec3> point = SkyFunnel.rings(NEAR_ROOM).getFirst();
 
-            assertEquals(SkyFunnel.SPOUT_RADIUS, spout, EXACT, "the spout's own radius at the doorway");
-            assertTrue(first > spout && second > first && third > second, "each step wider than the one below");
-            assertTrue(second - first > first - spout && third - second > second - first,
-                    "each step gains more than the one below, so the sides flatten toward the top");
+            assertEquals(0, SkyFunnel.heightAt(0), EXACT, "the point stands on the doorway's top");
+            for (Vec3 vertex : point) {
+                assertEquals(NEAR_ROOM.centerX() + HALF_BLOCK, vertex.x(), EXACT, "at radius zero");
+                assertEquals(NEAR_ROOM.centerZ() + HALF_BLOCK, vertex.z(), EXACT, "at radius zero");
+                assertEquals(upperCell.getY() + 1, vertex.y(), EXACT, "on the top of the upper cell");
+            }
+        }
+
+        @Test
+        void theHeightIsADownwardParabolaOfTheRadiusLevelAtTheRim() {
+            double step = SkyFunnel.RIM_RADIUS / SkyFunnel.BANDS;
+            double firstGain = SkyFunnel.heightAt(step) - SkyFunnel.heightAt(0);
+            double gainBelow = Double.MAX_VALUE;
+            for (int band = 0; band < SkyFunnel.BANDS; band++) {
+                double gain = SkyFunnel.heightAt((band + 1) * step) - SkyFunnel.heightAt(band * step);
+                assertTrue(gain > 0, "each step stands higher than the one before");
+                assertTrue(gain < gainBelow, "each step gains less height than the one before");
+                gainBelow = gain;
+            }
+            assertTrue(gainBelow < firstGain / 10, "the last step before the rim is level");
         }
     }
 
