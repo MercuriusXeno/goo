@@ -63,21 +63,21 @@ const float CLUMP_DENSITY = 1.8;
 const float HAZE_DENSITY = 0.08;
 // The shell: the share of the radius it thickens from, is full by and ends at, and how much dust a
 // block of it holds.
-const float SHELL_FROM = 0.55;
-const float SHELL_FULL = 0.66;
-const float SHELL_EDGE = 0.76;
+const float SHELL_FROM = 0.3;
+const float SHELL_FULL = 0.4;
+const float SHELL_EDGE = 0.5;
 const float SHELL_DENSITY = 5.0;
 // How far the cone wobbles, as a share of its radius, so it is never a perfect cone.
 const float CONE_WOBBLE = 0.2;
 // The screw threads: how many wind round the cone, the turns each makes a block along it, how fast they
 // turn (whole turns a day), a thread's half width as a share of its period, how far it stands out past
 // the shell as a share of the radius, how far its path wanders, and how much dust a block of it holds.
-const float THREADS = 3.0;
-const float THREAD_TURNS_PER_BLOCK = 1.5;
+const float THREADS = 2.0;
+const float THREAD_TURNS_PER_BLOCK = 1.0;
 const float THREAD_TURNS_PER_SECOND = 1.0;
-const float THREAD_HALF = 0.2;
-const float THREAD_HEIGHT = 0.2;
-const float THREAD_WANDER = 0.3;
+const float THREAD_HALF = 0.13;
+const float THREAD_HEIGHT = 0.5;
+const float THREAD_WANDER = 0.08;
 const float THREAD_DENSITY = 12.0;
 // The frills: wispy strands trailing off the shell's outside, how fine round the cone and along it, how
 // fast they stream backward, the noise level a strand starts at, and how much dust a block of one holds.
@@ -223,7 +223,7 @@ vec3 dustAt(vec3 point, float seconds) {
             + wander) * THREADS);
     float threadWidth = THREAD_HALF * (0.7 + 0.6 * noise(vec3(facing * 2.0, along * 3.0) + 3.0));
     float thread = smoothstep(threadWidth, threadWidth * 0.4, abs(threadPhase - 0.5));
-    float edge = SHELL_EDGE + THREAD_HEIGHT * thread;
+    float edge = SHELL_EDGE + THREAD_HEIGHT * thread * (0.7 + 0.6 * noise(vec3(facing * 5.0, along * 6.0 - seconds) + 41.0));
     float shell = smoothstep(SHELL_FROM, SHELL_FULL, outward) * (1.0 - smoothstep(edge - 0.05, edge, outward));
     float strand = noise(vec3(facing * FRILL_AROUND, (along + seconds * FRILL_STREAM) * FRILL_ALONG + outward * 6.0)
             + 53.0);
