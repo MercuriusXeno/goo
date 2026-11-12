@@ -72,9 +72,11 @@ class ChainBurnoutsTest {
         assertSame(FrostExplosionVisual.INSTANCE, BurnoutVisuals.forType(GooTypes.FROST));
     }
 
+    /** anti-moves-from-nether-to-void: the black hole's rush is Void's, and Nether keeps none. */
     @Test
-    void netherResolvesItsOwnExplosion() {
-        assertSame(NetherExplosionVisual.INSTANCE, BurnoutVisuals.forType(GooTypes.NETHER));
+    void voidResolvesTheBlackHolesRush() {
+        assertSame(NetherExplosionVisual.INSTANCE, BurnoutVisuals.forType(GooTypes.VOID));
+        assertInstanceOf(BurnoutVisual.UndesignedBurnout.class, BurnoutVisuals.forType(GooTypes.NETHER));
     }
 
     @Test

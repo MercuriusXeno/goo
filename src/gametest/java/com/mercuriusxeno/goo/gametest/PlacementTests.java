@@ -56,7 +56,7 @@ public final class PlacementTests {
     private static final BlockPos GRASS_POS = GRASS_SOIL_POS.above();
     private static final String CRYSTAL_CLOUD = "goo:crystal_cloud";
     private static final String METAL_SPIKES = "goo:metal_spikes";
-    private static final String NETHER_BLACK_HOLE = "goo:nether_black_hole";
+    private static final String BLACK_HOLE = "goo:void_black_hole";
     private static final String UNSTABLE_PROXIMITY_MINE = "goo:unstable_lurker";
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
     private static final String FIRST_MARKER_CHANGED = "A second throw changed the first marker";
@@ -181,7 +181,7 @@ public final class PlacementTests {
     }
 
     /**
-     * The crystal, metal, nether and unstable abilities that stand while
+     * The crystal, metal, void and unstable abilities that stand while
      * their programs run all place their markers through the same path.
      *
      * @param helper the gametest helper
@@ -189,7 +189,7 @@ public final class PlacementTests {
     public static void otherTypesPlaceMarker(GameTestHelper helper) {
         Map<ResourceKey<GooTypeDefinition>, String> abilities = Map.of(
             GooTypes.CRYSTAL, CRYSTAL_CLOUD, GooTypes.METAL, METAL_SPIKES,
-            GooTypes.NETHER, NETHER_BLACK_HOLE, GooTypes.UNSTABLE, UNSTABLE_PROXIMITY_MINE);
+            GooTypes.VOID, BLACK_HOLE, GooTypes.UNSTABLE, UNSTABLE_PROXIMITY_MINE);
         abilities.forEach((type, abilityId) -> {
             helper.setBlock(WALL_POS, Blocks.STONE);
             helper.setBlock(AIR_POS, Blocks.AIR);

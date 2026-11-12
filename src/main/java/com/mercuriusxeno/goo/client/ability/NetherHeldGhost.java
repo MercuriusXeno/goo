@@ -33,7 +33,7 @@ public final class NetherHeldGhost implements HeldGhostVisual {
 
     @Override
     public ResourceKey<GooTypeDefinition> gooType() {
-        return GooTypes.NETHER;
+        return GooTypes.VOID;
     }
 
     /**

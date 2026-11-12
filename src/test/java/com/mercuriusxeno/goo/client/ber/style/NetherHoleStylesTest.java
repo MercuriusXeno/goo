@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 /**
- * Tests that the nether hole style follows the configured shape, and that
+ * Tests that the black hole style follows the configured shape, and that
  * the client config defaults to the sphere with the lens off, the cube
  * being the shape a player opts into.
  */

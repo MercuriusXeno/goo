@@ -40,7 +40,7 @@ public final class LeafSteps {
     /**
      * Takes every breakable block within a sphere around the host anchor
      * into the hoard the host keeps, each as its silk-touched drops; the
-     * nether black hole consumes its blast sphere as it leaves its expand
+     * black hole consumes its blast sphere as it leaves its expand
      * phase: {@code consume_blocks radius=3}.
      */
     public static final LeafStepType<Expr> CONSUME_BLOCKS = StepType.of("consume_blocks", "radius", HOARD,
@@ -51,7 +51,7 @@ public final class LeafSteps {
 
     /**
      * Leaves the host's hoard as one compression sphere at the anchor,
-     * emptying it; the nether black hole drops what it pulled in once it
+     * emptying it; the black hole drops what it pulled in once it
      * has contracted: {@code drop_sphere}.
      */
     public static final LeafStepType<Unit> DROP_SPHERE = StepType.of("drop_sphere", NO_PARAMS, HOARD,
