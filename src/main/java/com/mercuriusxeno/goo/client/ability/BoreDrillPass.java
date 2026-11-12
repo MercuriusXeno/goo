@@ -31,7 +31,7 @@ import java.util.OptionalInt;
  * Draws Bore's vortex in one render pass on its own pipeline, as Drain's
  * vortex draws: the box around the vortex as an {@link InwardBox}, inside
  * which {@code bore_drill.fsh} marches the vortex's churning earth dust,
- * sampled on the world's grid of sixteen texels a block. It reads a copy of
+ * sampled smoothly along each ray. It reads a copy of
  * the world's depth: a surface standing outside the vortex hides it behind
  * it, and a surface inside the vortex, a block Bore is breaking, hides nothing.
  * decision bore-shows-a-big-drill-from-the-glove
@@ -47,8 +47,6 @@ final class BoreDrillPass {
     private static final String TRANSFORMS_UNIFORM = "DynamicTransforms";
     /** Blocks the box stands past the bit, so no fragment of its ragged rim is clipped at a face. */
     private static final double BOX_MARGIN = 0.25;
-    /** The period the camera's position is taken modulo, so the grid holds to the world in floats. */
-    private static final long GRID_PERIOD = 16;
     private static final int FACES = InwardBox.FACES;
     private static final int CORNERS = InwardBox.CORNERS;
     private static final int INDICES_PER_QUAD = InwardBox.INDICES_PER_QUAD;
@@ -67,10 +65,9 @@ final class BoreDrillPass {
      * Draws the bit.
      *
      * @param bit       the bit, camera relative
-     * @param camera    the camera's world position
      * @param modelView the level's model view matrix this frame
      */
-    static void draw(ConeSections.Volume bit, Vec3 camera, Matrix4fc modelView) {
+    static void draw(ConeSections.Volume bit, Matrix4fc modelView) {
         if (bit.range() <= 0) {
             return;
         }
@@ -79,7 +76,7 @@ final class BoreDrillPass {
         depth.copyDepthFrom(main);
         GpuDevice device = RenderSystem.getDevice();
         BLOCK.clear();
-        pack(BLOCK, bit, camera, device.isZZeroToOne());
+        pack(BLOCK, bit, device.isZZeroToOne());
         GpuBuffer uniforms = device.createBuffer(() -> UNIFORM_BUFFER, GpuBuffer.USAGE_UNIFORM, BLOCK.flip());
         try (ByteBufferBuilder bytes = new ByteBufferBuilder(FACES * CORNERS
                 * DefaultVertexFormat.POSITION_COLOR.getVertexSize())) {
@@ -138,20 +135,15 @@ final class BoreDrillPass {
      *
      * @param out       where the bytes go, at its position
      * @param bit       the bit, camera relative
-     * @param camera    the camera's world position
      * @param zeroToOne whether the device's depth runs 0 to 1
      */
-    private static void pack(ByteBuffer out, ConeSections.Volume bit, Vec3 camera, boolean zeroToOne) {
+    private static void pack(ByteBuffer out, ConeSections.Volume bit, boolean zeroToOne) {
         ByteBuffer rows = out.order(ByteOrder.nativeOrder());
         row(rows, bit.apex(), bit.radiusAt().applyAsDouble(0));
         row(rows, bit.axis(), bit.range());
         row(rows, FireField.sideOf(bit.axis()), zeroToOne ? 1 : 0);
-        row(rows, new Vec3(gridOf(camera.x), gridOf(camera.y), gridOf(camera.z)),
+        row(rows, Vec3.ZERO,
                 bit.radiusAt().applyAsDouble(bit.range()));
-    }
-
-    private static double gridOf(double value) {
-        return Math.floorMod((long) Math.floor(value), GRID_PERIOD) + value - Math.floor(value);
     }
 
     private static void row(ByteBuffer rows, Vec3 xyz, double w) {
