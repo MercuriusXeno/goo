@@ -172,8 +172,10 @@ public class GooBlocks {
                     .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
     /**
      * Slick: the thin electric blue and white film Kinetic's Slick lays on a
-     * block's top, slippery as ice and ramping what moves on it
-     * (decisions slick-coats-the-ground-with-kinetic-speed, kinetic-is-electric-blue-and-white).
+     * block's top, slippery as ice and ramping what moves on it, dropping the
+     * kinetic goo its film cost through KineticSlickBlock.getDrops, no loot
+     * table (decisions slick-coats-the-ground-with-kinetic-speed,
+     * kinetic-is-electric-blue-and-white, breaking-slick-drops-kinetic-goo-worth-its-film).
      */
     public static final DeferredBlock<KineticSlickBlock> KINETIC_SLICK = BLOCKS.registerBlock(
             "kinetic_slick", KineticSlickBlock::new,
