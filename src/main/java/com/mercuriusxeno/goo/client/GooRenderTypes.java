@@ -314,7 +314,7 @@ public final class GooRenderTypes {
     public static final RenderType METEOR_ROCK_TYPE = burnoutType(METEOR_ROCK);
 
     /**
-     * Nether black-hole pipeline: POSITION_COLOR billboard quad with a custom
+     * Black-hole pipeline: POSITION_COLOR billboard quad with a custom
      * vertex + fragment shader pair (nether_blackhole.vsh / .fsh). Reads the
      * implosion progress from the vertex Color.r channel and animates swirl
      * bands with {@code GameTime}. Depth write ON so the sphere solidly
@@ -332,7 +332,7 @@ public final class GooRenderTypes {
             .withCull(false)
             .build();
 
-    /** RenderType that submits the nether black-hole billboard quad. */
+    /** RenderType that submits the black-hole billboard quad. */
     public static final RenderType NETHER_BLACKHOLE_TYPE = RenderType.create(
             "goo_nether_blackhole",
             RenderSetup.builder(NETHER_BLACKHOLE)
@@ -341,7 +341,7 @@ public final class GooRenderTypes {
     );
 
     /**
-     * Nether black-hole corona pipeline: second render pass that emits
+     * Black-hole corona pipeline: second render pass that emits
      * the same sphere mesh at a slightly larger radius with additive
      * LIGHTNING blend and depth-write OFF, producing an emissive halo
      * that sits in the annular gap just outside the main sphere's
@@ -663,7 +663,7 @@ public final class GooRenderTypes {
     public static final RenderType SUNBEAM_SCORCH_GLOW_TYPE = burnoutType(SUNBEAM_SCORCH_GLOW);
 
     /**
-     * Nether black-hole accretion-disk pipeline: third render pass that
+     * Black-hole accretion-disk pipeline: third render pass that
      * emits a flat annular ring in the world XZ plane around the sphere,
      * inner radius pinned to the main sphere radius and outer radius at
      * {@code DISK_OUTER_SCALE * main}. Additive LIGHTNING blend with
@@ -1772,7 +1772,7 @@ public final class GooRenderTypes {
     }
 
     /**
-     * Registers the nether black hole's pipelines: its body, corona, disk and
+     * Registers the black hole's pipelines: its body, corona, disk and
      * cube edges, and their held and through-blocks twins.
      *
      * @param event the event instance

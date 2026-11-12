@@ -17,17 +17,33 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class NetherExplosionVisualTest {
 
+    private static final String BLACK_HOLE = "void_black_hole";
+    /** A radius a drag sets, in blocks. */
+    private static final double DRAGGED = 4;
     private static final float START = 5f;
     private static final float TOLERANCE = 1e-5f;
     private static final int SAMPLES = 30;
 
     @Test
     void rushSpansTheBlackHolesGather() {
-        PhasedStep program = (PhasedStep) LingerStep.bodyOf(AbilityJson.decode("nether_black_hole").behaviors())
+        PhasedStep program = (PhasedStep) LingerStep.bodyOf(AbilityJson.decode(BLACK_HOLE).behaviors())
                 .orElseThrow().getFirst();
         StepPhase gather = program.phases().getFirst();
         assertEquals("gather", gather.name());
         assertEquals(NetherExplosionVisual.DURATION_TICKS, gather.ticks().evaluateInt(Variables.NONE));
+    }
+
+    /**
+     * anti-moves-from-nether-to-void: every Void landing announces a Void
+     * burnout, so the rush draws only for a program holding the phased
+     * gather, the black hole's, and Hole's and Erase's landings draw none.
+     */
+    @Test
+    void rushStartsFromTheDraggedRadiusAndDrawsForNoOtherVoidLanding() {
+        assertEquals(DRAGGED, NetherExplosionVisual.rushReach(AbilityJson.decode(BLACK_HOLE).behaviors(), DRAGGED)
+                .orElseThrow(), TOLERANCE);
+        assertTrue(NetherExplosionVisual.rushReach(AbilityJson.decode("void_hole").behaviors(), DRAGGED).isEmpty());
+        assertTrue(NetherExplosionVisual.rushReach(AbilityJson.decode("void_erase").behaviors(), DRAGGED).isEmpty());
     }
 
     @Test

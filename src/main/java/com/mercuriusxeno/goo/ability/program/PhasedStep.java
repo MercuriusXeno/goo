@@ -16,7 +16,7 @@ import java.util.stream.Stream;
  * phase leaves.
  *
  * <p>The cursor lives in the host's {@link PhasedState}, which the host's
- * renderer reads with the {@code radius} it evaluates off this step: the nether black hole
+ * renderer reads with the {@code radius} it evaluates off this step: the black hole
  * grows its sphere through {@code expand}, holds it, and shrinks it
  * through {@code contract}.
  *

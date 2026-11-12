@@ -7,7 +7,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 
 /**
- * Swap-in strategy for the nether black-hole visual. Each implementation
+ * Swap-in strategy for the black-hole visual. Each implementation
  * is free to own its geometry, shaders, lens-markup behavior, and any
  * style-specific per-frame state it stashes on {@link AbilityBlockRenderState}.
  * {@link AbilityBlockRenderer} dispatches extract
