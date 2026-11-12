@@ -13,12 +13,8 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import java.util.EnumMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -28,8 +24,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * it wraps at the room's width east to west and north to south, so a copy
  * meets the room with no seam (decision voidstone-starfield-tiles-in-either-direction),
  * a block of the room shows one look in the room and in every copy of it,
- * and the block the boundary cuts holds a star in fewer of its texels than a
- * block wholly inside (decision room-edge-draws-a-sparser-starfield).
+ * and every star, the block the boundary cuts included, holds its texel and
+ * brightness as the room grows (decision room-edge-draws-a-sparser-starfield).
  * The model holds the shader's expressions it mirrors, and fails where the
  * shader drifts from them.
  */
@@ -104,61 +100,49 @@ class VoidstoneFieldTest {
         }
 
         private static double glowAt(double x, double z, Matrix4f room, double ticks) {
-            return VoidstoneFieldModel.roomFace(x, z, FLOOR_Y, CENTER_X + 0.3, CENTER_Z + 0.7, room, false, ticks)
+            return VoidstoneFieldModel.roomFace(x, z, FLOOR_Y, CENTER_X + 0.3, CENTER_Z + 0.7, room, ticks)
                     .glow();
         }
     }
 
     @Nested
-    class TheEdgeDrawsSparseStars {
+    class StarsHoldAsTheRoomGrows {
 
-        private static final double PARTWAY = 2.3;
+        /** The room cut three tenths into the ring two out, then past that ring, then into the ring three out. */
+        private static final double[] EXTENTS = {2.3, 2.6, 3.1};
         private static final int TEXELS = 16;
 
         @Test
-        void theEdgesStarShareSitsAboveNoneAndBelowTheVoidstones() {
-            double edge = constant("EDGE_STARS");
-            double voidstone = constant("BRIGHT_STARS") + constant("DIM_STARS");
-
-            assertTrue(edge > 0, "the edge should hold stars");
-            assertTrue(edge < voidstone, "the edge's star share " + edge + " should sit below the voidstone's "
-                    + voidstone);
-        }
-
-        @Test
-        void aCutBlockHoldsAStarInFewerOfItsTexelsThanABlockWhollyInside() {
+        void everyStarKeepsItsTexelAndBrightnessTheEdgeBlockIncluded() {
             BlockPos center = OutsiderRooms.voidstoneOf(6);
-            RoomExtent.Bounds bounds = new RoomExtent.Bounds(center.getX(), center.getZ(), PARTWAY);
-            Matrix4f room = VoidstoneRoom.matrixOf(Optional.of(bounds));
-            Map<VoidstoneStars.Density, int[]> drawnAndStarred = new EnumMap<>(VoidstoneStars.Density.class);
-            for (VoidstoneStars.Column column : VoidstoneStars.floorColumns(bounds)) {
-                int[] counts = drawnAndStarred.computeIfAbsent(column.density(), density -> new int[2]);
+            RoomExtent.Bounds first = new RoomExtent.Bounds(center.getX(), center.getZ(), EXTENTS[0]);
+            int edgeStars = 0;
+            for (VoidstoneStars.Column column : VoidstoneStars.floorColumns(first)) {
+                boolean edge = first.cutsBlock(column.x(), column.z());
                 for (int texelX = 0; texelX < TEXELS; texelX++) {
                     for (int texelZ = 0; texelZ < TEXELS; texelZ++) {
-                        VoidstoneFieldModel.Look look = VoidstoneFieldModel.roomFace(
-                                column.x() + (texelX + 0.5) / TEXELS, column.z() + (texelZ + 0.5) / TEXELS, FLOOR_Y,
-                                center.getX() + 0.3, center.getZ() + 0.7, room,
-                                column.density() == VoidstoneStars.Density.SPARSE, 0);
-                        if (look.drawn()) {
-                            counts[0]++;
-                            counts[1] += look.star() > 0 ? 1 : 0;
+                        double x = column.x() + (texelX + 0.5) / TEXELS;
+                        double z = column.z() + (texelZ + 0.5) / TEXELS;
+                        VoidstoneFieldModel.Look before = lookAt(x, z, center, EXTENTS[0]);
+                        if (!before.drawn()) {
+                            continue;
+                        }
+                        edgeStars += edge && before.star() > 0 ? 1 : 0;
+                        for (double extent : EXTENTS) {
+                            assertEquals(before.star(), lookAt(x, z, center, extent).star(),
+                                    "the star at " + x + ", " + z + " should hold at extent " + extent);
                         }
                     }
                 }
             }
-            int[] cut = drawnAndStarred.getOrDefault(VoidstoneStars.Density.SPARSE, new int[2]);
-            int[] whole = drawnAndStarred.getOrDefault(VoidstoneStars.Density.FULL, new int[2]);
-
-            assertTrue(cut[1] > 0, "the cut blocks should hold a star, of " + cut[0] + " texels drawn");
-            assertTrue((double) cut[1] / cut[0] < (double) whole[1] / whole[0], "the cut blocks hold a star in "
-                    + cut[1] + " of " + cut[0] + " texels, the whole blocks in " + whole[1] + " of " + whole[0]);
+            assertTrue(edgeStars > 0, "the edge blocks should hold stars");
         }
 
-        private static double constant(String name) {
-            Matcher value = Pattern.compile("const\\s+float\\s+" + name + "\\s*=\\s*([0-9.]+)\\s*;")
-                    .matcher(SkyResources.text(VOID_STARS));
-            assertTrue(value.find(), VOID_STARS + " should define " + name);
-            return Double.parseDouble(value.group(1));
+        private static VoidstoneFieldModel.Look lookAt(double x, double z, BlockPos center, double extent) {
+            Matrix4f room = VoidstoneRoom.matrixOf(
+                    Optional.of(new RoomExtent.Bounds(center.getX(), center.getZ(), extent)));
+            return VoidstoneFieldModel.roomFace(x, z, FLOOR_Y, center.getX() + 0.3, center.getZ() + 0.7, room,
+                    CLOCKS[1]);
         }
     }
 
@@ -195,11 +179,11 @@ class VoidstoneFieldTest {
                         double x = CENTER.getX() + BLOCK_EAST + (texelX + 0.5) / TEXELS;
                         double z = CENTER.getZ() + BLOCK_SOUTH + (texelZ + 0.5) / TEXELS;
                         VoidstoneFieldModel.Look inRoom = VoidstoneFieldModel.roomFace(x, z, FLOOR_Y, cameraX,
-                                cameraZ, room, false, ticks);
+                                cameraZ, room, ticks);
                         starred += inRoom.star() > 0 ? 1 : 0;
                         for (RoomCopies.Offset offset : offsets) {
                             VoidstoneFieldModel.Look inCopy = VoidstoneFieldModel.copyFace(x + offset.east(),
-                                    z + offset.south(), FLOOR_Y, offset, cameraX, cameraZ, room, false, ticks);
+                                    z + offset.south(), FLOOR_Y, offset, cameraX, cameraZ, room, ticks);
                             assertEquals(inRoom.glow(), inCopy.glow(), GLOW_TOLERANCE,
                                     "the glow, and with it the base color, at " + x + ", " + z + " in copy " + offset);
                             assertEquals(inRoom.star(), inCopy.star(), GLOW_TOLERANCE,

@@ -43,7 +43,7 @@ public final class RoomExtent {
      * A room's boundary in world blocks: its center voidstone's column and
      * its extent, which the server's build test and the client's star test
      * both read, so the blocks a build refuses at the boundary are the blocks
-     * drawn with a sparser starfield.
+     * the shader clips at the boundary plane.
      * decision grown-extent-is-the-one-wrap-and-build-boundary
      * decision boundary-cut-voidstone-draws-without-its-stars
      *

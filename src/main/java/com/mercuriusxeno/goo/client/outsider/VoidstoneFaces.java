@@ -32,10 +32,10 @@ import java.util.Map;
  * are found once by scanning the section's palette and blocks, kept until the
  * level renderer marks that section dirty, and drawn in one batch a frame,
  * and again in each view through a linked portal, around that view's camera.
- * {@link VoidstoneStars} answers how densely each block draws its stars: the
- * full starfield wholly inside the room's boundary, a sparser one on the
- * block the boundary cuts, and none beyond it, where the plain dark faces
- * stand. The room's copies draw their starred faces through RoomCopyRenderer.
+ * Only voidstone {@link VoidstoneStars} stars draws them: every block wholly
+ * inside the room's boundary and the block the boundary cuts, which draws the
+ * same tiling starfield; beyond it the plain dark faces stand. The room's
+ * copies draw their starred faces through RoomCopyRenderer.
  * decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform
  * decision boundary-cut-voidstone-draws-without-its-stars
  * decision room-edge-draws-a-sparser-starfield
@@ -46,10 +46,7 @@ public final class VoidstoneFaces {
     /** Chunks out from the player whose voidstone the stars draw on, past which the plain dark block stands. */
     private static final int REACH_CHUNKS = 12;
     private static final int SECTION_BLOCKS = 16;
-    /** The vertex color of a face drawing the full starfield. */
-    private static final int FULL_FACE = 0xFFFFFFFF;
-    /** The vertex color of a face drawing a sparser starfield, which the shader reads by its red. */
-    private static final int SPARSE_FACE = 0xFF000000;
+    private static final int OPAQUE_WHITE = 0xFFFFFFFF;
     private static final int[] NO_FACES = new int[0];
     private static final int AXIS_BITS = 4;
     /** Where a packed face keeps its z: past x's and y's bits. */
@@ -132,47 +129,32 @@ public final class VoidstoneFaces {
         double originZ = cornerZ - camera.z;
         for (int face : faces) {
             // decision boundary-cut-voidstone-draws-without-its-stars: read each frame, so a moved boundary shows
-            VoidstoneStars.Density density = VoidstoneStars.density(cornerX + (face & AXIS_MASK),
-                    cornerZ + (face >> Z_SHIFT & AXIS_MASK));
-            if (density == VoidstoneStars.Density.BARE) {
+            if (!VoidstoneStars.starred(cornerX + (face & AXIS_MASK), cornerZ + (face >> Z_SHIFT & AXIS_MASK))) {
                 continue;
             }
             float blockX = (float) (originX + (face & AXIS_MASK));
             float blockY = (float) (originY + (face >> AXIS_BITS & AXIS_MASK));
             float blockZ = (float) (originZ + (face >> Z_SHIFT & AXIS_MASK));
-            emitFace(consumer, pose, new BlockCorner(blockX, blockY, blockZ),
-                    Direction.from3DDataValue(face >> DIRECTION_SHIFT & DIRECTION_MASK), density);
+            emitFace(consumer, pose, blockX, blockY, blockZ,
+                    Direction.from3DDataValue(face >> DIRECTION_SHIFT & DIRECTION_MASK));
         }
     }
 
     /**
-     * A block's low corner, as the pose lays it out.
-     *
-     * @param x the low x
-     * @param y the low y
-     * @param z the low z
-     */
-    record BlockCorner(float x, float y, float z) {
-    }
-
-    /**
-     * Emits one voidstone face as a quad over its block's side, its vertex
-     * color telling the shader how densely the face draws its stars: opaque
-     * white for full, opaque black for sparse.
-     * decision room-edge-draws-a-sparser-starfield
+     * Emits one voidstone face as a quad over its block's side.
      *
      * @param consumer  the voidstone pipeline's vertex consumer
      * @param pose      the pose
-     * @param block     the block's low corner
+     * @param blockX    the block's low x corner, as the pose lays it out
+     * @param blockY    the block's low y corner
+     * @param blockZ    the block's low z corner
      * @param direction the side the face covers
-     * @param density   how densely the face draws its stars
      */
-    static void emitFace(VertexConsumer consumer, PoseStack.Pose pose, BlockCorner block, Direction direction,
-            VoidstoneStars.Density density) {
-        int color = density == VoidstoneStars.Density.SPARSE ? SPARSE_FACE : FULL_FACE;
+    static void emitFace(VertexConsumer consumer, PoseStack.Pose pose, float blockX, float blockY, float blockZ,
+            Direction direction) {
         for (float[] corner : CORNERS[direction.get3DDataValue()]) {
-            consumer.addVertex(pose, block.x() + corner[X], block.y() + corner[Y], block.z() + corner[Z])
-                    .setColor(color)
+            consumer.addVertex(pose, blockX + corner[X], blockY + corner[Y], blockZ + corner[Z])
+                    .setColor(OPAQUE_WHITE)
                     .setNormal(pose, direction.getStepX(), direction.getStepY(), direction.getStepZ());
         }
     }
