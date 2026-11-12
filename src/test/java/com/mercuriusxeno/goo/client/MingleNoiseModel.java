@@ -40,9 +40,6 @@ public final class MingleNoiseModel {
         return ((float) Math.floor(coordinate * texelsPerUnit) + 0.5f) / texelsPerUnit;
     }
 
-    /** MINGLE_SKIN_TEXELS: a mob skin's texels across its [0, 1] coordinates. */
-    public static final float SKIN_TEXELS = 64f;
-
     /**
      * mingleField at a point, as the shader reads it.
      *

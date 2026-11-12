@@ -9,10 +9,10 @@ import java.util.Map;
 /**
  * A model's skin size in texels, width and height apart, read off its baked
  * cubes, which keep their size in texels while their texture coordinates are
- * divided by the skin's size. The encasement and vine shaders lay one texel of
- * their texture per skin texel from it, so the stone and the vines keep the
- * mob's own texel size on a skin of any shape, a spider's 64 by 32 as a
- * zombie's 64 by 64.
+ * divided by the skin's size. The encasement, vine and ailment overlay shaders
+ * lay their texels and noise on it, so the stone, the vines and the overlay
+ * keep the mob's own texel size on a skin of any shape, a spider's 64 by 32 as
+ * a zombie's 64 by 64.
  * Decisions diagnose-and-correct-petrify-stone-stretching-off-native-texels,
  * diagnose-and-correct-vines-and-ailment-overlay-assuming-a-square-skin.
  *
