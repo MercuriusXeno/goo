@@ -47,7 +47,7 @@ public final class HeldDomeRenderer {
     private static final int RING_PEAK_ALPHA = 160;
     /** Offset to a block's center from its corner. */
     private static final double BLOCK_CENTER = 0.5;
-    /** A sized black hole pulls from three times its radius, void_black_hole.json's {@code 3 * size}. */
+    /** A sized black hole pulls from three times its radius, void_dark_star.json's {@code 3 * size}. */
     static final float PULL_REACH_PER_RADIUS = 3f;
 
     /** The ghost each goo type holds; a type with none draws no dome. */
