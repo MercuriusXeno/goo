@@ -26,8 +26,7 @@ import java.util.Optional;
  * wide as the vortex the bore breaks there, hidden by what stands in front
  * of it and never by the blocks it breaks. {@link BoreDrillPass} marches it
  * as Drain's vortex is marched: a churning, sparse, patchy swirl of earthy
- * dust in rock's tones, its cone defined by a rifled shell, ragged and
- * blocky.
+ * dust in rock's tones, its cone defined by a rifled shell, ragged.
  * decision bore-shows-a-big-drill-from-the-glove
  * decision bore-breaks-what-is-in-the-vortex
  * decision bore-vortex-with-a-worldspace-shake
@@ -132,7 +131,7 @@ public final class BoreDrill {
         ConeSections.Volume full = volume(eyeSeenFrom(mc, player, partialTick, camera),
                 player.getViewVector(partialTick), player.getViewYRot(partialTick), bore.delivery().range(),
                 step.vortexNearRadius(), step.vortexFarRadius());
-        BoreDrillPass.draw(emerged(full, emergedShare(GloveUseTracker.channelTicks() + partialTick)), camera,
+        BoreDrillPass.draw(emerged(full, emergedShare(GloveUseTracker.channelTicks() + partialTick)),
                 event.getModelViewMatrix());
     }
 
