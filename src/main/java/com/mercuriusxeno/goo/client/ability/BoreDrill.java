@@ -21,12 +21,12 @@ import java.util.Optional;
  * Bore's vortex: while right click holds a bore stream, a vortex of earth
  * magic is held out in front of the player, starting a little below their
  * line of sight with a wide mouth so they look down along it and see its
- * shape, and meeting their line of sight at the bore's reach, narrowing to
- * an open, blunt far end, never wider than a block. At each depth it is as
+ * shape, and meeting their line of sight at the bore's reach, narrowing
+ * toward a point, never wider than a block. At each depth it is as
  * wide as the vortex the bore breaks there, hidden by what stands in front
  * of it and never by the blocks it breaks. {@link BoreDrillPass} marches it
  * as Drain's vortex is marched: a churning, sparse, patchy swirl of earthy
- * dust in rock's tones, streaks wound round it as a drill's are, ragged and
+ * dust in rock's tones, its cone defined by a rifled shell, ragged and
  * blocky.
  * decision bore-shows-a-big-drill-from-the-glove
  * decision bore-breaks-what-is-in-the-vortex
