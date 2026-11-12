@@ -31,6 +31,23 @@ class BoreContactSprayTest {
         }
     }
 
+    /** The spit comes from where the drawn vortex meets the block, so it traces the drawn vortex's own axis. */
+    @Test
+    void theContactIsTracedAlongTheDrawnVortexNotTheLineOfSight() {
+        Vec3 eye = new Vec3(0.5, 65.62, 0.5);
+        Vec3 look = new Vec3(0, 0, 1);
+        ConeSections.Volume drawn = BoreDrill.volume(eye, look, 0f, REACH, NEAR, FAR);
+        Vec3[] line = BoreContactSpray.contactLine(eye, look, 0f, REACH, NEAR, FAR);
+        assertEquals(0, line[0].distanceTo(drawn.apex()), SLACK);
+        assertEquals(0, line[1].distanceTo(drawn.apex().add(drawn.axis().scale(drawn.range()))), SLACK);
+        assertTrue(line[0].y < eye.y, "the trace starts on the line of sight, not where the vortex is held");
+    }
+
+    @Test
+    void itSpitsOneParticleATick() {
+        assertEquals(1, BoreContactSpray.SPITS_PER_TICK);
+    }
+
     @Test
     void theSpitSpreadsAcrossTheVortexsWidthAtTheContactsDepth() {
         assertEquals(NEAR, BoreContactSpray.widthAt(0, REACH, NEAR, FAR), SLACK);

@@ -192,6 +192,13 @@ class GroundShakeTest {
     @Nested
     class Players {
 
+        /** decision bore-shows-a-big-drill-from-the-glove: Bore's particles come from its vortex's contact alone */
+        @Test
+        void aBoreShedsNoCrumbsWhileAFlattenStillDoes() {
+            assertFalse(GroundShake.shedsCrumbs(ability(new BoreStep(BREAKABLE, PACE))));
+            assertTrue(GroundShake.shedsCrumbs(ability(new FlattenStep(BREAKABLE, PACE))));
+        }
+
         @Test
         void aHeldBoreAndAHeldFlattenEachShakeTheGround() {
             assertTrue(GroundShake.shakes(ability(new BoreStep(BREAKABLE, PACE)), true, HELD_LONG));
