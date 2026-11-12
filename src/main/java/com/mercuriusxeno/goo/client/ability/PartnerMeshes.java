@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.client.ability.SectionMeshes.Built;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
@@ -9,25 +10,14 @@ import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.AddressMode;
 import com.mojang.blaze3d.textures.FilterMode;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.MeshData;
-import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.client.renderer.block.BlockQuadOutput;
-import net.minecraft.client.renderer.block.FluidRenderer;
-import net.minecraft.client.renderer.block.ModelBlockRenderer;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
-import net.minecraft.client.renderer.chunk.VisGraph;
 import net.minecraft.client.renderer.chunk.VisibilitySet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.data.AtlasIds;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.block.RenderShape;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
@@ -38,7 +28,6 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
-import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -60,7 +49,6 @@ public final class PartnerMeshes {
 
     /** How many streamed chunks tesselate in one frame, so a fresh stream lands without a hitch. */
     private static final int CHUNKS_PER_FRAME = 1;
-    private static final int BUFFER_START = 1 << 16;
     private static final String PASS_LABEL = "Goo streamed far side";
     /** The block pipelines' uniform and samplers, as the game's moving blocks bind them. */
     private static final String TRANSFORMS = "DynamicTransforms";
@@ -71,18 +59,6 @@ public final class PartnerMeshes {
 
     static {
         OPEN.setAll(true);
-    }
-
-    /**
-     * One section's tesselated layers, each with the memory it lives in, and
-     * which of its faces see through to which.
-     */
-    private record Built(SectionPos section, Map<ChunkSectionLayer, MeshData> meshes,
-            Map<ChunkSectionLayer, ByteBufferBuilder> memory, VisibilitySet visibility) {
-        void close() {
-            meshes.values().forEach(MeshData::close);
-            memory.values().forEach(ByteBufferBuilder::close);
-        }
     }
 
     /** Each streamed chunk's sections as last tesselated, keyed by the sections array they were read from. */
@@ -145,7 +121,7 @@ public final class PartnerMeshes {
                     if (sections[index].hasOnlyAir()) {
                         graph.put(section, OPEN);
                     } else {
-                        Built mesh = tesselate(view, section);
+                        Built mesh = SectionMeshes.tesselate(view, section, (at, state) -> true);
                         meshes.add(mesh);
                         graph.put(section, mesh.visibility());
                     }
@@ -158,85 +134,13 @@ public final class PartnerMeshes {
         }
     }
 
-    /**
-     * Tesselates one streamed section, its blocks and fluids laid out from the
-     * section's origin as the game's section compiler lays them.
-     *
-     * @param view    the streamed view
-     * @param section the section
-     * @return its meshes
-     */
-    private static Built tesselate(PartnerView view, SectionPos section) {
-        Minecraft mc = Minecraft.getInstance();
-        Map<ChunkSectionLayer, BufferBuilder> builders = new EnumMap<>(ChunkSectionLayer.class);
-        Map<ChunkSectionLayer, ByteBufferBuilder> memory = new EnumMap<>(ChunkSectionLayer.class);
-        ModelBlockRenderer blocks = new ModelBlockRenderer(mc.options.ambientOcclusion().get(), true,
-                mc.getBlockColors());
-        FluidRenderer fluids = new FluidRenderer(mc.getModelManager().getFluidStateModelSet());
-        FluidRenderer.Output fluidOut = layer -> builderFor(builders, memory, layer);
-        BlockQuadOutput quadOut = (x, y, z, quad, instance) ->
-                builderFor(builders, memory, quad.materialInfo().layer()).putBlockBakedQuad(x, y, z, quad, instance);
-        BlockPos origin = section.origin();
-        VisGraph sight = new VisGraph();
-        for (BlockPos pos : BlockPos.betweenClosed(origin, origin.offset(SectionPos.SECTION_MAX_INDEX,
-                SectionPos.SECTION_MAX_INDEX, SectionPos.SECTION_MAX_INDEX))) {
-            BlockState state = view.getBlockState(pos);
-            if (state.isAir()) {
-                continue;
-            }
-            if (state.isSolidRender()) {
-                sight.setOpaque(pos);
-            }
-            if (!state.getFluidState().isEmpty()) {
-                fluids.tesselate(view, pos, fluidOut, state, state.getFluidState());
-            }
-            if (state.getRenderShape() == RenderShape.MODEL) {
-                blocks.tesselateBlock(quadOut, SectionPos.sectionRelative(pos.getX()),
-                        SectionPos.sectionRelative(pos.getY()), SectionPos.sectionRelative(pos.getZ()), view, pos,
-                        state, mc.getModelManager().getBlockStateModelSet().get(state), state.getSeed(pos));
-            }
-        }
-        Map<ChunkSectionLayer, MeshData> meshes = new EnumMap<>(ChunkSectionLayer.class);
-        builders.forEach((layer, builder) -> {
-            MeshData mesh = builder.build();
-            if (mesh != null) {
-                meshes.put(layer, mesh);
-            }
-        });
-        return new Built(section, meshes, memory, sight.resolve());
-    }
-
-    private static VertexConsumer builderFor(Map<ChunkSectionLayer, BufferBuilder> builders,
-            Map<ChunkSectionLayer, ByteBufferBuilder> memory, ChunkSectionLayer layer) {
-        return builders.computeIfAbsent(layer, key -> {
-            ByteBufferBuilder bytes = new ByteBufferBuilder(BUFFER_START);
-            memory.put(key, bytes);
-            return new BufferBuilder(bytes, VertexFormat.Mode.QUADS, pipelineOf(key).getVertexFormat());
-        });
-    }
-
-    /**
-     * The block pipeline a section layer draws with outside the game's own
-     * section pass: the one moving blocks draw with.
-     *
-     * @param layer the layer
-     * @return the pipeline
-     */
-    private static RenderPipeline pipelineOf(ChunkSectionLayer layer) {
-        return switch (layer) {
-            case SOLID -> RenderPipelines.SOLID_BLOCK;
-            case CUTOUT -> RenderPipelines.CUTOUT_BLOCK;
-            case TRANSLUCENT -> RenderPipelines.TRANSLUCENT_BLOCK;
-        };
-    }
-
     private static void draw(Built built, ChunkSectionLayer layer, Matrix4f view, Vec3 camera) {
         MeshData mesh = built.meshes().get(layer);
         if (mesh == null) {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
-        RenderPipeline pipeline = pipelineOf(layer);
+        RenderPipeline pipeline = SectionMeshes.pipelineOf(layer);
         BlockPos origin = built.section().origin();
         Matrix4f modelView = new Matrix4f(view).translate((float) (origin.getX() - camera.x()),
                 (float) (origin.getY() - camera.y()), (float) (origin.getZ() - camera.z()));
