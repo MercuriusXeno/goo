@@ -11,9 +11,10 @@
 // point, never wider than a block, its tip tattering a little. It is a sparse, chaotically patchy swirl of
 // earthy dust, as Drain's is: clumps with holes between them, rippled by a warp, poured outward and swirled
 // round the axis, dark at a clump's thick core and paler at its thin edge. Its cone reads by its shell:
-// the dust thickens into a wall just inside the vortex's edge, crisp at the edge, cut by rifling, pale
-// bands wound round the cone and turning as it bores, which show through the translucent dust from inside
-// and out. It thickens over its first stretch, so it fades in where it is held rather than starting hard.
+// the dust thickens into a wall inside the vortex's edge, and screw threads wound round the cone stand out
+// from it, pale and turning as it bores, showing through the translucent dust from inside and out. Nothing
+// about it is geometrically perfect: the cone wobbles, the threads wander and vary in width, and wispy
+// frills trail off the shell's outside, all within the vortex's edge. It thickens over its first stretch, so it fades in where it is held rather than starting hard.
 // Each ray marches smoothly through it, as Drain's does.
 // Each ray stops at whatever the world drew there when that surface stands outside the vortex, so what
 // stands in front of it hides it; a surface inside the vortex is a block Bore is breaking, which hides
@@ -60,23 +61,35 @@ const float CORE_DEPTH = 0.15;
 // How much dust a block of clump holds, and of the haze in the holes.
 const float CLUMP_DENSITY = 1.8;
 const float HAZE_DENSITY = 0.08;
-// The shell: the share of the radius it thickens from and is full by, and how much dust a block of it
-// holds between the rifling's bands and on them.
-const float SHELL_FROM = 0.7;
-const float SHELL_FULL = 0.86;
+// The shell: the share of the radius it thickens from, is full by and ends at, and how much dust a
+// block of it holds.
+const float SHELL_FROM = 0.55;
+const float SHELL_FULL = 0.66;
+const float SHELL_EDGE = 0.76;
 const float SHELL_DENSITY = 5.0;
-const float RIFLED_DENSITY = 14.0;
-// The rifling: bands round the cone, the turns each makes a block along it, how fast they turn (whole
-// turns a day), and a band's half width as a share of its period.
-const float RIFLES = 3.0;
-const float RIFLE_TURNS_PER_BLOCK = 1.5;
-const float RIFLE_TURNS_PER_SECOND = 1.0;
-const float RIFLE_HALF = 0.22;
-// The rim frays inward from this share of the radius, ragged by the body noise this far, little, so the
-// cone's edge stays crisp; no dust stands past the vortex's edge, so the vortex is never drawn wider than
-// it breaks.
-const float RIM_FROM = 0.92;
-const float FRAY = 0.12;
+// How far the cone wobbles, as a share of its radius, so it is never a perfect cone.
+const float CONE_WOBBLE = 0.2;
+// The screw threads: how many wind round the cone, the turns each makes a block along it, how fast they
+// turn (whole turns a day), a thread's half width as a share of its period, how far it stands out past
+// the shell as a share of the radius, how far its path wanders, and how much dust a block of it holds.
+const float THREADS = 3.0;
+const float THREAD_TURNS_PER_BLOCK = 1.5;
+const float THREAD_TURNS_PER_SECOND = 1.0;
+const float THREAD_HALF = 0.2;
+const float THREAD_HEIGHT = 0.2;
+const float THREAD_WANDER = 0.3;
+const float THREAD_DENSITY = 12.0;
+// The frills: wispy strands trailing off the shell's outside, how fine round the cone and along it, how
+// fast they stream backward, the noise level a strand starts at, and how much dust a block of one holds.
+const float FRILL_AROUND = 9.0;
+const float FRILL_ALONG = 4.0;
+const float FRILL_STREAM = 2.5;
+const float FRILL_FROM = 0.6;
+const float FRILL_DENSITY = 5.0;
+// The rim frays inward from this share of the radius, ragged by the body noise this far; no dust stands
+// past the vortex's edge, so the vortex is never drawn wider than it breaks.
+const float RIM_FROM = 0.8;
+const float FRAY = 0.35;
 // The tip tatters from this share of the length out, torn into strands and gaps by a fine,
 // fast noise flowing outward, ragged this far, so the end is messy and never holds still.
 const float FAR_FROM = 0.6;
@@ -200,10 +213,22 @@ vec3 dustAt(vec3 point, float seconds) {
     float clump = smoothstep(CLUMP_FROM - CLUMP_SOFT, CLUMP_FROM + CLUMP_SOFT, body);
     float core = smoothstep(CLUMP_FROM, CLUMP_FROM + CORE_DEPTH, body);
 
-    float rifled = smoothstep(RIFLE_HALF, RIFLE_HALF * 0.5, abs(fract((theta / TAU + along * RIFLE_TURNS_PER_BLOCK
-            - seconds * RIFLE_TURNS_PER_SECOND) * RIFLES) - 0.5));
-    float shell = smoothstep(SHELL_FROM, SHELL_FULL, share);
-    float wall = shell * (SHELL_DENSITY + RIFLED_DENSITY * rifled);
+    // the unit direction round the axis, free of the seam an angle carries where it wraps
+    vec2 facing = section / max(length(section), 1e-4);
+    // the cone wobbles, so the shell and threads stand at an uneven distance from the axis
+    float wobble = noise(vec3(section * 1.5, along * 1.2 - seconds * 0.5) + 31.0) - 0.5;
+    float outward = share * (1.0 - CONE_WOBBLE * wobble);
+    float wander = THREAD_WANDER * (noise(vec3(section * 2.0, along * 2.0) + 7.0) - 0.5);
+    float threadPhase = fract((theta / TAU + along * THREAD_TURNS_PER_BLOCK - seconds * THREAD_TURNS_PER_SECOND
+            + wander) * THREADS);
+    float threadWidth = THREAD_HALF * (0.7 + 0.6 * noise(vec3(facing * 2.0, along * 3.0) + 3.0));
+    float thread = smoothstep(threadWidth, threadWidth * 0.4, abs(threadPhase - 0.5));
+    float edge = SHELL_EDGE + THREAD_HEIGHT * thread;
+    float shell = smoothstep(SHELL_FROM, SHELL_FULL, outward) * (1.0 - smoothstep(edge - 0.05, edge, outward));
+    float strand = noise(vec3(facing * FRILL_AROUND, (along + seconds * FRILL_STREAM) * FRILL_ALONG + outward * 6.0)
+            + 53.0);
+    float frill = smoothstep(FRILL_FROM, FRILL_FROM + 0.15, strand) * smoothstep(SHELL_EDGE - 0.1, SHELL_EDGE, outward);
+    float wall = shell * (SHELL_DENSITY + THREAD_DENSITY * thread) + FRILL_DENSITY * frill;
 
     float ragged = body - 0.5;
     float tatter = noise(vec3(section * TATTER_ACROSS, (along - seconds * TATTER_FLOW) * TATTER_ALONG) + 17.0);
@@ -212,7 +237,7 @@ vec3 dustAt(vec3 point, float seconds) {
             * (1.0 - smoothstep(FAR_FROM, 1.0, along / vortexLength + TATTER * torn))
             * smoothstep(0.0, HELD_THICKEN, along);
     float density = frayed * (CLUMP_DENSITY * clump + HAZE_DENSITY + wall);
-    float pale = RIFLED_DENSITY * rifled * shell * frayed;
+    float pale = (THREAD_DENSITY * thread * shell + 0.5 * FRILL_DENSITY * frill) * frayed;
     return vec3(density, core * (1.0 - shell), clamp(pale / max(density, 1e-3), 0.0, 1.0));
 }
 
