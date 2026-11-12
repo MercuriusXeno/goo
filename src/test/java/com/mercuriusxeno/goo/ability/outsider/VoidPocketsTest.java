@@ -2,8 +2,11 @@ package com.mercuriusxeno.goo.ability.outsider;
 
 import com.google.gson.JsonObject;
 import com.mojang.serialization.JsonOps;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import java.util.Map;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -33,5 +36,29 @@ class VoidPocketsTest {
                         "block (" + east + ", " + south + ") of the completed square should stand inside");
             }
         }
+    }
+
+    /**
+     * A room never grown holds the 9 by 9 around its center voidstone.
+     * decision outsider-room-starts-nine-by-nine
+     */
+    @Test
+    void aRoomNeverGrownHoldsTheNineByNine() {
+        VoidPockets.Platform laid = new VoidPockets().platformOf(UUID.randomUUID());
+
+        assertEquals(4.5, laid.extent(), EXACT);
+        assertEquals(81, RoomExtent.wholeCells(laid.extent()));
+    }
+
+    /**
+     * A room saved smaller than the 9 by 9 keeps its saved extent, as the operator ruled for new rooms only.
+     * decision outsider-room-starts-nine-by-nine
+     */
+    @Test
+    void aRoomSavedSmallerKeepsItsSavedExtent() {
+        UUID player = UUID.randomUUID();
+        VoidPockets pockets = new VoidPockets(Map.of(), Map.of(), Map.of(player, new VoidPockets.Platform(2.5)));
+
+        assertEquals(2.5, pockets.platformOf(player).extent(), EXACT);
     }
 }
