@@ -23,8 +23,8 @@ import java.util.Optional;
  * line of sight with a wide mouth so they look down along it and see its
  * shape, and meeting their line of sight at the bore's reach, narrowing
  * toward a point, never wider than a block. At each depth it is as
- * wide as the vortex the bore breaks there, hidden by what stands in front
- * of it and never by the blocks it breaks. {@link BoreDrillPass} marches it
+ * wide as the vortex the bore breaks there, clipped by the blocks it meets,
+ * where {@link BoreContactSpray} spits their particles. {@link BoreDrillPass} marches it
  * as Drain's vortex is marched: a churning, sparse, patchy swirl of earthy
  * dust in rock's tones, its cone defined by a rifled shell, ragged.
  * decision bore-shows-a-big-drill-from-the-glove
@@ -205,7 +205,7 @@ public final class BoreDrill {
                 : player.getEyePosition(partialTick).subtract(camera);
     }
 
-    private static Optional<BoreStep> stepOf(ClientAbility bore) {
+    static Optional<BoreStep> stepOf(ClientAbility bore) {
         return bore.behaviors().stream().filter(BoreStep.class::isInstance).map(BoreStep.class::cast).findFirst();
     }
 

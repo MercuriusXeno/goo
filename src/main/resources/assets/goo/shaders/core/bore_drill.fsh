@@ -16,9 +16,9 @@
 // about it is geometrically perfect: the cone wobbles, the threads wander and vary in width, and wispy
 // frills trail off the shell's outside, all within the vortex's edge. It thickens over its first stretch, so it fades in where it is held rather than starting hard.
 // Each ray marches smoothly through it, as Drain's does.
-// Each ray stops at whatever the world drew there when that surface stands outside the vortex, so what
-// stands in front of it hides it; a surface inside the vortex is a block Bore is breaking, which hides
-// nothing. TRANSLUCENT blend, capped so what it drills still shows.
+// Each ray stops at whatever the world drew there, so the blocks the vortex meets clip it, and BoreDrill
+// spits the block's particles where it makes contact. TRANSLUCENT blend, capped so what it drills still
+// shows.
 
 // Must match BoreDrillPass.pack: four std140 rows.
 layout(std140) uniform BoreDrill {
@@ -103,9 +103,6 @@ const float TATTER_ALONG = 2.4;
 const float TATTER_FLOW = 1.5;
 // Blocks from where it is held the vortex thickens across, so it fades in rather than starting hard.
 const float HELD_THICKEN = 0.5;
-// How far past the vortex, in blocks, a surface still counts as inside it: a texel, so the face of a
-// block the vortex just touches still reads as a block it is breaking.
-const float SURFACE_SLACK = 0.0625;
 // The most the dust covers what lies behind it, so the blocks it drills still show.
 const float MOST_COVER = 0.85;
 
@@ -146,17 +143,6 @@ float sceneDistance(vec3 eye, mat4 viewToWorld) {
     vec4 view = inverse(ProjMat) * vec4(gl_FragCoord.xy / ScreenSize * 2.0 - 1.0, ndcDepth, 1.0);
     vec3 world = (viewToWorld * vec4(view.xyz / view.w, 1.0)).xyz;
     return length(world - eye);
-}
-
-// Whether a point stands inside the vortex, a texel's slack included: a surface there is a block Bore is
-// breaking.
-bool insideVortex(vec3 point) {
-    vec3 offset = point - ApexRadius.xyz;
-    float along = dot(offset, AxisLength.xyz);
-    if (along < -SURFACE_SLACK || along > AxisLength.w + SURFACE_SLACK) {
-        return false;
-    }
-    return length(offset - along * AxisLength.xyz) <= radiusAt(along) + SURFACE_SLACK;
 }
 
 // Where the ray enters and leaves the ball holding the whole vortex, as distances along it.
@@ -253,7 +239,7 @@ void main() {
     vec2 span = throughBall(eye, dir);
     float near = max(span.x, 0.0);
     float scene = sceneDistance(eye, viewToWorld);
-    float far = insideVortex(eye + dir * scene) ? span.y : min(span.y, scene);
+    float far = min(span.y, scene);
     if (far <= near) {
         discard;
     }

@@ -32,8 +32,7 @@ import java.util.OptionalInt;
  * vortex draws: the box around the vortex as an {@link InwardBox}, inside
  * which {@code bore_drill.fsh} marches the vortex's churning earth dust,
  * sampled smoothly along each ray. It reads a copy of
- * the world's depth: a surface standing outside the vortex hides it behind
- * it, and a surface inside the vortex, a block Bore is breaking, hides nothing.
+ * the world's depth, so the blocks the vortex meets clip it.
  * decision bore-shows-a-big-drill-from-the-glove
  */
 final class BoreDrillPass {
