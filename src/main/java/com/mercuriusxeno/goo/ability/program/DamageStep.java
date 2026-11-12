@@ -38,9 +38,12 @@ import java.util.stream.Stream;
  * @param invulnerableTicks the immunity ticks the hit leaves, when set; none otherwise
  * @param iFrames           whether the hit respects the target's i-frames, landing only as vanilla lets a hit land
  *                          and leaving vanilla's immunity behind, rather than clearing it on both sides
+ * @param healsUndead       whether an undead target is healed by the amount instead, as Decay's bite and Hive's
+ *                          strike heal it; a hit respecting i-frames heals no faster than it would land, and a
+ *                          living caster the hit reaches takes nothing
  */
 public record DamageStep(Expr amount, DamageKind source, boolean knockback,
-                         Optional<Expr> invulnerableTicks, boolean iFrames) implements Step {
+                         Optional<Expr> invulnerableTicks, boolean iFrames, boolean healsUndead) implements Step {
 
     /**
      * Expire's damage type, which the vanilla bypass tags name.
@@ -66,6 +69,7 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
     private static final String FIELD_KNOCKBACK = "knockback";
     private static final String FIELD_INVULNERABLE_TICKS = "invulnerable_ticks";
     private static final String FIELD_I_FRAMES = "i_frames";
+    private static final String FIELD_HEALS_UNDEAD = "heals_undead";
 
     /**
      * Codec for the step's params.
@@ -75,7 +79,8 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
             DamageKind.CODEC.optionalFieldOf(FIELD_SOURCE, DamageKind.MAGIC).forGetter(DamageStep::source),
             Codec.BOOL.optionalFieldOf(FIELD_KNOCKBACK, true).forGetter(DamageStep::knockback),
             Expr.CODEC.optionalFieldOf(FIELD_INVULNERABLE_TICKS).forGetter(DamageStep::invulnerableTicks),
-            Codec.BOOL.optionalFieldOf(FIELD_I_FRAMES, false).forGetter(DamageStep::iFrames)
+            Codec.BOOL.optionalFieldOf(FIELD_I_FRAMES, false).forGetter(DamageStep::iFrames),
+            Codec.BOOL.optionalFieldOf(FIELD_HEALS_UNDEAD, false).forGetter(DamageStep::healsUndead)
     ).apply(inst, DamageStep::new));
 
     /**
@@ -104,7 +109,7 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
      * @param invulnerableTicks the immunity ticks the hit leaves, when set; none otherwise
      */
     public DamageStep(Expr amount, DamageKind source, boolean knockback, Optional<Expr> invulnerableTicks) {
-        this(amount, source, knockback, invulnerableTicks, false);
+        this(amount, source, knockback, invulnerableTicks, false, false);
     }
 
     @Override
@@ -115,6 +120,9 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
     @Override
     public boolean tick(StepContext context) {
         LivingEntity target = context.hostAs(TargetHost.class).target();
+        if (healsUndead && healedOrSpared(target, context)) {
+            return true;
+        }
         // A goo hit clears damage immunity on both sides, so a touch and the melee hit of the same
         // attack-key press both land in full, in either order; a held bite respecting i-frames leaves it be.
         // decision attack-key-touches-plus-punches
@@ -134,6 +142,24 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
             target.invulnerableTime = invulnerableTicks.map(ticks -> ticks.evaluateInt(context)).orElse(0);
         }
         return true;
+    }
+
+    /**
+     * Heals an undead target in place of the hit, or leaves a living caster
+     * the hit reached as it stands.
+     * decision decay-and-hive-heal-an-undead-target
+     * decision undead-player-counts-as-undead-for-heal-and-decay
+     *
+     * @param target  the entity the hit reaches
+     * @param context the tick's scope
+     * @return true when the hit is spent without hurting
+     */
+    private boolean healedOrSpared(LivingEntity target, StepContext context) {
+        if (UndeadInversion.inverts(target)) {
+            UndeadInversion.healUndead(target, amount.evaluateFloat(context), iFrames);
+            return true;
+        }
+        return UndeadInversion.sparesCaster(target, context.hostAs(TargetHost.class).thrower());
     }
 
     /**
