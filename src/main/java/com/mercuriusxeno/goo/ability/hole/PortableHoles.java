@@ -95,8 +95,10 @@ public final class PortableHoles {
     }
 
     /**
-     * Swallows what meets each open mouth and closes the holes whose time is
-     * up or whose owner left their level, telling the clients when one closes.
+     * Swallows what meets each open mouth, pours each ceiling's hole once it
+     * stands fully open, and closes the holes whose time is up, whose blocks
+     * no longer offer their face, or whose owner left their level, telling the
+     * clients when one closes or pours.
      *
      * @param event the post-tick event
      */
@@ -108,23 +110,41 @@ public final class PortableHoles {
         }
         // decision hole-closes-with-the-outsider-wub-reversed-and-pitched-down
         // read before the removal, which keeps no record of why each hole closed
-        List<PortableHole> ranOut = OPEN.values().stream().filter(hole -> ranOut(server, hole)).toList();
+        List<PortableHole> heard = OPEN.values().stream().filter(hole -> closesHeard(server, hole)).toList();
         boolean changed = OPEN.values().removeIf(hole -> closes(server, hole));
-        ranOut.forEach(hole -> playClosing(server.getLevel(hole.dimension()), hole.mouth().getCenter()));
+        heard.forEach(hole -> playClosing(server.getLevel(hole.dimension()), hole.mouth().getCenter()));
         for (Map.Entry<UUID, PortableHole> open : OPEN.entrySet()) {
-            PortableHole hole = open.getValue();
-            ServerLevel level = server.getLevel(hole.dimension());
-            // a swallow changes what the mouth shows swimming in it and when it closes, so the clients hear of it
-            List<PortableHolesSyncPayload.Swallowed> swallowed = hole.swallows() ? swallow(level, hole) : List.of();
-            if (!swallowed.isEmpty()) {
-                SWALLOWED.put(hole.owner(), swallowed);
-                open.setValue(hole.fedAt(level.getGameTime()));
-                changed = true;
-            }
+            changed |= tickOpen(server.getLevel(open.getValue().dimension()), open);
         }
         if (changed) {
             sync(server);
         }
+    }
+
+    /**
+     * Pours a ceiling's hole that stands fully open and swallows what meets a
+     * floor's mouth, keeping the hole as it stands after.
+     *
+     * @param level the hole's level
+     * @param open  the hole's entry among the open holes
+     * @return true when the clients must hear of the change
+     */
+    private static boolean tickOpen(ServerLevel level, Map.Entry<UUID, PortableHole> open) {
+        PortableHole hole = open.getValue();
+        // decision hole-pours-each-kind-from-where-it-swims-once-open: the clients hear of the emptied shelf
+        if (hole.poursAt(level.getGameTime())) {
+            HoleOpening.pour(level, hole);
+            open.setValue(hole.pouredOut());
+            return true;
+        }
+        // a swallow changes what the mouth shows swimming in it and when it closes, so the clients hear of it
+        List<PortableHolesSyncPayload.Swallowed> swallowed = hole.swallows() ? swallow(level, hole) : List.of();
+        if (swallowed.isEmpty()) {
+            return false;
+        }
+        SWALLOWED.put(hole.owner(), swallowed);
+        open.setValue(hole.fedAt(level.getGameTime()));
+        return true;
     }
 
     /**
@@ -155,8 +175,9 @@ public final class PortableHoles {
     }
 
     /**
-     * Whether a hole closes: its level is gone, its time is up, or its owner
-     * is away or stands in another level.
+     * Whether a hole closes: its level is gone, its time is up, a block of
+     * its footprint no longer offers the face its mouth lies across, or its
+     * owner is away or stands in another level.
      *
      * @param server the server
      * @param hole   the hole
@@ -164,26 +185,57 @@ public final class PortableHoles {
      */
     private static boolean closes(MinecraftServer server, PortableHole hole) {
         ServerLevel level = server.getLevel(hole.dimension());
-        ServerPlayer owner = server.getPlayerList().getPlayer(hole.owner());
-        return level == null || level.getGameTime() >= hole.closesAt() || owner == null
-                || !owner.level().dimension().equals(hole.dimension());
+        return level == null || spent(level, hole) || !ownerStandsIn(server, hole);
     }
 
     /**
-     * Whether a hole closes because its time ran out while its owner stands
-     * in its level, the closing a player hears; a hole its owner left closes
-     * silently.
+     * Whether a hole closes, while its owner stands in its level, because its
+     * time ran out or a block under its mouth stopped offering its face: the
+     * closings a player hears. A hole its owner left closes silently.
      * decision hole-closes-with-the-outsider-wub-reversed-and-pitched-down
      *
      * @param server the server
      * @param hole   the hole
-     * @return true when the hole's time is up and its owner stands in its level
+     * @return true when the hole closes in its owner's hearing
      */
-    private static boolean ranOut(MinecraftServer server, PortableHole hole) {
+    private static boolean closesHeard(MinecraftServer server, PortableHole hole) {
         ServerLevel level = server.getLevel(hole.dimension());
+        return level != null && spent(level, hole) && ownerStandsIn(server, hole);
+    }
+
+    /**
+     * Whether a hole has done standing in its own level: its time is up, or a
+     * block under its mouth stopped offering its face.
+     *
+     * @param level the hole's level
+     * @param hole  the hole
+     * @return true when the hole closes whoever stands by
+     */
+    private static boolean spent(ServerLevel level, PortableHole hole) {
+        return level.getGameTime() >= hole.closesAt() || lostItsFace(level, hole);
+    }
+
+    /**
+     * @param server the server
+     * @param hole   the hole
+     * @return whether the hole's owner is on the server and stands in the hole's level
+     */
+    private static boolean ownerStandsIn(MinecraftServer server, PortableHole hole) {
         ServerPlayer owner = server.getPlayerList().getPlayer(hole.owner());
-        return level != null && level.getGameTime() >= hole.closesAt() && owner != null
-                && owner.level().dimension().equals(hole.dimension());
+        return owner != null && owner.level().dimension().equals(hole.dimension());
+    }
+
+    /**
+     * Whether a block of a hole's footprint stopped offering the face its
+     * mouth lies across, broken, swapped or covered, so the mouth has no face
+     * left to open on.
+     *
+     * @param level the hole's level
+     * @param hole  the hole
+     * @return true where any block of the footprint no longer offers the face
+     */
+    private static boolean lostItsFace(ServerLevel level, PortableHole hole) {
+        return !hole.footprint().stream().allMatch(cell -> HoleFootprint.offers(level, cell, hole.face()));
     }
 
     /**
@@ -192,7 +244,7 @@ public final class PortableHoles {
      *
      * @param level the hole's level
      * @param hole  the hole
-     * @return each item swallowed, as many as a mouth shows stored, for the clients to draw easing in
+     * @return each item swallowed, as many as one sync tells of, for the clients to draw easing in
      */
     private static List<PortableHolesSyncPayload.Swallowed> swallow(ServerLevel level, PortableHole hole) {
         List<ItemEntity> fallen = level.getEntitiesOfClass(ItemEntity.class, hole.mouth(), ItemEntity::isAlive);
@@ -202,7 +254,7 @@ public final class PortableHoles {
         PocketShelves shelves = PocketShelves.get(level);
         List<PortableHolesSyncPayload.Swallowed> swallowed = new ArrayList<>();
         for (ItemEntity item : fallen) {
-            if (swallowed.size() < PortableHolesSyncPayload.MOST_STORED_SHOWN) {
+            if (swallowed.size() < PortableHolesSyncPayload.MOST_SWALLOWS_TOLD) {
                 swallowed.add(new PortableHolesSyncPayload.Swallowed(
                         BuiltInRegistries.ITEM.getKey(item.getItem().getItem()), item.position(), level.getGameTime()));
             }
@@ -266,8 +318,7 @@ public final class PortableHoles {
         PocketShelves shelves = PocketShelves.get(player.level());
         PortableHolesSyncPayload payload = new PortableHolesSyncPayload(OPEN.values().stream()
                 .filter(hole -> hole.dimension().equals(player.level().dimension()))
-                .map(hole -> new PortableHolesSyncPayload.Mouth(hole.footprint(), hole.face(), hole.openedAt(),
-                        hole.closesAt(), storedOf(shelves, hole.owner()), swallowedInto(hole.owner())))
+                .map(hole -> mouthOf(shelves, hole))
                 .toList());
         // A listener that never negotiated the mod's channels, a gametest's mock player, gets no sync.
         if (player.connection.hasChannel(payload)) {
@@ -276,15 +327,28 @@ public final class PortableHoles {
     }
 
     /**
-     * The first kinds an owner stored, as many as a mouth shows, for the
-     * client to draw swimming in the mouth.
+     * The mouth the clients are told of for a hole: where it stands, its
+     * span, the kinds its owner stored and what it swallowed last.
+     *
+     * @param shelves the server's shelves
+     * @param hole    the hole
+     * @return the mouth as a sync carries it
+     */
+    public static PortableHolesSyncPayload.Mouth mouthOf(PocketShelves shelves, PortableHole hole) {
+        return new PortableHolesSyncPayload.Mouth(hole.footprint(), hole.face(), hole.openedAt(), hole.closesAt(),
+                storedOf(shelves, hole.owner()), swallowedInto(hole.owner()));
+    }
+
+    /**
+     * Every kind an owner stored, for the client to draw swimming in the mouth.
+     * decision hole-shows-every-kind-stored
      *
      * @param shelves the server's shelves
      * @param owner   the hole's owner
      * @return the kinds and their counts, in shelf order
      */
     private static List<PortableHolesSyncPayload.Stored> storedOf(PocketShelves shelves, UUID owner) {
-        return shelves.shelfOf(owner).stream().limit(PortableHolesSyncPayload.MOST_STORED_SHOWN)
+        return shelves.shelfOf(owner).stream()
                 .map(entry -> new PortableHolesSyncPayload.Stored(
                         BuiltInRegistries.ITEM.getKey(entry.kind().getItem()), entry.count()))
                 .toList();

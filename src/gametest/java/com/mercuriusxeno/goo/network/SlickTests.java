@@ -36,6 +36,21 @@ public final class SlickTests {
     private static final String SLICK_SLIDES_AN_ITEM = "slick_slides_an_item_without_speeding_it";
     private static final String SLICK_SPEEDS_A_MOB = "slick_speeds_up_a_mob_walking_on_it";
     private static final String SLICK_RAISES_A_WALKER = "slick_raises_a_slow_walker_to_its_start_speed";
+    private static final String SLICK_LAYS_FASTER = "slick_lays_faster_under_a_streamer_traveling_on_slick";
+    private static final String SLICK_LAYS_AT_ITS_TICKS = "slick_lays_at_its_ticks_under_a_streamer_at_rest";
+    /** kinetic_slick.json's slick ticks. */
+    private static final int JSON_LAY_TICKS = 20;
+    /** The traveling streamer's speed east, in blocks a tick. */
+    private static final double TRAVEL_SPEED = 0.6;
+    /**
+     * The held ticks slick takes under the traveling streamer: a walking
+     * player's unadjusted speed is about 0.2159 blocks a tick, so the factor
+     * is about 2.78 and a held tick builds about 0.139 of a cell, short of a
+     * whole cell after 7 ticks and past it after 8.
+     */
+    private static final int TRAVELING_LAY_TICKS = 8;
+    private static final String LAID_EARLY = "Slick should not have laid by held tick %d, expected at %d";
+    private static final String NOT_LAID = "Slick should have laid by held tick %d, the stone's top holds %s";
     private static final BlockPos STREAMER_POS = new BlockPos(0, 1, 2);
     private static final float FACING_EAST = -90f;
     /** Pitch down from the eye toward the stone's center three blocks off. */
@@ -93,6 +108,68 @@ public final class SlickTests {
         GooTestFunctions.registerTest(registrar, SLICK_SLIDES_AN_ITEM, SlickTests::slickSlidesAnItemWithoutSpeedingIt);
         GooTestFunctions.registerTest(registrar, SLICK_SPEEDS_A_MOB, SlickTests::slickSpeedsUpAMobWalkingOnIt);
         GooTestFunctions.registerTest(registrar, SLICK_RAISES_A_WALKER, SlickTests::slickRaisesASlowWalkerToItsStartSpeed);
+        GooTestFunctions.registerTest(registrar, SLICK_LAYS_FASTER, SlickTests::slickLaysFasterUnderAStreamerTravelingOnSlick);
+        GooTestFunctions.registerTest(registrar, SLICK_LAYS_AT_ITS_TICKS, SlickTests::slickLaysAtItsTicksUnderAStreamerAtRest);
+    }
+
+    /**
+     * A streamer standing on slick and traveling east at TRAVEL_SPEED, near
+     * three times a walking player's unadjusted speed, lays slick on the
+     * stone in TRAVELING_LAY_TICKS held ticks, and the stone's top is still
+     * air a held tick earlier.
+     * slick-resolves-faster-by-speed-over-unadjusted-speed
+     *
+     * @param helper the gametest helper
+     */
+    public static void slickLaysFasterUnderAStreamerTravelingOnSlick(GameTestHelper helper) {
+        helper.setBlock(STREAMER_POS.below(), Blocks.STONE);
+        helper.setBlock(STREAMER_POS, GooBlocks.KINETIC_SLICK.get());
+        ServerPlayer streamer = slickStreamer(helper);
+        streamer.setPos(streamer.getX(), streamer.getY() + SLICK_FILM, streamer.getZ());
+        streamer.setKnownMovement(new Vec3(TRAVEL_SPEED, 0, 0));
+        holdUntilSlick(helper, streamer, TRAVELING_LAY_TICKS);
+    }
+
+    /**
+     * A streamer standing on stone at rest lays slick on the stone at the 20
+     * held ticks kinetic_slick.json names, the stone's top still air a held
+     * tick earlier.
+     * slick-resolves-faster-by-speed-over-unadjusted-speed
+     *
+     * @param helper the gametest helper
+     */
+    public static void slickLaysAtItsTicksUnderAStreamerAtRest(GameTestHelper helper) {
+        holdUntilSlick(helper, slickStreamer(helper), JSON_LAY_TICKS);
+    }
+
+    /**
+     * Holds Slick's stream on a strip of stone and succeeds where the
+     * stone's top is air after the held tick before the expected one and
+     * slick after the expected one.
+     *
+     * @param helper   the gametest helper
+     * @param streamer the streamer
+     * @param layTicks the held ticks the slick is expected to take
+     */
+    private static void holdUntilSlick(GameTestHelper helper, ServerPlayer streamer, int layTicks) {
+        layStrip(helper);
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.KINETIC), SLICK.toString(),
+                streamer.getEyePosition(), streamer.getEyePosition());
+        BlockPos slicked = SLICKED_STONE.above();
+        for (int held = 1; held <= layTicks; held++) {
+            int heldTick = held;
+            helper.runAfterDelay(held, () -> {
+                GooStreamHandler.streamTick(streamer, tick);
+                boolean slick = helper.getBlockState(slicked).is(GooBlocks.KINETIC_SLICK.get());
+                if (heldTick == layTicks - 1) {
+                    helper.assertTrue(!slick, String.format(LAID_EARLY, heldTick, layTicks));
+                } else if (heldTick == layTicks) {
+                    helper.assertTrue(slick, String.format(NOT_LAID, layTicks, helper.getBlockState(slicked)));
+                    helper.getLevel().getServer().getPlayerList().remove(streamer);
+                    helper.succeed();
+                }
+            });
+        }
     }
 
     /**
@@ -186,10 +263,7 @@ public final class SlickTests {
      * @param onSlick what the test does on the laid slick
      */
     private static void laySlick(GameTestHelper helper, Runnable onSlick) {
-        for (int east = STRIP_WEST; east <= STRIP_EAST; east++) {
-            helper.setBlock(SLICKED_STONE.east(east).below(), Blocks.BEDROCK);
-            helper.setBlock(SLICKED_STONE.east(east), Blocks.STONE);
-        }
+        layStrip(helper);
         ServerPlayer streamer = slickStreamer(helper);
         GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.KINETIC), SLICK.toString(),
                 streamer.getEyePosition(), streamer.getEyePosition());
@@ -203,6 +277,18 @@ public final class SlickTests {
                     String.format(NO_SLICK, slicked, helper.getBlockState(slicked)));
             onSlick.run();
         });
+    }
+
+    /**
+     * Lays the strip of stone on bedrock the stream slicks.
+     *
+     * @param helper the gametest helper
+     */
+    private static void layStrip(GameTestHelper helper) {
+        for (int east = STRIP_WEST; east <= STRIP_EAST; east++) {
+            helper.setBlock(SLICKED_STONE.east(east).below(), Blocks.BEDROCK);
+            helper.setBlock(SLICKED_STONE.east(east), Blocks.STONE);
+        }
     }
 
     /**
