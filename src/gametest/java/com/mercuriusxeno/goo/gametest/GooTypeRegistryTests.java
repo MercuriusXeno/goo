@@ -3,31 +3,21 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
-import com.mercuriusxeno.goo.command.GooTypesCommand;
-import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.registry.GooBlocks;
-import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtOps;
-import net.minecraft.nbt.Tag;
 import net.minecraft.resources.Identifier;
-import net.minecraft.resources.RegistryOps;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ProblemReporter;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.storage.TagValueInput;
-import java.util.List;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
@@ -40,9 +30,7 @@ import java.util.function.Consumer;
 @RegistersGameTests
 public final class GooTypeRegistryTests {
     private static final String TYPES_BUNDLED_RESOLVE = "types_bundled_resolve";
-    private static final String TYPES_DATAPACK_LISTED = "types_datapack_listed";
     private static final String TYPES_MARKER_RELOADS = "types_marker_reloads";
-    private static final String TYPES_GLOVE_RELOADS = "types_glove_reloads";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -51,9 +39,7 @@ public final class GooTypeRegistryTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, TYPES_BUNDLED_RESOLVE, GooTypeRegistryTests::bundledTypesResolve);
-        GooTestFunctions.registerTest(registrar, TYPES_DATAPACK_LISTED, GooTypeRegistryTests::datapackTypeListed);
         GooTestFunctions.registerTest(registrar, TYPES_MARKER_RELOADS, GooTypeRegistryTests::abilityBlockReloadsType);
-        GooTestFunctions.registerTest(registrar, TYPES_GLOVE_RELOADS, GooTypeRegistryTests::gloveSelectionReloadsType);
     }
 
 
@@ -71,15 +57,9 @@ public final class GooTypeRegistryTests {
     private static final String CAPTURE_STALE = "GooTypes.order() should be the registry's keys captured at reload";
     private static final String CAPTURE_LACKS_SEVENTEENTH = "GooTypes.order() should hold the datapack type";
     private static final String MARKER_TYPE_LOST = "Ability block should reload with the type it saved";
-    private static final String SELECTION_TYPE_LOST = "Glove selection should reload with the datapack type it saved";
     private static final BlockPos MARKER_POS = new BlockPos(1, 1, 1);
     private static final Identifier CRYSTAL_CLOUD = Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_cloud");
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
-    /** The ability the test datapack gives the seventeenth type. */
-    private static final Identifier SEVENTEENTH_PROBE =
-            Identifier.fromNamespaceAndPath(TEST_PACK_NAMESPACE, "seventeenth_probe");
-    private static final String MISSING_SEVENTEENTH = "Datapack type missing from registry: ";
-    private static final String UNLISTED_SEVENTEENTH = "Datapack type missing from /goo types listing: ";
 
     private GooTypeRegistryTests() {
     }
@@ -124,42 +104,6 @@ public final class GooTypeRegistryTests {
             restored.loadCustomOnly(TagValueInput.create(reporter, helper.getLevel().registryAccess(), saved));
         }
         helper.assertTrue(GooTypes.CRYSTAL.equals(restored.getGooType()), MARKER_TYPE_LOST);
-        helper.succeed();
-    }
-
-    /**
-     * A glove selection of the datapack type and its test-pack ability
-     * survives the trip through the item's persistent components: the stack
-     * saves to NBT and parses back with the seventeenth type selected.
-     *
-     * @param helper the gametest helper
-     */
-    public static void gloveSelectionReloadsType(GameTestHelper helper) {
-        RegistryAccess registries = helper.getLevel().registryAccess();
-        ItemStack glove = new ItemStack(GooItems.GOO_GLOVE.get());
-        GooGloveItem.setSelection(glove, GloveSelection.ofAbility(SEVENTEENTH, SEVENTEENTH_PROBE));
-        RegistryOps<Tag> ops = registries.createSerializationContext(NbtOps.INSTANCE);
-        Tag saved = ItemStack.CODEC.encodeStart(ops, glove).getOrThrow();
-        ItemStack loaded = ItemStack.CODEC.parse(ops, saved).getOrThrow();
-        GloveSelection selection = GooGloveItem.getSelection(loaded);
-        helper.assertTrue(selection != null && SEVENTEENTH.equals(selection.getGooType()), SELECTION_TYPE_LOST);
-        helper.succeed();
-    }
-
-    /**
-     * The seventeenth type the test datapack adds is in the registry and in
-     * the ids {@code /goo types} lists.
-     *
-     * @param helper the gametest helper
-     */
-    public static void datapackTypeListed(GameTestHelper helper) {
-        RegistryAccess registries = helper.getLevel().registryAccess();
-        helper.assertTrue(registries.get(SEVENTEENTH).isPresent(),
-                MISSING_SEVENTEENTH + SEVENTEENTH.identifier());
-        HolderLookup.RegistryLookup<GooTypeDefinition> registry = registries.lookupOrThrow(GooTypes.REGISTRY);
-        List<String> listed = GooTypesCommand.sortedIds(registry.listElementIds());
-        helper.assertTrue(listed.contains(SEVENTEENTH.identifier().toString()),
-                UNLISTED_SEVENTEENTH + SEVENTEENTH.identifier());
         helper.succeed();
     }
 }

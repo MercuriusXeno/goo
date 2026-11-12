@@ -11,7 +11,6 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Blocks;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
@@ -42,9 +41,7 @@ public final class GlowBulbTests {
     private static final BlockPos LANDED_POS = FLOOR_POS.above();
     private static final String BULB = "goo:glow_crystal";
     private static final int NO_ENTITY = -1;
-    private static final int MAX_LIGHT = 15;
 
-    private static final String WRONG_LIGHT = "Block light at %s should read %d, read %d";
     private static final String WRONG_COMBO = "The prism should hold Bulb's beacon combo, held '%s'";
     private static final String NOT_LIT = "Bulb's beacon should light the prism";
 
@@ -68,7 +65,7 @@ public final class GlowBulbTests {
 
     /**
      * A Bulb landing on a prism runs its on_prism reaction: the prism holds
-     * Bulb's beacon combo, stands lit and emits light 15.
+     * Bulb's beacon combo and stands lit; PrismBlockTest holds a lit prism's light.
      *
      * @param helper the gametest helper
      */
@@ -80,7 +77,6 @@ public final class GlowBulbTests {
             PrismBlockEntity prism = helper.getBlockEntity(LANDED_POS, PrismBlockEntity.class);
             helper.assertTrue(BULB.equals(prism.getCombo()), String.format(WRONG_COMBO, prism.getCombo()));
             helper.assertTrue(helper.getBlockState(LANDED_POS).getValue(PrismBlock.LIT), NOT_LIT);
-            assertBlockLight(helper, LANDED_POS, MAX_LIGHT);
         });
     }
 
@@ -92,8 +88,4 @@ public final class GlowBulbTests {
         arrivals.drainArrivedEffects(arrivalTick);
     }
 
-    private static void assertBlockLight(GameTestHelper helper, BlockPos pos, int expected) {
-        int light = helper.getLevel().getBrightness(LightLayer.BLOCK, helper.absolutePos(pos));
-        helper.assertTrue(light == expected, String.format(WRONG_LIGHT, pos, expected, light));
-    }
 }
