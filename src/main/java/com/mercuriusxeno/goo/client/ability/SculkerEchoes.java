@@ -3,10 +3,12 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.deep.SculkerHearing;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.SectionPos;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -67,6 +69,12 @@ public final class SculkerEchoes {
     private final List<Ripple> ripples = new ArrayList<>();
     private final int mostFaces;
     private final Map<BlockPos, Lit> remembered = new LinkedHashMap<>();
+    /**
+     * The same faces grouped by the chunk section each stands in, so a frame
+     * passes over the sections in view alone.
+     * decision diagnose-sculkers-lag-and-prove-it-improved-significantly
+     */
+    private final Map<Long, Map<BlockPos, Lit>> bySection = new HashMap<>();
 
     /** A memory holding the most faces it ever needs. */
     public SculkerEchoes() {
@@ -255,21 +263,60 @@ public final class SculkerEchoes {
      * @param passesSound whether sound passes through a block: air, or a block that does not fill its cell
      */
     public void advance(long now, Predicate<BlockPos> lights, Predicate<BlockPos> passesSound) {
+        advanceEchoing(now, cell -> lights.test(cell) && besideOpenSpace(cell, passesSound));
+    }
+
+    /**
+     * Grows every ring to the game time given, lights each block its front
+     * crossed since the tick before that an echo lights, lets the rings that
+     * have reached their reach die, and forgets the blocks that have faded.
+     *
+     * @param now       the game time
+     * @param echoesOff whether an echo lights a block: one that lights, beside a block sound passes through
+     */
+    void advanceEchoing(long now, Predicate<BlockPos> echoesOff) {
         for (Ripple ripple : ripples) {
             if (ripple.startTick() >= now) {
                 continue;
             }
             for (BlockPos cell : ScryReveal.shell(ripple.source(), ripple.swept(), ripple.radiusAt(now))) {
-                float light = ripple.lightAt(cell);
-                if (lights.test(cell) && besideOpenSpace(cell, passesSound)) {
-                    light(cell.immutable(), now, light, ripple.adds());
+                if (echoesOff.test(cell)) {
+                    light(cell.immutable(), now, ripple.lightAt(cell), ripple.adds());
                 }
             }
         }
         ripples.replaceAll(ripple -> ripple.grownTo(now));
         ripples.removeIf(ripple -> ripple.radiusAt(now) >= ripple.reach());
-        remembered.values().removeIf(lit -> now >= lit.fadedAt());
+        remembered.entrySet().removeIf(face -> now >= face.getValue().fadedAt() && leftItsSection(face.getKey()));
         forgetTheFaintest();
+    }
+
+    /**
+     * Takes a face out of its section's group, as it leaves the memory.
+     *
+     * @param face the face
+     * @return true, so a sweep of the memory drops it there too
+     */
+    private boolean leftItsSection(BlockPos face) {
+        long section = SectionPos.asLong(face);
+        Map<BlockPos, Lit> faces = bySection.get(section);
+        if (faces != null) {
+            faces.remove(face);
+            if (faces.isEmpty()) {
+                bySection.remove(section);
+            }
+        }
+        return true;
+    }
+
+    private void forget(BlockPos face) {
+        remembered.remove(face);
+        leftItsSection(face);
+    }
+
+    private void remember(BlockPos face, Lit lit) {
+        remembered.put(face, lit);
+        bySection.computeIfAbsent(SectionPos.asLong(face), section -> new HashMap<>()).put(face, lit);
     }
 
     private static boolean besideOpenSpace(BlockPos cell, Predicate<BlockPos> passesSound) {
@@ -296,7 +343,7 @@ public final class SculkerEchoes {
                 .limit(over)
                 .map(Map.Entry::getKey)
                 .toList()
-                .forEach(remembered::remove);
+                .forEach(this::forget);
     }
 
     /**
@@ -313,7 +360,7 @@ public final class SculkerEchoes {
         Lit standing = remembered.remove(face);
         float left = standing == null ? 0f : standing.levelAt(now);
         float held = adds ? Math.min(MOST_LIGHT, left + light) : left;
-        remembered.put(face, new Lit(now, held));
+        remember(face, new Lit(now, held));
     }
 
     /**
@@ -321,6 +368,13 @@ public final class SculkerEchoes {
      */
     public Map<BlockPos, Lit> remembered() {
         return Collections.unmodifiableMap(remembered);
+    }
+
+    /**
+     * @return each chunk section holding a lit face, by its packed section position, and its faces' lighting
+     */
+    Map<Long, Map<BlockPos, Lit>> bySection() {
+        return Collections.unmodifiableMap(bySection);
     }
 
     /**
@@ -333,6 +387,7 @@ public final class SculkerEchoes {
     /** Forgets every face and ripple, as the brew's end does. */
     public void clear() {
         remembered.clear();
+        bySection.clear();
         ripples.clear();
     }
 

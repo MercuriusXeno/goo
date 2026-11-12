@@ -1,10 +1,13 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -60,6 +63,41 @@ class SculkerEchoesTest {
             echoes.advance(tick, FLAT_GROUND);
         }
         return echoes;
+    }
+
+    /**
+     * The faces grouped by chunk section are the remembered faces, tick by
+     * tick, as rings light them, as they fade and as a full memory lets the
+     * faintest go (decision diagnose-sculkers-lag-and-prove-it-improved-significantly).
+     */
+    @Nested
+    class Sections {
+
+        @Test
+        void theSectionsHoldTheRememberedFacesWhileTheyLightAndFade() {
+            assertSectionsFollow(new SculkerEchoes());
+        }
+
+        @Test
+        void theSectionsLetGoOfTheFacesAFullMemoryForgets() {
+            assertSectionsFollow(new SculkerEchoes(SMALL_MEMORY));
+        }
+
+        private void assertSectionsFollow(SculkerEchoes echoes) {
+            echoes.hear(SOUND, HEARD_AT, LOUDEST);
+            echoes.hear(new Vec3(24.5, 1, 0.5), HEARD_AT + QUARTER_SECOND, ORDINARY);
+            for (long tick = HEARD_AT; tick <= HEARD_AT + FOUR_SECONDS + SculkerEchoes.FADE_TICKS * 2; tick++) {
+                echoes.advance(tick, FLAT_GROUND);
+                Map<BlockPos, SculkerEchoes.Lit> grouped = new HashMap<>();
+                echoes.bySection().forEach((section, faces) -> faces.forEach((face, lit) -> {
+                    assertEquals(section, SectionPos.asLong(face), "a face grouped under another section");
+                    grouped.put(face, lit);
+                }));
+                assertEquals(echoes.remembered(), grouped, "the faces grouped by section at tick " + tick);
+                assertFalse(echoes.bySection().containsValue(Map.of()), "an empty section stands at tick " + tick);
+            }
+            assertTrue(echoes.bySection().isEmpty(), "every section should be let go once its faces fade");
+        }
     }
 
     @Nested
