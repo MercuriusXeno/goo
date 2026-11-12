@@ -10,8 +10,7 @@
 // runs out to Bore's reach on the line of sight, from a wide mouth where it is held narrowing toward a
 // point, never wider than a block, its tip tattering a little. It is a sparse, chaotically patchy swirl of
 // earthy dust, as Drain's is: clumps with holes between them, rippled by a warp, poured outward and swirled
-// round the axis, dark at a clump's thick core and paler at its thin edge, streaks wound round it as a
-// drill's are, screwing outward. Its cone reads by its shell: the dust thickens into a wall just inside the
+// round the axis, dark at a clump's thick core and paler at its thin edge. Its cone reads by its shell: the dust thickens into a wall just inside the
 // vortex's edge, crisp at the edge, cut by rifling, pale bands wound round the cone and turning as it
 // bores, which show through the translucent dust from inside and out. It thickens over its first stretch,
 // so it fades in where it is held rather than starting hard. Each ray walks the world's grid of
@@ -50,15 +49,6 @@ const float FLOW_SECONDS = 2.0;
 const float POUR = 1.6;
 const float SWIRL_TURNS = 0.8;
 
-// The streaks: how tight they wind round the axis per block along it, as a drill's flutes do, how fast
-// they turn (whole turns a day), noise cells round the axis and per block along, and how sharply a
-// streak stands out.
-const float STREAK_SCREW = 3.0;
-const float STREAK_TURNS_PER_SECOND = 1.5;
-const float STREAK_ACROSS = 3.5;
-const float STREAK_ALONG = 0.8;
-const float STREAK_SHARPNESS = 6.0;
-
 // The body: noise cells across the vortex's width and per block along it, how far the warp ripples it,
 // and where a clump starts, as a noise level, with how softly; the rest is the holes between clumps.
 const float BODY_ACROSS = 2.6;
@@ -71,9 +61,8 @@ const float CLUMP_FROM = 0.52;
 const float CLUMP_SOFT = 0.05;
 const float CORE_DEPTH = 0.15;
 
-// How much dust a block of clump holds, of streak, and of the haze in the holes.
+// How much dust a block of clump holds, and of the haze in the holes.
 const float CLUMP_DENSITY = 1.8;
-const float STREAK_DENSITY = 2.5;
 const float HAZE_DENSITY = 0.08;
 // The shell: the share of the radius it thickens from and is full by, and how much dust a block of it
 // holds between the rifling's bands and on them.
@@ -182,7 +171,7 @@ float bodyAt(float along, float share, float theta, float carried, float seed, f
     return fbm(at + seed);
 }
 
-// The dust at a point: its density, how much of it is clump core, and how much is streak.
+// The dust at a point: its density, how much of it is clump core, and how much is rifling.
 vec3 dustAt(vec3 point, float seconds) {
     vec3 offset = point - ApexRadius.xyz;
     float along = dot(offset, AxisLength.xyz);
@@ -214,9 +203,6 @@ vec3 dustAt(vec3 point, float seconds) {
 
     float clump = smoothstep(CLUMP_FROM - CLUMP_SOFT, CLUMP_FROM + CLUMP_SOFT, body);
     float core = smoothstep(CLUMP_FROM, CLUMP_FROM + CORE_DEPTH, body);
-    float wound = theta + STREAK_SCREW * along - TAU * STREAK_TURNS_PER_SECOND * seconds;
-    vec3 streakAt = vec3(cos(wound) * STREAK_ACROSS, sin(wound) * STREAK_ACROSS, along * STREAK_ALONG + share);
-    float streak = pow(noise(streakAt + 23.0), STREAK_SHARPNESS) * (0.4 + 0.6 * clump);
 
     float rifled = smoothstep(RIFLE_HALF, RIFLE_HALF * 0.5, abs(fract((theta / TAU + along * RIFLE_TURNS_PER_BLOCK
             - seconds * RIFLE_TURNS_PER_SECOND) * RIFLES) - 0.5));
@@ -229,8 +215,8 @@ vec3 dustAt(vec3 point, float seconds) {
     float frayed = (1.0 - smoothstep(RIM_FROM, 1.0, share + FRAY * ragged))
             * (1.0 - smoothstep(FAR_FROM, 1.0, along / vortexLength + TATTER * torn))
             * smoothstep(0.0, HELD_THICKEN, along);
-    float density = frayed * (CLUMP_DENSITY * clump + STREAK_DENSITY * streak + HAZE_DENSITY + wall);
-    float pale = (STREAK_DENSITY * streak + RIFLED_DENSITY * rifled * shell) * frayed;
+    float density = frayed * (CLUMP_DENSITY * clump + HAZE_DENSITY + wall);
+    float pale = RIFLED_DENSITY * rifled * shell * frayed;
     return vec3(density, core * (1.0 - shell), clamp(pale / max(density, 1e-3), 0.0, 1.0));
 }
 
