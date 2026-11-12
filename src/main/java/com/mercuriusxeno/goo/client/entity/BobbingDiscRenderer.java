@@ -21,7 +21,7 @@ import net.minecraft.world.entity.Entity;
  * spinning like a dropped item and lit some levels above its surroundings,
  * so it reads round from every side: the compression sphere a black hole
  * leaves, and the feed Jelly's Feed lays. Each entity names its own texture,
- * so one renderer draws a compression sphere's maroon or green core.
+ * so one renderer draws a compression sphere's black or green core.
  * large-blast-gathers-its-mined-drops-into-a-green-cored-sphere
  *
  * @param <T> the entity drawn

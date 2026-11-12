@@ -117,7 +117,13 @@ class HeldDomeRendererTest {
                 GooRenderTypes.NETHER_BLACKHOLE_THROUGH_BLOCKS.getDepthStencilState().depthTest());
         assertEquals(CompareOp.ALWAYS_PASS,
                 GooRenderTypes.NETHER_CORONA_THROUGH_BLOCKS.getDepthStencilState().depthTest());
-        assertSame(NetherHeldGhost.INSTANCE, HeldDomeRenderer.ghostOf(GooTypes.NETHER));
+    }
+
+    /** anti-moves-from-nether-to-void: the black hole's ghost is Void's, and Nether holds none. */
+    @Test
+    void voidHoldsTheBlackHolesGhost() {
+        assertSame(NetherHeldGhost.INSTANCE, HeldDomeRenderer.ghostOf(GooTypes.VOID));
+        assertNull(HeldDomeRenderer.ghostOf(GooTypes.NETHER));
     }
 
     @Test

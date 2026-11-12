@@ -32,7 +32,18 @@ public abstract class GooSyncedBlockEntity extends BlockEntity {
 
     @Override
     public final @NonNull CompoundTag getUpdateTag(HolderLookup.@NonNull Provider registries) {
-        return saveWithFullMetadata(registries);
+        return syncedView(saveWithFullMetadata(registries));
+    }
+
+    /**
+     * The part of the saved tag tracking clients receive; a subclass whose
+     * save holds state only the server reads strips it here.
+     *
+     * @param saved the full-metadata saved tag
+     * @return the tag synced to clients
+     */
+    protected CompoundTag syncedView(CompoundTag saved) {
+        return saved;
     }
 
     @Override
