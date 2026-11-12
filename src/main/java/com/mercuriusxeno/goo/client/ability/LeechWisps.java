@@ -50,10 +50,13 @@ public final class LeechWisps {
     private static final double CHEST = 0.7;
     private static final double SPAWN_SPREAD = 0.3;
 
-    /** Blocks around the drained mob's chest a streamed wisp may leave from, so the stream starts as one. */
-    static final double STREAM_SPREAD = 0.12;
-    /** Ticks every streamed wisp takes from the mob to the player, alike so the stream holds together. */
-    private static final int STREAM_FLIGHT = 12;
+    /** Blocks around the drained mob's chest a streamed wisp may leave from. */
+    static final double STREAM_SPREAD = 0.25;
+    /** The slowest and fastest a streamed wisp bursts off the mob, blocks per tick. */
+    private static final double STREAM_LAUNCH = 0.06;
+    private static final double STREAM_LAUNCH_VARIANCE = 0.1;
+    /** How far a streamed wisp's burst leans up, so the stream rises off the mob before it pours in. */
+    private static final double STREAM_LAUNCH_LIFT = 0.04;
 
     private LeechWisps() {
     }
@@ -72,7 +75,7 @@ public final class LeechWisps {
 
     /**
      * Where a trickle's wisp leaves from: close around the drained mob's
-     * chest, so the stream leaves it as one.
+     * chest.
      * drain-casts-a-filled-tornadic-miasma-vortex-along-the-look
      *
      * @param chest  the drained mob's chest
@@ -153,9 +156,10 @@ public final class LeechWisps {
     }
 
     /**
-     * Streams a strike's wisps from the drained mob's chest into the player:
-     * one after another, from close together, each on the same flight, so
-     * they run as one tight stream of life going to the player.
+     * Streams a strike's wisps from the drained mob's chest into the player,
+     * one after another, each bursting off in its own way and then darting,
+     * swirling and pulled in as Decay's gnats fly, a chaotic flow of life
+     * pouring into the player.
      * drain-casts-a-filled-tornadic-miasma-vortex-along-the-look
      *
      * @param mc     the client
@@ -168,7 +172,10 @@ public final class LeechWisps {
             Vec3 at = streamStart(chest, random);
             if (mc.particleEngine.createParticle(GooParticles.HEX_WISP.get(), at.x, at.y, at.z, 0, 0, 0)
                     instanceof HexWispParticle streamed) {
-                streamed.stream(streamDelay(wisp), STREAM_FLIGHT,
+                Vec3 burst = new Vec3(random.nextGaussian(), random.nextGaussian(), random.nextGaussian()).normalize()
+                        .scale(STREAM_LAUNCH + STREAM_LAUNCH_VARIANCE * random.nextDouble())
+                        .add(0, STREAM_LAUNCH_LIFT, 0);
+                streamed.stream(streamDelay(wisp), burst,
                         () -> healed.position().add(0, healed.getBbHeight() * CHEST, 0));
             }
         }
