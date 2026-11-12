@@ -75,6 +75,31 @@ class ClientConjuredDoorsTest {
     }
 
     @Nested
+    class TheLocalArriversRelease {
+
+        @AfterEach
+        void forgetTheRelease() {
+            ClientConjuredDoors.forgetRelease();
+        }
+
+        @Test
+        void waitsOnTheCoverThenPlaysFromTheFrameItClears() {
+            ClientConjuredDoors.takeLocalRelease(ConjuredDoor.releasing(FEET, 0f, 0, ConjuredDoor.RELEASE_TICKS));
+            ClientConjuredDoors.Look look = new ClientConjuredDoors.Look(FEET, 0f);
+
+            assertFalse(ClientConjuredDoors.releasedAt(5, look, true).isPresent(), "nothing shows under the cover");
+            assertEquals(1, ClientConjuredDoors.releasedAt(40, look, false).orElseThrow().size(), EXACT,
+                    "full size the frame the cover clears");
+            double halfway = 40 + ConjuredDoor.RELEASE_TICKS / 2.0;
+            ClientConjuredDoors.Drawn moving = ClientConjuredDoors.releasedAt(halfway, look, false).orElseThrow();
+            assertEquals(0.5, moving.size(), EXACT, "half closed halfway through");
+            assertEquals(ConjuredDoor.STANDS_OFF / 2, moving.at().distanceTo(FEET), EXACT, "half its stand-off off");
+            assertFalse(ClientConjuredDoors.releasedAt(40 + ConjuredDoor.RELEASE_TICKS + 1, look, false).isPresent(),
+                    "gone once its release ticks pass");
+        }
+    }
+
+    @Nested
     class AnotherCastersDoor {
 
         @Test

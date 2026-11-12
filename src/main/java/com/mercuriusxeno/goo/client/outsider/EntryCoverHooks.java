@@ -74,6 +74,7 @@ public final class EntryCoverHooks {
     @SubscribeEvent
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         EntryCover.LOCAL.clear();
+        ClientConjuredDoors.forgetRelease();
     }
 
     private static void drawCover(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {

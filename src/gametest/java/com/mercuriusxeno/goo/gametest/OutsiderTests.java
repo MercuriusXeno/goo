@@ -100,6 +100,7 @@ public final class OutsiderTests {
                 OutsiderTests::wubReachesTheRoomsCorner);
         GooTestFunctions.registerTest(registrar, OUTSIDER_GROWS_A_BLOCK_A_SECOND, OutsiderTests::growsOneBlockASecond);
         GooTestFunctions.registerTest(registrar, OUTSIDER_ENTRY_WAIT_MEASURED, OutsiderTests::entryWaitMeasured);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_RELEASES_THE_ARRIVER, OutsiderTests::releasesTheArriver);
         GooTestFunctions.registerTest(registrar, OUTSIDER_ARRIVAL_LOADS_DURING_THE_CHARGE,
                 OutsiderTests::arrivalLoadsDuringTheCharge);
         GooTestFunctions.registerTest(registrar, OUTSIDER_GROWS_FOR_THE_RECKONED_TICKS,
@@ -505,6 +506,38 @@ public final class OutsiderTests {
             long grew = firstAndLast[1] - firstAndLast[0] + 1;
             helper.assertTrue(reckoned[0] < MAX_RECKONED && Math.abs(grew - reckoned[0]) <= WITHIN_A_SECOND,
                     String.format(SHOULD_GROW_FOR, held[0], reckoned[0], grew, last[0]));
+            helper.succeed();
+        });
+    }
+
+    private static final String OUTSIDER_RELEASES_THE_ARRIVER = "outsider_releases_the_arriver";
+    private static final String SHOULD_RELEASE = "The tick after arrival a full-size releasing door should stand on "
+            + "the arrival point %s in the pocket, stands %s with the caster in %s";
+    private static final String SHOULD_BE_RELEASED = "Once its release ticks pass the releasing door should be gone, "
+            + "stands %s";
+
+    /**
+     * A channel held to its full charge carries the caster in, and the tick
+     * after they arrive a doorway stands on them at full size, releasing
+     * them; once its release ticks pass it is gone
+     * (decision matching-doorway-opens-in-the-room-and-releases-you).
+     *
+     * @param helper the gametest helper
+     */
+    public static void releasesTheArriver(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        holdFor(helper, caster, CHARGE_TICKS);
+        helper.runAfterDelay(CHARGE_TICKS + 1, () -> {
+            Vec3 arrival = arrivalOf(assertEntered(helper, caster));
+            Optional<ConjuredDoor> door = ConjuredDoors.releaseOf(caster.getUUID());
+            helper.assertTrue(door.filter(standing -> standing.phase() == ConjuredDoor.Phase.RELEASING
+                            && standing.at().distanceTo(arrival) < KEPT && standing.size() == 1).isPresent()
+                            && caster.level().dimension() == OutsiderRooms.POCKET,
+                    String.format(SHOULD_RELEASE, arrival, door, caster.level().dimension().identifier()));
+        });
+        helper.runAfterDelay(CHARGE_TICKS + ConjuredDoor.RELEASE_TICKS + 2, () -> {
+            Optional<ConjuredDoor> door = ConjuredDoors.releaseOf(caster.getUUID());
+            helper.assertTrue(door.isEmpty(), String.format(SHOULD_BE_RELEASED, door));
             helper.succeed();
         });
     }
