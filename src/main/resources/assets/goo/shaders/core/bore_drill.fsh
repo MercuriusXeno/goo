@@ -5,13 +5,13 @@
 #moj_import <minecraft:globals.glsl>
 
 // Bore's vortex (decisions bore-shows-a-big-drill-from-the-glove, bore-breaks-what-is-in-the-vortex): a
-// vortex of earth magic along the line of sight, marched as Drain's vortex is (decision
-// drain-casts-a-filled-tornadic-miasma-vortex-along-the-look). From the eye out to Bore's reach it widens
-// from its near radius to its far radius, never wider than a block, and its far end is open, tattering
-// away rather than closing to a point. It is a churning swirl of earthy dust: clumps and thin spots poured
-// outward and swirled round the axis, fine streaks wound through it screwing outward, its rim ragged inside
-// the vortex's edge rather than round. The first stretch from the eye stays clear, so the vortex opens out
-// in front of the player rather than over their view. Each sample is read at the middle of the world's
+// vortex of earth magic held out in front of the player, marched as Drain's vortex is (decision
+// drain-casts-a-filled-tornadic-miasma-vortex-along-the-look). From a little below the line of sight it
+// runs out to Bore's reach on the line of sight, widening from its held radius to its far radius, never
+// wider than a block, and its far end is open, tattering away rather than closing to a point. It is a
+// churning swirl of earthy dust: clumps and thin spots poured outward and swirled round the axis, streaks
+// wound round it as a drill's are, screwing outward, its rim ragged inside the vortex's edge rather than
+// round. It thickens over its first stretch, so it fades in where it is held rather than starting hard. Each sample is read at the middle of the world's
 // sixteenth-of-a-block cell it falls in, as Flames' fire field is, so the dust stands in blocky texels.
 // Each ray stops at whatever the world drew there when that surface stands outside the vortex, so what
 // stands in front of it hides it; a surface inside the vortex is a block Bore is breaking, which hides
@@ -19,9 +19,9 @@
 
 // Must match BoreDrillPass.pack: four std140 rows.
 layout(std140) uniform BoreDrill {
-    vec4 ApexRadius;  // the eye, camera relative, and the vortex's radius there
-    vec4 AxisLength;  // the unit look, and how far along it the vortex reaches
-    vec4 SideDepth;   // a unit direction square to the look, and whether depth runs 0 to 1
+    vec4 ApexRadius;  // where the vortex is held, camera relative, and its radius there
+    vec4 AxisLength;  // the unit axis from where it is held to the far end, and its length
+    vec4 SideDepth;   // a unit direction square to the axis, and whether depth runs 0 to 1
     vec4 Grid;        // the camera's world position modulo 16, so the texels hold to the world, and the
                       // vortex's radius at its far end
 };
@@ -45,9 +45,10 @@ const float FLOW_SECONDS = 2.0;
 const float POUR = 1.6;
 const float SWIRL_TURNS = 0.8;
 
-// The streaks: how tight they wind round the axis per block along it, how fast they turn (whole turns a
-// day), noise cells round the axis and per block along, and how sharply a streak stands out.
-const float STREAK_SCREW = 2.0;
+// The streaks: how tight they wind round the axis per block along it, as a drill's flutes do, how fast
+// they turn (whole turns a day), noise cells round the axis and per block along, and how sharply a
+// streak stands out.
+const float STREAK_SCREW = 3.0;
 const float STREAK_TURNS_PER_SECOND = 1.5;
 const float STREAK_ACROSS = 3.5;
 const float STREAK_ALONG = 0.8;
@@ -72,9 +73,8 @@ const float FRAY = 0.4;
 // The open far end tatters from this share of the length out, torn by the body noise this far.
 const float FAR_FROM = 0.75;
 const float TATTER = 0.5;
-// Blocks from the eye the vortex stays clear over, then thickens across, so it opens out ahead.
-const float EYE_CLEAR = 0.7;
-const float EYE_THICKEN = 0.6;
+// Blocks from where it is held the vortex thickens across, so it fades in rather than starting hard.
+const float HELD_THICKEN = 0.5;
 // How far past the vortex, in blocks, a surface still counts as inside it: a texel, so the face of a
 // block the vortex just touches still reads as a block it is breaking.
 const float SURFACE_SLACK = 0.0625;
@@ -161,7 +161,7 @@ vec3 dustAt(vec3 point, float seconds) {
     vec3 offset = point - ApexRadius.xyz;
     float along = dot(offset, AxisLength.xyz);
     float vortexLength = AxisLength.w;
-    if (along <= EYE_CLEAR || along > vortexLength) {
+    if (along <= 0.0 || along > vortexLength) {
         return vec3(0.0);
     }
     vec3 radial = offset - along * AxisLength.xyz;
@@ -192,7 +192,7 @@ vec3 dustAt(vec3 point, float seconds) {
     float ragged = body - 0.5;
     float frayed = (1.0 - smoothstep(RIM_FROM, 1.0, share + FRAY * ragged))
             * (1.0 - smoothstep(FAR_FROM, 1.0, along / vortexLength + TATTER * ragged))
-            * smoothstep(EYE_CLEAR, EYE_CLEAR + EYE_THICKEN, along);
+            * smoothstep(0.0, HELD_THICKEN, along);
     float density = frayed * (CLUMP_DENSITY * clump + STREAK_DENSITY * streak + HAZE_DENSITY);
     return vec3(density, core, clamp(STREAK_DENSITY * streak / max(density / max(frayed, 1e-3), 1e-3), 0.0, 1.0));
 }
