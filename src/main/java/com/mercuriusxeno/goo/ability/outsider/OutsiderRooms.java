@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.outsider;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.block.outsider.DimensionDoorBlockEntity;
 import com.mercuriusxeno.goo.network.RoomEdgesSyncPayload;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooParticles;
@@ -20,7 +21,9 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -542,10 +545,42 @@ public final class OutsiderRooms {
             pocket.setBlock(voidstoneOf(room), GooBlocks.VOIDSTONE.get().defaultBlockState(), Block.UPDATE_ALL);
         }
         for (BlockPos doorway : doorwayOf(room)) {
-            if (!pocket.getBlockState(doorway).is(door.getBlock())) {
-                pocket.setBlock(doorway, door, Block.UPDATE_ALL);
-            }
+            restandDoorway(pocket, doorway, door);
         }
+    }
+
+    /**
+     * Stands one doorway cell again where it is gone, or where it stands
+     * without the block entity its starfield draws from.
+     *
+     * @param pocket  the pocket dimension
+     * @param doorway the doorway cell
+     * @param door    the door's block state
+     */
+    private static void restandDoorway(ServerLevel pocket, BlockPos doorway, BlockState door) {
+        boolean standing = pocket.getBlockState(doorway).is(door.getBlock());
+        if (standing && !holdsDoorEntity(pocket, doorway)) {
+            // A door cell saved before the door had a block entity loads without one, and placing the same
+            // state again changes nothing, so the cell is cleared and stood again to gain it.
+            // decision room-door-wears-the-end-portal-starfield
+            pocket.setBlock(doorway, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+        }
+        if (!standing || !holdsDoorEntity(pocket, doorway)) {
+            pocket.setBlock(doorway, door, Block.UPDATE_ALL);
+        }
+    }
+
+    /**
+     * Whether a doorway cell holds the door's block entity as its chunk
+     * stands, reading it without creating one.
+     *
+     * @param pocket  the pocket dimension
+     * @param doorway the doorway cell
+     * @return true where the block entity stands
+     */
+    private static boolean holdsDoorEntity(ServerLevel pocket, BlockPos doorway) {
+        return pocket.getChunkAt(doorway).getBlockEntity(doorway,
+                LevelChunk.EntityCreationType.CHECK) instanceof DimensionDoorBlockEntity;
     }
 
     /**

@@ -245,6 +245,8 @@ public final class GooClientSetup {
         PrismComboStyles.register(GlowReflectorStyle.COMBO, new GlowReflectorStyle());
         PrismComboStyles.register(HivePrismStyle.COMBO, new HivePrismStyle());
         event.registerBlockEntityRenderer(GooBlockEntities.END_GATE.get(), EndGateRenderer::new);
+        // room-door-wears-the-end-portal-starfield: the room's doorway draws as the End portal's starfield
+        event.registerBlockEntityRenderer(GooBlockEntities.DIMENSION_DOOR.get(), DimensionDoorRenderer::new);
         // oculus-prism-becomes-a-hovering-eye: an oculus prism draws as the hovering eye
         PrismComboStyles.register(OculusNodes.OCULUS, new OculusStyle());
         // metronome-prism-pulses-at-the-learned-rate, relay-prism-carries-the-signal-through-air
