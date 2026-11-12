@@ -83,10 +83,10 @@ const float SHELL_DENSITY = 5.0;
 const float RIFLED_DENSITY = 14.0;
 // The rifling: bands round the cone, the turns each makes a block along it, how fast they turn (whole
 // turns a day), and a band's half width as a share of its period.
-const float RIFLES = 5.0;
-const float RIFLE_TURNS_PER_BLOCK = 0.6;
+const float RIFLES = 3.0;
+const float RIFLE_TURNS_PER_BLOCK = 1.5;
 const float RIFLE_TURNS_PER_SECOND = 1.0;
-const float RIFLE_HALF = 0.16;
+const float RIFLE_HALF = 0.22;
 // The rim frays inward from this share of the radius, ragged by the body noise this far, little, so the
 // cone's edge stays crisp; no dust stands past the vortex's edge, so the vortex is never drawn wider than
 // it breaks.
