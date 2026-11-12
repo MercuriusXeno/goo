@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:heal_returns_the_named_armed_zombie",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 160,
+  "setup_ticks": 0,
+  "required": true
+}
