@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.zoo.Leader;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 
@@ -14,11 +15,14 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Covers which mobs draw a life mark and how strongly: a mob Leader senses
+ * Covers which mobs draw a life mark, how strongly, and where its parts
+ * stand: a rallied or charmed mob draws it whole always, a mob Leader senses
  * draws it whole with no touch while Leader stands, and a mob only Heal or
  * Drain touched keeps TouchedMobs' fade. TouchedMobs' fade is read through
  * its own method, so no fade constant is pinned here.
  * leader-shows-life-bars-while-it-stands
+ * rallied-and-charmed-mobs-always-show-their-health-bar
+ * rally-and-charm-icons-sit-left-of-the-heart
  */
 class LifeMarkBillboardTest {
 
@@ -28,6 +32,10 @@ class LifeMarkBillboardTest {
     private static final int UNMARKED_ID = 13;
     private static final long TICK = 500L;
     private static final float EPSILON = 1e-6f;
+    /** A mob neither rallied nor charmed. */
+    private static final boolean BARE = false;
+    /** A rallied or charmed mob, wearing a head mark. */
+    private static final boolean HEAD_MARKED = true;
 
     private final TouchedMobs touched = new TouchedMobs();
     private final LeaderSense leader = new LeaderSense();
@@ -45,7 +53,26 @@ class LifeMarkBillboardTest {
     void sensedMobDrawsItsLifeMarkWholeWithoutATouch() {
         for (float later = 0; later < 200; later += 10) {
             float time = TICK + later;
-            assertEquals(1f, LifeMarkBillboard.markStrength(SENSED_ID, time, touched, leader), EPSILON, "at " + time);
+            assertEquals(1f, LifeMarkBillboard.markStrength(SENSED_ID, time, touched, leader, BARE), EPSILON,
+                    "at " + time);
+        }
+    }
+
+    @Nested
+    class HeadMarkedMob {
+
+        private final TouchedMobs untouched = new TouchedMobs();
+        private final LeaderSense leaderInactive = new LeaderSense();
+
+        @Test
+        void showsItsLifeMarkWholeWithNoTouchAndNoLeader() {
+            for (long later = 0; later < 2000; later += 37) {
+                long tick = TICK + later;
+                assertTrue(LifeMarkBillboard.showsLifeMark(UNMARKED_ID, tick, untouched, leaderInactive, HEAD_MARKED),
+                        "at " + tick);
+                assertEquals(1f, LifeMarkBillboard.markStrength(UNMARKED_ID, tick + 0.5f, untouched, leaderInactive,
+                        HEAD_MARKED), EPSILON, "at " + tick);
+            }
         }
     }
 
@@ -54,14 +81,104 @@ class LifeMarkBillboardTest {
         for (float later = 0; later < 60; later += 1.5f) {
             float time = TICK + later;
             assertEquals(touched.opacity(TOUCHED_ID, time),
-                    LifeMarkBillboard.markStrength(TOUCHED_ID, time, touched, leader), EPSILON, "at " + time);
+                    LifeMarkBillboard.markStrength(TOUCHED_ID, time, touched, leader, BARE), EPSILON, "at " + time);
+        }
+    }
+
+    @Nested
+    class MarkLayout {
+
+        private static final float NARROW_COUNT = 5f;
+        private static final float WIDE_COUNT = 31f;
+
+        @Test
+        void heartDrawsTwoThirdsOfItsOldSize() {
+            assertEquals(0.15f, LifeMarkBillboard.Layout.of(NARROW_COUNT, BARE).heartWidth(), EPSILON);
+        }
+
+        @Test
+        void countDrawsAtHalfTheOldFont() {
+            assertEquals(0.0125f, LifeMarkBillboard.Layout.of(NARROW_COUNT, BARE).countScale(), EPSILON);
+        }
+
+        @Test
+        void markStandsCenteredOverTheHead() {
+            for (float countWidth : new float[] {NARROW_COUNT, WIDE_COUNT}) {
+                LifeMarkBillboard.Layout layout = LifeMarkBillboard.Layout.of(countWidth, BARE);
+                assertEquals(-layout.left(), layout.right(), EPSILON, "count width " + countWidth);
+            }
+        }
+
+        @Test
+        void countLineCentersOnTheHeartsMiddle() {
+            for (float countWidth : new float[] {NARROW_COUNT, WIDE_COUNT}) {
+                LifeMarkBillboard.Layout layout = LifeMarkBillboard.Layout.of(countWidth, BARE);
+                assertEquals(layout.heartMiddle(), layout.countMiddle(), EPSILON, "count width " + countWidth);
+            }
+        }
+
+        @Test
+        void countStandsRightOfTheHeart() {
+            LifeMarkBillboard.Layout layout = LifeMarkBillboard.Layout.of(NARROW_COUNT, BARE);
+            assertTrue(layout.countLeft() > layout.heartLeft() + layout.heartWidth());
+            assertEquals(layout.right(), layout.countLeft() + NARROW_COUNT * layout.countScale(), EPSILON);
+        }
+
+        @Test
+        void bareMobDrawsTheHeartAtTheRowsLeftEdge() {
+            for (float countWidth : new float[] {NARROW_COUNT, WIDE_COUNT}) {
+                LifeMarkBillboard.Layout layout = LifeMarkBillboard.Layout.of(countWidth, BARE);
+                assertEquals(layout.left(), layout.heartLeft(), EPSILON, "count width " + countWidth);
+                assertEquals(-layout.left(), layout.right(), EPSILON, "count width " + countWidth);
+            }
+        }
+
+        @Test
+        void iconDrawsTheHeartsSize() {
+            LifeMarkBillboard.Layout layout = LifeMarkBillboard.Layout.of(NARROW_COUNT, HEAD_MARKED);
+            assertEquals(layout.heartWidth(), layout.iconWidth(), EPSILON);
+            assertEquals(0.15f, layout.iconWidth(), EPSILON);
+        }
+
+        @Test
+        void iconHeartAndCountStandLeftToRightInOneRow() {
+            for (float countWidth : new float[] {NARROW_COUNT, WIDE_COUNT}) {
+                LifeMarkBillboard.Layout layout = LifeMarkBillboard.Layout.of(countWidth, HEAD_MARKED);
+                String at = "count width " + countWidth;
+                assertTrue(layout.iconLeft() + layout.iconWidth() < layout.heartLeft(), at);
+                assertTrue(layout.heartLeft() + layout.heartWidth() < layout.countLeft(), at);
+                assertEquals(layout.heartTop(), layout.iconTop(), EPSILON, at);
+                assertEquals(layout.heartBottom(), layout.iconBottom(), EPSILON, at);
+                assertEquals(layout.left(), layout.iconLeft(), EPSILON, at);
+                assertEquals(-layout.left(), layout.right(), EPSILON, at);
+            }
         }
     }
 
     @Test
+    void fullLifeFillsEveryInkedColumn() {
+        assertEquals(7, LifeMarkBillboard.filledInkColumns(1f));
+    }
+
+    @Test
+    void halfLifeFillsHalfTheInkedColumns() {
+        assertEquals(4, LifeMarkBillboard.filledInkColumns(0.5f));
+    }
+
+    @Test
+    void slimLifeFillsOneColumn() {
+        assertEquals(1, LifeMarkBillboard.filledInkColumns(0.02f));
+    }
+
+    @Test
+    void noLifeFillsNoColumn() {
+        assertEquals(0, LifeMarkBillboard.filledInkColumns(0f));
+    }
+
+    @Test
     void marksDrawForTouchedAndSensedMobsAlike() {
-        assertTrue(LifeMarkBillboard.showsLifeMark(SENSED_ID, TICK, touched, leader));
-        assertTrue(LifeMarkBillboard.showsLifeMark(TOUCHED_ID, TICK, touched, leader));
-        assertFalse(LifeMarkBillboard.showsLifeMark(UNMARKED_ID, TICK, touched, leader));
+        assertTrue(LifeMarkBillboard.showsLifeMark(SENSED_ID, TICK, touched, leader, BARE));
+        assertTrue(LifeMarkBillboard.showsLifeMark(TOUCHED_ID, TICK, touched, leader, BARE));
+        assertFalse(LifeMarkBillboard.showsLifeMark(UNMARKED_ID, TICK, touched, leader, BARE));
     }
 }
