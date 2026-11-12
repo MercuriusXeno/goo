@@ -2,10 +2,12 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.network.BlockTransformPayload;
 import com.mercuriusxeno.goo.registry.GooServerState;
+import com.mercuriusxeno.goo.registry.GooSounds;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -215,6 +217,17 @@ public interface BlockBreakHost extends StepHost {
      */
     default void sendTransform(BlockPos pos, BlockState from, BlockState to) {
         new BlockTransformPayload(pos, Block.getId(from), Block.getId(to)).sendToTracking(level());
+    }
+
+    /**
+     * Plays a slurp at a block's middle, heard by everyone near.
+     * vacuum-sounds-a-suction-wind-and-rising-slurps
+     *
+     * @param pos   the block
+     * @param pitch the slurp's pitch
+     */
+    default void slurpAt(BlockPos pos, float pitch) {
+        level().playSound(null, pos, GooSounds.VACUUM_SLURP.get(), SoundSource.PLAYERS, 1f, pitch);
     }
 
     /**

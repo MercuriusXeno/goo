@@ -51,6 +51,13 @@ class VacuumStepTest {
             assertTrue(VacuumStep.breaksOn(5, ticksPerBlock) < VacuumStep.breaksOn(SHIPPED_RANGE, ticksPerBlock));
         }
 
+        // vacuum-sounds-a-suction-wind-and-rising-slurps
+        @Test
+        void aFartherCellSlurpsHigherFromTheNearestToTheReach() {
+            assertTrue(VacuumStep.slurpPitch(0, SHIPPED_RANGE) < VacuumStep.slurpPitch(4, SHIPPED_RANGE));
+            assertTrue(VacuumStep.slurpPitch(4, SHIPPED_RANGE) < VacuumStep.slurpPitch(SHIPPED_RANGE, SHIPPED_RANGE));
+        }
+
         @Test
         void theReachsFarEndBreaksTenTicksIn() {
             assertEquals(10, VacuumStep.breaksOn(SHIPPED_RANGE, ticksPerBlock));
@@ -105,6 +112,16 @@ class VacuumStepTest {
 
             verify(host).breakBlock(CELL);
             verify(host).sendTransform(CELL, residual, Blocks.AIR.defaultBlockState());
+        }
+
+        // vacuum-sounds-a-suction-wind-and-rising-slurps
+        @Test
+        void aTakenResidualSlurpsAtItsCellPitchedByItsDistance() {
+            ChannelHost host = residualHost(1f);
+
+            vacuum.tick(new StepContext(host, 0, 0));
+
+            verify(host).slurpAt(CELL, VacuumStep.slurpPitch(4, SHIPPED_RANGE));
         }
 
         /**

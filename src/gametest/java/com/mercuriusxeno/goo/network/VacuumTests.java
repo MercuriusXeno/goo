@@ -3,6 +3,9 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.block.ability.KineticSlickBlock;
 import com.mercuriusxeno.goo.block.ability.SlimeCoatBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.HeardSounds;
+import com.mercuriusxeno.goo.gametest.PacketRecorder;
+import com.mercuriusxeno.goo.registry.GooSoundIds;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
@@ -38,6 +41,7 @@ import java.util.function.Consumer;
  * vacuum-costs-one-mb-of-void-a-second
  * vacuum-pulls-items-to-pickup-and-drags-mobs
  * vacuumed-residuals-decay-through-mingle-noise-before-breaking
+ * vacuum-sounds-a-suction-wind-and-rising-slurps
  */
 @RegistersGameTests
 public final class VacuumTests {
@@ -114,6 +118,11 @@ public final class VacuumTests {
     private static final int EARLY_RELEASE = 6;
     /** Ticks past a release for an unfinished exposure to cool away to nothing. */
     private static final int COOL_TICKS = 60;
+    private static final String SLURPS = "vacuum_slurps_once_at_each_cell_it_takes";
+    /** The two goop cells the slurp test lays, near and far along the wave. */
+    private static final int SLURPED_NEAR = 3;
+    private static final int SLURPED_FAR = 6;
+    private static final String NOT_SLURPED = "One slurp should play at %s, %d did; slurps played at %s";
     /** The share past which a held stream's cell finishes alone after a release: nine tenths. */
     private static final float FINISHES_ALONE = 0.9f;
     /** The decay must show on at least this many ticks while the cell stands. */
@@ -140,6 +149,7 @@ public final class VacuumTests {
         GooTestFunctions.registerTest(registrar, LEAVES_THE_REST, VacuumTests::vacuumLeavesWhatIsOutsideItsReach);
         GooTestFunctions.registerTest(registrar, DECAYS_BEFORE_BREAKING, VacuumTests::vacuumDecaysAResidualBeforeBreakingIt);
         GooTestFunctions.registerTest(registrar, RELEASED_EARLY, VacuumTests::vacuumReleasedEarlyLeavesAFarCellWhole);
+        GooTestFunctions.registerTest(registrar, SLURPS, VacuumTests::vacuumSlurpsOnceAtEachCellItTakes);
         GooTestFunctions.registerTest(registrar, PULLS_ITEMS, VacuumTests::vacuumPullsItemsIntoTheInventory);
         GooTestFunctions.registerTest(registrar, DRAGS_A_MOB, VacuumTests::vacuumDragsAMobToABlockInFront);
         GooTestFunctions.registerTest(registrar, LEAVES_PLAYERS_AND_MOBS_BEHIND,
@@ -443,6 +453,31 @@ public final class VacuumTests {
             BlockState stood = helper.getBlockState(far);
             helper.assertTrue(SlimeCoatBlock.layersOf(stood) == LANE.get(FAR_GOOP),
                     String.format(NOT_WHOLE, LANE.get(FAR_GOOP), stood, exposureAt(helper, far)));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Vacuum held over two goop cells plays one slurp at each cell as it takes it.
+     * vacuum-sounds-a-suction-wind-and-rising-slurps
+     *
+     * @param helper the gametest helper
+     */
+    public static void vacuumSlurpsOnceAtEachCellItTakes(GameTestHelper helper) {
+        layTheFloor(helper);
+        List<BlockPos> cells = List.of(laneCell(SLURPED_NEAR), laneCell(SLURPED_FAR));
+        cells.forEach(cell -> helper.setBlock(cell, slimeOf(1)));
+        ServerPlayer vacuumer = vacuumer(helper);
+        PacketRecorder heard = PacketRecorder.attachTo(vacuumer);
+        holdVacuum(helper, vacuumer, WAVE_HOLD, held -> { });
+        helper.runAfterDelay(WAVE_HOLD + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(vacuumer);
+            for (BlockPos cell : cells) {
+                Vec3 middle = Vec3.atCenterOf(helper.absolutePos(cell));
+                long slurps = HeardSounds.at(heard, GooSoundIds.VACUUM_SLURP, middle);
+                helper.assertTrue(slurps == 1, String.format(NOT_SLURPED, middle, slurps,
+                        HeardSounds.describe(HeardSounds.of(heard, GooSoundIds.VACUUM_SLURP))));
+            }
             helper.succeed();
         });
     }

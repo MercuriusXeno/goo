@@ -93,6 +93,13 @@ public final class GooSoundIds {
      */
     public static final Identifier HOLE_CLOSE = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.hole_close");
 
+    /**
+     * A residual Vacuum takes: a short wet slurp built from vanilla's slime
+     * and honey samples, pitched up along the wave
+     * (decision vacuum-sounds-a-suction-wind-and-rising-slurps).
+     */
+    public static final Identifier VACUUM_SLURP = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.vacuum_slurp");
+
     private GooSoundIds() {
     }
 }
