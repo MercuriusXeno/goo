@@ -11,6 +11,10 @@ const float BRIGHT_STAR_FLOOR = 0.7;
 const float BRIGHT_STAR_PEAK = 1.0;
 const float DIM_STAR_GLOW = 0.28;
 
+// The room's edge, the voidstone its boundary cuts: the share of its texels holding a star, about a third of the
+// voidstone's, bright and dim in the voidstone's own proportion (decision room-edge-draws-a-sparser-starfield).
+const float EDGE_STARS = 0.016;
+
 // A star's twinkle on its own clock: a share of its brightness swinging between a tenth and the whole.
 float twinkle(float ticks, float rate, float phase) {
     return 0.55 + 0.45 * sin(ticks * rate + phase);
