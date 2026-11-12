@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class NetherExplosionVisualTest {
 
-    private static final String BLACK_HOLE = "void_black_hole";
+    private static final String BLACK_HOLE = "void_dark_star";
     private static final String RUSH_SHADER = "/assets/goo/shaders/core/nether_explosion.fsh";
     /** A radius a drag sets, in blocks. */
     private static final double DRAGGED = 4;
