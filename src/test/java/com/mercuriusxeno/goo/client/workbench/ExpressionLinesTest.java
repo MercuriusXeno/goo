@@ -280,6 +280,56 @@ class ExpressionLinesTest {
         assertTrue(held.underlined("$wood"));
     }
 
+    private static final List<ExpressionLines.Run> STICK = List.of(new ExpressionLines.Run(ExpressionLines.Kind.ITEM,
+            "Stick", "minecraft:stick"));
+
+    // The item's sprite's left edge and top, as the frame drew it.
+    private static int[] spriteOf(DrawnFrame frame) {
+        ArgumentCaptor<Integer> xs = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> ys = ArgumentCaptor.forClass(Integer.class);
+        Mockito.verify(frame.graphics).item(ArgumentMatchers.any(), xs.capture(), ys.capture());
+        return new int[] {xs.getValue(), ys.getValue()};
+    }
+
+    private static void paintLinked(DrawnFrame frame, ManagerActions actions) {
+        ExpressionLines.draw(Lettering.full(DrawnFrame.font()), STICK, 10, 20, 300, ExpressionLines.Painter.linked(
+                frame.graphics, mock(ItemIcons.class), frame.targets, 0xFFFFFFFF, actions));
+    }
+
+    /**
+     * In a linked value an item's sprite and name are one link: the sprite hovers the item's key, the name draws in
+     * the link color, and a shift + left click on the name opens Items on the item's whole id (decision
+     * diagnose-and-correct-read-mode-item-icons-that-do-not-follow).
+     */
+    @Test
+    void aLinkedItemsSpriteAndNameAreOneLinkThatOpensItsItem() {
+        DrawnFrame frame = new DrawnFrame();
+        ManagerActions actions = mock(ManagerActions.class);
+        paintLinked(frame, actions);
+        int[] sprite = spriteOf(frame);
+        assertEquals(java.util.Optional.of(ItemIcons.hoverKey("minecraft:stick")),
+                frame.targets.hovered(sprite[0] + 1, sprite[1] + 1));
+        assertEquals(Palette.LINK, frame.find("Stick").color());
+        frame.shiftClick("Stick");
+        Mockito.verify(actions).openItem("minecraft:stick");
+    }
+
+    /**
+     * With shift held a linked item draws one underline from its sprite's left to its name's right (decision
+     * holding-shift-underlines-every-link).
+     */
+    @Test
+    void aLinkedItemUnderlinesFromItsSpriteToItsNameWhileShiftIsHeld() {
+        DrawnFrame frame = new DrawnFrame().holdingShift();
+        paintLinked(frame, mock(ManagerActions.class));
+        int spriteLeft = spriteOf(frame)[0];
+        DrawnFrame.Text name = frame.find("Stick");
+        int nameRight = name.x() + DrawnFrame.font().width(name.text());
+        assertTrue(frame.fillsOf(Palette.LINK).stream().anyMatch(fill -> fill[0] == spriteLeft
+                && fill[2] == nameRight && fill[3] - fill[1] == 1), "one underline from " + spriteLeft + " to "
+                + nameRight);
+    }
+
     private static void paint(DrawnFrame frame, List<ExpressionLines.Run> runs) {
         ExpressionLines.draw(Lettering.full(DrawnFrame.font()), runs, 10, 20, 300,
                 new ExpressionLines.Painter(frame.graphics, null,
