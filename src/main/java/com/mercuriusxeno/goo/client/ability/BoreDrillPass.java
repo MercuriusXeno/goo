@@ -62,12 +62,13 @@ final class BoreDrillPass {
     }
 
     /**
-     * Draws the bit.
+     * Draws the vortex.
      *
-     * @param bit       the bit, camera relative
+     * @param bit       the vortex, camera relative
+     * @param presence  how much of it shows, 0 to 1, as it builds up and disperses
      * @param modelView the level's model view matrix this frame
      */
-    static void draw(ConeSections.Volume bit, Matrix4fc modelView) {
+    static void draw(ConeSections.Volume bit, double presence, Matrix4fc modelView) {
         if (bit.range() <= 0) {
             return;
         }
@@ -76,7 +77,7 @@ final class BoreDrillPass {
         depth.copyDepthFrom(main);
         GpuDevice device = RenderSystem.getDevice();
         BLOCK.clear();
-        pack(BLOCK, bit, device.isZZeroToOne());
+        pack(BLOCK, bit, presence, device.isZZeroToOne());
         GpuBuffer uniforms = device.createBuffer(() -> UNIFORM_BUFFER, GpuBuffer.USAGE_UNIFORM, BLOCK.flip());
         try (ByteBufferBuilder bytes = new ByteBufferBuilder(FACES * CORNERS
                 * DefaultVertexFormat.POSITION_COLOR.getVertexSize())) {
@@ -134,16 +135,16 @@ final class BoreDrillPass {
      * Packs the bit's uniform block, four std140 vec4 rows.
      *
      * @param out       where the bytes go, at its position
-     * @param bit       the bit, camera relative
+     * @param bit       the vortex, camera relative
+     * @param presence  how much of it shows, 0 to 1
      * @param zeroToOne whether the device's depth runs 0 to 1
      */
-    private static void pack(ByteBuffer out, ConeSections.Volume bit, boolean zeroToOne) {
+    private static void pack(ByteBuffer out, ConeSections.Volume bit, double presence, boolean zeroToOne) {
         ByteBuffer rows = out.order(ByteOrder.nativeOrder());
         row(rows, bit.apex(), bit.radiusAt().applyAsDouble(0));
         row(rows, bit.axis(), bit.range());
         row(rows, FireField.sideOf(bit.axis()), zeroToOne ? 1 : 0);
-        row(rows, Vec3.ZERO,
-                bit.radiusAt().applyAsDouble(bit.range()));
+        row(rows, new Vec3(presence, 0, 0), bit.radiusAt().applyAsDouble(bit.range()));
     }
 
     private static void row(ByteBuffer rows, Vec3 xyz, double w) {

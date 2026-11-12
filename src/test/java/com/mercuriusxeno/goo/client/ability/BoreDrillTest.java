@@ -59,6 +59,23 @@ class BoreDrillTest {
         }
     }
 
+    /** The vortex builds up when the bore starts and disperses after it ends, rather than switching. */
+    @Nested
+    class Presence {
+
+        @Test
+        void itBuildsUpOverTheFadeInWhileHeld() {
+            assertEquals(0.5, BoreDrill.presenceAfter(0, true, BoreDrill.FADE_IN_TICKS / 2), SLACK);
+            assertEquals(1, BoreDrill.presenceAfter(0.5, true, BoreDrill.FADE_IN_TICKS), SLACK);
+        }
+
+        @Test
+        void itDispersesOverTheFadeOutOnceReleased() {
+            assertEquals(0.5, BoreDrill.presenceAfter(1, false, BoreDrill.FADE_OUT_TICKS / 2), SLACK);
+            assertEquals(0, BoreDrill.presenceAfter(0.5, false, BoreDrill.FADE_OUT_TICKS), SLACK);
+        }
+    }
+
     @Nested
     class Radius {
 
