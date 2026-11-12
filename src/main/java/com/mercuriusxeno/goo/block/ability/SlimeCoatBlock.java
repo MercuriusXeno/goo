@@ -61,9 +61,10 @@ public class SlimeCoatBlock extends Block {
     public static final int MAX_LAYERS = 8;
     /**
      * The weird goo one coat layer costs and a broken cell gives back per
-     * layer, in mb; Goop's cost in its JSON equals the one layer a stream
-     * coat lays times this.
+     * layer, in mb; Goop's cost in its JSON prices a whole block of slime,
+     * so it equals this times {@link #MAX_LAYERS}.
      * breaking-slime-drops-weird-goo-worth-its-layers
+     * goop-drains-per-cubic-meter-of-slime-placed
      */
     public static final int MB_PER_LAYER = 12;
     /** Ticks between one pour and the next, as a fluid spreads. */

@@ -23,8 +23,10 @@ import java.util.stream.Stream;
  * finish alone, even after the hold ends. A cell the spray still reaches
  * takes another layer each time the JSON's ticks pass, until it is a whole
  * block of slime; a cell the aim left stops at the layer it was building.
- * The block under the coat is left as it stood.
+ * The block under the coat is left as it stood. Each layer pays its price
+ * as it lands.
  * coat-is-a-green-slime-film-over-the-blocks-own-texture
+ * goop-drains-per-cubic-meter-of-slime-placed
  * slime-is-a-layered-cell-that-levels-out
  * goop-layers-a-reached-cell-again-while-held
  * bounce-leaves-the-mod-and-goop-stands-alone
@@ -61,11 +63,29 @@ public record CoatStep(int ticks) implements TakesNoEntity {
             if (aim.reaching()) {
                 paintOpenTops(host, PaintedHold.seenReach(host, aim), marks);
             }
+            PlacementPrice price = host.placementPrice();
             // the coat mingles in wearing its own green
             PaintedHold.buildPaintedStates(host, CoatStep::coatOver, CoatStep::sameLayers, marks, 1f / ticks,
-                    raw -> OptionalInt.empty(), (pos, raw, into) -> host.transformBlock(pos, into));
+                    raw -> OptionalInt.empty(), (pos, raw, into) -> layPaidFor(host, price, pos, into));
         });
         return true;
+    }
+
+    /**
+     * Lands a layer once the player pays its price, an eighth of a cubic
+     * meter of slime, the hold's or a layer finishing alone after release
+     * alike; a layer the player cannot pay for does not land.
+     * goop-drains-per-cubic-meter-of-slime-placed
+     *
+     * @param host  the channel host
+     * @param price what the layer pays as it lands
+     * @param pos   the cell
+     * @param into  the cell's state with the layer laid
+     */
+    private static void layPaidFor(ChannelHost host, PlacementPrice price, BlockPos pos, BlockState into) {
+        if (price.pay(SlimeCoatBlock.MAX_LAYERS)) {
+            host.transformBlock(pos, into);
+        }
     }
 
     /**
