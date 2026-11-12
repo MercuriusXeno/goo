@@ -38,7 +38,7 @@ public final class UndeadTests {
     private static final String UNDEAD_HARMING_HEALS = "undead_harming_heals";
     private static final String UNDEAD_SUNBURN_AGGRAVATED = "undead_sunburn_is_aggravated";
     private static final String UNDEAD_ENDS_WHEN_DRY = "undead_ends_when_nether_runs_dry";
-    private static final String UNDEAD_HEAL_HARMS_CASTER = "undead_heal_harms_its_caster";
+    private static final String UNDEAD_HEAL_SPARES_CASTER = "undead_heal_spares_its_caster";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -50,7 +50,7 @@ public final class UndeadTests {
         GooTestFunctions.registerTest(registrar, UNDEAD_HARMING_HEALS, UndeadTests::undeadHarmingHeals);
         GooTestFunctions.registerTest(registrar, UNDEAD_SUNBURN_AGGRAVATED, UndeadTests::undeadSunburnIsAggravated);
         GooTestFunctions.registerTest(registrar, UNDEAD_ENDS_WHEN_DRY, UndeadTests::undeadEndsWhenNetherRunsDry);
-        GooTestFunctions.registerTest(registrar, UNDEAD_HEAL_HARMS_CASTER, UndeadTests::undeadHealHarmsItsCaster);
+        GooTestFunctions.registerTest(registrar, UNDEAD_HEAL_SPARES_CASTER, UndeadTests::undeadHealSparesItsCaster);
     }
 
 
@@ -78,8 +78,8 @@ public final class UndeadTests {
     /** A second of hold. */
     private static final int HEAL_HOLD_TICKS = 20;
     private static final String HEAL_REQUIRED = "Ability registry must hold jelly_heal";
-    private static final String SHOULD_HARM_CASTER =
-            "An undead player's own heal should harm it from %.1f, stands at %.2f";
+    private static final String SHOULD_SPARE_CASTER =
+            "An undead player's own heal should leave it at %.1f, stands at %.2f";
     private static final String SHOULD_STAND_PAID = "Undead should stand while nether pays its upkeep";
     private static final String SHOULD_END = "Undead, its nether hearts and its undeath should end once nether runs dry";
 
@@ -153,21 +153,21 @@ public final class UndeadTests {
     }
 
     /**
-     * An undead player holds jelly heal for a second: the stream takes its
-     * caster in as it does every caster, and the undead caster loses health
-     * to its own heal.
+     * A wounded undead player holds jelly heal for a second: the stream takes
+     * its caster in as it does every caster, and its own heal neither harms
+     * nor heals the undead caster.
      * undead-player-counts-as-undead-for-heal-and-decay
      *
      * @param helper the gametest helper
      */
-    public static void undeadHealHarmsItsCaster(GameTestHelper helper) {
+    public static void undeadHealSparesItsCaster(GameTestHelper helper) {
         AbilityDefinition heal = AbilityRegistry.of(helper.getLevel()).getAbility(JELLY_HEAL);
         helper.assertTrue(heal != null, HEAL_REQUIRED);
         ServerPlayer player = undeadAt(helper, OPEN_POS);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
         player.getInventory().add(GooStacks.createForOutput(GooTypes.JELLY, HELD_JELLY * GooStacks.THOUSAND));
         KnownRecipes.teachRequires(player, heal);
-        float before = player.getHealth();
+        player.setHealth(WOUNDED_HEALTH);
         GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.JELLY), JELLY_HEAL.toString(),
                 player.getEyePosition(), player.getEyePosition());
         for (int held = 1; held <= HEAL_HOLD_TICKS; held++) {
@@ -176,7 +176,7 @@ public final class UndeadTests {
         helper.runAfterDelay(HEAL_HOLD_TICKS + 1, () -> {
             float after = player.getHealth();
             helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(after < before, String.format(SHOULD_HARM_CASTER, before, after));
+            helper.assertTrue(after == WOUNDED_HEALTH, String.format(SHOULD_SPARE_CASTER, WOUNDED_HEALTH, after));
             helper.succeed();
         });
     }
@@ -239,7 +239,7 @@ public final class UndeadTests {
      * @param pos    the cell, relative
      * @return the player
      */
-    private static ServerPlayer undeadAt(GameTestHelper helper, BlockPos pos) {
+    static ServerPlayer undeadAt(GameTestHelper helper, BlockPos pos) {
         helper.setBlock(pos.below(), Blocks.STONE);
         ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.NETHER, NETHER_UNDEAD);
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(pos));
