@@ -1288,7 +1288,7 @@ public final class GooRenderTypes {
      * built as Drain's vortex pipeline is: a box around the bit whose
      * fragments march its churning earth dust through
      * {@code bore_drill.vsh / .fsh}, reading a copy of the world's depth so a
-     * surface outside the bit hides it and a block it is breaking does not.
+     * block the vortex meets clips it.
      * Blended translucent; it passes every depth test and writes none, since
      * the march clips itself against the world.
      */
