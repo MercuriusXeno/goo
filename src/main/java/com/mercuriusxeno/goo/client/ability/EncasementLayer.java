@@ -13,7 +13,6 @@ import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.context.ContextKey;
@@ -172,7 +171,19 @@ public final class EncasementLayer<S extends LivingEntityRenderState, M extends 
     private void submitEncasement(SubmitNodeCollector collector, EntityModel<? super S> model, S state,
                                   PoseStack poseStack, int lightCoords, float share) {
         collector.order(ENCASEMENT_ORDER).submitModel(model, state, poseStack, renderType,
-                lightCoords, OverlayTexture.NO_OVERLAY, shareColor(share, state.getRenderDataOrDefault(SEED, 0)), null,
+                lightCoords, skinSizeCoords(model), shareColor(share, state.getRenderDataOrDefault(SEED, 0)), null,
                 NO_OUTLINE, null);
+    }
+
+    /**
+     * The model's skin size packed in the overlay coordinates, which the
+     * encasement shader reads in place of an overlay, read once per model.
+     * Decision diagnose-and-correct-petrify-stone-stretching-off-native-texels.
+     *
+     * @param model the model the encasement draws
+     * @return the skin size as overlay coordinates, the width in u and the height in v
+     */
+    private static int skinSizeCoords(EntityModel<?> model) {
+        return ModelSkinSizeCache.sizeOf(model.root()).overlayCoords();
     }
 }

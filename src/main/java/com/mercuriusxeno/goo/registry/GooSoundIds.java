@@ -45,6 +45,14 @@ public final class GooSoundIds {
     public static final Identifier CLICK = Identifier.fromNamespaceAndPath(Goo.MODID, "ability.click");
 
     /**
+     * The echo Click's wave sheds on its way: the same comparator click under
+     * an id of its own, so Sculker's sub-rank table rings it at 5 and leaves
+     * the landing's click at 15.
+     * decision click-travel-echoes-ring-at-rank-five
+     */
+    public static final Identifier CLICK_TRAIL = Identifier.fromNamespaceAndPath(Goo.MODID, "ability.click_trail");
+
+    /**
      * A portal standing: the mod's own synthesized zap opening into a brief
      * hum, like a portal gun shot landing
      * (decision portal-placement-plays-a-zap-that-opens-into-a-hum).
@@ -64,6 +72,43 @@ public final class GooSoundIds {
      * (decision standing-portals-loop-a-soft-ambient-hum).
      */
     public static final Identifier PORTAL_HUM = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.portal_hum");
+
+    /**
+     * An Outsider room gaining a full block on every side: a dull low wub,
+     * a synthesized placeholder the operator may swap
+     * (decision full-block-growth-wubs-and-raises-void-motes).
+     */
+    public static final Identifier OUTSIDER_WUB = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.outsider_wub");
+
+    /**
+     * A door conjured before a player channeling Outsider toward the pocket:
+     * a rising shimmer, a synthesized placeholder the operator may swap
+     * (decision channeling-to-the-pocket-conjures-a-door-that-envelops-the-player).
+     */
+    public static final Identifier OUTSIDER_CONJURE =
+            Identifier.fromNamespaceAndPath(Goo.MODID, "effects.outsider_conjure");
+
+    /**
+     * The conjured door carrying a player into the pocket, sent to them as it
+     * envelops them and again as they arrive, in place of the nether portal's
+     * travel sound: the conjuring shimmer's sample for now, its own event so
+     * the operator may swap it
+     * (decision door-carries-its-own-sound-through-the-change).
+     */
+    public static final Identifier OUTSIDER_DOOR = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.outsider_door");
+
+    /**
+     * Void's hole opening: the Outsider room's wub under a subtitle naming the
+     * hole, played pitched up (decision hole-opens-with-the-outsider-wub-pitched-up).
+     */
+    public static final Identifier HOLE_OPEN = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.hole_open");
+
+    /**
+     * Void's hole closing on a punch or when its time runs out: the Outsider
+     * room's wub reversed, played pitched down
+     * (decision hole-closes-with-the-outsider-wub-reversed-and-pitched-down).
+     */
+    public static final Identifier HOLE_CLOSE = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.hole_close");
 
     private GooSoundIds() {
     }

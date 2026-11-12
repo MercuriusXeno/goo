@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.EntityModel;
+import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
@@ -14,7 +15,6 @@ import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
-import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.context.ContextKey;
@@ -121,6 +121,18 @@ public final class VineTangleLayer<S extends LivingEntityRenderState, M extends 
     private void submitTangle(SubmitNodeCollector collector, EntityModel<? super S> model, S state,
                               PoseStack poseStack, int lightCoords, float share) {
         collector.order(TANGLE_ORDER).submitModel(model, state, poseStack, GooRenderTypes.VINE_TANGLE_TYPE,
-                lightCoords, OverlayTexture.NO_OVERLAY, shareColor(share), null, NO_OUTLINE, null);
+                lightCoords, skinSizeCoords(model.root()), shareColor(share), null, NO_OUTLINE, null);
+    }
+
+    /**
+     * The model's skin size packed in the overlay coordinates, which the vine
+     * shader reads in place of an overlay, the width in u and the height in v.
+     * Decision diagnose-and-correct-vines-and-ailment-overlay-assuming-a-square-skin.
+     *
+     * @param root the root part of the model the vines draw over
+     * @return the skin size as overlay coordinates
+     */
+    static int skinSizeCoords(ModelPart root) {
+        return ModelSkinSizeCache.sizeOf(root).overlayCoords();
     }
 }

@@ -1,10 +1,13 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -60,6 +63,69 @@ class SculkerEchoesTest {
             echoes.advance(tick, FLAT_GROUND);
         }
         return echoes;
+    }
+
+    /**
+     * The faces grouped by chunk section are the remembered faces, tick by
+     * tick, as rings light them, as they fade and as a full memory lets the
+     * faintest go (decision diagnose-sculkers-lag-and-prove-it-improved-significantly).
+     */
+    @Nested
+    class Sections {
+
+        @Test
+        void theSectionsHoldTheRememberedFacesWhileTheyLightAndFade() {
+            assertSectionsFollow(new SculkerEchoes());
+        }
+
+        @Test
+        void theSectionsLetGoOfTheFacesAFullMemoryForgets() {
+            assertSectionsFollow(new SculkerEchoes(SMALL_MEMORY));
+        }
+
+        private void assertSectionsFollow(SculkerEchoes echoes) {
+            echoes.hear(SOUND, HEARD_AT, LOUDEST);
+            echoes.hear(new Vec3(24.5, 1, 0.5), HEARD_AT + QUARTER_SECOND, ORDINARY);
+            for (long tick = HEARD_AT; tick <= HEARD_AT + FOUR_SECONDS + SculkerEchoes.FADE_TICKS * 2; tick++) {
+                echoes.advance(tick, FLAT_GROUND);
+                Map<BlockPos, SculkerEchoes.Lit> grouped = new HashMap<>();
+                echoes.bySection().forEach((section, faces) -> faces.forEach((face, lit) -> {
+                    assertEquals(section, SectionPos.asLong(face), "a face grouped under another section");
+                    grouped.put(face, lit);
+                }));
+                assertEquals(echoes.remembered(), grouped, "the faces grouped by section at tick " + tick);
+                assertFalse(echoes.bySection().containsValue(Map.of()), "an empty section stands at tick " + tick);
+            }
+            assertTrue(echoes.bySection().isEmpty(), "every section should be let go once its faces fade");
+        }
+    }
+
+    /**
+     * A lit block broken away hands its light to the faces it uncovers, so
+     * the stone beneath glows the moment the block is gone rather than the
+     * lit faces far beyond showing through the hole until a ring reaches it.
+     */
+    @Nested
+    class Uncovering {
+
+        private final BlockPos beneath = UNDER_THE_SOUND.below();
+
+        @Test
+        void aLitBlockBrokenAwayLightsTheFaceItUncoversAtOnce() {
+            SculkerEchoes echoes = heardAndAdvancedTo(HEARD_AT + 2);
+            SculkerEchoes.Lit broken = echoes.remembered().get(UNDER_THE_SOUND);
+            Predicate<BlockPos> brokenAway = pos -> FLAT_GROUND.test(pos) || pos.equals(UNDER_THE_SOUND);
+            echoes.uncover(UNDER_THE_SOUND, brokenAway.negate(), brokenAway);
+            assertEquals(broken, echoes.remembered().get(beneath), "the face uncovered beneath, the moment it is");
+            assertFalse(echoes.remembered().containsKey(UNDER_THE_SOUND), "the block broken away, gone from the memory");
+        }
+
+        @Test
+        void aBlockThatChangesButStillStopsSoundUncoversNothing() {
+            SculkerEchoes echoes = heardAndAdvancedTo(HEARD_AT + 2);
+            echoes.uncover(UNDER_THE_SOUND, FLAT_GROUND.negate(), FLAT_GROUND);
+            assertFalse(echoes.remembered().containsKey(beneath), "a face still buried");
+        }
     }
 
     @Nested

@@ -10,10 +10,10 @@ import com.mercuriusxeno.goo.ability.program.FieldEffectStep;
 import com.mercuriusxeno.goo.ability.program.FloorsStep;
 import com.mercuriusxeno.goo.ability.program.LeafStep;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
+import com.mercuriusxeno.goo.ability.program.OutsiderStep;
 import com.mercuriusxeno.goo.ability.program.PhasedStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.PullStep;
-import com.mercuriusxeno.goo.ability.program.ReapStep;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepTypes;
@@ -517,7 +517,6 @@ public record AbilityDefinition(
             radiusOf(PullStep.class, PullStep::radius),
             radiusOf(AwaitEntityStep.class, AwaitEntityStep::radius),
             radiusOf(BloomStep.class, BloomStep::radius),
-            radiusOf(ReapStep.class, ReapStep::radius),
             // colonize-blob-grows-the-network
             radiusOf(ColonizeStep.class, ColonizeStep::radius),
             radiusOf(FloorsStep.class, FloorsStep::radius),
@@ -692,15 +691,18 @@ public record AbilityDefinition(
     /**
      * Refuses an ability costing nothing up front and paying no upkeep that names cost_mechanics
      * and no cost_formula: its price moves with what it does, so its petal reads the formula
-     * in place of a 0. A durative ability names cost_mechanics too, and its upkeep counts its seconds.
+     * in place of a 0. A durative ability names cost_mechanics too, and its upkeep counts its seconds;
+     * an Outsider's step prices it, its entry outside the pocket and its growth inside, both read live.
      * dynamic-costs-keep-the-mb-quantity
+     * decision outsider-cost-text-reads-the-new-mechanics
      *
      * @param definition the ability as the JSON wrote it
      * @return the ability, or an error naming the field
      */
     private static DataResult<AbilityDefinition> formulatedDynamicPrice(AbilityDefinition definition) {
         boolean dynamic = definition.cost().isFree() && definition.upkeep().isFree()
-                && definition.costMechanics().isPresent();
+                && definition.costMechanics().isPresent()
+                && definition.behaviors().stream().noneMatch(OutsiderStep.class::isInstance);
         return dynamic && definition.costFormula().isEmpty()
                 ? DataResult.error(() -> UNFORMULATED_DYNAMIC_PRICE)
                 : DataResult.success(definition);

@@ -66,10 +66,10 @@ import java.util.Optional;
  * samples that target at its own screen point, so looking into one portal
  * shows the other side as though it were right there. A partner beyond what
  * the client holds draws no view, and the portal keeps its idle face. The
- * edges of the Outsider room the player stands in draw their views the same
- * way, each showing the room's opposite side, though never within a view.
+ * edges of the Outsider room the player stands in draw no view: the room's
+ * copies tile out past them, drawn by RoomCopyRenderer.
  * portals-link-by-looking-through-portal-vision
- * outsider-room-wraps-and-repeats-at-the-platform-edge
+ * decision room-tiles-to-render-distance-held-to-the-picture
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class PortalView {
@@ -274,11 +274,6 @@ public final class PortalView {
             ways.add(new Gate[] {hole.entry(), hole.exit()});
             ways.add(new Gate[] {hole.exit(), hole.entry()});
         });
-        // outsider-room-wraps-and-repeats-at-the-platform-edge
-        ClientRoomEdges.edges().forEach(pair -> {
-            ways.add(new Gate[] {pair.one(), pair.other()});
-            ways.add(new Gate[] {pair.other(), pair.one()});
-        });
         return ways;
     }
 
@@ -324,8 +319,6 @@ public final class PortalView {
     private static boolean faces(Minecraft mc, Seen seen, Gate near) {
         Vec3 eye = seen.eye().position();
         double reach = mc.options.getEffectiveRenderDistance() * BLOCKS_PER_CHUNK;
-        // outsider-room-wraps-and-repeats-at-the-platform-edge: a room's edge stands two hundred blocks tall, its
-        // middle far above the eye beside it, so the reach is read to the nearest point of the gate's blocks
         return near.dimension().equals(mc.level.dimension())
                 && eye.subtract(near.center()).dot(near.face().getUnitVec3()) > 0
                 && near.blocks().distanceToSqr(eye) < reach * reach;
@@ -393,9 +386,7 @@ public final class PortalView {
                 turnOf(eye.forward(), eye.up()));
         if (depth < DEEPEST_VIEW) {
             for (Gate[] way : ways()) {
-                // outsider-room-wraps-and-repeats-at-the-platform-edge: one copy of the room shows past each edge,
-                // so no room edge draws a view within a view
-                if (!way[0].equals(far) && way[0].mask() != Gate.Mask.RECTANGLE) {
+                if (!way[0].equals(far)) {
                     drawThrough(mc, delta, new Seen(pass, eye, camera, cone), way[0], way[1], depth + 1);
                 }
             }
@@ -575,7 +566,7 @@ public final class PortalView {
             mc.levelRenderer.cloudRenderer = cloudsFor(currentPass);
             mc.mainRenderTarget = target;
             placeGlobalCamera(mc, delta, camera.pos);
-            if (skyDraws(state, camera)) {
+            if (skyDraws(state.skyRenderState.skybox, camera.fogType, camera.entityRenderState.doesMobEffectBlockSky)) {
                 clippedAfterSky = camera.projectionMatrix;
                 RenderSystem.setProjectionMatrix(skyProjectionBuffer().getBuffer(unclipped),
                         ProjectionType.PERSPECTIVE);
@@ -599,14 +590,18 @@ public final class PortalView {
     /**
      * Whether the level renderer draws a sky for this view, as its sky pass
      * decides: a skybox stands and nothing the camera is in or under hides it.
+     * The pocket's star sky draws through this same pass, so a view into the
+     * pocket draws the stars the frame draws.
+     * outsider-room-draws-a-skybox-of-stars
      *
-     * @param state  the level render state
-     * @param camera the view's camera state
+     * @param skybox        the skybox the view's level draws
+     * @param fog           the fog the view's camera stands in
+     * @param effectBlocked whether a mob effect on the camera hides the sky
      * @return true where the sky pass runs
      */
-    private static boolean skyDraws(LevelRenderState state, CameraRenderState camera) {
-        return state.skyRenderState.skybox != DimensionType.Skybox.NONE && camera.fogType != FogType.POWDER_SNOW
-                && camera.fogType != FogType.LAVA && !camera.entityRenderState.doesMobEffectBlockSky;
+    static boolean skyDraws(DimensionType.Skybox skybox, FogType fog, boolean effectBlocked) {
+        return skybox != DimensionType.Skybox.NONE && fog != FogType.POWDER_SNOW && fog != FogType.LAVA
+                && !effectBlocked;
     }
 
     /**

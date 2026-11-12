@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.block.ability.SlickLayPace;
 import com.mercuriusxeno.goo.block.ability.SlimeCoatBlock;
 import com.mercuriusxeno.goo.network.HoldMarks;
 import com.mercuriusxeno.goo.registry.GooBlocks;
@@ -87,10 +88,25 @@ public record SlickStep(int ticks, double startRamp, double strongestRamp, int b
             if (aim.reaching()) {
                 paintOpenTops(host, PaintedHold.seenReach(host, aim), marks);
             }
-            PaintedHold.buildPaintedStates(host, SlickStep::slickOver, SlickStep::sameBlock, marks, 1f / ticks,
+            PaintedHold.buildPaintedStates(host, SlickStep::slickOver, SlickStep::sameBlock, marks, layRate(host),
                     raw -> OptionalInt.empty(), (pos, raw, into) -> host.transformBlock(pos, into));
         });
         return true;
+    }
+
+    /**
+     * The share of a painted cell one held tick builds: the JSON's ticks
+     * shortened by the channeler's speed while they stand on slick, so slick
+     * lands in time to step on.
+     * slick-resolves-faster-by-speed-over-unadjusted-speed
+     *
+     * @param host the channel host
+     * @return the share
+     */
+    float layRate(ChannelHost host) {
+        double factor = SlickLayPace.factor(host.channelerTravelSpeed(), host.channelerUnadjustedSpeed(),
+                host.channelerStandsOnSlick());
+        return (float) (factor / ticks);
     }
 
     /**

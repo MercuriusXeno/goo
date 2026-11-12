@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.pocket.PocketShelves;
 import com.mercuriusxeno.goo.item.GooDeposit;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.item.PlayerUtils;
+import com.mercuriusxeno.goo.registry.GooSounds;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -15,11 +16,12 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
+import java.util.List;
 
 /**
  * Opens a player's portable hole on a struck face: on a top face it stands to
  * swallow what is thrown in, and on a bottom face it pours the owner's whole
- * shelf out beneath it. A face of a wall takes no hole.
+ * shelf out beneath it once it stands open. A face of a wall takes no hole.
  * decision hole-is-an-in-world-portable-hole-for-items
  */
 public final class HoleOpening {
@@ -30,6 +32,11 @@ public final class HoleOpening {
     private static final double FACE_LIFT = 0.55;
     private static final float SOUND_VOLUME = 1.0F;
     private static final float REFUSED_PITCH = 0.6F;
+    /**
+     * The Outsider room's wub pitched up, so the hole opens on a rising note.
+     * decision hole-opens-with-the-outsider-wub-pitched-up
+     */
+    private static final float OPENING_PITCH = 1.375F;
 
     private HoleOpening() {
     }
@@ -46,7 +53,7 @@ public final class HoleOpening {
 
     /**
      * Opens the owner's hole on a face, paying back the old Pocket's reserve
-     * the first time, and pours the shelf out when the face is a ceiling's.
+     * the first time.
      *
      * @param level    the level
      * @param owner    the player whose hole it is
@@ -60,15 +67,14 @@ public final class HoleOpening {
         PocketShelves shelves = PocketShelves.get(level);
         payBack(owner, shelves.settleReserve(owner.getUUID()));
         PortableHole hole = new PortableHole(owner.getUUID(), level.dimension(), block, face,
-                HoleFootprint.of(level, block, face), level.getGameTime(), level.getGameTime() + lifetime, refresh);
-        if (!hole.swallows()) {
-            pour(level, hole, shelves);
-        }
-        // stood after the pour, so the clients are told the emptied shelf
+                HoleFootprint.of(level, block, face), level.getGameTime(), level.getGameTime() + lifetime, refresh,
+                false);
+        // decision hole-pours-each-kind-from-where-it-swims-once-open: a ceiling's hole stands with its shelf whole,
+        // so the clients draw its kinds swimming while it opens, and PortableHoles pours it once it stands open
         PortableHoles.stand(level.getServer(), hole);
         Vec3 middle = hole.mouth().getCenter();
-        level.playSound(null, middle.x(), middle.y(), middle.z(), SoundEvents.ENDER_CHEST_OPEN, SoundSource.PLAYERS,
-                SOUND_VOLUME, 1.0F);
+        level.playSound(null, middle.x(), middle.y(), middle.z(), GooSounds.HOLE_OPEN.get(), SoundSource.PLAYERS,
+                SOUND_VOLUME, OPENING_PITCH);
     }
 
     /**
@@ -84,19 +90,37 @@ public final class HoleOpening {
                 SOUND_VOLUME, REFUSED_PITCH);
     }
 
-    private static void pour(ServerLevel level, PortableHole hole, PocketShelves shelves) {
-        // decision hole-mouth-opens-three-by-three-and-fits-its-room: the pour drops from the whole mouth's middle
-        Vec3 middle = hole.blocks().getBottomCenter();
-        Vec3 below = middle.subtract(0, POUR_DROP, 0);
-        for (PocketEntry entry : shelves.takeAll(hole.owner())) {
-            int perStack = Math.max(1, entry.kind().getMaxStackSize());
-            for (long left = entry.count(); left > 0; left -= perStack) {
-                ItemStack poured = entry.kind().copyWithCount((int) Math.min(left, perStack));
-                // decision hole-pour-falls-straight-down: no thrown velocity, so gravity alone moves each stack
-                ItemEntity item = new ItemEntity(level, below.x(), below.y(), below.z(), poured, 0, 0, 0);
-                item.setDefaultPickUpDelay();
-                level.addFreshEntity(item);
-            }
+    /**
+     * Pours a ceiling's hole's whole shelf out at once, every stack of a kind
+     * from where that kind swims in the mouth at this tick, as the client
+     * draws it: across and along the face at the kind's place, an item's
+     * height clear below the face rather than at its depth in the pit, so no
+     * stack starts inside the ceiling's blocks and is pushed out sideways.
+     * decision hole-pours-each-kind-from-where-it-swims-once-open
+     *
+     * @param level the hole's level
+     * @param hole  the hole
+     */
+    static void pour(ServerLevel level, PortableHole hole) {
+        List<PocketEntry> shelf = PocketShelves.get(level).takeAll(hole.owner());
+        HoleFrame frame = HoleFrame.of(hole.footprint(), hole.face());
+        float time = level.getGameTime();
+        double height = frame.centre().y() - POUR_DROP;
+        for (int index = 0; index < shelf.size(); index++) {
+            Vec3 swims = frame.toWorld(HoleDrift.offset(index, shelf.size(), time, frame.halfAcross(),
+                    frame.halfAlong()));
+            pourEntry(level, shelf.get(index), new Vec3(swims.x(), height, swims.z()));
+        }
+    }
+
+    private static void pourEntry(ServerLevel level, PocketEntry entry, Vec3 at) {
+        int perStack = Math.max(1, entry.kind().getMaxStackSize());
+        for (long left = entry.count(); left > 0; left -= perStack) {
+            ItemStack poured = entry.kind().copyWithCount((int) Math.min(left, perStack));
+            // decision hole-pour-falls-straight-down: no thrown velocity, so gravity alone moves each stack
+            ItemEntity item = new ItemEntity(level, at.x(), at.y(), at.z(), poured, 0, 0, 0);
+            item.setDefaultPickUpDelay();
+            level.addFreshEntity(item);
         }
     }
 

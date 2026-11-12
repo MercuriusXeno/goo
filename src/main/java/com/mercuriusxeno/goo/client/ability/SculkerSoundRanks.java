@@ -17,8 +17,8 @@ import java.util.regex.Pattern;
 
 /**
  * The mod's own sub-ranks, on top of vanilla's vibration ranks, for the
- * sounds vanilla does not rank: mob noises at 9, Shriek's and Click's sounds
- * at 15. The table ships as data, {@code assets/goo/sculker_sound_ranks.json},
+ * sounds vanilla does not rank: Click's travel echo at 5, mob noises at 9,
+ * Shriek's sound and Click's landing at 15. The table ships as data, {@code assets/goo/sculker_sound_ranks.json},
  * so the ranks are tuned there; each entry names a rank and the sound ids
  * it holds, where a star stands for any run of characters short of a
  * namespace's colon. The first entry naming a sound gives its rank.

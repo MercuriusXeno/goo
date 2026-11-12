@@ -13,7 +13,7 @@ import com.mercuriusxeno.goo.ability.StreamSound;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.client.TargetResult;
-import com.mercuriusxeno.goo.client.ability.HexMist;
+import com.mercuriusxeno.goo.client.ability.CameraEye;
 import com.mercuriusxeno.goo.client.ability.ReserveVisual;
 import com.mercuriusxeno.goo.client.ability.VitalityVisual;
 import com.mercuriusxeno.goo.client.ability.WindLines;
@@ -169,7 +169,6 @@ public final class GloveThrowSender {
         }
         VitalityVisual.drawFog(player, abilityId, selectedArea(abilityId), origin);
         WindLines.blow(player, abilityId, selectedArea(abilityId), origin);
-        HexMist.drift(player, abilityId, selectedDelivery(abilityId), origin);
         ReserveVisual.drawDrain(player, abilityId);
         loopStreamSound(player, abilityId);
         return true;
@@ -250,10 +249,66 @@ public final class GloveThrowSender {
      * @return the cursor's world point
      */
     public static Vec3 cursorPoint(Player player) {
-        if (Minecraft.getInstance().hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK) {
+        return sentCursorPoint(Minecraft.getInstance().hitResult, CameraEye.entitySight(player, 1f),
+                player.blockInteractionRange());
+    }
+
+    /**
+     * The world point under the cursor as the frame draws it: along the main
+     * camera's ray for the local player in first person, so a cursor drawn
+     * there eases with the view on sneak; else the point the server is sent.
+     *
+     * @param player      the local player
+     * @param partialTick the frame's partial tick
+     * @return the drawn cursor's world point
+     */
+    public static Vec3 drawnCursorPoint(Player player, float partialTick) {
+        Minecraft mc = Minecraft.getInstance();
+        return cursorPoints(CameraEye.followsTheCamera(mc, player), CameraEye.of(mc, player, partialTick),
+                CameraEye.entitySight(player, 1f), mc.hitResult, player.blockInteractionRange(),
+                CameraEye.blocksSeenBy(player)).drawn();
+    }
+
+    /**
+     * The cursor's two points: the one the frame draws and the one sent to
+     * the server, which computes from the entity eye.
+     *
+     * @param drawn the point the frame draws the cursor at
+     * @param sent  the point a held tick sends
+     */
+    public record CursorPoints(Vec3 drawn, Vec3 sent) {
+    }
+
+    /**
+     * The cursor's drawn and sent points. The sent point is vanilla's pick
+     * or the entity eye's reach, what the server computes from; the drawn
+     * point follows the camera's ray in first person.
+     * decision flatten-disc-cursor-breaks-above-the-plane
+     * decision diagnose-and-correct-eye-aimed-visuals-jumping-on-sneak
+     *
+     * @param followsTheCamera whether the player is the local player seen in first person
+     * @param camera           the main camera's sight
+     * @param entity           the player's own sight
+     * @param picked           vanilla's pick this frame, from the entity eye, or null
+     * @param reach            the player's block reach
+     * @param blocks           the clip the camera's ray is traced against
+     * @return the two points
+     */
+    public static CursorPoints cursorPoints(boolean followsTheCamera, CameraEye.Sight camera, CameraEye.Sight entity,
+                                            @Nullable HitResult picked, double reach, CameraEye.ViewClip blocks) {
+        Vec3 sent = sentCursorPoint(picked, entity, reach);
+        if (!followsTheCamera) {
+            return new CursorPoints(sent, sent);
+        }
+        BlockHitResult hit = blocks.clip(camera.eye(), camera.eye().add(camera.look().scale(reach)));
+        return new CursorPoints(hit.getLocation(), sent);
+    }
+
+    private static Vec3 sentCursorPoint(@Nullable HitResult picked, CameraEye.Sight entity, double reach) {
+        if (picked instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK) {
             return hit.getLocation();
         }
-        return player.getEyePosition().add(player.getViewVector(1f).scale(player.blockInteractionRange()));
+        return entity.eye().add(entity.look().scale(reach));
     }
 
     /**

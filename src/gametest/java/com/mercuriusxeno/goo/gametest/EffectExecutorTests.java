@@ -185,12 +185,12 @@ public final class EffectExecutorTests {
     /** Blocks a walking player covers in a tick, near vanilla's walking speed. */
     private static final double WALK_STEP = 0.2;
     private static final String CLOUD_HIT_STANDING = "The crystal cloud hurt the standing pig";
-    private static final String ABILITY_NETHER_BLACK_HOLE = "goo:nether_black_hole";
+    private static final String ABILITY_BLACK_HOLE = "goo:void_dark_star";
     /** The size a black hole is dragged to, the radius its JSON cost buys. */
     private static final double HOLE_SIZE = 3;
     /** Blocks south of the marker the caster stands, past the hole's pull of three times its size. */
     private static final int CASTER_DISTANCE = 12;
-    /** The nether the caster holds, more than the reference cost. */
+    /** The void goo the caster holds, more than the reference cost. */
     private static final int CASTER_GOO = 5000;
     private static final double HALF_BLOCK = 0.5;
     private static final String HOLE_CHARGED_WRONG = "The dragged hole should charge %d mB, charged %d";
@@ -198,7 +198,7 @@ public final class EffectExecutorTests {
     private static final int BLACK_HOLE_EXPAND_TICKS = 15;
     /** The phase the black hole opens with. */
     private static final String BLACK_HOLE_GATHER = "gather";
-    /** Ticks the black hole gathers before it expands, while nether's inward rush plays. */
+    /** Ticks the black hole gathers before it expands, while its inward rush plays. */
     private static final int BLACK_HOLE_GATHER_TICKS = 20;
     /** Ticks from the splat to the tick the black hole pops: gather, expand, hold and contract. */
     private static final int BLACK_HOLE_LIFE_TICKS = 80;
@@ -238,7 +238,7 @@ public final class EffectExecutorTests {
     private static final int SPILLED_STONE = 70;
     private static final String SPHERE_STAYED_SHUT = "The touched sphere is still standing";
     private static final String SPHERE_SPILLED_WRONG = "The touched sphere spilled other than 70 stone and a diamond: ";
-    private static final String HOLE_SPHERE_NOT_MAROON = "The black hole's sphere should draw the maroon core, draws %s";
+    private static final String HOLE_SPHERE_NOT_BLACK = "The black hole's sphere should draw the black core, draws %s";
     private static final String ABILITY_BLAST_DRAGGED = "goo:unstable_explode";
     /** The radius a Blast gathers its drops from, the smallest the decision names. */
     private static final double GATHERING_BLAST_SIZE = 3;
@@ -322,14 +322,14 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * Nether: the black hole consumes the stone it faced and removes its
+     * Void: the black hole consumes the stone it faced and removes its
      * marker once its phases end.
      *
      * @param helper the gametest helper
      */
     public static void netherImplodes(GameTestHelper helper) {
         fillWall(helper, Blocks.STONE);
-        placeMarkerWithAbility(helper, GooTypes.NETHER, ABILITY_NETHER_BLACK_HOLE, HOLE_SIZE);
+        placeMarkerWithAbility(helper, GooTypes.VOID, ABILITY_BLACK_HOLE, HOLE_SIZE);
         helper.runAfterDelay(NETHER_PROGRAM_TICKS, () -> {
             helper.assertTrue(helper.getBlockState(MARKER_POS.north()).isAir(), HOLE_LEFT_STONE);
             helper.assertBlockNotPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
@@ -338,7 +338,7 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * Nether: a black hole that consumes the wall holding it up stays in the
+     * Void: a black hole that consumes the wall holding it up stays in the
      * cell it landed in until its phases end, rather than falling mid-animation.
      *
      * @param helper the gametest helper
@@ -346,7 +346,7 @@ public final class EffectExecutorTests {
     public static void blackHoleHoldsItsPlace(GameTestHelper helper) {
         discardLeftoverEntities(helper);
         fillWall(helper, Blocks.STONE);
-        placeMarkerWithAbility(helper, GooTypes.NETHER, ABILITY_NETHER_BLACK_HOLE, HOLE_SIZE);
+        placeMarkerWithAbility(helper, GooTypes.VOID, ABILITY_BLACK_HOLE, HOLE_SIZE);
         helper.runAfterDelay(BLACK_HOLE_GATHER_TICKS + BLACK_HOLE_EXPAND_TICKS + SHORT_WAIT, () -> {
             helper.assertTrue(helper.getBlockState(MARKER_POS.north()).isAir(), HOLE_LEFT_STONE);
             helper.assertTrue(helper.getBlockState(MARKER_POS).is(GooBlocks.ABILITY_BLOCK.get()), HOLE_MOVED);
@@ -646,7 +646,7 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * Nether black hole as a phased program: one stack, landed facing a
+     * The black hole as a phased program: one stack, landed facing a
      * stone wall on a barrier floor it cannot take, with a zombie standing
      * and a diamond lying inside its sphere. Leaving expand it takes the
      * stone and kills the zombie, drops nothing until it has contracted,
@@ -676,7 +676,7 @@ public final class EffectExecutorTests {
             helper.assertTrue(held.stream().anyMatch(stack -> stack.is(Items.DIAMOND)), HOLE_HELD_NO_DIAMOND + held);
             helper.assertTrue(itemsAroundMarker(helper).isEmpty(), HOLE_LEFT_LOOSE_ITEMS);
             SphereCore core = spheres.getFirst().core();
-            helper.assertTrue(core == SphereCore.MAROON, String.format(HOLE_SPHERE_NOT_MAROON, core));
+            helper.assertTrue(core == SphereCore.BLACK, String.format(HOLE_SPHERE_NOT_BLACK, core));
             helper.succeed();
         });
     }
@@ -838,7 +838,7 @@ public final class EffectExecutorTests {
 
     /**
      * Casts the black hole the way a drag's release does: a survival player
-     * holding a glove and nether goo, standing well clear of the hole, pins
+     * holding a glove and void goo, standing well clear of the hole, pins
      * the stone's south face and drags the hole to its reference size; the
      * cast charges the reference cost and stands the hole in the cell the pin
      * faces (decision black-hole-leaves-a-compression-sphere).
@@ -852,15 +852,15 @@ public final class EffectExecutorTests {
         Vec3 stand = helper.absoluteVec(Vec3.atBottomCenterOf(MARKER_POS.south(CASTER_DISTANCE)));
         player.setPos(stand.x, stand.y, stand.z);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
-        player.getInventory().add(GooStacks.createForOutput(GooTypes.NETHER, CASTER_GOO));
-        AbilityDefinition hole = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(ABILITY_NETHER_BLACK_HOLE));
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.VOID, CASTER_GOO));
+        AbilityDefinition hole = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(ABILITY_BLACK_HOLE));
         helper.assertTrue(hole != null, ABILITIES_REQUIRED);
         KnownRecipes.teachRequires(player, hole);
         BlockPos pin = helper.absolutePos(MARKER_POS.north());
-        GooDragCastHandler.cast(player, new GooDragCastPayload(GooTypes.id(GooTypes.NETHER), ABILITY_NETHER_BLACK_HOLE,
+        GooDragCastHandler.cast(player, new GooDragCastPayload(GooTypes.id(GooTypes.VOID), ABILITY_BLACK_HOLE,
                 pin, Direction.SOUTH.get3DDataValue(), Vec3.atCenterOf(pin).relative(Direction.SOUTH, HALF_BLOCK),
                 HOLE_SIZE));
-        int spent = CASTER_GOO - GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.NETHER, 0);
+        int spent = CASTER_GOO - GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.VOID, 0);
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.assertTrue(spent == hole.cost().in(GooValueTable.EMPTY), String.format(HOLE_CHARGED_WRONG, hole.cost().in(GooValueTable.EMPTY), spent));
         helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
@@ -879,7 +879,7 @@ public final class EffectExecutorTests {
         hoard.add(new ItemStack(Items.STONE, SPILLED_STONE));
         hoard.add(new ItemStack(Items.DIAMOND));
         CompressionSphere.leave(helper.getLevel(), helper.absoluteVec(Vec3.atCenterOf(MARKER_POS)), hoard,
-                SphereCore.MAROON);
+                SphereCore.BLACK);
         CompressionSphere sphere = spheresAroundMarker(helper).getFirst();
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         sphere.playerTouch(player);
@@ -1125,13 +1125,13 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * A nether_black_hole blob's hole is gathering, its first phase, the
+     * A void_dark_star blob's hole is gathering, its first phase, the
      * tick after it lands.
      *
      * @param helper the gametest helper
      */
     public static void blackHoleGathersAfterLanding(GameTestHelper helper) {
-        landBlob(helper, GooTypes.NETHER, ABILITY_NETHER_BLACK_HOLE);
+        landBlob(helper, GooTypes.VOID, ABILITY_BLACK_HOLE);
         helper.runAfterDelay(TICK_AFTER_LANDING, () -> {
             AbilityBlockEntity be = landedMarker(helper);
             helper.assertTrue(be.getPhased().isRunning() && BLACK_HOLE_GATHER.equals(be.getPhased().name()),
