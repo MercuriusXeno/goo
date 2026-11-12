@@ -42,6 +42,8 @@ class DamageStepTest {
     private static final double DELTA = 1e-9;
     /** The immunity a vanilla melee hit leaves its target. */
     private static final int IMMUNE_AFTER_A_MELEE_HIT = 10;
+    /** The immunity vanilla's hurt leaves its target, LivingEntity's twenty ticks. */
+    private static final int IMMUNE_AFTER_A_VANILLA_HURT = 20;
 
     /**
      * Urchin's stab deals goo:stalagmite, which no fall tag holds, so a fall-immune chicken takes it.
@@ -112,7 +114,11 @@ class DamageStepTest {
     @Test
     void aGooHitNamingNoImmunityLeavesItsTargetNone() {
         LivingEntity villager = struck(Vec3.ZERO);
-        villager.invulnerableTime = IMMUNE_AFTER_A_MELEE_HIT;
+        // vanilla's hurt leaves its target immune, so the step's reset after the hurt is what reads here
+        when(villager.hurtServer(any(), any(), anyFloat())).thenAnswer(call -> {
+            villager.invulnerableTime = IMMUNE_AFTER_A_VANILLA_HURT;
+            return true;
+        });
 
         new DamageStep(Expr.literal(1), DamageKind.MAGIC).tick(new StepContext(hostOn(villager), 0, 0));
 
