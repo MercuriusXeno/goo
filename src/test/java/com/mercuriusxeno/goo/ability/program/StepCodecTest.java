@@ -54,6 +54,7 @@ class StepCodecTest {
             Map.entry("cool_lava", new CoolLavaStep()),
             Map.entry("coat", new CoatStep(20)),
             Map.entry("slick", new SlickStep(20, 1.03, 1.08, 40, 1, 0.3)),
+            Map.entry("vacuum", new VacuumStep(1.25)),
             Map.entry("wobble", new WobbleStep(Expr.literal(600))),
             Map.entry("detect_ore", new DetectOreStep(TagKey.create(Registries.BLOCK,
                     Identifier.fromNamespaceAndPath("goo", "gem_ores")), GooTypes.CRYSTAL, 64, 100)),
