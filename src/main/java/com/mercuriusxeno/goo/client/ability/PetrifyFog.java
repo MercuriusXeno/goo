@@ -27,7 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Petrify's fog: while right click holds Petrify, PUFFS of dust pour from the
+ * Petrify's fog: while right click holds Petrify, puffs of dust pour from the
  * glove each tick and billow out over the cone to its reach, each churning as
  * it rolls, a medusa's gaze miasma the player emits. Each puff keeps the
  * glove and aim it left with, so the fog trails the hand's motion instead of
@@ -48,7 +48,7 @@ public final class PetrifyFog {
     private static final int OUT = 1;
     private static final int BACK = -OUT;
 
-    /** The poured PUFFS, and the reach and half angle they pour by. */
+    /** The poured puffs, and the reach and half angle they pour by. */
     private static final List<PetrifyPuffs.Puff> PUFFS = new ArrayList<>();
     private static double range;
     private static double halfAngle;
@@ -57,7 +57,7 @@ public final class PetrifyFog {
     }
 
     /**
-     * Pours a tick's PUFFS while Petrify is held, and lets every puff past its
+     * Pours a tick's puffs while Petrify is held, and lets every puff past its
      * life go.
      *
      * @param event the client tick event
@@ -88,7 +88,7 @@ public final class PetrifyFog {
     }
 
     /**
-     * Draws the poured PUFFS after the translucent blocks.
+     * Draws the poured puffs after the translucent blocks.
      *
      * @param event the level render stage event
      */
