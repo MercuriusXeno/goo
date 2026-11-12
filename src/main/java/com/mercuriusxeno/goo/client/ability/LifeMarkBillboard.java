@@ -15,14 +15,15 @@ import net.minecraft.world.phys.Vec3;
 import java.util.List;
 
 /**
- * Draws the life mark over each mob Heal or Drain touched lately or Leader
- * senses, turned to face the camera in vanilla's heart sprites: the empty
+ * Draws the life mark over each rallied or charmed mob, and each mob Heal or
+ * Drain touched lately or Leader senses, turned to face the camera in vanilla's heart sprites: the empty
  * heart whole, the full heart over it cropped where the life's share ends,
  * and the count right of the heart. The mark draws see-through, over any
  * block between it and the camera, so a wall or ceiling the mark floats into
  * cuts none of it.
  * health-bar-is-one-heart-filling-left-to-right
  * leader-shows-life-bars-while-it-stands
+ * rallied-and-charmed-mobs-always-show-their-health-bar
  */
 final class LifeMarkBillboard {
 
@@ -121,33 +122,43 @@ final class LifeMarkBillboard {
     }
 
     /**
-     * Whether a mob draws a life mark: Heal or Drain touched it lately, or
-     * Leader senses it.
+     * Whether a mob draws a life mark: it is rallied or charmed, Heal or
+     * Drain touched it lately, or Leader senses it.
      * leader-shows-life-bars-while-it-stands
+     * rallied-and-charmed-mobs-always-show-their-health-bar
      *
-     * @param entityId the mob's id
-     * @param tick     the game tick
-     * @param touched  the mobs Heal or Drain touched
-     * @param leader   the mobs Leader senses
-     * @return true for a touched or a sensed mob
+     * @param entityId   the mob's id
+     * @param tick       the game tick
+     * @param touched    the mobs Heal or Drain touched
+     * @param leader     the mobs Leader senses
+     * @param headMarked whether the mob wears the rally or the charm head mark
+     * @return true for a head-marked, a touched or a sensed mob
      */
-    static boolean showsLifeMark(int entityId, long tick, TouchedMobs touched, LeaderSense leader) {
-        return touched.marked(entityId, tick) || leader.appearsGlowing(entityId);
+    static boolean showsLifeMark(int entityId, long tick, TouchedMobs touched, LeaderSense leader,
+                                 boolean headMarked) {
+        return headMarked || touched.marked(entityId, tick) || leader.appearsGlowing(entityId);
     }
 
     /**
-     * How strongly a mob's life mark draws: whole while Leader senses it and
-     * stands, fading with Leader's outline after it ends, and at TouchedMobs'
-     * own fade where only a touch marks it; the stronger of the two answers.
+     * How strongly a mob's life mark draws: whole always on a rallied or
+     * charmed mob; otherwise whole while Leader senses it and stands, fading
+     * with Leader's outline after it ends, and at TouchedMobs' own fade where
+     * only a touch marks it, the stronger of the two answering.
      * leader-shows-life-bars-while-it-stands
+     * rallied-and-charmed-mobs-always-show-their-health-bar
      *
-     * @param entityId the mob's id
-     * @param time     the game time including the partial tick
-     * @param touched  the mobs Heal or Drain touched
-     * @param leader   the mobs Leader senses
+     * @param entityId   the mob's id
+     * @param time       the game time including the partial tick
+     * @param touched    the mobs Heal or Drain touched
+     * @param leader     the mobs Leader senses
+     * @param headMarked whether the mob wears the rally or the charm head mark
      * @return the strength, zero to one
      */
-    static float markStrength(int entityId, float time, TouchedMobs touched, LeaderSense leader) {
+    static float markStrength(int entityId, float time, TouchedMobs touched, LeaderSense leader,
+                              boolean headMarked) {
+        if (headMarked) {
+            return 1f;
+        }
         float touchedStrength = touched.opacity(entityId, time);
         return leader.appearsGlowing(entityId) ? Math.max(leader.strength(time), touchedStrength) : touchedStrength;
     }
@@ -213,8 +224,9 @@ final class LifeMarkBillboard {
      */
     private static Shown shownAt(LivingEntity living, float time, Font font) {
         LifeMark mark = LifeMark.of(living.getHealth(), living.getMaxHealth());
-        return new Shown(living, mark, tint(markStrength(living.getId(), time, TouchedMobs.CLIENT, LeaderSense.CLIENT)),
-                Layout.of(font.width(mark.count())));
+        float strength = markStrength(living.getId(), time, TouchedMobs.CLIENT, LeaderSense.CLIENT,
+                HeadMarks.wearsHeadMark(living));
+        return new Shown(living, mark, tint(strength), Layout.of(font.width(mark.count())));
     }
 
     private static int tint(float opacity) {

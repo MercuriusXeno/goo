@@ -86,7 +86,8 @@ public final class HeadMarks {
         List<LivingEntity> marked = new ArrayList<>();
         for (Entity entity : level.entitiesForRendering()) {
             if (entity instanceof LivingEntity living && !living.isInvisible()
-                    && LifeMarkBillboard.showsLifeMark(living.getId(), tick, TouchedMobs.CLIENT, LeaderSense.CLIENT)) {
+                    && LifeMarkBillboard.showsLifeMark(living.getId(), tick, TouchedMobs.CLIENT, LeaderSense.CLIENT,
+                    wearsHeadMark(living))) {
                 marked.add(living);
             }
         }
