@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import net.minecraft.world.phys.Vec3;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -16,6 +17,33 @@ class PneumaWindTest {
     private static final Vec3 LOOK_EAST = new Vec3(1, 0, 0);
     private static final PneumaWind.Mote MOTE = new PneumaWind.Mote(
             PneumaWind.startAhead(LOOK_EAST, 0, 1), PneumaWind.mouth(LOOK_EAST), 0L);
+
+    /**
+     * Where the motes ride as the player sneaks: the entity eye has stepped to
+     * crouch height while the camera still eases toward it (decision
+     * diagnose-and-correct-eye-drawn-visuals-jumping-on-sneak).
+     */
+    @Nested
+    class OnSneak {
+
+        private static final Vec3 LOOK = new Vec3(0, 0, 1);
+        private static final CameraEye.Sight EASING_CAMERA = new CameraEye.Sight(new Vec3(0, 65.47, 0), LOOK);
+        private static final CameraEye.Sight CROUCHED_EYE = new CameraEye.Sight(new Vec3(0, 65.27, 0), LOOK);
+
+        @Test
+        void theLocalPlayersMotesInFirstPersonRideTheCamera() {
+            Vec3 origin = CameraEye.chosen(true, EASING_CAMERA, CROUCHED_EYE).eye();
+
+            assertEquals(EASING_CAMERA.eye().add(PneumaWind.motePoint(MOTE, 3)), PneumaWind.moteAt(origin, MOTE, 3));
+        }
+
+        @Test
+        void motesSeenFromOutsideTheLocalFirstPersonViewRideTheEntityEye() {
+            Vec3 origin = CameraEye.chosen(false, EASING_CAMERA, CROUCHED_EYE).eye();
+
+            assertEquals(CROUCHED_EYE.eye().add(PneumaWind.motePoint(MOTE, 3)), PneumaWind.moteAt(origin, MOTE, 3));
+        }
+    }
 
     @Test
     void aMoteLeavesAheadOfTheEyeWithinTheSpread() {
