@@ -80,12 +80,12 @@ public class AbilityBlockRenderState extends BlockEntityRenderState {
     /** Full cloud radius in blocks, read from the field effect. */
     public float crystalRadius;
 
-    /** True when a nether black-hole behavior is active on this marker.
+    /** True when a black-hole behavior is active on this marker.
      * The BER uses this flag to branch between the orb visual (false) and
      * the shader sphere (true). */
     public boolean netherActive;
 
-    /** How far the nether hole's startup ramp has run, 1 once it has run (decision dome-fades-in-before-its-start). */
+    /** How far the black hole's startup ramp has run, 1 once it has run (decision dome-fades-in-before-its-start). */
     public float holeRamp = 1f;
 
     /** Visible scale of the sphere in [0, 1]: grows through EXPAND, 1
