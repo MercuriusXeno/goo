@@ -7,11 +7,12 @@
 // Bore's vortex (decisions bore-shows-a-big-drill-from-the-glove, bore-breaks-what-is-in-the-vortex): a
 // vortex of earth magic held out in front of the player, marched as Drain's vortex is (decision
 // drain-casts-a-filled-tornadic-miasma-vortex-along-the-look). From a little below the line of sight it
-// runs out to Bore's reach on the line of sight, widening from its held radius to its far radius, never
-// wider than a block, and its far end is open, tattering away rather than closing to a point. It is a
-// churning swirl of earthy dust: clumps and thin spots poured outward and swirled round the axis, streaks
-// wound round it as a drill's are, screwing outward, its rim ragged inside the vortex's edge rather than
-// round. It thickens over its first stretch, so it fades in where it is held rather than starting hard. Each sample is read at the middle of the world's
+// runs out to Bore's reach on the line of sight, from a wide mouth where it is held to its narrower far
+// radius, never wider than a block, and its far end is open, tattering away rather than closing to a
+// point. It is a sparse, chaotically patchy swirl of earthy dust, as Drain's is: clumps with holes between
+// them, rippled by a warp, poured outward and swirled round the axis, dark at a clump's thick core and
+// paler at its thin edge, streaks wound round it as a drill's are, screwing outward, its rim and far end
+// torn ragged inside the vortex's edge rather than round. It thickens over its first stretch, so it fades in where it is held rather than starting hard. Each sample is read at the middle of the world's
 // sixteenth-of-a-block cell it falls in, as Flames' fire field is, so the dust stands in blocky texels.
 // Each ray stops at whatever the world drew there when that surface stands outside the vortex, so what
 // stands in front of it hides it; a surface inside the vortex is a block Bore is breaking, which hides
@@ -54,25 +55,33 @@ const float STREAK_ACROSS = 3.5;
 const float STREAK_ALONG = 0.8;
 const float STREAK_SHARPNESS = 4.0;
 
-// The body: noise cells across the vortex's width and per block along it, and where a clump starts, as a
-// noise level, with how softly; the rest is the thin spots between clumps.
-const float BODY_ACROSS = 2.2;
-const float BODY_ALONG = 1.4;
-const float CLUMP_FROM = 0.45;
-const float CLUMP_SOFT = 0.1;
-const float CORE_DEPTH = 0.18;
+// The body: noise cells across the vortex's width and per block along it, how far the warp ripples it,
+// and where a clump starts, as a noise level, with how softly; the rest is the holes between clumps.
+const float BODY_ACROSS = 2.6;
+const float BODY_ALONG = 0.9;
+const float RIPPLE_TURNS = 0.09;
+const float RIPPLE_RADIUS = 0.22;
+const float RIPPLE_CELLS = 1.3;
+const float RIPPLE_SECONDS = 3.0;
+const float CLUMP_FROM = 0.52;
+const float CLUMP_SOFT = 0.08;
+const float CORE_DEPTH = 0.15;
 
-// How much dust a block of clump holds, of streak, and of the haze between.
-const float CLUMP_DENSITY = 2.6;
-const float STREAK_DENSITY = 4.0;
-const float HAZE_DENSITY = 0.5;
+// How much dust a block of clump holds, of streak, and of the haze in the holes.
+const float CLUMP_DENSITY = 3.2;
+const float STREAK_DENSITY = 3.0;
+const float HAZE_DENSITY = 0.12;
 // The rim frays inward from this share of the radius, ragged by the body noise this far; no dust stands
 // past the vortex's edge, so the vortex is never drawn wider than it breaks.
-const float RIM_FROM = 0.6;
-const float FRAY = 0.4;
-// The open far end tatters from this share of the length out, torn by the body noise this far.
-const float FAR_FROM = 0.75;
-const float TATTER = 0.5;
+const float RIM_FROM = 0.5;
+const float FRAY = 0.6;
+// The open far end tatters from this share of the length out, torn into strands and gaps by a fine,
+// fast noise flowing outward, ragged this far, so the end is messy and never holds still.
+const float FAR_FROM = 0.6;
+const float TATTER = 0.75;
+const float TATTER_ACROSS = 5.0;
+const float TATTER_ALONG = 2.4;
+const float TATTER_FLOW = 1.5;
 // Blocks from where it is held the vortex thickens across, so it fades in rather than starting hard.
 const float HELD_THICKEN = 0.5;
 // How far past the vortex, in blocks, a surface still counts as inside it: a texel, so the face of a
@@ -81,11 +90,10 @@ const float SURFACE_SLACK = 0.0625;
 // The most the dust covers what lies behind it, so the blocks it drills still show.
 const float MOST_COVER = 0.85;
 
-// Rock's tones (rock_explosion.fsh, rock_bore.png): pale dust, tan dust, dark earth, stone grey.
+// Rock's tones (rock_explosion.fsh, rock_bore.png): pale dust, tan dust, dark earth.
 const vec3 PALE_DUST = vec3(0.918, 0.816, 0.565);
 const vec3 TAN_DUST = vec3(0.761, 0.659, 0.408);
 const vec3 DARK_EARTH = vec3(0.345, 0.247, 0.165);
-const vec3 STONE = vec3(0.561, 0.561, 0.561);
 
 float hash(vec3 p) {
     p = fract(p * vec3(0.1031, 0.1030, 0.0973));
@@ -148,11 +156,12 @@ vec2 throughBall(vec3 eye, vec3 dir) {
 }
 
 // The body's noise at a point of the vortex for one phase of the flow: the point carried back to where
-// its dust stood when the phase began, and the noise read there.
-float bodyAt(float along, float share, float theta, float carried, float seed) {
+// its dust stood when the phase began, rippled by the warp, and the noise read there.
+float bodyAt(float along, float share, float theta, float carried, float seed, float ripple) {
     float back = along - POUR * carried;
-    float turned = theta - TAU * SWIRL_TURNS * carried;
-    vec3 at = vec3(cos(turned) * share * BODY_ACROSS, sin(turned) * share * BODY_ACROSS, back * BODY_ALONG);
+    float turned = theta - TAU * SWIRL_TURNS * carried + TAU * RIPPLE_TURNS * (ripple - 0.5);
+    float spread = share * (1.0 + RIPPLE_RADIUS * (ripple - 0.5));
+    vec3 at = vec3(cos(turned) * spread * BODY_ACROSS, sin(turned) * spread * BODY_ACROSS, back * BODY_ALONG);
     return fbm(at + seed);
 }
 
@@ -171,6 +180,8 @@ vec3 dustAt(vec3 point, float seconds) {
     }
     vec3 lift = cross(AxisLength.xyz, SideDepth.xyz);
     float theta = atan(dot(radial, lift), dot(radial, SideDepth.xyz));
+    vec2 section = vec2(dot(radial, SideDepth.xyz), dot(radial, lift)) / radiusAt(along);
+    float ripple = noise(vec3(section * RIPPLE_CELLS, along * RIPPLE_CELLS - seconds / RIPPLE_SECONDS) + 64.0);
 
     // two phases half a flow apart, each fading in as it starts over and out as it ends, so no restart shows
     float cycle = seconds / FLOW_SECONDS;
@@ -178,8 +189,9 @@ vec3 dustAt(vec3 point, float seconds) {
     float secondShare = fract(cycle + 0.5);
     float firstWeight = 1.0 - abs(2.0 * firstShare - 1.0);
     float secondWeight = 1.0 - firstWeight;
-    float first = bodyAt(along, share, theta, firstShare * FLOW_SECONDS, floor(cycle) * 7.31);
-    float second = bodyAt(along, share, theta, secondShare * FLOW_SECONDS, floor(cycle + 0.5) * 7.31 + 3.7);
+    float first = bodyAt(along, share, theta, firstShare * FLOW_SECONDS, floor(cycle) * 7.31, ripple);
+    float second = bodyAt(along, share, theta, secondShare * FLOW_SECONDS, floor(cycle + 0.5) * 7.31 + 3.7,
+            ripple);
     float spread = length(vec2(firstWeight, secondWeight));
     float body = 0.5 + (firstWeight * (first - 0.5) + secondWeight * (second - 0.5)) / spread;
 
@@ -190,8 +202,10 @@ vec3 dustAt(vec3 point, float seconds) {
     float streak = pow(noise(streakAt + 23.0), STREAK_SHARPNESS) * (0.4 + 0.6 * clump);
 
     float ragged = body - 0.5;
+    float tatter = noise(vec3(section * TATTER_ACROSS, (along - seconds * TATTER_FLOW) * TATTER_ALONG) + 17.0);
+    float torn = 0.6 * (tatter - 0.5) + 0.4 * ragged;
     float frayed = (1.0 - smoothstep(RIM_FROM, 1.0, share + FRAY * ragged))
-            * (1.0 - smoothstep(FAR_FROM, 1.0, along / vortexLength + TATTER * ragged))
+            * (1.0 - smoothstep(FAR_FROM, 1.0, along / vortexLength + TATTER * torn))
             * smoothstep(0.0, HELD_THICKEN, along);
     float density = frayed * (CLUMP_DENSITY * clump + STREAK_DENSITY * streak + HAZE_DENSITY);
     return vec3(density, core, clamp(STREAK_DENSITY * streak / max(density / max(frayed, 1e-3), 1e-3), 0.0, 1.0));
@@ -218,7 +232,7 @@ void main() {
         if (dust.x <= 0.0) {
             continue;
         }
-        vec3 earth = mix(mix(TAN_DUST, STONE, 0.35), DARK_EARTH, dust.y);
+        vec3 earth = mix(mix(PALE_DUST, TAN_DUST, 0.5), DARK_EARTH, dust.y);
         vec3 color = mix(earth, PALE_DUST, dust.z);
         float taken = 1.0 - exp(-dust.x * stride);
         gathered.rgb += (1.0 - gathered.a) * taken * color;

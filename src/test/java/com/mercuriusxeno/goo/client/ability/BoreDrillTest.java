@@ -8,9 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Bore's drawn vortex is held out in front: it starts ahead of the eye and a
- * little below the line of sight, meets the line of sight at Bore's reach,
- * and at each end is as wide as the vortex Bore breaks at that depth, widening
- * to its far end and never wider than a block
+ * little below the line of sight with a wide mouth, meets the line of sight
+ * at Bore's reach, and at each end is as wide as the vortex Bore breaks at
+ * that depth, narrowing to its far end and never wider than a block
  * (decisions bore-shows-a-big-drill-from-the-glove, bore-breaks-what-is-in-the-vortex).
  */
 class BoreDrillTest {
@@ -18,8 +18,8 @@ class BoreDrillTest {
     /** rock_bore.json's delivery range. */
     private static final double REACH = 4;
     /** rock_bore.json's vortex radii at its near and far ends. */
-    private static final double NEAR = 0.1;
-    private static final double FAR = 0.45;
+    private static final double NEAR = 0.45;
+    private static final double FAR = 0.3;
     private static final double SLACK = 1e-9;
     private static final double HALF_A_BLOCK = 0.5;
     private static final Vec3 EYE = new Vec3(3.2, 70.62, -8.4);
@@ -72,13 +72,13 @@ class BoreDrillTest {
         }
 
         @Test
-        void itWidensToItsFarEndAndIsNeverWiderThanABlock() {
+        void itNarrowsFromItsMouthToItsFarEndAndIsNeverWiderThanABlock() {
             ConeSections.Volume vortex = vortex(NEAR, FAR);
-            double previous = 0;
+            double previous = Double.MAX_VALUE;
             for (int sample = 0; sample <= SAMPLES; sample++) {
                 double distance = vortex.range() * sample / SAMPLES;
                 double radius = vortex.radiusAt().applyAsDouble(distance);
-                assertTrue(radius >= previous, "the vortex narrows to " + radius + " at " + distance);
+                assertTrue(radius <= previous, "the vortex widens to " + radius + " at " + distance);
                 assertTrue(radius < HALF_A_BLOCK, "the vortex is " + 2 * radius + " wide at " + distance);
                 previous = radius;
             }

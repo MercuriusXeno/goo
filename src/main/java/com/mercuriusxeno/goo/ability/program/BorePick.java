@@ -13,8 +13,8 @@ import java.util.function.Predicate;
  * What a held Bore breaks this tick: the breakable blocks its eye line
  * crosses out to the reach, short of the first solid block outside its tag,
  * and every breakable block its vortex crosses besides. The vortex is a cone
- * along the eye line from the eye to the reach, widening from the JSON's
- * near radius to its far radius, never wider than a block, so aiming where
+ * along the eye line from the eye to the reach, from the JSON's wide near
+ * radius to its narrower far radius, never wider than a block, so aiming where
  * four blocks meet drills four, at the edge between two drills two, and at
  * a block's middle drills one. The stopping block shields the
  * vortex's blocks at its depth and beyond, as it shields the line's. The
@@ -114,7 +114,7 @@ record BorePick(List<List<BlockPos>> groups, List<BlockPos> tunnel) {
 
     /**
      * The vortex: a cone from its near end to its far end, its radius
-     * widening from one to the other.
+     * running straight from one end's to the other's.
      *
      * @param near       the near end, at the eye
      * @param far        the far end, at the reach
