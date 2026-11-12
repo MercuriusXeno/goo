@@ -9,7 +9,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
 /**
- * Client-side event handler that drives the nether black-hole lens
+ * Client-side event handler that drives the black-hole lens
  * post-process. Hooks {@link RenderLevelStageEvent.AfterLevel}, which
  * fires inside {@code GameRenderer.renderLevel} after
  * {@code LevelRenderer.renderLevel} returns (so all BERs have already

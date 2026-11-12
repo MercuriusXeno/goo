@@ -149,6 +149,8 @@ class StepCodecTest {
                     Identifier.fromNamespaceAndPath("goo", "bore_breakable")), new BreakPace(5, 1.5))),
             Map.entry("spire", new SpireStep()),
             Map.entry("petrify", new PetrifyStep(Expr.literal(2))),
+            Map.entry("drain_petrify", new DrainPetrifyStep(Expr.literal(2.5))),
+            Map.entry("wake_statue", new WakeStatueStep()),
             Map.entry("calcify", new CalcifyStep(Identifier.fromNamespaceAndPath("goo", "calcify"), 30)),
             Map.entry("degrade", new DegradeStep(Identifier.fromNamespaceAndPath("goo", "decay"), 20)),
             Map.entry("flames", new FlamesStep(Expr.literal(1), 2, 5, 40,

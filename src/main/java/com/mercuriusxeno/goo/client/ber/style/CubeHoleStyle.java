@@ -15,7 +15,7 @@ import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.util.ARGB;
 
 /**
- * Cube-shaped nether black-hole experiment. Mirrors the three-pass
+ * Cube-shaped black-hole experiment. Mirrors the three-pass
  * structure of {@link NetherSphereVisual}
  * but with cube geometry for the occluder and a cube-edge-glow shader
  * in place of the fresnel corona:

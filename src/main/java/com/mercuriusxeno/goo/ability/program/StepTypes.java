@@ -116,6 +116,8 @@ public final class StepTypes {
         register(BoreStep.TYPE);
         register(SpireStep.TYPE);
         register(PetrifyStep.TYPE);
+        register(DrainPetrifyStep.TYPE);
+        register(WakeStatueStep.TYPE);
         register(CalcifyStep.TYPE);
         register(DegradeStep.TYPE);
         register(FlamesStep.TYPE);
