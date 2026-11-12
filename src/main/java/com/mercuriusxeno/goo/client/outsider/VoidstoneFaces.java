@@ -31,11 +31,11 @@ import java.util.Map;
  * with no block entity: the faces of each chunk section on the floor's layer
  * are found once by scanning the section's palette and blocks, kept until the
  * level renderer marks that section dirty, and drawn in one batch a frame,
- * and again in each view through a room's edge, around that view's camera.
+ * and again in each view through a linked portal, around that view's camera.
  * Only voidstone {@link VoidstoneStars} stars draws them; the block the
- * room's boundary cuts keeps its plain dark faces.
+ * room's boundary cuts keeps its plain dark faces. The room's copies draw
+ * their starred faces through RoomCopyRenderer.
  * decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform
- * decision outsider-room-wraps-and-repeats-at-the-platform-edge
  * decision boundary-cut-voidstone-draws-without-its-stars
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -99,8 +99,7 @@ public final class VoidstoneFaces {
         if (level == null || level.dimension() != OutsiderRooms.POCKET) {
             return;
         }
-        // outsider-room-wraps-and-repeats-at-the-platform-edge: inside the view through a room's edge the faces
-        // stand around the camera the view is drawn from, so the room's far copy shows its stars in place
+        // inside a view through a linked portal the faces stand around the camera the view is drawn from
         Vec3 camera = PortalView.drawing() ? PortalView.cameraPosition() : mc.gameRenderer.getMainCamera().position();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.VOIDSTONE_TYPE);
@@ -134,13 +133,40 @@ public final class VoidstoneFaces {
             float blockX = (float) (originX + (face & AXIS_MASK));
             float blockY = (float) (originY + (face >> AXIS_BITS & AXIS_MASK));
             float blockZ = (float) (originZ + (face >> Z_SHIFT & AXIS_MASK));
-            Direction direction = Direction.from3DDataValue(face >> DIRECTION_SHIFT & DIRECTION_MASK);
-            for (float[] corner : CORNERS[direction.get3DDataValue()]) {
-                consumer.addVertex(pose, blockX + corner[X], blockY + corner[Y], blockZ + corner[Z])
-                        .setColor(OPAQUE_WHITE)
-                        .setNormal(pose, direction.getStepX(), direction.getStepY(), direction.getStepZ());
-            }
+            emitFace(consumer, pose, blockX, blockY, blockZ,
+                    Direction.from3DDataValue(face >> DIRECTION_SHIFT & DIRECTION_MASK));
         }
+    }
+
+    /**
+     * Emits one voidstone face as a quad over its block's side.
+     *
+     * @param consumer  the voidstone pipeline's vertex consumer
+     * @param pose      the pose
+     * @param blockX    the block's low x corner, as the pose lays it out
+     * @param blockY    the block's low y corner
+     * @param blockZ    the block's low z corner
+     * @param direction the side the face covers
+     */
+    static void emitFace(VertexConsumer consumer, PoseStack.Pose pose, float blockX, float blockY, float blockZ,
+            Direction direction) {
+        for (float[] corner : CORNERS[direction.get3DDataValue()]) {
+            consumer.addVertex(pose, blockX + corner[X], blockY + corner[Y], blockZ + corner[Z])
+                    .setColor(OPAQUE_WHITE)
+                    .setNormal(pose, direction.getStepX(), direction.getStepY(), direction.getStepZ());
+        }
+    }
+
+    /**
+     * Whether a voidstone shows its face one way: its neighbour that way does not cover it whole.
+     *
+     * @param level     the client level
+     * @param beside    the neighbour's place
+     * @param direction the way from the voidstone to its neighbour
+     * @return true where the face shows
+     */
+    static boolean showsFace(ClientLevel level, BlockPos beside, Direction direction) {
+        return level.getBlockState(beside).getFaceOcclusionShape(direction.getOpposite()) != Shapes.block();
     }
 
     /**
@@ -174,8 +200,7 @@ public final class VoidstoneFaces {
                         beside.set(SectionPos.sectionToBlockCoord(sectionX) + x + direction.getStepX(),
                                 SectionPos.sectionToBlockCoord(sectionY) + y + direction.getStepY(),
                                 SectionPos.sectionToBlockCoord(sectionZ) + z + direction.getStepZ());
-                        if (level.getBlockState(beside).getFaceOcclusionShape(direction.getOpposite())
-                                != Shapes.block()) {
+                        if (showsFace(level, beside, direction)) {
                             if (count == faces.length) {
                                 faces = Arrays.copyOf(faces, faces.length * GROWTH);
                             }

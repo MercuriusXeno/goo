@@ -1,20 +1,6 @@
 {
   "parent": "minecraft:block/block",
-  "render_type": "minecraft:translucent",
-  "ambientocclusion": false,
   "textures": {
-    "particle": "goo:block/dimension_door",
-    "sheet": "goo:block/dimension_door"
-  },
-  "elements": [
-    {
-      "from": [0, 0, 6],
-      "to": [16, 16, 10],
-      "shade": false,
-      "faces": {
-        "north": { "uv": [0, 0, 16, 16], "texture": "#sheet" },
-        "south": { "uv": [0, 0, 16, 16], "texture": "#sheet" }
-      }
-    }
-  ]
+    "particle": "goo:block/dimension_door"
+  }
 }

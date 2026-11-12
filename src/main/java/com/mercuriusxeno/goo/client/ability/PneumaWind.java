@@ -83,6 +83,19 @@ public final class PneumaWind {
     }
 
     /**
+     * Where a mote's head is drawn in the world, around the eye the frame
+     * places the motes from.
+     *
+     * @param eye  the eye the motes ride with, {@link CameraEye#of}'s
+     * @param mote the mote
+     * @param age  ticks since it left
+     * @return the head's world point
+     */
+    static Vec3 moteAt(Vec3 eye, Mote mote, double age) {
+        return eye.add(motePoint(mote, age));
+    }
+
+    /**
      * A mote's opacity over its life: fading in as it leaves, out as it reaches the mouth.
      *
      * @param life the share of its life lived, 0 to 1
@@ -157,7 +170,7 @@ public final class PneumaWind {
     private static void drawMotes(RenderLevelStageEvent.AfterTranslucentBlocks event, Minecraft mc,
                                   LocalPlayer player, long now) {
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        Vec3 eye = player.getEyePosition(partialTick);
+        Vec3 eye = CameraEye.of(mc, player, partialTick).eye();
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         RenderType type = RenderTypes.linesTranslucent();
@@ -173,10 +186,10 @@ public final class PneumaWind {
         if (alpha <= 0) {
             return;
         }
-        Vec3 previous = eye.add(motePoint(mote, age));
+        Vec3 previous = moteAt(eye, mote, age);
         for (int sample = 1; sample <= TAIL_SAMPLES; sample++) {
             double tail = (double) sample / TAIL_SAMPLES;
-            Vec3 next = eye.add(motePoint(mote, age - tail * TAIL_TICKS));
+            Vec3 next = moteAt(eye, mote, age - tail * TAIL_TICKS);
             int color = ARGB.color((int) Math.round(alpha * (1 - tail)), WHITE);
             lines.emitPolyline(camera, new Vec3[] {previous, next}, color, LINE_WIDTH);
             previous = next;

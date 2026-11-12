@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.client.ability.KnivesCharge;
 import com.mercuriusxeno.goo.client.ability.PhaseLook;
 import com.mercuriusxeno.goo.client.ability.PhasedHands;
 import com.mercuriusxeno.goo.client.ability.PortalView;
+import com.mercuriusxeno.goo.client.outsider.RoomBodyCopyRenderer;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.item.GooGloveItem;
@@ -265,12 +266,14 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * @param cy        the center Y in block coords
      * @param cz        the center Z in block coords
      */
-    private static void captureGooCenter(PoseStack poseStack,
+    static void captureGooCenter(PoseStack poseStack,
                                           float cx, float cy, float cz) {
         // portals-link-by-looking-through-portal-vision: a glove drawn on the player's body in a view through a
         // portal stands where that view's camera sees it, not before the player's eyes, so it leaves the aim line's
         // hand where the first-person glove put it.
-        if (PortalView.drawing()) {
+        // decision room-tiles-to-render-distance-held-to-the-picture: so does a glove on the player's copy in an
+        // Outsider room's copies, which stands a room's width or more away
+        if (PortalView.drawing() || RoomBodyCopyRenderer.drawingCopies()) {
             return;
         }
         Vector4f pos = new Vector4f(cx, cy, cz, 1.0f);

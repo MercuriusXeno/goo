@@ -64,11 +64,11 @@ class AffordedCountTest {
     class OutsiderInTheRoom {
 
         private static final int HOLDING = 1500;
-        /** Short of ring 2's 208 mB, a second's growth from the laid room. */
-        private static final int UNDER_A_SECOND = 200;
-        /** Past ring 2's 208 mB. */
-        private static final int OVER_A_SECOND = 300;
-        private static final double RING_TWO_GROWN = 2.5;
+        /** Short of ring 5's 700 mB, a second's growth from the laid room. */
+        private static final int UNDER_A_SECOND = 650;
+        /** Past ring 5's 700 mB. */
+        private static final int OVER_A_SECOND = 800;
+        private static final double RING_FIVE_GROWN = 5.5;
 
         private final ClientAbility outsider = ClientAbility.fromEntry(AbilitySyncPayload.gloveEntries(GooTypes.VOID,
                 List.of(AbilityJson.decode("void_outsider"))).getFirst());
@@ -81,10 +81,10 @@ class AffordedCountTest {
 
         @Test
         void petalReadsTheRingsPriceASecondThenTheSeconds() {
-            assertEquals("208/s | " + panelCount(RoomExtent.LAID), outsider.petalLabel(HOLDING, NO_REAGENTS,
+            assertEquals("700/s | " + panelCount(RoomExtent.LAID), outsider.petalLabel(HOLDING, NO_REAGENTS,
                     StandingUpkeep.NONE, OptionalDouble.of(RoomExtent.LAID)));
-            assertEquals("348/s | " + panelCount(RING_TWO_GROWN), outsider.petalLabel(HOLDING, NO_REAGENTS,
-                    StandingUpkeep.NONE, OptionalDouble.of(RING_TWO_GROWN)));
+            assertEquals("912/s | " + panelCount(RING_FIVE_GROWN), outsider.petalLabel(HOLDING, NO_REAGENTS,
+                    StandingUpkeep.NONE, OptionalDouble.of(RING_FIVE_GROWN)));
         }
 
         /**
@@ -240,7 +240,7 @@ class AffordedCountTest {
     class Dynamic {
 
         private static final List<String> DYNAMIC_ABILITIES = List.of("ender_blink",
-                "void_black_hole", "unstable_explode", "rock_spire", "yore_age");
+                "void_dark_star", "unstable_explode", "rock_spire", "yore_age");
 
         @Test
         void zeroCostPetalReadsItsFormula() {

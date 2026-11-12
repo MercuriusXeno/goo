@@ -70,21 +70,23 @@ class GooStreamHandlerTest {
     }
 
     /**
-     * A Goop or Slick mote flies to the end of the coat ray its shares name,
-     * coasting to rest there at friction 0.9; any other stream's mote keeps
-     * the crosshair-distance launch.
+     * A Goop or Slick spray drip launches toward the end of the coat ray its
+     * shares name, a tenth of the gap each tick, plus its caster's travel; any
+     * other stream's mote keeps the crosshair-distance launch.
      * goop-and-slick-spray-follows-the-coat
+     * glove-stream-motes-carry-the-players-travel-velocity
      */
     @Nested
     class SprayLaunch {
 
-        private static final Identifier MIST = Identifier.fromNamespaceAndPath("goo", "slime_mist");
+        private static final Identifier DRIP = Identifier.fromNamespaceAndPath("goo", "goop_spray_drip");
+        private static final Identifier SPORE = Identifier.fromNamespaceAndPath("goo", "spore");
         private static final Vec3 GLOVE = new Vec3(0.3, 1.3, 0.2);
         private static final Vec3 EYE = new Vec3(0, 1.62, 0);
         private static final double CONE = 16;
         private static final double RANGE = 8;
         private static final CoatRay.ConeShare SHARE = new CoatRay.ConeShare(0.5, 0.25);
-        /** A mote at friction 0.9 coasts ten times its launch velocity. */
+        /** A launch at a tenth of the gap per tick aims ten launches off. */
         private static final double COAST = 10;
         private static final double TOLERANCE = 1e-9;
         /** The floor's top face at y 0, the only block a ray meets. */
@@ -93,8 +95,10 @@ class GooStreamHandlerTest {
                 : Optional.empty();
         private static final CoatRay.BlockClip OPEN_AIR = (from, to) -> Optional.empty();
 
-        private StreamMotesPayload coatMotes(Vec3 look) {
-            return new StreamMotesPayload(1, GLOVE, look, MIST, CONE, 0, Vec3.ZERO,
+        private static final Vec3 TRAVEL = new Vec3(0.2, -0.1, 0.3);
+
+        private StreamMotesPayload coatMotes(Vec3 look, Vec3 travel) {
+            return new StreamMotesPayload(1, GLOVE, look, DRIP, CONE, 0, travel,
                     Optional.of(new CoatSpray(EYE, look, RANGE)));
         }
 
@@ -112,9 +116,9 @@ class GooStreamHandlerTest {
             Vec3 end = hit.add(direction.scale(0.01));
             assertTrue(EYE.distanceTo(end) < RANGE, "the floor should stand short of the range");
 
-            Vec3 launch = GooStreamHandler.moteLaunch(coatMotes(look), SHARE, FLOOR);
+            Vec3 launch = GooStreamHandler.moteLaunch(coatMotes(look, TRAVEL), SHARE, FLOOR);
 
-            assertNear(end, GLOVE.add(launch.scale(COAST)));
+            assertNear(end, GLOVE.add(launch.subtract(TRAVEL).scale(COAST)));
         }
 
         @Test
@@ -122,9 +126,19 @@ class GooStreamHandlerTest {
             Vec3 look = new Vec3(0, 0.3, 1).normalize();
             Vec3 direction = StreamCone.launchDirection(look, CONE, SHARE.tilt(), SHARE.turn());
 
-            Vec3 launch = GooStreamHandler.moteLaunch(coatMotes(look), SHARE, FLOOR);
+            Vec3 launch = GooStreamHandler.moteLaunch(coatMotes(look, TRAVEL), SHARE, FLOOR);
 
-            assertNear(EYE.add(direction.scale(RANGE)), GLOVE.add(launch.scale(COAST)));
+            assertNear(EYE.add(direction.scale(RANGE)), GLOVE.add(launch.subtract(TRAVEL).scale(COAST)));
+        }
+
+        @Test
+        void aCoatDripsLaunchAddsItsCastersTravel() {
+            Vec3 look = new Vec3(0, -0.5, 1).normalize();
+
+            Vec3 standing = GooStreamHandler.moteLaunch(coatMotes(look, Vec3.ZERO), SHARE, FLOOR);
+            Vec3 travelling = GooStreamHandler.moteLaunch(coatMotes(look, TRAVEL), SHARE, FLOOR);
+
+            assertNear(TRAVEL, travelling.subtract(standing));
         }
 
         @Test
@@ -140,7 +154,7 @@ class GooStreamHandlerTest {
         private void assertCrosshairLaunch(double crosshairDistance, double restsAt) {
             Vec3 axis = new Vec3(0.6, 0, 0.8);
             Vec3 travel = new Vec3(0.2, -0.1, 0.3);
-            StreamMotesPayload spores = new StreamMotesPayload(1, GLOVE, axis, MIST, 0,
+            StreamMotesPayload spores = new StreamMotesPayload(1, GLOVE, axis, SPORE, 0,
                     GooStreamHandler.crosshairSpeed(RANGE, crosshairDistance), travel, Optional.empty());
 
             Vec3 launch = GooStreamHandler.moteLaunch(spores, SHARE, OPEN_AIR);

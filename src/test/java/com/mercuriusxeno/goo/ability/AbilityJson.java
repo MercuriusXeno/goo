@@ -35,7 +35,7 @@ public final class AbilityJson {
     /**
      * The id an ability file loads under: the goo namespace and the filename without its suffix.
      *
-     * @param fileName the file's name, such as {@code void_black_hole.json}
+     * @param fileName the file's name, such as {@code void_dark_star.json}
      * @return the ability id
      */
     public static Identifier idOf(String fileName) {
@@ -78,7 +78,7 @@ public final class AbilityJson {
     /**
      * Decodes one shipped ability by name.
      *
-     * @param name the ability's filename without its suffix, such as {@code void_black_hole}
+     * @param name the ability's filename without its suffix, such as {@code void_dark_star}
      * @return the decoded definition
      */
     public static AbilityDefinition decode(String name) {
