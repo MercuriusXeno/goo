@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.client.hole;
+package com.mercuriusxeno.goo.ability.hole;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * spanning exactly the cells of the hole's footprint.
  * decision hole-mouth-opens-three-by-three-and-fits-its-room
  */
-class HoleMouthsTest {
+class HoleFrameTest {
 
     @Test
     void aThreeByThreeFloorMouthSpansItsNineTopFaces() {
@@ -24,13 +24,13 @@ class HoleMouthsTest {
             }
         }
 
-        assertEquals(new AABB(3, 65, -3, 6, 65, 0), HoleMouths.openingOn(footprint, Direction.UP));
+        assertEquals(new AABB(3, 65, -3, 6, 65, 0), HoleFrame.openingOn(footprint, Direction.UP));
     }
 
     @Test
     void aOneByTwoCeilingMouthSpansItsTwoBottomFaces() {
         List<BlockPos> footprint = List.of(new BlockPos(4, 64, -2), new BlockPos(5, 64, -2));
 
-        assertEquals(new AABB(4, 64, -2, 6, 64, -1), HoleMouths.openingOn(footprint, Direction.DOWN));
+        assertEquals(new AABB(4, 64, -2, 6, 64, -1), HoleFrame.openingOn(footprint, Direction.DOWN));
     }
 }
