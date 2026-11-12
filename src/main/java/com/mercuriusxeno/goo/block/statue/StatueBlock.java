@@ -16,7 +16,8 @@ import org.jspecify.annotations.Nullable;
  * A petrified mob: a block that behaves like cobblestone, mined with a
  * pickaxe for cobblestone and the mob's experience, its block entity holding
  * the mob it was so the renderer draws that mob in stone
- * (decision petrify-stone-encasement-and-calcify-map).
+ * (decision petrify-stone-encasement-and-calcify-map) and Heal's stream wakes
+ * it back into that mob (decision heal-wakes-a-statue-at-a-nearly-full-gauge).
  */
 public class StatueBlock extends BaseEntityBlock {
 
