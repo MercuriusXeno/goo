@@ -16,18 +16,23 @@ import java.util.stream.Stream;
  * without: {@code wind snowflakes=true}. Where the step names a tailwind, the
  * lines ride along with the player instead, leaving from just behind it and
  * rushing forward past the camera along the look to curl ahead, the wind
- * carrying a jet: {@code wind tailwind={range=6 cone=30}}.
+ * carrying a jet: {@code wind tailwind={range=6 cone=30}}. Where the step
+ * names inward, the lines run the other way, from inside the cone into the
+ * glove, as Vacuum draws its wind in: {@code wind inward=true}.
  * cold-streams-wind-lines-and-snowflakes
  * jet-pushes-along-the-look-while-held
+ * vacuum-streaks-wind-lines-inward-to-the-glove
  *
  * @param snowflakes whether snowflakes flit along the lines
  * @param tailwind   the tailwind the lines carry the player on, or empty to blow them from the glove
+ * @param inward     whether the lines run from inside the cone into the glove rather than out of it
  */
-public record WindStep(boolean snowflakes, Optional<Tailwind> tailwind) implements TakesNoEntity {
+public record WindStep(boolean snowflakes, Optional<Tailwind> tailwind, boolean inward) implements TakesNoEntity {
 
     private static final String NAME = "wind";
     private static final String FIELD_SNOWFLAKES = "snowflakes";
     private static final String FIELD_TAILWIND = "tailwind";
+    private static final String FIELD_INWARD = "inward";
 
     /**
      * A jet's tailwind: the cone the lines rush forward through, riding along with the player.
@@ -52,7 +57,8 @@ public record WindStep(boolean snowflakes, Optional<Tailwind> tailwind) implemen
      */
     public static final MapCodec<WindStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             Codec.BOOL.optionalFieldOf(FIELD_SNOWFLAKES, false).forGetter(WindStep::snowflakes),
-            Tailwind.CODEC.optionalFieldOf(FIELD_TAILWIND).forGetter(WindStep::tailwind)
+            Tailwind.CODEC.optionalFieldOf(FIELD_TAILWIND).forGetter(WindStep::tailwind),
+            Codec.BOOL.optionalFieldOf(FIELD_INWARD, false).forGetter(WindStep::inward)
     ).apply(inst, WindStep::new));
 
     /**
@@ -67,6 +73,16 @@ public record WindStep(boolean snowflakes, Optional<Tailwind> tailwind) implemen
      */
     public WindStep(boolean snowflakes) {
         this(snowflakes, Optional.empty());
+    }
+
+    /**
+     * Wind blown out from the glove, or carried as a tailwind.
+     *
+     * @param snowflakes whether snowflakes flit along the lines
+     * @param tailwind   the tailwind the lines carry the player on, or empty to blow them from the glove
+     */
+    public WindStep(boolean snowflakes, Optional<Tailwind> tailwind) {
+        this(snowflakes, tailwind, false);
     }
 
     @Override

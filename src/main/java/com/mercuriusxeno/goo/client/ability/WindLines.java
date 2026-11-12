@@ -144,9 +144,30 @@ public final class WindLines {
      * @param snowflakes whether snowflakes flit along it
      * @param startTick  the game time it left the glove
      * @param carried    whether it rides along with the player, a jet's tailwind
+     * @param inward     whether it runs from its straight run's end into the glove rather than out of it
      */
     record Line(Vec3 origin, Vec3 axis, Vec3 outward, Vec3 across, double straight, Sway sway, double winding,
-                float gray, boolean snowflakes, long startTick, boolean carried) {
+                float gray, boolean snowflakes, long startTick, boolean carried, boolean inward) {
+
+        /**
+         * A line rushing out of the glove.
+         *
+         * @param origin     where it leaves: in the world, or relative to the player's feet when carried
+         * @param axis       the unit direction it rushes along
+         * @param outward    the unit direction out from the cone's middle it curls toward
+         * @param across     the unit direction square to the look and to outward
+         * @param straight   blocks it rushes straight before curling
+         * @param sway       how it sways off its course
+         * @param winding    which way its curl winds, 1 or -1
+         * @param gray       how far its color leans from white to pale gray, 0 to 1
+         * @param snowflakes whether snowflakes flit along it
+         * @param startTick  the game time it left the glove
+         * @param carried    whether it rides along with the player, a jet's tailwind
+         */
+        Line(Vec3 origin, Vec3 axis, Vec3 outward, Vec3 across, double straight, Sway sway, double winding,
+             float gray, boolean snowflakes, long startTick, boolean carried) {
+            this(origin, axis, outward, across, straight, sway, winding, gray, snowflakes, startTick, carried, false);
+        }
     }
 
     private final List<Line> live = new ArrayList<>();
@@ -179,6 +200,9 @@ public final class WindLines {
     }
 
     private static Vec3 coursePoint(Line line, double age) {
+        if (line.inward()) {
+            return line.origin().add(line.axis().scale(line.straight() * (1 - drawnIn(age))));
+        }
         if (age <= STRAIGHT_TICKS) {
             return line.origin().add(line.axis().scale(line.straight() * launched(age / STRAIGHT_TICKS)));
         }
@@ -214,9 +238,24 @@ public final class WindLines {
      */
     static Vec3 swayAt(Line line, double age) {
         Sway sway = line.sway();
-        double growth = Math.min(1, age / STRAIGHT_TICKS);
+        // an inward line sways whole where it starts and settles onto its course as it reaches the glove
+        double growth = line.inward() ? 1 - drawnIn(age) : Math.min(1, age / STRAIGHT_TICKS);
         return sway.first().scale(Math.sin(sway.firstRate() * age + sway.firstPhase()) * growth)
                 .add(sway.second().scale(Math.sin(sway.secondRate() * age + sway.secondPhase()) * growth));
+    }
+
+    /**
+     * The share of its run an inward line has drawn in toward the glove: it
+     * starts slow at its far end and speeds up as it nears, reaching the
+     * glove as it ends.
+     * vacuum-streaks-wind-lines-inward-to-the-glove
+     *
+     * @param age ticks since the line started
+     * @return the share drawn in, 0 at its start to 1 at the glove
+     */
+    static double drawnIn(double age) {
+        double lived = Math.clamp(age / LIFE_TICKS, 0, 1);
+        return lived * lived;
     }
 
     /**
@@ -248,7 +287,7 @@ public final class WindLines {
             Gust gust = wind.tailwind()
                     .map(tailwind -> tailwindGust(tailwind, player.getEyeHeight(), player.getLookAngle()))
                     .orElseGet(() -> new Gust(apex, player.getLookAngle(), area.size(), area.angle(), false));
-            CLIENT.add(player.level().getRandom(), gust, wind.snowflakes(), player.level().getGameTime());
+            CLIENT.add(player.level().getRandom(), gust, wind.snowflakes(), wind.inward(), player.level().getGameTime());
             CLIENT.pitchesWithSpeed = gust.carried();
             CLIENT.keepWindBlowing(player);
         });
@@ -268,7 +307,7 @@ public final class WindLines {
      */
     public void rise(RandomSource random, Vec3 base, double radius, double height, long now) {
         add(random, riseGust(base, radius, height, bothSides(random.nextDouble()), bothSides(random.nextDouble())),
-                false, now);
+                false, false, now);
     }
 
     private static double bothSides(double unit) {
@@ -403,7 +442,7 @@ public final class WindLines {
         }
     }
 
-    private void add(RandomSource random, Gust gust, boolean snowflakes, long now) {
+    private void add(RandomSource random, Gust gust, boolean snowflakes, boolean inward, long now) {
         if (!blowsOn(now)) {
             return;
         }
@@ -418,7 +457,7 @@ public final class WindLines {
         double straight = range * STRAIGHT_SHARE * (HALF + random.nextDouble());
         double winding = random.nextBoolean() ? CLOCKWISE : COUNTERCLOCKWISE;
         live.add(new Line(apex, axis, outward, across, straight, sway(random, axis), winding, random.nextFloat(),
-                snowflakes, now, gust.carried()));
+                snowflakes, now, gust.carried(), inward));
     }
 
     /**

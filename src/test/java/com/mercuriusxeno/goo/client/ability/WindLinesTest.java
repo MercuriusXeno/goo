@@ -1,10 +1,12 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.program.WindStep;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -74,6 +76,64 @@ class WindLinesTest {
 
     private static WindLines.Line line(WindLines.Sway sway, boolean carried) {
         return new WindLines.Line(Vec3.ZERO, EAST, SOUTH, EAST.cross(SOUTH), STRAIGHT, sway, 1, 0f, true, 0L, carried);
+    }
+
+    /**
+     * Vacuum's wind runs inward: each line starts inside the cone and its head
+     * closes on the glove, speeding up as it nears, while every other wind
+     * still rushes out (decision vacuum-streaks-wind-lines-inward-to-the-glove).
+     */
+    @Nested
+    class Inward {
+
+        private final WindLines.Line inward = new WindLines.Line(Vec3.ZERO, EAST, SOUTH, EAST.cross(SOUTH), STRAIGHT,
+                SWAYING, 1, 0f, false, 0L, false, true);
+
+        @Test
+        void anInwardLineStartsInsideTheConeAtItsStraightRun() {
+            assertEquals(STRAIGHT, WindLines.pathPoint(inward, 0).length(), WindLines.SWAY * 2);
+        }
+
+        @Test
+        void anInwardLinesHeadClosesOnTheGloveAlongItsLife() {
+            for (int tick = 1; tick <= WindLines.LIFE_TICKS; tick++) {
+                assertTrue(WindLines.pathPoint(inward, tick).length() < WindLines.pathPoint(inward, tick - 1).length(),
+                        "tick " + tick + " should stand nearer the glove");
+            }
+            assertEquals(0, WindLines.pathPoint(inward, WindLines.LIFE_TICKS).length(), EPSILON);
+        }
+
+        @Test
+        void anInwardLineSpeedsUpAsItNearsTheGlove() {
+            double early = closing(2);
+            double late = closing(WindLines.LIFE_TICKS - 1);
+            assertTrue(late > early, "the head should close faster near the glove: " + early + " then " + late);
+        }
+
+        @Test
+        void anOutwardLinesHeadDrawsAwayFromTheGloveAlongItsLife() {
+            WindLines.Line outward = line(WindLines.Sway.NONE);
+            for (int tick = 1; tick <= WindLines.LIFE_TICKS; tick++) {
+                assertTrue(WindLines.pathPoint(outward, tick).length() > WindLines.pathPoint(outward, tick - 1).length(),
+                        "tick " + tick + " should stand farther from the glove");
+            }
+        }
+
+        @Test
+        void theWindStepReadsInwardOnVacuumAlone() {
+            assertTrue(windOf("void_vacuum").inward(), "Vacuum's wind runs inward");
+            assertFalse(windOf("frost_cold").inward(), "Cold's wind runs out");
+            assertFalse(windOf("typhoon_gust").inward(), "Gust's wind runs out");
+        }
+
+        private double closing(int tick) {
+            return WindLines.pathPoint(inward, tick - 1).length() - WindLines.pathPoint(inward, tick).length();
+        }
+
+        private static WindStep windOf(String ability) {
+            return AbilityJson.decode(ability).behaviors().stream().filter(WindStep.class::isInstance)
+                    .map(WindStep.class::cast).findFirst().orElseThrow();
+        }
     }
 
     @Nested
