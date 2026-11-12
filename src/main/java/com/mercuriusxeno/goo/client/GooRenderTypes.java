@@ -7,6 +7,7 @@ import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.CompareOp;
 import com.mojang.blaze3d.shaders.UniformType;
+import com.mojang.blaze3d.textures.TextureFormat;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -35,6 +36,10 @@ public final class GooRenderTypes {
     /** The block transform's depth bias toward the camera, slope scaled and constant, as a decal's. */
     private static final float BLOCK_MINGLE_DEPTH_BIAS_SCALE = -1f;
     private static final float BLOCK_MINGLE_DEPTH_BIAS_CONSTANT = -10f;
+    /** The alpha the game's cutout block pipeline discards under. */
+    private static final float CUTOUT_BLOCK_ALPHA = 0.5F;
+    /** The alpha the game's translucent block pipeline discards under. */
+    private static final float TRANSLUCENT_BLOCK_ALPHA = 0.01F;
     /** Name prefix of a goo render type. */
     private static final String TYPE_NAME_PREFIX = "goo_";
     /** Name suffix of a burnout pipeline's twin that draws through blocks. */
@@ -314,7 +319,7 @@ public final class GooRenderTypes {
     public static final RenderType METEOR_ROCK_TYPE = burnoutType(METEOR_ROCK);
 
     /**
-     * Nether black-hole pipeline: POSITION_COLOR billboard quad with a custom
+     * Black-hole pipeline: POSITION_COLOR billboard quad with a custom
      * vertex + fragment shader pair (nether_blackhole.vsh / .fsh). Reads the
      * implosion progress from the vertex Color.r channel and animates swirl
      * bands with {@code GameTime}. Depth write ON so the sphere solidly
@@ -332,7 +337,7 @@ public final class GooRenderTypes {
             .withCull(false)
             .build();
 
-    /** RenderType that submits the nether black-hole billboard quad. */
+    /** RenderType that submits the black-hole billboard quad. */
     public static final RenderType NETHER_BLACKHOLE_TYPE = RenderType.create(
             "goo_nether_blackhole",
             RenderSetup.builder(NETHER_BLACKHOLE)
@@ -341,7 +346,7 @@ public final class GooRenderTypes {
     );
 
     /**
-     * Nether black-hole corona pipeline: second render pass that emits
+     * Black-hole corona pipeline: second render pass that emits
      * the same sphere mesh at a slightly larger radius with additive
      * LIGHTNING blend and depth-write OFF, producing an emissive halo
      * that sits in the annular gap just outside the main sphere's
@@ -461,12 +466,14 @@ public final class GooRenderTypes {
     public static final RenderType FROST_EXPLOSION_THROUGH_BLOCKS_TYPE = burnoutType(FROST_EXPLOSION_THROUGH_BLOCKS);
 
     /**
-     * Nether goo's burnout explosion pipeline: the inward rush, additive,
-     * through {@code nether_explosion.vsh / .fsh}.
+     * The black hole's burnout explosion pipeline: the inward rush, through
+     * {@code nether_explosion.vsh / .fsh}, blended translucent since its
+     * streaks are black and black adds nothing.
+     * black-hole-build-up-draws-black
      */
-    public static final RenderPipeline NETHER_EXPLOSION = burnoutPipeline("nether_explosion", BlendFunction.LIGHTNING);
+    public static final RenderPipeline NETHER_EXPLOSION = burnoutPipeline("nether_explosion", BlendFunction.TRANSLUCENT);
 
-    /** RenderType that draws nether goo's burnout explosion. */
+    /** RenderType that draws the black hole's burnout explosion. */
     public static final RenderType NETHER_EXPLOSION_TYPE = burnoutType(NETHER_EXPLOSION);
 
     /**
@@ -663,7 +670,7 @@ public final class GooRenderTypes {
     public static final RenderType SUNBEAM_SCORCH_GLOW_TYPE = burnoutType(SUNBEAM_SCORCH_GLOW);
 
     /**
-     * Nether black-hole accretion-disk pipeline: third render pass that
+     * Black-hole accretion-disk pipeline: third render pass that
      * emits a flat annular ring in the world XZ plane around the sphere,
      * inner radius pinned to the main sphere radius and outer radius at
      * {@code DISK_OUTER_SCALE * main}. Additive LIGHTNING blend with
@@ -1202,6 +1209,35 @@ public final class GooRenderTypes {
             .withCull(true)
             .build();
 
+    /** The uniform block the miasma vortex pipeline reads Drain's cone and colors from. */
+    public static final String MIASMA_VORTEX_BLOCK = "MiasmaVortex";
+
+    /** The sampler the miasma vortex reads a copy of the world's depth through. */
+    public static final String MIASMA_DEPTH_SAMPLER = "MiasmaDepthSampler";
+
+    /**
+     * Drain's miasma vortex pipeline: a box around the cone Drain strikes
+     * whose fragments march the cone through {@code miasma_vortex.vsh / .fsh},
+     * filling it with a turning cloud of miasma and rifling streaks, stopping
+     * at a copy of the world's depth so the miasma lies in front of whatever
+     * stands in it. Blended translucent; it passes every depth test and writes
+     * none, since the march clips itself against the world.
+     * drain-casts-a-filled-tornadic-miasma-vortex-along-the-look
+     */
+    public static final RenderPipeline MIASMA_VORTEX = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "miasma_vortex"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "miasma_vortex"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "miasma_vortex"))
+            .withUniform(MIASMA_VORTEX_BLOCK, UniformType.UNIFORM_BUFFER)
+            .withSampler(MIASMA_DEPTH_SAMPLER)
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+            .withCull(true)
+            .build();
+
     /**
      * Growth's breeze pipeline: cross-sections of the cone drawn through
      * {@code growth_breeze.vsh / .fsh}, glowing green wisps drifting outward
@@ -1377,39 +1413,57 @@ public final class GooRenderTypes {
         return GOO_HOLE_VIEW_FACTORY.apply(view);
     }
 
+    /** The texel buffer each copy of an Outsider room reads its translation from. */
+    public static final String ROOM_COPY_TRANSLATIONS = "RoomCopyTranslations";
+
     /**
-     * An Outsider room's edge showing the view through it: the room's
-     * opposite side, flush over the edge's whole face with no oval and no rim
-     * (decision outsider-room-wraps-and-repeats-at-the-platform-edge).
+     * An Outsider room's solid blocks in each of its copies: the game's
+     * moving-block pipeline, one instance a copy, each moved by its own
+     * translation (decision room-tiles-to-render-distance-held-to-the-picture).
      */
-    public static final RenderPipeline GOO_ROOM_EDGE_VIEW = RenderPipeline.builder(
-                    RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_room_edge_view"))
-            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_view"))
-            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_room_edge_view"))
-            .withSampler("Sampler0")
-            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_LIGHTMAP_COLOR, VertexFormat.Mode.QUADS)
-            .withDepthStencilState(DepthStencilState.DEFAULT)
-            .withCull(false)
+    public static final RenderPipeline ROOM_COPY_SOLID = RenderPipeline.builder(RenderPipelines.BLOCK_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "room_copy_solid"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "room_copy_block"))
+            .withUniform(ROOM_COPY_TRANSLATIONS, UniformType.TEXEL_BUFFER, TextureFormat.RED8I)
             .build();
 
-    private static final java.util.function.Function<Identifier, RenderType> GOO_ROOM_EDGE_VIEW_FACTORY =
-            net.minecraft.util.Util.memoize(view -> RenderType.create("goo_room_edge_view",
-                    RenderSetup.builder(GOO_ROOM_EDGE_VIEW)
-                            .withTexture("Sampler0", view)
-                            .setOutputTarget(OutputTarget.MAIN_TARGET)
-                            .createRenderSetup()
-            ));
+    /** An Outsider room's cutout blocks in each of its copies, as {@link #ROOM_COPY_SOLID}. */
+    public static final RenderPipeline ROOM_COPY_CUTOUT = RenderPipeline.builder(RenderPipelines.BLOCK_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "room_copy_cutout"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "room_copy_block"))
+            .withUniform(ROOM_COPY_TRANSLATIONS, UniformType.TEXEL_BUFFER, TextureFormat.RED8I)
+            .withShaderDefine("ALPHA_CUTOUT", CUTOUT_BLOCK_ALPHA)
+            .build();
+
+    /** An Outsider room's translucent blocks in each of its copies, as {@link #ROOM_COPY_SOLID}. */
+    public static final RenderPipeline ROOM_COPY_TRANSLUCENT = RenderPipeline.builder(RenderPipelines.BLOCK_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "room_copy_translucent"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "room_copy_block"))
+            .withUniform(ROOM_COPY_TRANSLATIONS, UniformType.TEXEL_BUFFER, TextureFormat.RED8I)
+            .withShaderDefine("ALPHA_CUTOUT", TRANSLUCENT_BLOCK_ALPHA)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(DepthStencilState.DEFAULT)
+            .build();
 
     /**
-     * Returns the room edge view render type over a room edge's view texture.
-     *
-     * @param view the view texture's id
-     * @return memoized RenderType
+     * Voidstone's starred faces in each copy of an Outsider room, each placing
+     * its stars from the room's own block, over the plain dark floor the
+     * copies stand on, which the depth bias lets them win as
+     * {@link #VOIDSTONE} wins over the block's own faces
+     * (decision room-tiles-to-render-distance-held-to-the-picture).
      */
-    public static RenderType gooRoomEdgeView(Identifier view) {
-        return GOO_ROOM_EDGE_VIEW_FACTORY.apply(view);
-    }
+    public static final RenderPipeline VOIDSTONE_COPY = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "voidstone_copy"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "voidstone_copy"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "voidstone"))
+            .withUniform(ROOM_COPY_TRANSLATIONS, UniformType.TEXEL_BUFFER, TextureFormat.RED8I)
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.QUADS)
+            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true,
+                    BLOCK_MINGLE_DEPTH_BIAS_SCALE, BLOCK_MINGLE_DEPTH_BIAS_CONSTANT))
+            .withCull(false)
+            .build();
 
     /**
      * Idle portal pipeline (decision portals-link-by-looking-through-portal-vision):
@@ -1753,11 +1807,15 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_PORTAL_VIEW);
         event.registerPipeline(GOO_PORTAL_IDLE);
         event.registerPipeline(GOO_HOLE_VIEW);
-        event.registerPipeline(GOO_ROOM_EDGE_VIEW);
+        event.registerPipeline(ROOM_COPY_SOLID);
+        event.registerPipeline(ROOM_COPY_CUTOUT);
+        event.registerPipeline(ROOM_COPY_TRANSLUCENT);
+        event.registerPipeline(VOIDSTONE_COPY);
         event.registerPipeline(GOO_PORTAL_OUTLINE);
         event.registerPipeline(GOO_PORTAL_VISION);
         event.registerPipeline(GOO_PORTAL_HALO);
         event.registerPipeline(GOO_PORTAL_SWIRL_BAND);
+        event.registerPipeline(MIASMA_VORTEX);
         event.registerPipeline(GLOW_BEAM);
         event.registerPipeline(GLOW_COLUMN);
         event.registerPipeline(SUNBEAM_SCORCH);
@@ -1772,7 +1830,7 @@ public final class GooRenderTypes {
     }
 
     /**
-     * Registers the nether black hole's pipelines: its body, corona, disk and
+     * Registers the black hole's pipelines: its body, corona, disk and
      * cube edges, and their held and through-blocks twins.
      *
      * @param event the event instance

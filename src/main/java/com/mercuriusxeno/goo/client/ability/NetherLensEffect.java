@@ -15,7 +15,7 @@ import org.lwjgl.system.MemoryStack;
 /**
  * Screen-space gravitational-lensing post-process for nether black
  * holes. Applies the {@code goo:nether_lens} post-chain to the main
- * framebuffer when a nether black hole is active on the client, and
+ * framebuffer when a black hole is active on the client, and
  * rewrites the chain's {@code LensConfig} uniform buffer each frame
  * with the current hole screen-space position + radii (and, for cube
  * holes, the screen-space convex hull of the cube's eight projected
@@ -216,7 +216,7 @@ public final class NetherLensEffect {
     }
 
     /**
-     * Reports an active nether black hole for this frame with the
+     * Reports an active black hole for this frame with the
      * default {@link LensShape#ROUND} shape. Sphere-style callers use
      * this overload unchanged.
      *
@@ -228,7 +228,7 @@ public final class NetherLensEffect {
     }
 
     /**
-     * Reports an active nether black hole for this frame with an
+     * Reports an active black hole for this frame with an
      * explicit lens shape. Cube-style callers pass
      * {@link LensShape#HEX} with the cube's half-extent as the
      * {@code worldRadius}.

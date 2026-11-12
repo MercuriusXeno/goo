@@ -11,13 +11,14 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 /**
  * The server's half of Sculker. Each player tick, before the tick moves the
- * player, sneak and jump together take it into the dive and rising out of a
- * top face with jump held takes it out, so the no-clip the tick sets follows
+ * player, sneak and jump together take it into the dive, and rising out of a
+ * top face with jump held or leaving the ground takes it out, so the no-clip the tick sets follows
  * the dive the server holds and syncs. For the brew's whole duration no
  * stone suffocates the player, in the dive or out of it, so one whose dive
  * ends inside stone takes no hurt either.
  * decision sculker-swims-solid-blocks-and-surfaces-at-will
  * decision sculker-grants-suffocation-immunity
+ * decision diagnose-and-correct-sculker-flying-through-air
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class SculkerEvents {

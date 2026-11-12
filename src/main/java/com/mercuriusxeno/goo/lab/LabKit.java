@@ -27,10 +27,11 @@ import java.util.function.Supplier;
  * lab-holds-bays-supply-pens-kit): the goo glove, the exorite tool and armor
  * set, the choral tuner and gasket for rigging runs, and one vat holding
  * enough void to grow it to {@link #KIT_VAT_CAPACITY} and every other
- * registered goo type, read from the registry at kit time, sharing the rest
- * evenly (decisions each-void-mb-adds-n-plus-one-capacity and
- * lab-iterates-the-registries; operator ruling 2026-10-11: one vat rather than
- * a canister per type, which overflowed the inventory at twenty-five types). The kit replaces the inventory it fills, since
+ * registered goo type save infinity, read from the registry at kit time,
+ * sharing the rest evenly (decisions each-void-mb-adds-n-plus-one-capacity,
+ * lab-iterates-the-registries and lab-kit-vat-leaves-infinity-out; operator
+ * ruling 2026-10-11: one vat rather than a canister per type, which overflowed
+ * the inventory at twenty-five types). The kit replaces the inventory it fills, since
  * the lab save is scratch, and teaches nothing: {@code /goo lab learn} teaches
  * every item recipe and {@code /goo lab forget} returns the player to knowing
  * nothing, each run on request, so the lab keeps unlearned items and the
@@ -81,7 +82,12 @@ public final class LabKit {
 
     /**
      * Answers a vat holding the void that grows it to {@link #KIT_VAT_CAPACITY}
-     * and every other registered goo type, each an even share of the rest.
+     * and every other registered goo type save infinity, each an even share of
+     * the rest; infinity pours into a held type each tick, so a kit vat holding
+     * it refills what a test spends, and the supply row's infinity canister is
+     * where the lab fetches it.
+     * decision lab-kit-vat-leaves-infinity-out
+     * decision lab-iterates-the-registries
      *
      * @param level the level whose goo type registry to read
      * @return the vat
@@ -90,7 +96,7 @@ public final class LabKit {
         ItemStack vat = new ItemStack(GooItems.VAT.get());
         List<ResourceKey<GooTypeDefinition>> others =
                 level.registryAccess().lookupOrThrow(GooTypes.REGISTRY).listElementIds()
-                        .filter(type -> !GooTypes.VOID.equals(type)).toList();
+                        .filter(type -> !GooTypes.VOID.equals(type) && !GooTypes.INFINITY.equals(type)).toList();
         int voidHeld = ContainerCapacity.voidToReach(ContainerCapacity.VAT_BASE, KIT_VAT_CAPACITY);
         VatBlockItem.addGoo(vat, GooTypes.VOID, voidHeld);
         int share = (KIT_VAT_CAPACITY - voidHeld) / Math.max(1, others.size());
