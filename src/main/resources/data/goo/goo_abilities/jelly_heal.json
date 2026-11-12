@@ -8,7 +8,8 @@
   "area": { "shape": "cone", "size": 6.0, "angle": 50.0 },
   "behaviors": [
     { "type": "heal", "amount": 0.1 },
-    { "type": "drain_petrify", "amount": 2.5 }
+    { "type": "drain_petrify", "amount": 2.5 },
+    { "type": "wake_statue" }
   ],
   "tags": ["stream", "self"]
 }
