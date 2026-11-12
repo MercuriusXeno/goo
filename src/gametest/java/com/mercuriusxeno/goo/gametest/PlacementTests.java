@@ -56,7 +56,7 @@ public final class PlacementTests {
     private static final BlockPos GRASS_POS = GRASS_SOIL_POS.above();
     private static final String CRYSTAL_CLOUD = "goo:crystal_cloud";
     private static final String METAL_SPIKES = "goo:metal_spikes";
-    private static final String BLACK_HOLE = "goo:void_black_hole";
+    private static final String BLACK_HOLE = "goo:void_dark_star";
     private static final String UNSTABLE_PROXIMITY_MINE = "goo:unstable_lurker";
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
     private static final String FIRST_MARKER_CHANGED = "A second throw changed the first marker";
