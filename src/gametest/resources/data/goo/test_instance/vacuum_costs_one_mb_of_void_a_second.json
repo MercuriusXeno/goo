@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:vacuum_costs_one_mb_of_void_a_second",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}
