@@ -24,14 +24,14 @@ import java.util.OptionalDouble;
  * program holding the black hole's phased gather, since Hole and Erase land
  * as Void too (decision anti-moves-from-nether-to-void). The black hole's program opens with a 20-tick
  * gather in which the marker holds and the hole draws nothing; over it, a
- * sphere of dark red streaks starts at the hole's implode radius and rushes
+ * sphere of black streaks starts at the hole's implode radius and rushes
  * inward onto the marker, slow and then fast, and the hole opens as the
  * rush arrives, so the two read as cause and effect. Its fragment shader
- * ({@code nether_explosion.fsh}) breaks the shell into streaking specks that
- * brighten from 8B0000 through B32828 to white-hot as they near the center,
- * so matter reads as falling into the hole. Additive, fading in over its
- * first ticks rather than popping in, and fading out over its last ticks as
- * it reaches the center. The vertex color carries progress in red, how near
+ * ({@code nether_explosion.fsh}) breaks the shell into streaking black
+ * specks, so matter reads as falling into the hole (decision
+ * black-hole-build-up-draws-black). Translucent, since black adds nothing,
+ * fading in over its first ticks rather than popping in, and fading out over
+ * its last ticks as it reaches the center. The vertex color carries progress in red, how near
  * the rush has come in green and its strength in blue, since a core
  * pipeline takes no per-draw uniforms.
  */

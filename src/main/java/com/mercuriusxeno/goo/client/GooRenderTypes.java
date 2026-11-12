@@ -461,12 +461,14 @@ public final class GooRenderTypes {
     public static final RenderType FROST_EXPLOSION_THROUGH_BLOCKS_TYPE = burnoutType(FROST_EXPLOSION_THROUGH_BLOCKS);
 
     /**
-     * Nether goo's burnout explosion pipeline: the inward rush, additive,
-     * through {@code nether_explosion.vsh / .fsh}.
+     * The black hole's burnout explosion pipeline: the inward rush, through
+     * {@code nether_explosion.vsh / .fsh}, blended translucent since its
+     * streaks are black and black adds nothing.
+     * black-hole-build-up-draws-black
      */
-    public static final RenderPipeline NETHER_EXPLOSION = burnoutPipeline("nether_explosion", BlendFunction.LIGHTNING);
+    public static final RenderPipeline NETHER_EXPLOSION = burnoutPipeline("nether_explosion", BlendFunction.TRANSLUCENT);
 
-    /** RenderType that draws nether goo's burnout explosion. */
+    /** RenderType that draws the black hole's burnout explosion. */
     public static final RenderType NETHER_EXPLOSION_TYPE = burnoutType(NETHER_EXPLOSION);
 
     /**
