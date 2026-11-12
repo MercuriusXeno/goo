@@ -45,6 +45,14 @@ public final class GooSoundIds {
     public static final Identifier CLICK = Identifier.fromNamespaceAndPath(Goo.MODID, "ability.click");
 
     /**
+     * The echo Click's wave sheds on its way: the same comparator click under
+     * an id of its own, so Sculker's sub-rank table rings it at 5 and leaves
+     * the landing's click at 15.
+     * decision click-travel-echoes-ring-at-rank-five
+     */
+    public static final Identifier CLICK_TRAIL = Identifier.fromNamespaceAndPath(Goo.MODID, "ability.click_trail");
+
+    /**
      * A portal standing: the mod's own synthesized zap opening into a brief
      * hum, like a portal gun shot landing
      * (decision portal-placement-plays-a-zap-that-opens-into-a-hum).
@@ -79,6 +87,15 @@ public final class GooSoundIds {
      */
     public static final Identifier OUTSIDER_CONJURE =
             Identifier.fromNamespaceAndPath(Goo.MODID, "effects.outsider_conjure");
+
+    /**
+     * The conjured door carrying a player into the pocket, sent to them as it
+     * envelops them and again as they arrive, in place of the nether portal's
+     * travel sound: the conjuring shimmer's sample for now, its own event so
+     * the operator may swap it
+     * (decision door-carries-its-own-sound-through-the-change).
+     */
+    public static final Identifier OUTSIDER_DOOR = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.outsider_door");
 
     /**
      * Void's hole opening: the Outsider room's wub under a subtitle naming the
