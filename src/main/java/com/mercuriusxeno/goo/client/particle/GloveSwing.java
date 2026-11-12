@@ -62,6 +62,20 @@ public final class GloveSwing {
         return new Swung(pivot.add(to.carry(from, position.subtract(pivot))), to.carry(from, velocity));
     }
 
+    /**
+     * Turns a vector held in one look's frame into another's, keeping its
+     * share along the look, up off it and sideways.
+     *
+     * @param vector     the vector, in the first look's frame
+     * @param lookBefore the look the vector was held in
+     * @param lookNow    the look to carry it into
+     * @return the vector in the second look's frame
+     */
+    public static Vec3 turned(Vec3 vector, Vec3 lookBefore, Vec3 lookNow) {
+        return LookFrame.of(yawOf(lookNow), pitchOf(lookNow))
+                .carry(LookFrame.of(yawOf(lookBefore), pitchOf(lookBefore)), vector);
+    }
+
     private static double yawOf(Vec3 look) {
         return Math.atan2(look.x, look.z);
     }

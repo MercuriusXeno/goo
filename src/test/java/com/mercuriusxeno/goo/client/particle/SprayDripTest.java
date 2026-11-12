@@ -113,6 +113,44 @@ class SprayDripTest {
     }
 
     @Test
+    void aHeldDripKeepsItsPlaceOnTheGloveAsItsCasterWalksAndTurns() {
+        GloveSwing.CasterPose atLaunch = new GloveSwing.CasterPose(APEX, new Vec3(0, 0, 1));
+        Vec3 offset = new Vec3(0.5, 0.2, 1.0);
+        Vec3 walkedGlove = APEX.add(3.0, 0.0, 0.0);
+        GloveSwing.CasterPose walkedAndTurned = new GloveSwing.CasterPose(walkedGlove, new Vec3(1, 0, 0));
+
+        Vec3 held = SprayDrip.heldAt(APEX.add(offset), atLaunch, walkedAndTurned);
+
+        Vec3 expected = walkedGlove.add(1.0, 0.2, -0.5);
+        assertEquals(expected.x, held.x, DELTA, "x");
+        assertEquals(expected.y, held.y, DELTA, "y");
+        assertEquals(expected.z, held.z, DELTA, "z");
+    }
+
+    @Test
+    void aDripLetGoByTheGloveStillSplatsOnTheEndOfItsCoatRay() {
+        Vec3 letGoAt = APEX.add(0.4, 0.3, 1.5);
+        Vec3 gloveVelocity = new Vec3(-0.25, 0.0, 0.15);
+        SprayDrip drip = SprayDrip.released(letGoAt, COAT_END, gloveVelocity, 0);
+
+        Vec3 position = letGoAt;
+        Vec3 velocity = drip.velocity();
+        SprayDrip.Step step = null;
+        for (int flown = 0; flown < MAX_STEPS && (step == null || !step.splats()); flown++) {
+            step = drip.step(position, velocity, flown);
+            position = step.position();
+            velocity = step.velocity();
+        }
+
+        assertTrue(step != null && step.splats(), "the let-go drip should splat within " + MAX_STEPS + " steps");
+        assertTrue(position.distanceTo(COAT_END) <= WITHIN,
+                "a let-go drip should splat within a tenth of a block of " + COAT_END + ", splatted at " + position);
+        Vec3 carried = drip.velocity().subtract(SprayDrip.released(letGoAt, COAT_END, Vec3.ZERO, 0).velocity());
+        assertEquals(gloveVelocity.x, carried.x, DELTA, "the let-go drip should leave with the glove's velocity, x");
+        assertEquals(gloveVelocity.z, carried.z, DELTA, "the let-go drip should leave with the glove's velocity, z");
+    }
+
+    @Test
     void aDripsColorLiesBetweenItsPalettesEnds() {
         BlendPalette blues = BlendPalette.SLICK_SLIME_BLUES;
         for (long seed = 0; seed < 16; seed++) {
