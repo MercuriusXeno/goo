@@ -67,6 +67,9 @@ public final class ClientConjuredDoors {
             if (mc.level != null) {
                 take(payload, mc.level.getGameTime());
             }
+            if (mc.player != null) {
+                EntryCover.LOCAL.doorSeen(payload.casterId(), mc.player.getId(), payload.door());
+            }
         });
     }
 
