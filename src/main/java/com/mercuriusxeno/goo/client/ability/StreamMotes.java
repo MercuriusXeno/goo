@@ -39,7 +39,22 @@ public final class StreamMotes {
      */
     public static void handle(StreamMotesPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> SimpleParticles.resolve(payload.particle())
-                .ifPresent(particle -> launch(payload, particle)));
+                .ifPresent(particle -> launch(fromTheDrawnGlove(payload), particle)));
+    }
+
+    /**
+     * The stream's tick launched from the caster's glove where it is drawn
+     * this frame, in place of the hand the server's echo of an earlier tick
+     * carries, so the spray leaves the hand of a caster on the move.
+     * goop-and-slick-spray-throws-goo-drips-that-splat
+     *
+     * @param payload the stream's tick as the server sent it
+     * @return the tick with its apex on the drawn glove
+     */
+    static StreamMotesPayload fromTheDrawnGlove(StreamMotesPayload payload) {
+        return new StreamMotesPayload(payload.casterId(), CasterPoses.gloveOf(payload.casterId(), payload.apex()),
+                payload.axis(), payload.particle(), payload.coneDegrees(), payload.speed(), payload.travel(),
+                payload.coat());
     }
 
     private static void launch(StreamMotesPayload payload, SimpleParticleType particle) {
