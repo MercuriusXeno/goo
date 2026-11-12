@@ -30,6 +30,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.core.Holder;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.protocol.game.ClientboundLevelEventPacket;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.resources.ResourceKey;
@@ -99,6 +102,14 @@ public final class OutsiderTests {
         GooTestFunctions.registerTest(registrar, OUTSIDER_WUB_REACHES_THE_CORNER,
                 OutsiderTests::wubReachesTheRoomsCorner);
         GooTestFunctions.registerTest(registrar, OUTSIDER_GROWS_A_BLOCK_A_SECOND, OutsiderTests::growsOneBlockASecond);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_ENTRY_WAIT_MEASURED, OutsiderTests::entryWaitMeasured);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_RELEASES_THE_ARRIVER, OutsiderTests::releasesTheArriver);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_DOOR_HOLDS_ITS_BLOCK_ENTITY,
+                OutsiderTests::doorHoldsItsBlockEntity);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_DOOR_SOUNDS_THROUGH_THE_CHANGE,
+                OutsiderTests::doorSoundsThroughTheChange);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_ARRIVAL_LOADS_DURING_THE_CHARGE,
+                OutsiderTests::arrivalLoadsDuringTheCharge);
         GooTestFunctions.registerTest(registrar, OUTSIDER_GROWS_FOR_THE_RECKONED_TICKS,
                 OutsiderTests::growsForTheReckonedTicks);
     }
@@ -260,7 +271,7 @@ public final class OutsiderTests {
         helper.runAfterDelay(CHARGE_TICKS + 1, () -> {
             int room = assertEntered(helper, builder);
             ServerLevel pocket = (ServerLevel) builder.level();
-            BlockPos edge = OutsiderRooms.voidstoneOf(room).east();
+            BlockPos edge = OutsiderRooms.voidstoneOf(room).east(RoomExtent.wholeRings(RoomExtent.LAID));
             BlockPos past = edge.east();
             builder.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(Items.STONE, 2));
 
@@ -414,8 +425,8 @@ public final class OutsiderTests {
     private static final int HELD_A_SECOND = 20;
     /** The void the way in costs, void_outsider.json's enter. */
     private static final int ENTER_COST = 6;
-    /** Ring 2's price at the shipped cell_cost 10 and distance_cost 1: 80R + 12R squared. */
-    private static final int RING_TWO_PRICE = 208;
+    /** Ring 5's price, a new room's first, at the shipped cell_cost 10 and distance_cost 1: 80R + 12R squared. */
+    private static final int RING_FIVE_PRICE = 700;
     private static final String SHOULD_GROW_A_BLOCK = "A second held inside should grow the room from %.1f to %.1f "
             + "and drain %d void past the way in, stands at %.6f having drained %d";
 
@@ -436,8 +447,8 @@ public final class OutsiderTests {
             double extent = OutsiderRooms.extentOf((ServerLevel) caster.level(), caster.getUUID());
             int drained = before - ENTER_COST
                     - GooSourceScanner.aggregateAvailable(caster).getOrDefault(GooTypes.VOID, 0);
-            helper.assertTrue(Math.abs(extent - FIRST_RING_WHOLE) < KEPT && drained == RING_TWO_PRICE,
-                    String.format(SHOULD_GROW_A_BLOCK, RoomExtent.LAID, FIRST_RING_WHOLE, RING_TWO_PRICE, extent,
+            helper.assertTrue(Math.abs(extent - FIRST_RING_WHOLE) < KEPT && drained == RING_FIVE_PRICE,
+                    String.format(SHOULD_GROW_A_BLOCK, RoomExtent.LAID, FIRST_RING_WHOLE, RING_FIVE_PRICE, extent,
                             drained));
             helper.succeed();
         });
@@ -502,6 +513,149 @@ public final class OutsiderTests {
             long grew = firstAndLast[1] - firstAndLast[0] + 1;
             helper.assertTrue(reckoned[0] < MAX_RECKONED && Math.abs(grew - reckoned[0]) <= WITHIN_A_SECOND,
                     String.format(SHOULD_GROW_FOR, held[0], reckoned[0], grew, last[0]));
+            helper.succeed();
+        });
+    }
+
+    private static final String OUTSIDER_RELEASES_THE_ARRIVER = "outsider_releases_the_arriver";
+    private static final String SHOULD_RELEASE = "The tick after arrival a full-size releasing door should stand on "
+            + "the arrival point %s in the pocket, stands %s with the caster in %s";
+    private static final String SHOULD_BE_RELEASED = "Once its release ticks pass the releasing door should be gone, "
+            + "stands %s";
+
+    /**
+     * A channel held to its full charge carries the caster in, and the tick
+     * after they arrive a doorway stands on them at full size, releasing
+     * them; once its release ticks pass it is gone
+     * (decision matching-doorway-opens-in-the-room-and-releases-you).
+     *
+     * @param helper the gametest helper
+     */
+    public static void releasesTheArriver(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        holdFor(helper, caster, CHARGE_TICKS);
+        helper.runAfterDelay(CHARGE_TICKS + 1, () -> {
+            Vec3 arrival = arrivalOf(assertEntered(helper, caster));
+            Optional<ConjuredDoor> door = ConjuredDoors.releaseOf(caster.getUUID());
+            helper.assertTrue(door.filter(standing -> standing.phase() == ConjuredDoor.Phase.RELEASING
+                            && standing.at().distanceTo(arrival) < KEPT && standing.size() == 1).isPresent()
+                            && caster.level().dimension() == OutsiderRooms.POCKET,
+                    String.format(SHOULD_RELEASE, arrival, door, caster.level().dimension().identifier()));
+        });
+        helper.runAfterDelay(CHARGE_TICKS + ConjuredDoor.RELEASE_TICKS + 2, () -> {
+            Optional<ConjuredDoor> door = ConjuredDoors.releaseOf(caster.getUUID());
+            helper.assertTrue(door.isEmpty(), String.format(SHOULD_BE_RELEASED, door));
+            helper.succeed();
+        });
+    }
+
+    private static final String OUTSIDER_DOOR_SOUNDS_THROUGH_THE_CHANGE = "outsider_door_sounds_through_the_change";
+    /** Vanilla's level event for the nether portal's travel sound, which a portal-sound transition sends. */
+    private static final int PORTAL_TRAVEL_EVENT = 1032;
+    private static final String SHOULD_SOUND_THE_DOOR = "Entering should send the door's own sound at the envelop, "
+            + "near %s, and at arrival, near %s; door sounds sent at %s";
+    private static final String SHOULD_NOT_TRAVEL = "Entering should send no portal travel sound, sends %d";
+
+    /**
+     * Entering the pocket sends the entering player the door's own sound as
+     * the door envelops them, where they cast from, and again on arrival,
+     * and no nether portal travel sound: the transition does nothing of its
+     * own (decision door-carries-its-own-sound-through-the-change).
+     *
+     * @param helper the gametest helper
+     */
+    public static void doorSoundsThroughTheChange(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        PacketRecorder packets = PacketRecorder.attachTo(caster);
+        Vec3 castFrom = caster.position();
+        holdFor(helper, caster, CHARGE_TICKS);
+        helper.runAfterDelay(CHARGE_TICKS + 1, () -> {
+            Vec3 arrival = arrivalOf(assertEntered(helper, caster));
+            List<Vec3> doorSounds = packets.sentOf(ClientboundSoundPacket.class).stream()
+                    .filter(sound -> GooSoundIds.OUTSIDER_DOOR.equals(sound.getSound().value().location()))
+                    .map(sound -> new Vec3(sound.getX(), sound.getY(), sound.getZ())).toList();
+            boolean atEnvelop = doorSounds.stream().anyMatch(at -> at.distanceTo(castFrom) < 1);
+            boolean atArrival = doorSounds.stream().anyMatch(at -> at.distanceTo(arrival) < 1);
+            helper.assertTrue(atEnvelop && atArrival, String.format(SHOULD_SOUND_THE_DOOR, castFrom, arrival,
+                    doorSounds));
+            long travel = packets.sentOf(ClientboundLevelEventPacket.class).stream()
+                    .filter(event -> event.getType() == PORTAL_TRAVEL_EVENT).count();
+            helper.assertTrue(travel == 0, String.format(SHOULD_NOT_TRAVEL, travel));
+            helper.succeed();
+        });
+    }
+
+    private static final String OUTSIDER_ENTRY_WAIT_MEASURED = "outsider_entry_wait_measured";
+    /** The prefix every reading of the entry's wait logs under, one grep finds them. */
+    private static final String ENTRY_WAIT_TAG = "[goo-entry-wait]";
+    /** Ticks past the full charge by which the arrival's chunk must stand loaded and tracked. */
+    private static final int TRACKED_WITHIN = 60;
+    private static final long NANOS_A_MILLI = 1_000_000L;
+    private static final String SHOULD_TRACK_ARRIVAL = "The arrival's chunk should stand loaded and tracked for the "
+            + "caster within %d ticks of the full charge";
+
+    /**
+     * Measures the wait entering the room on the headless server: the
+     * wall-clock time the full charge's tick takes, which carries the caster
+     * in, timed around the hold that completes it; and the ticks from that
+     * hold until the chunk the caster arrives in stands loaded in the pocket
+     * and tracked for them, its sending begun. Each reading logs under one
+     * tag (decision diagnose-and-correct-the-slow-load-into-the-room).
+     *
+     * @param helper the gametest helper
+     */
+    public static void entryWaitMeasured(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        holdFor(helper, caster, CHARGE_TICKS - 1);
+        long[] enterNanos = {-1};
+        int[] ticksSince = {-1};
+        helper.runAfterDelay(CHARGE_TICKS, () -> {
+            long start = System.nanoTime();
+            GooStreamHandler.streamTick(caster, holdOf(caster));
+            enterNanos[0] = System.nanoTime() - start;
+            ticksSince[0] = 0;
+        });
+        helper.onEachTick(() -> {
+            if (ticksSince[0] < 0) {
+                return;
+            }
+            ServerLevel level = (ServerLevel) caster.level();
+            ChunkPos arrival = ChunkPos.containing(caster.blockPosition());
+            boolean loaded = level.getChunkSource().getChunkNow(arrival.x(), arrival.z()) != null;
+            boolean tracked = caster.getChunkTrackingView().contains(arrival);
+            if (level.dimension() == OutsiderRooms.POCKET && loaded && tracked) {
+                Goo.LOGGER.info("{} full charge tick took {} ms; arrival chunk loaded and tracked {} ticks after it",
+                        ENTRY_WAIT_TAG, String.format("%.2f", enterNanos[0] / (double) NANOS_A_MILLI), ticksSince[0]);
+                helper.succeed();
+                ticksSince[0] = Integer.MIN_VALUE;
+                return;
+            }
+            ticksSince[0]++;
+            helper.assertTrue(ticksSince[0] <= TRACKED_WITHIN, String.format(SHOULD_TRACK_ARRIVAL, TRACKED_WITHIN));
+        });
+    }
+
+    private static final String OUTSIDER_ARRIVAL_LOADS_DURING_THE_CHARGE = "outsider_arrival_loads_during_the_charge";
+    private static final String SHOULD_LOAD_ARRIVAL = "The caster's room should stand handed out with its center chunk "
+            + "loaded in the pocket before the charge completes, room %s, loaded %s";
+
+    /**
+     * A caster channeling toward the pocket finds their room's center chunk
+     * loaded before the charge completes, the charge's length spent loading
+     * it, so the full charge's tick does not load it on the server thread
+     * (decision diagnose-and-correct-the-slow-load-into-the-room).
+     *
+     * @param helper the gametest helper
+     */
+    public static void arrivalLoadsDuringTheCharge(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        holdFor(helper, caster, CHARGE_TICKS - 1);
+        helper.runAfterDelay(CHARGE_TICKS - 1, () -> {
+            ServerLevel pocket = helper.getLevel().getServer().getLevel(OutsiderRooms.POCKET);
+            Integer room = pocket == null ? null : OutsiderRooms.roomOf(pocket, caster.getUUID());
+            ChunkPos center = room == null ? null : ChunkPos.containing(OutsiderRooms.voidstoneOf(room));
+            boolean loaded = center != null && pocket.getChunkSource().getChunkNow(center.x(), center.z()) != null;
+            helper.assertTrue(loaded, String.format(SHOULD_LOAD_ARRIVAL, room, loaded));
             helper.succeed();
         });
     }
@@ -633,12 +787,12 @@ public final class OutsiderTests {
      * carries the extent across the first whole-block mark.
      */
     private static final int HELD_INSIDE = 21;
-    /** How far out the floor is checked and watched: well past the starting 3 by 3. */
-    private static final int FLOOR_REACH = 6;
+    /** How far out the floor is checked and watched: well past the starting 9 by 9. */
+    private static final int FLOOR_REACH = 8;
     /** The rows watched for change: the floor and the two above it. */
     private static final int WATCHED_ROWS = 3;
-    /** The extent once the first grown ring is whole: the 5 by 5 around the center. */
-    private static final double FIRST_RING_WHOLE = 2.5;
+    /** The extent once the first grown ring is whole: the 11 by 11 around the center. */
+    private static final double FIRST_RING_WHOLE = 5.5;
     private static final int VOID_FOR_GROWTH = 20 * GooStacks.THOUSAND;
     private static final String SHOULD_FLOOR = "Voidstone should stand at the floor at %s, beyond the starting extent, "
             + "%s stands there";
@@ -765,6 +919,45 @@ public final class OutsiderTests {
         });
     }
 
+    private static final String OUTSIDER_DOOR_HOLDS_ITS_BLOCK_ENTITY = "outsider_door_holds_its_block_entity";
+    private static final String SHOULD_HOLD_DOOR_ENTITY = "The doorway cell %s should hold the door's block entity %s, "
+            + "holds %s";
+
+    /**
+     * A room laid in the pocket stands its two doorway cells each holding
+     * the door's block entity, which its renderer draws as the end portal
+     * starfield; removed, the doorway stands again with both block entities
+     * (decision room-door-wears-the-end-portal-starfield).
+     *
+     * @param helper the gametest helper
+     */
+    public static void doorHoldsItsBlockEntity(GameTestHelper helper) {
+        ServerLevel pocket = helper.getLevel().getServer().getLevel(OutsiderRooms.POCKET);
+        helper.assertTrue(pocket != null, "The server should hold the pocket dimension");
+        int room = OutsiderRooms.layRoomFor(pocket, java.util.UUID.randomUUID());
+        ChunkPos chunk = ChunkPos.containing(doorOf(room));
+        pocket.setChunkForced(chunk.x(), chunk.z(), true);
+        List<BlockPos> doorway = List.of(doorOf(room), doorOf(room).above());
+        assertDoorEntities(helper, pocket, doorway, "once the room is laid");
+        doorway.forEach(cell -> pocket.setBlockAndUpdate(cell, Blocks.AIR.defaultBlockState()));
+        helper.runAfterDelay(OutsiderRooms.RESTORE_INTERVAL + 1, () -> {
+            assertDoorEntities(helper, pocket, doorway, "once the pocket stands the doorway again");
+            pocket.setChunkForced(chunk.x(), chunk.z(), false);
+            helper.succeed();
+        });
+    }
+
+    /** Reads each cell's block entity as the chunk holds it, creating none, so a missing one reads missing. */
+    private static void assertDoorEntities(GameTestHelper helper, ServerLevel pocket, List<BlockPos> doorway,
+                                           String when) {
+        for (BlockPos cell : doorway) {
+            Object held = pocket.getChunkAt(cell).getBlockEntity(cell,
+                    net.minecraft.world.level.chunk.LevelChunk.EntityCreationType.CHECK);
+            helper.assertTrue(held instanceof com.mercuriusxeno.goo.block.outsider.DimensionDoorBlockEntity,
+                    String.format(SHOULD_HOLD_DOOR_ENTITY, cell, when, held));
+        }
+    }
+
     /**
      * A caster in their room who falls off the platform, well below the
      * floor with a long fall built up, stands back south of the door after
@@ -797,10 +990,13 @@ public final class OutsiderTests {
     }
 
     private static void holdAt(GameTestHelper helper, ServerPlayer caster, int tick) {
-        helper.runAfterDelay(tick, () -> GooStreamHandler.streamTick(caster,
-                new GooStreamPayload(GooTypes.id(GooTypes.VOID), OUTSIDER.toString(), caster.getEyePosition(),
-                        caster.getEyePosition().add(caster.getLookAngle()), caster.blockPosition().below(),
-                        GooStreamPayload.NO_FACE)));
+        helper.runAfterDelay(tick, () -> GooStreamHandler.streamTick(caster, holdOf(caster)));
+    }
+
+    private static GooStreamPayload holdOf(ServerPlayer caster) {
+        return new GooStreamPayload(GooTypes.id(GooTypes.VOID), OUTSIDER.toString(), caster.getEyePosition(),
+                caster.getEyePosition().add(caster.getLookAngle()), caster.blockPosition().below(),
+                GooStreamPayload.NO_FACE);
     }
 
     private static int assertEntered(GameTestHelper helper, ServerPlayer caster) {

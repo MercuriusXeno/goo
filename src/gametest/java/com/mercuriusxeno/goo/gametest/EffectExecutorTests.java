@@ -146,7 +146,7 @@ public final class EffectExecutorTests {
     private static final String CLOUD_MISSED_WALKER = "The crystal cloud left the walking survival player unhurt";
     /** Blocks a walking player covers in a tick, near vanilla's walking speed. */
     private static final double WALK_STEP = 0.2;
-    private static final String ABILITY_BLACK_HOLE = "goo:void_black_hole";
+    private static final String ABILITY_BLACK_HOLE = "goo:void_dark_star";
     /** The size a black hole is dragged to, the radius its JSON cost buys. */
     private static final double HOLE_SIZE = 3;
     /** Blocks south of the marker the caster stands, past the hole's pull of three times its size. */

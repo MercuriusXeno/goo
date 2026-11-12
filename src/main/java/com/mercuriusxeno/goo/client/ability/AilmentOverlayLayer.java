@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
+import com.mercuriusxeno.goo.ability.program.AilmentPattern;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -9,6 +10,7 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.EntityModel;
+import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
@@ -58,6 +60,10 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
 
     /** No outline: the overlay is the ailment's whole look. */
     private static final int NO_OUTLINE = 0;
+
+    /** The overlay U's bits under the pattern's ordinal, which carry the skin's width: sixteen patterns, 4095 texels. */
+    private static final int ORDINAL_SHIFT = 12;
+    private static final int WIDTH_MASK = (1 << ORDINAL_SHIFT) - 1;
 
     /** The outer shell the mob shows over its body, which the overlay covers too while it shows. */
     private final MobShells.Shell shell;
@@ -195,14 +201,19 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
     }
 
     /**
-     * The overlay coordinates that carry the ailment's pattern to the shader,
-     * its ordinal in U.
+     * The overlay coordinates that carry the ailment's pattern and the model's
+     * skin size to the shader: the pattern's ordinal in U's top four bits over
+     * the skin's width in its low twelve, the skin's height in V, as
+     * goo_ailment_overlay.vsh unpacks UV1.
+     * Decision diagnose-and-correct-vines-and-ailment-overlay-assuming-a-square-skin.
      *
-     * @param kind the ailment
+     * @param pattern the ailment's pattern
+     * @param root    the root part of the model the overlay draws over
      * @return the packed overlay coordinates
      */
-    static int patternCoords(AilmentKind kind) {
-        return OverlayTexture.pack(kind.pattern().ordinal(), 0);
+    static int patternCoords(AilmentPattern pattern, ModelPart root) {
+        ModelSkinSize size = ModelSkinSizeCache.sizeOf(root);
+        return OverlayTexture.pack(pattern.ordinal() << ORDINAL_SHIFT | size.width() & WIDTH_MASK, size.height());
     }
 
     @Override
@@ -231,7 +242,8 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
     private void submitOverlay(SubmitNodeCollector collector, EntityModel<? super S> model, S state,
                                PoseStack poseStack, int lightCoords, StampedAilment ailment) {
         collector.order(OVERLAY_ORDER).submitModel(model, state, poseStack, GooRenderTypes.GOO_AILMENT_OVERLAY_TYPE,
-                lightCoords, patternCoords(ailment.kind()), overlayColor(ailment.kind(), ailment.strength()), null,
+                lightCoords, patternCoords(ailment.kind().pattern(), model.root()),
+                overlayColor(ailment.kind(), ailment.strength()), null,
                 NO_OUTLINE, null);
     }
 }

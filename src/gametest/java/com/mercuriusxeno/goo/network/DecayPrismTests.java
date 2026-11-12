@@ -58,7 +58,7 @@ public final class DecayPrismTests {
     private static final int BITE_TICKS = 10;
     private static final String ABILITY_REQUIRED = "The ability registry must hold nether_decay";
     private static final String SHOULD_CONVERT = "A full Decay hold should make the prism a hive, held '%s'";
-    private static final String SHOULD_BITE = "Decay should bite the zombie in its cone";
+    private static final String SHOULD_BITE = "Decay should bite the vindicator in its cone";
     /** The first run's ticks, short of the hold. */
     private static final int FIRST_RUN = 8;
     /** The second run's ticks, fewer than the first, so a look running ahead of the charge shows. */
@@ -92,19 +92,19 @@ public final class DecayPrismTests {
     }
 
     /**
-     * A zombie stands between a player and a bare prism the player streams
-     * Decay at: the swarm bites the zombie.
+     * A vindicator stands between a player and a bare prism the player streams
+     * Decay at: the swarm bites the vindicator.
      *
      * @param helper the gametest helper
      */
     public static void decayBitesAMobBeforeCharging(GameTestHelper helper) {
         helper.setBlock(IN_THE_CONE.below(), Blocks.STONE);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, IN_THE_CONE);
+        Mob vindicator = helper.spawnWithNoFreeWill(EntityType.VINDICATOR, IN_THE_CONE);
         ServerPlayer player = streamer(helper);
         streamFor(helper, player, BITE_TICKS);
         helper.runAfterDelay(BITE_TICKS + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(zombie.getHealth() < zombie.getMaxHealth(), SHOULD_BITE);
+            helper.assertTrue(vindicator.getHealth() < vindicator.getMaxHealth(), SHOULD_BITE);
             helper.succeed();
         });
     }

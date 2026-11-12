@@ -3,11 +3,17 @@ package com.mercuriusxeno.goo.client.hud;
 import com.mercuriusxeno.goo.client.ability.SculkerSenses;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.zip.GZIPInputStream;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -262,6 +268,84 @@ class TendrilVignetteTest {
             int blue = (one & 0xFF) - (other & 0xFF);
             return Math.sqrt(red * red + green * green + blue * blue);
         }
+    }
+
+    /**
+     * One frame's work, counted at the seam the vignette draws through, so a
+     * cut to its cost is proven headless
+     * (decision diagnose-sculkers-lag-and-prove-it-improved-significantly).
+     */
+    @Nested
+    class OneFramesWork {
+
+        private static final int GUI_WIDTH = 480;
+        private static final int GUI_HEIGHT = 270;
+        /** The fills one settled draw submitted before task vein-vignette-draws-as-fast-as-it-can. */
+        private static final int BASELINE_FILLS_A_FRAME = 5_992;
+        /** The fills it submits once side-by-side fills of one color join. */
+        private static final int JOINED_FILLS_A_FRAME = 4_000;
+
+        @Test
+        void oneSculkerVignetteDrawSubmitsFewerFillsThanTheBaseline() {
+            int fills = sculkerPixelsAt(SETTLED).fills();
+            assertEquals(JOINED_FILLS_A_FRAME, fills, "fills one settled Sculker vignette draw submits");
+            assertTrue(fills < BASELINE_FILLS_A_FRAME,
+                    "fills one settled Sculker vignette draw submits: " + fills + " against " + BASELINE_FILLS_A_FRAME);
+        }
+    }
+
+    /**
+     * A draw covers the same pixels at the same colors as the parent commit
+     * of task vein-vignette-draws-as-fast-as-it-can drew, whose grids stand
+     * captured under the test resources, while the web grows in and once it
+     * has settled (decision diagnose-sculkers-lag-and-prove-it-improved-significantly).
+     */
+    @Nested
+    class SamePixels {
+
+        private static final int GROWING = 30;
+
+        @Test
+        void aGrowingWebCoversThePixelsItDidBeforeTheCut() throws IOException {
+            assertArrayEquals(capture(GROWING), sculkerPixelsAt(GROWING).argb(),
+                    "pixels of the Sculker vignette growing in");
+        }
+
+        @Test
+        void aSettledWebCoversThePixelsItDidBeforeTheCut() throws IOException {
+            assertArrayEquals(capture(SETTLED), sculkerPixelsAt(SETTLED).argb(),
+                    "pixels of the settled Sculker vignette");
+        }
+
+        private int[] capture(int ticks) throws IOException {
+            String name = "sculker-vignette-" + ticks + ".argb.gz";
+            try (InputStream stream = TendrilVignetteTest.class.getResourceAsStream(name)) {
+                assertNotNull(stream, "capture " + name + " stands on the classpath");
+                DataInputStream data = new DataInputStream(new GZIPInputStream(stream));
+                int[] argb = new int[OneFramesWork.GUI_WIDTH * OneFramesWork.GUI_HEIGHT];
+                for (int pixel = 0; pixel < argb.length; pixel++) {
+                    argb[pixel] = data.readInt();
+                }
+                return argb;
+            }
+        }
+    }
+
+    /**
+     * Rasterizes one Sculker vignette draw at a tick, the web grown from the
+     * start up to it.
+     *
+     * @param ticks the tick it draws at
+     * @return the grid it drew
+     */
+    static VignettePixels sculkerPixelsAt(int ticks) {
+        TendrilVignette vignette = TendrilVignette.veined(SEED);
+        for (int tick = 0; tick <= ticks; tick++) {
+            vignette.advance(tick);
+        }
+        VignettePixels pixels = new VignettePixels(OneFramesWork.GUI_WIDTH, OneFramesWork.GUI_HEIGHT);
+        vignette.draw(pixels, ticks, 1f, SculkerVignetteLayer.LOOK);
+        return pixels;
     }
 
     @Test

@@ -9,10 +9,12 @@ import java.util.Map;
 /**
  * A model's skin size in texels, width and height apart, read off its baked
  * cubes, which keep their size in texels while their texture coordinates are
- * divided by the skin's size. The encasement shader lays one stone texel per
- * skin texel from it, so the stone keeps the mob's own texel size on a skin of
- * any shape, a spider's 64 by 32 as a zombie's 64 by 64.
- * Decision diagnose-and-correct-petrify-stone-stretching-off-native-texels.
+ * divided by the skin's size. The encasement, vine and ailment overlay shaders
+ * lay their texels and noise on it, so the stone, the vines and the overlay
+ * keep the mob's own texel size on a skin of any shape, a spider's 64 by 32 as
+ * a zombie's 64 by 64.
+ * Decisions diagnose-and-correct-petrify-stone-stretching-off-native-texels,
+ * diagnose-and-correct-vines-and-ailment-overlay-assuming-a-square-skin.
  *
  * @param width  the skin's texels across
  * @param height the skin's texels down
@@ -48,8 +50,8 @@ public record ModelSkinSize(int width, int height) {
     }
 
     /**
-     * The overlay coordinates the encasement layer hands the shader this size in:
-     * the width in u, the height in v, as petrify_stone.vsh reads UV1.
+     * The overlay coordinates the encasement and vine layers hand their shader this
+     * size in: the width in u, the height in v, as petrify_stone.vsh and vine_tangle.vsh read UV1.
      *
      * @return the packed overlay coordinates
      */

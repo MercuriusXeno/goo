@@ -640,11 +640,36 @@ public final class GooStreamHandler {
      * @return the launch velocity, blocks per tick
      */
     public static Vec3 moteLaunch(StreamMotesPayload motes, CoatRay.ConeShare share, CoatRay.BlockClip clip) {
-        return motes.coat().map(coat -> {
-            Vec3 end = CoatRay.end(clip, coat.eye(), coat.look(), motes.coneDegrees(), coat.range(), share);
-            return end.subtract(motes.apex()).scale(LAUNCH_SPEED_PER_BLOCK).add(motes.travel());
-        }).orElseGet(() -> moteLaunch(StreamCone.launchDirection(motes.axis(), motes.coneDegrees(), share.tilt(),
-                share.turn()), motes.speed(), motes.travel()));
+        return moteLaunch(motes, share, coatEnd(motes, share, clip));
+    }
+
+    /**
+     * One mote's launch velocity toward the coat ray end already cast for its
+     * share, or along its heading inside the cone where none was.
+     *
+     * @param motes   the tick's motes
+     * @param share   the mote's place in the cone
+     * @param coatEnd the end of the mote's coat ray, empty for a stream whose spray keeps off its coat
+     * @return the launch velocity, blocks per tick
+     */
+    public static Vec3 moteLaunch(StreamMotesPayload motes, CoatRay.ConeShare share, Optional<Vec3> coatEnd) {
+        return coatEnd.map(end -> end.subtract(motes.apex()).scale(LAUNCH_SPEED_PER_BLOCK).add(motes.travel()))
+                .orElseGet(() -> moteLaunch(StreamCone.launchDirection(motes.axis(), motes.coneDegrees(),
+                        share.tilt(), share.turn()), motes.speed(), motes.travel()));
+    }
+
+    /**
+     * The end of the coat ray a mote's share names, where a spray drip splats.
+     * goop-and-slick-spray-follows-the-coat
+     *
+     * @param motes the tick's motes
+     * @param share the mote's place in the cone
+     * @param clip  the blocks the coat's ray meets
+     * @return the ray's end, empty for a stream whose spray keeps off its coat
+     */
+    public static Optional<Vec3> coatEnd(StreamMotesPayload motes, CoatRay.ConeShare share, CoatRay.BlockClip clip) {
+        return motes.coat().map(coat -> CoatRay.end(clip, coat.eye(), coat.look(), motes.coneDegrees(),
+                coat.range(), share));
     }
 
     /**
@@ -660,6 +685,19 @@ public final class GooStreamHandler {
      */
     public static Vec3 moteLaunch(Vec3 heading, double speed, Vec3 travel) {
         return heading.scale(speed).add(travel);
+    }
+
+    /**
+     * The point a mote's launch aims it at: a mote slowing by a tenth each
+     * tick comes to rest there, and a spray drip flies there and splats.
+     * goop-and-slick-spray-throws-goo-drips-that-splat
+     *
+     * @param apex   the glove the mote leaves
+     * @param launch the mote's launch velocity, blocks per tick
+     * @return the point the launch aims at
+     */
+    public static Vec3 launchEnd(Vec3 apex, Vec3 launch) {
+        return apex.add(launch.scale(1.0 / LAUNCH_SPEED_PER_BLOCK));
     }
 
     /**

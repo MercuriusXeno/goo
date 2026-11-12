@@ -38,19 +38,22 @@ public class GooParticles {
         PARTICLE_TYPES.register("gnat", () -> new SimpleParticleType(false));
 
     /**
-     * A mote of slime mist in Goop's stream, flying as Decay's gnats do in
-     * slime greens (decision goop-sprays-a-slime-colored-mist).
+     * Goop's spray drip: the mod's blocky goo drip in slime greens, thrown
+     * onto the end of its coat ray, where it splats.
+     * goop-and-slick-spray-throws-goo-drips-that-splat
+     * goop-sprays-a-slime-colored-mist
      */
-    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> SLIME_MIST =
-        PARTICLE_TYPES.register("slime_mist", () -> new SimpleParticleType(false));
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> GOOP_SPRAY_DRIP =
+        PARTICLE_TYPES.register("goop_spray_drip", () -> new SimpleParticleType(false));
 
     /**
-     * A mote of kinetic mist in Slick's stream, flying as Goop's slime mist
-     * does in Kinetic's electric blue and white
-     * (decisions slick-coats-the-ground-with-kinetic-speed, kinetic-is-electric-blue-and-white).
+     * Slick's spray drip: the mod's blocky goo drip in the blue slime of
+     * Slick's texture, thrown onto the end of its coat ray, where it splats.
+     * goop-and-slick-spray-throws-goo-drips-that-splat
+     * slick-spray-takes-its-blue-slime-texture-colors
      */
-    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> KINETIC_MIST =
-        PARTICLE_TYPES.register("kinetic_mist", () -> new SimpleParticleType(false));
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> SLICK_SPRAY_DRIP =
+        PARTICLE_TYPES.register("slick_spray_drip", () -> new SimpleParticleType(false));
 
     /**
      * A snowflake crystal flitting weightlessly along Cold's wind (decision
@@ -139,14 +142,6 @@ public class GooParticles {
      */
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> HEX_WISP =
         PARTICLE_TYPES.register("hex_wisp", () -> new SimpleParticleType(false));
-
-    /**
-     * The hex mist: a faint hex-purple puff, many of which fill Drain's flat
-     * cone while held, drifting toward the glove hand.
-     * drain-casts-a-hex-mist-cone-toward-the-hand
-     */
-    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> HEX_MIST =
-        PARTICLE_TYPES.register("hex_mist", () -> new SimpleParticleType(false));
 
     /**
      * The hex glyph: an enchanting glyph in hex purple flying into Enchant's

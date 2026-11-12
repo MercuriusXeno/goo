@@ -1,6 +1,12 @@
 {
   "ranks": [
     {
+      "rank": 5,
+      "sounds": [
+        "goo:ability.click_trail"
+      ]
+    },
+    {
       "rank": 9,
       "sounds": [
         "minecraft:entity.*.ambient",

@@ -181,8 +181,8 @@ class GooTargetHighlighterTest {
 
         @Test
         void theBlastAndTheBlackHoleAreDragSizedAndTheFrostOrbIsThrown() {
-            assertEquals(Map.of("unstable_explode", true, "void_black_hole", true, "frost_orb", false),
-                    Stream.of("unstable_explode", "void_black_hole", "frost_orb").collect(Collectors.toMap(
+            assertEquals(Map.of("unstable_explode", true, "void_dark_star", true, "frost_orb", false),
+                    Stream.of("unstable_explode", "void_dark_star", "frost_orb").collect(Collectors.toMap(
                             name -> name, name -> AbilityJson.decode(name).hasTag(AbilityTags.DRAG_SIZED))));
         }
     }

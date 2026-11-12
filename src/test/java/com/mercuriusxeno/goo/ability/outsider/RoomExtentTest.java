@@ -31,21 +31,21 @@ class RoomExtentTest {
     @Nested
     class Growth {
 
-        private final long ringTwo = PlatformSpiral.ringCost(2, BASE, PER_DISTANCE);
-        private final long ringThree = PlatformSpiral.ringCost(3, BASE, PER_DISTANCE);
+        private final long ringFive = PlatformSpiral.ringCost(5, BASE, PER_DISTANCE);
+        private final long ringSix = PlatformSpiral.ringCost(6, BASE, PER_DISTANCE);
 
         @Test
         void aFeedShortOfTheRingRaisesTheExtentByTheFedShare() {
-            long quarter = ringTwo / 4;
+            long quarter = ringFive / 4;
             double grown = RoomExtent.grown(RoomExtent.LAID, quarter, BASE, PER_DISTANCE);
 
-            assertEquals(RoomExtent.LAID + quarter / (double) ringTwo, grown, EXACT);
+            assertEquals(RoomExtent.LAID + quarter / (double) ringFive, grown, EXACT);
         }
 
         @Test
         void everySideMovesOutByTheSameShare() {
-            long quarter = ringTwo / 4;
-            double share = quarter / (double) ringTwo;
+            long quarter = ringFive / 4;
+            double share = quarter / (double) ringFive;
             RoomExtent.Planes before = RoomExtent.planesAround(CENTER, RoomExtent.LAID);
             RoomExtent.Planes after = RoomExtent.planesAround(CENTER,
                     RoomExtent.grown(RoomExtent.LAID, quarter, BASE, PER_DISTANCE));
@@ -58,18 +58,28 @@ class RoomExtentTest {
 
         @Test
         void feedsAccumulateAcrossAWholeBlockMarkWithNothingLost() {
-            long extra = ringThree / 5;
-            long total = ringTwo + extra;
+            long extra = ringSix / 5;
+            long total = ringFive + extra;
             double extent = RoomExtent.LAID;
             long fed = 0;
-            long step = ringTwo / 7 + 1;
+            long step = ringFive / 7 + 1;
             while (fed < total) {
                 long feed = Math.min(step, total - fed);
                 extent = RoomExtent.grown(extent, feed, BASE, PER_DISTANCE);
                 fed += feed;
             }
 
-            assertEquals(2.5 + extra / (double) ringThree, extent, EXACT);
+            assertEquals(5.5 + extra / (double) ringSix, extent, EXACT);
+        }
+
+        /**
+         * The 9 by 9 is free, so a new room's first growth is ring 5, the blocks past it.
+         * decision outsider-room-starts-nine-by-nine
+         */
+        @Test
+        void aNewRoomGrowsThroughRingFiveForRingFivesPrice() {
+            assertEquals(ringFive, RoomExtent.priceOfRingGrowing(RoomExtent.LAID, BASE, PER_DISTANCE));
+            assertEquals(5.5, RoomExtent.grown(RoomExtent.LAID, ringFive, BASE, PER_DISTANCE), EXACT);
         }
 
         @Test
@@ -100,24 +110,24 @@ class RoomExtentTest {
         @Test
         void eachRingTimeGrowsOneBlockForTheRingsPrice() {
             double extent = RoomExtent.LAID;
-            long fedThroughRingTwo = 0;
+            long fedThroughRingFive = 0;
             for (int tick = 0; tick < ringTicks; tick++) {
                 long feed = RoomExtent.feedFor(extent, base, perDistance, ringTicks);
-                fedThroughRingTwo += feed;
+                fedThroughRingFive += feed;
                 extent = RoomExtent.grown(extent, feed, base, perDistance);
             }
-            double afterRingTwo = extent;
-            long fedThroughRingThree = 0;
+            double afterRingFive = extent;
+            long fedThroughRingSix = 0;
             for (int tick = 0; tick < ringTicks; tick++) {
                 long feed = RoomExtent.feedFor(extent, base, perDistance, ringTicks);
-                fedThroughRingThree += feed;
+                fedThroughRingSix += feed;
                 extent = RoomExtent.grown(extent, feed, base, perDistance);
             }
 
-            assertEquals(2.5, afterRingTwo, EXACT, "extent after the first second");
-            assertEquals(208, fedThroughRingTwo, "void fed through ring 2");
-            assertEquals(3.5, extent, EXACT, "extent after the second second");
-            assertEquals(348, fedThroughRingThree, "void fed through ring 3");
+            assertEquals(5.5, afterRingFive, EXACT, "extent after the first second");
+            assertEquals(700, fedThroughRingFive, "void fed through ring 5");
+            assertEquals(6.5, extent, EXACT, "extent after the second second");
+            assertEquals(912, fedThroughRingSix, "void fed through ring 6");
         }
 
         private static JsonObject shippedOutsiderStep() {

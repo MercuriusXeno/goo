@@ -14,7 +14,7 @@ package com.mercuriusxeno.goo.ability.outsider;
  */
 public final class PlatformSpiral {
 
-    /** The cells a room starts with: the voidstone and its ring. */
+    /** The cells of the 3 by 3 around the center: the voidstone and its ring. */
     public static final int START_CELLS = 9;
     private static final int SIDES = 4;
     private static final int EAST_SIDE = 0;
@@ -22,6 +22,14 @@ public final class PlatformSpiral {
     private static final int WEST_SIDE = 2;
     /** A ring k out runs 2k cells along each side, so its square is 2k + 1 cells across. */
     private static final int PER_RING = 2;
+    /** Ring k holds 8k cells. */
+    private static final int CELLS_PER_RING = 8;
+    /** Ring k's cells sit 12k squared blocks of Manhattan distance from the center, summed. */
+    private static final int DISTANCE_PER_RING_SQUARED = 12;
+    /** The triangle numbers' divisor in k (k + 1) / 2, and the 2 of 2k + 1 beside it. */
+    private static final int TRIANGLE_DIVISOR = 2;
+    /** The square pyramid numbers' divisor in k (k + 1) (2k + 1) / 6. */
+    private static final int SQUARE_PYRAMID_DIVISOR = 6;
 
     private PlatformSpiral() {
     }
@@ -77,7 +85,8 @@ public final class PlatformSpiral {
     }
 
     /**
-     * The void a whole ring costs to grow.
+     * The void a whole ring costs to grow, in closed form: ring k holds 8k
+     * cells whose Manhattan distances from the center sum to 12k squared.
      *
      * @param ring        the ring
      * @param base        the void a cell costs at the center (mB)
@@ -85,13 +94,45 @@ public final class PlatformSpiral {
      * @return the ring's cost (mB)
      */
     static long ringCost(int ring, int base, int perDistance) {
-        int inner = PER_RING * ring - 1;
-        int outer = PER_RING * ring + 1;
-        long cost = 0;
-        for (int index = inner * inner; index < outer * outer; index++) {
-            cost += costOf(index, base, perDistance);
+        if (ring <= 0) {
+            return base;
         }
-        return cost;
+        return CELLS_PER_RING * (long) ring * base + DISTANCE_PER_RING_SQUARED * (long) ring * ring * perDistance;
+    }
+
+    /**
+     * The void every ring from one to another costs together, in closed form:
+     * the sums of k and of k squared over the rings, each ring at or past ring 1.
+     *
+     * @param first       the first ring, 1 or more
+     * @param last        the last ring
+     * @param base        the void a cell costs at the center (mB)
+     * @param perDistance the void each block of Manhattan distance adds (mB)
+     * @return the rings' cost (mB), 0 where last falls short of first
+     */
+    static double ringsCost(double first, double last, int base, int perDistance) {
+        if (last < first) {
+            return 0;
+        }
+        double sumOfRings = sumOfRingsTo(last) - sumOfRingsTo(first - 1);
+        double sumOfSquares = sumOfSquaresTo(last) - sumOfSquaresTo(first - 1);
+        return CELLS_PER_RING * base * sumOfRings + DISTANCE_PER_RING_SQUARED * perDistance * sumOfSquares;
+    }
+
+    /**
+     * @param ring the last ring, k
+     * @return 1 + 2 + ... + k = k (k + 1) / 2
+     */
+    private static double sumOfRingsTo(double ring) {
+        return ring * (ring + 1) / TRIANGLE_DIVISOR;
+    }
+
+    /**
+     * @param ring the last ring, k
+     * @return 1 + 4 + ... + k squared = k (k + 1) (2k + 1) / 6
+     */
+    private static double sumOfSquaresTo(double ring) {
+        return ring * (ring + 1) * (TRIANGLE_DIVISOR * ring + 1) / SQUARE_PYRAMID_DIVISOR;
     }
 
     /**

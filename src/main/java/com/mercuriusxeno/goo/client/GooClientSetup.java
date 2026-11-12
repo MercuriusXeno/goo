@@ -245,6 +245,8 @@ public final class GooClientSetup {
         PrismComboStyles.register(GlowReflectorStyle.COMBO, new GlowReflectorStyle());
         PrismComboStyles.register(HivePrismStyle.COMBO, new HivePrismStyle());
         event.registerBlockEntityRenderer(GooBlockEntities.END_GATE.get(), EndGateRenderer::new);
+        // room-door-wears-the-end-portal-starfield: the room's doorway draws as the End portal's starfield
+        event.registerBlockEntityRenderer(GooBlockEntities.DIMENSION_DOOR.get(), DimensionDoorRenderer::new);
         // oculus-prism-becomes-a-hovering-eye: an oculus prism draws as the hovering eye
         PrismComboStyles.register(OculusNodes.OCULUS, new OculusStyle());
         // metronome-prism-pulses-at-the-learned-rate, relay-prism-carries-the-signal-through-air
@@ -331,10 +333,10 @@ public final class GooClientSetup {
         event.registerSpriteSet(GooParticles.GOO_FOG.get(), GooFogParticle.Provider::new);
         event.registerSpriteSet(GooParticles.SPORE.get(), SporeParticle.Provider::new);
         event.registerSpriteSet(GooParticles.GNAT.get(), GnatParticle.Provider::new);
-        event.registerSpriteSet(GooParticles.SLIME_MIST.get(),
-                sprites -> new GnatParticle.Provider(sprites, GnatPalette.SLIME_MIST));
-        event.registerSpriteSet(GooParticles.KINETIC_MIST.get(),
-                sprites -> new GnatParticle.Provider(sprites, GnatPalette.KINETIC_MIST));
+        event.registerSpriteSet(GooParticles.GOOP_SPRAY_DRIP.get(),
+                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.GOOP_SLIME_GREENS));
+        event.registerSpriteSet(GooParticles.SLICK_SPRAY_DRIP.get(),
+                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.SLICK_SLIME_BLUES));
         event.registerSpriteSet(GooParticles.SNOWFLAKE.get(), SnowflakeParticle.Provider::new);
         event.registerSpriteSet(GooParticles.CLICK_WAVE.get(), ClickWaveParticle.Provider::new);
         event.registerSpriteSet(GooParticles.RESTORE_MOTE.get(), RestoreMoteParticle.Provider::new);
@@ -342,7 +344,6 @@ public final class GooClientSetup {
         event.registerSpriteSet(GooParticles.VOID_MOTE.get(), VoidMoteParticle.Provider::new);
         event.registerSpriteSet(GooParticles.VITAL_MOTE.get(), VitalMoteParticle.Provider::new);
         event.registerSpriteSet(GooParticles.HEX_WISP.get(), HexWispParticle.Provider::new);
-        event.registerSpriteSet(GooParticles.HEX_MIST.get(), HexMistParticle.Provider::new);
         event.registerSpriteSet(GooParticles.HEX_GLYPH.get(), HexGlyphParticle.Provider::new);
         event.registerSpriteSet(GooParticles.VITAL_FOG.get(), VitalFogParticle.Provider::new);
         event.registerSpriteSet(GooParticles.VITAL_STAR.get(), VitalStarParticle.Provider::new);

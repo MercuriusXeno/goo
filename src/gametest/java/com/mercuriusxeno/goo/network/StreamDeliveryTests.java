@@ -5,6 +5,10 @@ import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.PayloadRecorder;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.Expr;
+import com.mercuriusxeno.goo.ability.program.LeafStep;
+import com.mercuriusxeno.goo.ability.program.LeafSteps;
+import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -58,6 +62,53 @@ public final class StreamDeliveryTests {
         GooTestFunctions.registerTest(registrar, VITALITY_HEALS, StreamDeliveryTests::vitalityHealsCowAndCaster);
         GooTestFunctions.registerTest(registrar, FLAMES_DAMAGES_PER_TICK, StreamDeliveryTests::flamesDamagesPerTick);
         GooTestFunctions.registerTest(registrar, HEAL_TOUCHES_FULL_COW, StreamDeliveryTests::healTouchesAFullHealthCow);
+        GooTestFunctions.registerTest(registrar, HEAL_HARMS_ZOMBIE, StreamDeliveryTests::healHarmsAZombie);
+    }
+
+    /**
+     * A mock player holds jelly heal on a zombie four blocks ahead for twenty
+     * ticks: the zombie loses each tick what a living mob would gain, the
+     * heal step's amount, so it has lost that amount times the ticks held.
+     * heal-harms-an-undead-target
+     *
+     * @param helper the gametest helper
+     */
+    public static void healHarmsAZombie(GameTestHelper helper) {
+        AbilityDefinition heal = AbilityRegistry.of(helper.getLevel()).getAbility(JELLY_HEAL);
+        helper.assertTrue(heal != null, VITALITY_REQUIRED);
+        float perTick = healAmount(heal);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
+        // the helmet keeps the noon sun off the zombie, so only the stream harms it
+        zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
+        float healthBefore = zombie.getHealth();
+        ServerPlayer player = streamer(helper, GooTypes.JELLY);
+        KnownRecipes.teachRequires(player, heal);
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.JELLY), JELLY_HEAL.toString(),
+                player.getEyePosition(), player.getEyePosition());
+        for (int held = 1; held <= HOLD_TICKS; held++) {
+            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
+        }
+        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            float lost = healthBefore - zombie.getHealth();
+            float expected = perTick * HOLD_TICKS;
+            helper.assertTrue(Math.abs(lost - expected) <= perTick * HARM_TICKS_SLACK,
+                    String.format(SHOULD_HARM_ZOMBIE, expected, lost));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * The health jelly heal's heal step restores each tick, read from the ability.
+     *
+     * @param heal the jelly heal ability
+     * @return the heal step's amount
+     */
+    static float healAmount(AbilityDefinition heal) {
+        return heal.behaviors().stream()
+                .filter(step -> step instanceof LeafStep<?> leaf && leaf.leaf() == LeafSteps.HEAL)
+                .map(step -> ((Expr) ((LeafStep<?>) step).params()).evaluateFloat(Variables.NONE))
+                .findFirst().orElseThrow();
     }
 
     /**
@@ -145,6 +196,11 @@ public final class StreamDeliveryTests {
     private static final String HEAL_TOUCHES_FULL_COW = "heal_touches_a_full_health_cow";
     /** A few held ticks, enough for the heal to strike the cone. */
     private static final int TOUCH_HOLD_TICKS = 5;
+    private static final String HEAL_HARMS_ZOMBIE = "heal_harms_a_zombie";
+    /** The held ticks a harm count may miss or gain, for the tick the stream takes to reach the zombie. */
+    private static final float HARM_TICKS_SLACK = 1.5f;
+    private static final String SHOULD_HARM_ZOMBIE =
+            "The healed zombie should lose what a living mob would gain, %.2f, lost %.2f";
     private static final String SHOULD_TOUCH_FULL_COW =
             "A heal payload should name the full-health cow among its touched mobs; %d payloads named none";
 
