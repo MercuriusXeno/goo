@@ -51,6 +51,46 @@ record BorePick(List<List<BlockPos>> groups, List<BlockPos> tunnel) {
         List<BlockPos> line = crossed.subList(1, stop);
         Vec3 look = aim.aimPoint().subtract(eye).normalize();
         double shield = stop < crossed.size() ? depthOf(crossed.get(stop), eye, look) : Double.MAX_VALUE;
+        Sight sight = new Sight(eye, look, shield, crossed.getFirst());
+        List<List<BlockPos>> groups = lineGroups(line, breakable);
+        Set<BlockPos> tunnel = new LinkedHashSet<>(line);
+        for (BlockPos cell : vortexCells(glove, aim.aimPoint(), vortexRadius)) {
+            if (sight.reaches(cell) && tunnel.add(cell) && breakable.test(cell)) {
+                groups.get(nearestByDepth(line, sight.depthOf(cell), sight)).add(cell);
+            }
+        }
+        return new BorePick(groups, List.copyOf(tunnel));
+    }
+
+    /**
+     * Where the bore looks from and how deep it reaches.
+     *
+     * @param eye     the eye
+     * @param look    the unit look
+     * @param shield  the stopping block's depth, past which nothing is picked
+     * @param eyeCell the eye's own block, never picked
+     */
+    private record Sight(Vec3 eye, Vec3 look, double shield, BlockPos eyeCell) {
+
+        double depthOf(BlockPos cell) {
+            return BorePick.depthOf(cell, eye, look);
+        }
+
+        boolean reaches(BlockPos cell) {
+            return !cell.equals(eyeCell) && depthOf(cell) < shield;
+        }
+    }
+
+    /**
+     * One group for each block the eye line crosses, holding the block where
+     * it breaks; one empty group where the line crosses none, which the
+     * vortex's blocks join.
+     *
+     * @param line      the line's blocks, nearest first
+     * @param breakable whether a cell holds a block in the tag
+     * @return the groups
+     */
+    private static List<List<BlockPos>> lineGroups(List<BlockPos> line, Predicate<BlockPos> breakable) {
         List<List<BlockPos>> groups = new ArrayList<>();
         for (BlockPos cell : line) {
             groups.add(new ArrayList<>(breakable.test(cell) ? List.of(cell) : List.of()));
@@ -58,15 +98,7 @@ record BorePick(List<List<BlockPos>> groups, List<BlockPos> tunnel) {
         if (groups.isEmpty()) {
             groups.add(new ArrayList<>());
         }
-        Set<BlockPos> tunnel = new LinkedHashSet<>(line);
-        for (BlockPos cell : vortexCells(glove, aim.aimPoint(), vortexRadius)) {
-            double depth = depthOf(cell, eye, look);
-            if (cell.equals(crossed.getFirst()) || depth >= shield || !tunnel.add(cell) || !breakable.test(cell)) {
-                continue;
-            }
-            groups.get(nearestByDepth(line, depth, eye, look)).add(cell);
-        }
-        return new BorePick(groups, List.copyOf(tunnel));
+        return groups;
     }
 
     /**
@@ -143,11 +175,11 @@ record BorePick(List<List<BlockPos>> groups, List<BlockPos> tunnel) {
         return new Vec3(cell.getX() + HALF, cell.getY() + HALF, cell.getZ() + HALF).subtract(eye).dot(look);
     }
 
-    private static int nearestByDepth(List<BlockPos> line, double depth, Vec3 eye, Vec3 look) {
+    private static int nearestByDepth(List<BlockPos> line, double depth, Sight sight) {
         int nearest = 0;
         double closest = Double.MAX_VALUE;
         for (int index = 0; index < line.size(); index++) {
-            double apart = Math.abs(depthOf(line.get(index), eye, look) - depth);
+            double apart = Math.abs(sight.depthOf(line.get(index)) - depth);
             if (apart < closest) {
                 closest = apart;
                 nearest = index;
