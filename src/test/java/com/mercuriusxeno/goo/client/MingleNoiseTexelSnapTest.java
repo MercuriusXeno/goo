@@ -182,8 +182,7 @@ class MingleNoiseTexelSnapTest {
         void petrifyAndVinesThresholdTheCornerBlendAtTheSkinTexel() throws IOException {
             String stone = shader("petrify_stone.fsh");
             String vine = shader("vine_tangle.fsh");
-            int stoneAt = indexAfter(stone, "float field = mingleCornerField(skinCoord, MINGLE_SKIN_TEXELS, PATCH_CELLS,",
-                0);
+            int stoneAt = indexAfter(stone, "float field = mingleCornerField(skinCoord, skinTexels, PATCH_CELLS,", 0);
 
             assertTrue(indexAfter(stone, "if (field < threshold)", stoneAt) > stoneAt);
             assertTrue(vine.contains("mingleCornerField(skinCoord, MINGLE_SKIN_TEXELS, PATCH_CELLS, vec3(0.0)) "
