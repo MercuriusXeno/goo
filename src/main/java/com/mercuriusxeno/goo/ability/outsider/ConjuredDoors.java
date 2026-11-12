@@ -26,6 +26,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * early collapses it, and the door of a channel that carried its caster in
  * falls the same way once they are gone.
  * decision channeling-to-the-pocket-conjures-a-door-that-envelops-the-player
+ * A player arriving in their room is released by a second door standing on
+ * them, kept past the teleport and sent each tick until its release ticks pass.
+ * decision matching-doorway-opens-in-the-room-and-releases-you
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class ConjuredDoors {
@@ -42,6 +45,8 @@ public final class ConjuredDoors {
 
     /** Each caster's door and the server tick its channel last stood it. */
     private static final Map<UUID, Standing> DOORS = new ConcurrentHashMap<>();
+    /** Each arriver's releasing door, kept past the teleport for its release ticks. */
+    private static final Map<UUID, Release> RELEASES = new ConcurrentHashMap<>();
 
     private ConjuredDoors() {
     }
@@ -53,6 +58,27 @@ public final class ConjuredDoors {
      * @param tick the server tick it stood
      */
     private record Standing(ConjuredDoor door, int tick) {
+    }
+
+    /**
+     * A doorway releasing a player into their room.
+     *
+     * @param arriver the player it releases
+     * @param feet    where they arrived
+     * @param yaw     the way they faced arriving, in degrees
+     * @param start   the server tick it began
+     * @param door    the door as it stands now
+     */
+    private record Release(ServerPlayer arriver, Vec3 feet, float yaw, int start, ConjuredDoor door) {
+
+        Release at(int now) {
+            return new Release(arriver, feet, yaw, start,
+                    ConjuredDoor.releasing(feet, yaw, now - start, ConjuredDoor.RELEASE_TICKS));
+        }
+
+        boolean overAt(int now) {
+            return now - start > ConjuredDoor.RELEASE_TICKS || arriver.isRemoved();
+        }
     }
 
     /**
@@ -69,8 +95,33 @@ public final class ConjuredDoors {
         Standing before = DOORS.put(caster.getUUID(), new Standing(door, level.getServer().getTickCount()));
         if (before == null) {
             showConjuring(level, door);
+            OutsiderRooms.loadRoomAhead(caster);
         }
         sendDoor(caster, door);
+    }
+
+    /**
+     * Stands the doorway releasing a player who has just arrived in their
+     * room, on them at full size, and sends it to them and their watchers.
+     * decision matching-doorway-opens-in-the-room-and-releases-you
+     *
+     * @param arriver the player standing on their arrival cell
+     */
+    public static void release(ServerPlayer arriver) {
+        releaseAt(arriver, arriver.level().getServer().getTickCount());
+    }
+
+    /**
+     * Stands a release begun at a server tick and sends its first door.
+     *
+     * @param arriver the arriving player
+     * @param now     the server tick the release begins
+     */
+    static void releaseAt(ServerPlayer arriver, int now) {
+        Release release = new Release(arriver, arriver.position(), arriver.getYRot(), now,
+                ConjuredDoor.releasing(arriver.position(), arriver.getYRot(), 0, ConjuredDoor.RELEASE_TICKS));
+        RELEASES.put(arriver.getUUID(), release);
+        sendDoor(arriver, release.door());
     }
 
     /**
@@ -108,7 +159,18 @@ public final class ConjuredDoors {
     }
 
     /**
-     * Drops every door its channel stopped standing.
+     * The door releasing a player into their room now.
+     *
+     * @param arriver the player's id
+     * @return the door, empty once no release stands
+     */
+    public static Optional<ConjuredDoor> releaseOf(UUID arriver) {
+        return Optional.ofNullable(RELEASES.get(arriver)).map(Release::door);
+    }
+
+    /**
+     * Drops every door its channel stopped standing, and moves each release
+     * on a tick, sending it, until its release ticks pass.
      *
      * @param event the post-tick event
      */
@@ -116,5 +178,13 @@ public final class ConjuredDoors {
     public static void onServerTick(ServerTickEvent.Post event) {
         int now = event.getServer().getTickCount();
         DOORS.values().removeIf(standing -> now - standing.tick() > OUTLASTS);
+        RELEASES.values().removeIf(release -> release.overAt(now));
+        RELEASES.replaceAll((arriver, release) -> {
+            Release moved = release.at(now);
+            if (now > release.start()) {
+                sendDoor(moved.arriver(), moved.door());
+            }
+            return moved;
+        });
     }
 }
