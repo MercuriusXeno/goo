@@ -51,7 +51,7 @@ public final class ReserveVisual {
     private static final int PULSE_MOTES = 16;
     private static final double PULSE_SPEED = 0.12;
     /** Share of the player's height the pulse ring sits at. */
-    private static final double PULSE_HEIGHT = 0.5;
+    static final double PULSE_HEIGHT = 0.5;
     private static final double TWO_PI = 2 * Math.PI;
     private static final double HALF = 0.5;
     private static final int NO_READING = -1;
@@ -103,6 +103,29 @@ public final class ReserveVisual {
     }
 
     /**
+     * Where the banked pulse ring spawns.
+     *
+     * @param feet   the player's position
+     * @param height the body height the ring reads, {@link CameraEye#bodyHeight}'s
+     * @return the ring's middle
+     */
+    static Vec3 ringOf(Vec3 feet, double height) {
+        return feet.add(0, height * PULSE_HEIGHT, 0);
+    }
+
+    /**
+     * The body height Reserve's motes and ring spawn from, read at the tick
+     * against the camera as the last frame drew it.
+     *
+     * @param mc     the client
+     * @param player the player
+     * @return the height, in blocks
+     */
+    private static double heightNow(Minecraft mc, Player player) {
+        return CameraEye.bodyHeight(mc, player, mc.getDeltaTracker().getGameTimeDeltaPartialTick(false));
+    }
+
+    /**
      * The point a mote's flight bows out through: the middle of the line from
      * chest to glove, pushed out by the bow along a direction.
      *
@@ -128,7 +151,7 @@ public final class ReserveVisual {
         }
         Minecraft mc = Minecraft.getInstance();
         RandomSource random = player.getRandom();
-        Vec3 chest = chestOf(player.position(), player.getBbHeight());
+        Vec3 chest = chestOf(player.position(), heightNow(mc, player));
         Vec3 glove = gloveNow(mc);
         for (int mote = 0; mote < MOTES_PER_TICK; mote++) {
             Vec3 from = chest.add(spread(random, CHEST_SPREAD));
@@ -173,7 +196,7 @@ public final class ReserveVisual {
                     SoundSource.PLAYERS, HEARTBEAT_VOLUME, HEARTBEAT_PITCH, false);
         }
         if (cues.banked() > 0) {
-            Vec3 ring = player.position().add(0, player.getBbHeight() * PULSE_HEIGHT, 0);
+            Vec3 ring = ringOf(player.position(), heightNow(Minecraft.getInstance(), player));
             for (int mote = 0; mote < PULSE_MOTES; mote++) {
                 double angle = TWO_PI * mote / PULSE_MOTES;
                 level.addParticle(GooParticles.RESTORE_MOTE.get(), ring.x, ring.y, ring.z,

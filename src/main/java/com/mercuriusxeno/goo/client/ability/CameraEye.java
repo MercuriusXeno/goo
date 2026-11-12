@@ -16,8 +16,16 @@ import net.minecraft.world.phys.Vec3;
  * since that body does drop at once.
  * decision diagnose-and-correct-eye-drawn-visuals-jumping-on-sneak
  * decision diagnose-and-correct-eye-aimed-visuals-jumping-on-sneak
+ * decision diagnose-and-correct-body-height-visuals-jumping-on-sneak
  */
 public final class CameraEye {
+
+    /**
+     * The share of a standing player's height its eye stands at, 1.62 of 1.8,
+     * so the camera's eye above the feet scales up to a body height that
+     * reads the standing height exactly and eases on down with the camera.
+     */
+    static final double EYE_SHARE_OF_STANDING_HEIGHT = 0.9;
 
     /**
      * An eye and the look out of it.
@@ -95,6 +103,35 @@ public final class CameraEye {
 
     private static Sight cameraSight(Camera camera) {
         return new Sight(camera.position(), new Vec3(camera.forwardVector()));
+    }
+
+    /**
+     * The height a visual placed from a body's height reads this frame: the
+     * camera's eased eye above the feet, scaled up to a body height, for the
+     * local player in first person, else the body's own height.
+     * decision diagnose-and-correct-body-height-visuals-jumping-on-sneak
+     *
+     * @param mc          the client
+     * @param body        the body the visual is placed on
+     * @param partialTick the frame's partial tick
+     * @return the height, in blocks
+     */
+    public static double bodyHeight(Minecraft mc, Entity body, float partialTick) {
+        double cameraAboveFeet = mc.gameRenderer.getMainCamera().position().y - body.getPosition(partialTick).y;
+        return bodyHeight(followsTheCamera(mc, body), cameraAboveFeet, body.getBbHeight());
+    }
+
+    /**
+     * The height a visual placed from body height reads, from the camera's
+     * eye above the feet or the body's own height.
+     *
+     * @param followsTheCamera whether the body is the local player seen in first person
+     * @param cameraAboveFeet  how far the camera's eye stands above the feet, in blocks
+     * @param bodyHeight       the body's own height, which steps with its pose
+     * @return the height, in blocks
+     */
+    static double bodyHeight(boolean followsTheCamera, double cameraAboveFeet, double bodyHeight) {
+        return followsTheCamera ? cameraAboveFeet / EYE_SHARE_OF_STANDING_HEIGHT : bodyHeight;
     }
 
     /**
