@@ -14,16 +14,18 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
 import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Draws each door a player channeling Outsider has conjured as a crack in
- * the air opening into a doorway, its outline filled with the End portal's
- * starfield, seen from either side, facing its caster. A door whose caster
- * has left this level went with them and draws no more.
+ * Draws each door a player channeling Outsider has conjured as a jagged rip
+ * in the air opening into a doorway, its outline filled with the End
+ * portal's starfield, seen from either side, facing its caster. A door whose
+ * caster has left this level went with them and draws no more.
  * decision crack-and-doorway-wear-the-end-portal-shader
  * decision door-opens-from-a-thin-crack-in-the-air
+ * decision conjured-door-opens-as-a-jagged-rip
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class ConjuredDoorRenderer {
@@ -79,7 +81,7 @@ public final class ConjuredDoorRenderer {
     }
 
     /**
-     * Submits one door's crack under the End portal render type, whose
+     * Submits one door's rip under the End portal render type, whose
      * vertices carry their position alone, as the End gate submits its square.
      *
      * @param collector the collector the frame submits to
@@ -89,30 +91,42 @@ public final class ConjuredDoorRenderer {
      */
     static void submitDoor(SubmitNodeCollector collector, PoseStack poseStack, ClientConjuredDoors.Drawn door,
                            Vec3 camera) {
-        Vec3[] corners = cornersOf(door, camera);
+        List<Vec3[]> quads = quadsOf(door, camera);
         collector.submitCustomGeometry(poseStack, RenderTypes.endPortal(),
-                (pose, consumer) -> emitBothWaysRound(pose, consumer, corners));
+                (pose, consumer) -> quads.forEach(quad -> emitBothWaysRound(pose, consumer, quad)));
     }
 
     /**
-     * The door's outline corners, stood upright at its foot across the way
-     * its caster faced, relative to the camera.
+     * The door's rip as one quad per pair of neighboring rows, stood upright
+     * at its foot across the way its caster faced, relative to the camera.
+     * The render type draws quads alone, so the pointed head and foot are
+     * quads with two corners together.
      *
      * @param door   the door drawn
      * @param camera the camera's world position
-     * @return the corners in order around the outline
+     * @return each quad's four corners in order around it
      */
-    private static Vec3[] cornersOf(ClientConjuredDoors.Drawn door, Vec3 camera) {
+    private static List<Vec3[]> quadsOf(ClientConjuredDoors.Drawn door, Vec3 camera) {
         double radians = Math.toRadians(door.yaw());
         Vec3 across = new Vec3(Math.cos(radians), 0, Math.sin(radians));
         Vec3 foot = door.at().subtract(camera);
-        List<DoorCrack.Corner> outline = DoorCrack.outline(door.size());
-        Vec3[] corners = new Vec3[outline.size()];
-        for (int index = 0; index < corners.length; index++) {
-            DoorCrack.Corner corner = outline.get(index);
-            corners[index] = foot.add(across.scale(corner.across())).add(0, corner.up(), 0);
+        List<RipRow> rows = DoorCrack.outline(door.size());
+        List<Vec3[]> quads = new ArrayList<>(rows.size() - 1);
+        for (int index = 1; index < rows.size(); index++) {
+            RipRow below = rows.get(index - 1);
+            RipRow above = rows.get(index);
+            quads.add(new Vec3[] {
+                placed(foot, across, below.leftAcross(), below.up()),
+                placed(foot, across, below.rightAcross(), below.up()),
+                placed(foot, across, above.rightAcross(), above.up()),
+                placed(foot, across, above.leftAcross(), above.up()),
+            });
         }
-        return corners;
+        return quads;
+    }
+
+    private static Vec3 placed(Vec3 foot, Vec3 across, double sideways, double up) {
+        return foot.add(across.scale(sideways)).add(0, up, 0);
     }
 
     private static void emitBothWaysRound(PoseStack.Pose pose, VertexConsumer consumer, Vec3[] corners) {

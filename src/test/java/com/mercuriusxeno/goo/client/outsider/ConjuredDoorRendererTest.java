@@ -18,9 +18,10 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 
 /**
- * Covers the conjured door's submit: its crack draws under the end portal
- * render type with position-only vertices, the doorway's span, seen from
- * either side (decision crack-and-doorway-wear-the-end-portal-shader).
+ * Covers the conjured door's submit: its rip draws under the end portal
+ * render type as whole quads of position-only vertices, the doorway's span,
+ * each quad seen from either side
+ * (decisions crack-and-doorway-wear-the-end-portal-shader, conjured-door-opens-as-a-jagged-rip).
  */
 class ConjuredDoorRendererTest {
 
@@ -58,6 +59,24 @@ class ConjuredDoorRendererTest {
         }
         assertEquals(0, lowest, EXACT, "standing on the feet");
         assertEquals(2, highest, EXACT, "two tall");
+    }
+
+    @Test
+    void theRipEmitsWholeQuadsEachBothWaysRound() {
+        List<RecordingVertexConsumer.Vertex> vertices = submit(new ClientConjuredDoors.Drawn(FEET, 0f, 1))
+                .vertices().vertices();
+
+        assertEquals(0, vertices.size() % 8, "whole quads, each emitted twice: " + vertices.size());
+        assertTrue(vertices.size() > 8, "the rip draws more than one quad: " + vertices.size());
+        for (int start = 0; start < vertices.size(); start += 8) {
+            for (int corner = 0; corner < 4; corner++) {
+                RecordingVertexConsumer.Vertex ahead = vertices.get(start + corner);
+                RecordingVertexConsumer.Vertex back = vertices.get(start + 7 - corner);
+                assertEquals(ahead.x(), back.x(), EXACT, "quad at " + start + " corner " + corner + " x");
+                assertEquals(ahead.y(), back.y(), EXACT, "quad at " + start + " corner " + corner + " y");
+                assertEquals(ahead.z(), back.z(), EXACT, "quad at " + start + " corner " + corner + " z");
+            }
+        }
     }
 
     /** Submits one door seen from its own feet and records what it handed the collector. */
