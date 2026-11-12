@@ -27,7 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Petrify's fog: while right click holds Petrify, puffs of dust pour from the
+ * Petrify's fog: while right click holds Petrify, PUFFS of dust pour from the
  * glove each tick and billow out over the cone to its reach, each churning as
  * it rolls, a medusa's gaze miasma the player emits. Each puff keeps the
  * glove and aim it left with, so the fog trails the hand's motion instead of
@@ -48,8 +48,8 @@ public final class PetrifyFog {
     private static final int OUT = 1;
     private static final int BACK = -OUT;
 
-    /** The poured puffs, and the reach and half angle they pour by. */
-    private static final List<PetrifyPuffs.Puff> puffs = new ArrayList<>();
+    /** The poured PUFFS, and the reach and half angle they pour by. */
+    private static final List<PetrifyPuffs.Puff> PUFFS = new ArrayList<>();
     private static double range;
     private static double halfAngle;
 
@@ -57,7 +57,7 @@ public final class PetrifyFog {
     }
 
     /**
-     * Pours a tick's puffs while Petrify is held, and lets every puff past its
+     * Pours a tick's PUFFS while Petrify is held, and lets every puff past its
      * life go.
      *
      * @param event the client tick event
@@ -70,7 +70,7 @@ public final class PetrifyFog {
             return;
         }
         double now = level.getGameTime();
-        puffs.removeIf(puff -> PetrifyPuffs.ageShare(puff, now) >= 1);
+        PUFFS.removeIf(puff -> PetrifyPuffs.ageShare(puff, now) >= 1);
         LocalPlayer player = mc.player;
         ClientAbility petrify = player == null ? null : heldPetrify(player);
         if (petrify == null) {
@@ -81,21 +81,21 @@ public final class PetrifyFog {
         Vec3 glove = GloveAim.handPosition(mc.gameRenderer.getMainCamera());
         RandomSource random = level.getRandom();
         for (int puff = 0; puff < PUFFS_PER_TICK; puff++) {
-            puffs.add(PetrifyPuffs.pour(glove, player.getViewVector(1f), halfAngle,
+            PUFFS.add(PetrifyPuffs.pour(glove, player.getViewVector(1f), halfAngle,
                     now + (double) puff / PUFFS_PER_TICK, random.nextDouble(), random.nextDouble(),
                     random.nextFloat()));
         }
     }
 
     /**
-     * Draws the poured puffs after the translucent blocks.
+     * Draws the poured PUFFS after the translucent blocks.
      *
      * @param event the level render stage event
      */
     @SubscribeEvent
     public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || puffs.isEmpty()) {
+        if (mc.level == null || PUFFS.isEmpty()) {
             return;
         }
         double now = mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
@@ -106,7 +106,7 @@ public final class PetrifyFog {
         Vec3 left = toVec3(camera.leftVector());
         Vec3 up = toVec3(camera.upVector());
         Vec3 view = toVec3(camera.forwardVector());
-        for (PetrifyPuffs.Puff puff : puffs) {
+        for (PetrifyPuffs.Puff puff : PUFFS) {
             Vec3 center = PetrifyPuffs.positionAt(puff, now, range, halfAngle).subtract(camera.position());
             double radius = PetrifyPuffs.radiusAt(PetrifyPuffs.distanceAt(PetrifyPuffs.ageShare(puff, now), range),
                     halfAngle);
