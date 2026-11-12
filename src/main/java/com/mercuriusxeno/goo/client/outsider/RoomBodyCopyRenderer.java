@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.outsider.OutsiderRooms;
 import com.mercuriusxeno.goo.ability.outsider.RoomExtent;
 import com.mercuriusxeno.goo.client.ability.ClientRoomEdges;
 import com.mercuriusxeno.goo.client.ability.PortalView;
+import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.culling.Frustum;
@@ -83,12 +84,16 @@ public final class RoomBodyCopyRenderer {
                 RoomCopies.reachOf(mc.options.getEffectiveRenderDistance()));
         Frustum frustum = PortalView.drawing() ? PortalView.camera().getCullFrustum()
                 : mc.gameRenderer.getMainCamera().getCullFrustum();
+        Camera camera = PortalView.drawing() ? PortalView.camera() : mc.gameRenderer.getMainCamera();
         for (Entity body : level.entitiesForRendering()) {
             float partial = mc.getDeltaTracker().getGameTimeDeltaPartialTick(
                     !level.tickRateManager().isEntityFrozen(body));
             Vec3 drawn = body.getPosition(partial);
             if (RoomBodyCopies.standsIn(bounds.get(), drawn)) {
-                submitCopies(event, body, drawn, partial, offsets, frustum);
+                List<Vec3> copies = RoomBodyCopies.drawsOf(drawn, offsets, body == camera.entity(),
+                        camera.isDetached()).stream().filter(draw -> !draw.byFrame())
+                        .map(RoomBodyCopies.Draw::at).toList();
+                submitCopies(event, body, drawn, partial, copies, frustum);
             }
         }
     }
@@ -100,17 +105,17 @@ public final class RoomBodyCopyRenderer {
      * @param body    the body
      * @param drawn   its drawn place
      * @param partial its partial tick
-     * @param offsets the room's copies
+     * @param copies  the places it draws in the room's copies
      * @param frustum the pass's frustum
      */
     private static void submitCopies(SubmitCustomGeometryEvent event, Entity body, Vec3 drawn, float partial,
-            List<RoomCopies.Offset> offsets, Frustum frustum) {
+            List<Vec3> copies, Frustum frustum) {
         EntityRenderDispatcher dispatcher = Minecraft.getInstance().getEntityRenderDispatcher();
         LevelRenderState level = event.getLevelRenderState();
         AABB box = body.getBoundingBox().move(drawn.subtract(body.position())).inflate(MODEL_MARGIN);
         EntityRenderState state = null;
         Vec3 camera = level.cameraRenderState.pos;
-        for (Vec3 place : RoomBodyCopies.placesOf(drawn, offsets)) {
+        for (Vec3 place : copies) {
             if (!frustum.isVisible(box.move(place.subtract(drawn)))) {
                 continue;
             }
