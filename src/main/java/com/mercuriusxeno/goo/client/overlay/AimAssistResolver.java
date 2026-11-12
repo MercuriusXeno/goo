@@ -1,6 +1,9 @@
 package com.mercuriusxeno.goo.client.overlay;
 
+import com.mercuriusxeno.goo.ability.OwnMinions;
+import com.mercuriusxeno.goo.ability.program.GrabStep;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -15,6 +18,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 /**
  * Target resolution with two-pass aim assist (exact raytrace + cone scan)
@@ -32,28 +36,18 @@ final class AimAssistResolver {
     private static final double MAX_RANGE = AimState.MAX_RANGE;
 
     /**
-     * Aim-assist forgiveness half-angle in degrees. Targets within this cone
-     * around the reticle are eligible even if the exact raytrace misses
-     * their hitbox.
+     * The shared aim-assist forgiveness half-angle in degrees. Targets within
+     * this cone around the reticle are eligible even if the exact raytrace
+     * misses their hitbox.
      */
-    private static final double AIM_ASSIST_DEGREES = 4.0;
+    static final double AIM_ASSIST_DEGREES = 4.0;
 
     /**
-     * Cosine of the aim-assist angle - precomputed for dot-product checks.
+     * How far past the pick cone, in degrees, the sticky retention cone
+     * reaches. Once locked, a target stays selected until the reticle drifts
+     * beyond this wider cone, preventing flicker when the cursor is near the edge.
      */
-    private static final double AIM_ASSIST_COS = Math.cos(Math.toRadians(AIM_ASSIST_DEGREES));
-
-    /**
-     * Sticky-target retention half-angle in degrees. Once locked, a target
-     * stays selected until the reticle drifts beyond this wider cone,
-     * preventing flicker when the cursor is near the edge.
-     */
-    private static final double STICKY_DEGREES = 5.0;
-
-    /**
-     * Cosine of the sticky retention angle.
-     */
-    private static final double STICKY_COS = Math.cos(Math.toRadians(STICKY_DEGREES));
+    private static final double STICKY_PAST_THE_CONE = 1.0;
 
     /**
      * Half divisor for centering AABB calculations.
@@ -115,7 +109,8 @@ final class AimAssistResolver {
     static @Nullable AimHit findClosestAimHit(Player player, Vec3 from, Vec3 to,
                                               @Nullable AimHit previous, List<Step> behaviors) {
         Vec3 lookDir = to.subtract(from).normalize();
-        List<Entity> entities = gatherCandidates(player, from, to, behaviors);
+        double coneDegrees = pickConeDegrees(behaviors);
+        List<Entity> entities = gatherCandidates(player, from, to, behaviors, coneDegrees);
         List<AimHit> candidates = asHits(entities);
         AimHit exact = findExactHit(candidates, player, from, to);
         if (exact != null) {
@@ -123,10 +118,25 @@ final class AimAssistResolver {
         }
 
         double range = from.distanceTo(to);
-        AimHit bestCone = findBestConeHit(candidates, player, from, lookDir, range);
-
-        AimHit sticky = retainSticky(candidates, player, from, lookDir, bestCone, previous, range);
+        Predicate<AimHit> inSight = candidate -> isInSight(candidate, player, from);
+        AimHit bestCone = findBestConeHit(candidates, from, lookDir, range, Math.cos(Math.toRadians(coneDegrees)),
+                inSight);
+        double stickyCos = Math.cos(Math.toRadians(coneDegrees + STICKY_PAST_THE_CONE));
+        AimHit sticky = retainSticky(candidates, from, lookDir, bestCone, previous, range, stickyCos, inSight);
         return (sticky != null) ? sticky : bestCone;
+    }
+
+    /**
+     * The half-angle of the cone the selected ability picks in: its Grab's
+     * own where it holds one, else the shared cone. The outline draws what
+     * this cone picks, so the outlined mob is the one right click acts on.
+     * decision grab-cone-picks-more-aggressively-than-other-goo-types
+     *
+     * @param behaviors the selected ability's steps
+     * @return the half-angle, in degrees
+     */
+    static double pickConeDegrees(List<Step> behaviors) {
+        return GrabStep.pickConeOf(behaviors).orElse(AIM_ASSIST_DEGREES);
     }
 
     /**
@@ -135,12 +145,16 @@ final class AimAssistResolver {
      * @param player    the aiming player (excluded from results)
      * @param from      ray start (eye position)
      * @param to        ray end (eye + look * range)
-     * @param behaviors the selected ability's steps
+     * @param behaviors   the selected ability's steps
+     * @param coneDegrees the pick cone's half-angle
      * @return candidate entities in the inflated search box
      */
-    private static List<Entity> gatherCandidates(Player player, Vec3 from, Vec3 to, List<Step> behaviors) {
-        AABB searchBox = buildSearchBox(player, from, to);
-        return player.level().getEntities(player, searchBox, e -> isCandidate(e, behaviors));
+    private static List<Entity> gatherCandidates(Player player, Vec3 from, Vec3 to, List<Step> behaviors,
+            double coneDegrees) {
+        AABB searchBox = buildSearchBox(from, to, coneDegrees);
+        boolean sparesOwnMinions = GloveAim.sparesOwnMinions(player);
+        return player.level().getEntities(player, searchBox, e -> isCandidate(e, behaviors, sparesOwnMinions,
+                mob -> OwnMinions.ownMinionOf(player, mob)));
     }
 
     /**
@@ -157,17 +171,36 @@ final class AimAssistResolver {
     }
 
     /**
-     * Builds the shared search bounding box used for both entity and marker
-     * candidate gathering.
+     * Whether the aim may outline an entity, sparing the player's own
+     * minions where the selected ability spares them, so a harmful mob
+     * ability never locks on a mob its caster rallied or charmed.
+     * mob-targeted-attacks-refuse-your-minions
      *
-     * @param player the aiming player
-     * @param from   ray start
-     * @param to     ray end
+     * @param entity           the entity in the search box
+     * @param behaviors        the selected ability's steps
+     * @param sparesOwnMinions whether the selected ability spares the player's own minions
+     * @param ownMinion        whether an entity is the player's own minion
+     * @return true where the entity is a candidate
+     */
+    static boolean isCandidate(Entity entity, List<Step> behaviors, boolean sparesOwnMinions,
+                               Predicate<Entity> ownMinion) {
+        return isCandidate(entity, behaviors) && !(sparesOwnMinions && ownMinion.test(entity));
+    }
+
+    /**
+     * Builds the search box candidates are gathered in, swept along the ray
+     * from its own start, so a leg the aim carries on along out of a linked
+     * gate's partner gathers the mobs beside that leg wherever the partner
+     * stands. aim-and-shots-carry-through-linked-gates
+     *
+     * @param from        ray start
+     * @param to          ray end
+     * @param coneDegrees the pick cone's half-angle
      * @return the inflated search box
      */
-    private static AABB buildSearchBox(Player player, Vec3 from, Vec3 to) {
-        double coneRadius = MAX_RANGE * Math.tan(Math.toRadians(AIM_ASSIST_DEGREES));
-        return player.getBoundingBox()
+    private static AABB buildSearchBox(Vec3 from, Vec3 to, double coneDegrees) {
+        double coneRadius = MAX_RANGE * Math.tan(Math.toRadians(coneDegrees));
+        return new AABB(from, from)
                 .expandTowards(to.subtract(from))
                 .inflate(coneRadius + 1.0);
     }
@@ -213,21 +246,22 @@ final class AimAssistResolver {
     }
 
     /**
-     * Finds the candidate closest to the reticle inside the aim-assist cone.
+     * Finds the candidate closest to the reticle inside the pick cone.
      *
      * @param candidates the candidates in tie-break order
-     * @param player     the aiming player
      * @param from       ray start
      * @param lookDir    normalized look direction
      * @param range      how far the ray reaches
+     * @param coneCos    the cosine of the pick cone's half-angle
+     * @param inSight    whether the player sees a candidate
      * @return the cone-pass winner, or null if nothing clears the cone
      */
-    private static @Nullable AimHit findBestConeHit(List<AimHit> candidates, Player player,
-                                                    Vec3 from, Vec3 lookDir, double range) {
-        double bestCos = AIM_ASSIST_COS;
+    static @Nullable AimHit findBestConeHit(List<AimHit> candidates, Vec3 from, Vec3 lookDir, double range,
+                                            double coneCos, Predicate<AimHit> inSight) {
+        double bestCos = coneCos;
         AimHit best = null;
         for (AimHit candidate : candidates) {
-            double cos = coneCosine(candidate, player, from, lookDir, AIM_ASSIST_COS, range);
+            double cos = coneCosine(candidate, from, lookDir, coneCos, range, inSight);
             if (cos > bestCos) {
                 bestCos = cos;
                 best = candidate;
@@ -241,22 +275,23 @@ final class AimAssistResolver {
      * wider sticky cone, to prevent flicker at the cone's edge.
      *
      * @param candidates the candidates this frame
-     * @param player     the aiming player
      * @param from       ray start
      * @param lookDir    normalized look direction
      * @param bestCone   the cone-pass winner this frame
      * @param previous   the previous hit, or null
      * @param range      how far the ray reaches
+     * @param stickyCos  the cosine of the sticky cone's half-angle
+     * @param inSight    whether the player sees a candidate
      * @return the previous hit if it is retained, or null
      */
-    private static @Nullable AimHit retainSticky(List<AimHit> candidates, Player player, Vec3 from,
-                                                 Vec3 lookDir, @Nullable AimHit bestCone,
-                                                 @Nullable AimHit previous, double range) {
+    private static @Nullable AimHit retainSticky(List<AimHit> candidates, Vec3 from, Vec3 lookDir,
+                                                 @Nullable AimHit bestCone, @Nullable AimHit previous, double range,
+                                                 double stickyCos, Predicate<AimHit> inSight) {
         if (previous == null || previous.equals(bestCone)
                 || !previous.isAlive() || !candidates.contains(previous)) {
             return null;
         }
-        return coneCosine(previous, player, from, lookDir, STICKY_COS, range) > STICKY_COS ? previous : null;
+        return coneCosine(previous, from, lookDir, stickyCos, range, inSight) > stickyCos ? previous : null;
     }
 
     /**
@@ -264,21 +299,21 @@ final class AimAssistResolver {
      * the candidate is in range, inside the given cone and in sight.
      *
      * @param candidate the candidate
-     * @param player    the aiming player
      * @param from      ray start
      * @param lookDir   normalized look direction
      * @param coneCos   the cosine of the cone's half-angle
      * @param range     how far the ray reaches
+     * @param inSight   whether the player sees a candidate
      * @return the cosine, or NO_CONE_ANGLE when out of range, outside the cone or occluded
      */
-    private static double coneCosine(AimHit candidate, Player player, Vec3 from, Vec3 lookDir, double coneCos,
-                                     double range) {
+    private static double coneCosine(AimHit candidate, Vec3 from, Vec3 lookDir, double coneCos, double range,
+                                     Predicate<AimHit> inSight) {
         Vec3 toTarget = candidate.box().getCenter().subtract(from);
         if (!inReach(toTarget.length(), range)) {
             return NO_CONE_ANGLE;
         }
         double cos = lookDir.dot(toTarget.normalize());
-        return cos > coneCos && isInSight(candidate, player, from) ? cos : NO_CONE_ANGLE;
+        return cos > coneCos && inSight.test(candidate) ? cos : NO_CONE_ANGLE;
     }
 
     /**

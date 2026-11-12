@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -53,7 +54,7 @@ class ProgramHostLoadTest {
 
         program.tick(host);
 
-        verify(host).explode(eq(8f), anyDouble(), eq(ExplosionMode.NONE));
+        verify(host).explode(eq(8f), anyDouble(), anyBoolean(), eq(ExplosionMode.NONE));
         assertFalse(program.isActive());
     }
 
@@ -65,7 +66,7 @@ class ProgramHostLoadTest {
 
         program.tick(host);
 
-        verify(host).explode(eq(10f), anyDouble(), eq(ExplosionMode.NONE));
+        verify(host).explode(eq(10f), anyDouble(), anyBoolean(), eq(ExplosionMode.NONE));
     }
 
     @Test
@@ -265,11 +266,12 @@ class ProgramHostLoadTest {
 
     /** The landing is no target. */
     @Test
-    void theLandingHostProvidesItsSeventeenCapabilities() {
+    void theLandingHostProvidesItsNineteenCapabilities() {
         assertEquals(Set.of(HostCapability.PLACED_FACE, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN,
                         HostCapability.PLACE_BLOCK, HostCapability.LINGER, HostCapability.COLONIZE,
                         HostCapability.FLOOR_SCAN, HostCapability.BREAK_BLOCKS, HostCapability.END_GATE,
-                        HostCapability.PHASE_BLOCKS, HostCapability.METEOR, HostCapability.POWER_PULSE,
+                        HostCapability.WORMHOLE, HostCapability.PORTAL, HostCapability.HOLE, HostCapability.METEOR,
+                        HostCapability.POWER_PULSE,
                         HostCapability.AGING, HostCapability.FROST, HostCapability.SPAWN_MOB, HostCapability.IGNITE,
                         HostCapability.MELT),
                 HostKind.LANDING.capabilities());

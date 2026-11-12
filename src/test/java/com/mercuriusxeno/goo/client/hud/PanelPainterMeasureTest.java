@@ -26,12 +26,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Tests that PanelPainter measures the canister, vat and crucible panels to the
- * sizes the three old painters measured for the same contents (decision
- * one-panel-painter-takes-rows). Text is six pixels a character, so each
- * recorded size reads back by hand from the old formulas: a panel is its widest
- * row plus a 3-pixel border each side wide, and 11 pixels a row plus the
- * borders tall; a goo row is a 10-pixel icon, a 2-pixel gap, then its text.
+ * Tests that PanelPainter measures the canister, vat and crucible panels from the rows each
+ * machine supplies (decision one-panel-painter-takes-rows). Text is six pixels a character, so each
+ * size reads back by hand: a panel is its widest row plus a 3-pixel border each side wide, and
+ * 11 pixels a row plus the borders tall; the goo amounts are one grid block whose cell is a
+ * 10-pixel icon, a 2-pixel gap, then its digits at three quarters of the text's width, rounded up
+ * (decision one-class-lays-every-huds-goo-values).
  * It also covers the projected height measure, the column layout and the shrink factor that keep
  * a panel on screen (decision panel-wraps-to-two-columns-then-shrinks).
  */
@@ -41,11 +41,11 @@ class PanelPainterMeasureTest {
     private static final ToIntFunction<String> SIX_PIXELS_A_CHARACTER = text -> 6 * text.length();
 
     /**
-     * The table of contents and the size each old painter recorded for it.
+     * The table of contents and the size each panel lays out at.
      *
-     * @return one argument set per panel: a name, its rows, the old width and height
+     * @return one argument set per panel: a name, its rows, its width and height
      */
-    static Stream<Arguments> panelsAndOldSizes() {
+    static Stream<Arguments> panelsAndSizes() {
         GooContents rock500 = contents(Map.of(GooTypes.ROCK, 500));
         GooContents rock250 = contents(Map.of(GooTypes.ROCK, 250));
         Map<ResourceKey<GooTypeDefinition>, Integer> twoTypes = new LinkedHashMap<>();
@@ -53,26 +53,26 @@ class PanelPainterMeasureTest {
         twoTypes.put(GooTypes.BLAZE, 250);
         PanelRow fuelSixtySeconds = PanelRow.iconText(Identifier.withDefaultNamespace("fuel"), "60s", 0);
         return Stream.of(
-                // label "Tank" 24, "500" row 12+18=30: 30+6 by 6+2*11
+                // label "Tank" 24, "500" cell 12+14=26: 26+6 by 6+2*11
                 Arguments.of("canister label goo",
-                        CanisterPanelRows.rows("Tank", rock500), 36f, 28f),
+                        CanisterPanelRows.rows("Tank", rock500), 32f, 28f),
                 Arguments.of("canister goo only",
-                        CanisterPanelRows.rows(null, rock500), 36f, 17f),
+                        CanisterPanelRows.rows(null, rock500), 32f, 17f),
                 // "Reservoir North" 90 is the widest; one header row
                 Arguments.of("canister empty with label",
                         CanisterPanelRows.rows("Reservoir North", GooContents.EMPTY), 96f, 17f),
-                // "750 / 33.5M" 66 is the widest; two headers, two goo rows and the fill row
+                // "750 / 33.5M" 66 beats the two-cell grid 26+4+26=56; two headers, the grid's one row and the fill row
                 Arguments.of("vat stack with every header",
-                        VatPanelRows.rows(vat(contents(twoTypes), "Main", 3)), 72f, 61f),
-                // "500 / 33.5M" 66 beats the "500" row 30; the goo row and the fill row
+                        VatPanelRows.rows(vat(contents(twoTypes), "Main", 3)), 72f, 50f),
+                // "500 / 33.5M" 66 beats the "500" cell 26; the grid and the fill row
                 Arguments.of("vat single goo only",
                         VatPanelRows.rows(vat(rock500, null, 1)), 72f, 28f),
-                // the "9.99K / 9.99K" floor, 78 after icon and gap: 90+6 by 6+11
+                // the "9.99K / 9.99K" floor, 78 at full size and 59 scaled, after icon and gap: 71+6 by 6+11
                 Arguments.of("crucible reservoir and pool",
-                        CruciblePanelRows.rows(rock500, rock250, List.of()), 96f, 17f),
-                // the floored goo row 90 beats the "60s" fuel row 30
+                        CruciblePanelRows.rows(rock500, rock250, List.of()), 77f, 17f),
+                // the floored goo cell 71 beats the "60s" fuel row 30
                 Arguments.of("crucible goo and fuel",
-                        CruciblePanelRows.rows(rock500, GooContents.EMPTY, List.of(fuelSixtySeconds)), 96f, 28f),
+                        CruciblePanelRows.rows(rock500, GooContents.EMPTY, List.of(fuelSixtySeconds)), 77f, 28f),
                 // fuel row alone: 12+18=30, plus borders
                 Arguments.of("crucible fuel only",
                         CruciblePanelRows.rows(GooContents.EMPTY, GooContents.EMPTY, List.of(fuelSixtySeconds)),
@@ -80,26 +80,26 @@ class PanelPainterMeasureTest {
     }
 
     /**
-     * Each panel measures to the old painter's width and height.
+     * Each panel measures to the width and height its rows lay out at.
      *
-     * @param panel     the case name
-     * @param rows      the rows the machine supplies
-     * @param oldWidth  the width the old painter measured
-     * @param oldHeight the height the old painter measured
+     * @param panel  the case name
+     * @param rows   the rows the machine supplies
+     * @param width  the width the rows lay out at
+     * @param height the height the rows lay out at
      */
     @ParameterizedTest(name = "{0}")
-    @MethodSource("panelsAndOldSizes")
-    void panelMeasuresToTheOldPaintersSize(String panel, List<PanelRow> rows, float oldWidth, float oldHeight) {
+    @MethodSource("panelsAndSizes")
+    void panelMeasuresToItsRowsSize(String panel, List<PanelRow> rows, float width, float height) {
         PanelPainter.PanelSize size = PanelPainter.measure(rows, SIX_PIXELS_A_CHARACTER);
-        assertEquals(oldWidth, size.width(), panel + " width");
-        assertEquals(oldHeight, size.height(), panel + " height");
+        assertEquals(width, size.width(), panel + " width");
+        assertEquals(height, size.height(), panel + " height");
     }
 
     /**
-     * "9.99K / 9.99K" is 78 after the 12 of icon and gap, plus 6 of borders: the
+     * "9.99K / 9.99K" is 59 at the amount scale after the 12 of icon and gap, plus 6 of borders: the
      * crucible floor (decision crucible-panel-floors-width-under-ten-thousand).
      */
-    private static final float CRUCIBLE_FLOOR_WIDTH = 96f;
+    private static final float CRUCIBLE_FLOOR_WIDTH = 77f;
 
     /**
      * A draining crucible below 10K measures the floor's width whatever

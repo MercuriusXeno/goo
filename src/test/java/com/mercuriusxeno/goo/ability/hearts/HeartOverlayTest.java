@@ -33,6 +33,15 @@ class HeartOverlayTest {
                 NOW + kind.regrowInterval(filled * HeartOverlay.FULL_SHIELD), NOW);
     }
 
+    /** Ticks an overlay once a game tick from now through the last tick, at a steady health. */
+    private static HeartOverlay tickedThrough(HeartOverlay start, float health, long last) {
+        HeartOverlay overlay = start;
+        for (long tick = NOW; tick <= last; tick++) {
+            overlay = overlay.tick(health, false, tick);
+        }
+        return overlay;
+    }
+
     private static HeartOverlay kindled(float health) {
         return laid(HeartKind.KINDLE, health);
     }
@@ -70,6 +79,22 @@ class HeartOverlayTest {
             HeartOverlay overlay = HeartOverlay.NONE.hold(HeartKind.KINDLE, 13f, 13f, HeartOverlay.WHOLE_HIT, NOW);
             assertEquals(7, overlay.shields().size());
             assertEquals(0, overlay.shieldAt(7));
+        }
+
+        @Test
+        // hud-draws-the-leftmost-heart-as-ancient: Ancient's overlay marks the bar and shields nothing
+        void ancientLaysNoShieldAndGrowsNone() {
+            HeartOverlay ancient = HeartOverlay.NONE.hold(HeartKind.ANCIENT, 10f, FULL_HEALTH,
+                    HeartOverlay.WHOLE_HIT, NOW);
+            assertTrue(ancient.stands());
+            assertEquals(0, tickedThrough(ancient, 10f, NOW + DURATION).shieldHalves());
+        }
+
+        @Test
+        void ancientPassesEveryHitWhole() {
+            HeartOverlay ancient = HeartOverlay.NONE.hold(HeartKind.ANCIENT, 10f, FULL_HEALTH,
+                    HeartOverlay.WHOLE_HIT, NOW);
+            assertEquals(3f, ancient.drain(3f, NOW).remainder(), DELTA);
         }
 
         @Test

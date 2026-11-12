@@ -1,11 +1,13 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.outsider.ConjuredDoors;
 import com.mercuriusxeno.goo.ability.outsider.OutsiderRooms;
-import com.mercuriusxeno.goo.ability.pocket.PocketOpening;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
+import com.mercuriusxeno.goo.block.ability.SlickLayPace;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.HoldMarks;
+import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -13,6 +15,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
@@ -37,7 +40,7 @@ import java.util.function.Consumer;
  * @param charge        the share of a full charge a charged ability's hold reached, 0 outside a charge
  */
 public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<ChannelAim> channelAim, float charge)
-        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, FrostHost, PocketHost, OutsiderHost {
+        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, FrostHost, OutsiderHost {
 
     /** The share of the player's height Nova emanates from. */
     private static final double HALF_HEIGHT = 0.5;
@@ -46,7 +49,7 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
     private static final float NO_CHARGE = 0f;
 
     /** Blocks past the interaction range a channel still breaks at, vanilla's own slack for a block break. */
-    private static final double REACH_SLACK = 1.0;
+    public static final double REACH_SLACK = 1.0;
     /** Log: how many devices a Pulser tick found to toggle among its cone's cells. */
     private static final String LOG_TOGGLES = "Tick toggles {} devices among {} cells";
 
@@ -141,8 +144,8 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
     }
 
     @Override
-    public void explode(float power, double reach, ExplosionMode mode) {
-        asEntity().explode(power, reach, mode);
+    public void explode(float power, double reach, boolean gathers, ExplosionMode mode) {
+        asEntity().explode(power, reach, gathers, mode);
     }
 
     @Override
@@ -228,12 +231,6 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
         }
     }
 
-    /** Opens the player's Pocket (decision pocket-is-a-void-reserving-container-with-scroll-and-search). */
-    @Override
-    public void openPocket(int slotCost) {
-        PocketOpening.open(player, slotCost);
-    }
-
     @Override
     public boolean standsInPocket() {
         return level.dimension() == OutsiderRooms.POCKET;
@@ -246,6 +243,13 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
         OutsiderRooms.showCharge(player, held, charge);
     }
 
+    /** Conjures the door before the player (decision
+     * channeling-to-the-pocket-conjures-a-door-that-envelops-the-player). */
+    @Override
+    public void conjureDoor(int held, int charge) {
+        ConjuredDoors.conjure(player, held, charge);
+    }
+
     @Override
     public void enterPocket(int cost) {
         if (GooSourceScanner.hasEnough(player, GooTypes.VOID, cost) && OutsiderRooms.enter(player)) {
@@ -253,8 +257,8 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
         }
     }
 
-    /** Grows the player's Outsider platform (decision
-     * outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform). */
+    /** Grows the player's Outsider room on all sides at once (decision
+     * outsider-room-grows-fractionally-on-all-sides-at-once). */
     @Override
     public void feedPlatform(int ringTicks, int base, int perDistance) {
         int feed = OutsiderRooms.feedOf(player, ringTicks, base, perDistance);
@@ -267,5 +271,25 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
     @Override
     public HoldMarks holdMarks() {
         return GooServerState.of(level.getServer()).streamHolds().marks(player.getUUID());
+    }
+
+    @Override
+    public GradualBreak gradualBreak() {
+        return holdMarks().gradualBreak();
+    }
+
+    @Override
+    public double channelerTravelSpeed() {
+        return player.getKnownMovement().horizontalDistance();
+    }
+
+    @Override
+    public double channelerUnadjustedSpeed() {
+        return SlickLayPace.unadjustedSpeed(player.getAttributeValue(Attributes.MOVEMENT_SPEED));
+    }
+
+    @Override
+    public boolean channelerStandsOnSlick() {
+        return level.getBlockState(player.blockPosition()).is(GooBlocks.KINETIC_SLICK.get());
     }
 }

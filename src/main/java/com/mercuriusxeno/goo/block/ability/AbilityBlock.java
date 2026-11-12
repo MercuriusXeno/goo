@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.block.ability;
 import com.mercuriusxeno.goo.block.BlockEntityTicks;
 import com.mercuriusxeno.goo.block.Waterlogging;
 import com.mercuriusxeno.goo.entity.CompressionSphere;
+import com.mercuriusxeno.goo.entity.SphereCore;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -106,17 +107,17 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
      */
     private static final float SHAPE_CENTER_PX = 8f;
     /**
-     * Soul particles a nether marker emits each animate tick.
+     * Soul particles the black hole's void marker emits each animate tick.
      */
-    private static final int NETHER_PARTICLES = 3;
+    private static final int BLACK_HOLE_PARTICLES = 3;
     /**
      * Downward drift speed for soul particles.
      */
     private static final double SOUL_DRIFT_SPEED = -0.01;
     /**
-     * Smoke particle spawn chance denominator (1 in N) for nether.
+     * Smoke particle spawn chance denominator (1 in N) for the black hole.
      */
-    private static final int NETHER_SMOKE_CHANCE = 4;
+    private static final int BLACK_HOLE_SMOKE_CHANCE = 4;
 
     /**
      * Maps goo types to their particle emitter; types without particles are absent.
@@ -127,7 +128,8 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
         Map<ResourceKey<GooTypeDefinition>, ParticleEmitter> m = new HashMap<>();
         m.put(GooTypes.BLAZE, AbilityBlock::spawnBlazeParticles);
         m.put(GooTypes.ROCK, AbilityBlock::spawnRockParticles);
-        m.put(GooTypes.NETHER, AbilityBlock::spawnNetherParticles);
+        // anti-moves-from-nether-to-void: the black hole is the one Void ability that stands a marker
+        m.put(GooTypes.VOID, AbilityBlock::spawnBlackHoleParticles);
         m.put(GooTypes.METAL, AbilityBlock::spawnMetalParticles);
         // Crystal uses shard cloud BER visual instead of ambient particles.
         PARTICLE_EMITTERS = Map.copyOf(m);
@@ -264,7 +266,7 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
         if (!(server.getBlockEntity(pos) instanceof AbilityBlockEntity be)) {
             return;
         }
-        CompressionSphere.leave(server, Vec3.atCenterOf(pos), be.programState().hoard());
+        CompressionSphere.leave(server, Vec3.atCenterOf(pos), be.programState().hoard(), SphereCore.BLACK);
     }
 
     /**
@@ -363,7 +365,7 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
     }
 
     /**
-     * Emits drifting soul particles and occasional smoke for nether ability blocks.
+     * Emits drifting soul particles and occasional smoke for the black hole's marker.
      *
      * @param cx     block center X coordinate
      * @param cy     block center Y coordinate
@@ -372,16 +374,16 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
      * @param level  the current level
      * @param random the random source for particle offsets
      */
-    private static void spawnNetherParticles(double cx, double cy, double cz,
+    private static void spawnBlackHoleParticles(double cx, double cy, double cz,
                                              double spread, Level level, RandomSource random) {
-        for (int i = 0; i < NETHER_PARTICLES; i++) {
+        for (int i = 0; i < BLACK_HOLE_PARTICLES; i++) {
             double ox = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
             double oy = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
             double oz = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
             level.addParticle(ParticleTypes.SOUL, cx + ox, cy + oy, cz + oz,
                     0, SOUL_DRIFT_SPEED, 0);
         }
-        if (random.nextInt(NETHER_SMOKE_CHANCE) == 0) {
+        if (random.nextInt(BLACK_HOLE_SMOKE_CHANCE) == 0) {
             level.addParticle(ParticleTypes.SMOKE, cx, cy, cz, 0, 0, 0);
         }
     }
@@ -599,7 +601,7 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
 
     /**
      * Drops the partial accumulator at the marker position if the player
-     * breaks the block mid-implosion or mid-popping. Non-nether phases and
+     * breaks the block mid-implosion or mid-popping. Other phases and
      * empty accumulators fall through to vanilla handling unchanged.
      *
      * @param level  the current level

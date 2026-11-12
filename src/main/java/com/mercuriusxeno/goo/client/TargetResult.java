@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client;
 
+import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -34,7 +35,7 @@ public sealed interface TargetResult {
      * @return the result
      */
     static TargetResult entity(Entity e, Vec3 point) {
-        return new EntityTarget(e, point);
+        return new EntityTarget(e, point, null);
     }
 
     /**
@@ -45,7 +46,7 @@ public sealed interface TargetResult {
      * @return the result
      */
     static TargetResult block(BlockPos pos, Direction face) {
-        return new BlockTarget(pos, face, false, faceCenter(pos, face));
+        return new BlockTarget(pos, face, false, faceCenter(pos, face), null);
     }
 
     /**
@@ -57,7 +58,7 @@ public sealed interface TargetResult {
      * @return the result
      */
     static TargetResult block(BlockPos pos, Direction face, Vec3 point) {
-        return new BlockTarget(pos, face, false, point);
+        return new BlockTarget(pos, face, false, point, null);
     }
 
     /**
@@ -67,7 +68,7 @@ public sealed interface TargetResult {
      * @return the result
      */
     static TargetResult grannyArc(BlockPos pos) {
-        return new BlockTarget(pos, Direction.UP, true, faceCenter(pos, Direction.UP));
+        return new BlockTarget(pos, Direction.UP, true, faceCenter(pos, Direction.UP), null);
     }
 
     /**
@@ -89,7 +90,7 @@ public sealed interface TargetResult {
      * @return the result
      */
     static TargetResult glowCrystal(BlockPos pos, Direction face) {
-        return new GlowCrystalTarget(pos, face);
+        return new GlowCrystalTarget(pos, face, null);
     }
 
     /**
@@ -101,7 +102,7 @@ public sealed interface TargetResult {
      * @return the result
      */
     static TargetResult pointOnBlock(Vec3 point, BlockPos pos, Direction face) {
-        return new PointTarget(point, pos, face, true);
+        return new PointTarget(point, pos, face, true, null);
     }
 
     /**
@@ -111,7 +112,7 @@ public sealed interface TargetResult {
      * @return the result
      */
     static TargetResult pointInAir(Vec3 point) {
-        return new PointTarget(point, BlockPos.containing(point), Direction.UP, false);
+        return new PointTarget(point, BlockPos.containing(point), Direction.UP, false, null);
     }
 
     /**
@@ -133,15 +134,47 @@ public sealed interface TargetResult {
     @Nullable Vec3 point();
 
     /**
+     * The gate the aim passed to reach this target, where it stands on the
+     * far side of a linked pair.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @return the passage, null for a target on the near side
+     */
+    @Nullable Passage passage();
+
+    /**
+     * This target reached through a gate.
+     *
+     * @param gate the gate the aim passed and the point on its face
+     * @return the same target, carrying the passage
+     */
+    TargetResult through(Passage gate);
+
+    /**
+     * Where the aim passed a linked gate on its way to a far-side target.
+     *
+     * @param gate      the gate the aim went into
+     * @param facePoint where the aim met the gate's face
+     */
+    record Passage(Gate gate, Vec3 facePoint) {
+    }
+
+    /**
      * The player is aiming at a living entity within throw range.
      *
      * @param entity the targeted entity
-     * @param point  the point the ray met the entity at
+     * @param point   the point the ray met the entity at
+     * @param passage the gate the aim passed to reach the entity, null on the near side
      */
-    record EntityTarget(Entity entity, Vec3 point) implements TargetResult {
+    record EntityTarget(Entity entity, Vec3 point, @Nullable Passage passage) implements TargetResult {
         @Override
         public Vec3 resolveEndpoint() {
             return entity.getBoundingBox().getCenter();
+        }
+
+        @Override
+        public TargetResult through(Passage gate) {
+            return new EntityTarget(entity, point, gate);
         }
     }
 
@@ -152,8 +185,15 @@ public sealed interface TargetResult {
      * @param face      the targeted block face
      * @param grannyArc whether the throw is a lob onto a top face
      * @param point     the point the ray met the face at, the top face's center for a lob
+     * @param passage   the gate the aim passed to reach the face, null on the near side
      */
-    record BlockTarget(BlockPos pos, Direction face, boolean grannyArc, Vec3 point) implements TargetResult {
+    record BlockTarget(BlockPos pos, Direction face, boolean grannyArc, Vec3 point, @Nullable Passage passage)
+            implements TargetResult {
+        @Override
+        public TargetResult through(Passage gate) {
+            return new BlockTarget(pos, face, grannyArc, point, gate);
+        }
+
         /**
          * The center of the struck face of the block's own outline shape, so a
          * partial block's face is named where it stands, not a cube's face above it.
@@ -171,9 +211,15 @@ public sealed interface TargetResult {
      * on the crystal.
      *
      * @param pos  the crystal block position
-     * @param face the hit face (for payload encoding)
+     * @param face    the hit face (for payload encoding)
+     * @param passage the gate the aim passed to reach the crystal, null on the near side
      */
-    record GlowCrystalTarget(BlockPos pos, Direction face) implements TargetResult {
+    record GlowCrystalTarget(BlockPos pos, Direction face, @Nullable Passage passage) implements TargetResult {
+        @Override
+        public TargetResult through(Passage gate) {
+            return new GlowCrystalTarget(pos, face, gate);
+        }
+
         /**
          * Points at the crystal's visual center, hugging the attachment face.
          */
@@ -211,8 +257,10 @@ public sealed interface TargetResult {
      * @param pos     the block the point lands at, the one the throw names
      * @param face    the face the ray met, UP for a point in open air
      * @param onBlock whether the ray met a block, which then shows its world indicator
+     * @param passage the gate the aim passed to reach the point, null on the near side
      */
-    record PointTarget(Vec3 point, BlockPos pos, Direction face, boolean onBlock) implements TargetResult {
+    record PointTarget(Vec3 point, BlockPos pos, Direction face, boolean onBlock, @Nullable Passage passage)
+            implements TargetResult {
         @Override
         public Vec3 resolveEndpoint() {
             return point;
@@ -224,7 +272,12 @@ public sealed interface TargetResult {
          * @return the block target the point's tile reads as
          */
         public BlockTarget tile() {
-            return new BlockTarget(pos, face, false, point);
+            return new BlockTarget(pos, face, false, point, passage);
+        }
+
+        @Override
+        public TargetResult through(Passage gate) {
+            return new PointTarget(point, pos, face, onBlock, gate);
         }
     }
 
@@ -240,6 +293,16 @@ public sealed interface TargetResult {
         @Override
         public @Nullable Vec3 point() {
             return null;
+        }
+
+        @Override
+        public @Nullable Passage passage() {
+            return null;
+        }
+
+        @Override
+        public TargetResult through(Passage gate) {
+            return this;
         }
     }
 }

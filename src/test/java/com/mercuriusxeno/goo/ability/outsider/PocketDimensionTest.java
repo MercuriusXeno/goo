@@ -11,19 +11,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
- * The goo:pocket dimension Outsider's rooms stand in, read from its shipped JSON on the classpath: no skybox
- * above and the black goo:pocket_void biome around
+ * The goo:pocket dimension Outsider's rooms stand in, read from its shipped JSON on the classpath: the black
+ * goo:pocket_void biome around
  * (decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform).
  */
 class PocketDimensionTest {
 
-    private static final String DIMENSION_TYPE = "/data/goo/dimension_type/pocket.json";
     private static final String DIMENSION = "/data/goo/dimension/pocket.json";
-
-    @Test
-    void thePocketDrawsNoSkybox() throws IOException {
-        assertEquals("none", read(DIMENSION_TYPE).get("skybox").getAsString());
-    }
 
     @Test
     void thePocketsRoomsStandInThePocketVoidBiome() throws IOException {

@@ -13,11 +13,10 @@ import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.ExtenderStep;
-import com.mercuriusxeno.goo.ability.program.PocketOpenStep;
+import com.mercuriusxeno.goo.ability.program.OutsiderStep;
 import com.mercuriusxeno.goo.ability.program.SpireStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.TerrakinesisStep;
-import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.client.ClientGooValues;
 import com.mercuriusxeno.goo.client.throwing.BlinkAim;
 import com.mercuriusxeno.goo.data.KnownItems;
@@ -32,6 +31,8 @@ import java.util.IllegalFormatException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.OptionalDouble;
+import java.util.function.Predicate;
 
 /**
  * Client-side handler for the ability sync payload. Hands the abilities to
@@ -122,6 +123,8 @@ public final class AbilitySyncHandler {
      *                    (decision zero-cost-field-formats-the-cost-mechanics)
      * @param costFormula the short formula a dynamically priced ability's petal reads, empty for none
      *                    (decision dynamic-costs-keep-the-mb-quantity)
+     * @param freeWhile   the self ability whose standing makes a throw free, empty for none
+     *                    (decision click-costs-one-mb-and-nothing-under-sculker)
      */
     public record ClientAbility(Identifier id, String displayName, String icon,
                                 int order, List<String> tags,
@@ -129,7 +132,43 @@ public final class AbilitySyncHandler {
                                 AbilityBadge badge, List<Identifier> requires, AbilityArea area,
                                 IndicatorShowing indicator, List<Identifier> consumes, AbilityPrice upkeepPrice,
                                 DistancePrice distancePrice, List<Step> onPrism, ArmPose pose, String description,
-                                Optional<String> costMechanics, Optional<String> costFormula) {
+                                Optional<String> costMechanics, Optional<String> costFormula,
+                                Optional<Identifier> freeWhile) {
+
+        /**
+         * A client ability no standing self ability makes free.
+         *
+         * @param id            the ability resource identifier
+         * @param displayName   the translation key
+         * @param icon          the icon texture path override
+         * @param order         the sort order
+         * @param tags          categorical tags
+         * @param behaviors     the ability's step program
+         * @param costPrice     what a throw costs
+         * @param delivery      how the ability leaves the glove
+         * @param badge         the target kind the radial marks on the icon
+         * @param requires      the items the player must know before its radial petal unlocks
+         * @param area          the area the glove draws while right click is held
+         * @param indicator     when the ability's indicator shows
+         * @param consumes      the items a throw takes, one of each
+         * @param upkeepPrice   what a held durative effect pays each tick it stands
+         * @param distancePrice what a blink adds to the cost for its trip
+         * @param onPrism       the steps a landing on a prism runs, empty for none
+         * @param pose          the arm pose the glove arm takes in place of the swing
+         * @param description   the translation key for what the ability does
+         * @param costMechanics the format key explaining how a zero-cost ability charges, empty for none
+         * @param costFormula   the short formula a dynamically priced ability's petal reads, empty for none
+         */
+        public ClientAbility(Identifier id, String displayName, String icon, int order, List<String> tags,
+                             List<Step> behaviors, AbilityPrice costPrice, Delivery delivery, AbilityBadge badge,
+                             List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
+                             List<Identifier> consumes, AbilityPrice upkeepPrice, DistancePrice distancePrice,
+                             List<Step> onPrism, ArmPose pose, String description, Optional<String> costMechanics,
+                             Optional<String> costFormula) {
+            this(id, displayName, icon, order, tags, behaviors, costPrice, delivery, badge, requires, area,
+                    indicator, consumes, upkeepPrice, distancePrice, onPrism, pose, description, costMechanics,
+                    costFormula, Optional.empty());
+        }
 
         /**
          * A client ability whose cost and upkeep are whole numbers of mB.
@@ -447,7 +486,20 @@ public final class AbilitySyncHandler {
                     entry.order(), entry.tags(), entry.behaviors(),
                     entry.cost(), entry.delivery(), entry.badge(), entry.requires(), entry.area(),
                     entry.indicator(), entry.consumes(), entry.upkeep(), entry.distancePrice(), entry.onPrism(),
-                    entry.pose(), entry.description(), entry.costMechanics(), entry.costFormula());
+                    entry.pose(), entry.description(), entry.costMechanics(), entry.costFormula(),
+                    entry.freeWhile());
+        }
+
+        /**
+         * Whether a throw costs nothing now, the self ability this one names
+         * standing on the thrower.
+         * click-costs-one-mb-and-nothing-under-sculker
+         *
+         * @param stands whether a self ability, by id, stands on the thrower now
+         * @return true while that ability stands
+         */
+        public boolean freeFor(Predicate<Identifier> stands) {
+            return freeWhile.filter(stands).isPresent();
         }
 
         /**
@@ -508,9 +560,10 @@ public final class AbilitySyncHandler {
 
         /**
          * What the ability costs for a trip: a held effect's upkeep a second, a
-         * fixed-cost stream's or channel's cost a second, and every other
-         * ability's one-shot cost plus what the trip adds.
+         * fixed-cost stream's or channel's cost a second, an Outsider's entry,
+         * and every other ability's one-shot cost plus what the trip adds.
          * blink-lands-safely-costed-by-distance
+         * decision outsider-reads-its-entry-as-uses-outside-the-pocket
          *
          * @param trip the blink's trip, empty for an ability making none
          * @return the cost, formatted
@@ -519,10 +572,10 @@ public final class AbilitySyncHandler {
             if (upkeep() > 0) {
                 return GooFormat.formatAmount(upkeepPerSecond()) + PER_SECOND;
             }
-            // dynamic-costs-keep-the-mb-quantity: nothing up front reads the formula, never a zero
-            // spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block: a per-block price reads it too
-            if ((costPrice.isFree() || pricedPerBlockGrown()) && costFormula.isPresent()) {
-                return formula().orElseThrow();
+            Optional<String> formulaOrEntry = formulaLabel()
+                    .or(() -> outsider().map(step -> GooFormat.formatAmount(step.entryCost())));
+            if (formulaOrEntry.isPresent()) {
+                return formulaOrEntry.get();
             }
             // panel-and-petals-count-uses-or-seconds: a stream or channel reads its cost a second
             if (!pricedDynamically() && paysWhileHeld()) {
@@ -530,6 +583,18 @@ public final class AbilitySyncHandler {
                         + PER_SECOND;
             }
             return GooFormat.formatAmount(BlinkAim.tripCost(distancePrice, cost(), trip));
+        }
+
+        /**
+         * The formula a price the JSON leaves to it reads.
+         * dynamic-costs-keep-the-mb-quantity: nothing up front reads the formula, never a zero
+         * spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block: a per-block price reads it too
+         * click-costs-one-mb-and-nothing-under-sculker: a price a standing ability waives reads its rule too
+         *
+         * @return the formula filled, or empty where the cost reads as a number
+         */
+        private Optional<String> formulaLabel() {
+            return costPrice.isFree() || pricedPerBlockGrown() || freeWhile.isPresent() ? formula() : Optional.empty();
         }
 
         /**
@@ -581,6 +646,17 @@ public final class AbilitySyncHandler {
          */
         private boolean pricedPerBlockGrown() {
             return behaviors.stream().anyMatch(SpireStep.class::isInstance);
+        }
+
+        /**
+         * The Outsider step the ability runs, whose params price the room's growth.
+         * decision outsider-panel-reads-the-seconds-the-void-affords
+         *
+         * @return the step, empty for an ability running none
+         */
+        public Optional<OutsiderStep> outsider() {
+            return behaviors.stream().filter(OutsiderStep.class::isInstance).map(OutsiderStep.class::cast)
+                    .findFirst();
         }
 
         private Optional<TerrakinesisStep> terrakinesis() {
@@ -667,18 +743,63 @@ public final class AbilitySyncHandler {
          * @return true when the petal reads unaffordable
          */
         public boolean dimsAt(int holdings, int reagentSets, StandingUpkeep standing) {
-            return AffordedCount.reckon(this, holdings, reagentSets, standing).map(AffordedCount::affordsNone)
-                    .orElse(price() > holdings);
+            return dimsAt(holdings, reagentSets, standing, OptionalDouble.empty());
+        }
+
+        /**
+         * Whether the petal dims beside the Outsider room the player stands in: in the room,
+         * Outsider dims short of a second's growth, as every timed petal dims short of a second.
+         * decision outsider-petal-reads-rate-and-time-in-the-room
+         *
+         * @param holdings    the mB the player holds of the ability's type across the inventory
+         * @param reagentSets the whole sets of the ability's consumed items the inventory holds
+         * @param standing    the upkeep already standing on the ability's type
+         * @param roomExtent  the extent of the Outsider room the player stands in, empty outside the pocket
+         * @return true when the petal reads unaffordable
+         */
+        public boolean dimsAt(int holdings, int reagentSets, StandingUpkeep standing, OptionalDouble roomExtent) {
+            return AffordedCount.reckon(this, holdings, reagentSets, standing, roomExtent)
+                    .map(AffordedCount::affordsNone).orElse(price() > holdings);
+        }
+
+        /**
+         * What the petal reads beside the Outsider room the player stands in: in the room,
+         * Outsider reads the price a second of the ring it grows through, then the seconds the
+         * holdings sustain, as "208/s | 12s".
+         * decision outsider-petal-reads-rate-and-time-in-the-room
+         *
+         * @param holdings    the mB the player holds of the ability's type across the inventory
+         * @param reagentSets the whole sets of the ability's consumed items the inventory holds
+         * @param standing    the upkeep already standing on the ability's type
+         * @param roomExtent  the extent of the Outsider room the player stands in, empty outside the pocket
+         * @return the petal's cost line
+         */
+        public String petalLabel(int holdings, int reagentSets, StandingUpkeep standing, OptionalDouble roomExtent) {
+            Optional<String> growthRate = growthRateLabel(roomExtent);
+            if (growthRate.isEmpty()) {
+                return petalLabel(holdings, reagentSets, standing);
+            }
+            return growthRate.get() + AffordedCount.reckon(this, holdings, reagentSets, standing, roomExtent)
+                    .map(count -> COUNT_SEPARATOR + count.label()).orElse(NO_COUNT);
+        }
+
+        private Optional<String> growthRateLabel(OptionalDouble roomExtent) {
+            if (roomExtent.isEmpty()) {
+                return Optional.empty();
+            }
+            return outsider().map(step -> GooFormat.formatAmount(step.growthPricePerSecond(roomExtent.getAsDouble()))
+                    + PER_SECOND);
         }
 
         /**
          * The holdings the ability needs to read affordable: a second of a
-         * held effect's upkeep, or another ability's one-shot cost.
+         * held effect's upkeep, an Outsider's entry, or another ability's one-shot cost.
+         * decision outsider-reads-its-entry-as-uses-outside-the-pocket
          *
          * @return the amount in mB
          */
         public int price() {
-            return upkeep() > 0 ? upkeepPerSecond() : cost();
+            return upkeep() > 0 ? upkeepPerSecond() : outsider().map(OutsiderStep::entryCost).orElseGet(this::cost);
         }
 
         private int upkeepPerSecond() {
@@ -710,7 +831,7 @@ public final class AbilitySyncHandler {
         /**
          * The numbers a cost-mechanics format fills from, in the order its kind reads them:
          * a durative ability its upkeep a second; a blink its per-block price, its wall price and its
-         * oculus percent; a Spire its cost, the price per block grown; Pocket its void per slot; any other none.
+         * oculus percent; a Spire its cost, the price per block grown; any other none.
          *
          * @param lookup the goo values the numbers read from
          * @return the arguments, formatted
@@ -732,7 +853,8 @@ public final class AbilitySyncHandler {
 
         /**
          * The price a step names for itself: Terrakinesis its fixed price a tear,
-         * Pocket its void per slot; any other none.
+         * Outsider its entry; any other none.
+         * decision outsider-cost-text-reads-the-new-mechanics
          *
          * @return the arguments, formatted
          */
@@ -741,13 +863,7 @@ public final class AbilitySyncHandler {
             if (terrakinesis.isPresent()) {
                 return List.of(GooFormat.formatAmount(terrakinesis.get().cost()));
             }
-            // pocket-is-a-void-reserving-container-with-scroll-and-search: Pocket reads its void per slot
-            Optional<PocketOpenStep> pocket = behaviors.stream().filter(PocketOpenStep.class::isInstance)
-                    .map(PocketOpenStep.class::cast).findFirst();
-            if (pocket.isPresent()) {
-                return List.of(GooFormat.formatAmount(pocket.get().slotCost().evaluateInt(Variables.NONE)));
-            }
-            return List.of();
+            return outsider().map(step -> List.of(GooFormat.formatAmount(step.entryCost()))).orElse(List.of());
         }
         /**
          * Returns true if this ability has the given tag.

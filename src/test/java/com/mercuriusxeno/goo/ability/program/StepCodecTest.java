@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.frost.FrostCurve;
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -52,10 +53,12 @@ class StepCodecTest {
             Map.entry("freeze_blocks", new FreezeBlocksStep(Expr.literal(2))),
             Map.entry("cool_lava", new CoolLavaStep()),
             Map.entry("coat", new CoatStep(20)),
+            Map.entry("slick", new SlickStep(20, 1.03, 1.08, 40, 1, 0.3)),
             Map.entry("wobble", new WobbleStep(Expr.literal(600))),
             Map.entry("detect_ore", new DetectOreStep(TagKey.create(Registries.BLOCK,
                     Identifier.fromNamespaceAndPath("goo", "gem_ores")), GooTypes.CRYSTAL, 64, 100)),
             Map.entry("wind", new WindStep(true, Optional.of(new WindStep.Tailwind(6, 30)))),
+            Map.entry("hex_mist", new HexMistStep()),
             Map.entry("glacial", new GlacialStep(5)),
             Map.entry("traveling", new TravelingStep(3f, List.of(new FreezeBlocksStep(Expr.literal(2.5), false)))),
             Map.entry("break_blocks", new BreakBlocksStep(TagKey.create(Registries.BLOCK,
@@ -114,7 +117,7 @@ class StepCodecTest {
             Map.entry("rewind_hold", LeafSteps.REWIND_HOLD.step(Unit.INSTANCE)),
             Map.entry("regress", new RegressStep(20)),
             Map.entry("ancient", new AncientStep()),
-            Map.entry("grab", new GrabStep(8, 2, 4, 1.5, 1)),
+            Map.entry("grab", new GrabStep(8, 3, 1.5, 1, 10)),
             Map.entry("terrakinesis", new TerrakinesisStep(6, 1.5, 2.5, 3.5, 1.5, 1000)),
             Map.entry("telekinesis", new TelekinesisStep(8)),
             Map.entry("set_baby", LeafSteps.SET_BABY.step(true)),
@@ -141,9 +144,9 @@ class StepCodecTest {
                     List.of(new AilmentOverlayStep(AilmentKind.ASTRAL, Expr.literal(200))))),
             Map.entry("undead", new UndeadStep(Expr.literal(1))),
             Map.entry("flatten", new FlattenStep(TagKey.create(Registries.BLOCK,
-                    Identifier.fromNamespaceAndPath("goo", "flatten_breakable")))),
+                    Identifier.fromNamespaceAndPath("goo", "flatten_breakable")), new BreakPace(5, 1.5))),
             Map.entry("bore", new BoreStep(TagKey.create(Registries.BLOCK,
-                    Identifier.fromNamespaceAndPath("goo", "bore_breakable")), 1)),
+                    Identifier.fromNamespaceAndPath("goo", "bore_breakable")), new BreakPace(5, 1.5))),
             Map.entry("spire", new SpireStep()),
             Map.entry("petrify", new PetrifyStep(Expr.literal(2))),
             Map.entry("calcify", new CalcifyStep(Identifier.fromNamespaceAndPath("goo", "calcify"), 30)),
@@ -169,8 +172,11 @@ class StepCodecTest {
             Map.entry("shifter", new ShifterStep(Expr.literal(8))),
             Map.entry("shriek", new ShriekStep(Expr.literal(16), Expr.literal(600))),
             Map.entry("sculker", new SculkerStep()),
+            Map.entry("vibrate", new VibrateStep(Identifier.withDefaultNamespace("block_activate"))),
+            Map.entry("scan_visual", new ScanVisualStep("sound_wave",
+                    java.util.Optional.of(Identifier.withDefaultNamespace("block.comparator.click")))),
             Map.entry("end", new EndStep(Expr.literal(1200))),
-            Map.entry("pocket_open", new PocketOpenStep(Expr.literal(6))),
+            Map.entry("hole_open", new HoleOpenStep(Expr.literal(240), Expr.literal(120))),
             Map.entry("outsider", new OutsiderStep(Expr.literal(20), Expr.literal(6), Expr.literal(40),
                     Expr.literal(10), Expr.literal(1))),
             Map.entry("meteor", new MeteorStep(Expr.literal(4), 40)),
@@ -180,7 +186,10 @@ class StepCodecTest {
             Map.entry("verdant", new VerdantStep(Identifier.parse("goo:greening"), 5, 40, 8, 4, 1.5f, 6)),
             Map.entry("toxin",new ToxinStep(Identifier.parse("goo:bio_toxin"), Expr.literal(0.06),
                     Expr.literal(100), 2)),
-            Map.entry("reap", new ReapStep(Expr.literal(4), Expr.literal(10))),
+            Map.entry("slash", new SlashStep(Expr.literal(2), Expr.literal(3), Expr.literal(1), Expr.literal(2),
+                    Expr.literal(5.3), Expr.literal(5.8), Expr.literal(0.5), Expr.literal(1.1), Expr.literal(3.9),
+                    Expr.literal(2.6), Expr.literal(0.45), Expr.literal(0.2), Expr.literal(10), Expr.literal(5),
+                    Expr.literal(6), Expr.literal(0.5))),
             Map.entry("hasten_regrow", new HastenRegrowStep(Expr.literal(2))),
             Map.entry("root", new RootStep(Expr.literal(60), Expr.literal(4), Expr.literal(1), Expr.literal(1.5))),
             Map.entry("hit_or_miss", new HitOrMissStep(
@@ -188,15 +197,15 @@ class StepCodecTest {
                     List.of(new LingerStep(List.of(LeafSteps.DISCARD.step(Unit.INSTANCE)))))),
             Map.entry("charm", new CharmStep()),
             Map.entry("phase", new PhaseStep(Optional.of(Expr.literal(600)))),
-            Map.entry("quantum_anchor", new QuantumAnchorStep()),
-            Map.entry("quantum_swap", new QuantumSwapStep()),
+            Map.entry("quantum_portal", new PortalStep()),
+            Map.entry("quantum_swap", new QuantumSwapStep(Expr.literal(32))),
             Map.entry("quantum_link", new QuantumLinkStep(Expr.literal(1200))),
-            Map.entry("phase_blocks", new PhaseBlocksStep(Expr.literal(3), Expr.literal(1), Expr.literal(200))),
+            Map.entry("wormhole", new WormholeStep(Expr.literal(16), Expr.literal(200))),
             Map.entry("enchant_book", LeafSteps.ENCHANT_BOOK.step(Unit.INSTANCE)),
             Map.entry("fuse_books", new FuseBooksStep(Optional.of(new SoundCue(
                     Identifier.withDefaultNamespace("block.fire.extinguish"), SoundKind.PLAYERS, 0.4f, 1.6f)))),
-            Map.entry("rally", new RallyStep(Expr.literal(600), Expr.literal(6), Expr.literal(1.5),
-                    Expr.literal(0.5))),
+            Map.entry("leader", new LeaderStep(12, 4)),
+            Map.entry("rally", new RallyStep(Expr.literal(6), Expr.literal(1.5), Expr.literal(0.5))),
             Map.entry("transmute_slime", new SlimeTransmuteStep(GooTypes.ZOO, true, 20,
                     List.of(new AilmentOverlayStep(AilmentKind.HEX, Expr.literal(60))))),
             Map.entry("lifetap", new LifetapStep(Expr.literal(0.3))),
@@ -341,6 +350,22 @@ class StepCodecTest {
     }
 
     // frost-reach-extinguishes-fire-and-burning-mobs
+    @Test
+    void rockBoresBoreStepCarriesBothPaceValues() {
+        // decision bore-and-flatten-json-carry-two-pace-values
+        BoreStep bore = AbilityJson.decode("rock_bore").behaviors().stream().filter(BoreStep.class::isInstance)
+                .map(BoreStep.class::cast).findFirst().orElseThrow();
+        assertEquals(new BreakPace(5, 1.5), bore.pace());
+    }
+
+    @Test
+    void rockFlattensFlattenStepCarriesBothPaceValues() {
+        // decision bore-and-flatten-json-carry-two-pace-values
+        FlattenStep flatten = AbilityJson.decode("rock_flatten").behaviors().stream()
+                .filter(FlattenStep.class::isInstance).map(FlattenStep.class::cast).findFirst().orElseThrow();
+        assertEquals(new BreakPace(5, 1.5), flatten.pace());
+    }
+
     @Test
     void extinguishDecodesFromItsTypeAlone() {
         assertEquals(new ExtinguishStep(), decode("{\"type\": \"extinguish\"}").getOrThrow());

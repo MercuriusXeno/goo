@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 /**
- * The startup frames a nether hole draws over its gather's last ticks,
+ * The startup frames a black hole draws over its gather's last ticks,
  * before its expand begins (decision dome-fades-in-before-its-start): the
  * hole starts at nothing and transparent, grows on an ease-in and fades in,
  * and meets expand's first frame at its radius and full opacity.

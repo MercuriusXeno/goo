@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:flatten_clears_the_outer_layer_first",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}

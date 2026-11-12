@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.deep.SculkerHearing;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
@@ -16,19 +17,22 @@ import java.util.function.Predicate;
  * out of its source a quarter second apart, each sweeping eight blocks a
  * second, and every block open to air that a ring crosses is lit, full
  * at the source and weaker the farther the ring has travelled, to nothing at
- * the end of the sound's range, sixteen blocks for an ordinary sound and
- * farther for a louder one, a louder sound lighting stronger. Sounds that meet on a face add up, each sound once
+ * the end of its reach. A sound's vibration rank alone sets how strongly its
+ * rings light and how far they reach, rank 15 the strongest and farthest and
+ * nothing ringing below rank 5, whatever volume the game plays it at;
+ * a rank 10 sound lights full and reaches sixteen blocks. Sounds that meet on a face add up, each sound once
  * however many of its rings cross it, to twice a full light at most, and a
  * face's light falls at a steady rate, a full light within three seconds,
  * so a block fades by how recently and how strongly it was lit: it glows as
  * bright as the sound was as it reached it and decays from there. A mob that
- * makes a sound outlines for three seconds, longer for a louder one up to
- * six. What is heard draws fainter the farther the player stands from it,
+ * makes a sound outlines for as long as its rank holds, three seconds at
+ * rank 10. What is heard draws fainter the farther the player stands from it,
  * down to a fifth at the edge of render distance and not at all past it;
  * the brew's end forgets every face. The faces whose light runs out soonest
  * give way once the memory holds its most, so a loud dive never outgrows it
  * and weak sounds never push out what a strong one lit.
  * decision sculker-sight-persists-where-echoes-have-touched
+ * decision sculker-echo-intensity-follows-vibration-rank
  */
 public final class SculkerEchoes {
 
@@ -38,21 +42,22 @@ public final class SculkerEchoes {
     static final int RINGS = 2;
     /** Ticks between one ring of a sound and its next, a quarter second. */
     static final int RING_GAP_TICKS = 5;
-    /** How far an ordinary sound carries, in blocks, as Minecraft attenuates it; a louder one carries farther. */
+    /** How far a rank 10 sound's rings reach, in blocks; reach grows with rank in step. */
     static final double ORDINARY_RANGE = 16;
+    /** The rank whose rings light full, reach sixteen blocks and outline for three seconds. */
+    static final int ORDINARY_RANK = 10;
+    /** The lowest rank a sound rings at, as the operator ruled it: one ranked below rings as this. */
+    public static final int FLOOR_RANK = SculkerHearing.FLOOR_RANK;
+    /** The highest vibration rank. */
+    public static final int LOUDEST_RANK = 15;
     /** Ticks a full light takes to fall to nothing with no new sound, three seconds. */
     static final int FADE_TICKS = 60;
     /** The most light a face holds, however many sounds meet on it: twice a full light. */
     static final float MOST_LIGHT = 2f;
-    /** Ticks a mob that made a sound of ordinary loudness stays outlined, three seconds. */
+    /** Ticks a mob that made a rank 10 sound stays outlined, three seconds. */
     static final int OUTLINE_TICKS = 60;
-    /** The longest any mob stays outlined, however loud its sound, six seconds. */
-    static final int LONGEST_OUTLINE_TICKS = 120;
     /** How strongly what is heard at the edge of render distance draws, as a share of beside the player. */
     static final float FARTHEST_SHARE = 0.2f;
-    /** The quietest and loudest a sound reads, as a share of ordinary loudness. */
-    static final float QUIETEST = 0.25f;
-    static final float LOUDEST = 4f;
 
     /** The most faces the memory holds before the faintest give way. */
     static final int MOST_FACES = 32_768;
@@ -109,8 +114,9 @@ public final class SculkerEchoes {
      * @param strength  how strongly it lights a face at the source
      * @param adds      whether it adds its light to the blocks it crosses; a sound's first ring does
      *                  and its later rings do not, so each sound counts once
+     * @param swept     how far out it has lit already, so a ring first grown late still lights from its source
      */
-    record Ripple(Vec3 source, long startTick, double reach, float strength, boolean adds) {
+    record Ripple(Vec3 source, long startTick, double reach, float strength, boolean adds, double swept) {
 
         /**
          * @param now the game time
@@ -118,6 +124,14 @@ public final class SculkerEchoes {
          */
         double radiusAt(long now) {
             return Math.min(reach, Math.max(0, now - startTick) * RING_SPEED);
+        }
+
+        /**
+         * @param now the game time it has grown to
+         * @return the ring, lit out to its front then, or as it stands where it has yet to set out
+         */
+        Ripple grownTo(long now) {
+            return startTick < now ? new Ripple(source, startTick, reach, strength, adds, radiusAt(now)) : this;
         }
 
         /**
@@ -133,68 +147,77 @@ public final class SculkerEchoes {
     }
 
     /**
-     * Starts a ripple at the source of a sound of ordinary loudness.
+     * Sends a sound's rings out of its source a quarter second apart, their
+     * strength and reach set by its rank, their light falling evenly from
+     * full at the source to nothing at their reach.
      *
-     * @param at   where the sound played
-     * @param tick the game time it played
+     * @param at        where the sound played
+     * @param startTick the game time it played, which its first ring sets out at
+     * @param rank      its vibration rank, 1 to 15; below rank 5 it rings as 5
      */
-    public void hear(Vec3 at, long tick) {
-        hear(at, tick, 1f);
+    public void hear(Vec3 at, long startTick, int rank) {
+        ring(at, startTick, strengthFor(rank), reachFor(rank));
     }
 
     /**
-     * Sends a sound's rings out across the range Minecraft carries a sound
-     * of its loudness.
+     * How strongly a rank's rings light a face at their source: a full light
+     * at rank 10, in step with rank, and no less than rank 5's.
      *
-     * @param at       where the sound played
-     * @param tick     the game time it played
-     * @param loudness the sound's loudness, 1 for an ordinary sound
+     * @param rank the sound's vibration rank
+     * @return the light at the source
      */
-    public void hear(Vec3 at, long tick, float loudness) {
-        hear(at, tick, loudness, rangeFor(loudness));
+    public static float strengthFor(int rank) {
+        return (float) ringRank(rank) / ORDINARY_RANK;
     }
 
     /**
-     * How far Minecraft carries a sound of a loudness with its ordinary
-     * attenuation: sixteen blocks, times its loudness past ordinary.
+     * How far a rank's rings reach: sixteen blocks at rank 10, in step with
+     * rank, and no shorter than rank 5's.
      *
-     * @param loudness the sound's loudness, 1 for an ordinary sound
-     * @return its range, in blocks
+     * @param rank the sound's vibration rank
+     * @return the reach, in blocks
      */
-    public static double rangeFor(float loudness) {
-        return ORDINARY_RANGE * Math.max(1f, loudness);
+    public static double reachFor(int rank) {
+        return ORDINARY_RANGE * ringRank(rank) / ORDINARY_RANK;
     }
 
     /**
-     * Sends a sound's rings out of its source a quarter second apart, across
-     * its whole range, their power falling evenly from full at the source to
-     * nothing at the range's end, a louder sound lighting stronger.
+     * How long a mob that made a sound stays outlined: three seconds at rank
+     * 10, in step with rank, and no shorter than rank 5's.
      *
-     * @param at       where the sound played
-     * @param tick     the game time it played
-     * @param loudness the sound's loudness, 1 for an ordinary sound
-     * @param range    how far the sound carries, in blocks
+     * @param rank the sound's vibration rank
+     * @return the ticks its outline lasts
      */
-    public void hear(Vec3 at, long tick, float loudness, double range) {
+    public static int outlineTicksFor(int rank) {
+        return OUTLINE_TICKS * ringRank(rank) / ORDINARY_RANK;
+    }
+
+    /**
+     * The rank a sound rings at: its own, raised to rank 5 and held to 15.
+     *
+     * @param rank the sound's vibration rank
+     * @return the rank its rings take
+     */
+    static int ringRank(int rank) {
+        return Math.clamp(rank, FLOOR_RANK, LOUDEST_RANK);
+    }
+
+    /**
+     * Sends a sound's rings out at a strength and across a reach.
+     *
+     * @param at        where the sound played
+     * @param startTick the game time its first ring sets out
+     * @param strength  how strongly its rings light a face at the source, up to twice a full light
+     * @param reach     how far its rings sweep, in blocks
+     */
+    void ring(Vec3 at, long startTick, float strength, double reach) {
         if (ripples.size() + RINGS > MOST_RIPPLES) {
             return;
         }
-        double reach = range;
-        float strength = Math.min(MOST_LIGHT, share(loudness));
+        float held = Math.min(MOST_LIGHT, strength);
         for (int ring = 0; ring < RINGS; ring++) {
-            ripples.add(new Ripple(at, tick + (long) ring * RING_GAP_TICKS, reach, strength, ring == 0));
+            ripples.add(new Ripple(at, startTick + (long) ring * RING_GAP_TICKS, reach, held, ring == 0, 0));
         }
-    }
-
-    /**
-     * How long a mob that made a sound stays outlined: three seconds for an
-     * ordinary sound, longer for a louder one up to six.
-     *
-     * @param loudness the sound's loudness, 1 for an ordinary sound
-     * @return the ticks its outline lasts
-     */
-    public static int outlineTicksFor(float loudness) {
-        return Math.min(LONGEST_OUTLINE_TICKS, Math.round(OUTLINE_TICKS * share(loudness)));
     }
 
     /**
@@ -207,10 +230,6 @@ public final class SculkerEchoes {
      */
     public static float outlineLeftAt(long heardAt, int ticks, long now) {
         return (float) Math.clamp(1 - (double) (now - heardAt) / ticks, 0, 1);
-    }
-
-    private static float share(float loudness) {
-        return Math.clamp(loudness, QUIETEST, LOUDEST);
     }
 
     /**
@@ -240,13 +259,14 @@ public final class SculkerEchoes {
             if (ripple.startTick() >= now) {
                 continue;
             }
-            for (BlockPos cell : ScryReveal.shell(ripple.source(), ripple.radiusAt(now - 1), ripple.radiusAt(now))) {
+            for (BlockPos cell : ScryReveal.shell(ripple.source(), ripple.swept(), ripple.radiusAt(now))) {
                 float light = ripple.lightAt(cell);
                 if (lights.test(cell) && besideOpenSpace(cell, passesSound)) {
                     light(cell.immutable(), now, light, ripple.adds());
                 }
             }
         }
+        ripples.replaceAll(ripple -> ripple.grownTo(now));
         ripples.removeIf(ripple -> ripple.radiusAt(now) >= ripple.reach());
         remembered.values().removeIf(lit -> now >= lit.fadedAt());
         forgetTheFaintest();

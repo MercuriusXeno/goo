@@ -1,9 +1,0 @@
-{
-  "type": "minecraft:function",
-  "function": "goo:coat_lays_a_slime_coat_over_the_block",
-  "environment": "minecraft:default",
-  "structure": "goo:test_bay",
-  "max_ticks": 100,
-  "setup_ticks": 0,
-  "required": true
-}

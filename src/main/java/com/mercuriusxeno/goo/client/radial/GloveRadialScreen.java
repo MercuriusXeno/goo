@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.radial;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
 import com.mercuriusxeno.goo.client.ClientKnownItems;
+import com.mercuriusxeno.goo.client.ability.ClientRoomEdges;
 import com.mercuriusxeno.goo.client.fade.Afterglows;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.ClientAbilities;
@@ -29,6 +30,7 @@ import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -121,6 +123,18 @@ public final class GloveRadialScreen extends Screen {
     }
 
     /**
+     * The extent of the Outsider room the local player stands in, which Outsider's petal reads its rate and
+     * time from.
+     * decision outsider-petal-reads-rate-and-time-in-the-room
+     *
+     * @return the room's extent, empty outside the pocket or with no player
+     */
+    private static OptionalDouble roomWhereStanding() {
+        Player player = Minecraft.getInstance().player;
+        return player == null ? OptionalDouble.empty() : ClientRoomEdges.extentWhereStanding(player.level().dimension());
+    }
+
+    /**
      * The whole sets of consumed items the local player's inventory holds, which bound a petal's count.
      * reagent-count-is-the-smaller-bound
      *
@@ -182,7 +196,7 @@ public final class GloveRadialScreen extends Screen {
                 new RadialWheelRenderer.Frame(wheel, types, abilities, available,
                         width / HALF, height / HALF, radius(), PetalLook.LIVE, partialTick,
                         activeAbilities(gameTime(partialTick)), gameTime(partialTick),
-                        GloveRadialScreen::reagentSetsHeld, standingEffects()));
+                        GloveRadialScreen::reagentSetsHeld, standingEffects(), roomWhereStanding()));
         RadialWheelRenderer.nameWhatTheCursorRestsOn(graphics, font, drawn, mouseX, mouseY);
     }
 

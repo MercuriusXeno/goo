@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.client.network;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.DistancePrice;
@@ -16,6 +18,10 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -118,6 +124,35 @@ class CostMechanicsTest {
         assertEquals(SPIRE_PER_BLOCK_FORMULA, spire.petalLabel(NO_HOLDINGS, NO_REAGENTS));
         assertEquals(SPIRE_PER_BLOCK_FORMULA, spire.costLabel());
         assertTrue(textOf("rock_spire").contains(MUNDANE_BLOCK_ROCK + " per block raised"), textOf("rock_spire"));
+    }
+
+    /**
+     * Outsider's text names the void to enter, filled from its step's enter param, and a cost a
+     * second rising as the room grows, never a cost per block or per cell
+     * (decision outsider-cost-text-reads-the-new-mechanics).
+     */
+    @Test
+    void outsiderTextNamesItsEntryAndACostASecond() throws IOException {
+        String format = shippedLang().get(OUTSIDER_MECHANICS).getAsString();
+        CostMechanicsLookup shipped = new CostMechanicsLookup(key -> OUTSIDER_MECHANICS.equals(key) ? format : key,
+                () -> VALUES);
+        String json = AbilityJson.read("void_outsider");
+        String retuned = json.replaceFirst("\"enter\"\\s*:\\s*6", "\"enter\": 9");
+
+        assertTrue(clientOf(AbilityJson.decode("void_outsider")).costMechanics(shipped).orElseThrow()
+                .startsWith("6 "), format);
+        assertTrue(clientOf(AbilityJson.decodeText("void_outsider", retuned)).costMechanics(shipped).orElseThrow()
+                .startsWith("9 "), format);
+        assertTrue(format.contains("second"), format);
+        assertFalse(format.contains("block") || format.contains("cell"), format);
+    }
+
+    private static final String OUTSIDER_MECHANICS = "goo.ability.void.outsider.cost_mechanics";
+
+    private static JsonObject shippedLang() throws IOException {
+        try (InputStream in = CostMechanicsTest.class.getResourceAsStream("/assets/goo/lang/en_us.json")) {
+            return JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
+        }
     }
 
     static Stream<AbilityDefinition> abilitiesWithAPlainCost() {
