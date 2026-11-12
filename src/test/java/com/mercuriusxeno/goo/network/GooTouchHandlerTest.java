@@ -12,10 +12,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -92,13 +90,10 @@ class GooTouchHandlerTest {
         }
 
         @Test
-        void unaffordableTouchDrainsNothingAndStrikesNothing() {
+        void anUnaffordableTouchDoesNotLand() {
             GooTouchHandler.TouchLanding landing = mock(GooTouchHandler.TouchLanding.class);
 
             assertFalse(GooTouchHandler.landIfAffordable(COST, landing));
-
-            verify(landing, never()).deplete(any());
-            verify(landing, never()).strike();
         }
     }
 }

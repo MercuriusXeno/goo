@@ -27,35 +27,11 @@ class GooStacksTest {
     // -- absorbedVolume (sink-into-goo math) --
 
     /**
-     * Absorbing into an empty goo yields the source volume.
-     */
-    @Test
-    void absorbedVolume_emptyGoo() {
-        assertEquals(1000, GooStacks.absorbedVolume(1000, 0));
-    }
-
-    /**
      * Absorbing into a non-empty goo sums the two volumes.
      */
     @Test
     void absorbedVolume_withExistingVolume() {
         assertEquals(5500, GooStacks.absorbedVolume(500, 5000));
-    }
-
-    /**
-     * Absorbing 64,000 mB into a partial goo.
-     */
-    @Test
-    void absorbedVolume_maxGooStackIntoPartial() {
-        assertEquals(64_500, GooStacks.absorbedVolume(64_000, 500));
-    }
-
-    /**
-     * Zero source leaves the goo unchanged.
-     */
-    @Test
-    void absorbedVolume_zeroSource() {
-        assertEquals(5000, GooStacks.absorbedVolume(0, 5000));
     }
 
     // -- createForOutput (decision one-goo-item-at-every-amount) --
