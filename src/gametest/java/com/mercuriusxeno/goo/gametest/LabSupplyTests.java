@@ -71,7 +71,8 @@ public final class LabSupplyTests {
     private static final String STRAY_ITEM = "Station chest holds an item whose goo value lacks its type: ";
     private static final String EMPTY_CHEST = "Some station's chest should hold the items that decompose into its type";
     private static final String KIT_MISSING = "Kit should put in the inventory: ";
-    private static final String KIT_VAT = "Kit should hold one vat holding void and an even share of every other registered goo type";
+    private static final String KIT_VAT =
+            "Kit should hold one vat holding void and an even share of every other registered goo type save infinity";
     private static final String BUILD_NO_KIT = "Build handler should hand the kit to its invoking player";
     private static final String BUILD_FAILED = "Lab build failed: ";
     private static final String SEPARATOR = " ";
@@ -160,7 +161,8 @@ public final class LabSupplyTests {
 
     /**
      * Asserts an inventory holds every fixed kit item and one vat holding void and an even share of
-     * every other goo type (decision each-void-mb-adds-n-plus-one-capacity).
+     * every other goo type save infinity (decisions each-void-mb-adds-n-plus-one-capacity and
+     * lab-kit-vat-leaves-infinity-out).
      *
      * @param helper    the gametest helper
      * @param inventory the inventory
@@ -184,6 +186,8 @@ public final class LabSupplyTests {
         Set<String> held = new TreeSet<>();
         contents.contents().keySet().forEach(type -> held.add(type.identifier().toString()));
         Set<String> registered = new TreeSet<>(LabStock.gooTypeIds(helper.getLevel()));
+        // decision lab-kit-vat-leaves-infinity-out
+        registered.remove(GooTypes.INFINITY.identifier().toString());
         Set<Integer> shares = new HashSet<>();
         contents.contents().forEach((type, volume) -> {
             if (!GooTypes.VOID.equals(type)) {

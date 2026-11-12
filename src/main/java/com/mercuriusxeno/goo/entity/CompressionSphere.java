@@ -87,7 +87,7 @@ public class CompressionSphere extends Entity {
 
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder entityData) {
-        entityData.define(DATA_CORE, SphereCore.MAROON.ordinal());
+        entityData.define(DATA_CORE, SphereCore.BLACK.ordinal());
     }
 
     @Override
@@ -139,7 +139,7 @@ public class CompressionSphere extends Entity {
     @Override
     protected void readAdditionalSaveData(ValueInput input) {
         hoard = input.read(TAG_HOARD, CompressedHoard.CODEC).orElseGet(CompressedHoard::new);
-        setCore(input.read(TAG_CORE, SphereCore.CODEC).orElse(SphereCore.MAROON));
+        setCore(input.read(TAG_CORE, SphereCore.CODEC).orElse(SphereCore.BLACK));
     }
 
     @Override
