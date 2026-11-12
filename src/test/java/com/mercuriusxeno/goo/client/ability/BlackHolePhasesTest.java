@@ -1,14 +1,16 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.program.PhasedState;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.util.ARGB;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * BlackHolePhases' hole body radius carries the nether marker's constant
+ * BlackHolePhases' hole body radius carries the void marker's constant
  * pulse, and the hole draws nothing through the gather that precedes expand
  * until its startup ramp, which fades it in to meet expand's first frame.
  */
@@ -119,6 +121,15 @@ class BlackHolePhasesTest {
                 previousAlpha = alpha;
             }
         }
+    }
+
+    /** anti-moves-from-nether-to-void: the hole draws on a Void marker, not a Nether one. */
+    @Test
+    void runningPhasedVoidMarkerDrawsTheHoleAndANetherOneDoesNot() {
+        PhasedState running = gatherAt(0);
+        assertTrue(BlackHolePhases.drawsTheHole(GooTypes.VOID, running));
+        assertFalse(BlackHolePhases.drawsTheHole(GooTypes.NETHER, running));
+        assertFalse(BlackHolePhases.drawsTheHole(GooTypes.VOID, new PhasedState()));
     }
 
     @Test

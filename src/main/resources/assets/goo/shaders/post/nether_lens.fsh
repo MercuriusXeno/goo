@@ -1,6 +1,6 @@
 #version 330
 
-// Nether black-hole gravitational-lensing post-process.
+// Black-hole gravitational-lensing post-process.
 //
 // Unified round/hex formulation. Every code path expresses the hole
 // boundary as a signed distance "r" to the event horizon (negative

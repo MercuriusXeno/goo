@@ -2,19 +2,27 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.program.HostVariables;
 import com.mercuriusxeno.goo.ability.program.PhasedStep;
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
+import java.util.List;
+import java.util.Optional;
+import java.util.OptionalDouble;
 
 /**
- * Nether goo's burnout explosion, the design the operator settled (decision
- * elemental-explosion-per-type): an inward rush, an implosion rather than a
- * blast, given its own stage. The black hole's program opens with a 20-tick
+ * Void goo's burnout explosion, the black hole's, the design the operator
+ * settled (decision elemental-explosion-per-type): an inward rush, an
+ * implosion rather than a blast, given its own stage. It draws only for a
+ * program holding the black hole's phased gather, since Hole and Erase land
+ * as Void too (decision anti-moves-from-nether-to-void). The black hole's program opens with a 20-tick
  * gather in which the marker holds and the hole draws nothing; over it, a
  * sphere of dark red streaks starts at the hole's implode radius and rushes
  * inward onto the marker, slow and then fast, and the hole opens as the
@@ -34,7 +42,7 @@ public final class NetherExplosionVisual implements BurnoutVisual {
 
     /** Ticks the explosion plays: the black hole's gather phase. */
     static final int DURATION_TICKS = 20;
-    /** The implode radius drawn when the ability's phased step cannot be read. */
+    /** The implode radius drawn when the phased step's radius reads none, a throw's size of zero. */
     static final float FALLBACK_REACH = 3f;
     /** The share of the explosion over which the rush fades in: its first 5 ticks. */
     static final float FADE_IN_END = 0.25f;
@@ -47,7 +55,7 @@ public final class NetherExplosionVisual implements BurnoutVisual {
 
     @Override
     public ResourceKey<GooTypeDefinition> gooType() {
-        return GooTypes.NETHER;
+        return GooTypes.VOID;
     }
 
     @Override
@@ -57,8 +65,12 @@ public final class NetherExplosionVisual implements BurnoutVisual {
 
     @Override
     public void render(ChainBurnouts.Burnout burnout, BurnoutFrame frame) {
+        OptionalDouble reach = implodeReach(burnout);
+        if (reach.isEmpty()) {
+            return;
+        }
+        float start = (float) reach.getAsDouble();
         float progress = burnout.progress(frame.gameTime());
-        float start = implodeReach(burnout);
         float radius = rushRadius(progress, start);
         int color = ARGB.color(OPAQUE, NetherDiscMesh.toByte(progress),
                 NetherDiscMesh.toByte(1f - radius / start), NetherDiscMesh.toByte(strength(progress)));
@@ -79,21 +91,37 @@ public final class NetherExplosionVisual implements BurnoutVisual {
     }
 
     /**
-     * The black hole's implode radius at the burnout's stack count, read off
-     * the synced ability's phased step.
+     * The black hole's implode radius at the cast's size, read off the
+     * synced ability's phased step.
      *
      * @param burnout the burnout
-     * @return the implode radius in blocks
+     * @return the implode radius in blocks, or empty where the ability holds no phased gather
      */
-    private static float implodeReach(ChainBurnouts.Burnout burnout) {
+    private static OptionalDouble implodeReach(ChainBurnouts.Burnout burnout) {
         // black-hole-leaves-a-compression-sphere: the rush starts from the radius the cast was dragged to
         ClientLevel level = Minecraft.getInstance().level;
         double size = level != null && level.getBlockEntity(burnout.pos()) instanceof AbilityBlockEntity be
                 ? be.programState().castSize() : 0;
-        return SyncedSteps.first(burnout.abilityId(), PhasedStep.class)
-                .map(step -> step.radius().evaluateFloat(HostVariables.sized(size)))
-                .filter(reach -> reach > 0)
-                .orElse(FALLBACK_REACH);
+        ClientAbility ability = AbilitySyncHandler.findAbility(burnout.abilityId());
+        return rushReach(ability == null ? List.of() : ability.behaviors(), size);
+    }
+
+    /**
+     * The radius the rush starts from: the implode radius the program's
+     * phased step reads at the cast's size.
+     *
+     * @param behaviors the ability's program
+     * @param size      the size the cast was dragged to, zero for a throw
+     * @return the implode radius in blocks, or empty where the program holds no phased step
+     */
+    static OptionalDouble rushReach(List<Step> behaviors, double size) {
+        // anti-moves-from-nether-to-void: Hole and Erase land as Void too, and their programs hold no gather
+        Optional<PhasedStep> gather = SyncedSteps.first(behaviors, PhasedStep.class);
+        if (gather.isEmpty()) {
+            return OptionalDouble.empty();
+        }
+        float radius = gather.get().radius().evaluateFloat(HostVariables.sized(size));
+        return OptionalDouble.of(radius > 0 ? radius : FALLBACK_REACH);
     }
 
     /**

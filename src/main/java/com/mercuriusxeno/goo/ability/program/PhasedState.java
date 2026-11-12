@@ -8,7 +8,7 @@ import net.minecraft.world.level.storage.ValueOutput;
  * many ticks it has run and how long it lasts. A step is an immutable
  * definition, so the host keeps this run state for it (capability
  * {@link HostCapability#PHASED}); the marker keeps it on its block entity,
- * which saves it and syncs it to the client, where the nether black hole
+ * which saves it and syncs it to the client, where the black hole
  * reads the phase and its progress, and reads the radius off the step in
  * the synced ability definition (decision capability-interfaces-derive-host-kind).
  */
