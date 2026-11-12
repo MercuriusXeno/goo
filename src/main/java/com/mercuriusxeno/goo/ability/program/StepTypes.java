@@ -63,7 +63,7 @@ public final class StepTypes {
         register(WobbleStep.TYPE);
         register(DetectOreStep.TYPE);
         register(WindStep.TYPE);
-        register(HexMistStep.TYPE);
+        register(MiasmaVortexStep.TYPE);
         register(BreakBlocksStep.TYPE);
         register(ExtinguishStep.TYPE);
         register(TravelingStep.TYPE);
