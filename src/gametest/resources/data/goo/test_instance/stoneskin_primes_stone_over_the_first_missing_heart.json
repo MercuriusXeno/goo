@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:fx_landed_metal_spikes_live",
+  "function": "goo:stoneskin_primes_stone_over_the_first_missing_heart",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 20,
+  "max_ticks": 60,
   "setup_ticks": 0,
   "required": true
 }

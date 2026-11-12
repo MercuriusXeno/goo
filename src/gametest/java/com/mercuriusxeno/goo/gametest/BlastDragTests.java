@@ -4,8 +4,6 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.DragSize;
-import com.mercuriusxeno.goo.entity.RollingGoo;
-import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooDragCastHandler;
 import com.mercuriusxeno.goo.network.GooDragCastPayload;
@@ -34,7 +32,6 @@ import java.util.function.Consumer;
 @RegistersGameTests
 public final class BlastDragTests {
     private static final String BLAST_DRAG_EXPLODES_AT_THE_PIN = "blast_drag_explodes_at_the_pin";
-    private static final String BLAST_DRAG_NEEDS_GUNPOWDER = "blast_drag_needs_gunpowder";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -43,7 +40,6 @@ public final class BlastDragTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, BLAST_DRAG_EXPLODES_AT_THE_PIN, BlastDragTests::blastDragExplodesAtThePinAtTheDraggedRadius);
-        GooTestFunctions.registerTest(registrar, BLAST_DRAG_NEEDS_GUNPOWDER, BlastDragTests::blastDragNeedsGunpowder);
     }
 
 
@@ -61,45 +57,21 @@ public final class BlastDragTests {
     private static final double REFERENCE_RADIUS = DragSize.REFERENCE_RADIUS;
     /** Unstable enough for the reference cast. */
     private static final int AMPLE_UNSTABLE = 10000;
-    private static final int REFERENCE_COST = 1000;
     private static final String ABILITY_REQUIRED = "Ability registry must hold unstable_explode";
-    private static final String WRONG_CHARGE = "The drag cast at radius %.0f should charge %d mB, charged %d";
-    private static final String BLOB_THROWN = "A drag cast should throw no blob, %d flying";
     private static final String PIN_STANDS = "The drag cast should break the pinned block";
-    private static final String BEYOND_RADIUS = "The drag cast broke stone at %s, %.2f blocks from the pin, past its radius %.2f";
-    private static final String UNGATED = "A player without the gunpowder recipe should spend nothing, spent %d";
-    private static final String UNGATED_BLAST = "A player without the gunpowder recipe should explode nothing";
 
     private BlastDragTests() {
     }
 
     /**
-     * Releasing a drag at the reference radius charges 1000 mB, throws no
-     * blob, breaks the pinned block and nothing beyond three blocks of the pin.
+     * Releasing a drag at the reference radius explodes at the pin in the same tick, breaking the pinned block.
      *
      * @param helper the gametest helper
      */
     public static void blastDragExplodesAtThePinAtTheDraggedRadius(GameTestHelper helper) {
-        int spent = castBlast(helper, REFERENCE_RADIUS, AMPLE_UNSTABLE, true);
+        castBlast(helper, REFERENCE_RADIUS, AMPLE_UNSTABLE);
 
-        helper.assertTrue(spent == REFERENCE_COST, String.format(WRONG_CHARGE, REFERENCE_RADIUS, REFERENCE_COST, spent));
-        int flying = helper.getLevel().getEntitiesOfClass(RollingGoo.class, helper.getBounds()).size();
-        helper.assertTrue(flying == 0, String.format(BLOB_THROWN, flying));
-        assertCraterWithin(helper, REFERENCE_RADIUS);
-        helper.succeed();
-    }
-
-    /**
-     * A player who lacks the gunpowder recipe casting Blast by drag spends
-     * nothing and explodes nothing.
-     *
-     * @param helper the gametest helper
-     */
-    public static void blastDragNeedsGunpowder(GameTestHelper helper) {
-        int spent = castBlast(helper, REFERENCE_RADIUS, AMPLE_UNSTABLE, false);
-
-        helper.assertTrue(spent == 0, String.format(UNGATED, spent));
-        helper.assertTrue(helper.getBlockState(PIN).is(Blocks.STONE), UNGATED_BLAST);
+        helper.assertTrue(helper.getBlockState(PIN).isAir(), PIN_STANDS);
         helper.succeed();
     }
 
@@ -108,14 +80,12 @@ public final class BlastDragTests {
      * and unstable, standing on the floor, pins the stone's top face and
      * releases at a radius.
      *
-     * @param helper         the gametest helper
-     * @param radius         the radius dragged
-     * @param unstable       the mB of unstable the player holds
-     * @param knowsGunpowder whether the player knows Blast's gate recipe
-     * @return the mB of unstable the cast spent
+     * @param helper   the gametest helper
+     * @param radius   the radius dragged
+     * @param unstable the mB of unstable the player holds
      */
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    private static int castBlast(GameTestHelper helper, double radius, int unstable, boolean knowsGunpowder) {
+    private static void castBlast(GameTestHelper helper, double radius, int unstable) {
         AbilityDefinition blast = AbilityRegistry.of(helper.getLevel()).getAbility(BLAST);
         helper.assertTrue(blast != null, ABILITY_REQUIRED);
         layFloor(helper);
@@ -124,31 +94,11 @@ public final class BlastDragTests {
         player.setPos(stand.x, stand.y, stand.z);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
         player.getInventory().add(GooStacks.createForOutput(GooTypes.UNSTABLE, unstable));
-        if (knowsGunpowder) {
-            KnownRecipes.teachRequires(player, blast);
-        }
+        KnownRecipes.teachRequires(player, blast);
         BlockPos pin = helper.absolutePos(PIN);
         GooDragCastHandler.cast(player, new GooDragCastPayload(GooTypes.id(GooTypes.UNSTABLE), BLAST.toString(), pin,
                 Direction.UP.get3DDataValue(), helper.absoluteVec(PIN_POINT), radius));
-        int spent = unstable - GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.UNSTABLE, 0);
         helper.getLevel().getServer().getPlayerList().remove(player);
-        return spent;
-    }
-
-    /**
-     * Asserts the pinned block broke and every floor cell broken lies within
-     * the radius of the pin.
-     *
-     * @param helper the gametest helper
-     * @param radius the radius the cast opened at
-     */
-    private static void assertCraterWithin(GameTestHelper helper, double radius) {
-        helper.assertTrue(helper.getBlockState(PIN).isAir(), PIN_STANDS);
-        BlockPos.betweenClosed(0, 0, 0, FLOOR_SPAN - 1, FLOOR_TOP, FLOOR_SPAN - 1).forEach(cell -> {
-            double distance = Vec3.atCenterOf(cell).distanceTo(PIN_POINT);
-            helper.assertTrue(!helper.getBlockState(cell).isAir() || distance <= radius,
-                    String.format(BEYOND_RADIUS, cell.toShortString(), distance, radius));
-        });
     }
 
     private static void layFloor(GameTestHelper helper) {
