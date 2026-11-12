@@ -1,7 +1,5 @@
 package com.mercuriusxeno.goo.client.hud;
 
-import net.minecraft.client.gui.GuiGraphicsExtractor;
-
 /**
  * The surface a vignette draws on: the GUI's size and its filled rectangles,
  * so a test counts or rasterizes one frame's fills headless.
@@ -29,27 +27,4 @@ interface VignetteCanvas {
      * @param color its color, ARGB
      */
     void fill(int minX, int minY, int maxX, int maxY, int color);
-
-    /**
-     * @param graphics the GUI graphics a frame draws on
-     * @return a canvas filling through it
-     */
-    static VignetteCanvas of(GuiGraphicsExtractor graphics) {
-        return new VignetteCanvas() {
-            @Override
-            public int guiWidth() {
-                return graphics.guiWidth();
-            }
-
-            @Override
-            public int guiHeight() {
-                return graphics.guiHeight();
-            }
-
-            @Override
-            public void fill(int minX, int minY, int maxX, int maxY, int color) {
-                graphics.fill(minX, minY, maxX, maxY, color);
-            }
-        };
-    }
 }

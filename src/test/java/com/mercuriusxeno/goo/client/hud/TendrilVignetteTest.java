@@ -3,11 +3,17 @@ package com.mercuriusxeno.goo.client.hud;
 import com.mercuriusxeno.goo.client.ability.SculkerSenses;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.zip.GZIPInputStream;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -274,46 +280,72 @@ class TendrilVignetteTest {
 
         private static final int GUI_WIDTH = 480;
         private static final int GUI_HEIGHT = 270;
-        private static final int SCULKER_FILLS_A_FRAME = 5_992;
+        /** The fills one settled draw submitted before task vein-vignette-draws-as-fast-as-it-can. */
+        private static final int BASELINE_FILLS_A_FRAME = 5_992;
+        /** The fills it submits once side-by-side fills of one color join. */
+        private static final int JOINED_FILLS_A_FRAME = 4_000;
 
         @Test
-        void oneSculkerVignetteDrawSubmitsItsCountOfFills() {
-            TendrilVignette vignette = TendrilVignette.veined(SEED);
-            for (int tick = 0; tick <= SETTLED; tick++) {
-                vignette.advance(tick);
-            }
-            CountingCanvas canvas = new CountingCanvas(GUI_WIDTH, GUI_HEIGHT);
-            vignette.draw(canvas, SETTLED, 1f, SculkerVignetteLayer.LOOK);
-            assertEquals(SCULKER_FILLS_A_FRAME, canvas.fills, "fills one settled Sculker vignette draw submits");
+        void oneSculkerVignetteDrawSubmitsFewerFillsThanTheBaseline() {
+            int fills = sculkerPixelsAt(SETTLED).fills();
+            assertEquals(JOINED_FILLS_A_FRAME, fills, "fills one settled Sculker vignette draw submits");
+            assertTrue(fills < BASELINE_FILLS_A_FRAME,
+                    "fills one settled Sculker vignette draw submits: " + fills + " against " + BASELINE_FILLS_A_FRAME);
         }
     }
 
-    /** A canvas that counts the fills drawn on it. */
-    private static final class CountingCanvas implements VignetteCanvas {
+    /**
+     * A draw covers the same pixels at the same colors as the parent commit
+     * of task vein-vignette-draws-as-fast-as-it-can drew, whose grids stand
+     * captured under the test resources, while the web grows in and once it
+     * has settled (decision diagnose-sculkers-lag-and-prove-it-improved-significantly).
+     */
+    @Nested
+    class SamePixels {
 
-        private final int width;
-        private final int height;
-        private int fills;
+        private static final int GROWING = 30;
 
-        CountingCanvas(int width, int height) {
-            this.width = width;
-            this.height = height;
+        @Test
+        void aGrowingWebCoversThePixelsItDidBeforeTheCut() throws IOException {
+            assertArrayEquals(capture(GROWING), sculkerPixelsAt(GROWING).argb(),
+                    "pixels of the Sculker vignette growing in");
         }
 
-        @Override
-        public int guiWidth() {
-            return width;
+        @Test
+        void aSettledWebCoversThePixelsItDidBeforeTheCut() throws IOException {
+            assertArrayEquals(capture(SETTLED), sculkerPixelsAt(SETTLED).argb(),
+                    "pixels of the settled Sculker vignette");
         }
 
-        @Override
-        public int guiHeight() {
-            return height;
+        private int[] capture(int ticks) throws IOException {
+            String name = "sculker-vignette-" + ticks + ".argb.gz";
+            try (InputStream stream = TendrilVignetteTest.class.getResourceAsStream(name)) {
+                assertNotNull(stream, "capture " + name + " stands on the classpath");
+                DataInputStream data = new DataInputStream(new GZIPInputStream(stream));
+                int[] argb = new int[OneFramesWork.GUI_WIDTH * OneFramesWork.GUI_HEIGHT];
+                for (int pixel = 0; pixel < argb.length; pixel++) {
+                    argb[pixel] = data.readInt();
+                }
+                return argb;
+            }
         }
+    }
 
-        @Override
-        public void fill(int minX, int minY, int maxX, int maxY, int color) {
-            fills++;
+    /**
+     * Rasterizes one Sculker vignette draw at a tick, the web grown from the
+     * start up to it.
+     *
+     * @param ticks the tick it draws at
+     * @return the grid it drew
+     */
+    static VignettePixels sculkerPixelsAt(int ticks) {
+        TendrilVignette vignette = TendrilVignette.veined(SEED);
+        for (int tick = 0; tick <= ticks; tick++) {
+            vignette.advance(tick);
         }
+        VignettePixels pixels = new VignettePixels(OneFramesWork.GUI_WIDTH, OneFramesWork.GUI_HEIGHT);
+        vignette.draw(pixels, ticks, 1f, SculkerVignetteLayer.LOOK);
+        return pixels;
     }
 
     @Test
