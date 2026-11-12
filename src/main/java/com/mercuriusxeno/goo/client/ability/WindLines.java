@@ -99,6 +99,12 @@ public final class WindLines {
     static final double INWARD_TWIST = 0.2 * 2 * Math.PI;
     /** A void mote's friction, the velocity it keeps each tick. */
     static final float MOTE_FRICTION = VoidMoteParticle.FRICTION;
+    /**
+     * The most ticks a void mote takes to reach the glove, so it streams in
+     * quickly; the operator found motes flying the line's whole life too slow.
+     * vacuum-wind-lines-run-straight-and-far-in-void-colors-with-motes
+     */
+    static final int MOTE_FLIGHT_TICKS = 8;
     /** The chance a held tick drops a void mote off each inward line carrying them. */
     private static final float MOTES_PER_LINE_TICK = 0.4f;
     /** An updraft column's wind: lines rising out of the floor in the wind's colors, no snowflakes. */
@@ -299,7 +305,8 @@ public final class WindLines {
      * Where a void mote leaves an inward line and how it flies: from the
      * line's head, toward the glove, at the speed that, slowed by a void
      * mote's friction each tick, carries it to the glove as its flight ends,
-     * so it never passes the glove. It flies the ticks the line has left.
+     * so it never passes the glove. It flies the ticks the line has left, at
+     * most MOTE_FLIGHT_TICKS.
      * vacuum-wind-lines-run-straight-and-far-in-void-colors-with-motes
      *
      * @param line the inward line
@@ -308,7 +315,7 @@ public final class WindLines {
      */
     static MoteFlight moteFlight(Line line, double age) {
         Vec3 from = pathPoint(line, age);
-        int ticks = Math.max(1, (int) Math.round(LIFE_TICKS - age));
+        int ticks = Math.clamp(Math.round(LIFE_TICKS - age), 1, MOTE_FLIGHT_TICKS);
         double carriedPerSpeed = (1 - Math.pow(MOTE_FRICTION, ticks)) / (1 - MOTE_FRICTION);
         return new MoteFlight(from, line.origin().subtract(from).scale(1 / carriedPerSpeed), ticks);
     }
