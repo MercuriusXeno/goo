@@ -238,7 +238,7 @@ public final class EffectExecutorTests {
     private static final int SPILLED_STONE = 70;
     private static final String SPHERE_STAYED_SHUT = "The touched sphere is still standing";
     private static final String SPHERE_SPILLED_WRONG = "The touched sphere spilled other than 70 stone and a diamond: ";
-    private static final String HOLE_SPHERE_NOT_MAROON = "The black hole's sphere should draw the maroon core, draws %s";
+    private static final String HOLE_SPHERE_NOT_BLACK = "The black hole's sphere should draw the black core, draws %s";
     private static final String ABILITY_BLAST_DRAGGED = "goo:unstable_explode";
     /** The radius a Blast gathers its drops from, the smallest the decision names. */
     private static final double GATHERING_BLAST_SIZE = 3;
@@ -676,7 +676,7 @@ public final class EffectExecutorTests {
             helper.assertTrue(held.stream().anyMatch(stack -> stack.is(Items.DIAMOND)), HOLE_HELD_NO_DIAMOND + held);
             helper.assertTrue(itemsAroundMarker(helper).isEmpty(), HOLE_LEFT_LOOSE_ITEMS);
             SphereCore core = spheres.getFirst().core();
-            helper.assertTrue(core == SphereCore.MAROON, String.format(HOLE_SPHERE_NOT_MAROON, core));
+            helper.assertTrue(core == SphereCore.BLACK, String.format(HOLE_SPHERE_NOT_BLACK, core));
             helper.succeed();
         });
     }
@@ -879,7 +879,7 @@ public final class EffectExecutorTests {
         hoard.add(new ItemStack(Items.STONE, SPILLED_STONE));
         hoard.add(new ItemStack(Items.DIAMOND));
         CompressionSphere.leave(helper.getLevel(), helper.absoluteVec(Vec3.atCenterOf(MARKER_POS)), hoard,
-                SphereCore.MAROON);
+                SphereCore.BLACK);
         CompressionSphere sphere = spheresAroundMarker(helper).getFirst();
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         sphere.playerTouch(player);

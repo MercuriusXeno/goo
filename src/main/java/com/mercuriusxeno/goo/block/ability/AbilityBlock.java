@@ -266,7 +266,7 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
         if (!(server.getBlockEntity(pos) instanceof AbilityBlockEntity be)) {
             return;
         }
-        CompressionSphere.leave(server, Vec3.atCenterOf(pos), be.programState().hoard(), SphereCore.MAROON);
+        CompressionSphere.leave(server, Vec3.atCenterOf(pos), be.programState().hoard(), SphereCore.BLACK);
     }
 
     /**
