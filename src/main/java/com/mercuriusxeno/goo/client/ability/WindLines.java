@@ -179,6 +179,8 @@ public final class WindLines {
     private long snowflakesDroppedAt = -1;
     /** Whether the playing wind is a jet's tailwind, whose pitch rises with the player's speed. */
     private volatile boolean pitchesWithSpeed;
+    /** The pitch the playing wind sounds at, as its wind step names it: low for Vacuum's suction. */
+    private volatile float windPitch = WIND_PITCH;
 
     private WindLines() {
     }
@@ -289,6 +291,7 @@ public final class WindLines {
                     .orElseGet(() -> new Gust(apex, player.getLookAngle(), area.size(), area.angle(), false));
             CLIENT.add(player.level().getRandom(), gust, wind.snowflakes(), wind.inward(), player.level().getGameTime());
             CLIENT.pitchesWithSpeed = gust.carried();
+            CLIENT.windPitch = wind.pitch();
             CLIENT.keepWindBlowing(player);
         });
     }
@@ -414,7 +417,7 @@ public final class WindLines {
             this.looping = true;
             this.delay = 0;
             this.volume = WIND_VOLUME;
-            this.pitch = WIND_PITCH;
+            this.pitch = windPitch;
             follow();
         }
 
@@ -427,7 +430,8 @@ public final class WindLines {
             long sinceLetGo = player.level().getGameTime() - windHeldAt - WIND_LINGER_TICKS;
             this.volume = windVolume(sinceLetGo);
             // jet-pushes-along-the-look-while-held: a jet's wind whistles higher the faster it carries the player
-            this.pitch = pitchesWithSpeed ? pitchAt(player.getDeltaMovement().length()) : WIND_PITCH;
+            // vacuum-sounds-a-suction-wind-and-rising-slurps: a wind step names the pitch its held wind sounds at
+            this.pitch = pitchesWithSpeed ? pitchAt(player.getDeltaMovement().length()) : windPitch;
             if (this.volume <= 0f) {
                 stop();
             } else {

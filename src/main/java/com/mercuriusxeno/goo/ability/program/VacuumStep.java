@@ -50,6 +50,10 @@ public record VacuumStep(double ticksPerBlock, int decayTicks) implements TakesN
     private static final String NAME = "vacuum";
     private static final String FIELD_TICKS_PER_BLOCK = "ticks_per_block";
     private static final String FIELD_DECAY_TICKS = "decay_ticks";
+    /** The pitch a residual taken at the eye slurps at. */
+    private static final double SLURP_LOW_PITCH = 0.8;
+    /** The pitch a residual taken at the reach's far end slurps at. */
+    private static final double SLURP_HIGH_PITCH = 1.6;
     /** The cell's middle, where the line from the eye is read to. */
     private static final double MIDDLE = 0.5;
 
@@ -80,7 +84,7 @@ public record VacuumStep(double ticksPerBlock, int decayTicks) implements TakesN
             if (aim.reaching()) {
                 paintReached(host, aim, eye, marks);
             }
-            decayPainted(host, eye, marks);
+            decayPainted(host, eye, aim.aimPoint().distanceTo(eye), marks);
         });
         return true;
     }
@@ -112,9 +116,10 @@ public record VacuumStep(double ticksPerBlock, int decayTicks) implements TakesN
      *
      * @param host  the channel host
      * @param eye   the channeling player's eye
+     * @param reach the stream's reach, which the slurps' pitch rises along
      * @param marks the hold's marks
      */
-    private void decayPainted(ChannelHost host, Vec3 eye, HoldMarks marks) {
+    private void decayPainted(ChannelHost host, Vec3 eye, double reach, HoldMarks marks) {
         BlockState nothing = Blocks.AIR.defaultBlockState();
         for (Map.Entry<BlockPos, BlockState> painted : marks.painted().entrySet()) {
             BlockPos cell = painted.getKey();
@@ -127,8 +132,10 @@ public record VacuumStep(double ticksPerBlock, int decayTicks) implements TakesN
             if (host.finishingAlone(cell)) {
                 continue;
             }
-            float rate = 1f / decayTicksAt(middleOf(cell).distanceTo(eye));
-            Runnable breakAway = () -> breakAway(host, cell, residual, nothing);
+            double distance = middleOf(cell).distanceTo(eye);
+            float rate = 1f / decayTicksAt(distance);
+            float pitch = slurpPitch(distance, reach);
+            Runnable breakAway = () -> breakAway(host, cell, residual, nothing, pitch);
             float share = host.exposeBlock(cell, nothing, rate, BlockExposures.MELTS_AWAY);
             if (share >= 1f) {
                 breakAway.run();
@@ -140,12 +147,28 @@ public record VacuumStep(double ticksPerBlock, int decayTicks) implements TakesN
     }
 
     /**
-     * Breaks a decayed residual with its drops and tells the clients it went
-     * to nothing, so the melt they drew over it ends.
+     * Breaks a decayed residual with its drops, slurps it up at its cell, and
+     * tells the clients it went to nothing, so the melt they drew over it ends.
      */
-    private static void breakAway(ChannelHost host, BlockPos cell, BlockState residual, BlockState nothing) {
+    private static void breakAway(ChannelHost host, BlockPos cell, BlockState residual, BlockState nothing,
+                                  float slurpPitch) {
         host.breakBlock(cell);
+        host.slurpAt(cell, slurpPitch);
         host.sendTransform(cell, residual, nothing);
+    }
+
+    /**
+     * The pitch a taken residual slurps at: low at the eye, rising evenly
+     * along the wave to high at the reach's far end.
+     * vacuum-sounds-a-suction-wind-and-rising-slurps
+     *
+     * @param distance the cell's middle's distance from the eye, in blocks
+     * @param reach    the stream's reach, in blocks
+     * @return the pitch
+     */
+    static float slurpPitch(double distance, double reach) {
+        double along = reach <= 0 ? 1 : Math.clamp(distance / reach, 0, 1);
+        return (float) (SLURP_LOW_PITCH + (SLURP_HIGH_PITCH - SLURP_LOW_PITCH) * along);
     }
 
     /**

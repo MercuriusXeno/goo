@@ -91,5 +91,10 @@ public final class GooSounds {
         SOUND_EVENTS.register("effects.hole_close",
             () -> SoundEvent.createVariableRangeEvent(GooSoundIds.HOLE_CLOSE));
 
+    /** A residual Vacuum takes (decision vacuum-sounds-a-suction-wind-and-rising-slurps). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> VACUUM_SLURP =
+        SOUND_EVENTS.register("effects.vacuum_slurp",
+            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.VACUUM_SLURP));
+
     private GooSounds() {}
 }
