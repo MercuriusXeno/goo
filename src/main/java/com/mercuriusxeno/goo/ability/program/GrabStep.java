@@ -195,7 +195,9 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
 
     /**
      * How far Grab reaches to a body: straight where nothing stands between,
-     * else along the shortest way through a linked pair where one runs.
+     * else the shorter of the straight line and the shortest way through a
+     * linked pair, so a pair standing far off never lengthens the reach to a
+     * body the straight line already reaches.
      * aim-and-shots-carry-through-linked-gates
      *
      * @param player the grabbing player
@@ -207,9 +209,21 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
         Vec3 middle = body.getBoundingBox().getCenter();
         double straight = eye.distanceTo(middle);
         double length = inSight(player, eye, middle) ? straight
-                : GateRay.shortestRoute(GatePassage.pairsOf(player.level().getServer()), eye, middle)
-                        .map(GateRay.Route::length).orElse(straight);
+                : shorterWay(straight, GateRay.shortestRoute(GatePassage.pairsOf(player.level().getServer()), eye,
+                        middle).map(GateRay.Route::length));
         return length * length;
+    }
+
+    /**
+     * The shorter of a straight line and a way through a linked pair.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @param straight the straight line's length
+     * @param throughPair the way through a pair's length, empty where no pair offers one
+     * @return the shorter length
+     */
+    static double shorterWay(double straight, Optional<Double> throughPair) {
+        return throughPair.filter(length -> length < straight).orElse(straight);
     }
 
     /**

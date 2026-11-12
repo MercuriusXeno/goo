@@ -27,6 +27,7 @@ import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -290,6 +291,32 @@ class GrabStepTest {
         void unarmedPressOrAnotherAbilityPunches() {
             assertFalse(GrabStep.throwsOnAttack(false, List.of(GRAB)));
             assertFalse(GrabStep.throwsOnAttack(true, List.of(new AncientStep())));
+        }
+    }
+
+    /**
+     * A blocked body's reach is the shorter of the straight line and a way
+     * through a linked pair, so a pair standing far off never lengthens it
+     * (decision aim-and-shots-carry-through-linked-gates).
+     */
+    @Nested
+    class BlockedReach {
+
+        private static final double STRAIGHT = 4.4;
+
+        @Test
+        void aFarPairLeavesTheStraightReach() {
+            assertEquals(STRAIGHT, GrabStep.shorterWay(STRAIGHT, Optional.of(85.6)));
+        }
+
+        @Test
+        void aNearPairShortensTheReach() {
+            assertEquals(3.0, GrabStep.shorterWay(STRAIGHT, Optional.of(3.0)));
+        }
+
+        @Test
+        void noPairLeavesTheStraightReach() {
+            assertEquals(STRAIGHT, GrabStep.shorterWay(STRAIGHT, Optional.empty()));
         }
     }
 }
