@@ -1,9 +1,13 @@
 package com.mercuriusxeno.goo.ability.held;
 
+import com.mercuriusxeno.goo.ability.program.Expr;
+import com.mercuriusxeno.goo.ability.program.Sight;
+import com.mercuriusxeno.goo.ability.program.SightStep;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
 import org.junit.jupiter.api.Test;
+import java.util.List;
 import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
@@ -37,5 +41,25 @@ class HeldEffectsEventsTest {
     void pastThatItShowsAsEndless() {
         assertEquals(MobEffectInstance.INFINITE_DURATION,
                 HeldEffectsEvents.shownDuration(HeldEffectsEvents.LONGEST_SHOWN_TICKS + 1));
+    }
+
+    // decision sight-lengthens-shift-and-outlines-fungus
+    @Test
+    void endingSightClearsTheSight() {
+        ServerPlayer player = mock(ServerPlayer.class);
+
+        HeldEffectsEvents.clearMindStates(player, Set.of(LaidState.SIGHT));
+
+        verify(player).setData(GooAttachments.SIGHT, Sight.NONE);
+    }
+
+    @Test
+    void aSightStepLaysTheSight() {
+        assertEquals(Set.of(LaidState.SIGHT), LaidState.laidBy(List.of(new SightStep(Expr.literal(2)))));
+    }
+
+    @Test
+    void noSightLengthensAShiftByNothing() {
+        assertEquals(1f, Sight.NONE.factorAt(0L));
     }
 }

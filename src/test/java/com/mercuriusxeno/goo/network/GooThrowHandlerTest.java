@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.ability.program.MeltStep;
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.item.ReagentScanner;
@@ -11,7 +13,10 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
@@ -20,6 +25,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * A point an ability aims beyond the throw range is capped onto the range
@@ -107,5 +114,21 @@ class GooThrowHandlerTest {
         List<Identifier> enchantReagents = AbilityJson.decode("hex_enchant").consumes();
 
         assertFalse(ReagentScanner.holdsEvery(enchantReagents, reagent -> false));
+    }
+
+    /**
+     * A melt is refused on a struck block its meltable tag leaves out and admitted on one the tag holds
+     * (decision melt-blob-absorbs-into-lava).
+     */
+    @Test
+    void aMeltIsRefusedOnABlockItsTagLeavesOut() {
+        TagKey<Block> meltable = TagKey.create(Registries.BLOCK, Identifier.withDefaultNamespace("meltable"));
+        BlockState dirt = mock(BlockState.class);
+        BlockState stone = mock(BlockState.class);
+        when(stone.is(meltable)).thenReturn(true);
+        List<Step> melt = List.of(new MeltStep(meltable));
+
+        assertEquals(List.of(true, false),
+                List.of(GooThrowHandler.refusesStruck(dirt, melt), GooThrowHandler.refusesStruck(stone, melt)));
     }
 }

@@ -34,7 +34,6 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 @RegistersGameTests
 public final class MycosisTests {
     private static final String MYCOSIS_SPREADS_ON_DEATH = "mycosis_spreads_on_death";
-    private static final String MYCOSIS_PLACES_BUDS = "mycosis_places_buds";
     private static final String MYCOSIS_BUDS_AT_THE_FEET = "mycosis_buds_at_the_feet";
 
     /**
@@ -44,7 +43,6 @@ public final class MycosisTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, MYCOSIS_SPREADS_ON_DEATH, MycosisTests::mycosisSpreadsOnDeath);
-        GooTestFunctions.registerTest(registrar, MYCOSIS_PLACES_BUDS, MycosisTests::mycosisPlacesBuds);
         GooTestFunctions.registerTest(registrar, MYCOSIS_BUDS_AT_THE_FEET, MycosisTests::mycosisBudsAtTheFeet);
     }
 
@@ -57,8 +55,6 @@ public final class MycosisTests {
     private static final float FACING_EAST = -90f;
     /** Pitch down from the eye toward a zombie's middle four blocks off. */
     private static final float LOOKING_AT_ZOMBIE = 9f;
-    /** Pitch down from the eye onto the floor one to four blocks ahead. */
-    private static final float LOOKING_AT_FLOOR = 45f;
     private static final Identifier MYCOSIS = Identifier.parse("goo:shroom_mycosis");
     private static final int SPRAY_TICKS = 5;
     /** Straight down at the floor under the player. */
@@ -69,13 +65,11 @@ public final class MycosisTests {
     /** Ticks of hold the bud test sprays for at most, enough that a bud is all but certain. */
     private static final int BUD_SPRAY_TICKS = 400;
     private static final int HELD_GOO = 22;
-    private static final int FLOOR_SCAN_RADIUS = 5;
     private static final String ABILITY_REQUIRED = "Ability registry must hold shroom_mycosis";
     private static final String SPRAYED_POISONED = "The sprayed zombie should carry Goo's spore poison";
     private static final String SPRAYED_SPORED = "The sprayed zombie should carry spores";
     private static final String BYSTANDER_CLEAN = "The bystander outside the cone should start unpoisoned";
     private static final String BYSTANDER_POISONED = "The burst from the corpse should poison the bystander";
-    private static final String NO_BUD = "Mycosis sprayed at the floor should bud it";
 
     private MycosisTests() {
     }
@@ -103,26 +97,6 @@ public final class MycosisTests {
             sprayed.kill(helper.getLevel());
             helper.assertTrue(bystander.hasEffect(GooMobEffects.MYCOSIS), BYSTANDER_POISONED);
             helper.succeed();
-        });
-    }
-
-    /**
-     * A mock player sprays Mycosis at the floor: before the hold runs out a
-     * fungal bud stands on the floor it sprays.
-     *
-     * @param helper the gametest helper
-     */
-    public static void mycosisPlacesBuds(GameTestHelper helper) {
-        AbilityDefinition mycosis = mycosis(helper);
-        ServerPlayer player = sprayer(helper, LOOKING_AT_FLOOR);
-        KnownRecipes.teachRequires(player, mycosis);
-        spray(helper, player, BUD_SPRAY_TICKS);
-        helper.succeedWhen(() -> {
-            boolean budded = BlockPos.betweenClosedStream(STAND_POS.offset(0, -1, -FLOOR_SCAN_RADIUS),
-                    STAND_POS.offset(FLOOR_SCAN_RADIUS, 0, FLOOR_SCAN_RADIUS))
-                    .anyMatch(cell -> helper.getBlockState(cell).is(GooBlocks.FUNGAL_BUD.get()));
-            helper.assertTrue(budded, NO_BUD);
-            helper.getLevel().getServer().getPlayerList().remove(player);
         });
     }
 

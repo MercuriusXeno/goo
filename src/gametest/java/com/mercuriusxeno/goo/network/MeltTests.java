@@ -28,18 +28,13 @@ import java.util.function.Consumer;
 public final class MeltTests {
 
     private static final String MELT_STONE_TO_LAVA = "melt_stone_to_lava";
-    private static final String MELT_REFUSES_DIRT = "melt_refuses_dirt";
     private static final Identifier MELT = Identifier.parse("goo:blaze_melt");
     private static final int NO_ENTITY = -1;
     /** The block the throw strikes, on the floor in the middle of the bay. */
     private static final BlockPos STRUCK = new BlockPos(2, 1, 2);
-    /** Ticks a refused throw is watched for, past any flight's landing. */
-    private static final int WATCH_TICKS = 40;
     private static final String ABILITY_REQUIRED = "The ability registry must hold blaze_melt";
     private static final String SHOULD_CHARGE = "Melt at stone should cost its %d mB, spent %d";
     private static final String SHOULD_MELT = "Melt should turn the stone into a lava source, stands %s";
-    private static final String SHOULD_NOT_CHARGE = "Melt at dirt should be refused unpaid, spent %d";
-    private static final String SHOULD_SPARE_DIRT = "Melt at dirt should leave the dirt, stands %s";
 
     private MeltTests() {
     }
@@ -51,7 +46,6 @@ public final class MeltTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, MELT_STONE_TO_LAVA, MeltTests::meltStoneToLava);
-        GooTestFunctions.registerTest(registrar, MELT_REFUSES_DIRT, MeltTests::meltRefusesDirt);
     }
 
     /**
@@ -66,21 +60,6 @@ public final class MeltTests {
         helper.succeedWhen(() -> helper.assertTrue(helper.getBlockState(STRUCK).is(Blocks.LAVA)
                 && helper.getBlockState(STRUCK).getFluidState().isSource(),
                 String.format(SHOULD_MELT, helper.getBlockState(STRUCK))));
-    }
-
-    /**
-     * Melt thrown at dirt is refused: nothing is paid and the dirt stands.
-     *
-     * @param helper the gametest helper
-     */
-    public static void meltRefusesDirt(GameTestHelper helper) {
-        int spent = throwAt(helper, Blocks.DIRT, melt(helper));
-        helper.assertTrue(spent == 0, String.format(SHOULD_NOT_CHARGE, spent));
-        helper.runAfterDelay(WATCH_TICKS, () -> {
-            helper.assertTrue(helper.getBlockState(STRUCK).is(Blocks.DIRT),
-                    String.format(SHOULD_SPARE_DIRT, helper.getBlockState(STRUCK)));
-            helper.succeed();
-        });
     }
 
     private static AbilityDefinition melt(GameTestHelper helper) {
