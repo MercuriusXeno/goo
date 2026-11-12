@@ -13,9 +13,11 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.TicketType;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -107,6 +109,8 @@ public final class OutsiderRooms {
     private static final double MOTE_SCATTER_UP = 1.2;
     /** The widest sideways drift a mote takes, blocks a tick. */
     private static final double MOTE_DRIFT = 0.012;
+    /** The chunks around a room's center loaded ahead of an entry: its own and the ring the arrival may fall in. */
+    private static final int ROOM_LOAD_RADIUS = 2;
     /** The middle of a random share, which a sideways drift is centred on. */
     private static final double HALF = 0.5;
 
@@ -414,6 +418,27 @@ public final class OutsiderRooms {
         burst(pocket, arrival);
         sendEdges(player);
         return true;
+    }
+
+    /**
+     * Starts loading a caster's room while their charge runs, handing them
+     * one where they hold none, so the full charge's tick finds the room's
+     * chunk loaded: read cold, the room's first block loads its chunk on the
+     * server thread, a stall of several ticks. The ticket lapses on its own.
+     * decision diagnose-and-correct-the-slow-load-into-the-room
+     *
+     * @param caster the player channeling toward the pocket
+     */
+    public static void loadRoomAhead(ServerPlayer caster) {
+        ServerLevel pocket = caster.level().getServer().getLevel(POCKET);
+        if (pocket == null || caster.level().dimension() == POCKET) {
+            return;
+        }
+        VoidPockets pockets = VoidPockets.get(pocket);
+        Integer room = pockets.roomOf(caster.getUUID());
+        int loading = room == null ? pockets.handOut(caster.getUUID()) : room;
+        pocket.getChunkSource().addTicketWithRadius(TicketType.PORTAL, ChunkPos.containing(voidstoneOf(loading)),
+                ROOM_LOAD_RADIUS);
     }
 
     /**

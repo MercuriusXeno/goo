@@ -69,6 +69,7 @@ public final class ConjuredDoors {
         Standing before = DOORS.put(caster.getUUID(), new Standing(door, level.getServer().getTickCount()));
         if (before == null) {
             showConjuring(level, door);
+            OutsiderRooms.loadRoomAhead(caster);
         }
         sendDoor(caster, door);
     }
