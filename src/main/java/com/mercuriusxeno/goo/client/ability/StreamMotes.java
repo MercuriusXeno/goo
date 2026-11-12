@@ -18,10 +18,12 @@ import java.util.Optional;
 /**
  * Plays a tick of a glove stream's motes on the client: each flies from the
  * glove along its own heading inside the cone, or onto the end of a coat ray
- * for a stream whose spray follows its coat, carrying the caster's travel,
- * and a goo mote swings with its caster's glove over its opening ticks
+ * for a stream whose spray follows its coat, carrying the caster's travel;
+ * a goo mote swings with its caster's glove over its opening ticks, and a
+ * spray drip leaves the glove as it is drawn
  * (decisions glove-stream-motes-carry-the-players-travel-velocity,
- * glove-stream-motes-swing-with-the-glove-at-launch, goop-and-slick-spray-follows-the-coat).
+ * glove-stream-motes-swing-with-the-glove-at-launch, goop-and-slick-spray-follows-the-coat,
+ * goop-and-slick-spray-emanates-from-the-glove).
  */
 public final class StreamMotes {
 
@@ -39,22 +41,7 @@ public final class StreamMotes {
      */
     public static void handle(StreamMotesPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> SimpleParticles.resolve(payload.particle())
-                .ifPresent(particle -> launch(fromTheDrawnGlove(payload), particle)));
-    }
-
-    /**
-     * The stream's tick launched from the caster's glove where it is drawn
-     * this frame, in place of the hand the server's echo of an earlier tick
-     * carries, so the spray leaves the hand of a caster on the move.
-     * goop-and-slick-spray-throws-goo-drips-that-splat
-     *
-     * @param payload the stream's tick as the server sent it
-     * @return the tick with its apex on the drawn glove
-     */
-    static StreamMotesPayload fromTheDrawnGlove(StreamMotesPayload payload) {
-        return new StreamMotesPayload(payload.casterId(), CasterPoses.gloveOf(payload.casterId(), payload.apex()),
-                payload.axis(), payload.particle(), payload.coneDegrees(), payload.speed(), payload.travel(),
-                payload.coat());
+                .ifPresent(particle -> launch(payload, particle)));
     }
 
     private static void launch(StreamMotesPayload payload, SimpleParticleType particle) {
@@ -72,8 +59,8 @@ public final class StreamMotes {
             Particle mote = mc.particleEngine.createParticle(particle, apex.x, apex.y, apex.z, launch.x, launch.y,
                     launch.z);
             if (mote instanceof SprayDripParticle drip && coatEnd.isPresent()) {
-                // goop-and-slick-spray-throws-goo-drips-that-splat: the drip rides the glove, then lands on the coat
-                drip.rideWith(payload.casterId(), CasterPoses::poseOf, coatEnd.get(), payload.travel());
+                // goop-and-slick-spray-emanates-from-the-glove: the drip leaves the glove as drawn, not the echo
+                drip.leaveFrom(() -> CasterPoses.gloveOf(payload.casterId(), apex), coatEnd.get(), payload.travel());
             } else if (mote instanceof GloveMote gloveMote) {
                 gloveMote.swingWith(new GloveSwing.Tracker(payload.casterId(), CasterPoses::poseOf));
             }

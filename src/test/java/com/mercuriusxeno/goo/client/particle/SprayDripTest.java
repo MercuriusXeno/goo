@@ -10,8 +10,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * A spray drip flies one steady path from the glove to the end of its coat
- * ray, whatever its random source answers, and splats there.
+ * ray, whatever its random source answers, and splats there, for a caster
+ * standing, walking, strafing, turning, running or jumping.
  * goop-and-slick-spray-throws-goo-drips-that-splat
+ * goop-and-slick-spray-emanates-from-the-glove
  * goop-and-slick-spray-follows-the-coat
  */
 class SprayDripTest {
@@ -21,6 +23,10 @@ class SprayDripTest {
     private static final Vec3 RUNNING = new Vec3(0.2, 0.0, -0.1);
     /** A jump's opening rise, blocks per tick. */
     private static final Vec3 JUMPING = new Vec3(0.0, 0.42, 0.0);
+    private static final Vec3 WALKING = new Vec3(0.05, 0.0, 0.15);
+    private static final Vec3 STRAFING = new Vec3(-0.2, 0.0, 0.0);
+    /** Where a glove that swung round the eye with a turned look stands when its drip leaves. */
+    private static final Vec3 TURNED_GLOVE = new Vec3(0.55, 1.3, 0.05);
     private static final double WITHIN = 0.1;
     private static final double DELTA = 1e-9;
     /** A bound on the steps a drip may fly, so a drip that never lands fails rather than hangs. */
@@ -35,14 +41,14 @@ class SprayDripTest {
     private record Flown(List<Vec3> path, Vec3 splatAt) {
     }
 
-    private static SprayDrip throwDrip(Vec3 travel, long seed) {
-        return SprayDrip.launch(APEX, COAT_END, travel, BlendPalette.GOOP_SLIME_GREENS, RandomSource.create(seed));
+    private static SprayDrip throwDrip(Vec3 glove, Vec3 travel, long seed) {
+        return SprayDrip.launch(glove, COAT_END, travel, BlendPalette.GOOP_SLIME_GREENS, RandomSource.create(seed));
     }
 
-    private static Flown fly(Vec3 travel, long seed) {
-        SprayDrip drip = throwDrip(travel, seed);
+    private static Flown fly(Vec3 glove, Vec3 travel, long seed) {
+        SprayDrip drip = throwDrip(glove, travel, seed);
         List<Vec3> path = new ArrayList<>();
-        Vec3 position = APEX;
+        Vec3 position = glove;
         Vec3 velocity = drip.velocity();
         for (int flown = 0; flown < MAX_STEPS; flown++) {
             SprayDrip.Step step = drip.step(position, velocity, flown);
@@ -56,38 +62,54 @@ class SprayDripTest {
         return new Flown(path, null);
     }
 
-    private static void assertSplatsOnTheCoatEnd(Vec3 travel) {
-        Flown flown = fly(travel, 1L);
+    private static void assertSplatsOnTheCoatEnd(Vec3 glove, Vec3 travel) {
+        Flown flown = fly(glove, travel, 1L);
 
         assertTrue(flown.splatAt() != null, "the drip should splat within " + MAX_STEPS + " steps");
-        assertTrue(flown.splatAt().distanceTo(COAT_END) <= WITHIN, "a drip thrown with travel " + travel
-                + " should splat within a tenth of a block of " + COAT_END + ", splatted at " + flown.splatAt());
+        assertTrue(flown.splatAt().distanceTo(COAT_END) <= WITHIN, "a drip thrown from " + glove + " with travel "
+                + travel + " should splat within a tenth of a block of " + COAT_END + ", splatted at "
+                + flown.splatAt());
         assertEquals(flown.splatAt(), flown.path().getLast(), "the splatting step should be the drip's last");
     }
 
     @Test
     void aDripFliesTheSamePathWhateverItsRandomSourceAnswers() {
-        assertEquals(fly(RUNNING, 1L).path(), fly(RUNNING, 987_654_321L).path());
+        assertEquals(fly(APEX, RUNNING, 1L).path(), fly(APEX, RUNNING, 987_654_321L).path());
     }
 
     @Test
     void aStandingCastersDripSplatsOnTheEndOfItsCoatRayAndIsRemoved() {
-        assertSplatsOnTheCoatEnd(Vec3.ZERO);
+        assertSplatsOnTheCoatEnd(APEX, Vec3.ZERO);
+    }
+
+    @Test
+    void aWalkingCastersDripSplatsOnTheEndOfItsCoatRay() {
+        assertSplatsOnTheCoatEnd(APEX.add(WALKING.scale(1.5)), WALKING);
+    }
+
+    @Test
+    void aStrafingCastersDripSplatsOnTheEndOfItsCoatRay() {
+        assertSplatsOnTheCoatEnd(APEX.add(STRAFING.scale(1.5)), STRAFING);
+    }
+
+    @Test
+    void aTurningCastersDripSplatsOnTheEndOfItsCoatRay() {
+        assertSplatsOnTheCoatEnd(TURNED_GLOVE, Vec3.ZERO);
     }
 
     @Test
     void aRunningCastersDripStillSplatsOnTheEndOfItsCoatRay() {
-        assertSplatsOnTheCoatEnd(RUNNING);
+        assertSplatsOnTheCoatEnd(APEX, RUNNING);
     }
 
     @Test
     void aJumpingCastersDripStillSplatsOnTheEndOfItsCoatRay() {
-        assertSplatsOnTheCoatEnd(JUMPING);
+        assertSplatsOnTheCoatEnd(APEX, JUMPING);
     }
 
     @Test
     void aDripStaysOnItsWayWithoutDartingBackOrStalling() {
-        List<Vec3> path = fly(Vec3.ZERO, 1L).path();
+        List<Vec3> path = fly(APEX, Vec3.ZERO, 1L).path();
         Vec3 heading = COAT_END.subtract(APEX).multiply(1, 0, 1);
 
         Vec3 before = APEX;
@@ -99,57 +121,13 @@ class SprayDripTest {
     }
 
     @Test
-    void aDripKeepsPaceWithItsRunningCastersHandThroughItsOpeningTicks() {
-        List<Vec3> standing = fly(Vec3.ZERO, 1L).path();
-        List<Vec3> running = fly(RUNNING, 1L).path();
+    void aDripLeavesTheGloveCarryingItsCastersTravel() {
+        Vec3 carried = throwDrip(APEX, RUNNING, 1L).velocity().subtract(throwDrip(APEX, Vec3.ZERO, 1L).velocity());
 
-        for (int tick = 1; tick <= SprayDrip.HOLD_TICKS; tick++) {
-            Vec3 carried = running.get(tick - 1).subtract(standing.get(tick - 1));
-            Vec3 handMoved = RUNNING.scale(tick);
-            assertEquals(handMoved.x, carried.x, DELTA, "x after tick " + tick);
-            assertEquals(handMoved.y, carried.y, DELTA, "y after tick " + tick);
-            assertEquals(handMoved.z, carried.z, DELTA, "z after tick " + tick);
-        }
+        assertEquals(RUNNING.x, carried.x, DELTA, "x");
+        assertEquals(RUNNING.y, carried.y, DELTA, "y");
+        assertEquals(RUNNING.z, carried.z, DELTA, "z");
     }
-
-    @Test
-    void aHeldDripKeepsItsPlaceOnTheGloveAsItsCasterWalksAndTurns() {
-        GloveSwing.CasterPose atLaunch = new GloveSwing.CasterPose(APEX, new Vec3(0, 0, 1));
-        Vec3 offset = new Vec3(0.5, 0.2, 1.0);
-        Vec3 walkedGlove = APEX.add(3.0, 0.0, 0.0);
-        GloveSwing.CasterPose walkedAndTurned = new GloveSwing.CasterPose(walkedGlove, new Vec3(1, 0, 0));
-
-        Vec3 held = SprayDrip.heldAt(APEX.add(offset), atLaunch, walkedAndTurned);
-
-        Vec3 expected = walkedGlove.add(1.0, 0.2, -0.5);
-        assertEquals(expected.x, held.x, DELTA, "x");
-        assertEquals(expected.y, held.y, DELTA, "y");
-        assertEquals(expected.z, held.z, DELTA, "z");
-    }
-
-    @Test
-    void aDripLetGoByTheGloveStillSplatsOnTheEndOfItsCoatRay() {
-        Vec3 letGoAt = APEX.add(0.4, 0.3, 1.5);
-        Vec3 gloveVelocity = new Vec3(-0.25, 0.0, 0.15);
-        SprayDrip drip = SprayDrip.released(letGoAt, COAT_END, gloveVelocity, 0);
-
-        Vec3 position = letGoAt;
-        Vec3 velocity = drip.velocity();
-        SprayDrip.Step step = null;
-        for (int flown = 0; flown < MAX_STEPS && (step == null || !step.splats()); flown++) {
-            step = drip.step(position, velocity, flown);
-            position = step.position();
-            velocity = step.velocity();
-        }
-
-        assertTrue(step != null && step.splats(), "the let-go drip should splat within " + MAX_STEPS + " steps");
-        assertTrue(position.distanceTo(COAT_END) <= WITHIN,
-                "a let-go drip should splat within a tenth of a block of " + COAT_END + ", splatted at " + position);
-        Vec3 carried = drip.velocity().subtract(SprayDrip.released(letGoAt, COAT_END, Vec3.ZERO, 0).velocity());
-        assertEquals(gloveVelocity.x, carried.x, DELTA, "the let-go drip should leave with the glove's velocity, x");
-        assertEquals(gloveVelocity.z, carried.z, DELTA, "the let-go drip should leave with the glove's velocity, z");
-    }
-
     @Test
     void aDripsColorLiesBetweenItsPalettesEnds() {
         BlendPalette blues = BlendPalette.SLICK_SLIME_BLUES;
