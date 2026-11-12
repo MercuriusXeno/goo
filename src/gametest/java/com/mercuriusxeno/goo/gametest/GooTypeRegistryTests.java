@@ -3,20 +3,27 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
+import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.RegistryOps;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ProblemReporter;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
@@ -31,6 +38,8 @@ import java.util.function.Consumer;
 public final class GooTypeRegistryTests {
     private static final String TYPES_BUNDLED_RESOLVE = "types_bundled_resolve";
     private static final String TYPES_MARKER_RELOADS = "types_marker_reloads";
+    private static final String TYPES_GLOVE_SELECTION_RELOADS = "types_glove_selection_reloads";
+    private static final String SELECTION_TYPE_LOST = "A glove's selection should read back its type after the stack's save and load";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -40,6 +49,8 @@ public final class GooTypeRegistryTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, TYPES_BUNDLED_RESOLVE, GooTypeRegistryTests::bundledTypesResolve);
         GooTestFunctions.registerTest(registrar, TYPES_MARKER_RELOADS, GooTypeRegistryTests::abilityBlockReloadsType);
+        GooTestFunctions.registerTest(registrar, TYPES_GLOVE_SELECTION_RELOADS,
+                GooTypeRegistryTests::gloveSelectionReloadsItsType);
     }
 
 
@@ -104,6 +115,23 @@ public final class GooTypeRegistryTests {
             restored.loadCustomOnly(TagValueInput.create(reporter, helper.getLevel().registryAccess(), saved));
         }
         helper.assertTrue(GooTypes.CRYSTAL.equals(restored.getGooType()), MARKER_TYPE_LOST);
+        helper.succeed();
+    }
+
+    /**
+     * A real glove stack's selection survives the trip through the item's
+     * persistent components: the stack saves to NBT through the level's
+     * registry ops and parses back with its goo type selected.
+     *
+     * @param helper the gametest helper
+     */
+    public static void gloveSelectionReloadsItsType(GameTestHelper helper) {
+        ItemStack glove = new ItemStack(GooItems.GOO_GLOVE.get());
+        GooGloveItem.setSelection(glove, GloveSelection.ofAbility(GooTypes.CRYSTAL, CRYSTAL_CLOUD));
+        RegistryOps<Tag> ops = helper.getLevel().registryAccess().createSerializationContext(NbtOps.INSTANCE);
+        Tag saved = ItemStack.CODEC.encodeStart(ops, glove).getOrThrow();
+        GloveSelection selection = GooGloveItem.getSelection(ItemStack.CODEC.parse(ops, saved).getOrThrow());
+        helper.assertTrue(selection != null && GooTypes.CRYSTAL.equals(selection.getGooType()), SELECTION_TYPE_LOST);
         helper.succeed();
     }
 }
