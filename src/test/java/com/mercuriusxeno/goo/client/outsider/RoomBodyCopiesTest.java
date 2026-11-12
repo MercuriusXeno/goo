@@ -10,9 +10,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Covers where the bodies a room holds draw in its copies: one place a copy,
- * the body's drawn place moved by that copy's offset, and for the local
- * player in first person every copy and never its own place
+ * Covers where the bodies a room holds draw across the tiled room: one draw a
+ * copy, the body's drawn place moved by that copy's offset, beside the
+ * frame's own draw at its place; and for the camera's own body in first
+ * person, a draw in every copy and none at its own place
  * (decision room-tiles-to-render-distance-held-to-the-picture).
  */
 class RoomBodyCopiesTest {
@@ -22,6 +23,7 @@ class RoomBodyCopiesTest {
     private static final double REACH = 64;
     /** A body's drawn place inside the room, between two ticks. */
     private static final Vec3 BODY = new Vec3(1_000_001.25, 64.0, -0.75);
+    private static final List<RoomCopies.Offset> OFFSETS = RoomCopies.offsets(ROOM, REACH);
 
     @Test
     void aBodyInTheRoomStandsInIt() {
@@ -30,25 +32,25 @@ class RoomBodyCopiesTest {
     }
 
     @Test
-    void aBodyDrawsOnceInEachCopyAtItsPlaceMovedByTheOffset() {
-        List<RoomCopies.Offset> offsets = RoomCopies.offsets(ROOM, REACH);
+    void aBodyDrawsAtItsOwnPlaceAndOnceInEachCopyAtItsPlaceMovedByTheOffset() {
+        List<RoomBodyCopies.Draw> draws = RoomBodyCopies.drawsOf(BODY, OFFSETS, false, false);
 
-        List<Vec3> places = RoomBodyCopies.placesOf(BODY, offsets);
-
-        assertEquals(offsets.size(), places.size(), "one place per copy");
-        for (int copy = 0; copy < offsets.size(); copy++) {
-            assertEquals(BODY.add(offsets.get(copy).east(), 0, offsets.get(copy).south()), places.get(copy),
-                    "the place in copy " + copy);
-        }
+        assertEquals(new RoomBodyCopies.Draw(BODY, true), draws.get(0), "the frame's own draw");
+        assertCopiesAtEveryOffset(draws.subList(1, draws.size()));
     }
 
     @Test
-    void theLocalPlayerInFirstPersonDrawsInEveryCopyAndNeverAtItsOwnPlace() {
-        List<RoomCopies.Offset> offsets = RoomCopies.offsets(ROOM, REACH);
+    void theCameraBodyInFirstPersonDrawsInEveryCopyAndNoneAtItsOwnPlace() {
+        List<RoomBodyCopies.Draw> draws = RoomBodyCopies.drawsOf(BODY, OFFSETS, true, false);
 
-        List<Vec3> places = RoomBodyCopies.placesOf(BODY, offsets);
+        assertCopiesAtEveryOffset(draws);
+    }
 
-        assertEquals(offsets.size(), places.size(), "a place in every copy");
-        assertFalse(places.contains(BODY), "no place at the player's own, where first person draws no body");
+    private static void assertCopiesAtEveryOffset(List<RoomBodyCopies.Draw> copies) {
+        assertEquals(OFFSETS.size(), copies.size(), "one draw per copy and no other");
+        for (int copy = 0; copy < OFFSETS.size(); copy++) {
+            assertEquals(new RoomBodyCopies.Draw(BODY.add(OFFSETS.get(copy).east(), 0, OFFSETS.get(copy).south()),
+                    false), copies.get(copy), "the draw in copy " + copy);
+        }
     }
 }
