@@ -8,7 +8,7 @@
 // A status ailment's overlay on a mob or player (decision ailment-overlay-shader-per-ailment):
 // the vanilla entity vertex transform, the model lifted a hair off its skin so the
 // overlay encases it. AilmentOverlayLayer hands the ailment's color in Color, its
-// strength in Color's alpha, and its pattern's ordinal in the overlay coordinate's U.
+// strength in Color's alpha, and in the overlay coordinates its pattern's ordinal and the mob's skin size.
 
 in vec3 Position;
 in vec4 Color;
@@ -26,7 +26,14 @@ out vec4 lightMapColor;
 out vec2 skinCoord;
 out vec3 skinNormal;
 flat out int pattern;
+// The skin's texels across and down (decision diagnose-and-correct-vines-and-ailment-overlay-assuming-a-square-skin).
+flat out vec2 skinTexels;
 
+// AilmentOverlayLayer packs the pattern's ordinal in U's top four bits over the skin's width in its low twelve,
+// and the skin's height in V. UV1 arrives sign-extended, so each is masked back to its sixteen bits.
+const int ORDINAL_SHIFT = 12;
+const int WIDTH_MASK = 0xFFF;
+const int SHORT_MASK = 0xFFFF;
 // Blocks the overlay stands off the skin.
 const float OVERLAY_INFLATE = 0.02;
 // Must match AilmentPattern's order.
@@ -49,7 +56,9 @@ float wobbleOffset(int ailmentPattern) {
 }
 
 void main() {
-    vec3 encased = Position + normalize(Normal) * OVERLAY_INFLATE + normalize(Normal) * wobbleOffset(UV1.x);
+    int packedU = UV1.x & SHORT_MASK;
+    int ailmentPattern = packedU >> ORDINAL_SHIFT;
+    vec3 encased = Position + normalize(Normal) * OVERLAY_INFLATE + normalize(Normal) * wobbleOffset(ailmentPattern);
     gl_Position = ProjMat * ModelViewMat * vec4(encased, 1.0);
 
     sphericalVertexDistance = fog_spherical_distance(encased);
@@ -58,5 +67,6 @@ void main() {
     ailmentColor = Color;
     skinCoord = UV0;
     skinNormal = Normal;
-    pattern = UV1.x;
+    pattern = ailmentPattern;
+    skinTexels = vec2(packedU & WIDTH_MASK, UV1.y & SHORT_MASK);
 }

@@ -19,6 +19,9 @@ in vec4 lightMapColor;
 in vec2 skinCoord;
 in vec3 skinNormal;
 flat in int pattern;
+// The skin's texels across and down, which the noise snaps to and each pattern lays its cells on
+// (decision diagnose-and-correct-vines-and-ailment-overlay-assuming-a-square-skin).
+flat in vec2 skinTexels;
 
 out vec4 fragColor;
 
@@ -74,27 +77,32 @@ void main() {
     vec3 tint = ailmentColor.rgb;
     // The noise patterns take one value per skin texel; the facets read no noise and keep the
     // smooth coordinate (decision mingle-noise-snaps-to-texels).
-    vec2 skinTexel = mingleTexelSnap(skinCoord, MINGLE_SKIN_TEXELS);
+    vec2 skinTexel = mingleTexelSnap(skinCoord, skinTexels);
+    // The cell counts run across the skin; down it they scale by the skin's height over its width, so a cell
+    // spans as many skin texels down as across on a skin of any shape
+    // (decision diagnose-and-correct-vines-and-ailment-overlay-assuming-a-square-skin).
+    vec2 cellAspect = vec2(1.0, skinTexels.y / skinTexels.x);
     vec4 color;
     if (pattern == PATTERN_STONE) {
-        float grain = mingleField(vec3(skinTexel * STONE_CELLS, 0.0));
+        float grain = mingleField(vec3(skinTexel * cellAspect * STONE_CELLS, 0.0));
         float crack = 1.0 - smoothstep(0.0, 0.04, abs(grain - 0.5));
         vec4 stone = vec4(tint * mix(0.7, 1.2, grain) * (1.0 - 0.5 * crack), 0.95 * strength);
         color = minecraft_mix_light(Light0_Direction, Light1_Direction, normalize(skinNormal), stone) * lightMapColor;
     } else if (pattern == PATTERN_FROST) {
-        float crystals = smoothstep(0.55, 0.8, mingleValueNoise(vec3(skinTexel * FROST_CELLS, 0.0)));
+        float crystals = smoothstep(0.55, 0.8, mingleValueNoise(vec3(skinTexel * cellAspect * FROST_CELLS, 0.0)));
         vec4 frost = vec4(mix(tint, vec3(1.0), crystals * 0.6), (0.35 + 0.5 * crystals) * strength);
         color = minecraft_mix_light(Light0_Direction, Light1_Direction, normalize(skinNormal), frost) * lightMapColor;
     } else if (pattern == PATTERN_WOBBLE) {
-        float bubbles = smoothstep(0.6, 0.85, mingleValueNoise(vec3(skinTexel * GEL_CELLS, GameTime * GEL_CYCLES_PER_DAY)));
+        float bubbles = smoothstep(0.6, 0.85, mingleValueNoise(vec3(skinTexel * cellAspect * GEL_CELLS,
+                GameTime * GEL_CYCLES_PER_DAY)));
         vec4 gel = vec4(mix(tint, vec3(1.0), bubbles * 0.5), (0.4 + 0.3 * bubbles) * strength);
         color = minecraft_mix_light(Light0_Direction, Light1_Direction, normalize(skinNormal), gel) * lightMapColor;
     } else {
         float shine = 0.0;
         if (pattern == PATTERN_FACETS) {
-            shine = facetField(skinCoord, GameTime);
+            shine = facetField(skinCoord * cellAspect, GameTime);
         } else if (pattern == PATTERN_SHIMMER) {
-            shine = shimmerField(skinTexel, GameTime);
+            shine = shimmerField(skinTexel * cellAspect, GameTime);
         }
         color = vec4(tint * (0.5 + 1.2 * shine), (0.2 + 0.7 * shine) * strength);
     }

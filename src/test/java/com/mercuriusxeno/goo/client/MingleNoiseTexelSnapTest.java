@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -112,7 +113,6 @@ class MingleNoiseTexelSnapTest {
             String noise = shader("mingle_noise.glsl");
 
             assertTrue(noise.contains("const float MINGLE_WORLD_TEXELS = " + MingleNoiseModel.WORLD_TEXELS + ";"));
-            assertTrue(noise.contains("const vec2 MINGLE_SKIN_TEXELS = vec2(" + MingleNoiseModel.SKIN_TEXELS + ");"));
         }
 
         @Test
@@ -185,7 +185,7 @@ class MingleNoiseTexelSnapTest {
             int stoneAt = indexAfter(stone, "float field = mingleCornerField(skinCoord, skinTexels, PATCH_CELLS,", 0);
 
             assertTrue(indexAfter(stone, "if (field < threshold)", stoneAt) > stoneAt);
-            assertTrue(vine.contains("mingleCornerField(skinCoord, MINGLE_SKIN_TEXELS, PATCH_CELLS, vec3(0.0)) "
+            assertTrue(vine.contains("mingleCornerField(skinCoord, skinTexels, PATCH_CELLS, vec3(0.0)) "
                 + "< mingleThreshold(share)"), "the tangle thresholds the blend");
             assertTrue(!stone.contains("mingleTexelSnap") && !vine.contains("mingleTexelSnap"),
                 "a skin shader still snaps to texel centres instead of blending corners");
@@ -209,7 +209,7 @@ class MingleNoiseTexelSnapTest {
             assertTrue(surface.contains("float opacity = mingleOpacity(faceTexel, GameTime, share, seed);"),
                 "the surface's opacity no longer reads the snapped texel");
             String overlay = shader("goo_ailment_overlay.fsh");
-            assertTrue(overlay.contains("vec2 skinTexel = mingleTexelSnap(skinCoord, MINGLE_SKIN_TEXELS);"));
+            assertTrue(overlay.contains("vec2 skinTexel = mingleTexelSnap(skinCoord, skinTexels);"));
             assertTrue(!overlay.contains("mingleCornerField"), "the overlay blends corners where it should keep the plain snap");
         }
 
@@ -277,11 +277,11 @@ class MingleNoiseTexelSnapTest {
         void everyNoiseCallInMainTakesTheSnappedSkinTexel() throws IOException {
             String source = shader("goo_ailment_overlay.fsh");
             String main = source.substring(source.indexOf("void main() {"));
-            int snapAt = main.indexOf("vec2 skinTexel = mingleTexelSnap(skinCoord, MINGLE_SKIN_TEXELS);");
+            int snapAt = main.indexOf("vec2 skinTexel = mingleTexelSnap(skinCoord, skinTexels);");
             Matcher call = MINGLE_CALL.matcher(main);
             int calls = 0;
 
-            assertTrue(snapAt >= 0, "the overlay snaps skinCoord at the skin's texel");
+            assertTrue(snapAt >= 0, "the overlay snaps skinCoord at the skin size its layer hands it");
             while (call.find()) {
                 calls++;
                 assertTrue(call.start() > snapAt, "samples before the snap: " + call.group());
@@ -289,6 +289,49 @@ class MingleNoiseTexelSnapTest {
                     "samples the raw coordinate: " + call.group());
             }
             assertTrue(calls > 0, "the overlay holds a noise call");
-            assertTrue(source.contains("shine = shimmerField(skinTexel, GameTime);"), "the shimmer's noise");        }
+            assertTrue(source.contains("shine = shimmerField(skinTexel * cellAspect, GameTime);"), "the shimmer's noise");
+        }
+    }
+
+    /**
+     * The skin-space snap and field read each mob's own skin size
+     * (decision diagnose-and-correct-vines-and-ailment-overlay-assuming-a-square-skin).
+     */
+    @Nested
+    class SkinTexelGrid {
+
+        private static final float WIDE = 64f;
+        private static final float SHORT = 32f;
+
+        private float[] snapOnTheSkin(float texelU, float texelV) {
+            return new float[] {MingleNoiseModel.texelSnap(texelU / WIDE, WIDE) * WIDE,
+                MingleNoiseModel.texelSnap(texelV / SHORT, SHORT) * SHORT};
+        }
+
+        @Test
+        void everyCoordinateInsideASkinTexelSnapsToItsCentre() {
+            for (float[] inside : new float[][] {{21.01f, 9.01f}, {21.5f, 9.5f}, {21.99f, 9.99f}, {21.01f, 9.99f}}) {
+                assertArrayEquals(new float[] {21.5f, 9.5f}, snapOnTheSkin(inside[0], inside[1]), 1e-4f);
+            }
+        }
+
+        @Test
+        void neighbouringSkinTexelsDownSnapApart() {
+            assertEquals(1f, snapOnTheSkin(21.5f, 10.2f)[1] - snapOnTheSkin(21.5f, 9.8f)[1], 1e-4f);
+        }
+
+        @Test
+        void everySkinShaderTakesTheSkinSizeItsLayerHands() throws IOException {
+            String stone = shader("petrify_stone.fsh");
+            String vine = shader("vine_tangle.fsh");
+            String overlay = shader("goo_ailment_overlay.fsh");
+
+            for (String fragment : new String[] {stone, vine, overlay}) {
+                assertTrue(fragment.contains("flat in vec2 skinTexels;"), "a skin shader takes its layer's skin size");
+            }
+            assertTrue(stone.contains("mingleCornerField(skinCoord, skinTexels, PATCH_CELLS,"), "the stone's field");
+            assertTrue(vine.contains("mingleCornerField(skinCoord, skinTexels, PATCH_CELLS,"), "the vines' field");
+            assertTrue(overlay.contains("mingleTexelSnap(skinCoord, skinTexels)"), "the overlay's snap");
+        }
     }
 }
