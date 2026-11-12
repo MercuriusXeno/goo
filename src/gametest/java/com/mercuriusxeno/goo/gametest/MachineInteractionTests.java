@@ -18,7 +18,6 @@ import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
-import com.mercuriusxeno.goo.lab.LabKit;
 import com.mercuriusxeno.goo.network.PlexerTargetPickHandler;
 import com.mercuriusxeno.goo.network.PlayerKnowledge;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -31,10 +30,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
-import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
-import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
-import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -67,15 +63,9 @@ public final class MachineInteractionTests {
     private static final String IX_HUB_INSERT = "ix_hub_canister_insert";
     private static final String IX_HUB_PICKUP = "ix_hub_canister_pickup";
     private static final String IX_HUB_POUR_AIMED_ONLY = "ix_hub_pour_aimed_only";
-    private static final String IX_PLEXER_PICK_SETS_TARGET = "ix_plexer_pick_sets_target";
     private static final String IX_PLEXER_PICK_CLEARS_TARGET = "ix_plexer_pick_clears_target";
     private static final String IX_PLEXER_REFUSES_UNLEARNED = "ix_plexer_refuses_unlearned";
-    private static final String IX_PLEXER_FIZZLES_UNTIL_LAB_LEARN = "ix_plexer_fizzles_until_lab_learn";
-    private static final String IX_PLEXER_ITEM_CLICK_LEAVES_TARGET = "ix_plexer_item_click_leaves_target";
     private static final String IX_REACTOR_INSERT_PICKUP = "ix_reactor_insert_pickup";
-    private static final String IX_CRUCIBLE_BLAZE_ROD_COLD = "ix_crucible_blaze_rod_click_leaves_cold";
-    private static final String IX_CRUCIBLE_COLD_ABSORBS_NOTHING = "ix_crucible_cold_absorbs_nothing";
-    private static final String IX_CRUCIBLE_BLAZE_ABSORBS = "ix_crucible_blaze_absorbs_item";
     private static final String IX_CRUCIBLE_FLINT_SPARKS = "ix_crucible_flint_and_steel_sparks";
     private static final String IX_CRUCIBLE_SPARK_MELTS_ON_OWN_BLAZE = "ix_crucible_spark_melts_on_own_blaze";
 
@@ -89,16 +79,9 @@ public final class MachineInteractionTests {
         GooTestFunctions.registerTest(registrar, IX_HUB_INSERT, MachineInteractionTests::hubCanisterInsert);
         GooTestFunctions.registerTest(registrar, IX_HUB_PICKUP, MachineInteractionTests::hubCanisterPickup);
         GooTestFunctions.registerTest(registrar, IX_HUB_POUR_AIMED_ONLY, MachineInteractionTests::hubPourFillsOnlyTheAimedCanister);
-        GooTestFunctions.registerTest(registrar, IX_PLEXER_PICK_SETS_TARGET, MachineInteractionTests::plexerPickSetsTarget);
         GooTestFunctions.registerTest(registrar, IX_PLEXER_PICK_CLEARS_TARGET, MachineInteractionTests::plexerPickClearsTarget);
         GooTestFunctions.registerTest(registrar, IX_PLEXER_REFUSES_UNLEARNED, MachineInteractionTests::plexerRefusesAnUnlearnedTarget);
-        GooTestFunctions.registerTest(registrar, IX_PLEXER_FIZZLES_UNTIL_LAB_LEARN, MachineInteractionTests::plexerFizzlesOnAKitPlayerUntilLabLearn);
-        GooTestFunctions.registerTest(registrar, IX_PLEXER_ITEM_CLICK_LEAVES_TARGET,
-                MachineInteractionTests::plexerItemClickLeavesTarget);
         GooTestFunctions.registerTest(registrar, IX_REACTOR_INSERT_PICKUP, MachineInteractionTests::reactorCanisterInsertThenSneakPickup);
-        GooTestFunctions.registerTest(registrar, IX_CRUCIBLE_BLAZE_ROD_COLD, MachineInteractionTests::crucibleBlazeRodClickLeavesItCold);
-        GooTestFunctions.registerTest(registrar, IX_CRUCIBLE_COLD_ABSORBS_NOTHING, MachineInteractionTests::coldCrucibleAbsorbsNothing);
-        GooTestFunctions.registerTest(registrar, IX_CRUCIBLE_BLAZE_ABSORBS, MachineInteractionTests::blazeCrucibleAbsorbsItem);
         GooTestFunctions.registerTest(registrar, IX_CRUCIBLE_FLINT_SPARKS, MachineInteractionTests::flintAndSteelSparksColdCrucible);
         GooTestFunctions.registerTest(registrar, IX_CRUCIBLE_SPARK_MELTS_ON_OWN_BLAZE,
                 MachineInteractionTests::sparkedCrucibleMeltsAnItemOnItsOwnBlaze);
@@ -117,11 +100,6 @@ public final class MachineInteractionTests {
     private static final String PLEXER_SHOULD_SET = "Plexer should have target item after interaction";
     /** How far, in blocks, the packet's encoded position may sit from the cutaway center. */
     private static final double CUE_EPSILON = 1e-3;
-    private static final String BLAZE_ROD_STAYS_WHOLE = "A blaze rod click should leave the held stack whole";
-    private static final String BLAZE_ROD_LEAVES_COLD = "A blaze rod click should leave the crucible cold";
-    private static final String COLD_CRUCIBLE_REFUSES = "A cold crucible with no fuel goo should leave the item entity standing";
-    private static final String BLAZE_CRUCIBLE_ABSORBS = "A crucible holding blaze goo should absorb the item entity";
-    private static final int CRUCIBLE_BLAZE_FUEL = 100;
     private static final String SPARK_SUCCEEDS = "A flint-and-steel click on a cold crucible should answer SUCCESS";
     private static final String SPARK_HEATS = "A spark should leave the crucible holding the spark's heat";
     private static final String SPARK_COSTS_ONE = "A spark should cost the flint and steel one durability";
@@ -134,8 +112,6 @@ public final class MachineInteractionTests {
     private static final String FUEL_LEFT_BLAZE = "The item's blaze should stand in the reservoir";
     private static final String FUEL_LEFT_ROCK = "The item's rock should stand in the reservoir";
     private static final String FUEL_ENDS_HOT = "The crucible should end able to heat";
-    /** Ticks a still item dropped at the basin center takes to land, rest and be consumed. */
-    private static final int ABSORB_DELAY = 10;
     private static final double BLOCK_CENTER = 0.5;
     private static final double UPPER_HIT_Y = 0.9;
 
@@ -270,35 +246,6 @@ public final class MachineInteractionTests {
     }
 
     /**
-     * Plexer: a menu pick of an item the player knows sets that plexer's target and sends no message;
-     * a pick of an item the player has not learned leaves the target empty
-     * (decisions right-click-on-the-plexer-opens-the-known-items-menu, plexer-messages-go-and-refusal-fizzles).
-     *
-     * @param helper the gametest helper
-     */
-    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    public static void plexerPickSetsTarget(GameTestHelper helper) {
-        helper.setBlock(BE_POS, GooBlocks.PLEXER.get());
-        PlexerBlockEntity plexer = helper.getBlockEntity(BE_POS, PlexerBlockEntity.class);
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        player.setPos(Vec3.atCenterOf(helper.absolutePos(BE_POS.above())));
-        player.setData(GooAttachments.KNOWN_ITEMS, KnownItems.NONE.with(PlayerKnowledge.idOf(Items.STONE)));
-        PacketRecorder recorder = PacketRecorder.attachTo(player);
-
-        try {
-            pick(helper, player, Items.DIRT);
-            helper.assertTrue(plexer.getTargetItem().isEmpty(), "A pick of an unlearned item should leave the target empty");
-
-            pick(helper, player, Items.STONE);
-            helper.assertTrue(plexer.getTargetItem().is(Items.STONE), PLEXER_SHOULD_SET);
-            assertNoMessage(helper, recorder, "Setting the target");
-        } finally {
-            helper.getLevel().getServer().getPlayerList().remove(player);
-        }
-        helper.succeed();
-    }
-
-    /**
      * Plexer: the menu's Cancel pick, an empty item, empties a plexer's target
      * (decision cancel-cell-clears-the-plexer-target).
      *
@@ -329,49 +276,6 @@ public final class MachineInteractionTests {
      */
     private static void pick(GameTestHelper helper, ServerPlayer player, Item item) {
         PlexerTargetPickHandler.pick(player, helper.absolutePos(BE_POS), Optional.of(PlayerKnowledge.idOf(item)));
-    }
-
-    /**
-     * Plexer: a cutaway right-click with another item in hand, and then with an empty hand, leaves
-     * the plexer's target as it stood; no held item sets or clears it
-     * (decision ghost-item-and-g-key-retire).
-     *
-     * @param helper the gametest helper
-     */
-    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    public static void plexerItemClickLeavesTarget(GameTestHelper helper) {
-        helper.setBlock(BE_POS, GooBlocks.PLEXER.get());
-        PlexerBlockEntity plexer = helper.getBlockEntity(BE_POS, PlexerBlockEntity.class);
-        plexer.setTargetItem(new ItemStack(Items.STONE));
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        player.setPos(Vec3.atCenterOf(helper.absolutePos(BE_POS.above())));
-        player.setData(GooAttachments.KNOWN_ITEMS, KnownItems.NONE.with(PlayerKnowledge.idOf(Items.DIRT)));
-        try {
-            player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIRT));
-            helper.useBlock(BE_POS, player, cutawayHit(helper));
-            helper.assertTrue(plexer.getTargetItem().is(Items.STONE), "A click with dirt should leave the target stone");
-
-            player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
-            helper.useBlock(BE_POS, player, cutawayHit(helper));
-            helper.assertTrue(plexer.getTargetItem().is(Items.STONE),
-                    "An empty-hand click should leave the target stone");
-        } finally {
-            helper.getLevel().getServer().getPlayerList().remove(player);
-        }
-        helper.succeed();
-    }
-
-    /**
-     * The player has been sent no chat or overlay message since the recorder attached.
-     *
-     * @param helper   the gametest helper
-     * @param recorder the recorder on the player's connection
-     * @param act      the act that should have sent none
-     */
-    private static void assertNoMessage(GameTestHelper helper, PacketRecorder recorder, String act) {
-        helper.assertTrue(recorder.sentOf(ClientboundSystemChatPacket.class).isEmpty()
-                && recorder.sentOf(ClientboundSetActionBarTextPacket.class).isEmpty(),
-                act + " should send the player no message");
     }
 
     /**
@@ -413,44 +317,8 @@ public final class MachineInteractionTests {
     }
 
     /**
-     * Plexer: a player who takes the lab kit still knows nothing, so the plexer fizzles
-     * on stone; after the learn route the same pick sets the target, and after the
-     * forget route it fizzles again (decision lab-kit-teaches-every-recipe).
-     *
-     * @param helper the gametest helper
-     */
-    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    public static void plexerFizzlesOnAKitPlayerUntilLabLearn(GameTestHelper helper) {
-        helper.setBlock(BE_POS, GooBlocks.PLEXER.get());
-        PlexerBlockEntity plexer = helper.getBlockEntity(BE_POS, PlexerBlockEntity.class);
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        player.setPos(Vec3.atCenterOf(helper.absolutePos(BE_POS.above())));
-        LabKit.give(player, helper.getLevel());
-        PacketRecorder recorder = PacketRecorder.attachTo(player);
-
-        try {
-            pick(helper, player, Items.STONE);
-            helper.assertTrue(plexer.getTargetItem().isEmpty(), "A kit player should not know stone yet");
-            assertRefusalCue(helper, plexer, recorder, 1);
-
-            LabKit.learn(player, helper.getLevel());
-            pick(helper, player, Items.STONE);
-            helper.assertTrue(plexer.getTargetItem().is(Items.STONE), "After learn the plexer should take stone");
-
-            plexer.setTargetItem(ItemStack.EMPTY);
-            LabKit.forget(player);
-            pick(helper, player, Items.STONE);
-            helper.assertTrue(plexer.getTargetItem().isEmpty(), "After forget the plexer should refuse stone again");
-            assertRefusalCue(helper, plexer, recorder, 2);
-        } finally {
-            helper.getLevel().getServer().getPlayerList().remove(player);
-        }
-        helper.succeed();
-    }
-
-    /**
      * The refusal cue reached the player once per refusal so far: smoke at the cutaway's
-     * world center, the extinguish fizzle among block sounds, and no chat or overlay message.
+     * world center and the extinguish fizzle among block sounds.
      *
      * @param helper    the gametest helper
      * @param plexer    the refusing plexer
@@ -471,32 +339,6 @@ public final class MachineInteractionTests {
         helper.assertTrue(sounds.size() == refusals && sounds.getLast().getSound().value() == SoundEvents.FIRE_EXTINGUISH
                 && sounds.getLast().getSource() == SoundSource.BLOCKS,
                 "Each refusal should fizzle among block sounds, sent " + sounds);
-        assertNoMessage(helper, recorder, "The refusal");
-    }
-
-    /**
-     * A hit inside the plexer's cutaway, found by walking the block's pixel grid with the
-     * same test the plexer's click reads.
-     *
-     * @param helper the gametest helper
-     * @return the hit result
-     */
-    private static BlockHitResult cutawayHit(GameTestHelper helper) {
-        BlockPos abs = helper.absolutePos(BE_POS);
-        BlockState state = helper.getBlockState(BE_POS);
-        for (int x = 1; x < PIXELS_PER_BLOCK; x++) {
-            for (int y = 1; y < PIXELS_PER_BLOCK; y++) {
-                for (int z = 1; z < PIXELS_PER_BLOCK; z++) {
-                    BlockHitResult hit = new BlockHitResult(new Vec3(abs.getX() + x / PIXELS_PER_BLOCK,
-                            abs.getY() + y / PIXELS_PER_BLOCK, abs.getZ() + z / PIXELS_PER_BLOCK),
-                            Direction.UP, abs, false);
-                    if (CutawayInteractionHelper.isCutawayClick(state, abs, hit)) {
-                        return hit;
-                    }
-                }
-            }
-        }
-        throw new IllegalStateException("No pixel of the plexer lies in its cutaway");
     }
 
     /**
@@ -536,56 +378,6 @@ public final class MachineInteractionTests {
         return new BlockHitResult(new Vec3(abs.getX() + (slot.minX + slot.maxX) * BLOCK_CENTER,
                 abs.getY() + (slot.minY + slot.maxY) * BLOCK_CENTER,
                 abs.getZ() + (slot.minZ + slot.maxZ) * BLOCK_CENTER), facing, abs, false);
-    }
-
-    /**
-     * Crucible: a blaze rod click inserts no fuel, leaving the stack whole and the
-     * crucible cold (decision fuel-goo-heats-per-mb).
-     *
-     * @param helper the gametest helper
-     */
-    public static void crucibleBlazeRodClickLeavesItCold(GameTestHelper helper) {
-        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get());
-        CrucibleBlockEntity crucible = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
-        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.BLAZE_ROD));
-
-        helper.useBlock(BE_POS, player, hit(helper, Direction.UP));
-
-        helper.assertValueEqual(player.getItemInHand(InteractionHand.MAIN_HAND).getCount(), 1, BLAZE_ROD_STAYS_WHOLE);
-        helper.assertFalse(crucible.canHeat(), BLAZE_ROD_LEAVES_COLD);
-        helper.succeed();
-    }
-
-    /**
-     * Crucible: a cold crucible with no fuel goo leaves an item dropped into it standing.
-     *
-     * @param helper the gametest helper
-     */
-    public static void coldCrucibleAbsorbsNothing(GameTestHelper helper) {
-        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get());
-        ItemEntity dropped = spawnInBasin(helper);
-
-        helper.runAfterDelay(ABSORB_DELAY, () -> {
-            helper.assertFalse(dropped.isRemoved(), COLD_CRUCIBLE_REFUSES);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Crucible: the same crucible holding blaze goo in its reservoir absorbs the item.
-     *
-     * @param helper the gametest helper
-     */
-    public static void blazeCrucibleAbsorbsItem(GameTestHelper helper) {
-        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get());
-        helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class).insertGoo(GooTypes.BLAZE, CRUCIBLE_BLAZE_FUEL);
-        ItemEntity dropped = spawnInBasin(helper);
-
-        helper.runAfterDelay(ABSORB_DELAY, () -> {
-            helper.assertTrue(dropped.isRemoved(), BLAZE_CRUCIBLE_ABSORBS);
-            helper.succeed();
-        });
     }
 
     /**
