@@ -54,6 +54,10 @@ public final class HexWispParticle extends SingleQuadParticle {
     private static final int GREEN = 1;
     private static final int BLUE = 2;
     private static final double BOTH_WAYS = 2;
+    /** How high a streamed wisp's arc lifts, in blocks, alike for every wisp so the stream holds together. */
+    private static final double STREAM_LIFT = 0.35;
+    /** How far a streamed wisp sways across its arc, in blocks: a shimmer, never a scatter. */
+    private static final double STREAM_SWAY = 0.03;
     /** Below this squared length a heading has no direction to sway across. */
     private static final double NO_HEADING = 1e-6;
 
@@ -68,6 +72,7 @@ public final class HexWispParticle extends SingleQuadParticle {
     private @Nullable HomingPath path;
     private int flightAge;
     private boolean fadesWhereItScatters;
+    private boolean streamed;
 
     private HexWispParticle(ClientLevel level, double x, double y, double z, SpriteSet sprites) {
         super(level, x, y, z, sprites.get(0, 1));
@@ -109,6 +114,21 @@ public final class HexWispParticle extends SingleQuadParticle {
         this.yd = scatter.y;
         this.zd = scatter.z;
         this.lifetime = delay + scatterFor + this.flightTicks;
+    }
+
+    /**
+     * Streams the wisp: after its delay it flies straight off on the arc
+     * every streamed wisp shares, with no scatter or dart, pulled in faster
+     * as it nears the target, so wisps sent together run as one stream.
+     * drain-casts-a-filled-tornadic-miasma-vortex-along-the-look
+     *
+     * @param delay     ticks it waits unseen before it shows
+     * @param flightFor ticks its flight takes
+     * @param home      where it lands, read every tick
+     */
+    public void stream(int delay, int flightFor, Supplier<Vec3> home) {
+        launch(delay, Vec3.ZERO, 0, flightFor, home);
+        this.streamed = true;
     }
 
     /**
@@ -164,14 +184,19 @@ public final class HexWispParticle extends SingleQuadParticle {
         Vec3 here = new Vec3(this.x, this.y, this.z);
         Vec3 home = target.get();
         if (path == null) {
-            path = new HomingPath(here, bendPoint(here, home));
+            Vec3 bend = streamed ? here.add(home).scale(HALF).add(0, STREAM_LIFT, 0) : bendPoint(here, home);
+            path = new HomingPath(here, bend);
         }
         flightAge++;
         double progress = Math.min(1.0, (double) flightAge / flightTicks);
-        Vec3 along = path.at(home, progress);
+        Vec3 along = path.at(home, streamed ? pulledIn(progress) : progress);
         Vec3 across = acrossOf(home.subtract(path.start()));
-        double sway = Math.sin(progress * Math.PI * sways + swayPhase) * swayReach * (1 - progress);
-        Vec3 at = along.add(across.scale(sway)).add(dart(), dart(), dart());
+        double sway = Math.sin(progress * Math.PI * sways + swayPhase) * (streamed ? STREAM_SWAY : swayReach)
+                * (1 - progress);
+        Vec3 at = along.add(across.scale(sway));
+        if (!streamed) {
+            at = at.add(dart(), dart(), dart());
+        }
         this.setPos(at.x, at.y, at.z);
     }
 
@@ -187,6 +212,18 @@ public final class HexWispParticle extends SingleQuadParticle {
         Vec3 mid = from.add(to).scale(HALF);
         Vec3 side = acrossOf(to.subtract(from)).scale((random.nextDouble() * BOTH_WAYS - 1) * BEND_REACH);
         return mid.add(side).add(0, random.nextDouble() * BEND_LIFT, 0);
+    }
+
+    /**
+     * How far along its flight a streamed wisp stands: slow as it leaves the
+     * drained mob, speeding up as the player pulls it in.
+     * drain-casts-a-filled-tornadic-miasma-vortex-along-the-look
+     *
+     * @param progress the share of the flight's ticks gone, zero to one
+     * @return the share of the way flown, zero to one
+     */
+    static double pulledIn(double progress) {
+        return progress * progress;
     }
 
     private static Vec3 acrossOf(Vec3 heading) {
