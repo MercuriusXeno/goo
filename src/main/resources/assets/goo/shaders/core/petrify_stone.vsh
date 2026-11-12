@@ -8,7 +8,8 @@
 // the vanilla entity vertex transform with no lift, so the stone lies flush on
 // every face of the model and its layers, drawn at the model's own depth the way
 // the enchantment glint is, with no floating and no gap at a cube's edges.
-// EncasementLayer hands the share turned to stone, or frozen, in Color's alpha.
+// EncasementLayer hands the share turned to stone, or frozen, in Color's alpha,
+// and the mob's skin size in the overlay coordinates.
 
 in vec3 Position;
 in vec4 Color;
@@ -25,6 +26,9 @@ out vec4 stoneColor;
 out vec4 lightMapColor;
 out vec2 skinCoord;
 out vec3 skinNormal;
+// The skin's texels across and down: ModelSkinSize packs them in the overlay coordinates, the width in UV1.x
+// and the height in UV1.y (decision diagnose-and-correct-petrify-stone-stretching-off-native-texels).
+flat out vec2 skinTexels;
 
 void main() {
     gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);
@@ -35,4 +39,5 @@ void main() {
     stoneColor = Color;
     skinCoord = UV0;
     skinNormal = Normal;
+    skinTexels = vec2(UV1);
 }
