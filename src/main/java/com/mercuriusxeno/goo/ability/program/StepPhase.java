@@ -9,7 +9,7 @@ import java.util.stream.Stream;
 /**
  * One phase of a {@link PhasedStep}: a name the host's renderer reads, a
  * duration, the steps run once on entering it, the steps run on each of
- * its ticks and the steps run once on leaving it. The nether black hole's
+ * its ticks and the steps run once on leaving it. The black hole's
  * expand phase blinds and darkens on entering, pulls on each tick and
  * consumes the valued blocks in its sphere on leaving.
  *

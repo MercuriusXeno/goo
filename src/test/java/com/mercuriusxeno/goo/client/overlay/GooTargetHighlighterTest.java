@@ -177,7 +177,7 @@ class GooTargetHighlighterTest {
 
         @Test
         void theBlackHoleDrawsNoArc() {
-            assertFalse(drawsAimLine("nether_black_hole"));
+            assertFalse(drawsAimLine("void_black_hole"));
         }
 
         @Test
