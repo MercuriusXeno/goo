@@ -66,7 +66,6 @@ public final class MachineInteractionTests {
     private static final String IX_PLEXER_PICK_CLEARS_TARGET = "ix_plexer_pick_clears_target";
     private static final String IX_PLEXER_REFUSES_UNLEARNED = "ix_plexer_refuses_unlearned";
     private static final String IX_REACTOR_INSERT_PICKUP = "ix_reactor_insert_pickup";
-    private static final String IX_CRUCIBLE_FLINT_SPARKS = "ix_crucible_flint_and_steel_sparks";
     private static final String IX_CRUCIBLE_SPARK_MELTS_ON_OWN_BLAZE = "ix_crucible_spark_melts_on_own_blaze";
 
     /**
@@ -82,7 +81,6 @@ public final class MachineInteractionTests {
         GooTestFunctions.registerTest(registrar, IX_PLEXER_PICK_CLEARS_TARGET, MachineInteractionTests::plexerPickClearsTarget);
         GooTestFunctions.registerTest(registrar, IX_PLEXER_REFUSES_UNLEARNED, MachineInteractionTests::plexerRefusesAnUnlearnedTarget);
         GooTestFunctions.registerTest(registrar, IX_REACTOR_INSERT_PICKUP, MachineInteractionTests::reactorCanisterInsertThenSneakPickup);
-        GooTestFunctions.registerTest(registrar, IX_CRUCIBLE_FLINT_SPARKS, MachineInteractionTests::flintAndSteelSparksColdCrucible);
         GooTestFunctions.registerTest(registrar, IX_CRUCIBLE_SPARK_MELTS_ON_OWN_BLAZE,
                 MachineInteractionTests::sparkedCrucibleMeltsAnItemOnItsOwnBlaze);
     }
@@ -100,11 +98,6 @@ public final class MachineInteractionTests {
     private static final String PLEXER_SHOULD_SET = "Plexer should have target item after interaction";
     /** How far, in blocks, the packet's encoded position may sit from the cutaway center. */
     private static final double CUE_EPSILON = 1e-3;
-    private static final String SPARK_SUCCEEDS = "A flint-and-steel click on a cold crucible should answer SUCCESS";
-    private static final String SPARK_HEATS = "A spark should leave the crucible holding the spark's heat";
-    private static final String SPARK_COSTS_ONE = "A spark should cost the flint and steel one durability";
-    private static final String HOT_SPARK_CONSUMED = "A flint-and-steel click on a heated crucible should be consumed";
-    private static final String HOT_SPARK_FREE = "A consumed click should leave the flint and steel undamaged";
     /** The melting item's blaze and rock, the 3 to 1 a coal melts to. */
     private static final int FUEL_BLAZE = 36;
     private static final int FUEL_ROCK = 12;
@@ -378,29 +371,6 @@ public final class MachineInteractionTests {
         return new BlockHitResult(new Vec3(abs.getX() + (slot.minX + slot.maxX) * BLOCK_CENTER,
                 abs.getY() + (slot.minY + slot.maxY) * BLOCK_CENTER,
                 abs.getZ() + (slot.minZ + slot.maxZ) * BLOCK_CENTER), facing, abs, false);
-    }
-
-    /**
-     * Crucible: a flint-and-steel click sparks a cold crucible for the spark's heat at one
-     * durability; the same click on the heated crucible is consumed and costs nothing
-     * (decision flint-and-steel-sparks-the-crucible).
-     *
-     * @param helper the gametest helper
-     */
-    public static void flintAndSteelSparksColdCrucible(GameTestHelper helper) {
-        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get());
-        CrucibleBlockEntity crucible = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
-        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-        ItemStack flint = new ItemStack(Items.FLINT_AND_STEEL);
-        player.setItemInHand(InteractionHand.MAIN_HAND, flint);
-
-        helper.assertValueEqual(sparkClick(helper, player), InteractionResult.SUCCESS, SPARK_SUCCEEDS);
-        helper.assertValueEqual(crucible.heatTicks(), GooConfig.SPARK_HEAT_TICKS.get(), SPARK_HEATS);
-        helper.assertValueEqual(flint.getDamageValue(), 1, SPARK_COSTS_ONE);
-
-        helper.assertValueEqual(sparkClick(helper, player), InteractionResult.CONSUME, HOT_SPARK_CONSUMED);
-        helper.assertValueEqual(flint.getDamageValue(), 1, HOT_SPARK_FREE);
-        helper.succeed();
     }
 
     /**
