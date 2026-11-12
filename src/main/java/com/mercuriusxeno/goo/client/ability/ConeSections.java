@@ -6,10 +6,10 @@ import net.minecraft.world.phys.Vec3;
 import java.util.function.DoubleUnaryOperator;
 
 /**
- * The volume a held ability's shader fills, as stacked cross-sections
- * square to its axis or as the tube walls around it: Growth's breeze in its
- * cone and Bore's drill bit from the glove
- * (decision bore-shows-a-big-drill-from-the-glove). Each vertex's color carries how far
+ * Stacked cross-sections square to a look, the volume a held ability's
+ * shader fills: Growth's breeze in its cone (decision
+ * growth-breeze-ticks-plants), and the shape Bore's drill is marched from.
+ * Each vertex's color carries how far
  * along the look its section stands in red and where on the section it sits
  * in green and blue, since a core pipeline takes no per-draw uniforms.
  */
@@ -28,7 +28,7 @@ final class ConeSections {
      * The volume the sections fill.
      *
      * @param apex     where the volume starts, camera relative
-     * @param axis     the volume's unit vector
+     * @param axis     the look's unit vector
      * @param yaw      the look's yaw in degrees, which turns the sections' frame
      * @param near     where the first section stands past the apex
      * @param range    how far the volume reaches past the apex
@@ -95,98 +95,15 @@ final class ConeSections {
      * The unit direction across a section to its side: level, square to the
      * way the look's yaw faces, so it holds steady however the look pitches,
      * straight up and straight down among them, where the look's own cross
-     * with up vanishes. An axis leaning off the yaw's upright plane, as
-     * Bore's does from the glove to the eye line, takes the level side with
-     * its lean along the axis taken out, so the side stays square to it.
+     * with up vanishes.
      *
-     * @param axis the volume's unit vector
+     * @param axis the look's unit vector, which lies in the yaw's upright plane
      * @param yaw  the look's yaw in degrees
      * @return the side direction
      */
     static Vec3 sectionSide(Vec3 axis, float yaw) {
         Vec3 facing = Vec3.directionFromRotation(0f, yaw);
-        Vec3 level = new Vec3(-facing.z, 0, facing.x).normalize();
-        return level.subtract(axis.scale(level.dot(axis))).normalize();
-    }
-
-    /**
-     * Emits the walls of a volume as a tube: rings at the near end, the
-     * reach and evenly between, each ring joined to the next by quads around
-     * the axis. A rim vertex's color carries its place around the ring, so
-     * the shader reads a wall fragment's angle about the axis.
-     * decision diagnose-and-correct-bores-small-distant-vortex
-     *
-     * @param quads  the quad emitter
-     * @param volume the volume
-     */
-    static void emitWalls(FlatQuadContext quads, Volume volume) {
-        Vec3 side = sectionSide(volume.axis(), volume.yaw());
-        Vec3 up = side.cross(volume.axis());
-        for (int ring = 0; ring < volume.sections(); ring++) {
-            Ring nearer = ring(volume, ring, side, up);
-            Ring farther = ring(volume, ring + 1, side, up);
-            double span = farther.frame().center().distanceTo(nearer.frame().center());
-            double slope = span == 0 ? 0 : (nearer.radius() - farther.radius()) / span;
-            for (int segment = 0; segment < SEGMENTS; segment++) {
-                double a0 = TWO_PI * segment / SEGMENTS;
-                double a1 = TWO_PI * (segment + 1) / SEGMENTS;
-                wall(quads, nearer, a0, slope);
-                wall(quads, farther, a0, slope);
-                wall(quads, farther, a1, slope);
-                wall(quads, nearer, a1, slope);
-            }
-        }
-    }
-
-    /**
-     * How far past the apex a wall's ring stands: the rings spread evenly
-     * from the near end to the reach, both ends among them.
-     *
-     * @param ring     the ring's index, 0 to sections
-     * @param near     where the first ring stands
-     * @param range    the reach
-     * @param sections how many spans of wall stack along it
-     * @return the ring's distance in blocks
-     */
-    static double ringDistance(int ring, double near, double range, int sections) {
-        return near + (range - near) * ring / sections;
-    }
-
-    /**
-     * Emits a wall vertex: on its ring, its normal square to the wall,
-     * leaning toward the axis's far end as much as the wall narrows that
-     * way, so the shader can light the wall as a surface.
-     *
-     * @param quads the quad emitter
-     * @param ring  the ring
-     * @param angle the vertex's angle about the axis
-     * @param slope how much the wall narrows per block along the axis
-     */
-    private static void wall(FlatQuadContext quads, Ring ring, double angle, double slope) {
-        Frame frame = ring.frame();
-        Vec3 outward = frame.side().scale(Math.cos(angle)).add(frame.up().scale(Math.sin(angle)));
-        Vec3 at = frame.center().add(outward.scale(ring.radius()));
-        Vec3 normal = outward.add(frame.axis().scale(slope)).normalize();
-        int color = sectionColor(ring.along(), (float) Math.cos(angle), (float) Math.sin(angle));
-        quads.vertex((float) at.x, (float) at.y, (float) at.z, color, (float) normal.x, (float) normal.y,
-                (float) normal.z);
-    }
-
-    private static Ring ring(Volume volume, int ring, Vec3 side, Vec3 up) {
-        double distance = ringDistance(ring, volume.near(), volume.range(), volume.sections());
-        Vec3 center = volume.apex().add(volume.axis().scale(distance));
-        return new Ring(new Frame(center, side, up, volume.axis()), volume.radiusAt().applyAsDouble(distance),
-                (float) (distance / volume.range()));
-    }
-
-    /**
-     * One ring of a tube's wall.
-     *
-     * @param frame  the ring's frame
-     * @param radius the ring's radius
-     * @param along  how far along the volume the ring stands, 0 to 1
-     */
-    private record Ring(Frame frame, double radius, float along) {
+        return new Vec3(-facing.z, 0, facing.x).normalize();
     }
 
     /**

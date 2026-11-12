@@ -2,15 +2,12 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.BoreStep;
-import com.mercuriusxeno.goo.client.FlatQuadContext;
-import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -22,16 +19,17 @@ import org.jspecify.annotations.Nullable;
  * Bore's drill: while right click holds a bore stream, a big drill emerges
  * from the glove, a solid cone bit widest at the glove and pointed at the
  * tip, out to the bore's reach on the eye line, sinking into the blocks it
- * drills, which hide the buried length. {@code bore_drill.fsh} spins spiral
- * grooves about it in rock's two tones, as the Bore icon draws them.
+ * drills, which hide the buried length. {@link BoreDrillPass} marches it as
+ * a solid with spiral grooves cut into it, in rock's two tones as the Bore
+ * icon draws them, spinning while Bore runs.
  * decision bore-shows-a-big-drill-from-the-glove
  * decision bore-vortex-with-a-worldspace-shake
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class BoreDrill {
 
-    /** Rings the bit's surface runs between, from the glove to the tip. */
-    static final int RINGS = 24;
+    /** The volume's section count, unread by the march, which needs none. */
+    private static final int RINGS = 1;
     /** The bit's radius at the glove, in blocks. */
     static final double BASE_RADIUS = 0.3;
     /** How many ticks the bit takes to emerge from the glove to its full length. */
@@ -101,11 +99,8 @@ public final class BoreDrill {
         ConeSections.Volume full = volume(player.getEyePosition(partialTick).subtract(camera),
                 GloveAim.handPosition(mc.gameRenderer.getMainCamera()).subtract(camera),
                 player.getViewVector(partialTick), player.getViewYRot(partialTick), bore.delivery().range());
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        FlatQuadContext quads = new FlatQuadContext(event.getPoseStack().last(),
-                buffers.getBuffer(GooRenderTypes.BORE_DRILL_TYPE));
-        ConeSections.emitWalls(quads, emerged(full, emergedShare(GloveUseTracker.channelTicks() + partialTick)));
-        buffers.endBatch(GooRenderTypes.BORE_DRILL_TYPE);
+        BoreDrillPass.draw(emerged(full, emergedShare(GloveUseTracker.channelTicks() + partialTick)),
+                event.getModelViewMatrix());
     }
 
     /**
