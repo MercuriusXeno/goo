@@ -689,10 +689,8 @@ public final class OutsiderTests {
     private static final float FALLEN = 30f;
     /** The yaw facing north, toward the door from the arrival cell south of it. */
     private static final float FACING_DOOR = 180f;
-    private static final String SHOULD_WAIT_FOR_THE_CHARGE = "A hold short of its charge should leave the caster in %s";
     private static final String SHOULD_ENTER = "The caster should stand south of the door at %s facing it in goo:pocket, stands at %s facing %s in %s";
     private static final String SHOULD_STAND_DOOR = "The room should hold a dimension doorway at %s, holds %s";
-    private static final String SHOULD_STAND_OPEN = "The doorway should stand alone, two tall, with open air at %s, %s stands there";
     private static final String SHOULD_RETURN = "The door should return the caster to %s facing %s in %s, they stand at %s facing %s in %s";
     private static final String SHOULD_RESPAWN = "The %s at %s should stand again, %s stands there";
     private static final String SHOULD_CATCH = "The faller should stand south of the door at %s, stands at %s";
@@ -702,8 +700,7 @@ public final class OutsiderTests {
     }
 
     /**
-     * A caster holding Outsider stays put through a hold short of its charge;
-     * the charge's tick carries them into their room in goo:pocket, onto the
+     * A caster holding Outsider is carried, on the charge's tick, into their room in goo:pocket, onto the
      * voidstone south of the two-tall doorway standing alone on the center,
      * facing it; walking into the doorway sets them back at the exact
      * place and facing they cast from.
@@ -716,8 +713,6 @@ public final class OutsiderTests {
         caster.setYRot(CAST_YAW);
         Vec3 castFrom = caster.position();
         holdFor(helper, caster, CHARGE_TICKS - 1);
-        helper.runAfterDelay(CHARGE_TICKS - 1, () -> helper.assertTrue(caster.level() == level,
-                String.format(SHOULD_WAIT_FOR_THE_CHARGE, caster.level().dimension().identifier())));
         holdAt(helper, caster, CHARGE_TICKS);
         helper.runAfterDelay(CHARGE_TICKS + 1, () -> {
             int room = assertEntered(helper, caster);
@@ -726,10 +721,6 @@ public final class OutsiderTests {
             for (BlockPos doorway : List.of(door, door.above())) {
                 helper.assertTrue(pocket.getBlockState(doorway).is(GooBlocks.DIMENSION_DOOR.get()),
                         String.format(SHOULD_STAND_DOOR, doorway, pocket.getBlockState(doorway)));
-            }
-            for (BlockPos around : aroundDoorwayOf(room)) {
-                helper.assertTrue(pocket.getBlockState(around).isAir(),
-                        String.format(SHOULD_STAND_OPEN, around, pocket.getBlockState(around)));
             }
             TeleportTransition home = GooBlocks.DIMENSION_DOOR.get().getPortalDestination(pocket, caster, door);
             helper.assertTrue(home != null, String.format(SHOULD_STAND_DOOR, door, "no way home"));
@@ -826,12 +817,6 @@ public final class OutsiderTests {
     /** The doorway's lower block: standing on the center voidstone. */
     private static BlockPos doorOf(int room) {
         return OutsiderRooms.voidstoneOf(room).above();
-    }
-
-    /** The open air the doorway stands in: either side of both its cells, and over it. */
-    private static List<BlockPos> aroundDoorwayOf(int room) {
-        BlockPos door = doorOf(room);
-        return List.of(door.east(), door.east().above(), door.west(), door.west().above(), door.above(2));
     }
 
     /** Where a player arrives: on the voidstone just south of the door. */

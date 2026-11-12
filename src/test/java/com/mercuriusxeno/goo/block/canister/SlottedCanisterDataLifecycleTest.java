@@ -27,9 +27,14 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 import org.mockito.MockedStatic;
+import com.mercuriusxeno.goo.item.StampedGoo;
+import com.mercuriusxeno.goo.type.GooTypes;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -58,6 +63,9 @@ class SlottedCanisterDataLifecycleTest {
     /** The canister block's grid; the grid reads its slot count only through its range check. */
     private static final int SLOTS = CanisterBlockEntity.MAX_SLOTS;
     private static final int INDEX = CanisterBlock.CENTER_SLOT;
+    private static final int ROUTING_CAPACITY = 1000;
+    private static final int HELD_BLAZE = 100;
+    private static final int ROUTED_BLAZE = 500;
 
     private GooMachineBlockEntity owner;
     private ServerLevel level;
@@ -284,6 +292,27 @@ class SlottedCanisterDataLifecycleTest {
             InOrder order = inOrder(slot, level);
             order.verify(slot).buildHandler(any());
             order.verify(level).invalidateCapabilities(POS);
+        }
+    }
+
+    /**
+     * Routed fluid fills a slot already holding it before an empty slot, so one type gathers in one canister.
+     */
+    @Test
+    void routedFluidFillsTheSlotHoldingItBeforeAnEmptySlot() {
+        try (StampedGoo goo = new StampedGoo()) {
+            FluidResource blaze = goo.resource(GooTypes.BLAZE);
+            SlottedCanisterData data = data(SLOTS, true);
+            CanisterSlotFluidHandler empty = new CanisterSlotFluidHandler(ROUTING_CAPACITY, () -> { });
+            CanisterSlotFluidHandler holding = new CanisterSlotFluidHandler(ROUTING_CAPACITY, () -> { });
+            holding.insertFluid(blaze, HELD_BLAZE, false);
+            when(mockSlot(data, 0, false).handler()).thenReturn(empty);
+            when(mockSlot(data, INDEX, false).handler()).thenReturn(holding);
+
+            data.routeFluid(blaze, ROUTED_BLAZE);
+
+            assertEquals(List.of(0, HELD_BLAZE + ROUTED_BLAZE), List.of(empty.toFluidContent().volumeOf(blaze),
+                    holding.toFluidContent().volumeOf(blaze)));
         }
     }
 }

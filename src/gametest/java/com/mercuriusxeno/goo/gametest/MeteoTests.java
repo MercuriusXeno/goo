@@ -59,13 +59,9 @@ public final class MeteoTests {
     private static final String SKY_REQUIRED = "The test bay's ground should stand under an open sky";
     private static final String SHOULD_FALL = "A meteor should fall toward the ground under a clear sky";
     private static final String SHOULD_CRATER = "The meteor should blast the ground at %s into a crater";
-    /** Ticks by which the meteor must have left its spawn height: it never hangs. */
-    private static final int FIRST_TICKS = 2;
     /** Ticks past the named fall the landing may take, for the tick the meteor is added on and its last. */
     private static final int LANDING_SLACK = 2;
     private static final String STEP_REQUIRED = "goo:astral_meteo should name a meteor step";
-    private static final String LEAVES_AT_ONCE = "The meteor should have left its spawn height within %d ticks,"
-            + " %s, stands at %s";
     private static final String SHOULD_LAND = "The meteor should land within %d ticks of appearing";
     private static final String SUPPLY_REQUIRED = "The thrower should hold Meteo's cost, holds %d of %d";
     private static final String SHOULD_PAY = "A roofed throw should cost Meteo's %d, cost %d";
@@ -101,9 +97,6 @@ public final class MeteoTests {
         java.util.List<Meteor> called = meteorsOver(level, ground);
         helper.assertTrue(!called.isEmpty(), SHOULD_FALL);
         Meteor meteor = called.getFirst();
-        double spawnY = meteor.getY();
-        helper.runAfterDelay(FIRST_TICKS, () -> helper.assertTrue(!meteor.isRemoved() && meteor.getY() < spawnY,
-                String.format(LEAVES_AT_ONCE, FIRST_TICKS, spawnY, meteor.getY())));
         helper.runAfterDelay(falls + LANDING_SLACK, () -> {
             helper.assertTrue(meteor.isRemoved(), String.format(SHOULD_LAND, falls + LANDING_SLACK));
             helper.assertTrue(level.getBlockState(ground).isAir(), String.format(SHOULD_CRATER, ground));

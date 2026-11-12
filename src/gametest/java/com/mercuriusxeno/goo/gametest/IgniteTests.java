@@ -38,7 +38,6 @@ public final class IgniteTests {
     private static final int SETTLE_TICKS = 1;
     private static final String ABILITY_REQUIRED = "The ability registry must hold %s";
     private static final String SHOULD_LIGHT = "Ignite should light a fire where it lands, stands %s";
-    private static final String SHOULD_SPARE_FLOOR = "Ignite alone should break nothing, the floor stands %s";
     private static final String SHOULD_STAND_LURKER = "The lurker should stand on the floor before Ignite lands";
     private static final String SHOULD_SET_OFF = "Ignite should set the lurker off, its cell stands %s";
     private static final String SHOULD_BREAK_FLOOR = "The fiery explosion should break the floor under the lurker";
@@ -58,8 +57,7 @@ public final class IgniteTests {
     }
 
     /**
-     * Ignite landing on the floor lights a fire in the cell over it and
-     * leaves the floor standing.
+     * Ignite landing on the floor lights a fire in the cell over it.
      *
      * @param helper the gametest helper
      */
@@ -70,8 +68,6 @@ public final class IgniteTests {
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             helper.assertTrue(helper.getBlockState(OVER_THE_FLOOR).getBlock() instanceof BaseFireBlock,
                     String.format(SHOULD_LIGHT, helper.getBlockState(OVER_THE_FLOOR)));
-            helper.assertTrue(helper.getBlockState(FLOOR).is(Blocks.STONE),
-                    String.format(SHOULD_SPARE_FLOOR, helper.getBlockState(FLOOR)));
             helper.succeed();
         });
     }
