@@ -20,7 +20,7 @@ import java.util.Optional;
  * glove along its own heading inside the cone, or onto the end of a coat ray
  * for a stream whose spray follows its coat, carrying the caster's travel;
  * a goo mote swings with its caster's glove over its opening ticks, and a
- * spray drip leaves the glove as it is drawn
+ * spray drip appears at a source held in its caster's view near the glove
  * (decisions glove-stream-motes-carry-the-players-travel-velocity,
  * glove-stream-motes-swing-with-the-glove-at-launch, goop-and-slick-spray-follows-the-coat,
  * goop-and-slick-spray-emanates-from-the-glove).
@@ -59,8 +59,9 @@ public final class StreamMotes {
             Particle mote = mc.particleEngine.createParticle(particle, apex.x, apex.y, apex.z, launch.x, launch.y,
                     launch.z);
             if (mote instanceof SprayDripParticle drip && coatEnd.isPresent()) {
-                // goop-and-slick-spray-emanates-from-the-glove: the drip leaves the glove as drawn, not the echo
-                drip.leaveFrom(() -> CasterPoses.gloveOf(payload.casterId(), apex), coatEnd.get(), payload.travel());
+                // goop-and-slick-spray-emanates-from-the-glove: the drip appears at the source held in the view
+                drip.leaveFrom(partialTick -> SpraySource.of(payload.casterId(), apex, partialTick), coatEnd.get(),
+                        payload.travel());
             } else if (mote instanceof GloveMote gloveMote) {
                 gloveMote.swingWith(new GloveSwing.Tracker(payload.casterId(), CasterPoses::poseOf));
             }

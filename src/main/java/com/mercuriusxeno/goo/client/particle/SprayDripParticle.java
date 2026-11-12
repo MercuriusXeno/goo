@@ -19,20 +19,20 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
 import org.jspecify.annotations.Nullable;
-import java.util.function.Supplier;
 
 /**
  * A Goop or Slick spray drip: the mod's blocky goo drip, the trail-drip's
- * sprite in the ability's colors, thrown from the glove onto the end of its
- * coat ray, where it splats as the trail-drip does and is gone.
+ * sprite in the ability's colors, thrown from the spray's source near and
+ * above the glove onto the end of its coat ray, where it splats as the
+ * trail-drip does and is gone.
  * <p>
  * The client draws a frame after running its ticks, and the particle engine
  * takes a new particle in only after ticking the ones already flying, so a
  * drip is drawn a tick or more after the stream's tick launched it, before
- * its own first tick. Until that tick it is drawn on the glove as the glove
- * is drawn that frame, and its first tick throws it from the glove where it
- * stands then, so the spray leaves the hand of a caster standing, walking,
- * strafing or turning.
+ * its own first tick. Until that tick it is drawn on the spray's source as
+ * the source stands that frame, and its first tick throws it from the source
+ * where it stands then, so the spray appears at its source for a caster
+ * standing, walking, strafing or turning.
  * goop-and-slick-spray-throws-goo-drips-that-splat
  * goop-and-slick-spray-emanates-from-the-glove
  */
@@ -40,18 +40,31 @@ public final class SprayDripParticle extends SingleQuadParticle {
 
     private final GooRenderUtil.UvRect uv;
     private final int rgb;
-    private Supplier<Vec3> glove;
+    private Source source;
     private Vec3 end;
     private Vec3 travel = Vec3.ZERO;
     private boolean thrown;
     private SprayDrip drip;
     private int flown;
 
+    /**
+     * Where a drip's spray source stands at a frame's partial tick.
+     */
+    @FunctionalInterface
+    public interface Source {
+
+        /**
+         * @param partialTick the frame's partial tick
+         * @return where the source stands
+         */
+        Vec3 at(float partialTick);
+    }
+
     private SprayDripParticle(ClientLevel level, Vec3 apex, Vec3 end, TextureAtlasSprite sprite, SprayDrip drip) {
         super(level, apex.x, apex.y, apex.z, sprite);
         this.uv = GooSubmitter.spriteUv(sprite);
         this.rgb = drip.rgb();
-        this.glove = () -> apex;
+        this.source = partialTick -> apex;
         this.end = end;
         this.drip = drip;
         this.gravity = 0f;
@@ -62,26 +75,26 @@ public final class SprayDripParticle extends SingleQuadParticle {
     }
 
     /**
-     * Names the glove the drip leaves and the coat ray's end it splats on:
-     * the drip is drawn on that glove until its first tick throws it from
-     * there, carrying its caster's travel.
+     * Names the spray source the drip appears at and the coat ray's end it
+     * splats on: the drip is drawn on the source until its first tick throws
+     * it from there, carrying its caster's travel.
      * goop-and-slick-spray-emanates-from-the-glove
      *
-     * @param gloveNow where the caster's glove is drawn, read when the drip is drawn and when it is thrown
-     * @param coatEnd  the end of the drip's coat ray
+     * @param sprayFrom    where the caster's spray source stands, read when the drip is drawn and thrown
+     * @param coatEnd      the end of the drip's coat ray
      * @param casterTravel the caster's travel velocity the server sent, blocks per tick
      */
-    public void leaveFrom(Supplier<Vec3> gloveNow, Vec3 coatEnd, Vec3 casterTravel) {
-        this.glove = gloveNow;
+    public void leaveFrom(Source sprayFrom, Vec3 coatEnd, Vec3 casterTravel) {
+        this.source = sprayFrom;
         this.end = coatEnd;
         this.travel = casterTravel;
     }
 
-    /** Throws the drip from the glove on its first tick, flies it on, and splats it at its end. */
+    /** Throws the drip from its source on its first tick, flies it on, and splats it at its end. */
     @Override
     public void tick() {
         if (!thrown) {
-            throwFromTheGlove();
+            throwFromTheSource();
         }
         this.xo = this.x;
         this.yo = this.y;
@@ -101,8 +114,9 @@ public final class SprayDripParticle extends SingleQuadParticle {
         }
     }
 
-    private void throwFromTheGlove() {
-        Vec3 from = glove.get();
+    /** Throws the drip from its source as the last frame drew it, which the tick's start reads at partial 0. */
+    private void throwFromTheSource() {
+        Vec3 from = source.at(0f);
         this.setPos(from.x, from.y, from.z);
         this.drip = SprayDrip.toward(from, end, travel, rgb);
         this.xd = drip.velocity().x;
@@ -112,7 +126,7 @@ public final class SprayDripParticle extends SingleQuadParticle {
     }
 
     /**
-     * Draws the drip on the glove as the glove is drawn this frame until its
+     * Draws the drip on its source as the source stands this frame until its
      * first tick throws it, and where its flight has carried it after.
      *
      * @param reusedState the reusable render state for quad particles
@@ -126,7 +140,7 @@ public final class SprayDripParticle extends SingleQuadParticle {
         Vec3 at = thrown
                 ? new Vec3(Mth.lerp(partialTick, this.xo, this.x), Mth.lerp(partialTick, this.yo, this.y),
                         Mth.lerp(partialTick, this.zo, this.z))
-                : glove.get();
+                : source.at(partialTick);
         Vec3 cameraPos = camera.position();
         this.extractRotatedQuad(reusedState, rotation, (float) (at.x - cameraPos.x), (float) (at.y - cameraPos.y),
                 (float) (at.z - cameraPos.z), partialTick);

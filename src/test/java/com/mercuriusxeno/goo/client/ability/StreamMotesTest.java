@@ -2,21 +2,26 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.program.SimpleParticles;
 import com.mercuriusxeno.goo.client.particle.BlendPalette;
-import com.mercuriusxeno.goo.client.particle.GloveSwing;
 import com.mercuriusxeno.goo.client.particle.SprayDripParticle;
 import com.mercuriusxeno.goo.network.CoatSpray;
+import com.mercuriusxeno.goo.network.KnifeRainSling;
 import com.mercuriusxeno.goo.network.StreamMotesPayload;
 import com.mercuriusxeno.goo.throwing.CoatRay;
 import net.minecraft.client.Camera;
+import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.Options;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.ParticleEngine;
 import net.minecraft.client.particle.SpriteSet;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.state.level.QuadParticleRenderState;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.joml.Quaternionf;
@@ -34,7 +39,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.doAnswer;
@@ -44,12 +48,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * A Goop or Slick spray drip is first drawn on its caster's glove as the
- * glove is drawn that frame, for a caster standing, walking, strafing and
- * turning. The client runs a frame's network tasks, then its ticks, then
- * draws: a drip the stream's tick launches joins the particle engine at the
- * next tick, after the engine has ticked the drips already flying, so it is
- * first drawn a tick or more after its launch, before its own first tick.
+ * A Goop or Slick spray drip is first drawn at its caster's spray source as
+ * that source stands the frame it is drawn: a point held in the caster's
+ * view, ahead of the eye, out to the glove's side and a little below the
+ * look, for the local caster and for another player, standing, walking,
+ * strafing and turning. The client runs a frame's network tasks, then its
+ * ticks, then draws: a drip the stream's tick launches joins the particle
+ * engine at the next tick, after the engine has ticked the drips already
+ * flying, so it is first drawn a tick or more after its launch, before its
+ * own first tick.
  * goop-and-slick-spray-emanates-from-the-glove
  * diagnose-and-correct-the-spray-not-leaving-the-glove
  */
@@ -57,9 +64,8 @@ class StreamMotesTest {
 
     private static final int CASTER = 7;
     private static final Vec3 EYE = new Vec3(0, 1.62, 0);
-    private static final Vec3 LOOK = new Vec3(0, -0.5, 1).normalize();
-    /** Where the drawn glove stands off the eye, held in the look's frame: right of, below and before the eye. */
-    private static final Vec3 HAND = new Vec3(-0.35, -0.3, 0.5);
+    /** Looking south and thirty degrees down. */
+    private static final float PITCH = 30f;
     private static final double SPEED = 0.2;
     /** Ticks from the stream's tick being handled to the frame that first draws its drips. */
     private static final double FIRST_DRAWN = 1.5;
@@ -67,81 +73,120 @@ class StreamMotesTest {
     private static final double WITHIN = 0.01;
 
     /**
-     * A caster's glove over time, in ticks from the launch.
+     * A caster over time, in ticks from the launch.
      *
-     * @param glove where the glove is drawn at a time
-     * @param look  where the caster looks at a time
-     * @param travel the caster's travel velocity the server sent, blocks per tick
+     * @param eye    where the eye stands
+     * @param yaw    the look's yaw in degrees
+     * @param travel the travel velocity the server sent, blocks per tick
      */
-    private record Caster(DoubleFunction<Vec3> glove, DoubleFunction<Vec3> look, Vec3 travel) {
+    private record Caster(DoubleFunction<Vec3> eye, DoubleFunction<Float> yaw, Vec3 travel) {
     }
 
     private static Caster moving(Vec3 travel) {
-        return new Caster(time -> EYE.add(travel.scale(time)).add(HAND), time -> LOOK, travel);
+        return new Caster(time -> EYE.add(travel.scale(time)), time -> 0f, travel);
     }
 
-    /** A caster turning ten degrees a tick, the glove swinging round the eye with the look. */
+    /** A caster turning ten degrees a tick. */
     private static Caster turning() {
-        DoubleFunction<Float> yaw = time -> (float) Math.toRadians(10 * time);
-        return new Caster(time -> EYE.add(HAND.yRot(yaw.apply(time))), time -> LOOK.yRot(yaw.apply(time)),
-                Vec3.ZERO);
+        return new Caster(time -> EYE, time -> (float) (10 * time), Vec3.ZERO);
+    }
+
+    /**
+     * The spray source worked out apart from the code under test: 0.7 ahead
+     * along the look, 0.3 to the right glove's side, 0.15 below the look.
+     */
+    private static Vec3 sourceOf(Caster caster, double time) {
+        double yaw = Math.toRadians(caster.yaw().apply(time));
+        double pitch = Math.toRadians(PITCH);
+        Vec3 ahead = new Vec3(-Math.sin(yaw) * Math.cos(pitch), -Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
+        Vec3 right = new Vec3(-Math.cos(yaw), 0, -Math.sin(yaw));
+        Vec3 up = right.cross(ahead);
+        return caster.eye().apply(time).add(ahead.scale(0.7)).add(right.scale(0.3)).subtract(up.scale(0.15));
     }
 
     @Test
-    void aStandingCastersDripIsFirstDrawnOnTheGlove() {
-        assertFirstDrawnOnTheGlove(moving(Vec3.ZERO));
+    void aStandingCastersDripIsFirstDrawnAtItsSprayingSource() {
+        assertFirstDrawnAtTheSource(moving(Vec3.ZERO), true);
     }
 
     @Test
-    void aWalkingCastersDripIsFirstDrawnOnTheGlove() {
-        assertFirstDrawnOnTheGlove(moving(LOOK.multiply(1, 0, 1).normalize().scale(SPEED)));
+    void aWalkingCastersDripIsFirstDrawnAtItsSprayingSource() {
+        assertFirstDrawnAtTheSource(moving(new Vec3(0, 0, SPEED)), true);
     }
 
     @Test
-    void aStrafingCastersDripIsFirstDrawnOnTheGlove() {
-        assertFirstDrawnOnTheGlove(moving(new Vec3(-SPEED, 0, 0)));
+    void aStrafingCastersDripIsFirstDrawnAtItsSprayingSource() {
+        assertFirstDrawnAtTheSource(moving(new Vec3(-SPEED, 0, 0)), true);
     }
 
     @Test
-    void aTurningCastersDripIsFirstDrawnOnTheGlove() {
-        assertFirstDrawnOnTheGlove(turning());
+    void aTurningCastersDripIsFirstDrawnAtItsSprayingSource() {
+        assertFirstDrawnAtTheSource(turning(), true);
     }
 
-    private static void assertFirstDrawnOnTheGlove(Caster caster) {
+    @Test
+    void anotherWalkingPlayersDripIsFirstDrawnAtThatPlayersSprayingSource() {
+        assertFirstDrawnAtTheSource(moving(new Vec3(-SPEED, 0, SPEED)), false);
+    }
+
+    @Test
+    void anotherTurningPlayersDripIsFirstDrawnAtThatPlayersSprayingSource() {
+        assertFirstDrawnAtTheSource(turning(), false);
+    }
+
+    private static void assertFirstDrawnAtTheSource(Caster caster, boolean local) {
         double[] now = {0};
         List<SprayDripParticle> drips = new ArrayList<>();
-        Minecraft minecraft = clientDrawing(drips);
+        Minecraft minecraft = clientDrawing(drips, caster, local, now);
         try (MockedStatic<Minecraft> mc = mockStatic(Minecraft.class);
              MockedStatic<SimpleParticles> particles = mockStatic(SimpleParticles.class);
              MockedStatic<CoatRay> rays = mockStatic(CoatRay.class, CALLS_REAL_METHODS);
-             MockedStatic<CasterPoses> poses = mockStatic(CasterPoses.class)) {
+             MockedStatic<KnifeRainSling> sling = mockStatic(KnifeRainSling.class)) {
             mc.when(Minecraft::getInstance).thenReturn(minecraft);
             particles.when(() -> SimpleParticles.resolve(any())).thenReturn(Optional.of(mock(SimpleParticleType.class)));
             rays.when(() -> CoatRay.clipping(any())).thenReturn((CoatRay.BlockClip) (from, to) -> Optional.empty());
-            poses.when(() -> CasterPoses.gloveOf(eq(CASTER), any())).thenAnswer(call -> caster.glove().apply(now[0]));
-            poses.when(() -> CasterPoses.poseOf(CASTER)).thenAnswer(call ->
-                    new GloveSwing.CasterPose(caster.glove().apply(now[0]), caster.look().apply(now[0])));
+            sling.when(() -> KnifeRainSling.gloveOnTheRight(any())).thenReturn(true);
+
             // the server's echo carries the glove a tick before the stream's tick reaches this client
-            StreamMotes.handle(new StreamMotesPayload(CASTER, caster.glove().apply(-1), LOOK,
+            StreamMotes.handle(new StreamMotesPayload(CASTER, sourceOf(caster, -1), new Vec3(0, -0.5, 1).normalize(),
                     Identifier.fromNamespaceAndPath("goo", "goop_spray_drip"), 16, 0, caster.travel(),
-                    Optional.of(new CoatSpray(EYE, LOOK, 8))), runningAtOnce());
+                    Optional.of(new CoatSpray(EYE, new Vec3(0, -0.5, 1).normalize(), 8))), runningAtOnce());
             now[0] = FIRST_DRAWN;
 
             assertTrue(!drips.isEmpty(), "the stream's tick should launch spray drips");
-            Vec3 glove = caster.glove().apply(now[0]);
+            Vec3 source = sourceOf(caster, now[0]);
             for (SprayDripParticle drip : drips) {
                 Vec3 drawn = drawnAt(drip);
-                assertTrue(drawn.distanceTo(glove) <= WITHIN, "a drip should be first drawn on the glove at "
-                        + glove + ", drawn at " + drawn + ", " + drawn.distanceTo(glove) + " blocks off");
+                assertTrue(drawn.distanceTo(source) <= WITHIN, "a drip should be first drawn at the spray source "
+                        + source + ", drawn at " + drawn + ", " + drawn.distanceTo(source) + " blocks off");
             }
         }
     }
 
-    private static Minecraft clientDrawing(List<SprayDripParticle> drips) {
+    private static Minecraft clientDrawing(List<SprayDripParticle> drips, Caster caster, boolean local,
+                                           double[] now) {
         Minecraft minecraft = mock(Minecraft.class);
         ClientLevel level = mock(ClientLevel.class, RETURNS_DEEP_STUBS);
         when(level.getRandom()).thenReturn(RandomSource.create(1L));
         minecraft.level = level;
+        Player player = local ? mock(LocalPlayer.class) : mock(Player.class);
+        when(level.getEntity(CASTER)).thenReturn(player);
+        when(player.getEyePosition(anyFloat())).thenAnswer(call -> caster.eye().apply(now[0]));
+        when(player.getViewXRot(anyFloat())).thenReturn(PITCH);
+        when(player.getViewYRot(anyFloat())).thenAnswer(call -> caster.yaw().apply(now[0]));
+        Camera camera = mock(Camera.class);
+        when(camera.position()).thenAnswer(call -> caster.eye().apply(now[0]));
+        when(camera.xRot()).thenReturn(PITCH);
+        when(camera.yRot()).thenAnswer(call -> caster.yaw().apply(now[0]));
+        GameRenderer renderer = mock(GameRenderer.class);
+        when(renderer.getMainCamera()).thenReturn(camera);
+        Options options = mock(Options.class);
+        when(options.getCameraType()).thenReturn(CameraType.FIRST_PERSON);
+        setField(minecraft, "gameRenderer", renderer);
+        setField(minecraft, "options", options);
+        if (local) {
+            minecraft.player = (LocalPlayer) player;
+        }
         SpriteSet sprites = mock(SpriteSet.class);
         when(sprites.get(anyInt(), anyInt())).thenReturn(mock(TextureAtlasSprite.class));
         SprayDripParticle.Provider provider = new SprayDripParticle.Provider(sprites, BlendPalette.GOOP_SLIME_GREENS);
@@ -154,15 +199,15 @@ class StreamMotesTest {
                     drips.add(drip);
                     return drip;
                 });
-        setParticleEngine(minecraft, engine);
+        setField(minecraft, "particleEngine", engine);
         return minecraft;
     }
 
-    private static void setParticleEngine(Minecraft minecraft, ParticleEngine engine) {
+    private static void setField(Minecraft minecraft, String name, Object value) {
         try {
-            Field field = Minecraft.class.getDeclaredField("particleEngine");
+            Field field = Minecraft.class.getDeclaredField(name);
             field.setAccessible(true);
-            field.set(minecraft, engine);
+            field.set(minecraft, value);
         } catch (ReflectiveOperationException e) {
             throw new IllegalStateException(e);
         }
