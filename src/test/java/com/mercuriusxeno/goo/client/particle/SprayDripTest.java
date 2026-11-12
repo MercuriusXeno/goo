@@ -18,9 +18,11 @@ class SprayDripTest {
 
     private static final Vec3 APEX = new Vec3(0.3, 1.3, 0.2);
     private static final Vec3 COAT_END = new Vec3(2.0, 0.0, 6.0);
-    /** A launch at a tenth of the gap per tick, as the stream's handler aims a coat mote. */
-    private static final Vec3 LAUNCH = COAT_END.subtract(APEX).scale(0.1);
+    private static final Vec3 RUNNING = new Vec3(0.2, 0.0, -0.1);
+    /** A jump's opening rise, blocks per tick. */
+    private static final Vec3 JUMPING = new Vec3(0.0, 0.42, 0.0);
     private static final double WITHIN = 0.1;
+    private static final double DELTA = 1e-9;
     /** A bound on the steps a drip may fly, so a drip that never lands fails rather than hangs. */
     private static final int MAX_STEPS = 200;
 
@@ -33,8 +35,12 @@ class SprayDripTest {
     private record Flown(List<Vec3> path, Vec3 splatAt) {
     }
 
-    private static Flown fly(Vec3 launch, long seed) {
-        SprayDrip drip = SprayDrip.launch(APEX, launch, BlendPalette.GOOP_SLIME_GREENS, RandomSource.create(seed));
+    private static SprayDrip throwDrip(Vec3 travel, long seed) {
+        return SprayDrip.launch(APEX, COAT_END, travel, BlendPalette.GOOP_SLIME_GREENS, RandomSource.create(seed));
+    }
+
+    private static Flown fly(Vec3 travel, long seed) {
+        SprayDrip drip = throwDrip(travel, seed);
         List<Vec3> path = new ArrayList<>();
         Vec3 position = APEX;
         Vec3 velocity = drip.velocity();
@@ -50,24 +56,38 @@ class SprayDripTest {
         return new Flown(path, null);
     }
 
-    @Test
-    void aDripFliesTheSamePathWhateverItsRandomSourceAnswers() {
-        assertEquals(fly(LAUNCH, 1L).path(), fly(LAUNCH, 987_654_321L).path());
-    }
-
-    @Test
-    void aDripSplatsOnTheEndOfItsCoatRayAndIsRemoved() {
-        Flown flown = fly(LAUNCH, 1L);
+    private static void assertSplatsOnTheCoatEnd(Vec3 travel) {
+        Flown flown = fly(travel, 1L);
 
         assertTrue(flown.splatAt() != null, "the drip should splat within " + MAX_STEPS + " steps");
-        assertTrue(flown.splatAt().distanceTo(COAT_END) <= WITHIN,
-                "the drip should splat within a tenth of a block of " + COAT_END + ", splatted at " + flown.splatAt());
+        assertTrue(flown.splatAt().distanceTo(COAT_END) <= WITHIN, "a drip thrown with travel " + travel
+                + " should splat within a tenth of a block of " + COAT_END + ", splatted at " + flown.splatAt());
         assertEquals(flown.splatAt(), flown.path().getLast(), "the splatting step should be the drip's last");
     }
 
     @Test
+    void aDripFliesTheSamePathWhateverItsRandomSourceAnswers() {
+        assertEquals(fly(RUNNING, 1L).path(), fly(RUNNING, 987_654_321L).path());
+    }
+
+    @Test
+    void aStandingCastersDripSplatsOnTheEndOfItsCoatRayAndIsRemoved() {
+        assertSplatsOnTheCoatEnd(Vec3.ZERO);
+    }
+
+    @Test
+    void aRunningCastersDripStillSplatsOnTheEndOfItsCoatRay() {
+        assertSplatsOnTheCoatEnd(RUNNING);
+    }
+
+    @Test
+    void aJumpingCastersDripStillSplatsOnTheEndOfItsCoatRay() {
+        assertSplatsOnTheCoatEnd(JUMPING);
+    }
+
+    @Test
     void aDripStaysOnItsWayWithoutDartingBackOrStalling() {
-        List<Vec3> path = fly(LAUNCH, 1L).path();
+        List<Vec3> path = fly(Vec3.ZERO, 1L).path();
         Vec3 heading = COAT_END.subtract(APEX).multiply(1, 0, 1);
 
         Vec3 before = APEX;
@@ -79,21 +99,23 @@ class SprayDripTest {
     }
 
     @Test
-    void aDripCarriesItsCastersTravel() {
-        Vec3 travel = new Vec3(0.2, 0.0, -0.1);
+    void aDripLeavesTheGloveCarryingItsCastersTravel() {
+        SprayDrip standing = throwDrip(Vec3.ZERO, 1L);
+        SprayDrip running = throwDrip(RUNNING, 1L);
+        double share = (running.flightTicks() - 1.0) / running.flightTicks();
 
-        Flown flown = fly(LAUNCH.add(travel), 1L);
+        Vec3 carried = running.velocity().subtract(standing.velocity());
 
-        Vec3 carried = COAT_END.add(travel.scale(10));
-        assertTrue(flown.splatAt().distanceTo(carried) <= WITHIN,
-                "a caster's travel should carry the drip's end on to " + carried + ", splatted at " + flown.splatAt());
+        assertEquals(RUNNING.x * share, carried.x, DELTA, "x");
+        assertEquals(RUNNING.y * share, carried.y, DELTA, "y");
+        assertEquals(RUNNING.z * share, carried.z, DELTA, "z");
     }
 
     @Test
     void aDripsColorLiesBetweenItsPalettesEnds() {
         BlendPalette blues = BlendPalette.SLICK_SLIME_BLUES;
         for (long seed = 0; seed < 16; seed++) {
-            int rgb = SprayDrip.launch(APEX, LAUNCH, blues, RandomSource.create(seed)).rgb();
+            int rgb = SprayDrip.launch(APEX, COAT_END, Vec3.ZERO, blues, RandomSource.create(seed)).rgb();
             assertBetween(blues.darkRed(), blues.lightRed(), (rgb >> 16 & 0xFF) / 255f, "red");
             assertBetween(blues.darkGreen(), blues.lightGreen(), (rgb >> 8 & 0xFF) / 255f, "green");
             assertBetween(blues.darkBlue(), blues.lightBlue(), (rgb & 0xFF) / 255f, "blue");

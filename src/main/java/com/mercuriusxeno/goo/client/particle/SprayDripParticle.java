@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.particle;
 
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.network.GooStreamHandler;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.ParticleProvider;
@@ -24,21 +25,39 @@ import org.jspecify.annotations.Nullable;
  */
 public final class SprayDripParticle extends GloveMote {
 
-    private final SprayDrip drip;
+    private final Vec3 apex;
     private final GooRenderUtil.UvRect uv;
+    private SprayDrip drip;
 
     private SprayDripParticle(ClientLevel level, Vec3 apex, TextureAtlasSprite sprite, SprayDrip drip) {
         super(level, apex.x, apex.y, apex.z, sprite);
-        this.drip = drip;
+        this.apex = apex;
         this.uv = GooSubmitter.spriteUv(sprite);
-        this.xd = drip.velocity().x;
-        this.yd = drip.velocity().y;
-        this.zd = drip.velocity().z;
         this.gravity = 0f;
         this.hasPhysics = false;
         this.rCol = ARGB.redFloat(drip.rgb());
         this.gCol = ARGB.greenFloat(drip.rgb());
         this.bCol = ARGB.blueFloat(drip.rgb());
+        fly(drip);
+    }
+
+    /**
+     * Throws the drip onto its coat ray's end, carrying its caster's travel
+     * at launch, where its provider's launch held the two together.
+     * goop-and-slick-spray-throws-goo-drips-that-splat
+     *
+     * @param coatEnd the end of the drip's coat ray
+     * @param travel  the caster's travel velocity, blocks per tick
+     */
+    public void landOn(Vec3 coatEnd, Vec3 travel) {
+        fly(SprayDrip.toward(apex, coatEnd, travel, drip.rgb()));
+    }
+
+    private void fly(SprayDrip flight) {
+        this.drip = flight;
+        this.xd = flight.velocity().x;
+        this.yd = flight.velocity().y;
+        this.zd = flight.velocity().z;
     }
 
     /** Swings the drip with the glove over its opening ticks, flies it on, and splats it at its end. */
@@ -111,8 +130,9 @@ public final class SprayDripParticle extends GloveMote {
                                                           double y, double z, double xSpeed, double ySpeed,
                                                           double zSpeed, RandomSource random) {
             Vec3 apex = new Vec3(x, y, z);
+            Vec3 end = GooStreamHandler.launchEnd(apex, new Vec3(xSpeed, ySpeed, zSpeed));
             return new SprayDripParticle(level, apex, sprites.get(0, 1),
-                    SprayDrip.launch(apex, new Vec3(xSpeed, ySpeed, zSpeed), palette, random));
+                    SprayDrip.launch(apex, end, Vec3.ZERO, palette, random));
         }
     }
 }
