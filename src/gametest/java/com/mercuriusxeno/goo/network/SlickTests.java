@@ -95,6 +95,19 @@ public final class SlickTests {
             + " at the start speed or faster: %.4f against %.4f";
     private static final String NOT_FASTER_THAN_ICE = "A husk %d ticks onto slick should outpace a husk %d ticks"
             + " onto ice: %.4f on ice, %.4f on slick";
+    private static final String SLICK_REACHES_TWELVE = "slick_lays_twelve_blocks_ahead_and_no_further";
+    /** Where the streamer stands in the light bay, at its west wall, on the strip's first stone. */
+    private static final BlockPos FAR_STREAMER_POS = new BlockPos(0, 1, 8);
+    /** The light bay is sixteen blocks across, so the strip runs from the streamer to its east wall. */
+    private static final int FAR_STRIP_EAST = 15;
+    /** The stone ten blocks east of the streamer, its top about 10.1 blocks from their eye, past 8 and inside 12. */
+    private static final BlockPos BEYOND_EIGHT = FAR_STREAMER_POS.below().east(10);
+    /** The first stone east whose top lies wholly more than 12 blocks from the streamer's eye, about 12.6 at its nearest. */
+    private static final int PAST_TWELVE_EAST = 13;
+    private static final String NOT_LAID_BEYOND_EIGHT = "Slick should lay %d held ticks on over the stone at %s,"
+            + " past 8 blocks from the eye and inside 12, holds %s";
+    private static final String LAID_PAST_TWELVE = "Slick should not lay over the stone at %s, past 12 blocks from"
+            + " the eye, holds %s";
 
     private SlickTests() {
     }
@@ -110,6 +123,64 @@ public final class SlickTests {
         GooTestFunctions.registerTest(registrar, SLICK_RAISES_A_WALKER, SlickTests::slickRaisesASlowWalkerToItsStartSpeed);
         GooTestFunctions.registerTest(registrar, SLICK_LAYS_FASTER, SlickTests::slickLaysFasterUnderAStreamerTravelingOnSlick);
         GooTestFunctions.registerTest(registrar, SLICK_LAYS_AT_ITS_TICKS, SlickTests::slickLaysAtItsTicksUnderAStreamerAtRest);
+        GooTestFunctions.registerTest(registrar, SLICK_REACHES_TWELVE, SlickTests::slickLaysTwelveBlocksAheadAndNoFurther);
+    }
+
+    /**
+     * A streamer at rest at the head of a long strip of stone, looking at the
+     * stone ten blocks east, lays slick over it at the 20 held ticks
+     * kinetic_slick.json names, and every stone on the strip whose top lies
+     * more than 12 blocks from their eye stays bare.
+     * slick-sprays-twelve-blocks-ahead
+     *
+     * @param helper the gametest helper
+     */
+    public static void slickLaysTwelveBlocksAheadAndNoFurther(GameTestHelper helper) {
+        for (int east = 0; east <= FAR_STRIP_EAST; east++) {
+            helper.setBlock(FAR_STREAMER_POS.below().east(east), Blocks.STONE);
+        }
+        ServerPlayer streamer = slickStreamerAt(helper, FAR_STREAMER_POS);
+        lookAt(streamer, Vec3.upFromBottomCenterOf(helper.absolutePos(BEYOND_EIGHT), 1));
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.KINETIC), SLICK.toString(),
+                streamer.getEyePosition(), streamer.getEyePosition());
+        for (int held = 1; held < JSON_LAY_TICKS; held++) {
+            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(streamer, tick));
+        }
+        helper.runAfterDelay(JSON_LAY_TICKS, () -> {
+            GooStreamHandler.streamTick(streamer, tick);
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
+            assertLaidToTwelve(helper);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Asserts slick over the stone past 8 blocks and air over every stone
+     * past 12 on the strip.
+     *
+     * @param helper the gametest helper
+     */
+    private static void assertLaidToTwelve(GameTestHelper helper) {
+        BlockPos laid = BEYOND_EIGHT.above();
+        helper.assertTrue(helper.getBlockState(laid).is(GooBlocks.KINETIC_SLICK.get()),
+                String.format(NOT_LAID_BEYOND_EIGHT, JSON_LAY_TICKS, laid, helper.getBlockState(laid)));
+        for (int east = PAST_TWELVE_EAST; east <= FAR_STRIP_EAST; east++) {
+            BlockPos bare = FAR_STREAMER_POS.east(east);
+            helper.assertTrue(helper.getBlockState(bare).isAir(),
+                    String.format(LAID_PAST_TWELVE, bare, helper.getBlockState(bare)));
+        }
+    }
+
+    /**
+     * Turns a streamer's look onto a point.
+     *
+     * @param streamer the streamer
+     * @param target   the point to look at
+     */
+    private static void lookAt(ServerPlayer streamer, Vec3 target) {
+        Vec3 line = target.subtract(streamer.getEyePosition());
+        streamer.setYRot((float) Math.toDegrees(Math.atan2(-line.x, line.z)));
+        streamer.setXRot((float) Math.toDegrees(-Math.atan2(line.y, line.horizontalDistance())));
     }
 
     /**
@@ -488,11 +559,23 @@ public final class SlickTests {
      * @return the streamer
      */
     private static ServerPlayer slickStreamer(GameTestHelper helper) {
-        ServerPlayer streamer = SelfDeliveryTests.invoker(helper, GooTypes.KINETIC);
-        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STREAMER_POS));
-        streamer.setPos(stand.x, stand.y, stand.z);
+        ServerPlayer streamer = slickStreamerAt(helper, STREAMER_POS);
         streamer.setYRot(FACING_EAST);
         streamer.setXRot(AT_THE_STONE);
+        return streamer;
+    }
+
+    /**
+     * A Kinetic invoker standing on a cell, taught what Slick requires.
+     *
+     * @param helper the gametest helper
+     * @param stand  the cell they stand in
+     * @return the streamer
+     */
+    private static ServerPlayer slickStreamerAt(GameTestHelper helper, BlockPos stand) {
+        ServerPlayer streamer = SelfDeliveryTests.invoker(helper, GooTypes.KINETIC);
+        Vec3 feet = Vec3.atBottomCenterOf(helper.absolutePos(stand));
+        streamer.setPos(feet.x, feet.y, feet.z);
         AbilityDefinition slick = AbilityRegistry.of(helper.getLevel()).getAbility(SLICK);
         helper.assertTrue(slick != null, ABILITY_REQUIRED);
         KnownRecipes.teachRequires(streamer, slick);
