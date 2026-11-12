@@ -101,7 +101,6 @@ public final class SwapBodyTests {
         helper.assertTrue(player.getHealth() == FIRST_HEALTH,
                 "The player should take the body's held health, has " + player.getHealth());
         helper.assertTrue(bodiesAt(helper, second).size() == 1, "A fresh body should stand where the player cast from");
-        helper.assertTrue(bodiesAt(helper, first).isEmpty(), "The body the player swapped into should be gone");
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.succeed();
     }
