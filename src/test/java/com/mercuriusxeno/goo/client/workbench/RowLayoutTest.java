@@ -30,6 +30,15 @@ class RowLayoutTest {
     }
 
     /**
+     * A Groups member card steps the sprite row pitch, so its rule stands the rule's padding below the sprite above
+     * (decision rule-takes-padding-above-it).
+     */
+    @Test
+    void memberCardsStepTheSpriteRowPitch() {
+        assertEquals(RowLayout.SPRITE_ROW_PITCH, GroupsPane.CARD_HEIGHT);
+    }
+
+    /**
      * One set of spacing constants serves every pane: a rule's gap, a button's gap and the builder box's margin
      * (decision spacing-rules-are-one-set-across-every-pane).
      */

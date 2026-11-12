@@ -158,6 +158,21 @@ class GooAmountGridTest {
         assertEquals(every, cellLefts(grid(9, "3"), 9));
     }
 
+    /**
+     * A scalar's and a typed value's reduction draw their opening and closing parens in one color, the symbol color
+     * (decision tooltip-reduction-parens-draw-one-color).
+     */
+    @Test
+    void aReductionsParensDrawGold() {
+        for (TooltipLine.GooAmounts reduction : List.of(GooAmountGrid.reducedScalar("12"),
+                GooAmountGrid.reducedLine(Map.of("deep", "12", "zoo", "12")))) {
+            DrawnFrame frame = new DrawnFrame();
+            new GooAmountGrid(reduction, type -> 11).extractImage(DrawnFrame.font(), 0, 0, 400, 200, frame.graphics);
+            assertEquals(List.of(Palette.GOLD, Palette.GOLD), List.of(frame.find("(").color(),
+                    frame.find(")").color()), frame.drawn().toString());
+        }
+    }
+
     @Test
     void columnsWidenWithTheWidestAmount() {
         Font font = DrawnFrame.font();
