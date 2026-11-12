@@ -17,8 +17,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * A sound heard under Sculker rings once at its rank: a sound the mod's
- * sub-rank table names rings at the table's rank, mob noises at 9 and
- * Shriek's and Click's sounds at 15; any other sound takes the frequency of
+ * sub-rank table names rings at the table's rank, Click's travel echo at 5,
+ * mob noises at 9 and Shriek's and Click's landing at 15; any other sound takes the frequency of
  * the vibration the server forwards beside it, and a sound no vibration
  * meets rings at 5; a vibration with no sound beside it rings nothing
  * (decision sculker-echo-intensity-follows-vibration-rank). Reads the
@@ -38,6 +38,8 @@ class SculkerNoisesTest {
     private static final String GHAST_CRY = "minecraft:entity.ghast.ambient";
     private static final String SHRIEK_SOUND = "minecraft:block.sculk_shrieker.shriek";
     private static final String CLICK_SOUND = "goo:ability.click";
+    private static final int TRAIL_RANK = 5;
+    private static final int LANDING_RANK = 15;
     /** The frequencies VibrationSystem's 26.1 table gives step, entity damage and explode. */
     private static final int STEP_FREQUENCY = 1;
     private static final int DAMAGE_FREQUENCY = 7;
@@ -111,20 +113,62 @@ class SculkerNoisesTest {
             assertEquals(OptionalInt.of(15), SculkerSoundRanks.shipped().rankOf(CLICK_SOUND));
         }
 
+        // decision click-travel-echoes-ring-at-rank-five
         @Test
-        void clickPlaysTheSoundTheTableRanks() throws Exception {
+        void clickTrailRingsAtFiveTheTickItIsHeard() throws Exception {
+            noises.sound(clickStepField("scan_visual", "trail"), AT, HEARD_AT);
+            assertEquals(List.of(new Rung(AT, HEARD_AT, TRAIL_RANK)), rung);
+            waitOut();
+            assertEquals(List.of(new Rung(AT, HEARD_AT, TRAIL_RANK)), rung);
+        }
+
+        // decision click-travel-echoes-ring-at-rank-five
+        @Test
+        void clickTrailRingsAtFiveBesideAVibration() throws Exception {
+            noises.vibration(AT, HEARD_AT, EXPLODE_FREQUENCY);
+            noises.sound(clickStepField("scan_visual", "trail"), AT, HEARD_AT);
+            assertEquals(List.of(new Rung(AT, HEARD_AT, TRAIL_RANK)), rung);
+            waitOut();
+            assertEquals(List.of(new Rung(AT, HEARD_AT, TRAIL_RANK)), rung);
+        }
+
+        // decision click-travel-echoes-ring-at-rank-five
+        @Test
+        void clickLandingRingsAtFifteen() throws Exception {
+            noises.sound(clickStepField("sound", "id"), AT, HEARD_AT);
+            assertEquals(List.of(new Rung(AT, HEARD_AT, LANDING_RANK)), rung);
+        }
+
+        // decision click-travel-echoes-ring-at-rank-five
+        @Test
+        void clickTrailPlaysTheLandingsComparatorClick() throws Exception {
+            JsonObject sounds = classpathJson("/assets/goo/sounds.json");
+            JsonObject trail = sounds.getAsJsonObject(pathOf(clickStepField("scan_visual", "trail")));
+            JsonObject landing = sounds.getAsJsonObject(pathOf(clickStepField("sound", "id")));
+            assertEquals(landing.get("sounds"), trail.get("sounds"));
+            assertEquals(landing.get("subtitle"), trail.get("subtitle"));
+        }
+
+        /**
+         * A field of the first step of Click's program holding the type.
+         *
+         * @param type  the step's type
+         * @param field the field to read
+         * @return the field's value
+         */
+        private static String clickStepField(String type, String field) throws Exception {
             JsonObject click = classpathJson("/data/goo/goo_abilities/deep_click.json");
-            List<String> sounds = new ArrayList<>();
-            click.getAsJsonArray("behaviors").forEach(behavior -> {
+            for (var behavior : click.getAsJsonArray("behaviors")) {
                 JsonObject step = behavior.getAsJsonObject();
-                if (step.has("trail")) {
-                    sounds.add(step.get("trail").getAsString());
+                if (type.equals(step.get("type").getAsString())) {
+                    return step.get(field).getAsString();
                 }
-                if ("sound".equals(step.get("type").getAsString())) {
-                    sounds.add(step.get("id").getAsString());
-                }
-            });
-            assertEquals(List.of(CLICK_SOUND, CLICK_SOUND), sounds);
+            }
+            throw new AssertionError("Click names no " + type + " step");
+        }
+
+        private static String pathOf(String soundId) {
+            return soundId.substring(soundId.indexOf(':') + 1);
         }
 
         @Test

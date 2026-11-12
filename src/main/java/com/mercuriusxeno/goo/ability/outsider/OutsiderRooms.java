@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.outsider;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.block.outsider.DimensionDoorBlockEntity;
 import com.mercuriusxeno.goo.network.RoomEdgesSyncPayload;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooParticles;
@@ -13,12 +14,16 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.TicketType;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -89,6 +94,8 @@ public final class OutsiderRooms {
     private static final int FEED_MOTES = 2;
     private static final double FEED_SPREAD = 0.35;
     private static final double FEED_SPEED = 0.05;
+    /** The door's sound plays where its player stands, as loud as the door's conjuring. */
+    private static final float DOOR_VOLUME = 0.8f;
     /** The wub plays at full volume where its player stands. */
     private static final float WUB_VOLUME = 1f;
     /** The step a wub's pitch moves by, as the operator ruled: shifts in increments of 0.125. */
@@ -107,6 +114,8 @@ public final class OutsiderRooms {
     private static final double MOTE_SCATTER_UP = 1.2;
     /** The widest sideways drift a mote takes, blocks a tick. */
     private static final double MOTE_DRIFT = 0.012;
+    /** The chunks around a room's center loaded ahead of an entry: its own and the ring the arrival may fall in. */
+    private static final int ROOM_LOAD_RADIUS = 2;
     /** The middle of a random share, which a sideways drift is centred on. */
     private static final double HALF = 0.5;
 
@@ -409,11 +418,50 @@ public final class OutsiderRooms {
                 player.position(), player.getYRot(), player.getXRot()));
         burst(player.level(), player.position());
         Vec3 arrival = arrivalOf(room);
+        // decision door-carries-its-own-sound-through-the-change
+        sendDoorSound(player);
         player.teleport(new TeleportTransition(pocket, arrival, Vec3.ZERO, FACING_DOOR, 0f,
-                TeleportTransition.PLAY_PORTAL_SOUND));
+                TeleportTransition.DO_NOTHING));
+        sendDoorSound(player);
         burst(pocket, arrival);
         sendEdges(player);
+        // decision matching-doorway-opens-in-the-room-and-releases-you
+        ConjuredDoors.release(player);
         return true;
+    }
+
+    /**
+     * Sends the door's own sound to the player it carries, where they stand,
+     * on their own connection, so the level change cuts no sound a level
+     * played: once as the door envelops them, once as they arrive.
+     * decision door-carries-its-own-sound-through-the-change
+     *
+     * @param player the player the door carries
+     */
+    private static void sendDoorSound(ServerPlayer player) {
+        player.connection.send(new ClientboundSoundPacket(GooSounds.OUTSIDER_DOOR, SoundSource.PLAYERS,
+                player.getX(), player.getY(), player.getZ(), DOOR_VOLUME, 1f, player.getRandom().nextLong()));
+    }
+
+    /**
+     * Starts loading a caster's room while their charge runs, handing them
+     * one where they hold none, so the full charge's tick finds the room's
+     * chunk loaded: read cold, the room's first block loads its chunk on the
+     * server thread, a stall of several ticks. The ticket lapses on its own.
+     * decision diagnose-and-correct-the-slow-load-into-the-room
+     *
+     * @param caster the player channeling toward the pocket
+     */
+    public static void loadRoomAhead(ServerPlayer caster) {
+        ServerLevel pocket = caster.level().getServer().getLevel(POCKET);
+        if (pocket == null || caster.level().dimension() == POCKET) {
+            return;
+        }
+        VoidPockets pockets = VoidPockets.get(pocket);
+        Integer room = pockets.roomOf(caster.getUUID());
+        int loading = room == null ? pockets.handOut(caster.getUUID()) : room;
+        pocket.getChunkSource().addTicketWithRadius(TicketType.PORTAL, ChunkPos.containing(voidstoneOf(loading)),
+                ROOM_LOAD_RADIUS);
     }
 
     /**
@@ -497,10 +545,42 @@ public final class OutsiderRooms {
             pocket.setBlock(voidstoneOf(room), GooBlocks.VOIDSTONE.get().defaultBlockState(), Block.UPDATE_ALL);
         }
         for (BlockPos doorway : doorwayOf(room)) {
-            if (!pocket.getBlockState(doorway).is(door.getBlock())) {
-                pocket.setBlock(doorway, door, Block.UPDATE_ALL);
-            }
+            restandDoorway(pocket, doorway, door);
         }
+    }
+
+    /**
+     * Stands one doorway cell again where it is gone, or where it stands
+     * without the block entity its starfield draws from.
+     *
+     * @param pocket  the pocket dimension
+     * @param doorway the doorway cell
+     * @param door    the door's block state
+     */
+    private static void restandDoorway(ServerLevel pocket, BlockPos doorway, BlockState door) {
+        boolean standing = pocket.getBlockState(doorway).is(door.getBlock());
+        if (standing && !holdsDoorEntity(pocket, doorway)) {
+            // A door cell saved before the door had a block entity loads without one, and placing the same
+            // state again changes nothing, so the cell is cleared and stood again to gain it.
+            // decision room-door-wears-the-end-portal-starfield
+            pocket.setBlock(doorway, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+        }
+        if (!standing || !holdsDoorEntity(pocket, doorway)) {
+            pocket.setBlock(doorway, door, Block.UPDATE_ALL);
+        }
+    }
+
+    /**
+     * Whether a doorway cell holds the door's block entity as its chunk
+     * stands, reading it without creating one.
+     *
+     * @param pocket  the pocket dimension
+     * @param doorway the doorway cell
+     * @return true where the block entity stands
+     */
+    private static boolean holdsDoorEntity(ServerLevel pocket, BlockPos doorway) {
+        return pocket.getChunkAt(doorway).getBlockEntity(doorway,
+                LevelChunk.EntityCreationType.CHECK) instanceof DimensionDoorBlockEntity;
     }
 
     /**

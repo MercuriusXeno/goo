@@ -96,6 +96,16 @@
       }
     ]
   },
+  "ability.click_trail": {
+    "category": "blocks",
+    "subtitle": "subtitles.block.comparator.click",
+    "sounds": [
+      {
+        "name": "minecraft:block.comparator.click",
+        "type": "event"
+      }
+    ]
+  },
   "effects.earth_rumble": {
     "category": "blocks",
     "subtitle": "subtitles.goo.earth_rumble",
@@ -163,6 +173,16 @@
   "effects.outsider_conjure": {
     "category": "players",
     "subtitle": "subtitles.goo.outsider_conjure",
+    "sounds": [
+      {
+        "name": "goo:effects/outsider_conjure",
+        "stream": false
+      }
+    ]
+  },
+  "effects.outsider_door": {
+    "category": "players",
+    "subtitle": "subtitles.goo.outsider_door",
     "sounds": [
       {
         "name": "goo:effects/outsider_conjure",
