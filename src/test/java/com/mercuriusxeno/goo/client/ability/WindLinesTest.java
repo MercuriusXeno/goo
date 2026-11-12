@@ -239,6 +239,17 @@ class WindLinesTest {
             assertEquals(vacuum.delivery().coneDegrees(), vacuum.area().angle(), EPSILON, "the wind's cone");
         }
 
+        // the operator's ruling: the violet motes were too slow
+        @Test
+        void aVoidMoteFliesToTheGloveQuickly() {
+            WindLines.Line far = new WindLines.Line(Vec3.ZERO, EAST, SOUTH, EAST.cross(SOUTH), STRAIGHT,
+                    WindLines.Sway.NONE, 1, 0f, false, 0L, false, true);
+            for (int age : new int[] {0, 20, 45}) {
+                assertTrue(WindLines.moteFlight(far, age).ticks() <= WindLines.MOTE_FLIGHT_TICKS,
+                        "a mote leaving at age " + age + " flies " + WindLines.moteFlight(far, age).ticks() + " ticks");
+            }
+        }
+
         @Test
         void voidMotesRideVacuumsLinesAloneAndSnowflakesColdsAlone() {
             assertTrue(windOf("void_vacuum").voidMotes() && !windOf("void_vacuum").snowflakes());
