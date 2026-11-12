@@ -25,7 +25,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * The void_black_hole program, decoded from its JSON and loaded for the
+ * The void_dark_star program, decoded from its JSON and loaded for the
  * marker host, runs its phases in order on a Mockito marker host holding
  * one stack and a real phase cursor, recording the radius of every sphere
  * it scans: it gathers first, running no act while the black hole's inward rush
@@ -71,7 +71,7 @@ class NetherBlackHoleProgramTest {
     private MarkerHost host;
 
     private static List<Step> program() {
-        return LingerStep.bodyOf(AbilityJson.decode("void_black_hole").behaviors()).orElseThrow();
+        return LingerStep.bodyOf(AbilityJson.decode("void_dark_star").behaviors()).orElseThrow();
     }
 
     private void record(String act) {
