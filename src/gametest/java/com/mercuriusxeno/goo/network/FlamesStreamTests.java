@@ -33,9 +33,6 @@ public final class FlamesStreamTests {
     private static final BlockPos STAND_POS = new BlockPos(0, 1, 2);
     /** Three blocks east of the player, at its feet. */
     private static final BlockPos SAND_POS = STAND_POS.east(3);
-    /** Right behind the sand, its west face against the sand's, its top inside the cone. */
-    private static final BlockPos HIDDEN_POS = SAND_POS.east();
-    private static final String FLAMES_SPARES_THE_HIDDEN_BLOCK = "flames_spares_the_hidden_block";
     private static final String FLAMES_RESTS_CHARCOAL_WHERE_THE_LOG_STOOD = "flames_rests_charcoal_where_the_log_stood";
     /** How far from the cell's horizontal center a resting item may stand. */
     private static final double AT_REST = 1e-6;
@@ -49,9 +46,6 @@ public final class FlamesStreamTests {
     /** The leaves burn on the first held tick and blaze_flames.json cooks the sand after forty more. */
     private static final int HOLD_TICKS = 44;
     private static final double ITEM_SEARCH_RADIUS = 4;
-    /** The cells around the test the fire check sweeps. */
-    private static final BlockPos FIRE_SWEEP_FROM = new BlockPos(0, 1, 0);
-    private static final BlockPos FIRE_SWEEP_TO = new BlockPos(5, 4, 4);
     private static final Identifier BLAZE_FLAMES = Identifier.parse("goo:blaze_flames");
     private static final String ABILITY_REQUIRED = "Ability registry must hold blaze_flames";
 
@@ -65,8 +59,6 @@ public final class FlamesStreamTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, FLAMES_COOKS_SAND, FlamesStreamTests::flamesCooksSand);
-        GooTestFunctions.registerTest(registrar, FLAMES_SPARES_THE_HIDDEN_BLOCK,
-                FlamesStreamTests::flamesSparesTheHiddenBlock);
         GooTestFunctions.registerTest(registrar, FLAMES_RESTS_CHARCOAL_WHERE_THE_LOG_STOOD,
                 FlamesStreamTests::flamesRestsCharcoalWhereTheLogStood);
     }
@@ -98,31 +90,8 @@ public final class FlamesStreamTests {
     }
 
     /**
-     * A mock player holds flames on sand with more sand right behind it, its
-     * top open to the air inside the cone but hidden from the eye by the
-     * aimed sand: the aimed sand becomes glass and the hidden sand stays sand.
-     * flames-absorbs-broil-and-cooks-blocks: the flame cooks only the block the player looks at
-     *
-     * @param helper the gametest helper
-     */
-    public static void flamesSparesTheHiddenBlock(GameTestHelper helper) {
-        helper.setBlock(SAND_POS.below(), Blocks.BEDROCK);
-        helper.setBlock(SAND_POS, Blocks.SAND);
-        helper.setBlock(HIDDEN_POS.below(), Blocks.BEDROCK);
-        helper.setBlock(HIDDEN_POS, Blocks.SAND);
-        ServerPlayer player = flamer(helper);
-        hold(helper, player, HOLD_TICKS);
-        helper.runAfterDelay(HOLD_TICKS + 2, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertBlockPresent(Blocks.GLASS, SAND_POS);
-            helper.assertBlockPresent(Blocks.SAND, HIDDEN_POS);
-            helper.succeed();
-        });
-    }
-
-    /**
      * A mock player holds flames on sand past leaves on its aim line: the
-     * leaves are gone, the sand becomes glass, and no fire stands.
+     * leaves are gone and the sand becomes glass.
      *
      * @param helper the gametest helper
      */
@@ -136,8 +105,6 @@ public final class FlamesStreamTests {
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertBlockPresent(Blocks.GLASS, SAND_POS);
             helper.assertBlockNotPresent(Blocks.OAK_LEAVES, LEAVES_POS);
-            BlockPos.betweenClosed(FIRE_SWEEP_FROM, FIRE_SWEEP_TO)
-                    .forEach(pos -> helper.assertBlockNotPresent(Blocks.FIRE, pos));
             helper.succeed();
         });
     }

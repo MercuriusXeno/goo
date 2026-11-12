@@ -69,6 +69,29 @@ class PaintedHoldTest {
         verify(finish).finish(pos, log, empty);
     }
 
+    /**
+     * A painted block the level now holds as another block, finished alone or replaced, is noted stepped, so the
+     * hold never paints it again (decision decay-gnats-degrade-each-block-once).
+     */
+    @Test
+    void aPaintedBlockTheLevelHoldsAsAnotherBlockIsNotedStepped() {
+        BlockState cobblestone = mock(BlockState.class);
+        when(cobblestone.getBlock()).thenReturn(mock(Block.class));
+        when(host.stateAt(pos)).thenReturn(cobblestone);
+
+        PaintedHold.buildPainted(host, raw -> Optional.of(empty), marks, RATE, OptionalInt.empty(), finish);
+
+        assertTrue(marks.stepped(pos));
+    }
+
+    @Test
+    void aBlockTheHoldFillsIsNotedStepped() {
+        when(host.exposeBlock(pos, emptyState, RATE)).thenReturn(1f);
+
+        PaintedHold.buildPainted(host, raw -> Optional.of(empty), marks, RATE, OptionalInt.empty(), finish);
+
+        assertTrue(marks.stepped(pos));
+    }
     @Test
     void theLineCrossesEachCellItRunsThroughOnceNearestFirst() {
         List<BlockPos> cells = PaintedHold.cellsAlong(new Vec3(0.5, 0.5, 0.5), new Vec3(3.5, 0.5, 0.5));

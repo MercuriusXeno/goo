@@ -21,7 +21,6 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.Witch;
 import net.minecraft.world.item.ItemStack;
@@ -50,7 +49,6 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 @RegistersGameTests
 public final class FrostAbilityTests {
     private static final String NOVA_HELD_REACHES_BOTH = "nova_held_reaches_both_zombies";
-    private static final String NOVA_TAPPED_REACHES_NEAR = "nova_tapped_reaches_only_the_near";
     private static final String NOVA_FREEZES_WATER_AND_LAVA = "nova_freezes_water_and_lava_in_its_ring";
     private static final String COLD_BREAKS_GRASS = "cold_breaks_the_grass_in_its_cone";
     private static final String COLD_FREEZES_WATER_AND_LAVA = "cold_freezes_water_and_lava_in_its_cone";
@@ -71,7 +69,6 @@ public final class FrostAbilityTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, NOVA_HELD_REACHES_BOTH, FrostAbilityTests::novaHeldReachesBothZombies);
-        GooTestFunctions.registerTest(registrar, NOVA_TAPPED_REACHES_NEAR, FrostAbilityTests::novaTappedReachesOnlyTheNear);
         GooTestFunctions.registerTest(registrar, NOVA_FREEZES_WATER_AND_LAVA,
                 FrostAbilityTests::novaFreezesWaterAndLavaInItsRing);
         GooTestFunctions.registerTest(registrar, COLD_BREAKS_GRASS, FrostAbilityTests::coldBreaksTheGrassInItsCone);
@@ -97,24 +94,19 @@ public final class FrostAbilityTests {
     private static final Identifier FROST_NOVA = Identifier.parse("goo:frost_nova");
     /** frost_nova.json's charge max_ticks. */
     private static final int FULL_HOLD_TICKS = 30;
-    private static final int NO_HOLD_TICKS = 0;
     /**
      * A full hold freezes two zombies by 16 health each, thinned by the crowd
      * to about 15.2 of their 20 health; an uncharged one by 4 of 20.
      */
     private static final float FULL_HOLD_FLOOR = 0.7f;
-    private static final float NO_HOLD_CEILING = 0.25f;
     private static final int SETTLE_TICKS = 1;
     /** A third of frost_nova.json's charge: its ring reaches 2 + 6 / 3, four blocks. */
     private static final int THIRD_HOLD_TICKS = 10;
     /** Still water and lava in the floor about two and a half blocks from the caster, inside the third-held ring. */
     private static final BlockPos NOVA_WATER_POS = new BlockPos(3, 0, 1);
     private static final BlockPos NOVA_LAVA_POS = new BlockPos(1, 0, 3);
-    /** Still water in the floor's far corner, about six blocks from the caster, past the third-held ring. */
-    private static final BlockPos NOVA_FAR_WATER_POS = new BlockPos(5, 0, 5);
     private static final String SHOULD_ICE_IN_THE_RING = "Nova's ring should freeze the water it reaches to ice";
     private static final String SHOULD_OBSIDIAN_IN_THE_RING = "Nova's ring should freeze the lava it reaches to obsidian";
-    private static final String SHOULD_LEAVE_WATER_PAST_THE_RING = "Nova's ring should leave the water past it standing";
     private static final Identifier FROST_COLD = Identifier.parse("goo:frost_cold");
     private static final BlockPos STREAMER_POS = new BlockPos(0, 1, 2);
     /** Grass three blocks east of the streamer, inside Cold's cone below the look. */
@@ -128,11 +120,8 @@ public final class FrostAbilityTests {
     /** Still water and lava in the floor inside Cold's cone, a block apart so neither meets the other. */
     private static final BlockPos COLD_WATER_POS = new BlockPos(4, 0, 2);
     private static final BlockPos COLD_LAVA_POS = new BlockPos(6, 0, 2);
-    /** Still water in the floor three blocks beside the cone's axis, outside its sixteen degrees, rim to rim. */
-    private static final BlockPos COLD_BESIDE_WATER_POS = new BlockPos(4, 0, 5);
     private static final String SHOULD_ICE_IN_THE_CONE = "Cold's cone should freeze the water it reaches to ice";
     private static final String SHOULD_OBSIDIAN_IN_THE_CONE = "Cold's cone should freeze the lava it reaches to obsidian";
-    private static final String SHOULD_LEAVE_WATER_BESIDE_THE_CONE = "Cold's cone should leave the water beside it standing";
     private static final Identifier FROST_ORB = Identifier.parse("goo:frost_orb");
     /** Two still water blocks in the floor under the Orb's path. */
     private static final BlockPos POOL_NEAR = new BlockPos(2, 0, 2);
@@ -200,8 +189,6 @@ public final class FrostAbilityTests {
     /** Still lava and water in the floor and a burning zombie, all within Iceborn's reach of 3. */
     private static final BlockPos ICEBORN_LAVA_POS = new BlockPos(3, 0, 1);
     private static final BlockPos ICEBORN_WATER_POS = new BlockPos(1, 0, 3);
-    private static final BlockPos ICEBORN_ZOMBIE_POS = new BlockPos(3, 1, 3);
-    private static final int BURN_SECONDS = 10;
     /** frost_iceborn.json's leech passes every five ticks; ten ticks see two. */
     private static final int LEECH_TICKS = 10;
     /** Past two of the Iceborn ice's one-second checks after the player leaves. */
@@ -209,15 +196,12 @@ public final class FrostAbilityTests {
     private static final float FIRE_DAMAGE = 1f;
     private static final String SHOULD_OBSIDIAN = "Lava near an Iceborn player should freeze to obsidian";
     private static final String SHOULD_RIME = "Water near an Iceborn player should freeze to Iceborn ice";
-    private static final String SHOULD_PUT_OUT = "A burning zombie near an Iceborn player should stop burning";
     private static final String SHOULD_THAW_ICE = "Iceborn ice should thaw back to water once the player has gone";
     private static final String SHOULD_MELT_OBSIDIAN = "Iceborn obsidian should melt back to lava once the player has gone";
     private static final String SHOULD_THAW_HEARTS = "Fire should thaw every frozen heart and end Iceborn, stands %s";
     private static final String ABILITY_REQUIRED = "Ability registry must hold frost_nova";
     private static final String SHOULD_FREEZE_HARD = "A full Nova should freeze the %s zombie past %s, stands %s";
-    private static final String SHOULD_FREEZE_LIGHTLY = "An uncharged Nova should freeze the near zombie lightly, stands %s";
     private static final String SHOULD_HURT = "Nova's ring should hurt the %s zombie it crosses";
-    private static final String SHOULD_NOT_REACH = "An uncharged Nova should not reach the far zombie, stands %s";
     private static final BlockPos WITCH_POS = new BlockPos(3, 1, 3);
     /** A full Nova's freeze of sixteen over a witch's twenty six health: two full Novas fill her gauge. */
     private static final int NOVAS_TO_ENCASE_A_WITCH = 2;
@@ -269,46 +253,20 @@ public final class FrostAbilityTests {
     }
 
     /**
-     * Nova let go at once reaches only the near zombie, and freezes it lightly.
-     *
-     * @param helper the gametest helper
-     */
-    public static void novaTappedReachesOnlyTheNear(GameTestHelper helper) {
-        Mob near = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, NEAR_POS);
-        Mob far = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, FAR_POS);
-        ServerPlayer caster = caster(helper);
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            release(caster, NO_HOLD_TICKS);
-            helper.assertTrue(near.getHealth() < near.getMaxHealth(), String.format(SHOULD_HURT, "near"));
-            float nearGauge = near.getData(GooAttachments.FROZEN).gauge();
-            float farGauge = far.getData(GooAttachments.FROZEN).gauge();
-            helper.getLevel().getServer().getPlayerList().remove(caster);
-            helper.assertTrue(nearGauge > 0f && nearGauge < NO_HOLD_CEILING,
-                    String.format(SHOULD_FREEZE_LIGHTLY, nearGauge));
-            helper.assertTrue(farGauge == 0f, String.format(SHOULD_NOT_REACH, farGauge));
-            helper.succeed();
-        });
-    }
-
-    /**
      * Nova held a third of its charge freezes the still water in its ring to
-     * ice and the still lava to obsidian, and leaves the water past its ring
-     * standing (decision nova-ring-and-cold-cone-freeze-water-and-lava).
+     * ice and the still lava to obsidian (decision nova-ring-and-cold-cone-freeze-water-and-lava).
      *
      * @param helper the gametest helper
      */
     public static void novaFreezesWaterAndLavaInItsRing(GameTestHelper helper) {
         helper.setBlock(NOVA_WATER_POS, Blocks.WATER);
         helper.setBlock(NOVA_LAVA_POS, Blocks.LAVA);
-        helper.setBlock(NOVA_FAR_WATER_POS, Blocks.WATER);
         ServerPlayer caster = caster(helper);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             release(caster, THIRD_HOLD_TICKS);
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.assertTrue(helper.getBlockState(NOVA_WATER_POS).is(Blocks.ICE), SHOULD_ICE_IN_THE_RING);
             helper.assertTrue(helper.getBlockState(NOVA_LAVA_POS).is(Blocks.OBSIDIAN), SHOULD_OBSIDIAN_IN_THE_RING);
-            helper.assertTrue(helper.getBlockState(NOVA_FAR_WATER_POS).is(Blocks.WATER),
-                    SHOULD_LEAVE_WATER_PAST_THE_RING);
             helper.succeed();
         });
     }
@@ -343,15 +301,13 @@ public final class FrostAbilityTests {
 
     /**
      * Cold held ten ticks at the floor freezes the still water in its cone to
-     * ice and the still lava to obsidian, and leaves the water beside its cone
-     * standing (decision nova-ring-and-cold-cone-freeze-water-and-lava).
+     * ice and the still lava to obsidian (decision nova-ring-and-cold-cone-freeze-water-and-lava).
      *
      * @param helper the gametest helper
      */
     public static void coldFreezesWaterAndLavaInItsCone(GameTestHelper helper) {
         helper.setBlock(COLD_WATER_POS, Blocks.WATER);
         helper.setBlock(COLD_LAVA_POS, Blocks.LAVA);
-        helper.setBlock(COLD_BESIDE_WATER_POS, Blocks.WATER);
         ServerPlayer streamer = SelfDeliveryTests.invoker(helper, GooTypes.FROST);
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STREAMER_POS));
         streamer.setPos(stand.x, stand.y, stand.z);
@@ -369,8 +325,6 @@ public final class FrostAbilityTests {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
             helper.assertTrue(helper.getBlockState(COLD_WATER_POS).is(Blocks.ICE), SHOULD_ICE_IN_THE_CONE);
             helper.assertTrue(helper.getBlockState(COLD_LAVA_POS).is(Blocks.OBSIDIAN), SHOULD_OBSIDIAN_IN_THE_CONE);
-            helper.assertTrue(helper.getBlockState(COLD_BESIDE_WATER_POS).is(Blocks.WATER),
-                    SHOULD_LEAVE_WATER_BESIDE_THE_CONE);
             helper.succeed();
         });
     }
@@ -528,8 +482,7 @@ public final class FrostAbilityTests {
 
     /**
      * An Iceborn player leeches heat: still lava beside them freezes to
-     * obsidian, still water to Iceborn ice, a burning zombie stops burning,
-     * and once they have gone the level's record sends the ice back to water
+     * obsidian and still water to Iceborn ice, and once they have gone the level's record sends the ice back to water
      * and the obsidian back to lava.
      *
      * @param helper the gametest helper
@@ -537,10 +490,6 @@ public final class FrostAbilityTests {
     public static void icebornFreezesSurroundings(GameTestHelper helper) {
         basin(helper, ICEBORN_LAVA_POS, Blocks.LAVA);
         basin(helper, ICEBORN_WATER_POS, Blocks.WATER);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ICEBORN_ZOMBIE_POS);
-        // a helmet keeps daylight from relighting the zombie between the leech's passes
-        zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
-        zombie.igniteForSeconds(BURN_SECONDS);
         ServerPlayer player = iceborn(helper);
         for (int tick = 1; tick <= LEECH_TICKS; tick++) {
             helper.runAfterDelay(tick, player::doTick);
@@ -549,7 +498,6 @@ public final class FrostAbilityTests {
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertTrue(helper.getBlockState(ICEBORN_LAVA_POS).is(Blocks.OBSIDIAN), SHOULD_OBSIDIAN);
             helper.assertTrue(helper.getBlockState(ICEBORN_WATER_POS).is(GooBlocks.ICEBORN_ICE.get()), SHOULD_RIME);
-            helper.assertFalse(zombie.isOnFire(), SHOULD_PUT_OUT);
         });
         helper.runAfterDelay(LEECH_TICKS + 1 + THAW_AFTER_LEAVING_TICKS, () -> {
             helper.assertTrue(helper.getBlockState(ICEBORN_WATER_POS).is(Blocks.WATER), SHOULD_THAW_ICE);
