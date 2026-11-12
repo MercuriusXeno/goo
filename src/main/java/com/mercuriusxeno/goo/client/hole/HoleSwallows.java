@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.hole;
 
+import com.mercuriusxeno.goo.ability.hole.HoleDrift;
 import com.mercuriusxeno.goo.network.PortableHolesSyncPayload;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -25,15 +26,28 @@ final class HoleSwallows {
 
     /** Ticks a swallowed item takes to ease into the soup, about half a second. */
     static final float TRANSIT_TICKS = 10F;
-    /** The shown index of a kind the soup does not show. */
+    /** The shown index of a kind the mouth does not store. */
     static final int NOT_SHOWN = -1;
-    /** Where a kind the soup does not show ends: sunk to rest on the pit floor below the mouth's middle, unseen. */
-    private static final HoleDrift.Placement SUNK = new HoleDrift.Placement(
-            new Vec3(0, HoleDrift.DRAWN_RADIUS - HoleDrift.PIT_DEPTH, 0), 0);
 
     private final Map<MouthKey, List<Transit>> running = new HashMap<>();
     /** The kinds each mouth stored as last heard, which tell a swallow that stores its kind first. */
     private final Map<MouthKey, Set<Identifier>> kindsBefore = new HashMap<>();
+    /** Each mouth's count of kinds easing from the count it stored before to the count it stores now. */
+    private final Map<MouthKey, KindsEase> easing = new HashMap<>();
+
+    /**
+     * A mouth's count of kinds easing from one count to the next.
+     *
+     * @param from  the count the soup spread over as the count changed
+     * @param to    the count the mouth stores now
+     * @param since the client's game time the count changed
+     */
+    private record KindsEase(float from, int to, long since) {
+
+        float at(float time) {
+            return (float) Mth.lerp(Mth.smoothstep(Mth.clamp((time - since) / TRANSIT_TICKS, 0F, 1F)), from, to);
+        }
+    }
 
     /**
      * One swallowed item easing into its mouth.
@@ -82,10 +96,29 @@ final class HoleSwallows {
                 }
             }
             kindsNow.put(key, kindsOf(mouth));
+            easeKinds(key, before.size(), mouth.stored().size(), gameTime);
         }
         running.keySet().retainAll(kindsNow.keySet());
+        easing.keySet().retainAll(kindsNow.keySet());
         kindsBefore.clear();
         kindsBefore.putAll(kindsNow);
+    }
+
+    /**
+     * Starts a mouth's count easing toward the count it stores now, from the
+     * count its soup spreads over at this moment, where the count changed.
+     *
+     * @param key      the mouth
+     * @param before   the count it stored as last heard
+     * @param now      the count it stores now
+     * @param gameTime the client's game time
+     */
+    private void easeKinds(MouthKey key, int before, int now, long gameTime) {
+        KindsEase ease = easing.get(key);
+        int heading = ease == null ? before : ease.to();
+        if (heading != now) {
+            easing.put(key, new KindsEase(ease == null ? before : ease.at(gameTime), now, gameTime));
+        }
     }
 
     private static Set<Identifier> kindsOf(PortableHolesSyncPayload.Mouth mouth) {
@@ -100,6 +133,7 @@ final class HoleSwallows {
     void forget() {
         running.clear();
         kindsBefore.clear();
+        easing.clear();
     }
 
     /**
@@ -127,7 +161,7 @@ final class HoleSwallows {
         runningIn(mouth, time).stream().filter(Transit::firstOfItsKind)
                 .forEach(transit -> arriving.add(transit.swallowed().item()));
         List<Integer> drawn = new ArrayList<>();
-        for (int index = 0; index < Math.min(mouth.stored().size(), HoleDrift.MOST_SHOWN); index++) {
+        for (int index = 0; index < mouth.stored().size(); index++) {
             if (!arriving.contains(mouth.stored().get(index).item())) {
                 drawn.add(index);
             }
@@ -136,14 +170,31 @@ final class HoleSwallows {
     }
 
     /**
-     * A kind's place among a mouth's shown kinds.
+     * The count of kinds a mouth's soup spreads over at a moment: the count it
+     * stores, eased over the transit's span from the count it stored as last
+     * heard, so a kind stored first or taken away moves the kinds swimming to
+     * their places for the new count without a jump.
+     * decision hole-shows-every-kind-stored
+     *
+     * @param mouth a drawn mouth
+     * @param time  the client's game time, partial tick included
+     * @return the count, between the one last heard and the one stored now
+     */
+    float kindsShownAt(PortableHolesSyncPayload.Mouth mouth, float time) {
+        KindsEase ease = easing.get(MouthKey.of(mouth));
+        return ease == null ? mouth.stored().size() : ease.at(time);
+    }
+
+    /**
+     * A kind's place among a mouth's shown kinds, which are every kind it stores.
+     * decision hole-shows-every-kind-stored
      *
      * @param mouth a drawn mouth
      * @param item  the kind's id
-     * @return its index, or NOT_SHOWN where the soup shows no such kind
+     * @return its index, or NOT_SHOWN where the mouth stores no such kind
      */
     static int shownIndexOf(PortableHolesSyncPayload.Mouth mouth, Identifier item) {
-        for (int index = 0; index < Math.min(mouth.stored().size(), HoleDrift.MOST_SHOWN); index++) {
+        for (int index = 0; index < mouth.stored().size(); index++) {
             if (mouth.stored().get(index).item().equals(item)) {
                 return index;
             }
@@ -152,21 +203,17 @@ final class HoleSwallows {
     }
 
     /**
-     * Where a transit ends at a moment: its kind's soup place at full size,
-     * or sunk at the pit's depth below the mouth's middle at no size where
-     * the soup does not show its kind.
+     * Where a transit ends at a moment: its kind's soup place at full size.
      *
-     * @param index      the kind's shown index, negative where the soup shows it not
+     * @param index      the kind's shown index
+     * @param kinds      the count of kinds the soup spreads over
      * @param time       the game time, partial tick included
      * @param halfAcross the mouth's half span across, along x
      * @param halfAlong  the mouth's half span along, along z
      * @return the transit's end
      */
-    static HoleDrift.Placement endOf(int index, float time, double halfAcross, double halfAlong) {
-        if (index < 0 || index >= HoleDrift.MOST_SHOWN) {
-            return SUNK;
-        }
-        return HoleDrift.placementAt(index, time, halfAcross, halfAlong, 1F);
+    static HoleDrift.Placement endOf(int index, float kinds, float time, double halfAcross, double halfAlong) {
+        return HoleDrift.placementAt(index, kinds, time, halfAcross, halfAlong, 1F);
     }
 
     /**
