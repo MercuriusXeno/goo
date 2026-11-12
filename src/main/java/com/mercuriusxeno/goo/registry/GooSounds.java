@@ -17,7 +17,7 @@ public final class GooSounds {
     public static final DeferredRegister<SoundEvent> SOUND_EVENTS =
         DeferredRegister.create(Registries.SOUND_EVENT, Goo.MODID);
 
-    /** Nether chain effect: sphere expand / destroy / contract "boom". */
+    /** The black hole's sphere expand / destroy / contract "boom". */
     public static final DeferredHolder<SoundEvent, SoundEvent> BLACK_HOLE =
         SOUND_EVENTS.register("effects.black_hole",
             () -> SoundEvent.createVariableRangeEvent(

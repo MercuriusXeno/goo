@@ -5,21 +5,23 @@ import com.mercuriusxeno.goo.ability.program.PhasedState;
 import com.mercuriusxeno.goo.ability.program.PhasedStep;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.ber.AbilityBlockRenderState;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.phys.Vec3;
 import java.util.OptionalDouble;
 
 /**
- * Reads the nether black hole's size off the phase cursor its program
+ * Reads the black hole's size off the phase cursor its program
  * keeps on the marker: the sphere eases out to full size through
  * {@code expand}, holds through {@code hold} and eases back to nothing
  * through {@code contract}, while the accretion disk sweeps out on a
  * curve of its own, the body pulsing steadily through all three. The phase names are the ones
- * {@code nether_black_hole.json} declares.
+ * {@code void_black_hole.json} declares.
  */
 public final class BlackHolePhases {
 
-    /** The phase before expand, while nether's inward rush plays and the hole draws only its ramp. */
+    /** The phase before expand, while the inward rush plays and the hole draws only its ramp. */
     private static final String GATHER = "gather";
     private static final String EXPAND = "expand";
     private static final String HOLD = "hold";
@@ -47,13 +49,25 @@ public final class BlackHolePhases {
     }
 
     /**
-     * Answers whether the marker is a nether marker running a phased program.
+     * Answers whether the marker is a void marker running a phased program.
      *
      * @param be the ability block block entity
      * @return true while the black hole should draw
      */
     public static boolean isRunning(AbilityBlockEntity be) {
-        return GooTypes.NETHER.equals(be.getGooType()) && be.getPhased().isRunning();
+        return drawsTheHole(be.getGooType(), be.getPhased());
+    }
+
+    /**
+     * Answers whether a marker of a goo type, at a phase cursor, draws the hole.
+     *
+     * @param gooType the marker's goo type
+     * @param phased  the marker's phase cursor
+     * @return true while the black hole should draw
+     */
+    static boolean drawsTheHole(ResourceKey<GooTypeDefinition> gooType, PhasedState phased) {
+        // anti-moves-from-nether-to-void
+        return GooTypes.VOID.equals(gooType) && phased.isRunning();
     }
 
     /**
@@ -117,7 +131,7 @@ public final class BlackHolePhases {
 
     /**
      * How far the hole's startup ramp has run in a phase. The gather leaves
-     * the stage to nether's inward rush while the marker's orb holds
+     * the stage to the inward rush while the marker's orb holds
      * (decision elemental-explosion-per-type), until its last ticks, where
      * the hole starts small and fades in to meet expand's first frame
      * (decision dome-fades-in-before-its-start).
@@ -178,7 +192,7 @@ public final class BlackHolePhases {
     }
 
     /**
-     * The hole body's radius at a phase scale, carrying the nether marker's
+     * The hole body's radius at a phase scale, carrying the void marker's
      * constant pulse (decision orchestration-animation-per-ability).
      *
      * @param fullRadius   the hole's full radius in world blocks
@@ -191,7 +205,7 @@ public final class BlackHolePhases {
     }
 
     /**
-     * The nether marker's steady pulse: a sine about 1 the hole rides
+     * The void marker's steady pulse: a sine about 1 the hole rides
      * through expand, hold and contract alike.
      *
      * @param gameTime the game time including the partial tick

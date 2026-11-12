@@ -6,7 +6,7 @@
   "cost": 12,
   "delivery": {
     "kind": "stream",
-    "range": 8,
+    "range": 12,
     "cone": 24,
     "ticks_per_charge": 20,
     "particle": "goo:kinetic_mist",

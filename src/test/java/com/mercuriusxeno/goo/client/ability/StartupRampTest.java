@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * StartupRamp eases a nether hole's startup frames in: the radius and the
+ * StartupRamp eases a black hole's startup frames in: the radius and the
  * opacity they draw at.
  */
 class StartupRampTest {

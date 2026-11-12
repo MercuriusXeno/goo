@@ -6,7 +6,11 @@ import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
-import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.model.HumanoidModel;
+import net.minecraft.client.model.geom.ModelPart;
+import net.minecraft.client.model.geom.builders.CubeDeformation;
+import net.minecraft.client.model.geom.builders.LayerDefinition;
+import net.minecraft.client.model.monster.spider.SpiderModel;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
@@ -28,6 +32,7 @@ import java.util.function.ToIntFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -106,21 +111,6 @@ class AilmentOverlayLayerTest {
         }
 
         @Test
-        void patternRidesTheOverlayCoordinatesU() throws IOException {
-            assertTrue(holds(vertexSource(), "pattern\\s*=\\s*UV1\\.x;"), "the pattern is not read from UV1's U");
-        }
-
-        @Test
-        void layerPacksTheAilmentsPatternIntoU() {
-            for (AilmentKind kind : AilmentKind.values()) {
-                if (kind.drawsOverlay()) {
-                    assertEquals(OverlayTexture.pack(kind.pattern().ordinal(), 0),
-                            AilmentOverlayLayer.patternCoords(kind), kind.name());
-                }
-            }
-        }
-
-        @Test
         void everyPatternDrawsItsOwnField() throws IOException {
             String fragment = fragmentSource();
 
@@ -131,6 +121,88 @@ class AilmentOverlayLayerTest {
             assertTrue(holds(fragment, "else\\s*if\\s*\\(pattern\\s*==\\s*PATTERN_SHIMMER\\)\\s*\\{\\s*shine\\s*=\\s*shimmerField"),
                     "the shimmer draws no field of its own");
             assertTrue(holds(fragment, "pattern\\s*==\\s*PATTERN_WOBBLE"), "the wobble draws no field of its own");
+        }
+    }
+
+    /**
+     * The overlay reads each mob's own skin size beside the ailment's pattern
+     * (decision diagnose-and-correct-vines-and-ailment-overlay-assuming-a-square-skin).
+     */
+    @Nested
+    class SkinSizeBesideThePattern {
+
+        private static ModelPart spider() {
+            return SpiderModel.createSpiderBodyLayer().bakeRoot();
+        }
+
+        private static ModelPart zombie() {
+            return LayerDefinition.create(HumanoidModel.createMesh(CubeDeformation.NONE, 0f), 64, 64).bakeRoot();
+        }
+
+        @ParameterizedTest(name = "{0}")
+        @EnumSource(AilmentPattern.class)
+        void theVertexShaderReadsThePatternAndASpidersSkinBackWhole(AilmentPattern pattern) {
+            assertArrayEquals(new int[] {pattern.ordinal(), 64, 32},
+                    AilmentOverlayModel.unpack(AilmentOverlayLayer.patternCoords(pattern, spider())));
+        }
+
+        @ParameterizedTest(name = "{0}")
+        @EnumSource(AilmentPattern.class)
+        void theVertexShaderReadsThePatternAndAZombiesSkinBackWhole(AilmentPattern pattern) {
+            assertArrayEquals(new int[] {pattern.ordinal(), 64, 64},
+                    AilmentOverlayModel.unpack(AilmentOverlayLayer.patternCoords(pattern, zombie())));
+        }
+
+        @Test
+        void theVertexShaderUnpacksTheWayTheModelDoes() throws IOException {
+            String vertex = vertexSource();
+
+            for (String line : AilmentOverlayModel.UNPACK_LINES) {
+                assertTrue(vertex.contains(line), "goo_ailment_overlay.vsh unpacks with: " + line);
+            }
+            assertTrue(vertex.contains("flat out vec2 skinTexels;"), "the vertex shader hands the skin size on");
+            assertTrue(fragmentSource().contains("flat in vec2 skinTexels;"), "the fragment shader takes the skin size");
+        }
+    }
+
+    /**
+     * Each pattern's cells span as many skin texels down as across on a skin of
+     * any shape (decision diagnose-and-correct-vines-and-ailment-overlay-assuming-a-square-skin).
+     */
+    @Nested
+    class PatternCellsSquareOnTheSkin {
+
+        private static final float CELLS = 12f;
+        private static final float TEXEL_AGREEMENT = 1e-4f;
+
+        @ParameterizedTest(name = "a {0} by {1} skin")
+        @CsvSource({"64, 64", "64, 32", "128, 64"})
+        void aCellSpansAsManySkinTexelsDownAsAcross(int skinWidth, int skinHeight) {
+            float[] origin = AilmentOverlayModel.cellCoord(0f, 0f, skinWidth, skinHeight, CELLS);
+            float[] acrossOne = AilmentOverlayModel.cellCoord(1f / skinWidth, 0f, skinWidth, skinHeight, CELLS);
+            float[] downOne = AilmentOverlayModel.cellCoord(0f, 1f / skinHeight, skinWidth, skinHeight, CELLS);
+
+            assertEquals(acrossOne[0] - origin[0], downOne[1] - origin[1], TEXEL_AGREEMENT,
+                    "cells per skin texel down against across");
+        }
+
+        @Test
+        void aSquareSkinKeepsItsCellsAcrossTheSkin() {
+            float[] corner = AilmentOverlayModel.cellCoord(1f, 1f, 64, 64, CELLS);
+
+            assertArrayEquals(new float[] {CELLS, CELLS}, corner, TEXEL_AGREEMENT);
+        }
+
+        @Test
+        void everyPatternLaysItsCellsAtTheModeledAspect() throws IOException {
+            String fragment = fragmentSource();
+
+            assertTrue(fragment.contains(AilmentOverlayModel.CELL_ASPECT), "the fragment shader defines the aspect");
+            for (String call : new String[] {"skinTexel * cellAspect * STONE_CELLS", "skinTexel * cellAspect * FROST_CELLS",
+                "skinTexel * cellAspect * GEL_CELLS", "shimmerField(skinTexel * cellAspect, GameTime)",
+                "facetField(skinCoord * cellAspect, GameTime)"}) {
+                assertTrue(fragment.contains(call), "a pattern lays its cells off the aspect: " + call);
+            }
         }
     }
 

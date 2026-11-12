@@ -14,7 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Nether black-hole render path: the three-pass sphere/corona/disk
+ * Black-hole render path: the three-pass sphere/corona/disk
  * submission triggered from {@link AbilityBlockRenderer} when a nether
  * {@code ProgramBehavior} is active on the ability block BE. All nether-
  * specific geometry, mesh caches, color packing, and render-state
