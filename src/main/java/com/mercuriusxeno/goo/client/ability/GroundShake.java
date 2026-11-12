@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.crystal.KnifeRain;
 import com.mercuriusxeno.goo.ability.program.BoreStep;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.FlattenStep;
@@ -16,7 +15,6 @@ import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.data.GooValue;
-import com.mercuriusxeno.goo.network.KnifeRainSling;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.SheetedDecalTextureGenerator;
@@ -176,17 +174,17 @@ public final class GroundShake {
      * decision only-the-blocks-about-to-break-shake-briefly-and-gently
      * decision bore-breaks-what-is-in-the-vortex
      *
-     * @param eye          the boring player's eye
-     * @param glove        the glove the vortex opens from
-     * @param vortexRadius the vortex's radius at the glove
-     * @param aim          the stream's aim: its reach along the look
-     * @param air          whether a cell holds air
-     * @param breakable    whether a cell holds a block the bore breaks
+     * @param eye        the boring player's eye, where the line and the vortex run from
+     * @param nearRadius the vortex's radius at the eye
+     * @param farRadius  the vortex's radius at the reach
+     * @param aim        the stream's aim: its reach along the look
+     * @param air        whether a cell holds air
+     * @param breakable  whether a cell holds a block the bore breaks
      * @return the zone
      */
-    static Zone boreZone(Vec3 eye, Vec3 glove, double vortexRadius, ChannelAim aim, Predicate<BlockPos> air,
+    static Zone boreZone(Vec3 eye, double nearRadius, double farRadius, ChannelAim aim, Predicate<BlockPos> air,
                          Predicate<BlockPos> breakable) {
-        return cellsZone(BoreStep.progressing(eye, glove, vortexRadius, aim, air, breakable));
+        return cellsZone(BoreStep.progressing(eye, nearRadius, farRadius, aim, air, breakable));
     }
 
     /**
@@ -310,8 +308,8 @@ public final class GroundShake {
 
     /**
      * The blocks the local player's bore is progressing, its eye line's and
-     * its vortex's, read off the client's level along the aim and from the
-     * glove point the server bores by.
+     * its vortex's, read off the client's level along the aim the server
+     * bores by.
      * decision bore-breaks-what-is-in-the-vortex
      *
      * @param player      the local player
@@ -326,9 +324,8 @@ public final class GroundShake {
         Level level = player.level();
         ChannelAim aim = new ChannelAim(eye.add(player.getViewVector(partialTick).scale(ability.delivery().range())),
                 null, ability.delivery().coneDegrees());
-        Vec3 glove = KnifeRain.handPoint(eye, player.getViewYRot(partialTick), player.getViewVector(partialTick),
-                KnifeRainSling.gloveOnTheRight(player));
-        return boreZone(eye, glove, bore.vortexRadius(), aim, cell -> level.getBlockState(cell).isAir(),
+        return boreZone(eye, bore.vortexNearRadius(), bore.vortexFarRadius(), aim,
+                cell -> level.getBlockState(cell).isAir(),
                 cell -> level.getBlockState(cell).is(bore.breaks()));
     }
 

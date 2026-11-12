@@ -7,32 +7,28 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Bore's drill is a cone from the glove to Bore's reach on the eye line it
- * drills, widest at the glove and coming to a point at the tip
- * (decision bore-shows-a-big-drill-from-the-glove).
+ * Bore's drawn vortex is the vortex Bore breaks: a cone along the eye line
+ * from the eye to Bore's reach, widening from the bore step's near radius to
+ * its far radius, never wider than a block
+ * (decisions bore-shows-a-big-drill-from-the-glove, bore-breaks-what-is-in-the-vortex).
  */
 class BoreDrillTest {
 
     /** rock_bore.json's delivery range. */
     private static final double REACH = 4;
+    /** rock_bore.json's vortex radii at its near and far ends. */
+    private static final double NEAR = 0.1;
+    private static final double FAR = 0.45;
     private static final double SLACK = 1e-9;
-    private static final Vec3 EYE = Vec3.ZERO;
+    private static final double HALF_A_BLOCK = 0.5;
+    private static final Vec3 EYE = new Vec3(3.2, 70.62, -8.4);
     /** Yaw 0 looks along +Z. */
     private static final float YAW = 0f;
     private static final Vec3 LOOK = new Vec3(0, 0, 1);
-    /** A first-person glove: right of the eye (-X when facing +Z), below it and ahead of it. */
-    private static final Vec3 HAND = new Vec3(-0.35, -0.3, 0.5);
     private static final int SAMPLES = 64;
-    /** rock_bore.json's vortex radius at the glove. */
-    private static final double RADIUS = 0.3;
-    private static final double WIDER = 0.6;
 
-    private static ConeSections.Volume drill() {
-        return drill(RADIUS);
-    }
-
-    private static ConeSections.Volume drill(double radius) {
-        return BoreDrill.volume(EYE, HAND, LOOK, YAW, REACH, radius);
+    private static ConeSections.Volume vortex(double near, double far) {
+        return BoreDrill.volume(EYE, LOOK, YAW, REACH, near, far);
     }
 
     private static Vec3 pointAlong(ConeSections.Volume volume, double distance) {
@@ -43,15 +39,15 @@ class BoreDrillTest {
     class Ends {
 
         @Test
-        void theBaseStandsAtTheGlove() {
-            ConeSections.Volume drill = drill();
-            assertEquals(0, pointAlong(drill, drill.near()).distanceTo(HAND), SLACK);
+        void itRunsFromTheEye() {
+            ConeSections.Volume vortex = vortex(NEAR, FAR);
+            assertEquals(0, pointAlong(vortex, vortex.near()).distanceTo(EYE), SLACK);
         }
 
         @Test
-        void theTipStandsOnTheEyeLineAtTheReach() {
-            ConeSections.Volume drill = drill();
-            assertEquals(0, pointAlong(drill, drill.range()).distanceTo(EYE.add(LOOK.scale(REACH))), SLACK);
+        void itRunsAlongTheEyeLineToTheReach() {
+            ConeSections.Volume vortex = vortex(NEAR, FAR);
+            assertEquals(0, pointAlong(vortex, vortex.range()).distanceTo(EYE.add(LOOK.scale(REACH))), SLACK);
         }
     }
 
@@ -59,32 +55,25 @@ class BoreDrillTest {
     class Radius {
 
         @Test
-        void theRadiusIsGreatestAtTheGloveAndNeverGrowsAlongTheBit() {
-            ConeSections.Volume drill = drill();
-            double atTheGlove = drill.radiusAt().applyAsDouble(drill.near());
-            assertTrue(atTheGlove > 0, "the bit has no width at the glove");
-            double previous = atTheGlove;
-            for (int sample = 1; sample <= SAMPLES; sample++) {
-                double distance = drill.near() + (drill.range() - drill.near()) * sample / SAMPLES;
-                double radius = drill.radiusAt().applyAsDouble(distance);
-                assertTrue(radius <= previous, "the bit grows to " + radius + " at " + distance);
+        void itsEndsAreTheBoreStepsNearAndFarRadii() {
+            for (double[] radii : new double[][] {{NEAR, FAR}, {0.2, 0.3}}) {
+                ConeSections.Volume vortex = vortex(radii[0], radii[1]);
+                assertEquals(radii[0], vortex.radiusAt().applyAsDouble(vortex.near()), SLACK);
+                assertEquals(radii[1], vortex.radiusAt().applyAsDouble(vortex.range()), SLACK);
+            }
+        }
+
+        @Test
+        void itWidensToItsFarEndAndIsNeverWiderThanABlock() {
+            ConeSections.Volume vortex = vortex(NEAR, FAR);
+            double previous = 0;
+            for (int sample = 0; sample <= SAMPLES; sample++) {
+                double distance = vortex.range() * sample / SAMPLES;
+                double radius = vortex.radiusAt().applyAsDouble(distance);
+                assertTrue(radius >= previous, "the vortex narrows to " + radius + " at " + distance);
+                assertTrue(radius < HALF_A_BLOCK, "the vortex is " + 2 * radius + " wide at " + distance);
                 previous = radius;
             }
-        }
-
-        /** decision bore-breaks-what-is-in-the-vortex */
-        @Test
-        void theRadiusAtTheGloveIsTheBoreStepsVortexRadius() {
-            for (double radius : new double[] {RADIUS, WIDER}) {
-                ConeSections.Volume drill = drill(radius);
-                assertEquals(radius, drill.radiusAt().applyAsDouble(drill.near()), SLACK, "at radius " + radius);
-            }
-        }
-
-        @Test
-        void theRadiusComesToAPointAtTheTip() {
-            ConeSections.Volume drill = drill();
-            assertEquals(0, drill.radiusAt().applyAsDouble(drill.range()), SLACK);
         }
     }
 }

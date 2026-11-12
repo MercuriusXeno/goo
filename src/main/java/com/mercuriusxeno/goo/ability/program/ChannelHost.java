@@ -48,18 +48,6 @@ public interface ChannelHost extends BlockBreakHost {
     Vec3 eye();
 
     /**
-     * The channeling player's glove hand, where Bore's vortex opens: the
-     * one point the server breaks from and the client roots its drill at.
-     * A host with no glove answers the eye.
-     * decision bore-breaks-what-is-in-the-vortex
-     *
-     * @return the glove's position
-     */
-    default Vec3 glove() {
-        return eye();
-    }
-
-    /**
      * Whether the channeling player can reach a block to break it.
      *
      * @param pos the block

@@ -160,77 +160,102 @@ class BoreStepTest {
     }
 
     /**
-     * Bore also breaks what is in its vortex: the cone from the glove, the
-     * JSON's radius wide there, to the reach on the eye line
-     * (decision bore-breaks-what-is-in-the-vortex).
+     * Bore also breaks what is in its vortex: a cone along the eye line from
+     * the eye to the reach, widening from the JSON's near radius to its far
+     * radius, never wider than a block, so aiming where four blocks meet
+     * drills four, at the edge between two drills two, and at a block's
+     * middle drills one (decision bore-breaks-what-is-in-the-vortex).
      */
     @Nested
     class TheVortex {
 
-        /** rock_bore.json's vortex radius at the glove. */
-        private static final double RADIUS = 0.3;
-        private static final double WIDER = 0.6;
+        /** rock_bore.json's vortex radii at its near and far ends. */
+        private static final double NEAR = 0.1;
+        private static final double FAR = 0.45;
         private static final double SLACK = 1e-9;
-        /** The right-hand glove for the eye looking east: ahead, to the south and below the eye. */
-        private static final Vec3 GLOVE = new Vec3(0.9, 2.32, 0.85);
-        /** Beside the eye line's first block, to the glove's side, which the vortex crosses near the glove. */
-        private static final BlockPos BESIDE = new BlockPos(1, 2, 1);
-        /** Beside the eye line's second block, which only the wider vortex reaches. */
-        private static final BlockPos WIDER_ONLY = new BlockPos(2, 2, 1);
-        /** Beside the eye line far out, where the vortex has narrowed toward its tip. */
-        private static final BlockPos OUTSIDE = new BlockPos(3, 2, 1);
-        private final ChannelAim aim = new ChannelAim(REACH_END, null, CONE_DEGREES);
-        private final Predicate<BlockPos> breakable = EYE_ROW.or(Set.of(BESIDE, WIDER_ONLY, OUTSIDE)::contains);
-        private final Predicate<BlockPos> air = breakable.negate();
+        private static final double REACH = 4;
+        private static final Vec3 EAST = new Vec3(1, 0, 0);
+        /** An eye where four blocks meet: on the line between y 1 and 2 and between z -1 and 0. */
+        private static final Vec3 AT_A_CORNER = new Vec3(0.5, 2.0, 0.0);
+        /** An eye on the edge between two blocks: between y 1 and 2, in the middle of z 0. */
+        private static final Vec3 AT_AN_EDGE = new Vec3(0.5, 2.0, 0.5);
+        /** An eye in the middle of a block's face: y 2 and z 0. */
+        private static final Vec3 AT_A_MIDDLE = new Vec3(0.5, 2.5, 0.5);
+        /** Above the eye line's last block, which the vortex reaches only near its wide far end. */
+        private static final BlockPos ABOVE_THE_FAR_END = new BlockPos(4, 3, 0);
+        private static final Predicate<BlockPos> EVERYTHING = pos -> pos.getX() >= 1;
 
-        private List<BlockPos> pick(double radius) {
-            return BoreStep.progressing(EYE, GLOVE, radius, aim, air, breakable);
+        private static Set<BlockPos> pickFrom(Vec3 eye, double near, double far) {
+            ChannelAim aim = new ChannelAim(eye.add(EAST.scale(REACH)), null, CONE_DEGREES);
+            return Set.copyOf(BoreStep.progressing(eye, near, far, aim, EVERYTHING.negate(), EVERYTHING));
+        }
+
+        private static Set<BlockPos> atDepth(Set<BlockPos> pick, int east) {
+            return pick.stream().filter(pos -> pos.getX() == east).collect(java.util.stream.Collectors.toSet());
         }
 
         @Test
-        void rockBoresJsonCarriesTheVortexRadiusAtTheGlove() {
+        void rockBoresJsonCarriesTheVortexsNearAndFarRadii() {
             BoreStep bore = AbilityJson.decode("rock_bore").behaviors().stream()
                     .filter(BoreStep.class::isInstance).map(BoreStep.class::cast).findFirst().orElseThrow();
-            assertEquals(RADIUS, bore.vortexRadius(), SLACK);
+            assertEquals(NEAR, bore.vortexNearRadius(), SLACK);
+            assertEquals(FAR, bore.vortexFarRadius(), SLACK);
         }
 
         @Test
-        void theCodecReadsTheRadiusTheJsonNames() {
+        void theCodecReadsTheRadiiTheJsonNames() {
             String json = "{\"breaks\": \"goo:bore_breakable\", \"break_ticks\": 5, \"slowdown\": 1.5,"
-                    + " \"vortex_radius\": " + WIDER + "}";
+                    + " \"vortex_near_radius\": 0.2, \"vortex_far_radius\": 0.4}";
             BoreStep bore = BoreStep.CODEC.codec().parse(JsonOps.INSTANCE, JsonParser.parseString(json))
                     .getOrThrow();
-            assertEquals(WIDER, bore.vortexRadius(), SLACK);
+            assertEquals(0.2, bore.vortexNearRadius(), SLACK);
+            assertEquals(0.4, bore.vortexFarRadius(), SLACK);
         }
 
         @Test
-        void thePickHoldsTheEyeLineAndTheBlockTheVortexCrossesBesideIt() {
-            List<BlockPos> pick = pick(RADIUS);
+        void aimingWhereFourBlocksMeetDrillsFourAtEveryDepth() {
+            Set<BlockPos> pick = pickFrom(AT_A_CORNER, NEAR, FAR);
             for (int east = 1; east <= 4; east++) {
-                assertTrue(pick.contains(new BlockPos(east, 2, 0)), "the eye line's x " + east + " is out");
+                assertEquals(Set.of(new BlockPos(east, 1, -1), new BlockPos(east, 1, 0), new BlockPos(east, 2, -1),
+                        new BlockPos(east, 2, 0)), atDepth(pick, east), "at x " + east);
             }
-            assertTrue(pick.contains(BESIDE), "the block the vortex crosses beside the line is out");
-            assertFalse(pick.contains(OUTSIDE), "a block outside the vortex and off the line is in");
-            assertFalse(pick.contains(WIDER_ONLY), "a block only a wider vortex reaches is in");
         }
 
         @Test
-        void aWiderVortexPicksABlockTheNarrowerLeavesOut() {
-            assertTrue(pick(WIDER).contains(WIDER_ONLY));
+        void aimingAtTheEdgeBetweenTwoBlocksDrillsTwoAtEveryDepth() {
+            Set<BlockPos> pick = pickFrom(AT_AN_EDGE, NEAR, FAR);
+            for (int east = 1; east <= 4; east++) {
+                assertEquals(Set.of(new BlockPos(east, 1, 0), new BlockPos(east, 2, 0)), atDepth(pick, east),
+                        "at x " + east);
+            }
+        }
+
+        @Test
+        void aimingAtABlocksMiddleDrillsOneAtEveryDepth() {
+            Set<BlockPos> pick = pickFrom(AT_A_MIDDLE, NEAR, FAR);
+            for (int east = 1; east <= 4; east++) {
+                assertEquals(Set.of(new BlockPos(east, 2, 0)), atDepth(pick, east), "at x " + east);
+            }
+        }
+
+        @Test
+        void aWiderFarEndPicksABlockTheNarrowerLeavesOut() {
+            assertFalse(pickFrom(AT_A_MIDDLE, NEAR, FAR).contains(new BlockPos(4, 3, 0)));
+            assertTrue(pickFrom(AT_A_MIDDLE, NEAR, 0.6).contains(new BlockPos(4, 3, 0)));
         }
 
         @Test
         @SuppressWarnings("unchecked")
         void aHeldTickHandsTheVortexsBlockToTheGradualBreakTheNearerFaster() {
-            ChannelHost host = hostWith(breakable, Set.of());
+            ChannelHost host = hostWith(EYE_ROW.or(ABOVE_THE_FAR_END::equals), Set.of());
             GradualBreak gradualBreak = mock(GradualBreak.class);
             when(host.gradualBreak()).thenReturn(gradualBreak);
-            when(host.glove()).thenReturn(GLOVE);
-            run(host, new BoreStep(BREAKABLE, PACE, RADIUS, List.of(), List.of()));
+            run(host, new BoreStep(BREAKABLE, PACE, NEAR, FAR, List.of(), List.of()));
 
             ArgumentCaptor<Map<BlockPos, Double>> rates = ArgumentCaptor.forClass(Map.class);
             verify(gradualBreak).progress(rates.capture(), any());
-            assertTrue(rates.getValue().getOrDefault(BESIDE, 0.0) > 0, "the vortex's block gains no progress");
+            assertTrue(rates.getValue().getOrDefault(ABOVE_THE_FAR_END, 0.0) > 0,
+                    "the vortex's block gains no progress");
             assertTrue(rates.getValue().get(FIRST_ON_LINE) > rates.getValue().get(new BlockPos(4, 2, 0)),
                     "the nearer block gains no quicker than the farther");
         }
