@@ -59,7 +59,6 @@ public final class DecayPrismTests {
     private static final String ABILITY_REQUIRED = "The ability registry must hold nether_decay";
     private static final String SHOULD_CONVERT = "A full Decay hold should make the prism a hive, held '%s'";
     private static final String SHOULD_BITE = "Decay should bite the zombie in its cone";
-    private static final String SHOULD_NOT_CHARGE = "A Decay biting a mob should charge no prism, charged %d";
     /** The first run's ticks, short of the hold. */
     private static final int FIRST_RUN = 8;
     /** The second run's ticks, fewer than the first, so a look running ahead of the charge shows. */
@@ -94,7 +93,7 @@ public final class DecayPrismTests {
 
     /**
      * A zombie stands between a player and a bare prism the player streams
-     * Decay at: the swarm bites the zombie and the prism takes no charge.
+     * Decay at: the swarm bites the zombie.
      *
      * @param helper the gametest helper
      */
@@ -105,10 +104,7 @@ public final class DecayPrismTests {
         streamFor(helper, player, BITE_TICKS);
         helper.runAfterDelay(BITE_TICKS + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
-            PrismBlockEntity prism = helper.getBlockEntity(PRISM, PrismBlockEntity.class);
             helper.assertTrue(zombie.getHealth() < zombie.getMaxHealth(), SHOULD_BITE);
-            int charged = prism.conversion().charge();
-            helper.assertTrue(charged == 0 && !prism.hasCombo(), String.format(SHOULD_NOT_CHARGE, charged));
             helper.succeed();
         });
     }

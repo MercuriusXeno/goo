@@ -22,7 +22,10 @@ import java.util.Optional;
 import java.util.stream.StreamSupport;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -37,6 +40,8 @@ class DamageStepTest {
     private static final double BORE_DAMAGE = 2;
     private static final int BORE_IMMUNE_TICKS = 10;
     private static final double DELTA = 1e-9;
+    /** The immunity a vanilla melee hit leaves its target. */
+    private static final int IMMUNE_AFTER_A_MELEE_HIT = 10;
 
     /**
      * Urchin's stab deals goo:stalagmite, which no fall tag holds, so a fall-immune chicken takes it.
@@ -100,6 +105,66 @@ class DamageStepTest {
         assertEquals(BORE_IMMUNE_TICKS, cow.invulnerableTime);
     }
 
+    /**
+     * A goo hit naming no immunity leaves its target none, so a melee hit right after it lands in full
+     * (decision attack-key-touches-plus-punches).
+     */
+    @Test
+    void aGooHitNamingNoImmunityLeavesItsTargetNone() {
+        LivingEntity villager = struck(Vec3.ZERO);
+        villager.invulnerableTime = IMMUNE_AFTER_A_MELEE_HIT;
+
+        new DamageStep(Expr.literal(1), DamageKind.MAGIC).tick(new StepContext(hostOn(villager), 0, 0));
+
+        assertEquals(0, villager.invulnerableTime);
+    }
+
+    /**
+     * A goo hit clears its target's immunity before it hurts, so it lands through a melee hit just taken
+     * (decision attack-key-touches-plus-punches).
+     */
+    @Test
+    void aGooHitClearsItsTargetsImmunityBeforeItHurts() {
+        LivingEntity villager = struck(Vec3.ZERO);
+        villager.invulnerableTime = IMMUNE_AFTER_A_MELEE_HIT;
+        int[] immuneAtTheHurt = {-1};
+        when(villager.hurtServer(any(), any(), anyFloat())).thenAnswer(call -> {
+            immuneAtTheHurt[0] = villager.invulnerableTime;
+            return true;
+        });
+
+        new DamageStep(Expr.literal(1), DamageKind.MAGIC).tick(new StepContext(hostOn(villager), 0, 0));
+
+        assertEquals(0, immuneAtTheHurt[0]);
+    }
+
+    /**
+     * Bore's hit gives its target back the motion the hit found, so the strike pushes nothing.
+     */
+    @Test
+    void boresHitRestoresTheMotionItFound() {
+        Vec3 drifting = new Vec3(0.1, 0, -0.2);
+        LivingEntity cow = struck(drifting);
+
+        boresStrike().tick(new StepContext(hostOn(cow), 0, 0));
+
+        verify(cow).setDeltaMovement(drifting);
+    }
+
+    // A mocked mob in a mocked server level, drifting at the motion given.
+    private static LivingEntity struck(Vec3 motion) {
+        LivingEntity target = mock(LivingEntity.class);
+        when(target.level()).thenReturn(mock(ServerLevel.class));
+        when(target.damageSources()).thenReturn(mock(DamageSources.class));
+        when(target.getDeltaMovement()).thenReturn(motion);
+        return target;
+    }
+
+    private static TargetHost hostOn(LivingEntity target) {
+        TargetHost host = mock(TargetHost.class);
+        when(host.target()).thenReturn(target);
+        return host;
+    }
     private static DamageStep urchinsStab() {
         FieldEffectStep field = LingerStep.bodyOf(AbilityJson.decode("metal_spikes").behaviors()).orElseThrow().stream()
                 .filter(FieldEffectStep.class::isInstance).map(FieldEffectStep.class::cast).findFirst().orElseThrow();

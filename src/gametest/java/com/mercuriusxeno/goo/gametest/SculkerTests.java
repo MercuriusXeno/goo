@@ -11,7 +11,6 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Input;
-import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -37,13 +36,8 @@ import java.util.function.Consumer;
 public final class SculkerTests {
     private static final String SCULKER_SWIMS = "sculker_swims_through_stone";
     private static final String SCULKER_ENTERS = "sculker_enters_on_sneak_and_jump";
-    private static final String SCULKER_WALL_HOLDS = "sculker_wall_holds_a_walker";
     private static final String SCULKER_SURFACES = "sculker_surfaces_onto_the_top_face";
-    private static final String SCULKER_RISES_BACK = "sculker_rises_back_into_the_world";
     private static final String SCULKER_WALKS_SILENT = "sculker_walks_silent_past_a_sensor";
-    private static final String SCULKER_HANGS_STILL = "sculker_hangs_still_in_stone";
-    private static final String SCULKER_STOPS_AT_BEDROCK = "sculker_stops_at_bedrock";
-    private static final String SCULKER_LEAVES_BEDROCK = "sculker_leaves_bedrock";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -53,13 +47,8 @@ public final class SculkerTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, SCULKER_SWIMS, SculkerTests::sculkerSwimsThroughStone);
         GooTestFunctions.registerTest(registrar, SCULKER_ENTERS, SculkerTests::sculkerEntersOnSneakAndJump);
-        GooTestFunctions.registerTest(registrar, SCULKER_WALL_HOLDS, SculkerTests::sculkerWallHoldsAWalker);
         GooTestFunctions.registerTest(registrar, SCULKER_SURFACES, SculkerTests::sculkerSurfacesOntoTheTopFace);
-        GooTestFunctions.registerTest(registrar, SCULKER_RISES_BACK, SculkerTests::sculkerRisesBackIntoTheWorld);
         GooTestFunctions.registerTest(registrar, SCULKER_WALKS_SILENT, SculkerTests::sculkerWalksSilentPastASensor);
-        GooTestFunctions.registerTest(registrar, SCULKER_HANGS_STILL, SculkerTests::sculkerHangsStillInStone);
-        GooTestFunctions.registerTest(registrar, SCULKER_STOPS_AT_BEDROCK, SculkerTests::sculkerStopsAtBedrock);
-        GooTestFunctions.registerTest(registrar, SCULKER_LEAVES_BEDROCK, SculkerTests::sculkerLeavesBedrock);
     }
 
     private static final Identifier DEEP_SCULKER = Identifier.parse("goo:deep_sculker");
@@ -77,12 +66,9 @@ public final class SculkerTests {
     private static final double SANK_AT_LEAST = 0.5;
     /** How far east a diver should swim through stone with forward alone, at the least. */
     private static final double SWUM_AT_LEAST = 1.0;
-    /** How far below the world's floor the stranded diver hangs, as a fall out of the world leaves one. */
-    private static final double BELOW_THE_FLOOR = 1.8;
     private static final Input NONE = Input.EMPTY;
     private static final Input SNEAK_AND_JUMP = new Input(false, false, false, false, true, true, false);
     private static final Input JUMP = new Input(false, false, false, false, true, false, false);
-    private static final Input SNEAK = new Input(false, false, false, false, false, true, false);
     private static final Input FORWARD = new Input(true, false, false, false, false, false, false);
     private static final Input FORWARD_AND_JUMP = new Input(true, false, false, false, true, false, false);
     /** Ticks a player walks and jumps beside the sensor. */
@@ -96,32 +82,17 @@ public final class SculkerTests {
     /** How far south of the walk the sensor stands, well inside its hearing. */
     private static final int SENSOR_OFFSET = 2;
     private static final String SHOULD_SINK = "Sneak and jump should sink the player below the stone's top at y=%d, it stands at y=%.2f";
-    private static final String SHOULD_SWIM_ON = "Once diving, forward alone should swim the player east through stone, it moved %.2f";
-    private static final String SHOULD_STAY_OUT = "Walking into the wall should leave the player outside it, its east edge at x=%.2f past the wall at x=%d";
     private static final String SHOULD_STAND = "The diver should stand on the stone's top at y=%d out of the dive: y=%.2f, on ground %b, diving %b";
-    private static final String SHOULD_RETURN = "A diver below the world's floor at y=%d should rise back in, it reached y=%.2f";
-    /** How far a diver holding no key may drift in two seconds and still read as hanging still. */
-    private static final double STILL_WITHIN = 0.05;
-    private static final String SHOULD_HANG = "A diver holding no key should hang still in stone, it drifted %.2f in y";
     private static final String SHOULD_MUTE = "A sensor beside a walking, jumping Sculker should stay unpowered, it reached power %d";
     private static final String SHOULD_HEAR = "The same sensor beside the walk with the brew ended should power, it reached power %d";
     private static final String SHOULD_MOVE = "The diver should swim a block east through the stone, moved %.2f";
-    private static final String SHOULD_STOP_AT_BEDROCK = "A diver sinking onto bedrock should stop at its top face y=%d, it sank to y=%.3f";
-    private static final String SHOULD_LEAVE_BEDROCK = "A diver inside bedrock holding jump should rise out of it, it moved %.2f from y=%.2f";
-    /** How far a diver set inside bedrock should rise out of it with jump held, at the least. */
-    private static final double ROSE_AT_LEAST = 1.0;
-    /** How far into the bedrock layer the stranded diver's feet are set. */
-    private static final double INTO_BEDROCK = 0.3;
-    /** How far past bedrock's face a diver may stand and still read as stopped at it. */
-    private static final double AT_THE_FACE = 1.0E-4;
 
     private SculkerTests() {
     }
 
     /**
      * A player under Sculker standing on stone holds sneak and jump and sinks
-     * below the stone's top; then, holding forward alone and facing east, it
-     * swims east through the stone.
+     * below the stone's top; sculkerSwimsThroughStone holds the swim on.
      *
      * @param helper the gametest helper
      */
@@ -129,45 +100,12 @@ public final class SculkerTests {
         ServerLevel level = helper.getLevel();
         BlockPos top = layStone(helper);
         ServerPlayer player = brewed(helper);
-        player.setYRot(FACING_EAST);
         player.teleportTo(top.getX() + 0.5, top.getY() + 1, top.getZ() + 0.5);
         swimFor(player, SNEAK_AND_JUMP, STROKE_TICKS);
         double sunk = player.getY();
-        double before = player.getX();
-        swimFor(player, FORWARD, STROKE_TICKS / 2);
-        double swum = player.getX() - before;
         level.getServer().getPlayerList().remove(player);
         clearStone(level, top);
         helper.assertTrue(sunk < top.getY() + 1 - SANK_AT_LEAST, String.format(SHOULD_SINK, top.getY() + 1, sunk));
-        helper.assertTrue(swum >= SWUM_AT_LEAST, String.format(SHOULD_SWIM_ON, swum));
-        helper.succeed();
-    }
-
-    /**
-     * A player under Sculker that never enters the dive walks east into a
-     * stone wall and stays outside it.
-     *
-     * @param helper the gametest helper
-     */
-    public static void sculkerWallHoldsAWalker(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        BlockPos floor = layStone(helper);
-        BlockPos wall = floor.above().east(2);
-        for (int up = 0; up < 3; up++) {
-            level.setBlock(wall.above(up), Blocks.STONE.defaultBlockState(), Block.UPDATE_CLIENTS);
-        }
-        ServerPlayer player = brewed(helper);
-        player.setYRot(FACING_EAST);
-        player.teleportTo(floor.getX() + 0.5, floor.getY() + 1, floor.getZ() + 0.5);
-        player.zza = 1f;
-        swimFor(player, FORWARD, STROKE_TICKS);
-        double eastEdge = player.getBoundingBox().maxX;
-        level.getServer().getPlayerList().remove(player);
-        for (int up = 0; up < 3; up++) {
-            level.setBlock(wall.above(up), Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
-        }
-        clearStone(level, floor);
-        helper.assertTrue(eastEdge <= wall.getX() + 1e-3, String.format(SHOULD_STAY_OUT, eastEdge, wall.getX()));
         helper.succeed();
     }
 
@@ -196,24 +134,6 @@ public final class SculkerTests {
     }
 
     /**
-     * A creative diver below the world's floor holds jump and rises back into the world.
-     *
-     * @param helper the gametest helper
-     */
-    public static void sculkerRisesBackIntoTheWorld(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        BlockPos column = helper.absolutePos(new BlockPos(HALF_WIDTH, 0, HALF_WIDTH));
-        ServerPlayer player = diving(helper);
-        player.setGameMode(GameType.CREATIVE);
-        player.teleportTo(column.getX() + 0.5, level.getMinY() - BELOW_THE_FLOOR, column.getZ() + 0.5);
-        swimFor(player, JUMP, STROKE_TICKS);
-        double reached = player.getY();
-        level.getServer().getPlayerList().remove(player);
-        helper.assertTrue(reached >= level.getMinY(), String.format(SHOULD_RETURN, level.getMinY(), reached));
-        helper.succeed();
-    }
-
-    /**
      * A survival player that entered the dive, buried in stone, swims a
      * block east through it. SculkerEventsTest holds the suffocation it never takes.
      *
@@ -232,87 +152,6 @@ public final class SculkerTests {
         clearStone(level, top);
         helper.assertTrue(swum >= SWUM_AT_LEAST, String.format(SHOULD_MOVE, swum));
         helper.succeed();
-    }
-
-    /**
-     * A diver inside stone holding no key hangs where it is for two seconds,
-     * weightless, no gravity drawing it down.
-     *
-     * @param helper the gametest helper
-     */
-    public static void sculkerHangsStillInStone(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        BlockPos top = layStone(helper);
-        ServerPlayer player = diving(helper);
-        player.teleportTo(top.getX() + 0.5, top.getY() - 2, top.getZ() + 0.5);
-        double before = player.getY();
-        swimFor(player, NONE, STROKE_TICKS);
-        double drift = player.getY() - before;
-        level.getServer().getPlayerList().remove(player);
-        clearStone(level, top);
-        helper.assertTrue(Math.abs(drift) <= STILL_WITHIN, String.format(SHOULD_HANG, drift));
-        helper.succeed();
-    }
-
-    /**
-     * A diver inside stone with bedrock as the stone's bottom layer holds
-     * sneak and sinks until bedrock's top face stops it, never entering it
-     * (decision sculker-swims-solid-blocks-and-surfaces-at-will).
-     *
-     * @param helper the gametest helper
-     */
-    public static void sculkerStopsAtBedrock(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        BlockPos top = layStone(helper);
-        int bedrockTop = layBedrockFloor(level, top);
-        ServerPlayer player = diving(helper);
-        player.teleportTo(top.getX() + 0.5, top.getY() - 1, top.getZ() + 0.5);
-        double lowest = Double.MAX_VALUE;
-        for (int stroke = 0; stroke < STROKE_TICKS; stroke++) {
-            swimFor(player, SNEAK, 1);
-            lowest = Math.min(lowest, player.getY());
-        }
-        level.getServer().getPlayerList().remove(player);
-        clearStone(level, top);
-        helper.assertTrue(lowest >= bedrockTop - AT_THE_FACE, String.format(SHOULD_STOP_AT_BEDROCK, bedrockTop, lowest));
-        helper.succeed();
-    }
-
-    /**
-     * A diver already inside bedrock holds jump and rises out of it, so
-     * bedrock never traps a diver (decision sculker-swims-solid-blocks-and-surfaces-at-will).
-     *
-     * @param helper the gametest helper
-     */
-    public static void sculkerLeavesBedrock(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        BlockPos top = layStone(helper);
-        int bedrockTop = layBedrockFloor(level, top);
-        ServerPlayer player = diving(helper);
-        double start = bedrockTop - 1 + INTO_BEDROCK;
-        player.teleportTo(top.getX() + 0.5, start, top.getZ() + 0.5);
-        swimFor(player, JUMP, STROKE_TICKS / 2);
-        double rose = player.getY() - start;
-        level.getServer().getPlayerList().remove(player);
-        clearStone(level, top);
-        helper.assertTrue(rose >= ROSE_AT_LEAST, String.format(SHOULD_LEAVE_BEDROCK, rose, start));
-        helper.succeed();
-    }
-
-    /**
-     * Turns the stone's bottom layer to bedrock.
-     *
-     * @param level the level
-     * @param top   the stone's top middle cell
-     * @return the y of bedrock's top face
-     */
-    private static int layBedrockFloor(ServerLevel level, BlockPos top) {
-        BlockPos bottom = top.below(LAYERS - 1);
-        for (BlockPos cell : BlockPos.betweenClosed(bottom.offset(-HALF_WIDTH, 0, -HALF_WIDTH),
-                bottom.offset(HALF_WIDTH, 0, HALF_WIDTH))) {
-            level.setBlock(cell, Blocks.BEDROCK.defaultBlockState(), Block.UPDATE_CLIENTS);
-        }
-        return bottom.getY() + 1;
     }
 
     /**

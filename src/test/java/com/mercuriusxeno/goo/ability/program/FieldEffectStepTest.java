@@ -7,6 +7,7 @@ import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import java.io.IOException;
@@ -203,6 +204,22 @@ class FieldEffectStepTest {
                 .findFirst().orElseThrow();
     }
 
+    /**
+     * Each tick a strike in flight takes the aim FieldStrike.followed answers for its entity, so the spear stands
+     * where the mob stands when the stab lands (decision urchin-rests-bristled-and-spears).
+     */
+    @Test
+    void aStrikeInFlightTakesTheAimFollowedAnswersEachTick() throws IOException {
+        Vec3 whereTheMobWalked = new Vec3(9, 9, 9);
+        aims.when(() -> FieldStrike.followed(any(), any())).thenAnswer(inv ->
+                inv.<FieldStrike>getArgument(0).reaimedAt(whereTheMobWalked));
+        MarkerHost host = marker(List.of(walker(WALKER_ID)));
+        ProgramBehavior program = ProgramBehavior.forHost(metalProgram(), HostKind.MARKER);
+
+        tick(program, host, 2);
+
+        assertEquals(List.of(new FieldStrike(WALKER_ID, 9f, 9f, 9f, 1)), host.fieldEffect().strikes());
+    }
     @Test
     void aTargetInRadiusSpendsOneChargeAndIsImpaledOnTheStrikeTick() throws IOException {
         EntityHost walker = walker(WALKER_ID);
