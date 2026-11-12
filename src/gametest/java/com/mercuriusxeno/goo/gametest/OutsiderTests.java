@@ -269,7 +269,7 @@ public final class OutsiderTests {
         helper.runAfterDelay(CHARGE_TICKS + 1, () -> {
             int room = assertEntered(helper, builder);
             ServerLevel pocket = (ServerLevel) builder.level();
-            BlockPos edge = OutsiderRooms.voidstoneOf(room).east();
+            BlockPos edge = OutsiderRooms.voidstoneOf(room).east(RoomExtent.wholeRings(RoomExtent.LAID));
             BlockPos past = edge.east();
             builder.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(Items.STONE, 2));
 
@@ -423,8 +423,8 @@ public final class OutsiderTests {
     private static final int HELD_A_SECOND = 20;
     /** The void the way in costs, void_outsider.json's enter. */
     private static final int ENTER_COST = 6;
-    /** Ring 2's price at the shipped cell_cost 10 and distance_cost 1: 80R + 12R squared. */
-    private static final int RING_TWO_PRICE = 208;
+    /** Ring 5's price, a new room's first, at the shipped cell_cost 10 and distance_cost 1: 80R + 12R squared. */
+    private static final int RING_FIVE_PRICE = 700;
     private static final String SHOULD_GROW_A_BLOCK = "A second held inside should grow the room from %.1f to %.1f "
             + "and drain %d void past the way in, stands at %.6f having drained %d";
 
@@ -445,8 +445,8 @@ public final class OutsiderTests {
             double extent = OutsiderRooms.extentOf((ServerLevel) caster.level(), caster.getUUID());
             int drained = before - ENTER_COST
                     - GooSourceScanner.aggregateAvailable(caster).getOrDefault(GooTypes.VOID, 0);
-            helper.assertTrue(Math.abs(extent - FIRST_RING_WHOLE) < KEPT && drained == RING_TWO_PRICE,
-                    String.format(SHOULD_GROW_A_BLOCK, RoomExtent.LAID, FIRST_RING_WHOLE, RING_TWO_PRICE, extent,
+            helper.assertTrue(Math.abs(extent - FIRST_RING_WHOLE) < KEPT && drained == RING_FIVE_PRICE,
+                    String.format(SHOULD_GROW_A_BLOCK, RoomExtent.LAID, FIRST_RING_WHOLE, RING_FIVE_PRICE, extent,
                             drained));
             helper.succeed();
         });
@@ -785,12 +785,12 @@ public final class OutsiderTests {
      * carries the extent across the first whole-block mark.
      */
     private static final int HELD_INSIDE = 21;
-    /** How far out the floor is checked and watched: well past the starting 3 by 3. */
-    private static final int FLOOR_REACH = 6;
+    /** How far out the floor is checked and watched: well past the starting 9 by 9. */
+    private static final int FLOOR_REACH = 8;
     /** The rows watched for change: the floor and the two above it. */
     private static final int WATCHED_ROWS = 3;
-    /** The extent once the first grown ring is whole: the 5 by 5 around the center. */
-    private static final double FIRST_RING_WHOLE = 2.5;
+    /** The extent once the first grown ring is whole: the 11 by 11 around the center. */
+    private static final double FIRST_RING_WHOLE = 5.5;
     private static final int VOID_FOR_GROWTH = 20 * GooStacks.THOUSAND;
     private static final String SHOULD_FLOOR = "Voidstone should stand at the floor at %s, beyond the starting extent, "
             + "%s stands there";

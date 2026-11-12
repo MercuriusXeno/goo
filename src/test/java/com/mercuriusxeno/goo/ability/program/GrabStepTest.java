@@ -27,6 +27,7 @@ import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -290,6 +291,36 @@ class GrabStepTest {
         void unarmedPressOrAnotherAbilityPunches() {
             assertFalse(GrabStep.throwsOnAttack(false, List.of(GRAB)));
             assertFalse(GrabStep.throwsOnAttack(true, List.of(new AncientStep())));
+        }
+    }
+
+    /**
+     * A body the eye does not see is reached the shorter way: straight, or
+     * round through a linked pair where that runs shorter, so a pair standing
+     * far off never stretches the reach past the straight line
+     * (decision aim-and-shots-carry-through-linked-gates).
+     */
+    @Nested
+    class ReachedLength {
+
+        /** The pig on the gametest's ledge: 4.4 blocks from the eye, its middle behind the ledge's edge. */
+        private static final double BEHIND_THE_LEDGE = 4.4;
+        /** The way round through another test's pair forty blocks off, as the full suite measured it. */
+        private static final double ROUND_A_FAR_PAIR = 85.6;
+        /** A way round through a pair beside the player, shorter than the walled straight line. */
+        private static final double THROUGH_A_NEAR_PAIR = 3.0;
+        private static final double EXACT = 1.0E-9;
+
+        @Test
+        void aFarPairNeverStretchesTheReachOfAnUnseenBody() {
+            assertEquals(BEHIND_THE_LEDGE,
+                    GrabStep.reachedLength(BEHIND_THE_LEDGE, false, Optional.of(ROUND_A_FAR_PAIR)), EXACT);
+        }
+
+        @Test
+        void aNearPairShortensTheReachOfAnUnseenBody() {
+            assertEquals(THROUGH_A_NEAR_PAIR,
+                    GrabStep.reachedLength(BEHIND_THE_LEDGE, false, Optional.of(THROUGH_A_NEAR_PAIR)), EXACT);
         }
     }
 }

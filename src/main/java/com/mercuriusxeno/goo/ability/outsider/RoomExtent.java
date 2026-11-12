@@ -16,8 +16,12 @@ import net.minecraft.core.BlockPos;
  */
 public final class RoomExtent {
 
-    /** A room's extent as it is laid: the 3 by 3 around the center voidstone. */
-    public static final double LAID = 1.5;
+    /**
+     * A room's extent as it is laid: the 9 by 9 around the center voidstone,
+     * wide enough that the copies tiled to render distance stay few.
+     * decision outsider-room-starts-nine-by-nine
+     */
+    public static final double LAID = 4.5;
     /** From a block's corner to its middle, and from a whole-block mark to the next ring's middle. */
     private static final double HALF_BLOCK = 0.5;
     /** Rings out from the center across a square: R each way and the center itself. */
@@ -157,12 +161,22 @@ public final class RoomExtent {
      * @return the feed (mB)
      */
     public static long feedFor(double extent, int base, int perDistance, int ringTicks) {
-        int ring = ringGrowing(extent);
-        long price = ringPrice(ring, base, perDistance);
-        long fed = Math.min(price - 1, Math.round((extent - (ring - HALF_BLOCK)) * price));
+        long price = priceOfRingGrowing(extent, base, perDistance);
+        long fed = fedIntoRing(extent, price);
         long ticksHeld = fed * ringTicks / price;
         long owed = Math.ceilDiv(price * (ticksHeld + 1), ringTicks);
         return Math.max(1, owed - fed);
+    }
+
+    /**
+     * The void already fed into the ring an extent is growing through, short of its whole price.
+     *
+     * @param extent the room's extent
+     * @param price  the ring's price (mB)
+     * @return the void fed into the ring (mB)
+     */
+    static long fedIntoRing(double extent, long price) {
+        return Math.min(price - 1, Math.round((extent - (ringGrowing(extent) - HALF_BLOCK)) * price));
     }
 
     /**
@@ -187,7 +201,7 @@ public final class RoomExtent {
      * @param perDistance the void each block of Manhattan distance adds (mB)
      * @return the ring's price (mB)
      */
-    private static long ringPrice(int ring, int base, int perDistance) {
+    static long ringPrice(int ring, int base, int perDistance) {
         return Math.max(1, PlatformSpiral.ringCost(ring, base, perDistance));
     }
 
