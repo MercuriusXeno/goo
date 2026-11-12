@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.hole;
 
+import com.mercuriusxeno.goo.ability.hole.PortableHole;
 import com.mercuriusxeno.goo.network.PortableHolesSyncPayload;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -22,8 +23,8 @@ import java.util.stream.Collectors;
  */
 final class HoleSightings {
 
-    /** Ticks a mouth takes to grow open, no fewer than the tunnel's. */
-    static final float OPENING_TICKS = 16F;
+    /** Ticks a mouth takes to grow open, the span a ceiling's hole waits out before it pours. */
+    static final float OPENING_TICKS = PortableHole.OPENING_TICKS;
     /** Ticks a closed mouth takes to shrink shut. */
     static final float CLOSING_TICKS = 20F;
 

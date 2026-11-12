@@ -93,4 +93,30 @@ public interface ChannelHost extends BlockBreakHost {
      * @param cells the blocks to toggle the devices of
      */
     void toggleEachDevice(List<BlockPos> cells);
+
+    /**
+     * The channeling player's horizontal speed, read from the movement their
+     * client reports, since the server leaves a player's delta movement at rest.
+     * glove-stream-motes-carry-the-players-travel-velocity
+     *
+     * @return the speed, in blocks a tick
+     */
+    double channelerTravelSpeed();
+
+    /**
+     * The speed the channeling player's movement speed walks them at on
+     * ordinary ground, unadjusted by any slick.
+     * slick-resolves-faster-by-speed-over-unadjusted-speed
+     *
+     * @return the speed, in blocks a tick
+     */
+    double channelerUnadjustedSpeed();
+
+    /**
+     * Whether the channeling player stands on Kinetic's slick.
+     * slick-resolves-faster-by-speed-over-unadjusted-speed
+     *
+     * @return true where the slick film fills the cell their feet stand in
+     */
+    boolean channelerStandsOnSlick();
 }
