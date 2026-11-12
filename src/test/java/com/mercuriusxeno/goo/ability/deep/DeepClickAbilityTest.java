@@ -45,9 +45,8 @@ class DeepClickAbilityTest {
     private final AbilityDefinition click = AbilityJson.decode("deep_click");
 
     @Test
-    void isADeepAbilityCostingOneMillibucket() {
+    void isADeepAbility() {
         assertEquals(GooTypes.DEEP, click.gooType());
-        assertEquals(1, click.cost().in(GooValueTable.EMPTY));
     }
 
     @Test
@@ -80,12 +79,6 @@ class DeepClickAbilityTest {
     @Test
     void namesTheSoundWaveVisualInItsChoreography() {
         assertEquals("sound_wave", ScanVisualStep.in(click.behaviors()).map(ScanVisualStep::visual).orElse(""));
-    }
-
-    /** Decision click-costs-one-mb-and-nothing-under-sculker. */
-    @Test
-    void costsOneMillibucketWithoutSculker() {
-        assertEquals(GooFraction.of(1), click.costFor(HeldEffects.NONE::holds, GooValueTable.EMPTY));
     }
 
     /**

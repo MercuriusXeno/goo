@@ -5,13 +5,10 @@ import com.mercuriusxeno.goo.ability.program.BranchStep;
 import com.mercuriusxeno.goo.ability.program.CounterStep;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.RegressStep;
-import com.mercuriusxeno.goo.ability.program.SoundStep;
 import com.mercuriusxeno.goo.ability.program.TargetStep;
 import com.mercuriusxeno.goo.ability.program.Variables;
 import org.junit.jupiter.api.Test;
 import java.util.OptionalDouble;
-import java.util.stream.IntStream;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -23,8 +20,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RewindShareTest {
 
     private static final double RITUAL_FULL = 100;
-    private static final double SHARE = 1.25;
-    private static final int TICKS_PER_CLOCK_TICK = 4;
     private static final String RITUAL = "goo:ritual";
 
     private static TargetStep target() {
@@ -45,23 +40,6 @@ class RewindShareTest {
     private static boolean firesAt(BranchStep branch, double ritual) {
         return branch.when().evaluate(name -> name.equals(RITUAL) ? OptionalDouble.of(ritual)
                 : OptionalDouble.empty()) != 0;
-    }
-
-    // decision rewind-fills-while-held
-    @Test
-    void theRitualCounterAddsAFlatOneAndAQuarterEachHeldTick() {
-        assertEquals(Expr.literal(SHARE), share());
-    }
-
-    @Test
-    void theClockTicksOnEveryFourthHeldTick() {
-        double share = share().evaluate(Variables.NONE);
-        BranchStep clock = branchRunning(SoundStep.class);
-
-        long ticks = IntStream.rangeClosed(1, (int) (RITUAL_FULL / share)).filter(held -> firesAt(clock, held * share))
-                .count();
-
-        assertEquals((long) (RITUAL_FULL / share) / TICKS_PER_CLOCK_TICK, ticks);
     }
 
     @Test

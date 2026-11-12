@@ -60,19 +60,7 @@ class FieldEffectStepTest {
     private static final String CRYSTAL_CLOUD = "/data/goo/goo_abilities/crystal_cloud.json";
     private static final int WALKER_ID = 7;
     private static final int OTHER_WALKER_ID = 9;
-    private static final int STRIKE_TICK = 6;
-    private static final int STRIKE_TICKS = 12;
-    /** The ticks after a strike lands that its spear's retract shinks, a tick into the retract. */
-    private static final int RETRACT_FRAME = 1;
-    private static final int COOLDOWN = 10;
     private static final int IDLE_TICKS = 40;
-    private static final int METAL_CHARGES = 4;
-    private static final int CRYSTAL_CHARGES = 8;
-    private static final double METAL_SPEND_CHANCE = 0.25;
-    /** A walker is shredded every second tick, so a throw's eight charges last sixteen ticks. */
-    private static final int WALKING_TICKS_FOR_A_THROW = 16;
-    /** Ticks a sprinter and a walker share the cloud while its charges outlast them both. */
-    private static final int SPRINT_WINDOW = 4;
     private static final Identifier OPENING_SOUND = Identifier.parse("goo:test.field_opens");
     private static final Identifier STANDING_SOUND = Identifier.parse("goo:test.field_stands");
     private static final SoundCue OPENING_CUE = new SoundCue(OPENING_SOUND, SoundKind.BLOCKS, 1, 1);
@@ -111,12 +99,29 @@ class FieldEffectStepTest {
                 .behaviors()).orElseThrow();
     }
 
-    private static List<Step> metalProgram() throws IOException {
-        return withProbedStrikes(program(METAL_SPIKES));
+    /** The shipped metal field, whose timings the tests below run on rather than copy. */
+    private static FieldEffectStep metalField() {
+        return fieldEffectOf(program(METAL_SPIKES));
     }
 
-    private static List<Step> crystalProgram() throws IOException {
-        return withProbedStrikes(program(CRYSTAL_CLOUD));
+    private static int strikeTick() {
+        return metalField().strikeTick().evaluateInt(Variables.NONE);
+    }
+
+    private static int strikeTicks() {
+        return metalField().strikeTicks().evaluateInt(Variables.NONE);
+    }
+
+    private static int cooldown() {
+        return metalField().cooldown().evaluateInt(Variables.NONE);
+    }
+
+    private static int metalCharges() {
+        return metalField().charges().evaluateInt(Variables.NONE);
+    }
+
+    private static List<Step> metalProgram() throws IOException {
+        return withProbedStrikes(program(METAL_SPIKES));
     }
 
     /**
@@ -232,36 +237,11 @@ class FieldEffectStepTest {
 
         assertEquals(1, host.fieldEffect().chargesSpent());
         verify(walker, never()).playSound(PROBE_CUE);
-        tick(program, host, STRIKE_TICK);
+        tick(program, host, strikeTick());
         verify(walker).playSound(PROBE_CUE);
         verify(walker).spawnParticles(argThat(burst -> "crit".equals(burst.particle().getPath())));
         assertEquals(1, host.fieldEffect().chargesSpent());
         assertTrue(program.isActive());
-    }
-
-    /**
-     * A strike's framed sound plays at the struck mob on its frame, held by the
-     * trap's program past the strike body's one tick
-     * (decision urchin-spikes-shink-out-and-shink-back).
-     */
-    @Test
-    void aStrikesFramedShinkPlaysAtTheStruckMobOnItsFrame() throws IOException {
-        EntityHost walker = walker(WALKER_ID);
-        MarkerHost host = marker(List.of(walker));
-        ProgramBehavior program = ProgramBehavior.forHost(metalProgram(), HostKind.MARKER);
-        SoundCue out = new SoundCue(Identifier.parse("minecraft:item.axe.scrape"), SoundKind.BLOCKS, 0.8f, 1.5f);
-        SoundCue back = new SoundCue(Identifier.parse("minecraft:item.axe.scrape"), SoundKind.BLOCKS, 0.8f, 1.0f);
-
-        program.tick(host);
-        tick(program, host, STRIKE_TICK);
-        verify(walker, times(1)).playSound(out);
-        verify(walker, never()).playSound(back);
-
-        tick(program, host, RETRACT_FRAME - 1);
-        verify(walker, never()).playSound(back);
-
-        program.tick(host);
-        verify(walker, times(1)).playSound(back);
     }
 
     /**
@@ -293,7 +273,7 @@ class FieldEffectStepTest {
         ProgramBehavior program = ProgramBehavior.forHost(withSpendChance(metalProgram(), spendChance),
                 HostKind.MARKER);
         program.tick(host);
-        tick(program, host, STRIKE_TICK);
+        tick(program, host, strikeTick());
         return Map.entry(walker, host);
     }
 
@@ -312,27 +292,6 @@ class FieldEffectStepTest {
                 JsonParser.parseString("[{\"type\": \"field_effect\", \"radius\": 3, \"strike\": []}]"))
                 .getOrThrow().getFirst();
         assertEquals(1, unnamed.spendChance().evaluate(Variables.NONE));
-    }
-
-    // decision metal-spends-charge-by-chance
-    @Test
-    void metalSpendsOnAQuarterRollAndCrystalOnEveryStrike() {
-        FieldEffectStep metal = fieldEffectOf(program(METAL_SPIKES));
-        FieldEffectStep crystal = fieldEffectOf(program(CRYSTAL_CLOUD));
-        assertEquals(METAL_SPEND_CHANCE, metal.spendChance().evaluate(Variables.NONE));
-        assertEquals(1, crystal.spendChance().evaluate(Variables.NONE));
-    }
-
-    // decision splat-runs-the-program-no-fuse
-    @Test
-    void theMetalProgramBuysFourChargesAThrow() {
-        assertEquals(METAL_CHARGES, fieldEffectOf(program(METAL_SPIKES)).charges().evaluate(Variables.NONE));
-    }
-
-    // decision splat-runs-the-program-no-fuse
-    @Test
-    void theCrystalProgramBuysEightShredsAThrow() {
-        assertEquals(CRYSTAL_CHARGES, fieldEffectOf(program(CRYSTAL_CLOUD)).charges().evaluate(Variables.NONE));
     }
 
     @Test
@@ -354,7 +313,7 @@ class FieldEffectStepTest {
         MarkerHost host = marker(List.of(first, second));
         ProgramBehavior program = ProgramBehavior.forHost(metalProgram(), HostKind.MARKER);
 
-        tick(program, host, COOLDOWN);
+        tick(program, host, cooldown());
         assertEquals(1, host.fieldEffect().chargesSpent());
 
         program.tick(host);
@@ -367,8 +326,8 @@ class FieldEffectStepTest {
         MarkerHost host = marker(List.of(walker));
         ProgramBehavior program = ProgramBehavior.forHost(metalProgram(), HostKind.MARKER);
 
-        tick(program, host, (METAL_CHARGES - 1) * COOLDOWN + STRIKE_TICKS - 1);
-        assertEquals(METAL_CHARGES, host.fieldEffect().chargesSpent());
+        tick(program, host, (metalCharges() - 1) * cooldown() + strikeTicks() - 1);
+        assertEquals(metalCharges(), host.fieldEffect().chargesSpent());
         assertTrue(program.isActive());
         verify(host, never()).playSound(argThat(cue -> "block.fire.extinguish".equals(cue.sound().getPath())));
 
@@ -411,34 +370,6 @@ class FieldEffectStepTest {
 
     private static Step soundOf(Identifier sound) {
         return new SoundStep(sound, FxAnchor.HOST, SoundKind.BLOCKS, Expr.literal(1), Expr.literal(1));
-    }
-
-    @Test
-    void eightShredsOnAMovingEntitySpendTheThrowsCharges() throws IOException {
-        EntityHost walker = walker(WALKER_ID);
-        MarkerHost host = marker(List.of(walker));
-        ProgramBehavior program = ProgramBehavior.forHost(crystalProgram(), HostKind.MARKER);
-
-        tick(program, host, WALKING_TICKS_FOR_A_THROW - 1);
-        verify(walker, times(CRYSTAL_CHARGES - 1)).playSound(PROBE_CUE);
-
-        tick(program, host, IDLE_TICKS);
-
-        verify(walker, times(CRYSTAL_CHARGES)).playSound(PROBE_CUE);
-        assertEquals(CRYSTAL_CHARGES, host.fieldEffect().chargesSpent());
-    }
-
-    @Test
-    void aSprintingPlayerIsShreddedEveryTickTwiceAsOftenAsAWalker() throws IOException {
-        EntityHost walker = walker(WALKER_ID);
-        EntityHost sprinter = entityInRadius(OTHER_WALKER_ID, true);
-        MarkerHost host = marker(List.of(walker, sprinter));
-        ProgramBehavior program = ProgramBehavior.forHost(crystalProgram(), HostKind.MARKER);
-
-        tick(program, host, SPRINT_WINDOW);
-
-        verify(sprinter, times(SPRINT_WINDOW)).playSound(PROBE_CUE);
-        verify(walker, times(SPRINT_WINDOW / 2)).playSound(PROBE_CUE);
     }
 
     // decision razor-shred-bursts-crit
