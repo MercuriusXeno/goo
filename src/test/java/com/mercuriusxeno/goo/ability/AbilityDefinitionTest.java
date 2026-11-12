@@ -143,6 +143,12 @@ class AbilityDefinitionTest {
 
     // decision ability-hidden-until-recipes-known
     @Test
+    void anAbilityRequiringAnItemThePlayerLacksIsHiddenFromThem() {
+        assertEquals(false, requiring("[\"minecraft:gunpowder\"]").isKnownTo(KnownItems.NONE));
+    }
+
+    // decision ability-hidden-until-recipes-known
+    @Test
     void anAbilityIsKnownToAPlayerWhoKnowsEveryItemItRequires() {
         assertEquals(true, requiring("[\"minecraft:gunpowder\"]")
                 .isKnownTo(KnownItems.NONE.with(Identifier.withDefaultNamespace("gunpowder"))));
