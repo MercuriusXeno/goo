@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client;
 
 import com.mercuriusxeno.goo.client.ability.RippleTarget;
+import com.mercuriusxeno.goo.client.outsider.VoidstoneRoom;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
@@ -15,6 +16,7 @@ import net.minecraft.client.renderer.rendertype.LayeringTransform;
 import net.minecraft.client.renderer.rendertype.OutputTarget;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.TextureTransform;
 import net.minecraft.resources.Identifier;
 import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
 import java.util.List;
@@ -957,10 +959,16 @@ public final class GooRenderTypes {
             .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
             .build();
 
-    /** The render type voidstone's faces draw through. */
+    /**
+     * The render type voidstone's faces draw through, its texture transform
+     * handing the shader the room the field wraps at.
+     * decision voidstone-starfield-tiles-in-either-direction
+     */
     public static final RenderType VOIDSTONE_TYPE = RenderType.create(
             "goo_voidstone",
-            RenderSetup.builder(VOIDSTONE).createRenderSetup()
+            RenderSetup.builder(VOIDSTONE)
+                    .setTextureTransform(new TextureTransform("goo_voidstone_room", VoidstoneRoom::current))
+                    .createRenderSetup()
     );
 
     /**

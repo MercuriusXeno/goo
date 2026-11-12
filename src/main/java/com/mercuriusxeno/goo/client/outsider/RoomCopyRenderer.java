@@ -103,7 +103,8 @@ public final class RoomCopyRenderer {
                         event.getModelViewMatrix());
                 RoomCopyMeshes.Uploaded floor = RoomCopyMeshes.floor();
                 if (floor != null) {
-                    draw(copies, floor, GooRenderTypes.VOIDSTONE_COPY, event.getModelViewMatrix(), false);
+                    draw(copies, floor, GooRenderTypes.VOIDSTONE_COPY, event.getModelViewMatrix(),
+                            VoidstoneRoom.current(), false);
                 }
             }
         });
@@ -198,7 +199,7 @@ public final class RoomCopyRenderer {
     private static void drawLayer(Copies copies, ChunkSectionLayer layer, RenderPipeline pipeline,
             Matrix4fc modelView) {
         for (RoomCopyMeshes.Uploaded mesh : RoomCopyMeshes.layer(layer)) {
-            draw(copies, mesh, pipeline, modelView, true);
+            draw(copies, mesh, pipeline, modelView, new Matrix4f(), true);
         }
     }
 
@@ -209,15 +210,16 @@ public final class RoomCopyRenderer {
      * @param mesh      the mesh
      * @param pipeline  the pipeline it draws through
      * @param modelView the pass's model view
+     * @param textureMatrix the texture matrix the shader reads, the room for the voidstone's field
      * @param textured  whether the mesh samples the block atlas and the lightmap
      */
     private static void draw(Copies copies, RoomCopyMeshes.Uploaded mesh, RenderPipeline pipeline,
-            Matrix4fc modelView, boolean textured) {
+            Matrix4fc modelView, Matrix4fc textureMatrix, boolean textured) {
         Minecraft mc = Minecraft.getInstance();
         Vector3f fromCamera = new Vector3f((float) (mesh.origin().getX() - copies.camera().x()),
                 (float) (mesh.origin().getY() - copies.camera().y()), (float) (mesh.origin().getZ() - copies.camera().z()));
         GpuBufferSlice transforms = RenderSystem.getDynamicUniforms().writeTransform(new Matrix4f(modelView), WHITE,
-                fromCamera, new Matrix4f());
+                fromCamera, textureMatrix);
         RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(VertexFormat.Mode.QUADS);
         RenderTarget target = mc.mainRenderTarget;
         try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> PASS_LABEL,
