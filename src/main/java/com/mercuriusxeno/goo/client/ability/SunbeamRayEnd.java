@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -50,6 +51,21 @@ final class SunbeamRayEnd {
      * @param aimPoint the point the hold aims at this frame
      */
     record OwnAim(Vec3 eye, Vec3 aimPoint) {
+    }
+
+    /**
+     * The local caster's aim from a sight: the mob the aim assist locks, for
+     * an ability that locks on, else along the look.
+     * decision sunbeam-lands-with-impact-and-aim
+     * decision diagnose-and-correct-eye-aimed-visuals-jumping-on-sneak
+     *
+     * @param sight     the eye and look the aim leaves from, {@link CameraEye#of}'s
+     * @param locksOn   whether the selected ability locks on
+     * @param lockedMob the locked mob's middle, null where none is locked
+     * @return the aim
+     */
+    static OwnAim ownAim(CameraEye.Sight sight, boolean locksOn, @Nullable Vec3 lockedMob) {
+        return new OwnAim(sight.eye(), ChannelAim.heldAimPoint(locksOn, lockedMob, sight.eye().add(sight.look())));
     }
 
     /**
