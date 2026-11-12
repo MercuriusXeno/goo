@@ -6,18 +6,28 @@ import com.mercuriusxeno.goo.ability.program.PhasedStep;
 import com.mercuriusxeno.goo.ability.program.StepPhase;
 import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mojang.blaze3d.pipeline.BlendFunction;
 import org.junit.jupiter.api.Test;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * NetherExplosionVisual's inward rush: it spans the black hole's gather,
- * falling from the implode radius onto the marker, and the shader pair its
- * pipeline names.
+ * falling from the implode radius onto the marker, drawn as black streaks
+ * blended over the world, and the shader pair its pipeline names; reads the
+ * rush's fragment shader through the classpath.
  */
 class NetherExplosionVisualTest {
 
     private static final String BLACK_HOLE = "void_black_hole";
+    private static final String RUSH_SHADER = "/assets/goo/shaders/core/nether_explosion.fsh";
     /** A radius a drag sets, in blocks. */
     private static final double DRAGGED = 4;
     private static final float START = 5f;
@@ -87,5 +97,30 @@ class NetherExplosionVisualTest {
     @Test
     void pipelineShadersResolveOnTheClasspath() {
         PipelineShaders.assertExist(GooRenderTypes.NETHER_EXPLOSION);
+    }
+
+    /** black-hole-build-up-draws-black: black adds nothing, so the rush blends over the world. */
+    @Test
+    void rushBlendsSoBlackShows() {
+        assertEquals(Optional.of(BlendFunction.TRANSLUCENT),
+                GooRenderTypes.NETHER_EXPLOSION.getColorTargetState().blendFunction());
+    }
+
+    /** black-hole-build-up-draws-black: the streaks draw black, with no red ramp and no white-hot end. */
+    @Test
+    void rushStreaksDrawBlack() throws IOException {
+        String shader = rushShader();
+        for (String gone : List.of("8B0000", "B32828", "vec3(0.545", "vec3(0.702", "HOT_COLOR", "white-hot")) {
+            assertFalse(shader.contains(gone), "the rush's shader still reads " + gone);
+        }
+        assertTrue(shader.contains("const vec3 STREAK_COLOR = vec3(0.0);"), "the streak color is not black");
+        assertTrue(shader.contains("fragColor = vec4(STREAK_COLOR,"), "the streaks draw some other color");
+    }
+
+    private static String rushShader() throws IOException {
+        try (InputStream in = NetherExplosionVisualTest.class.getResourceAsStream(RUSH_SHADER)) {
+            assertNotNull(in, RUSH_SHADER);
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
     }
 }
