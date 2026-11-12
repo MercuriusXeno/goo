@@ -91,23 +91,30 @@ public final class BoreContactSpray {
         }
         ClientAbility bore = BoreDrill.runningBore(player);
         BoreStep step = bore == null ? null : BoreDrill.stepOf(bore).orElse(null);
-        if (step == null) {
-            return;
+        if (step != null) {
+            spitAtContact(level, player, step, bore.delivery().range());
         }
+    }
+
+    /**
+     * Spits particles where the line of sight meets a block within reach,
+     * where that block is one the bore breaks.
+     *
+     * @param level  the client level
+     * @param player the local player
+     * @param step   the running bore's step
+     * @param reach  the bore's reach
+     */
+    private static void spitAtContact(ClientLevel level, LocalPlayer player, BoreStep step, double reach) {
         Vec3 eye = player.getEyePosition();
-        double reach = bore.delivery().range();
         BlockHitResult hit = level.clip(new ClipContext(eye, eye.add(player.getViewVector(1f).scale(reach)),
                 ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player));
-        if (hit.getType() == HitResult.Type.MISS) {
-            return;
-        }
         BlockState state = level.getBlockState(hit.getBlockPos());
-        if (!state.is(step.breaks())) {
+        if (hit.getType() == HitResult.Type.MISS || !state.is(step.breaks())) {
             return;
         }
-        double width = widthAt(hit.getLocation().distanceTo(eye), reach, step.vortexNearRadius(),
-                step.vortexFarRadius());
-        spit(level, state, hit, width);
+        spit(level, state, hit, widthAt(hit.getLocation().distanceTo(eye), reach, step.vortexNearRadius(),
+                step.vortexFarRadius()));
     }
 
     private static void spit(ClientLevel level, BlockState state, BlockHitResult hit, double width) {
