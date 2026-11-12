@@ -5,6 +5,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.world.phys.Vec3;
@@ -51,17 +52,31 @@ public final class ConjuredDoorRenderer {
             return;
         }
         ClientLevel level = mc.level;
-        double time = level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        Map<Integer, ClientConjuredDoors.Drawn> doors = ClientConjuredDoors.drawnAt(time);
-        if (doors.isEmpty()) {
-            return;
-        }
         Vec3 camera = event.getLevelRenderState().cameraRenderState.pos;
-        doors.forEach((caster, door) -> {
+        drawnThisFrame(mc, level).forEach((caster, door) -> {
             if (level.getEntity(caster) != null && door.size() > 0) {
                 submitDoor(event.getSubmitNodeCollector(), event.getPoseStack(), door, camera);
             }
         });
+    }
+
+    /**
+     * Every door the client holds as this frame draws it, the local
+     * player's own stood from their look at the frame's partial tick.
+     *
+     * @param mc    the client
+     * @param level the level drawn
+     * @return the doors drawn, by caster
+     */
+    private static Map<Integer, ClientConjuredDoors.Drawn> drawnThisFrame(Minecraft mc, ClientLevel level) {
+        float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        double time = level.getGameTime() + partialTick;
+        LocalPlayer player = mc.player;
+        if (player == null) {
+            return ClientConjuredDoors.drawnAt(time);
+        }
+        return ClientConjuredDoors.drawnAt(time, player.getId(),
+                new ClientConjuredDoors.Look(player.getPosition(partialTick), player.getViewYRot(partialTick)));
     }
 
     /**

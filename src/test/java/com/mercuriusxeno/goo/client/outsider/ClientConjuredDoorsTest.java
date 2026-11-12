@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.outsider.ConjuredDoor;
 import com.mercuriusxeno.goo.network.ConjuredDoorPayload;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -13,14 +14,19 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
  * Covers the client drawing a conjured door: it grows smoothly between the
  * updates the server sends, and once they stop, its channel let go, it
  * collapses to nothing over a few ticks and is gone
- * (decision channeling-to-the-pocket-conjures-a-door-that-envelops-the-player).
+ * (decision channeling-to-the-pocket-conjures-a-door-that-envelops-the-player);
+ * the local caster's door follows the look of the frame drawn, and another
+ * caster's turns between updates along the shorter arc
+ * (decision conjured-door-follows-the-look-smoothly).
  */
 class ClientConjuredDoorsTest {
 
     private static final int CASTER = 7;
     private static final Vec3 FEET = new Vec3(3.5, 64, 8.5);
     private static final int CHARGE = 20;
-    private static final double EXACT = 1.0E-9;
+    private static final double EXACT = 1.0E-5;
+    private static final float QUARTER_TURN_HALVED = 45f;
+    private static final double FULL_TURN = 360;
 
     @AfterEach
     void forgetTheDoors() {
@@ -41,5 +47,45 @@ class ClientConjuredDoorsTest {
                 "half collapsed");
         double gone = 1 + ClientConjuredDoors.OUTLASTS + ClientConjuredDoors.COLLAPSE_TICKS + 1;
         assertFalse(ClientConjuredDoors.drawnAt(gone).containsKey(CASTER), "collapsed and gone");
+    }
+
+    @Nested
+    class TheLocalCastersDoor {
+
+        @Test
+        void turnsWithTheFramesLookAndStandsItsStandOffBeforeTheFeet() {
+            ConjuredDoor held = ConjuredDoor.standing(FEET, 0f, 4, CHARGE);
+            ClientConjuredDoors.Seen seen = new ClientConjuredDoors.Seen(held, held, 0);
+
+            ClientConjuredDoors.Drawn first = ClientConjuredDoors.drawnAt(seen, 0.5,
+                    new ClientConjuredDoors.Look(FEET, 0f)).orElseThrow();
+            ClientConjuredDoors.Drawn turned = ClientConjuredDoors.drawnAt(seen, 0.5,
+                    new ClientConjuredDoors.Look(FEET, QUARTER_TURN_HALVED)).orElseThrow();
+
+            assertEquals(QUARTER_TURN_HALVED, turned.yaw() - first.yaw(), EXACT, "turned with the look");
+            assertEquals(0, standOffAlong(0f).distanceTo(first.at()), EXACT, "before the feet along the first look");
+            assertEquals(0, standOffAlong(QUARTER_TURN_HALVED).distanceTo(turned.at()), EXACT,
+                    "before the feet along the turned look");
+        }
+
+        private static Vec3 standOffAlong(float yaw) {
+            double radians = Math.toRadians(yaw);
+            return FEET.add(new Vec3(-Math.sin(radians), 0, Math.cos(radians)).scale(ConjuredDoor.STANDS_OFF));
+        }
+    }
+
+    @Nested
+    class AnotherCastersDoor {
+
+        @Test
+        void turnsBetweenUpdatesAlongTheShorterArc() {
+            ClientConjuredDoors.take(new ConjuredDoorPayload(CASTER, ConjuredDoor.standing(FEET, 350f, 4, CHARGE)), 0);
+            ClientConjuredDoors.take(new ConjuredDoorPayload(CASTER, ConjuredDoor.standing(FEET, 10f, 5, CHARGE)), 1);
+
+            float halfway = ClientConjuredDoors.drawnAt(1.5).get(CASTER).yaw();
+
+            double wrapped = ((halfway % FULL_TURN) + FULL_TURN) % FULL_TURN;
+            assertEquals(0, Math.min(wrapped, FULL_TURN - wrapped), EXACT, "halfway from 350 to 10 is 0");
+        }
     }
 }
