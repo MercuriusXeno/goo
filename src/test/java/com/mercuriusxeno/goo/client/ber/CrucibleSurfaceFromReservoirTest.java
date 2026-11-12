@@ -28,4 +28,13 @@ class CrucibleSurfaceFromReservoirTest {
                         CrucibleParticleHelper.computeSurfaceY(MELTED)),
                 CrucibleBasin.drawnSurface(new CrucibleBasin.Volumes(MELTED, FULL_POOL)));
     }
+
+    /** The renderer draws the surface the render state's reservoir raises. */
+    @Test
+    void theRendererDrawsTheSurfaceItsReservoirRaises() {
+        CrucibleRenderState state = new CrucibleRenderState();
+        state.volumes = new CrucibleBasin.Volumes(MELTED, FULL_POOL);
+
+        assertEquals(CrucibleBasin.drawnSurface(state.volumes), CrucibleBlockEntityRenderer.surfaceOf(state));
+    }
 }
