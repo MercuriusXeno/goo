@@ -170,8 +170,8 @@ class BoreStepTest {
     class TheVortex {
 
         /** rock_bore.json's vortex radii at its near and far ends. */
-        private static final double NEAR = 0.45;
-        private static final double FAR = 0.3;
+        private static final double NEAR = 0.35;
+        private static final double FAR = 0.1;
         private static final double SLACK = 1e-9;
         private static final double REACH = 4;
         private static final Vec3 EAST = new Vec3(1, 0, 0);
@@ -181,8 +181,8 @@ class BoreStepTest {
         private static final Vec3 AT_AN_EDGE = new Vec3(0.5, 2.0, 0.5);
         /** An eye in the middle of a block's face: y 2 and z 0. */
         private static final Vec3 AT_A_MIDDLE = new Vec3(0.5, 2.5, 0.5);
-        /** Above the eye line's first block, which the vortex reaches near its wide mouth. */
-        private static final BlockPos ABOVE_THE_MOUTH = new BlockPos(1, 3, 0);
+        /** Below and beside the eye line's first block, which the vortex reaches from an eye at a corner. */
+        private static final BlockPos BESIDE_THE_LINE = new BlockPos(1, 1, -1);
         private static final Predicate<BlockPos> EVERYTHING = pos -> pos.getX() >= 1;
 
         private static Set<BlockPos> pickFrom(Vec3 eye, double near, double far) {
@@ -247,14 +247,17 @@ class BoreStepTest {
         @Test
         @SuppressWarnings("unchecked")
         void aHeldTickHandsTheVortexsBlockToTheGradualBreakTheNearerFaster() {
-            ChannelHost host = hostWith(EYE_ROW.or(ABOVE_THE_MOUTH::equals), Set.of());
+            ChannelHost host = hostWith(EYE_ROW.or(BESIDE_THE_LINE::equals), Set.of());
+            when(host.eye()).thenReturn(AT_A_CORNER);
+            when(host.channelAim()).thenReturn(Optional.of(
+                    new ChannelAim(AT_A_CORNER.add(EAST.scale(REACH)), null, CONE_DEGREES)));
             GradualBreak gradualBreak = mock(GradualBreak.class);
             when(host.gradualBreak()).thenReturn(gradualBreak);
             run(host, new BoreStep(BREAKABLE, PACE, NEAR, FAR, List.of(), List.of()));
 
             ArgumentCaptor<Map<BlockPos, Double>> rates = ArgumentCaptor.forClass(Map.class);
             verify(gradualBreak).progress(rates.capture(), any());
-            assertTrue(rates.getValue().getOrDefault(ABOVE_THE_MOUTH, 0.0) > 0,
+            assertTrue(rates.getValue().getOrDefault(BESIDE_THE_LINE, 0.0) > 0,
                     "the vortex's block gains no progress");
             assertTrue(rates.getValue().get(FIRST_ON_LINE) > rates.getValue().get(new BlockPos(4, 2, 0)),
                     "the nearer block gains no quicker than the farther");
