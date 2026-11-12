@@ -3,30 +3,41 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.SlickStep;
+import com.mercuriusxeno.goo.block.ability.SlimeCoatBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
  * Gametests for Kinetic's Slick, cast through the real stream tick.
  * slick-coats-the-ground-with-kinetic-speed
  * slick-ramp-grows-while-a-thing-keeps-moving
+ * breaking-slick-drops-kinetic-goo-worth-its-film
  */
 @RegistersGameTests
 public final class SlickTests {
@@ -109,6 +120,12 @@ public final class SlickTests {
     private static final String LAID_PAST_TWELVE = "Slick should not lay over the stone at %s, past 12 blocks from"
             + " the eye, holds %s";
 
+    private static final String BREAKING_SLICK_DROPS = "breaking_slick_drops_its_kinetic_goo";
+    private static final String PLACING_KEEPS_SLICK = "placing_a_block_keeps_the_slick";
+    private static final String RECLAIM_WRONG = "A broken slick film should drop one kinetic goo of %d mb, dropped %s";
+    private static final String PLACED_OVER_SLICK = "A block placed against a slick film should leave the film"
+            + " standing at %s, the cell holds %s";
+
     private SlickTests() {
     }
 
@@ -121,9 +138,33 @@ public final class SlickTests {
         GooTestFunctions.registerTest(registrar, SLICK_SLIDES_AN_ITEM, SlickTests::slickSlidesAnItemWithoutSpeedingIt);
         GooTestFunctions.registerTest(registrar, SLICK_SPEEDS_A_MOB, SlickTests::slickSpeedsUpAMobWalkingOnIt);
         GooTestFunctions.registerTest(registrar, SLICK_RAISES_A_WALKER, SlickTests::slickRaisesASlowWalkerToItsStartSpeed);
+        GooTestFunctions.registerTest(registrar, BREAKING_SLICK_DROPS, SlickTests::breakingSlickDropsItsKineticGoo);
+        GooTestFunctions.registerTest(registrar, PLACING_KEEPS_SLICK, SlickTests::placingABlockKeepsTheSlick);
         GooTestFunctions.registerTest(registrar, SLICK_LAYS_FASTER, SlickTests::slickLaysFasterUnderAStreamerTravelingOnSlick);
         GooTestFunctions.registerTest(registrar, SLICK_LAYS_AT_ITS_TICKS, SlickTests::slickLaysAtItsTicksUnderAStreamerAtRest);
         GooTestFunctions.registerTest(registrar, SLICK_REACHES_TWELVE, SlickTests::slickLaysTwelveBlocksAheadAndNoFurther);
+    }
+
+    /**
+     * Slick's stream lays slick over a strip of stone; the film broken in a
+     * live world leaves one kinetic goo item in its cell worth 12 mb.
+     * breaking-slick-drops-kinetic-goo-worth-its-film
+     *
+     * @param helper the gametest helper
+     */
+    public static void breakingSlickDropsItsKineticGoo(GameTestHelper helper) {
+        BlockPos slicked = SLICKED_STONE.above();
+        laySlick(helper, () -> {
+            // GameTestHelper.destroyBlock breaks with drops off; the level's own break drops what the block gives
+            helper.getLevel().destroyBlock(helper.absolutePos(slicked), true);
+            List<ItemStack> kinetic = helper.getEntities(EntityType.ITEM, slicked, 1.0).stream()
+                    .map(ItemEntity::getItem).filter(stack -> GooTypes.KINETIC.equals(GooStacks.keyOf(stack)))
+                    .toList();
+            int owed = SlimeCoatBlock.MB_PER_LAYER;
+            helper.assertTrue(kinetic.size() == 1 && GooStacks.volumeOf(kinetic.getFirst()) == owed,
+                    String.format(RECLAIM_WRONG, owed, kinetic));
+            helper.succeed();
+        });
     }
 
     /**
@@ -150,6 +191,30 @@ public final class SlickTests {
             GooStreamHandler.streamTick(streamer, tick);
             helper.getLevel().getServer().getPlayerList().remove(streamer);
             assertLaidToTwelve(helper);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Slick's stream lays slick over a strip of stone; a survival player
+     * uses a stone block item against the film's top, and the film still
+     * stands, the stone set over it rather than in its place.
+     * breaking-slick-drops-kinetic-goo-worth-its-film
+     *
+     * @param helper the gametest helper
+     */
+    public static void placingABlockKeepsTheSlick(GameTestHelper helper) {
+        BlockPos slicked = SLICKED_STONE.above();
+        laySlick(helper, () -> {
+            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+            ItemStack stone = new ItemStack(Items.STONE);
+            player.setItemInHand(InteractionHand.MAIN_HAND, stone);
+            BlockPos cell = helper.absolutePos(slicked);
+            Vec3 filmTop = Vec3.atBottomCenterOf(cell).add(0, SLICK_FILM, 0);
+            stone.useOn(new UseOnContext(player, InteractionHand.MAIN_HAND,
+                    new BlockHitResult(filmTop, Direction.UP, cell, false)));
+            helper.assertTrue(helper.getBlockState(slicked).is(GooBlocks.KINETIC_SLICK.get()),
+                    String.format(PLACED_OVER_SLICK, slicked, helper.getBlockState(slicked)));
             helper.succeed();
         });
     }
