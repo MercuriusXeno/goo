@@ -64,17 +64,28 @@ public final class BoreRumble {
         }
         ClientAbility bore = BoreDrill.runningBore(player);
         BoreStep step = bore == null ? null : BoreDrill.stepOf(bore).orElse(null);
-        if (step == null) {
-            return;
-        }
-        Vec3 eye = player.getEyePosition();
-        ChannelAim aim = new ChannelAim(eye.add(player.getViewVector(1f).scale(bore.delivery().range())), null,
-                bore.delivery().coneDegrees());
-        List<BlockPos> progressing = BoreStep.progressing(eye, step.vortexNearRadius(), step.vortexFarRadius(), aim,
-                cell -> level.getBlockState(cell).isAir(), cell -> level.getBlockState(cell).is(step.breaks()));
-        if (rumblesFor(progressing)) {
+        if (step != null && rumblesFor(progressingOf(level, player, bore, step))) {
             FadingLoops.keepAliveAtListener(LOOP_KEY, GooSoundIds.EARTH_RUMBLE, SoundSource.PLAYERS, PROGRESS_VOLUME,
                     PITCH);
         }
+    }
+
+    /**
+     * The blocks the local player's bore is breaking now, read off the
+     * client's level as the server picks them.
+     *
+     * @param level  the client level
+     * @param player the local player
+     * @param bore   the running bore
+     * @param step   its bore step
+     * @return the blocks, nearest first
+     */
+    private static List<BlockPos> progressingOf(ClientLevel level, LocalPlayer player, ClientAbility bore,
+                                                BoreStep step) {
+        Vec3 eye = player.getEyePosition();
+        ChannelAim aim = new ChannelAim(eye.add(player.getViewVector(1f).scale(bore.delivery().range())), null,
+                bore.delivery().coneDegrees());
+        return BoreStep.progressing(eye, step.vortexNearRadius(), step.vortexFarRadius(), aim,
+                cell -> level.getBlockState(cell).isAir(), cell -> level.getBlockState(cell).is(step.breaks()));
     }
 }
