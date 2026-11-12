@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.model.EntityModel;
+import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
@@ -13,12 +14,13 @@ import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.context.ContextKey;
 import net.minecraft.world.entity.Entity;
 import org.jspecify.annotations.Nullable;
+import java.util.IdentityHashMap;
+import java.util.Map;
 
 /**
  * Draws a mob being encased: its model, and the shell it wears over it such
@@ -65,6 +67,8 @@ public final class EncasementLayer<S extends LivingEntityRenderState, M extends 
     private final ContextKey<Float> shareKey;
     /** The render type sampling this encasement's texture. */
     private final RenderType renderType;
+    /** Each drawn model's skin size, packed as overlay coordinates, by the model's root part. */
+    private final Map<ModelPart, Integer> skinSizeCoordsByRoot = new IdentityHashMap<>();
 
     /**
      * @param parent     the living entity renderer the layer draws over
@@ -172,7 +176,19 @@ public final class EncasementLayer<S extends LivingEntityRenderState, M extends 
     private void submitEncasement(SubmitNodeCollector collector, EntityModel<? super S> model, S state,
                                   PoseStack poseStack, int lightCoords, float share) {
         collector.order(ENCASEMENT_ORDER).submitModel(model, state, poseStack, renderType,
-                lightCoords, OverlayTexture.NO_OVERLAY, shareColor(share, state.getRenderDataOrDefault(SEED, 0)), null,
+                lightCoords, skinSizeCoords(model), shareColor(share, state.getRenderDataOrDefault(SEED, 0)), null,
                 NO_OUTLINE, null);
+    }
+
+    /**
+     * The model's skin size packed in the overlay coordinates, which the
+     * encasement shader reads in place of an overlay, read once per model.
+     * Decision diagnose-and-correct-petrify-stone-stretching-off-native-texels.
+     *
+     * @param model the model the encasement draws
+     * @return the skin size as overlay coordinates, the width in u and the height in v
+     */
+    private int skinSizeCoords(EntityModel<?> model) {
+        return skinSizeCoordsByRoot.computeIfAbsent(model.root(), root -> ModelSkinSize.of(root).overlayCoords());
     }
 }
