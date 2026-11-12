@@ -31,8 +31,8 @@ import java.util.Map;
  * The meshes every copy of the Outsider room the player stands in draws, laid
  * out once and kept on the GPU until a block in the room changes or the room
  * grows a ring: each section's blocks standing wholly inside the boundary,
- * the floor's starred voidstone faces, full inside and sparse on the ring the
- * boundary cuts, and the block entities the room holds.
+ * the floor's starred voidstone faces, out to the ring the boundary cuts, and
+ * the block entities the room holds.
  * The floor's own plain dark blocks are left out, since the pocket's floor
  * stands whole under every copy already.
  * decision room-tiles-to-render-distance-held-to-the-picture
@@ -47,7 +47,7 @@ final class RoomCopyMeshes {
     /**
      * The room the meshes were laid out for: its level, its center column,
      * the rings it holds whole and whether the boundary cuts the ring past
-     * them, whose floor draws sparse stars.
+     * them, whose floor draws its stars too.
      */
     private record Key(ClientLevel level, int centerX, int centerZ, int wholeRings, boolean ringCut) {
     }
@@ -217,9 +217,9 @@ final class RoomCopyMeshes {
     /**
      * The starred voidstone faces of the room's floor, laid out from the
      * room's center block: every face its neighbour does not cover, of a floor
-     * block wholly inside the boundary at full stars and of the ring the
-     * boundary cuts at sparse stars, which the shader clips at the boundary
-     * planes so the neighbouring copy's ring takes the floor past them.
+     * block wholly inside the boundary and of the ring the boundary cuts, which
+     * the shader clips at the boundary planes so the neighbouring copy's ring
+     * takes the floor past them.
      * decision room-edge-draws-a-sparser-starfield
      *
      * @param level  the client level
@@ -237,7 +237,7 @@ final class RoomCopyMeshes {
             for (VoidstoneStars.Column column : VoidstoneStars.floorColumns(bounds)) {
                 block.set(column.x(), OutsiderRooms.ROOM_FLOOR_Y, column.z());
                 if (level.getBlockState(block).is(GooBlocks.VOIDSTONE.get())) {
-                    emitShowingFaces(level, faces, identity, block, beside, origin, column.density());
+                    emitShowingFaces(level, faces, identity, block, beside, origin);
                 }
             }
             MeshData mesh = faces.build();
@@ -251,12 +251,11 @@ final class RoomCopyMeshes {
     }
 
     private static void emitShowingFaces(ClientLevel level, BufferBuilder faces, PoseStack.Pose identity,
-            BlockPos block, BlockPos.MutableBlockPos beside, BlockPos origin, VoidstoneStars.Density density) {
-        VoidstoneFaces.BlockCorner corner = new VoidstoneFaces.BlockCorner(block.getX() - origin.getX(), 0,
-                block.getZ() - origin.getZ());
+            BlockPos block, BlockPos.MutableBlockPos beside, BlockPos origin) {
         for (Direction direction : Direction.values()) {
             if (VoidstoneFaces.showsFace(level, beside.setWithOffset(block, direction), direction)) {
-                VoidstoneFaces.emitFace(faces, identity, corner, direction, density);
+                VoidstoneFaces.emitFace(faces, identity, block.getX() - origin.getX(), 0,
+                        block.getZ() - origin.getZ(), direction);
             }
         }
     }
