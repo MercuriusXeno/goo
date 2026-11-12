@@ -34,7 +34,6 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 @RegistersGameTests
 public final class ZooSpawnTests {
     private static final String SPAWN_TURNS_A_SLIME_HOSTILE = "spawn_turns_a_slime_hostile";
-    private static final String SHAPE_TURNS_A_SLIME_PEACEFUL = "shape_turns_a_slime_peaceful";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -43,13 +42,11 @@ public final class ZooSpawnTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, SPAWN_TURNS_A_SLIME_HOSTILE, ZooSpawnTests::spawnTurnsASlimeHostile);
-        GooTestFunctions.registerTest(registrar, SHAPE_TURNS_A_SLIME_PEACEFUL, ZooSpawnTests::shapeTurnsASlimePeaceful);
     }
 
 
     private static final BlockPos SLIME_POS = new BlockPos(2, 1, 2);
     private static final Identifier ZOO_SPAWN = Identifier.fromNamespaceAndPath(Goo.MODID, "zoo_spawn");
-    private static final Identifier ZOO_SHAPE = Identifier.fromNamespaceAndPath(Goo.MODID, "zoo_shape");
     /** How far from the slime's cell the born mob is looked for. */
     private static final double SEARCH_REACH = 1.5;
 
@@ -68,16 +65,6 @@ public final class ZooSpawnTests {
      */
     public static void spawnTurnsASlimeHostile(GameTestHelper helper) {
         transmutes(helper, ZOO_SPAWN, category -> category == MobCategory.MONSTER, "hostile");
-    }
-
-    /**
-     * A Shape blob on a slime consumes it and a peaceful mob the biome
-     * spawns naturally stands in its place.
-     *
-     * @param helper the gametest helper
-     */
-    public static void shapeTurnsASlimePeaceful(GameTestHelper helper) {
-        transmutes(helper, ZOO_SHAPE, MobCategory::isFriendly, "peaceful");
     }
 
     private static void transmutes(GameTestHelper helper, Identifier abilityId, Predicate<MobCategory> categories,

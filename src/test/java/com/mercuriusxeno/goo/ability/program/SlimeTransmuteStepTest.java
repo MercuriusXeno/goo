@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.AbilityJson;
 import net.minecraft.world.entity.MobCategory;
 import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
@@ -35,5 +36,15 @@ class SlimeTransmuteStepTest {
 
     private static List<MobCategory> drawn(boolean hostile) {
         return Arrays.stream(MobCategory.values()).filter(SlimeTransmuteStep.categoryFilter(hostile)).toList();
+    }
+
+    @Test
+    void theShippedShapeDrawsTheFriendlyCategories() {
+        // the transmute stands inside the target step that picks the slime
+        SlimeTransmuteStep shape = AbilityJson.decode("zoo_shape").behaviors().stream().flatMap(Step::children)
+                .filter(SlimeTransmuteStep.class::isInstance).map(SlimeTransmuteStep.class::cast).findFirst()
+                .orElseThrow();
+
+        assertEquals(drawn(false), drawn(shape.hostile()));
     }
 }

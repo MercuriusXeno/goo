@@ -359,4 +359,14 @@ class AbilityDefinitionTest {
                     AbilityDefinition.heldArea(AbilityArea.NONE, Delivery.ARC, AbilityBadge.FREE, field));
         }
     }
+
+    @Test
+    void sunbeamLocksOnToTheAimedMob() {
+        assertTrue(AbilityJson.decode("glow_sunbeam").hasTag(AbilityTags.LOCKS_ON));
+    }
+
+    @Test
+    void zapFliesAsABeam() {
+        assertTrue(AbilityJson.decode("pulse_zap").delivery().fliesStraight());
+    }
 }

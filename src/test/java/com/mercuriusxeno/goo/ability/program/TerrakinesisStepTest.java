@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -162,5 +163,46 @@ class TerrakinesisStepTest {
     @Test
     void aLeftClickHucksTheHeldHunk() {
         assertTrue(GrabStep.throwsOnAttack(true, List.of(TERRAKINESIS)));
+    }
+
+    /**
+     * A held hunk under its holder's feet is pushed out the way the holder faces, a quarter block at a time, to
+     * the first step where it stands clear of the holder's body and the column under it.
+     */
+    @Nested
+    class PushedClear {
+
+        private static final float FACING_SOUTH = 0f;
+        private static final AABB HOLDER = new AABB(0.2, 64, 0.2, 0.8, 65.8, 0.8);
+        private static final double EPSILON = 1e-6;
+
+        @Test
+        void aStripUnderTheFeetIsPushedOutUntilItClearsTheHolder() {
+            AABB strip = new AABB(-1.5, -0.5, -0.5, 1.5, 0.5, 0.5);
+
+            Vec3 pushed = TerrakinesisStep.pushedClear(new Vec3(0.5, 63.5, 0.5), strip, FACING_SOUTH, HOLDER);
+
+            assertEquals(0, pushed.distanceTo(new Vec3(0.5, 63.5, 1.75)), EPSILON, "pushed to " + pushed);
+        }
+
+        @Test
+        void aWideChunkUnderTheFeetIsPushedFartherUntilItClearsTheHolder() {
+            AABB chunk = new AABB(-1, -1, -1, 1, 1, 1);
+
+            Vec3 pushed = TerrakinesisStep.pushedClear(new Vec3(0.5, 63, 0.5), chunk, FACING_SOUTH, HOLDER);
+
+            assertEquals(0, pushed.distanceTo(new Vec3(0.5, 63, 2.25)), EPSILON, "pushed to " + pushed);
+        }
+    }
+
+    /**
+     * A grab leaves out every cell in the holder's column, so the ground the holder stands on is never lifted.
+     */
+    @Test
+    void aGrabLeavesTheGroundUnderTheHolderAndTakesTheCellAhead() {
+        AABB standingOnTheStruck = new AABB(0.2, 65, 0.2, 0.8, 66.8, 0.8);
+        Predicate<BlockPos> clear = TerrakinesisStep.clearOfTheHolder(standingOnTheStruck, RADIUS);
+
+        assertEquals(List.of(false, true), List.of(clear.test(STRUCK), clear.test(STRUCK.south())));
     }
 }
