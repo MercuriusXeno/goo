@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.zoo.Leader;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 
@@ -55,6 +56,46 @@ class LifeMarkBillboardTest {
             float time = TICK + later;
             assertEquals(touched.opacity(TOUCHED_ID, time),
                     LifeMarkBillboard.markStrength(TOUCHED_ID, time, touched, leader), EPSILON, "at " + time);
+        }
+    }
+
+    @Nested
+    class MarkLayout {
+
+        private static final float NARROW_COUNT = 5f;
+        private static final float WIDE_COUNT = 31f;
+
+        @Test
+        void heartDrawsTwoThirdsOfItsOldSize() {
+            assertEquals(0.15f, LifeMarkBillboard.Layout.of(NARROW_COUNT).heartWidth(), EPSILON);
+        }
+
+        @Test
+        void countDrawsAtHalfTheOldFont() {
+            assertEquals(0.0125f, LifeMarkBillboard.Layout.of(NARROW_COUNT).countScale(), EPSILON);
+        }
+
+        @Test
+        void markStandsCenteredOverTheHead() {
+            for (float countWidth : new float[] {NARROW_COUNT, WIDE_COUNT}) {
+                LifeMarkBillboard.Layout layout = LifeMarkBillboard.Layout.of(countWidth);
+                assertEquals(-layout.left(), layout.right(), EPSILON, "count width " + countWidth);
+            }
+        }
+
+        @Test
+        void countLineCentersOnTheHeartsMiddle() {
+            for (float countWidth : new float[] {NARROW_COUNT, WIDE_COUNT}) {
+                LifeMarkBillboard.Layout layout = LifeMarkBillboard.Layout.of(countWidth);
+                assertEquals(layout.heartMiddle(), layout.countMiddle(), EPSILON, "count width " + countWidth);
+            }
+        }
+
+        @Test
+        void countStandsRightOfTheHeart() {
+            LifeMarkBillboard.Layout layout = LifeMarkBillboard.Layout.of(NARROW_COUNT);
+            assertTrue(layout.countLeft() > layout.left() + layout.heartWidth());
+            assertEquals(layout.right(), layout.countLeft() + NARROW_COUNT * layout.countScale(), EPSILON);
         }
     }
 

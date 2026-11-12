@@ -30,8 +30,6 @@ final class LifeMarkBillboard {
     private static final Identifier CONTAINER =
             Identifier.withDefaultNamespace("textures/gui/sprites/hud/heart/container.png");
     private static final Identifier FULL = Identifier.withDefaultNamespace("textures/gui/sprites/hud/heart/full.png");
-    /** Blocks per sprite pixel, the scale of vanilla's name tags. */
-    private static final float BLOCKS_PER_PIXEL = 0.025f;
     /** A heart sprite's side, in pixels. */
     private static final float HEART_SIZE = 9f;
     /** The full heart sprite's leftmost column holding red ink; column 0 is transparent. */
@@ -40,8 +38,6 @@ final class LifeMarkBillboard {
     private static final int INK_COLUMNS = 7;
     /** Slack under a whole column, so a share landing on a column edge fills no extra column. */
     private static final float COLUMN_SLACK = 1e-4f;
-    /** Pixels between the heart and its count. */
-    private static final float COUNT_GAP = 2f;
     /** Blocks between a bare head and the mark's bottom edge. */
     private static final double OVER_BARE_HEAD = 0.3;
     /** Blocks between a head and the mark's bottom edge where a head mark floats there too. */
@@ -53,8 +49,64 @@ final class LifeMarkBillboard {
     /** The faintest alpha drawn; the font reads a lower one as fully opaque. */
     private static final int FAINTEST = 8;
     private static final float HALVED = 2f;
+    /** Flips the camera's y so the mark's y runs downward, as the font draws. */
+    private static final float Y_DOWNWARD = -1f;
 
     private LifeMarkBillboard() {
+    }
+
+    /**
+     * Where one mark's parts stand, in blocks: x rightward from the head's
+     * center, y downward from the mark's top edge, the heart then the count,
+     * the whole mark centered over the head.
+     * health-bar-draws-two-thirds-with-half-font
+     *
+     * @param left      the heart's left edge, the mark's left edge
+     * @param countLeft the count's left edge
+     * @param countTop  the top of the count's digits
+     * @param right     the count's right edge, the mark's right edge
+     */
+    record Layout(float left, float countLeft, float countTop, float right) {
+
+        /** The heart's side, 2/3 of the 0.225 blocks it drew at name-tag scale. */
+        private static final float HEART_WIDTH = 0.15f;
+        /** Blocks per font pixel, half of name-tag scale's 0.025. */
+        private static final float COUNT_SCALE = 0.0125f;
+        /** Blocks per heart sprite pixel. */
+        private static final float HEART_PIXEL = HEART_WIDTH / HEART_SIZE;
+        /** Between the heart and its count: two of the heart's pixels. */
+        private static final float GAP = 2f * HEART_PIXEL;
+        /** A digit's height in font pixels, the count's ink with no descender under it. */
+        private static final float DIGIT_HEIGHT = 7f;
+
+        /**
+         * The layout of a mark whose count is as wide as given.
+         *
+         * @param countFontWidth the count's width in font pixels
+         * @return the parts' places
+         */
+        static Layout of(float countFontWidth) {
+            float width = HEART_WIDTH + GAP + countFontWidth * COUNT_SCALE;
+            float left = -width / HALVED;
+            float countTop = (HEART_WIDTH - DIGIT_HEIGHT * COUNT_SCALE) / HALVED;
+            return new Layout(left, left + HEART_WIDTH + GAP, countTop, left + width);
+        }
+
+        float heartWidth() {
+            return HEART_WIDTH;
+        }
+
+        float countScale() {
+            return COUNT_SCALE;
+        }
+
+        float heartMiddle() {
+            return HEART_WIDTH / HALVED;
+        }
+
+        float countMiddle() {
+            return countTop + DIGIT_HEIGHT * COUNT_SCALE / HALVED;
+        }
     }
 
     /**
@@ -63,9 +115,9 @@ final class LifeMarkBillboard {
      * @param living the mob
      * @param mark   what its life draws
      * @param color  the white tint, its alpha the mark's fade
-     * @param left   the mark's left edge in pixels, which centers the whole mark over the head
+     * @param layout where the mark's parts stand over the head
      */
-    private record Shown(LivingEntity living, LifeMark mark, int color, float left) {
+    private record Shown(LivingEntity living, LifeMark mark, int color, Layout layout) {
     }
 
     /**
@@ -120,11 +172,19 @@ final class LifeMarkBillboard {
         drawHearts(poseStack, camera, buffers, marks, partialTick, CONTAINER);
         drawHearts(poseStack, camera, buffers, marks, partialTick, FULL);
         for (Shown mark : marks) {
-            faceCamera(poseStack, camera, mark.living(), partialTick, () -> InWorldHud.drawTextSeeThrough(
-                    mc.font, buffers, poseStack, mark.mark().count(), mark.left() + HEART_SIZE + COUNT_GAP, 1f,
-                    mark.color()));
+            faceCamera(poseStack, camera, mark.living(), partialTick, () -> drawCount(poseStack, buffers, mc.font,
+                    mark));
         }
         buffers.endBatch();
+    }
+
+    private static void drawCount(PoseStack poseStack, MultiBufferSource buffers, Font font, Shown mark) {
+        Layout layout = mark.layout();
+        poseStack.pushPose();
+        poseStack.translate(layout.countLeft(), layout.countTop(), 0f);
+        poseStack.scale(layout.countScale(), layout.countScale(), layout.countScale());
+        InWorldHud.drawTextSeeThrough(font, buffers, poseStack, mark.mark().count(), 0f, 0f, mark.color());
+        poseStack.popPose();
     }
 
     /**
@@ -154,19 +214,7 @@ final class LifeMarkBillboard {
     private static Shown shownAt(LivingEntity living, float time, Font font) {
         LifeMark mark = LifeMark.of(living.getHealth(), living.getMaxHealth());
         return new Shown(living, mark, tint(markStrength(living.getId(), time, TouchedMobs.CLIENT, LeaderSense.CLIENT)),
-                leftOf(mark, font));
-    }
-
-    /**
-     * The left edge that centers a mark over the head: its heart, gap and
-     * count taken as one width.
-     *
-     * @param mark the life mark
-     * @param font the font the count draws in
-     * @return the left edge, in pixels
-     */
-    private static float leftOf(LifeMark mark, Font font) {
-        return -(HEART_SIZE + COUNT_GAP + font.width(mark.count())) / HALVED;
+                Layout.of(font.width(mark.count())));
     }
 
     private static int tint(float opacity) {
@@ -190,10 +238,10 @@ final class LifeMarkBillboard {
         RenderType icon = RenderTypes.textSeeThrough(sprite);
         VertexConsumer consumer = buffers.getBuffer(icon);
         for (Shown mark : marks) {
-            float width = sprite.equals(CONTAINER) ? HEART_SIZE : fillEdge(mark.mark().fill());
-            if (width > 0f) {
+            float edge = sprite.equals(CONTAINER) ? HEART_SIZE : fillEdge(mark.mark().fill());
+            if (edge > 0f) {
                 faceCamera(poseStack, camera, mark.living(), partialTick,
-                        () -> quad(consumer, poseStack.last(), mark.left(), width, mark.color()));
+                        () -> quad(consumer, poseStack.last(), mark.layout(), edge, mark.color()));
             }
         }
         buffers.endBatch(icon);
@@ -211,7 +259,7 @@ final class LifeMarkBillboard {
     }
 
     /**
-     * Runs a draw in pixel space over the mob's head, turned to the camera,
+     * Runs a draw in block space over the mob's head, turned to the camera,
      * x rightward and y downward from the mark's top edge.
      *
      * @param poseStack   the level's pose stack
@@ -231,27 +279,30 @@ final class LifeMarkBillboard {
         poseStack.pushPose();
         poseStack.translate(above.x, above.y, above.z);
         poseStack.mulPose(camera.rotation());
-        poseStack.scale(BLOCKS_PER_PIXEL, -BLOCKS_PER_PIXEL, BLOCKS_PER_PIXEL);
-        poseStack.translate(0f, -HEART_SIZE, 0f);
+        poseStack.scale(1f, Y_DOWNWARD, 1f);
+        poseStack.translate(0f, -Layout.HEART_WIDTH, 0f);
         draw.run();
         poseStack.popPose();
     }
 
     /**
-     * One heart quad, its left part as wide as the width given, the sprite's u
-     * cut at the same share so the texels keep their size.
+     * One heart quad cut at a sprite column, the quad's width and its u cut
+     * together so the texels keep their size.
      *
      * @param consumer the sprite's buffer
-     * @param pose     the pose in pixel space
-     * @param x        the quad's left edge, in pixels
-     * @param width    the quad's width, in pixels, at most the heart's side
+     * @param pose     the pose in block space
+     * @param layout   where the mark's heart stands
+     * @param edge     the sprite column the quad ends at, at most the heart's side
      * @param color    the tint
      */
-    private static void quad(VertexConsumer consumer, PoseStack.Pose pose, float x, float width, int color) {
-        float u = width / HEART_SIZE;
+    private static void quad(VertexConsumer consumer, PoseStack.Pose pose, Layout layout, float edge, int color) {
+        float u = edge / HEART_SIZE;
+        float side = layout.heartWidth();
+        float x = layout.left();
+        float right = x + side * u;
         InWorldHud.iconVertex(consumer, pose, x, 0f, 0f, 0f, 0f, color);
-        InWorldHud.iconVertex(consumer, pose, x, HEART_SIZE, 0f, 0f, 1f, color);
-        InWorldHud.iconVertex(consumer, pose, x + width, HEART_SIZE, 0f, u, 1f, color);
-        InWorldHud.iconVertex(consumer, pose, x + width, 0f, 0f, u, 0f, color);
+        InWorldHud.iconVertex(consumer, pose, x, side, 0f, 0f, 1f, color);
+        InWorldHud.iconVertex(consumer, pose, right, side, 0f, u, 1f, color);
+        InWorldHud.iconVertex(consumer, pose, right, 0f, 0f, u, 0f, color);
     }
 }
