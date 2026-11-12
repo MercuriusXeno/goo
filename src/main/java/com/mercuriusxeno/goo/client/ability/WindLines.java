@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.program.WindStep;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.particle.VoidMoteParticle;
+import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.particle.Particle;
@@ -773,6 +774,10 @@ public final class WindLines {
                 velocity.y, velocity.z);
         if (mote != null) {
             mote.setLifetime(flight.ticks());
+        }
+        if (mote instanceof VoidMoteParticle homing) {
+            // the operator saw motes land where the hand had been: each homes on the hand where it is now
+            homing.homeTo(() -> GloveAim.handPosition(mc.gameRenderer.getMainCamera()));
         }
     }
 }
