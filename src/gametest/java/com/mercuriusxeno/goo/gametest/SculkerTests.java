@@ -11,6 +11,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Input;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -461,6 +462,7 @@ public final class SculkerTests {
         ServerPlayer player = brewed(helper);
         int[] mutedPower = {0};
         int[] heardPower = {0};
+        holdTheSensorsChunks(level, sensor, true);
         helper.startSequence()
                 .thenExecute(() -> standAt(player, start))
                 .thenIdle(2)
@@ -477,10 +479,31 @@ public final class SculkerTests {
                     level.getServer().getPlayerList().remove(player);
                     level.setBlock(sensor, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
                     clearStone(level, top);
+                    holdTheSensorsChunks(level, sensor, false);
                     helper.assertTrue(mutedPower[0] == 0, String.format(SHOULD_MUTE, mutedPower[0]));
                     helper.assertTrue(heardPower[0] > 0, String.format(SHOULD_HEAR, heardPower[0]));
                 })
                 .thenSucceed();
+    }
+
+    /**
+     * Holds the chunks around a sculk sensor ticking, or lets them go: a
+     * sensor delivers a vibration only while every chunk beside its own ticks
+     * blocks, and holds one it cannot deliver, deaf to every step after it, so
+     * a sensor at a chunk's edge past the ticking ground a test bay keeps
+     * would hear nothing.
+     *
+     * @param level  the level
+     * @param sensor the sensor's cell
+     * @param held   true to hold them, false to let them go
+     */
+    private static void holdTheSensorsChunks(ServerLevel level, BlockPos sensor, boolean held) {
+        ChunkPos middle = ChunkPos.containing(sensor);
+        for (int x = middle.x() - 1; x <= middle.x() + 1; x++) {
+            for (int z = middle.z() - 1; z <= middle.z() + 1; z++) {
+                level.setChunkForced(x, z, held);
+            }
+        }
     }
 
     private static void standAt(ServerPlayer player, BlockPos feet) {
