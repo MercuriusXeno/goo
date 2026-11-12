@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.deep;
 
 import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.phys.Vec3;
+import java.util.List;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -10,11 +11,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Sneak and jump together enter the dive, jumping clear of a top face leaves
- * it and the brew's end ends it; sneak sinks over jump; the world's floor and
- * ceiling stop a body leaving and never one coming back; and the swim drives
- * along the look, steering a share of the way each tick
- * (decisions dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks and
- * sculker-swims-solid-blocks-and-surfaces-at-will).
+ * it, a body clear of the ground is out of it and the brew's end ends it;
+ * sneak sinks over jump; the world's floor and ceiling stop a body leaving
+ * and never one coming back; and the swim drives along the look, steering a
+ * share of the way each tick
+ * (decisions dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks,
+ * sculker-swims-solid-blocks-and-surfaces-at-will and diagnose-and-correct-sculker-flying-through-air).
  */
 class SculkerSwimTest {
 
@@ -27,6 +29,8 @@ class SculkerSwimTest {
         private static final Input NONE = Input.EMPTY;
         private static final Input JUMP = new Input(false, false, false, false, true, false, false);
         private static final Input SNEAK_AND_JUMP = new Input(false, false, false, false, true, true, false);
+        private static final Input SNEAK = new Input(false, false, false, false, false, true, false);
+        private static final Input FORWARD = new Input(true, false, false, false, false, false, false);
 
         @Test
         void sneakAndJumpTogetherEnterTheDive() {
@@ -40,10 +44,30 @@ class SculkerSwimTest {
         }
 
         @Test
-        void aDiverInsideStoneOrOverOpenAirStaysInTheDive() {
-            assertTrue(SculkerSwim.nextDiving(true, true, JUMP, true, true));
-            assertTrue(SculkerSwim.nextDiving(true, true, JUMP, false, false));
-            assertTrue(SculkerSwim.nextDiving(true, true, NONE, false, true));
+        void aDiverClearOfTheGroundLeavesTheDiveWhateverItHolds() {
+            for (Input keys : List.of(NONE, JUMP, SNEAK, SNEAK_AND_JUMP, FORWARD)) {
+                assertFalse(SculkerSwim.nextDiving(true, true, keys, false, false), keys::toString);
+            }
+        }
+
+        @Test
+        void aDiverInsideStoneStaysInTheDiveWhateverItHolds() {
+            for (Input keys : List.of(NONE, JUMP, SNEAK, SNEAK_AND_JUMP, FORWARD)) {
+                assertTrue(SculkerSwim.nextDiving(true, true, keys, true, false), keys::toString);
+                assertTrue(SculkerSwim.nextDiving(true, true, keys, true, true), keys::toString);
+            }
+        }
+
+        @Test
+        void aDiverOverATopFaceStaysInTheDiveUnlessItHoldsJumpAlone() {
+            for (Input keys : List.of(NONE, SNEAK, SNEAK_AND_JUMP, FORWARD)) {
+                assertTrue(SculkerSwim.nextDiving(true, true, keys, false, true), keys::toString);
+            }
+        }
+
+        @Test
+        void sneakAndJumpClearOfTheGroundEnterNoDive() {
+            assertFalse(SculkerSwim.nextDiving(false, true, SNEAK_AND_JUMP, false, false));
         }
 
         @Test
