@@ -1,14 +1,15 @@
 package com.mercuriusxeno.goo.client.outsider;
 
 import com.mercuriusxeno.goo.ability.outsider.RoomExtent;
+import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -19,14 +20,19 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 
 /**
- * Covers the sky funnel's draw: one funnel a frame, under the End portal
- * render type with position-only vertices, every quad both ways round, at
- * the room's own doorway however many copies of the room stand
+ * Covers the sky funnel's draw: one funnel a frame, under goo's copy of the
+ * End portal shader with its starfield fixed to the surface by texture
+ * coordinates, fading from its nearest point to its farthest, every quad
+ * both ways round, at the room's own doorway however many copies stand
  * (decision sky-funnel-points-down-to-the-doorway-from-any-distance).
  */
 class SkyFunnelRendererTest {
 
     private static final float EXACT = 1.0E-3f;
+    private static final double AROUND_EXACT = 1.0E-2;
+    private static final double FULL_TURN = Math.PI * 2;
+    private static final int RED_SHIFT = 16;
+    private static final int BYTE = 0xFF;
     private static final int QUAD = 4;
     private static final double HALF_BLOCK = 0.5;
     private static final RoomExtent.Bounds ROOM = new RoomExtent.Bounds(1_000, -3_000, RoomExtent.LAID);
@@ -39,20 +45,47 @@ class SkyFunnelRendererTest {
     }
 
     @Test
-    void theFunnelDrawsWithTheEndPortalShaderFromPositionsAloneBothWaysRound() {
+    void theFunnelDrawsWithGoosCopyOfTheEndPortalShader() {
         Submitted submitted = submit();
 
-        assertFalse(submitted.types().isEmpty(), "the funnel submits geometry");
-        submitted.types().forEach(type -> assertEquals(RenderTypes.endPortal(), type, "the End portal's shader"));
-        List<RecordingVertexConsumer.Vertex> vertices = submitted.vertices();
-        assertFalse(vertices.isEmpty(), "the funnel writes vertices");
-        for (RecordingVertexConsumer.Vertex vertex : vertices) {
-            assertEquals(0, vertex.color(), "no color written");
-            assertEquals(0f, vertex.u(), 0f, "no texture coordinate written");
-            assertEquals(0f, vertex.v(), 0f, "no texture coordinate written");
-            assertEquals(0f, Math.abs(vertex.nx()) + Math.abs(vertex.ny()) + Math.abs(vertex.nz()), 0f,
-                    "no normal written");
+        assertEquals(List.of(GooRenderTypes.SKY_FUNNEL_TYPE), submitted.types(), "goo's funnel render type");
+    }
+
+    @Test
+    void theStarfieldRunsRoundTheFunnelByAngleAndUpItByHeight() {
+        for (RecordingVertexConsumer.Vertex vertex : submit().vertices()) {
+            double east = vertex.x() + BY_THE_DOOR.x() - (ROOM.centerX() + HALF_BLOCK);
+            double south = vertex.z() + BY_THE_DOOR.z() - (ROOM.centerZ() + HALF_BLOCK);
+            double height = vertex.y() + BY_THE_DOOR.y() - SkyFunnel.spoutHeight();
+            assertEquals(height / SkyFunnel.BLOCKS_PER_REPEAT_UP, vertex.v(), EXACT, "up the funnel by height");
+            if (Math.hypot(east, south) > SkyFunnel.RIM_RADIUS / SkyFunnel.BANDS / 2) {
+                double around = Math.atan2(south, east) / FULL_TURN * SkyFunnel.AROUND_REPEATS;
+                double apart = Math.abs(around - vertex.u()) % SkyFunnel.AROUND_REPEATS;
+                assertTrue(Math.min(apart, SkyFunnel.AROUND_REPEATS - apart) < AROUND_EXACT,
+                        "round the funnel by angle, whole repeats in a turn");
+            }
         }
+    }
+
+    @Test
+    void theNearestVertexDrawsBrightestAndTheFarthestDimmest() {
+        List<RecordingVertexConsumer.Vertex> vertices = submit().vertices();
+        RecordingVertexConsumer.Vertex nearest = vertices.stream().min(Comparator.comparingDouble(
+                SkyFunnelRendererTest::distanceOf)).orElseThrow();
+        RecordingVertexConsumer.Vertex farthest = vertices.stream().max(Comparator.comparingDouble(
+                SkyFunnelRendererTest::distanceOf)).orElseThrow();
+        int brightest = vertices.stream().mapToInt(SkyFunnelRendererTest::brightnessOf).max().orElseThrow();
+        int dimmest = vertices.stream().mapToInt(SkyFunnelRendererTest::brightnessOf).min().orElseThrow();
+
+        assertTrue(brightest > dimmest, "the funnel fades with distance");
+        assertEquals(brightest, brightnessOf(nearest), "the nearest vertex draws brightest");
+        assertEquals(dimmest, brightnessOf(farthest), "the farthest vertex draws dimmest");
+    }
+
+    @Test
+    void everyQuadDrawsBothWaysRound() {
+        List<RecordingVertexConsumer.Vertex> vertices = submit().vertices();
+        assertFalse(vertices.isEmpty(), "the funnel writes vertices");
         assertEquals(0, vertices.size() % (2 * QUAD), "whole quads, each both ways round");
         for (int start = 0; start < vertices.size(); start += 2 * QUAD) {
             for (int index = 0; index < QUAD; index++) {
@@ -61,8 +94,19 @@ class SkyFunnelRendererTest {
                 assertEquals(forward.x(), back.x(), EXACT, "the reverse winding repeats the corners");
                 assertEquals(forward.y(), back.y(), EXACT, "the reverse winding repeats the corners");
                 assertEquals(forward.z(), back.z(), EXACT, "the reverse winding repeats the corners");
+                assertEquals(forward.u(), back.u(), EXACT, "the reverse winding repeats the texture");
+                assertEquals(forward.v(), back.v(), EXACT, "the reverse winding repeats the texture");
+                assertEquals(forward.color(), back.color(), "the reverse winding repeats the brightness");
             }
         }
+    }
+
+    private static double distanceOf(RecordingVertexConsumer.Vertex vertex) {
+        return Math.sqrt(vertex.x() * vertex.x() + vertex.y() * vertex.y() + vertex.z() * vertex.z());
+    }
+
+    private static int brightnessOf(RecordingVertexConsumer.Vertex vertex) {
+        return vertex.color() >> RED_SHIFT & BYTE;
     }
 
     @Test
