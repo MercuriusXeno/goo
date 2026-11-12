@@ -71,11 +71,10 @@ public final class StreamMotes {
             Vec3 launch = GooStreamHandler.moteLaunch(payload, share, coatEnd);
             Particle mote = mc.particleEngine.createParticle(particle, apex.x, apex.y, apex.z, launch.x, launch.y,
                     launch.z);
-            if (mote instanceof SprayDripParticle drip) {
-                // goop-and-slick-spray-throws-goo-drips-that-splat: the travel bends back onto the coat
-                coatEnd.ifPresent(end -> drip.landOn(end, payload.travel()));
-            }
-            if (mote instanceof GloveMote gloveMote) {
+            if (mote instanceof SprayDripParticle drip && coatEnd.isPresent()) {
+                // goop-and-slick-spray-throws-goo-drips-that-splat: the drip rides the glove, then lands on the coat
+                drip.rideWith(payload.casterId(), CasterPoses::poseOf, coatEnd.get(), payload.travel());
+            } else if (mote instanceof GloveMote gloveMote) {
                 gloveMote.swingWith(new GloveSwing.Tracker(payload.casterId(), CasterPoses::poseOf));
             }
         }

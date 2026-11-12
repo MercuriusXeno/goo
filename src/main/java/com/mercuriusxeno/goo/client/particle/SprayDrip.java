@@ -60,16 +60,50 @@ public record SprayDrip(int rgb, Vec3 velocity, Vec3 travelPull, int holdTicks, 
      * @return the drip
      */
     static SprayDrip toward(Vec3 apex, Vec3 end, Vec3 travel, int rgb) {
+        return plan(apex, end, travel, rgb, HOLD_TICKS);
+    }
+
+    private static SprayDrip plan(Vec3 apex, Vec3 end, Vec3 travel, int rgb, int holdWanted) {
         Vec3 gap = end.subtract(apex);
         int ticks = Math.max(1, (int) Math.ceil(gap.length() / CRUISE_SPEED));
         Vec3 velocity = gap.scale(1.0 / ticks).subtract(ARC_PULL.scale((ticks - 1) * HALF));
         if (ticks < BEND_TICKS) {
             return new SprayDrip(rgb, velocity, Vec3.ZERO, 0, ticks);
         }
-        int hold = Math.min(HOLD_TICKS, ticks - BEND_TICKS);
+        int hold = Math.min(holdWanted, ticks - BEND_TICKS);
         int bend = ticks - hold;
         Vec3 travelPull = travel.scale(-TWICE * ticks / (bend * (bend - 1.0)));
         return new SprayDrip(rgb, velocity.add(travel), travelPull, hold, ticks);
+    }
+
+    /**
+     * Where a drip the glove still holds stands: where its own flight would
+     * have taken it had the caster kept still, carried with the glove as it
+     * has moved and turned since launch, so the drip leaves the hand however
+     * the caster walks or turns.
+     *
+     * @param stillAt  where the drip would stand had the caster kept still
+     * @param atLaunch the caster's pose when the drip was thrown
+     * @param now      the caster's pose now
+     * @return where the drip stands
+     */
+    static Vec3 heldAt(Vec3 stillAt, GloveSwing.CasterPose atLaunch, GloveSwing.CasterPose now) {
+        return now.glove().add(GloveSwing.turned(stillAt.subtract(atLaunch.glove()), atLaunch.look(), now.look()));
+    }
+
+    /**
+     * Plans the flight of a drip the glove lets go of: it leaves with the
+     * glove's velocity, which the pull bends straight back out, and arcs onto
+     * its end.
+     *
+     * @param from          where the drip stands as the glove lets go
+     * @param end           where the drip splats
+     * @param gloveVelocity the glove's velocity as it lets go, blocks per tick
+     * @param rgb           the drip's color
+     * @return the drip
+     */
+    static SprayDrip released(Vec3 from, Vec3 end, Vec3 gloveVelocity, int rgb) {
+        return plan(from, end, gloveVelocity, rgb, 0);
     }
 
     /**
