@@ -1,38 +1,34 @@
 package com.mercuriusxeno.goo.client.outsider;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.client.GooRenderUtil;
-import com.mercuriusxeno.goo.client.GooSubmitter;
-import com.mercuriusxeno.goo.client.RenderContext;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.resources.Identifier;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 import java.util.Map;
 
 /**
- * Draws each door a player channeling Outsider has conjured as the pocket's
- * own door draws: a two-tall sheet of the dimension door's swirling void,
- * full bright, seen from either side, facing its caster, grown from its
- * middle by its size. A door whose caster has left this level went with
- * them and draws no more.
- * decision channeling-to-the-pocket-conjures-a-door-that-envelops-the-player
+ * Draws each door a player channeling Outsider has conjured as a crack in
+ * the air opening into a doorway, its outline filled with the End portal's
+ * starfield, seen from either side, facing its caster. A door whose caster
+ * has left this level went with them and draws no more.
+ * decision crack-and-doorway-wear-the-end-portal-shader
+ * decision door-opens-from-a-thin-crack-in-the-air
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class ConjuredDoorRenderer {
 
-    /** The pocket's own door's sheet, on the block atlas. */
-    private static final Identifier DOOR_SPRITE = Identifier.fromNamespaceAndPath(Goo.MODID, "block/dimension_door");
-    /** The door's half width and half height at full size, as the room's two-tall doorway stands. */
-    private static final double HALF_WIDE = 0.5;
-    private static final double HALF_TALL = 1.0;
-    /** Translucent white, the sheet showing a little of what stands behind it. */
-    private static final int SHEET_COLOR = 0xE6FFFFFF;
+    /** The outline's two halves, each a quad of the outline's corners, split down the crack's middle. */
+    private static final int[][] HALVES = {{0, 1, 2, 3}, {0, 3, 4, 5}};
 
     private static @Nullable ClientLevel drawnIn;
 
@@ -61,51 +57,62 @@ public final class ConjuredDoorRenderer {
             return;
         }
         Vec3 camera = event.getLevelRenderState().cameraRenderState.pos;
-        GooRenderUtil.UvRect uv = GooSubmitter.spriteUv(GooSubmitter.blockSprite(DOOR_SPRITE));
         doors.forEach((caster, door) -> {
             if (level.getEntity(caster) != null && door.size() > 0) {
-                event.getSubmitNodeCollector().submitCustomGeometry(event.getPoseStack(), GooSubmitter.renderType(),
-                        (pose, consumer) -> emitSheet(new RenderContext(pose, consumer,
-                                GooSubmitter.fullbrightLight(), SHEET_COLOR), door, camera, uv));
+                submitDoor(event.getSubmitNodeCollector(), event.getPoseStack(), door, camera);
             }
         });
     }
 
     /**
-     * Emits a door's sheet: its two cells, each wearing the whole door
-     * sprite as the doorway's two blocks do, both ways round.
+     * Submits one door's crack under the End portal render type, whose
+     * vertices carry their position alone, as the End gate submits its square.
      *
-     * @param ctx    the render context
+     * @param collector the collector the frame submits to
+     * @param poseStack the frame's pose
+     * @param door      the door drawn
+     * @param camera    the camera's world position
+     */
+    static void submitDoor(SubmitNodeCollector collector, PoseStack poseStack, ClientConjuredDoors.Drawn door,
+                           Vec3 camera) {
+        Vec3[] corners = cornersOf(door, camera);
+        collector.submitCustomGeometry(poseStack, RenderTypes.endPortal(),
+                (pose, consumer) -> emitBothWaysRound(pose, consumer, corners));
+    }
+
+    /**
+     * The door's outline corners, stood upright at its foot across the way
+     * its caster faced, relative to the camera.
+     *
      * @param door   the door drawn
      * @param camera the camera's world position
-     * @param uv     the door sprite's UV rect
+     * @return the corners in order around the outline
      */
-    private static void emitSheet(RenderContext ctx, ClientConjuredDoors.Drawn door, Vec3 camera,
-                                  GooRenderUtil.UvRect uv) {
+    private static Vec3[] cornersOf(ClientConjuredDoors.Drawn door, Vec3 camera) {
         double radians = Math.toRadians(door.yaw());
-        Vec3 facing = new Vec3(-Math.sin(radians), 0, Math.cos(radians));
-        Vec3 across = new Vec3(Math.cos(radians), 0, Math.sin(radians)).scale(HALF_WIDE * door.size());
-        Vec3 middle = door.at().add(0, HALF_TALL, 0).subtract(camera);
-        Vec3 halfUp = new Vec3(0, HALF_TALL * door.size(), 0);
-        emitCell(ctx, middle.subtract(halfUp), middle, across, facing, uv);
-        emitCell(ctx, middle, middle.add(halfUp), across, facing, uv);
+        Vec3 across = new Vec3(Math.cos(radians), 0, Math.sin(radians));
+        Vec3 foot = door.at().subtract(camera);
+        List<DoorCrack.Corner> outline = DoorCrack.outline(door.size());
+        Vec3[] corners = new Vec3[outline.size()];
+        for (int index = 0; index < corners.length; index++) {
+            DoorCrack.Corner corner = outline.get(index);
+            corners[index] = foot.add(across.scale(corner.across())).add(0, corner.up(), 0);
+        }
+        return corners;
     }
 
-    private static void emitCell(RenderContext ctx, Vec3 foot, Vec3 head, Vec3 across, Vec3 facing,
-                                 GooRenderUtil.UvRect uv) {
-        Vec3[] corners = {foot.subtract(across), foot.add(across), head.add(across), head.subtract(across)};
-        float[] us = {uv.u0(), uv.u1(), uv.u1(), uv.u0()};
-        float[] vs = {uv.v1(), uv.v1(), uv.v0(), uv.v0()};
-        for (int i = 0; i < corners.length; i++) {
-            vertex(ctx, corners[i], us[i], vs[i], facing.reverse());
-        }
-        for (int i = corners.length - 1; i >= 0; i--) {
-            vertex(ctx, corners[i], us[i], vs[i], facing);
+    private static void emitBothWaysRound(PoseStack.Pose pose, VertexConsumer consumer, Vec3[] corners) {
+        for (int[] half : HALVES) {
+            for (int index : half) {
+                vertex(pose, consumer, corners[index]);
+            }
+            for (int index = half.length - 1; index >= 0; index--) {
+                vertex(pose, consumer, corners[half[index]]);
+            }
         }
     }
 
-    private static void vertex(RenderContext ctx, Vec3 at, float u, float v, Vec3 normal) {
-        ctx.vertex((float) at.x, (float) at.y, (float) at.z, u, v, (float) normal.x, (float) normal.y,
-                (float) normal.z);
+    private static void vertex(PoseStack.Pose pose, VertexConsumer consumer, Vec3 at) {
+        consumer.addVertex(pose, (float) at.x, (float) at.y, (float) at.z);
     }
 }
