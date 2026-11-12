@@ -37,6 +37,21 @@ class DoorCrackTest {
     }
 
     @Test
+    void atEverySizeTheCrackIsAFullHeightRectangleCenteredOnTheDoorway() {
+        for (int step = 0; step <= 20; step++) {
+            double size = step / 20.0;
+            List<DoorCrack.Corner> outline = DoorCrack.outline(size);
+            for (DoorCrack.Corner corner : outline) {
+                assertEquals(FULL_WIDE * size / 2, Math.abs(corner.across()), EXACT,
+                        "at size " + size + " every corner stands on a side, not a point: " + corner);
+                assertTrue(Math.abs(corner.up()) < EXACT || Math.abs(corner.up() - FULL_TALL) < EXACT,
+                        "at size " + size + " every corner stands on the foot or the head: " + corner);
+            }
+            assertEquals(FULL_TALL, height(outline), EXACT, "the full height from the start, at size " + size);
+        }
+    }
+
+    @Test
     void theCrackNeverNarrowsAsItOpens() {
         double was = 0;
         for (int step = 0; step <= 20; step++) {
