@@ -14,9 +14,9 @@
 // drill's are, screwing outward. Its cone reads by its shell: the dust thickens into a wall just inside the
 // vortex's edge, crisp at the edge, cut by rifling, pale bands wound round the cone and turning as it
 // bores, which show through the translucent dust from inside and out. It thickens over its first stretch,
-// so it fades in where it is held rather than starting hard. Each sample is read at the middle of the
-// world's sixteenth-of-a-block cell it falls in, as Flames' fire field is, so the dust stands in blocky
-// texels.
+// so it fades in where it is held rather than starting hard. Each ray walks the world's grid of
+// sixteenth-of-a-block cells as Flames' fire field does, reading each cell it crosses once at its middle,
+// so the dust stands in clean blocky texels.
 // Each ray stops at whatever the world drew there when that surface stands outside the vortex, so what
 // stands in front of it hides it; a surface inside the vortex is a block Bore is breaking, which hides
 // nothing. TRANSLUCENT blend, capped so what it drills still shows.
@@ -39,8 +39,9 @@ out vec4 fragColor;
 // GameTime runs from zero to one over a day of 24000 ticks; this many seconds make one day.
 const float SECONDS_PER_DAY = 1200.0;
 const float TAU = 6.28318530718;
-// Samples along each ray through the vortex, and the world's cells to the block each sample snaps to.
-const int STEPS = 96;
+// The most cells a ray walks through the vortex, enough to cross its whole box on a slant, and the
+// world's cells to the block.
+const int MAX_CELLS = 256;
 const float TEXELS_PER_BLOCK = 16.0;
 
 // Seconds one phase of the flow carries the dust before it starts over; divides the day whole.
@@ -245,20 +246,39 @@ void main() {
         discard;
     }
     float seconds = GameTime * SECONDS_PER_DAY;
-    float stride = (far - near) / float(STEPS);
+    // Walk the world's grid of texels along the ray, as Flames' fire field does, each cell visited once
+    // and read at its middle, its dust taken over the length of ray inside it.
+    vec3 inverse = 1.0 / dir;
+    vec3 grid = eye + dir * near + Grid.xyz;
+    vec3 cell = floor(grid * TEXELS_PER_BLOCK);
+    vec3 stepWay = sign(dir);
+    vec3 crossing = abs(inverse) / TEXELS_PER_BLOCK;
+    vec3 nextEdge = (cell + max(stepWay, 0.0)) / TEXELS_PER_BLOCK;
+    vec3 untilEdge = max((nextEdge - grid) * inverse, 0.0) + near;
+    float travel = near;
     vec4 gathered = vec4(0.0);
-    for (int index = 0; index < STEPS && gathered.a < MOST_COVER; index++) {
-        vec3 point = eye + dir * (near + (float(index) + 0.5) * stride);
-        vec3 snapped = (floor((point + Grid.xyz) * TEXELS_PER_BLOCK) + 0.5) / TEXELS_PER_BLOCK - Grid.xyz;
-        vec3 dust = dustAt(snapped, seconds);
-        if (dust.x <= 0.0) {
-            continue;
+    for (int index = 0; index < MAX_CELLS && gathered.a < MOST_COVER && travel < far; index++) {
+        float leave = min(min(untilEdge.x, untilEdge.y), untilEdge.z);
+        float inside = min(leave, far) - travel;
+        vec3 dust = dustAt((cell + 0.5) / TEXELS_PER_BLOCK - Grid.xyz, seconds);
+        if (dust.x > 0.0 && inside > 0.0) {
+            vec3 earth = mix(mix(PALE_DUST, TAN_DUST, 0.5), DARK_EARTH, dust.y);
+            vec3 color = mix(earth, PALE_DUST, dust.z);
+            float taken = 1.0 - exp(-dust.x * inside);
+            gathered.rgb += (1.0 - gathered.a) * taken * color;
+            gathered.a += (1.0 - gathered.a) * taken;
         }
-        vec3 earth = mix(mix(PALE_DUST, TAN_DUST, 0.5), DARK_EARTH, dust.y);
-        vec3 color = mix(earth, PALE_DUST, dust.z);
-        float taken = 1.0 - exp(-dust.x * stride);
-        gathered.rgb += (1.0 - gathered.a) * taken * color;
-        gathered.a += (1.0 - gathered.a) * taken;
+        if (untilEdge.x < untilEdge.y && untilEdge.x < untilEdge.z) {
+            untilEdge.x += crossing.x;
+            cell.x += stepWay.x;
+        } else if (untilEdge.y < untilEdge.z) {
+            untilEdge.y += crossing.y;
+            cell.y += stepWay.y;
+        } else {
+            untilEdge.z += crossing.z;
+            cell.z += stepWay.z;
+        }
+        travel = leave;
     }
     if (gathered.a <= 0.0) {
         discard;
