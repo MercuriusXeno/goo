@@ -51,7 +51,8 @@ public final class AilmentArmOverlay {
         for (MobAilments.Worn ailment : worn) {
             float strength = MobAilments.strength(ailment.ticksLeft() - partialTick);
             event.getSubmitNodeCollector().submitModelPart(arm, poseStack, GooRenderTypes.GOO_AILMENT_OVERLAY_TYPE,
-                    event.getPackedLight(), AilmentOverlayLayer.patternCoords(ailment.kind()), null, NOT_SHEETED,
+                    event.getPackedLight(), AilmentOverlayLayer.patternCoords(ailment.kind().pattern(), model.root()),
+                    null, NOT_SHEETED,
                     NO_FOIL, AilmentOverlayLayer.overlayColor(ailment.kind(), strength), null, NO_OUTLINE);
         }
     }
