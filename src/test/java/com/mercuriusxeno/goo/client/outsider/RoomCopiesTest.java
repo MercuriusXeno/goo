@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Covers where a room's copies stand: every whole width out to the reach,
+ * Covers where a room's copies stand: every whole width whose near edge stands within the reach,
  * corners included and the room's own place left out, and the reach read
  * from the render distance in blocks
  * (decision room-tiles-to-render-distance-held-to-the-picture).
@@ -23,10 +23,10 @@ class RoomCopiesTest {
     private static final RoomExtent.Bounds GROWN_ROOM = new RoomExtent.Bounds(1_000_000, 0, 6.5);
     private static final double FOUR_CHUNKS = 64;
     private static final double NEW_WIDTH = 9;
-    /** The farthest whole width of a 9-block room within 64 blocks: 7 widths. */
-    private static final double FARTHEST_WITHIN = 63;
+    /** The farthest copy of a 9-block room within 64 blocks: 8 widths out, its near edge 63 past the room's. */
+    private static final double FARTHEST_WITHIN = 72;
     /** The next width out, past the reach. */
-    private static final double PAST_THE_REACH = 72;
+    private static final double PAST_THE_REACH = 81;
 
     @Nested
     class ByTheRoomsWidth {
@@ -71,6 +71,8 @@ class RoomCopiesTest {
 
         private static final int TWELVE_CHUNKS = 12;
         private static final int FOUR_CHUNKS_SET = 4;
+        /** An extent 201 blocks across, wider than 12 chunks' 192 blocks. */
+        private static final double WIDER_THAN_TWELVE_CHUNKS = 100.5;
 
         @Test
         void twelveChunksReachOneHundredNinetyTwoBlocks() {
@@ -91,12 +93,25 @@ class RoomCopiesTest {
         }
 
         /**
-         * A 9-wide room repeats 21 widths each way within 192 blocks: 43 by 43 places less its own.
+         * A 9-wide room repeats 22 widths each way, every copy whose near edge stands within 192
+         * blocks of the room's edge: 45 by 45 places less its own.
          * decision outsider-room-starts-nine-by-nine
          */
         @Test
-        void aNewRoomAtTwelveChunksDrawsOneThousandEightHundredFortyEightCopies() {
-            assertEquals(1_848, RoomCopies.offsets(NEW_ROOM, RoomCopies.reachOf(TWELVE_CHUNKS)).size());
+        void aNewRoomAtTwelveChunksDrawsTwoThousandTwentyFourCopies() {
+            assertEquals(2_024, RoomCopies.offsets(NEW_ROOM, RoomCopies.reachOf(TWELVE_CHUNKS)).size());
+        }
+
+        /**
+         * A room wider than the render distance still draws the copies touching it, since their
+         * near edges stand at its own.
+         * decision room-tiles-to-render-distance-held-to-the-picture
+         */
+        @Test
+        void aRoomWiderThanTheReachDrawsTheCopiesTouchingIt() {
+            RoomExtent.Bounds wide = new RoomExtent.Bounds(1_000_000, 0, WIDER_THAN_TWELVE_CHUNKS);
+
+            assertEquals(8, RoomCopies.offsets(wide, RoomCopies.reachOf(TWELVE_CHUNKS)).size());
         }
     }
 }
