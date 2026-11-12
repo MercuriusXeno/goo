@@ -13,6 +13,7 @@ import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.ExtenderStep;
+import com.mercuriusxeno.goo.ability.program.OutsiderStep;
 import com.mercuriusxeno.goo.ability.program.SpireStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.TerrakinesisStep;
@@ -30,6 +31,7 @@ import java.util.IllegalFormatException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.function.Predicate;
 
 /**
@@ -558,9 +560,10 @@ public final class AbilitySyncHandler {
 
         /**
          * What the ability costs for a trip: a held effect's upkeep a second, a
-         * fixed-cost stream's or channel's cost a second, and every other
-         * ability's one-shot cost plus what the trip adds.
+         * fixed-cost stream's or channel's cost a second, an Outsider's entry,
+         * and every other ability's one-shot cost plus what the trip adds.
          * blink-lands-safely-costed-by-distance
+         * decision outsider-reads-its-entry-as-uses-outside-the-pocket
          *
          * @param trip the blink's trip, empty for an ability making none
          * @return the cost, formatted
@@ -569,11 +572,10 @@ public final class AbilitySyncHandler {
             if (upkeep() > 0) {
                 return GooFormat.formatAmount(upkeepPerSecond()) + PER_SECOND;
             }
-            // dynamic-costs-keep-the-mb-quantity: nothing up front reads the formula, never a zero
-            // spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block: a per-block price reads it too
-            // click-costs-one-mb-and-nothing-under-sculker: a price a standing ability waives reads its rule too
-            if ((costPrice.isFree() || pricedPerBlockGrown() || freeWhile.isPresent()) && costFormula.isPresent()) {
-                return formula().orElseThrow();
+            Optional<String> formulaOrEntry = formulaLabel()
+                    .or(() -> outsider().map(step -> GooFormat.formatAmount(step.entryCost())));
+            if (formulaOrEntry.isPresent()) {
+                return formulaOrEntry.get();
             }
             // panel-and-petals-count-uses-or-seconds: a stream or channel reads its cost a second
             if (!pricedDynamically() && paysWhileHeld()) {
@@ -581,6 +583,18 @@ public final class AbilitySyncHandler {
                         + PER_SECOND;
             }
             return GooFormat.formatAmount(BlinkAim.tripCost(distancePrice, cost(), trip));
+        }
+
+        /**
+         * The formula a price the JSON leaves to it reads.
+         * dynamic-costs-keep-the-mb-quantity: nothing up front reads the formula, never a zero
+         * spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block: a per-block price reads it too
+         * click-costs-one-mb-and-nothing-under-sculker: a price a standing ability waives reads its rule too
+         *
+         * @return the formula filled, or empty where the cost reads as a number
+         */
+        private Optional<String> formulaLabel() {
+            return costPrice.isFree() || pricedPerBlockGrown() || freeWhile.isPresent() ? formula() : Optional.empty();
         }
 
         /**
@@ -632,6 +646,17 @@ public final class AbilitySyncHandler {
          */
         private boolean pricedPerBlockGrown() {
             return behaviors.stream().anyMatch(SpireStep.class::isInstance);
+        }
+
+        /**
+         * The Outsider step the ability runs, whose params price the room's growth.
+         * decision outsider-panel-reads-the-seconds-the-void-affords
+         *
+         * @return the step, empty for an ability running none
+         */
+        public Optional<OutsiderStep> outsider() {
+            return behaviors.stream().filter(OutsiderStep.class::isInstance).map(OutsiderStep.class::cast)
+                    .findFirst();
         }
 
         private Optional<TerrakinesisStep> terrakinesis() {
@@ -718,18 +743,63 @@ public final class AbilitySyncHandler {
          * @return true when the petal reads unaffordable
          */
         public boolean dimsAt(int holdings, int reagentSets, StandingUpkeep standing) {
-            return AffordedCount.reckon(this, holdings, reagentSets, standing).map(AffordedCount::affordsNone)
-                    .orElse(price() > holdings);
+            return dimsAt(holdings, reagentSets, standing, OptionalDouble.empty());
+        }
+
+        /**
+         * Whether the petal dims beside the Outsider room the player stands in: in the room,
+         * Outsider dims short of a second's growth, as every timed petal dims short of a second.
+         * decision outsider-petal-reads-rate-and-time-in-the-room
+         *
+         * @param holdings    the mB the player holds of the ability's type across the inventory
+         * @param reagentSets the whole sets of the ability's consumed items the inventory holds
+         * @param standing    the upkeep already standing on the ability's type
+         * @param roomExtent  the extent of the Outsider room the player stands in, empty outside the pocket
+         * @return true when the petal reads unaffordable
+         */
+        public boolean dimsAt(int holdings, int reagentSets, StandingUpkeep standing, OptionalDouble roomExtent) {
+            return AffordedCount.reckon(this, holdings, reagentSets, standing, roomExtent)
+                    .map(AffordedCount::affordsNone).orElse(price() > holdings);
+        }
+
+        /**
+         * What the petal reads beside the Outsider room the player stands in: in the room,
+         * Outsider reads the price a second of the ring it grows through, then the seconds the
+         * holdings sustain, as "208/s | 12s".
+         * decision outsider-petal-reads-rate-and-time-in-the-room
+         *
+         * @param holdings    the mB the player holds of the ability's type across the inventory
+         * @param reagentSets the whole sets of the ability's consumed items the inventory holds
+         * @param standing    the upkeep already standing on the ability's type
+         * @param roomExtent  the extent of the Outsider room the player stands in, empty outside the pocket
+         * @return the petal's cost line
+         */
+        public String petalLabel(int holdings, int reagentSets, StandingUpkeep standing, OptionalDouble roomExtent) {
+            Optional<String> growthRate = growthRateLabel(roomExtent);
+            if (growthRate.isEmpty()) {
+                return petalLabel(holdings, reagentSets, standing);
+            }
+            return growthRate.get() + AffordedCount.reckon(this, holdings, reagentSets, standing, roomExtent)
+                    .map(count -> COUNT_SEPARATOR + count.label()).orElse(NO_COUNT);
+        }
+
+        private Optional<String> growthRateLabel(OptionalDouble roomExtent) {
+            if (roomExtent.isEmpty()) {
+                return Optional.empty();
+            }
+            return outsider().map(step -> GooFormat.formatAmount(step.growthPricePerSecond(roomExtent.getAsDouble()))
+                    + PER_SECOND);
         }
 
         /**
          * The holdings the ability needs to read affordable: a second of a
-         * held effect's upkeep, or another ability's one-shot cost.
+         * held effect's upkeep, an Outsider's entry, or another ability's one-shot cost.
+         * decision outsider-reads-its-entry-as-uses-outside-the-pocket
          *
          * @return the amount in mB
          */
         public int price() {
-            return upkeep() > 0 ? upkeepPerSecond() : cost();
+            return upkeep() > 0 ? upkeepPerSecond() : outsider().map(OutsiderStep::entryCost).orElseGet(this::cost);
         }
 
         private int upkeepPerSecond() {
@@ -782,8 +852,9 @@ public final class AbilitySyncHandler {
         }
 
         /**
-         * The price a step names for itself: Terrakinesis its fixed price a tear;
-         * any other none.
+         * The price a step names for itself: Terrakinesis its fixed price a tear,
+         * Outsider its entry; any other none.
+         * decision outsider-cost-text-reads-the-new-mechanics
          *
          * @return the arguments, formatted
          */
@@ -792,7 +863,7 @@ public final class AbilitySyncHandler {
             if (terrakinesis.isPresent()) {
                 return List.of(GooFormat.formatAmount(terrakinesis.get().cost()));
             }
-            return List.of();
+            return outsider().map(step -> List.of(GooFormat.formatAmount(step.entryCost()))).orElse(List.of());
         }
         /**
          * Returns true if this ability has the given tag.

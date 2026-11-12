@@ -6,10 +6,12 @@
   "cost": 12,
   "delivery": {
     "kind": "stream",
-    "range": 8,
+    "range": 12,
     "cone": 24,
     "ticks_per_charge": 20,
-    "particle": "goo:kinetic_mist"
+    "particle": "goo:slick_spray_drip",
+    "spray_follows_coat": true,
+    "sound": { "id": "minecraft:block.honey_block.slide", "every": 10, "volume": 1.0, "pitch": 1.0, "pitch_spread": 0.1 }
   },
   "behaviors": [
     { "type": "slick", "ticks": 20, "start_ramp": 1.03, "strongest_ramp": 1.08, "build_ticks": 40, "top_speed": 1.0, "start_speed": 0.3 }

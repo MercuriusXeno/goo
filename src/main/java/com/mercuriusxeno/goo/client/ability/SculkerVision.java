@@ -9,6 +9,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
+import net.minecraft.util.profiling.Profiler;
+import net.minecraft.util.profiling.ProfilerFiller;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -47,6 +49,13 @@ public final class SculkerVision {
     private static final float FAR_PER_RENDER_BLOCK = 4f;
     /** The frames an unused render target is kept for, as the game renderer keeps its own. */
     private static final int FRAMES_TO_KEEP_TARGETS = 3;
+    /**
+     * The profiler sections each of Sculker's world draws reports its frame time under.
+     * decision diagnose-sculkers-lag-and-prove-it-improved-significantly
+     */
+    private static final String VISION_DIM_SECTION = "goo_sculker_vision_dim";
+    private static final String GLASS_DRAW_SECTION = "goo_sculker_glass_draw";
+    private static final String ECHO_DRAW_SECTION = "goo_sculker_echo_draw";
 
     private static final OwnedPostEffect SLOT = new OwnedPostEffect(POST_EFFECT_ID, SCULKER_CONFIG_BLOCK);
     private static final Vector4f SCULKER_PARAMS = new Vector4f();
@@ -116,9 +125,14 @@ public final class SculkerVision {
      */
     @SubscribeEvent
     public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+        ProfilerFiller profiler = Profiler.get();
+        profiler.push(VISION_DIM_SECTION);
         sense();
+        profiler.popPush(GLASS_DRAW_SECTION);
         SculkerGlassRenderer.draw(event);
+        profiler.popPush(ECHO_DRAW_SECTION);
         SculkerEchoRenderer.draw(event);
+        profiler.pop();
     }
 
     /**

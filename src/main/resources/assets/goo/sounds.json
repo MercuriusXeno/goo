@@ -84,6 +84,16 @@
       }
     ]
   },
+  "ability.click_trail": {
+    "category": "blocks",
+    "subtitle": "subtitles.block.comparator.click",
+    "sounds": [
+      {
+        "name": "minecraft:block.comparator.click",
+        "type": "event"
+      }
+    ]
+  },
   "effects.earth_rumble": {
     "category": "blocks",
     "subtitle": "subtitles.goo.earth_rumble",
@@ -130,6 +140,68 @@
         "name": "goo:effects/portal_hum",
         "volume": 0.4,
         "attenuation_distance": 10,
+        "stream": false
+      }
+    ]
+  },
+  "effects.outsider_wub": {
+    "category": "players",
+    "subtitle": "subtitles.goo.outsider_wub",
+    "sounds": [
+      {
+        "name": "goo:effects/outsider_wub",
+        "stream": false
+      },
+      {
+        "name": "goo:effects/outsider_wub2",
+        "stream": false
+      }
+    ]
+  },
+  "effects.outsider_conjure": {
+    "category": "players",
+    "subtitle": "subtitles.goo.outsider_conjure",
+    "sounds": [
+      {
+        "name": "goo:effects/outsider_conjure",
+        "stream": false
+      }
+    ]
+  },
+  "effects.outsider_door": {
+    "category": "players",
+    "subtitle": "subtitles.goo.outsider_door",
+    "sounds": [
+      {
+        "name": "goo:effects/outsider_conjure",
+        "stream": false
+      }
+    ]
+  },
+  "effects.hole_open": {
+    "category": "players",
+    "subtitle": "subtitles.goo.hole_open",
+    "sounds": [
+      {
+        "name": "goo:effects/outsider_wub",
+        "stream": false
+      },
+      {
+        "name": "goo:effects/outsider_wub2",
+        "stream": false
+      }
+    ]
+  },
+  "effects.hole_close": {
+    "category": "players",
+    "subtitle": "subtitles.goo.hole_close",
+    "sounds": [
+      {
+        "name": "goo:effects/outsider_wub_reversed",
+        "stream": false
+      },
+      {
+        "name": "goo:effects/outsider_wub2_reversed",
         "stream": false
       }
     ]

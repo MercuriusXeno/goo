@@ -7,10 +7,18 @@ import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
+import com.mercuriusxeno.goo.client.ability.CameraEye;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -33,6 +41,57 @@ class GloveThrowSenderTest {
 
     private static boolean affordsWithHoldings(ClientAbility ability, int holdings) {
         return GloveThrowSender.affordsThrow(ability, amount -> holdings >= amount, item -> true);
+    }
+
+    /**
+     * The cursor's two points as the player sneaks: the drawn one follows the
+     * camera in first person, the one sent to the server stays on what the
+     * server computes from, vanilla's pick or the entity eye
+     * (decision diagnose-and-correct-eye-aimed-visuals-jumping-on-sneak).
+     */
+    @Nested
+    class CursorPointsOnSneak {
+
+        private static final double REACH = 4.5;
+        private static final Vec3 LOOK = new Vec3(0, -0.3, 1).normalize();
+        private static final CameraEye.Sight CROUCHED_EYE = new CameraEye.Sight(new Vec3(0, 65.27, 0), LOOK);
+        private static final CameraEye.ViewClip OPEN_AIR =
+                (from, to) -> BlockHitResult.miss(to, Direction.UP, BlockPos.containing(to));
+        private static final BlockHitResult PICKED_FACE =
+                new BlockHitResult(new Vec3(0, 64, 3), Direction.UP, new BlockPos(0, 63, 3), false);
+
+        private static GloveThrowSender.CursorPoints pointsWithCameraAt(double eyeHeight, boolean firstPerson,
+                                                                         @Nullable HitResult picked) {
+            return GloveThrowSender.cursorPoints(firstPerson, new CameraEye.Sight(new Vec3(0, 64 + eyeHeight, 0),
+                    LOOK), CROUCHED_EYE, picked, REACH, OPEN_AIR);
+        }
+
+        @Test
+        void theSentPointInOpenAirStaysOnTheEntityEyeWhateverTheCameraHeight() {
+            Vec3 fromTheEye = CROUCHED_EYE.eye().add(LOOK.scale(REACH));
+
+            assertAll(() -> assertEquals(fromTheEye, pointsWithCameraAt(1.62, true, null).sent()),
+                    () -> assertEquals(fromTheEye, pointsWithCameraAt(1.47, true, null).sent()));
+        }
+
+        @Test
+        void theSentPointOnAPickedFaceStaysOnVanillasPickWhateverTheCameraHeight() {
+            assertAll(() -> assertEquals(PICKED_FACE.getLocation(), pointsWithCameraAt(1.62, true, PICKED_FACE).sent()),
+                    () -> assertEquals(PICKED_FACE.getLocation(), pointsWithCameraAt(1.47, true, PICKED_FACE).sent()));
+        }
+
+        @Test
+        void theDrawnPointInFirstPersonFollowsTheCamera() {
+            assertEquals(0.15, pointsWithCameraAt(1.62, true, null).drawn().y
+                    - pointsWithCameraAt(1.47, true, null).drawn().y, 1e-9);
+        }
+
+        @Test
+        void theDrawnPointOutsideFirstPersonIsTheSentPoint() {
+            GloveThrowSender.CursorPoints points = pointsWithCameraAt(1.62, false, PICKED_FACE);
+
+            assertEquals(points.sent(), points.drawn());
+        }
     }
 
     @Test
@@ -83,24 +142,6 @@ class GloveThrowSenderTest {
         assertEquals(GooFormat.formatAmount(priced), blink.costLabel(trip));
         assertFalse(GloveThrowSender.affordsThrow(blink, trip, amount -> priced - 1 >= amount, item -> true));
         assertTrue(GloveThrowSender.affordsThrow(blink, trip, amount -> priced >= amount, item -> true));
-    }
-
-    /**
-     * A channel priced by its formula costs nothing up front, so the crosshair
-     * panel reads the formula the petal reads, never its zero cost (decision
-     * dynamic-costs-keep-the-mb-quantity).
-     */
-    @Test
-    void dynamicallyPricedChannelReadsItsFormulaOnThePanel() {
-        AbilityDefinition definition = AbilityJson.decode("void_outsider");
-        ClientAbility outsider = new ClientAbility(definition.id(), definition.displayName(), definition.icon(),
-                definition.order(), definition.tags(), definition.behaviors(), definition.cost(),
-                definition.delivery(), definition.badge(), definition.requires(), definition.area(),
-                definition.indicator(), definition.consumes(), definition.upkeep(), definition.distancePrice(),
-                definition.onPrism(), definition.pose(), definition.description(), definition.costMechanics(),
-                definition.costFormula());
-
-        assertEquals(definition.costFormula().orElseThrow(), outsider.costLabel(Optional.empty()));
     }
 
     @Test

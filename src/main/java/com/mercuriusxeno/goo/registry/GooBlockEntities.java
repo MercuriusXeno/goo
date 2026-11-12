@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlockEntity;
 import com.mercuriusxeno.goo.block.gate.EndGateBlockEntity;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
+import com.mercuriusxeno.goo.block.outsider.DimensionDoorBlockEntity;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
 import com.mercuriusxeno.goo.block.statue.StatueBlockEntity;
@@ -74,6 +75,11 @@ public class GooBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<EndGateBlockEntity>> END_GATE =
             BLOCK_ENTITIES.register("end_gate",
                     () -> new BlockEntityType<>(EndGateBlockEntity::new, GooBlocks.END_GATE.get()));
+
+    /** A room doorway cell (decision room-door-wears-the-end-portal-starfield). */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DimensionDoorBlockEntity>> DIMENSION_DOOR =
+            BLOCK_ENTITIES.register("dimension_door",
+                    () -> new BlockEntityType<>(DimensionDoorBlockEntity::new, GooBlocks.DIMENSION_DOOR.get()));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<ChoralGasketBlockEntity>> CHORAL_GASKET =
             BLOCK_ENTITIES.register("choral_gasket",

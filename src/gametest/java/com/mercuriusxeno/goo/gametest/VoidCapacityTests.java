@@ -7,13 +7,16 @@ import com.mercuriusxeno.goo.item.VatBlockItem;
 import com.mercuriusxeno.goo.lab.LabKit;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -26,6 +29,8 @@ import java.util.function.Consumer;
 public final class VoidCapacityTests {
     private static final String VOID_GROWS_A_VAT = "void_grows_a_vat";
     private static final String LAB_KIT_VAT_HOLDS_VOID = "lab_kit_vat_holds_void";
+    private static final String LAB_KIT_VAT_HOLDS_NO_INFINITY = "lab_kit_vat_holds_no_infinity";
+    private static final String LAB_KIT_VAT_HOLDS_EVERY_OTHER_TYPE = "lab_kit_vat_holds_every_other_type";
 
     private static final BlockPos VAT_POS = new BlockPos(1, 1, 1);
     /** The void that first grows a canister to a vat's base; here it grows the vat past its own. */
@@ -47,6 +52,8 @@ public final class VoidCapacityTests {
     private static final String ITEM_ROOM = "The vat item takes only the room its void leaves";
     private static final String KIT_HOLDS_VOID = "The kit vat holds the void that grows it to 2^30 mB";
     private static final String KIT_FITS = "The kit vat holds no more than its capacity";
+    private static final String KIT_HOLDS_NO_INFINITY = "The kit vat holds no infinity";
+    private static final String KIT_HOLDS_EVERY_OTHER_TYPE = "The kit vat holds some of ";
 
     private VoidCapacityTests() {
     }
@@ -59,6 +66,10 @@ public final class VoidCapacityTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, VOID_GROWS_A_VAT, VoidCapacityTests::voidGrowsAVat);
         GooTestFunctions.registerTest(registrar, LAB_KIT_VAT_HOLDS_VOID, VoidCapacityTests::labKitVatHoldsVoid);
+        GooTestFunctions.registerTest(registrar, LAB_KIT_VAT_HOLDS_NO_INFINITY,
+                VoidCapacityTests::labKitVatHoldsNoInfinity);
+        GooTestFunctions.registerTest(registrar, LAB_KIT_VAT_HOLDS_EVERY_OTHER_TYPE,
+                VoidCapacityTests::labKitVatHoldsEveryOtherType);
     }
 
     /**
@@ -110,6 +121,37 @@ public final class VoidCapacityTests {
         helper.assertValueEqual(kit.getVolume(GooTypes.VOID),
                 ContainerCapacity.voidToReach(ContainerCapacity.VAT_BASE, KIT_VAT_CAPACITY), KIT_HOLDS_VOID);
         helper.assertTrue(kit.totalVolume() <= capacity, KIT_FITS);
+        helper.succeed();
+    }
+
+    /**
+     * The lab kit's vat holds no infinity, since infinity pours into a held type
+     * each tick and refilled the void an Outsider hold spent.
+     * decision lab-kit-vat-leaves-infinity-out
+     *
+     * @param helper the gametest helper
+     */
+    public static void labKitVatHoldsNoInfinity(GameTestHelper helper) {
+        GooContents kit = VatBlockItem.getGooContents(LabKit.stockedVat(helper.getLevel()));
+        helper.assertValueEqual(kit.getVolume(GooTypes.INFINITY), 0, KIT_HOLDS_NO_INFINITY);
+        helper.succeed();
+    }
+
+    /**
+     * The lab kit's vat holds some of every registered goo type other than
+     * infinity, void included, read from the level's registry.
+     * decision lab-kit-vat-leaves-infinity-out
+     *
+     * @param helper the gametest helper
+     */
+    public static void labKitVatHoldsEveryOtherType(GameTestHelper helper) {
+        GooContents kit = VatBlockItem.getGooContents(LabKit.stockedVat(helper.getLevel()));
+        List<ResourceKey<GooTypeDefinition>> others = helper.getLevel().registryAccess()
+                .lookupOrThrow(GooTypes.REGISTRY).listElementIds()
+                .filter(type -> !GooTypes.INFINITY.equals(type)).toList();
+        for (ResourceKey<GooTypeDefinition> type : others) {
+            helper.assertTrue(kit.getVolume(type) > 0, KIT_HOLDS_EVERY_OTHER_TYPE + type.identifier());
+        }
         helper.succeed();
     }
 }

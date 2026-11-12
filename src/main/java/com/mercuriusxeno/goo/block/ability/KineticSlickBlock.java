@@ -88,6 +88,29 @@ public class KineticSlickBlock extends Block {
         return FILM;
     }
 
+    /**
+     * Whether the film hides its face toward a neighbour: toward another
+     * film, so neighbouring slick reads as one film with no seam between, as
+     * goop's coat does.
+     * diagnose-and-correct-the-slick-film-seams
+     *
+     * @param neighbour the state of the cell beside the face
+     * @return true where the face is not drawn
+     */
+    static boolean hidesFaceToward(BlockState neighbour) {
+        return neighbour.getBlock() instanceof KineticSlickBlock;
+    }
+
+    /**
+     * Hides a face toward neighbouring slick. Slick registers noOcclusion, so
+     * its model's cullfaces never cull against another film on their own.
+     */
+    @Override
+    protected boolean skipRendering(@NonNull BlockState state, @NonNull BlockState neighbour,
+                                    @NonNull Direction direction) {
+        return hidesFaceToward(neighbour) || super.skipRendering(state, neighbour, direction);
+    }
+
     @Override
     protected boolean canSurvive(@NonNull BlockState state, @NonNull LevelReader level, @NonNull BlockPos pos) {
         return SlimeCoatBlock.liesOn(level, pos);

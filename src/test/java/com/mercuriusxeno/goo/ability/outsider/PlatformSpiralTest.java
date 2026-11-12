@@ -8,7 +8,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Covers the order Outsider's platform grows in and what each cell costs. */
+/** Covers the square spiral's order and what each cell and ring of it costs. */
 class PlatformSpiralTest {
 
     private static final int SEVEN_BY_SEVEN = 49;
@@ -74,22 +74,7 @@ class PlatformSpiralTest {
     }
 
     @Nested
-    class Inverse {
-
-        @Test
-        void aCellFindsItsOwnPlaceAlongTheSpiral() {
-            for (int index = 0; index < 2000; index++) {
-                PlatformSpiral.Cell cell = PlatformSpiral.cellAt(index);
-
-                assertEquals(index, PlatformSpiral.indexOf(cell), "cell " + cell);
-            }
-        }
-    }
-
-    @Nested
-    class Pace {
-
-        private static final int RING_TICKS = 40;
+    class Rings {
 
         @Test
         void eachCellSitsInTheRingItsSquareGrows() {
@@ -102,17 +87,27 @@ class PlatformSpiralTest {
         }
 
         @Test
-        void theFeedFinishesEveryRingInTheRingTime() {
-            for (int ring = 2; ring <= 40; ring++) {
-                int first = (2 * ring - 1) * (2 * ring - 1);
-                long ringCost = 0;
-                for (int index = first; index < (2 * ring + 1) * (2 * ring + 1); index++) {
-                    ringCost += PlatformSpiral.costOf(index, CELL_BASE, PER_DISTANCE);
+        void aRingCostsEveryCellItHolds() {
+            for (int ring = 1; ring <= 40; ring++) {
+                long cells = 0;
+                for (int index = (2 * ring - 1) * (2 * ring - 1); index < (2 * ring + 1) * (2 * ring + 1); index++) {
+                    cells += PlatformSpiral.costOf(index, CELL_BASE, PER_DISTANCE);
                 }
-                long feed = PlatformSpiral.feedFor(first, CELL_BASE, PER_DISTANCE, RING_TICKS);
 
-                assertTrue(feed * RING_TICKS >= ringCost && (feed - 1) * RING_TICKS < ringCost,
-                        "ring " + ring + " costs " + ringCost + ", fed " + feed + " a tick for " + RING_TICKS);
+                assertEquals(cells, PlatformSpiral.ringCost(ring, CELL_BASE, PER_DISTANCE), "ring " + ring);
+            }
+        }
+
+        @Test
+        void ringsTogetherCostEachRingSummed() {
+            for (int first = 1; first <= 12; first++) {
+                long summed = 0;
+                for (int last = first; last <= 40; last++) {
+                    summed += PlatformSpiral.ringCost(last, CELL_BASE, PER_DISTANCE);
+
+                    assertEquals(summed, PlatformSpiral.ringsCost(first, last, CELL_BASE, PER_DISTANCE), 1.0E-6,
+                            "rings " + first + " to " + last);
+                }
             }
         }
     }

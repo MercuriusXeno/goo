@@ -63,7 +63,7 @@ public final class StepTypes {
         register(WobbleStep.TYPE);
         register(DetectOreStep.TYPE);
         register(WindStep.TYPE);
-        register(HexMistStep.TYPE);
+        register(MiasmaVortexStep.TYPE);
         register(BreakBlocksStep.TYPE);
         register(ExtinguishStep.TYPE);
         register(TravelingStep.TYPE);
@@ -116,6 +116,8 @@ public final class StepTypes {
         register(BoreStep.TYPE);
         register(SpireStep.TYPE);
         register(PetrifyStep.TYPE);
+        register(DrainPetrifyStep.TYPE);
+        register(WakeStatueStep.TYPE);
         register(CalcifyStep.TYPE);
         register(DegradeStep.TYPE);
         register(FlamesStep.TYPE);
@@ -153,7 +155,7 @@ public final class StepTypes {
         register(ToxinStep.TYPE);
         register(VerdantStep.TYPE);
         register(HastenRegrowStep.TYPE);
-        register(ReapStep.TYPE);
+        register(SlashStep.TYPE);
         register(CharmStep.TYPE);
         register(PhaseStep.TYPE);
         register(PortalStep.TYPE);

@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.network.SculkerHeardPayload;
 import com.mercuriusxeno.goo.network.SculkerVibrationPayload;
 import com.mercuriusxeno.goo.registry.GooAttachments;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -54,7 +55,7 @@ public final class SculkerHearing {
         double viewReach = viewReach(level);
         for (ServerPlayer player : level.players()) {
             if (player != except && dives(player) && carriesTo(player.position().distanceTo(at), range, viewReach)) {
-                PacketDistributor.sendToPlayer(player, new SculkerHeardPayload(at.x, at.y, at.z, sound));
+                sendIfHeard(player, new SculkerHeardPayload(at.x, at.y, at.z, sound));
             }
         }
     }
@@ -77,8 +78,22 @@ public final class SculkerHearing {
         double viewReach = viewReach(level);
         for (ServerPlayer player : level.players()) {
             if (dives(player) && player.position().distanceTo(at) <= viewReach) {
-                PacketDistributor.sendToPlayer(player, new SculkerVibrationPayload(at.x, at.y, at.z, rank));
+                sendIfHeard(player, new SculkerVibrationPayload(at.x, at.y, at.z, rank));
             }
+        }
+    }
+
+    /**
+     * Sends a Sculker what it hears, where its connection carries goo's
+     * channel for it; a connection without one, as a gametest's mock player
+     * holds, would throw inside the event that heard it.
+     *
+     * @param player  the Sculker
+     * @param payload what it hears
+     */
+    private static void sendIfHeard(ServerPlayer player, CustomPacketPayload payload) {
+        if (player.connection.hasChannel(payload)) {
+            PacketDistributor.sendToPlayer(player, payload);
         }
     }
 

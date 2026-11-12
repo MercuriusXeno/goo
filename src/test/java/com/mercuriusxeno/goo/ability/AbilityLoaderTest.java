@@ -476,7 +476,7 @@ class AbilityLoaderTest {
 
         private static final Map<String, String> SHIPPED_FORMULAS = Map.of(
                 "ender_blink", "200 + 100/block",
-                "nether_black_hole", "1K x r\u00B3",
+                "void_dark_star", "1K x r\u00B3",
                 "unstable_explode", "1K x r\u00B3",
                 "rock_spire", "%s/m³",
                 "rock_terrakinesis", "%s",
@@ -486,6 +486,19 @@ class AbilityLoaderTest {
         void eachDynamicAbilityCarriesItsFormula() {
             SHIPPED_FORMULAS.forEach((name, formula) ->
                     assertEquals(Optional.of(formula), AbilityJson.decode(name).costFormula(), name));
+        }
+
+        /**
+         * Outsider's price is its step's entry, read live, so its file names no formula and loads
+         * (decision outsider-cost-text-reads-the-new-mechanics).
+         */
+        @Test
+        void outsiderNamesNoFormulaAndLoads() {
+            JsonObject outsider = JsonParser.parseString(AbilityJson.read("void_outsider")).getAsJsonObject();
+
+            assertFalse(outsider.has("cost_formula"), () -> "cost_formula reads " + outsider.get("cost_formula"));
+            assertEquals(Identifier.fromNamespaceAndPath(Goo.MODID, "void_outsider"),
+                    AbilityJson.decode("void_outsider").id());
         }
 
         @Test

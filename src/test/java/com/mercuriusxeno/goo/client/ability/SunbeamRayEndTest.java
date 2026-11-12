@@ -8,6 +8,8 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import java.util.ArrayList;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -68,6 +70,40 @@ class SunbeamRayEndTest {
             ends.add(SunbeamRayEnd.drawnEnd(serverEnd, own, RANGE, WALL));
         }
         return ends;
+    }
+
+    /**
+     * The local caster's own aim as the player sneaks: it leaves from the
+     * sight the caller passes, the camera's for the local player, so the
+     * drawn end eases with the view
+     * (decision diagnose-and-correct-eye-aimed-visuals-jumping-on-sneak).
+     */
+    @Nested
+    class OnSneak {
+
+        private static final Vec3 LOOK = new Vec3(0, -0.3, 1).normalize();
+
+        private static SunbeamRayEnd.OwnAim ownAimFrom(double eyeHeight) {
+            return SunbeamRayEnd.ownAim(new CameraEye.Sight(new Vec3(0, 64 + eyeHeight, 0), LOOK), false, null);
+        }
+
+        @Test
+        void theOwnAimsOriginAndAimedPointMoveWithTheSightsHeight() {
+            SunbeamRayEnd.OwnAim standing = ownAimFrom(1.62);
+            SunbeamRayEnd.OwnAim easing = ownAimFrom(1.47);
+
+            assertAll(() -> assertEquals(0.15, standing.eye().y - easing.eye().y, 1e-9),
+                    () -> assertEquals(0.15, standing.aimPoint().y - easing.aimPoint().y, 1e-9));
+        }
+
+        @ParameterizedTest
+        @ValueSource(doubles = {1.62, 1.47, 1.395})
+        void anEasingOriginMovesTheDrawnEndByTheSameEasedAmount(double eyeHeight) {
+            Vec3 origin = new Vec3(0, 64 + eyeHeight, 0);
+            Vec3 drawn = SunbeamRayEnd.drawnEnd(Vec3.ZERO, ownAimFrom(eyeHeight), RANGE, FlatWall::stop);
+
+            assertEquals(FlatWall.metAlong(origin, LOOK).y, drawn.y, 1e-6);
+        }
     }
 
     /** A prism in the wall's cell straight ahead, the ray striking its near face. */

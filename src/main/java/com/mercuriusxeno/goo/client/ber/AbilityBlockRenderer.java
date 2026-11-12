@@ -34,7 +34,7 @@ import org.jspecify.annotations.Nullable;
  *   <li>{@link MarkerOrbVisual} - the slime-like orb while the program runs</li>
  *   <li>{@link MetalSpikeVisual} - Urchin's bristle and the spike each shot shoots</li>
  *   <li>{@link CrystalCloudVisual} - the shard cloud a crystal marker stands</li>
- *   <li>{@link NetherHoleStyles#active()} - the swappable nether black-hole style</li>
+ *   <li>{@link NetherHoleStyles#active()} - the swappable black-hole style</li>
  *   <li>{@link VineTrapVisual} - the Vines trap's knot and tendrils on the ground</li>
  * </ul>
  */
@@ -45,7 +45,7 @@ public class AbilityBlockRenderer
     private static final float BLOCK_CENTER = 0.5f;
     /** Half-extent of the render bounding box around an ability block, in blocks, the least any marker draws in. */
     static final double RENDER_BOX_HALF_EXTENT = 12.0;
-    /** A sized black hole pulls from three times its size, nether_black_hole.json's {@code 3 * size}. */
+    /** A sized black hole pulls from three times its size, void_dark_star.json's {@code 3 * size}. */
     private static final double PULL_REACH_PER_SIZE = 3;
 
     public AbilityBlockRenderer(BlockEntityRendererProvider.Context context) {

@@ -17,7 +17,7 @@ public final class GooSounds {
     public static final DeferredRegister<SoundEvent> SOUND_EVENTS =
         DeferredRegister.create(Registries.SOUND_EVENT, Goo.MODID);
 
-    /** Nether chain effect: sphere expand / destroy / contract "boom". */
+    /** The black hole's sphere expand / destroy / contract "boom". */
     public static final DeferredHolder<SoundEvent, SoundEvent> BLACK_HOLE =
         SOUND_EVENTS.register("effects.black_hole",
             () -> SoundEvent.createVariableRangeEvent(
@@ -55,6 +55,10 @@ public final class GooSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> CLICK =
         SOUND_EVENTS.register("ability.click", () -> SoundEvent.createVariableRangeEvent(GooSoundIds.CLICK));
 
+    /** The echo Click's wave sheds on its way, rung at 5 under Sculker (decision click-travel-echoes-ring-at-rank-five). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> CLICK_TRAIL =
+        SOUND_EVENTS.register("ability.click_trail", () -> SoundEvent.createVariableRangeEvent(GooSoundIds.CLICK_TRAIL));
+
     /** A portal standing (decision portal-placement-plays-a-zap-that-opens-into-a-hum). */
     public static final DeferredHolder<SoundEvent, SoundEvent> PORTAL_PLACE =
         SOUND_EVENTS.register("effects.portal_place",
@@ -69,6 +73,32 @@ public final class GooSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> PORTAL_HUM =
         SOUND_EVENTS.register("effects.portal_hum",
             () -> SoundEvent.createVariableRangeEvent(GooSoundIds.PORTAL_HUM));
+
+    /** An Outsider room gaining a full block (decision full-block-growth-wubs-and-raises-void-motes). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> OUTSIDER_WUB =
+        SOUND_EVENTS.register("effects.outsider_wub",
+            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.OUTSIDER_WUB));
+
+    /** A door conjured toward the pocket (decision
+     * channeling-to-the-pocket-conjures-a-door-that-envelops-the-player). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> OUTSIDER_CONJURE =
+        SOUND_EVENTS.register("effects.outsider_conjure",
+            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.OUTSIDER_CONJURE));
+
+    /** The door carrying a player into the pocket (decision door-carries-its-own-sound-through-the-change). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> OUTSIDER_DOOR =
+        SOUND_EVENTS.register("effects.outsider_door",
+            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.OUTSIDER_DOOR));
+
+    /** Void's hole opening (decision hole-opens-with-the-outsider-wub-pitched-up). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> HOLE_OPEN =
+        SOUND_EVENTS.register("effects.hole_open",
+            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.HOLE_OPEN));
+
+    /** Void's hole closing (decision hole-closes-with-the-outsider-wub-reversed-and-pitched-down). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> HOLE_CLOSE =
+        SOUND_EVENTS.register("effects.hole_close",
+            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.HOLE_CLOSE));
 
     private GooSounds() {}
 }

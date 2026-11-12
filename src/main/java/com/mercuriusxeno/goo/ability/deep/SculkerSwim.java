@@ -22,13 +22,18 @@ import java.util.List;
  * body passes through stone with no key pressed into a block, weightless,
  * the movement input driving it along the look, jump lifting it and sneak
  * sinking it. The diver leaves the dive by rising out through a block's top
- * face and jumping clear, which stands it on that block. Bedrock is a hard
+ * face and jumping clear, which stands it on that block. Sculker swims the
+ * ground alone: a body neither inside a solid block nor just over a top face
+ * is out of the dive whatever it holds, a walker again that falls, lands and
+ * takes fall damage as any player does, until sneak and jump on the ground
+ * take it back in. Bedrock is a hard
  * wall a diver stops at from any side, and one it never stays trapped in:
  * a body already inside bedrock moves out of it freely. The world's floor
  * and ceiling hold a diver from leaving the world and never from coming
  * back into it, so a diver below the floor rises back in on jump and no
  * diver is trapped under the ground, creative included.
  * decision sculker-swims-solid-blocks-and-surfaces-at-will
+ * decision diagnose-and-correct-sculker-flying-through-air
  */
 public final class SculkerSwim {
 
@@ -38,8 +43,12 @@ public final class SculkerSwim {
     static final double SWIM_STEER = 0.25;
     /** How far the box shrinks before asking whether it is inside a solid block, so a body resting on a face is not. */
     private static final double INSIDE_INSET = 1.0E-7;
-    /** How far below the feet a diver looks for the top face it has just risen out of. */
-    private static final double SURFACE_REACH = 0.5;
+    /**
+     * How far below the feet a diver looks for the ground it swims in: past
+     * the height of a jump, so the jump that sneak and jump start the dive
+     * with leaves the diver over the ground it sinks into.
+     */
+    private static final double SURFACE_REACH = 1.3;
     private static final double SINK = -1;
     private static final double LIFT = 1;
     private static final double HOLD = 0;
@@ -69,8 +78,9 @@ public final class SculkerSwim {
 
     /**
      * Moves a server player into or out of the dive by its last input: sneak
-     * and jump together take it in while the brew stands, and rising out of
-     * a top face with jump held takes it out. The state syncs to its client.
+     * and jump together take it in while the brew stands, rising out of a top
+     * face with jump held takes it out, and so does leaving the ground. The
+     * state syncs to its client.
      *
      * @param player the player
      */
@@ -80,24 +90,26 @@ public final class SculkerSwim {
             return;
         }
         boolean diving = nextDiving(sculker.diving() && dives(player), dives(player), player.getLastClientInput(),
-                insideSolid(player), overATopFace(player));
+                inTheGround(player), overATopFace(player));
         if (diving != sculker.diving()) {
             player.setData(GooAttachments.SCULKER, sculker.withDiving(diving));
         }
     }
 
     /**
-     * Whether a player is in the dive next tick.
+     * Whether a player is in the dive next tick: never with its body clear of
+     * the ground, neither inside a solid block nor over a top face, whatever
+     * it holds.
      *
      * @param diving      whether it is in the dive now
      * @param stands      whether its brew stands
      * @param keys        its held keys
-     * @param inside      whether its body is inside a solid block
-     * @param overATopFace whether a block's top face lies just under its feet
+     * @param inside      whether its body is in the ground: inside a solid block or below the world's floor
+     * @param overATopFace whether a block's top face lies under its feet within a jump's height
      * @return true where it stays in or enters the dive
      */
     static boolean nextDiving(boolean diving, boolean stands, Input keys, boolean inside, boolean overATopFace) {
-        if (!stands) {
+        if (!stands || !inside && !overATopFace) {
             return false;
         }
         if (!diving) {
@@ -136,6 +148,18 @@ public final class SculkerSwim {
     public static boolean insideSolid(Player player) {
         AABB body = player.getBoundingBox().deflate(INSIDE_INSET);
         return player.level().getBlockCollisions(null, body).iterator().hasNext();
+    }
+
+    /**
+     * Whether a player's body is in the ground: inside a solid block, or
+     * below the world's floor, which holds a diver as the ground does so it
+     * rises back into the world rather than falling out of it.
+     *
+     * @param player the player
+     * @return true where its body is inside a solid block or below the floor
+     */
+    private static boolean inTheGround(Player player) {
+        return insideSolid(player) || player.getBoundingBox().minY < player.level().getMinY();
     }
 
     private static boolean overATopFace(Player player) {

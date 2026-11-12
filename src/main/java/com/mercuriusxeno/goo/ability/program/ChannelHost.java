@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.petrify.Statues;
 import com.mercuriusxeno.goo.network.HoldMarks;
+import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
@@ -93,4 +95,51 @@ public interface ChannelHost extends BlockBreakHost {
      * @param cells the blocks to toggle the devices of
      */
     void toggleEachDevice(List<BlockPos> cells);
+
+    /**
+     * Whether a statue stands at a position.
+     * decision heal-wakes-a-statue-at-a-nearly-full-gauge
+     *
+     * @param pos the position
+     * @return true where the block standing there is a statue
+     */
+    default boolean statueAt(BlockPos pos) {
+        return level().getBlockState(pos).is(GooBlocks.STATUE.get());
+    }
+
+    /**
+     * Wakes the statue at a position back into its mob.
+     * decision heal-wakes-a-statue-at-a-nearly-full-gauge
+     *
+     * @param pos the statue
+     */
+    default void wakeStatue(BlockPos pos) {
+        Statues.wake(level(), pos);
+    }
+
+    /**
+     * The channeling player's horizontal speed, read from the movement their
+     * client reports, since the server leaves a player's delta movement at rest.
+     * glove-stream-motes-carry-the-players-travel-velocity
+     *
+     * @return the speed, in blocks a tick
+     */
+    double channelerTravelSpeed();
+
+    /**
+     * The speed the channeling player's movement speed walks them at on
+     * ordinary ground, unadjusted by any slick.
+     * slick-resolves-faster-by-speed-over-unadjusted-speed
+     *
+     * @return the speed, in blocks a tick
+     */
+    double channelerUnadjustedSpeed();
+
+    /**
+     * Whether the channeling player stands on Kinetic's slick.
+     * slick-resolves-faster-by-speed-over-unadjusted-speed
+     *
+     * @return true where the slick film fills the cell their feet stand in
+     */
+    boolean channelerStandsOnSlick();
 }
