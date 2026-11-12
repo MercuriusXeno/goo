@@ -55,6 +55,10 @@ public final class GooSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> CLICK =
         SOUND_EVENTS.register("ability.click", () -> SoundEvent.createVariableRangeEvent(GooSoundIds.CLICK));
 
+    /** The echo Click's wave sheds on its way, rung at 5 under Sculker (decision click-travel-echoes-ring-at-rank-five). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> CLICK_TRAIL =
+        SOUND_EVENTS.register("ability.click_trail", () -> SoundEvent.createVariableRangeEvent(GooSoundIds.CLICK_TRAIL));
+
     /** A portal standing (decision portal-placement-plays-a-zap-that-opens-into-a-hum). */
     public static final DeferredHolder<SoundEvent, SoundEvent> PORTAL_PLACE =
         SOUND_EVENTS.register("effects.portal_place",

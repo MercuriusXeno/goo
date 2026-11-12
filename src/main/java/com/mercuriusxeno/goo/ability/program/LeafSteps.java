@@ -135,11 +135,14 @@ public final class LeafSteps {
     /**
      * Heals the host's target by an amount of health points; vitality
      * streams {@code heal amount=0.1} over each living thing in its cone
-     * and its caster every tick it is held.
+     * and its caster every tick it is held. An undead target, the caster
+     * among them, is harmed by the amount instead.
      * vitality-waves-regenerate-and-court
+     * heal-harms-an-undead-target
      */
     public static final LeafStepType<Expr> HEAL = TargetEffectStep.of("heal", "amount",
-            (target, amount, context) -> target.heal(amount.evaluateFloat(context)));
+            (target, amount, context) -> UndeadInversion.heal(target, amount.evaluateFloat(context),
+                    context.hostAs(TargetHost.class).thrower()));
 
     /**
      * Puts the host's target in love on a percent roll when it is an animal
