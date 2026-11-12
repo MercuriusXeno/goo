@@ -1,13 +1,13 @@
 package com.mercuriusxeno.goo.client.hole;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.hole.HoleFrame;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.network.PortableHolesSyncPayload;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
@@ -54,8 +54,6 @@ public final class HoleMouths {
     /** The violet a band's darkest stretch keeps, as a share of the rim's. */
     private static final float VIOLET_FLOOR = 0.55F;
     private static final float HALF = 0.5F;
-    /** A box's face's distance from its center, as a share of the box's size. */
-    private static final double FACE_OFFSET = 0.5;
 
     private HoleMouths() {
     }
@@ -89,34 +87,17 @@ public final class HoleMouths {
         buffers.endBatch(GooRenderTypes.PORTABLE_HOLE_MOUTH_TYPE);
     }
 
-    /**
-     * The flat rectangle a mouth opens across: the faces of its footprint's
-     * blocks on the side the mouth stands on, the oval of its opening
-     * inscribed in it.
-     * decision hole-mouth-opens-three-by-three-and-fits-its-room
-     *
-     * @param footprint the blocks whose faces the mouth covers
-     * @param face      the face it opens on
-     * @return the rectangle, flat along the face's normal
-     */
-    static AABB openingOn(List<BlockPos> footprint, Direction face) {
-        AABB cells = footprint.stream().map(AABB::new).reduce(AABB::minmax).orElseThrow();
-        Direction.Axis normal = face.getAxis();
-        double plane = face.getAxisDirection() == Direction.AxisDirection.POSITIVE ? cells.max(normal)
-                : cells.min(normal);
-        return new AABB(cells.getMinPosition().with(normal, plane), cells.getMaxPosition().with(normal, plane));
-    }
-
     private static void drawMouth(PoseStack.Pose pose, VertexConsumer consumer, PortableHolesSyncPayload.Mouth mouth,
                                   Vec3 camera, float open, float time) {
         Direction face = mouth.face();
         Vec3 normal = Vec3.atLowerCornerOf(face.getUnitVec3i());
-        AABB opening = openingOn(mouth.footprint(), face);
+        // decision hole-mouth-opens-three-by-three-and-fits-its-room: the oval fills the footprint's faces
+        AABB opening = HoleFrame.openingOn(mouth.footprint(), face);
         Vec3 centre = opening.getCenter().add(normal.scale(FACE_LIFT)).subtract(camera);
-        Vec3 across = face.getAxis() == Direction.Axis.X ? new Vec3(0, 0, 1) : new Vec3(1, 0, 0);
+        Vec3 across = HoleFrame.acrossOf(face);
         Vec3 along = normal.cross(across);
-        Vec3 acrossRadius = across.scale(halfSpan(opening, across) * open);
-        Vec3 alongRadius = along.scale(halfSpan(opening, along) * open);
+        Vec3 acrossRadius = across.scale(HoleFrame.halfSpan(opening, across) * open);
+        Vec3 alongRadius = along.scale(HoleFrame.halfSpan(opening, along) * open);
         for (int ring = 0; ring < RINGS; ring++) {
             float inner = (float) ring / RINGS;
             float outer = (float) (ring + 1) / RINGS;
@@ -129,18 +110,6 @@ public final class HoleMouths {
                 emit(pose, consumer, centre, acrossRadius, alongRadius, inner, to, colorAt(inner, to, time));
             }
         }
-    }
-
-    /**
-     * How far an opening reaches from its middle along an axis across its face.
-     *
-     * @param opening the opening's flat rectangle
-     * @param axis    a unit axis along the face
-     * @return the half span, in blocks
-     */
-    static double halfSpan(AABB opening, Vec3 axis) {
-        return (Math.abs(axis.x()) * opening.getXsize() + Math.abs(axis.y()) * opening.getYsize()
-                + Math.abs(axis.z()) * opening.getZsize()) * FACE_OFFSET;
     }
 
     /**
