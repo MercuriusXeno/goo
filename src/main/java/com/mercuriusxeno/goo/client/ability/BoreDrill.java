@@ -17,11 +17,11 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Bore's drill: while right click holds a bore stream, a big drill emerges
- * from the glove, a solid cone bit widest at the glove and pointed at the
- * tip, out to the bore's reach on the eye line, sinking into the blocks it
- * drills, which hide the buried length. {@link BoreDrillPass} marches it as
- * a solid with spiral grooves cut into it, in rock's two tones as the Bore
- * icon draws them, spinning while Bore runs.
+ * from the glove, a drill-shaped vortex of earth magic widest at the glove and pointed at the
+ * tip, out to the bore's reach on the eye line, drawn over the blocks it
+ * breaks. {@link BoreDrillPass} marches it as Drain's vortex is marched: a
+ * churning swirl of earthy dust in rock's tones, two thicker flutes wound
+ * round it as a drill's are, spinning while Bore runs, ragged and blocky.
  * decision bore-shows-a-big-drill-from-the-glove
  * decision bore-vortex-with-a-worldspace-shake
  */
@@ -99,7 +99,7 @@ public final class BoreDrill {
         ConeSections.Volume full = volume(player.getEyePosition(partialTick).subtract(camera),
                 GloveAim.handPosition(mc.gameRenderer.getMainCamera()).subtract(camera),
                 player.getViewVector(partialTick), player.getViewYRot(partialTick), bore.delivery().range());
-        BoreDrillPass.draw(emerged(full, emergedShare(GloveUseTracker.channelTicks() + partialTick)),
+        BoreDrillPass.draw(emerged(full, emergedShare(GloveUseTracker.channelTicks() + partialTick)), camera,
                 event.getModelViewMatrix());
     }
 

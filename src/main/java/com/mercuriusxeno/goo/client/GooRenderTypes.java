@@ -1229,17 +1229,12 @@ public final class GooRenderTypes {
     /** The uniform block the bore drill pipeline reads the bit's shape from. */
     public static final String BORE_DRILL_BLOCK = "BoreDrill";
 
-    /** The sampler the bore drill reads a copy of the world's depth through. */
-    public static final String BORE_DRILL_DEPTH_SAMPLER = "BoreDrillDepthSampler";
-
     /**
      * Bore's drill pipeline (decision bore-shows-a-big-drill-from-the-glove),
      * built as Drain's vortex pipeline is: a box around the bit whose
-     * fragments march to the bit's grooved surface through
-     * {@code bore_drill.vsh / .fsh}, stopping at a copy of the world's depth
-     * so the blocks it sinks into hide its buried length. Opaque where the
-     * march strikes the bit; it passes every depth test and writes none,
-     * since the march clips itself against the world.
+     * fragments march its churning earth dust through
+     * {@code bore_drill.vsh / .fsh}. Blended translucent; it passes every
+     * depth test and writes none, so it draws over the blocks it breaks.
      */
     public static final RenderPipeline BORE_DRILL = RenderPipeline.builder(
                     RenderPipelines.MATRICES_PROJECTION_SNIPPET,
@@ -1248,9 +1243,8 @@ public final class GooRenderTypes {
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "bore_drill"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "bore_drill"))
             .withUniform(BORE_DRILL_BLOCK, UniformType.UNIFORM_BUFFER)
-            .withSampler(BORE_DRILL_DEPTH_SAMPLER)
             .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
-            .withColorTargetState(ColorTargetState.DEFAULT)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(true)
             .build();
