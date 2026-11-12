@@ -9,6 +9,8 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.profiling.Profiler;
+import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.BlockGetter;
@@ -47,6 +49,12 @@ public final class SculkerSenses {
     /** How near a sound's source an entity must stand for the sound to be its own. */
     private static final double SOUND_OWNER_REACH = 1.5;
     private static final int BLOCKS_PER_CHUNK = 16;
+    /**
+     * The profiler sections the echo bookkeeping and the mob outlines report their time under.
+     * decision diagnose-sculkers-lag-and-prove-it-improved-significantly
+     */
+    private static final String ECHO_TICK_SECTION = "goo_sculker_echo_tick";
+    private static final String OUTLINES_SECTION = "goo_sculker_outlines";
 
     private static final SculkerEchoes ECHOES = new SculkerEchoes();
     /** Joins each sound heard to the vibration the server forwards for it, so it rings once at its rank. */
@@ -82,6 +90,8 @@ public final class SculkerSenses {
         if (mc.level == null || HEARD.isEmpty()) {
             return;
         }
+        ProfilerFiller profiler = Profiler.get();
+        profiler.push(OUTLINES_SECTION);
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         List<AfterimageRenderer.SoftOutline> outlines = new ArrayList<>();
         for (int id : HEARD.keySet()) {
@@ -91,6 +101,7 @@ public final class SculkerSenses {
             }
         }
         AfterimageRenderer.drawSoftOutlines(event, outlines, SCULK_RGB);
+        profiler.pop();
     }
 
     /**
@@ -145,10 +156,13 @@ public final class SculkerSenses {
             HEARD.clear();
             return;
         }
+        ProfilerFiller profiler = Profiler.get();
+        profiler.push(ECHO_TICK_SECTION);
         long now = level.getGameTime();
         NOISES.advance(now);
         ECHOES.advance(now, pos -> lightsUp(level, pos), pos -> passesSound(level, pos));
         HEARD.entrySet().removeIf(heard -> level.getEntity(heard.getKey()) == null || now >= heard.getValue().fadedAt());
+        profiler.pop();
     }
 
     /**

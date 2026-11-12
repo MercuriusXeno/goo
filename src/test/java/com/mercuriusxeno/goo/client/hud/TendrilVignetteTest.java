@@ -264,6 +264,58 @@ class TendrilVignetteTest {
         }
     }
 
+    /**
+     * One frame's work, counted at the seam the vignette draws through, so a
+     * cut to its cost is proven headless
+     * (decision diagnose-sculkers-lag-and-prove-it-improved-significantly).
+     */
+    @Nested
+    class OneFramesWork {
+
+        private static final int GUI_WIDTH = 480;
+        private static final int GUI_HEIGHT = 270;
+        private static final int SCULKER_FILLS_A_FRAME = 5_992;
+
+        @Test
+        void oneSculkerVignetteDrawSubmitsItsCountOfFills() {
+            TendrilVignette vignette = TendrilVignette.veined(SEED);
+            for (int tick = 0; tick <= SETTLED; tick++) {
+                vignette.advance(tick);
+            }
+            CountingCanvas canvas = new CountingCanvas(GUI_WIDTH, GUI_HEIGHT);
+            vignette.draw(canvas, SETTLED, 1f, SculkerVignetteLayer.LOOK);
+            assertEquals(SCULKER_FILLS_A_FRAME, canvas.fills, "fills one settled Sculker vignette draw submits");
+        }
+    }
+
+    /** A canvas that counts the fills drawn on it. */
+    private static final class CountingCanvas implements VignetteCanvas {
+
+        private final int width;
+        private final int height;
+        private int fills;
+
+        CountingCanvas(int width, int height) {
+            this.width = width;
+            this.height = height;
+        }
+
+        @Override
+        public int guiWidth() {
+            return width;
+        }
+
+        @Override
+        public int guiHeight() {
+            return height;
+        }
+
+        @Override
+        public void fill(int minX, int minY, int maxX, int maxY, int color) {
+            fills++;
+        }
+    }
+
     @Test
     void everyTendrilWithersAndGoesInItsTime() {
         TendrilVignette vignette = advancedTo(SETTLED);
