@@ -16,8 +16,12 @@ import net.minecraft.core.BlockPos;
  */
 public final class RoomExtent {
 
-    /** A room's extent as it is laid: the 3 by 3 around the center voidstone. */
-    public static final double LAID = 1.5;
+    /**
+     * A room's extent as it is laid: the 9 by 9 around the center voidstone,
+     * wide enough that the copies tiled to render distance stay few.
+     * decision outsider-room-starts-nine-by-nine
+     */
+    public static final double LAID = 4.5;
     /** From a block's corner to its middle, and from a whole-block mark to the next ring's middle. */
     private static final double HALF_BLOCK = 0.5;
     /** Rings out from the center across a square: R each way and the center itself. */
