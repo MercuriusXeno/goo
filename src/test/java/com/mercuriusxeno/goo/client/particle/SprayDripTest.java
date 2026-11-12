@@ -99,16 +99,17 @@ class SprayDripTest {
     }
 
     @Test
-    void aDripLeavesTheGloveCarryingItsCastersTravel() {
-        SprayDrip standing = throwDrip(Vec3.ZERO, 1L);
-        SprayDrip running = throwDrip(RUNNING, 1L);
-        double share = (running.flightTicks() - 1.0) / running.flightTicks();
+    void aDripKeepsPaceWithItsRunningCastersHandThroughItsOpeningTicks() {
+        List<Vec3> standing = fly(Vec3.ZERO, 1L).path();
+        List<Vec3> running = fly(RUNNING, 1L).path();
 
-        Vec3 carried = running.velocity().subtract(standing.velocity());
-
-        assertEquals(RUNNING.x * share, carried.x, DELTA, "x");
-        assertEquals(RUNNING.y * share, carried.y, DELTA, "y");
-        assertEquals(RUNNING.z * share, carried.z, DELTA, "z");
+        for (int tick = 1; tick <= SprayDrip.HOLD_TICKS; tick++) {
+            Vec3 carried = running.get(tick - 1).subtract(standing.get(tick - 1));
+            Vec3 handMoved = RUNNING.scale(tick);
+            assertEquals(handMoved.x, carried.x, DELTA, "x after tick " + tick);
+            assertEquals(handMoved.y, carried.y, DELTA, "y after tick " + tick);
+            assertEquals(handMoved.z, carried.z, DELTA, "z after tick " + tick);
+        }
     }
 
     @Test
