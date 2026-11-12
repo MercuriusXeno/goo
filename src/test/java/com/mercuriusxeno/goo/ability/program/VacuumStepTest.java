@@ -2,15 +2,29 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
+import com.mercuriusxeno.goo.network.HoldMarks;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.Shapes;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyFloat;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Vacuum's wave and reach: a residual cell breaks on a tick its distance from
@@ -46,6 +60,70 @@ class VacuumStepTest {
             AbilityDefinition vacuum = AbilityJson.decode("void_vacuum");
             return vacuum.behaviors().stream().filter(VacuumStep.class::isInstance).map(VacuumStep.class::cast)
                     .findFirst().orElseThrow();
+        }
+    }
+
+    /**
+     * A reached residual decays toward nothing through the mingle noise before
+     * it breaks, its decay ending on the tick its distance sets
+     * (decision vacuumed-residuals-decay-through-mingle-noise-before-breaking).
+     */
+    @Nested
+    class Decay {
+
+        private static final int DECAY_TICKS = 5;
+        private static final BlockPos CELL = new BlockPos(4, 2, 0);
+        private final VacuumStep vacuum = new VacuumStep(1.25, DECAY_TICKS);
+
+        @Test
+        void aFarCellsDecayEndsOnTheTickItsDistanceSets() {
+            int breaksOn = VacuumStep.breaksOn(SHIPPED_RANGE, 1.25);
+
+            assertEquals(breaksOn, vacuum.decayStartsOn(SHIPPED_RANGE) + DECAY_TICKS - 1);
+        }
+
+        @Test
+        void aNearCellDecaysFromTheHoldsFirstTick() {
+            assertEquals(ChannelAim.FIRST_TICK, vacuum.decayStartsOn(1));
+        }
+
+        @Test
+        void aReachedResidualMinglesTowardNothingAsItMeltsAway() {
+            ChannelHost host = residualHost(0.2f);
+
+            vacuum.tick(new StepContext(host, 0, 0));
+
+            verify(host).exposeBlock(CELL, Blocks.AIR.defaultBlockState(), 1f / DECAY_TICKS, BlockExposures.MELTS_AWAY);
+        }
+
+        @Test
+        void aFullyDecayedResidualBreaksAndSendsItsTransformToNothing() {
+            ChannelHost host = residualHost(1f);
+            BlockState residual = host.stateAt(CELL);
+
+            vacuum.tick(new StepContext(host, 0, 0));
+
+            verify(host).breakBlock(CELL);
+            verify(host).sendTransform(CELL, residual, Blocks.AIR.defaultBlockState());
+        }
+
+        /**
+         * A host holding one residual cell four blocks ahead of the eye, the
+         * hold old enough to have reached it, its exposure answering a share.
+         */
+        private ChannelHost residualHost(float share) {
+            ChannelHost host = mock(ChannelHost.class);
+            BlockState residual = mock(BlockState.class);
+            Block residualBlock = mock(Block.class);
+            when(residual.getBlock()).thenReturn(residualBlock);
+            when(residual.getCollisionShape(any(), any())).thenReturn(Shapes.empty());
+            when(host.channelAim()).thenReturn(Optional.of(new ChannelAim(EYE.add(LOOK_EAST), null, CONE, 20, true)));
+            when(host.eye()).thenReturn(EYE);
+            when(host.holdMarks()).thenReturn(new HoldMarks());
+            when(host.blockIn(any(), eq(VacuumStep.SLIME_RESIDUALS))).thenAnswer(call -> CELL.equals(call.getArgument(0)));
+            when(host.stateAt(any())).thenReturn(residual);
+            when(host.exposeBlock(any(), any(), anyFloat(), anyInt())).thenReturn(share);
+            return host;
         }
     }
 

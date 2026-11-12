@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -36,6 +37,7 @@ import java.util.function.Consumer;
  * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
  * vacuum-costs-one-mb-of-void-a-second
  * vacuum-pulls-items-to-pickup-and-drags-mobs
+ * vacuumed-residuals-decay-through-mingle-noise-before-breaking
  */
 @RegistersGameTests
 public final class VacuumTests {
@@ -101,6 +103,27 @@ public final class VacuumTests {
     private static final String NOT_CLOSING = "The husk should close on the player each tick, distances %s";
     private static final String NOT_SETTLED = "The husk should settle about %.1f blocks from the player, settled %.2f";
     private static final String HURT = "The dragged husk should take no damage, had %.1f, has %.1f";
+    private static final String DECAYS_BEFORE_BREAKING = "vacuum_decays_a_residual_before_breaking_it";
+    private static final String RELEASED_EARLY = "vacuum_released_early_leaves_a_far_cell_whole";
+    /** The goop cell the decay test lays, six blocks out, far enough to decay its whole decay. */
+    private static final int DECAYED = 6;
+    private static final int DECAYED_LAYERS = 3;
+    /** The lane's farthest goop cell. */
+    private static final int FAR_GOOP = 7;
+    /** A release while the far goop cell is part way decayed, short of nine tenths. */
+    private static final int EARLY_RELEASE = 6;
+    /** Ticks past a release for an unfinished exposure to cool away to nothing. */
+    private static final int COOL_TICKS = 60;
+    /** The share past which a held stream's cell finishes alone after a release: nine tenths. */
+    private static final float FINISHES_ALONE = 0.9f;
+    /** The decay must show on at least this many ticks while the cell stands. */
+    private static final int SEVERAL_TICKS = 3;
+    private static final String NOT_DECAYED = "The goop cell should decay over at least %d ticks while it stands,"
+            + " its shares %s";
+    private static final String NOT_PART_DECAYED = "The far goop cell should stand part way decayed at the release,"
+            + " its shares %s";
+    private static final String NOT_WHOLE = "The far goop cell should stand whole at %d layers after an early"
+            + " release, holds %s at share %.2f";
 
     private VacuumTests() {
     }
@@ -115,6 +138,8 @@ public final class VacuumTests {
         GooTestFunctions.registerTest(registrar, RETURNS_THE_GOO, VacuumTests::vacuumBreaksResidualsAndReturnsTheirGoo);
         GooTestFunctions.registerTest(registrar, BREAKS_IN_A_WAVE, VacuumTests::vacuumBreaksResidualsNearestFirst);
         GooTestFunctions.registerTest(registrar, LEAVES_THE_REST, VacuumTests::vacuumLeavesWhatIsOutsideItsReach);
+        GooTestFunctions.registerTest(registrar, DECAYS_BEFORE_BREAKING, VacuumTests::vacuumDecaysAResidualBeforeBreakingIt);
+        GooTestFunctions.registerTest(registrar, RELEASED_EARLY, VacuumTests::vacuumReleasedEarlyLeavesAFarCellWhole);
         GooTestFunctions.registerTest(registrar, PULLS_ITEMS, VacuumTests::vacuumPullsItemsIntoTheInventory);
         GooTestFunctions.registerTest(registrar, DRAGS_A_MOB, VacuumTests::vacuumDragsAMobToABlockInFront);
         GooTestFunctions.registerTest(registrar, LEAVES_PLAYERS_AND_MOBS_BEHIND,
@@ -358,6 +383,73 @@ public final class VacuumTests {
                     String.format(MOVED, "The player in the cone", inCone, bystander.position()));
             helper.succeed();
         });
+    }
+
+    /**
+     * Vacuum held over a goop cell decays it before it breaks: the cell's
+     * exposure toward nothing builds over several ticks while the cell still
+     * stands, and then the cell is air and its weird goo dropped.
+     * vacuumed-residuals-decay-through-mingle-noise-before-breaking
+     *
+     * @param helper the gametest helper
+     */
+    public static void vacuumDecaysAResidualBeforeBreakingIt(GameTestHelper helper) {
+        layTheFloor(helper);
+        BlockPos cell = laneCell(DECAYED);
+        helper.setBlock(cell, slimeOf(DECAYED_LAYERS));
+        ServerPlayer vacuumer = vacuumer(helper);
+        List<Float> sharesWhileStanding = new ArrayList<>();
+        holdVacuum(helper, vacuumer, WAVE_HOLD, held -> {
+            vacuumer.doTick();
+            float share = exposureAt(helper, cell);
+            if (!helper.getBlockState(cell).isAir() && share > 0f) {
+                sharesWhileStanding.add(share);
+            }
+        });
+        helper.runAfterDelay(WAVE_HOLD + 1, () -> {
+            helper.assertTrue(sharesWhileStanding.size() >= SEVERAL_TICKS,
+                    String.format(NOT_DECAYED, SEVERAL_TICKS, sharesWhileStanding));
+            for (int i = 1; i < sharesWhileStanding.size(); i++) {
+                helper.assertTrue(sharesWhileStanding.get(i) > sharesWhileStanding.get(i - 1),
+                        String.format(NOT_DECAYED, SEVERAL_TICKS, sharesWhileStanding));
+            }
+            BlockState left = helper.getBlockState(cell);
+            helper.assertTrue(left.isAir(), String.format(NOT_CLEARED, DECAYED, left));
+            assertDropped(helper, vacuumer, GooTypes.WEIRD, DECAYED_LAYERS * SlimeCoatBlock.MB_PER_LAYER);
+            helper.getLevel().getServer().getPlayerList().remove(vacuumer);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Vacuum released before a far goop cell has decayed nine tenths of the
+     * way leaves the cell whole, holding every layer it held, once its
+     * exposure has cooled away.
+     * vacuumed-residuals-decay-through-mingle-noise-before-breaking
+     *
+     * @param helper the gametest helper
+     */
+    public static void vacuumReleasedEarlyLeavesAFarCellWhole(GameTestHelper helper) {
+        layTheLane(helper);
+        BlockPos far = laneCell(FAR_GOOP);
+        ServerPlayer vacuumer = vacuumer(helper);
+        List<Float> shares = new ArrayList<>();
+        holdVacuum(helper, vacuumer, EARLY_RELEASE, held -> shares.add(exposureAt(helper, far)));
+        helper.runAfterDelay(EARLY_RELEASE + COOL_TICKS, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(vacuumer);
+            float atRelease = shares.getLast();
+            helper.assertTrue(atRelease > 0f && atRelease < FINISHES_ALONE,
+                    String.format(NOT_PART_DECAYED, shares));
+            BlockState stood = helper.getBlockState(far);
+            helper.assertTrue(SlimeCoatBlock.layersOf(stood) == LANE.get(FAR_GOOP),
+                    String.format(NOT_WHOLE, LANE.get(FAR_GOOP), stood, exposureAt(helper, far)));
+            helper.succeed();
+        });
+    }
+
+    private static float exposureAt(GameTestHelper helper, BlockPos cell) {
+        return GooServerState.of(helper.getLevel().getServer()).blockExposures()
+                .shareAt(helper.getLevel(), helper.absolutePos(cell));
     }
 
     private static ItemEntity lieAt(GameTestHelper helper, int east) {
