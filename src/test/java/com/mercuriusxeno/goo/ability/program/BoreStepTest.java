@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mojang.serialization.JsonOps;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
@@ -11,10 +14,12 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -151,6 +156,83 @@ class BoreStepTest {
                 verify(host).breakBlock(new BlockPos(east, 2, 0));
             }
             verify(host, never()).breakBlock(beside);
+        }
+    }
+
+    /**
+     * Bore also breaks what is in its vortex: the cone from the glove, the
+     * JSON's radius wide there, to the reach on the eye line
+     * (decision bore-breaks-what-is-in-the-vortex).
+     */
+    @Nested
+    class TheVortex {
+
+        /** rock_bore.json's vortex radius at the glove. */
+        private static final double RADIUS = 0.3;
+        private static final double WIDER = 0.6;
+        private static final double SLACK = 1e-9;
+        /** The right-hand glove for the eye looking east: ahead, to the south and below the eye. */
+        private static final Vec3 GLOVE = new Vec3(0.9, 2.32, 0.85);
+        /** Beside the eye line's first block, to the glove's side, which the vortex crosses near the glove. */
+        private static final BlockPos BESIDE = new BlockPos(1, 2, 1);
+        /** Beside the eye line's second block, which only the wider vortex reaches. */
+        private static final BlockPos WIDER_ONLY = new BlockPos(2, 2, 1);
+        /** Beside the eye line far out, where the vortex has narrowed toward its tip. */
+        private static final BlockPos OUTSIDE = new BlockPos(3, 2, 1);
+        private final ChannelAim aim = new ChannelAim(REACH_END, null, CONE_DEGREES);
+        private final Predicate<BlockPos> breakable = EYE_ROW.or(Set.of(BESIDE, WIDER_ONLY, OUTSIDE)::contains);
+        private final Predicate<BlockPos> air = breakable.negate();
+
+        private List<BlockPos> pick(double radius) {
+            return BoreStep.progressing(EYE, GLOVE, radius, aim, air, breakable);
+        }
+
+        @Test
+        void rockBoresJsonCarriesTheVortexRadiusAtTheGlove() {
+            BoreStep bore = AbilityJson.decode("rock_bore").behaviors().stream()
+                    .filter(BoreStep.class::isInstance).map(BoreStep.class::cast).findFirst().orElseThrow();
+            assertEquals(RADIUS, bore.vortexRadius(), SLACK);
+        }
+
+        @Test
+        void theCodecReadsTheRadiusTheJsonNames() {
+            String json = "{\"breaks\": \"goo:bore_breakable\", \"break_ticks\": 5, \"slowdown\": 1.5,"
+                    + " \"vortex_radius\": " + WIDER + "}";
+            BoreStep bore = BoreStep.CODEC.codec().parse(JsonOps.INSTANCE, JsonParser.parseString(json))
+                    .getOrThrow();
+            assertEquals(WIDER, bore.vortexRadius(), SLACK);
+        }
+
+        @Test
+        void thePickHoldsTheEyeLineAndTheBlockTheVortexCrossesBesideIt() {
+            List<BlockPos> pick = pick(RADIUS);
+            for (int east = 1; east <= 4; east++) {
+                assertTrue(pick.contains(new BlockPos(east, 2, 0)), "the eye line's x " + east + " is out");
+            }
+            assertTrue(pick.contains(BESIDE), "the block the vortex crosses beside the line is out");
+            assertFalse(pick.contains(OUTSIDE), "a block outside the vortex and off the line is in");
+            assertFalse(pick.contains(WIDER_ONLY), "a block only a wider vortex reaches is in");
+        }
+
+        @Test
+        void aWiderVortexPicksABlockTheNarrowerLeavesOut() {
+            assertTrue(pick(WIDER).contains(WIDER_ONLY));
+        }
+
+        @Test
+        @SuppressWarnings("unchecked")
+        void aHeldTickHandsTheVortexsBlockToTheGradualBreakTheNearerFaster() {
+            ChannelHost host = hostWith(breakable, Set.of());
+            GradualBreak gradualBreak = mock(GradualBreak.class);
+            when(host.gradualBreak()).thenReturn(gradualBreak);
+            when(host.glove()).thenReturn(GLOVE);
+            run(host, new BoreStep(BREAKABLE, PACE, RADIUS, List.of(), List.of()));
+
+            ArgumentCaptor<Map<BlockPos, Double>> rates = ArgumentCaptor.forClass(Map.class);
+            verify(gradualBreak).progress(rates.capture(), any());
+            assertTrue(rates.getValue().getOrDefault(BESIDE, 0.0) > 0, "the vortex's block gains no progress");
+            assertTrue(rates.getValue().get(FIRST_ON_LINE) > rates.getValue().get(new BlockPos(4, 2, 0)),
+                    "the nearer block gains no quicker than the farther");
         }
     }
 

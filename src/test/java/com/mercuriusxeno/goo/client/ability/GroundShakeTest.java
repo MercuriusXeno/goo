@@ -23,6 +23,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.HashSet;
 import java.util.List;
 import java.util.OptionalInt;
 import java.util.Set;
@@ -53,6 +54,8 @@ class GroundShakeTest {
     private static final Vec3 LOOK_EAST = new Vec3(1, 0, 0);
     private static final double BORE_RANGE = 8;
     private static final double BORE_CONE_DEGREES = 15;
+    /** rock_bore.json's vortex radius at the glove. */
+    private static final double VORTEX_RADIUS = 0.3;
     private static final BreakPace PACE = new BreakPace(5, 1.5);
     /** The jitter's amplitude before this change, read from GroundShake.AMPLITUDE at 128a57da7. */
     private static final double PREVIOUS_AMPLITUDE = 0.04;
@@ -100,11 +103,26 @@ class GroundShakeTest {
                 new BlockPos(7, 64, 0), new BlockPos(2, 62, 0));
         private final ChannelAim aim = new ChannelAim(EYE.add(LOOK_EAST.scale(BORE_RANGE)), null, BORE_CONE_DEGREES);
         private final Predicate<BlockPos> air = cell -> !stone.contains(cell);
-        private final GroundShake.Zone zone = GroundShake.boreZone(EYE, aim, air, stone::contains);
+        private final GroundShake.Zone zone = GroundShake.boreZone(EYE, EYE, 0, aim, air, stone::contains);
 
         @Test
         void theShakenBlocksAreTheBlocksTheBoreHandsTheGradualBreak() {
-            assertEquals(Set.copyOf(BoreStep.progressing(EYE, aim, air, stone::contains)), shakenIn(zone));
+            assertEquals(Set.copyOf(BoreStep.progressing(EYE, EYE, 0, aim, air, stone::contains)), shakenIn(zone));
+        }
+
+        /** decision bore-breaks-what-is-in-the-vortex */
+        @Test
+        void aBlockInsideTheVortexBesideTheLineShakesAsTheBoreBreaksIt() {
+            Vec3 glove = new Vec3(0.9, 64.2, 0.85);
+            BlockPos beside = new BlockPos(1, 64, 1);
+            Set<BlockPos> rock = new HashSet<>(stone);
+            rock.add(beside);
+            Predicate<BlockPos> rockAir = cell -> !rock.contains(cell);
+            GroundShake.Zone vortexZone = GroundShake.boreZone(EYE, glove, VORTEX_RADIUS, aim, rockAir, rock::contains);
+            Set<BlockPos> shaken = shakenIn(vortexZone);
+            assertEquals(Set.copyOf(BoreStep.progressing(EYE, glove, VORTEX_RADIUS, aim, rockAir, rock::contains)),
+                    shaken);
+            assertTrue(shaken.contains(beside), "the vortex's block beside the line stays still");
         }
 
         @Test
