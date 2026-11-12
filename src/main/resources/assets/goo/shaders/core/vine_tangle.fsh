@@ -19,11 +19,12 @@ in vec4 vineColor;
 in vec4 lightMapColor;
 in vec2 skinCoord;
 in vec3 skinNormal;
+// The skin's texels across and down, which the vine tile and the patch field lay their grid on
+// (decision diagnose-and-correct-vines-and-ailment-overlay-assuming-a-square-skin).
+flat in vec2 skinTexels;
 
 out vec4 fragColor;
 
-// A 64-texel skin across [0, 1] holds four 16-texel vine tiles, so the vines keep the skin's texel size.
-const float VINE_TILES = 4.0;
 // Noise cells across the skin's coordinates: a handful of patches over a body.
 const float PATCH_CELLS = 6.0;
 // A vine texel this transparent is a gap between strands.
@@ -36,10 +37,12 @@ void main() {
     // The field is read at the skin texel grid's corners and blended per pixel, so the tangle's edge runs
     // through the skin's texels, its shape pinned to them (decision cut-edge-blends-texel-corners).
     if (share < WHOLE
-            && mingleCornerField(skinCoord, MINGLE_SKIN_TEXELS, PATCH_CELLS, vec3(0.0)) < mingleThreshold(share)) {
+            && mingleCornerField(skinCoord, skinTexels, PATCH_CELLS, vec3(0.0)) < mingleThreshold(share)) {
         discard;
     }
-    vec4 vine = texture(Sampler0, fract(skinCoord * VINE_TILES));
+    // One vine texel per skin texel along either axis, so the vine's texels are square and the mob's own size
+    // on a skin of any shape (decision diagnose-and-correct-vines-and-ailment-overlay-assuming-a-square-skin).
+    vec4 vine = texture(Sampler0, fract(skinCoord * skinTexels / vec2(textureSize(Sampler0, 0))));
     if (vine.a < STRAND_ALPHA) {
         discard;
     }

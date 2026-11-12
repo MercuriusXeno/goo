@@ -7,8 +7,9 @@
 // Vines tangled over a rooted mob (decision vines-unpack-root-and-thorn):
 // the vanilla entity vertex transform with no lift, so the vines lie flush on
 // every face of the model, drawn at the model's own depth the way Petrify's
-// stone is. VineTangleLayer hands the foliage tint in Color's rgb and the
-// share of the mob the vines cover in its alpha.
+// stone is. VineTangleLayer hands the foliage tint in Color's rgb, the
+// share of the mob the vines cover in its alpha, and the mob's skin size in
+// the overlay coordinates.
 
 in vec3 Position;
 in vec4 Color;
@@ -25,6 +26,9 @@ out vec4 vineColor;
 out vec4 lightMapColor;
 out vec2 skinCoord;
 out vec3 skinNormal;
+// The skin's texels across and down: ModelSkinSize packs them in the overlay coordinates, the width in UV1.x
+// and the height in UV1.y (decision diagnose-and-correct-vines-and-ailment-overlay-assuming-a-square-skin).
+flat out vec2 skinTexels;
 
 void main() {
     gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);
@@ -35,4 +39,5 @@ void main() {
     vineColor = Color;
     skinCoord = UV0;
     skinNormal = Normal;
+    skinTexels = vec2(UV1);
 }
