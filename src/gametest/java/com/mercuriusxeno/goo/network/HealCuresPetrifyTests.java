@@ -34,6 +34,7 @@ import net.minecraft.world.entity.animal.wolf.Wolf;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.entity.npc.villager.VillagerProfession;
+import net.minecraft.world.entity.vehicle.boat.Boat;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
@@ -67,6 +68,8 @@ public final class HealCuresPetrifyTests {
     private static final String HEAL_RETURNS_NAMED_ARMED = "heal_returns_the_named_armed_zombie";
     private static final String HEAL_RETURNS_OWNER_AND_TRADES = "heal_returns_the_owned_wolf_and_the_trading_villager";
     private static final String HEAL_WAKES_OLD_STATUE = "heal_wakes_an_old_statue_as_a_fresh_mob";
+    private static final String HEAL_RETURNS_BOATED_VILLAGER = "heal_returns_the_villager_that_rode_a_boat";
+    private static final String COPIED_STATUE_STAYS = "heal_leaves_a_copied_statue_whose_mob_lives";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -82,6 +85,9 @@ public final class HealCuresPetrifyTests {
         GooTestFunctions.registerTest(registrar, HEAL_RETURNS_OWNER_AND_TRADES,
                 HealCuresPetrifyTests::healReturnsTheOwnedWolfAndTheTradingVillager);
         GooTestFunctions.registerTest(registrar, HEAL_WAKES_OLD_STATUE, HealCuresPetrifyTests::healWakesAnOldStatueAsAFreshMob);
+        GooTestFunctions.registerTest(registrar, HEAL_RETURNS_BOATED_VILLAGER,
+                HealCuresPetrifyTests::healReturnsTheVillagerThatRodeABoat);
+        GooTestFunctions.registerTest(registrar, COPIED_STATUE_STAYS, HealCuresPetrifyTests::aCopiedStatueStaysWhenItsMobLives);
     }
 
     private static final BlockPos STAND_POS = new BlockPos(0, 1, 2);
@@ -147,7 +153,85 @@ public final class HealCuresPetrifyTests {
     private static final int OLD_STATUE_EXPERIENCE = 5;
     private static final String SHOULD_HOLD_STATUE = "The placed statue block should hold a statue block entity";
 
+    private static final String VILLAGER_NAME = "Edna";
+    private static final String SHOULD_RIDE = "The villager should sit in its boat before it is petrified";
+    private static final String SHOULD_KEEP_VILLAGER_UUID = "The woken villager should keep the UUID %s, holds %s";
+    private static final String SHOULD_KEEP_VILLAGER_NAME = "The woken villager should keep the name %s, holds %s";
+    private static final String SHOULD_LEAVE_ONE_STATUE =
+            "Of two statues holding one mob, the one whose mob already lives should stay standing; %d stand";
+    private static final String SHOULD_WAKE_ONE_ZOMBIE = "Two statues holding one mob should wake one zombie, woke %d";
+
     private HealCuresPetrifyTests() {
+    }
+
+    /**
+     * A named librarian seated in a boat becomes a statue, and Heal's stream
+     * wakes it: the villager standing in the cell holds the UUID, the name
+     * and the trades it held in the boat.
+     *
+     * @param helper the gametest helper
+     */
+    public static void healReturnsTheVillagerThatRodeABoat(GameTestHelper helper) {
+        ServerPlayer player = healer(helper);
+        helper.setBlock(TARGET_POS.below(), Blocks.STONE);
+        Boat boat = helper.spawn(EntityType.OAK_BOAT, TARGET_POS);
+        Villager villager = helper.spawnWithNoFreeWill(EntityType.VILLAGER, TARGET_POS);
+        villager.setCustomName(Component.literal(VILLAGER_NAME));
+        villager.setVillagerData(villager.getVillagerData()
+                .withProfession(helper.getLevel().registryAccess(), VillagerProfession.LIBRARIAN));
+        helper.assertTrue(villager.startRiding(boat, true, true), SHOULD_RIDE);
+        List<String> offers = offersOf(villager);
+        helper.assertFalse(offers.isEmpty(), SHOULD_OFFER_BEFORE);
+        UUID uuid = villager.getUUID();
+        Component name = villager.getCustomName();
+        helper.runAfterDelay(ENCASE_TICK, () -> Statues.encase(helper.getLevel(), villager, null));
+        helper.runAfterDelay(WAKE_TICK, () -> {
+            GooStreamHandler.streamTick(player, healTick(player));
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            Villager woken = wokenIn(helper, Villager.class, TARGET_POS);
+            helper.assertTrue(uuid.equals(woken.getUUID()),
+                    String.format(SHOULD_KEEP_VILLAGER_UUID, uuid, woken.getUUID()));
+            helper.assertTrue(Objects.equals(name, woken.getCustomName()),
+                    String.format(SHOULD_KEEP_VILLAGER_NAME, name, woken.getCustomName()));
+            List<String> wokenOffers = offersOf(woken);
+            helper.assertTrue(offers.equals(wokenOffers), String.format(SHOULD_KEEP_TRADES, offers, wokenOffers));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A zombie's statue copied, block entity data and all, into a second
+     * cell, and both woken by one tick of Heal's stream: one zombie wakes,
+     * and the statue whose mob the level already holds stays standing rather
+     * than vanishing with its mob.
+     *
+     * @param helper the gametest helper
+     */
+    public static void aCopiedStatueStaysWhenItsMobLives(GameTestHelper helper) {
+        Mob zombie = standingZombie(helper, TARGET_POS);
+        helper.setBlock(BESIDE_TARGET_POS.below(), Blocks.STONE);
+        ServerPlayer player = healer(helper);
+        helper.runAfterDelay(ENCASE_TICK, () -> {
+            Statues.encase(helper.getLevel(), zombie, null);
+            CompoundTag statueData = helper.getBlockEntity(TARGET_POS, StatueBlockEntity.class)
+                    .saveCustomOnly(helper.getLevel().registryAccess());
+            helper.setBlock(BESIDE_TARGET_POS, GooBlocks.STATUE.get());
+            helper.getBlockEntity(BESIDE_TARGET_POS, StatueBlockEntity.class).loadCustomOnly(
+                    TagValueInput.create(ProblemReporter.DISCARDING, helper.getLevel().registryAccess(), statueData));
+        });
+        helper.runAfterDelay(WAKE_TICK, () -> {
+            GooStreamHandler.streamTick(player, healTick(player));
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            int statues = statueAt(helper, TARGET_POS) + statueAt(helper, BESIDE_TARGET_POS);
+            int zombies = helper.getLevel().getEntitiesOfClass(Zombie.class, helper.getBounds(), Zombie::isAlive).size();
+            helper.assertTrue(zombies == 1, String.format(SHOULD_WAKE_ONE_ZOMBIE, zombies));
+            helper.assertTrue(statues == 1, String.format(SHOULD_LEAVE_ONE_STATUE, statues));
+            helper.succeed();
+        });
+    }
+
+    private static int statueAt(GameTestHelper helper, BlockPos pos) {
+        return helper.getBlockState(pos).is(GooBlocks.STATUE.get()) ? 1 : 0;
     }
 
     /**

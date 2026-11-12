@@ -39,8 +39,8 @@ public final class Statues {
     }
 
     /**
-     * Turns a mob into a statue standing where it stood; a mob standing in a
-     * cell a block cannot replace stays a mob.
+     * Turns a mob into a statue standing where it stood, out of any seat it
+     * rode; a mob standing in a cell a block cannot replace stays a mob.
      *
      * @param level     the server level
      * @param mob       the petrified mob
@@ -53,6 +53,8 @@ public final class Statues {
         }
         int experience = mob.getExperienceReward(level, petrifier);
         level.setBlock(pos, GooBlocks.STATUE.get().defaultBlockState(), Block.UPDATE_ALL);
+        // statue-keeps-the-whole-mob: Entity.save saves nothing for a rider, so the mob leaves its seat first
+        mob.stopRiding();
         if (level.getBlockEntity(pos) instanceof StatueBlockEntity statue) {
             statue.hold(mob, BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()), experience);
         }
@@ -65,7 +67,8 @@ public final class Statues {
      * the way it faced and a baby where it was one, its gauge just under full
      * so it stays slowed and stone-covered until a drain takes the stone off.
      * The statue block leaves with no cobblestone and no experience, which stay
-     * with the mob; a statue holding no type stays standing.
+     * with the mob; a statue holding no type, or one whose mob the level
+     * already holds, as a statue copied with its data does, stays standing.
      *
      * @param level the server level
      * @param pos   the statue
@@ -89,8 +92,9 @@ public final class Statues {
         Petrification waking = Petrification.waking(level.getGameTime());
         mob.setData(GooAttachments.PETRIFICATION, waking);
         PetrifyEvents.slowBy(mob, waking);
-        level.removeBlock(pos, false);
-        level.addFreshEntity(mob);
+        if (level.addFreshEntity(mob)) {
+            level.removeBlock(pos, false);
+        }
     }
 
     /**
