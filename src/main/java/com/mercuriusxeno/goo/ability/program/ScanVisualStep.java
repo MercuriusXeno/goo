@@ -15,7 +15,7 @@ import java.util.stream.Stream;
  * reads it at the throw and has every watching client draw the visual from
  * the glove to the landing over the wave's delay, so the step itself does
  * nothing when the landing runs the program: the visual has played by then.
- * Deep's Click is {@code scan_visual visual=sound_wave trail=goo:ability.click}
+ * Deep's Click is {@code scan_visual visual=sound_wave trail=goo:ability.click_trail}
  * (decisions click-is-a-hit-scan-drawn-as-a-delayed-wave, ability-json-names-its-choreography).
  *
  * @param visual the visual's name, which a client renderer registers under
