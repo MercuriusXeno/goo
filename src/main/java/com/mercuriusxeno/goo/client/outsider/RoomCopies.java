@@ -42,12 +42,14 @@ public final class RoomCopies {
     }
 
     /**
-     * Every copy of a room standing within a reach: each whole multiple of
-     * its width east-west and north-south no farther than the reach either
-     * way, the corners among them, the room's own place left out.
+     * Every copy of a room standing within a reach of its edge: each whole
+     * multiple of its width east-west and north-south whose near edge stands
+     * no farther than the reach past the room's own, the corners among them,
+     * the room's own place left out. The copies touching the room always
+     * stand, so a room wider than the reach still draws to the render distance.
      *
      * @param bounds the room's boundary
-     * @param reach  how far the copies tile, in blocks
+     * @param reach  how far the copies tile past the room's edge, in blocks
      * @return the copies' offsets, west to east within each row, rows north to south
      */
     public static List<Offset> offsets(RoomExtent.Bounds bounds, double reach) {
@@ -55,7 +57,7 @@ public final class RoomCopies {
         if (width <= 0) {
             return List.of();
         }
-        int along = (int) Math.floor(reach / width);
+        int along = (int) Math.floor(reach / width) + 1;
         List<Offset> offsets = new ArrayList<>();
         for (int south = -along; south <= along; south++) {
             for (int east = -along; east <= along; east++) {
