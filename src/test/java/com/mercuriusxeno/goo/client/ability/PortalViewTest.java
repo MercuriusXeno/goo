@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class PortalViewTest {
 
-    /** A new room, 3 blocks across. */
+    /** A new room, 9 blocks across. */
     private static final RoomEdges.Edges NEW_ROOM = RoomEdges.around(OutsiderRooms.voidstoneOf(5), RoomExtent.LAID);
     private static final int TWELVE_CHUNKS = 12;
     /** A room's four edges, each looked into toward its partner. */

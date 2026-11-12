@@ -18,10 +18,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class SustainedGrowthTest {
 
-    /** Void enough to carry the laid room through rings 2, 3 and 4, 1068 mB and their upkeep, and part way into ring 5. */
+    /** Void enough to carry the laid room through ring 5, 700 mB and its upkeep, and part way into ring 6. */
     private static final int HOLDING = 1500;
-    /** The extent once ring 4 is whole, which the holding must carry the room past. */
-    private static final double RING_FOUR_WHOLE = 4.5;
+    /** The extent once ring 5 is whole, which the holding must carry the room past. */
+    private static final double RING_FIVE_WHOLE = 5.5;
 
     private final JsonObject outsider = JsonParser.parseString(AbilityJson.read("void_outsider")).getAsJsonObject()
             .getAsJsonArray("behaviors").get(0).getAsJsonObject();
@@ -45,7 +45,7 @@ class SustainedGrowthTest {
             paid++;
         }
 
-        assertTrue(extent > RING_FOUR_WHOLE, "the holding carries the room past ring 4, stands at " + extent);
+        assertTrue(extent > RING_FIVE_WHOLE, "the holding carries the room past ring 5, stands at " + extent);
         assertEquals(paid, SustainedGrowth.ticksAfforded(RoomExtent.LAID, HOLDING, standingPerTick, base,
                 perDistance, ringTicks));
     }

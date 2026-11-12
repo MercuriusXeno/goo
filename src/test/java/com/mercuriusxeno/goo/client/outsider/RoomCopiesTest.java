@@ -17,16 +17,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class RoomCopiesTest {
 
-    /** A new room: 3 blocks across. */
+    /** A new room: 9 blocks across. */
     private static final RoomExtent.Bounds NEW_ROOM = new RoomExtent.Bounds(1_000_000, 0, RoomExtent.LAID);
     /** A grown room: 13 blocks across. */
     private static final RoomExtent.Bounds GROWN_ROOM = new RoomExtent.Bounds(1_000_000, 0, 6.5);
     private static final double FOUR_CHUNKS = 64;
-    private static final double NEW_WIDTH = 3;
-    /** The farthest whole width of a 3-block room within 64 blocks: 21 widths. */
+    private static final double NEW_WIDTH = 9;
+    /** The farthest whole width of a 9-block room within 64 blocks: 7 widths. */
     private static final double FARTHEST_WITHIN = 63;
     /** The next width out, past the reach. */
-    private static final double PAST_THE_REACH = 66;
+    private static final double PAST_THE_REACH = 72;
 
     @Nested
     class ByTheRoomsWidth {
@@ -61,7 +61,7 @@ class RoomCopiesTest {
             long grownAlong = RoomCopies.offsets(GROWN_ROOM, FOUR_CHUNKS).stream()
                     .filter(offset -> offset.south() == 0).count();
 
-            assertTrue(grownAlong < newAlong, "a 13-block room shows " + grownAlong + " along a side, a 3-block room "
+            assertTrue(grownAlong < newAlong, "a 13-block room shows " + grownAlong + " along a side, a 9-block room "
                     + newAlong);
         }
     }
@@ -88,6 +88,15 @@ class RoomCopiesTest {
             int near = RoomCopies.offsets(NEW_ROOM, RoomCopies.reachOf(FOUR_CHUNKS_SET)).size();
 
             assertTrue(far > near, "12 chunks shows " + far + " copies, 4 chunks " + near);
+        }
+
+        /**
+         * A 9-wide room repeats 21 widths each way within 192 blocks: 43 by 43 places less its own.
+         * decision outsider-room-starts-nine-by-nine
+         */
+        @Test
+        void aNewRoomAtTwelveChunksDrawsOneThousandEightHundredFortyEightCopies() {
+            assertEquals(1_848, RoomCopies.offsets(NEW_ROOM, RoomCopies.reachOf(TWELVE_CHUNKS)).size());
         }
     }
 }

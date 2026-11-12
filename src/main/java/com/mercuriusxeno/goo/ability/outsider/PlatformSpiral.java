@@ -14,7 +14,7 @@ package com.mercuriusxeno.goo.ability.outsider;
  */
 public final class PlatformSpiral {
 
-    /** The cells a room starts with: the voidstone and its ring. */
+    /** The cells of the 3 by 3 around the center: the voidstone and its ring. */
     public static final int START_CELLS = 9;
     private static final int SIDES = 4;
     private static final int EAST_SIDE = 0;
