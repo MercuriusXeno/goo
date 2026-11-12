@@ -63,11 +63,14 @@ public final class BoreRumble {
             return;
         }
         ClientAbility bore = BoreDrill.runningBore(player);
-        BoreStep step = bore == null ? null : BoreDrill.stepOf(bore).orElse(null);
-        if (step != null && rumblesFor(progressingOf(level, player, bore, step))) {
+        if (bore != null && breaksBlocks(level, player, bore)) {
             FadingLoops.keepAliveAtListener(LOOP_KEY, GooSoundIds.EARTH_RUMBLE, SoundSource.PLAYERS, PROGRESS_VOLUME,
                     PITCH);
         }
+    }
+
+    private static boolean breaksBlocks(ClientLevel level, LocalPlayer player, ClientAbility bore) {
+        return BoreDrill.stepOf(bore).map(step -> rumblesFor(progressingOf(level, player, bore, step))).orElse(false);
     }
 
     /**
