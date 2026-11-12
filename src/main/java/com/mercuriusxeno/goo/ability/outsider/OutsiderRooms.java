@@ -91,6 +91,8 @@ public final class OutsiderRooms {
     private static final int FEED_MOTES = 2;
     private static final double FEED_SPREAD = 0.35;
     private static final double FEED_SPEED = 0.05;
+    /** The door's sound plays where its player stands, as loud as the door's conjuring. */
+    private static final float DOOR_VOLUME = 0.8f;
     /** The wub plays at full volume where its player stands. */
     private static final float WUB_VOLUME = 1f;
     /** The step a wub's pitch moves by, as the operator ruled: shifts in increments of 0.125. */
@@ -413,13 +415,29 @@ public final class OutsiderRooms {
                 player.position(), player.getYRot(), player.getXRot()));
         burst(player.level(), player.position());
         Vec3 arrival = arrivalOf(room);
+        // decision door-carries-its-own-sound-through-the-change
+        sendDoorSound(player);
         player.teleport(new TeleportTransition(pocket, arrival, Vec3.ZERO, FACING_DOOR, 0f,
-                TeleportTransition.PLAY_PORTAL_SOUND));
+                TeleportTransition.DO_NOTHING));
+        sendDoorSound(player);
         burst(pocket, arrival);
         sendEdges(player);
         // decision matching-doorway-opens-in-the-room-and-releases-you
         ConjuredDoors.release(player);
         return true;
+    }
+
+    /**
+     * Sends the door's own sound to the player it carries, where they stand,
+     * on their own connection, so the level change cuts no sound a level
+     * played: once as the door envelops them, once as they arrive.
+     * decision door-carries-its-own-sound-through-the-change
+     *
+     * @param player the player the door carries
+     */
+    private static void sendDoorSound(ServerPlayer player) {
+        player.connection.send(new ClientboundSoundPacket(GooSounds.OUTSIDER_DOOR, SoundSource.PLAYERS,
+                player.getX(), player.getY(), player.getZ(), DOOR_VOLUME, 1f, player.getRandom().nextLong()));
     }
 
     /**

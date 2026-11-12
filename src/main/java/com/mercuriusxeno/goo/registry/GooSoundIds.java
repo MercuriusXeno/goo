@@ -81,6 +81,15 @@ public final class GooSoundIds {
             Identifier.fromNamespaceAndPath(Goo.MODID, "effects.outsider_conjure");
 
     /**
+     * The conjured door carrying a player into the pocket, sent to them as it
+     * envelops them and again as they arrive, in place of the nether portal's
+     * travel sound: the conjuring shimmer's sample for now, its own event so
+     * the operator may swap it
+     * (decision door-carries-its-own-sound-through-the-change).
+     */
+    public static final Identifier OUTSIDER_DOOR = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.outsider_door");
+
+    /**
      * Void's hole opening: the Outsider room's wub under a subtitle naming the
      * hole, played pitched up (decision hole-opens-with-the-outsider-wub-pitched-up).
      */
