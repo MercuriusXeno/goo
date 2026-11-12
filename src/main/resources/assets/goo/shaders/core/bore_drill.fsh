@@ -10,16 +10,20 @@
 // carried forward toward the tip and round the axis, two flutes of thicker, paler dust wound round it
 // as a drill's are, screwing forward as it spins, its rim ragged rather than round. Each sample is read
 // at the middle of the world's sixteenth-of-a-block cell it falls in, as Flames' fire field is, so the
-// dust stands in blocky texels. It draws over the blocks it breaks rather than under them.
+// dust stands in blocky texels. Each ray stops at whatever the world drew there when that surface stands
+// outside the bit, so what stands in front of the bit hides it; a surface inside the bit is a block Bore
+// is breaking, which hides nothing, so the bit draws over the blocks it breaks rather than under them.
 // TRANSLUCENT blend, capped so what it drills still shows.
 
 // Must match BoreDrillPass.pack: four std140 rows.
 layout(std140) uniform BoreDrill {
     vec4 ApexRadius;  // the glove, camera relative, and the bit's radius there
     vec4 AxisLength;  // the unit axis from the glove to the tip, and the bit's length along it
-    vec4 Side;        // a unit direction square to the axis
+    vec4 SideDepth;   // a unit direction square to the axis, and whether depth runs 0 to 1
     vec4 Grid;        // the camera's world position modulo 16, so the texels hold to the world
 };
+
+uniform sampler2D BoreDrillDepthSampler;
 
 in vec3 rayPoint;
 
@@ -62,6 +66,9 @@ const float RIM_FROM = 0.7;
 const float FRAY = 0.45;
 // A sliver of width the bit keeps at its tip, in blocks, so the point frays rather than vanishing.
 const float TIP_WIDTH = 0.04;
+// How far past the bit, in blocks, a surface still counts as inside it: a texel, so the face of a block
+// the bit just touches still reads as a block it is breaking.
+const float SURFACE_SLACK = 0.0625;
 // Blocks from the glove the dust thickens over, so the glove itself stays clear.
 const float GLOVE_CLEAR = 0.25;
 // The most the dust covers what lies behind it, so the blocks it drills still show.
@@ -93,6 +100,27 @@ float noise(vec3 at) {
 
 float fbm(vec3 at) {
     return 0.55 * noise(at + 64.0) + 0.3 * noise(at * 2.03 + 81.0) + 0.15 * noise(at * 4.07 + 105.0);
+}
+
+// The distance from the eye to whatever the world drew at this fragment, camera relative.
+float sceneDistance(vec3 eye, mat4 viewToWorld) {
+    float depth = texelFetch(BoreDrillDepthSampler, ivec2(gl_FragCoord.xy), 0).r;
+    float ndcDepth = SideDepth.w > 0.5 ? depth : depth * 2.0 - 1.0;
+    vec4 view = inverse(ProjMat) * vec4(gl_FragCoord.xy / ScreenSize * 2.0 - 1.0, ndcDepth, 1.0);
+    vec3 world = (viewToWorld * vec4(view.xyz / view.w, 1.0)).xyz;
+    return length(world - eye);
+}
+
+// Whether a point stands inside the bit, its ragged rim and a texel's slack included: a surface there is a
+// block Bore is breaking.
+bool insideBit(vec3 point) {
+    vec3 offset = point - ApexRadius.xyz;
+    float along = dot(offset, AxisLength.xyz);
+    if (along < -SURFACE_SLACK || along > AxisLength.w + SURFACE_SLACK) {
+        return false;
+    }
+    float radius = ApexRadius.w * (1.0 - clamp(along / AxisLength.w, 0.0, 1.0)) + TIP_WIDTH;
+    return length(offset - along * AxisLength.xyz) <= radius * (1.0 + FRAY) + SURFACE_SLACK;
 }
 
 // Where the ray enters and leaves the ball holding the whole bit, as distances along it.
@@ -133,8 +161,8 @@ vec3 dustAt(vec3 point, float seconds) {
     if (share > 1.0 + FRAY) {
         return vec3(0.0);
     }
-    vec3 lift = cross(AxisLength.xyz, Side.xyz);
-    float theta = atan(dot(radial, lift), dot(radial, Side.xyz));
+    vec3 lift = cross(AxisLength.xyz, SideDepth.xyz);
+    float theta = atan(dot(radial, lift), dot(radial, SideDepth.xyz));
 
     // two phases half a flow apart, each fading in as it starts over and out as it ends, so no restart shows
     float cycle = seconds / FLOW_SECONDS;
@@ -164,7 +192,8 @@ void main() {
     vec3 dir = normalize(rayPoint - eye);
     vec2 span = throughBall(eye, dir);
     float near = max(span.x, 0.0);
-    float far = span.y;
+    float scene = sceneDistance(eye, viewToWorld);
+    float far = insideBit(eye + dir * scene) ? span.y : min(span.y, scene);
     if (far <= near) {
         discard;
     }

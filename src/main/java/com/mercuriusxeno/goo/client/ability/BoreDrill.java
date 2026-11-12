@@ -10,6 +10,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
@@ -18,8 +19,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * Bore's drill: while right click holds a bore stream, a big drill emerges
  * from the glove, a drill-shaped vortex of earth magic widest at the glove and pointed at the
- * tip, out to the bore's reach on the eye line, drawn over the blocks it
- * breaks. {@link BoreDrillPass} marches it as Drain's vortex is marched: a
+ * tip, out to the bore's reach on the eye line, hidden by what stands in
+ * front of it and never by the blocks it breaks. {@link BoreDrillPass} marches it as Drain's vortex is marched: a
  * churning swirl of earthy dust in rock's tones, two thicker flutes wound
  * round it as a drill's are, spinning while Bore runs, ragged and blocky.
  * decision bore-shows-a-big-drill-from-the-glove
@@ -95,11 +96,13 @@ public final class BoreDrill {
     }
 
     /**
-     * Draws the bit after the translucent blocks while a bore runs.
+     * Draws the bit after the translucent blocks while a bore runs, after
+     * the ground shake has drawn its blocks, so the blocks it is breaking
+     * never paint over it.
      *
      * @param event the level render stage event
      */
-    @SubscribeEvent
+    @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
