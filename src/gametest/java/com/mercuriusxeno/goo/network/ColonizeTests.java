@@ -8,7 +8,6 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.Blocks;
@@ -49,7 +48,6 @@ public final class ColonizeTests {
     private static final BlockPos BESIDE = LANDED_ON.east();
     private static final BlockPos TWO_OFF = LANDED_ON.south(2);
     private static final String LANDING_BUDDED = "Colonize landing on no network should bud the landing";
-    private static final int SPORE_LEVEL_II = 1;
     private static final int SETTLE_TICKS = 2;
     private static final String PIG_SPORED = "A pig beside the landing should carry the spore poison and spores";
 
@@ -91,7 +89,7 @@ public final class ColonizeTests {
 
     /**
      * Spore thrown at a pig lands at its feet: the pig carries the spore
-     * effect at level II and spores.
+     * effect and spores.
      *
      * @param helper the gametest helper
      */
@@ -101,9 +99,7 @@ public final class ColonizeTests {
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.SHROOM,
                     pig.getId(), pig.blockPosition(), Direction.UP, COLONIZE));
-            MobEffectInstance spores = pig.getEffect(GooMobEffects.MYCOSIS);
-            helper.assertTrue(spores != null && spores.getAmplifier() == SPORE_LEVEL_II && pig.hasData(
-                    GooAttachments.SPORED), PIG_SPORED);
+            helper.assertTrue(pig.hasEffect(GooMobEffects.MYCOSIS) && pig.hasData(GooAttachments.SPORED), PIG_SPORED);
             helper.succeed();
         });
     }

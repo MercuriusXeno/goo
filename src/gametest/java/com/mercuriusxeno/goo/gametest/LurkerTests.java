@@ -46,15 +46,16 @@ public final class LurkerTests {
     private static final Identifier LURKER = Identifier.fromNamespaceAndPath("goo", "unstable_lurker");
     private static final BlockPos MARKER_POS = new BlockPos(3, 1, 3);
     private static final BlockPos WALL_POS = MARKER_POS.north();
-    /** The zombie's start, nine blocks south of the marker, inside the ten-block watch. */
+    /** The zombie's start, nine blocks south of the marker, where the lurker watches it walk in. */
     private static final double START_OFFSET = 9.0;
     private static final double STEP_PER_TICK = 0.25;
-    /** The trigger radius unstable_lurker.json names on its watch and await. */
-    private static final double TRIGGER_RADIUS = 3.0;
     private static final double LEFTOVER_CLEAR_RADIUS = 12;
     private static final double PLAYER_OFFSET = 6.0;
-    /** Where the walk ends, a block inside the trigger radius, so the zombie's height above the marker's center cannot keep it out. */
-    private static final double END_OFFSET = TRIGGER_RADIUS - 1.0;
+    /**
+     * Where the walk ends, a block from the marker, well inside the lurker's trigger radius, so the zombie's
+     * height above the marker's center cannot keep it out.
+     */
+    private static final double END_OFFSET = 1.0;
     private static final int TICKS_TO_TRIGGER = (int) Math.ceil((START_OFFSET - END_OFFSET) / STEP_PER_TICK);
     private static final int SETTLE_TICKS = 5;
     private static final String NO_LURKER = "The ability registry should load unstable_lurker";

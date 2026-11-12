@@ -49,9 +49,6 @@ public final class ReflectorTests {
     /** Sunbeam, whose on_prism reaction is the reflector (decision channeled-hosts-convert-prisms-over-the-hold). */
     private static final String REFLECTOR = "goo:glow_sunbeam";
     private static final String NOT_A_REFLECTOR = "The prism should take the reflector combo";
-    /** A reflector refreshes every 20 ticks; this many see both refresh after both land. */
-    private static final int LINKED_TICKS = 45;
-    private static final int BROKEN_TICKS = LINKED_TICKS * 2;
     private static final int FLOOR_Y = 1;
 
     private static final String NO_RAIL = "Every cell between the reflectors should be light rail, %s is %s";
@@ -80,23 +77,25 @@ public final class ReflectorTests {
         float before = zombie.getHealth();
         landReflector(helper, LOW_PRISM);
         landReflector(helper, FAR_PRISM);
-        helper.runAfterDelay(LINKED_TICKS, () -> {
-            for (BlockPos cell : line) {
-                helper.assertTrue(helper.getBlockState(cell).is(GooBlocks.LIGHT_RAIL.get()),
-                        String.format(NO_RAIL, cell, helper.getBlockState(cell)));
+        // polled, so the wait follows the reflector's refresh however it is tuned
+        boolean[] broken = {false};
+        helper.succeedWhen(() -> {
+            if (!broken[0]) {
+                for (BlockPos cell : line) {
+                    helper.assertTrue(helper.getBlockState(cell).is(GooBlocks.LIGHT_RAIL.get()),
+                            String.format(NO_RAIL, cell, helper.getBlockState(cell)));
+                }
+                int level = helper.getBlockState(breaking).getValue(LightRailBlock.LEVEL);
+                int light = helper.getLevel().getBrightness(LightLayer.BLOCK, helper.absolutePos(breaking));
+                helper.assertTrue(light == level, String.format(UNLIT, level, light));
+                helper.assertTrue(zombie.getHealth() < before, NOT_BURNED);
+                helper.setBlock(breaking, Blocks.STONE);
+                broken[0] = true;
             }
-            int level = helper.getBlockState(breaking).getValue(LightRailBlock.LEVEL);
-            int light = helper.getLevel().getBrightness(LightLayer.BLOCK, helper.absolutePos(breaking));
-            helper.assertTrue(light == level, String.format(UNLIT, level, light));
-            helper.assertTrue(zombie.getHealth() < before, NOT_BURNED);
-            helper.setBlock(breaking, Blocks.STONE);
-        });
-        helper.runAfterDelay(BROKEN_TICKS, () -> {
             for (BlockPos cell : line) {
                 helper.assertFalse(helper.getBlockState(cell).is(GooBlocks.LIGHT_RAIL.get()),
                         String.format(RAIL_LEFT, cell));
             }
-            helper.succeed();
         });
     }
 

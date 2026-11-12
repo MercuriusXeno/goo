@@ -51,7 +51,7 @@ public final class ShriekTests {
     /** The floor's reach from the blob along x, past the far zombie, and its half width along z. */
     private static final int FLOOR_LENGTH = 14;
     private static final int FLOOR_HALF_WIDTH = 3;
-    /** The zombies' distance from the blob, inside deep_shriek.json's reach of 16. */
+    /** The zombies' distance from the blob, well inside the shriek's reach. */
     private static final int FAR = 10;
     /** Ticks a called mob is given to walk after the shriek. */
     private static final int WALK_TICKS = 80;

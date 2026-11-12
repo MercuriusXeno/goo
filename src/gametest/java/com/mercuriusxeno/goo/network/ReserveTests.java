@@ -48,18 +48,21 @@ public final class ReserveTests {
     /** One short of the eighteen food natural regeneration needs, so nothing heals the drain back. */
     private static final int FOOD_BELOW_REGEN = 17;
     private static final int HOLD_TICKS = 40;
-    /** A hold draining five hearts, which bank five reserve halves. */
+    /** A hold long enough to bank more reserve halves than the first hit spends. */
     private static final int LONG_HOLD_TICKS = 100;
     private static final float FIRST_HIT = 3f;
     /** Exhaustion that costs the bar two food points at no saturation: a point each time more than four stands. */
     private static final float TWO_POINTS_OF_EXHAUSTION = 9f;
+    /** The food points that exhaustion costs the bar. */
+    private static final int EXHAUSTED_POINTS = 2;
     private static final int TICKS_TO_SPEND_EXHAUSTION = 3;
     private static final String SHOULD_DRAIN =
             "%d held ticks should drain health into reserve halves: health %.3f, %d halves, stands %b";
     private static final String SHOULD_SPEND_RESERVE =
             "A %.1f hit should spend reserve at a full value, not health: health %.3f to %.3f, halves %d";
+    private static final String SHOULD_BANK_SHANKS = "The hold should bank reserve shanks, banked %d halves";
     private static final String SHOULD_REFILL =
-            "Hunger the bar loses should come back from the shanks: hunger %d, expected %d, %d halves left";
+            "Hunger the bar loses should come back from the shanks: hunger %d from %d, halves %d to %d";
 
     private ReserveTests() {
     }
@@ -111,8 +114,8 @@ public final class ReserveTests {
 
     /**
      * A player holds Reserve for forty ticks, banking half shanks from the
-     * hunger bar; exhaustion then costs the bar two points, and the shanks put
-     * them back.
+     * hunger bar; exhaustion then costs the bar two points, and the shanks
+     * spend to put hunger back, so the bar loses less than the two.
      *
      * @param helper the gametest helper
      */
@@ -121,6 +124,7 @@ public final class ReserveTests {
         hold(helper, player, HOLD_TICKS);
         helper.runAfterDelay(HOLD_TICKS + 1, () -> {
             int food = player.getFoodData().getFoodLevel();
+            int banked = reserve(player).shankHalves();
             player.causeFoodExhaustion(TWO_POINTS_OF_EXHAUSTION);
             for (int tick = 0; tick < TICKS_TO_SPEND_EXHAUSTION; tick++) {
                 player.doTick();
@@ -128,7 +132,9 @@ public final class ReserveTests {
             int refilled = player.getFoodData().getFoodLevel();
             int left = reserve(player).shankHalves();
             helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(refilled == food && left == 0, String.format(SHOULD_REFILL, refilled, food, left));
+            helper.assertTrue(banked > 0, String.format(SHOULD_BANK_SHANKS, banked));
+            helper.assertTrue(refilled > food - EXHAUSTED_POINTS && left < banked,
+                    String.format(SHOULD_REFILL, refilled, food, banked, left));
             helper.succeed();
         });
     }

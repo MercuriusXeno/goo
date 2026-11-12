@@ -74,7 +74,7 @@ public final class GooExplosionTests {
 
     /**
      * Blast struck into a dirt bed drops one dirt item for every dirt block
-     * it removes, none lost to drop decay, counting the dirt a radius 3 Blast
+     * it removes, none lost to drop decay, counting the dirt a large Blast
      * gathers into its compression sphere
      * (decision large-blast-gathers-its-mined-drops-into-a-green-cored-sphere).
      *

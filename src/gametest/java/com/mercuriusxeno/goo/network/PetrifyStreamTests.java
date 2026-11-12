@@ -67,12 +67,14 @@ public final class PetrifyStreamTests {
     private static final float LOOKING_AT_ZOMBIE = 12f;
     /** Pitch down from the eye toward the gravel's center three blocks off. */
     private static final float LOOKING_AT_GRAVEL = 20.5f;
-    private static final int HELD_GOO = 6;
-    /** Partway: rock_petrify.json fills a twenty-health zombie's gauge in about sixty ticks. */
+    /** Rock goo the player holds, thousands, enough to stream the longest hold. */
+    private static final int HELD_GOO = 10;
+    /** Partway into a hold, short of any fill that statues the zombie. */
     private static final int PART_HOLD_TICKS = 25;
-    private static final int STATUE_HOLD_TICKS = 70;
-    /** rock_petrify.json's calcify ticks: thirty ticks of fog step a block one rung. */
-    private static final int RUNG_TICKS = 30;
+    /** The most ticks a hold runs while the test waits for the statue, well past the fill. */
+    private static final int STATUE_HOLD_CAP = 150;
+    /** The most ticks a hold runs while the test waits for the gravel to step, several rungs. */
+    private static final int RUNG_HOLD_CAP = 120;
     /** Ticks for a released share to decay back to its floor and then some. */
     private static final int SETTLE_TICKS = 60;
     private static final double ITEM_SEARCH_RADIUS = 3;
@@ -97,16 +99,15 @@ public final class PetrifyStreamTests {
         Mob zombie = pennedZombie(helper);
         double baseSpeed = zombie.getAttributeValue(Attributes.MOVEMENT_SPEED);
         ServerPlayer player = petrifier(helper, LOOKING_AT_ZOMBIE);
-        hold(helper, player, 1, STATUE_HOLD_TICKS);
+        hold(helper, player, 1, STATUE_HOLD_CAP);
         helper.runAfterDelay(PART_HOLD_TICKS + 1, () -> {
             double speed = zombie.getAttributeValue(Attributes.MOVEMENT_SPEED);
             helper.assertTrue(speed < baseSpeed, String.format(SHOULD_SLOW, baseSpeed, speed));
         });
-        helper.runAfterDelay(STATUE_HOLD_TICKS + 1, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.succeedWhen(() -> {
             helper.assertBlockPresent(GooBlocks.STATUE.get(), TARGET_POS);
             helper.assertTrue(zombie.isRemoved(), SHOULD_LEAVE);
-            helper.succeed();
+            helper.getLevel().getServer().getPlayerList().remove(player);
         });
     }
 
@@ -133,8 +134,8 @@ public final class PetrifyStreamTests {
     }
 
     /**
-     * A mock player holds petrify on gravel a full rung, which steps it to
-     * cobblestone.
+     * A mock player holds petrify on gravel until it steps a rung, to
+     * cobblestone, whatever the rung's ticks.
      *
      * @param helper the gametest helper
      */
@@ -142,11 +143,10 @@ public final class PetrifyStreamTests {
         helper.setBlock(TARGET_POS.below(), Blocks.STONE);
         helper.setBlock(TARGET_POS, Blocks.GRAVEL);
         ServerPlayer player = petrifier(helper, LOOKING_AT_GRAVEL);
-        hold(helper, player, 1, RUNG_TICKS + 1);
-        helper.runAfterDelay(RUNG_TICKS + 2, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(player);
+        hold(helper, player, 1, RUNG_HOLD_CAP);
+        helper.succeedWhen(() -> {
             helper.assertBlockPresent(Blocks.COBBLESTONE, TARGET_POS);
-            helper.succeed();
+            helper.getLevel().getServer().getPlayerList().remove(player);
         });
     }
 

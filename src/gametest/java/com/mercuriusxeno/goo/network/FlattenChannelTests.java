@@ -60,8 +60,8 @@ public final class FlattenChannelTests {
     /** The swath's height above the ground, and a layer past it. */
     private static final int SWATH_HEIGHT = 3;
     private static final int MOUND_HEIGHT = SWATH_HEIGHT + 1;
-    /** A hold long past the swath's three layers at rock_flatten.json's pace. */
-    private static final int HOLD_TICKS = 30;
+    /** The longest hold a test streams while it polls for the swath to clear, inside its timeout. */
+    private static final int MOST_HOLD_TICKS = 55;
     /** The two layers of a shallow mound: the outer one and the one beneath it, touching the ground. */
     private static final int OUTER_LAYER = 2;
     private static final int BENEATH_LAYER = 1;
@@ -74,14 +74,15 @@ public final class FlattenChannelTests {
     private static final String SHOULD_STAND_AFTER_ONE_TICK = "Every block should stand after one tick, %s is air";
     private static final String SHOULD_CLEAR_THE_OUTER_LAYER_FIRST =
             "The outer layer should be air before the layer beneath breaks: outer air on tick %d, beneath broke on %d";
+    private static final String SHOULD_CLEAR_BOTH_LAYERS = "Both layers should clear while held: outer air on tick %d, beneath broke on %d";
 
     private FlattenChannelTests() {
     }
 
     /**
      * A mock player begins the hold with the cursor on a ground block, then
-     * holds flatten at the dirt mound over it: the hold clears the 3x3 from the
-     * ground's top up three blocks, dirt dropping.
+     * holds flatten at the dirt mound over it: the hold, polled until it is
+     * done, clears the 3x3 from the ground's top up three blocks, dirt dropping.
      *
      * @param helper the gametest helper
      */
@@ -99,11 +100,10 @@ public final class FlattenChannelTests {
         GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.ROCK), ROCK_FLATTEN.toString(),
                 player.getEyePosition(), westFace(helper, AIMED), helper.absolutePos(GROUND),
                 Direction.UP.get3DDataValue());
-        for (int held = 1; held <= HOLD_TICKS; held++) {
+        for (int held = 1; held <= MOST_HOLD_TICKS; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
         }
-        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.succeedWhen(() -> {
             for (BlockPos column : columns()) {
                 for (int y = 1; y <= SWATH_HEIGHT; y++) {
                     if (!column.above(y).equals(OUTSIDE_TAG)) {
@@ -112,7 +112,7 @@ public final class FlattenChannelTests {
                 }
             }
             helper.assertItemEntityPresent(Items.DIRT, AIMED, ITEM_SEARCH_RADIUS);
-            helper.succeed();
+            helper.getLevel().getServer().getPlayerList().remove(player);
         });
     }
 
@@ -148,7 +148,7 @@ public final class FlattenChannelTests {
                 }
             }
         });
-        for (int held = 2; held <= HOLD_TICKS; held++) {
+        for (int held = 2; held <= MOST_HOLD_TICKS; held++) {
             int at = held;
             helper.runAfterDelay(held, () -> {
                 GooStreamHandler.streamTick(player, tick);
@@ -161,11 +161,12 @@ public final class FlattenChannelTests {
                 }
             });
         }
-        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(outerAirOn[0] != NOT_YET && beneathBrokeOn[0] > outerAirOn[0],
+        helper.succeedWhen(() -> {
+            helper.assertTrue(outerAirOn[0] != NOT_YET && beneathBrokeOn[0] != NOT_YET,
+                    String.format(SHOULD_CLEAR_BOTH_LAYERS, outerAirOn[0], beneathBrokeOn[0]));
+            helper.assertTrue(beneathBrokeOn[0] > outerAirOn[0],
                     String.format(SHOULD_CLEAR_THE_OUTER_LAYER_FIRST, outerAirOn[0], beneathBrokeOn[0]));
-            helper.succeed();
+            helper.getLevel().getServer().getPlayerList().remove(player);
         });
     }
 

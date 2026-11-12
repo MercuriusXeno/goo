@@ -64,7 +64,8 @@ public final class MycosisTests {
     private static final String NO_BUD_AT_FEET = "Mycosis sprayed straight down should bud the floor at the player's feet";
     /** Ticks of hold the bud test sprays for at most, enough that a bud is all but certain. */
     private static final int BUD_SPRAY_TICKS = 400;
-    private static final int HELD_GOO = 22;
+    /** Shroom goo the sprayer holds, thousands: enough to pay for the longest spray with room for its cost's tuning. */
+    private static final int HELD_GOO = 25;
     private static final String ABILITY_REQUIRED = "Ability registry must hold shroom_mycosis";
     private static final String SPRAYED_POISONED = "The sprayed zombie should carry Goo's spore poison";
     private static final String SPRAYED_SPORED = "The sprayed zombie should carry spores";

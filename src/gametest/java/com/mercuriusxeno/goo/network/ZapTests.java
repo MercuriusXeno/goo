@@ -55,9 +55,6 @@ public final class ZapTests {
     private static final String ZAP = "goo:pulse_zap";
     private static final BlockPos FLOOR = new BlockPos(2, 0, 2);
     private static final BlockPos ON_FLOOR = FLOOR.above();
-    /** pulse_zap.json's stun ticks, and a tick past them for the wake to run. */
-    private static final int STUN_TICKS = 60;
-    private static final int PAST_THE_STUN = STUN_TICKS + 2;
     private static final int SETTLE_TICKS = 1;
     private static final String LEVER_FLIPPED = "A Zap landing on a lever should flip it on";
     private static final String TARGET_DROPPED = "A stunned zombie should hold no target";
@@ -127,7 +124,8 @@ public final class ZapTests {
     }
 
     /**
-     * A zombie Zap stunned has its AI back once the JSON's stun ticks pass.
+     * A zombie Zap stunned has its AI back once the stun wears off, polled so
+     * the wait follows the stun's ticks however they are tuned.
      *
      * @param helper the gametest helper
      */
@@ -136,10 +134,7 @@ public final class ZapTests {
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             strike(helper, zombie);
             helper.assertTrue(zombie.isNoAi(), AI_OFF);
-            helper.runAfterDelay(PAST_THE_STUN, () -> {
-                helper.assertFalse(zombie.isNoAi(), AI_BACK);
-                helper.succeed();
-            });
+            helper.succeedWhen(() -> helper.assertFalse(zombie.isNoAi(), AI_BACK));
         });
     }
 

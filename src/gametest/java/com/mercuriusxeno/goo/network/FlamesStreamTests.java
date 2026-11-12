@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.FlamesStep;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
@@ -43,8 +44,8 @@ public final class FlamesStreamTests {
     /** Pitch down from the eye toward the sand's center three blocks off. */
     private static final float LOOKING_AT_SAND = 20.5f;
     private static final int HELD_GOO = 6;
-    /** The leaves burn on the first held tick and blaze_flames.json cooks the sand after forty more. */
-    private static final int HOLD_TICKS = 44;
+    /** Ticks held past the flame's cook ticks: the leaves burn on the first held tick, the block cooks after the rest. */
+    private static final int HOLD_MARGIN = 4;
     private static final double ITEM_SEARCH_RADIUS = 4;
     private static final Identifier BLAZE_FLAMES = Identifier.parse("goo:blaze_flames");
     private static final String ABILITY_REQUIRED = "Ability registry must hold blaze_flames";
@@ -75,8 +76,9 @@ public final class FlamesStreamTests {
         helper.setBlock(SAND_POS.below(), Blocks.BEDROCK);
         helper.setBlock(SAND_POS, Blocks.OAK_LOG);
         ServerPlayer player = flamer(helper);
-        hold(helper, player, HOLD_TICKS);
-        helper.runAfterDelay(HOLD_TICKS + 2, () -> {
+        int holdTicks = holdTicks(helper);
+        hold(helper, player, holdTicks);
+        helper.runAfterDelay(holdTicks + 2, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertBlockPresent(Blocks.AIR, SAND_POS);
             Vec3 center = Vec3.atCenterOf(helper.absolutePos(SAND_POS));
@@ -100,13 +102,27 @@ public final class FlamesStreamTests {
         helper.setBlock(SAND_POS, Blocks.SAND);
         helper.setBlock(LEAVES_POS, Blocks.OAK_LEAVES);
         ServerPlayer player = flamer(helper);
-        hold(helper, player, HOLD_TICKS);
-        helper.runAfterDelay(HOLD_TICKS + 2, () -> {
+        int holdTicks = holdTicks(helper);
+        hold(helper, player, holdTicks);
+        helper.runAfterDelay(holdTicks + 2, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertBlockPresent(Blocks.GLASS, SAND_POS);
             helper.assertBlockNotPresent(Blocks.OAK_LEAVES, LEAVES_POS);
             helper.succeed();
         });
+    }
+
+    /**
+     * A hold past the flame's cook ticks, read live from the flames step.
+     *
+     * @param helper the gametest helper
+     * @return the ticks to hold
+     */
+    private static int holdTicks(GameTestHelper helper) {
+        AbilityDefinition flames = AbilityRegistry.of(helper.getLevel()).getAbility(BLAZE_FLAMES);
+        helper.assertTrue(flames != null, ABILITY_REQUIRED);
+        return flames.behaviors().stream().filter(FlamesStep.class::isInstance).map(FlamesStep.class::cast)
+                .findFirst().orElseThrow().cookTicks() + HOLD_MARGIN;
     }
 
     private static void hold(GameTestHelper helper, ServerPlayer player, int ticks) {

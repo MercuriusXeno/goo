@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.gametest;
 
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
@@ -86,9 +88,10 @@ public final class GooItemTests {
     }
 
     /**
-     * A player holding a glove, with one crystal goo and one metal goo made
-     * through GooStacks, throws each at its own stone wall; each throw spends
-     * that goo and lands a ability block of that type beside its wall.
+     * A player holding a glove, with crystal goo and metal goo made through
+     * GooStacks to each ability's live cost, throws each at its own stone
+     * wall; each throw spends that goo and lands a ability block of that type
+     * beside its wall.
      *
      * @param helper the gametest helper
      */
@@ -110,8 +113,8 @@ public final class GooItemTests {
     }
 
     /**
-     * A mock player holding the thrower throws one crystal and one metal goo,
-     * each at its own stone wall, then leaves the level once the markers are
+     * A mock player holding the thrower throws a crystal and a metal goo, each
+     * holding its ability's live cost, each at its own stone wall, then leaves the level once the markers are
      * read, so a later thrower's tracking broadcast never reaches its mock
      * connection, which never negotiated the mod's channels.
      *
@@ -126,13 +129,15 @@ public final class GooItemTests {
         BlockPos stand = helper.absolutePos(PLAYER_POS);
         player.setPos(stand.getX(), stand.getY(), stand.getZ());
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(thrower));
-        ItemStack crystal = GooStacks.createForOutput(GooTypes.CRYSTAL, GooStacks.THOUSAND);
-        ItemStack metal = GooStacks.createForOutput(GooTypes.METAL, GooStacks.THOUSAND);
+        AbilityRegistry abilities = AbilityRegistry.of(helper.getLevel());
+        AbilityDefinition cloud = abilities.getAbility(Identifier.parse(CRYSTAL_CLOUD));
+        AbilityDefinition spikes = abilities.getAbility(Identifier.parse(METAL_SPIKES));
+        ItemStack crystal = GooStacks.createForOutput(GooTypes.CRYSTAL, cloud.cost().in(GooValueTable.EMPTY));
+        ItemStack metal = GooStacks.createForOutput(GooTypes.METAL, spikes.cost().in(GooValueTable.EMPTY));
         player.getInventory().add(crystal);
         player.getInventory().add(metal);
-        AbilityRegistry abilities = AbilityRegistry.of(helper.getLevel());
-        KnownRecipes.teachRequires(player, abilities.getAbility(Identifier.parse(CRYSTAL_CLOUD)));
-        KnownRecipes.teachRequires(player, abilities.getAbility(Identifier.parse(METAL_SPIKES)));
+        KnownRecipes.teachRequires(player, cloud);
+        KnownRecipes.teachRequires(player, spikes);
 
         GooThrowHandler.execute(player, throwAt(helper, GooTypes.CRYSTAL, CRYSTAL_CLOUD, CRYSTAL_WALL));
         GooThrowHandler.execute(player, throwAt(helper, GooTypes.METAL, METAL_SPIKES, METAL_WALL));

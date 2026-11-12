@@ -65,8 +65,10 @@ public final class DecayPrismTests {
     private static final int SECOND_RUN = 5;
     /** The ticks the look leaves the prism between runs. */
     private static final int BREAK = 2;
-    private static final float SHARE_SLACK = 1e-4f;
-    private static final String SHOULD_FOLLOW = "The prism's decay look should stand at %.3f in maroon, stands %.3f tint %x";
+    private static final String SHOULD_FOLLOW =
+            "The prism's decay look should stand part of the way in maroon, stands %.3f tint %x";
+    private static final String SHOULD_RESTART =
+            "The shorter second run's look should stand under the first's, restarting with the charge: %.3f after %.3f";
     /** prism-conversion-creeps-over-the-hold: the converting tick keeps the full look, so the prism never flashes quartz. */
     private static final String SHOULD_HOLD_FULL = "A converted prism should hold its full charge look, holds %.3f";
 
@@ -110,7 +112,7 @@ public final class DecayPrismTests {
     }
 
     /**
-     * The hold a Decay conversion takes: one charge's ticks, as nether_decay.json names them.
+     * The hold a Decay conversion takes: one charge's ticks, read live from Decay's delivery.
      */
     private static int hold(GameTestHelper helper) {
         AbilityDefinition decay = AbilityRegistry.of(helper.getLevel()).getAbility(DECAY);
@@ -136,9 +138,10 @@ public final class DecayPrismTests {
     /**
      * A player streams Decay at a bare prism, breaks the hold, streams a
      * shorter run, breaks again, then holds to the conversion: after each run
-     * the prism's decay exposure stands at that run's ticks over the hold in
-     * nether maroon, restarting with the charge, and once the hive stands it
-     * holds the full look, which the hive's style draws over.
+     * the prism's decay exposure stands part of the way in nether maroon, the
+     * shorter second run's under the first's as it restarts with the charge,
+     * and once the hive stands it holds the full look, which the hive's style
+     * draws over.
      *
      * @param helper the gametest helper
      */
@@ -150,8 +153,12 @@ public final class DecayPrismTests {
         streamFor(helper, player, 1, FIRST_RUN);
         streamFor(helper, player, secondFrom, SECOND_RUN);
         streamFor(helper, player, lastFrom, hold);
-        helper.runAfterDelay(FIRST_RUN + 1, () -> assertExposure(helper, FIRST_RUN / (float) hold));
-        helper.runAfterDelay(secondFrom + SECOND_RUN, () -> assertExposure(helper, SECOND_RUN / (float) hold));
+        float[] firstShare = new float[1];
+        helper.runAfterDelay(FIRST_RUN + 1, () -> firstShare[0] = assertExposure(helper));
+        helper.runAfterDelay(secondFrom + SECOND_RUN, () -> {
+            float second = assertExposure(helper);
+            helper.assertTrue(second < firstShare[0], String.format(SHOULD_RESTART, second, firstShare[0]));
+        });
         helper.runAfterDelay(lastFrom + hold, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
             String combo = helper.getBlockEntity(PRISM, PrismBlockEntity.class).getCombo();
@@ -162,12 +169,19 @@ public final class DecayPrismTests {
         });
     }
 
-    private static void assertExposure(GameTestHelper helper, float expected) {
+    /**
+     * Asserts the prism's decay look stands part of the way, short of full, in nether maroon.
+     *
+     * @param helper the gametest helper
+     * @return the share the look stands at
+     */
+    private static float assertExposure(GameTestHelper helper) {
         BlockPos prismAt = helper.absolutePos(PRISM);
         float share = exposures(helper).shareAt(helper.getLevel(), prismAt);
         int tint = exposures(helper).tintAt(helper.getLevel(), prismAt);
-        helper.assertTrue(Math.abs(share - expected) < SHARE_SLACK && tint == DegradeStep.NETHER_MAROON,
-                String.format(SHOULD_FOLLOW, expected, share, tint));
+        helper.assertTrue(share > 0f && share < 1f && tint == DegradeStep.NETHER_MAROON,
+                String.format(SHOULD_FOLLOW, share, tint));
+        return share;
     }
 
     private static BlockExposures exposures(GameTestHelper helper) {

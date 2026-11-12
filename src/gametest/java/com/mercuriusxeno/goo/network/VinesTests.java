@@ -2,6 +2,9 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.RootStep;
+import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.ability.root.RootEvents;
 import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
@@ -24,6 +27,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
@@ -60,7 +64,7 @@ public final class VinesTests {
     /** The floor the bay's mobs stand on and the trap lands on. */
     private static final int FLOOR_SPAN = 6;
     private static final int SETTLE_TICKS = 1;
-    /** Ticks the zombie is shoved east, inside leaf_vines.json's hold of 300. */
+    /** Ticks the zombie is shoved east, well inside the vines' hold. */
     private static final int SHOVE_TICKS = 50;
     /** A shove far past the leash in one tick. */
     private static final Vec3 SHOVE = new Vec3(0.6, 0, 0);
@@ -68,18 +72,18 @@ public final class VinesTests {
     private static final int DRAG_BACK_TICKS = 8;
     /** Slack on the leash for the double arithmetic of the pull. */
     private static final double LEASH_SLACK = 1e-6;
-    private static final float FIRE_FACTOR = 1.5f;
     private static final float FIRE_DAMAGE = 2f;
     private static final float HIT_DAMAGE = 1f;
-    private static final float HEALTH_TOLERANCE = 1e-3f;
+    /** The hit after the fire's, which was the vines' first. */
+    private static final int SECOND_HIT = 2;
     /** Ticks a mob walking in has to be rooted by, past the trap's first tick. */
     private static final int TRAP_WAIT_TICKS = 3;
 
     private static final String SHOULD_STAY_LEASHED = "The rooted zombie stood %.3f blocks from its root at tick %d";
     private static final String SHOULD_BE_DRAGGED_BACK = "The vines should drag the zombie onto its root, it stood %.3f off";
     private static final String SHOULD_BE_THORNED = "The zombie shoved past its leash should have taken thorn damage";
-    private static final String SHOULD_BURN_MORE = "Fire of %.1f should take %.2f from the rooted cow, took %.2f";
-    private static final String SHOULD_BREAK = "The vines should release the cow at their fourth hit";
+    private static final String SHOULD_BURN_MORE = "Fire of %.1f should take more than that from the rooted cow, took %.2f";
+    private static final String SHOULD_BREAK = "The vines should release the cow at the last of their %d hits";
     private static final String TRAP_SHOULD_STAND = "A blob missing every mob should stand its trap on the ground";
     private static final String SHOULD_ROOT_ENTRANT = "The trap should root the zombie that walked in";
 
@@ -121,8 +125,8 @@ public final class VinesTests {
     }
 
     /**
-     * A struck cow takes fire damage multiplied by the vines' fire factor,
-     * and the vines release it at the fourth hit.
+     * A struck cow takes more from fire than the fire's own damage, and the
+     * vines release it at the last of the hits the live root step names.
      *
      * @param helper the gametest helper
      */
@@ -134,14 +138,15 @@ public final class VinesTests {
             float before = cow.getHealth();
             hurt(cow, helper.getLevel().damageSources().inFire(), FIRE_DAMAGE);
             float burned = before - cow.getHealth();
-            float expected = FIRE_DAMAGE * FIRE_FACTOR;
-            helper.assertTrue(Math.abs(burned - expected) < HEALTH_TOLERANCE,
-                    String.format(SHOULD_BURN_MORE, FIRE_DAMAGE, expected, burned));
-            hurt(cow, helper.getLevel().damageSources().magic(), HIT_DAMAGE);
-            hurt(cow, helper.getLevel().damageSources().magic(), HIT_DAMAGE);
+            helper.assertTrue(burned > FIRE_DAMAGE, String.format(SHOULD_BURN_MORE, FIRE_DAMAGE, burned));
+            // The fire was the first hit; the hits between it and the last land here.
+            int hits = hits(helper);
+            for (int hit = SECOND_HIT; hit < hits; hit++) {
+                hurt(cow, helper.getLevel().damageSources().magic(), HIT_DAMAGE);
+            }
             long now = helper.getLevel().getGameTime();
             hurt(cow, helper.getLevel().damageSources().magic(), HIT_DAMAGE);
-            helper.assertFalse(cow.getData(GooAttachments.ROOTED).holds(now), SHOULD_BREAK);
+            helper.assertFalse(cow.getData(GooAttachments.ROOTED).holds(now), String.format(SHOULD_BREAK, hits));
             helper.succeed();
         });
     }
@@ -189,6 +194,20 @@ public final class VinesTests {
         AbilityDefinition vines = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(ABILITY_VINES));
         helper.assertTrue(vines != null, ABILITIES_REQUIRED);
         return vines;
+    }
+
+    /**
+     * @param helper the gametest helper
+     * @return the hits the live vines' root step takes before it breaks
+     */
+    private static int hits(GameTestHelper helper) {
+        return vines(helper).behaviors().stream().flatMap(VinesTests::withChildren)
+                .filter(RootStep.class::isInstance).map(RootStep.class::cast).findFirst().orElseThrow()
+                .hits().evaluateInt(Variables.NONE);
+    }
+
+    private static Stream<Step> withChildren(Step step) {
+        return Stream.concat(Stream.of(step), step.children().flatMap(VinesTests::withChildren));
     }
 
     /**

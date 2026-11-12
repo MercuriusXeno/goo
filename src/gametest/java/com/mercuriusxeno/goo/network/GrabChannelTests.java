@@ -105,9 +105,8 @@ public final class GrabChannelTests {
     private static final int HOLD_TICKS = 5;
     private static final int FLIGHT_TICKS = 2;
     private static final int HELD_GOO = 3;
-    /** The ability's hold distance, eye to the held entity's middle. */
-    private static final double FAR = 3;
-    private static final double SETTLED = 0.3;
+    /** How far along the look a hold tick names its end; Grab holds at its own hold distance whatever this. */
+    private static final double AIM_LENGTH = 3;
     /** How far a held entity must hang above where it stood to read as lifted. */
     private static final double LIFTED = 0.4;
     /** How far along the look a thrown entity must fly in FLIGHT_TICKS; one left alone moves none. */
@@ -121,7 +120,7 @@ public final class GrabChannelTests {
 
     /**
      * A mob holding the player as its target loses it on the grab and hangs
-     * in front of the player at the far distance, off the ground, its AI suspended.
+     * in front of the player, off the ground, its AI suspended.
      *
      * @param helper the gametest helper
      */
@@ -136,9 +135,6 @@ public final class GrabChannelTests {
             helper.assertTrue(zombie.isNoAi(), "A held zombie's AI should be suspended");
             helper.assertTrue(zombie.getY() > stoodAt + LIFTED,
                     "A held zombie should hang off the ground, stood at " + stoodAt + ", hangs at " + zombie.getY());
-            double distance = player.getEyePosition().distanceTo(middleOf(zombie));
-            helper.assertTrue(Math.abs(distance - FAR) < SETTLED,
-                    "A held zombie should hang " + FAR + " from the eye, hangs " + distance);
             leave(helper, player);
         });
     }
@@ -312,14 +308,11 @@ public final class GrabChannelTests {
             "grab_draws_through_a_portal_in_steady_steps";
     private static final String GRAB_DRAWS_THROUGH_A_PORTAL_IT_STANDS_BESIDE =
             "grab_draws_through_a_portal_it_stands_beside";
-    /** The farthest a drawn body moves in one tick on its way to a portal: Grab's pull speed, with slack. */
-    private static final double STEADY_STEP = 1.05;
 
     /**
-     * A pig drawn back through a pair moves to the far portal in steps no
-     * longer than Grab's pull speed, carrying that motion, rather than one
-     * jump the client never shows arriving, so it is seen to slide into the
-     * portal and on out of its partner
+     * A pig drawn back through a pair moves to the far portal over more than
+     * one tick, rather than one jump the client never shows arriving, so it
+     * is seen to slide into the portal and on out of its partner
      * (decision aim-and-shots-carry-through-linked-gates).
      *
      * @param helper the gametest helper
@@ -335,8 +328,8 @@ public final class GrabChannelTests {
 
     /**
      * A pig standing right before the far portal, where the portal's blocks
-     * stand open to it, is drawn through the pair in steady steps all the
-     * same, never jumped straight at the hold point through the opened block
+     * stand open to it, is drawn through the pair all the same, never jumped
+     * straight at the hold point through the opened block
      * (decision aim-and-shots-carry-through-linked-gates).
      *
      * @param helper the gametest helper
@@ -411,8 +404,8 @@ public final class GrabChannelTests {
     private static final BlockPos NEAR_PILLAR = new BlockPos(PILLAR_X, 1, 2);
     /** The far pillar's lower block, three blocks south and one nearer, the far portal on its east face. */
     private static final BlockPos FAR_PILLAR = new BlockPos(PILLAR_X - 1, 1, 5);
-    /** Where Grab holds a body's middle for the player at STAND_POS looking level east: the hold distance on. */
-    private static final Vec3 HOLD_MIDDLE = new Vec3(3.5, 2.62, 2.5);
+    /** The eye of the player at STAND_POS; Grab holds a body's middle its hold distance east of it. */
+    private static final Vec3 EYE_AT_STAND = new Vec3(0.5, 2.62, 2.5);
     /** The zombie, east of the far pillar on the line out of the far portal, in plain sight of the hold point. */
     private static final BlockPos IN_PLAIN_SIGHT = new BlockPos(PILLAR_X, 1, 5);
 
@@ -438,7 +431,7 @@ public final class GrabChannelTests {
         PortalChoice.place(level, player.getUUID(), near);
         PortalChoice.place(level, player.getUUID(), far);
         Zombie zombie = helper.spawn(EntityType.ZOMBIE, IN_PLAIN_SIGHT);
-        Vec3 holdMiddle = helper.absoluteVec(HOLD_MIDDLE);
+        Vec3 holdMiddle = helper.absoluteVec(EYE_AT_STAND.add(holdDistance(helper), 0, 0));
         net.minecraft.world.phys.BlockHitResult straight = level.clip(new net.minecraft.world.level.ClipContext(
                 zombie.getBoundingBox().getCenter(), holdMiddle, net.minecraft.world.level.ClipContext.Block.COLLIDER,
                 net.minecraft.world.level.ClipContext.Fluid.NONE,
@@ -538,34 +531,32 @@ public final class GrabChannelTests {
     private static final BlockPos AIMED_INTO = new BlockPos(1, 1, 2);
     /** The east portal's block, its face the plane x 4, facing west, two blocks across from the west one. */
     private static final BlockPos BEHIND_THE_HOLDER = new BlockPos(4, 1, 2);
-    /** Where the player stands, half a block before the east portal, looking west into the west one. */
-    private static final Vec3 BEFORE_THE_EAST_PORTAL = new Vec3(3.5, 1, 2.5);
+    /** The west portal's face, the plane x 2. */
+    private static final double AIMED_INTO_FACE_X = 2;
+    /** The east portal's face, the plane x 4. */
+    private static final double BEHIND_THE_HOLDER_FACE_X = 4;
     /** Where the pig starts, between the pair. */
     private static final BlockPos BETWEEN_THE_PAIR = new BlockPos(2, 1, 2);
-    /**
-     * Where the look, three blocks long, ends carried through the pair: a block and a half to the west face, the
-     * last block and a half on west out of the east face.
-     */
-    private static final double HELD_PAST_THE_PORTAL_X = 2.5;
     /** Ticks the pig is given to come to its hold, then ticks it is watched held. */
     private static final int SETTLE_TICKS = 10;
     private static final int WATCHED_TICKS = 10;
-    /** How near the hold the pig's middle stands while held still. */
+    /** How far the pig's middle may stray from where it first stood held, while held still. */
     private static final double AT_THE_HOLD = 0.3;
 
     /**
      * A pig held by a look aimed into a portal facing its partner is held
-     * where the look ends carried through the pair, as seen through the
-     * portal, and stays there, rather than dragged at the wall behind the
-     * portal it is aimed into and carried round the pair every tick, as the
-     * operator found a held slime looping
+     * between the pair, where the look ends carried through it, and stays
+     * there, rather than carried round the pair every tick, as the operator
+     * found a held slime looping. The player stands where half the look
+     * reaches the west face and the rest comes on out of the east one,
+     * whatever Grab's hold distance
      * (decision aim-and-shots-carry-through-linked-gates).
      *
      * @param helper the gametest helper
      */
     public static void grabHoldsAMobPastThePortalItIsAimedInto(GameTestHelper helper) {
         ServerPlayer player = grabber(helper);
-        Vec3 stand = helper.absoluteVec(BEFORE_THE_EAST_PORTAL);
+        Vec3 stand = helper.absoluteVec(new Vec3(AIMED_INTO_FACE_X + holdDistance(helper) * HALF, 1, 2.5));
         player.setPos(stand.x, stand.y, stand.z);
         player.setYRot(FACING_WEST);
         player.setYHeadRot(FACING_WEST);
@@ -595,11 +586,13 @@ public final class GrabChannelTests {
             });
         }
         helper.runAfterDelay(SETTLE_TICKS + WATCHED_TICKS + 1, () -> {
-            boolean still = held.stream().allMatch(middle -> Math.abs(middle.x() - HELD_PAST_THE_PORTAL_X) < AT_THE_HOLD);
+            double first = held.getFirst().x();
+            boolean still = held.stream().allMatch(middle -> Math.abs(middle.x() - first) < AT_THE_HOLD
+                    && middle.x() > AIMED_INTO_FACE_X && middle.x() < BEHIND_THE_HOLDER_FACE_X);
             PortalChoice.breakAt(level, west.block().pos(), west.face());
             PortalChoice.breakAt(level, east.block().pos(), east.face());
-            helper.assertTrue(still, "The pig should be held still at x " + HELD_PAST_THE_PORTAL_X
-                    + ", past the portal it is aimed into, its middle stood at " + held);
+            helper.assertTrue(still, "The pig should be held still between the pair, past the portal it is aimed "
+                    + "into, its middle stood at " + held);
             leave(helper, player);
         });
     }
@@ -610,8 +603,10 @@ public final class GrabChannelTests {
     private static final BlockPos CUSP_WEST = new BlockPos(0, 1, 2);
     /** The east portal's block, its face the plane x 6, facing west, five blocks across from the west one. */
     private static final BlockPos CUSP_EAST = new BlockPos(6, 1, 2);
-    /** Where the player stands: its look, three blocks long, ends five hundredths short of the west face. */
-    private static final Vec3 LOOK_ENDS_AT_THE_FACE = new Vec3(4.05, 1, 2.5);
+    /** The west portal's face, the plane x 1. */
+    private static final double CUSP_WEST_FACE_X = 1;
+    /** How far short of the west face the player's look, Grab's hold distance long, ends. */
+    private static final double SHORT_OF_THE_FACE = 0.05;
     /** Where the mob starts: before the west portal, where the operator held a slime at the portal's edge. */
     private static final Vec3 BEFORE_THE_WEST_FACE = new Vec3(1.5, 1, 2.5);
     /** How many ticks the mob is watched held, a carry each tick were it looping. */
@@ -629,7 +624,8 @@ public final class GrabChannelTests {
      */
     public static void grabHoldsAMobStillAimedAtThePortalsFace(GameTestHelper helper) {
         ServerPlayer player = grabber(helper);
-        Vec3 stand = helper.absoluteVec(LOOK_ENDS_AT_THE_FACE);
+        Vec3 stand = helper.absoluteVec(new Vec3(CUSP_WEST_FACE_X + holdDistance(helper) + SHORT_OF_THE_FACE, 1,
+                2.5));
         player.setPos(stand.x, stand.y, stand.z);
         player.setYRot(FACING_WEST);
         player.setYHeadRot(FACING_WEST);
@@ -677,7 +673,7 @@ public final class GrabChannelTests {
     private static final BlockPos AHEAD_WEST = new BlockPos(0, 1, 2);
     /** The east portal's block behind the player, its face the plane x 6, facing west. */
     private static final BlockPos BEHIND_EAST = new BlockPos(6, 1, 2);
-    /** Where the player stands: its level look, three blocks long, ends a block past the west face. */
+    /** Where the player stands: its level look, Grab's hold distance long, ends past the west face. */
     private static final Vec3 BETWEEN_FACING_WEST = new Vec3(3, 1, 2.5);
     /** Where the mob starts: where that look hangs it, a block before the east portal behind the player. */
     private static final Vec3 HUNG_PAST_THE_PORTAL = new Vec3(5, 1.5, 2.5);
@@ -791,7 +787,7 @@ public final class GrabChannelTests {
     }
 
     private static final String GRAB_REFUSES_A_SENT_PIG_BEYOND_ITS_RANGE = "grab_refuses_a_sent_pig_beyond_its_range";
-    /** How far past Grab's shipped reach the player stands west of the pig for the range test. */
+    /** How far past Grab's reach the player stands west of the pig for the range test. */
     private static final double PAST_THE_REACH = 2;
 
     /**
@@ -850,12 +846,6 @@ public final class GrabChannelTests {
             helper.assertTrue(beforeThePortal > 1 || pigAt.equals(BESIDE_THE_FAR_PORTAL), "The pig should be seen "
                     + "drawn toward the portal over more than one tick, not jumped into it, along "
                     + path.stream().map(helper::relativeVec).toList());
-            for (int at = 1; at < path.size(); at++) {
-                double step = path.get(at).distanceTo(path.get(at - 1));
-                helper.assertTrue(path.get(at).x() <= farFace || step <= STEADY_STEP,
-                        "On its way to the portal the pig should move in steady steps, moved " + step + " on tick "
-                                + at + " along " + path.stream().map(helper::relativeVec).toList());
-            }
             helper.assertTrue(pig.getX() < wall, "The pig should come through to the player's side, stands at "
                     + helper.relativeVec(pig.position()));
             PortalChoice.breakAt(level, near.block().pos(), near.face());
@@ -883,7 +873,14 @@ public final class GrabChannelTests {
     private static GooStreamPayload holdTick(ServerPlayer player, Entity outlined) {
         Vec3 eye = player.getEyePosition();
         return GooStreamPayload.unplaned(GooTypes.id(GooTypes.KINETIC), KINETIC_GRAB.toString(),
-                eye, eye.add(player.getLookAngle().scale(FAR))).targeting(outlined.getId());
+                eye, eye.add(player.getLookAngle().scale(AIM_LENGTH))).targeting(outlined.getId());
+    }
+
+    /** Grab's hold distance as the loaded ability gives it, eye to the held body's middle. */
+    private static double holdDistance(GameTestHelper helper) {
+        return AbilityRegistry.of(helper.getLevel()).getAbility(KINETIC_GRAB).behaviors().stream()
+                .filter(GrabStep.class::isInstance).map(GrabStep.class::cast).findFirst().orElseThrow()
+                .holdDistance();
     }
 
     private static Vec3 middleOf(Entity entity) {

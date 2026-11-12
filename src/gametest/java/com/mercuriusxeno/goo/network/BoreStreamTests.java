@@ -52,11 +52,9 @@ public final class BoreStreamTests {
     private static final BlockPos STAND_POS = new BlockPos(0, 1, 2);
     /** The row the eye line runs along: a standing player's eye sits in the block above its feet. */
     private static final BlockPos EYE_ROW = STAND_POS.above();
-    /** rock_bore.json's range: the tunnel runs from the eye's block to four blocks east. */
-    private static final int REACH = 4;
     private static final int HELD_GOO = 4;
-    /** A hold long past the four tunnel blocks at rock_bore.json's pace. */
-    private static final int HOLD_TICKS = 30;
+    /** The longest hold the tunnel test streams while it polls, inside its timeout. */
+    private static final int MOST_HOLD_TICKS = 90;
     private static final String SHOULD_BREAK_AFTER_THE_NEARER =
             "The block %d east should break after the block nearer the eye, broke on tick %d, the nearer on %d";
     /** The yaw a player faces east, toward +x, at. */
@@ -73,15 +71,18 @@ public final class BoreStreamTests {
     /**
      * A mock player facing east streams bore into a block of stone: through the
      * hold each block on the line breaks on a later tick than the block nearer
-     * the eye, and after it a one-block tunnel runs along the eye line to the
-     * reach and cobblestone dropped (decision bore-drills-the-eye-line-with-steady-progress).
+     * the eye, and the hold runs until a one-block tunnel runs along the eye
+     * line to the whole blocks inside the stream's reach, read live from the
+     * ability, and cobblestone has dropped
+     * (decision bore-drills-the-eye-line-with-steady-progress).
      *
      * @param helper the gametest helper
      */
     public static void boreCutsATunnel(GameTestHelper helper) {
         AbilityDefinition bore = AbilityRegistry.of(helper.getLevel()).getAbility(ROCK_BORE);
         helper.assertTrue(bore != null, ABILITY_REQUIRED);
-        for (int east = 1; east <= REACH + 1; east++) {
+        int reach = (int) Math.floor(bore.delivery().range());
+        for (int east = 1; east <= reach + 1; east++) {
             for (BlockPos pos : slice(EYE_ROW.east(east))) {
                 helper.setBlock(pos, Blocks.STONE);
             }
@@ -90,30 +91,28 @@ public final class BoreStreamTests {
         KnownRecipes.teachRequires(player, bore);
         GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.ROCK), ROCK_BORE.toString(),
                 player.getEyePosition(), player.getEyePosition());
-        int[] brokeOn = new int[REACH + 1];
-        helper.runAfterDelay(1, () -> GooStreamHandler.streamTick(player, tick));
-        for (int held = 2; held <= HOLD_TICKS; held++) {
+        int[] brokeOn = new int[reach + 1];
+        for (int held = 1; held <= MOST_HOLD_TICKS; held++) {
             int at = held;
             helper.runAfterDelay(held, () -> {
                 GooStreamHandler.streamTick(player, tick);
-                for (int east = 1; east <= REACH; east++) {
+                for (int east = 1; east <= reach; east++) {
                     if (brokeOn[east] == 0 && helper.getBlockState(EYE_ROW.east(east)).isAir()) {
                         brokeOn[east] = at;
                     }
                 }
             });
         }
-        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            for (int east = 2; east <= REACH; east++) {
+        helper.succeedWhen(() -> {
+            for (int east = 1; east <= reach; east++) {
+                helper.assertBlockPresent(Blocks.AIR, EYE_ROW.east(east));
+            }
+            for (int east = 2; east <= reach; east++) {
                 helper.assertTrue(brokeOn[east] > brokeOn[east - 1], String.format(SHOULD_BREAK_AFTER_THE_NEARER,
                         east, brokeOn[east], brokeOn[east - 1]));
             }
-            for (int east = 1; east <= REACH; east++) {
-                helper.assertBlockPresent(Blocks.AIR, EYE_ROW.east(east));
-            }
             helper.assertItemEntityPresent(Items.COBBLESTONE, EYE_ROW.east(2), ITEM_SEARCH_RADIUS);
-            helper.succeed();
+            helper.getLevel().getServer().getPlayerList().remove(player);
         });
     }
 

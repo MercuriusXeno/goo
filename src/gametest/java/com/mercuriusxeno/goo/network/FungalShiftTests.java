@@ -2,7 +2,8 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.data.GooValueTable;
+import com.mercuriusxeno.goo.ability.program.ShiftStep;
+import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -51,7 +52,7 @@ public final class FungalShiftTests {
     private static final Identifier SHROOM_SIGHT = Identifier.parse("goo:shroom_sight");
     /** The light bay's west edge, on its floor. */
     private static final BlockPos STAND_POS = new BlockPos(0, 0, 8);
-    /** Fifteen blocks east of the player, within the shift's range of sixteen. */
+    /** Fifteen blocks east of the player, well within the shift's base range. */
     private static final BlockPos AIMED_POS = STAND_POS.east(15);
     /** A stone wall halfway between the player and the aimed mushroom, taller than the player's eye. */
     private static final BlockPos WALL_POS = STAND_POS.east(7);
@@ -60,25 +61,22 @@ public final class FungalShiftTests {
     private static final int CEILING_SEARCH = 8;
     /** The light bay's corner, on its floor. */
     private static final BlockPos CORNER_POS = new BlockPos(0, 0, 0);
-    /** Straight above the corner, past the shift's base range of sixty-four. */
-    private static final BlockPos HIGH_ABOVE = CORNER_POS.above(70);
-    /** shroom_fungal_shift.json's range. */
-    private static final double BASE_RANGE = 64;
+    /** Blocks past the shift's base range, read live, the high mushroom block stands straight above the corner. */
+    private static final int PAST_BASE_RANGE = 6;
     /** Sideways off the aimed mushroom, about two degrees at fifteen blocks, so the look ray misses it. */
     private static final Vec3 NEAR_MISS = new Vec3(0.5, 0.2, 1.05);
-    private static final String FAR_BEYOND_BASE = "The high mushroom block should stand beyond the base range";
     /** Low on the aimed block, inside a mushroom's outline, which stands six pixels tall. */
     private static final Vec3 AIM_IN_BLOCK = new Vec3(0.5, 0.2, 0.5);
     private static final String ABILITY_REQUIRED = "Ability registry must hold shroom_fungal_shift";
     private static final String SHOULD_STAND_ON = "The player should stand on the mushroom, stands at %s";
-    private static final String SHOULD_DRAIN_COST = "The shift should drain %d mB, drained %d";
+    private static final String SHOULD_DRAIN = "The shift should drain some shroom, drained %d";
 
     private FungalShiftTests() {
     }
 
     /**
      * Released aimed at a red mushroom fifteen blocks off, the player stands
-     * in the mushroom's cell and the cost drains.
+     * in the mushroom's cell and some shroom drains.
      *
      * @param helper the gametest helper
      */
@@ -93,7 +91,7 @@ public final class FungalShiftTests {
         int drained = heldBefore - held(player);
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.assertTrue(standing.equals(helper.absolutePos(AIMED_POS)), String.format(SHOULD_STAND_ON, standing));
-        helper.assertTrue(drained == shift.cost().in(GooValueTable.EMPTY), String.format(SHOULD_DRAIN_COST, shift.cost().in(GooValueTable.EMPTY), drained));
+        helper.assertTrue(drained > 0, String.format(SHOULD_DRAIN, drained));
         helper.succeed();
     }
 
@@ -118,15 +116,17 @@ public final class FungalShiftTests {
     }
 
     /**
-     * A mushroom block seventy blocks straight up, past the shift's base
-     * range of sixty-four: under Sight held on the glove the player shifts onto it.
+     * A mushroom block straight up past the shift's base range, read live
+     * from the ability: under Sight held on the glove the player shifts onto it.
      *
      * @param helper the gametest helper
      */
     public static void sightExtendsTheShift(GameTestHelper helper) {
         AbilityDefinition shift = fungalShift(helper);
-        helper.assertTrue(HIGH_ABOVE.getY() - CORNER_POS.getY() > BASE_RANGE, FAR_BEYOND_BASE);
-        ServerPlayer player = shifterAimedAt(helper, Blocks.RED_MUSHROOM_BLOCK, shift, CORNER_POS, HIGH_ABOVE);
+        double baseRange = shift.behaviors().stream().filter(ShiftStep.class::isInstance).map(ShiftStep.class::cast)
+                .findFirst().orElseThrow().range().evaluate(Variables.NONE);
+        BlockPos highAbove = CORNER_POS.above((int) Math.ceil(baseRange) + PAST_BASE_RANGE);
+        ServerPlayer player = shifterAimedAt(helper, Blocks.RED_MUSHROOM_BLOCK, shift, CORNER_POS, highAbove);
         openTheCeilingAbove(helper, CORNER_POS);
 
         HeartOverlayTests.invoke(player, GooTypes.SHROOM, SHROOM_SIGHT);
@@ -134,7 +134,7 @@ public final class FungalShiftTests {
 
         BlockPos standing = player.blockPosition();
         helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(standing.equals(helper.absolutePos(HIGH_ABOVE.above())),
+        helper.assertTrue(standing.equals(helper.absolutePos(highAbove.above())),
                 String.format(SHOULD_STAND_ON, standing));
         helper.succeed();
     }

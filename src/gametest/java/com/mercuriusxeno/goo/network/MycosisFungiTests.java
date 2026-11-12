@@ -58,7 +58,7 @@ public final class MycosisFungiTests {
     private static final float LOOKING_AT_FUNGUS = 20.5f;
     /** The longest hold; wart and buds under the stream ripen in a fraction of it. */
     private static final int HOLD_TICKS = 300;
-    /** The stream costs a thousand a second; the player holds enough for the whole hold and then some. */
+    /** Shroom goo the player holds, thousands: enough to pay for the whole hold and then some. */
     private static final int HELD_GOO = 20;
     private static final double ITEM_SEARCH_RADIUS = 3;
     private static final Identifier SHROOM_MYCOSIS = Identifier.parse("goo:shroom_mycosis");
