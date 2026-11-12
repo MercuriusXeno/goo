@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
-import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.RenderTarget;
@@ -26,10 +25,8 @@ import java.util.OptionalInt;
 
 /**
  * Draws every burning Flames field this frame in one render pass on the fire
- * field pipeline, against the level's depth: each field's box as quads wound
- * to show their inner faces, so a camera inside the box, as the glove's own
- * camera always is, still sees it, each field drawn with its own uniform
- * block. flames-pixelated-fire-stream
+ * field pipeline, against the level's depth: each field's box as an
+ * {@link InwardBox}, each field drawn with its own uniform block. flames-pixelated-fire-stream
  */
 final class FirePass {
 
@@ -37,16 +34,9 @@ final class FirePass {
     private static final String FIELDS_BUFFER = "Goo flames fields";
     private static final String BOXES_BUFFER = "Goo flames boxes";
     private static final String TRANSFORMS_UNIFORM = "DynamicTransforms";
-    private static final int FACES = 6;
-    private static final int CORNERS = 4;
-    private static final int INDICES_PER_QUAD = 6;
-    private static final int X_BIT = 1;
-    private static final int Y_BIT = 2;
-    private static final int Z_BIT = 4;
-    /** Each face's corners, by the bits of their coordinates, wound to face inward. */
-    private static final int[][] INWARD_FACES = {
-        {2, 6, 4, 0}, {5, 7, 3, 1}, {4, 5, 1, 0}, {3, 7, 6, 2}, {1, 3, 2, 0}, {6, 7, 5, 4},
-    };
+    private static final int FACES = InwardBox.FACES;
+    private static final int CORNERS = InwardBox.CORNERS;
+    private static final int INDICES_PER_QUAD = InwardBox.INDICES_PER_QUAD;
     private static final Vector4f WHITE = new Vector4f(1, 1, 1, 1);
 
     private static ByteBuffer kept = ByteBuffer.allocateDirect(0);
@@ -141,18 +131,8 @@ final class FirePass {
         BufferBuilder builder = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
         for (FireField field : fields) {
             Vec3[] box = field.box();
-            for (int[] face : INWARD_FACES) {
-                for (int corner : face) {
-                    Vec3 at = cornerOf(box, corner);
-                    builder.addVertex((float) at.x, (float) at.y, (float) at.z).setColor(GooRenderUtil.OPAQUE_WHITE);
-                }
-            }
+            InwardBox.emit(builder, box[0], box[1]);
         }
         return builder.buildOrThrow();
-    }
-
-    private static Vec3 cornerOf(Vec3[] box, int corner) {
-        return new Vec3((corner & X_BIT) == 0 ? box[0].x : box[1].x, (corner & Y_BIT) == 0 ? box[0].y : box[1].y,
-                (corner & Z_BIT) == 0 ? box[0].z : box[1].z);
     }
 }

@@ -56,8 +56,15 @@ public final class HexWispParticle extends SingleQuadParticle {
     private static final double BOTH_WAYS = 2;
     /** Below this squared length a heading has no direction to sway across. */
     private static final double NO_HEADING = 1e-6;
+    /**
+     * How much larger a streamed wisp draws, so its sprite's purple rim and
+     * pink core read, and the dimmest it shades its sprite's own colors.
+     */
+    private static final float STREAM_SIZE = 1.8f;
+    private static final float STREAM_DIMMEST = 0.8f;
 
     private final RandomSource random;
+    private final SpriteSet sprites;
     private final double swayPhase;
     private final double swayReach;
     private final double sways;
@@ -68,6 +75,7 @@ public final class HexWispParticle extends SingleQuadParticle {
     private @Nullable HomingPath path;
     private int flightAge;
     private boolean fadesWhereItScatters;
+    private boolean streamed;
 
     private HexWispParticle(ClientLevel level, double x, double y, double z, SpriteSet sprites) {
         super(level, x, y, z, sprites.get(0, 1));
@@ -77,6 +85,7 @@ public final class HexWispParticle extends SingleQuadParticle {
         this.gravity = 0f;
         this.hasPhysics = false;
         this.random = level.getRandom();
+        this.sprites = sprites;
         this.quadSize = BASE_QUAD_SIZE + random.nextFloat() * QUAD_SIZE_VARIANCE;
         float shade = random.nextFloat();
         this.rCol = Mth.lerp(shade, DEEP[RED], BRIGHT[RED]);
@@ -112,6 +121,34 @@ public final class HexWispParticle extends SingleQuadParticle {
     }
 
     /**
+     * Streams the wisp as Decay's gnats fly: after its delay it bursts off
+     * with the velocity given, then darts, swirls and is pulled in by the
+     * target every tick as {@link WispStream} steps it, until it lands there.
+     * It wears the stream's own sprite, a pink core in a purple rim after
+     * Drain's icon, in its own colors, shaded a little.
+     * drain-casts-a-filled-tornadic-miasma-vortex-along-the-look
+     *
+     * @param delay  ticks it waits unseen before it shows
+     * @param launch the velocity it bursts off with, blocks per tick
+     * @param home   where it lands, read every tick
+     */
+    public void stream(int delay, Vec3 launch, Supplier<Vec3> home) {
+        this.delayTicks = delay;
+        this.target = home;
+        this.streamed = true;
+        this.setSprite(sprites.get(1, 1));
+        this.quadSize *= STREAM_SIZE;
+        float shade = Mth.lerp(random.nextFloat(), STREAM_DIMMEST, 1f);
+        this.rCol = shade;
+        this.gCol = shade;
+        this.bCol = shade;
+        this.xd = launch.x;
+        this.yd = launch.y;
+        this.zd = launch.z;
+        this.lifetime = delay + WispStream.MOST_TICKS;
+    }
+
+    /**
      * Bursts the wisp where it spawned: it scatters with the velocity given
      * and fades out there, never flying home.
      * drained-mobs-show-stream-burst-and-tether
@@ -141,6 +178,10 @@ public final class HexWispParticle extends SingleQuadParticle {
             return;
         }
         int shown = this.age - delayTicks;
+        if (streamed) {
+            streamTick(shown);
+            return;
+        }
         if (shown <= scatterTicks) {
             scatterTick();
         } else {
@@ -154,6 +195,28 @@ public final class HexWispParticle extends SingleQuadParticle {
         this.yd = this.yd * SCATTER_DRAG + dart();
         this.zd = this.zd * SCATTER_DRAG + dart();
         this.setPos(this.x + this.xd, this.y + this.yd, this.z + this.zd);
+    }
+
+    /**
+     * Steps a streamed wisp, fading it in as it shows and out as it nears its
+     * landing, and gone once it lands.
+     *
+     * @param shown ticks since it showed
+     */
+    private void streamTick(int shown) {
+        Vec3 home = target.get();
+        Vec3 velocity = WispStream.step(new Vec3(this.xd, this.yd, this.zd), new Vec3(this.x, this.y, this.z),
+                home, shown, random, swayPhase);
+        this.xd = velocity.x;
+        this.yd = velocity.y;
+        this.zd = velocity.z;
+        this.setPos(this.x + this.xd, this.y + this.yd, this.z + this.zd);
+        double gap = home.distanceTo(new Vec3(this.x, this.y, this.z));
+        if (gap <= WispStream.LANDS_WITHIN) {
+            this.remove();
+            return;
+        }
+        this.alpha = ALPHA * Math.min(1f, shown / FADE_IN_TICKS) * (float) Math.min(1, gap / WispStream.FADES_WITHIN);
     }
 
     private double dart() {

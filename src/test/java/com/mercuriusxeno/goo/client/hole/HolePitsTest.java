@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.client.hole;
 
+import com.mercuriusxeno.goo.ability.hole.HoleDrift;
+import com.mercuriusxeno.goo.ability.hole.HoleFrame;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.AABB;
@@ -20,6 +22,8 @@ class HolePitsTest {
 
     /** The least a pit wall stands inside the outer face it runs beside, clear of depth fighting. */
     private static final double LEAST_CLEARANCE = 0.01;
+    /** Counts of kinds a mouth stores, at and well past the twelve it once showed at most. */
+    private static final int[] KIND_COUNTS = {12, 40};
 
     @Test
     void aCeilingPitOnAOneByTwoOverhangStandsInsideItsBlocks() {
@@ -45,16 +49,19 @@ class HolePitsTest {
         HolePits.CarveSpans carved = HolePits.carvedSpansAt(footprint, Direction.UP, halfOpen);
         assertEquals(full.across() / 2, carved.across(), "half-open oval across");
         assertEquals(full.along() / 2, carved.along(), "half-open oval along");
-        AABB rim = HolePits.pitOf(footprint, Direction.UP).rim();
-        int sealedOver = 0;
-        for (int index = 0; index < HoleDrift.MOST_SHOWN; index++) {
-            Vec3 at = HoleDrift.placementAt(index, moment, rim.getXsize() / 2, rim.getZsize() / 2, halfOpen).offset();
-            double reach = Math.pow(at.x() / carved.across(), 2) + Math.pow(at.z() / carved.along(), 2);
-            if (reach > 1 && at.y() < 0) {
-                sealedOver++;
+        AABB rim = HoleFrame.pitOf(footprint, Direction.UP).rim();
+        for (int kinds : KIND_COUNTS) {
+            int sealedOver = 0;
+            for (int index = 0; index < kinds; index++) {
+                Vec3 at = HoleDrift.placementAt(index, kinds, moment, rim.getXsize() / 2, rim.getZsize() / 2, halfOpen)
+                        .offset();
+                double reach = Math.pow(at.x() / carved.across(), 2) + Math.pow(at.z() / carved.along(), 2);
+                if (reach > 1 && at.y() < 0) {
+                    sealedOver++;
+                }
             }
+            assertTrue(sealedOver > 0, "no item of " + kinds + " lies past the half-open oval " + carved);
         }
-        assertTrue(sealedOver > 0, "no item of " + HoleDrift.MOST_SHOWN + " lies past the half-open oval " + carved);
     }
 
     private static List<BlockPos> threeByThreeFloor() {
@@ -69,7 +76,7 @@ class HolePitsTest {
 
     private static void assertPitInside(List<BlockPos> footprint, Direction face) {
         AABB blocks = footprint.stream().map(AABB::new).reduce(AABB::minmax).orElseThrow();
-        HolePits.Pit pit = HolePits.pitOf(footprint, face);
+        HoleFrame.Pit pit = HoleFrame.pitOf(footprint, face);
         for (AABB plane : new AABB[] {pit.rim(), pit.floor()}) {
             String where = face + " pit plane " + plane + " in blocks " + blocks;
             assertTrue(plane.minX - blocks.minX >= LEAST_CLEARANCE && blocks.maxX - plane.maxX >= LEAST_CLEARANCE,
