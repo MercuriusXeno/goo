@@ -29,8 +29,23 @@ public final class HoleFootprint {
      * @return the footprint's blocks
      */
     public static List<BlockPos> of(ServerLevel level, BlockPos struck, Direction face) {
-        return fit(struck, face, cell -> level.getBlockState(cell).isFaceSturdy(level, cell, face)
-                && level.getBlockState(cell.relative(face)).getCollisionShape(level, cell.relative(face)).isEmpty());
+        return fit(struck, face, cell -> offers(level, cell, face));
+    }
+
+    /**
+     * Whether a cell offers a face a mouth opens across: the face is sturdy
+     * and the cell beyond it holds nothing to collide with. A hole opens only
+     * where every cell of its footprint offers its face, and stands only while
+     * every one still does.
+     *
+     * @param level the level
+     * @param cell  a block
+     * @param face  the face
+     * @return true where a mouth may lie across that face
+     */
+    public static boolean offers(ServerLevel level, BlockPos cell, Direction face) {
+        return level.getBlockState(cell).isFaceSturdy(level, cell, face)
+                && level.getBlockState(cell.relative(face)).getCollisionShape(level, cell.relative(face)).isEmpty();
     }
 
     /**

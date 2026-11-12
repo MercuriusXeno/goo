@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.quantum;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.GlobalPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -13,6 +14,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 
 /**
@@ -51,8 +53,10 @@ public final class Wormhole {
      * @param open  whether a cell holds nothing a body collides with, inside the world
      * @param fits  whether a box holds nothing a body collides with, inside the world
      * @param solid whether a cell holds an opaque solid block a mouth may stand on
+     * @param taken whether a standing portal covers a cell's face, which a mouth may not lie over
      */
-    public record Space(Predicate<BlockPos> open, Predicate<AABB> fits, Predicate<BlockPos> solid) {
+    public record Space(Predicate<BlockPos> open, Predicate<AABB> fits, Predicate<BlockPos> solid,
+                        BiPredicate<BlockPos, Direction> taken) {
 
         /**
          * The level as a player passing through reads it; a cell above or
@@ -63,11 +67,13 @@ public final class Wormhole {
          * @return the space
          */
         public static Space of(ServerLevel level, ServerPlayer player) {
+            QuantumPortals standing = QuantumPortals.get(level);
             return new Space(cell -> !level.isOutsideBuildHeight(cell) && level.noCollision(player, new AABB(cell)),
                     box -> !level.isOutsideBuildHeight(BlockPos.containing(box.minX, box.minY, box.minZ))
                             && !level.isOutsideBuildHeight(BlockPos.containing(box.maxX, box.maxY, box.maxZ))
                             && level.noCollision(player, box),
-                    cell -> level.getBlockState(cell).isSolidRender());
+                    cell -> level.getBlockState(cell).isSolidRender(),
+                    (cell, face) -> standing.portalAt(GlobalPos.of(level.dimension(), cell), face).isPresent());
         }
     }
 
@@ -120,10 +126,7 @@ public final class Wormhole {
      */
     private static Optional<Opening> holeThrough(Space space, List<BlockPos> mouth, Direction face, int reach,
             double width) {
-        // hole-closes-the-space-to-an-opening-ahead: each mouth stands only on opaque solid blocks
-        boolean faced = mouth.stream().allMatch(cell -> space.solid().test(cell)
-                && space.open().test(cell.relative(face)));
-        if (!faced) {
+        if (!mouth.stream().allMatch(cell -> standsOn(space, cell, face) && space.open().test(cell.relative(face)))) {
             return Optional.empty();
         }
         Direction inward = face.getOpposite();
@@ -132,7 +135,8 @@ public final class Wormhole {
             long open = layer.stream().filter(space.open()).count();
             if (open == layer.size()) {
                 List<BlockPos> farWall = shifted(mouth, inward, step - 1);
-                return space.fits().test(crawlBoxIn(layer, inward, width)) && farWall.stream().allMatch(space.solid())
+                return space.fits().test(crawlBoxIn(layer, inward, width))
+                        && farWall.stream().allMatch(cell -> standsOn(space, cell, inward))
                         ? Optional.of(new Opening(mouth, farWall)) : Optional.empty();
             }
             if (open > 0) {
@@ -140,6 +144,21 @@ public final class Wormhole {
             }
         }
         return Optional.empty();
+    }
+
+    /**
+     * Whether a mouth may stand on a cell's face: the cell an opaque solid
+     * block, and no standing portal on that face, since a portal is in the
+     * way as a block is and a mouth never lies over one.
+     * hole-closes-the-space-to-an-opening-ahead
+     *
+     * @param space the world as the scan reads it
+     * @param cell  the cell
+     * @param face  the face the mouth would lie on
+     * @return true where a mouth may stand
+     */
+    private static boolean standsOn(Space space, BlockPos cell, Direction face) {
+        return space.solid().test(cell) && !space.taken().test(cell, face);
     }
 
     private static List<BlockPos> shifted(List<BlockPos> cells, Direction toward, int steps) {

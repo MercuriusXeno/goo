@@ -5,6 +5,8 @@ import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.OpenHoles;
+import com.mercuriusxeno.goo.ability.quantum.Portal;
+import com.mercuriusxeno.goo.ability.quantum.QuantumPortals;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
@@ -16,6 +18,7 @@ import com.mercuriusxeno.goo.registry.GooSoundIds;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.GlobalPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
@@ -27,7 +30,9 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.List;
+import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 /**
  * Gametests for Quantum's tunnel, a wormhole: thrown at a wall, it opens a
@@ -51,6 +56,8 @@ public final class WormholeTests {
     private static final String DISMISSED_BY_A_HIT = "tunnel_dismissed_by_a_hit";
     private static final String REFUSED_ON_GLASS = "tunnel_refused_on_glass";
     private static final String CENTRES_ON_THE_STRUCK_BLOCK = "tunnel_centres_on_the_struck_block";
+    private static final String KEEPS_OFF_A_PORTAL_ON_THE_STRUCK_FACE = "tunnel_keeps_off_a_portal_on_the_struck_face";
+    private static final String KEEPS_OFF_A_PORTAL_ON_THE_FAR_FACE = "tunnel_keeps_off_a_portal_on_the_far_face";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -58,6 +65,10 @@ public final class WormholeTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, KEEPS_OFF_A_PORTAL_ON_THE_STRUCK_FACE,
+                WormholeTests::keepsOffAPortalOnTheStruckFace);
+        GooTestFunctions.registerTest(registrar, KEEPS_OFF_A_PORTAL_ON_THE_FAR_FACE,
+                WormholeTests::keepsOffAPortalOnTheFarFace);
         GooTestFunctions.registerTest(registrar, THROUGH_TO_A_FULL_OPENING, WormholeTests::throughToAFullOpening);
         GooTestFunctions.registerTest(registrar, THROUGH_TO_A_NARROW_OPENING, WormholeTests::throughToANarrowOpening);
         GooTestFunctions.registerTest(registrar, REFUSED_WITH_NO_OPENING, WormholeTests::refusedWithNoOpening);
@@ -491,6 +502,49 @@ public final class WormholeTests {
         helper.runAfterDelay(LANDED, () -> {
             helper.assertTrue(holeStruckAt(helper, STRUCK).isEmpty(), "A hole thrown at glass should be refused");
             helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Thrown at a wall whose struck face carries a portal, the tunnel counts
+     * the portal in the way: no mouth it opens on that face covers the
+     * portal's blocks, so the two never lie one over the other.
+     *
+     * @param helper the gametest helper
+     */
+    public static void keepsOffAPortalOnTheStruckFace(GameTestHelper helper) {
+        assertKeepsOffAPortal(helper, new BlockPos(2, 1, WALL_NEAR_Z), Direction.NORTH);
+    }
+
+    /**
+     * Thrown at a wall whose far face carries a portal, the tunnel counts the
+     * portal in the way: no mouth it opens on the far face covers the
+     * portal's blocks.
+     *
+     * @param helper the gametest helper
+     */
+    public static void keepsOffAPortalOnTheFarFace(GameTestHelper helper) {
+        assertKeepsOffAPortal(helper, new BlockPos(2, 1, WALL_FAR_Z), Direction.SOUTH);
+    }
+
+    private static void assertKeepsOffAPortal(GameTestHelper helper, BlockPos portalFoot, Direction portalFace) {
+        buildWall(helper);
+        ServerPlayer caster = caster(helper);
+        Portal portal = new Portal(GlobalPos.of(helper.getLevel().dimension(), helper.absolutePos(portalFoot)),
+                portalFace, Direction.UP);
+        QuantumPortals portals = QuantumPortals.get(helper.getLevel());
+        UUID portalOwner = UUID.randomUUID();
+        portals.place(portalOwner, portal);
+        throwAt(caster, helper.absolutePos(STRUCK), Direction.NORTH);
+        helper.runAfterDelay(LANDED, () -> {
+            List<Gate> over = OpenHoles.open().stream().flatMap(hole -> Stream.of(hole.entry(), hole.exit()))
+                    .filter(mouth -> mouth.face() == portalFace && mouth.blocks().intersects(portal.blocks()))
+                    .toList();
+            portals.fall(portal);
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(over.isEmpty(), "No tunnel mouth should cover the portal on " + portalFace + " of "
+                    + portal.blocks() + ", covering it: " + over.stream().map(Gate::blocks).toList());
             helper.succeed();
         });
     }
