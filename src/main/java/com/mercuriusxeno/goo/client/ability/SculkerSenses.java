@@ -9,6 +9,8 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.profiling.Profiler;
+import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.BlockGetter;
@@ -20,6 +22,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.client.event.sound.PlaySoundEvent;
+import net.neoforged.neoforge.event.level.ChunkEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -47,8 +50,19 @@ public final class SculkerSenses {
     /** How near a sound's source an entity must stand for the sound to be its own. */
     private static final double SOUND_OWNER_REACH = 1.5;
     private static final int BLOCKS_PER_CHUNK = 16;
+    /**
+     * The profiler sections the echo bookkeeping and the mob outlines report their time under.
+     * decision diagnose-sculkers-lag-and-prove-it-improved-significantly
+     */
+    private static final String ECHO_TICK_SECTION = "goo_sculker_echo_tick";
+    private static final String OUTLINES_SECTION = "goo_sculker_outlines";
 
     private static final SculkerEchoes ECHOES = new SculkerEchoes();
+    /** Each lit block's quads, kept across frames for SculkerEchoRenderer. */
+    private static final EchoQuads ECHO_QUADS = new EchoQuads();
+    /** Whether an echo lights each cell a ring crosses, kept across ticks. */
+    private static final EchoCells ECHO_CELLS = new EchoCells(SculkerSenses::lightsUpInLevel,
+            SculkerSenses::passesSoundInLevel);
     /** Joins each sound heard to the vibration the server forwards for it, so it rings once at its rank. */
     private static final SculkerNoises NOISES = new SculkerNoises(SculkerSoundRanks.shipped(), SculkerSenses::ring);
     /** Each mob heard making a sound, by entity id. */
@@ -82,6 +96,8 @@ public final class SculkerSenses {
         if (mc.level == null || HEARD.isEmpty()) {
             return;
         }
+        ProfilerFiller profiler = Profiler.get();
+        profiler.push(OUTLINES_SECTION);
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         List<AfterimageRenderer.SoftOutline> outlines = new ArrayList<>();
         for (int id : HEARD.keySet()) {
@@ -91,6 +107,7 @@ public final class SculkerSenses {
             }
         }
         AfterimageRenderer.drawSoftOutlines(event, outlines, SCULK_RGB);
+        profiler.pop();
     }
 
     /**
@@ -141,14 +158,20 @@ public final class SculkerSenses {
         ClientLevel level = mc.level;
         if (player == null || level == null || !SculkerSwim.dives(player)) {
             ECHOES.clear();
+            ECHO_QUADS.clear();
+            ECHO_CELLS.clear();
             NOISES.clear();
             HEARD.clear();
             return;
         }
+        ProfilerFiller profiler = Profiler.get();
+        profiler.push(ECHO_TICK_SECTION);
         long now = level.getGameTime();
         NOISES.advance(now);
-        ECHOES.advance(now, pos -> lightsUp(level, pos), pos -> passesSound(level, pos));
+        ECHOES.advanceEchoing(now, ECHO_CELLS::echoesOff);
+        ECHO_QUADS.keepWithin(ECHOES.remembered().keySet());
         HEARD.entrySet().removeIf(heard -> level.getEntity(heard.getKey()) == null || now >= heard.getValue().fadedAt());
+        profiler.pop();
     }
 
     /**
@@ -260,5 +283,60 @@ public final class SculkerSenses {
      */
     static SculkerEchoes echoes() {
         return ECHOES;
+    }
+
+    /**
+     * @return each lit block's quads, kept across frames, which SculkerEchoRenderer draws
+     */
+    static EchoQuads echoQuads() {
+        return ECHO_QUADS;
+    }
+
+    /**
+     * Drops the kept quads a block change on the client reaches: the block's
+     * own and its neighbours', whose open sides it sets.
+     * decision diagnose-sculkers-lag-and-prove-it-improved-significantly
+     *
+     * @param pos the block that changed
+     */
+    public static void blockChanged(BlockPos pos) {
+        ECHO_QUADS.forgetAround(pos);
+        ECHO_CELLS.forgetAround(pos);
+        ECHOES.uncover(pos, SculkerSenses::lightsUpInLevel, SculkerSenses::passesSoundInLevel);
+    }
+
+    private static boolean lightsUpInLevel(BlockPos pos) {
+        return lightsUp(Minecraft.getInstance().level, pos);
+    }
+
+    private static boolean passesSoundInLevel(BlockPos pos) {
+        return passesSound(Minecraft.getInstance().level, pos);
+    }
+
+    /**
+     * Drops the kept quads in and beside a chunk the client loads.
+     *
+     * @param event the chunk load
+     */
+    @SubscribeEvent
+    public static void onChunkLoad(ChunkEvent.Load event) {
+        forgetChunk(event);
+    }
+
+    /**
+     * Drops the kept quads in and beside a chunk the client unloads.
+     *
+     * @param event the chunk unload
+     */
+    @SubscribeEvent
+    public static void onChunkUnload(ChunkEvent.Unload event) {
+        forgetChunk(event);
+    }
+
+    private static void forgetChunk(ChunkEvent event) {
+        if (event.getLevel().isClientSide()) {
+            ECHO_QUADS.forgetChunk(event.getChunk().getPos().x(), event.getChunk().getPos().z());
+            ECHO_CELLS.clear();
+        }
     }
 }
