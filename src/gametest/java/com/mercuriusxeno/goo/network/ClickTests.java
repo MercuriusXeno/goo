@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.held.HeldEffectsEvents;
+import com.mercuriusxeno.goo.ability.program.ScanVisualStep;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooGloveItem;
@@ -12,6 +13,7 @@ import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
@@ -57,6 +59,24 @@ public final class ClickTests {
         GooTestFunctions.registerTest(registrar, CLICK_TRICKS_THE_SCULK, ClickTests::clickTricksTheWardenAndTheSensor);
         GooTestFunctions.registerTest(registrar, CLICK_FREE_UNDER_SCULKER, ClickTests::clickIsFreeUnderSculker);
         GooTestFunctions.registerTest(registrar, CLICK_RIPPLES_FROM_STONE, ClickTests::clickRipplesFromInsideStone);
+        GooTestFunctions.registerTest(registrar, CLICK_TRAIL_IS_REGISTERED, ClickTests::clickTrailIsARegisteredSound);
+    }
+
+    private static final String CLICK_TRAIL_IS_REGISTERED = "click_trail_is_a_registered_sound";
+    private static final String SHOULD_REGISTER_TRAIL = "Click's trail %s should stand in the sound registry";
+
+    /**
+     * The sound loaded Click's wave trails stands in the sound registry, so
+     * SoundWaves finds it and the travel echo plays.
+     * decision click-travel-echoes-ring-at-rank-five
+     *
+     * @param helper the gametest helper
+     */
+    public static void clickTrailIsARegisteredSound(GameTestHelper helper) {
+        Identifier trail = ScanVisualStep.in(AbilityRegistry.of(helper.getLevel()).getAbility(DEEP_CLICK).behaviors())
+                .flatMap(ScanVisualStep::trail).orElseThrow();
+        helper.assertTrue(BuiltInRegistries.SOUND_EVENT.containsKey(trail), String.format(SHOULD_REGISTER_TRAIL, trail));
+        helper.succeed();
     }
 
     private static final String CLICK_RIPPLES_FROM_STONE = "click_ripples_from_inside_stone";
