@@ -59,6 +59,26 @@ class LifeMarkBillboardTest {
     }
 
     @Test
+    void fullLifeFillsEveryInkedColumn() {
+        assertEquals(7, LifeMarkBillboard.filledInkColumns(1f));
+    }
+
+    @Test
+    void halfLifeFillsHalfTheInkedColumns() {
+        assertEquals(4, LifeMarkBillboard.filledInkColumns(0.5f));
+    }
+
+    @Test
+    void slimLifeFillsOneColumn() {
+        assertEquals(1, LifeMarkBillboard.filledInkColumns(0.02f));
+    }
+
+    @Test
+    void noLifeFillsNoColumn() {
+        assertEquals(0, LifeMarkBillboard.filledInkColumns(0f));
+    }
+
+    @Test
     void marksDrawForTouchedAndSensedMobsAlike() {
         assertTrue(LifeMarkBillboard.showsLifeMark(SENSED_ID, TICK, touched, leader));
         assertTrue(LifeMarkBillboard.showsLifeMark(TOUCHED_ID, TICK, touched, leader));
