@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.client.ability.LifeMark.HeartFill;
 import com.mercuriusxeno.goo.client.hud.InWorldHud;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -17,12 +16,12 @@ import java.util.List;
 
 /**
  * Draws the life mark over each mob Heal or Drain touched lately or Leader
- * senses, turned to
- * face the camera in vanilla's heart sprites: an empty heart's outline under
- * every heart, the full or half heart over it, and a clustered mark's count
- * beside its one heart. The mark draws see-through, over any block between
- * it and the camera, so a wall or ceiling the mark floats into cuts none of it.
- * touched-mobs-show-hearts-or-a-count-over-max
+ * senses, turned to face the camera in vanilla's heart sprites: the empty
+ * heart whole, the full heart over it cropped where the life's share ends,
+ * and the count right of the heart. The mark draws see-through, over any
+ * block between it and the camera, so a wall or ceiling the mark floats into
+ * cuts none of it.
+ * health-bar-is-one-heart-filling-left-to-right
  * leader-shows-life-bars-while-it-stands
  */
 final class LifeMarkBillboard {
@@ -31,14 +30,17 @@ final class LifeMarkBillboard {
     private static final Identifier CONTAINER =
             Identifier.withDefaultNamespace("textures/gui/sprites/hud/heart/container.png");
     private static final Identifier FULL = Identifier.withDefaultNamespace("textures/gui/sprites/hud/heart/full.png");
-    private static final Identifier HALF = Identifier.withDefaultNamespace("textures/gui/sprites/hud/heart/half.png");
     /** Blocks per sprite pixel, the scale of vanilla's name tags. */
     private static final float BLOCKS_PER_PIXEL = 0.025f;
     /** A heart sprite's side, in pixels. */
     private static final float HEART_SIZE = 9f;
-    /** Pixels from one heart's left edge to the next, overlapping their outlines as the hotbar does. */
-    private static final float HEART_STEP = 8f;
-    /** Pixels between the clustered heart and its count. */
+    /** The full heart sprite's leftmost column holding red ink; column 0 is transparent. */
+    private static final int FIRST_INK_COLUMN = 1;
+    /** The full heart sprite's columns holding red ink, 1 through 7. */
+    private static final int INK_COLUMNS = 7;
+    /** Slack under a whole column, so a share landing on a column edge fills no extra column. */
+    private static final float COLUMN_SLACK = 1e-4f;
+    /** Pixels between the heart and its count. */
     private static final float COUNT_GAP = 2f;
     /** Blocks between a bare head and the mark's bottom edge. */
     private static final double OVER_BARE_HEAD = 0.3;
@@ -99,7 +101,7 @@ final class LifeMarkBillboard {
     }
 
     /**
-     * Draws every marked mob's life mark, the outlines first, then the
+     * Draws every marked mob's life mark, the empty hearts first, then the
      * fills, then the counts, one batch each.
      *
      * @param poseStack   the level's pose stack
@@ -117,15 +119,28 @@ final class LifeMarkBillboard {
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         drawHearts(poseStack, camera, buffers, marks, partialTick, CONTAINER);
         drawHearts(poseStack, camera, buffers, marks, partialTick, FULL);
-        drawHearts(poseStack, camera, buffers, marks, partialTick, HALF);
         for (Shown mark : marks) {
-            if (mark.mark() instanceof LifeMark.Clustered clustered) {
-                faceCamera(poseStack, camera, mark.living(), partialTick, () -> InWorldHud.drawTextSeeThrough(
-                        mc.font, buffers, poseStack, clustered.count(), mark.left() + HEART_SIZE + COUNT_GAP, 1f,
-                        mark.color()));
-            }
+            faceCamera(poseStack, camera, mark.living(), partialTick, () -> InWorldHud.drawTextSeeThrough(
+                    mc.font, buffers, poseStack, mark.mark().count(), mark.left() + HEART_SIZE + COUNT_GAP, 1f,
+                    mark.color()));
         }
         buffers.endBatch();
+    }
+
+    /**
+     * How many of the full heart's inked columns a share of life fills,
+     * snapped up to a whole sprite column so no texel splits, and at least
+     * one column while any life is left.
+     * health-bar-is-one-heart-filling-left-to-right
+     *
+     * @param share the life over the max life, zero to one
+     * @return the filled columns, zero through all seven
+     */
+    static int filledInkColumns(float share) {
+        if (share <= 0f) {
+            return 0;
+        }
+        return Math.clamp((int) Math.ceil(share * INK_COLUMNS - COLUMN_SLACK), 1, INK_COLUMNS);
     }
 
     /**
@@ -143,70 +158,56 @@ final class LifeMarkBillboard {
     }
 
     /**
-     * The left edge that centers a mark over the head: a row's hearts, or a
-     * clustered mark's heart, gap and count taken as one width.
+     * The left edge that centers a mark over the head: its heart, gap and
+     * count taken as one width.
      *
      * @param mark the life mark
      * @param font the font the count draws in
      * @return the left edge, in pixels
      */
     private static float leftOf(LifeMark mark, Font font) {
-        return switch (mark) {
-            case LifeMark.Row row -> -rowWidth(row.hearts().size()) / HALVED;
-            case LifeMark.Clustered clustered -> -(HEART_SIZE + COUNT_GAP + font.width(clustered.count())) / HALVED;
-        };
+        return -(HEART_SIZE + COUNT_GAP + font.width(mark.count())) / HALVED;
     }
 
     private static int tint(float opacity) {
         return Math.max(FAINTEST, Math.round(opacity * OPAQUE)) << ALPHA_SHIFT | WHITE;
     }
 
+    /**
+     * Draws one heart sprite on every mark: the empty heart whole, or the
+     * full heart cropped at the right edge of its filled columns, the quad's
+     * width and its u cut together.
+     *
+     * @param poseStack   the level's pose stack
+     * @param camera      the render camera
+     * @param buffers     the frame's buffers
+     * @param marks       the marks to draw
+     * @param partialTick the frame's partial tick
+     * @param sprite      the empty or the full heart
+     */
     private static void drawHearts(PoseStack poseStack, Camera camera, MultiBufferSource.BufferSource buffers,
                                    List<Shown> marks, float partialTick, Identifier sprite) {
         RenderType icon = RenderTypes.textSeeThrough(sprite);
         VertexConsumer consumer = buffers.getBuffer(icon);
         for (Shown mark : marks) {
-            List<HeartFill> hearts = heartsOf(mark.mark());
-            faceCamera(poseStack, camera, mark.living(), partialTick, () -> {
-                for (int heart = 0; heart < hearts.size(); heart++) {
-                    if (sprite.equals(CONTAINER) || spriteOf(hearts.get(heart)).equals(sprite)) {
-                        quad(consumer, poseStack.last(), mark.left() + heart * HEART_STEP, mark.color());
-                    }
-                }
-            });
+            float width = sprite.equals(CONTAINER) ? HEART_SIZE : fillEdge(mark.mark().fill());
+            if (width > 0f) {
+                faceCamera(poseStack, camera, mark.living(), partialTick,
+                        () -> quad(consumer, poseStack.last(), mark.left(), width, mark.color()));
+            }
         }
         buffers.endBatch(icon);
     }
 
     /**
-     * The hearts a mark draws: its row, or the clustered mark's one heart, drawn full.
+     * The full heart's crop edge, in sprite pixels from its left edge.
      *
-     * @param mark the life mark
-     * @return the hearts, left to right
+     * @param share the life over the max life
+     * @return the edge, zero where no life is left
      */
-    private static List<HeartFill> heartsOf(LifeMark mark) {
-        return switch (mark) {
-            case LifeMark.Row row -> row.hearts();
-            case LifeMark.Clustered ignored -> List.of(HeartFill.FULL);
-        };
-    }
-
-    private static Identifier spriteOf(HeartFill fill) {
-        return switch (fill) {
-            case FULL -> FULL;
-            case HALF -> HALF;
-            case EMPTY -> CONTAINER;
-        };
-    }
-
-    /**
-     * The width of a row of hearts, in pixels, their outlines overlapping.
-     *
-     * @param hearts the hearts in the row
-     * @return the width
-     */
-    private static float rowWidth(int hearts) {
-        return (hearts - 1) * HEART_STEP + HEART_SIZE;
+    private static float fillEdge(float share) {
+        int columns = filledInkColumns(share);
+        return columns == 0 ? 0f : FIRST_INK_COLUMN + columns;
     }
 
     /**
@@ -236,10 +237,21 @@ final class LifeMarkBillboard {
         poseStack.popPose();
     }
 
-    private static void quad(VertexConsumer consumer, PoseStack.Pose pose, float x, int color) {
+    /**
+     * One heart quad, its left part as wide as the width given, the sprite's u
+     * cut at the same share so the texels keep their size.
+     *
+     * @param consumer the sprite's buffer
+     * @param pose     the pose in pixel space
+     * @param x        the quad's left edge, in pixels
+     * @param width    the quad's width, in pixels, at most the heart's side
+     * @param color    the tint
+     */
+    private static void quad(VertexConsumer consumer, PoseStack.Pose pose, float x, float width, int color) {
+        float u = width / HEART_SIZE;
         InWorldHud.iconVertex(consumer, pose, x, 0f, 0f, 0f, 0f, color);
         InWorldHud.iconVertex(consumer, pose, x, HEART_SIZE, 0f, 0f, 1f, color);
-        InWorldHud.iconVertex(consumer, pose, x + HEART_SIZE, HEART_SIZE, 0f, 1f, 1f, color);
-        InWorldHud.iconVertex(consumer, pose, x + HEART_SIZE, 0f, 0f, 1f, 0f, color);
+        InWorldHud.iconVertex(consumer, pose, x + width, HEART_SIZE, 0f, u, 1f, color);
+        InWorldHud.iconVertex(consumer, pose, x + width, 0f, 0f, u, 0f, color);
     }
 }
