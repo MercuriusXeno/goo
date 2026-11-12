@@ -102,6 +102,8 @@ public final class OutsiderTests {
         GooTestFunctions.registerTest(registrar, OUTSIDER_GROWS_A_BLOCK_A_SECOND, OutsiderTests::growsOneBlockASecond);
         GooTestFunctions.registerTest(registrar, OUTSIDER_ENTRY_WAIT_MEASURED, OutsiderTests::entryWaitMeasured);
         GooTestFunctions.registerTest(registrar, OUTSIDER_RELEASES_THE_ARRIVER, OutsiderTests::releasesTheArriver);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_DOOR_HOLDS_ITS_BLOCK_ENTITY,
+                OutsiderTests::doorHoldsItsBlockEntity);
         GooTestFunctions.registerTest(registrar, OUTSIDER_DOOR_SOUNDS_THROUGH_THE_CHANGE,
                 OutsiderTests::doorSoundsThroughTheChange);
         GooTestFunctions.registerTest(registrar, OUTSIDER_ARRIVAL_LOADS_DURING_THE_CHARGE,
@@ -922,6 +924,45 @@ public final class OutsiderTests {
             }
             helper.succeed();
         });
+    }
+
+    private static final String OUTSIDER_DOOR_HOLDS_ITS_BLOCK_ENTITY = "outsider_door_holds_its_block_entity";
+    private static final String SHOULD_HOLD_DOOR_ENTITY = "The doorway cell %s should hold the door's block entity %s, "
+            + "holds %s";
+
+    /**
+     * A room laid in the pocket stands its two doorway cells each holding
+     * the door's block entity, which its renderer draws as the end portal
+     * starfield; removed, the doorway stands again with both block entities
+     * (decision room-door-wears-the-end-portal-starfield).
+     *
+     * @param helper the gametest helper
+     */
+    public static void doorHoldsItsBlockEntity(GameTestHelper helper) {
+        ServerLevel pocket = helper.getLevel().getServer().getLevel(OutsiderRooms.POCKET);
+        helper.assertTrue(pocket != null, "The server should hold the pocket dimension");
+        int room = OutsiderRooms.layRoomFor(pocket, java.util.UUID.randomUUID());
+        ChunkPos chunk = ChunkPos.containing(doorOf(room));
+        pocket.setChunkForced(chunk.x(), chunk.z(), true);
+        List<BlockPos> doorway = List.of(doorOf(room), doorOf(room).above());
+        assertDoorEntities(helper, pocket, doorway, "once the room is laid");
+        doorway.forEach(cell -> pocket.setBlockAndUpdate(cell, Blocks.AIR.defaultBlockState()));
+        helper.runAfterDelay(OutsiderRooms.RESTORE_INTERVAL + 1, () -> {
+            assertDoorEntities(helper, pocket, doorway, "once the pocket stands the doorway again");
+            pocket.setChunkForced(chunk.x(), chunk.z(), false);
+            helper.succeed();
+        });
+    }
+
+    /** Reads each cell's block entity as the chunk holds it, creating none, so a missing one reads missing. */
+    private static void assertDoorEntities(GameTestHelper helper, ServerLevel pocket, List<BlockPos> doorway,
+                                           String when) {
+        for (BlockPos cell : doorway) {
+            Object held = pocket.getChunkAt(cell).getBlockEntity(cell,
+                    net.minecraft.world.level.chunk.LevelChunk.EntityCreationType.CHECK);
+            helper.assertTrue(held instanceof com.mercuriusxeno.goo.block.outsider.DimensionDoorBlockEntity,
+                    String.format(SHOULD_HOLD_DOOR_ENTITY, cell, when, held));
+        }
     }
 
     /**
