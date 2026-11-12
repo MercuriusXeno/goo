@@ -5,14 +5,19 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.data.GooValueTable;
+import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooAttachments;
+import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -33,6 +38,7 @@ public final class UndeadTests {
     private static final String UNDEAD_HARMING_HEALS = "undead_harming_heals";
     private static final String UNDEAD_SUNBURN_AGGRAVATED = "undead_sunburn_is_aggravated";
     private static final String UNDEAD_ENDS_WHEN_DRY = "undead_ends_when_nether_runs_dry";
+    private static final String UNDEAD_HEAL_HARMS_CASTER = "undead_heal_harms_its_caster";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -44,6 +50,7 @@ public final class UndeadTests {
         GooTestFunctions.registerTest(registrar, UNDEAD_HARMING_HEALS, UndeadTests::undeadHarmingHeals);
         GooTestFunctions.registerTest(registrar, UNDEAD_SUNBURN_AGGRAVATED, UndeadTests::undeadSunburnIsAggravated);
         GooTestFunctions.registerTest(registrar, UNDEAD_ENDS_WHEN_DRY, UndeadTests::undeadEndsWhenNetherRunsDry);
+        GooTestFunctions.registerTest(registrar, UNDEAD_HEAL_HARMS_CASTER, UndeadTests::undeadHealHarmsItsCaster);
     }
 
 
@@ -66,6 +73,13 @@ public final class UndeadTests {
     private static final String SHOULD_REACH_HEALTH =
             "The sun should burn past the nether to real health from %.1f, stands at %.1f";
     private static final String SHOULD_HEAL ="Harming should heal an undead player from %.1f, stands at %.1f";
+    private static final Identifier JELLY_HEAL = Identifier.parse("goo:jelly_heal");
+    private static final int HELD_JELLY = 2;
+    /** A second of hold. */
+    private static final int HEAL_HOLD_TICKS = 20;
+    private static final String HEAL_REQUIRED = "Ability registry must hold jelly_heal";
+    private static final String SHOULD_HARM_CASTER =
+            "An undead player's own heal should harm it from %.1f, stands at %.2f";
     private static final String SHOULD_STAND_PAID = "Undead should stand while nether pays its upkeep";
     private static final String SHOULD_END = "Undead, its nether hearts and its undeath should end once nether runs dry";
 
@@ -136,6 +150,35 @@ public final class UndeadTests {
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.assertTrue(after > WOUNDED_HEALTH, String.format(SHOULD_HEAL, WOUNDED_HEALTH, after));
         helper.succeed();
+    }
+
+    /**
+     * An undead player holds jelly heal for a second: the stream takes its
+     * caster in as it does every caster, and the undead caster loses health
+     * to its own heal.
+     * undead-player-counts-as-undead-for-heal-and-decay
+     *
+     * @param helper the gametest helper
+     */
+    public static void undeadHealHarmsItsCaster(GameTestHelper helper) {
+        AbilityDefinition heal = AbilityRegistry.of(helper.getLevel()).getAbility(JELLY_HEAL);
+        helper.assertTrue(heal != null, HEAL_REQUIRED);
+        ServerPlayer player = undeadAt(helper, OPEN_POS);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.JELLY, HELD_JELLY * GooStacks.THOUSAND));
+        KnownRecipes.teachRequires(player, heal);
+        float before = player.getHealth();
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.JELLY), JELLY_HEAL.toString(),
+                player.getEyePosition(), player.getEyePosition());
+        for (int held = 1; held <= HEAL_HOLD_TICKS; held++) {
+            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
+        }
+        helper.runAfterDelay(HEAL_HOLD_TICKS + 1, () -> {
+            float after = player.getHealth();
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(after < before, String.format(SHOULD_HARM_CASTER, before, after));
+            helper.succeed();
+        });
     }
 
     /**
