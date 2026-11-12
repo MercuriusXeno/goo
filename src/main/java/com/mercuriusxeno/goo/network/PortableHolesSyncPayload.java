@@ -24,8 +24,8 @@ import java.util.List;
  */
 public record PortableHolesSyncPayload(List<Mouth> mouths) implements CustomPacketPayload {
 
-    /** The most stored kinds one mouth carries, the most its client draws swimming. */
-    public static final int MOST_STORED_SHOWN = 12;
+    /** The most swallowed items one sync tells of for a mouth, the most its client draws easing in at once. */
+    public static final int MOST_SWALLOWS_TOLD = 12;
 
     /** Payload type ID for registration. */
     public static final Type<PortableHolesSyncPayload> TYPE =
@@ -47,8 +47,8 @@ public record PortableHolesSyncPayload(List<Mouth> mouths) implements CustomPack
      * @param face      the face it opens on
      * @param openedAt  the game time it opened, which tells one hole from the next opened in its place
      * @param closesAt  the game time it closes
-     * @param stored    the first kinds its owner stored, in shelf order
-     * @param swallowed the items it swallowed last, as many as it shows stored
+     * @param stored    every kind its owner stored, in shelf order
+     * @param swallowed the items it swallowed last, as many as one sync tells of
      */
     public record Mouth(List<BlockPos> footprint, Direction face, long openedAt, long closesAt,
                         List<Stored> stored, List<Swallowed> swallowed) {
@@ -59,8 +59,9 @@ public record PortableHolesSyncPayload(List<Mouth> mouths) implements CustomPack
                 Direction.STREAM_CODEC, Mouth::face,
                 ByteBufCodecs.VAR_LONG, Mouth::openedAt,
                 ByteBufCodecs.VAR_LONG, Mouth::closesAt,
-                Stored.STREAM_CODEC.apply(ByteBufCodecs.list(MOST_STORED_SHOWN)), Mouth::stored,
-                Swallowed.STREAM_CODEC.apply(ByteBufCodecs.list(MOST_STORED_SHOWN)), Mouth::swallowed,
+                // decision hole-shows-every-kind-stored
+                Stored.STREAM_CODEC.apply(ByteBufCodecs.list()), Mouth::stored,
+                Swallowed.STREAM_CODEC.apply(ByteBufCodecs.list(MOST_SWALLOWS_TOLD)), Mouth::swallowed,
                 Mouth::new);
     }
 
