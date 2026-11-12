@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:heal_empties_a_nearly_full_petrify_gauge",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 160,
+  "setup_ticks": 0,
+  "required": true
+}

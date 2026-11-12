@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.petrify;
 
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -43,5 +44,32 @@ class PetrificationTest {
         Petrification nearly = Petrification.NONE.fill(Petrification.DRAIN_PER_TICK / 2, NOW);
         assertSame(Petrification.NONE, nearly.drained(NOW + Petrification.DRAIN_DELAY_TICKS + 1));
         assertFalse(Petrification.NONE.started());
+    }
+
+    /**
+     * Heal's stream lowers a gauge by its amount and the gauge keeps the time
+     * the fog last filled it (decision heal-stream-drains-the-petrify-gauge).
+     */
+    @Nested
+    class DrainedBy {
+
+        @Test
+        void lowersTheGaugeByTheAmount() {
+            Petrification filled = Petrification.NONE.fill(50f, NOW);
+            assertEquals(42f, filled.drainedBy(8f).gauge(), DELTA);
+        }
+
+        @Test
+        void keepsTheTimeTheFogLastFilledIt() {
+            Petrification filled = Petrification.NONE.fill(50f, NOW);
+            assertEquals(NOW, filled.drainedBy(8f).lastFill());
+        }
+
+        @Test
+        void aGaugeDrainedPastEmptyIsNone() {
+            Petrification filled = Petrification.NONE.fill(5f, NOW);
+            assertSame(Petrification.NONE, filled.drainedBy(5f));
+            assertSame(Petrification.NONE, filled.drainedBy(8f));
+        }
     }
 }
