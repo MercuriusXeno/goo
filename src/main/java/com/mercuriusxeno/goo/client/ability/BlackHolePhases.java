@@ -17,7 +17,7 @@ import java.util.OptionalDouble;
  * {@code expand}, holds through {@code hold} and eases back to nothing
  * through {@code contract}, while the accretion disk sweeps out on a
  * curve of its own, the body pulsing steadily through all three. The phase names are the ones
- * {@code void_black_hole.json} declares.
+ * {@code void_dark_star.json} declares.
  */
 public final class BlackHolePhases {
 
