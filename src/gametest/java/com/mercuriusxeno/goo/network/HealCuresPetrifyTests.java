@@ -6,39 +6,57 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.petrify.Petrification;
 import com.mercuriusxeno.goo.ability.petrify.PetrifyEvents;
 import com.mercuriusxeno.goo.ability.petrify.Statues;
+import com.mercuriusxeno.goo.block.statue.StatueBlockEntity;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooAttachments;
+import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.animal.wolf.Wolf;
 import net.minecraft.world.entity.monster.zombie.Zombie;
+import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.entity.npc.villager.VillagerProfession;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
  * Gametests for jelly Heal on petrification: a held stream drains a penned
  * zombie's petrify gauge faster than the fog's own drain, and empties a
  * nearly full one, taking its slow with it
- * (decision heal-stream-drains-the-petrify-gauge).
+ * (decision heal-stream-drains-the-petrify-gauge); its first touch wakes a
+ * statue into its mob, nearly stone, which the held stream then drains
+ * (decision heal-wakes-a-statue-at-a-nearly-full-gauge); and the mob it wakes
+ * is the mob the statue was, name, gear, owner and trades, or a fresh one of
+ * its type for a statue saved before statues kept the mob
+ * (decision statue-keeps-the-whole-mob).
  */
 @RegistersGameTests
 public final class HealCuresPetrifyTests {
@@ -46,6 +64,9 @@ public final class HealCuresPetrifyTests {
     private static final String HEAL_EMPTIES_NEARLY_FULL = "heal_empties_a_nearly_full_petrify_gauge";
     private static final String HEAL_WAKES_STATUE = "heal_wakes_a_statue_into_its_mob";
     private static final String HEAL_DRAINS_WOKEN_STONE = "heal_drains_the_stone_off_a_woken_mob";
+    private static final String HEAL_RETURNS_NAMED_ARMED = "heal_returns_the_named_armed_zombie";
+    private static final String HEAL_RETURNS_OWNER_AND_TRADES = "heal_returns_the_owned_wolf_and_the_trading_villager";
+    private static final String HEAL_WAKES_OLD_STATUE = "heal_wakes_an_old_statue_as_a_fresh_mob";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -57,6 +78,10 @@ public final class HealCuresPetrifyTests {
         GooTestFunctions.registerTest(registrar, HEAL_EMPTIES_NEARLY_FULL, HealCuresPetrifyTests::healEmptiesANearlyFullGauge);
         GooTestFunctions.registerTest(registrar, HEAL_WAKES_STATUE, HealCuresPetrifyTests::healWakesAStatueIntoItsMob);
         GooTestFunctions.registerTest(registrar, HEAL_DRAINS_WOKEN_STONE, HealCuresPetrifyTests::healDrainsTheStoneOffAWokenMob);
+        GooTestFunctions.registerTest(registrar, HEAL_RETURNS_NAMED_ARMED, HealCuresPetrifyTests::healReturnsTheNamedArmedZombie);
+        GooTestFunctions.registerTest(registrar, HEAL_RETURNS_OWNER_AND_TRADES,
+                HealCuresPetrifyTests::healReturnsTheOwnedWolfAndTheTradingVillager);
+        GooTestFunctions.registerTest(registrar, HEAL_WAKES_OLD_STATUE, HealCuresPetrifyTests::healWakesAnOldStatueAsAFreshMob);
     }
 
     private static final BlockPos STAND_POS = new BlockPos(0, 1, 2);
@@ -95,7 +120,7 @@ public final class HealCuresPetrifyTests {
     private static final int WAKE_TICK = 2;
     /** Held ticks after the wake, inside the 200 the fog's own drain takes over a full gauge. */
     private static final int DRAIN_AFTER_WAKE_TICKS = 100;
-    private static final String SHOULD_WAKE_ONE = "Heal should wake the statue into one zombie in its cell, found %d";
+    private static final String SHOULD_WAKE_ONE = "Heal should wake the statue into one %s in its cell, found %d";
     private static final String SHOULD_FACE = "The woken zombie should face the statue's yaw %s, faces %s";
     private static final String SHOULD_BE_BABY = "The woken zombie should be a baby as its statue was";
     private static final String SHOULD_BE_ALONE =
@@ -106,7 +131,129 @@ public final class HealCuresPetrifyTests {
     private static final String SHOULD_DRAIN_WOKEN =
             "Heal held on the woken zombie should empty its gauge within %d ticks, it reads %s";
 
+    /** One cell north of the target, still inside Heal's cone, for a second statue beside the first. */
+    private static final BlockPos BESIDE_TARGET_POS = TARGET_POS.north();
+    private static final String ZOMBIE_NAME = "Gerald";
+    private static final String SHOULD_KEEP_UUID = "The woken zombie should keep the UUID %s, holds %s";
+    private static final String SHOULD_KEEP_NAME = "The woken zombie should keep the name %s, holds %s";
+    private static final String SHOULD_KEEP_HELD = "The woken zombie should hold the %s it held, holds %s";
+    private static final String SHOULD_KEEP_OWNER = "The woken wolf should be owned by %s, is owned by %s";
+    private static final String SHOULD_KEEP_TRADES = "The woken villager should offer %s, offers %s";
+    private static final String SHOULD_OFFER_BEFORE = "The librarian should offer trades before it is petrified";
+    private static final String TAG_ENTITY = "entity";
+    private static final String TAG_YAW = "yaw";
+    private static final String TAG_BABY = "baby";
+    private static final String TAG_EXPERIENCE = "experience";
+    private static final int OLD_STATUE_EXPERIENCE = 5;
+    private static final String SHOULD_HOLD_STATUE = "The placed statue block should hold a statue block entity";
+
     private HealCuresPetrifyTests() {
+    }
+
+    /**
+     * A zombie named and armed with a sword becomes a statue, and Heal's
+     * stream wakes it: the zombie standing in the cell holds the UUID, the
+     * name and the sword it held before.
+     *
+     * @param helper the gametest helper
+     */
+    public static void healReturnsTheNamedArmedZombie(GameTestHelper helper) {
+        Mob zombie = standingZombie(helper, TARGET_POS);
+        zombie.setCustomName(Component.literal(ZOMBIE_NAME));
+        zombie.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.IRON_SWORD));
+        UUID uuid = zombie.getUUID();
+        Component name = zombie.getCustomName();
+        ItemStack held = zombie.getMainHandItem().copy();
+        ServerPlayer player = healer(helper);
+        helper.runAfterDelay(ENCASE_TICK, () -> Statues.encase(helper.getLevel(), zombie, null));
+        helper.runAfterDelay(WAKE_TICK, () -> {
+            GooStreamHandler.streamTick(player, healTick(player));
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            Zombie woken = wokenIn(helper, Zombie.class, TARGET_POS);
+            helper.assertTrue(uuid.equals(woken.getUUID()), String.format(SHOULD_KEEP_UUID, uuid, woken.getUUID()));
+            helper.assertTrue(Objects.equals(name, woken.getCustomName()),
+                    String.format(SHOULD_KEEP_NAME, name, woken.getCustomName()));
+            helper.assertTrue(ItemStack.matches(held, woken.getMainHandItem()),
+                    String.format(SHOULD_KEEP_HELD, held, woken.getMainHandItem()));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A wolf tamed to the player and a librarian with its trades become
+     * statues side by side, and Heal's stream wakes both: the wolf is owned
+     * by the player it was, and the villager offers the trades it offered.
+     *
+     * @param helper the gametest helper
+     */
+    public static void healReturnsTheOwnedWolfAndTheTradingVillager(GameTestHelper helper) {
+        ServerPlayer player = healer(helper);
+        helper.setBlock(TARGET_POS.below(), Blocks.STONE);
+        Wolf wolf = helper.spawnWithNoFreeWill(EntityType.WOLF, TARGET_POS);
+        wolf.tame(player);
+        helper.setBlock(BESIDE_TARGET_POS.below(), Blocks.STONE);
+        Villager villager = helper.spawnWithNoFreeWill(EntityType.VILLAGER, BESIDE_TARGET_POS);
+        villager.setVillagerData(villager.getVillagerData()
+                .withProfession(helper.getLevel().registryAccess(), VillagerProfession.LIBRARIAN));
+        List<String> offers = offersOf(villager);
+        helper.assertFalse(offers.isEmpty(), SHOULD_OFFER_BEFORE);
+        UUID owner = player.getUUID();
+        helper.runAfterDelay(ENCASE_TICK, () -> {
+            Statues.encase(helper.getLevel(), wolf, null);
+            Statues.encase(helper.getLevel(), villager, null);
+        });
+        helper.runAfterDelay(WAKE_TICK, () -> {
+            GooStreamHandler.streamTick(player, healTick(player));
+            Wolf wokenWolf = wokenIn(helper, Wolf.class, TARGET_POS);
+            Villager wokenVillager = wokenIn(helper, Villager.class, BESIDE_TARGET_POS);
+            UUID wokenOwner = wokenWolf.getOwnerReference() == null ? null : wokenWolf.getOwnerReference().getUUID();
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(owner.equals(wokenOwner), String.format(SHOULD_KEEP_OWNER, owner, wokenOwner));
+            List<String> wokenOffers = offersOf(wokenVillager);
+            helper.assertTrue(offers.equals(wokenOffers), String.format(SHOULD_KEEP_TRADES, offers, wokenOffers));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A statue block whose save holds the mob's type, yaw, baby flag and
+     * experience and no saved mob, as statues saved before statues kept the
+     * mob do, wakes under Heal's stream as a living zombie in its cell.
+     *
+     * @param helper the gametest helper
+     */
+    public static void healWakesAnOldStatueAsAFreshMob(GameTestHelper helper) {
+        helper.setBlock(TARGET_POS, GooBlocks.STATUE.get());
+        BlockEntity placed = helper.getBlockEntity(TARGET_POS, BlockEntity.class);
+        helper.assertTrue(placed instanceof StatueBlockEntity, SHOULD_HOLD_STATUE);
+        CompoundTag old = new CompoundTag();
+        old.putString(TAG_ENTITY, BuiltInRegistries.ENTITY_TYPE.getKey(EntityType.ZOMBIE).toString());
+        old.putFloat(TAG_YAW, STATUE_YAW);
+        old.putBoolean(TAG_BABY, false);
+        old.putInt(TAG_EXPERIENCE, OLD_STATUE_EXPERIENCE);
+        placed.loadCustomOnly(TagValueInput.create(ProblemReporter.DISCARDING, helper.getLevel().registryAccess(), old));
+        ServerPlayer player = healer(helper);
+        helper.runAfterDelay(WAKE_TICK, () -> {
+            GooStreamHandler.streamTick(player, healTick(player));
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            wokenIn(helper, Zombie.class, TARGET_POS);
+            helper.assertBlockPresent(Blocks.AIR, TARGET_POS);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A villager's offers, each read as what it costs and what it gives, so
+     * two villagers' offers compare.
+     *
+     * @param villager the villager
+     * @return one line per offer
+     */
+    private static List<String> offersOf(Villager villager) {
+        return villager.getOffers().stream()
+                .map(offer -> offer.getCostA() + " + " + offer.getCostB() + " -> " + offer.getResult()
+                        + " " + offer.getResult().getComponentsPatch())
+                .toList();
     }
 
     /**
@@ -126,7 +273,7 @@ public final class HealCuresPetrifyTests {
         helper.runAfterDelay(WAKE_TICK, () -> {
             GooStreamHandler.streamTick(player, healTick(player));
             helper.getLevel().getServer().getPlayerList().remove(player);
-            Mob woken = wokenZombie(helper);
+            Mob woken = wokenIn(helper, Zombie.class, TARGET_POS);
             helper.assertTrue(Math.abs(woken.yBodyRot - STATUE_YAW) < YAW_TOLERANCE,
                     String.format(SHOULD_FACE, STATUE_YAW, woken.yBodyRot));
             helper.assertTrue(woken.isBaby(), SHOULD_BE_BABY);
@@ -151,7 +298,7 @@ public final class HealCuresPetrifyTests {
         Mob[] woken = new Mob[1];
         helper.runAfterDelay(WAKE_TICK, () -> {
             GooStreamHandler.streamTick(player, healTick(player));
-            woken[0] = wokenZombie(helper);
+            woken[0] = wokenIn(helper, Zombie.class, TARGET_POS);
             Petrification waking = woken[0].getData(GooAttachments.PETRIFICATION);
             helper.assertTrue(waking.started() && !waking.full(), String.format(SHOULD_WAKE_NEARLY_FULL, waking));
             helper.assertTrue(woken[0].getAttribute(Attributes.MOVEMENT_SPEED).getModifier(SLOW_ID) != null,
@@ -168,16 +315,18 @@ public final class HealCuresPetrifyTests {
     }
 
     /**
-     * The one zombie standing in the target cell, failing the test where the
-     * cell holds none or several.
+     * The one living mob of a kind standing in a cell, failing the test where
+     * the cell holds none or several.
      *
      * @param helper the gametest helper
-     * @return the zombie
+     * @param kind   the mob's class
+     * @param pos    the cell
+     * @param <T>    the mob's class
+     * @return the mob
      */
-    private static Mob wokenZombie(GameTestHelper helper) {
-        List<Zombie> inCell = helper.getLevel().getEntitiesOfClass(Zombie.class,
-                new AABB(helper.absolutePos(TARGET_POS)), Zombie::isAlive);
-        helper.assertTrue(inCell.size() == 1, String.format(SHOULD_WAKE_ONE, inCell.size()));
+    private static <T extends Mob> T wokenIn(GameTestHelper helper, Class<T> kind, BlockPos pos) {
+        List<T> inCell = helper.getLevel().getEntitiesOfClass(kind, new AABB(helper.absolutePos(pos)), Mob::isAlive);
+        helper.assertTrue(inCell.size() == 1, String.format(SHOULD_WAKE_ONE, kind.getSimpleName(), inCell.size()));
         return inCell.getFirst();
     }
 
