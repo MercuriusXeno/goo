@@ -15,7 +15,10 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -32,6 +35,7 @@ import java.util.function.Consumer;
  * of goop and slick cells running east from the player.
  * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
  * vacuum-costs-one-mb-of-void-a-second
+ * vacuum-pulls-items-to-pickup-and-drags-mobs
  */
 @RegistersGameTests
 public final class VacuumTests {
@@ -69,6 +73,34 @@ public final class VacuumTests {
     private static final String TOO_SLOW = "The lane's far cell should break within %d ticks of the nearest, %s";
     private static final String NEVER_BROKE = "Every lane cell should turn to air within the hold, %s";
     private static final String NOT_STANDING = "%s should still stand after the hold, holds %s";
+    private static final String PULLS_ITEMS = "vacuum_pulls_items_into_the_inventory";
+    private static final String DRAGS_A_MOB = "vacuum_drags_a_mob_to_a_block_in_front";
+    private static final String LEAVES_PLAYERS_AND_MOBS_BEHIND = "vacuum_leaves_players_and_mobs_behind_unmoved";
+    /** The goop cell the item pull's lane holds, its weird goo pulled in once it breaks. */
+    private static final int GOOP_TO_PULL = 3;
+    /** The stick inside the cone. */
+    private static final int ITEM_INSIDE = 5;
+    /** Where the dragged husk stands, and the bystanding player, inside the cone. */
+    private static final int MOB_INSIDE = 5;
+    /** A hold long enough for the goop to break and its goo and the stick to fly in. */
+    private static final int PULL_HOLD = 30;
+    /** A hold long enough to drag the husk to the stop and leave it standing there a while. */
+    private static final int DRAG_HOLD = 40;
+    /** The ticks the dragged husk must close on the player, each nearer than the last. */
+    private static final int CLOSING_TICKS = 8;
+    /** void_vacuum.json's vacuum_pull stop distance: about a block in front of the player. */
+    private static final double STOP_DISTANCE = 1.5;
+    /** How far past the stop a settled husk may stand, one tick's drag and its friction. */
+    private static final double SETTLE_SLACK = 0.3;
+    /** A thing that moved less than this stood still. */
+    private static final double STILL = 0.05;
+    private static final String NOT_PICKED_UP = "The stick in the cone should land in the inventory, %d did, item %s";
+    private static final String GOO_NOT_PICKED_UP = "The vacuumed goop's %d mb of weird goo should land in the"
+            + " inventory, %d did";
+    private static final String MOVED = "%s should not move, was at %s, is at %s";
+    private static final String NOT_CLOSING = "The husk should close on the player each tick, distances %s";
+    private static final String NOT_SETTLED = "The husk should settle about %.1f blocks from the player, settled %.2f";
+    private static final String HURT = "The dragged husk should take no damage, had %.1f, has %.1f";
 
     private VacuumTests() {
     }
@@ -83,6 +115,10 @@ public final class VacuumTests {
         GooTestFunctions.registerTest(registrar, RETURNS_THE_GOO, VacuumTests::vacuumBreaksResidualsAndReturnsTheirGoo);
         GooTestFunctions.registerTest(registrar, BREAKS_IN_A_WAVE, VacuumTests::vacuumBreaksResidualsNearestFirst);
         GooTestFunctions.registerTest(registrar, LEAVES_THE_REST, VacuumTests::vacuumLeavesWhatIsOutsideItsReach);
+        GooTestFunctions.registerTest(registrar, PULLS_ITEMS, VacuumTests::vacuumPullsItemsIntoTheInventory);
+        GooTestFunctions.registerTest(registrar, DRAGS_A_MOB, VacuumTests::vacuumDragsAMobToABlockInFront);
+        GooTestFunctions.registerTest(registrar, LEAVES_PLAYERS_AND_MOBS_BEHIND,
+                VacuumTests::vacuumLeavesPlayersAndMobsBehindUnmoved);
     }
 
     private static Map<Integer, Integer> laneOfResiduals() {
@@ -128,17 +164,18 @@ public final class VacuumTests {
     public static void vacuumBreaksResidualsAndReturnsTheirGoo(GameTestHelper helper) {
         layTheLane(helper);
         ServerPlayer vacuumer = vacuumer(helper);
-        holdVacuum(helper, vacuumer, WAVE_HOLD, held -> { });
+        // the player ticks as its connection would, so the pull's goo lands in the inventory rather than flying on past
+        holdVacuum(helper, vacuumer, WAVE_HOLD, held -> vacuumer.doTick());
         helper.runAfterDelay(WAVE_HOLD + 1, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(vacuumer);
             for (int east : LANE.keySet()) {
                 BlockState left = helper.getBlockState(laneCell(east));
                 helper.assertTrue(left.isAir(), String.format(NOT_CLEARED, east, left));
             }
             int layers = LANE.values().stream().mapToInt(Integer::intValue).sum();
             long films = LANE.values().stream().filter(held -> held == SLICK).count();
-            assertDropped(helper, GooTypes.WEIRD, layers * SlimeCoatBlock.MB_PER_LAYER);
-            assertDropped(helper, GooTypes.KINETIC, (int) films * KineticSlickBlock.MB_PER_FILM);
+            assertDropped(helper, vacuumer, GooTypes.WEIRD, layers * SlimeCoatBlock.MB_PER_LAYER);
+            assertDropped(helper, vacuumer, GooTypes.KINETIC, (int) films * KineticSlickBlock.MB_PER_FILM);
+            helper.getLevel().getServer().getPlayerList().remove(vacuumer);
             helper.succeed();
         });
     }
@@ -207,7 +244,24 @@ public final class VacuumTests {
      * @param helper the gametest helper
      */
     private static void layTheLane(GameTestHelper helper) {
-        for (int east = BEHIND - 1; east <= PAST_THE_REACH + 1; east++) {
+        layTheFloor(helper);
+        helper.setBlock(laneCell(BEHIND - 1), Blocks.STONE);
+        helper.setBlock(laneCell(BEHIND + 1), Blocks.STONE);
+        helper.setBlock(laneCell(PAST_THE_REACH + 1), Blocks.STONE);
+        LANE.forEach((east, held) -> helper.setBlock(laneCell(east), held == SLICK
+                ? GooBlocks.KINETIC_SLICK.get().defaultBlockState() : slimeOf(held)));
+        helper.setBlock(laneCell(PAST_THE_REACH), GooBlocks.KINETIC_SLICK.get());
+        helper.setBlock(laneCell(BEHIND), slimeOf(1));
+    }
+
+    /**
+     * Lays the lane's bedrock floor east and west of the player, open above
+     * and walled in stone on both sides.
+     *
+     * @param helper the gametest helper
+     */
+    private static void layTheFloor(GameTestHelper helper) {
+        for (int east = BEHIND - 2; east <= PAST_THE_REACH + 1; east++) {
             BlockPos cell = laneCell(east);
             helper.setBlock(cell.below(), Blocks.BEDROCK);
             for (int up = 0; up <= 2; up++) {
@@ -216,13 +270,110 @@ public final class VacuumTests {
             helper.setBlock(cell.north(), Blocks.STONE);
             helper.setBlock(cell.south(), Blocks.STONE);
         }
-        helper.setBlock(laneCell(BEHIND - 1), Blocks.STONE);
-        helper.setBlock(laneCell(BEHIND + 1), Blocks.STONE);
-        helper.setBlock(laneCell(PAST_THE_REACH + 1), Blocks.STONE);
-        LANE.forEach((east, held) -> helper.setBlock(laneCell(east), held == SLICK
-                ? GooBlocks.KINETIC_SLICK.get().defaultBlockState() : slimeOf(held)));
-        helper.setBlock(laneCell(PAST_THE_REACH), GooBlocks.KINETIC_SLICK.get());
-        helper.setBlock(laneCell(BEHIND), slimeOf(1));
+    }
+
+    /**
+     * Vacuum held over a lane holding a stick, a one layer goop cell and a
+     * second stick behind the player pulls the stick and the goop's weird goo
+     * into the player's inventory, the player ticking as its connection would,
+     * and leaves the stick behind lying where it lay.
+     * vacuum-pulls-items-to-pickup-and-drags-mobs
+     *
+     * @param helper the gametest helper
+     */
+    public static void vacuumPullsItemsIntoTheInventory(GameTestHelper helper) {
+        layTheFloor(helper);
+        helper.setBlock(laneCell(GOOP_TO_PULL), slimeOf(1));
+        ItemEntity inside = lieAt(helper, ITEM_INSIDE);
+        ItemEntity behind = lieAt(helper, BEHIND);
+        ServerPlayer vacuumer = vacuumer(helper);
+        Vec3 behindAt = behind.position();
+        holdVacuum(helper, vacuumer, PULL_HOLD, held -> vacuumer.doTick());
+        helper.runAfterDelay(PULL_HOLD + 1, () -> {
+            int sticks = vacuumer.getInventory().countItem(Items.STICK);
+            int weird = GooSourceScanner.aggregateAvailable(vacuumer).getOrDefault(GooTypes.WEIRD, 0);
+            helper.getLevel().getServer().getPlayerList().remove(vacuumer);
+            helper.assertTrue(sticks == 1, String.format(NOT_PICKED_UP, sticks, inside.isAlive()
+                    ? inside.position() : "gone"));
+            helper.assertTrue(weird == SlimeCoatBlock.MB_PER_LAYER,
+                    String.format(GOO_NOT_PICKED_UP, SlimeCoatBlock.MB_PER_LAYER, weird));
+            helper.assertTrue(behind.isAlive() && behind.position().distanceTo(behindAt) < STILL,
+                    String.format(MOVED, "The stick behind the player", behindAt, behind.position()));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Vacuum held at a husk standing in its cone drags it toward the player:
+     * its distance falls tick over tick, it settles no nearer than the stop
+     * distance, and its health stays whole.
+     * vacuum-pulls-items-to-pickup-and-drags-mobs
+     *
+     * @param helper the gametest helper
+     */
+    public static void vacuumDragsAMobToABlockInFront(GameTestHelper helper) {
+        layTheFloor(helper);
+        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, laneCell(MOB_INSIDE));
+        float health = husk.getHealth();
+        ServerPlayer vacuumer = vacuumer(helper);
+        List<Double> distances = new ArrayList<>();
+        holdVacuum(helper, vacuumer, DRAG_HOLD, held -> distances.add(levelDistance(husk, vacuumer)));
+        helper.runAfterDelay(DRAG_HOLD + 1, () -> {
+            double settled = levelDistance(husk, vacuumer);
+            helper.getLevel().getServer().getPlayerList().remove(vacuumer);
+            for (int i = 1; i <= CLOSING_TICKS; i++) {
+                helper.assertTrue(distances.get(i) < distances.get(i - 1), String.format(NOT_CLOSING, distances));
+            }
+            helper.assertTrue(settled >= STOP_DISTANCE - STILL && settled <= STOP_DISTANCE + SETTLE_SLACK,
+                    String.format(NOT_SETTLED, STOP_DISTANCE, settled));
+            helper.assertTrue(husk.getHealth() == health, String.format(HURT, health, husk.getHealth()));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Vacuum held with a second player standing inside its cone and a husk
+     * behind the caster moves neither, nor gives either any motion.
+     * vacuum-pulls-items-to-pickup-and-drags-mobs
+     *
+     * @param helper the gametest helper
+     */
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    public static void vacuumLeavesPlayersAndMobsBehindUnmoved(GameTestHelper helper) {
+        layTheFloor(helper);
+        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, laneCell(BEHIND));
+        ServerPlayer bystander = helper.makeMockServerPlayerInLevel();
+        Vec3 inCone = Vec3.atBottomCenterOf(helper.absolutePos(laneCell(MOB_INSIDE)));
+        bystander.setPos(inCone.x, inCone.y, inCone.z);
+        ServerPlayer vacuumer = vacuumer(helper);
+        Vec3 huskAt = husk.position();
+        holdVacuum(helper, vacuumer, DRAG_HOLD, held -> { });
+        helper.runAfterDelay(DRAG_HOLD + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(vacuumer);
+            helper.getLevel().getServer().getPlayerList().remove(bystander);
+            helper.assertTrue(level(husk.position()).distanceTo(level(huskAt)) < STILL,
+                    String.format(MOVED, "The husk behind the caster", huskAt, husk.position()));
+            helper.assertTrue(bystander.position().distanceTo(inCone) < STILL
+                            && level(bystander.getDeltaMovement()).length() < STILL,
+                    String.format(MOVED, "The player in the cone", inCone, bystander.position()));
+            helper.succeed();
+        });
+    }
+
+    private static ItemEntity lieAt(GameTestHelper helper, int east) {
+        Vec3 at = Vec3.atBottomCenterOf(helper.absolutePos(laneCell(east)));
+        ItemEntity item = new ItemEntity(helper.getLevel(), at.x, at.y, at.z, new ItemStack(Items.STICK));
+        item.setDeltaMovement(Vec3.ZERO);
+        helper.getLevel().addFreshEntity(item);
+        return item;
+    }
+
+    private static double levelDistance(Mob mob, ServerPlayer player) {
+        return level(mob.position()).distanceTo(level(player.position()));
+    }
+
+    private static Vec3 level(Vec3 point) {
+        return new Vec3(point.x, 0, point.z);
     }
 
     private static BlockPos laneCell(int east) {
@@ -272,12 +423,19 @@ public final class VacuumTests {
         return GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.VOID, 0);
     }
 
-    private static void assertDropped(GameTestHelper helper, ResourceKey<GooTypeDefinition> type, int owed) {
+    /**
+     * Asserts the goo of a type standing as item entities and in the player's
+     * inventory, where the pull lands what it reaches, totals what is owed.
+     */
+    private static void assertDropped(GameTestHelper helper, ServerPlayer player, ResourceKey<GooTypeDefinition> type,
+                                      int owed) {
         List<ItemEntity> drops = helper.getEntities(EntityType.ITEM);
         int dropped = drops.stream().map(ItemEntity::getItem).filter(stack -> type.equals(GooStacks.keyOf(stack)))
-                .mapToInt(GooStacks::volumeOf).sum();
+                .mapToInt(GooStacks::volumeOf).sum() + GooSourceScanner.aggregateAvailable(player).getOrDefault(type, 0);
         helper.assertTrue(dropped == owed,
-                String.format(GOO_OWED, owed, type.identifier().getPath(), dropped, drops));
+                String.format(GOO_OWED, owed, type.identifier().getPath(), dropped, drops.stream()
+                        .map(drop -> GooStacks.volumeOf(drop.getItem())).toList()
+                        + " lying, inventory " + GooSourceScanner.aggregateAvailable(player)));
     }
 
     private static void assertStands(GameTestHelper helper, BlockPos cell, Block stood) {
