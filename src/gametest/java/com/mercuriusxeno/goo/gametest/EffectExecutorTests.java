@@ -185,7 +185,7 @@ public final class EffectExecutorTests {
     /** Blocks a walking player covers in a tick, near vanilla's walking speed. */
     private static final double WALK_STEP = 0.2;
     private static final String CLOUD_HIT_STANDING = "The crystal cloud hurt the standing pig";
-    private static final String ABILITY_BLACK_HOLE = "goo:void_black_hole";
+    private static final String ABILITY_BLACK_HOLE = "goo:void_dark_star";
     /** The size a black hole is dragged to, the radius its JSON cost buys. */
     private static final double HOLE_SIZE = 3;
     /** Blocks south of the marker the caster stands, past the hole's pull of three times its size. */
@@ -1125,7 +1125,7 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * A void_black_hole blob's hole is gathering, its first phase, the
+     * A void_dark_star blob's hole is gathering, its first phase, the
      * tick after it lands.
      *
      * @param helper the gametest helper

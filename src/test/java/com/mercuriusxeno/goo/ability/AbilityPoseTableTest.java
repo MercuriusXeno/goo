@@ -97,7 +97,7 @@ class AbilityPoseTableTest {
             Map.entry("void_erase", ArmPose.SWUNG),
             Map.entry("void_outsider", ArmPose.HELD_OUT),
             Map.entry("void_hole", ArmPose.SWUNG),
-            Map.entry("void_black_hole", ArmPose.SWUNG),
+            Map.entry("void_dark_star", ArmPose.SWUNG),
             Map.entry("void_vacuum", ArmPose.HELD_OUT),
             Map.entry("weird_goop", ArmPose.HELD_OUT),
             Map.entry("weird_mitosis", ArmPose.SWUNG),
