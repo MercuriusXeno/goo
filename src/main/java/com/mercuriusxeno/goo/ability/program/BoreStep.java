@@ -19,8 +19,8 @@ import java.util.stream.Stream;
  * Rock bore's step, run each held tick of the stream: it drills the blocks
  * the eye line crosses out to the stream's reach, whatever the stream's
  * cone, and every block its vortex crosses besides, the vortex a cone along
- * the eye line from the eye to the reach, widening from the JSON's near
- * radius to its far radius, never wider than a block
+ * the eye line from the eye to the reach, from the JSON's wide near radius
+ * to its narrower far radius, never wider than a block
  * ({@link BorePick}). Every breakable block picked progresses toward broken
  * each tick through the hold's gradual break, the nearest at the pace its
  * JSON names and each one farther out slower, so the tunnel breaks nearest

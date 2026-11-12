@@ -54,8 +54,8 @@ class GroundShakeTest {
     private static final double BORE_RANGE = 8;
     private static final double BORE_CONE_DEGREES = 15;
     /** rock_bore.json's vortex radii at its near and far ends. */
-    private static final double VORTEX_NEAR = 0.1;
-    private static final double VORTEX_FAR = 0.45;
+    private static final double VORTEX_NEAR = 0.45;
+    private static final double VORTEX_FAR = 0.3;
     private static final BreakPace PACE = new BreakPace(5, 1.5);
     /** The jitter's amplitude before this change, read from GroundShake.AMPLITUDE at 128a57da7. */
     private static final double PREVIOUS_AMPLITUDE = 0.04;
