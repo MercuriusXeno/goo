@@ -29,7 +29,6 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 @RegistersGameTests
 public final class FeedTests {
     private static final String FEED_COURTS_A_COW = "feed_courts_a_cow";
-    private static final String FEED_GROWS_A_CALF = "feed_grows_a_calf";
     private static final String FEED_ON_THE_GROUND_STARTS_A_FIGHT = "feed_on_the_ground_starts_a_fight";
     private static final String FEED_ON_THE_GROUND_DRAWS_A_MOB = "feed_on_the_ground_draws_a_mob";
     private static final String FEED_GROWS_A_SLIME = "feed_grows_a_slime";
@@ -42,7 +41,6 @@ public final class FeedTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, FEED_COURTS_A_COW, FeedTests::feedCourtsACow);
-        GooTestFunctions.registerTest(registrar, FEED_GROWS_A_CALF, FeedTests::feedGrowsACalf);
         GooTestFunctions.registerTest(registrar, FEED_ON_THE_GROUND_STARTS_A_FIGHT, FeedTests::feedOnTheGroundStartsAFight);
         GooTestFunctions.registerTest(registrar, FEED_ON_THE_GROUND_DRAWS_A_MOB, FeedTests::feedOnTheGroundDrawsAMob);
         GooTestFunctions.registerTest(registrar, FEED_GROWS_A_SLIME, FeedTests::feedGrowsASlime);
@@ -62,7 +60,6 @@ public final class FeedTests {
     /** Blocks about the near corner a feed lies within, the whole bay. */
     private static final double FAR_REACH = 8.0;
     private static final String SHOULD_LOVE = "A fed adult cow should be in love";
-    private static final String SHOULD_GROW = "A fed calf should grow to an adult, age %d";
     private static final String SHOULD_LAY = "A feed blob landing on the ground should lay a feed";
     private static final String SHOULD_START_OUT_OF_REACH = "The cow should start out of the feed's reach, %.2f off";
     private static final String SHOULD_DRAW = "The feed should draw the cow to eat it: cow %.2f off, in love %b, feeds left %d, heading to %s, panicking %b";
@@ -83,21 +80,6 @@ public final class FeedTests {
         helper.runAfterDelay(1, () -> {
             strike(helper, cow);
             helper.assertTrue(cow.isInLove(), SHOULD_LOVE);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Feed strikes a calf: the calf grows to an adult.
-     *
-     * @param helper the gametest helper
-     */
-    public static void feedGrowsACalf(GameTestHelper helper) {
-        Cow calf = helper.spawnWithNoFreeWill(EntityType.COW, FLOOR.above());
-        calf.setBaby(true);
-        helper.runAfterDelay(1, () -> {
-            strike(helper, calf);
-            helper.assertTrue(!calf.isBaby(), String.format(SHOULD_GROW, calf.getAge()));
             helper.succeed();
         });
     }

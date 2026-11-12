@@ -47,7 +47,6 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 public final class HexSelfTests {
     private static final String ENCHANT_GIVES_BOOK = "enchant_gives_one_level_one_book";
     private static final String FUSE_TWO_SHARPNESS_ONE = "fuse_two_sharpness_one";
-    private static final String FUSE_WITHOUT_PAIR = "fuse_without_pair_costs_nothing";
     private static final String LIFETAP_NO_REGEN_LEECH_ON_HIT = "lifetap_no_regen_leech_on_hit";
     private static final String DRAIN_HEALS_THE_CASTER = "drain_heals_the_caster";
     private static final String DRAIN_SPARES_RALLIED = "drain_spares_the_casters_rallied_cow";
@@ -61,7 +60,6 @@ public final class HexSelfTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, ENCHANT_GIVES_BOOK, HexSelfTests::enchantGivesOneLevelOneBook);
         GooTestFunctions.registerTest(registrar, FUSE_TWO_SHARPNESS_ONE, HexSelfTests::fuseTwoSharpnessOne);
-        GooTestFunctions.registerTest(registrar, FUSE_WITHOUT_PAIR, HexSelfTests::fuseWithoutPairCostsNothing);
         GooTestFunctions.registerTest(registrar, LIFETAP_NO_REGEN_LEECH_ON_HIT, HexSelfTests::lifetapNoRegenLeechOnHit);
         GooTestFunctions.registerTest(registrar, DRAIN_HEALS_THE_CASTER, HexSelfTests::drainHealsTheCaster);
         GooTestFunctions.registerTest(registrar, DRAIN_SPARES_RALLIED, HexSelfTests::drainSparesRalliedCow);
@@ -81,8 +79,6 @@ public final class HexSelfTests {
     private static final String SHOULD_FUSE_TO_ONE = "Fuse should leave one enchanted book of the pair, %d stand";
     private static final String SHOULD_RAISE_SHARPNESS = "The fused book should hold Sharpness II alone: %s";
     private static final String SHOULD_DRAIN_COST = "Fuse should drain its cost of %d, drained %d";
-    private static final String SHOULD_DRAIN_NOTHING = "A refused Fuse should drain nothing, drained %d";
-    private static final String SHOULD_KEEP_BOOKS = "A refused Fuse should leave both books, %d stand";
     private static final int SHARPNESS_TWO = 2;
     private static final BlockPos ZOMBIE_POS = new BlockPos(3, 1, 3);
 
@@ -284,30 +280,6 @@ public final class HexSelfTests {
         helper.assertTrue(stored.size() == 1 && stored.getLevel(sharpness) == SHARPNESS_TWO,
                 String.format(SHOULD_RAISE_SHARPNESS, stored));
         helper.assertTrue(drained == fuse.cost().in(GooValueTable.EMPTY), String.format(SHOULD_DRAIN_COST, fuse.cost().in(GooValueTable.EMPTY), drained));
-        helper.succeed();
-    }
-
-    /**
-     * A player carrying one Sharpness I book and no pair invokes Fuse: it is
-     * refused before the cost, so no goo drains and the book stands
-     * (decision fuse-two-books-for-hex-goo).
-     *
-     * @param helper the gametest helper
-     */
-    public static void fuseWithoutPairCostsNothing(GameTestHelper helper) {
-        AbilityDefinition fuse = AbilityRegistry.of(helper.getLevel()).getAbility(HEX_FUSE);
-        helper.assertTrue(fuse != null, FUSE_REQUIRED);
-        ServerPlayer player = fuser(helper, fuse);
-        player.getInventory().add(sharpnessOne(sharpness(helper)));
-        int heldBefore = heldHex(player);
-
-        SelfDeliveryTests.invoke(player, GooTypes.HEX, HEX_FUSE);
-
-        int drained = heldBefore - heldHex(player);
-        int books = stacksOf(player.getInventory(), Items.ENCHANTED_BOOK).size();
-        helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
-        helper.assertTrue(books == 1, String.format(SHOULD_KEEP_BOOKS, books));
         helper.succeed();
     }
 

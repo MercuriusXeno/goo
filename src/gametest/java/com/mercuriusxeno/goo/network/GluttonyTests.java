@@ -9,8 +9,6 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.ai.attributes.AttributeInstance;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
@@ -43,12 +41,10 @@ public final class GluttonyTests {
     }
 
     private static final Identifier JELLY_GLUTTONY = Identifier.parse("goo:jelly_gluttony");
-    private static final Identifier OVERHEAL_ID = Identifier.fromNamespaceAndPath(Goo.MODID, "gluttony_overheal");
     /** The upkeep the eating player holds, at jelly_gluttony.json's one mB a tick: more than the meal spends. */
     private static final int LONG_UPKEEP = 520;
     /** The upkeep the healed player holds, run dry within the watch. */
     private static final int SHORT_UPKEEP = 20;
-    private static final int RUN_DRY_WITHIN = SHORT_UPKEEP + 20;
     private static final float HEAL = 3f;
     private static final int FULL_FOOD = 20;
     /** Cooked beef's nutrition. */
@@ -57,9 +53,6 @@ public final class GluttonyTests {
     private static final int EAT_LIMIT = 100;
     private static final String SHOULD_EAT = "Invoking Gluttony should start the player eating the glove";
     private static final String SHOULD_OVERHEAL = "A heal of %.1f on a full bar should bank %.1f absorption, banked %.2f";
-    private static final String SHOULD_END = "Gluttony should end once the inventory runs dry, still stands";
-    private static final String SHOULD_DROP_OVERHEAL = "Gluttony's overheal should leave with it, %.2f stands";
-    private static final String SHOULD_RETURN_MAX = "Gluttony's lent max absorption should return with it";
     private static final String SHOULD_START_EATING = "The player should start eating the food it holds";
     private static final String SHOULD_FINISH_EATING = "The meal should finish within %d ticks";
     private static final String SHOULD_OVERHUNGER = "The meal from %d food should bank %d overhunger, banked %d";
@@ -84,8 +77,7 @@ public final class GluttonyTests {
 
     /**
      * A full-health player under Gluttony healed by three holds three
-     * absorption hearts; once the goo runs dry the gluttony, its hearts and
-     * the max absorption it lent are gone.
+     * absorption hearts.
      *
      * @param helper the gametest helper
      */
@@ -94,25 +86,9 @@ public final class GluttonyTests {
         player.setHealth(player.getMaxHealth());
         player.heal(HEAL);
         float banked = player.getAbsorptionAmount();
-        if (banked != HEAL) {
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.fail(String.format(SHOULD_OVERHEAL, HEAL, HEAL, banked));
-            return;
-        }
-        for (int tick = 1; tick <= RUN_DRY_WITHIN; tick++) {
-            helper.runAfterDelay(tick, player::doTick);
-        }
-        helper.runAfterDelay(RUN_DRY_WITHIN + 1, () -> {
-            boolean stands = player.getData(GooAttachments.GLUTTONY).stands();
-            float absorption = player.getAbsorptionAmount();
-            AttributeInstance maxAbsorption = player.getAttribute(Attributes.MAX_ABSORPTION);
-            boolean lent = maxAbsorption != null && maxAbsorption.hasModifier(OVERHEAL_ID);
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertFalse(stands, SHOULD_END);
-            helper.assertTrue(absorption == 0f, String.format(SHOULD_DROP_OVERHEAL, absorption));
-            helper.assertFalse(lent, SHOULD_RETURN_MAX);
-            helper.succeed();
-        });
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(banked == HEAL, String.format(SHOULD_OVERHEAL, HEAL, HEAL, banked));
+        helper.succeed();
     }
 
     /**

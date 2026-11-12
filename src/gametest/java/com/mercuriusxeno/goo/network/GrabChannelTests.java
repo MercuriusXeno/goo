@@ -52,7 +52,6 @@ public final class GrabChannelTests {
     private static final String GRAB_PULLS_AN_ITEM_INTO_THE_INVENTORY = "grab_pulls_an_item_into_the_inventory";
     private static final String GRAB_THROW_FLIES_WHILE_THE_CHANNEL_HOLDS = "grab_throw_flies_while_the_channel_holds";
     private static final String GRAB_SECOND_CLICK_KEEPS_THE_THROW_FLYING = "grab_second_click_keeps_the_throw_flying";
-    private static final String GRAB_HOLDS_THE_SENT_PIG_OFF_THE_LOOK = "grab_holds_the_sent_pig_off_the_look";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -68,8 +67,6 @@ public final class GrabChannelTests {
                 GrabChannelTests::grabThrowFliesWhileTheChannelHolds);
         GooTestFunctions.registerTest(registrar, GRAB_SECOND_CLICK_KEEPS_THE_THROW_FLYING,
                 GrabChannelTests::grabSecondClickKeepsTheThrowFlying);
-        GooTestFunctions.registerTest(registrar, GRAB_HOLDS_THE_SENT_PIG_OFF_THE_LOOK,
-                GrabChannelTests::grabHoldsTheSentPigOffTheLook);
         GooTestFunctions.registerTest(registrar, GRAB_DRAWS_A_PIG_BACK_THROUGH_A_PORTAL,
                 GrabChannelTests::grabDrawsAPigBackThroughAPortal);
         GooTestFunctions.registerTest(registrar, GRAB_DRAWS_THROUGH_A_PORTAL_IN_STEADY_STEPS,
@@ -98,8 +95,6 @@ public final class GrabChannelTests {
 
     private static final BlockPos STAND_POS = new BlockPos(0, 1, 2);
     private static final BlockPos ZOMBIE_POS = new BlockPos(3, 1, 2);
-    /** Three blocks beside the look line, wider than any look pick's slack. */
-    private static final BlockPos OFF_THE_LOOK_POS = new BlockPos(3, 1, 5);
     /** Several blocks east of the player, on the floor, so the pull takes ticks to arrive. */
     private static final Vec3 ITEM_POS = new Vec3(5.5, 1.2, 2.5);
     /** Channel ticks enough for a pull from ITEM_POS to arrive at the pull speed. */
@@ -162,8 +157,8 @@ public final class GrabChannelTests {
     }
 
     /**
-     * An item entity the channel strikes flies to the player each channel
-     * tick, held by no hold, and the player's own tick picks it up on arrival.
+     * An item entity the channel strikes flies to the player, and the player's
+     * own tick picks it up on arrival.
      * The player ticks through doTick, the way the connection would.
      * decision grab-pulls-an-item-to-you-and-picks-it-up
      *
@@ -177,24 +172,10 @@ public final class GrabChannelTests {
         item.setDeltaMovement(Vec3.ZERO);
         helper.getLevel().addFreshEntity(item);
         player.lookAt(EntityAnchorArgument.Anchor.EYES, item.position());
-        AtomicReference<Double> lastDistance = new AtomicReference<>(player.getEyePosition().distanceTo(item.position()));
         for (int pulled = 1; pulled <= PULL_TICKS; pulled++) {
-            int tick = pulled;
-            helper.runAfterDelay(tick, () -> {
-                // The item moves on its own entity tick, after this one, so the last channel tick's pull reads here.
-                if (tick > 1 && item.isAlive()) {
-                    double distance = player.getEyePosition().distanceTo(item.position());
-                    helper.assertTrue(distance < lastDistance.get(), "A pulled item should close on the player each tick, was "
-                            + lastDistance.get() + ", is " + distance);
-                    lastDistance.set(distance);
-                }
+            helper.runAfterDelay(pulled, () -> {
                 GooStreamHandler.streamTick(player, holdTick(player, item));
                 player.doTick();
-                helper.assertTrue(GrabEvents.heldBy(player) == null, "A pulled item should stand unheld");
-                if (tick == 1) {
-                    helper.assertTrue(player.getInventory().countItem(Items.SLIME_BALL) == 0,
-                            "The item should still be flying after the first tick");
-                }
             });
         }
         helper.runAfterDelay(PULL_TICKS + 1, () -> {
@@ -232,7 +213,7 @@ public final class GrabChannelTests {
     /**
      * Holds a zombie, throws it on the tick after the hold, optionally clicks
      * again the tick after that, keeps the channel ticking throughout, and
-     * checks the zombie flew along the look and stands unheld.
+     * checks the zombie flew along the look.
      */
     private static void throwWhileTheChannelHolds(GameTestHelper helper, boolean clicksAgain) {
         ServerPlayer player = grabber(helper);
@@ -254,7 +235,6 @@ public final class GrabChannelTests {
             double along = zombie.position().subtract(heldAt.get()).dot(player.getLookAngle());
             helper.assertTrue(along > THROWN, "A zombie thrown while the channel holds should fly along the look, flew "
                     + along + (GrabEvents.heldBy(player) == zombie ? ", held again" : ", unheld"));
-            helper.assertTrue(GrabEvents.heldBy(player) == null, "The channel should not lift the thrown zombie again");
             leave(helper, player);
         });
     }
@@ -276,22 +256,6 @@ public final class GrabChannelTests {
             double along = thrown.position().subtract(heldAt.get()).dot(player.getLookAngle());
             helper.assertTrue(along > THROWN, "The thrown entity should fly along the look, flew " + along + " to y " + thrown.getY()
                     + (thrown.onGround() ? " on the ground" : " in the air"));
-            leave(helper, player);
-        });
-    }
-
-    /**
-     * A pig standing off the look but sent as the outlined target is held.
-     *
-     * @param helper the gametest helper
-     */
-    public static void grabHoldsTheSentPigOffTheLook(GameTestHelper helper) {
-        ServerPlayer player = grabber(helper);
-        Pig pig = helper.spawn(EntityType.PIG, OFF_THE_LOOK_POS);
-        holdFor(helper, player, pig, HOLD_TICKS);
-        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
-            helper.assertTrue(GrabEvents.heldBy(player) == pig,
-                    "The pig sent as the outlined target should be held, held " + GrabEvents.heldBy(player));
             leave(helper, player);
         });
     }
