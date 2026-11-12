@@ -302,6 +302,7 @@ public final class SculkerSenses {
     public static void blockChanged(BlockPos pos) {
         ECHO_QUADS.forgetAround(pos);
         ECHO_CELLS.forgetAround(pos);
+        ECHOES.uncover(pos, SculkerSenses::lightsUpInLevel, SculkerSenses::passesSoundInLevel);
     }
 
     private static boolean lightsUpInLevel(BlockPos pos) {

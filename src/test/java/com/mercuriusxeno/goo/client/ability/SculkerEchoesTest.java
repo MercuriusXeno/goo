@@ -100,6 +100,34 @@ class SculkerEchoesTest {
         }
     }
 
+    /**
+     * A lit block broken away hands its light to the faces it uncovers, so
+     * the stone beneath glows the moment the block is gone rather than the
+     * lit faces far beyond showing through the hole until a ring reaches it.
+     */
+    @Nested
+    class Uncovering {
+
+        private final BlockPos beneath = UNDER_THE_SOUND.below();
+
+        @Test
+        void aLitBlockBrokenAwayLightsTheFaceItUncoversAtOnce() {
+            SculkerEchoes echoes = heardAndAdvancedTo(HEARD_AT + 2);
+            SculkerEchoes.Lit broken = echoes.remembered().get(UNDER_THE_SOUND);
+            Predicate<BlockPos> brokenAway = pos -> FLAT_GROUND.test(pos) || pos.equals(UNDER_THE_SOUND);
+            echoes.uncover(UNDER_THE_SOUND, brokenAway.negate(), brokenAway);
+            assertEquals(broken, echoes.remembered().get(beneath), "the face uncovered beneath, the moment it is");
+            assertFalse(echoes.remembered().containsKey(UNDER_THE_SOUND), "the block broken away, gone from the memory");
+        }
+
+        @Test
+        void aBlockThatChangesButStillStopsSoundUncoversNothing() {
+            SculkerEchoes echoes = heardAndAdvancedTo(HEARD_AT + 2);
+            echoes.uncover(UNDER_THE_SOUND, FLAT_GROUND.negate(), FLAT_GROUND);
+            assertFalse(echoes.remembered().containsKey(beneath), "a face still buried");
+        }
+    }
+
     @Nested
     class Rings {
 
