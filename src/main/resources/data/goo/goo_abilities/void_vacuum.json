@@ -10,6 +10,7 @@
     "cone": 40,
     "ticks_per_charge": 20
   },
+  "area": { "shape": "cone", "size": 8.0, "angle": 40.0 },
   "behaviors": [
     { "type": "vacuum", "ticks_per_block": 1.25, "decay_ticks": 5 },
     { "type": "wind", "inward": true, "pitch": 0.6, "light_color": "#b48ce8", "dark_color": "#7a52b0", "void_motes": true },
