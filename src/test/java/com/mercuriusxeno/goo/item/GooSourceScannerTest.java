@@ -13,8 +13,6 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.fml.loading.FMLLoader;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedStatic;
 import java.util.List;
 import java.util.Map;
@@ -58,10 +56,13 @@ class GooSourceScannerTest {
         }
     }
 
-    @ParameterizedTest
-    @ValueSource(classes = {GooItem.class, CanisterItem.class,
-            VatBlockItem.class, HubBlockItem.class})
-    void everyCarrierIsScanned(Class<? extends Item> type) {
+    /**
+     * A carrier the scanner reads through GooCarrierItem is aggregated, measured, named as a source and drawn from;
+     * eachCarrierDrainsInItsOwnPass reads each of the four classes through that interface.
+     */
+    @Test
+    void aCarrierIsAggregatedMeasuredNamedAndDrawnFrom() {
+        Class<? extends Item> type = GooItem.class;
         ItemStack stack = carrierStack(type);
         Player player = playerHolding(stack);
         int drawn = GooSourceScanner.deplete(player, ROCK, 60);

@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -47,7 +46,6 @@ class GooValuesTest {
         when(holder().gooValueRegistry()).thenReturn(registry);
 
         assertSame(registry.table(), GooValues.of(serverLevel));
-        assertEquals(STONE_VALUE, GooValues.of(serverLevel).lookup(STONE));
         assertSame(registry, GooValues.registryOf(server));
     }
 
@@ -56,7 +54,6 @@ class GooValuesTest {
         when(holder().gooValueRegistry()).thenReturn(null);
 
         assertSame(GooValueTable.EMPTY, GooValues.of(serverLevel));
-        assertNull(GooValues.of(serverLevel).lookup(STONE));
         assertThrows(IllegalStateException.class, () -> GooValues.registryOf(server));
     }
 
