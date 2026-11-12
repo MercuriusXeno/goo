@@ -30,8 +30,6 @@ public final class BoreDrill {
 
     /** The volume's section count, unread by the march, which needs none. */
     private static final int RINGS = 1;
-    /** The bit's radius at the glove, in blocks. */
-    static final double BASE_RADIUS = 0.3;
     /** How many ticks the bit takes to emerge from the glove to its full length. */
     static final double EMERGE_TICKS = 5;
 
@@ -40,18 +38,32 @@ public final class BoreDrill {
 
     /**
      * The bit at its full length: a cone from the glove to the bore's reach
-     * on the eye line it drills.
+     * on the eye line it drills, as wide at the glove as the vortex the bore
+     * breaks.
+     * decision bore-breaks-what-is-in-the-vortex
      *
-     * @param eye   the eye, camera relative
-     * @param hand  the glove, camera relative
-     * @param look  the look's unit vector
-     * @param yaw   the look's yaw in degrees
-     * @param reach the bore's reach from the eye
+     * @param eye    the eye, camera relative
+     * @param hand   the glove, camera relative
+     * @param look   the look's unit vector
+     * @param yaw    the look's yaw in degrees
+     * @param reach  the bore's reach from the eye
+     * @param radius the vortex's radius at the glove, the bore step's JSON number
      * @return the bit, its apex at the glove
      */
-    static ConeSections.Volume volume(Vec3 eye, Vec3 hand, Vec3 look, float yaw, double reach) {
+    static ConeSections.Volume volume(Vec3 eye, Vec3 hand, Vec3 look, float yaw, double reach, double radius) {
         Vec3 toTip = eye.add(look.scale(reach)).subtract(hand);
-        return cone(hand, toTip.normalize(), yaw, toTip.length());
+        return cone(hand, toTip.normalize(), yaw, toTip.length(), radius);
+    }
+
+    /**
+     * The vortex's radius at the glove, the synced bore step's JSON number.
+     *
+     * @param bore the running bore
+     * @return the radius in blocks, 0 where the ability holds no bore step
+     */
+    private static double vortexRadiusOf(ClientAbility bore) {
+        return bore.behaviors().stream().filter(BoreStep.class::isInstance).map(BoreStep.class::cast)
+                .mapToDouble(BoreStep::vortexRadius).findFirst().orElse(0);
     }
 
     /**
@@ -63,7 +75,8 @@ public final class BoreDrill {
      * @return the bit
      */
     static ConeSections.Volume emerged(ConeSections.Volume full, double share) {
-        return cone(full.apex(), full.axis(), full.yaw(), full.range() * Math.clamp(share, 0, 1));
+        return cone(full.apex(), full.axis(), full.yaw(), full.range() * Math.clamp(share, 0, 1),
+                full.radiusAt().applyAsDouble(0));
     }
 
     /**
@@ -76,9 +89,9 @@ public final class BoreDrill {
         return Math.clamp(ticks / EMERGE_TICKS, 0, 1);
     }
 
-    private static ConeSections.Volume cone(Vec3 apex, Vec3 axis, float yaw, double length) {
+    private static ConeSections.Volume cone(Vec3 apex, Vec3 axis, float yaw, double length, double radius) {
         return new ConeSections.Volume(apex, axis, yaw, 0, length, RINGS,
-                distance -> length <= 0 ? 0 : BASE_RADIUS * Math.max(0, 1 - distance / length));
+                distance -> length <= 0 ? 0 : radius * Math.max(0, 1 - distance / length));
     }
 
     /**
@@ -98,7 +111,8 @@ public final class BoreDrill {
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         ConeSections.Volume full = volume(player.getEyePosition(partialTick).subtract(camera),
                 GloveAim.handPosition(mc.gameRenderer.getMainCamera()).subtract(camera),
-                player.getViewVector(partialTick), player.getViewYRot(partialTick), bore.delivery().range());
+                player.getViewVector(partialTick), player.getViewYRot(partialTick), bore.delivery().range(),
+                vortexRadiusOf(bore));
         BoreDrillPass.draw(emerged(full, emergedShare(GloveUseTracker.channelTicks() + partialTick)), camera,
                 event.getModelViewMatrix());
     }

@@ -23,9 +23,16 @@ class BoreDrillTest {
     /** A first-person glove: right of the eye (-X when facing +Z), below it and ahead of it. */
     private static final Vec3 HAND = new Vec3(-0.35, -0.3, 0.5);
     private static final int SAMPLES = 64;
+    /** rock_bore.json's vortex radius at the glove. */
+    private static final double RADIUS = 0.3;
+    private static final double WIDER = 0.6;
 
     private static ConeSections.Volume drill() {
-        return BoreDrill.volume(EYE, HAND, LOOK, YAW, REACH);
+        return drill(RADIUS);
+    }
+
+    private static ConeSections.Volume drill(double radius) {
+        return BoreDrill.volume(EYE, HAND, LOOK, YAW, REACH, radius);
     }
 
     private static Vec3 pointAlong(ConeSections.Volume volume, double distance) {
@@ -62,6 +69,15 @@ class BoreDrillTest {
                 double radius = drill.radiusAt().applyAsDouble(distance);
                 assertTrue(radius <= previous, "the bit grows to " + radius + " at " + distance);
                 previous = radius;
+            }
+        }
+
+        /** decision bore-breaks-what-is-in-the-vortex */
+        @Test
+        void theRadiusAtTheGloveIsTheBoreStepsVortexRadius() {
+            for (double radius : new double[] {RADIUS, WIDER}) {
+                ConeSections.Volume drill = drill(radius);
+                assertEquals(radius, drill.radiusAt().applyAsDouble(drill.near()), SLACK, "at radius " + radius);
             }
         }
 
