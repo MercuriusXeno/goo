@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.network.GooStreamHandler;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.ParticleProvider;
+import net.minecraft.client.particle.SingleQuadParticle;
 import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.particles.ColorParticleOption;
@@ -25,7 +26,7 @@ import java.util.function.IntFunction;
  * goop-and-slick-spray-throws-goo-drips-that-splat
  * glove-stream-motes-swing-with-the-glove-at-launch
  */
-public final class SprayDripParticle extends GloveMote {
+public final class SprayDripParticle extends SingleQuadParticle {
 
     private final Vec3 apex;
     private final GooRenderUtil.UvRect uv;
