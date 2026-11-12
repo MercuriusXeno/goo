@@ -71,6 +71,20 @@ public record Petrification(float gauge, long lastFill) {
     }
 
     /**
+     * Drains the gauge by an amount at once, as Heal's stream does each held
+     * tick, keeping the time the fog last filled it so the fog's own drain
+     * carries on from where the stream left the gauge.
+     * decision heal-stream-drains-the-petrify-gauge
+     *
+     * @param amount how much the gauge drains
+     * @return the gauge after draining, NONE once empty
+     */
+    public Petrification drainedBy(float amount) {
+        float left = gauge - amount;
+        return left <= 0f ? NONE : new Petrification(left, lastFill);
+    }
+
+    /**
      * Answers whether the gauge has filled.
      *
      * @return true at full, the tick the mob becomes a statue
