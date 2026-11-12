@@ -45,8 +45,34 @@ public final class BoreDrill {
     private static final Vec3 WORLD_UP = new Vec3(0, 1, 0);
     private static final Vec3 WORLD_SOUTH = new Vec3(0, 0, 1);
     private static final double NEARLY_UPRIGHT = 0.999;
+    /** Ticks the vortex takes to build up to full once the bore starts. */
+    static final double FADE_IN_TICKS = 6;
+    /** Ticks the vortex takes to disperse once the bore ends. */
+    static final double FADE_OUT_TICKS = 10;
+
+    /** How much of the vortex shows, 0 to 1, and the game time it was last drawn at. */
+    private static double presence;
+    private static double lastDrawn = Double.NaN;
+    /** The bore last held, which the vortex keeps drawing from while it disperses. */
+    private static @Nullable BoreStep lastStep;
+    private static double lastReach;
 
     private BoreDrill() {
+    }
+
+    /**
+     * How much of the vortex shows after some ticks: building up over the
+     * fade in while the bore runs, dispersing over the fade out once it ends,
+     * so it never switches on or off at once.
+     *
+     * @param presence how much showed before, 0 to 1
+     * @param held     whether the bore runs
+     * @param ticks    the ticks since, with the partial tick
+     * @return how much shows now, 0 to 1
+     */
+    static double presenceAfter(double presence, boolean held, double ticks) {
+        double moved = held ? presence + ticks / FADE_IN_TICKS : presence - ticks / FADE_OUT_TICKS;
+        return Math.clamp(moved, 0, 1);
     }
 
     /**
@@ -121,18 +147,45 @@ public final class BoreDrill {
     public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
-        ClientAbility bore = player == null ? null : runningBore(player);
-        BoreStep step = bore == null ? null : stepOf(bore).orElse(null);
-        if (step == null || mc.level == null) {
+        if (player == null || mc.level == null) {
             return;
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        boolean held = holdsBore(player);
+        updatePresence(held, mc.level.getGameTime() + partialTick);
+        if (presence <= 0 || lastStep == null) {
+            return;
+        }
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         ConeSections.Volume full = volume(eyeSeenFrom(mc, player, partialTick, camera),
-                player.getViewVector(partialTick), player.getViewYRot(partialTick), bore.delivery().range(),
-                step.vortexNearRadius(), step.vortexFarRadius());
-        BoreDrillPass.draw(emerged(full, emergedShare(GloveUseTracker.channelTicks() + partialTick)),
-                event.getModelViewMatrix());
+                player.getViewVector(partialTick), player.getViewYRot(partialTick), lastReach,
+                lastStep.vortexNearRadius(), lastStep.vortexFarRadius());
+        double poured = held ? emergedShare(GloveUseTracker.channelTicks() + partialTick) : 1;
+        BoreDrillPass.draw(emerged(full, poured), presence, event.getModelViewMatrix());
+    }
+
+    /**
+     * Whether the local player runs a bore now, remembering its step and
+     * reach so the vortex can keep drawing from them while it disperses.
+     *
+     * @param player the local player
+     * @return true while a bore runs
+     */
+    private static boolean holdsBore(LocalPlayer player) {
+        ClientAbility bore = runningBore(player);
+        BoreStep step = bore == null ? null : stepOf(bore).orElse(null);
+        if (step == null) {
+            return false;
+        }
+        lastStep = step;
+        lastReach = bore.delivery().range();
+        return true;
+    }
+
+    private static void updatePresence(boolean held, double now) {
+        double elapsed = Double.isNaN(lastDrawn) ? 0 : Math.max(0, now - lastDrawn);
+        lastDrawn = now;
+        presence = presenceAfter(presence, held, elapsed);
     }
 
     /**

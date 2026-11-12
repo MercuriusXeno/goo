@@ -25,7 +25,8 @@ layout(std140) uniform BoreDrill {
     vec4 ApexRadius;  // where the vortex is held, camera relative, and its radius there
     vec4 AxisLength;  // the unit axis from where it is held to the far end, and its length
     vec4 SideDepth;   // a unit direction square to the axis, and whether depth runs 0 to 1
-    vec4 Grid;        // unread in xyz; the vortex's radius at its far end in w
+    vec4 Shown;       // how much of the vortex shows in x, 0 to 1, as it builds up and disperses; its radius
+                      // at its far end in w
 };
 
 uniform sampler2D BoreDrillDepthSampler;
@@ -55,6 +56,9 @@ const float RIPPLE_RADIUS = 0.22;
 const float RIPPLE_CELLS = 1.3;
 const float RIPPLE_SECONDS = 3.0;
 const float CLUMP_FROM = 0.52;
+// With nothing showing, a clump starts at this noise level, which nothing reaches, so as the vortex
+// builds up its clumps form in, and as it disperses they break up, as Drain's vortex does.
+const float CLUMP_GONE = 1.05;
 const float CLUMP_SOFT = 0.05;
 const float CORE_DEPTH = 0.15;
 
@@ -132,7 +136,7 @@ float fbm(vec3 at) {
 
 // The vortex's radius a distance along it: widening from its near radius to its far radius.
 float radiusAt(float along) {
-    return mix(ApexRadius.w, Grid.w, clamp(along / AxisLength.w, 0.0, 1.0));
+    return mix(ApexRadius.w, Shown.w, clamp(along / AxisLength.w, 0.0, 1.0));
 }
 
 // The distance from the eye to whatever the world drew at this fragment, camera relative.
@@ -158,7 +162,7 @@ bool insideVortex(vec3 point) {
 // Where the ray enters and leaves the ball holding the whole vortex, as distances along it.
 vec2 throughBall(vec3 eye, vec3 dir) {
     vec3 middle = ApexRadius.xyz + AxisLength.xyz * (0.5 * AxisLength.w);
-    float radius = length(vec2(0.5 * AxisLength.w, max(ApexRadius.w, Grid.w))) + 0.1;
+    float radius = length(vec2(0.5 * AxisLength.w, max(ApexRadius.w, Shown.w))) + 0.1;
     vec3 offset = eye - middle;
     float b = dot(offset, dir);
     float c = dot(offset, offset) - radius * radius;
@@ -210,8 +214,9 @@ vec3 dustAt(vec3 point, float seconds) {
     float spread = length(vec2(firstWeight, secondWeight));
     float body = 0.5 + (firstWeight * (first - 0.5) + secondWeight * (second - 0.5)) / spread;
 
-    float clump = smoothstep(CLUMP_FROM - CLUMP_SOFT, CLUMP_FROM + CLUMP_SOFT, body);
-    float core = smoothstep(CLUMP_FROM, CLUMP_FROM + CORE_DEPTH, body);
+    float clumpFrom = mix(CLUMP_GONE, CLUMP_FROM, Shown.x);
+    float clump = smoothstep(clumpFrom - CLUMP_SOFT, clumpFrom + CLUMP_SOFT, body);
+    float core = smoothstep(clumpFrom, clumpFrom + CORE_DEPTH, body);
 
     // the unit direction round the axis, free of the seam an angle carries where it wraps
     vec2 facing = section / max(length(section), 1e-4);
@@ -236,7 +241,7 @@ vec3 dustAt(vec3 point, float seconds) {
     float frayed = (1.0 - smoothstep(RIM_FROM, 1.0, share + FRAY * ragged))
             * (1.0 - smoothstep(FAR_FROM, 1.0, along / vortexLength + TATTER * torn))
             * smoothstep(0.0, HELD_THICKEN, along);
-    float density = frayed * (CLUMP_DENSITY * clump + HAZE_DENSITY + wall);
+    float density = frayed * Shown.x * (CLUMP_DENSITY * clump + HAZE_DENSITY + wall);
     float pale = (THREAD_DENSITY * thread * shell + 0.5 * FRILL_DENSITY * frill) * frayed;
     return vec3(density, core * (1.0 - shell), clamp(pale / max(density, 1e-3), 0.0, 1.0));
 }
