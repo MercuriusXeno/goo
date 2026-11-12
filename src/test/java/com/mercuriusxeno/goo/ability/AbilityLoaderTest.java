@@ -488,6 +488,19 @@ class AbilityLoaderTest {
                     assertEquals(Optional.of(formula), AbilityJson.decode(name).costFormula(), name));
         }
 
+        /**
+         * Outsider's price is its step's entry, read live, so its file names no formula and loads
+         * (decision outsider-cost-text-reads-the-new-mechanics).
+         */
+        @Test
+        void outsiderNamesNoFormulaAndLoads() {
+            JsonObject outsider = JsonParser.parseString(AbilityJson.read("void_outsider")).getAsJsonObject();
+
+            assertFalse(outsider.has("cost_formula"), () -> "cost_formula reads " + outsider.get("cost_formula"));
+            assertEquals(Identifier.fromNamespaceAndPath(Goo.MODID, "void_outsider"),
+                    AbilityJson.decode("void_outsider").id());
+        }
+
         @Test
         void zeroCostAbilityNamingCostMechanicsAndNoFormulaFailsNamingTheField() {
             String json = AbilityJson.read("rock_terrakinesis")
