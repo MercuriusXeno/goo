@@ -132,7 +132,7 @@ public final class RelayNetwork {
         return axesApart == 1 && dx + dy + dz <= RANGE;
     }
 
-    private static boolean linksThroughAir(ServerLevel level, BlockPos from, BlockPos to) {
+    static boolean linksThroughAir(ServerLevel level, BlockPos from, BlockPos to) {
         return cellsBetween(from, to).stream().allMatch(cell -> level.getBlockState(cell).isAir());
     }
 

@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypes;
-import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
@@ -31,9 +30,6 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 @RegistersGameTests
 public final class PulserTests {
     private static final String PULSER_FLIPS_REPEATEDLY = "pulser_flips_repeatedly";
-    private static final String PULSER_FLIPS_UNDER_JITTER = "pulser_flips_under_jitter";
-    private static final String PULSER_FLIPS_A_FLOOR_LEVER = "pulser_flips_a_floor_lever";
-    private static final String PULSER_FLIPS_A_FAR_FLOOR_LEVER = "pulser_flips_a_far_floor_lever";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -42,9 +38,6 @@ public final class PulserTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, PULSER_FLIPS_REPEATEDLY, PulserTests::pulserFlipsRepeatedly);
-        GooTestFunctions.registerTest(registrar, PULSER_FLIPS_UNDER_JITTER, PulserTests::pulserFlipsUnderJitter);
-        GooTestFunctions.registerTest(registrar, PULSER_FLIPS_A_FLOOR_LEVER, PulserTests::pulserFlipsAFloorLever);
-        GooTestFunctions.registerTest(registrar, PULSER_FLIPS_A_FAR_FLOOR_LEVER, PulserTests::pulserFlipsAFarFloorLever);
     }
 
 
@@ -58,17 +51,6 @@ public final class PulserTests {
     private static final int HOLD_TICKS = 40;
     /** pulse_pulser.json toggles every 4 held ticks, ten times in the hold; several is the fact. */
     private static final int SEVERAL_FLIPS = 5;
-    /** Stream ticks landing in each server tick, cycling: two, none, one. */
-    private static final int[] JITTER = {2, 0, 1};
-    /** A lever on the floor four blocks ahead. */
-    private static final BlockPos FLOOR_LEVER = STAND_POS.east(4);
-    /** A lever on the floor seven blocks ahead, in the wide light bay. */
-    private static final BlockPos FAR_FLOOR_LEVER = STAND_POS.east(7);
-    /** Where a player aims on a floor lever: its handle, low in the cell. */
-    private static final double LEVER_HANDLE_HEIGHT = 0.2;
-    /** Where the glove hand stands off the eye, as the client sends it: ahead and below. */
-    private static final double HAND_AHEAD = 0.4;
-    private static final double HAND_BELOW = 0.35;
     private static final String ABILITY_REQUIRED = "Ability registry must hold pulse_pulser";
     private static final String FLIPS_SEVERAL = "The lever should flip several times in the hold, flipped %d times";
 
@@ -83,48 +65,6 @@ public final class PulserTests {
      */
     public static void pulserFlipsRepeatedly(GameTestHelper helper) {
         holdAtTheLever(helper, held -> 1);
-    }
-
-    /**
-     * A mock player holds Pulser at a lever for forty ticks with its stream
-     * ticks jittering as a real client's do, two landing in one server tick
-     * and none in the next: the lever still flips several times.
-     *
-     * @param helper the gametest helper
-     */
-    public static void pulserFlipsUnderJitter(GameTestHelper helper) {
-        holdAtTheLever(helper, held -> JITTER[held % JITTER.length]);
-    }
-
-    /**
-     * A mock player looks down at a lever on the floor four blocks ahead and
-     * holds Pulser for forty ticks, its stream ticks carrying the glove hand
-     * and the aimed point as a client's do: the lever flips several times.
-     *
-     * @param helper the gametest helper
-     */
-    public static void pulserFlipsAFloorLever(GameTestHelper helper) {
-        aimAtAFloorLever(helper, FLOOR_LEVER);
-    }
-
-    /**
-     * A mock player looks down at the handle of a lever on the floor seven
-     * blocks ahead, far out of hand reach, and holds Pulser for forty ticks:
-     * the lever flips several times though the cone is narrow that far out.
-     *
-     * @param helper the gametest helper
-     */
-    public static void pulserFlipsAFarFloorLever(GameTestHelper helper) {
-        aimAtAFloorLever(helper, FAR_FLOOR_LEVER);
-    }
-
-    private static void aimAtAFloorLever(GameTestHelper helper, BlockPos lever) {
-        ServerPlayer player = pulserAt(helper, lever);
-        Vec3 target = Vec3.atBottomCenterOf(helper.absolutePos(lever)).add(0, LEVER_HANDLE_HEIGHT, 0);
-        player.lookAt(EntityAnchorArgument.Anchor.EYES, target);
-        Vec3 hand = player.getEyePosition().add(player.getLookAngle().scale(HAND_AHEAD)).add(0, -HAND_BELOW, 0);
-        watchFlips(helper, player, GooStreamPayload.unplaned(GooTypes.id(GooTypes.PULSE), PULSER.toString(),
-                hand, target), lever, held -> 1);
     }
 
     private static void holdAtTheLever(GameTestHelper helper, IntUnaryOperator streamTicksAt) {

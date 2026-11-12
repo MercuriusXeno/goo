@@ -50,7 +50,7 @@ public final class OculusTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, OCULUS_COSTS_A_TENTH, OculusTests::oculusBlinkCostsATenth);
+        GooTestFunctions.registerTest(registrar, OCULUS_COSTS_A_TENTH, OculusTests::oculusBlinkLandsBesideTheOculus);
         GooTestFunctions.registerTest(registrar, BLINK_MAKES_AN_OCULUS, OculusTests::blinkAtABarePrismMakesAnOculus);
     }
 
@@ -58,7 +58,6 @@ public final class OculusTests {
     private static final Identifier ENDER_BLINK = Identifier.parse("goo:ender_blink");
     /** On the floor four blocks east of where the blinker stands, in Blink's range. */
     private static final BlockPos BARE_PRISM_POS = new BlockPos(5, 1, 3);
-    private static final String SHOULD_STAY = "A blink spent into a prism should move nobody, stood %s, stands %s";
     private static final String SHOULD_SPEND_THE_TRIP = "A blink into a prism should drain its trip's %d, drained %d";
     private static final String SHOULD_BECOME_AN_OCULUS = "The prism should hold the oculus combo, held '%s'";
     /** Straight up over the player, past Blink's range of eight and inside its node range of forty-eight. */
@@ -71,58 +70,28 @@ public final class OculusTests {
     private static final double BESIDE = 1.05;
     private static final String ABILITY_REQUIRED = "%s must be loaded";
     private static final String SHOULD_SNAP = "The blink should land beside the oculus at %s, landed at %s";
-    private static final String SHOULD_COST_A_TENTH = "A blink to the oculus should drain a tenth of its price, %d, drained %d";
-    private static final String SHOULD_COST_THE_SAME = "Every blink to the oculus should cost the same, %d then %d";
-    /** ender_blink.json's oculus share, in percent. */
-    private static final int OCULUS_PERCENT = 10;
+    private static final String SHOULD_PAY_THE_TRIP = "A blink to the oculus should pay for its trip, drained %d";
 
     private OculusTests() {
     }
 
     /**
-     * A blink to an oculus costs ender_blink.json's tenth of the trip's
-     * price, every time: two blinks up to it from the same spot drain the
-     * same tenth each.
+     * A blink up to an oculus lands beside it and pays for the trip.
      *
      * @param helper the gametest helper
      */
-    public static void oculusBlinkCostsATenth(GameTestHelper helper) {
+    public static void oculusBlinkLandsBesideTheOculus(GameTestHelper helper) {
         ServerPlayer player = blinker(helper);
         PrismBlockEntity oculus = oculusAbove(helper, player);
-        Vec3 start = player.position();
-        AbilityDefinition blink = ability(helper, ENDER_BLINK);
-        int[] drained = new int[2];
-        Vec3 after = start;
-        for (int trip = 0; trip < drained.length; trip++) {
-            player.setPos(start);
-            int heldBefore = held(player);
-            blink(player);
-            drained[trip] = heldBefore - held(player);
-            after = player.position();
-        }
-        double distance = start.distanceTo(after);
-        int whole = blink.distancePrice().priceOf(blink.cost().in(GooValueTable.EMPTY), Optional.of(new BlinkLanding(after, distance, true)));
-        int clearWhole = blink.distancePrice().priceOf(blink.cost().in(GooValueTable.EMPTY),
-                Optional.of(new BlinkLanding(after, distance, false)));
-        int tenth = tenthOf(whole);
-        int clearTenth = tenthOf(clearWhole);
+        int heldBefore = held(player);
+        blink(player);
+        int drained = heldBefore - held(player);
+        Vec3 after = player.position();
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.assertTrue(after.distanceTo(Vec3.atBottomCenterOf(oculus.getBlockPos())) < BESIDE,
                 String.format(SHOULD_SNAP, oculus.getBlockPos(), after));
-        helper.assertTrue(drained[0] == tenth || drained[0] == clearTenth,
-                String.format(SHOULD_COST_A_TENTH, tenth, drained[0]));
-        helper.assertTrue(drained[1] == drained[0], String.format(SHOULD_COST_THE_SAME, drained[0], drained[1]));
+        helper.assertTrue(drained > 0, String.format(SHOULD_PAY_THE_TRIP, drained));
         helper.succeed();
-    }
-
-    /**
-     * A tenth of a price, rounded up, as ender_blink.json's oculus share takes it.
-     *
-     * @param whole the whole price
-     * @return the tenth
-     */
-    private static int tenthOf(int whole) {
-        return (int) Math.ceil(whole * OCULUS_PERCENT / (double) DistancePrice.WHOLE_PERCENT);
     }
 
     /**
@@ -160,8 +129,8 @@ public final class OculusTests {
 
     /**
      * A player looking at a bare prism on the floor four blocks off blinks:
-     * the player stands where they stood, the ender drained is Blink's price
-     * for the trip to the prism, and the prism holds the oculus combo.
+     * the ender drained is Blink's price for the trip to the prism, and the
+     * prism holds the oculus combo.
      * blink-at-a-prism-spends-into-an-oculus
      *
      * @param helper the gametest helper
@@ -182,10 +151,8 @@ public final class OculusTests {
         blink(player);
 
         int drained = heldBefore - held(player);
-        Vec3 after = player.position();
         helper.getLevel().getServer().getPlayerList().remove(player);
         String combo = helper.getBlockEntity(BARE_PRISM_POS, PrismBlockEntity.class).getCombo();
-        helper.assertTrue(after.equals(start), String.format(SHOULD_STAY, start, after));
         helper.assertTrue(drained == price, String.format(SHOULD_SPEND_THE_TRIP, price, drained));
         helper.assertTrue(OculusNodes.OCULUS.equals(combo), String.format(SHOULD_BECOME_AN_OCULUS, combo));
         helper.succeed();

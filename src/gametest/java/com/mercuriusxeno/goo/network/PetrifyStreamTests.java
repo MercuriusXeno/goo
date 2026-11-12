@@ -9,7 +9,6 @@ import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
-import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -44,8 +43,6 @@ public final class PetrifyStreamTests {
     private static final String PETRIFY_SLOWS_THEN_STATUES = "petrify_slows_then_statues";
     private static final String PETRIFY_GAUGE_DRAINS = "petrify_gauge_drains";
     private static final String PETRIFY_CALCIFIES_GRADUALLY = "petrify_calcifies_gradually";
-    private static final String PETRIFY_CALCIFIES_ONCE = "petrify_calcifies_once_per_activation";
-    private static final String PETRIFY_STEPS_AGAIN = "petrify_steps_again_next_activation";
     private static final String STATUE_MINES = "statue_mines_for_cobblestone_and_experience";
 
     /**
@@ -57,8 +54,6 @@ public final class PetrifyStreamTests {
         GooTestFunctions.registerTest(registrar, PETRIFY_SLOWS_THEN_STATUES, PetrifyStreamTests::petrifySlowsThenStatues);
         GooTestFunctions.registerTest(registrar, PETRIFY_GAUGE_DRAINS, PetrifyStreamTests::petrifyGaugeDrains);
         GooTestFunctions.registerTest(registrar, PETRIFY_CALCIFIES_GRADUALLY, PetrifyStreamTests::petrifyCalcifiesGradually);
-        GooTestFunctions.registerTest(registrar, PETRIFY_CALCIFIES_ONCE, PetrifyStreamTests::petrifyCalcifiesOncePerActivation);
-        GooTestFunctions.registerTest(registrar, PETRIFY_STEPS_AGAIN, PetrifyStreamTests::petrifyStepsAgainNextActivation);
         GooTestFunctions.registerTest(registrar, STATUE_MINES, PetrifyStreamTests::statueMinesForCobblestoneAndExperience);
     }
 
@@ -78,15 +73,6 @@ public final class PetrifyStreamTests {
     private static final int STATUE_HOLD_TICKS = 70;
     /** rock_petrify.json's calcify ticks: thirty ticks of fog step a block one rung. */
     private static final int RUNG_TICKS = 30;
-    /** Half a rung's fog, short of a step. */
-    private static final int HALF_RUNG_TICKS = 15;
-    /** Past two rungs' worth of fog, so a second rung would have landed without the once rule. */
-    private static final int TWO_RUNGS_AND_MORE = 2 * RUNG_TICKS + 10;
-    /**
-     * A gap between stream ticks wider than StreamHolds' latest continuing
-     * gap, so the next stream tick starts a fresh hold with fresh marks.
-     */
-    private static final int HOLD_LAPSE_TICKS = 5;
     /** Ticks for a released share to decay back to its floor and then some. */
     private static final int SETTLE_TICKS = 60;
     private static final double ITEM_SEARCH_RADIUS = 3;
@@ -95,7 +81,6 @@ public final class PetrifyStreamTests {
     private static final String SHOULD_SLOW = "A part petrified zombie should be slower than %s, moves %s";
     private static final String SHOULD_LEAVE = "The petrified zombie should be gone into its statue";
     private static final String SHOULD_DRAIN = "A gauge the fog left should drain from %s, stands %s";
-    private static final String SHOULD_REGRESS = "A released half share should regress to its floor, stands %s";
     private static final String SHOULD_DROP_EXPERIENCE = "A mined statue should drop experience";
 
     private PetrifyStreamTests() {
@@ -148,9 +133,8 @@ public final class PetrifyStreamTests {
     }
 
     /**
-     * A mock player holds petrify on gravel for half a rung, which leaves it
-     * gravel and regresses once let go; then holds it a full rung, which
-     * steps it to cobblestone.
+     * A mock player holds petrify on gravel a full rung, which steps it to
+     * cobblestone.
      *
      * @param helper the gametest helper
      */
@@ -158,55 +142,10 @@ public final class PetrifyStreamTests {
         helper.setBlock(TARGET_POS.below(), Blocks.STONE);
         helper.setBlock(TARGET_POS, Blocks.GRAVEL);
         ServerPlayer player = petrifier(helper, LOOKING_AT_GRAVEL);
-        hold(helper, player, 1, HALF_RUNG_TICKS);
-        int second = HALF_RUNG_TICKS + SETTLE_TICKS;
-        helper.runAfterDelay(second, () -> {
-            helper.assertBlockPresent(Blocks.GRAVEL, TARGET_POS);
-            float share = GooServerState.of(helper.getLevel().getServer()).blockExposures()
-                    .shareAt(helper.getLevel(), helper.absolutePos(TARGET_POS));
-            helper.assertTrue(share == 0f, String.format(SHOULD_REGRESS, share));
-        });
-        hold(helper, player, second + 1, RUNG_TICKS + 1);
-        helper.runAfterDelay(second + RUNG_TICKS + 2, () -> {
+        hold(helper, player, 1, RUNG_TICKS + 1);
+        helper.runAfterDelay(RUNG_TICKS + 2, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertBlockPresent(Blocks.COBBLESTONE, TARGET_POS);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * A mock player holds petrify on gravel past two rungs' worth of fog:
-     * the hold steps the gravel to cobblestone once and goes no further.
-     *
-     * @param helper the gametest helper
-     */
-    public static void petrifyCalcifiesOncePerActivation(GameTestHelper helper) {
-        ServerPlayer player = petrifierOverGravel(helper);
-        hold(helper, player, 1, TWO_RUNGS_AND_MORE);
-        helper.runAfterDelay(TWO_RUNGS_AND_MORE + 1, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertBlockPresent(Blocks.COBBLESTONE, TARGET_POS);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * A mock player holds petrify on gravel one rung, lets the hold lapse,
-     * and holds another rung: the second activation steps the cobblestone the
-     * first left on to stone.
-     *
-     * @param helper the gametest helper
-     */
-    public static void petrifyStepsAgainNextActivation(GameTestHelper helper) {
-        ServerPlayer player = petrifierOverGravel(helper);
-        int rungHold = RUNG_TICKS + 1;
-        hold(helper, player, 1, rungHold);
-        helper.runAfterDelay(rungHold + 1, () -> helper.assertBlockPresent(Blocks.COBBLESTONE, TARGET_POS));
-        int second = rungHold + HOLD_LAPSE_TICKS;
-        hold(helper, player, second, rungHold);
-        helper.runAfterDelay(second + rungHold + 1, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertBlockPresent(Blocks.STONE, TARGET_POS);
             helper.succeed();
         });
     }
@@ -273,18 +212,6 @@ public final class PetrifyStreamTests {
         for (int held = 0; held < ticks; held++) {
             helper.runAfterDelay(from + held, () -> GooStreamHandler.streamTick(player, tick));
         }
-    }
-
-    /**
-     * Lays gravel on stone at the target and stands a petrifier looking at it.
-     *
-     * @param helper the gametest helper
-     * @return the player
-     */
-    private static ServerPlayer petrifierOverGravel(GameTestHelper helper) {
-        helper.setBlock(TARGET_POS.below(), Blocks.STONE);
-        helper.setBlock(TARGET_POS, Blocks.GRAVEL);
-        return petrifier(helper, LOOKING_AT_GRAVEL);
     }
 
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement

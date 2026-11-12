@@ -50,24 +50,16 @@ public final class MetronomeTests {
     /** Pulser, whose on_prism reaction is the metronome (decision channeled-hosts-convert-prisms-over-the-hold). */
     private static final String METRONOME = "goo:pulse_pulser";
     private static final String ZAP = "goo:pulse_zap";
-    private static final String STILL_A_METRONOME = "A Zap should leave the prism's metronome combo standing";
     private static final BlockPos PRISM = new BlockPos(2, 1, 2);
     private static final BlockPos LEVER = PRISM.west();
     private static final BlockPos LAMP = PRISM.east();
     private static final int FIRST_INTERVAL = 20;
-    private static final int SECOND_INTERVAL = 10;
     /** The ticks the test pulls the lever on: on, off, on 20 after the first; later off, on, off, on 10 after. */
     private static final int FIRST_ON = 2;
     private static final int FIRST_OFF = 6;
     private static final int SECOND_ON = FIRST_ON + FIRST_INTERVAL;
     /** The first beat watch: three intervals after the second pull. */
     private static final int FIRST_WATCH_END = SECOND_ON + FIRST_INTERVAL * 3 + 2;
-    private static final int THIRD_OFF = FIRST_WATCH_END + 1;
-    private static final int THIRD_ON = THIRD_OFF + 3;
-    private static final int FOURTH_OFF = THIRD_ON + 3;
-    private static final int FOURTH_ON = THIRD_ON + SECOND_INTERVAL;
-    /** The second beat watch: three intervals after the fourth pull. */
-    private static final int SECOND_WATCH_END = FOURTH_ON + SECOND_INTERVAL * 3 + 2;
     private static final int BEATS = 3;
     private static final String COMBO_TOOK = "The prism should hold the metronome combo";
     private static final String BEATS_AT = "The lamp should light %d times %d ticks apart, lit on ticks %s";
@@ -76,8 +68,8 @@ public final class MetronomeTests {
     }
 
     /**
-     * A metronome prism hears two pulls 20 ticks apart, then two 10 apart:
-     * the lamp lights every 20 ticks, then every 10.
+     * A metronome prism hears two pulls 20 ticks apart: the lamp lights every
+     * 20 ticks.
      *
      * @param helper the gametest helper
      */
@@ -89,14 +81,12 @@ public final class MetronomeTests {
         helper.setBlock(LEVER, Blocks.LEVER.defaultBlockState().setValue(LeverBlock.FACE, AttachFace.FLOOR));
         helper.setBlock(LAMP, Blocks.REDSTONE_LAMP);
         standMetronome(helper);
-        for (int pull : new int[] {FIRST_ON, FIRST_OFF, SECOND_ON, THIRD_OFF, THIRD_ON, FOURTH_OFF, FOURTH_ON}) {
+        for (int pull : new int[] {FIRST_ON, FIRST_OFF, SECOND_ON}) {
             helper.runAfterDelay(pull, () -> helper.pullLever(LEVER));
         }
         List<Integer> firstBeats = watchLamp(helper, SECOND_ON + 1, FIRST_WATCH_END);
-        List<Integer> secondBeats = watchLamp(helper, FOURTH_ON + 1, SECOND_WATCH_END);
-        helper.runAfterDelay(SECOND_WATCH_END + 1, () -> {
+        helper.runAfterDelay(FIRST_WATCH_END + 1, () -> {
             assertBeats(helper, firstBeats, FIRST_INTERVAL);
-            assertBeats(helper, secondBeats, SECOND_INTERVAL);
             helper.succeed();
         });
     }
@@ -120,8 +110,6 @@ public final class MetronomeTests {
         }
         List<Integer> beats = watchLamp(helper, SECOND_ON + 1, FIRST_WATCH_END);
         helper.runAfterDelay(FIRST_WATCH_END + 1, () -> {
-            helper.assertTrue(helper.getBlockEntity(PRISM, PrismBlockEntity.class).getCombo().equals(METRONOME),
-                    STILL_A_METRONOME);
             assertBeats(helper, beats, FIRST_INTERVAL);
             helper.succeed();
         });

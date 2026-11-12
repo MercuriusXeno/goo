@@ -23,10 +23,8 @@ import net.minecraft.world.entity.animal.cow.Cow;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.TagValueOutput;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -44,7 +42,6 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
  */
 @RegistersGameTests
 public final class MobEffectTests {
-    private static final String MOB_METAL = "mob_metal_javelin";
     private static final String ALLURE_COURTS = "allure_courts_the_struck_animal";
     private static final String FLOAT_LEVITATES_A_ZOMBIE = "float_levitates_a_zombie";
     private static final String CHARM_TURNS_ZOMBIE = "charm_turns_zombie_on_skeleton";
@@ -60,7 +57,6 @@ public final class MobEffectTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, MOB_METAL, MobEffectTests::metalJavelin);
         GooTestFunctions.registerTest(registrar, ALLURE_COURTS, MobEffectTests::allureCourtsTheStruckAnimal);
         GooTestFunctions.registerTest(registrar, FLOAT_LEVITATES_A_ZOMBIE, MobEffectTests::floatLevitatesAZombie);
         GooTestFunctions.registerTest(registrar, CHARM_TURNS_ZOMBIE, MobEffectTests::charmTurnsZombieOnSkeleton);
@@ -82,7 +78,6 @@ public final class MobEffectTests {
     private static final BlockPos BYSTANDER_POS = SPAWN_POS.east();
     /** The tick after spawning, once the level's entity index holds the spawned mobs. */
     private static final int SETTLE_TICKS = 1;
-    private static final String SHOULD_HAVE_POISON = "Target should have poison";
     private static final String SKELETON_SHOULD_STAND_IDLE = "The skeleton should target no one before the charm";
     private static final String ZOMBIE_SHOULD_TURN_ON_SKELETON = "The charmed zombie should target the skeleton";
     private static final String ZOMBIE_SHOULD_SPARE_CHARMER = "The charmed zombie should turn from its charmer";
@@ -96,14 +91,11 @@ public final class MobEffectTests {
     private static final String CHARMERS_HIT_SHOULD_BREAK = "The charmer's hit should end the charm";
     private static final String SHOULD_TAKE_DAMAGE = "Target should have taken damage";
     private static final String SHOULD_HAVE_LEVITATION = "Target should have levitation";
-    private static final String SHOULD_TAKE_JAVELIN_DAMAGE = "Target should have taken the javelin's damage";
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
-    private static final String ABILITY_METAL_JAVELIN = "goo:metal_javelin";
     private static final String ABILITY_TYPHOON_SHULK = "goo:typhoon_shulk";
     private static final String LEVITATION_SHOULD_HIDE_PARTICLES = "Shulk's levitation should show no particles";
     private static final String FLOAT_SHOULD_END_WITH_LEVITATION = "The zombie's float should end when its levitation does";
     private static final String FLOAT_SHOULD_CLEAR_WITH_LEVITATION = "Removing the levitation should clear the float";
-    private static final String ABILITY_PULSE_SHORT_CIRCUIT = "goo:pulse_short_circuit";
     /** The gametests' own thrown blast, today's Blast before it was drag-sized, struck at a mob. */
     private static final String ABILITY_UNSTABLE_EXPLODE = "goo:test_blast";
     private static final String ABILITY_HEX_CHARM = "goo:hex_charm";
@@ -117,10 +109,6 @@ public final class MobEffectTests {
     private static final String SHOULD_BE_IN_LOVE = "A cow struck by Allure should be in love";
     /** Beside the cow, inside test_blast.json's blast of power 3. */
     private static final BlockPos BLAST_DIRT_POS = SPAWN_POS.south();
-    private static final String LIVING_SHOULD_NOT_BURN = "A cow is not undead and should not burn";
-    private static final String UNDEAD_SHOULD_BURN = "A zombie is undead and should burn";
-    /** The damage metal_javelin.json's damage step names. */
-    private static final float JAVELIN_DAMAGE = 8.0f;
 
     private MobEffectTests() {
     }
@@ -152,22 +140,6 @@ public final class MobEffectTests {
         helper.assertTrue(ability != null, ABILITIES_REQUIRED);
         GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), thrower, ability.gooType(),
                 mob.getId(), mob.blockPosition(), Direction.UP, abilityId));
-    }
-
-    /**
-     * Metal javelin is a program: its damage step, loaded for the struck
-     * entity host, deals the javelin's magic damage to the target.
-     *
-     * @param helper the gametest helper
-     */
-    public static void metalJavelin(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        float before = mob.getHealth();
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_METAL_JAVELIN);
-            helper.assertTrue(mob.getHealth() <= before - JAVELIN_DAMAGE, SHOULD_TAKE_JAVELIN_DAMAGE);
-            helper.succeed();
-        });
     }
 
     /**

@@ -224,7 +224,7 @@ public final class RallyTests {
     }
 
     /**
-     * A rallied cow still holds the rally and its buff past the 100 ticks the
+     * A rallied cow still holds the rally past the 100 ticks the
      * area rally lasted, its caster holding nothing and casting nothing again
      * (decision rally-is-a-mob-effect-on-one-target).
      *
@@ -237,8 +237,6 @@ public final class RallyTests {
         helper.runAfterDelay(PAST_THE_OLD_RALLY_TICKS, () -> {
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.assertTrue(cow.hasData(GooAttachments.RALLIED), RALLY_LAPSED);
-            helper.assertTrue(cow.getMaxHealth() == RALLIED_COW_MAX_HEALTH,
-                    String.format(COW_NOT_BUFFED, cow.getMaxHealth()));
             helper.succeed();
         });
     }

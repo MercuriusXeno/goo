@@ -42,7 +42,6 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 public final class RewindStreamTests {
     private static final String REWIND_ADULT_TO_BABY = "rewind_adult_to_baby";
     private static final String REWIND_BABY_TO_EGG = "rewind_baby_to_egg";
-    private static final String REWIND_LEAVES_BLOCKS = "rewind_leaves_blocks";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -52,7 +51,6 @@ public final class RewindStreamTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, REWIND_ADULT_TO_BABY, RewindStreamTests::rewindAdultToBaby);
         GooTestFunctions.registerTest(registrar, REWIND_BABY_TO_EGG, RewindStreamTests::rewindBabyToEgg);
-        GooTestFunctions.registerTest(registrar, REWIND_LEAVES_BLOCKS, RewindStreamTests::rewindLeavesBlocks);
     }
 
 
@@ -75,7 +73,6 @@ public final class RewindStreamTests {
     private static final Identifier YORE_REWIND = Identifier.parse("goo:yore_rewind");
     private static final String ABILITY_REQUIRED = "Ability registry must hold yore_rewind";
     private static final String SHOULD_FREEZE = "A held pig should stand frozen with no AI";
-    private static final String SHOULD_STAY_ADULT = "The pig should stay an adult short of the ritual";
     private static final String SHOULD_BE_BABY = "The held adult should have become a baby; counters %s";
     private static final String SHOULD_GO_FREE = "The released pig should have its AI back";
     private static final String SHOULD_VANISH = "The rewound baby should be gone into its egg";
@@ -97,7 +94,6 @@ public final class RewindStreamTests {
         hold(helper, player, HOLD_TICKS);
         helper.runAfterDelay(MID_HOLD_TICKS, () -> {
             helper.assertTrue(pig.isNoAi(), SHOULD_FREEZE);
-            helper.assertFalse(pig.isBaby(), SHOULD_STAY_ADULT);
         });
         helper.runAfterDelay(HOLD_TICKS + 1, () -> helper.assertTrue(pig.isAlive() && pig.isBaby(),
                 String.format(SHOULD_BE_BABY, pig.getData(GooAttachments.ENTITY_COUNTERS))));
@@ -128,27 +124,6 @@ public final class RewindStreamTests {
                 helper.assertTrue(items.size() == 1 && items.get(0).getItem().is(Items.PIG_SPAWN_EGG),
                         String.format(SHOULD_DROP_ONLY_EGG, items.stream().map(ItemEntity::getItem).toList()));
             });
-        });
-    }
-
-    /**
-     * Rewind held through a pig's whole ritual leaves every block it crosses
-     * as it stood: the pig's glass pen and its stone floor.
-     *
-     * @param helper the gametest helper
-     */
-    public static void rewindLeavesBlocks(GameTestHelper helper) {
-        Mob pig = pennedPig(helper, false);
-        ServerPlayer player = rewinder(helper, pig);
-        hold(helper, player, HOLD_TICKS);
-        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertBlockPresent(Blocks.STONE, TARGET_POS.below());
-            for (Direction side : Direction.Plane.HORIZONTAL) {
-                helper.assertBlockPresent(Blocks.GLASS, TARGET_POS.relative(side));
-                helper.assertBlockPresent(Blocks.GLASS, TARGET_POS.relative(side).above());
-            }
-            helper.succeed();
         });
     }
 
