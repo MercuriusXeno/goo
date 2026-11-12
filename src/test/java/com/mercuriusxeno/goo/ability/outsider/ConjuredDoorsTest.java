@@ -57,6 +57,45 @@ class ConjuredDoorsTest {
         }
     }
 
+    @Nested
+    class TheReleasingDoor {
+
+        @Test
+        void itStartsFullSizeOnTheArriversFeet() {
+            ConjuredDoor first = ConjuredDoor.releasing(FEET, FACING_SOUTH, 0, ConjuredDoor.RELEASE_TICKS);
+
+            assertEquals(ConjuredDoor.Phase.RELEASING, first.phase());
+            assertEquals(FEET, first.at(), "the release should start on the arriver's feet");
+            assertEquals(1, first.size(), EXACT, "the release should start at full size");
+        }
+
+        @Test
+        void itMovesOffTheWayTheArriverFacesAndNarrows() {
+            ConjuredDoor first = ConjuredDoor.releasing(FEET, FACING_SOUTH, 0, ConjuredDoor.RELEASE_TICKS);
+            ConjuredDoor later = ConjuredDoor.releasing(FEET, FACING_SOUTH, ConjuredDoor.RELEASE_TICKS / 2,
+                    ConjuredDoor.RELEASE_TICKS);
+
+            assertTrue(later.at().z() > first.at().z() && later.at().x() == FEET.x(),
+                    "the door should move south, the way the arriver faces, stands at " + later.at());
+            assertTrue(later.size() < first.size(), "the door should narrow, sized " + later.size());
+        }
+    }
+
+    @Test
+    void theReleasingDoorReachesTheArriverAndEveryPlayerTrackingThem() {
+        ServerPlayer arriver = mock(ServerPlayer.class);
+        when(arriver.getId()).thenReturn(CASTER_ID);
+        when(arriver.getUUID()).thenReturn(java.util.UUID.randomUUID());
+        when(arriver.position()).thenReturn(FEET);
+        when(arriver.getYRot()).thenReturn(FACING_SOUTH);
+        ConjuredDoor first = ConjuredDoor.releasing(FEET, FACING_SOUTH, 0, ConjuredDoor.RELEASE_TICKS);
+        try (MockedStatic<EntityVisuals> visuals = mockStatic(EntityVisuals.class)) {
+            ConjuredDoors.releaseAt(arriver, 0);
+
+            visuals.verify(() -> EntityVisuals.sendToWatchers(arriver, new ConjuredDoorPayload(CASTER_ID, first)));
+        }
+    }
+
     @Test
     void theDoorsStateReachesTheCasterAndEveryPlayerTrackingThem() {
         ServerPlayer caster = mock(ServerPlayer.class);
