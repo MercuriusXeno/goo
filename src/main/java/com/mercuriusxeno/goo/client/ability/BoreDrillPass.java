@@ -4,9 +4,11 @@ import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.systems.GpuDevice;
 import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -19,6 +21,7 @@ import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
+import org.jspecify.annotations.Nullable;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.OptionalDouble;
@@ -28,8 +31,9 @@ import java.util.OptionalInt;
  * Draws Bore's drill in one render pass on its own pipeline, as Drain's
  * vortex draws: the box around the bit as an {@link InwardBox}, inside
  * which {@code bore_drill.fsh} marches the bit's churning earth dust,
- * sampled on the world's grid of sixteen texels a block, drawn over the
- * blocks it breaks.
+ * sampled on the world's grid of sixteen texels a block. It reads a copy of
+ * the world's depth: a surface standing outside the bit hides the bit behind
+ * it, and a surface inside the bit, a block Bore is breaking, hides nothing.
  * decision bore-shows-a-big-drill-from-the-glove
  */
 final class BoreDrillPass {
@@ -39,6 +43,7 @@ final class BoreDrillPass {
     private static final String PASS = "Goo bore drill";
     private static final String UNIFORM_BUFFER = "Goo bore drill shape";
     private static final String BOX_BUFFER = "Goo bore drill box";
+    private static final String DEPTH_COPY = "Goo bore drill depth";
     private static final String TRANSFORMS_UNIFORM = "DynamicTransforms";
     /** Blocks the box stands past the bit, so no fragment of its ragged rim is clipped at a face. */
     private static final double BOX_MARGIN = 0.25;
@@ -52,6 +57,8 @@ final class BoreDrillPass {
 
     /** The block's bytes, kept across frames so a frame allocates no direct memory of its own. */
     private static final ByteBuffer BLOCK = ByteBuffer.allocateDirect(BYTES);
+
+    private static @Nullable TextureTarget depthCopy;
 
     private BoreDrillPass() {
     }
@@ -68,15 +75,17 @@ final class BoreDrillPass {
             return;
         }
         RenderTarget main = Minecraft.getInstance().getMainRenderTarget();
+        TextureTarget depth = depthCopySizedTo(main);
+        depth.copyDepthFrom(main);
         GpuDevice device = RenderSystem.getDevice();
         BLOCK.clear();
-        pack(BLOCK, bit, camera);
+        pack(BLOCK, bit, camera, device.isZZeroToOne());
         GpuBuffer uniforms = device.createBuffer(() -> UNIFORM_BUFFER, GpuBuffer.USAGE_UNIFORM, BLOCK.flip());
         try (ByteBufferBuilder bytes = new ByteBufferBuilder(FACES * CORNERS
                 * DefaultVertexFormat.POSITION_COLOR.getVertexSize())) {
             MeshData mesh = boxOf(boxAround(bit), bytes);
             GpuBuffer vertices = device.createBuffer(() -> BOX_BUFFER, GpuBuffer.USAGE_VERTEX, mesh.vertexBuffer());
-            drawBox(device, main, modelView, uniforms, vertices);
+            drawBox(device, main, depth, modelView, uniforms, vertices);
             mesh.close();
             vertices.close();
         }
@@ -96,8 +105,8 @@ final class BoreDrillPass {
         return new AABB(bit.apex(), bit.apex()).minmax(new AABB(tip, tip)).inflate(radius + BOX_MARGIN);
     }
 
-    private static void drawBox(GpuDevice device, RenderTarget main, Matrix4fc modelView, GpuBuffer uniforms,
-                                GpuBuffer vertices) {
+    private static void drawBox(GpuDevice device, RenderTarget main, TextureTarget depth, Matrix4fc modelView,
+                                GpuBuffer uniforms, GpuBuffer vertices) {
         RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(VertexFormat.Mode.QUADS);
         GpuBufferSlice transform = RenderSystem.getDynamicUniforms().writeTransform(new Matrix4f(modelView), WHITE,
                 new Vector3f(), new Matrix4f());
@@ -107,24 +116,36 @@ final class BoreDrillPass {
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform(TRANSFORMS_UNIFORM, transform);
             pass.setUniform(GooRenderTypes.BORE_DRILL_BLOCK, uniforms.slice(0, BYTES));
+            pass.bindTexture(GooRenderTypes.BORE_DRILL_DEPTH_SAMPLER, depth.getDepthTextureView(),
+                    RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
             pass.setVertexBuffer(0, vertices);
             pass.setIndexBuffer(indices.getBuffer(FACES * INDICES_PER_QUAD), indices.type());
             pass.drawIndexed(0, 0, FACES * INDICES_PER_QUAD, 1);
         }
     }
 
+    private static TextureTarget depthCopySizedTo(RenderTarget main) {
+        if (depthCopy == null) {
+            depthCopy = new TextureTarget(DEPTH_COPY, main.width, main.height, true);
+        } else if (depthCopy.width != main.width || depthCopy.height != main.height) {
+            depthCopy.resize(main.width, main.height);
+        }
+        return depthCopy;
+    }
+
     /**
      * Packs the bit's uniform block, four std140 vec4 rows.
      *
-     * @param out    where the bytes go, at its position
-     * @param bit    the bit, camera relative
-     * @param camera the camera's world position
+     * @param out       where the bytes go, at its position
+     * @param bit       the bit, camera relative
+     * @param camera    the camera's world position
+     * @param zeroToOne whether the device's depth runs 0 to 1
      */
-    private static void pack(ByteBuffer out, ConeSections.Volume bit, Vec3 camera) {
+    private static void pack(ByteBuffer out, ConeSections.Volume bit, Vec3 camera, boolean zeroToOne) {
         ByteBuffer rows = out.order(ByteOrder.nativeOrder());
         row(rows, bit.apex(), bit.radiusAt().applyAsDouble(0));
         row(rows, bit.axis(), bit.range());
-        row(rows, FireField.sideOf(bit.axis()), 0);
+        row(rows, FireField.sideOf(bit.axis()), zeroToOne ? 1 : 0);
         row(rows, new Vec3(gridOf(camera.x), gridOf(camera.y), gridOf(camera.z)), 0);
     }
 
