@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.program.WindStep;
 import net.minecraft.world.phys.Vec3;
@@ -222,6 +223,20 @@ class WindLinesTest {
                 assertEquals(0, flight.from().add(flight.velocity().scale(carried)).distanceTo(glove), 1e-6,
                         "a mote should end its flight at the glove");
             }
+        }
+
+        /**
+         * The client blows a stream's wind through the ability's area, so an
+         * ability naming none blows lines of no length and motes that never
+         * leave the glove; Vacuum's area spans its own stream's reach and cone.
+         * vacuum-wind-lines-run-straight-and-far-in-void-colors-with-motes
+         */
+        @Test
+        void vacuumsWindBlowsThroughItsStreamsReachAndCone() {
+            AbilityDefinition vacuum = AbilityJson.decode("void_vacuum");
+
+            assertEquals(vacuum.delivery().range(), vacuum.area().size(), EPSILON, "the wind's reach");
+            assertEquals(vacuum.delivery().coneDegrees(), vacuum.area().angle(), EPSILON, "the wind's cone");
         }
 
         @Test
