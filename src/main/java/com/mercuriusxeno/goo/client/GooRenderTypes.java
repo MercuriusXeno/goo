@@ -1227,14 +1227,26 @@ public final class GooRenderTypes {
     public static final RenderType LEAF_GHOST_THROUGH_BLOCKS_TYPE = burnoutType(LEAF_GHOST_THROUGH_BLOCKS);
 
     /**
-     * Bore's vortex pipeline (decision bore-vortex-with-a-worldspace-shake):
-     * a tube's walls from the glove down the tunnel drawn through
-     * {@code bore_vortex.vsh / .fsh}, rifled dust arms screwing forward.
+     * Bore's drill pipeline (decision bore-shows-a-big-drill-from-the-glove):
+     * a solid cone bit from the glove drawn through {@code bore_drill.vsh / .fsh},
+     * spiral grooves spinning about it. Opaque, depth tested and depth written,
+     * both faces drawn, so the bit stands solid and the blocks it sinks into
+     * hide its buried length.
      */
-    public static final RenderPipeline BORE_VORTEX = burnoutPipeline("bore_vortex", BlendFunction.TRANSLUCENT);
+    public static final RenderPipeline BORE_DRILL = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "bore_drill"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "bore_drill"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "bore_drill"))
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.QUADS)
+            .withColorTargetState(ColorTargetState.DEFAULT)
+            .withDepthStencilState(DepthStencilState.DEFAULT)
+            .withCull(false)
+            .build();
 
-    /** The bore vortex render type. */
-    public static final RenderType BORE_VORTEX_TYPE = burnoutType(BORE_VORTEX);
+    /** The bore drill render type. */
+    public static final RenderType BORE_DRILL_TYPE = burnoutType(BORE_DRILL);
 
     /**
      * Ghost trail pipeline (decision ghost-trail-spans-the-blink): an entity's
@@ -1718,7 +1730,7 @@ public final class GooRenderTypes {
         event.registerPipeline(VOIDSTONE);
         event.registerPipeline(PETRIFY_FOG);
         event.registerPipeline(FIRE_FIELD);
-        event.registerPipeline(BORE_VORTEX);
+        event.registerPipeline(BORE_DRILL);
         registerOverlayPipelines(event);
     }
 

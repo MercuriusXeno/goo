@@ -108,6 +108,6 @@ class PetrifyFogTest {
         PipelineShaders.assertExist(GooRenderTypes.PETRIFY_FOG);
         PipelineShaders.assertExist(GooRenderTypes.PETRIFY_STONE);
         PipelineShaders.assertExist(GooRenderTypes.BLOCK_MINGLE);
-        PipelineShaders.assertExist(GooRenderTypes.BORE_VORTEX);
+        PipelineShaders.assertExist(GooRenderTypes.BORE_DRILL);
     }
 }

@@ -8,8 +8,8 @@ import java.util.function.DoubleUnaryOperator;
 /**
  * The volume a held ability's shader fills, as stacked cross-sections
  * square to its axis or as the tube walls around it: Growth's breeze in its
- * cone and Bore's vortex down its tunnel
- * (decision bore-vortex-with-a-worldspace-shake). Each vertex's color carries how far
+ * cone and Bore's drill bit from the glove
+ * (decision bore-shows-a-big-drill-from-the-glove). Each vertex's color carries how far
  * along the look its section stands in red and where on the section it sits
  * in green and blue, since a core pipeline takes no per-draw uniforms.
  */
@@ -125,13 +125,15 @@ final class ConeSections {
         for (int ring = 0; ring < volume.sections(); ring++) {
             Ring nearer = ring(volume, ring, side, up);
             Ring farther = ring(volume, ring + 1, side, up);
+            double span = farther.frame().center().distanceTo(nearer.frame().center());
+            double slope = span == 0 ? 0 : (nearer.radius() - farther.radius()) / span;
             for (int segment = 0; segment < SEGMENTS; segment++) {
                 double a0 = TWO_PI * segment / SEGMENTS;
                 double a1 = TWO_PI * (segment + 1) / SEGMENTS;
-                wall(quads, nearer, a0);
-                wall(quads, farther, a0);
-                wall(quads, farther, a1);
-                wall(quads, nearer, a1);
+                wall(quads, nearer, a0, slope);
+                wall(quads, farther, a0, slope);
+                wall(quads, farther, a1, slope);
+                wall(quads, nearer, a1, slope);
             }
         }
     }
@@ -151,20 +153,23 @@ final class ConeSections {
     }
 
     /**
-     * Emits a wall vertex: on its ring, its normal pointing out from the
-     * axis, so the shader can thin the wall where the view grazes it.
+     * Emits a wall vertex: on its ring, its normal square to the wall,
+     * leaning toward the axis's far end as much as the wall narrows that
+     * way, so the shader can light the wall as a surface.
      *
      * @param quads the quad emitter
      * @param ring  the ring
      * @param angle the vertex's angle about the axis
+     * @param slope how much the wall narrows per block along the axis
      */
-    private static void wall(FlatQuadContext quads, Ring ring, double angle) {
+    private static void wall(FlatQuadContext quads, Ring ring, double angle, double slope) {
         Frame frame = ring.frame();
         Vec3 outward = frame.side().scale(Math.cos(angle)).add(frame.up().scale(Math.sin(angle)));
         Vec3 at = frame.center().add(outward.scale(ring.radius()));
+        Vec3 normal = outward.add(frame.axis().scale(slope)).normalize();
         int color = sectionColor(ring.along(), (float) Math.cos(angle), (float) Math.sin(angle));
-        quads.vertex((float) at.x, (float) at.y, (float) at.z, color, (float) outward.x, (float) outward.y,
-                (float) outward.z);
+        quads.vertex((float) at.x, (float) at.y, (float) at.z, color, (float) normal.x, (float) normal.y,
+                (float) normal.z);
     }
 
     private static Ring ring(Volume volume, int ring, Vec3 side, Vec3 up) {
