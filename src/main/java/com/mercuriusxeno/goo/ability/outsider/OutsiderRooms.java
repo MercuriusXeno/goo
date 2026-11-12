@@ -37,9 +37,8 @@ import java.util.function.Consumer;
  * player's room stands apart from every other and keeps whatever was built
  * in it. The floor is voidstone, standing whole across the pocket from the
  * moment a room is laid, {@link PocketFloor}; a room starts with an extent
- * holding the 3 by 3 around its center, where a two-tall, door-shaped
- * dimension doorway stands alone on the center voidstone, as the operator
- * ruled, and the player arrives on the block just south of the doorway,
+ * holding the 9 by 9 around its center, where a two-tall, door-shaped
+ * dimension doorway stands alone on the center voidstone, and the player arrives on the block just south of the doorway,
  * facing it. Walking into the doorway leads back to where the player cast
  * Outsider from; the doorway and the center voidstone stand again if
  * anything removes them. The room wraps: its edges are linked gates,
@@ -56,6 +55,7 @@ import java.util.function.Consumer;
  * arrives, motes stream off the player while they feed the room, and each
  * full block the extent gains wubs and raises void motes along every wall.
  * decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform
+ * decision outsider-room-starts-nine-by-nine
  * decision outsider-room-wraps-and-repeats-at-the-platform-edge
  * decision outsider-room-grows-fractionally-on-all-sides-at-once
  * decision voidstone-floor-stands-whole-and-growth-moves-the-boundary

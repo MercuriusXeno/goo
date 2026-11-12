@@ -4,6 +4,8 @@ import com.mercuriusxeno.goo.ability.frost.FrostCurve;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.NovaStep;
 import com.mercuriusxeno.goo.ability.program.WindStep;
+import net.minecraft.world.phys.Vec3;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -51,5 +53,34 @@ class NovaChargeGhostTest {
         assertTrue(NovaChargeGhost.chargePitch(0.5f) > NovaChargeGhost.chargePitch(0.25f));
         assertEquals(NovaChargeGhost.PITCH_HIGH, NovaChargeGhost.chargePitch(1f), 1e-6);
         assertEquals(NovaChargeGhost.PITCH_HIGH, NovaChargeGhost.chargePitch(1.5f), 1e-6);
+    }
+
+    /**
+     * The disc's middle as the player sneaks in first person: it follows the
+     * camera's eased eye above the feet, never the body height's step
+     * (decision diagnose-and-correct-body-height-visuals-jumping-on-sneak).
+     */
+    @Nested
+    class OnSneak {
+
+        private static final Vec3 FEET = new Vec3(0, 64, 0);
+
+        private static Vec3 middleWith(double cameraAboveFeet, double bodyHeight) {
+            return NovaChargeGhost.middleOf(FEET, CameraEye.bodyHeight(true, cameraAboveFeet, bodyHeight));
+        }
+
+        @Test
+        void theBodyHeightsStepWithTheCameraUnmovedMovesTheDiscByNothing() {
+            assertEquals(middleWith(1.62, 1.8), middleWith(1.62, 1.5));
+        }
+
+        @Test
+        void anEasingCameraMovesTheDiscByTheSameEasedShareEachFrame() {
+            double firstFrame = middleWith(1.62, 1.5).y - middleWith(1.47, 1.5).y;
+            double secondFrame = middleWith(1.47, 1.5).y - middleWith(1.395, 1.5).y;
+
+            assertTrue(firstFrame > 0);
+            assertEquals(firstFrame / 0.15, secondFrame / 0.075, EPSILON);
+        }
     }
 }

@@ -97,5 +97,18 @@ class PlatformSpiralTest {
                 assertEquals(cells, PlatformSpiral.ringCost(ring, CELL_BASE, PER_DISTANCE), "ring " + ring);
             }
         }
+
+        @Test
+        void ringsTogetherCostEachRingSummed() {
+            for (int first = 1; first <= 12; first++) {
+                long summed = 0;
+                for (int last = first; last <= 40; last++) {
+                    summed += PlatformSpiral.ringCost(last, CELL_BASE, PER_DISTANCE);
+
+                    assertEquals(summed, PlatformSpiral.ringsCost(first, last, CELL_BASE, PER_DISTANCE), 1.0E-6,
+                            "rings " + first + " to " + last);
+                }
+            }
+        }
     }
 }

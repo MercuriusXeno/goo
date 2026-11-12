@@ -53,7 +53,7 @@ public final class NovaChargeGhost {
             / FrostExplosionVisual.DURATION_TICKS;
     /** One seed for the ghost, so its fog holds one look while it grows. */
     private static final float GHOST_SEED = 1.3f;
-    private static final double HALF_HEIGHT = 0.5;
+    static final double HALF_HEIGHT = 0.5;
     private static final double HALF_BLOCK = 0.5;
     private static final double HALF = 0.5;
 
@@ -104,6 +104,17 @@ public final class NovaChargeGhost {
     }
 
     /**
+     * The disc's middle: half the body's height above the feet.
+     *
+     * @param feet   the player's feet this frame
+     * @param height the body height the disc reads, {@link CameraEye#bodyHeight}'s
+     * @return the middle
+     */
+    static Vec3 middleOf(Vec3 feet, double height) {
+        return feet.add(0, height * HALF_HEIGHT, 0);
+    }
+
+    /**
      * The charging rush's pitch: rising with the charge, holding at its top once full.
      *
      * @param share the share of a full charge
@@ -128,7 +139,7 @@ public final class NovaChargeGhost {
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         float gameTime = mc.level.getGameTime() + partialTick;
-        Vec3 middle = player.getPosition(partialTick).add(0, player.getBbHeight() * HALF_HEIGHT, 0);
+        Vec3 middle = middleOf(player.getPosition(partialTick), CameraEye.bodyHeight(mc, player, partialTick));
         BurnoutFrame frame = new BurnoutFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera().position(), gameTime);
         FrostExplosionVisual.drawDisc(frame, middle.subtract(HALF_BLOCK, HALF_BLOCK, HALF_BLOCK), Direction.UP, 0f,

@@ -333,10 +333,10 @@ public final class GooClientSetup {
         event.registerSpriteSet(GooParticles.GOO_FOG.get(), GooFogParticle.Provider::new);
         event.registerSpriteSet(GooParticles.SPORE.get(), SporeParticle.Provider::new);
         event.registerSpriteSet(GooParticles.GNAT.get(), GnatParticle.Provider::new);
-        event.registerSpriteSet(GooParticles.SLIME_MIST.get(),
-                sprites -> new GnatParticle.Provider(sprites, GnatPalette.SLIME_MIST));
-        event.registerSpriteSet(GooParticles.KINETIC_MIST.get(),
-                sprites -> new GnatParticle.Provider(sprites, GnatPalette.KINETIC_MIST));
+        event.registerSpriteSet(GooParticles.GOOP_SPRAY_DRIP.get(),
+                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.GOOP_SLIME_GREENS));
+        event.registerSpriteSet(GooParticles.SLICK_SPRAY_DRIP.get(),
+                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.SLICK_SLIME_BLUES));
         event.registerSpriteSet(GooParticles.SNOWFLAKE.get(), SnowflakeParticle.Provider::new);
         event.registerSpriteSet(GooParticles.CLICK_WAVE.get(), ClickWaveParticle.Provider::new);
         event.registerSpriteSet(GooParticles.RESTORE_MOTE.get(), RestoreMoteParticle.Provider::new);

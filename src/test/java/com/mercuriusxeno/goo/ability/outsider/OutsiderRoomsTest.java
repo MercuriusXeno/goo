@@ -21,8 +21,8 @@ class OutsiderRoomsTest {
 
     private static final int ROOM = 7;
     private static final BlockPos CENTER = OutsiderRooms.voidstoneOf(ROOM);
-    /** Three blocks east of the center: past the starting extent. */
-    private static final int PAST_THE_EDGE = 3;
+    /** Five blocks east of the center: past the starting extent. */
+    private static final int PAST_THE_EDGE = 5;
 
     @Nested
     class TheFold {
@@ -46,7 +46,7 @@ class OutsiderRoomsTest {
     class Growth {
 
         /** A fifth of a block past the starting extent, short of any whole-block mark. */
-        private static final double A_FRACTION_ON = 1.7;
+        private static final double A_FRACTION_ON = 4.7;
         private static final double EXACT = 1.0E-9;
 
         @Test
@@ -78,8 +78,8 @@ class OutsiderRoomsTest {
 
         private static final int BASE = 10;
         private static final int PER_DISTANCE = 1;
-        /** Just short of the first whole-block mark at 2.5. */
-        private static final double SHORT_OF_THE_MARK = 2.45;
+        /** Just short of the first whole-block mark at 5.5. */
+        private static final double SHORT_OF_THE_MARK = 5.45;
         private static final double EXACT = 1.0E-9;
         private static final double FLOOR_TOP = OutsiderRooms.ROOM_FLOOR_Y + 1;
 
@@ -99,8 +99,8 @@ class OutsiderRoomsTest {
 
         @Test
         void aFeedAcrossAWholeBlockMarkWubsOnceAndRaisesAMoteLineAlongEachWall() {
-            long ringTwo = PlatformSpiral.ringCost(2, BASE, PER_DISTANCE);
-            double after = RoomExtent.grown(SHORT_OF_THE_MARK, ringTwo / 5, BASE, PER_DISTANCE);
+            long ringFive = PlatformSpiral.ringCost(5, BASE, PER_DISTANCE);
+            double after = RoomExtent.grown(SHORT_OF_THE_MARK, ringFive / 5, BASE, PER_DISTANCE);
             OutsiderRooms.cueGrowth(ROOM, SHORT_OF_THE_MARK, after, recorded);
 
             assertEquals(1, wubs.size(), "one wub");
@@ -123,7 +123,7 @@ class OutsiderRoomsTest {
 
         @Test
         void aFeedCrossingNoMarkWubsNotAndRaisesNoWallMotes() {
-            OutsiderRooms.cueGrowth(ROOM, RoomExtent.LAID, 1.9, recorded);
+            OutsiderRooms.cueGrowth(ROOM, RoomExtent.LAID, 4.9, recorded);
 
             assertEquals(List.of(), wubs, "no wub");
             assertEquals(0, lines.size(), "no wall motes");
