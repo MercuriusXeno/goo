@@ -73,11 +73,13 @@ class FieldEffectStepTest {
     private static final int WALKING_TICKS_FOR_A_THROW = 16;
     /** Ticks a sprinter and a walker share the cloud while its charges outlast them both. */
     private static final int SPRINT_WINDOW = 4;
-    /** The tick after the cloud opens that its second chime rings. */
-    private static final int EXPAND_CHIME_FRAME = 4;
-    /** Rolls either side of the cloud's ambient chance. */
-    private static final double ROLL_MISSES_THE_TINKLE = 0.5;
-    private static final double ROLL_PASSES_THE_TINKLE = 0.05;
+    private static final Identifier OPENING_SOUND = Identifier.parse("goo:test.field_opens");
+    private static final Identifier STANDING_SOUND = Identifier.parse("goo:test.field_stands");
+    private static final SoundCue OPENING_CUE = new SoundCue(OPENING_SOUND, SoundKind.BLOCKS, 1, 1);
+    private static final SoundCue STANDING_CUE = new SoundCue(STANDING_SOUND, SoundKind.BLOCKS, 1, 1);
+    private static final double AMBIENT_CHANCE = 0.5;
+    /** How far a roll stands either side of the ambient chance. */
+    private static final double ROLL_STEP = 0.25;
     private static final Identifier PROBE_SOUND = Identifier.parse("goo:test.strike_landed");
     /** The sound each strike body plays at its target in place of its damage. */
     private static final Step PROBE_STEP = new SoundStep(PROBE_SOUND, FxAnchor.TARGET, SoundKind.HOSTILE,
@@ -377,25 +379,38 @@ class FieldEffectStepTest {
         verify(host, times(1)).playSound(argThat(cue -> "block.fire.extinguish".equals(cue.sound().getPath())));
     }
 
-    // razor-keeps-its-look-gated-on-glass: the cloud sounds as it opens and tinkles as it stands
+    /**
+     * A field runs its expand steps on the tick it opens and its ambient steps on a tick whose roll falls under
+     * its ambient chance, so the crystal cloud chimes as it opens and tinkles as it stands
+     * (decision razor-keeps-its-look-gated-on-glass). The sounds and the chance are built here, not read from the
+     * shipped cloud.
+     */
     @Test
-    void theCrystalFieldChimesAsItOpensAndTinklesOnARollWhileItStands() {
+    void aFieldSoundsItsExpandAsItOpensAndItsAmbientOnARollUnderItsChance() {
         MarkerHost host = marker(List.of());
-        when(host.rollFraction()).thenReturn(ROLL_MISSES_THE_TINKLE);
-        ProgramBehavior program = ProgramBehavior.forHost(program(CRYSTAL_CLOUD), HostKind.MARKER);
+        ProgramBehavior program = ProgramBehavior.forHost(withSounds(program(CRYSTAL_CLOUD)), HostKind.MARKER);
 
+        when(host.rollFraction()).thenReturn(AMBIENT_CHANCE + ROLL_STEP);
         program.tick(host);
-        verify(host, times(1)).playSound(argThat(cue -> "block.amethyst_cluster.place".equals(cue.sound().getPath())));
-        tick(program, host, EXPAND_CHIME_FRAME + 1);
-        verify(host, times(1)).playSound(argThat(cue -> isChime(cue) && cue.volume() == 1f));
+        when(host.rollFraction()).thenReturn(AMBIENT_CHANCE - ROLL_STEP);
+        program.tick(host);
 
-        when(host.rollFraction()).thenReturn(ROLL_PASSES_THE_TINKLE);
-        program.tick(host);
-        verify(host, times(1)).playSound(argThat(cue -> isChime(cue) && cue.volume() < 1f));
+        verify(host, times(1)).playSound(OPENING_CUE);
+        verify(host, times(1)).playSound(STANDING_CUE);
     }
 
-    private static boolean isChime(SoundCue cue) {
-        return "block.amethyst_block.chime".equals(cue.sound().getPath());
+    /** Swaps each field effect's expand and ambient steps and chance for the literal ones built here. */
+    private static List<Step> withSounds(List<Step> steps) {
+        return steps.stream().map(step -> step instanceof FieldEffectStep field
+                ? new FieldEffectStep(field.radius(), field.where(), field.cooldown(), field.interval(),
+                        field.charges(), field.spendChance(), field.strikeTick(), field.strikeTicks(), field.timing(),
+                        field.strike(), field.teardown(), List.of(soundOf(OPENING_SOUND)),
+                        List.of(soundOf(STANDING_SOUND)), Expr.literal(AMBIENT_CHANCE))
+                : step).toList();
+    }
+
+    private static Step soundOf(Identifier sound) {
+        return new SoundStep(sound, FxAnchor.HOST, SoundKind.BLOCKS, Expr.literal(1), Expr.literal(1));
     }
 
     @Test

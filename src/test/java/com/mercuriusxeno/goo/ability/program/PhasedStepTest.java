@@ -49,11 +49,12 @@ class PhasedStepTest {
     }
 
     @Test
-    void progressIsTheTicksRunOverThePhasesDuration() {
+    void progressIsTheTicksRunOverThePhasesDurationAndZeroForAPhaseJustEntered() {
         PhasedState state = new PhasedState();
         state.enter("timed", 3);
+        float justEntered = state.progress();
         state.countTick();
 
-        assertEquals(1f / 3, state.progress());
+        assertEquals(List.of(0f, 1f / 3), List.of(justEntered, state.progress()));
     }
 }
