@@ -25,14 +25,18 @@ import java.util.function.Consumer;
  * take a player into the ground, and from then on it swims through stone
  * with no key pressed into a block; a player that only walks into a wall
  * stays outside it; a diver that rises out of a top face and jumps clear
- * stands on that block, out of the dive; a diver below the world's floor
- * rises back in; nothing in the stone suffocates a player whose brew stands;
- * and a sculk sensor never hears a player under Sculker walk or jump
+ * stands on that block, out of the dive; a diver that swims out of the
+ * stone into open air is out of the dive and falls, hurt where it lands; a
+ * diver below the world's floor rises back in; nothing in the stone
+ * suffocates a player whose brew stands; and a sculk sensor never hears a
+ * player under Sculker walk or jump
  * (decisions sculker-swims-solid-blocks-and-surfaces-at-will,
- * sculker-grants-suffocation-immunity and sculker-mutes-your-movement-sounds). The client moves a real player, so
- * each test ticks the mock player as its connection would and sets the swim
- * velocity after each tick as SculkerClient does. The stone floats above
- * the test's own bay.
+ * diagnose-and-correct-sculker-flying-through-air, sculker-grants-suffocation-immunity
+ * and sculker-mutes-your-movement-sounds). The client moves a real player, so
+ * each test ticks the mock player as its connection would, reporting each
+ * move for the fall it builds, and sets the swim velocity after each tick as
+ * SculkerClient does. The stone floats above the barrier cap over the
+ * test's own bay.
  */
 @RegistersGameTests
 public final class SculkerTests {
@@ -46,6 +50,8 @@ public final class SculkerTests {
     private static final String SCULKER_HANGS_STILL = "sculker_hangs_still_in_stone";
     private static final String SCULKER_STOPS_AT_BEDROCK = "sculker_stops_at_bedrock";
     private static final String SCULKER_LEAVES_BEDROCK = "sculker_leaves_bedrock";
+    private static final String SCULKER_DIVE_ENDS_IN_AIR = "sculker_dive_ends_in_open_air";
+    private static final String SCULKER_FALLS_FROM_THE_DIVE = "sculker_falls_from_where_the_dive_ended";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -63,6 +69,8 @@ public final class SculkerTests {
         GooTestFunctions.registerTest(registrar, SCULKER_HANGS_STILL, SculkerTests::sculkerHangsStillInStone);
         GooTestFunctions.registerTest(registrar, SCULKER_STOPS_AT_BEDROCK, SculkerTests::sculkerStopsAtBedrock);
         GooTestFunctions.registerTest(registrar, SCULKER_LEAVES_BEDROCK, SculkerTests::sculkerLeavesBedrock);
+        GooTestFunctions.registerTest(registrar, SCULKER_DIVE_ENDS_IN_AIR, SculkerTests::sculkerDiveEndsInOpenAir);
+        GooTestFunctions.registerTest(registrar, SCULKER_FALLS_FROM_THE_DIVE, SculkerTests::sculkerFallsFromWhereTheDiveEnded);
     }
 
     private static final Identifier DEEP_SCULKER = Identifier.parse("goo:deep_sculker");
@@ -74,6 +82,8 @@ public final class SculkerTests {
     private static final int LAYERS = 5;
     /** Ticks a test holds its keys, long enough to swim several blocks. */
     private static final int STROKE_TICKS = 40;
+    /** Ticks a diver sinks from the stone's top, deep enough to sink below it and short of its bottom face. */
+    private static final int SINK_TICKS = 10;
     /**
      * Ticks a buried player waits: past a joining player's sixty ticks of
      * spawn invulnerability, and long enough after for suffocation to strike
@@ -126,6 +136,24 @@ public final class SculkerTests {
     private static final double INTO_BEDROCK = 0.3;
     /** How far past bedrock's face a diver may stand and still read as stopped at it. */
     private static final double AT_THE_FACE = 1.0E-4;
+    /**
+     * Ticks a diver swims west from the stone's top layer at its west column,
+     * enough to carry its whole body out of the stone's west face; it falls
+     * from there onto the barrier rim around its own bay, clear of the bay
+     * beside, five blocks down and past the three a fall hurts beyond.
+     */
+    private static final int SWIM_OUT_TICKS = 8;
+    /** Ticks a diver that left the stone is watched falling. */
+    private static final int FALL_TICKS = 10;
+    /** Ticks between the two fall-distance reads of a diver falling from where its dive ended. */
+    private static final int FALL_READ_TICKS = 3;
+    /** Ticks a fallen diver is given to land on the barrier rim under the stone's west face. */
+    private static final int LAND_TICKS = 60;
+    private static final String SHOULD_FALL_OUT_OF_THE_DIVE =
+            "A diver that swam out of the stone into open air should be out of the dive and falling: diving %b, y=%.2f then y=%.2f";
+    private static final String SHOULD_BUILD_A_FALL =
+            "A diver whose dive ended in open air should build fall distance as it falls: diving %b, fell %.2f then %.2f";
+    private static final String SHOULD_HURT_ON_LANDING = "A diver that fell from the stone should take fall damage on landing, health %.1f of %.1f, resting at y=%.2f";
 
     private SculkerTests() {
     }
@@ -143,7 +171,7 @@ public final class SculkerTests {
         ServerPlayer player = brewed(helper);
         player.setYRot(FACING_EAST);
         player.teleportTo(top.getX() + 0.5, top.getY() + 1, top.getZ() + 0.5);
-        swimFor(player, SNEAK_AND_JUMP, STROKE_TICKS);
+        swimFor(player, SNEAK_AND_JUMP, SINK_TICKS);
         double sunk = player.getY();
         double before = player.getX();
         swimFor(player, FORWARD, STROKE_TICKS / 2);
@@ -334,6 +362,63 @@ public final class SculkerTests {
     }
 
     /**
+     * A diver in the stone's top layer, facing west, swims forward out of the
+     * stone's west face into open air with no top face under it, and from
+     * there is out of the dive and falls
+     * (decision diagnose-and-correct-sculker-flying-through-air).
+     *
+     * @param helper the gametest helper
+     */
+    public static void sculkerDiveEndsInOpenAir(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos top = layStone(helper);
+        ServerPlayer player = diving(helper);
+        player.setYRot(FACING_WEST);
+        player.teleportTo(top.getX() - HALF_WIDTH + 0.5, top.getY(), top.getZ() + 0.5);
+        swimFor(player, FORWARD, SWIM_OUT_TICKS);
+        double leftAt = player.getY();
+        swimFor(player, NONE, FALL_TICKS);
+        double fellTo = player.getY();
+        boolean stillDiving = player.getData(GooAttachments.SCULKER).diving();
+        level.getServer().getPlayerList().remove(player);
+        clearStone(level, top);
+        helper.assertTrue(!stillDiving && fellTo < leftAt,
+                String.format(SHOULD_FALL_OUT_OF_THE_DIVE, stillDiving, leftAt, fellTo));
+        helper.succeed();
+    }
+
+    /**
+     * A survival diver, past its spawn invulnerability, swims out of the
+     * stone's west face from its top layer into open air: from where its dive
+     * ended it builds fall distance as it falls, and lands on the barrier rim hurt
+     * (decision diagnose-and-correct-sculker-flying-through-air).
+     *
+     * @param helper the gametest helper
+     */
+    public static void sculkerFallsFromWhereTheDiveEnded(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos top = layStone(helper);
+        ServerPlayer player = diving(helper);
+        player.setYRot(FACING_WEST);
+        player.teleportTo(top.getX() - HALF_WIDTH + 0.5, top.getY(), top.getZ() + 0.5);
+        swimFor(player, NONE, BURIED_TICKS);
+        swimFor(player, FORWARD, SWIM_OUT_TICKS);
+        boolean stillDiving = player.getData(GooAttachments.SCULKER).diving();
+        double firstFall = player.fallDistance;
+        swimFor(player, NONE, FALL_READ_TICKS);
+        double laterFall = player.fallDistance;
+        float landed = swimFor(player, NONE, LAND_TICKS);
+        float maxHealth = player.getMaxHealth();
+        double restsAt = player.getY();
+        level.getServer().getPlayerList().remove(player);
+        clearStone(level, top);
+        helper.assertTrue(!stillDiving && firstFall > 0 && laterFall > firstFall,
+                String.format(SHOULD_BUILD_A_FALL, stillDiving, firstFall, laterFall));
+        helper.assertTrue(landed < maxHealth, String.format(SHOULD_HURT_ON_LANDING, landed, maxHealth, restsAt));
+        helper.succeed();
+    }
+
+    /**
      * Turns the stone's bottom layer to bedrock.
      *
      * @param level the level
@@ -455,7 +540,9 @@ public final class SculkerTests {
         float lowest = player.getHealth();
         Vec3 lastStroke = null;
         for (int tick = 0; tick < ticks; tick++) {
+            Vec3 before = player.position();
             player.doTick();
+            reportTheMove(player, player.position().subtract(before));
             if (SculkerSwim.passesThrough(player)) {
                 Vec3 from = lastStroke == null ? SculkerSwim.enteringStroke(player) : lastStroke;
                 lastStroke = SculkerSwim.swimStroke(player, from, forward, 0, SculkerSwim.riseOf(keys));
@@ -466,6 +553,21 @@ public final class SculkerTests {
             lowest = Math.min(lowest, player.getHealth());
         }
         return lowest;
+    }
+
+    /**
+     * Hands the server a tick's move the way a client's movement packet does:
+     * a server player's own tick builds no fall, so the connection checks the
+     * fall from the move the client reports and clears it on any rise.
+     *
+     * @param player the player
+     * @param moved  how far the tick moved it
+     */
+    private static void reportTheMove(ServerPlayer player, Vec3 moved) {
+        player.doCheckFallDamage(moved.x, moved.y, moved.z, player.onGround());
+        if (moved.y > 0) {
+            player.resetFallDistance();
+        }
     }
 
     /**
