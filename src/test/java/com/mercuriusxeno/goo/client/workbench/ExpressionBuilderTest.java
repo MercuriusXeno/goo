@@ -448,6 +448,17 @@ class ExpressionBuilderTest {
             assertWrites("$waxed + $food + ($edited)", out);
         }
 
+        // Decision diagnose-and-correct-parenthetical-trash-and-out-drags: removing a row's parenthetical leaves the
+        // row's other terms.
+        @Test
+        void removingTheLeafRowsParentheticalLeavesItsFirstTerm() {
+            ExpressionBuilder builder = ExpressionBuilder.of("{\"jelly\": \"$food.jelly + $saturation.jelly * 12\", "
+                    + "\"leaf\": \"$dye.leaf - ($food.jelly + $saturation.jelly * 12)\"}");
+            builder.remove(List.of(1, 1));
+            assertEquals("{\"jelly\": \"$food.jelly + $saturation.jelly * 12\", \"leaf\": \"$dye.leaf\"}",
+                    builder.text());
+        }
+
         // Decision containers-segment-into-click-to-edit-buttons: a term carrying a multiplier, a member and a divisor
         // moves whole.
         @Test

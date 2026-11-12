@@ -173,6 +173,26 @@ class GooAmountGridTest {
         }
     }
 
+    /**
+     * A wrapped reduction draws its open paren before its first cell and its close paren past its last cell, on the
+     * last cell's line (decision one-amount-grid-draws-every-amount-list).
+     */
+    @Test
+    void aWrappedReductionsParensStandRoundItsFirstAndLastCells() {
+        Font font = DrawnFrame.font();
+        GooAmountGrid laid = rowGrid(true).within(font, 5 * pitch() - GooAmountGrid.COLUMN_GAP);
+        Map<Integer, List<Integer>> rows = iconXsByRow(laid);
+        DrawnFrame frame = new DrawnFrame();
+        laid.draw(frame.graphics, font, 0, 0);
+        DrawnFrame.Text open = frame.find("(");
+        DrawnFrame.Text close = frame.find(")");
+        List<Integer> lineTops = List.copyOf(rows.keySet());
+        assertEquals(2, lineTops.size(), rows.toString());
+        assertEquals(lineTops.getLast() - lineTops.getFirst(), close.y() - open.y(), "the close paren on the last line");
+        assertTrue(open.x() < rows.get(lineTops.getFirst()).getFirst()
+                && close.x() > rows.get(lineTops.getLast()).getLast(), open + " " + close + " round " + rows);
+    }
+
     @Test
     void columnsWidenWithTheWidestAmount() {
         Font font = DrawnFrame.font();

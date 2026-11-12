@@ -457,6 +457,25 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
+     * A term dragged out of a row's parenthetical past its close paren lands after the parenthetical in that row's
+     * sum (decision diagnose-and-correct-parenthetical-trash-and-out-drags).
+     */
+    @Test
+    void termDraggedPastTheCloseParenLandsAfterTheParenthetical() {
+        Builder builder = Builder.item("{\"jelly\": \"$food.jelly + $saturation.jelly * 12\", "
+                + "\"leaf\": \"$dye.leaf - ($food.jelly + $saturation.jelly * 12)\"}");
+        DrawnFrame frame = builder.frame();
+        double[] rail = railOf(frame, List.of(1, 1, 0));
+        assertTrue(frame.targets.click(rail[0], rail[1]));
+        DrawnFrame.Text close = frame.find(")");
+        assertTrue(frame.targets.drag(close.x() + 20, close.y() + 1));
+        builder.frame();
+        frame.targets.release();
+        assertEquals("{\"jelly\": \"$food.jelly + $saturation.jelly * 12\", "
+                + "\"leaf\": \"$dye.leaf - ($saturation.jelly * 12) + $food.jelly\"}", builder.written.getLast());
+    }
+
+    /**
      * A parenthetical dragged by its rail onto the trash strip goes whole (decision
      * terms-and-type-rows-drag-to-a-trash-strip).
      */
