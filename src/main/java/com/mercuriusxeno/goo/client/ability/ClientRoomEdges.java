@@ -1,12 +1,16 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.outsider.OutsiderRooms;
 import com.mercuriusxeno.goo.ability.outsider.RoomEdges;
 import com.mercuriusxeno.goo.ability.outsider.RoomExtent;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.network.RoomEdgesSyncPayload;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalDouble;
 
 /**
  * The edges of the Outsider room the local player stands in, as the server
@@ -57,5 +61,19 @@ public final class ClientRoomEdges {
      */
     public static Optional<RoomExtent.Bounds> bounds() {
         return bounds;
+    }
+
+    /**
+     * The extent of the Outsider room the local player stands in, as the
+     * server last sent it: present only in the pocket with a room's edges held.
+     * decision outsider-panel-reads-the-seconds-the-void-affords
+     *
+     * @param dimension the level the local player stands in
+     * @return the room's extent, empty outside the pocket
+     */
+    public static OptionalDouble extentWhereStanding(ResourceKey<Level> dimension) {
+        return dimension == OutsiderRooms.POCKET
+                ? bounds.map(room -> OptionalDouble.of(room.extent())).orElse(OptionalDouble.empty())
+                : OptionalDouble.empty();
     }
 }
