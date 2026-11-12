@@ -15,11 +15,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Covers which mobs draw a life mark and how strongly: a mob Leader senses
+ * Covers which mobs draw a life mark, how strongly, and where its parts
+ * stand: a rallied or charmed mob draws it whole always, a mob Leader senses
  * draws it whole with no touch while Leader stands, and a mob only Heal or
  * Drain touched keeps TouchedMobs' fade. TouchedMobs' fade is read through
  * its own method, so no fade constant is pinned here.
  * leader-shows-life-bars-while-it-stands
+ * rallied-and-charmed-mobs-always-show-their-health-bar
  */
 class LifeMarkBillboardTest {
 
@@ -29,6 +31,10 @@ class LifeMarkBillboardTest {
     private static final int UNMARKED_ID = 13;
     private static final long TICK = 500L;
     private static final float EPSILON = 1e-6f;
+    /** A mob neither rallied nor charmed. */
+    private static final boolean BARE = false;
+    /** A rallied or charmed mob, wearing a head mark. */
+    private static final boolean HEAD_MARKED = true;
 
     private final TouchedMobs touched = new TouchedMobs();
     private final LeaderSense leader = new LeaderSense();
@@ -46,7 +52,26 @@ class LifeMarkBillboardTest {
     void sensedMobDrawsItsLifeMarkWholeWithoutATouch() {
         for (float later = 0; later < 200; later += 10) {
             float time = TICK + later;
-            assertEquals(1f, LifeMarkBillboard.markStrength(SENSED_ID, time, touched, leader), EPSILON, "at " + time);
+            assertEquals(1f, LifeMarkBillboard.markStrength(SENSED_ID, time, touched, leader, BARE), EPSILON,
+                    "at " + time);
+        }
+    }
+
+    @Nested
+    class HeadMarkedMob {
+
+        private final TouchedMobs untouched = new TouchedMobs();
+        private final LeaderSense leaderInactive = new LeaderSense();
+
+        @Test
+        void showsItsLifeMarkWholeWithNoTouchAndNoLeader() {
+            for (long later = 0; later < 2000; later += 37) {
+                long tick = TICK + later;
+                assertTrue(LifeMarkBillboard.showsLifeMark(UNMARKED_ID, tick, untouched, leaderInactive, HEAD_MARKED),
+                        "at " + tick);
+                assertEquals(1f, LifeMarkBillboard.markStrength(UNMARKED_ID, tick + 0.5f, untouched, leaderInactive,
+                        HEAD_MARKED), EPSILON, "at " + tick);
+            }
         }
     }
 
@@ -55,7 +80,7 @@ class LifeMarkBillboardTest {
         for (float later = 0; later < 60; later += 1.5f) {
             float time = TICK + later;
             assertEquals(touched.opacity(TOUCHED_ID, time),
-                    LifeMarkBillboard.markStrength(TOUCHED_ID, time, touched, leader), EPSILON, "at " + time);
+                    LifeMarkBillboard.markStrength(TOUCHED_ID, time, touched, leader, BARE), EPSILON, "at " + time);
         }
     }
 
@@ -121,8 +146,8 @@ class LifeMarkBillboardTest {
 
     @Test
     void marksDrawForTouchedAndSensedMobsAlike() {
-        assertTrue(LifeMarkBillboard.showsLifeMark(SENSED_ID, TICK, touched, leader));
-        assertTrue(LifeMarkBillboard.showsLifeMark(TOUCHED_ID, TICK, touched, leader));
-        assertFalse(LifeMarkBillboard.showsLifeMark(UNMARKED_ID, TICK, touched, leader));
+        assertTrue(LifeMarkBillboard.showsLifeMark(SENSED_ID, TICK, touched, leader, BARE));
+        assertTrue(LifeMarkBillboard.showsLifeMark(TOUCHED_ID, TICK, touched, leader, BARE));
+        assertFalse(LifeMarkBillboard.showsLifeMark(UNMARKED_ID, TICK, touched, leader, BARE));
     }
 }
