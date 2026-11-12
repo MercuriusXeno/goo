@@ -417,27 +417,38 @@ public final class TendrilVignette {
      * @param look     the sight's colors
      */
     public void draw(GuiGraphicsExtractor graphics, float time, float strength, Look look) {
-        draw(VignetteCanvas.of(graphics), time, strength, look);
+        GuiFillBatch batch = new GuiFillBatch(graphics.guiWidth(), graphics.guiHeight());
+        draw(batch, time, strength, look);
+        batch.submitTo(graphics);
     }
 
     /**
      * Runs the population to the frame's time, then draws the mist and the
-     * tendrils at a strength on a canvas.
+     * tendrils at a strength on a canvas, each run of fills side by side in
+     * one color joined into one fill.
      *
-     * @param graphics the canvas
+     * @param canvas   the canvas
      * @param time     the game time with the frame's partial tick
      * @param strength how fully the vignette stands, zero to one
      * @param look     the sight's colors
      */
-    void draw(VignetteCanvas graphics, float time, float strength, Look look) {
-        advance(time);
-        if (strength <= 0f) {
-            if (veins != null) {
-                // sculker-veins-root-in-clusters-and-bare-gaps: the next vision grows a fresh web
-                veins.hide();
-            }
+    void draw(VignetteCanvas canvas, float time, float strength, Look look) {
+        if (strength <= 0f && veins != null) {
+            // sculker-veins-root-in-clusters-and-bare-gaps: the next vision grows a fresh web
+            // diagnose-sculkers-lag-and-prove-it-improved-significantly: a hidden web grows none until it shows
+            veins.hide();
             return;
         }
+        advance(time);
+        if (strength <= 0f) {
+            return;
+        }
+        AdjacentFills joined = new AdjacentFills(canvas);
+        drawShowing(joined, time, strength, look);
+        joined.flush();
+    }
+
+    private void drawShowing(VignetteCanvas graphics, float time, float strength, Look look) {
         drawMist(graphics, time, strength, look.mistRgb());
         drawFringe(graphics, time, strength, look.mistRgb());
         Screen screen = new Screen(graphics.guiWidth(), graphics.guiHeight());
