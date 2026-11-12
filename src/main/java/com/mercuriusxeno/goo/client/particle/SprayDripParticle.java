@@ -70,6 +70,38 @@ public final class SprayDripParticle extends GloveMote {
             this.stillAt = apex;
             this.stillVelocity = velocity;
         }
+
+        /**
+         * @return the caster's pose this tick, null once this client holds none
+         */
+        GloveSwing.@Nullable CasterPose poseNow() {
+            return poses.apply(casterId);
+        }
+
+        /**
+         * Steps the drip's flight from a still glove one tick and carries it with the glove.
+         *
+         * @param drip  the drip's flight
+         * @param flown the ticks the drip has flown
+         * @param now   the caster's pose this tick
+         * @return where the drip stands on the glove
+         */
+        Vec3 carry(SprayDrip drip, int flown, GloveSwing.CasterPose now) {
+            SprayDrip.Step still = drip.step(stillAt, stillVelocity, flown);
+            stillAt = still.position();
+            stillVelocity = still.velocity();
+            return SprayDrip.heldAt(stillAt, atLaunch, now);
+        }
+
+        /**
+         * @param now the caster's pose this tick
+         * @return how far the glove moved since last tick, blocks per tick
+         */
+        Vec3 gloveVelocity(GloveSwing.CasterPose now) {
+            Vec3 moved = now.glove().subtract(lastGlove);
+            lastGlove = now.glove();
+            return moved;
+        }
     }
 
     /**
@@ -119,7 +151,8 @@ public final class SprayDripParticle extends GloveMote {
             return;
         }
         SprayDrip.Step step = drip.step(new Vec3(this.x, this.y, this.z), new Vec3(this.xd, this.yd, this.zd),
-                flown++);
+                flown);
+        flown++;
         this.setPos(step.position().x, step.position().y, step.position().z);
         this.xd = step.velocity().x;
         this.yd = step.velocity().y;
@@ -140,19 +173,16 @@ public final class SprayDripParticle extends GloveMote {
      * @param held the glove the drip rides
      */
     private void rideTheGlove(Ride held) {
-        GloveSwing.CasterPose now = held.poses.apply(held.casterId);
+        GloveSwing.CasterPose now = held.poseNow();
         if (now == null) {
             this.ride = null;
             fly(SprayDrip.released(new Vec3(this.x, this.y, this.z), end, Vec3.ZERO, drip.rgb()));
             return;
         }
-        SprayDrip.Step still = drip.step(held.stillAt, held.stillVelocity, flown++);
-        held.stillAt = still.position();
-        held.stillVelocity = still.velocity();
-        Vec3 at = SprayDrip.heldAt(held.stillAt, held.atLaunch, now);
+        Vec3 at = held.carry(drip, flown, now);
+        flown++;
         this.setPos(at.x, at.y, at.z);
-        Vec3 gloveVelocity = now.glove().subtract(held.lastGlove);
-        held.lastGlove = now.glove();
+        Vec3 gloveVelocity = held.gloveVelocity(now);
         if (flown >= drip.holdTicks()) {
             this.ride = null;
             fly(SprayDrip.released(at, end, gloveVelocity, drip.rgb()));
