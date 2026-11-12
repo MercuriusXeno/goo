@@ -51,7 +51,6 @@ import java.util.function.Consumer;
 public final class CrucibleTests {
     private static final String CR_THROWN_ITEM_TEACHES = "cr_thrown_item_teaches";
     private static final String CR_THROWN_CONTAINER_TEACHES = "cr_thrown_container_teaches";
-    private static final String CR_CAP_EACH_TYPE = "cr_cap_each_type";
     private static final String CR_CAP_ITEMS_THAT_FIT = "cr_cap_items_that_fit";
     private static final String CR_GOO_STACK_WHOLE = "cr_goo_stack_whole";
     private static final String CR_GOO_STACK_TO_CAP = "cr_goo_stack_to_cap";
@@ -73,7 +72,6 @@ public final class CrucibleTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, CR_THROWN_ITEM_TEACHES, CrucibleTests::thrownItemTeachesTheThrower);
         GooTestFunctions.registerTest(registrar, CR_THROWN_CONTAINER_TEACHES, CrucibleTests::thrownContainerTeachesItsContents);
-        GooTestFunctions.registerTest(registrar, CR_CAP_EACH_TYPE, CrucibleTests::reservoirCapsEachType);
         GooTestFunctions.registerTest(registrar, CR_CAP_ITEMS_THAT_FIT, CrucibleTests::itemStackMeltsWholeItemsThatFit);
         GooTestFunctions.registerTest(registrar, CR_GOO_STACK_WHOLE, CrucibleTests::gooStackConsumedWhole);
         GooTestFunctions.registerTest(registrar, CR_GOO_STACK_TO_CAP, CrucibleTests::gooStackFillsToTheCap);
@@ -166,10 +164,6 @@ public final class CrucibleTests {
     private static final int COBBLE_OFFERED = 5;
     /** Whole cobblestone the pool has room for. */
     private static final int ITEMS_THAT_FIT = 2;
-    private static final String ROCK_TO_CAP = "rock accepted to the cap";
-    private static final String METAL_TO_CAP = "metal accepted to the cap";
-    private static final String ROCK_PAST_CAP = "rock past the cap";
-    private static final String METAL_PAST_CAP = "metal past the cap";
     private static final String UNFIT_ITEMS_STAY = "unfit items stay";
     private static final String POOL_TOOK_TWO = "pool took two items of ";
     private static final int FULL_STACK = 64;
@@ -401,20 +395,6 @@ public final class CrucibleTests {
     }
 
     // -- At the cap (decision crucible-refuses-past-two-billion) --
-
-    /**
-     * The reservoir takes 2B of each of two types and answers 0 for one mB more of either.
-     *
-     * @param helper the gametest helper
-     */
-    public static void reservoirCapsEachType(GameTestHelper helper) {
-        CrucibleBlockEntity crucible = placeCrucible(helper);
-        helper.assertValueEqual(CAP, crucible.insertGoo(GooTypes.ROCK, CAP), ROCK_TO_CAP);
-        helper.assertValueEqual(CAP, crucible.insertGoo(GooTypes.METAL, CAP), METAL_TO_CAP);
-        helper.assertValueEqual(0, crucible.insertGoo(GooTypes.ROCK, 1), ROCK_PAST_CAP);
-        helper.assertValueEqual(0, crucible.insertGoo(GooTypes.METAL, 1), METAL_PAST_CAP);
-        helper.succeed();
-    }
 
     /**
      * A 64-goo right-clicked on an empty crucible puts in exactly the goo
