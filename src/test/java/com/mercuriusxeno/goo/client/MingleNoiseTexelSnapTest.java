@@ -112,7 +112,8 @@ class MingleNoiseTexelSnapTest {
         void theModelsTexelsAreTheShaders() throws IOException {
             String noise = shader("mingle_noise.glsl");
 
-            assertTrue(noise.contains("const float MINGLE_WORLD_TEXELS = " + MingleNoiseModel.WORLD_TEXELS + ";"));        }
+            assertTrue(noise.contains("const float MINGLE_WORLD_TEXELS = " + MingleNoiseModel.WORLD_TEXELS + ";"));
+        }
 
         @Test
         void theCrucibleGlowPickKeepsTheSnap() throws IOException {
