@@ -75,8 +75,9 @@ public final class SunbeamChannelTests {
 
     private static final BlockPos STAND_POS = new BlockPos(1, 1, 3);
     private static final BlockPos PRISM_POS = new BlockPos(4, 1, 3);
+    /** Three cells around the prism, each inside test_bay's 6 by 6 by 6 bounds, where no neighbouring test reaches. */
     private static final List<BlockPos> AROUND_THE_PRISM = List.of(new BlockPos(4, 1, 1), new BlockPos(4, 1, 5),
-            new BlockPos(6, 1, 3));
+            new BlockPos(5, 1, 3));
     private static final BlockPos STRUCK_POS = new BlockPos(4, 1, 3);
     private static final BlockPos NEAR_CORNER_POS = new BlockPos(0, 1, 0);
     private static final BlockPos FAR_ZOMBIE_POS = new BlockPos(5, 1, 5);
@@ -131,8 +132,7 @@ public final class SunbeamChannelTests {
             helper.getLevel().getServer().getPlayerList().remove(player);
             float sum = 0;
             for (int i = 0; i < zombies.size(); i++) {
-                float lost = before.get(i) - zombies.get(i).getHealth();
-                helper.assertTrue(lost > 0, String.format(UNTOUCHED, i, lost));
+                float lost = before.get(i) - zombies.get(i).getHealth();                helper.assertTrue(lost > 0, String.format(UNTOUCHED, i, lost));
                 sum += lost;
             }
             helper.assertTrue(sum > UNDEAD_HIT, String.format(SUM_TOO_LOW, UNDEAD_HIT, sum));
