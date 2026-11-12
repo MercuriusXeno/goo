@@ -45,6 +45,14 @@ public final class GooSoundIds {
     public static final Identifier CLICK = Identifier.fromNamespaceAndPath(Goo.MODID, "ability.click");
 
     /**
+     * The echo Click's wave sheds on its way: the same comparator click under
+     * an id of its own, so Sculker's sub-rank table rings it at 5 and leaves
+     * the landing's click at 15.
+     * decision click-travel-echoes-ring-at-rank-five
+     */
+    public static final Identifier CLICK_TRAIL = Identifier.fromNamespaceAndPath(Goo.MODID, "ability.click_trail");
+
+    /**
      * A portal standing: the mod's own synthesized zap opening into a brief
      * hum, like a portal gun shot landing
      * (decision portal-placement-plays-a-zap-that-opens-into-a-hum).

@@ -6,6 +6,8 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.profiling.Profiler;
+import net.minecraft.util.profiling.ProfilerFiller;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -32,6 +34,11 @@ public final class SculkerVignetteLayer {
     static final TendrilVignette.Look LOOK = new TendrilVignette.Look(MIST_RGB, VEIN_RGB);
     /** This sight's own vein network, sprouting from a seed of its own. */
     private static final TendrilVignette VIGNETTE = TendrilVignette.veined(0x5C01_C3E5L);
+    /**
+     * The profiler section the vignette's draw reports its frame time under.
+     * decision diagnose-sculkers-lag-and-prove-it-improved-significantly
+     */
+    private static final String VIGNETTE_SECTION = "goo_sculker_vignette";
 
     private SculkerVignetteLayer() {
     }
@@ -52,6 +59,9 @@ public final class SculkerVignetteLayer {
             return;
         }
         float time = mc.level.getGameTime() + deltaTracker.getGameTimeDeltaPartialTick(false);
+        ProfilerFiller profiler = Profiler.get();
+        profiler.push(VIGNETTE_SECTION);
         VIGNETTE.draw(graphics, time, SculkerVision.presence(), LOOK);
+        profiler.pop();
     }
 }
