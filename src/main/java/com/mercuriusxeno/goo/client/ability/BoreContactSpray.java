@@ -21,17 +21,18 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 
 /**
- * Where Bore's vortex makes contact with a breakable block, particles of the
- * block spit out of the face it meets each tick the bore runs, scattered
- * across the vortex's width at that depth, so the vortex reads as tearing
- * into the block while the block clips it.
+ * Where Bore's drawn vortex makes contact with a breakable block, a particle
+ * of the block spits out of the face it meets each tick the bore runs,
+ * scattered across the vortex's width there, so the vortex reads as tearing
+ * into the block while the block clips it. The contact is traced along the
+ * drawn vortex's own axis, from where it is held below the line of sight.
  * decision bore-shows-a-big-drill-from-the-glove
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class BoreContactSpray {
 
     /** Particles spat a tick where the vortex meets a breakable block. */
-    static final int SPITS_PER_TICK = 4;
+    static final int SPITS_PER_TICK = 1;
     /** How fast a particle leaves the face, in blocks a tick. */
     static final double SPIT_SPEED = 0.12;
     /** How fast a particle scatters along the face, at most, in blocks a tick. */
@@ -59,6 +60,23 @@ public final class BoreContactSpray {
         Vec3 scatter = new Vec3(x, y, z).scale(SPIT_SCATTER);
         Vec3 along = scatter.subtract(normal.scale(scatter.dot(normal)));
         return normal.scale(SPIT_SPEED).add(along);
+    }
+
+    /**
+     * The line the contact is traced along: the drawn vortex's axis, from
+     * where it is held to its far end.
+     *
+     * @param eye   the eye the vortex is drawn from, in world space
+     * @param look  the look's unit vector
+     * @param yaw   the look's yaw in degrees
+     * @param reach the bore's reach
+     * @param near  the vortex's radius at the eye
+     * @param far   the vortex's radius at the reach
+     * @return the line's start and end, in world space
+     */
+    static Vec3[] contactLine(Vec3 eye, Vec3 look, float yaw, double reach, double near, double far) {
+        ConeSections.Volume drawn = BoreDrill.volume(eye, look, yaw, reach, near, far);
+        return new Vec3[] {drawn.apex(), drawn.apex().add(drawn.axis().scale(drawn.range()))};
     }
 
     /**
@@ -106,9 +124,13 @@ public final class BoreContactSpray {
      * @param reach  the bore's reach
      */
     private static void spitAtContact(ClientLevel level, LocalPlayer player, BoreStep step, double reach) {
-        Vec3 eye = player.getEyePosition();
-        BlockHitResult hit = level.clip(new ClipContext(eye, eye.add(player.getViewVector(1f).scale(reach)),
-                ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player));
+        Minecraft mc = Minecraft.getInstance();
+        Vec3 eye = mc.options.getCameraType().isFirstPerson() ? mc.gameRenderer.getMainCamera().position()
+                : player.getEyePosition();
+        Vec3[] line = contactLine(eye, player.getViewVector(1f), player.getYRot(), reach, step.vortexNearRadius(),
+                step.vortexFarRadius());
+        BlockHitResult hit = level.clip(new ClipContext(line[0], line[1], ClipContext.Block.OUTLINE,
+                ClipContext.Fluid.NONE, player));
         BlockState state = level.getBlockState(hit.getBlockPos());
         if (hit.getType() == HitResult.Type.MISS || !state.is(step.breaks())) {
             return;

@@ -100,8 +100,23 @@ public final class GroundShake {
 
     /** The blocks the last frame shook, which the tick sheds dust from. */
     private static final List<BlockPos> shaken = new ArrayList<>();
+    /** Whether the ability shaking the ground last frame sheds crumbs off its blocks. */
+    private static boolean crumbsShed;
 
     private GroundShake() {
+    }
+
+    /**
+     * Whether an ability's shaking blocks shed crumbs: a flatten's and a
+     * Terrakinesis's do; a bore's do not, since its particles spit only from
+     * where its vortex meets the block.
+     * decision bore-shows-a-big-drill-from-the-glove
+     *
+     * @param ability the selected ability's synced copy, or null when none
+     * @return true where the shaking blocks shed crumbs
+     */
+    static boolean shedsCrumbs(@Nullable ClientAbility ability) {
+        return ability != null && ability.behaviors().stream().noneMatch(BoreStep.class::isInstance);
     }
 
     /** Where the ground shakes, and how strongly each block in it does. */
@@ -401,6 +416,8 @@ public final class GroundShake {
         if (zone == null) {
             return;
         }
+        String abilityId = GloveAim.selectedAbilityId(player);
+        crumbsShed = shedsCrumbs(abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId));
         collectShaken(level, zone);
         if (!shaken.isEmpty()) {
             drawShaken(mc, event.getPoseStack(), new Shake(zone, level.getGameTime() + partialTick,
@@ -513,7 +530,7 @@ public final class GroundShake {
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         ClientLevel level = Minecraft.getInstance().level;
-        if (level == null || shaken.isEmpty() || Minecraft.getInstance().isPaused()) {
+        if (level == null || shaken.isEmpty() || !crumbsShed || Minecraft.getInstance().isPaused()) {
             return;
         }
         RandomSource random = level.getRandom();
