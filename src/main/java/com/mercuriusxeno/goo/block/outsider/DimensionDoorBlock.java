@@ -11,7 +11,9 @@ import net.minecraft.world.entity.InsideBlockEffectApplier;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.Portal;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -21,12 +23,15 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * One cell of the two-tall, door-shaped dimension doorway standing alone in
- * each Outsider room: a sheet of swirling void running east to west that a
- * player walks into to be carried back to the exact place they cast Outsider
- * from. Nothing breaks it, and the pocket stands it again if anything removes it.
+ * each Outsider room: a sheet running east to west that a player walks into
+ * to be carried back to the exact place they cast Outsider from. Nothing
+ * breaks it, and the pocket stands it again if anything removes it.
  * decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform
+ * The sheet draws as the End portal's starfield, through the cell's block
+ * entity, as the conjured door does; the block's model draws nothing.
+ * decision room-door-wears-the-end-portal-starfield
  */
-public class DimensionDoorBlock extends Block implements Portal {
+public class DimensionDoorBlock extends Block implements Portal, EntityBlock {
 
     /** The sheet: the full width east to west, a quarter block thick at the cell's middle. */
     private static final VoxelShape SHEET = Block.box(0, 0, 6, 16, 16, 10);
@@ -64,6 +69,15 @@ public class DimensionDoorBlock extends Block implements Portal {
         if (entity instanceof ServerPlayer && entity.canUsePortal(false)) {
             entity.setAsInsidePortal(this, pos);
         }
+    }
+
+    /**
+     * Each cell holds the block entity its renderer draws as the End portal's starfield.
+     * decision room-door-wears-the-end-portal-starfield
+     */
+    @Override
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        return new DimensionDoorBlockEntity(pos, state);
     }
 
     /** Carries a player back where they cast Outsider from; nothing else passes through. */

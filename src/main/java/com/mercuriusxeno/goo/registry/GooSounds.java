@@ -85,6 +85,11 @@ public final class GooSounds {
         SOUND_EVENTS.register("effects.outsider_conjure",
             () -> SoundEvent.createVariableRangeEvent(GooSoundIds.OUTSIDER_CONJURE));
 
+    /** The door carrying a player into the pocket (decision door-carries-its-own-sound-through-the-change). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> OUTSIDER_DOOR =
+        SOUND_EVENTS.register("effects.outsider_door",
+            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.OUTSIDER_DOOR));
+
     /** Void's hole opening (decision hole-opens-with-the-outsider-wub-pitched-up). */
     public static final DeferredHolder<SoundEvent, SoundEvent> HOLE_OPEN =
         SOUND_EVENTS.register("effects.hole_open",
