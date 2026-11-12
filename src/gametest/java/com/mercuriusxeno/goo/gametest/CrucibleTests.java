@@ -62,6 +62,10 @@ public final class CrucibleTests {
     private static final String CR_ROUGH_THROW_STEERED_IN = "cr_rough_throw_steered_in";
     private static final String CR_COLD_ITEM_WAITS_ON_FLOOR = "cr_cold_item_waits_on_floor";
     private static final String CR_ITEM_MELTS_ON_ITS_CLOCK = "cr_item_melts_on_its_clock";
+    private static final String CR_GOO_ENTITY_ABSORBED = "cr_goo_entity_absorbed";
+    /** The goo, in goo items, a dropped stack carries into the basin. */
+    private static final int GOO_DROPPED = 3;
+    private static final String GOO_ABSORBED = "The goo dropped in the basin should reach the reservoir whole";
     private static final String CR_BROKEN_MID_MELT_DROPS_REMAINDER = "cr_broken_mid_melt_drops_remainder";
 
     /**
@@ -83,6 +87,7 @@ public final class CrucibleTests {
         GooTestFunctions.registerTest(registrar, CR_ROUGH_THROW_STEERED_IN, CrucibleTests::roughThrowSteeredIntoTheMouth);
         GooTestFunctions.registerTest(registrar, CR_COLD_ITEM_WAITS_ON_FLOOR, CrucibleTests::coldCrucibleItemWaitsOnTheFloor);
         GooTestFunctions.registerTest(registrar, CR_ITEM_MELTS_ON_ITS_CLOCK, CrucibleTests::itemMeltsOnItsClock);
+        GooTestFunctions.registerTest(registrar, CR_GOO_ENTITY_ABSORBED, CrucibleTests::gooEntityAbsorbedIntoTheReservoir);
         GooTestFunctions.registerTest(registrar, CR_BROKEN_MID_MELT_DROPS_REMAINDER, CrucibleTests::brokenMidMeltDropsTheRemainder);
     }
 
@@ -472,6 +477,19 @@ public final class CrucibleTests {
     }
 
     // -- Melt clock (decision melt-time-is-mb-to-a-power) --
+
+    /**
+     * A goo item dropped into a fueled crucible below the cap goes into the reservoir whole, past the melt
+     * pipeline (decision crucible-refuses-past-two-billion).
+     *
+     * @param helper the gametest helper
+     */
+    public static void gooEntityAbsorbedIntoTheReservoir(GameTestHelper helper) {
+        CrucibleBlockEntity crucible = placeFueledCrucible(helper);
+        spawnInBasin(helper, GooStacks.createForOutput(GooTypes.ROCK, GOO_DROPPED * GooStacks.THOUSAND));
+        helper.succeedWhen(() -> helper.assertValueEqual(GOO_DROPPED * GooStacks.THOUSAND,
+                crucible.getReservoir().getVolume(GooTypes.ROCK), GOO_ABSORBED));
+    }
 
     /**
      * One cobblestone alone in a crucible burning blaze goo reaches the reservoir whole on
