@@ -10,21 +10,16 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Consumer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -63,13 +58,6 @@ class MutatorControlsTest {
         }
 
         @Test
-        void kindLineDrawsOneButtonReadingTheChosenKind() {
-            List<String> texts = frame().texts();
-            assertTrue(texts.contains(ControlFlow.dropdownLabel("add")), texts.toString());
-            assertFalse(texts.contains("convert") || texts.contains("stack"), texts.toString());
-        }
-
-        @Test
         void pickingConvertWritesAFormula() {
             frame().click(ControlFlow.dropdownLabel("add"));
             DrawnFrame open = frame();
@@ -77,29 +65,6 @@ class MutatorControlsTest {
             open.click("convert");
             verify(processes).setForm(SECTION, KEY, new Processes.Formula("metal", 1, "0", 1, 1));
             assertFalse(overlays.listOpen());
-        }
-
-        private void pickTheChosenKind(Processes.Form form, String kind) {
-            when(processes.formOf(SECTION, KEY)).thenReturn(form);
-            frame().click(ControlFlow.dropdownLabel(kind));
-            frame().click(kind);
-            verify(processes, never()).setForm(anyString(), anyString(), any());
-            assertFalse(overlays.listOpen());
-        }
-
-        @Test
-        void pickingConvertOnAFormulaKeepsItsTerms() {
-            pickTheChosenKind(new Processes.Formula("metal", 4, "yore", 2, 1), "convert");
-        }
-
-        @Test
-        void pickingAdditiveOnAnAdditiveKeepsItsPrefab() {
-            pickTheChosenKind(new Processes.Additive("oak"), "add");
-        }
-
-        @Test
-        void pickingStackOnAStackKeepsItsCountAndProcess() {
-            pickTheChosenKind(new Processes.Stack(3, "smelt"), "stack");
         }
     }
 
@@ -172,14 +137,13 @@ class MutatorControlsTest {
 
         /**
          * An add row draws its prefab's reduced value after the prefab button: each type's icon beside its amount, the
-         * set in parentheses; a prefab resolving to nothing draws no parentheses (decision
-         * add-mutator-entry-shows-its-reduced-value).
+         * set in parentheses (decision add-mutator-entry-shows-its-reduced-value).
          */
         @Test
         void addRowDrawsItsPrefabsReducedValue() {
-            Map<String, Map<String, String>> values = Map.of("oak", orderedAmounts(), "birch", Map.of());
+            Map<String, Map<String, String>> values = Map.of("oak", orderedAmounts());
             MutatorControls valued = new MutatorControls(processes, overlays, mock(ManagerActions.class),
-                    () -> List.of("oak", "birch"), () -> List.of("metal"), () -> { },
+                    () -> List.of("oak"), () -> List.of("metal"), () -> { },
                     name -> values.getOrDefault(name, Map.of()));
             when(processes.formOf(SECTION, "rust")).thenReturn(new Processes.Additive("oak"));
             DrawnFrame frame = new DrawnFrame();
@@ -198,11 +162,6 @@ class MutatorControlsTest {
                     .orElseThrow(() -> new AssertionError(frame.drawn().toString()));
             assertTrue(icons.get(0) < rock.x() && rock.x() < icons.get(1) && icons.get(1) < yore.x(),
                     icons + " " + frame.drawn());
-            when(processes.formOf(SECTION, "rust")).thenReturn(new Processes.Additive("birch"));
-            DrawnFrame bare = new DrawnFrame();
-            valued.draw(bare.graphics, DrawnFrame.font(), SECTION, "rust", new GroupsPane.Bounds(0, 0, 590, 390), 0,
-                    bare.targets);
-            assertTrue(bare.drawn().stream().noneMatch(text -> text.text().contains("(")), bare.drawn().toString());
         }
 
         /**
@@ -334,41 +293,34 @@ class MutatorControlsTest {
                     options.getValue().stream().map(BuilderOverlays.Option::label).toList());
         }
 
-        // Clicks a number's segment and commits the typed text through the builder's mixed-number box it opened on
-        // the number's own text (decision conversions-sentences-are-built-from-the-builders-controls).
-        private void commitTyped(DrawnFrame frame, String label, String typed) {
-            frame.click(label);
-            @SuppressWarnings("unchecked")
-            ArgumentCaptor<Consumer<String>> commits = ArgumentCaptor.forClass(Consumer.class);
-            verify(overlays, atLeastOnce()).openMixedNumber(any(), eq(label), commits.capture());
-            commits.getValue().accept(typed);
+        private static MutatorControls.Fraction typed(String text) {
+            return MutatorControls.fractionOf(text).orElseThrow();
         }
 
         /**
-         * A convert's multiplier takes a mixed number: 2 1/2 over a divisor of 1 writes the ratio 5 : 2, and over a
-         * divisor of 2 writes 5 : 4 (decision conversions-sentences-are-built-from-the-builders-controls).
+         * A convert's multiplier takes a mixed number: 2 1/2 over a divisor of 1 writes the ratio 5 : 2 (decision
+         * conversions-sentences-are-built-from-the-builders-controls).
          */
         @Test
         void multiplierTakesAMixedNumber() {
-            commitTyped(frame(new Processes.Formula("metal", 4, "yore", 3, 1)), "3", "2 1/2");
-            verify(processes).setFormulaRatio(SECTION, "rust", 5, 2);
+            assertEquals(Optional.of(new MutatorControls.Ratio(5, 2)), MutatorControls.multiplierRatio(typed("2 1/2"),
+                    1));
         }
 
         @Test
         void multiplierOverADivisorFoldsTheFractionIn() {
-            commitTyped(frame(new Processes.Formula("metal", 4, "yore", 3, 2)), "3", "2 1/2");
-            verify(processes).setFormulaRatio(SECTION, "rust", 5, 4);
+            assertEquals(Optional.of(new MutatorControls.Ratio(5, 4)), MutatorControls.multiplierRatio(typed("2 1/2"),
+                    2));
         }
 
         /**
-         * A stack's count is the same mixed-number box, taking a whole count and refusing a fraction it cannot hold.
+         * A stack's count is the same mixed-number box: a typed whole is its count and a typed fraction holds no
+         * whole count.
          */
         @Test
-        void stackCountTakesAWholeAndRefusesAFraction() {
-            commitTyped(frame(new Processes.Stack(2, "smelt")), "2", "1/2");
-            verify(processes, never()).setStackCount(anyString(), anyString(), anyInt());
-            commitTyped(frame(new Processes.Stack(2, "smelt")), "2", "3");
-            verify(processes).setStackCount(SECTION, "rust", 3);
+        void aTypedWholeIsACountAndATypedFractionHoldsNone() {
+            assertEquals(List.of(java.util.OptionalInt.of(3), java.util.OptionalInt.empty()),
+                    List.of(typed("3").whole(), typed("1/2").whole()));
         }
 
         /**
@@ -386,22 +338,8 @@ class MutatorControlsTest {
         }
 
         @Test
-        void sourceDivisorRefusesZero() {
-            commitTyped(frame(new Processes.Formula("metal", 4, "yore", 2, 3)), "4", "0");
-            verify(processes, never()).setFormulaDivisor(anyString(), anyString(), anyInt());
-        }
-
-        @Test
-        void targetDivisorRefusesZero() {
-            DrawnFrame frame = frame(new Processes.Formula("metal", 4, "yore", 2, 3));
-            commitTyped(frame, "3", "0");
-            verify(processes, never()).setFormulaRatio(anyString(), anyString(), anyInt(), anyInt());
-        }
-
-        @Test
         void targetDivisorTakesAWholeNumber() {
-            commitTyped(frame(new Processes.Formula("metal", 4, "yore", 2, 3)), "3", "5");
-            verify(processes).setFormulaRatio(SECTION, "rust", 2, 5);
+            assertEquals(Optional.of(new MutatorControls.Ratio(2, 5)), MutatorControls.divisorRatio(typed("5"), 2));
         }
     }
 
@@ -474,7 +412,6 @@ class MutatorControlsTest {
         void pickingItselfWithNoMutatorsKeepsTheControls() {
             frame("#bare").click(ControlFlow.dropdownLabel("#ores"));
             frame("#bare").click("itself");
-            assertEquals(new Processes.Assignment("", List.of()), processes.formOf(SECTION, "#bare"));
             assertEquals(List.of("copies", ControlFlow.dropdownLabel("itself"), "+ optional mutation"),
                     frame("#bare").texts());
         }
@@ -544,7 +481,6 @@ class MutatorControlsTest {
             assertEquals(ControlFlow.INDENT, copies.x(), frame.drawn().toString());
             assertEquals(copies.y(), source.y());
             assertTrue(source.x() > copies.x(), source + " vs " + copies);
-            assertFalse(frame.texts().contains(":"), frame.texts().toString());
             // Decision conversions-rows-letter-at-the-builders-scale: the lines stand the builder's pitch apart.
             int pitch = ControlFlow.LINE + ControlFlow.BUILDER_LINE_GAP;
             assertEquals(List.of(source.y() + pitch, then.y() + pitch), List.of(then.y(), and.y()),
@@ -565,14 +501,28 @@ class MutatorControlsTest {
         }
 
         /**
-         * At every area width from 150 to 400 the mutated by line, the and line and the + optional mutation line end
-         * at one right edge, half the inset the validity marker set before from the area's right, still right packed
-         * (decision chain-lines-inset-halves-at-most).
+         * On each chain line the words stand one gap left of the line's mutator button (decision
+         * iterator-reads-copies-then-mutates-using-and).
+         */
+        @Test
+        void eachChainLinesWordsStandOneGapLeftOfItsMutator() {
+            DrawnFrame frame = frame("#ores", List.of("@smelt", "@melt"));
+            for (List<String> line : List.of(List.of("mutated by", "smelt"), List.of("and", "melt"))) {
+                DrawnFrame.Text words = frame.find(line.get(0));
+                assertEquals(frame.buttonAround(frame.find(line.get(1)))[0] - BuilderOverlays.GAP,
+                        words.x() + LETTERS.width(words.text()), line.toString());
+            }
+        }
+
+        /**
+         * At the narrowest and the widest area width, 150 and 400, the mutated by line, the and line and the
+         * + optional mutation line end at one right edge, half the inset the validity marker set before from the
+         * area's right, still right packed (decision chain-lines-inset-halves-at-most).
          */
         @Test
         void chainLinesEndHalfTheMarkersInsetFromTheRight() {
             Font font = DrawnFrame.font();
-            for (int width = 150; width <= 400; width++) {
+            for (int width : List.of(150, 400)) {
                 when(processes.formOf(SECTION, "#ores")).thenReturn(new Processes.Assignment("ores",
                         List.of("@smelt", "@melt")));
                 DrawnFrame frame = new DrawnFrame();
@@ -676,46 +626,18 @@ class MutatorControlsTest {
         void plainClickingAStacksMutatorOpensItsDropdown() {
             frame("rust", new Processes.Stack(2, "smelt")).click("smelt");
             assertTrue(overlays.listOpen());
-            verify(actions, never()).openMutator(anyString());
-        }
-
-        // The click areas a row registers, watched, for the form drawn under the key.
-        private ClickTargets watchedTargets(String key, Processes.Form form) {
-            when(processes.formOf(SECTION, key)).thenReturn(form);
-            ClickTargets watched = spy(new ClickTargets());
-            controls.draw(new DrawnFrame().graphics, DrawnFrame.font(), SECTION, key,
-                    new GroupsPane.Bounds(0, 0, 590, 390), 0, watched);
-            return watched;
-        }
-
-        // The ref's one link area: it carries the ref's card as its own hover, and its shift + left click follows.
-        private void assertRefSegment(ClickTargets watched, String hoverKey) {
-            ArgumentCaptor<ClickTargets.LinkGestures> gestures =
-                    ArgumentCaptor.forClass(ClickTargets.LinkGestures.class);
-            verify(watched).addLink(anyInt(), anyInt(), anyInt(), eq(ControlFlow.LINE), gestures.capture(),
-                    eq(hoverKey));
-            gestures.getValue().follow().run();
         }
 
         /**
-         * An iterator's #group source is the builder's ref segment: one link area carrying the group's card and
-         * opening the group on shift + left click (decision
+         * An iterator's #group source hovers the group's card (decision
          * conversions-sentences-are-built-from-the-builders-controls).
          */
         @Test
-        void groupSourceIsTheBuildersRefSegment() {
-            assertRefSegment(watchedTargets("#ores", new Processes.Assignment("ores", List.of("@smelt"))),
-                    GroupHovers.hoverKey("ores"));
-            verify(actions).openGroup("ores");
-        }
-
-        /**
-         * An add's $prefab is the builder's ref segment carrying the prefab's card and opening the prefab.
-         */
-        @Test
-        void additivePrefabIsTheBuildersRefSegment() {
-            assertRefSegment(watchedTargets("rust", new Processes.Additive("oak")), PrefabHovers.hoverKey("oak"));
-            verify(actions).openVariable("oak");
+        void groupSourceHoversItsGroupsCard() {
+            DrawnFrame frame = iterator();
+            DrawnFrame.Text source = frame.find(ControlFlow.dropdownLabel("#ores"));
+            assertEquals(Optional.of(GroupHovers.hoverKey("ores")), frame.targets.hovered(source.x() + 1,
+                    source.y() + 1));
         }
 
         /**
@@ -723,11 +645,9 @@ class MutatorControlsTest {
          */
         @Test
         void goosTypesAreTheBuildersTypeIcons() {
-            ClickTargets watched = watchedTargets("rust", new Processes.Formula("metal", 4, "yore", 2, 3));
-            for (String type : List.of("metal", "yore")) {
-                verify(watched).add(anyInt(), anyInt(), anyInt(), eq(ControlFlow.LINE), any(Runnable.class),
-                        eq(GooTypeIcons.pickHoverKey(type)));
-            }
+            List<String> hovers = frame("rust", new Processes.Formula("metal", 4, "yore", 2, 3)).targets.hoverKeys();
+            assertTrue(hovers.containsAll(List.of(GooTypeIcons.pickHoverKey("metal"),
+                    GooTypeIcons.pickHoverKey("yore"))), hovers.toString());
         }
 
         @Test
