@@ -19,10 +19,12 @@ import java.util.Optional;
 
 /**
  * Bore's vortex: while right click holds a bore stream, a vortex of earth
- * magic runs along the player's line of sight from the eye out to the
- * bore's reach, widening to an open far end never wider than a block, the
- * very vortex the bore breaks, hidden by what stands in front of it and
- * never by the blocks it breaks. {@link BoreDrillPass} marches it as Drain's
+ * magic is held out in front of the player, starting a little below their
+ * line of sight so they look down along it and see its shape, and meeting
+ * their line of sight at the bore's reach, widening to an open far end
+ * never wider than a block. At each depth it is as wide as the vortex the
+ * bore breaks there, hidden by what stands in front of it and never by the
+ * blocks it breaks. {@link BoreDrillPass} marches it as Drain's
  * vortex is marched: a churning swirl of earthy dust in rock's tones, fine
  * streaks wound through it, ragged and blocky.
  * decision bore-shows-a-big-drill-from-the-glove
@@ -34,30 +36,55 @@ public final class BoreDrill {
 
     /** The volume's section count, unread by the march, which needs none. */
     private static final int RINGS = 1;
-    /** How many ticks the vortex takes to pour out from the eye to its full length. */
+    /** How many ticks the vortex takes to pour out to its full length. */
     static final double EMERGE_TICKS = 5;
+    /** How far ahead of the eye, in blocks along the look, the held vortex starts. */
+    static final double HELD_AHEAD = 1.0;
+    /** How far below the line of sight, in blocks, the held vortex starts. */
+    static final double HELD_BELOW = 0.35;
+    private static final Vec3 WORLD_UP = new Vec3(0, 1, 0);
+    private static final Vec3 WORLD_SOUTH = new Vec3(0, 0, 1);
+    private static final double NEARLY_UPRIGHT = 0.999;
 
     private BoreDrill() {
     }
 
     /**
-     * The vortex at its full length: a cone along the eye line from the eye
-     * to the bore's reach, widening from the bore step's near radius to its
-     * far radius, the vortex the bore breaks.
+     * The vortex at its full length, held out in front: from a point ahead
+     * of the eye and a little below the line of sight to the bore's reach on
+     * the line of sight, as wide at each end as the vortex the bore breaks
+     * is at that depth, between the bore step's near and far radii.
+     * decision bore-shows-a-big-drill-from-the-glove
      * decision bore-breaks-what-is-in-the-vortex
      *
      * @param eye        the eye, camera relative
      * @param look       the look's unit vector
      * @param yaw        the look's yaw in degrees
      * @param reach      the bore's reach from the eye
-     * @param nearRadius the vortex's radius at the eye, the bore step's JSON number
-     * @param farRadius  the vortex's radius at the reach, the bore step's JSON number
-     * @return the vortex, its apex at the eye
+     * @param nearRadius the broken vortex's radius at the eye, the bore step's JSON number
+     * @param farRadius  the broken vortex's radius at the reach, the bore step's JSON number
+     * @return the vortex, its apex where it is held
      */
     static ConeSections.Volume volume(Vec3 eye, Vec3 look, float yaw, double reach, double nearRadius,
                                       double farRadius) {
-        return new ConeSections.Volume(eye, look, yaw, 0, reach, RINGS,
-                distance -> nearRadius + (farRadius - nearRadius) * Math.clamp(distance / reach, 0, 1));
+        Vec3 held = eye.add(look.scale(HELD_AHEAD)).add(below(look).scale(HELD_BELOW));
+        Vec3 toFar = eye.add(look.scale(reach)).subtract(held);
+        double length = toFar.length();
+        double heldRadius = nearRadius + (farRadius - nearRadius) * Math.clamp(HELD_AHEAD / reach, 0, 1);
+        return new ConeSections.Volume(held, toFar.normalize(), yaw, 0, length, RINGS,
+                distance -> heldRadius + (farRadius - heldRadius) * Math.clamp(distance / length, 0, 1));
+    }
+
+    /**
+     * The unit direction below the line of sight: square to the look, in
+     * its upright plane, toward the ground.
+     *
+     * @param look the look's unit vector
+     * @return the direction
+     */
+    static Vec3 below(Vec3 look) {
+        Vec3 up = Math.abs(look.dot(WORLD_UP)) > NEARLY_UPRIGHT ? WORLD_SOUTH : WORLD_UP;
+        return look.scale(look.dot(up)).subtract(up).normalize();
     }
 
     /**
