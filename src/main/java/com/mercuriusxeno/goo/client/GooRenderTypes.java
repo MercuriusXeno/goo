@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client;
 
 import com.mercuriusxeno.goo.client.ability.RippleTarget;
+import com.mercuriusxeno.goo.client.outsider.VoidstoneRoom;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
@@ -16,6 +17,7 @@ import net.minecraft.client.renderer.rendertype.LayeringTransform;
 import net.minecraft.client.renderer.rendertype.OutputTarget;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.TextureTransform;
 import net.minecraft.resources.Identifier;
 import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
 import java.util.List;
@@ -988,10 +990,16 @@ public final class GooRenderTypes {
             .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
             .build();
 
-    /** The render type voidstone's faces draw through. */
+    /**
+     * The render type voidstone's faces draw through, its texture transform
+     * handing the shader the room the field wraps at.
+     * decision voidstone-starfield-tiles-in-either-direction
+     */
     public static final RenderType VOIDSTONE_TYPE = RenderType.create(
             "goo_voidstone",
-            RenderSetup.builder(VOIDSTONE).createRenderSetup()
+            RenderSetup.builder(VOIDSTONE)
+                    .setTextureTransform(new TextureTransform("goo_voidstone_room", VoidstoneRoom::current))
+                    .createRenderSetup()
     );
 
     /**
@@ -1497,26 +1505,6 @@ public final class GooRenderTypes {
             .build();
 
     /**
-     * Voidstone's starred faces in each copy of an Outsider room, each placing
-     * its stars from the room's own block, over the plain dark floor the
-     * copies stand on, which the depth bias lets them win as
-     * {@link #VOIDSTONE} wins over the block's own faces
-     * (decision room-tiles-to-render-distance-held-to-the-picture).
-     */
-    public static final RenderPipeline VOIDSTONE_COPY = RenderPipeline.builder(
-                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
-                    RenderPipelines.GLOBALS_SNIPPET)
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "voidstone_copy"))
-            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "voidstone_copy"))
-            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "voidstone"))
-            .withUniform(ROOM_COPY_TRANSLATIONS, UniformType.TEXEL_BUFFER, TextureFormat.RED8I)
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.QUADS)
-            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true,
-                    BLOCK_MINGLE_DEPTH_BIAS_SCALE, BLOCK_MINGLE_DEPTH_BIAS_CONSTANT))
-            .withCull(false)
-            .build();
-
-    /**
      * Idle portal pipeline (decision portals-link-by-looking-through-portal-vision):
      * a portal with no view to show drawn through {@code goo_portal_idle.vsh / .fsh},
      * an oval of its color swirling in from a glowing rim toward a dark heart,
@@ -1862,7 +1850,6 @@ public final class GooRenderTypes {
         event.registerPipeline(ROOM_COPY_SOLID);
         event.registerPipeline(ROOM_COPY_CUTOUT);
         event.registerPipeline(ROOM_COPY_TRANSLUCENT);
-        event.registerPipeline(VOIDSTONE_COPY);
         event.registerPipeline(GOO_PORTAL_OUTLINE);
         event.registerPipeline(GOO_PORTAL_VISION);
         event.registerPipeline(GOO_PORTAL_HALO);

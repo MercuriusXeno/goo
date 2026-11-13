@@ -45,8 +45,7 @@ import java.util.OptionalInt;
  * client's render distance in every direction, corners included: one
  * instance of each of the room's meshes for every copy the camera sees, each
  * moved by its copy's offset, its solid and cutout blocks after the frame's
- * own, its translucent blocks and its floor's stars after the frame's
- * translucent blocks, and each block entity it holds submitted once a copy.
+ * own, its translucent blocks after the frame's translucent blocks, and each block entity it holds submitted once a copy.
  * The pocket's star sky drew before, so the copies stand in front of it. A
  * view through a linked portal draws them around its own camera.
  * decision room-tiles-to-render-distance-held-to-the-picture
@@ -68,10 +67,11 @@ public final class RoomCopyRenderer {
      * Notes a section's blocks changed, as the level renderer marks it dirty.
      *
      * @param sectionX the section's x
+     * @param sectionY the section's y
      * @param sectionZ the section's z
      */
-    public static void markDirty(int sectionX, int sectionZ) {
-        RoomCopyMeshes.markDirty(sectionX, sectionZ);
+    public static void markDirty(int sectionX, int sectionY, int sectionZ) {
+        RoomCopyMeshes.markDirty(sectionX, sectionY, sectionZ);
     }
 
     /**
@@ -91,7 +91,9 @@ public final class RoomCopyRenderer {
     }
 
     /**
-     * Draws the copies' translucent blocks and floor stars once the frame's translucent blocks are drawn.
+     * Draws the copies' translucent blocks once the frame's translucent
+     * blocks are drawn. The copies' floor stars draw with the room's own,
+     * through VoidstoneFaces, from the pocket's floor where each copy stands.
      *
      * @param event the level stage event
      */
@@ -101,10 +103,6 @@ public final class RoomCopyRenderer {
             try (copies) {
                 drawLayer(copies, ChunkSectionLayer.TRANSLUCENT, GooRenderTypes.ROOM_COPY_TRANSLUCENT,
                         event.getModelViewMatrix());
-                RoomCopyMeshes.Uploaded floor = RoomCopyMeshes.floor();
-                if (floor != null) {
-                    draw(copies, floor, GooRenderTypes.VOIDSTONE_COPY, event.getModelViewMatrix(), false);
-                }
             }
         });
     }
@@ -198,7 +196,7 @@ public final class RoomCopyRenderer {
     private static void drawLayer(Copies copies, ChunkSectionLayer layer, RenderPipeline pipeline,
             Matrix4fc modelView) {
         for (RoomCopyMeshes.Uploaded mesh : RoomCopyMeshes.layer(layer)) {
-            draw(copies, mesh, pipeline, modelView, true);
+            draw(copies, mesh, pipeline, modelView);
         }
     }
 
@@ -209,10 +207,9 @@ public final class RoomCopyRenderer {
      * @param mesh      the mesh
      * @param pipeline  the pipeline it draws through
      * @param modelView the pass's model view
-     * @param textured  whether the mesh samples the block atlas and the lightmap
      */
     private static void draw(Copies copies, RoomCopyMeshes.Uploaded mesh, RenderPipeline pipeline,
-            Matrix4fc modelView, boolean textured) {
+            Matrix4fc modelView) {
         Minecraft mc = Minecraft.getInstance();
         Vector3f fromCamera = new Vector3f((float) (mesh.origin().getX() - copies.camera().x()),
                 (float) (mesh.origin().getY() - copies.camera().y()), (float) (mesh.origin().getZ() - copies.camera().z()));
@@ -227,9 +224,7 @@ public final class RoomCopyRenderer {
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform(TRANSFORMS, transforms);
             pass.setUniform(GooRenderTypes.ROOM_COPY_TRANSLATIONS, copies.translations());
-            if (textured) {
-                bindBlockTextures(mc, pass);
-            }
+            bindBlockTextures(mc, pass);
             pass.setVertexBuffer(0, mesh.vertices());
             pass.setIndexBuffer(indices.getBuffer(mesh.indexCount()), indices.type());
             pass.drawIndexed(0, 0, mesh.indexCount(), copies.draws().instances());

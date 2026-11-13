@@ -168,8 +168,12 @@ public final class GatePassage {
      * server checks a player's step with the motion it last heard of, stale
      * beside the motion its client stepped by, and where the stone gave way
      * to the one and not the other the server set the player back, as the
-     * operator found walking into a portal's edge rubber band.
+     * operator found walking into a portal's edge rubber band. A room's edge
+     * opens on open air, so no block gives way to it: the floor its column
+     * stands over holds a body crossing the seam, where it once gave way and
+     * dropped the operator through.
      * aim-and-shots-carry-through-linked-gates
+     * outsider-room-wraps-and-repeats-at-the-platform-edge
      *
      * @param gate the gate
      * @param pos  the block
@@ -177,6 +181,9 @@ public final class GatePassage {
      * @return true where the block may give way
      */
     static boolean givesWay(Gate gate, BlockPos pos, Entity body) {
+        if (gate.mask() == Gate.Mask.RECTANGLE) {
+            return false;
+        }
         return gate.covers(pos) || gate.frames(pos) && !(body instanceof Player)
                 && body.getDeltaMovement().dot(gate.face().getUnitVec3()) < 0;
     }
@@ -527,14 +534,17 @@ public final class GatePassage {
      * client's own carry stands unbroken.
      *
      * @param player the player
-     * @param near   the gate its client says it crossed
+     * @param announcedNear the gate its client says it crossed
      * @param feet   where its feet stood as its eye crossed
      * @param motion how it moved
      * @param yaw    its yaw, in degrees
      * @param pitch  its pitch, in degrees
      */
-    public static void announced(ServerPlayer player, Gate near, Vec3 feet, Vec3 motion, float yaw, float pitch) {
-        Optional<Gate> far = partnerOf(near, player.level().dimension());
+    public static void announced(ServerPlayer player, Gate announcedNear, Vec3 feet, Vec3 motion, float yaw,
+            float pitch) {
+        Optional<Pair> way = wayThrough(serverPairs, announcedNear, player.level().dimension());
+        Gate near = way.map(Pair::one).orElse(announcedNear);
+        Optional<Gate> far = way.map(Pair::other);
         Optional<Held> held = heldBehind(near, feet, player.getEyeHeight(), player.getBbHeight(), motion);
         if (far.isEmpty() || held.isEmpty() || feet.distanceTo(player.position()) > TRUSTED_STEP) {
             return;
@@ -677,13 +687,37 @@ public final class GatePassage {
         };
     }
 
-    private static Optional<Gate> partnerOf(Gate near, ResourceKey<Level> level) {
-        return serverPairs.stream()
+    /**
+     * The way through a gate a client says it crossed, as the server holds it now: the gate itself and its
+     * partner where the server holds that very gate, and otherwise, for a room's edge, the server's edge facing
+     * the same way within a step of it. A room's edges move every tick its room grows, so the edge the client
+     * crossed may already stand a sliver on at the server; refusing it set the player back across the seam,
+     * as the operator found growing the room while walking across its edge.
+     * outsider-room-wraps-and-repeats-at-the-platform-edge
+     *
+     * @param pairs the pairs the server holds linked
+     * @param near  the gate the client says it crossed
+     * @param level the level the player stands in
+     * @return the server's gate crossed, then its partner
+     */
+    static Optional<Pair> wayThrough(List<Pair> pairs, Gate near, ResourceKey<Level> level) {
+        List<Pair> ways = pairs.stream()
                 .flatMap(pair -> Stream.of(pair, new Pair(pair.other(), pair.one())))
-                .filter(way -> way.one().equals(near) && way.other().dimension().equals(level))
-                .map(Pair::other)
-                .findFirst();
+                .filter(way -> way.other().dimension().equals(level))
+                .toList();
+        Optional<Pair> exact = ways.stream().filter(way -> way.one().equals(near)).findFirst();
+        if (exact.isPresent() || near.mask() != Gate.Mask.RECTANGLE) {
+            return exact;
+        }
+        return ways.stream()
+                .filter(way -> way.one().mask() == Gate.Mask.RECTANGLE && way.one().face() == near.face()
+                        && way.one().dimension().equals(near.dimension())
+                        && way.one().center().distanceTo(near.center()) <= EDGE_SLACK)
+                .min(java.util.Comparator.comparingDouble(way -> way.one().center().distanceTo(near.center())));
     }
+
+    /** How far a room's edge may stand from the one a client crossed and still be the same edge, in blocks. */
+    private static final double EDGE_SLACK = 2.0;
 
     private static boolean behindTheFace(Gate gate, Vec3 point, double deepest) {
         double out = gate.out(point);
