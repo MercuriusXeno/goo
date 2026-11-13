@@ -76,8 +76,10 @@ public final class SignalRings {
 
     /**
      * Sends the Signal wave's rings from a Zap's strike where the strike
-     * disperses: the ability carries a wave and the landed-on block is no
-     * redstone device, the same reading the server's landing makes.
+     * disperses: the ability carries a wave and neither the struck block nor
+     * the landed-on block is a redstone device, the same reading the
+     * server's landing makes where the blob lands beside another side of
+     * the struck block (decision zap-powers-anything-a-signal-runs).
      *
      * @param struck    the struck block
      * @param face      the struck face
@@ -88,7 +90,7 @@ public final class SignalRings {
         ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
         Optional<SignalWaveStep> wave = ability == null ? Optional.empty() : waveOf(ability);
         BlockPos cell = struck.relative(face);
-        if (level == null || wave.isEmpty()
+        if (level == null || wave.isEmpty() || ZapDevice.ticks(level.getBlockState(struck))
                 || ZapDevice.ticks(level.getBlockState(ZapDevice.landedOn(level, cell, face)))) {
             return;
         }

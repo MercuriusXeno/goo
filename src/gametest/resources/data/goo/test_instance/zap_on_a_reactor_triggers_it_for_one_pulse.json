@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:zap_on_a_reactor_triggers_it_for_one_pulse",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 20,
+  "setup_ticks": 0,
+  "required": true
+}
