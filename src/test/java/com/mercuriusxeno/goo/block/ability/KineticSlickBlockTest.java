@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.block.ability;
 
+import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.Block;
@@ -63,6 +66,15 @@ class KineticSlickBlockTest {
         @Test
         void aBrokenFilmReclaimsTwelveMb() {
             assertEquals(12, KineticSlickBlock.reclaimed().mb());
+        }
+
+        /** slick-drains-per-film-it-lays: one film's price is what a broken film gives back */
+        @Test
+        void aBrokenFilmReclaimsWhatSlicksCostChargesAFilm() {
+            GooFraction filmPrice = AbilityJson.decode("kinetic_slick").cost().exactIn(GooValueTable.EMPTY);
+
+            assertEquals(0, GooFraction.of(KineticSlickBlock.reclaimed().mb()).compareTo(filmPrice),
+                    "a film costs " + filmPrice + " and reclaims " + KineticSlickBlock.reclaimed().mb());
         }
     }
 }
