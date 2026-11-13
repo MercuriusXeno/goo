@@ -123,10 +123,16 @@ class SlimeCoatBlockTest {
                     "a coat layer costs " + layerPrice + " mb");
         }
 
-        /** goop-drains-per-cubic-meter-of-slime-placed */
+        /** goop-drains-per-cubic-meter-of-slime-placed: one layer's price is what a broken layer gives back */
         @Test
-        void goopsCostPricesACubicMeter() {
-            assertEquals(Optional.of("%s/m³"), AbilityJson.decode("weird_goop").costFormula());
+        void goopsCostPricesACubicMeterAndALayerReclaimsItsEighth() {
+            AbilityDefinition goop = AbilityJson.decode("weird_goop");
+            GooFraction cost = goop.cost().exactIn(GooValueTable.EMPTY);
+            GooFraction layerPrice = cost.dividedBy(SlimeCoatBlock.MAX_LAYERS);
+
+            assertEquals(Optional.of("%s/m³"), goop.costFormula());
+            assertEquals(0, GooFraction.of(SlimeCoatBlock.reclaimed(1, cost)).compareTo(layerPrice),
+                    "a layer costs " + layerPrice + " and reclaims " + SlimeCoatBlock.reclaimed(1, cost));
         }
     }
 
