@@ -21,16 +21,16 @@ import static org.mockito.Mockito.mock;
 
 /**
  * Covers the sky funnel's draw: one funnel a frame, under goo's copy of the
- * End portal shader with its starfield fixed to the surface by texture
- * coordinates, fading from its nearest point to its farthest, every quad
- * both ways round, at the room's own doorway however many copies stand
+ * End portal shader reading the doorway's screen-space starfield, fading
+ * from its nearest point to its farthest, every quad both ways round, at the
+ * room's own doorway however many copies stand
  * (decision sky-funnel-points-down-to-the-doorway-from-any-distance).
  */
 class SkyFunnelRendererTest {
 
     private static final float EXACT = 1.0E-3f;
-    private static final double AROUND_EXACT = 1.0E-2;
-    private static final double FULL_TURN = Math.PI * 2;
+    /** How near the mean of the funnel's vertices stands to the center, its far rings drawn in floats. */
+    private static final double CENTERED = 1.0E-1;
     private static final int RED_SHIFT = 16;
     private static final int BYTE = 0xFF;
     private static final int QUAD = 4;
@@ -45,25 +45,14 @@ class SkyFunnelRendererTest {
     }
 
     @Test
-    void theFunnelDrawsWithGoosCopyOfTheEndPortalShader() {
+    void theFunnelDrawsTheDoorwaysStarfieldInScreenSpace() {
         Submitted submitted = submit();
 
         assertEquals(List.of(GooRenderTypes.SKY_FUNNEL_TYPE), submitted.types(), "goo's funnel render type");
-    }
-
-    @Test
-    void theStarfieldRunsRoundTheFunnelByAngleAndUpItByHeight() {
-        for (RecordingVertexConsumer.Vertex vertex : submit().vertices()) {
-            double east = vertex.x() + BY_THE_DOOR.x() - (ROOM.centerX() + HALF_BLOCK);
-            double south = vertex.z() + BY_THE_DOOR.z() - (ROOM.centerZ() + HALF_BLOCK);
-            double height = vertex.y() + BY_THE_DOOR.y() - SkyFunnel.spoutHeight();
-            assertEquals(height / SkyFunnel.BLOCKS_PER_REPEAT_UP, vertex.v(), EXACT, "up the funnel by height");
-            if (Math.hypot(east, south) > SkyFunnel.RIM_RADIUS / SkyFunnel.BANDS / 2) {
-                double around = Math.atan2(south, east) / FULL_TURN * SkyFunnel.AROUND_REPEATS;
-                double apart = Math.abs(around - vertex.u()) % SkyFunnel.AROUND_REPEATS;
-                assertTrue(Math.min(apart, SkyFunnel.AROUND_REPEATS - apart) < AROUND_EXACT,
-                        "round the funnel by angle, whole repeats in a turn");
-            }
+        assertFalse(submitted.vertices().isEmpty(), "the funnel writes vertices");
+        for (RecordingVertexConsumer.Vertex vertex : submitted.vertices()) {
+            assertEquals(0f, vertex.u(), 0f, "no texture coordinate written, the starfield reads the screen");
+            assertEquals(0f, vertex.v(), 0f, "no texture coordinate written, the starfield reads the screen");
         }
     }
 
@@ -123,8 +112,8 @@ class SkyFunnelRendererTest {
                 .average().orElseThrow();
         double south = submitted.vertices().stream().mapToDouble(vertex -> vertex.z() + BY_THE_DOOR.z())
                 .average().orElseThrow();
-        assertEquals(ROOM.centerX() + HALF_BLOCK, east, EXACT, "at the room's own center, the zero copy offset");
-        assertEquals(ROOM.centerZ() + HALF_BLOCK, south, EXACT, "at the room's own center, the zero copy offset");
+        assertEquals(ROOM.centerX() + HALF_BLOCK, east, CENTERED, "at the room's own center, the zero copy offset");
+        assertEquals(ROOM.centerZ() + HALF_BLOCK, south, CENTERED, "at the room's own center, the zero copy offset");
     }
 
     private static Submitted submit() {

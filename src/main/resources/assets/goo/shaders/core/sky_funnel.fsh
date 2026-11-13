@@ -3,16 +3,16 @@
 #moj_import <minecraft:matrix.glsl>
 #moj_import <minecraft:globals.glsl>
 
-// The sky funnel over an Outsider room's doorway (decision
+// The sky funnel round an Outsider room's doorway (decision
 // sky-funnel-points-down-to-the-doorway-from-any-distance): vanilla's End portal fragment shader,
-// its layers read at the funnel's surface coordinates in place of the screen point, dimmed by the
-// vertex's brightness. It applies no fog: each vertex draws pulled inside the far plane, so fog
-// would read the pulled distance, and the brightness already fades the funnel with distance.
+// read at the screen point as the doorway's is, dimmed by the vertex's brightness. It applies no
+// fog: each vertex draws pulled inside the far plane, so fog would read the pulled distance, and
+// the brightness already fades the funnel with distance.
 
 uniform sampler2D Sampler0;
 uniform sampler2D Sampler1;
 
-in vec2 surfaceCoord;
+in vec4 texProj0;
 in vec4 brightness;
 
 const vec3[] COLORS = vec3[](
@@ -59,10 +59,9 @@ mat4 end_portal_layer(float layer) {
 out vec4 fragColor;
 
 void main() {
-    vec4 surface = vec4(surfaceCoord, 0.0, 1.0);
-    vec3 color = textureProj(Sampler0, surface).rgb * COLORS[0];
+    vec3 color = textureProj(Sampler0, texProj0).rgb * COLORS[0];
     for (int i = 0; i < PORTAL_LAYERS; i++) {
-        color += textureProj(Sampler1, surface * end_portal_layer(float(i + 1))).rgb * COLORS[i];
+        color += textureProj(Sampler1, texProj0 * end_portal_layer(float(i + 1))).rgb * COLORS[i];
     }
     fragColor = vec4(color * brightness.rgb, 1.0);
 }
