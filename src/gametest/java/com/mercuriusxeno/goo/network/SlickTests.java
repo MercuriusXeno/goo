@@ -84,7 +84,7 @@ public final class SlickTests {
             + " faster than it walked the stone: %.4f against %.4f on stone";
     private static final String NOT_FASTER_THAN_ICE = "A husk %d ticks onto slick should outpace a husk %d ticks"
             + " onto ice: %.4f on ice, %.4f on slick";
-    private static final String SLICK_REACHES_ITS_RANGE = "slick_lays_twelve_blocks_ahead_and_no_further";
+    private static final String SLICK_REACHES_ITS_RANGE = "slick_lays_ahead_to_its_range_and_no_further";
     /** Where the streamer stands in the light bay, at its west wall, on the strip's first stone. */
     private static final BlockPos FAR_STREAMER_POS = new BlockPos(0, 1, 8);
     /** The light bay is sixteen blocks across, so the strip runs from the streamer to its east wall. */

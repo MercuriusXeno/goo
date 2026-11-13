@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:outsider_grows_a_block_a_second",
+  "function": "goo:oculus_blink_pays_its_trip",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 100,
+  "max_ticks": 20,
   "setup_ticks": 0,
   "required": true
 }

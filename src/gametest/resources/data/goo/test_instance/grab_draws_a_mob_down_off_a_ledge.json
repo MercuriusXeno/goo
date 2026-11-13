@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:oculus_blink_costs_a_tenth",
+  "function": "goo:grab_draws_a_mob_down_off_a_ledge",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 20,
+  "max_ticks": 60,
   "setup_ticks": 0,
   "required": true
 }

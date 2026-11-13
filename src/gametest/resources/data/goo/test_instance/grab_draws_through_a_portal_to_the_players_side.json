@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:grab_draws_a_mob_off_a_ledge_to_the_wall_below",
+  "function": "goo:grab_draws_through_a_portal_to_the_players_side",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
   "max_ticks": 60,

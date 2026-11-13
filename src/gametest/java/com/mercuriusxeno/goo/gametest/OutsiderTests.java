@@ -421,7 +421,7 @@ public final class OutsiderTests {
         });
     }
 
-    private static final String OUTSIDER_GROWS_A_BLOCK_A_SECOND = "outsider_grows_a_block_a_second";
+    private static final String OUTSIDER_GROWS_A_BLOCK_A_SECOND = "outsider_grows_a_ring_each_ring_time";
     private static final String SHOULD_GROW_A_BLOCK = "A ring time held inside should grow the room from %.1f to %.1f, "
             + "stands at %.6f";
 
