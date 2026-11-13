@@ -78,6 +78,16 @@ public interface ChannelHost extends BlockBreakHost {
     HoldMarks holdMarks();
 
     /**
+     * What each thing the hold lays pays as it lands.
+     * goop-drains-per-cubic-meter-of-slime-placed
+     *
+     * @return the hold's placement price, free for a hold paying by the tick
+     */
+    default PlacementPrice placementPrice() {
+        return PlacementPrice.FREE;
+    }
+
+    /**
      * The gradual break the channeling player's current hold progresses its
      * blocks through, fresh for each hold.
      * decision gradual-breaks-share-one-break-texture-piece

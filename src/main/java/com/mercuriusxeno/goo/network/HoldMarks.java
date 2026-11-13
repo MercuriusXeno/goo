@@ -51,6 +51,20 @@ public final class HoldMarks {
     }
 
     /**
+     * Paints a block again though the hold already stepped it, so a cell the
+     * hold still reaches builds its next step; a block already painted keeps
+     * the state it was painted with.
+     * goop-layers-a-reached-cell-again-while-held
+     *
+     * @param pos    the block
+     * @param origin the state standing there now
+     */
+    public void paintAgain(BlockPos pos, BlockState origin) {
+        stepped.remove(pos);
+        painted.putIfAbsent(pos.immutable(), origin);
+    }
+
+    /**
      * @return the painted blocks, each with the state that stood there when painted, as a copy
      */
     public Map<BlockPos, BlockState> painted() {
