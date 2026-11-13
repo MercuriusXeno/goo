@@ -366,6 +366,34 @@ public final class OutsiderRooms {
         }
     }
 
+    /**
+     * Holds the far side of each room edge a player stands near loaded, as
+     * a linked portal holds its partner's chunk, so their crossing lands on
+     * ground the server already holds however wide the room. The tickets
+     * lapse on their own, so a player who walks away from the edge lets the
+     * far side go.
+     * decision outsider-room-wraps-and-repeats-at-the-platform-edge
+     *
+     * @param player a player in the pocket
+     */
+    public static void holdFarSideLoaded(ServerPlayer player) {
+        if (player.level().dimension() != POCKET || !(player.level() instanceof ServerLevel pocket)) {
+            return;
+        }
+        VoidPockets pockets = VoidPockets.get(pocket);
+        Integer room = pockets.roomOf(player.getUUID());
+        if (room == null) {
+            return;
+        }
+        BlockPos center = voidstoneOf(room);
+        RoomExtent.Bounds bounds = new RoomExtent.Bounds(center.getX(), center.getZ(),
+                pockets.platformOf(player.getUUID()).extent());
+        for (RoomFarSide.Spot spot : RoomFarSide.across(bounds, player.getX(), player.getZ())) {
+            pocket.getChunkSource().addTicketWithRadius(TicketType.PORTAL,
+                    ChunkPos.containing(BlockPos.containing(spot.x(), ROOM_FLOOR_Y, spot.z())), ROOM_LOAD_RADIUS);
+        }
+    }
+
     private static void sendTo(ServerPlayer player, RoomEdgesSyncPayload payload) {
         // A listener that never negotiated the mod's channels, a gametest's mock player, gets no sync.
         if (player.connection.hasChannel(payload)) {

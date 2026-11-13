@@ -4,10 +4,9 @@ import org.joml.Matrix4fc;
 import java.util.List;
 
 /**
- * voidstone.fsh's field on a top face on the CPU, as the room's draw and a
- * copy's draw hand it a fragment and the room it tiles at, so a test reads
- * the nebula's glow and the star the shader shows at a world point, and
- * whether it draws the point at all.
+ * voidstone.fsh's field on a top face on the CPU, as the floor's draw hands
+ * it a fragment and the room it tiles at, so a test reads the nebula's glow
+ * and the star the shader shows at a world point, in the room or in a copy.
  */
 final class VoidstoneFieldModel {
 
@@ -19,29 +18,44 @@ final class VoidstoneFieldModel {
             "within = fract(local.xz);",
             "plane = blockTexels.y + int(floor(local.y + 0.5));",
             "int seed = plane * 3 + side;",
-            "float pick = hash(ivec3(across, seed));",
-            "float rate = 0.03 + 0.09 * hash(ivec3(across, seed + 7));",
+            "float pick = hash(ivec3(starTexel, seed));",
+            "float rate = 0.03 + 0.09 * hash(ivec3(starTexel, seed + 7));",
             "uint mixed = mixBits(uint(point.x) ^ mixBits(uint(point.y) ^ mixBits(uint(point.z))));",
             "^ mixBits(uint(point.w) ^ mixBits(uint(seed))))));",
+            "const float BRIGHT_STARS = 0.0012;",
+            "const float DIM_STARS = 0.0035;",
             "ivec4 offset = ivec4(corner & 1, (corner >> 1) & 1, (corner >> 2) & 1, (corner >> 3) & 1);",
             "vec4 weight = mix(1.0 - into, into, vec4(offset));",
             "total += hash4(ivec4(cell) + offset, seed) * weight.x * weight.y * weight.z * weight.w;",
             "const int CENTER_SPLIT = " + VoidstoneRoom.CENTER_SPLIT + ";",
             "float extent = TextureMat[1][0];",
-            "int centerX = roomCenter(TextureMat[0][0], TextureMat[0][1]);",
             "int centerZ = roomCenter(TextureMat[0][2], TextureMat[0][3]);",
+            "vec2 widthsOut = floor((toMiddle + 0.5 * width) / width) * vec2(1.0, top ? 1.0 : 0.0);",
+            "toMiddle -= widthsOut * width;",
+            "starTexel.x = alongCenter * BLOCK_TEXELS + HALF_BLOCK_TEXELS + int(floor(toMiddle.x));",
+            "starTexel.y = centerZ * BLOCK_TEXELS + HALF_BLOCK_TEXELS + int(floor(toMiddle.y));",
             "return int(high) * CENTER_SPLIT + int(low);",
             "float width = 2.0 * extent * TEXELS;",
             "return float(texel - center * BLOCK_TEXELS - HALF_BLOCK_TEXELS) + within;",
-            "if (abs(toMiddle.x) > width * 0.5 || (facing.y > 0.5 && abs(toMiddle.y) > width * 0.5)) {",
             "float angle = TURN * texelsFromMiddle / width;",
             "return vec2(cos(angle), sin(angle)) * (width / TURN / float(NEBULA_TEXELS));",
             "vec4 drift = vec4(ticks * NEBULA_DRIFT, 0.0, ticks * NEBULA_DRIFT * 0.6, 0.0) / float(NEBULA_TEXELS);",
-            "nebula = smoothstep(0.45, 1.0, valueNoise4(vec4(aroundLoop(toMiddle.x, width), alongY) + drift, seed + 11));");
+            "vec4 cloudAt = vec4(aroundLoop(toMiddle.x, width), alongY) + drift;",
+            "nebula = smoothstep(GLOW_FROM, GLOW_WHOLE, mix(valueNoise4(cloudAt, seed + 11),",
+            "valueNoise4(cloudAt * WISP_SCALE, seed + 13), WISP_SHARE));",
+            "const int NEBULA_TEXELS = 96;",
+            "const float WISP_SCALE = 2.0;",
+            "const float WISP_SHARE = 0.35;",
+            "const float GLOW_FROM = 0.35;",
+            "const float GLOW_WHOLE = 0.95;");
 
     private static final int TEXELS = 16;
     private static final int HALF_BLOCK_TEXELS = 8;
-    private static final int NEBULA_TEXELS = 40;
+    private static final int NEBULA_TEXELS = 96;
+    private static final double WISP_SCALE = 2.0;
+    private static final double WISP_SHARE = 0.35;
+    private static final int WISP_SEED = 13;
+    private static final double GLOW_WHOLE = 0.95;
     private static final double NEBULA_DRIFT = 0.004;
     private static final double DRIFT_SOUTH = 0.6;
     private static final int NEBULA_SEED = 11;
@@ -49,14 +63,14 @@ final class VoidstoneFieldModel {
     private static final int BRIGHTNESS_SEED = 3;
     private static final int SEEDS_PER_PLANE = 3;
     private static final int CORNERS = 16;
-    private static final double GLOW_FROM = 0.45;
+    private static final double GLOW_FROM = 0.35;
     private static final double RATE_FLOOR = 0.03;
     private static final double RATE_SPAN = 0.09;
     private static final double PHASE_TURNS = 61.0;
     private static final double TWINKLE_REST = 0.55;
     private static final double TWINKLE_SWING = 0.45;
-    private static final double BRIGHT_STARS = 0.012;
-    private static final double DIM_STARS = 0.035;
+    private static final double BRIGHT_STARS = 0.0012;
+    private static final double DIM_STARS = 0.0035;
     private static final double BRIGHT_STAR_FLOOR = 0.7;
     private static final double BRIGHT_STAR_PEAK = 1.0;
     private static final double DIM_STAR_GLOW = 0.28;
@@ -69,11 +83,10 @@ final class VoidstoneFieldModel {
     /**
      * What a fragment shows: the nebula's glow under it and the star it holds.
      *
-     * @param glow  the nebula's glow, 0 to 1
-     * @param star  the star's brightness at the given clock, 0 where it holds none
-     * @param drawn whether the shader draws the fragment, false past the room's boundary planes
+     * @param glow the nebula's glow, 0 to 1
+     * @param star the star's brightness at the given clock, 0 where it holds none
      */
-    record Look(double glow, double star, boolean drawn) {
+    record Look(double glow, double star) {
     }
 
     /**
@@ -94,27 +107,6 @@ final class VoidstoneFieldModel {
         return fragment(new Place(x - cameraX, z - cameraZ, floorY, cameraX, cameraZ), room, ticks);
     }
 
-    /**
-     * The look of a copy's floor block's top face at a world point, as a copy's draw hands the shader the
-     * fragment: voidstone_copy.vsh's place, the room's own point, the copy's translation moving only where it
-     * draws.
-     *
-     * @param x       the world x the copy draws at
-     * @param z       the world z the copy draws at
-     * @param floorY  the floor block's y
-     * @param offset  the copy's offset
-     * @param cameraX the camera's x
-     * @param cameraZ the camera's z
-     * @param room    the texture matrix the draw hands the shader
-     * @param ticks   the clock
-     * @return the look
-     */
-    static Look copyFace(double x, double z, int floorY, RoomCopies.Offset offset, double cameraX, double cameraZ,
-            Matrix4fc room, double ticks) {
-        return fragment(new Place(x - offset.east() - cameraX, z - offset.south() - cameraZ, floorY, cameraX,
-                cameraZ), room, ticks);
-    }
-
     /** Where the vertex shader hands the fragment a top face's point: its offset from the camera. */
     private record Place(double fromCameraX, double fromCameraZ, int floorY, double cameraX, double cameraZ) {
     }
@@ -132,15 +124,26 @@ final class VoidstoneFieldModel {
         int seed = (place.floorY() + 1) * TEXELS * SEEDS_PER_PLANE;
         double extent = room.m10();
         double width = 2.0 * extent * TEXELS;
-        double toMiddleX = fromMiddle(roomCenter(room.m00(), room.m01()), acrossX, withinX);
-        double toMiddleZ = fromMiddle(roomCenter(room.m02(), room.m03()), acrossZ, withinZ);
-        boolean drawn = Math.abs(toMiddleX) <= width * 0.5 && Math.abs(toMiddleZ) <= width * 0.5;
+        int centerX = roomCenter(room.m00(), room.m01());
+        int centerZ = roomCenter(room.m02(), room.m03());
+        double toMiddleX = fromMiddle(centerX, acrossX, withinX);
+        double toMiddleZ = fromMiddle(centerZ, acrossZ, withinZ);
+        // a place past the planes shows the room's own place whole room widths back
+        toMiddleX -= Math.floor((toMiddleX + 0.5 * width) / width) * width;
+        toMiddleZ -= Math.floor((toMiddleZ + 0.5 * width) / width) * width;
+        int starX = centerX * TEXELS + HALF_BLOCK_TEXELS + (int) Math.floor(toMiddleX);
+        int starZ = centerZ * TEXELS + HALF_BLOCK_TEXELS + (int) Math.floor(toMiddleZ);
         double[] alongX = aroundLoop(toMiddleX, width);
         double[] alongZ = aroundLoop(toMiddleZ, width);
         double drift = ticks * NEBULA_DRIFT / NEBULA_TEXELS;
-        double glow = smoothstep(GLOW_FROM, 1.0, valueNoise4(new double[] {alongX[0] + drift, alongX[1],
-            alongZ[0] + drift * DRIFT_SOUTH, alongZ[1]}, seed + NEBULA_SEED));
-        return new Look(glow, starAt(acrossX, acrossZ, seed, ticks), drawn);
+        double[] cloudAt = {alongX[0] + drift, alongX[1], alongZ[0] + drift * DRIFT_SOUTH, alongZ[1]};
+        double[] wispAt = new double[cloudAt.length];
+        for (int axis = 0; axis < cloudAt.length; axis++) {
+            wispAt[axis] = cloudAt[axis] * WISP_SCALE;
+        }
+        double glow = smoothstep(GLOW_FROM, GLOW_WHOLE, mix(valueNoise4(cloudAt, seed + NEBULA_SEED),
+                valueNoise4(wispAt, seed + WISP_SEED), WISP_SHARE));
+        return new Look(glow, starAt(starX, starZ, seed, ticks));
     }
 
     private static int roomCenter(float high, float low) {

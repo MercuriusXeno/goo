@@ -45,11 +45,10 @@ public final class RoomExtent {
 
     /**
      * A room's boundary in world blocks: its center voidstone's column and
-     * its extent, which the server's build test and the client's star test
-     * both read, so the blocks a build refuses at the boundary are the blocks
-     * the shader clips at the boundary plane.
+     * its extent, which the server's build test and the voidstone's
+     * starfield, tiling at the room's width, both read.
      * decision grown-extent-is-the-one-wrap-and-build-boundary
-     * decision boundary-cut-voidstone-draws-without-its-stars
+     * decision voidstone-starfield-tiles-in-either-direction
      *
      * @param centerX the center voidstone's x
      * @param centerZ the center voidstone's z
@@ -66,17 +65,6 @@ public final class RoomExtent {
          */
         public boolean holdsWholeBlock(int x, int z) {
             return RoomExtent.holdsWholeBlock(extent, x - centerX, z - centerZ);
-        }
-
-        /**
-         * Whether the boundary cuts a block's column: part of it inside, part beyond.
-         *
-         * @param x the block's x
-         * @param z the block's z
-         * @return true where the boundary runs through the block's footprint
-         */
-        public boolean cutsBlock(int x, int z) {
-            return RoomExtent.cutsBlock(extent, x - centerX, z - centerZ);
         }
     }
 
@@ -226,21 +214,6 @@ public final class RoomExtent {
      */
     public static boolean holdsWholeBlock(double extent, int east, int south) {
         return Math.max(Math.abs(east), Math.abs(south)) + HALF_BLOCK <= extent;
-    }
-
-    /**
-     * Whether an extent cuts a block: its near side stands inside the
-     * boundary and its far side beyond it, the block a build refuses at the
-     * edge.
-     *
-     * @param extent the room's extent
-     * @param east   the block's offset east of the center voidstone
-     * @param south  the block's offset south of it
-     * @return true where the boundary runs through the block's footprint
-     */
-    public static boolean cutsBlock(double extent, int east, int south) {
-        return !holdsWholeBlock(extent, east, south)
-                && Math.max(Math.abs(east), Math.abs(south)) - HALF_BLOCK < extent;
     }
 
     /**

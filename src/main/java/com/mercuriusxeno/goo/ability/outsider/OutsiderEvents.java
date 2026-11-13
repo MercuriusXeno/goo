@@ -40,7 +40,8 @@ public final class OutsiderEvents {
     }
 
     /**
-     * Catches a player fallen below their room's floor.
+     * Catches a player fallen below their room's floor, and once a second
+     * holds the far side of the room edges they stand near loaded.
      *
      * @param event the player tick event
      */
@@ -48,8 +49,14 @@ public final class OutsiderEvents {
     public static void onPlayerTick(PlayerTickEvent.Post event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             OutsiderRooms.keepInRoom(player);
+            if (player.tickCount % FAR_SIDE_INTERVAL == 0) {
+                OutsiderRooms.holdFarSideLoaded(player);
+            }
         }
     }
+
+    /** How often, in ticks, a player's far side is held loaded again, well inside a portal ticket's lapse. */
+    private static final int FAR_SIDE_INTERVAL = 20;
 
     /**
      * Tells a player logging back in inside the pocket their room's edges,

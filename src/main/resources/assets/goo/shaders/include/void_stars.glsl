@@ -3,10 +3,11 @@
 
 const vec3 STAR = vec3(0.87, 0.86, 0.96);
 
-// The voidstone's stars: the share of its texels holding a bright star and a dim one, the bright star's
-// brightness between its floor and its peak, and the dim star's glow. The sky's stars stay below both.
-const float BRIGHT_STARS = 0.012;
-const float DIM_STARS = 0.035;
+// The voidstone's stars: the share of its texels holding a bright star and a dim one, very, very sparse, a
+// tenth of the share the floor first held, as the operator asked; the bright star's brightness between its floor
+// and its peak, and the dim star's glow. The sky's stars stay fainter than both.
+const float BRIGHT_STARS = 0.0012;
+const float DIM_STARS = 0.0035;
 const float BRIGHT_STAR_FLOOR = 0.7;
 const float BRIGHT_STAR_PEAK = 1.0;
 const float DIM_STAR_GLOW = 0.28;
