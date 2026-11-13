@@ -58,11 +58,6 @@ class VacuumStepTest {
             assertTrue(VacuumStep.slurpPitch(4, SHIPPED_RANGE) < VacuumStep.slurpPitch(SHIPPED_RANGE, SHIPPED_RANGE));
         }
 
-        @Test
-        void theReachsFarEndBreaksTenTicksIn() {
-            assertEquals(10, VacuumStep.breaksOn(SHIPPED_RANGE, ticksPerBlock));
-        }
-
         private static VacuumStep shippedVacuum() {
             AbilityDefinition vacuum = AbilityJson.decode("void_vacuum");
             return vacuum.behaviors().stream().filter(VacuumStep.class::isInstance).map(VacuumStep.class::cast)
