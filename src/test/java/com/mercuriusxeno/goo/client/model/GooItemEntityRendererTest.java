@@ -39,6 +39,8 @@ class GooItemEntityRendererTest {
     private static final float SIZE = 2f;
     private static final int VERTICES_PER_FACE = 4;
     private static final float ONE_PIXEL = 1f / 16f;
+    /** The shadow radius vanilla ItemEntityRenderer's constructor sets. */
+    private static final float VANILLA_ITEM_SHADOW = 0.15f;
 
     @Test
     void aDroppedGooItemDrawsTheSameAxisAlignedCuboidOnItsFeetAtEveryAge() {
@@ -78,6 +80,16 @@ class GooItemEntityRendererTest {
         state.gooSize = SIZE;
 
         assertEquals(0f, renderer.getShadowRadius(state), "a dropped goo item should cast no entity shadow");
+    }
+
+    @Test
+    void anyOtherDroppedItemCastsVanillasShadow() {
+        GooItemEntityRenderer renderer = new GooItemEntityRenderer(context());
+        GooItemEntityRenderer.GooItemRenderState state = renderer.createRenderState();
+        state.gooType = null;
+
+        assertEquals(VANILLA_ITEM_SHADOW, renderer.getShadowRadius(state),
+                "an item that is not goo should cast vanilla ItemEntityRenderer's shadow");
     }
 
     private static boolean squareToAnAxis(List<Vector3f> face) {
