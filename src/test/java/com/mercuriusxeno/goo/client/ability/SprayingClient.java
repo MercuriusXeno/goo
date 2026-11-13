@@ -35,6 +35,8 @@ public final class SprayingClient implements AutoCloseable {
     public static final int CASTER = 7;
     /** The spraying player's eye. */
     public static final Vec3 EYE = new Vec3(3, 65.62, -2);
+    /** The eye's height above the feet. */
+    private static final double EYE_HEIGHT = 1.62;
     /** The look's pitch, thirty degrees down. */
     public static final float PITCH = 30f;
     /** The look's yaw, a little west of south. */
@@ -60,6 +62,7 @@ public final class SprayingClient implements AutoCloseable {
         when(caster.getViewXRot(anyFloat())).thenReturn(PITCH);
         when(caster.getViewYRot(anyFloat())).thenReturn(YAW);
         when(caster.getMainArm()).thenReturn(HumanoidArm.RIGHT);
+        when(caster.getPosition(anyFloat())).thenReturn(EYE.subtract(0, EYE_HEIGHT, 0));
         glove = mock(ItemStack.class);
         when(glove.getItem()).thenReturn(mock(GooGloveItem.class));
         when(caster.getMainHandItem()).thenReturn(glove);
