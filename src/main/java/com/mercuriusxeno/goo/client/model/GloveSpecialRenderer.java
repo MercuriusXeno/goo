@@ -278,7 +278,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      *
      * @return the game time in ticks
      */
-    private static float gameTime() {
+    static float gameTime() {
         Minecraft mc = Minecraft.getInstance();
         return mc.level == null ? 0f
                 : mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
