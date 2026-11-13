@@ -13,10 +13,12 @@ import java.util.Optional;
 
 /**
  * The doors this client has been told players channeling Outsider stand,
- * by caster, each drawn between its last two updates so it grows and moves
- * smoothly. A door no longer sent collapses to nothing over a few ticks, its
+ * by caster, each drawn between its last two updates so it unzips, widens
+ * and moves smoothly. A door no longer sent collapses to
+ * nothing over a few ticks, both its shares shrinking together, its
  * channel let go; a door whose caster it carried off goes with them.
  * decision channeling-to-the-pocket-conjures-a-door-that-envelops-the-player
+ * decision door-unzips-from-a-starfield-pixel-then-widens-into-you
  * The local caster's own door stands from the look of the frame drawn, and
  * another caster's turns between updates as it moves.
  * decision conjured-door-follows-the-look-smoothly
@@ -50,11 +52,21 @@ public final class ClientConjuredDoors {
     /**
      * A door as a frame draws it.
      *
-     * @param at   the middle of its foot
-     * @param yaw  the way its caster faced, in degrees
-     * @param size its size, 0 for nothing to 1 for full
+     * @param at       the middle of its foot
+     * @param yaw      the way its caster faced, in degrees
+     * @param unzipped how far it has unzipped from the doorway's head, 0 for a pixel to 1 for a slash on the floor
+     * @param widened  how far it has widened, 0 for a pixel wide to 1 for the doorway's full width
      */
-    public record Drawn(Vec3 at, float yaw, double size) {
+    public record Drawn(Vec3 at, float yaw, double unzipped, double widened) {
+    }
+
+    /**
+     * A door's two shares at a moment.
+     *
+     * @param unzipped how far it has unzipped
+     * @param widened  how far it has widened
+     */
+    private record Shares(double unzipped, double widened) {
     }
 
     /**
@@ -97,7 +109,7 @@ public final class ClientConjuredDoors {
      * @param door the releasing door the server sent
      */
     static void takeLocalRelease(ConjuredDoor door) {
-        if (localRelease == null && door.size() >= 1) {
+        if (localRelease == null && door.widened() >= 1) {
             localRelease = new LocalRelease(Double.NaN);
         }
     }
@@ -132,8 +144,8 @@ public final class ClientConjuredDoors {
             localRelease = null;
             return Optional.empty();
         }
-        ConjuredDoor door = ConjuredDoor.releasing(look.feet(), look.yaw(), tick, ConjuredDoor.RELEASE_TICKS);
-        return Optional.of(new Drawn(door.at(), look.yaw(), door.size()));
+        ConjuredDoor door = ConjuredDoor.releasing(look.feet(), look.yaw(), tick);
+        return Optional.of(new Drawn(door.at(), look.yaw(), door.unzipped(), door.widened()));
     }
 
     /**
@@ -215,8 +227,8 @@ public final class ClientConjuredDoors {
         double since = time - seen.at();
         double step = stepBetween(since);
         double crossed = Mth.lerp(step, seen.before().crossed(), seen.now().crossed());
-        return sizeAt(seen, since).map(size ->
-                new Drawn(ConjuredDoor.placedAt(look.feet(), look.yaw(), crossed), look.yaw(), size));
+        Vec3 at = ConjuredDoor.placedAt(look.feet(), look.yaw(), crossed);
+        return sharesAt(seen, since).map(shares -> new Drawn(at, look.yaw(), shares.unzipped(), shares.widened()));
     }
 
     /**
@@ -236,7 +248,7 @@ public final class ClientConjuredDoors {
         ConjuredDoor now = seen.now();
         Vec3 at = before.at().lerp(now.at(), step);
         float yaw = Mth.rotLerp((float) step, before.yaw(), now.yaw());
-        return sizeAt(seen, since).map(size -> new Drawn(at, yaw, size));
+        return sharesAt(seen, since).map(shares -> new Drawn(at, yaw, shares.unzipped(), shares.widened()));
     }
 
     /**
@@ -250,19 +262,21 @@ public final class ClientConjuredDoors {
     }
 
     /**
-     * A held door's size at a moment: between its last two updates while
-     * they come, then shrinking to nothing once they stop.
+     * A held door's shares at a moment: each between its last two updates
+     * while they come, then both shrinking to nothing once they stop.
      *
      * @param seen  the door's last two updates
      * @param since client ticks since the last update came
-     * @return the size, empty once the door is gone
+     * @return the shares, empty once the door is gone
      */
-    private static Optional<Double> sizeAt(Seen seen, double since) {
-        double now = seen.now().size();
+    private static Optional<Shares> sharesAt(Seen seen, double since) {
+        ConjuredDoor now = seen.now();
         if (since <= OUTLASTS) {
-            return Optional.of(Mth.lerp(stepBetween(since), seen.before().size(), now));
+            double step = stepBetween(since);
+            return Optional.of(new Shares(Mth.lerp(step, seen.before().unzipped(), now.unzipped()),
+                    Mth.lerp(step, seen.before().widened(), now.widened())));
         }
         double left = 1 - (since - OUTLASTS) / COLLAPSE_TICKS;
-        return left <= 0 ? Optional.empty() : Optional.of(now * left);
+        return left <= 0 ? Optional.empty() : Optional.of(new Shares(now.unzipped() * left, now.widened() * left));
     }
 }
