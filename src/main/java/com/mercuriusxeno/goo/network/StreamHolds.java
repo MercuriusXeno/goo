@@ -23,7 +23,7 @@ public final class StreamHolds {
      * continue the hold: a client's stream ticks jitter against the
      * server's, so one lands a tick late now and then.
      */
-    private static final int LATEST_CONTINUING_GAP = 2;
+    public static final int LATEST_CONTINUING_GAP = 2;
 
     private final Map<UUID, Hold> holds = new HashMap<>();
     /** The players whose current hold has paid the reagents its ability consumes. */
