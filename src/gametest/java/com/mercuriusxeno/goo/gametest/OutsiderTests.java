@@ -110,6 +110,189 @@ public final class OutsiderTests {
                 OutsiderTests::arrivalLoadsDuringTheCharge);
         GooTestFunctions.registerTest(registrar, OUTSIDER_GROWS_FOR_THE_RECKONED_TICKS,
                 OutsiderTests::growsForTheReckonedTicks);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_RESET_LAYS_THE_EXTENT, OutsiderTests::resetLaysTheExtent);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_RESET_CLEARS_THE_ROOM, OutsiderTests::resetClearsTheRoom);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_RESET_BOUNDS_THE_BUILD, OutsiderTests::resetBoundsTheBuild);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_RESET_SETS_THE_CALLER_AT_THE_DOOR,
+                OutsiderTests::resetSetsTheCallerAtTheDoor);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_RESET_LEAVES_AN_OUTSIDE_CALLER,
+                OutsiderTests::resetLeavesAnOutsideCaller);
+    }
+
+    private static final String OUTSIDER_RESET_SETS_THE_CALLER_AT_THE_DOOR = "outsider_reset_sets_the_caller_at_the_door";
+    private static final String OUTSIDER_RESET_LEAVES_AN_OUTSIDE_CALLER = "outsider_reset_leaves_an_outside_caller";
+    private static final String SHOULD_SET_AT_THE_DOOR = "A caller in their grown room should stand after the reset at "
+            + "%s facing %.1f in goo:pocket, stands at %s facing %.1f in %s";
+    private static final String SHOULD_LEAVE_OUTSIDE = "A caller outside the pocket should stand after the reset at %s "
+            + "in %s with the extent at %.1f, stands at %s in %s with the extent at %.1f";
+
+    /**
+     * A player standing far out in their grown room runs the reset and
+     * stands after it on the arrival cell south of the doorway, facing the door
+     * (decision reset-sets-a-player-in-the-room-back-at-the-doorway).
+     *
+     * @param helper the gametest helper
+     */
+    public static void resetSetsTheCallerAtTheDoor(GameTestHelper helper) {
+        ServerPlayer player = grownRoomHolder(helper);
+        int room = OutsiderRooms.roomOf((ServerLevel) player.level(), player.getUUID());
+        BlockPos farOut = OutsiderRooms.voidstoneOf(room).east(IN_THE_GROWN_RING).south(IN_THE_GROWN_RING).above();
+        player.setPos(Vec3.atBottomCenterOf(farOut));
+        player.setYRot(CAST_YAW);
+        runReset(helper, player);
+        Vec3 arrival = arrivalOf(room);
+        helper.assertTrue(player.level().dimension() == OutsiderRooms.POCKET && player.position().equals(arrival)
+                        && player.getYRot() == FACING_DOOR,
+                String.format(SHOULD_SET_AT_THE_DOOR, arrival, FACING_DOOR, player.position(), player.getYRot(),
+                        player.level().dimension().identifier()));
+        helper.succeed();
+    }
+
+    /**
+     * A player outside the pocket runs the reset and stands where they ran
+     * it, in the level they ran it in, while their room's extent reads as laid
+     * (decision reset-sets-a-player-in-the-room-back-at-the-doorway).
+     *
+     * @param helper the gametest helper
+     */
+    public static void resetLeavesAnOutsideCaller(GameTestHelper helper) {
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        ServerLevel pocket = helper.getLevel().getServer().getLevel(OutsiderRooms.POCKET);
+        helper.assertTrue(pocket != null, "The server should hold the pocket dimension");
+        OutsiderRooms.layRoomFor(pocket, player.getUUID());
+        VoidPockets.get(pocket).keepPlatform(player.getUUID(), new VoidPockets.Platform(GROWN));
+        ServerLevel level = (ServerLevel) player.level();
+        Vec3 standing = player.position();
+        runReset(helper, player);
+        double extent = OutsiderRooms.extentOf(pocket, player.getUUID());
+        helper.assertTrue(player.level() == level && player.position().equals(standing)
+                        && Double.compare(extent, RoomExtent.LAID) == 0,
+                String.format(SHOULD_LEAVE_OUTSIDE, standing, level.dimension().identifier(), RoomExtent.LAID,
+                        player.position(), player.level().dimension().identifier(), extent));
+        helper.succeed();
+    }
+
+    private static final String OUTSIDER_RESET_LAYS_THE_EXTENT = "outsider_reset_lays_the_extent";
+    private static final String OUTSIDER_RESET_CLEARS_THE_ROOM = "outsider_reset_clears_the_room";
+    private static final String OUTSIDER_RESET_BOUNDS_THE_BUILD = "outsider_reset_bounds_the_build";
+    /** The command the operator types, as the dispatcher reads it. */
+    private static final String RESET_COMMAND = "goo outsider reset";
+    /** A grown room's extent: the 17 by 17 around the center. */
+    private static final double GROWN = 8.5;
+    /** A column east of the center inside the laid 9 by 9. */
+    private static final int INSIDE_LAID = 2;
+    /** A column east of the center in the grown ring, past the laid 9 by 9. */
+    private static final int IN_THE_GROWN_RING = 7;
+    /** A column east of the center whose floor voidstone is taken before the reset. */
+    private static final int FLOOR_TAKEN = 6;
+    private static final String SHOULD_ENTER_DIRECTLY = "The player should enter their room";
+    private static final String SHOULD_LAY_THE_EXTENT = "The reset should lay the extent at %.1f and keep room %s and "
+            + "return %s, reads extent %.1f, room %s and return %s";
+    private static final String SHOULD_CLEAR = "The reset should clear %s to air, %s stands there";
+    private static final String SHOULD_LAY_FLOOR = "The reset should stand voidstone again at %s, %s stands there";
+    private static final String SHOULD_BOUND_BUILD = "A build at %s should read %s %s the reset, reads %s";
+
+    /**
+     * A player whose room grew past the 9 by 9 runs the reset, and the room's
+     * extent reads as laid while its room number and return point stay
+     * (decision reset-command-returns-my-room-to-nine-by-nine-and-clears-its-blocks).
+     *
+     * @param helper the gametest helper
+     */
+    public static void resetLaysTheExtent(GameTestHelper helper) {
+        ServerPlayer player = grownRoomHolder(helper);
+        ServerLevel pocket = (ServerLevel) player.level();
+        VoidPockets pockets = VoidPockets.get(pocket);
+        Integer room = pockets.roomOf(player.getUUID());
+        VoidPockets.ReturnPoint home = pockets.returnOf(player.getUUID());
+        runReset(helper, player);
+        double extent = OutsiderRooms.extentOf(pocket, player.getUUID());
+        Integer roomAfter = pockets.roomOf(player.getUUID());
+        VoidPockets.ReturnPoint homeAfter = pockets.returnOf(player.getUUID());
+        helper.assertTrue(Double.compare(extent, RoomExtent.LAID) == 0 && room != null && room.equals(roomAfter)
+                        && home != null && home.equals(homeAfter),
+                String.format(SHOULD_LAY_THE_EXTENT, RoomExtent.LAID, room, home, extent, roomAfter, homeAfter));
+        helper.succeed();
+    }
+
+    /**
+     * A grown room holding a block inside the 9 by 9, one in the grown ring
+     * and a gap in its floor reads, after the reset, air at both blocks,
+     * voidstone at the gap, and the doorway on the center voidstone
+     * (decision reset-command-returns-my-room-to-nine-by-nine-and-clears-its-blocks).
+     *
+     * @param helper the gametest helper
+     */
+    public static void resetClearsTheRoom(GameTestHelper helper) {
+        ServerPlayer player = grownRoomHolder(helper);
+        ServerLevel pocket = (ServerLevel) player.level();
+        int room = OutsiderRooms.roomOf(pocket, player.getUUID());
+        BlockPos center = OutsiderRooms.voidstoneOf(room);
+        List<BlockPos> built = List.of(center.east(INSIDE_LAID).above(), center.east(IN_THE_GROWN_RING).above());
+        built.forEach(at -> pocket.setBlockAndUpdate(at, Blocks.STONE.defaultBlockState()));
+        BlockPos gap = center.east(FLOOR_TAKEN);
+        pocket.setBlockAndUpdate(gap, Blocks.AIR.defaultBlockState());
+        runReset(helper, player);
+        for (BlockPos at : built) {
+            helper.assertTrue(pocket.getBlockState(at).isAir(), String.format(SHOULD_CLEAR, at,
+                    pocket.getBlockState(at)));
+        }
+        helper.assertTrue(pocket.getBlockState(gap).is(GooBlocks.VOIDSTONE.get()),
+                String.format(SHOULD_LAY_FLOOR, gap, pocket.getBlockState(gap)));
+        for (BlockPos doorway : List.of(doorOf(room), doorOf(room).above())) {
+            helper.assertTrue(pocket.getBlockState(doorway).is(GooBlocks.DIMENSION_DOOR.get()),
+                    String.format(SHOULD_STAND_DOOR, doorway, pocket.getBlockState(doorway)));
+        }
+        helper.succeed();
+    }
+
+    /**
+     * A grown room takes a build in its grown ring before the reset, and
+     * after it only inside the 9 by 9
+     * (decision reset-command-returns-my-room-to-nine-by-nine-and-clears-its-blocks).
+     *
+     * @param helper the gametest helper
+     */
+    public static void resetBoundsTheBuild(GameTestHelper helper) {
+        ServerPlayer player = grownRoomHolder(helper);
+        BlockPos center = OutsiderRooms.voidstoneOf(OutsiderRooms.roomOf((ServerLevel) player.level(),
+                player.getUUID()));
+        BlockPos ring = center.east(IN_THE_GROWN_RING).above();
+        BlockPos inside = center.east(INSIDE_LAID).above();
+        boolean ringBefore = OutsiderRooms.mayBuildAt(player, ring);
+        helper.assertTrue(ringBefore, String.format(SHOULD_BOUND_BUILD, ring, true, "before", ringBefore));
+        runReset(helper, player);
+        boolean ringAfter = OutsiderRooms.mayBuildAt(player, ring);
+        boolean insideAfter = OutsiderRooms.mayBuildAt(player, inside);
+        helper.assertTrue(!ringAfter, String.format(SHOULD_BOUND_BUILD, ring, false, "after", ringAfter));
+        helper.assertTrue(insideAfter, String.format(SHOULD_BOUND_BUILD, inside, true, "after", insideAfter));
+        helper.succeed();
+    }
+
+    /**
+     * A mock player standing in their own room, grown to the 17 by 17.
+     *
+     * @param helper the gametest helper
+     * @return the player
+     */
+    private static ServerPlayer grownRoomHolder(GameTestHelper helper) {
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        helper.assertTrue(OutsiderRooms.enter(player), SHOULD_ENTER_DIRECTLY);
+        VoidPockets.get((ServerLevel) player.level()).keepPlatform(player.getUUID(), new VoidPockets.Platform(GROWN));
+        return player;
+    }
+
+    /**
+     * Runs the reset through the server's dispatcher, as an operator source
+     * standing where the player stands, the path a typed command takes.
+     *
+     * @param helper the gametest helper
+     * @param player the calling player
+     */
+    private static void runReset(GameTestHelper helper, ServerPlayer player) {
+        net.minecraft.server.MinecraftServer server = helper.getLevel().getServer();
+        server.getCommands().performPrefixedCommand(server.createCommandSourceStack().withEntity(player)
+                .withLevel((ServerLevel) player.level()).withPosition(player.position()), RESET_COMMAND);
     }
 
     private static final String ROOM_EDGE_CARRIES_A_BODY_TO_THE_OPPOSITE_SIDE =
