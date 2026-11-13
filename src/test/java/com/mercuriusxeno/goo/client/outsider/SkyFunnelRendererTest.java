@@ -42,6 +42,8 @@ class SkyFunnelRendererTest {
     private static final int QUAD = 4;
     private static final double HALF_BLOCK = 0.5;
     private static final RoomExtent.Bounds ROOM = new RoomExtent.Bounds(1_000, -3_000, 40.5);
+    private static final RoomExtent.Bounds SMALL_ROOM = new RoomExtent.Bounds(0, 0, RoomExtent.LAID);
+    private static final RoomExtent.Bounds GROWN_ROOM = new RoomExtent.Bounds(40, -70, 300.5);
     /** The camera stands by the doorway, so no vertex is drawn nearer than its true place. */
     private static final Vec3 BY_THE_DOOR = new Vec3(1_003.5, 65, -2_996.5);
     private static final double FAR_ENOUGH_FOR_ALL = 1.0E6;
@@ -61,26 +63,57 @@ class SkyFunnelRendererTest {
         assertFalse(vertices.isEmpty(), "the funnel writes vertices");
         boolean pillarSeen = false;
         boolean ceilingSeen = false;
-        for (RecordingVertexConsumer.Vertex vertex : vertices) {
-            double east = vertex.x() + BY_THE_DOOR.x() - (ROOM.centerX() + HALF_BLOCK);
-            double south = vertex.z() + BY_THE_DOOR.z() - (ROOM.centerZ() + HALF_BLOCK);
-            double height = vertex.y() + BY_THE_DOOR.y() - SkyFunnel.spoutHeight();
-            if (SkyFunnel.wrapsAsPillar(height)) {
-                pillarSeen = true;
-                assertEquals(height / SkyFunnel.PILLAR_BLOCKS_PER_REPEAT, vertex.v(), COORDINATE_EXACT,
-                        "up the pillar by height");
-                double around = Math.atan2(south, east) / FULL_TURN;
-                double apart = Math.abs(around - vertex.u()) % 1;
-                assertTrue(Math.min(apart, 1 - apart) < COORDINATE_EXACT, "round the pillar by its own width");
-            } else {
-                ceilingSeen = true;
-                assertEquals(east / SkyFunnel.CEILING_BLOCKS_PER_REPEAT, vertex.u(), COORDINATE_EXACT,
-                        "across the ceiling by east");
-                assertEquals(south / SkyFunnel.CEILING_BLOCKS_PER_REPEAT, vertex.v(), COORDINATE_EXACT,
-                        "across the ceiling by south");
-            }
+        for (int start = 0; start < vertices.size(); start += 2 * QUAD) {
+            List<RecordingVertexConsumer.Vertex> quad = vertices.subList(start, start + 2 * QUAD);
+            double lowest = quad.stream().mapToDouble(RecordingVertexConsumer.Vertex::y).min().orElseThrow()
+                    + BY_THE_DOOR.y() - SkyFunnel.spoutHeight();
+            boolean pillar = SkyFunnel.wrapsAsPillar(lowest);
+            pillarSeen |= pillar;
+            ceilingSeen |= !pillar;
+            quad.forEach(vertex -> assertStarsByMapping(vertex, pillar));
         }
         assertTrue(pillarSeen && ceilingSeen, "the funnel draws both its pillar and its ceiling");
+    }
+
+    /**
+     * A vertex's stars by the mapping its band reads: by arc and height on
+     * the pillar, by east and south across the ceiling.
+     */
+    private static void assertStarsByMapping(RecordingVertexConsumer.Vertex vertex, boolean pillar) {
+        double east = vertex.x() + BY_THE_DOOR.x() - (ROOM.centerX() + HALF_BLOCK);
+        double south = vertex.z() + BY_THE_DOOR.z() - (ROOM.centerZ() + HALF_BLOCK);
+        double height = vertex.y() + BY_THE_DOOR.y() - SkyFunnel.spoutHeight();
+        if (pillar) {
+            assertEquals(height / SkyFunnel.PILLAR_BLOCKS_PER_REPEAT, vertex.v(), COORDINATE_EXACT,
+                    "up the pillar by height");
+            double around = Math.atan2(south, east) / FULL_TURN;
+            double apart = Math.abs(around - vertex.u()) % 1;
+            assertTrue(Math.min(apart, 1 - apart) < COORDINATE_EXACT, "round the pillar by its own width");
+        } else {
+            assertEquals(east / SkyFunnel.CEILING_BLOCKS_PER_REPEAT, vertex.u(), COORDINATE_EXACT,
+                    "across the ceiling by east");
+            assertEquals(south / SkyFunnel.CEILING_BLOCKS_PER_REPEAT, vertex.v(), COORDINATE_EXACT,
+                    "across the ceiling by south");
+        }
+    }
+
+    @Test
+    void everyQuadsFourCornersReadOneMapping() {
+        for (RoomExtent.Bounds bounds : List.of(SMALL_ROOM, ROOM, GROWN_ROOM)) {
+            double axisX = bounds.centerX() + HALF_BLOCK;
+            double axisZ = bounds.centerZ() + HALF_BLOCK;
+            for (List<SkyFunnel.Corner> quad : SkyFunnel.quads(bounds)) {
+                boolean allPillar = quad.stream().allMatch(corner -> Math.abs(corner.up()
+                        * SkyFunnel.PILLAR_BLOCKS_PER_REPEAT - (corner.place().y() - SkyFunnel.spoutHeight()))
+                        < COORDINATE_EXACT);
+                boolean allCeiling = quad.stream().allMatch(corner -> Math.abs(corner.around()
+                        * SkyFunnel.CEILING_BLOCKS_PER_REPEAT - (corner.place().x() - axisX)) < COORDINATE_EXACT
+                        && Math.abs(corner.up() * SkyFunnel.CEILING_BLOCKS_PER_REPEAT
+                        - (corner.place().z() - axisZ)) < COORDINATE_EXACT);
+                assertTrue(allPillar || allCeiling,
+                        "all four corners by arc and height, or all four by east and south: " + quad);
+            }
+        }
     }
 
     @Test
