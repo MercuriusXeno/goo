@@ -80,4 +80,94 @@ class StreamSoundTest {
             assertEquals(soundOf("weird_goop"), soundOf("kinetic_slick"));
         }
     }
+
+    /**
+     * While Bore runs it loops Spire's earth rumble as it is, at the holder's
+     * ears, and the plays the server sends nearby players never stack on
+     * themselves (decision bore-loops-spires-earth-rumble).
+     */
+    @Nested
+    class BoreRumble {
+
+        private static final String SOUNDS_JSON = "assets/goo/sounds.json";
+        private static final String RUMBLE_ENTRY = "effects.earth_rumble";
+        private static final double TICKS_A_SECOND = 20;
+        private static final byte[] OGG_PAGE = "OggS".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        private static final byte[] VORBIS_ID = "\u0001vorbis".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        /** Bytes from a Vorbis identification header's start to its sample rate. */
+        private static final int RATE_OFFSET = 12;
+        /** Bytes from an Ogg page's start to its granule position. */
+        private static final int GRANULE_OFFSET = 6;
+
+        private StreamSound boreSound() {
+            Optional<StreamSound> sound = AbilityJson.decode("rock_bore").delivery().sound();
+            assertTrue(sound.isPresent(), "rock_bore should name a stream sound");
+            return sound.get();
+        }
+
+        @Test
+        void boreLoopsSpiresEarthRumbleAsItIs() {
+            StreamSound sound = boreSound();
+            assertEquals(com.mercuriusxeno.goo.registry.GooSoundIds.EARTH_RUMBLE, sound.sound());
+            assertTrue(sound.loop(), "Bore's rumble should loop at the holder's ears");
+            assertEquals(1f, sound.pitch(), EPSILON);
+            assertEquals(0f, sound.pitchSpread(), EPSILON);
+        }
+
+        @Test
+        void boresRumbleRepeatsNoSoonerThanItsLongestTake() throws java.io.IOException {
+            double longest = 0;
+            for (String take : rumbleTakes()) {
+                longest = Math.max(longest, secondsOf("assets/goo/sounds/" + take + ".ogg"));
+            }
+            assertTrue(longest > 0, "no earth_rumble take was read");
+            assertTrue(boreSound().every() >= Math.ceil(longest * TICKS_A_SECOND),
+                    "Bore plays every " + boreSound().every() + " ticks, under the longest take's "
+                            + longest * TICKS_A_SECOND);
+        }
+
+        private java.util.List<String> rumbleTakes() throws java.io.IOException {
+            try (java.io.InputStream in = resource(SOUNDS_JSON)) {
+                com.google.gson.JsonObject sounds = com.google.gson.JsonParser.parseReader(
+                        new java.io.InputStreamReader(in, java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
+                java.util.List<String> takes = new java.util.ArrayList<>();
+                for (com.google.gson.JsonElement take : sounds.getAsJsonObject(RUMBLE_ENTRY).getAsJsonArray("sounds")) {
+                    takes.add(take.getAsJsonObject().get("name").getAsString().replace("goo:", ""));
+                }
+                return takes;
+            }
+        }
+
+        /** A Vorbis take's length: its last page's granule position over its sample rate. */
+        private double secondsOf(String path) throws java.io.IOException {
+            byte[] bytes;
+            try (java.io.InputStream in = resource(path)) {
+                bytes = in.readAllBytes();
+            }
+            java.nio.ByteBuffer little = java.nio.ByteBuffer.wrap(bytes).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+            int rate = little.getInt(indexOf(bytes, VORBIS_ID, false) + RATE_OFFSET);
+            long granule = little.getLong(indexOf(bytes, OGG_PAGE, true) + GRANULE_OFFSET);
+            return (double) granule / rate;
+        }
+
+        private int indexOf(byte[] bytes, byte[] wanted, boolean last) {
+            int found = -1;
+            for (int at = 0; at + wanted.length <= bytes.length; at++) {
+                if (java.util.Arrays.equals(bytes, at, at + wanted.length, wanted, 0, wanted.length)) {
+                    found = at;
+                    if (!last) {
+                        return found;
+                    }
+                }
+            }
+            assertTrue(found >= 0, "no marker found");
+            return found;
+        }
+
+        private java.io.InputStream resource(String path) {
+            java.io.InputStream in = StreamSoundTest.class.getClassLoader().getResourceAsStream(path);
+            assertTrue(in != null, "the classpath holds no " + path);
+            return in;
+        }
+    }
 }
