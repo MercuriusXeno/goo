@@ -274,40 +274,36 @@ class CrucibleMeltQueueTest {
 
         private final IGooValueLookup lookup = mock(IGooValueLookup.class);
 
-        /**
-         * Values the stacks as the walk does, the valueless ones dropped, then queues them.
-         *
-         * @param queue  the queue the walk's stacks join
-         * @param stacks each stack's item id and count, in walk order
-         */
-        private void walkInto(CrucibleMeltQueue queue, List<Map.Entry<Identifier, Integer>> stacks) {
-            List<ValuedStack> valued = new ArrayList<>();
-            for (Map.Entry<Identifier, Integer> stack : stacks) {
-                ValuedStack priced = ContainerEvaluator.valuedStack(stack.getKey(), stack.getValue(), lookup);
-                if (priced != null) {
-                    valued.add(priced);
-                }
-            }
-            queue.appendAll(valued);
-        }
-
-        /** Three valued stacks and a valueless one in a container queue three entries in walk order, each item whole. */
+        /** Three valued stacks queue three entries in the order given, each item whole. */
         @Test
-        void containerOfThreeStacksAppendsThreeEntries() {
-            GooValue stone = new GooValue(Map.of(GooTypes.ROCK, 4, GooTypes.METAL, 2));
-            when(lookup.lookup(DIAMOND)).thenReturn(new GooValue(Map.of(GooTypes.CRYSTAL, 50)));
-            when(lookup.lookup(OAK_LOG)).thenReturn(new GooValue(Map.of(GooTypes.LEAF, 8)));
-            when(lookup.lookup(STONE)).thenReturn(stone);
+        void threeValuedStacksQueueThreeEntriesInOrderEachItemWhole() {
+            GooContents leaf = GooContents.EMPTY.withAdded(GooTypes.LEAF, 8);
+            GooContents crystal = GooContents.EMPTY.withAdded(GooTypes.CRYSTAL, 50);
+            GooContents rock = GooContents.EMPTY.withAdded(GooTypes.ROCK, 4);
             CrucibleMeltQueue queue = new CrucibleMeltQueue();
 
-            walkInto(queue, List.of(Map.entry(OAK_LOG, 3), Map.entry(STICK, 5),
-                    Map.entry(DIAMOND, 1), Map.entry(STONE, 2)));
+            queue.appendAll(List.of(new ValuedStack(OAK_LOG, 3, leaf), new ValuedStack(DIAMOND, 1, crystal),
+                    new ValuedStack(STONE, 2, rock)));
 
             assertEquals(List.of(
-                    new CrucibleMeltQueue.Entry(OAK_LOG, GooContents.EMPTY.withAdded(GooTypes.LEAF, 8),
-                            List.of(0.0, 0.0, 0.0)),
-                    new CrucibleMeltQueue.Entry(DIAMOND, GooContents.EMPTY.withAdded(GooTypes.CRYSTAL, 50), List.of(0.0)),
-                    new CrucibleMeltQueue.Entry(STONE, stone.meltPayout(), List.of(0.0, 0.0))), queue.entries());
+                    new CrucibleMeltQueue.Entry(OAK_LOG, leaf, List.of(0.0, 0.0, 0.0)),
+                    new CrucibleMeltQueue.Entry(DIAMOND, crystal, List.of(0.0)),
+                    new CrucibleMeltQueue.Entry(STONE, rock, List.of(0.0, 0.0))), queue.entries());
+        }
+
+        /** A valued item values to a stack carrying its melt payout per item. */
+        @Test
+        void aValuedItemValuesToItsMeltPayoutPerItem() {
+            GooValue stone = new GooValue(Map.of(GooTypes.ROCK, 4, GooTypes.METAL, 2));
+            when(lookup.lookup(STONE)).thenReturn(stone);
+
+            assertEquals(new ValuedStack(STONE, 2, stone.meltPayout()), ContainerEvaluator.valuedStack(STONE, 2, lookup));
+        }
+
+        /** An item holding no value values to no stack. */
+        @Test
+        void aValuelessItemValuesToNoStack() {
+            assertNull(ContainerEvaluator.valuedStack(STICK, 5, lookup));
         }
     }
 

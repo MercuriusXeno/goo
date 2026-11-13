@@ -13,6 +13,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Tests the box a button takes and the click target it reserves (decision blue-text-options-draw-as-bordered-buttons).
  */
 class ButtonPainterTest {
+
+    /**
+     * A follow button's label underlines while shift is held (decision holding-shift-underlines-every-link).
+     */
+    @Test
+    void aFollowButtonsLabelUnderlinesWhileShiftIsHeld() {
+        DrawnFrame frame = new DrawnFrame().holdingShift();
+        ButtonPainter.drawFollow(frame.graphics, DrawnFrame.font(), "#lights", 10, 20, RowLayout.SPRITE_ROW_HEIGHT,
+                frame.targets, () -> { }, null);
+        org.junit.jupiter.api.Assertions.assertTrue(frame.underlined("#lights"));
+    }
     private static final int LABEL_WIDTH = 30;
     private static final int X = 10;
     private static final int LINE_TOP = 40;

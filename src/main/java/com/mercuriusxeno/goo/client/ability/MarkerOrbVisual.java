@@ -83,7 +83,7 @@ public final class MarkerOrbVisual {
      */
     public static void submit(AbilityBlockRenderState state, PoseStack poseStack,
                               SubmitNodeCollector nodeCollector) {
-        if (!state.behaviorActive) {
+        if (!drawsOrb(state)) {
             return;
         }
         float coreHalf = computeCoreHalf(state);
@@ -101,6 +101,17 @@ public final class MarkerOrbVisual {
         GooSubmitter.submitFluid(poseStack, nodeCollector,
                 ctx -> emitOrbLayer(ctx, shellColor, shellHalf, face, shape, uv));
         poseStack.popPose();
+    }
+
+    /**
+     * Whether the marker draws its orb: only while its program runs
+     * (decision splat-runs-the-program-no-fuse).
+     *
+     * @param state the render state snapshot
+     * @return true while the marker's program runs
+     */
+    static boolean drawsOrb(AbilityBlockRenderState state) {
+        return state.behaviorActive;
     }
 
     /**

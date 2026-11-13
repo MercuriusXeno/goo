@@ -113,6 +113,32 @@ class UsedByLineTest {
         verify(actions).openItem("minecraft:stick");
     }
 
+    /**
+     * A prefab user's $chip underlines while shift is held (decision holding-shift-underlines-every-link).
+     */
+    @Test
+    void aPrefabUsersChipUnderlinesWhileShiftIsHeld() {
+        DrawnFrame frame = new DrawnFrame().holdingShift();
+        UsedByLine.drawUser(new UsedByLine.Painter(frame.graphics, DrawnFrame.font(), mock(ItemIcons.class),
+                mock(ManagerActions.class), frame.targets), new VariablesTab.Reader("egg", UsedByLine.PREFAB_USER), 0,
+                0);
+        assertTrue(frame.underlined("$egg"));
+    }
+
+    /**
+     * A group user spelled with its # draws that one # and opens the group it names on shift + left click.
+     */
+    @Test
+    void aGroupUserSpelledWithItsHashOpensTheGroupItNames() {
+        ManagerActions actions = mock(ManagerActions.class);
+        DrawnFrame frame = new DrawnFrame();
+        UsedByLine.drawUser(new UsedByLine.Painter(frame.graphics, DrawnFrame.font(), mock(ItemIcons.class), actions,
+                frame.targets), new VariablesTab.Reader("#logs", UsedByLine.GROUP_USER), 0, 0);
+        assertHoverAndFollow(frame, frame.find("#logs").x() + 1, frame.find("#logs").y() + 1,
+                GroupHovers.hoverKey("logs"));
+        verify(actions).openGroup("logs");
+    }
+
     private static void assertHoverAndFollow(DrawnFrame frame, int x, int y, String hoverKey) {
         assertEquals(Optional.of(hoverKey), frame.targets.hoveredArea(x, y).map(ClickTargets.HoveredArea::hoverKey));
         assertTrue(frame.targets.click(x, y, GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOD_SHIFT), hoverKey);

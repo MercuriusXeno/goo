@@ -540,7 +540,18 @@ public final class GooStreamHandler {
                 && (inCone(apex, axis, delivery, entity) || inCone(eye, axis, delivery, entity)));
     }
 
-    private static boolean inCone(Vec3 apex, Vec3 axis, Delivery delivery, LivingEntity living) {
+    /**
+     * Whether a living entity stands inside the stream's cone cast from an
+     * apex, out to how far the stream reaches the living, or crosses the
+     * cone's axis within that reach.
+     *
+     * @param apex     the cone's apex
+     * @param axis     the cone's axis
+     * @param delivery the stream delivery
+     * @param living   the candidate
+     * @return true when the stream reaches the entity from the apex
+     */
+    static boolean inCone(Vec3 apex, Vec3 axis, Delivery delivery, LivingEntity living) {
         // decay-gnats-degrade-each-block-once: a stream may seek the living past the blocks it works
         double reach = delivery.livingReach();
         return StreamCone.contains(apex, axis, reach, delivery.coneDegrees(), living.getBoundingBox().getCenter())

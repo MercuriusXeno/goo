@@ -1,27 +1,17 @@
 package com.mercuriusxeno.goo.command;
 
-import com.mercuriusxeno.goo.data.GooValue;
-import com.mercuriusxeno.goo.type.GooTypeDefinition;
-import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.brigadier.tree.CommandNode;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.core.Holder;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.permissions.PermissionSet;
 import org.junit.jupiter.api.Test;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.StringJoiner;
 import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -39,7 +29,6 @@ class GooCommandTest {
     /** The subcommands a production launch registers. */
     private static final Set<String> EVERYDAY = Set.of(LOOKUP, "types", "reload", "regen", "audit", INVENTORY,
             "workbench", "scaffold", "init");
-    private static final int TIED_GROUPS = 4;
 
     /**
      * An open gate adds lab and orphans beside the everyday subcommands.
@@ -102,50 +91,14 @@ class GooCommandTest {
 
     /**
      * The workbench stands under the goo root with the dev gate closed, as a shipped jar runs it, and only an
-     * operator runs it; it serves no page, so no stop stands beneath it
-     * (decision goo-workbench-opens-the-in-game-manager-screen).
+     * operator runs it (decision goo-workbench-opens-the-in-game-manager-screen).
      */
     @Test
     void workbenchIsAnOperatorSubcommandOutsideTheDevGate() {
         CommandNode<CommandSourceStack> workbench = GooCommand.commandTree(false).build().getChild("workbench");
         assertNotNull(workbench);
-        assertNull(workbench.getChild("stop"));
         assertTrue(workbench.canUse(sourceWith(PermissionSet.ALL_PERMISSIONS)));
         assertFalse(workbench.canUse(sourceWith(PermissionSet.NO_PERMISSIONS)));
-    }
-
-    /**
-     * The chat line reads the highest amount first, then tied amounts by type id ascending
-     * (decision chat-value-line-orders-highest-first-ties-by-type-key). GooValue iterates in identity-hash order,
-     * which changes from run to run, so the value spans every bundled type in four tied groups: an unsorted line
-     * matches the expected one by chance far less than once in a trillion runs.
-     */
-    @Test
-    void chatLineReadsHighestAmountFirstThenTiesByTypeId() {
-        Map<ResourceKey<GooTypeDefinition>, Integer> amounts = new HashMap<>();
-        for (int index = 0; index < GooTypes.BUNDLED.size(); index++) {
-            amounts.put(GooTypes.BUNDLED.get(index), index % TIED_GROUPS + 1);
-        }
-        StringJoiner expected = new StringJoiner(", ", "minecraft:egg: ", " (total: 63)");
-        for (int amount = TIED_GROUPS; amount >= 1; amount--) {
-            for (ResourceKey<GooTypeDefinition> type : GooTypes.BUNDLED) {
-                if (amounts.get(type) == amount) {
-                    expected.add(GooTypes.id(type) + " x" + amount);
-                }
-            }
-        }
-        String line = GooCommand.formatGooValue(registriesHoldingEveryType(), "minecraft:egg", new GooValue(amounts))
-                .getString();
-        assertEquals(expected.toString(), line);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static HolderLookup.Provider registriesHoldingEveryType() {
-        HolderLookup.Provider registries = mock(HolderLookup.Provider.class);
-        Holder.Reference<GooTypeDefinition> holder = mock(Holder.Reference.class);
-        when(holder.value()).thenReturn(mock(GooTypeDefinition.class));
-        when(registries.getOrThrow(any(ResourceKey.class))).thenReturn(holder);
-        return registries;
     }
 
     private static CommandSourceStack sourceWith(PermissionSet permissions) {

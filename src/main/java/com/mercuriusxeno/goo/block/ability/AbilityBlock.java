@@ -197,8 +197,18 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
                 || be.getBehavior() != null && be.getBehavior().holdsItsPlace()) {
             return false;
         }
-        BlockPos supportPos = pos.relative(be.getPlacedFace().getOpposite());
-        return level.getBlockState(supportPos).isAir();
+        return level.getBlockState(supportOf(pos, be.getPlacedFace())).isAir();
+    }
+
+    /**
+     * The block a marker rests on: the one opposite the face it was placed on.
+     *
+     * @param pos        the marker's position
+     * @param placedFace the face the marker was placed on
+     * @return the supporting block's position
+     */
+    static BlockPos supportOf(BlockPos pos, Direction placedFace) {
+        return pos.relative(placedFace.getOpposite());
     }
 
     /**

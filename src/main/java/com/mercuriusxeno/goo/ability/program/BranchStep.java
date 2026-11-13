@@ -52,9 +52,18 @@ public record BranchStep(Expr when, List<Step> then, List<Step> otherwise) imple
 
     @Override
     public boolean tick(StepContext context) {
-        List<Step> chosen = when.evaluate(context) != 0 ? then : otherwise;
-        new ProgramBehavior(chosen).tick(context.host());
+        new ProgramBehavior(chosen(context)).tick(context.host());
         return true;
+    }
+
+    /**
+     * The list the branch runs: its then list where the condition reads nonzero, its otherwise list where zero.
+     *
+     * @param variables the values the condition reads
+     * @return the chosen list
+     */
+    List<Step> chosen(Variables variables) {
+        return when.evaluate(variables) != 0 ? then : otherwise;
     }
 
     @Override

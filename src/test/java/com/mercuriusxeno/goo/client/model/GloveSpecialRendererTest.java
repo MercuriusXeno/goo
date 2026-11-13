@@ -2,23 +2,37 @@ package com.mercuriusxeno.goo.client.model;
 
 import com.mercuriusxeno.goo.client.outsider.RoomBodyCopyRenderer;
 import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Covers the hand the aim line starts from: the first-person glove stores it,
- * and a glove drawn on a copy of the player's body in an Outsider room's
- * copies leaves it where the player's own glove put it
+ * The glove body submits on the cutout block-atlas type and the palm blob's
+ * core on the solid one (decision diagnose-and-correct-the-palm-core-cull).
+ * The hand the aim line starts from: the first-person glove stores it, and a
+ * glove drawn on a copy of the player's body in an Outsider room's copies
+ * leaves it where the player's own glove put it
  * (decision room-tiles-to-render-distance-held-to-the-picture).
  */
 class GloveSpecialRendererTest {
 
+    private static final Identifier BLOCK_ATLAS = Identifier.withDefaultNamespace("textures/atlas/blocks.png");
     /** Where a far copy of the player stands from the camera, a room width or more away. */
     private static final double COPY_AWAY = 30;
     /** Where the first-person glove's goo sits before the eye. */
     private static final double HAND_AHEAD = 0.5;
+
+    @Test
+    void theBodySubmitsOnTheCutoutBlockAtlasType() {
+        assertEquals(RenderTypes.entityCutout(BLOCK_ATLAS), GloveSpecialRenderer.bodyType());
+    }
+
+    @Test
+    void theCoreSubmitsOnTheSolidBlockAtlasType() {
+        assertEquals(RenderTypes.entitySolid(BLOCK_ATLAS), GloveSpecialRenderer.coreType());
+    }
 
     @Test
     void aGloveOnABodysCopyLeavesTheHandWhereThePlayersOwnGlovePutIt() {

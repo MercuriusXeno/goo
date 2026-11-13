@@ -507,7 +507,7 @@ final class ExpressionLines {
 
     // Decision one-lettering-primitive-names-three-text-roles: a number standing right after a goo type's icon is a
     // goo amount, so it letters in the amount role as every amount beside a type icon does.
-    private static List<Run> amountsBesideTypes(List<Run> runs) {
+    static List<Run> amountsBesideTypes(List<Run> runs) {
         List<Run> lettered = new ArrayList<>(runs);
         for (int index = 1; index < lettered.size(); index++) {
             if (lettered.get(index).kind() == Kind.NUMBER && lettered.get(index - 1).kind() == Kind.TYPE) {

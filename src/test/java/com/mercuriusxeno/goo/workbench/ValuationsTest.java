@@ -231,8 +231,8 @@ class ValuationsTest {
         JsonArray entries = JsonParser.parseString(Valuations.resolved(model, InventoryView.parse(plankInventory())))
                 .getAsJsonObject().getAsJsonArray("entries");
         assertEquals("4", entryNamed(entries, "oak_planks").getAsJsonObject("value").get("leaf").getAsString());
-        assertFalse(entries.asList().stream().anyMatch(entry -> "mystery".equals(entry.getAsJsonObject().get("key")
-                .getAsString())));
+        assertEquals(List.of("stick", "oak_planks"), entries.asList().stream()
+                .map(entry -> entry.getAsJsonObject().get("key").getAsString()).toList());
     }
 
     /**

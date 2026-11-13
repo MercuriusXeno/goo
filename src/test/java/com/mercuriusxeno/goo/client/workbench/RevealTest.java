@@ -52,4 +52,30 @@ class RevealTest {
         reveal.centerBeforeDraw(frame.graphics, scratch -> order.add("measure"), column -> bar, glow);
         assertTrue(order.isEmpty(), "nothing held measures nothing");
     }
+
+    /**
+     * A target no row lays, as the row a create asked for before its reply lists it, stays held: the next measuring
+     * pass that lays it centers it (decision create-reveals-the-new-row-like-a-follow).
+     */
+    @Test
+    void aTargetNoRowLaysStaysHeldUntilAPassLaysIt() {
+        Reveal reveal = new Reveal();
+        ScrollBar bar = new ScrollBar(ScrollBar.WHEEL_STEP);
+        RevealGlow glow = new RevealGlow();
+        DrawnFrame frame = new DrawnFrame();
+        reveal.follow("row" + TARGET, () -> { });
+        reveal.centerBeforeDraw(frame.graphics, scratch -> bar.measure(ROWS * ROW, VIEW), column -> bar, glow);
+
+        reveal.centerBeforeDraw(frame.graphics, scratch -> {
+            for (int index = 0; index < ROWS; index++) {
+                reveal.laid("row" + index, index * ROW, ROW, 0);
+            }
+            bar.measure(ROWS * ROW, VIEW);
+        }, column -> bar, glow);
+
+        ScrollBar expected = new ScrollBar(ScrollBar.WHEEL_STEP);
+        expected.measure(ROWS * ROW, VIEW);
+        expected.center(TARGET * ROW, ROW);
+        assertEquals(expected.offset(), bar.offset(), "centered once a pass lays it");
+    }
 }

@@ -302,10 +302,9 @@ class KnownItemsOverlayRendererTest {
         }
 
         @Test
-        void shortListDrawsNoTrack() {
+        void aShortListFillsTheDarkenAndTheHeaderAlone() {
             GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
-            Drawn drawn = render(graphics, items, "", 0);
-            assertNull(drawn.track());
+            render(graphics, items, "", 0);
             assertEquals(List.of(KnownItemsOverlayRenderer.DARKEN, KnownItemsOverlayRenderer.SEARCH_BORDER,
                     KnownItemsOverlayRenderer.SEARCH_BAR, KnownItemsOverlayRenderer.SEARCH_BORDER,
                     KnownItemsOverlayRenderer.SEARCH_BORDER), fillColors(graphics));

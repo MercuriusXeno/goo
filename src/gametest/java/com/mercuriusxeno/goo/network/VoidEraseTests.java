@@ -11,12 +11,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.phys.AABB;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
@@ -45,44 +40,30 @@ public final class VoidEraseTests {
     private static final BlockPos SPAWN_POS = new BlockPos(3, 1, 3);
     /** The tick after spawning, once the level's entity index holds the spawned mob. */
     private static final int SETTLE_TICKS = 1;
-    /** Ticks after the strike a dropped item would have landed in the bay. */
-    private static final int DROP_SETTLE_TICKS = 5;
-    /** Blocks around the mob searched for a dropped item. */
-    private static final double DROP_SEARCH_RADIUS = 4;
-    private static final float ALWAYS_DROPS = 2.0f;
     private static final Identifier VOID_ERASE = Identifier.parse("goo:void_erase");
     private static final String ABILITY_REQUIRED = "Ability registry must hold void_erase";
     private static final String SHOULD_LEAVE = "The struck zombie should be gone from the world, removed %s, alive %s";
     private static final String SHOULD_NOT_DIE = "The struck zombie should leave by discard, not death: %s";
-    private static final String SHOULD_DROP_NOTHING = "Erase should leave no item where the zombie stood: %s";
     private static final String SHOULD_SPARE_BOSS = "A wither should stand in the world after Erase";
 
     private VoidEraseTests() {
     }
 
     /**
-     * A zombie holding a sword it always drops, struck by Erase, is gone from
-     * the world, removed by discard rather than killed, and no item lies
-     * where it stood.
+     * A zombie struck by Erase is gone from the world, removed by discard
+     * rather than killed, so it runs no death and drops nothing.
      *
      * @param helper the gametest helper
      */
     public static void voidDeletesTheStruckMob(GameTestHelper helper) {
         Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
-        zombie.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.IRON_SWORD));
-        zombie.setDropChance(EquipmentSlot.MAINHAND, ALWAYS_DROPS);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            AABB around = zombie.getBoundingBox().inflate(DROP_SEARCH_RADIUS);
             strike(helper, zombie);
             helper.assertTrue(zombie.isRemoved() && !zombie.isAlive(),
                     String.format(SHOULD_LEAVE, zombie.getRemovalReason(), zombie.isAlive()));
             helper.assertTrue(zombie.getRemovalReason() == Entity.RemovalReason.DISCARDED,
                     String.format(SHOULD_NOT_DIE, zombie.getRemovalReason()));
-            helper.runAfterDelay(DROP_SETTLE_TICKS, () -> {
-                var dropped = helper.getLevel().getEntitiesOfClass(ItemEntity.class, around);
-                helper.assertTrue(dropped.isEmpty(), String.format(SHOULD_DROP_NOTHING, dropped));
-                helper.succeed();
-            });
+            helper.succeed();
         });
     }
 

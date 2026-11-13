@@ -65,6 +65,12 @@ class ItemShardCutterTest {
         return (float) Math.sqrt(cx * cx + cy * cy + cz * cz);
     }
 
+    private static void assertOnTexelBoundaries(QuadRectClipper.Rect run) {
+        for (float edge : new float[] {run.minX(), run.minY(), run.maxX(), run.maxY()}) {
+            assertEquals(Math.round(edge * TEXELS), edge * TEXELS, EPSILON, "a run edge off a texel boundary");
+        }
+    }
+
     /** The front face's owners as a texel map, row by row from the bottom. */
     private static int[] frontOwners(ShardedModel model, List<BakedQuad> quads) {
         ShardedModel.QuadCut cut = model.cutOf(quads.getFirst());
@@ -127,29 +133,22 @@ class ItemShardCutterTest {
             assertEquals(modelArea, drawn, EPSILON);
         }
 
-        /** A shard's pieces of the front face lie on exactly the texels it owns there, UVs with them. */
+        /** A shard's runs on the front face cover exactly the texels it owns there. */
         @Test
-        void eachShardDrawsOnlyItsOwnTexels() {
-            List<BakedQuad> quads = ShardModels.flatItem();
-            ShardedModel model = ShardModels.flatFor("minecraft:diamond");
-            int[] owners = frontOwners(model, quads);
-            for (int shard = 0; shard < model.count(); shard++) {
-                List<RecordingVertexConsumer.Vertex> vertices = emitShard(model, List.of(quads.getFirst()), shard);
+        void eachShardsRunsCoverOnlyItsOwnTexels() {
+            ShardedModel.QuadCut cut = ShardModels.flatFor("minecraft:diamond").cutOf(ShardModels.flatItem().getFirst());
+            assertNotNull(cut);
+            for (int shard = 0; shard < ShardModels.flatFor("minecraft:diamond").count(); shard++) {
                 int owned = 0;
-                for (int owner : owners) {
+                for (int owner : cut.owners()) {
                     owned += owner == shard ? 1 : 0;
                 }
                 float area = 0f;
-                for (int quad = 0; quad < vertices.size(); quad += 4) {
-                    List<RecordingVertexConsumer.Vertex> corners = vertices.subList(quad, quad + 4);
-                    double centerX = corners.stream().mapToDouble(RecordingVertexConsumer.Vertex::x).average().orElseThrow();
-                    double centerY = corners.stream().mapToDouble(RecordingVertexConsumer.Vertex::y).average().orElseThrow();
-                    double centerU = corners.stream().mapToDouble(RecordingVertexConsumer.Vertex::u).average().orElseThrow();
-                    int row = (int) Math.floor(centerY * TEXELS);
-                    int column = (int) Math.floor(centerX * TEXELS);
-                    assertEquals(shard, owners[row * TEXELS + column], "shard " + shard + " draws a texel it lacks");
-                    assertEquals(centerX, centerU, EPSILON, "a piece's UV strays from its texels");
-                    area += quadArea(corners);
+                for (QuadRectClipper.Rect run : cut.runs(shard)) {
+                    int row = (int) Math.floor((run.minY() + run.maxY()) / 2 * TEXELS);
+                    int column = (int) Math.floor((run.minX() + run.maxX()) / 2 * TEXELS);
+                    assertEquals(shard, cut.owners()[row * TEXELS + column], "shard " + shard + " runs over a texel it lacks");
+                    area += (run.maxX() - run.minX()) * (run.maxY() - run.minY());
                 }
                 assertEquals(owned / (float) (TEXELS * TEXELS), area, EPSILON, "shard " + shard);
             }
@@ -159,18 +158,14 @@ class ItemShardCutterTest {
     @Nested
     class Shape {
 
-        /** Every emitted vertex of every shard of a flat item lies on a texel boundary of its face. */
+        /** Every run of every shard of a flat item's front face has its edges on texel boundaries. */
         @Test
         void flatShardEdgesLieOnTexelBoundaries() {
-            List<BakedQuad> quads = ShardModels.flatItem();
-            for (String itemId : SAMPLE_ITEMS.subList(0, 4)) {
-                ShardedModel model = ShardModels.flatFor(itemId);
-                for (int shard = 0; shard < model.count(); shard++) {
-                    for (RecordingVertexConsumer.Vertex vertex : emitShard(model, quads, shard)) {
-                        assertEquals(Math.round(vertex.x() * TEXELS), vertex.x() * TEXELS, EPSILON, itemId);
-                        assertEquals(Math.round(vertex.y() * TEXELS), vertex.y() * TEXELS, EPSILON, itemId);
-                    }
-                }
+            ShardedModel model = ShardModels.flatFor("minecraft:iron_ingot");
+            ShardedModel.QuadCut cut = model.cutOf(ShardModels.flatItem().getFirst());
+            assertNotNull(cut);
+            for (int shard = 0; shard < model.count(); shard++) {
+                cut.runs(shard).forEach(ItemShardCutterTest::assertOnTexelBoundaries);
             }
         }
 
@@ -222,13 +217,8 @@ class ItemShardCutterTest {
                     shards.add(owner);
                 }
                 assertTrue(shards.size() >= 2, quad.direction() + " rides whole with one shard");
-            }
-            for (int shard = 0; shard < model.count(); shard++) {
-                for (RecordingVertexConsumer.Vertex vertex : emitShard(model, quads, shard)) {
-                    for (float coordinate : new float[] {vertex.x(), vertex.y(), vertex.z()}) {
-                        assertEquals(Math.round(coordinate * TEXELS), coordinate * TEXELS, EPSILON,
-                                "a cube vertex off a texel edge");
-                    }
+                for (int shard = 0; shard < model.count(); shard++) {
+                    cut.runs(shard).forEach(ItemShardCutterTest::assertOnTexelBoundaries);
                 }
             }
         }

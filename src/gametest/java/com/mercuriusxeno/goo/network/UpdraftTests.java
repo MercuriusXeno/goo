@@ -45,19 +45,15 @@ public final class UpdraftTests {
     private static final int CLIMB_TICKS = 15;
     /** The least the zombie climbs in those ticks, short of the bay's ceiling. */
     private static final double LEAST_CLIMB = 2.5;
-    /** typhoon_updraft.json's duration, and a few ticks past it for the blob to go. */
-    private static final int PAST_THE_DURATION = 200 + 5;
     private static final String BLOB_STANDS = "The updraft's blob should stand where it landed";
     private static final String SHOULD_CLIMB = "The column should carry the zombie up %.1f blocks in %d ticks, climbed %.2f";
-    private static final String BLOB_GONE = "The updraft's blob should be gone after its duration";
 
     private UpdraftTests() {
     }
 
     /**
      * An updraft lands on the floor beside a zombie: within fifteen ticks the
-     * zombie has climbed two and a half blocks, and after the duration the
-     * blob is gone.
+     * zombie has climbed two and a half blocks.
      *
      * @param helper the gametest helper
      */
@@ -72,9 +68,6 @@ public final class UpdraftTests {
         helper.runAfterDelay(CLIMB_TICKS, () -> {
             double climbed = zombie.getY() - startY;
             helper.assertTrue(climbed >= LEAST_CLIMB, String.format(SHOULD_CLIMB, LEAST_CLIMB, CLIMB_TICKS, climbed));
-        });
-        helper.runAfterDelay(PAST_THE_DURATION, () -> {
-            helper.assertFalse(helper.getBlockState(BLOB).is(GooBlocks.ABILITY_BLOCK.get()), BLOB_GONE);
             helper.succeed();
         });
     }

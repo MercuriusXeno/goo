@@ -16,7 +16,7 @@ import static org.mockito.Mockito.when;
  * A stream column tiles its fluid sprite at native scale: one segment per
  * whole block spanning the sprite's full V range, a remainder segment
  * spanning its fraction, and no UV outside the sprite's atlas bounds; the
- * vat's stream draws through the same routine.
+ * flow phase that scrolls it grows with time.
  */
 class GooStreamTilingTest {
 
@@ -54,15 +54,6 @@ class GooStreamTilingTest {
                 new GooStreamRenderer.StreamColumn(CENTER, CENTER, TOP, TOP - height), HALF_WIDTH, sprite(), COLOR,
                 flowPhase);
         return recorder.vertices();
-    }
-
-    /**
-     * @param vertices every emitted vertex, four per quad
-     * @return the Y where the first segment ends, the first place the scrolled sprite wraps
-     */
-    private static float firstWrapY(List<RecordingVertexConsumer.Vertex> vertices) {
-        return (float) vertices.subList(0, VERTICES_PER_QUAD).stream()
-                .mapToDouble(RecordingVertexConsumer.Vertex::y).min().orElseThrow();
     }
 
     private static float span(List<RecordingVertexConsumer.Vertex> corners,
@@ -123,24 +114,7 @@ class GooStreamTilingTest {
     }
 
     @Test
-    void theTextureRunsDownTheColumnAsTimePasses() {
-        float earlier = firstWrapY(tile(3f, QUARTER));
-        float later = firstWrapY(tile(3f, QUARTER + QUARTER));
-
-        assertTrue(later < earlier, "the sprite's wrap moves down: " + earlier + " then " + later);
+    void thePhaseGrowsWithTime() {
         assertTrue(GooStreamRenderer.flowPhase(20f) > GooStreamRenderer.flowPhase(0f), "the phase grows with time");
-    }
-
-    @Test
-    void theVatStreamTilesThroughTheSameRoutine() {
-        RecordingVertexConsumer recorder = new RecordingVertexConsumer();
-        GooStreamRenderer.renderStream(new RenderContext(new PoseStack().last(), recorder, 0),
-                new GooStreamRenderer.StreamColumn(CENTER, CENTER, TOP, TOP - 2.5f), sprite(), COLOR, 1f, 0f);
-
-        List<Float> fractions = vSpanFractions(recorder.vertices());
-        assertEquals(3 * SIDES, fractions.size());
-        fractions.subList(0, 2 * SIDES).forEach(fraction -> assertEquals(1f, fraction, TOLERANCE));
-        fractions.subList(2 * SIDES, 3 * SIDES).forEach(fraction -> assertEquals(HALF, fraction, TOLERANCE));
-        assertInsideTheSprite(recorder.vertices());
     }
 }

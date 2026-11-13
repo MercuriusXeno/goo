@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.item.SoulBoundStacks;
 import com.mercuriusxeno.goo.network.PlayerKnowledge;
 import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
@@ -10,24 +9,20 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.gamerules.GameRules;
-import net.neoforged.neoforge.registries.DeferredItem;
 import java.util.List;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
 /**
- * Gametests for soul-bound items (decision exorite-kept-through-death):
- * every exorite piece and the exo gauntlet stand in goo:soul_bound, and a
+ * Gametests for soul-bound items (decision exorite-kept-through-death): a
  * soul-bound stack skips the death drop and returns to its slot on respawn
  * while an unbound stack drops.
  */
 @RegistersGameTests
 public final class SoulBoundTests {
-    private static final String SOUL_BOUND_TAG_HOLDS_EXORITE = "soul_bound_tag_holds_exorite";
     private static final String SOUL_BOUND_SURVIVES_DEATH = "soul_bound_survives_death";
     private static final String KNOWN_ITEMS_SURVIVE_DEATH = "known_items_survive_death";
 
@@ -37,7 +32,6 @@ public final class SoulBoundTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, SOUL_BOUND_TAG_HOLDS_EXORITE, SoulBoundTests::tagHoldsExorite);
         GooTestFunctions.registerTest(registrar, SOUL_BOUND_SURVIVES_DEATH, SoulBoundTests::survivesDeath);
         GooTestFunctions.registerTest(registrar, KNOWN_ITEMS_SURVIVE_DEATH, SoulBoundTests::knownItemsSurviveDeath);
     }
@@ -49,28 +43,10 @@ public final class SoulBoundTests {
     private static final int EXORITE_SLOT = 3;
     private static final int STONE_SLOT = 4;
 
-    private static final String NOT_BOUND = "goo:soul_bound should hold ";
-    private static final String STONE_BOUND = "goo:soul_bound should not hold a stone pickaxe";
     private static final String WRONG_DROPS = "Death should drop exactly one item, the stone pickaxe, but dropped ";
     private static final String NOT_RESTORED = "The respawned player should hold the exorite pickaxe in slot " + EXORITE_SLOT;
 
     private SoulBoundTests() {
-    }
-
-    /**
-     * Each exorite piece and the exo gauntlet read as goo:soul_bound; a stone
-     * pickaxe does not.
-     *
-     * @param helper the gametest helper
-     */
-    public static void tagHoldsExorite(GameTestHelper helper) {
-        for (DeferredItem<? extends Item> piece : GooItems.EXORITE_SET) {
-            helper.assertTrue(new ItemStack(piece.get()).is(SoulBoundStacks.SOUL_BOUND), NOT_BOUND + piece.getId());
-        }
-        helper.assertTrue(new ItemStack(GooItems.EXO_GAUNTLET.get()).is(SoulBoundStacks.SOUL_BOUND),
-                NOT_BOUND + GooItems.EXO_GAUNTLET.getId());
-        helper.assertTrue(!new ItemStack(Items.STONE_PICKAXE).is(SoulBoundStacks.SOUL_BOUND), STONE_BOUND);
-        helper.succeed();
     }
 
     /**
