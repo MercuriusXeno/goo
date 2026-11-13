@@ -10,7 +10,6 @@
     "kind": "stream",
     "drains_on_placement": true,
     "throw_speed": 0.6,
-    "seek_range": 8,
     "cone": 16,
     "ticks_per_charge": 20,
     "particle": "goo:goop_spray_drip",

@@ -331,10 +331,12 @@ public final class GooStreamHandler {
         ServerPlayer player = cast.player();
         Delivery delivery = ability.delivery();
         if (delivery.throwsDrips()) {
-            List<LivingEntity> struck = runPasses(cast, apex, axis, ability, delivery, held);
-            throwDrips(player, apex, axis, ability);
-            sprayParticles(player, apex, axis, delivery, 0, travelOf(player));
-            return struck;
+            // goop-wobbles-a-mob-its-drip-strikes: a stream throwing drips strikes the living its drips strike, not
+            // the living in its cone
+            runBlockPass(cast, apex, axis, delivery, ability, held, true);
+            boolean strikesLiving = throwDrips(player, apex, axis, ability);
+            sprayParticles(player, apex, axis, delivery, 0, travelOf(player), strikesLiving);
+            return List.of();
         }
         // decay-gnats-degrade-each-block-once: what the stream strikes follows the look; only its motes
         // fly from the hand, a mob-first swarm's converging on the mob it chases or the block it paints
@@ -354,27 +356,50 @@ public final class GooStreamHandler {
      * Throws a stream's drips into flight from the cone's apex, one along
      * each share of the cone's fan at the delivery's throw speed, carrying
      * the caster's travel; each lands what the program's landing step lays
-     * where its arc strikes, during the hold or after it.
+     * where its arc strikes, during the hold or after it, and a drip of a
+     * program striking the living ends on the first living thing it meets.
      * goop-and-slick-coat-lands-where-each-drip-arc-strikes
+     * goop-wobbles-a-mob-its-drip-strikes
      *
      * @param player  the spraying player
      * @param apex    the cone's apex
      * @param axis    the cone's axis
      * @param ability the stream ability
+     * @return true where the drips strike the living they meet
      */
-    private static void throwDrips(ServerPlayer player, Vec3 apex, Vec3 axis, AbilityDefinition ability) {
+    private static boolean throwDrips(ServerPlayer player, Vec3 apex, Vec3 axis, AbilityDefinition ability) {
         Optional<DripLanding> landing = DripLanding.in(channelSteps(ability.behaviors(), true));
-        if (landing.isEmpty()) {
-            return;
+        boolean strikesLiving = !channelSteps(ability.behaviors(), false).isEmpty();
+        if (landing.isEmpty() && !strikesLiving) {
+            return false;
         }
+        DripFlights.Thrower thrower = new DripFlights.Thrower(player.level().dimension(), player.getUUID(),
+                player.getId(), ability, landing, strikesLiving);
         Delivery delivery = ability.delivery();
         Vec3 travel = travelOf(player);
         DripFlights flights = GooServerState.of(player.level().getServer()).dripFlights();
         for (CoatRay.ConeShare share : CoatRay.coneFan()) {
-            flights.launch(new DripFlights.Flight(player.level().dimension(), player.getUUID(), ability,
-                    landing.get(), apex, DripArc.launch(axis, delivery.coneDegrees(), share, delivery.throwSpeed(),
-                    travel)));
+            flights.launch(new DripFlights.Flight(thrower, apex, DripArc.launch(axis, delivery.coneDegrees(), share,
+                    delivery.throwSpeed(), travel)));
         }
+        return strikesLiving;
+    }
+
+    /**
+     * Runs a stream's entity steps on a living thing one of its drips struck,
+     * its caster as their source. Each strike runs them again, so a mob the
+     * drips keep striking has its wobble refreshed by each, as the cone
+     * refreshed it each tick it stood there.
+     * goop-wobbles-a-mob-its-drip-strikes
+     *
+     * @param level   the level the drip struck in
+     * @param caster  the player who threw the drip
+     * @param living  the living thing struck
+     * @param ability the stream ability
+     */
+    static void strikeLiving(ServerLevel level, ServerPlayer caster, LivingEntity living, AbilityDefinition ability) {
+        runSteps(new EntityHost(level, living, caster), HostKind.ENTITY, channelSteps(ability.behaviors(), false),
+                new CastOn(level, caster, ability.id()));
     }
 
     /**
@@ -666,9 +691,27 @@ public final class GooStreamHandler {
      */
     static void sprayParticles(ServerPlayer player, Vec3 apex, Vec3 axis, Delivery delivery, double speed,
                                Vec3 travel) {
+        sprayParticles(player, apex, axis, delivery, speed, travel, false);
+    }
+
+    /**
+     * Tells the caster's watchers to launch this tick's motes, naming whether
+     * a drawn drip ends on a living thing it meets.
+     * goop-wobbles-a-mob-its-drip-strikes
+     *
+     * @param player        the spraying player
+     * @param apex          the cone's apex
+     * @param axis          the cone's axis
+     * @param delivery      the stream delivery
+     * @param speed         each mote's launch speed along its heading, blocks per tick
+     * @param travel        the spraying player's travel velocity, blocks per tick
+     * @param strikesLiving whether the stream's drips end on the living they meet
+     */
+    private static void sprayParticles(ServerPlayer player, Vec3 apex, Vec3 axis, Delivery delivery, double speed,
+                                       Vec3 travel, boolean strikesLiving) {
         delivery.particle().ifPresent(particle -> EntityVisuals.sendToWatchers(player, new StreamMotesPayload(
                 player.getId(), apex, axis, particle, delivery.coneDegrees(), speed, travel,
-                delivery.throwSpeed())));
+                delivery.throwSpeed(), strikesLiving)));
     }
 
     /**

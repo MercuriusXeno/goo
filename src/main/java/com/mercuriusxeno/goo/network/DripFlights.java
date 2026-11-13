@@ -13,11 +13,14 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -30,31 +33,44 @@ import java.util.UUID;
  * leaving the build height or the loaded chunks ends unstruck. Each cell
  * takes one strike's share from one caster a tick, however many of their
  * drips strike it, so a cell drips strike every tick builds at one pace.
+ * A drip that meets a living thing before a block ends there, striking it,
+ * where its ability strikes the living.
  * goop-and-slick-coat-lands-where-each-drip-arc-strikes
+ * goop-wobbles-a-mob-its-drip-strikes
  */
 public final class DripFlights {
 
     private final List<Flight> flights = new ArrayList<>();
 
     /**
+     * Who threw a drip and what its strike does, shared by every drip of one throw.
+     *
+     * @param dimension     the level the drip flies in
+     * @param caster        the player who threw it, who pays for what it lays and is the source of what it strikes
+     * @param casterId      the caster's entity id, whom the drip passes through
+     * @param ability       the ability that threw it
+     * @param landing       what its strike on a block lays, empty where it lays nothing
+     * @param strikesLiving whether it ends on a living thing it meets, running the ability's entity steps on it
+     */
+    record Thrower(ResourceKey<Level> dimension, UUID caster, int casterId, AbilityDefinition ability,
+                   Optional<DripLanding> landing, boolean strikesLiving) {
+    }
+
+    /**
      * One drip in flight.
      *
-     * @param dimension the level the drip flies in
-     * @param caster    the player who threw it, who pays for what it lays
-     * @param ability   the ability that threw it
-     * @param landing   what its strike lays
-     * @param position  where it stands
-     * @param velocity  its velocity, blocks per tick
+     * @param thrower  who threw it and what its strike does
+     * @param position where it stands
+     * @param velocity its velocity, blocks per tick
      */
-    record Flight(ResourceKey<Level> dimension, UUID caster, AbilityDefinition ability, DripLanding landing,
-                  Vec3 position, Vec3 velocity) {
+    record Flight(Thrower thrower, Vec3 position, Vec3 velocity) {
 
         /**
          * @param step a tick of the drip's flight
          * @return the drip where the tick left it
          */
         Flight after(DripArc.Step step) {
-            return new Flight(dimension, caster, ability, landing, step.position(), step.velocity());
+            return new Flight(thrower, step.position(), step.velocity());
         }
     }
 
@@ -94,16 +110,19 @@ public final class DripFlights {
         Set<Fed> fed = new HashSet<>();
         List<Flight> flying = new ArrayList<>(flights.size());
         for (Flight flight : List.copyOf(flights)) {
-            ServerLevel level = server.getLevel(flight.dimension());
+            Thrower thrower = flight.thrower();
+            ServerLevel level = server.getLevel(thrower.dimension());
             if (level == null) {
                 continue;
             }
             DripArc.Step step = DripArc.step(flight.position(), flight.velocity(), CoatRay.clipping(level),
+                    thrower.strikesLiving() ? livingNear(level, thrower.casterId()) : DripArc.NO_LIVING,
                     airspaceOf(level));
             if (!step.ended()) {
                 flying.add(flight.after(step));
             }
-            step.strike().ifPresent(strike -> land(server, level, flight, strike, fed));
+            step.strike().ifPresent(strike -> land(server, level, thrower, strike, fed));
+            step.living().ifPresent(struck -> strike(server, level, thrower, struck));
         }
         flights.clear();
         flights.addAll(flying);
@@ -113,22 +132,55 @@ public final class DripFlights {
      * Lands what a struck drip lays, its caster paying; a caster no longer
      * on the server pays for nothing, so their drip lays nothing.
      *
-     * @param server the server
-     * @param level  the drip's level
-     * @param flight the drip
-     * @param strike where it struck
-     * @param fed    the cells each caster's drips fed this tick, which this landing joins
+     * @param server  the server
+     * @param level   the drip's level
+     * @param thrower who threw the drip
+     * @param strike  where it struck
+     * @param fed     the cells each caster's drips fed this tick, which this landing joins
      */
-    private static void land(MinecraftServer server, ServerLevel level, Flight flight, CoatRay.BlockStrike strike,
+    private static void land(MinecraftServer server, ServerLevel level, Thrower thrower, CoatRay.BlockStrike strike,
                              Set<Fed> fed) {
-        ServerPlayer caster = server.getPlayerList().getPlayer(flight.caster());
-        if (caster == null) {
+        ServerPlayer caster = server.getPlayerList().getPlayer(thrower.caster());
+        if (caster == null || thrower.landing().isEmpty()) {
             return;
         }
-        ChannelHost host = PlayerHost.landing(level, caster, GooStreamHandler.placementPrice(caster, flight.ability()));
-        flight.landing().cellFed(host, strike)
-                .filter(cell -> fed.add(new Fed(flight.caster(), flight.dimension(), cell.immutable())))
-                .ifPresent(cell -> flight.landing().feed(host, cell));
+        DripLanding landing = thrower.landing().get();
+        ChannelHost host = PlayerHost.landing(level, caster, GooStreamHandler.placementPrice(caster,
+                thrower.ability()));
+        landing.cellFed(host, strike)
+                .filter(cell -> fed.add(new Fed(thrower.caster(), thrower.dimension(), cell.immutable())))
+                .ifPresent(cell -> landing.feed(host, cell));
+    }
+
+    /**
+     * Runs the ability's entity steps on the living thing a drip struck, its
+     * caster as their source; a caster no longer on the server strikes nothing.
+     * goop-wobbles-a-mob-its-drip-strikes
+     *
+     * @param server  the server
+     * @param level   the drip's level
+     * @param thrower who threw the drip
+     * @param struck  the living thing's box
+     */
+    private static void strike(MinecraftServer server, ServerLevel level, Thrower thrower, DripArc.LivingBox struck) {
+        ServerPlayer caster = server.getPlayerList().getPlayer(thrower.caster());
+        if (caster != null && level.getEntity(struck.entityId()) instanceof LivingEntity living && living.isAlive()) {
+            GooStreamHandler.strikeLiving(level, caster, living, thrower.ability());
+        }
+    }
+
+    /**
+     * The living things a level holds near a drip's segment, the caster aside.
+     * goop-wobbles-a-mob-its-drip-strikes
+     *
+     * @param level    the level
+     * @param casterId the caster's entity id, whom a drip passes through
+     * @return the living near each segment, as boxes
+     */
+    public static DripArc.LivingNear livingNear(Level level, int casterId) {
+        return (from, to) -> level.getEntitiesOfClass(LivingEntity.class, new AABB(from, to),
+                        living -> living.getId() != casterId && living.isAlive() && !living.isSpectator())
+                .stream().map(living -> new DripArc.LivingBox(living.getId(), living.getBoundingBox())).toList();
     }
 
     /**

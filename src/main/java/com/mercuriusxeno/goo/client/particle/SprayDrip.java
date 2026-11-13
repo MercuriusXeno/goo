@@ -32,17 +32,22 @@ public record SprayDrip(int rgb, Vec3 velocity) {
 
     /**
      * One tick of the drip's arc, the server drip's own: it splats on the
-     * point its segment meets a block, and ends where it leaves the airspace.
+     * point its segment meets a block or a living thing, and ends where it
+     * leaves the airspace.
+     * goop-wobbles-a-mob-its-drip-strikes
      *
      * @param position where the drip stands
      * @param velocity the drip's velocity, blocks per tick
      * @param clip     the blocks its segment may meet
+     * @param living   the living its segment may meet
      * @param airspace where it may fly
      * @return where the drip stands after the tick, and whether it splats there or is lost
      */
-    Step step(Vec3 position, Vec3 velocity, CoatRay.BlockClip clip, DripArc.Airspace airspace) {
-        DripArc.Step arc = DripArc.step(position, velocity, clip, airspace);
-        return new Step(arc.position(), arc.velocity(), arc.strike().isPresent(), arc.lost());
+    Step step(Vec3 position, Vec3 velocity, CoatRay.BlockClip clip, DripArc.LivingNear living,
+              DripArc.Airspace airspace) {
+        DripArc.Step arc = DripArc.step(position, velocity, clip, living, airspace);
+        return new Step(arc.position(), arc.velocity(), arc.strike().isPresent() || arc.living().isPresent(),
+                arc.lost());
     }
 
     /**
@@ -50,7 +55,7 @@ public record SprayDrip(int rgb, Vec3 velocity) {
      *
      * @param position where the drip stands
      * @param velocity the drip's velocity, blocks per tick
-     * @param splats   whether the drip struck a block, splatting there and leaving the world
+     * @param splats   whether the drip struck a block or a living thing, splatting there and leaving the world
      * @param lost     whether the drip left the airspace unstruck, leaving the world with no splat
      */
     record Step(Vec3 position, Vec3 velocity, boolean splats, boolean lost) {

@@ -6,12 +6,15 @@ import com.mercuriusxeno.goo.ability.program.CoatStep;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -23,9 +26,10 @@ import java.util.function.Consumer;
  * Gametests for Goop's drips flying real arcs, each held through the real
  * stream tick: a level shot lands about where the old range ended, a shot
  * down from a height lands past it, and drips still falling after the hold
- * ends lay their coat when they strike.
+ * ends lay their coat when they strike, and a drip striking a mob wobbles it.
  * goop-and-slick-coat-lands-where-each-drip-arc-strikes
  * goop-and-slick-throw-keeps-todays-level-reach
+ * goop-wobbles-a-mob-its-drip-strikes
  */
 @RegistersGameTests
 public final class GoopArcTests {
@@ -35,6 +39,15 @@ public final class GoopArcTests {
     private static final String GOOP_LANDS_LEVEL_AHEAD = "goop_lands_about_eight_blocks_ahead_on_flat_ground";
     private static final String GOOP_COATS_BELOW_A_PERCH = "goop_coats_the_floor_below_a_high_perch";
     private static final String GOOP_LANDS_AFTER_RELEASE = "goop_lands_its_coat_after_the_hold_ends";
+    private static final String GOOP_WOBBLES_A_FAR_MOB = "goop_wobbles_a_mob_its_drip_strikes_past_eight_blocks";
+    /** The zombie stands on the perched floor this far east of the perch, well past eight blocks from the eye. */
+    private static final int ZOMBIE_EAST = 6;
+    /** Ticks Goop is held on the zombie, a few drips' worth. */
+    private static final int WOBBLE_HOLD_TICKS = 10;
+    private static final String NOT_WOBBLED = "A zombie %.1f blocks from the streamer, struck by Goop's drips,"
+            + " should hold the wobble";
+    private static final String NOT_FAR = "The zombie should stand past eight blocks from the eye, stands %.1f off";
+    private static final double OLD_REACH = 8;
     private static final float FACING_EAST = -90f;
     private static final float LEVEL = 0f;
     /** Pitched well down, so the cone's drips clear the perch's edge and fall to the floor east of it. */
@@ -77,6 +90,7 @@ public final class GoopArcTests {
         GooTestFunctions.registerTest(registrar, GOOP_LANDS_LEVEL_AHEAD, GoopArcTests::goopLandsAboutEightBlocksAhead);
         GooTestFunctions.registerTest(registrar, GOOP_COATS_BELOW_A_PERCH, GoopArcTests::goopCoatsTheFloorBelowAPerch);
         GooTestFunctions.registerTest(registrar, GOOP_LANDS_AFTER_RELEASE, GoopArcTests::goopLandsItsCoatAfterRelease);
+        GooTestFunctions.registerTest(registrar, GOOP_WOBBLES_A_FAR_MOB, GoopArcTests::goopWobblesAFarMobItsDripStrikes);
     }
 
     /**
@@ -146,6 +160,30 @@ public final class GoopArcTests {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
             List<BlockPos> coated = coatedOver(helper, PERCHED_FLOOR_Y, LEVEL_STREAMER_POS.getZ());
             helper.assertTrue(!coated.isEmpty(), String.format(NO_COAT_BELOW, HIGH_PERCH, coated));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A streamer on a perch eleven blocks over a stone floor holds Goop aimed
+     * at a zombie standing on the floor below, farther than eight blocks
+     * from the eye: once the drips have fallen the zombie holds the wobble.
+     * goop-wobbles-a-mob-its-drip-strikes
+     *
+     * @param helper the gametest helper
+     */
+    public static void goopWobblesAFarMobItsDripStrikes(GameTestHelper helper) {
+        layFloor(helper, PERCHED_FLOOR_Y, LEVEL_STREAMER_POS.getZ());
+        Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE,
+                new BlockPos(LEVEL_STREAMER_POS.getX() + ZOMBIE_EAST, PERCHED_FLOOR_Y + 1, LEVEL_STREAMER_POS.getZ()));
+        ServerPlayer streamer = perchedStreamer(helper, LOW_PERCH);
+        DripAim.at(streamer, zombie.getBoundingBox().getCenter(), goop(helper).delivery().throwSpeed(), Vec3.ZERO);
+        double off = streamer.getEyePosition().distanceTo(zombie.getBoundingBox().getCenter());
+        helper.assertTrue(off > OLD_REACH, String.format(NOT_FAR, off));
+        holdGoopFor(helper, streamer, WOBBLE_HOLD_TICKS);
+        helper.runAfterDelay(WOBBLE_HOLD_TICKS + FALL_TICKS, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
+            helper.assertTrue(zombie.hasData(GooAttachments.WOBBLED), String.format(NOT_WOBBLED, off));
             helper.succeed();
         });
     }
