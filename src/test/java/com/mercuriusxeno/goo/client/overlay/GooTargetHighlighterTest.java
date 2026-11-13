@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.client.overlay;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
-import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.client.TargetResult;
 import net.minecraft.core.BlockPos;
@@ -11,7 +10,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -22,19 +20,13 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
- * The aim line ends where the bullseye draws on an aimed mob or block, and on
- * the cursor only for free aim (decision aim-line-roots-to-the-aimed-mob-or-block).
+ * Where the aim's marks draw, and the one line the aim pass draws.
  */
 class GooTargetHighlighterTest {
 
-    private static final BlockPos POS = new BlockPos(2, 64, 2);
     private static final ResourceKey<Level> OVERWORLD =
             ResourceKey.create(Registries.DIMENSION, Identifier.withDefaultNamespace("overworld"));
     /** The gate the aim passed. */
@@ -80,84 +72,36 @@ class GooTargetHighlighterTest {
         }
     }
 
+    /**
+     * The knife lines are the only line the aim pass draws; an arc, a beam and
+     * a mob ability's arc draw none, the vanilla crosshair aiming them
+     * (decisions vanilla-crosshair-aims-everything-without-reticule-line-or-touch-ring,
+     * knives-aims-a-spread-fan-not-a-blob-line).
+     */
     @Nested
-    class RootedToTheTarget {
+    class TheAimPassDrawsTheKnifeLinesAlone {
 
         @Test
-        void aMobEndsTheLineAtItsBoundingBoxCenter() {
-            Entity cow = mock(Entity.class);
-            AABB box = new AABB(6.5, 64.0, 0.5, 7.5, 65.4, 1.5);
-            when(cow.getBoundingBox()).thenReturn(box);
-            Vec3 cursorHit = new Vec3(7.0, 65.3, 1.2);
-            TargetResult target = TargetResult.entity(cow, cursorHit);
-
-            assertNotEquals(cursorHit, box.getCenter());
-            assertEquals(box.getCenter(), GooTargetHighlighter.aimLineEnd(target));
+        void aChargingKnivesPressDrawsTheKnifeLines() {
+            assertEquals(GooTargetHighlighter.AimPassLine.KNIFE_LINES,
+                    GooTargetHighlighter.aimPassLine(AbilityJson.decode("crystal_knives").delivery(), true));
         }
 
         @Test
-        void aBlockEndsTheLineAtTheStruckFacesCenter() {
-            Vec3 cursorHit = new Vec3(2.15, 64.8, 2.0);
-            TargetResult target = TargetResult.block(POS, Direction.NORTH, cursorHit);
-
-            assertNotEquals(cursorHit, target.resolveEndpoint());
-            assertEquals(target.resolveEndpoint(), GooTargetHighlighter.aimLineEnd(target));
-        }
-
-        @Test
-        void aCursorSwayingAcrossAMobLeavesTheLineEndPut() {
-            Entity cow = mock(Entity.class);
-            when(cow.getBoundingBox()).thenReturn(new AABB(6.5, 64.0, 0.5, 7.5, 65.4, 1.5));
-
-            assertEquals(GooTargetHighlighter.aimLineEnd(TargetResult.entity(cow, new Vec3(6.6, 64.2, 0.6))),
-                    GooTargetHighlighter.aimLineEnd(TargetResult.entity(cow, new Vec3(7.4, 65.3, 1.4))));
-        }
-
-        @Test
-        void aCursorSwayingAcrossAFaceLeavesTheLineEndPut() {
-            assertEquals(
-                    GooTargetHighlighter.aimLineEnd(TargetResult.block(POS, Direction.NORTH, new Vec3(2.1, 64.1, 2.0))),
-                    GooTargetHighlighter.aimLineEnd(TargetResult.block(POS, Direction.NORTH, new Vec3(2.9, 64.9, 2.0))));
+        void anArcABeamAndAMobAbilitysArcDrawNoLine() {
+            assertEquals(Map.of("arc", GooTargetHighlighter.AimPassLine.NONE,
+                            "beam", GooTargetHighlighter.AimPassLine.NONE,
+                            "hex_charm", GooTargetHighlighter.AimPassLine.NONE),
+                    Map.of("arc", GooTargetHighlighter.aimPassLine(Delivery.ARC, true),
+                            "beam", GooTargetHighlighter.aimPassLine(Delivery.BEAM, true),
+                            "hex_charm", GooTargetHighlighter.aimPassLine(
+                                    AbilityJson.decode("hex_charm").delivery(), true)));
         }
     }
 
+    /** The blast and the black hole are sized by a drag rather than thrown (decision blast-draws-no-throw-arc). */
     @Nested
-    class FreeAimFollowsTheCursor {
-
-        @Test
-        void aPointOnABlockEndsTheLineAtThePoint() {
-            Vec3 cursorHit = new Vec3(2.15, 65.0, 2.7);
-
-            assertEquals(cursorHit,
-                    GooTargetHighlighter.aimLineEnd(TargetResult.pointOnBlock(cursorHit, POS, Direction.UP)));
-        }
-
-        @Test
-        void aPointInOpenAirEndsTheLineAtTheRaysEnd() {
-            Vec3 reach = new Vec3(40, 90, -30);
-
-            assertEquals(reach, GooTargetHighlighter.aimLineEnd(TargetResult.pointInAir(reach)));
-        }
-
-        @Test
-        void nothingAimedDrawsNoLine() {
-            assertNull(GooTargetHighlighter.aimLineEnd(TargetResult.NONE));
-        }
-    }
-
-    /** A drag-sized ability is never thrown, so it draws no throw arc (decision blast-draws-no-throw-arc). */
-    @Nested
-    class DrawsTheThrowArc {
-
-        @Test
-        void aThrownArcDrawsItsAimLine() {
-            assertEquals(true, GooTargetHighlighter.drawsAimLine(Delivery.of(DeliveryKind.ARC), false));
-        }
-
-        @Test
-        void aDragSizedArcDrawsNoAimLine() {
-            assertEquals(false, GooTargetHighlighter.drawsAimLine(Delivery.of(DeliveryKind.ARC), true));
-        }
+    class DragSizedAbilities {
 
         @Test
         void theBlastAndTheBlackHoleAreDragSizedAndTheFrostOrbIsThrown() {

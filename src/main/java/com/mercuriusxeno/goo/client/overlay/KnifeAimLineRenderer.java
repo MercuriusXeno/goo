@@ -17,14 +17,16 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * Draws Knives' aim while right click holds an armed press, in place of the
- * blob line: a faint dashed line per knife the current charge slings, each
+ * Draws Knives' aim while right click holds an armed press: a faint dashed line per knife the current charge slings, each
  * leaving the drawn glove hand and arcing the way its knife flies until it
  * would strike a block.
  * knives-aims-a-spread-fan-not-a-blob-line
  * aim-line-draws-quieter-so-the-dart-reads
  */
 final class KnifeAimLineRenderer {
+
+    /** The knife lines' bloom: faint, since a press draws one per knife and they overlay near the hand. */
+    static final DashedGlowLines.GlowPalette KNIFE_LINE_GLOW = new DashedGlowLines.GlowPalette(2, 20, 0.75f, 0.6f);
 
     private KnifeAimLineRenderer() {
     }
@@ -70,6 +72,6 @@ final class KnifeAimLineRenderer {
                         delivery.chargeShare(GloveUseTracker.heldTicks()), GloveUseTracker.scatterSeed()).stream()
                 .map(velocity -> KnifeAimLines.flight(hand, velocity, blocks).toArray(Vec3[]::new))
                 .toList();
-        ArcRenderer.renderKnifeLines(poseStack, bufferSource, camera, lines, rgb, partialTick);
+        DashedGlowLines.render(poseStack, bufferSource, camera, lines, rgb, partialTick, KNIFE_LINE_GLOW);
     }
 }
