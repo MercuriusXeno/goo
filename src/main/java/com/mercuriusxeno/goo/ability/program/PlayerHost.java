@@ -51,7 +51,7 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
     /** Blocks past the interaction range a channel still breaks at, vanilla's own slack for a block break. */
     public static final double REACH_SLACK = 1.0;
     /** Log: how many devices a Pulser tick found to toggle among its cone's cells. */
-    private static final String LOG_TOGGLES = "Tick toggles {} devices among {} cells";
+    private static final String LOG_TOGGLES = "Tick toggles {} devices and pulses {} receivers among {} cells";
 
     /**
      * The host of a glove invocation.
@@ -206,15 +206,21 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
 
 
     /**
-     * Toggles each device standing in the cells once, a door's two halves
-     * counting as one device (decision pulser-toggles-rapidly-while-held).
+     * Toggles each hand device standing in the cells once, a door's two
+     * halves counting as one device, and gives each repeater and redstone
+     * receiver there one Zap pulse.
+     * pulser-toggles-rapidly-while-held
+     * tick-pulses-anything-a-signal-runs-while-held
      */
     @Override
     public void toggleEachDevice(List<BlockPos> cells) {
         List<BlockPos> devices = cells.stream().map(pos -> ZapDevice.handDevice(level, pos)).flatMap(Optional::stream)
                 .distinct().toList();
-        Goo.LOGGER.debug(LOG_TOGGLES, devices.size(), cells.size());
+        List<BlockPos> receivers = cells.stream().filter(pos -> ZapDevice.pulsedByTick(level.getBlockState(pos)))
+                .map(BlockPos::immutable).distinct().toList();
+        Goo.LOGGER.debug(LOG_TOGGLES, devices.size(), receivers.size(), cells.size());
         devices.forEach(device -> ZapDevice.toggleByHand(level, device));
+        receivers.forEach(receiver -> ZapDevice.pulseInPlace(level, receiver));
     }
 
     @Override

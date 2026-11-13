@@ -6,7 +6,9 @@ import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.function.Supplier;
 
 /**
  * A twinkling speck of void, deep violet against the pocket's black, rising
@@ -20,9 +22,15 @@ import org.jspecify.annotations.Nullable;
  */
 public final class VoidMoteParticle extends DriftingGlowParticle {
 
+    /**
+     * The velocity a speck keeps each tick, which Vacuum's wind sizes a mote's
+     * flight by so it ends at the glove
+     * (decision vacuum-wind-lines-run-straight-and-far-in-void-colors-with-motes).
+     */
+    public static final float FRICTION = 0.99f;
     private static final float START_ALPHA = 0.95f;
     /** Slow to lose its rise, long lived and small, in the void's violet. */
-    private static final Look SPECK = new Look(0.99f, 0.02f, 40, 30, 0.05f, 0.05f,
+    private static final Look SPECK = new Look(FRICTION, 0.02f, 40, 30, 0.05f, 0.05f,
             new float[] {0.62f, 0.38f, 1.0f}, START_ALPHA);
     /** The slowest and fastest a speck twinkles, radians of its glint a tick. */
     private static final float SLOWEST_TWINKLE = 0.25f;
@@ -33,6 +41,8 @@ public final class VoidMoteParticle extends DriftingGlowParticle {
     private final SpriteSet sprites;
     private final float twinkle;
     private final float phase;
+    /** The point the speck homes on, or null for a speck drifting on the velocity it was given. */
+    private @Nullable Supplier<Vec3> home;
 
     private VoidMoteParticle(ClientLevel level, double[] position, double[] velocity, SpriteSet sprites) {
         super(level, position, velocity, sprites, SPECK);
@@ -43,9 +53,26 @@ public final class VoidMoteParticle extends DriftingGlowParticle {
         this.setSpriteFromAge(sprites);
     }
 
+    /**
+     * Sends the speck into a moving point, landing on it as its life ends,
+     * as Vacuum's motes stream into the glove wherever the hand has moved.
+     * vacuum-wind-lines-run-straight-and-far-in-void-colors-with-motes
+     *
+     * @param target where the point stands each tick
+     */
+    public void homeTo(Supplier<Vec3> target) {
+        this.home = target;
+    }
+
     /** Shrinks the speck through the glitter sprites, twinkles it and fades it toward nothing over its life. */
     @Override
     public void tick() {
+        if (home != null) {
+            Vec3 step = MoteHoming.stepToward(new Vec3(this.x, this.y, this.z), home.get(), this.lifetime - this.age);
+            this.xd = step.x;
+            this.yd = step.y;
+            this.zd = step.z;
+        }
         super.tick();
         this.setSpriteFromAge(sprites);
         float glint = DIMMEST + (1f - DIMMEST) * Math.abs(Mth.sin(this.age * twinkle + phase));
