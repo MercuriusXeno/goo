@@ -98,9 +98,11 @@ public interface ChannelHost extends BlockBreakHost {
 
     /**
      * Toggles every lever, button, door, trapdoor or fence gate standing in
-     * the cells as a hand would, each once however many of its cells the
-     * list holds, with no memory of earlier toggles
-     * (decision pulser-toggles-rapidly-while-held).
+     * the cells as a hand would, and gives every repeater and redstone
+     * receiver there one Zap pulse, each once however many of its cells the
+     * list holds, with no memory of earlier toggles.
+     * pulser-toggles-rapidly-while-held
+     * tick-pulses-anything-a-signal-runs-while-held
      *
      * @param cells the blocks to toggle the devices of
      */
