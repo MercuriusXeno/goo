@@ -29,6 +29,7 @@ final class GooCuboidSize {
      * How far, in blocks, a resting cuboid's bottom stands clear of the face
      * under it: a quarter pixel, as the palm blob stands clear of the finger
      * plate, so the shell never shares the floor's face and z-fights with it.
+     * operator ruling: "can you just one time remember that z fighting exists"
      */
     static final double FLOOR_CLEARANCE = 1d / 64d;
 
