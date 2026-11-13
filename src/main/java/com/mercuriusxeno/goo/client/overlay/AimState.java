@@ -6,7 +6,7 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * The glove's aim as one frame resolved it, read by everything that needs
- * it until the next frame: the frame's highlight and arc, the throw, the
+ * it until the next frame: the frame's highlight, the throw, the
  * entity outline and the ability block's targeted look. One resolve per frame
  * means one sticky seed, the hit that resolve found (decisions
  * render-context-is-the-one-emitter, aim-target-follows-client-aim).
@@ -91,5 +91,29 @@ public final class AimState {
     int outlineFor(Entity entity) {
         boolean aimed = hit instanceof AimAssistResolver.AimHit.EntityHit eh && eh.entity() == entity;
         return aimed ? outlineColor : 0;
+    }
+
+    /**
+     * The mob the aim holds: the one a mob badge or a lock-on aims at, or the
+     * one a Grab press holds.
+     *
+     * @return the mob, or null when the aim holds none
+     */
+    @Nullable Entity aimedMob() {
+        return target instanceof TargetResult.EntityTarget && hit instanceof AimAssistResolver.AimHit.EntityHit eh
+                ? eh.entity() : null;
+    }
+
+    /**
+     * The mark an entity carries beside its outline.
+     * active-target-indicators-carry-depth-and-animation
+     *
+     * @param entity   the entity being drawn
+     * @param gameTime the game time including the partial tick
+     * @return the mark, NONE for an entity the aim does not hold
+     */
+    AimedMobMark markFor(Entity entity, float gameTime) {
+        Entity aimed = aimedMob();
+        return AimedMobMark.at(aimed != null && aimed == entity, gameTime);
     }
 }
