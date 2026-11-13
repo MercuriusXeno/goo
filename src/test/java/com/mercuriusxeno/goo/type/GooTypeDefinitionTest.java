@@ -40,7 +40,7 @@ class GooTypeDefinitionTest {
     private static final String ALL_COLORS =
             ", \"wheel\": \"112233\", \"bright\": \"445566\", \"highlight\": \"778899\", \"edge\": \"AABBCC\"";
     private static final String WATER_LIKE_FLUID =
-            ", \"density\": 1000, \"viscosity\": 1000, \"temperature\": 300, \"extinguishes\": false,"
+            ", \"density\": 1000, \"viscosity\": 1000, \"elasticity\": 0.5, \"temperature\": 300, \"extinguishes\": false,"
             + " \"map_color\": \"stone\"";
     private static final String FLIGHT = ", \"levity\": 1.0, \"base_flight_time\": 3";
     private static final String BODY_BEFORE_FLIGHT = "{\"light_level\": 8, \"saturation_fill\": 0.5" + ALL_COLORS

@@ -13,6 +13,7 @@
     "FoodDataLifetapMixin",
     "FoodPropertiesGluttonyMixin",
     "InventoryPickupMergeMixin",
+    "ItemEntityFleckMotionMixin",
     "LivingEntityHeldFallsMixin",
     "LivingEntityPneumaBreathMixin",
     "LivingEntitySculkerSilenceMixin",

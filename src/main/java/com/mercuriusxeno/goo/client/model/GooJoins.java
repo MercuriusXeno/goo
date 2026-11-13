@@ -36,11 +36,6 @@ public final class GooJoins {
 
     /** How long a join's ease runs, in ticks. */
     static final float JOIN_TICKS = 6f;
-    /**
-     * The item model's ground display scale, item/generated's: a cuboid of a
-     * size in the model stands half as wide in the level.
-     */
-    static final float GROUND_DISPLAY_SCALE = 0.5f;
     /** The smoothstep's terms, 3s² - 2s³, slow at both ends of the ease. */
     private static final float SMOOTHSTEP_RISE = 3f;
     private static final float SMOOTHSTEP_EASE = 2f;
@@ -115,17 +110,7 @@ public final class GooJoins {
      * @return the center
      */
     private static Vec3 centerAbove(Vec3 feet, double volume) {
-        return feet.add(0, halfWidthInLevel(GooCuboidSize.sizeOf(volume)), 0);
-    }
-
-    /**
-     * A cuboid's half width in the level at a size.
-     *
-     * @param size the size against a thrown blob's in the item model
-     * @return the half width in blocks
-     */
-    private static double halfWidthInLevel(float size) {
-        return GooFlightRenderer.SHELL_HW * size * GROUND_DISPLAY_SCALE;
+        return feet.add(0, GooCuboidSize.halfWidthInLevel(GooCuboidSize.sizeOf(volume)), 0);
     }
 
     /**
@@ -192,7 +177,7 @@ public final class GooJoins {
     private static void drawBridge(PoseStack poseStack, MultiBufferSource buffers,
                                    ResourceKey<GooTypeDefinition> type, GooJoin.Bridge bridge, Vec3 camera,
                                    float gameTime) {
-        double halfWidth = halfWidthInLevel(bridge.size());
+        double halfWidth = GooCuboidSize.halfWidthInLevel(bridge.size());
         if (halfWidth <= 0) {
             return;
         }
