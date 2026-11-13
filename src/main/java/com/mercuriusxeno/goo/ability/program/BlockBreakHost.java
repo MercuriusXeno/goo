@@ -15,6 +15,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
@@ -238,6 +239,26 @@ public interface BlockBreakHost extends StepHost {
      */
     default void breakBlock(BlockPos pos) {
         harvest(level(), pos, breaker());
+    }
+
+    /**
+     * Breaks a block, dropping its loot as a pickaxe harvests it, with no
+     * break particles or break sound: Bore's particles spit only from where
+     * its vortex meets the block, and its rumble is its sound.
+     * decision bore-shows-a-big-drill-from-the-glove
+     *
+     * @param pos the block
+     */
+    default void breakBlockQuietly(BlockPos pos) {
+        ServerLevel level = level();
+        BlockState state = level.getBlockState(pos);
+        if (state.isAir()) {
+            return;
+        }
+        @Nullable Entity breaker = breaker();
+        Block.dropResources(state, level, pos, level.getBlockEntity(pos), breaker, new ItemStack(Items.IRON_PICKAXE));
+        level.setBlock(pos, level.getFluidState(pos).createLegacyBlock(), Block.UPDATE_ALL);
+        level.gameEvent(GameEvent.BLOCK_DESTROY, pos, GameEvent.Context.of(breaker, state));
     }
 
     /**

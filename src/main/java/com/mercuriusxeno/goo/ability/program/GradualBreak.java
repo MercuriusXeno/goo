@@ -41,9 +41,23 @@ public final class GradualBreak {
      * @param host  the host that cracks and breaks the blocks
      */
     public void progress(Map<BlockPos, Double> rates, BlockBreakHost host) {
+        progress(rates, host, false);
+    }
+
+    /**
+     * Progresses every block a step is breaking this tick, breaking each one
+     * that completes quietly, with no break particles or sound, where the
+     * step asks; Bore's breaks do.
+     * decision bore-shows-a-big-drill-from-the-glove
+     *
+     * @param rates each block the step is breaking with the share of a break it gains this tick
+     * @param host  the host that cracks and breaks the blocks
+     * @param quiet whether a completed break plays no particles or sound
+     */
+    public void progress(Map<BlockPos, Double> rates, BlockBreakHost host, boolean quiet) {
         lastHost = host;
         dropUnfed(rates.keySet(), host);
-        rates.forEach((pos, rate) -> advance(pos, rate, host));
+        rates.forEach((pos, rate) -> advance(pos, rate, host, quiet));
     }
 
     /**
@@ -66,13 +80,17 @@ public final class GradualBreak {
         }
     }
 
-    private void advance(BlockPos pos, double rate, BlockBreakHost host) {
+    private void advance(BlockPos pos, double rate, BlockBreakHost host, boolean quiet) {
         Progress before = progress.getOrDefault(pos, Progress.NONE);
         double share = before.share() + rate;
         if (share >= FULL - SUM_SLACK) {
             progress.remove(pos);
             host.crackBlock(pos, CLEARED);
-            host.breakBlock(pos);
+            if (quiet) {
+                host.breakBlockQuietly(pos);
+            } else {
+                host.breakBlock(pos);
+            }
             return;
         }
         int stage = stageOf(share);
