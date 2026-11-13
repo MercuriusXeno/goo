@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.Camera;
 import net.minecraft.client.CameraType;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -15,9 +16,11 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Quaternionf;
 import org.mockito.MockedStatic;
 import java.lang.reflect.Field;
 import java.util.List;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -27,7 +30,8 @@ import static org.mockito.Mockito.when;
  * A client whose level holds one player with a glove in the right hand,
  * looking south and thirty degrees down, the local player in first person or
  * another player, the glove's selected goo type stubbed through
- * {@link GooGloveItem#getSelectedType}. Close it to restore the statics it swaps.
+ * {@link GooGloveItem#getSelectedType}, each frame drawn at partial tick 0
+ * with a 90 degree field of view. Close it to restore the statics it swaps.
  */
 public final class SprayingClient implements AutoCloseable {
 
@@ -35,6 +39,8 @@ public final class SprayingClient implements AutoCloseable {
     public static final int CASTER = 7;
     /** The spraying player's eye. */
     public static final Vec3 EYE = new Vec3(3, 65.62, -2);
+    /** The player's field of view setting, wider than the hand pass's 70 degrees. */
+    public static final float WORLD_FOV = 90f;
     /** The eye's height above the feet. */
     private static final double EYE_HEIGHT = 1.62;
     /** The look's pitch, thirty degrees down. */
@@ -46,6 +52,7 @@ public final class SprayingClient implements AutoCloseable {
 
     private final Minecraft minecraft;
     private final ClientLevel level;
+    private final Camera camera;
     private final ItemStack glove;
     private final MockedStatic<Minecraft> client;
     private final MockedStatic<GooGloveItem> gloves;
@@ -67,10 +74,16 @@ public final class SprayingClient implements AutoCloseable {
         when(glove.getItem()).thenReturn(mock(GooGloveItem.class));
         when(caster.getMainHandItem()).thenReturn(glove);
         when(caster.getOffhandItem()).thenReturn(mock(ItemStack.class));
-        Camera camera = mock(Camera.class);
+        camera = mock(Camera.class);
         when(camera.position()).thenReturn(EYE);
         when(camera.xRot()).thenReturn(PITCH);
         when(camera.yRot()).thenReturn(YAW);
+        when(camera.rotation()).thenReturn(new Quaternionf().rotationYXZ((float) Math.PI - (float) Math.toRadians(YAW),
+                -(float) Math.toRadians(PITCH), 0f));
+        when(camera.getFov()).thenReturn(WORLD_FOV);
+        DeltaTracker frames = mock(DeltaTracker.class);
+        when(frames.getGameTimeDeltaPartialTick(anyBoolean())).thenReturn(0f);
+        when(minecraft.getDeltaTracker()).thenReturn(frames);
         GameRenderer renderer = mock(GameRenderer.class);
         when(renderer.getMainCamera()).thenReturn(camera);
         Options options = mock(Options.class);
@@ -113,6 +126,16 @@ public final class SprayingClient implements AutoCloseable {
      */
     public void at(long gameTime) {
         when(level.getGameTime()).thenReturn(gameTime);
+    }
+
+    /** @return where the spraying player's spray source stands from the eye */
+    public static Vec3 sourceOffTheEye() {
+        return SpraySource.inView(EYE, PITCH, YAW, true).subtract(EYE);
+    }
+
+    /** @return the camera the level and the hand are drawn from */
+    public Camera camera() {
+        return camera;
     }
 
     /** @return the spraying player's glove */

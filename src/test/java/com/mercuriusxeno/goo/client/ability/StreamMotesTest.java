@@ -3,6 +3,8 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.program.SimpleParticles;
 import com.mercuriusxeno.goo.client.particle.BlendPalette;
 import com.mercuriusxeno.goo.client.particle.SprayDripParticle;
+import com.mercuriusxeno.goo.item.GooGloveItem;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mercuriusxeno.goo.network.CoatSpray;
 import com.mercuriusxeno.goo.network.KnifeRainSling;
 import com.mercuriusxeno.goo.network.StreamMotesPayload;
@@ -22,6 +24,7 @@ import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.joml.Quaternionf;
@@ -51,10 +54,11 @@ import static org.mockito.Mockito.when;
 
 /**
  * A Goop or Slick spray drip draws nothing before its first tick, the frames
- * the lifted palm blob alone stands at the source, and is first drawn in
- * flight from its caster's spray source, as that source stood at the tick's
- * start, toward its coat end: a point held in the caster's view, ahead of
- * the eye, out to the glove's side and a little below the look, for the
+ * the lifted palm blob alone stands where it is, and is first drawn in
+ * flight from the blob, as the blob stood at the tick's start, toward its
+ * coat end, even on a spray's first ticks while the blob still eases off the
+ * palm toward the spray source, a point held in the caster's view ahead of
+ * the eye, out to the glove's side and a little below the look; for the
  * local caster and for another player, standing, walking, strafing and
  * turning. The client runs a frame's network tasks, then its ticks, then
  * draws: a drip the stream's tick launches joins the particle engine at the
@@ -82,6 +86,17 @@ class StreamMotesTest {
      * an eight-block flight, and of the caster's travel, at most 0.28 here.
      */
     private static final double OFF_THE_LINE = 0.25;
+    /** How far short of the spray source the blob stands while it still eases off the palm. */
+    private static final double STILL_EASING = 0.05;
+    /** How near the blob's place a drip's flight starts: the quad's float precision. */
+    private static final double LEFT_THE_BLOB = 1e-4;
+    /**
+     * The farthest a drip's first drawn quad stands from where it left: half
+     * a tick at its 0.6 a tick pace, plus half a tick of the arc's lift and
+     * the caster's travel.
+     */
+    private static final double FIRST_HALF_STEP = 0.55;
+    private static final float WORLD_FOV = 70f;
 
     /**
      * A caster over time, in ticks from the launch.
@@ -121,36 +136,36 @@ class StreamMotesTest {
     }
 
     @Test
-    void aStandingCastersDripIsFirstDrawnInFlightFromItsSprayingSource() {
-        assertFirstDrawnInFlightFromTheSource(moving(Vec3.ZERO), true);
+    void aStandingCastersDripIsFirstDrawnInFlightFromItsEasingBlob() {
+        assertFirstDrawnInFlightFromTheBlob(moving(Vec3.ZERO), true);
     }
 
     @Test
-    void aWalkingCastersDripIsFirstDrawnInFlightFromItsSprayingSource() {
-        assertFirstDrawnInFlightFromTheSource(moving(new Vec3(0, 0, SPEED)), true);
+    void aWalkingCastersDripIsFirstDrawnInFlightFromItsEasingBlob() {
+        assertFirstDrawnInFlightFromTheBlob(moving(new Vec3(0, 0, SPEED)), true);
     }
 
     @Test
-    void aStrafingCastersDripIsFirstDrawnInFlightFromItsSprayingSource() {
-        assertFirstDrawnInFlightFromTheSource(moving(new Vec3(-SPEED, 0, 0)), true);
+    void aStrafingCastersDripIsFirstDrawnInFlightFromItsEasingBlob() {
+        assertFirstDrawnInFlightFromTheBlob(moving(new Vec3(-SPEED, 0, 0)), true);
     }
 
     @Test
-    void aTurningCastersDripIsFirstDrawnInFlightFromItsSprayingSource() {
-        assertFirstDrawnInFlightFromTheSource(turning(), true);
+    void aTurningCastersDripIsFirstDrawnInFlightFromItsEasingBlob() {
+        assertFirstDrawnInFlightFromTheBlob(turning(), true);
     }
 
     @Test
-    void anotherWalkingPlayersDripIsFirstDrawnInFlightFromThatPlayersSprayingSource() {
-        assertFirstDrawnInFlightFromTheSource(moving(new Vec3(-SPEED, 0, SPEED)), false);
+    void anotherWalkingPlayersDripIsFirstDrawnInFlightFromThatPlayersEasingBlob() {
+        assertFirstDrawnInFlightFromTheBlob(moving(new Vec3(-SPEED, 0, SPEED)), false);
     }
 
     @Test
-    void anotherTurningPlayersDripIsFirstDrawnInFlightFromThatPlayersSprayingSource() {
-        assertFirstDrawnInFlightFromTheSource(turning(), false);
+    void anotherTurningPlayersDripIsFirstDrawnInFlightFromThatPlayersEasingBlob() {
+        assertFirstDrawnInFlightFromTheBlob(turning(), false);
     }
 
-    private static void assertFirstDrawnInFlightFromTheSource(Caster caster, boolean local) {
+    private static void assertFirstDrawnInFlightFromTheBlob(Caster caster, boolean local) {
         double[] now = {0};
         List<SprayDripParticle> drips = new ArrayList<>();
         List<Vec3> coatEnds = new ArrayList<>();
@@ -158,8 +173,10 @@ class StreamMotesTest {
         try (MockedStatic<Minecraft> mc = mockStatic(Minecraft.class);
              MockedStatic<SimpleParticles> particles = mockStatic(SimpleParticles.class);
              MockedStatic<CoatRay> rays = mockStatic(CoatRay.class, CALLS_REAL_METHODS);
-             MockedStatic<KnifeRainSling> sling = mockStatic(KnifeRainSling.class)) {
+             MockedStatic<KnifeRainSling> sling = mockStatic(KnifeRainSling.class);
+             MockedStatic<GooGloveItem> gloves = mockStatic(GooGloveItem.class)) {
             mc.when(Minecraft::getInstance).thenReturn(minecraft);
+            gloves.when(() -> GooGloveItem.getSelectedType(any())).thenReturn(GooTypes.ZOO);
             particles.when(() -> SimpleParticles.resolve(any())).thenReturn(Optional.of(mock(SimpleParticleType.class)));
             rays.when(() -> CoatRay.clipping(any())).thenReturn((CoatRay.BlockClip) (from, to) -> Optional.empty());
             rays.when(() -> CoatRay.end(any(), any(), any(), anyDouble(), anyDouble(), any())).thenAnswer(call -> {
@@ -180,27 +197,35 @@ class StreamMotesTest {
                 assertEquals(0, quadsDrawn(drip), "a drip should draw nothing before its first tick throws it");
             }
             now[0] = FIRST_TICK;
+            Vec3 blob = LiftedPalmBlob.blobOf(CASTER, 0f).orElseThrow().place();
             Vec3 source = sourceOf(caster, now[0]);
+            assertTrue(blob.distanceTo(source) > STILL_EASING, "on the spray's first ticks the blob should still be "
+                    + "easing off the palm, at " + blob + ", short of the source " + source);
             for (int i = 0; i < drips.size(); i++) {
                 SprayDripParticle drip = drips.get(i);
                 drip.tick();
-                assertInFlightOnTheLine(drawnAt(drip), source, coatEnds.get(i));
+                Vec3 left = drawnAt(drip, 0f);
+                assertTrue(left.distanceTo(blob) <= LEFT_THE_BLOB, "a drip should leave the blob where it stands, "
+                        + blob + ", left from " + left);
+                assertInFlightOnTheLine(drawnAt(drip, PARTIAL_TICK), blob, coatEnds.get(i));
             }
         }
     }
 
     /**
-     * Asserts a drawn point lies past the source along the line to the coat
+     * Asserts a drawn point lies past the blob along the line to the coat
      * end and within {@link #OFF_THE_LINE} of it.
      */
-    private static void assertInFlightOnTheLine(Vec3 drawn, Vec3 source, Vec3 coatEnd) {
-        Vec3 line = coatEnd.subtract(source);
-        double along = drawn.subtract(source).dot(line) / line.lengthSqr();
-        Vec3 nearest = source.add(line.scale(along));
-        assertTrue(along > 0 && along < 1, "a drip's first quad should lie past the source " + source
+    private static void assertInFlightOnTheLine(Vec3 drawn, Vec3 blob, Vec3 coatEnd) {
+        Vec3 line = coatEnd.subtract(blob);
+        double along = drawn.subtract(blob).dot(line) / line.lengthSqr();
+        Vec3 nearest = blob.add(line.scale(along));
+        assertTrue(along > 0 && along < 1, "a drip's first quad should lie past the blob " + blob
                 + " toward its coat end " + coatEnd + ", drawn at " + drawn + ", " + along + " of the way");
         assertTrue(drawn.distanceTo(nearest) <= OFF_THE_LINE, "a drip's first quad should lie on the line from the"
-                + " source to its coat end, drawn " + drawn.distanceTo(nearest) + " blocks off it");
+                + " blob to its coat end, drawn " + drawn.distanceTo(nearest) + " blocks off it");
+        assertTrue(drawn.distanceTo(blob) <= FIRST_HALF_STEP, "a drip's first quad should be half a step out of "
+                + "the blob, drawn " + drawn.distanceTo(blob) + " blocks from it");
     }
 
     private static Minecraft clientDrawing(List<SprayDripParticle> drips, Caster caster, boolean local,
@@ -209,8 +234,13 @@ class StreamMotesTest {
         ClientLevel level = mock(ClientLevel.class, RETURNS_DEEP_STUBS);
         when(level.getRandom()).thenReturn(RandomSource.create(1L));
         minecraft.level = level;
+        when(level.getGameTime()).thenAnswer(call -> (long) Math.floor(now[0]));
         Player player = local ? mock(LocalPlayer.class) : mock(Player.class);
         when(level.getEntity(CASTER)).thenReturn(player);
+        ItemStack glove = mock(ItemStack.class);
+        when(glove.getItem()).thenReturn(mock(GooGloveItem.class));
+        when(player.getMainHandItem()).thenReturn(glove);
+        when(player.getPosition(anyFloat())).thenAnswer(call -> caster.eye().apply(now[0]).subtract(0, EYE.y, 0));
         when(player.getEyePosition(anyFloat())).thenAnswer(call -> caster.eye().apply(now[0]));
         when(player.getViewXRot(anyFloat())).thenReturn(PITCH);
         when(player.getViewYRot(anyFloat())).thenAnswer(call -> caster.yaw().apply(now[0]));
@@ -218,6 +248,10 @@ class StreamMotesTest {
         when(camera.position()).thenAnswer(call -> caster.eye().apply(now[0]));
         when(camera.xRot()).thenReturn(PITCH);
         when(camera.yRot()).thenAnswer(call -> caster.yaw().apply(now[0]));
+        when(camera.rotation()).thenAnswer(call -> new Quaternionf().rotationYXZ(
+                (float) Math.PI - (float) Math.toRadians(caster.yaw().apply(now[0])), -(float) Math.toRadians(PITCH),
+                0f));
+        when(camera.getFov()).thenReturn(WORLD_FOV);
         GameRenderer renderer = mock(GameRenderer.class);
         when(renderer.getMainCamera()).thenReturn(camera);
         Options options = mock(Options.class);
@@ -263,11 +297,11 @@ class StreamMotesTest {
     }
 
     /**
-     * Where the frame draws a drip: the camera-relative quad it hands the
-     * renderer, back in the world.
+     * Where a frame at a partial tick draws a drip: the camera-relative quad
+     * it hands the renderer, back in the world.
      */
-    private static Vec3 drawnAt(SprayDripParticle drip) {
-        QuadParticleRenderState frame = drawFrame(drip);
+    private static Vec3 drawnAt(SprayDripParticle drip, float partialTick) {
+        QuadParticleRenderState frame = drawFrame(drip, partialTick);
         ArgumentCaptor<Float> x = ArgumentCaptor.forClass(Float.class);
         ArgumentCaptor<Float> y = ArgumentCaptor.forClass(Float.class);
         ArgumentCaptor<Float> z = ArgumentCaptor.forClass(Float.class);
@@ -279,18 +313,18 @@ class StreamMotesTest {
 
     /** The quads a frame draws of a drip. */
     private static int quadsDrawn(SprayDripParticle drip) {
-        QuadParticleRenderState frame = drawFrame(drip);
+        QuadParticleRenderState frame = drawFrame(drip, PARTIAL_TICK);
         return (int) mockingDetails(frame).getInvocations().stream()
                 .filter(call -> call.getMethod().getName().equals("add")).count();
     }
 
-    /** A frame that has drawn a drip, the camera at the world's origin. */
-    private static QuadParticleRenderState drawFrame(SprayDripParticle drip) {
+    /** A frame at a partial tick that has drawn a drip, the camera at the world's origin. */
+    private static QuadParticleRenderState drawFrame(SprayDripParticle drip, float partialTick) {
         Camera camera = mock(Camera.class);
         when(camera.position()).thenReturn(Vec3.ZERO);
         when(camera.rotation()).thenReturn(new Quaternionf());
         QuadParticleRenderState frame = mock(QuadParticleRenderState.class);
-        drip.extract(frame, camera, PARTIAL_TICK);
+        drip.extract(frame, camera, partialTick);
         return frame;
     }
 }

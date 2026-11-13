@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Vector3f;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.Optional;
@@ -24,6 +25,8 @@ class LiftedPalmBlobTest {
     private static final long NOW = 400L;
     private static final float PARTIAL_TICK = 0.5f;
     private static final double DELTA = 1e-6;
+    /** How far Mth.sin's lookup table strays, which Vec3.directionFromRotation reads. */
+    private static final double SINE_TABLE = 1e-3;
     /** Samples taken across one beat. */
     private static final int SAMPLES = 64;
     private static final Vec3 PALM = new Vec3(3.35, 64.9, -1.6);
@@ -84,6 +87,35 @@ class LiftedPalmBlobTest {
                         blob.place());
                 assertEquals(GooTypes.FROST, blob.type());
             }
+        }
+    }
+
+    @Nested
+    class DrawsOverTheGloveAndTurnsWithIt {
+
+        @Test
+        void theLocalFirstPersonCastersBlobDrawsInTheHandsPassRatherThanTheLevel() {
+            try (SprayingClient client = SprayingClient.local(GooTypes.ZOO)) {
+                assertFalse(LiftedPalmBlob.drawsInTheLevel(SprayingClient.CASTER),
+                        "the hand's pass should draw the local first-person blob, over the glove");
+            }
+        }
+
+        @Test
+        void anotherPlayersBlobDrawsInTheLevel() {
+            try (SprayingClient client = SprayingClient.another(GooTypes.ZOO)) {
+                assertTrue(LiftedPalmBlob.drawsInTheLevel(SprayingClient.CASTER));
+            }
+        }
+
+        @Test
+        void anotherPlayersBlobTurnsItsFaceAlongThatPlayersLook() {
+            Vector3f face = new Vector3f(0, 0, 1).rotate(LiftedPalmBlob.facingTheLook(SprayingClient.PITCH,
+                    SprayingClient.YAW));
+
+            Vec3 look = Vec3.directionFromRotation(SprayingClient.PITCH, SprayingClient.YAW);
+            assertTrue(look.distanceTo(new Vec3(face)) <= SINE_TABLE, "the blob's face " + face + " should lie "
+                    + "along the look " + look);
         }
     }
 

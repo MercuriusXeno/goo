@@ -81,9 +81,9 @@ public final class StreamMotes {
         Particle mote = mc.particleEngine.createParticle(particle, apex.x, apex.y, apex.z, launch.x, launch.y,
                 launch.z);
         if (mote instanceof SprayDripParticle drip && coatEnd.isPresent()) {
-            // goop-and-slick-spray-emanates-from-the-glove: the drip leaves the source held in the view
-            drip.leaveFrom(partialTick -> SpraySource.of(payload.casterId(), apex, partialTick), coatEnd.get(),
-                    payload.travel());
+            // palm-blob-lifts-as-the-spray-source: the drip leaves the lifted blob, easing or at the source
+            drip.leaveFrom(partialTick -> LiftedPalmBlob.dripLeavesFrom(payload.casterId(), apex, partialTick),
+                    coatEnd.get(), payload.travel());
             return true;
         }
         if (mote instanceof GloveMote gloveMote) {

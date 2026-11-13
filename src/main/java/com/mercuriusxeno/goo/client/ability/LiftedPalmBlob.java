@@ -20,6 +20,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import org.joml.Quaternionf;
 import org.jspecify.annotations.Nullable;
 import java.util.Map;
 import java.util.Optional;
@@ -33,8 +34,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * size while the spray runs. Once the stream's ticks stop for longer than
  * the stream's gap it eases back onto the palm and shrinks to rest size. The
  * glove's palm draws none while the blob is off it, so the caster shows one
- * blob. Kept apart from the spray so a later channel can lift the blob the
- * same way.
+ * blob, and each spray drip leaves the blob where it stands. The local
+ * first-person player's blob draws in the hand's pass, over the glove and
+ * turned with it; every other caster's draws in the level, turned with that
+ * caster's look. Kept apart from the spray so a later channel can lift the
+ * blob the same way.
  * palm-blob-lifts-as-the-spray-source
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -50,8 +54,8 @@ public final class LiftedPalmBlob {
     /** The ticks one beat of the lifted blob's swell takes. */
     static final double BEAT_TICKS = 12;
     /** The lifted blob's least and greatest size against the palm blob's rest size. */
-    static final float LIFTED_LEAST = 1.25f;
-    static final float LIFTED_GREATEST = 1.5f;
+    static final float LIFTED_LEAST = 1.05f;
+    static final float LIFTED_GREATEST = 1.2f;
     /**
      * A flying blob's size the palm blob at rest shows as in the world: the
      * first-person glove draws its model at half size, so its rest blob reads
@@ -233,6 +237,57 @@ public final class LiftedPalmBlob {
         return palm.lerp(source, share);
     }
 
+
+    /**
+     * Where a caster's blob stands off the palm this frame.
+     *
+     * @param casterId    the caster's entity id
+     * @param partialTick the frame's partial tick
+     * @return the blob's place, empty once it has settled back onto the palm
+     */
+    private static Optional<Standing> standingOf(int casterId, float partialTick) {
+        Minecraft mc = Minecraft.getInstance();
+        Lift lift = LIFTS.get(casterId);
+        if (mc.level == null || lift == null || !(mc.level.getEntity(casterId) instanceof Player caster)) {
+            return Optional.empty();
+        }
+        double now = mc.level.getGameTime() + (double) partialTick;
+        if (!lift.standsAt(now)) {
+            return Optional.empty();
+        }
+        float share = lift.shareAt(now);
+        Vec3 source = SpraySource.of(casterId, lift.sentGlove(), partialTick);
+        return Optional.of(new Standing(caster, placeAt(share, palmOf(mc, caster, partialTick), source), share,
+                now));
+    }
+
+    /**
+     * A caster's blob off the palm, before its goo type is read.
+     *
+     * @param caster the caster
+     * @param place  where the blob stands in the world
+     * @param share  the share lifted, 0 on the palm to 1 at the source
+     * @param now    the game time, with the frame's partial tick
+     */
+    private record Standing(Player caster, Vec3 place, float share, double now) {
+    }
+
+    /**
+     * Where a caster's spray drip leaves: the caster's blob where it stands,
+     * easing off the palm or at the source, and the spray source itself
+     * where no blob stands.
+     * palm-blob-lifts-as-the-spray-source: no drip shows until it leaves the blob
+     *
+     * @param casterId    the caster's entity id
+     * @param sentGlove   the glove the server sent with the stream's tick
+     * @param partialTick the partial tick the drip leaves at
+     * @return where the drip leaves
+     */
+    public static Vec3 dripLeavesFrom(int casterId, Vec3 sentGlove, float partialTick) {
+        return standingOf(casterId, partialTick).map(Standing::place)
+                .orElseGet(() -> SpraySource.of(casterId, sentGlove, partialTick));
+    }
+
     /**
      * The blob a caster shows off the palm this frame, in the glove's
      * selected goo type.
@@ -242,26 +297,64 @@ public final class LiftedPalmBlob {
      * @return the blob, empty once it has settled back onto the palm or where the glove has no type selected
      */
     static Optional<Blob> blobOf(int casterId, float partialTick) {
+        return standingOf(casterId, partialTick).flatMap(standing -> Optional.ofNullable(
+                GooGloveItem.getSelectedType(gloveOf(standing.caster())))
+                .map(type -> new Blob(standing.place(), type, sizeAt(standing.share(), standing.now()))));
+    }
+
+    /**
+     * The local player's blob as the hand's pass draws it: the share lifted,
+     * the spray source carried into the hand pass, and the size.
+     * palm-blob-lifts-as-the-spray-source: drawn in the hand's pass, the blob draws over the glove
+     *
+     * @param share        the share lifted, 0 on the palm to 1 at the source
+     * @param sourceInHand the spray source in the hand pass's camera-relative world axes
+     * @param size         the blob's size against the palm blob's rest size
+     */
+    public record HandLift(float share, Vec3 sourceInHand, float size) {
+    }
+
+    /**
+     * The local first-person player's blob off the palm, as the glove held
+     * before the eyes draws it in the hand's pass.
+     *
+     * @return the lift, empty once the blob has settled back onto the palm
+     */
+    public static Optional<HandLift> liftHeldInView() {
         Minecraft mc = Minecraft.getInstance();
-        Lift lift = LIFTS.get(casterId);
-        if (mc.level == null || lift == null || !(mc.level.getEntity(casterId) instanceof Player caster)) {
+        if (mc.player == null || mc.level == null) {
             return Optional.empty();
         }
-        double now = mc.level.getGameTime() + (double) partialTick;
-        ResourceKey<GooTypeDefinition> type = GooGloveItem.getSelectedType(gloveOf(caster));
-        if (type == null || !lift.standsAt(now)) {
+        float partial = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        Lift lift = LIFTS.get(mc.player.getId());
+        double now = mc.level.getGameTime() + (double) partial;
+        if (lift == null || !lift.standsAt(now)) {
             return Optional.empty();
         }
+        Camera camera = mc.gameRenderer.getMainCamera();
+        Vec3 source = SpraySource.of(mc.player.getId(), lift.sentGlove(), partial).subtract(camera.position());
         float share = lift.shareAt(now);
-        Vec3 source = SpraySource.of(casterId, lift.sentGlove(), partialTick);
-        return Optional.of(new Blob(placeAt(share, palmOf(mc, caster, partialTick), source), type,
+        return Optional.of(new HandLift(share, HandPassView.toHandPass(source, camera.rotation(), camera.getFov()),
                 sizeAt(share, now)));
     }
 
     /**
+     * Whether a glove is the one the local player holds before the eyes in
+     * first person, whose lifted blob the hand's pass draws.
+     *
+     * @param glove the glove being drawn
+     * @return true for either hand's stack of the local player in first person
+     */
+    public static boolean heldInView(ItemStack glove) {
+        Minecraft mc = Minecraft.getInstance();
+        return mc.player != null && mc.options.getCameraType().isFirstPerson()
+                && (glove == mc.player.getMainHandItem() || glove == mc.player.getOffhandItem());
+    }
+
+    /**
      * Where a caster's glove palm is: where the first-person glove last drew
-     * its palm for the local player in first person, and the hand worked
-     * from the body otherwise.
+     * its palm, carried out of the hand's pass, for the local player in first
+     * person, and the hand worked from the body otherwise.
      *
      * @param mc          the client
      * @param caster      the caster
@@ -271,7 +364,8 @@ public final class LiftedPalmBlob {
     private static Vec3 palmOf(Minecraft mc, Player caster, float partialTick) {
         Vec3 drawn = GloveSpecialRenderer.getLastGooCenterCamRel();
         if (caster == mc.player && mc.options.getCameraType().isFirstPerson() && drawn != null) {
-            return mc.gameRenderer.getMainCamera().position().add(drawn);
+            Camera camera = mc.gameRenderer.getMainCamera();
+            return camera.position().add(HandPassView.fromHandPass(drawn, camera.rotation(), camera.getFov()));
         }
         return KnivesCharge.handAt(caster, KnifeRainSling.gloveOnTheRight(caster), 0f, partialTick);
     }
@@ -311,8 +405,34 @@ public final class LiftedPalmBlob {
     }
 
     /**
-     * Draws every caster's blob off the palm, and forgets each lift that has
-     * settled.
+     * Whether the level's pass draws a caster's blob: every caster's but the
+     * local player's in first person, whose blob the hand's pass draws over
+     * the glove, though a view through a portal sees that one in the level too.
+     *
+     * @param casterId the caster's entity id
+     * @return true where the level draws the blob
+     */
+    static boolean drawsInTheLevel(int casterId) {
+        Minecraft mc = Minecraft.getInstance();
+        return mc.player == null || mc.player.getId() != casterId || !mc.options.getCameraType().isFirstPerson()
+                || PortalView.drawing();
+    }
+
+    /**
+     * The turn that faces a blob along a look, its front from +z onto the
+     * look and its top from +y up the view.
+     *
+     * @param xRot the look's pitch in degrees, positive looking down
+     * @param yRot the look's yaw in degrees
+     * @return the turn
+     */
+    static Quaternionf facingTheLook(float xRot, float yRot) {
+        return new Quaternionf().rotationY((float) Math.toRadians(-yRot)).rotateX((float) Math.toRadians(xRot));
+    }
+
+    /**
+     * Draws every caster's blob off the palm that the level's pass draws,
+     * turned with that caster's look, and forgets each lift that has settled.
      * palm-blob-draws-as-the-charge-blob: the lifted blob is the charge-style core in its shell
      *
      * @param event the level render stage event
@@ -329,16 +449,46 @@ public final class LiftedPalmBlob {
         Camera camera = PortalView.drawing() ? PortalView.camera() : mc.gameRenderer.getMainCamera();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         for (Integer casterId : LIFTS.keySet()) {
-            blobOf(casterId, partial).ifPresent(blob -> drawBlob(event.getPoseStack(), buffers, blob,
-                    camera.position(), now + partial));
+            if (drawsInTheLevel(casterId)) {
+                drawnInTheLevel(mc, casterId, partial).ifPresent(drawn -> drawBlob(event.getPoseStack(), buffers,
+                        drawn, camera.position(), now + partial));
+            }
         }
         buffers.endBatch();
     }
 
-    private static void drawBlob(PoseStack pose, MultiBufferSource buffers, Blob blob, Vec3 camera, float time) {
+    /**
+     * A caster's blob as the level draws it, turned with the caster's look.
+     *
+     * @param mc       the client
+     * @param casterId the caster's entity id
+     * @param partial  the frame's partial tick
+     * @return the blob, empty where it has settled or the caster is gone
+     */
+    private static Optional<Drawn> drawnInTheLevel(Minecraft mc, int casterId, float partial) {
+        if (!(mc.level.getEntity(casterId) instanceof Player caster)) {
+            return Optional.empty();
+        }
+        Quaternionf facing = facingTheLook(caster.getViewXRot(partial), caster.getViewYRot(partial));
+        return blobOf(casterId, partial).map(blob -> new Drawn(blob, facing));
+    }
+
+    /**
+     * A blob as the level draws it.
+     *
+     * @param blob   the blob
+     * @param facing the turn that faces it along its caster's look
+     */
+    private record Drawn(Blob blob, Quaternionf facing) {
+    }
+
+    private static void drawBlob(PoseStack pose, MultiBufferSource buffers, Drawn drawn, Vec3 camera, float time) {
+        Vec3 place = drawn.blob().place();
         pose.pushPose();
-        pose.translate(blob.place().x - camera.x, blob.place().y - camera.y, blob.place().z - camera.z);
-        GooFlightRenderer.renderBlob(pose, buffers, blob.type(), time, blob.size() * FLIGHT_SIZE_OF_PALM_REST);
+        pose.translate(place.x - camera.x, place.y - camera.y, place.z - camera.z);
+        pose.mulPose(drawn.facing());
+        GooFlightRenderer.renderBlob(pose, buffers, drawn.blob().type(), time,
+                drawn.blob().size() * FLIGHT_SIZE_OF_PALM_REST);
         pose.popPose();
     }
 
