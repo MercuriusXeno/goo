@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.client.ability.PhaseLook;
 import com.mercuriusxeno.goo.client.ability.PhasedHands;
 import com.mercuriusxeno.goo.client.ability.PortalView;
 import com.mercuriusxeno.goo.client.outsider.RoomBodyCopyRenderer;
+import com.mercuriusxeno.goo.client.throwing.BlobShape;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.item.GooGloveItem;
@@ -65,12 +66,12 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * above the finger plate's top face, so the shell never shares that face
      * and swells up the palm rather than down through the fingers.
      */
-    private static final float PALM_FLOOR_PX = 1.25f;
+    static final float PALM_FLOOR_PX = 1.25f;
     /**
      * Where the palm blob's back face sits in model pixels: inside the
      * hand, hidden by it, so the swell grows out of the palm.
      */
-    private static final float PALM_BACK_Z_PX = 8.5f;
+    static final float PALM_BACK_Z_PX = 8.5f;
     /**
      * Half-width of the shell at rest in model pixels, a flight blob's own.
      */
@@ -198,11 +199,14 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
 
     /**
      * Draws the held goo in the palm as the charge blob, a pulsing opaque
-     * core inside a translucent tinted shell, both fullbright, resting on
-     * the fingers with its back in the hand. A charge swells both layers
-     * from that floor and back, so the blob grows up and out of the palm.
+     * core inside a translucent tinted shell, both fullbright and pressed
+     * flat, resting on the fingers with its back in the hand. A charge swells
+     * both layers from that floor and back, so the blob grows up and out of
+     * the palm. First person, another player's hand and the inventory slot
+     * all draw the palm blob here.
      * decision palm-blob-draws-as-the-charge-blob
      * decision charge-swells-the-palm-blob
+     * palm-blob-rests-pressed-and-stands-into-the-cube
      *
      * @param poseStack     the pose stack for rendering
      * @param nodeCollector the render node collector
@@ -211,22 +215,37 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      */
     private static void submitHeldGoo(PoseStack poseStack, SubmitNodeCollector nodeCollector,
                                       ResourceKey<GooTypeDefinition> type, float blobScale) {
-        Vector3f center = palmCenter(blobScale);
+        BlobShape shape = palmShape(blobScale);
+        Vector3f center = palmCenter(shape);
         captureGooCenter(poseStack, center.x(), center.y(), center.z());
-        submitBlob(poseStack, nodeCollector, type, center, blobScale);
+        submitBlob(poseStack, nodeCollector, type, center, shape);
     }
 
     /**
-     * Where the palm blob's center sits in the model at a size: resting on
-     * the fingers with its back in the hand, so it grows up and out of the palm.
+     * The palm blob's shape at a size: pressed flat on the palm, a charge
+     * swelling its width, depth and height alike.
+     * palm-blob-rests-pressed-and-stands-into-the-cube
+     * decision charge-swells-the-palm-blob
      *
      * @param blobScale the blob's size against its rest size
+     * @return the shape against the rest cube
+     */
+    private static BlobShape palmShape(float blobScale) {
+        return LiftedPalmBlob.shapeAt(0f).scaled(blobScale);
+    }
+
+    /**
+     * Where the palm blob's center sits in the model for its shape: its
+     * bottom on the fingers and its back in the hand, so it grows up and out
+     * of the palm.
+     * palm-blob-rests-pressed-and-stands-into-the-cube
+     *
+     * @param shape the palm blob's shape
      * @return the center in block coords
      */
-    private static Vector3f palmCenter(float blobScale) {
-        float hwPx = SHELL_HW_PX * blobScale;
-        return new Vector3f(GOO_CX_PX / BLOCK_PIXELS, (PALM_FLOOR_PX + hwPx) / BLOCK_PIXELS,
-                (PALM_BACK_Z_PX - hwPx) / BLOCK_PIXELS);
+    private static Vector3f palmCenter(BlobShape shape) {
+        return new Vector3f(GOO_CX_PX / BLOCK_PIXELS, (PALM_FLOOR_PX + SHELL_HW_PX * shape.height()) / BLOCK_PIXELS,
+                (PALM_BACK_Z_PX - SHELL_HW_PX * shape.depth()) / BLOCK_PIXELS);
     }
 
     /**
@@ -238,26 +257,27 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * @param nodeCollector the render node collector
      * @param type          the goo type
      * @param center        the blob's center in the model, in block coords
-     * @param scale         the blob's size against the palm blob's rest size
+     * @param shape         the blob's box against the palm blob's rest cube
      */
     private static void submitBlob(PoseStack poseStack, SubmitNodeCollector nodeCollector,
-                                   ResourceKey<GooTypeDefinition> type, Vector3fc center, float scale) {
+                                   ResourceKey<GooTypeDefinition> type, Vector3fc center, BlobShape shape) {
         float gameTime = gameTime();
         poseStack.pushPose();
         poseStack.translate(center.x(), center.y(), center.z());
         nodeCollector.submitCustomGeometry(poseStack, coreType(),
-                (pose, c) -> GooFlightRenderer.emitCore(pose, c, type, gameTime, scale));
+                (pose, c) -> GooFlightRenderer.emitCore(pose, c, type, gameTime, shape));
         nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
-                (pose, c) -> GooFlightRenderer.emitShell(pose, c, type, scale));
+                (pose, c) -> GooFlightRenderer.emitShell(pose, c, type, shape));
         poseStack.popPose();
     }
 
     /**
      * Submits the local first-person player's lifted blob in the hand's pass,
      * so it draws over the glove and turns with it: from the palm blob's own
-     * center and size it eases toward the spray source as the hand's pass
-     * shows it, growing to the lifted size.
+     * center, size and pressed shape it eases toward the spray source as the
+     * hand's pass shows it, growing to the lifted size and standing into the cube.
      * palm-blob-lifts-as-the-spray-source
+     * palm-blob-rests-pressed-and-stands-into-the-cube
      *
      * @param poseStack     the pose stack, at the glove's model
      * @param nodeCollector the render node collector
@@ -267,9 +287,9 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
     private static void submitLiftedGoo(PoseStack poseStack, SubmitNodeCollector nodeCollector,
                                         ResourceKey<GooTypeDefinition> type, LiftedPalmBlob.HandLift lift) {
         Matrix4f toHandPass = new Matrix4f(poseStack.last().pose());
-        Vector3f palm = toHandPass.transformPosition(palmCenter(REST_SCALE));
+        Vector3f palm = toHandPass.transformPosition(palmCenter(palmShape(REST_SCALE)));
         Vector3f lifted = palm.lerp(lift.sourceInHand().toVector3f(), lift.share());
-        submitBlob(poseStack, nodeCollector, type, toHandPass.invert().transformPosition(lifted), lift.size());
+        submitBlob(poseStack, nodeCollector, type, toHandPass.invert().transformPosition(lifted), lift.shape());
     }
 
     /**
@@ -298,9 +318,9 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
             return;
         }
         float time = gameTime();
+        Vector3f center = palmCenter(palmShape(REST_SCALE));
         poseStack.pushPose();
-        poseStack.translate(GOO_CX_PX / BLOCK_PIXELS, (PALM_FLOOR_PX + SHELL_HW_PX) / BLOCK_PIXELS,
-                (PALM_BACK_Z_PX - SHELL_HW_PX) / BLOCK_PIXELS);
+        poseStack.translate(center.x(), center.y(), center.z());
         nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.GLOW_SHELL_TYPE,
                 (pose, c) -> GloveGlow.emitShells(pose, c, SHELL_HW_PX / BLOCK_PIXELS, strength, time));
         poseStack.popPose();
@@ -406,7 +426,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      */
     private static void submitPalm(GloveData data, PoseStack poseStack, SubmitNodeCollector nodeCollector) {
         if (data.palmLifted()) {
-            Vector3f palm = palmCenter(REST_SCALE);
+            Vector3f palm = palmCenter(palmShape(REST_SCALE));
             captureGooCenter(poseStack, palm.x(), palm.y(), palm.z());
             if (data.heldInView() && !PortalView.drawing() && !RoomBodyCopyRenderer.drawingCopies()) {
                 LiftedPalmBlob.liftHeldInView().ifPresent(lift -> submitLiftedGoo(poseStack, nodeCollector,

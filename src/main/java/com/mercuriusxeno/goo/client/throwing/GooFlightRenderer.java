@@ -252,8 +252,24 @@ public final class GooFlightRenderer {
      */
     public static void renderBlob(PoseStack poseStack, MultiBufferSource buffers,
                                   ResourceKey<GooTypeDefinition> type, float gameTime, float scale) {
-        emitCore(poseStack.last(), buffers.getBuffer(GooSubmitter.solidOnBlockAtlas()), type, gameTime, scale);
-        emitShell(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()), type, scale);
+        renderBlob(poseStack, buffers, type, gameTime, BlobShape.CUBE.scaled(scale));
+    }
+
+    /**
+     * Draws a goo blob of a type in a shape, its core and shell pressed or
+     * stood alike about its center.
+     * palm-blob-rests-pressed-and-stands-into-the-cube
+     *
+     * @param poseStack the pose stack, at the blob's center
+     * @param buffers   the buffer source
+     * @param type      the goo type
+     * @param gameTime  the level game time in ticks
+     * @param shape     the blob's box against a flight's cube
+     */
+    public static void renderBlob(PoseStack poseStack, MultiBufferSource buffers,
+                                  ResourceKey<GooTypeDefinition> type, float gameTime, BlobShape shape) {
+        emitCore(poseStack.last(), buffers.getBuffer(GooSubmitter.solidOnBlockAtlas()), type, gameTime, shape);
+        emitShell(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()), type, shape);
     }
 
     /**
@@ -266,7 +282,8 @@ public final class GooFlightRenderer {
      */
     private static void renderCore(PoseStack poseStack, MultiBufferSource buffers,
                                    ResourceKey<GooTypeDefinition> type, float gameTime) {
-        emitCore(poseStack.last(), buffers.getBuffer(GooSubmitter.solidOnBlockAtlas()), type, gameTime, 1f);
+        emitCore(poseStack.last(), buffers.getBuffer(GooSubmitter.solidOnBlockAtlas()), type, gameTime,
+                BlobShape.CUBE);
     }
 
     /**
@@ -278,27 +295,39 @@ public final class GooFlightRenderer {
      */
     private static void renderShell(PoseStack poseStack, MultiBufferSource buffers,
                                     ResourceKey<GooTypeDefinition> type) {
-        emitShell(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()), type, 1f);
+        emitShell(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()), type, BlobShape.CUBE);
     }
 
     /**
-     * Emits the blob's core: an opaque fluid cuboid with sin-pulsing width,
-     * fullbright, about the pose's origin. The consumer takes
+     * Emits the blob's core: an opaque fluid cuboid with sin-pulsing size,
+     * fullbright, about the pose's origin, in the shell's shape so a pressed
+     * shell keeps its core inside it. The consumer takes
      * {@link GooSubmitter#solidOnBlockAtlas()} geometry; the glove's palm blob
      * submits through this too (decision palm-blob-draws-as-the-charge-blob).
+     * palm-blob-rests-pressed-and-stands-into-the-cube
      *
      * @param pose     the pose at the blob's center
      * @param c        a consumer of the solid block atlas render type
      * @param type     the goo type
      * @param gameTime the level game time in ticks, driving the pulse
-     * @param scale    the blob's size against a flight's
+     * @param shape    the blob's box against a flight's cube
      */
     public static void emitCore(PoseStack.Pose pose, VertexConsumer c,
-                                ResourceKey<GooTypeDefinition> type, float gameTime, float scale) {
+                                ResourceKey<GooTypeDefinition> type, float gameTime, BlobShape shape) {
         float pulse = 1.0f + CORE_PULSE_AMP * Mth.sin(gameTime * CORE_PULSE_SPEED);
-        float hw = CORE_HW * pulse * scale;
         RenderContext ctx = new RenderContext(pose, c, GooSubmitter.fullbrightLight());
-        ctx.emitBox(new CuboidBounds(-hw, hw, -hw, hw, -hw, hw), spriteToUv(type));
+        ctx.emitBox(boxAbout(shape.scaled(CORE_HW * pulse)), spriteToUv(type));
+    }
+
+    /**
+     * The box a shape spans about the pose's origin.
+     *
+     * @param halves the box's half extents
+     * @return the box
+     */
+    private static CuboidBounds boxAbout(BlobShape halves) {
+        return new CuboidBounds(-halves.width(), halves.width(), -halves.depth(), halves.depth(),
+                -halves.height(), halves.height());
     }
 
     /**
@@ -309,14 +338,13 @@ public final class GooFlightRenderer {
      * @param pose  the pose at the blob's center
      * @param c     a consumer of the translucent goo render type
      * @param type  the goo type
-     * @param scale the blob's size against a flight's
+     * @param shape the blob's box against a flight's cube
      */
     public static void emitShell(PoseStack.Pose pose, VertexConsumer c,
-                                 ResourceKey<GooTypeDefinition> type, float scale) {
+                                 ResourceKey<GooTypeDefinition> type, BlobShape shape) {
         int color = ARGB.color(SHELL_ALPHA, ClientGooTypes.color(type));
-        float hw = SHELL_HW * scale;
         RenderContext ctx = new RenderContext(pose, c, GooSubmitter.fullbrightLight());
-        ctx.emitBox(color, new CuboidBounds(-hw, hw, -hw, hw, -hw, hw), spriteToUv(type));
+        ctx.emitBox(color, boxAbout(shape.scaled(SHELL_HW)), spriteToUv(type));
     }
 
     /**

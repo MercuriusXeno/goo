@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.model.GloveSpecialRenderer;
+import com.mercuriusxeno.goo.client.throwing.BlobShape;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.network.KnifeRainSling;
@@ -29,7 +30,8 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * The palm blob lifted off the glove to a channel's source: as a caster's
  * Goop or Slick spray begins, the blob eases off the palm to the spray
- * source, swelling from its rest size as it goes, and stands there in the
+ * source, swelling from its rest size and standing up from pressed flat into
+ * the cube as it goes, and stands there in the
  * goo type the glove has selected, beating between two sizes above its rest
  * size while the spray runs. Once the stream's ticks stop for longer than
  * the stream's gap it eases back onto the palm and shrinks to rest size. The
@@ -62,6 +64,14 @@ public final class LiftedPalmBlob {
      * half a flying blob's width.
      */
     static final float FLIGHT_SIZE_OF_PALM_REST = 0.5f;
+    /**
+     * The pressed palm blob's width and depth against the cube it stands
+     * into; its height is what holds the cube's volume. At rest the shell
+     * stands just inside the hand's six-pixel width, 5.76 pixels wide.
+     * operator ruling 2026-11-13: at 1.25 the shell's sides sat flush with the gauntlet's and z-fought;
+     * they stand just inside the hand
+     */
+    static final float PRESSED_SPREAD = 1.2f;
     private static final double FULL_TURN = Math.PI * 2;
     private static final double HALF = 0.5;
     /** The smoothstep's terms, 3s² - 2s³, slow at both ends of an ease. */
@@ -149,9 +159,9 @@ public final class LiftedPalmBlob {
      *
      * @param place where it stands in the world
      * @param type  its goo type, the one the caster's glove has selected
-     * @param size  its size against the palm blob's rest size
+     * @param shape its box against the palm blob's rest cube
      */
-    public record Blob(Vec3 place, ResourceKey<GooTypeDefinition> type, float size) {
+    public record Blob(Vec3 place, ResourceKey<GooTypeDefinition> type, BlobShape shape) {
     }
 
     /**
@@ -223,6 +233,33 @@ public final class LiftedPalmBlob {
      */
     static float sizeAt(float share, double time) {
         return Mth.lerp(share, KnivesCharge.PALM_REST, liftedSizeAt(time));
+    }
+
+    /**
+     * The blob's shape at a share lifted, before its size: pressed flat on
+     * the palm, wider and deeper than a cube and shorter, narrowing and
+     * growing taller as it rises until it is the cube at the source. The
+     * width and depth fall from the pressed spread by the same power the
+     * height rises, so the product of the three is one at every share.
+     * palm-blob-rests-pressed-and-stands-into-the-cube
+     *
+     * @param share the share lifted, 0 on the palm to 1 at the source
+     * @return the shape against a cube of the blob's size
+     */
+    public static BlobShape shapeAt(float share) {
+        float spread = (float) Math.pow(PRESSED_SPREAD, 1f - Math.clamp(share, 0f, 1f));
+        return new BlobShape(spread, spread, 1f / (spread * spread));
+    }
+
+    /**
+     * The blob's shape and size at a share lifted.
+     *
+     * @param share the share lifted, 0 to 1
+     * @param time  the game time in ticks, with the frame's partial tick
+     * @return the box it draws in, against the palm blob's rest cube
+     */
+    static BlobShape drawnShapeAt(float share, double time) {
+        return shapeAt(share).scaled(sizeAt(share, time));
     }
 
     /**
@@ -299,19 +336,19 @@ public final class LiftedPalmBlob {
     static Optional<Blob> blobOf(int casterId, float partialTick) {
         return standingOf(casterId, partialTick).flatMap(standing -> Optional.ofNullable(
                 GooGloveItem.getSelectedType(gloveOf(standing.caster())))
-                .map(type -> new Blob(standing.place(), type, sizeAt(standing.share(), standing.now()))));
+                .map(type -> new Blob(standing.place(), type, drawnShapeAt(standing.share(), standing.now()))));
     }
 
     /**
      * The local player's blob as the hand's pass draws it: the share lifted,
-     * the spray source carried into the hand pass, and the size.
+     * the spray source carried into the hand pass, and the shape.
      * palm-blob-lifts-as-the-spray-source: drawn in the hand's pass, the blob draws over the glove
      *
      * @param share        the share lifted, 0 on the palm to 1 at the source
      * @param sourceInHand the spray source in the hand pass's camera-relative world axes
-     * @param size         the blob's size against the palm blob's rest size
+     * @param shape        the blob's box against the palm blob's rest cube
      */
-    public record HandLift(float share, Vec3 sourceInHand, float size) {
+    public record HandLift(float share, Vec3 sourceInHand, BlobShape shape) {
     }
 
     /**
@@ -335,7 +372,7 @@ public final class LiftedPalmBlob {
         Vec3 source = SpraySource.of(mc.player.getId(), lift.sentGlove(), partial).subtract(camera.position());
         float share = lift.shareAt(now);
         return Optional.of(new HandLift(share, HandPassView.toHandPass(source, camera.rotation(), camera.getFov()),
-                sizeAt(share, now)));
+                drawnShapeAt(share, now)));
     }
 
     /**
@@ -488,7 +525,7 @@ public final class LiftedPalmBlob {
         pose.translate(place.x - camera.x, place.y - camera.y, place.z - camera.z);
         pose.mulPose(drawn.facing());
         GooFlightRenderer.renderBlob(pose, buffers, drawn.blob().type(), time,
-                drawn.blob().size() * FLIGHT_SIZE_OF_PALM_REST);
+                drawn.blob().shape().scaled(FLIGHT_SIZE_OF_PALM_REST));
         pose.popPose();
     }
 
