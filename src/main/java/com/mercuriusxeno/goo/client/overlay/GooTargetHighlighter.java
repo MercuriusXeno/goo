@@ -11,7 +11,6 @@ import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.ability.HeldColumnRenderer;
 import com.mercuriusxeno.goo.client.ability.HeldDomeRenderer;
 import com.mercuriusxeno.goo.client.ability.PortalView;
-import com.mercuriusxeno.goo.client.ability.SculkerVision;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
@@ -32,9 +31,7 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
-import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 import java.util.OptionalDouble;
@@ -77,39 +74,7 @@ public final class GooTargetHighlighter {
      */
     private static float cachedArcPartialTick;
 
-    /** Whether this frame drew the reticule, which then stands in for the vanilla crosshair. */
-    private static boolean reticuleDrawn;
-
     private GooTargetHighlighter() {
-    }
-
-    /**
-     * Hides the vanilla crosshair while the reticule marks the aim, so one
-     * crosshair shows rather than two.
-     * target-kind-configured-per-ability
-     *
-     * @param event the gui layer event
-     */
-    @SubscribeEvent
-    public static void onRenderGuiLayer(RenderGuiLayerEvent.Pre event) {
-        if (hidesVanillaCrosshair(reticuleDrawn, SculkerVision.presence())
-                && VanillaGuiLayers.CROSSHAIR.equals(event.getName())) {
-            event.setCanceled(true);
-        }
-    }
-
-    /**
-     * Whether the reticule stands in for the vanilla crosshair this frame:
-     * only where it was drawn and shows, never while Sculker's senses dim the
-     * world, which blacks out the reticule drawn into it and would leave no
-     * crosshair at all.
-     *
-     * @param reticuleDrawn   whether the frame drew the reticule
-     * @param sculkerPresence how fully Sculker's senses stand, 0 to 1
-     * @return true when the vanilla crosshair is hidden
-     */
-    static boolean hidesVanillaCrosshair(boolean reticuleDrawn, float sculkerPresence) {
-        return reticuleDrawn && sculkerPresence < SculkerVision.GONE;
     }
 
     /**
@@ -125,7 +90,6 @@ public final class GooTargetHighlighter {
             return;
         }
         clearCachedArc();
-        reticuleDrawn = false;
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null || !mc.options.getCameraType().isFirstPerson()) {
             return;
@@ -274,38 +238,18 @@ public final class GooTargetHighlighter {
     }
 
     /**
-     * Draws the mark the selected ability's badge chooses: a reticule at the
-     * aimed point, the outline of the block or crystal aimed at, or nothing.
+     * Draws the mark the selected ability's badge chooses: the outline of the
+     * block or crystal aimed at, or nothing, the vanilla crosshair aiming.
      * target-kind-configured-per-ability
+     * vanilla-crosshair-aims-everything-without-reticule-line-or-touch-ring
      *
      * @param target    the aim target
      * @param indicator the mark the badge chooses
      * @param frame     what the frame draws with
      */
     private static void renderIndicator(TargetResult target, AimIndicator indicator, HighlightFrame frame) {
-        switch (indicator) {
-            case NONE -> { }
-            case RETICULE -> renderReticule(target, frame);
-            case ENTITY_OUTLINE, BLOCK_OUTLINE -> renderTargetHighlight(target, frame);
-        }
-    }
-
-    /**
-     * Draws the reticule at the aimed point, standing in for the vanilla
-     * crosshair, and the tile's outline and bullseye where the point sits on a block.
-     *
-     * @param target the aim target
-     * @param frame  what the frame draws with
-     */
-    private static void renderReticule(TargetResult target, HighlightFrame frame) {
-        Vec3 point = target.point();
-        if (point != null) {
-            ReticuleRenderer.render(frame.ps(), frame.buf(), frame.camera(), point,
-                    ClientGooTypes.highlight(frame.selectedType()));
-            reticuleDrawn = true;
-        }
-        if (target instanceof TargetResult.PointTarget pt && pt.onBlock()) {
-            renderBlockTargetHighlight(pt.tile(), frame);
+        if (indicator != AimIndicator.NONE) {
+            renderTargetHighlight(target, frame);
         }
     }
 
