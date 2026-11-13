@@ -2,15 +2,26 @@ package com.mercuriusxeno.goo.client.outsider;
 
 import com.mercuriusxeno.goo.ability.outsider.OutsiderRooms;
 import com.mercuriusxeno.goo.ability.outsider.RoomExtent;
+import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
+import com.mercuriusxeno.goo.client.ber.DimensionDoorRenderer;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 
 /**
  * Covers the sky funnel's shape and place: a door-width pillar standing from
@@ -31,6 +42,9 @@ class SkyFunnelTest {
     private static final double A_THOUSAND_TIMES = 1000;
     private static final double NINE_TENTHS = 0.9;
     private static final double QUARTER_BLOCK = 0.25;
+    private static final int DOORWAY_CELLS = 2;
+    /** How far outside the wall's edge a point may read, in square blocks of turn, and still stand on it. */
+    private static final double ON_THE_WALL = 1.0E-9;
 
     @Nested
     class Profile {
@@ -85,19 +99,73 @@ class SkyFunnelTest {
         }
 
         @Test
-        void theWallEnclosesBothDoorwayCells() {
-            double upperTop = OutsiderRooms.doorOf(0).above().getY() + 1;
+        void theWallEnclosesTheDoorwaysSheetInBothCells() {
             for (RoomExtent.Bounds bounds : List.of(NEAR_ROOM, FAR_ROOM)) {
-                List<List<Vec3>> doorwayRings = SkyFunnel.rings(bounds).stream()
-                        .filter(ring -> ring.getFirst().y() <= upperTop).toList();
-                assertFalse(doorwayRings.isEmpty(), "rings stand round the doorway");
-                for (List<Vec3> ring : doorwayRings) {
-                    Vec3 first = ring.getFirst();
-                    double radius = Math.hypot(first.x() - (bounds.centerX() + HALF_BLOCK),
-                            first.z() - (bounds.centerZ() + HALF_BLOCK));
-                    assertTrue(radius >= HALF_BLOCK - EXACT, "no narrower than the doorway's half width");
+                List<List<Vec3>> rings = SkyFunnel.rings(bounds);
+                List<Vec3> sheet = doorwaySheetOf(bounds);
+                assertFalse(sheet.isEmpty(), "the doorway draws its sheet");
+                for (Vec3 corner : sheet) {
+                    assertTrue(insideWallAt(rings, corner), "the sheet's corner " + corner + " inside the wall");
                 }
             }
+        }
+
+        /**
+         * The doorway's sheet in both cells, as DimensionDoorRenderer draws
+         * it in each cell, placed in the world at the room's center column.
+         */
+        private List<Vec3> doorwaySheetOf(RoomExtent.Bounds bounds) {
+            int foot = OutsiderRooms.doorOf(0).getY();
+            List<Vec3> corners = new ArrayList<>();
+            for (int cell = 0; cell < DOORWAY_CELLS; cell++) {
+                RecordingVertexConsumer vertices = new RecordingVertexConsumer();
+                SubmitNodeCollector collector = mock(SubmitNodeCollector.class);
+                doAnswer(call -> {
+                    PoseStack at = call.getArgument(0);
+                    SubmitNodeCollector.CustomGeometryRenderer renderer = call.getArgument(2);
+                    renderer.render(at.last(), vertices);
+                    return null;
+                }).when(collector).submitCustomGeometry(any(PoseStack.class), any(RenderType.class), any());
+                PoseStack pose = new PoseStack();
+                pose.translate(0, cell, 0);
+                new DimensionDoorRenderer(null).submit(new BlockEntityRenderState(), pose, collector,
+                        mock(CameraRenderState.class));
+                for (RecordingVertexConsumer.Vertex vertex : vertices.vertices()) {
+                    corners.add(new Vec3(bounds.centerX() + vertex.x(), foot + vertex.y(),
+                            bounds.centerZ() + vertex.z()));
+                }
+            }
+            return corners;
+        }
+
+        /**
+         * Whether a point stands inside or on the wall's cross-section at its
+         * height: the polygon the quad band spanning that height cuts there,
+         * each vertex read along its band's edge.
+         */
+        private boolean insideWallAt(List<List<Vec3>> rings, Vec3 point) {
+            for (int band = 0; band < rings.size() - 1; band++) {
+                List<Vec3> lower = rings.get(band);
+                List<Vec3> upper = rings.get(band + 1);
+                double low = lower.getFirst().y();
+                double high = upper.getFirst().y();
+                if (point.y() < low || point.y() > high) {
+                    continue;
+                }
+                double along = (point.y() - low) / (high - low);
+                for (int segment = 0; segment < lower.size(); segment++) {
+                    int next = (segment + 1) % lower.size();
+                    Vec3 from = lower.get(segment).lerp(upper.get(segment), along);
+                    Vec3 to = lower.get(next).lerp(upper.get(next), along);
+                    double turn = (to.x() - from.x()) * (point.z() - from.z())
+                            - (to.z() - from.z()) * (point.x() - from.x());
+                    if (turn < -ON_THE_WALL) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            return false;
         }
     }
 
