@@ -113,6 +113,63 @@ public final class OutsiderTests {
         GooTestFunctions.registerTest(registrar, OUTSIDER_RESET_LAYS_THE_EXTENT, OutsiderTests::resetLaysTheExtent);
         GooTestFunctions.registerTest(registrar, OUTSIDER_RESET_CLEARS_THE_ROOM, OutsiderTests::resetClearsTheRoom);
         GooTestFunctions.registerTest(registrar, OUTSIDER_RESET_BOUNDS_THE_BUILD, OutsiderTests::resetBoundsTheBuild);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_RESET_SETS_THE_CALLER_AT_THE_DOOR,
+                OutsiderTests::resetSetsTheCallerAtTheDoor);
+        GooTestFunctions.registerTest(registrar, OUTSIDER_RESET_LEAVES_AN_OUTSIDE_CALLER,
+                OutsiderTests::resetLeavesAnOutsideCaller);
+    }
+
+    private static final String OUTSIDER_RESET_SETS_THE_CALLER_AT_THE_DOOR = "outsider_reset_sets_the_caller_at_the_door";
+    private static final String OUTSIDER_RESET_LEAVES_AN_OUTSIDE_CALLER = "outsider_reset_leaves_an_outside_caller";
+    private static final String SHOULD_SET_AT_THE_DOOR = "A caller in their grown room should stand after the reset at "
+            + "%s facing %.1f in goo:pocket, stands at %s facing %.1f in %s";
+    private static final String SHOULD_LEAVE_OUTSIDE = "A caller outside the pocket should stand after the reset at %s "
+            + "in %s with the extent at %.1f, stands at %s in %s with the extent at %.1f";
+
+    /**
+     * A player standing far out in their grown room runs the reset and
+     * stands after it on the arrival cell south of the doorway, facing the door
+     * (decision reset-sets-a-player-in-the-room-back-at-the-doorway).
+     *
+     * @param helper the gametest helper
+     */
+    public static void resetSetsTheCallerAtTheDoor(GameTestHelper helper) {
+        ServerPlayer player = grownRoomHolder(helper);
+        int room = OutsiderRooms.roomOf((ServerLevel) player.level(), player.getUUID());
+        BlockPos farOut = OutsiderRooms.voidstoneOf(room).east(IN_THE_GROWN_RING).south(IN_THE_GROWN_RING).above();
+        player.setPos(Vec3.atBottomCenterOf(farOut));
+        player.setYRot(CAST_YAW);
+        runReset(helper, player);
+        Vec3 arrival = arrivalOf(room);
+        helper.assertTrue(player.level().dimension() == OutsiderRooms.POCKET && player.position().equals(arrival)
+                        && player.getYRot() == FACING_DOOR,
+                String.format(SHOULD_SET_AT_THE_DOOR, arrival, FACING_DOOR, player.position(), player.getYRot(),
+                        player.level().dimension().identifier()));
+        helper.succeed();
+    }
+
+    /**
+     * A player outside the pocket runs the reset and stands where they ran
+     * it, in the level they ran it in, while their room's extent reads as laid
+     * (decision reset-sets-a-player-in-the-room-back-at-the-doorway).
+     *
+     * @param helper the gametest helper
+     */
+    public static void resetLeavesAnOutsideCaller(GameTestHelper helper) {
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
+        ServerLevel pocket = helper.getLevel().getServer().getLevel(OutsiderRooms.POCKET);
+        helper.assertTrue(pocket != null, "The server should hold the pocket dimension");
+        OutsiderRooms.layRoomFor(pocket, player.getUUID());
+        VoidPockets.get(pocket).keepPlatform(player.getUUID(), new VoidPockets.Platform(GROWN));
+        ServerLevel level = (ServerLevel) player.level();
+        Vec3 standing = player.position();
+        runReset(helper, player);
+        double extent = OutsiderRooms.extentOf(pocket, player.getUUID());
+        helper.assertTrue(player.level() == level && player.position().equals(standing)
+                        && Double.compare(extent, RoomExtent.LAID) == 0,
+                String.format(SHOULD_LEAVE_OUTSIDE, standing, level.dimension().identifier(), RoomExtent.LAID,
+                        player.position(), player.level().dimension().identifier(), extent));
+        helper.succeed();
     }
 
     private static final String OUTSIDER_RESET_LAYS_THE_EXTENT = "outsider_reset_lays_the_extent";
