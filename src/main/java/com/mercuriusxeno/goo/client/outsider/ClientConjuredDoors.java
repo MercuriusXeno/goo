@@ -144,7 +144,7 @@ public final class ClientConjuredDoors {
             localRelease = null;
             return Optional.empty();
         }
-        ConjuredDoor door = ConjuredDoor.releasing(look.feet(), look.yaw(), tick, ConjuredDoor.RELEASE_TICKS);
+        ConjuredDoor door = ConjuredDoor.releasing(look.feet(), look.yaw(), tick);
         return Optional.of(new Drawn(door.at(), look.yaw(), door.unzipped(), door.widened()));
     }
 

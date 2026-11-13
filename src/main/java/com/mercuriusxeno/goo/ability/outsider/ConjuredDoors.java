@@ -73,7 +73,7 @@ public final class ConjuredDoors {
 
         Release at(int now) {
             return new Release(arriver, feet, yaw, start,
-                    ConjuredDoor.releasing(feet, yaw, now - start, ConjuredDoor.RELEASE_TICKS));
+                    ConjuredDoor.releasing(feet, yaw, now - start));
         }
 
         boolean overAt(int now) {
@@ -119,7 +119,7 @@ public final class ConjuredDoors {
      */
     static void releaseAt(ServerPlayer arriver, int now) {
         Release release = new Release(arriver, arriver.position(), arriver.getYRot(), now,
-                ConjuredDoor.releasing(arriver.position(), arriver.getYRot(), 0, ConjuredDoor.RELEASE_TICKS));
+                ConjuredDoor.releasing(arriver.position(), arriver.getYRot(), 0));
         RELEASES.put(arriver.getUUID(), release);
         sendDoor(arriver, release.door());
     }
@@ -178,6 +178,16 @@ public final class ConjuredDoors {
     public static void onServerTick(ServerTickEvent.Post event) {
         int now = event.getServer().getTickCount();
         DOORS.values().removeIf(standing -> now - standing.tick() > OUTLASTS);
+        moveReleasesAt(now);
+    }
+
+    /**
+     * Drops each release whose ticks have passed, and moves the rest on to a
+     * server tick, sending each.
+     *
+     * @param now the server tick
+     */
+    static void moveReleasesAt(int now) {
         RELEASES.values().removeIf(release -> release.overAt(now));
         RELEASES.replaceAll((arriver, release) -> {
             Release moved = release.at(now);

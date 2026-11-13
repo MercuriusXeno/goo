@@ -48,30 +48,38 @@ public record ConjuredDoor(Vec3 at, float yaw, double unzipped, double widened, 
         GROWING,
         /** Unzipped to the floor, widening as it moves into the caster. */
         ENVELOPING,
-        /** In the room, moving off the arriver the way they face and closing back to a crack. */
+        /** In the room, moving off the arriver the way they face, narrowing to a slash, then zipping up. */
         RELEASING
     }
 
-    /** The ticks a releasing door takes to move off its arriver and close. */
-    public static final int RELEASE_TICKS = 10;
+    /** The ticks a releasing door takes to move off its arriver, narrowing to a slash. */
+    public static final int MOVE_OFF_TICKS = 10;
+    /** The ticks the slash then takes to zip up to a pixel: a starting value for the operator to judge. */
+    public static final int ZIP_UP_TICKS = 10;
+    /** The ticks a whole release takes. */
+    public static final int RELEASE_TICKS = MOVE_OFF_TICKS + ZIP_UP_TICKS;
 
     /**
-     * The door releasing a player into their room, the entry's motion
-     * reversed: on their feet at full width as they arrive, then moving off
-     * them the way they face to its stand-off, narrowing back to a slash as
-     * it goes.
+     * The door releasing a player into their room, the entry played in
+     * full reverse on one clock: on their feet at full width as they arrive,
+     * moving off them the way they face to its stand-off, narrowing back to
+     * a slash as it goes, then zipping up from the floor to a pixel at the
+     * doorway's head.
      * decision matching-doorway-opens-in-the-room-and-releases-you
+     * decision release-doorway-plays-the-unzip-in-full-reverse
      *
-     * @param feet         the arriver's feet
-     * @param yaw          the arriver's yaw, in degrees
-     * @param tick         the release's ticks so far, partial between ticks
-     * @param releaseTicks the ticks the release takes
+     * @param feet the arriver's feet
+     * @param yaw  the arriver's yaw, in degrees
+     * @param tick the release's ticks so far, partial between ticks
      * @return the door
      */
-    public static ConjuredDoor releasing(Vec3 feet, float yaw, double tick, int releaseTicks) {
-        double released = Math.clamp(tick / Math.max(1, releaseTicks), 0, 1);
-        double crossed = 1 - released;
-        return new ConjuredDoor(placedAt(feet, yaw, crossed), yaw, 1, crossed, crossed, Phase.RELEASING);
+    public static ConjuredDoor releasing(Vec3 feet, float yaw, double tick) {
+        if (tick <= MOVE_OFF_TICKS) {
+            double crossed = 1 - Math.clamp(tick / MOVE_OFF_TICKS, 0, 1);
+            return new ConjuredDoor(placedAt(feet, yaw, crossed), yaw, 1, crossed, crossed, Phase.RELEASING);
+        }
+        double unzipped = 1 - Math.clamp((tick - MOVE_OFF_TICKS) / ZIP_UP_TICKS, 0, 1);
+        return new ConjuredDoor(placedAt(feet, yaw, 0), yaw, unzipped, 0, 0, Phase.RELEASING);
     }
 
     /**

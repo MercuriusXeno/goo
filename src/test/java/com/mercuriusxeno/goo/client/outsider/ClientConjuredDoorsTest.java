@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Covers the client drawing a conjured door: it unzips and widens smoothly
@@ -99,19 +100,24 @@ class ClientConjuredDoorsTest {
         }
 
         @Test
-        void waitsOnTheCoverThenPlaysFromTheFrameItClears() {
-            ClientConjuredDoors.takeLocalRelease(ConjuredDoor.releasing(FEET, 0f, 0, ConjuredDoor.RELEASE_TICKS));
+        void waitsOnTheCoverThenPlaysTheWholeReleaseFromTheFrameItClears() {
+            ClientConjuredDoors.takeLocalRelease(ConjuredDoor.releasing(FEET, 0f, 0));
             ClientConjuredDoors.Look look = new ClientConjuredDoors.Look(FEET, 0f);
+            double cleared = 40;
 
             assertFalse(ClientConjuredDoors.releasedAt(5, look, true).isPresent(), "nothing shows under the cover");
-            assertEquals(1, ClientConjuredDoors.releasedAt(40, look, false).orElseThrow().widened(), EXACT,
+            assertEquals(1, ClientConjuredDoors.releasedAt(cleared, look, false).orElseThrow().widened(), EXACT,
                     "full width the frame the cover clears");
-            double halfway = 40 + ConjuredDoor.RELEASE_TICKS / 2.0;
-            ClientConjuredDoors.Drawn moving = ClientConjuredDoors.releasedAt(halfway, look, false).orElseThrow();
-            assertEquals(0.5, moving.widened(), EXACT, "half closed halfway through");
+            double movingOff = cleared + ConjuredDoor.MOVE_OFF_TICKS / 2.0;
+            ClientConjuredDoors.Drawn moving = ClientConjuredDoors.releasedAt(movingOff, look, false).orElseThrow();
+            assertEquals(0.5, moving.widened(), EXACT, "half narrowed halfway through the move-off");
             assertEquals(ConjuredDoor.STANDS_OFF / 2, moving.at().distanceTo(FEET), EXACT, "half its stand-off off");
-            assertFalse(ClientConjuredDoors.releasedAt(40 + ConjuredDoor.RELEASE_TICKS + 1, look, false).isPresent(),
-                    "gone once its release ticks pass");
+            double zippingUp = cleared + ConjuredDoor.MOVE_OFF_TICKS + ConjuredDoor.ZIP_UP_TICKS / 2.0;
+            ClientConjuredDoors.Drawn zipping = ClientConjuredDoors.releasedAt(zippingUp, look, false).orElseThrow();
+            assertEquals(0, zipping.widened(), EXACT, "a slash during the zip-up");
+            assertTrue(zipping.unzipped() < 1, "zipping up, unzipped " + zipping.unzipped());
+            double past = cleared + ConjuredDoor.MOVE_OFF_TICKS + ConjuredDoor.ZIP_UP_TICKS + 1;
+            assertFalse(ClientConjuredDoors.releasedAt(past, look, false).isPresent(), "gone once the release ends");
         }
     }
 
