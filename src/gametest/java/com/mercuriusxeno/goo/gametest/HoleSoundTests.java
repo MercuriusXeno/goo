@@ -86,7 +86,7 @@ public final class HoleSoundTests {
     public static void openingWubsPitchedUp(GameTestHelper helper) {
         ServerPlayer owner = ownerOnTheFloor(helper);
         PacketRecorder heard = PacketRecorder.attachTo(owner);
-        Vec3 middle = openOn(helper, owner, HoleTests.FLOOR, HoleTests.LIFETIME);
+        Vec3 middle = openOn(helper, owner, HoleTests.FLOOR, HoleTests.UNCAST_LIFETIME);
         List<ClientboundSoundPacket> opening = heardNear(heard, middle,GooSoundIds.HOLE_OPEN);
         List<ClientboundSoundPacket> chest = heardNear(heard, middle,ENDER_CHEST_OPEN);
         helper.getLevel().getServer().getPlayerList().remove(owner);
@@ -105,7 +105,7 @@ public final class HoleSoundTests {
         ServerPlayer owner = HoleTests.caster(helper, 1);
         HoleTests.layFloor(helper, cell -> true);
         PacketRecorder heard = PacketRecorder.attachTo(owner);
-        Vec3 middle = openOn(helper, owner, HoleTests.FLOOR, HoleTests.LIFETIME);
+        Vec3 middle = openOn(helper, owner, HoleTests.FLOOR, HoleTests.UNCAST_LIFETIME);
         CommonHooks.onLeftClickBlock(owner, helper.absolutePos(HoleTests.CORNER), Direction.UP,
                 ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK);
         helper.runAfterDelay(1, () -> {
@@ -153,8 +153,8 @@ public final class HoleSoundTests {
         ServerPlayer owner = ownerOnTheFloor(helper);
         helper.setBlock(SECOND_FLOOR, Blocks.STONE);
         PacketRecorder heard = PacketRecorder.attachTo(owner);
-        Vec3 middle = openOn(helper, owner, HoleTests.FLOOR, HoleTests.LIFETIME);
-        openOn(helper, owner, SECOND_FLOOR, HoleTests.LIFETIME);
+        Vec3 middle = openOn(helper, owner, HoleTests.FLOOR, HoleTests.UNCAST_LIFETIME);
+        openOn(helper, owner, SECOND_FLOOR, HoleTests.UNCAST_LIFETIME);
         helper.runAfterDelay(SETTLE, () -> {
             List<ClientboundSoundPacket> opening = heardNear(heard, middle,GooSoundIds.HOLE_OPEN);
             List<ClientboundSoundPacket> closing = heardNear(heard, middle,GooSoundIds.HOLE_CLOSE);
@@ -177,7 +177,7 @@ public final class HoleSoundTests {
         ServerPlayer owner = ownerOnTheFloor(helper);
         ServerPlayer onlooker = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
         PacketRecorder heard = PacketRecorder.attachTo(onlooker);
-        Vec3 middle = openOn(helper, owner, HoleTests.FLOOR, HoleTests.LIFETIME);
+        Vec3 middle = openOn(helper, owner, HoleTests.FLOOR, HoleTests.UNCAST_LIFETIME);
         helper.runAfterDelay(1, () -> {
             ServerLevel nether = helper.getLevel().getServer().getLevel(Level.NETHER);
             owner.teleportTo(nether, 0.5, 64, 0.5, Set.of(), 0F, 0F, false);
@@ -208,7 +208,7 @@ public final class HoleSoundTests {
      */
     private static Vec3 openOn(GameTestHelper helper, ServerPlayer owner, BlockPos floor, int lifetime) {
         HoleOpening.open(helper.getLevel(), owner, helper.absolutePos(floor), Direction.UP, lifetime,
-                HoleTests.REFRESH);
+                HoleTests.UNCAST_REFRESH);
         Optional<PortableHole> hole = PortableHoles.of(owner.getUUID());
         helper.assertTrue(hole.isPresent(), "The hole should stand once opened");
         return hole.get().mouth().getCenter();

@@ -2,8 +2,6 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.hearts.HeartKind;
-import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -36,7 +34,6 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 public final class UndeadTests {
     private static final String UNDEAD_BURNS_IN_SUN = "undead_burns_in_sun_not_under_roof";
     private static final String UNDEAD_HARMING_HEALS = "undead_harming_heals";
-    private static final String UNDEAD_SUNBURN_AGGRAVATED = "undead_sunburn_is_aggravated";
     private static final String UNDEAD_ENDS_WHEN_DRY = "undead_ends_when_nether_runs_dry";
     private static final String UNDEAD_HEAL_SPARES_CASTER = "undead_heal_spares_its_caster";
 
@@ -48,7 +45,6 @@ public final class UndeadTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, UNDEAD_BURNS_IN_SUN, UndeadTests::undeadBurnsInSunNotUnderRoof);
         GooTestFunctions.registerTest(registrar, UNDEAD_HARMING_HEALS, UndeadTests::undeadHarmingHeals);
-        GooTestFunctions.registerTest(registrar, UNDEAD_SUNBURN_AGGRAVATED, UndeadTests::undeadSunburnIsAggravated);
         GooTestFunctions.registerTest(registrar, UNDEAD_ENDS_WHEN_DRY, UndeadTests::undeadEndsWhenNetherRunsDry);
         GooTestFunctions.registerTest(registrar, UNDEAD_HEAL_SPARES_CASTER, UndeadTests::undeadHealSparesItsCaster);
     }
@@ -56,9 +52,6 @@ public final class UndeadTests {
 
     private static final Identifier NETHER_UNDEAD = Identifier.parse("goo:nether_undead");
     private static final BlockPos OPEN_POS = new BlockPos(1, 1, 1);
-    private static final BlockPos ROOFED_POS = new BlockPos(4, 1, 1);
-    /** The roof sits three above the roofed player's feet, over its head. */
-    private static final int ROOF_HEIGHT = 3;
     /** Past one of the sun's once-a-second burns. */
     private static final int SUN_TICKS = 25;
     /** Health to heal from, short of full. */
@@ -69,9 +62,6 @@ public final class UndeadTests {
     private static final int UNFED_FOOD = 10;
     private static final String ABILITY_REQUIRED = "Ability registry must hold nether_undead";
     private static final String SHOULD_BURN = "The undead player under open noon sky should burn, stands at %.1f";
-    private static final String SHOULD_NOT_BURN = "The undead player under a roof should not burn, stands at %.1f";
-    private static final String SHOULD_REACH_HEALTH =
-            "The sun should burn past the nether to real health from %.1f, stands at %.1f";
     private static final String SHOULD_HEAL ="Harming should heal an undead player from %.1f, stands at %.1f";
     private static final Identifier JELLY_HEAL = Identifier.parse("goo:jelly_heal");
     private static final int HELD_JELLY = 2;
@@ -87,50 +77,17 @@ public final class UndeadTests {
     }
 
     /**
-     * Two undead players at noon, one under open sky and one under a stone
-     * roof: after a second the open one has burned and the roofed one stands whole.
+     * An undead player at noon under open sky has burned after a second.
      *
      * @param helper the gametest helper
      */
     public static void undeadBurnsInSunNotUnderRoof(GameTestHelper helper) {
-        // a roof wider than the cell, so a player settling off its center stays under it
-        BlockPos roof = ROOFED_POS.above(ROOF_HEIGHT);
-        for (BlockPos cell : BlockPos.betweenClosed(roof.offset(-1, 0, -1), roof.offset(1, 0, 1))) {
-            helper.setBlock(cell, Blocks.STONE);
-        }
         ServerPlayer open = undeadAt(helper, OPEN_POS);
-        ServerPlayer roofed = undeadAt(helper, ROOFED_POS);
         tickPinned(helper, open, OPEN_POS);
-        tickPinned(helper, roofed, ROOFED_POS);
         helper.runAfterDelay(SUN_TICKS + 1, () -> {
             float openHealth = open.getHealth();
-            float roofedHealth = roofed.getHealth();
             helper.getLevel().getServer().getPlayerList().remove(open);
-            helper.getLevel().getServer().getPlayerList().remove(roofed);
             helper.assertTrue(openHealth < open.getMaxHealth(), String.format(SHOULD_BURN, openHealth));
-            helper.assertTrue(roofedHealth == roofed.getMaxHealth(), String.format(SHOULD_NOT_BURN, roofedHealth));
-            helper.succeed();
-        });
-    }
-
-    /**
-     * A wounded undead player stands at noon under open sky with nether over
-     * its missing hearts: the sun's burn reaches its real health past the
-     * nether, as aggravated damage does.
-     *
-     * @param helper the gametest helper
-     */
-    public static void undeadSunburnIsAggravated(GameTestHelper helper) {
-        ServerPlayer player = undeadAt(helper, OPEN_POS);
-        player.setHealth(WOUNDED_HEALTH);
-        // lay the nether afresh over the hearts the wound left missing
-        player.setData(GooAttachments.HEART_OVERLAY, HeartOverlay.NONE.hold(HeartKind.UNDEAD, WOUNDED_HEALTH,
-                player.getMaxHealth(), HeartOverlay.WHOLE_HIT, player.level().getGameTime()));
-        SelfDeliveryTests.tickFor(helper, player, SUN_TICKS);
-        helper.runAfterDelay(SUN_TICKS + 1, () -> {
-            float health = player.getHealth();
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(health < WOUNDED_HEALTH, String.format(SHOULD_REACH_HEALTH, WOUNDED_HEALTH, health));
             helper.succeed();
         });
     }

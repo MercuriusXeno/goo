@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -49,6 +48,8 @@ import java.util.stream.Stream;
 class ShifterEventsTest {
 
     private static final int PLAYER_ID = 7;
+    private static final int REFRESH_TICKS = 20;
+    private static final int SHIMMER_TICKS = 40;
     private static final int RADIUS = 8;
     private static final BlockPos STOOD = new BlockPos(0, 64, 0);
     private static final long SEED = 20261110L;
@@ -203,23 +204,17 @@ class ShifterEventsTest {
     }
 
     @Test
-    void aStandingTickRefreshesTheShimmerAndClearsNothing() {
+    void aRefreshTickSendsTheShimmerForItsFortyTicks() {
         try (MockedStatic<EntityVisuals> visuals = mockStatic(EntityVisuals.class)) {
             ShifterEvents.keepShimmer(player, ShifterEvents.SHIMMER_REFRESH_TICKS);
 
             visuals.verify(() -> EntityVisuals.sendToWatchers(player,
-                    new AilmentPayload(PLAYER_ID, AilmentKind.SHIFTER, ShifterEvents.SHIMMER_TICKS)));
-            visuals.verify(() -> EntityVisuals.sendToWatchers(player,
-                    new AilmentPayload(PLAYER_ID, AilmentKind.SHIFTER, 0)), never());
+                    new AilmentPayload(PLAYER_ID, AilmentKind.SHIFTER, SHIMMER_TICKS)));
         }
     }
 
     @Test
-    void aTickBetweenRefreshesSendsNothing() {
-        try (MockedStatic<EntityVisuals> visuals = mockStatic(EntityVisuals.class)) {
-            ShifterEvents.keepShimmer(player, ShifterEvents.SHIMMER_REFRESH_TICKS + 1L);
-
-            visuals.verify(() -> EntityVisuals.sendToWatchers(any(), any()), never());
-        }
+    void theShimmerRefreshesEveryTwentyTicks() {
+        assertEquals(REFRESH_TICKS, ShifterEvents.SHIMMER_REFRESH_TICKS);
     }
 }

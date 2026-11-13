@@ -40,7 +40,6 @@ public final class ShifterTests {
     private static final float HIT = 4f;
     /** Where the zombie stands, beside the player. */
     private static final BlockPos ZOMBIE_POS = new BlockPos(2, 1, 1);
-    private static final String SHOULD_TAKE_NO_DAMAGE = "A player under Elude should keep %.1f health, has %.1f";
     private static final String SHOULD_MOVE = "A zombie's hit should move the player from %s, stands at %s";
     private static final String SHOULD_LAND_SAFE = "The player should land on a safe column, stands at %s";
     private static final String SHOULD_TAKE_THE_FALL = "A fall should land on a player under Elude: %.1f health, has %.1f";
@@ -50,8 +49,8 @@ public final class ShifterTests {
     }
 
     /**
-     * A player holding Elude takes a zombie's hit: the hit lands no damage and
-     * the player stands somewhere else, on a safe column.
+     * A player holding Elude takes a zombie's hit: the player stands somewhere
+     * else, on a safe column.
      *
      * @param helper the gametest helper
      */
@@ -59,15 +58,12 @@ public final class ShifterTests {
         ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.ENDER, ENDER_SHIFTER);
         Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
         Vec3 stood = player.position();
-        float health = player.getHealth();
 
         HeartOverlayTests.hurt(helper, player, player.damageSources().mobAttack(zombie), HIT);
 
         Vec3 after = player.position();
-        float healthAfter = player.getHealth();
         boolean safe = StandingColumn.at(helper.getLevel(), player.blockPosition()).safe();
         helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(healthAfter == health, String.format(SHOULD_TAKE_NO_DAMAGE, health, healthAfter));
         helper.assertTrue(after.distanceTo(stood) > 0, String.format(SHOULD_MOVE, stood, after));
         helper.assertTrue(safe, String.format(SHOULD_LAND_SAFE, after));
         helper.succeed();

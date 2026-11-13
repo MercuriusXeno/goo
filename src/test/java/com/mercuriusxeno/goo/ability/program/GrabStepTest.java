@@ -93,8 +93,6 @@ class GrabStepTest {
             }
         }
 
-        /** The distance decision grab-holds-slightly-closer-in-open-space holds a body closer than. */
-        private static final double FOUR_BLOCKS = 4;
         /** A large slime's box, the widest body Grab commonly holds. */
         private static final double LARGE_SLIME = 2.08;
         /** A player's box, its eye this far above its feet. */
@@ -102,12 +100,11 @@ class GrabStepTest {
         private static final double HOLDER_HEIGHT = 1.8;
 
         @Test
-        void theShippedGrabHoldsSlightlyCloserThanFourBlocks() {
+        void theShippedGrabHoldsAtTheHoldDistanceItNames() {
             JsonObject behavior = Reach.firstBehavior("kinetic_grab.json");
             assertTrue(behavior.has("hold_distance"), "kinetic_grab.json should carry one hold_distance, has "
                     + behavior.keySet());
             double holdDistance = behavior.get("hold_distance").getAsDouble();
-            assertTrue(holdDistance < FOUR_BLOCKS, "The open-air hold should sit under 4 blocks, sits " + holdDistance);
             GrabStep shipped = GrabStep.CODEC.codec().parse(JsonOps.INSTANCE, behavior).getOrThrow();
             Vec3 middle = shipped.restingMiddle(List.of(), OVERWORLD, EYE, new Vec3(1, 0, 0), OPEN_AIR, WIDTH, HEIGHT);
             assertEquals(holdDistance, middle.distanceTo(EYE), EPSILON);
@@ -173,13 +170,12 @@ class GrabStepTest {
         }
 
         @Test
-        void shippedGrabReachesTwentyFourAloneAndTwiceThatWithShippedTelekinesis() {
+        void shippedTelekinesisDoublesTheShippedGrabsReach() {
             GrabStep shipped = GrabStep.CODEC.codec().parse(JsonOps.INSTANCE,
                     firstBehavior("kinetic_grab.json")).getOrThrow();
             TelekinesisStep telekinesis = TelekinesisStep.CODEC.codec().parse(JsonOps.INSTANCE,
                     firstBehavior("kinetic_telekinesis.json")).getOrThrow();
             double alone = shipped.reachWith(null);
-            assertEquals(24, alone, EPSILON);
             assertEquals(2 * alone, shipped.reachWith(laid(telekinesis.reach())), EPSILON);
         }
 

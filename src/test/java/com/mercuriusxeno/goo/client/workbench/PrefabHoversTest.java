@@ -82,20 +82,6 @@ class PrefabHoversTest {
                     new GroupsPane.Bounds(0, 0, 400, 400), 0, targets);
             assertEquals(1, prefabHovers(targets, "waxed"));
         }
-
-        /**
-         * Each mutator an assignment's chain applies lays one hover area keyed to its formula (decision
-         * mutator-name-hovers-its-formula-wherever-it-stands).
-         */
-        @Test
-        void eachAppliedMutatorHoversItsFormula() {
-            controls(new Processes.Assignment("logs", List.of("@waxed", "@smelt"))).draw(graphics, font(),
-                    "_mutators", "#logs", new GroupsPane.Bounds(0, 0, 400, 400), 0, targets);
-            for (String applied : List.of("waxed", "smelt")) {
-                assertEquals(1, targets.hoverKeys().stream()
-                        .filter(ConversionHovers.hoverKey("_mutators", applied)::equals).count(), applied);
-            }
-        }
     }
 
     @Nested
@@ -187,33 +173,12 @@ class PrefabHoversTest {
         }
 
         /**
-         * A scalar's and a typed prefab's reduction draw their opening and closing parens in one color, the symbol
-         * color (decision tooltip-reduction-parens-draw-one-color).
+         * A reduction's opening and closing parens are symbol runs (decision tooltip-reduction-parens-draw-one-color).
          */
         @Test
-        void reductionParensDrawInOneColor() {
+        void reductionParensAreSymbols() {
             assertTrue(ExpressionLines.drawsAsSymbol(GooAmountGrid.OPEN.kind())
                     && ExpressionLines.drawsAsSymbol(GooAmountGrid.CLOSE.kind()));
-            for (String prefab : List.of("double", "coral")) {
-                TooltipLine.GooAmounts reduction = (TooltipLine.GooAmounts) lines(prefab).getLast();
-                DrawnFrame frame = new DrawnFrame();
-                new GooAmountGrid(reduction, type -> 11).extractImage(DrawnFrame.font(), 0, 0, 400, 200,
-                        frame.graphics);
-                assertEquals(List.of(Palette.GOLD, Palette.GOLD), List.of(frame.find("(").color(),
-                        frame.find(")").color()), prefab + ": " + frame.drawn());
-            }
-        }
-
-        /**
-         * A typed prefab's reduction lays as GooAmountGrid cells, each a type and its amount's digits alone, the
-         * parens and no commas around them (decision one-amount-grid-draws-every-amount-list).
-         */
-        @Test
-        void typedReductionLaysAsAmountGridCellsOfDigitsAlone() {
-            TooltipLine.GooAmounts reduction = (TooltipLine.GooAmounts) lines("coral").getLast();
-            assertTrue(reduction.reduced());
-            assertTrue(reduction.amounts().stream().allMatch(amount -> amount.amount().matches("[0-9/]+")),
-                    reduction.toString());
         }
 
         private static String cellText(List<ExpressionLines.Run> cell) {

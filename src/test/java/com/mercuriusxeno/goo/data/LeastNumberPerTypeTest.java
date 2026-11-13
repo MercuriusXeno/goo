@@ -15,7 +15,6 @@ import static com.mercuriusxeno.goo.data.TestRecipeBuilder.id;
 import static com.mercuriusxeno.goo.data.TestRecipeBuilder.recipe;
 import static com.mercuriusxeno.goo.data.TestRecipeBuilder.slot;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -61,6 +60,10 @@ class LeastNumberPerTypeTest {
         return type.items().stream().filter(r -> r.item().equals(id(item))).findFirst().orElseThrow();
     }
 
+    private static List<Identifier> itemIds(LeastNumberPerType.TypeLeastValue type) {
+        return type.items().stream().map(LeastNumberPerType.ItemBound::item).toList();
+    }
+
     private static String[][] slots(String item, int count) {
         String[][] slots = new String[count][];
         for (int i = 0; i < count; i++) {
@@ -89,7 +92,6 @@ class LeastNumberPerTypeTest {
 
         assertEquals(GooFraction.of(1), item(rock, PANE).bound());
         assertEquals(GooFraction.of(8, 3), item(rock, GLASS).bound());
-        rock.items().forEach(bound -> assertTrue(bound.bound().compareTo(GooFraction.of(1)) >= 0, bound.line()));
         assertEquals(List.of("  rock: 8/3 at minecraft:glass (melts 2, costs 3)",
                 "    minecraft:glass: 8/3 (melts 2, costs 3) = 6 minecraft:glass -> 16 minecraft:glass_pane",
                 "    minecraft:glass_pane: 1 (melts 1, costs 1)"), rock.lines());
@@ -119,7 +121,7 @@ class LeastNumberPerTypeTest {
         LeastNumberPerType.TypeLeastValue rock = onlyType(dyeChain(), dyeChainValues(), GooTypes.ROCK);
 
         assertEquals(GooFraction.of(8, 3), item(rock, GLASS).bound());
-        assertFalse(rock.items().stream().anyMatch(bound -> bound.item().equals(id(DYE))));
+        assertEquals(List.of(id(GLASS), id(STAINED), id(STAINED_PANE)), itemIds(rock));
     }
 
     @Test
@@ -146,7 +148,7 @@ class LeastNumberPerTypeTest {
         assertEquals("    minecraft:milk_bucket: 2 net of minecraft:bucket (melts 2, costs 2)"
                 + " = 1 minecraft:milk_bucket -> 2 minecraft:cake", item(jelly, "minecraft:milk_bucket").line());
         assertEquals(GooFraction.of(1), item(metal, "minecraft:milk_bucket").bound());
-        assertFalse(metal.items().stream().anyMatch(bound -> bound.item().equals(id("minecraft:bucket"))));
+        assertEquals(List.of(id("minecraft:milk_bucket")), itemIds(metal));
     }
 
     @Test
@@ -237,11 +239,10 @@ class LeastNumberPerTypeTest {
                         recipe("minecraft:a", 2, slot("minecraft:b"))),
                 valued("minecraft:a", GooTypes.ROCK, 1, "minecraft:b", GooTypes.ROCK, 1), GooTypes.ROCK);
 
-        LeastNumberPerType.ItemBound a = item(rock, "minecraft:a");
-        assertFalse(a.resolvable());
-        assertTrue(a.cycle().containsAll(List.of("1 minecraft:a -> 2 minecraft:b", "1 minecraft:b -> 2 minecraft:a")));
-        assertTrue(a.line().contains("no least value"));
-        assertFalse(rock.resolvable());
+        assertEquals(List.of("  rock: no least value (a cycle never settles)",
+                "    minecraft:a: no least value (cycle: 1 minecraft:a -> 2 minecraft:b, 1 minecraft:b -> 2 minecraft:a)",
+                "    minecraft:b: no least value (cycle: 1 minecraft:b -> 2 minecraft:a, 1 minecraft:a -> 2 minecraft:b)"),
+                rock.lines());
     }
 
     @Test
@@ -273,7 +274,7 @@ class LeastNumberPerTypeTest {
                 List.of(recipe("minecraft:gravel", 2, slot("minecraft:stone", "minecraft:unvalued"))),
                 valued("minecraft:stone", GooTypes.ROCK, 1, "minecraft:gravel", GooTypes.ROCK, 1), GooTypes.ROCK);
 
-        assertEquals(2, rock.items().size());
+        assertEquals(List.of(id("minecraft:gravel"), id("minecraft:stone")), itemIds(rock));
         assertEquals(GooFraction.of(2), item(rock, "minecraft:stone").bound());
     }
 }

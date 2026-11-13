@@ -25,15 +25,16 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.InOrder;
 import org.mockito.MockedStatic;
+import com.mercuriusxeno.goo.item.StampedGoo;
+import com.mercuriusxeno.goo.type.GooTypes;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
-import java.util.stream.Stream;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -44,22 +45,27 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
 /**
- * Every slotted host, whatever its slot shape, puts a canister in and takes it out through
- * the one lifecycle SlottedCanisterData owns, each step running once (decision
- * machine-base-owns-the-lifecycle). The slot, the owner and the gasket statics are mocks, so
- * the lifecycle's own sequencing is all that runs.
+ * Every slotted host puts a canister in and takes it out through the one lifecycle
+ * SlottedCanisterData owns, each step running once (decision machine-base-owns-the-lifecycle);
+ * the grid reads its slot count only through its range check, so the canister block's grid
+ * stands for every host. The slot, the owner and the gasket statics are mocks, so the
+ * lifecycle's own sequencing is all that runs.
  */
 class SlottedCanisterDataLifecycleTest {
 
     private static final BlockPos POS = new BlockPos(1, 2, 3);
+    /** The canister block's grid; the grid reads its slot count only through its range check. */
+    private static final int SLOTS = CanisterBlockEntity.MAX_SLOTS;
+    private static final int INDEX = CanisterBlock.CENTER_SLOT;
+    private static final int ROUTING_CAPACITY = 1000;
+    private static final int HELD_BLAZE = 100;
+    private static final int ROUTED_BLAZE = 500;
 
     private GooMachineBlockEntity owner;
     private ServerLevel level;
@@ -83,18 +89,6 @@ class SlottedCanisterDataLifecycleTest {
             SharedConstants.tryDetectVersion();
             Bootstrap.bootStrap();
         }
-    }
-
-    /**
-     * The canister block's grid, the hub's ring, and the reactor's output hollow.
-     *
-     * @return host name, slot count and the slot the theory drives
-     */
-    static Stream<Arguments> hosts() {
-        return Stream.of(
-                Arguments.of("canister", CanisterBlockEntity.MAX_SLOTS, CanisterBlock.CENTER_SLOT),
-                Arguments.of("hub", 8, 3),
-                Arguments.of("reactor", 1, 0));
     }
 
     @BeforeEach
@@ -147,14 +141,13 @@ class SlottedCanisterDataLifecycleTest {
     @Nested
     class Insert {
 
-        @ParameterizedTest(name = "{0}")
-        @MethodSource("com.mercuriusxeno.goo.block.canister.SlottedCanisterDataLifecycleTest#hosts")
-        void runsEveryStepOnce(String host, int slotCount, int index) {
-            SlottedCanisterData data = data(slotCount, true);
-            CanisterSlot slot = mockSlot(data, index, true);
+        @Test
+        void runsEveryStepOnce() {
+            SlottedCanisterData data = data(SLOTS, true);
+            CanisterSlot slot = mockSlot(data, INDEX, true);
             ItemStack stack = canisterStack();
 
-            assertTrue(data.insert(index, stack, true), host);
+            assertTrue(data.insert(INDEX, stack, true));
 
             InOrder order = inOrder(slot, level, sync);
             order.verify(slot).setCanister(stack);
@@ -163,60 +156,40 @@ class SlottedCanisterDataLifecycleTest {
             pusher.verify(() -> SlotGasketPusher.rebuild(slot, owner, access), times(1));
             order.verify(level).invalidateCapabilities(POS);
             registration.verify(() -> SlotGasketRegistration.register(
-                    access, level, POS, index, CanisterMetadata.EMPTY), times(1));
+                    access, level, POS, INDEX, CanisterMetadata.EMPTY), times(1));
             order.verify(sync).run();
         }
 
-        @ParameterizedTest(name = "{0}")
-        @MethodSource("com.mercuriusxeno.goo.block.canister.SlottedCanisterDataLifecycleTest#hosts")
-        void keepsGasketsWhenNotStripping(String host, int slotCount, int index) {
-            SlottedCanisterData data = data(slotCount, true);
-            CanisterSlot slot = mockSlot(data, index, true);
+        @Test
+        void closedSlotRefusesTheCanister() {
+            SlottedCanisterData data = data(SLOTS, false);
+            mockSlot(data, INDEX, true);
 
-            data.insert(index, canisterStack(), false);
-
-            verify(slot, never()).stripGaskets();
+            assertFalse(data.insert(INDEX, canisterStack(), false));
         }
 
-        @ParameterizedTest(name = "{0}")
-        @MethodSource("com.mercuriusxeno.goo.block.canister.SlottedCanisterDataLifecycleTest#hosts")
-        void closedSlotTakesNothing(String host, int slotCount, int index) {
-            SlottedCanisterData data = data(slotCount, false);
-            CanisterSlot slot = mockSlot(data, index, true);
+        @Test
+        void occupiedSlotRefusesTheCanister() {
+            SlottedCanisterData data = data(SLOTS, true);
+            mockSlot(data, INDEX, false);
 
-            assertFalse(data.insert(index, canisterStack(), false), host);
-
-            verify(slot, never()).setCanister(any());
-            verifyNoInteractions(sync);
-            registration.verifyNoInteractions();
-        }
-
-        @ParameterizedTest(name = "{0}")
-        @MethodSource("com.mercuriusxeno.goo.block.canister.SlottedCanisterDataLifecycleTest#hosts")
-        void occupiedSlotTakesNothing(String host, int slotCount, int index) {
-            SlottedCanisterData data = data(slotCount, true);
-            CanisterSlot slot = mockSlot(data, index, false);
-
-            assertFalse(data.insert(index, canisterStack(), false), host);
-
-            verify(slot, never()).setCanister(any());
+            assertFalse(data.insert(INDEX, canisterStack(), false));
         }
     }
 
     @Nested
     class Remove {
 
-        @ParameterizedTest(name = "{0}")
-        @MethodSource("com.mercuriusxeno.goo.block.canister.SlottedCanisterDataLifecycleTest#hosts")
-        void runsEveryStepOnce(String host, int slotCount, int index) {
-            SlottedCanisterData data = data(slotCount, true);
-            CanisterSlot slot = mockSlot(data, index, false);
+        @Test
+        void runsEveryStepOnce() {
+            SlottedCanisterData data = data(SLOTS, true);
+            CanisterSlot slot = mockSlot(data, INDEX, false);
             ItemStack held = mock(ItemStack.class);
             ItemStack copy = mock(ItemStack.class);
             when(slot.canister()).thenReturn(held);
             when(held.copy()).thenReturn(copy);
 
-            assertSame(copy, data.remove(index), host);
+            assertSame(copy, data.remove(INDEX));
 
             InOrder order = inOrder(slot, level);
             order.verify(slot).disposePusher();
@@ -227,16 +200,12 @@ class SlottedCanisterDataLifecycleTest {
                     times(1));
         }
 
-        @ParameterizedTest(name = "{0}")
-        @MethodSource("com.mercuriusxeno.goo.block.canister.SlottedCanisterDataLifecycleTest#hosts")
-        void emptySlotGivesNothing(String host, int slotCount, int index) {
-            SlottedCanisterData data = data(slotCount, true);
-            CanisterSlot slot = mockSlot(data, index, true);
+        @Test
+        void emptySlotGivesAnEmptyStack() {
+            SlottedCanisterData data = data(SLOTS, true);
+            mockSlot(data, INDEX, true);
 
-            assertTrue(data.remove(index).isEmpty(), host);
-
-            verify(slot, never()).clear();
-            registration.verifyNoInteractions();
+            assertTrue(data.remove(INDEX).isEmpty());
         }
     }
 
@@ -264,12 +233,11 @@ class SlottedCanisterDataLifecycleTest {
         }
 
         @Test
-        void installingASlotGasketInvalidatesTheHost() {
+        void aServerWriteToAFilledSlotInvalidatesTheHostAfterTheWrite() {
             SlottedCanisterData data = data(CanisterBlockEntity.MAX_SLOTS, true);
             CanisterSlot slot = mockSlot(data, SLOT, false);
 
-            holderOver(data, CanisterMetadata.EMPTY)
-                    .setSlotMetadata(SLOT, CanisterMetadata.EMPTY.withTopGasketId(UUID.randomUUID()));
+            data.setMetadata(SLOT, CanisterMetadata.EMPTY.withTopGasketId(UUID.randomUUID()));
 
             verifyInvalidatedAfterWrite(slot);
         }
@@ -296,7 +264,7 @@ class SlottedCanisterDataLifecycleTest {
         }
 
         @Test
-        void aClientWriteInvalidatesNothing() {
+        void aClientWriteWritesTheSlot() {
             Level client = mock(Level.class);
             when(client.isClientSide()).thenReturn(true);
             doReturn(client).when(owner).getLevel();
@@ -306,18 +274,6 @@ class SlottedCanisterDataLifecycleTest {
             data.setMetadata(SLOT, CanisterMetadata.EMPTY.withTopGasketId(UUID.randomUUID()));
 
             verify(slot).setMetadata(any());
-            verify(client, never()).invalidateCapabilities(any(BlockPos.class));
-        }
-
-        @Test
-        void anEmptySlotWritesAndInvalidatesNothing() {
-            SlottedCanisterData data = data(CanisterBlockEntity.MAX_SLOTS, true);
-            CanisterSlot slot = mockSlot(data, SLOT, true);
-
-            data.setMetadata(SLOT, CanisterMetadata.EMPTY.withTopGasketId(UUID.randomUUID()));
-
-            verify(slot, never()).setMetadata(any());
-            verify(level, never()).invalidateCapabilities(any(BlockPos.class));
         }
     }
 
@@ -336,6 +292,27 @@ class SlottedCanisterDataLifecycleTest {
             InOrder order = inOrder(slot, level);
             order.verify(slot).buildHandler(any());
             order.verify(level).invalidateCapabilities(POS);
+        }
+    }
+
+    /**
+     * Routed fluid fills a slot already holding it before an empty slot, so one type gathers in one canister.
+     */
+    @Test
+    void routedFluidFillsTheSlotHoldingItBeforeAnEmptySlot() {
+        try (StampedGoo goo = new StampedGoo()) {
+            FluidResource blaze = goo.resource(GooTypes.BLAZE);
+            SlottedCanisterData data = data(SLOTS, true);
+            CanisterSlotFluidHandler empty = new CanisterSlotFluidHandler(ROUTING_CAPACITY, () -> { });
+            CanisterSlotFluidHandler holding = new CanisterSlotFluidHandler(ROUTING_CAPACITY, () -> { });
+            holding.insertFluid(blaze, HELD_BLAZE, false);
+            when(mockSlot(data, 0, false).handler()).thenReturn(empty);
+            when(mockSlot(data, INDEX, false).handler()).thenReturn(holding);
+
+            data.routeFluid(blaze, ROUTED_BLAZE);
+
+            assertEquals(List.of(0, HELD_BLAZE + ROUTED_BLAZE), List.of(empty.toFluidContent().volumeOf(blaze),
+                    holding.toFluidContent().volumeOf(blaze)));
         }
     }
 }

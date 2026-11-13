@@ -36,6 +36,24 @@ class ScaffoldGeneratorTest {
         return ScaffoldGenerator.generateScaffold(roots, recipes, false);
     }
 
+    /**
+     * The roots' item ids, in the order the finder sorts them.
+     */
+    private static List<Identifier> rootIds(List<ScaffoldGenerator.Root> roots) {
+        return roots.stream().map(ScaffoldGenerator.Root::itemId).toList();
+    }
+
+    /**
+     * The scaffold's entry keys in the order it writes them, its comment keys left out.
+     */
+    private static List<String> entryKeys(ScaffoldGenerator.ScaffoldResult result) {
+        String keyPrefix = "    \"";
+        return result.lines().stream()
+                .filter(line -> line.startsWith(keyPrefix) && !line.startsWith(keyPrefix + "_comment_"))
+                .map(line -> line.substring(keyPrefix.length(), line.indexOf('"', keyPrefix.length())))
+                .toList();
+    }
+
     // ── Root finding ─────────────────────────────────────────────────────
 
     @Nested
@@ -75,9 +93,7 @@ class ScaffoldGeneratorTest {
             List<ScaffoldGenerator.Root> roots = findRecipeRoots(
                     recipes, baseValues, Set.of());
 
-            assertTrue(roots.stream().noneMatch(r ->
-                            r.itemId().equals(id("minecraft:raw_copper"))),
-                    "raw_copper should NOT be a root when it has a value");
+            assertEquals(List.of(), rootIds(roots), "raw_copper is valued and values copper_ingot");
         }
 
         /**
@@ -97,9 +113,8 @@ class ScaffoldGeneratorTest {
             List<ScaffoldGenerator.Root> roots = findRecipeRoots(
                     recipes, Map.of(), Set.of());
 
-            // raw_iron should come first (more downstream)
-            assertFalse(roots.isEmpty());
-            assertEquals(id("minecraft:raw_iron"), roots.get(0).itemId());
+            // raw_iron comes first (more downstream)
+            assertEquals(List.of(id("minecraft:raw_iron"), id("minecraft:raw_gold")), rootIds(roots));
         }
 
         /**
@@ -119,8 +134,7 @@ class ScaffoldGeneratorTest {
             List<ScaffoldGenerator.Root> roots = findRecipeRoots(
                     recipes, baseValues, Set.of());
 
-            assertTrue(roots.stream().noneMatch(r -> r.itemId().equals(id("minecraft:raw_copper"))),
-                    "copper_ingot solves raw_copper: " + roots);
+            assertEquals(List.of(), rootIds(roots), "copper_ingot solves raw_copper: " + roots);
         }
 
         /**
@@ -197,8 +211,8 @@ class ScaffoldGeneratorTest {
             List<ScaffoldGenerator.Root> roots = findRecipeRoots(
                     recipes, Map.of(), Set.of());
 
-            // Each wood type is a separate cluster; stick is a separate cluster
-            assertTrue(roots.size() >= 2,
+            // Each wood type is a separate cluster, so each log is its own root
+            assertEquals(Set.of(id("minecraft:oak_log"), id("minecraft:birch_log")), Set.copyOf(rootIds(roots)),
                     "Oak and birch should be separate clusters: " + roots);
         }
 
@@ -239,8 +253,7 @@ class ScaffoldGeneratorTest {
             List<ScaffoldGenerator.Root> roots = findRecipeRoots(
                     recipes, baseValues, Set.of());
 
-            assertTrue(roots.stream().noneMatch(r -> r.itemId().equals(id("minecraft:stick"))),
-                    "torch and coal solve stick: " + roots);
+            assertEquals(List.of(), rootIds(roots), "torch and coal solve stick: " + roots);
         }
 
         /**
@@ -338,10 +351,10 @@ class ScaffoldGeneratorTest {
         }
 
         /**
-         * Denied items are excluded from roots entirely.
+         * A cycle entry stands as the root in place of a denied recipeless input.
          */
         @Test
-        void deniedItemNotPickedAsEntry() {
+        void aCycleEntryStandsInForADeniedRoot() {
             List<RecipeInput> recipes = List.of(
                     recipe("minecraft:copper_ingot", 1, slot("minecraft:raw_copper")),
                     recipe("minecraft:copper_block", 9, slot("minecraft:copper_ingot"))
@@ -351,11 +364,10 @@ class ScaffoldGeneratorTest {
                     recipes, Map.of(), Set.of(id("minecraft:raw_copper")));
 
             // raw_copper is denied. copper_ingot and copper_block are cycle items
-            // (their only input path is through denied raw_copper). One should be
-            // picked as a cycle entry, but raw_copper itself must never appear.
-            assertTrue(roots.stream().noneMatch(r ->
-                            r.itemId().equals(id("minecraft:raw_copper"))),
-                    "Denied items should never be a root: " + roots);
+            // (their only input path is through denied raw_copper). copper_block is
+            // picked as the cycle entry in raw_copper's place.
+            assertEquals(List.of(id("minecraft:copper_block")), rootIds(roots),
+                    "A cycle entry stands in for the denied raw_copper: " + roots);
         }
     }
 
@@ -420,15 +432,8 @@ class ScaffoldGeneratorTest {
 
             ScaffoldGenerator.ScaffoldResult result = scaffoldOf(roots, recipes);
 
-            String joined = String.join("\n", result.lines());
-            assertTrue(joined.contains("\"#planks\""),
-                    "Should contain grouped tag entry #planks: " + joined);
-            assertFalse(joined.contains("\"oak_planks\""),
-                    "Individual plank entries should be replaced by tag group: " + joined);
-            assertFalse(joined.contains("\"birch_planks\""),
-                    "Individual plank entries should be replaced by tag group: " + joined);
-            assertFalse(joined.contains("\"spruce_planks\""),
-                    "Individual plank entries should be replaced by tag group: " + joined);
+            assertEquals(List.of("#planks"), entryKeys(result),
+                    "The tag group stands in for the three plank entries: " + result.lines());
         }
 
         /**
@@ -482,13 +487,8 @@ class ScaffoldGeneratorTest {
                     recipes, Map.of(), Set.of());
             ScaffoldGenerator.ScaffoldResult result = scaffoldOf(roots, recipes);
 
-            String joined = String.join("\n", result.lines());
-            assertTrue(joined.contains("\"raw_copper\""),
-                    "raw_copper should be an individual entry: " + joined);
-            assertTrue(joined.contains("\"raw_iron\""),
-                    "raw_iron should be an individual entry: " + joined);
-            assertFalse(joined.contains("\"#"),
-                    "No tag groups expected: " + joined);
+            assertEquals(Set.of("raw_copper", "raw_iron"), Set.copyOf(entryKeys(result)),
+                    "Each root is its own entry: " + result.lines());
         }
 
         /**

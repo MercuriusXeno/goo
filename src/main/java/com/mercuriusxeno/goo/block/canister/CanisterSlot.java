@@ -34,9 +34,9 @@ import java.util.function.Predicate;
  *
  * <p>Two callbacks are injected by the parent container:</p>
  * <ul>
- *   <li>{@code onSync} — fires after transient state changes (stream snapshot
+ *   <li>{@code onSync}: fires after transient state changes (stream snapshot
  *       updates) so the parent can mark dirty and sync to clients.</li>
- *   <li>{@code onStructureChanged} — fires when canister occupancy changes
+ *   <li>{@code onStructureChanged}: fires when canister occupancy changes
  *       (insert/remove). Parent re-ORs its composite shape, invalidates
  *       capabilities, and syncs.</li>
  * </ul>

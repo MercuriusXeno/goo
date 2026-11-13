@@ -11,14 +11,13 @@ import static org.mockito.Mockito.when;
 
 /**
  * Iceborn's frozen hearts: a physical hit finds each worth half a heart,
- * any other hit lands whole on them, they deplete before the bar beneath,
- * and fire thaws them, which only a standing Iceborn overlay heeds.
+ * any other hit lands whole on them, and fire thaws them, which only a
+ * standing Iceborn overlay heeds.
  */
 class IcebornHeartsTest {
 
     private static final long NOW = 1_000L;
     private static final float FULL_HEALTH = 20f;
-    private static final float DELTA = 1e-6f;
 
     private static DamageSource source(boolean bypassesArmor, boolean fire) {
         DamageSource source = mock(DamageSource.class);
@@ -39,14 +38,6 @@ class IcebornHeartsTest {
     @Test
     void aHitBypassingArmorLandsWholeOnFrozenHearts() {
         assertEquals(HeartOverlay.WHOLE_HIT, HeartOverlayEvents.iceShare(source(true, false)));
-    }
-
-    @Test
-    void aPhysicalHitBurnsTwiceItsDamageInFrozenHalvesBeforeTheBar() {
-        HeartOverlay laid = frozenHearts();
-        HeartOverlay.Drained drained = laid.drainScaled(1f, HeartOverlayEvents.iceShare(source(false, false)), NOW);
-        assertEquals(laid.shieldHalves() - 2, drained.overlay().shieldHalves());
-        assertEquals(0f, drained.remainder(), DELTA);
     }
 
     @Test

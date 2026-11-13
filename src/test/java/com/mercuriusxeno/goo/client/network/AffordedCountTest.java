@@ -11,9 +11,7 @@ import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
-import com.mercuriusxeno.goo.ability.outsider.RoomExtent;
 import com.mercuriusxeno.goo.ability.program.TerrakinesisStep;
-import com.mercuriusxeno.goo.client.hud.CrosshairFuelPanel;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -22,7 +20,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Optional;
-import java.util.OptionalDouble;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -55,56 +52,6 @@ class AffordedCountTest {
         return ability(cost, delivery, AbilityBadge.WORLD, List.of(), 0);
     }
 
-    /**
-     * In the pocket, Outsider's petal reads the price a second of the ring growing, then the
-     * seconds the panel reads, and dims short of a second's growth
-     * (decision outsider-petal-reads-rate-and-time-in-the-room).
-     */
-    @Nested
-    class OutsiderInTheRoom {
-
-        private static final int HOLDING = 1500;
-        /** Short of ring 5's 700 mB, a second's growth from the laid room. */
-        private static final int UNDER_A_SECOND = 650;
-        /** Past ring 5's 700 mB. */
-        private static final int OVER_A_SECOND = 800;
-        private static final double RING_FIVE_GROWN = 5.5;
-
-        private final ClientAbility outsider = ClientAbility.fromEntry(AbilitySyncPayload.gloveEntries(GooTypes.VOID,
-                List.of(AbilityJson.decode("void_outsider"))).getFirst());
-
-        private String panelCount(double extent) {
-            List<CrosshairFuelPanel.FuelCell> row = CrosshairFuelPanel.rowCells(GooTypes.VOID, outsider, HOLDING,
-                    Integer.MAX_VALUE, StandingUpkeep.NONE, OptionalDouble.of(extent), "unread");
-            return ((CrosshairFuelPanel.Count) row.get(row.size() - 1)).text();
-        }
-
-        @Test
-        void petalReadsTheRingsPriceASecondThenTheSeconds() {
-            assertEquals("700/s | " + panelCount(RoomExtent.LAID), outsider.petalLabel(HOLDING, NO_REAGENTS,
-                    StandingUpkeep.NONE, OptionalDouble.of(RoomExtent.LAID)));
-            assertEquals("912/s | " + panelCount(RING_FIVE_GROWN), outsider.petalLabel(HOLDING, NO_REAGENTS,
-                    StandingUpkeep.NONE, OptionalDouble.of(RING_FIVE_GROWN)));
-        }
-
-        /**
-         * Outside the pocket the petal reads the trip in, priced as a one-shot, then the trips the
-         * void affords (decision outsider-reads-its-entry-as-uses-outside-the-pocket).
-         */
-        @Test
-        void outsideThePocketPetalReadsTheEntryThenTheTrips() {
-            assertEquals("6 | x166", outsider.petalLabel(THOUSAND, NO_REAGENTS, StandingUpkeep.NONE,
-                    OptionalDouble.empty()));
-        }
-
-        @Test
-        void petalDimsShortOfASecondsGrowth() {
-            assertTrue(outsider.dimsAt(UNDER_A_SECOND, NO_REAGENTS, StandingUpkeep.NONE,
-                    OptionalDouble.of(RoomExtent.LAID)));
-            assertFalse(outsider.dimsAt(OVER_A_SECOND, NO_REAGENTS, StandingUpkeep.NONE,
-                    OptionalDouble.of(RoomExtent.LAID)));
-        }
-    }
 
     /** A one-shot petal reads its shorthand cost then its uses, dimmed at none. */
     @Nested

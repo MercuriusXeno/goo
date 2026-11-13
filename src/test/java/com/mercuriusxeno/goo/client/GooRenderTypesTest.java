@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.client;
 
 import com.mojang.blaze3d.pipeline.BlendFunction;
+import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.platform.CompareOp;
 import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -60,6 +62,22 @@ class GooRenderTypesTest {
                 GooRenderTypes.SUNBEAM_SCORCH.getColorTargetState().blendFunction());
         assertEquals(Optional.of(BlendFunction.ADDITIVE),
                 GooRenderTypes.SUNBEAM_SCORCH_GLOW.getColorTargetState().blendFunction());
+    }
+
+    /**
+     * A glow prism's column depth tests and writes no depth, so a beam drawn
+     * after it, Sunbeam's ray among them, shows in front of it.
+     * decision diagnose-and-correct-the-sunbeam-prism-depth
+     */
+    @Test
+    void theGlowColumnTestsDepthAndWritesNone() {
+        assertEquals(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false),
+                GooRenderTypes.GLOW_COLUMN.getDepthStencilState());
+    }
+
+    @Test
+    void theGlowColumnTypeDrawsOnTheGlowColumnPipeline() {
+        assertEquals(GooRenderTypes.GLOW_COLUMN, GooRenderTypes.GLOW_COLUMN_TYPE.pipeline());
     }
 
     /** Meteo's rock writes depth, so its near faces hide its far ones rather than drawing back to front. */

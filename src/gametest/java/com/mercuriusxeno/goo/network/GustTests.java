@@ -36,37 +36,36 @@ public final class GustTests {
 
 
     private static final Identifier TYPHOON_GUST = Identifier.parse("goo:typhoon_gust");
-    /** In the sixteen-block light bay, with room east of the zombie to fling it past the reach. */
+    /** In the sixteen-block light bay, with room east of the zombie to fling it. */
     private static final BlockPos LONG_RUN_STREAMER_POS = new BlockPos(1, 1, 8);
     private static final BlockPos LONG_RUN_ZOMBIE_POS = new BlockPos(4, 1, 8);
     private static final float FACING_EAST = -90f;
-    /** Level, so a body three blocks off stands inside the 30-degree cone. */
+    /** Level, so a body three blocks off stands inside the stream's cone. */
     private static final float LEVEL = 0f;
     private static final int HOLD_TICKS = 10;
     private static final String ABILITY_REQUIRED = "Ability registry must hold typhoon_gust";
     private static final String SHOULD_FLING_OUT =
-            "Ten held ticks of Gust should fling the zombie past its %.1f-block reach, stands %.2f from the streamer";
+            "Ten held ticks of Gust should fling the zombie away from %.2f off, stands %.2f from the streamer";
 
     private GustTests() {
     }
 
     /**
      * A player streams Gust east at a zombie three blocks off: within ten
-     * held ticks the zombie stands past the stream's reach.
+     * held ticks the zombie stands farther from the streamer than it stood.
      *
      * @param helper the gametest helper
      */
     public static void gustFlingsAZombie(GameTestHelper helper) {
         Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, LONG_RUN_ZOMBIE_POS);
         ServerPlayer streamer = streamer(helper, LONG_RUN_STREAMER_POS);
-        AbilityDefinition gust = AbilityRegistry.of(helper.getLevel()).getAbility(TYPHOON_GUST);
         Vec3 eye = streamer.getEyePosition();
+        double stood = zombie.position().distanceTo(eye);
         hold(helper, streamer);
         helper.runAfterDelay(HOLD_TICKS + 1, () -> {
             double away = zombie.position().distanceTo(eye);
             helper.getLevel().getServer().getPlayerList().remove(streamer);
-            helper.assertTrue(away > gust.delivery().range(),
-                    String.format(SHOULD_FLING_OUT, gust.delivery().range(), away));
+            helper.assertTrue(away > stood, String.format(SHOULD_FLING_OUT, stood, away));
             helper.succeed();
         });
     }

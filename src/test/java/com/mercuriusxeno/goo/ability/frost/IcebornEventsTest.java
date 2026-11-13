@@ -10,8 +10,6 @@ import org.mockito.MockedStatic;
 import java.util.List;
 import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
@@ -61,17 +59,12 @@ class IcebornEventsTest {
         }
 
         @Test
-        void aBurningEntityNearThePlayerStopsBurning() {
+        void aBurningEntityTheLeechReachesStopsBurning() {
             Entity burning = BurningLevel.burningAt(0);
-            try (BurningLevel world = new BurningLevel(Set.of(), List.of());
-                 MockedStatic<IcebornFrozenBlocks> frozen = mockStatic(IcebornFrozenBlocks.class)) {
-                ServerPlayer player = icebornAt(world);
-                when(world.level().getEntities(eq(player), any(AABB.class))).thenReturn(List.of(burning));
 
-                IcebornEvents.leech(world.level(), player);
+            IcebornEvents.cool(burning);
 
-                verify(burning).clearFire();
-            }
+            verify(burning).clearFire();
         }
     }
 }

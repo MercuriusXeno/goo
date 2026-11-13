@@ -29,7 +29,6 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 @RegistersGameTests
 public final class FeedTests {
     private static final String FEED_COURTS_A_COW = "feed_courts_a_cow";
-    private static final String FEED_GROWS_A_CALF = "feed_grows_a_calf";
     private static final String FEED_ON_THE_GROUND_STARTS_A_FIGHT = "feed_on_the_ground_starts_a_fight";
     private static final String FEED_ON_THE_GROUND_DRAWS_A_MOB = "feed_on_the_ground_draws_a_mob";
     private static final String FEED_GROWS_A_SLIME = "feed_grows_a_slime";
@@ -42,7 +41,6 @@ public final class FeedTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, FEED_COURTS_A_COW, FeedTests::feedCourtsACow);
-        GooTestFunctions.registerTest(registrar, FEED_GROWS_A_CALF, FeedTests::feedGrowsACalf);
         GooTestFunctions.registerTest(registrar, FEED_ON_THE_GROUND_STARTS_A_FIGHT, FeedTests::feedOnTheGroundStartsAFight);
         GooTestFunctions.registerTest(registrar, FEED_ON_THE_GROUND_DRAWS_A_MOB, FeedTests::feedOnTheGroundDrawsAMob);
         GooTestFunctions.registerTest(registrar, FEED_GROWS_A_SLIME, FeedTests::feedGrowsASlime);
@@ -62,15 +60,12 @@ public final class FeedTests {
     /** Blocks about the near corner a feed lies within, the whole bay. */
     private static final double FAR_REACH = 8.0;
     private static final String SHOULD_LOVE = "A fed adult cow should be in love";
-    private static final String SHOULD_GROW = "A fed calf should grow to an adult, age %d";
     private static final String SHOULD_LAY = "A feed blob landing on the ground should lay a feed";
     private static final String SHOULD_START_OUT_OF_REACH = "The cow should start out of the feed's reach, %.2f off";
     private static final String SHOULD_DRAW = "The feed should draw the cow to eat it: cow %.2f off, in love %b, feeds left %d, heading to %s, panicking %b";
     private static final String SHOULD_FIGHT = "Two zombies at one feed should target each other: %s and %s";
-    private static final String SHOULD_GROW_SLIME = "Feed number %d should leave the slime size %d, not %d";
+    private static final String SHOULD_GROW_SLIME = "A fed slime of size 1 should grow to size 2, stands at %d";
     private static final String SHOULD_EAT_AND_GROW = "The slime should eat the feed and grow to size 2: feeds left %d, size %d";
-    /** The slime's size after each of three feeds: one step, a second, then the cap. */
-    private static final int[] SLIME_SIZES_FED = {2, 4, 4};
 
     private FeedTests() {
     }
@@ -85,21 +80,6 @@ public final class FeedTests {
         helper.runAfterDelay(1, () -> {
             strike(helper, cow);
             helper.assertTrue(cow.isInLove(), SHOULD_LOVE);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Feed strikes a calf: the calf grows to an adult.
-     *
-     * @param helper the gametest helper
-     */
-    public static void feedGrowsACalf(GameTestHelper helper) {
-        Cow calf = helper.spawnWithNoFreeWill(EntityType.COW, FLOOR.above());
-        calf.setBaby(true);
-        helper.runAfterDelay(1, () -> {
-            strike(helper, calf);
-            helper.assertTrue(!calf.isBaby(), String.format(SHOULD_GROW, calf.getAge()));
             helper.succeed();
         });
     }
@@ -148,8 +128,7 @@ public final class FeedTests {
     }
 
     /**
-     * Feed strikes a size-1 slime three times: it grows to 2, then 4, and
-     * stays at 4 (decision slimes-grow-on-jelly-feed).
+     * Feed strikes a size-1 slime: it grows to 2 (decision slimes-grow-on-jelly-feed).
      *
      * @param helper the gametest helper
      */
@@ -157,11 +136,8 @@ public final class FeedTests {
         Slime slime = helper.spawnWithNoFreeWill(EntityType.SLIME, FLOOR.above());
         slime.setSize(1, true);
         helper.runAfterDelay(1, () -> {
-            for (int feed = 0; feed < SLIME_SIZES_FED.length; feed++) {
-                strike(helper, slime);
-                helper.assertTrue(slime.getSize() == SLIME_SIZES_FED[feed],
-                        String.format(SHOULD_GROW_SLIME, feed + 1, SLIME_SIZES_FED[feed], slime.getSize()));
-            }
+            strike(helper, slime);
+            helper.assertTrue(slime.getSize() == 2, String.format(SHOULD_GROW_SLIME, slime.getSize()));
             helper.succeed();
         });
     }

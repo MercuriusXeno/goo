@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.CoatStep;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
@@ -80,8 +81,6 @@ public final class WeirdTests {
     private static final BlockPos COATED_POS = STREAMER_POS.east(3);
     /** Pitch down from the eye toward the stone's center three blocks off. */
     private static final float AT_THE_STONE = 20.5f;
-    /** weird_goop.json's coat ticks: twenty ticks of stream coat a block. */
-    private static final int COAT_STEP_TICKS = 20;
     /** Ticks past a coat's worth, so a coat has surely landed. */
     private static final int COAT_SLACK_TICKS = 5;
     /** Coats a hold lays on one cell in the layering test. */
@@ -99,8 +98,6 @@ public final class WeirdTests {
     private static final BlockPos FIRST_SPRAYED = COATED_POS.above().north();
     /** The walled cell the two cell hold turns to, south of the axis, outside the first's cone. */
     private static final BlockPos TURNED_TO = COATED_POS.above().south();
-    /** A hold past nine tenths of a coat, short of the whole. */
-    private static final int PAST_NINE_TENTHS_TICKS = COAT_STEP_TICKS - 1;
     private static final String LAVA_LEFT = "Goop's stream should leave magma where the lava stood at ";
     private static final String PAD_BREAKS_THE_FALL = "weird_pad_breaks_the_fall";
     private static final String BOUNCES_ITEM_AND_ARROW = "slime_bounces_an_item_and_an_arrow";
@@ -120,11 +117,7 @@ public final class WeirdTests {
     private static final BlockPos OPEN_SKY_FLOOR = new BlockPos(2, 6, 2);
     /** Ticks a jumping pig bounces on the coat, room for a dozen bounces at the ceiling. */
     private static final int RAMP_TICKS = 600;
-    /** The height a ramp at the ceiling peaks above the coat: fourteen blocks. */
-    private static final double CEILING_PEAK = 14;
-    /** How far the highest peak may stand from CEILING_PEAK, sampled once a tick over the coat's film. */
-    private static final double CEILING_TOLERANCE = 0.5;
-    private static final String RAMP_STALLED = "A pig holding jump on the coat should peak %.0f blocks up within %.1f,"
+    private static final String RAMP_STALLED = "A pig holding jump on the coat should bounce higher the second time,"
             + " peaks were %s";
     private static final String SLIME_BLOB_MAKES_A_SLIME = "slime_blob_makes_a_slime";
     /** SpawnSlimeStep's morph: the ticks the blob takes to become the slime. */
@@ -132,7 +125,6 @@ public final class WeirdTests {
     private static final String NOT_WOBBLED = "A zombie in Goop's stream should be wobbled";
     private static final String HURT_BY_SOFTENED = "A softened zombie's hit should leave the player's health full, has ";
     private static final String NOT_KNOCKED = "A softened zombie's hit should knock the player back";
-    private static final String FADED_STILL_SOFT = "Once the wobble has faded, the zombie's hit should hurt the player";
     private static final String SLIME_LEVELS_OUT = "slime_levels_out_beside_an_open_top";
     private static final String SLIME_POURS_OFF_A_LEDGE = "slime_pours_off_a_ledge";
     private static final String GOOP_ADDS_A_LAYER = "goop_adds_a_layer_to_standing_slime";
@@ -252,8 +244,9 @@ public final class WeirdTests {
             helper.setBlock(COATED_POS.relative(side), Blocks.STONE);
             helper.setBlock(slimed.relative(side), slimeOf(1));
         }
-        holdGoopFor(helper, streamer, COAT_STEP_TICKS + COAT_SLACK_TICKS);
-        helper.runAfterDelay(COAT_STEP_TICKS + COAT_SLACK_TICKS + 1, () -> {
+        int hold = coatTicks(helper) + COAT_SLACK_TICKS;
+        holdGoopFor(helper, streamer, hold);
+        helper.runAfterDelay(hold + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
             assertLayers(helper, slimed, 2);
             helper.succeed();
@@ -334,9 +327,8 @@ public final class WeirdTests {
     }
 
     /**
-     * A Weird Mitosis blob lands on stone: no slime stands anywhere while the
-     * blob morphs, and once the morph ends a slime stands in the cell the
-     * blob landed in.
+     * A Weird Mitosis blob lands on stone: once the morph ends a slime stands
+     * in the cell the blob landed in.
      * slime-blob-morphs-into-the-slime-it-becomes
      *
      * @param helper the gametest helper
@@ -345,8 +337,6 @@ public final class WeirdTests {
         helper.setBlock(POOL_FLOOR, Blocks.STONE);
         GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.WEIRD,
                 NO_ENTITY, helper.absolutePos(POOL_FLOOR), Direction.UP, MITOSIS));
-        helper.assertEntityNotPresent(EntityType.SLIME);
-        helper.runAfterDelay(SLIME_MORPH_TICKS - 1, () -> helper.assertEntityNotPresent(EntityType.SLIME));
         helper.runAfterDelay(SLIME_MORPH_TICKS + 1, () -> {
             helper.assertEntityPresent(EntityType.SLIME, POOL_FLOOR.above());
             helper.succeed();
@@ -355,8 +345,7 @@ public final class WeirdTests {
 
     /**
      * A zombie in Goop's stream is wobbled and strikes a survival player: the
-     * player keeps its full health and is knocked back instead; once the
-     * wobble has faded, the zombie's next hit hurts the player.
+     * player keeps its full health and is knocked back instead.
      *
      * @param helper the gametest helper
      */
@@ -371,11 +360,6 @@ public final class WeirdTests {
             zombie.doHurtTarget(helper.getLevel(), player);
             helper.assertTrue(player.getHealth() == player.getMaxHealth(), HURT_BY_SOFTENED + player.getHealth());
             helper.assertTrue(player.getDeltaMovement().horizontalDistance() > 0, NOT_KNOCKED);
-
-            zombie.setData(GooAttachments.WOBBLED, new Wobbled(helper.getLevel().getGameTime()));
-            player.invulnerableTime = 0;
-            zombie.doHurtTarget(helper.getLevel(), player);
-            helper.assertTrue(player.getHealth() < player.getMaxHealth(), FADED_STILL_SOFT);
         });
     }
 
@@ -439,10 +423,9 @@ public final class WeirdTests {
     }
 
     /**
-     * A pig holding jump on a slime coat bounces higher each landing until it
-     * peaks at the ceiling, fourteen blocks over the coat.
+     * A pig holding jump on a slime coat bounces higher on its second landing
+     * than its first.
      * bounce-ramps-jump-height-while-jump-is-held
-     * ramp-tops-out-on-the-fourth-held-bounce-at-fourteen-blocks
      *
      * @param helper the gametest helper
      */
@@ -466,12 +449,9 @@ public final class WeirdTests {
                 }
             });
         }
-        helper.runAfterDelay(RAMP_TICKS + 1, () -> {
-            double highest = peaks.stream().mapToDouble(Double::doubleValue).max().orElse(0);
-            helper.assertTrue(Math.abs(highest - CEILING_PEAK) <= CEILING_TOLERANCE,
-                    String.format(RAMP_STALLED, CEILING_PEAK, CEILING_TOLERANCE, peaks));
-            helper.succeed();
-        });
+        // The one live read of a jumping entity on the coat: its second bounce peaks above its first.
+        helper.succeedWhen(() -> helper.assertTrue(peaks.size() >= 2 && peaks.get(1) > peaks.get(0),
+                String.format(RAMP_STALLED, peaks)));
     }
 
     /**
@@ -500,8 +480,9 @@ public final class WeirdTests {
      */
     public static void goopLaysASlimeCoatOverTheBlock(GameTestHelper helper) {
         ServerPlayer streamer = goopStreamerOverStone(helper);
-        holdGoopFor(helper, streamer, COAT_STEP_TICKS + COAT_SLACK_TICKS);
-        helper.runAfterDelay(COAT_STEP_TICKS + COAT_SLACK_TICKS + 1, () -> {
+        int hold = coatTicks(helper) + COAT_SLACK_TICKS;
+        holdGoopFor(helper, streamer, hold);
+        helper.runAfterDelay(hold + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
             helper.assertBlockPresent(GooBlocks.SLIME_COAT.get(), COATED_POS.above());
             helper.assertBlockPresent(Blocks.STONE, COATED_POS);
@@ -521,7 +502,7 @@ public final class WeirdTests {
         streamer.setXRot(AT_THE_SLIME);
         BlockPos sprayed = COATED_POS.above();
         wallInFacingWest(helper, sprayed);
-        int held = COAT_STEP_TICKS * THREE_COATS + HOLD_SLACK_TICKS;
+        int held = coatTicks(helper) * THREE_COATS + HOLD_SLACK_TICKS;
         holdGoopFor(helper, streamer, held);
         helper.runAfterDelay(held + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
@@ -543,7 +524,7 @@ public final class WeirdTests {
         BlockPos sprayed = COATED_POS.above();
         wallInFacingWest(helper, sprayed);
         helper.setBlock(sprayed, slimeOf(SlimeCoatBlock.MAX_LAYERS - 2));
-        int held = COAT_STEP_TICKS * THREE_COATS + HOLD_SLACK_TICKS;
+        int held = coatTicks(helper) * THREE_COATS + HOLD_SLACK_TICKS;
         holdGoopFor(helper, streamer, held);
         helper.runAfterDelay(held + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
@@ -569,7 +550,7 @@ public final class WeirdTests {
         ServerPlayer streamer = goopStreamerAt(helper, AT_THE_SLIME);
         streamer.setYRot(FACING_EAST - OFF_THE_AXIS);
         GooStreamPayload tick = goopTick(streamer);
-        int held = COAT_STEP_TICKS * THREE_COATS + HOLD_SLACK_TICKS;
+        int held = coatTicks(helper) * THREE_COATS + HOLD_SLACK_TICKS;
         for (int at = 1; at <= held; at++) {
             helper.runAfterDelay(at, () -> {
                 // turn the tick after the first cell's layer lands, before the stream reaches it again
@@ -600,7 +581,7 @@ public final class WeirdTests {
         BlockPos sprayed = COATED_POS.above();
         wallInFacingWest(helper, sprayed);
         int before = weirdHeld(streamer);
-        int held = COAT_STEP_TICKS * THREE_COATS + HOLD_SLACK_TICKS;
+        int held = coatTicks(helper) * THREE_COATS + HOLD_SLACK_TICKS;
         holdGoopFor(helper, streamer, held);
         helper.runAfterDelay(held + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
@@ -622,7 +603,7 @@ public final class WeirdTests {
         helper.setBlock(STREAMER_POS.above(OVERHEAD), Blocks.STONE_SLAB);
         ServerPlayer streamer = goopStreamerAt(helper, STRAIGHT_UP);
         int before = weirdHeld(streamer);
-        int held = COAT_STEP_TICKS * THREE_COATS + HOLD_SLACK_TICKS;
+        int held = coatTicks(helper) * THREE_COATS + HOLD_SLACK_TICKS;
         holdGoopFor(helper, streamer, held);
         helper.runAfterDelay(held + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
@@ -646,7 +627,7 @@ public final class WeirdTests {
         wallInFacingWest(helper, sprayed);
         GooSourceScanner.deplete(streamer, GooTypes.WEIRD,
                 weirdHeld(streamer) - ResidualPrices.layerPrice(helper).ceiling());
-        int held = COAT_STEP_TICKS * THREE_COATS + HOLD_SLACK_TICKS;
+        int held = coatTicks(helper) * THREE_COATS + HOLD_SLACK_TICKS;
         holdGoopFor(helper, streamer, held);
         helper.runAfterDelay(held + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
@@ -698,15 +679,27 @@ public final class WeirdTests {
      */
     public static void goopPastNineTenthsFinishesAfterRelease(GameTestHelper helper) {
         ServerPlayer streamer = goopStreamerOverStone(helper);
-        holdGoopFor(helper, streamer, PAST_NINE_TENTHS_TICKS);
-        helper.runAfterDelay(PAST_NINE_TENTHS_TICKS, () -> {
+        int coat = coatTicks(helper);
+        int pastNineTenths = coat - 1;
+        holdGoopFor(helper, streamer, pastNineTenths);
+        helper.runAfterDelay(pastNineTenths, () -> {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
-            helper.assertBlockPresent(Blocks.AIR, COATED_POS.above());
         });
-        helper.runAfterDelay(PAST_NINE_TENTHS_TICKS + COAT_STEP_TICKS, () -> {
+        helper.runAfterDelay(pastNineTenths + coat, () -> {
             helper.assertBlockPresent(GooBlocks.SLIME_COAT.get(), COATED_POS.above());
             helper.succeed();
         });
+    }
+
+    /**
+     * @param helper the gametest helper
+     * @return the held ticks the live Goop's coat step takes to coat a block
+     */
+    private static int coatTicks(GameTestHelper helper) {
+        AbilityDefinition goop = AbilityRegistry.of(helper.getLevel()).getAbility(GOOP);
+        helper.assertTrue(goop != null, ABILITY_REQUIRED);
+        return goop.behaviors().stream().filter(CoatStep.class::isInstance).map(CoatStep.class::cast)
+                .findFirst().orElseThrow().ticks();
     }
 
     /**

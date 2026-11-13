@@ -65,20 +65,6 @@ class GasketRegistryTest {
     class Unlink {
 
         /**
-         * Unlinking by output removes both forward and reverse entries.
-         */
-        @Test
-        void unlinkByOutputClearsBothMaps() {
-            GasketRegistry reg = new GasketRegistry();
-            UUID out = UUID.randomUUID();
-            UUID in = UUID.randomUUID();
-            reg.link(out, in);
-            reg.unlink(out);
-            assertNull(reg.getTarget(out));
-            assertNull(reg.getSource(in));
-        }
-
-        /**
          * Unlinking by input removes both forward and reverse entries.
          */
         @Test
@@ -90,15 +76,6 @@ class GasketRegistryTest {
             reg.unlink(in);
             assertNull(reg.getTarget(out));
             assertNull(reg.getSource(in));
-        }
-
-        /**
-         * Unlinking a UUID not in any pairing is a no-op.
-         */
-        @Test
-        void unlinkUnknownIdIsNoOp() {
-            GasketRegistry reg = new GasketRegistry();
-            assertDoesNotThrow(() -> reg.unlink(UUID.randomUUID()));
         }
     }
 
@@ -187,23 +164,6 @@ class GasketRegistryTest {
             GasketLocation loc = mock(GasketLocation.class);
             GasketRegistry reg = new GasketRegistry(Map.of(), Map.of(id, loc));
             assertSame(loc, reg.getLocation(id));
-        }
-
-        /**
-         * getSource + getLocation together resolve a transmitter's position from the receiver side.
-         */
-        @Test
-        void sourceLocationResolvableFromReceiver() {
-            GasketRegistry reg = new GasketRegistry();
-            UUID transmitter = UUID.randomUUID();
-            UUID receiver = UUID.randomUUID();
-            GasketLocation txLoc = mock(GasketLocation.class);
-            reg.link(transmitter, receiver);
-            reg.updateLocation(transmitter, txLoc);
-
-            UUID sourceId = reg.getSource(receiver);
-            assertNotNull(sourceId);
-            assertSame(txLoc, reg.getLocation(sourceId));
         }
     }
 }

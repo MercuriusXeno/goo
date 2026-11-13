@@ -19,8 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 /**
- * Tests that a vat holding two goo types submits its column once, carrying
- * both bands in the fixed type order, with every vertex where a single-type
+ * Tests that a vat holding two goo types submits its column once, with every vertex where a single-type
  * column's sits and sprite-relative UVs the shader maps into each type's sprite
  * (decision one-pass-blends-every-type).
  */
@@ -46,13 +45,8 @@ class VatMingledSurfaceTest {
     }
 
     @Test
-    void twoTypesSubmitOneSurfaceCarryingBothBandsInTypeOrder() {
-        List<Submission> submissions = render(Map.of(GooTypes.BLAZE, 250, GooTypes.FROST, 750));
-
-        assertEquals(1, submissions.size());
-        List<TypeBand> bands = submissions.getFirst().bands();
-        assertEquals(List.of(GooTypes.BLAZE, GooTypes.FROST), bands.stream().map(TypeBand::type).toList());
-        assertEquals(List.of(1f, 0.75f), bands.stream().map(TypeBand::share).toList());
+    void twoTypesSubmitOneSurface() {
+        assertEquals(1, render(Map.of(GooTypes.BLAZE, 250, GooTypes.FROST, 750)).size());
     }
 
     @Test

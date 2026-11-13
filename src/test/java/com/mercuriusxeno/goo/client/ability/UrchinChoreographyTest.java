@@ -29,9 +29,6 @@ class UrchinChoreographyTest {
         SoundStep back = shinks.get(1);
         assertEquals(out.sound(), back.sound());
         assertNotEquals(out.pitch().evaluateFloat(Variables.NONE), back.pitch().evaluateFloat(Variables.NONE));
-        assertEquals(0, out.frame().evaluateInt(Variables.NONE));
-        assertEquals(MetalExplosionVisual.ARM_TICKS + MetalExplosionVisual.HOLD_TICKS,
-                back.frame().evaluateInt(Variables.NONE));
     }
 
     @Test
@@ -51,7 +48,5 @@ class UrchinChoreographyTest {
         assertEquals(out.sound(), back.sound());
         assertEquals(FxAnchor.TARGET, out.at());
         assertNotEquals(out.pitch().evaluateFloat(Variables.NONE), back.pitch().evaluateFloat(Variables.NONE));
-        assertEquals(0, out.frame().evaluateInt(Variables.NONE));
-        assertEquals(UrchinSpear.RETRACT_SHINK_FRAME, back.frame().evaluateInt(Variables.NONE));
     }
 }

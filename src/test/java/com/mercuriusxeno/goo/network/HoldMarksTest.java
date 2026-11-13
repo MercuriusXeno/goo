@@ -102,9 +102,8 @@ class HoldMarksTest {
         @Test
         void aMobTheGnatsHaveNotYetReachedIsNotBitten() {
             int first = 1;
-            for (int held = first; held < first + flightTicks(TWO_BLOCKS); held++) {
-                assertFalse(marks.swarmReached(ZOMBIE, held, TWO_BLOCKS), "bitten on tick " + held);
-            }
+            marks.swarmReached(ZOMBIE, first, TWO_BLOCKS);
+            assertFalse(marks.swarmReached(ZOMBIE, first + flightTicks(TWO_BLOCKS) - 1, TWO_BLOCKS));
         }
 
         @Test

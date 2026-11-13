@@ -49,7 +49,7 @@ public final class TelekinesisTests {
 
     private static final Identifier KINETIC_TELEKINESIS = Identifier.parse("goo:kinetic_telekinesis");
     private static final BlockPos STAND_POS = new BlockPos(0, 1, 0);
-    /** Twelve blocks out: past survival's block reach and attack reach, inside them raised by Telekinesis's 8. */
+    /** Twelve blocks out: past survival's block reach and attack reach, inside them raised by Telekinesis's reach. */
     private static final BlockPos FAR_BLOCK = new BlockPos(0, 1, 12);
     private static final BlockPos FAR_MOB = new BlockPos(1, 1, 12);
     /** The buffer vanilla's server allows past the block reach, which the handler checks with. */
