@@ -9,6 +9,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import java.util.List;
@@ -37,7 +39,7 @@ class GooCuboidSpecialRendererTest {
              MockedStatic<GooFlightRenderer> flight = mockStatic(GooFlightRenderer.class)) {
             client.when(Minecraft::getInstance).thenReturn(mock(Minecraft.class));
 
-            new GooCuboidSpecialRenderer().submit(new GooCuboidSpecialRenderer.GooCuboid(GooTypes.ZOO),
+            new GooCuboidSpecialRenderer().submit(new GooCuboidSpecialRenderer.GooCuboid(GooTypes.ZOO, 1),
                     new PoseStack(), collector, 0, 0, false, 0);
 
             ArgumentCaptor<RenderType> types = ArgumentCaptor.forClass(RenderType.class);
@@ -52,6 +54,29 @@ class GooCuboidSpecialRendererTest {
             geometry.getAllValues().forEach(drawn -> drawn.render(pose, consumer));
             flight.verify(() -> GooFlightRenderer.emitCore(any(), any(), eq(GooTypes.ZOO), anyFloat(), anyFloat()));
             flight.verify(() -> GooFlightRenderer.emitShell(any(), any(), eq(GooTypes.ZOO), anyFloat()));
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {1, 1_000_000})
+    void aGooStackDrawsItsCoreAndShellAtItsVolumesSize(int volume) {
+        SubmitNodeCollector collector = mock(SubmitNodeCollector.class);
+        try (MockedStatic<Minecraft> client = mockStatic(Minecraft.class);
+             MockedStatic<GooFlightRenderer> flight = mockStatic(GooFlightRenderer.class)) {
+            client.when(Minecraft::getInstance).thenReturn(mock(Minecraft.class));
+
+            new GooCuboidSpecialRenderer().submit(new GooCuboidSpecialRenderer.GooCuboid(GooTypes.ZOO, volume),
+                    new PoseStack(), collector, 0, 0, false, 0);
+
+            ArgumentCaptor<SubmitNodeCollector.CustomGeometryRenderer> geometry =
+                    ArgumentCaptor.forClass(SubmitNodeCollector.CustomGeometryRenderer.class);
+            verify(collector, times(2)).submitCustomGeometry(any(), any(), geometry.capture());
+            PoseStack.Pose pose = new PoseStack().last();
+            VertexConsumer consumer = mock(VertexConsumer.class);
+            geometry.getAllValues().forEach(drawn -> drawn.render(pose, consumer));
+            float size = GooCuboidSize.sizeOf(volume);
+            flight.verify(() -> GooFlightRenderer.emitCore(any(), any(), any(), anyFloat(), eq(size)));
+            flight.verify(() -> GooFlightRenderer.emitShell(any(), any(), any(), eq(size)));
         }
     }
 
