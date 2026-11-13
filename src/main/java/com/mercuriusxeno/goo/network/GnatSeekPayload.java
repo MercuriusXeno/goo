@@ -24,10 +24,9 @@ import org.jspecify.annotations.NonNull;
  * @param preyId      the mob the swarm chases, or {@link #NO_PREY}
  * @param targetMin   the low corner of the box the gnats converge on with no prey
  * @param targetMax   the high corner of that box
- * @param travel      the caster's travel velocity, blocks per tick, which each gnat launches with
  */
 public record GnatSeekPayload(int casterId, Vec3 glove, Vec3 aim, double sprayDegrees, int preyId, Vec3 targetMin,
-                              Vec3 targetMax, Vec3 travel) implements CustomPacketPayload {
+                              Vec3 targetMax) implements CustomPacketPayload {
 
     /** The prey id of a tick whose swarm chases no mob. */
     public static final int NO_PREY = -1;
@@ -45,7 +44,6 @@ public record GnatSeekPayload(int casterId, Vec3 glove, Vec3 aim, double sprayDe
             ByteBufCodecs.VAR_INT, GnatSeekPayload::preyId,
             Vec3.STREAM_CODEC, GnatSeekPayload::targetMin,
             Vec3.STREAM_CODEC, GnatSeekPayload::targetMax,
-            Vec3.STREAM_CODEC, GnatSeekPayload::travel,
             GnatSeekPayload::new);
 
     @Override

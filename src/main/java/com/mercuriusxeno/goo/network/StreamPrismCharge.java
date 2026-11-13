@@ -154,7 +154,7 @@ final class StreamPrismCharge {
      * sets the prism's degrade look to the share the charge has reached, so
      * it restarts with a broken hold and clears once the prism converts.
      *
-     * @param player  the streaming player, whose travel the motes carry
+     * @param player  the streaming player
      * @param prism   the charged prism
      * @param apex    the cone's apex
      * @param ability the stream ability
@@ -166,7 +166,7 @@ final class StreamPrismCharge {
         // the operator's ruling: the prism is the gnats' homing target until it converts fully
         GooStreamHandler.sprayParticles(player, apex, moteAxis(apex, pos),
                 ability.delivery().withCone(ability.delivery().range(), 0),
-                GooStreamHandler.restingSpeed(apex.distanceTo(Vec3.atCenterOf(pos))), GooStreamHandler.travelOf(player));
+                GooStreamHandler.restingSpeed(apex.distanceTo(Vec3.atCenterOf(pos))));
         warm(player.level(), prism, ability, hold);
     }
 

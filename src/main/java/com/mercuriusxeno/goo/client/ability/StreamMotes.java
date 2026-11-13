@@ -20,10 +20,9 @@ import java.util.List;
 
 /**
  * Plays a tick of a glove stream's motes on the client: each flies from the
- * glove along its own heading inside the cone carrying the caster's travel,
- * or along one of the arcs the server's drips fly for a stream throwing
- * drips, so the drips land where the coat lands, carrying none of the
- * caster's movement;
+ * glove along its own heading inside the cone, or along one of the arcs the
+ * server's drips fly for a stream throwing drips, so the drips land where
+ * the coat lands, each carrying none of the caster's movement;
  * a goo mote swings with its caster's glove over its opening ticks, and a
  * spray drip leaves a source held in its caster's view near the glove, where
  * the tick keeps the caster's lifted palm blob standing
