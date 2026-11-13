@@ -10,7 +10,7 @@
 // as the viewer walks and never stretch on the surface. The direction is projected onto the three
 // planes facing its axes, each weighted by how squarely the direction faces it, so no cube seam
 // shows. It applies no fog: each vertex draws pulled inside the far plane, so fog would read the
-// pulled distance, and the brightness already fades the funnel with distance.
+// pulled distance.
 
 uniform sampler2D Sampler0;
 uniform sampler2D Sampler1;
