@@ -7,22 +7,25 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * The door a player conjures while channeling Outsider toward the pocket:
- * it stands in front of them, the way they face, and grows from nothing to
- * full size across the charge; over the charge's last ticks it moves into
- * them, reaching their feet the tick the charge completes, so it envelops
- * them as they go. A channel let go early collapses it.
+ * it stands in front of them, the way they face, and unzips from a pixel
+ * at the doorway's head down to the floor across the charge; over the
+ * charge's last ticks it widens as it moves into them, reaching full width
+ * on their feet the tick the charge completes, so it envelops them as they
+ * go. A channel let go early collapses it.
  * decision channeling-to-the-pocket-conjures-a-door-that-envelops-the-player
+ * decision door-unzips-from-a-starfield-pixel-then-widens-into-you
  * The share crossed travels with the door so the caster's own client can
  * stand it from the look of each frame it draws.
  * decision conjured-door-follows-the-look-smoothly
  *
- * @param at     the middle of the door's foot
- * @param yaw     the way the caster faced, so the door faces them, in degrees
- * @param size    its size, 0 for nothing to 1 for full
- * @param crossed the share of its stand-off it has moved into the caster, 0 before them to 1 on their feet
- * @param phase   whether it grows before the caster or moves into them
+ * @param at       the middle of the door's foot
+ * @param yaw      the way the caster faced, so the door faces them, in degrees
+ * @param unzipped how far it has unzipped from the doorway's head, 0 for a pixel to 1 for a slash on the floor
+ * @param widened  how far it has widened, 0 for a pixel wide to 1 for the doorway's full width
+ * @param crossed  the share of its stand-off it has moved into the caster, 0 before them to 1 on their feet
+ * @param phase    whether it grows before the caster or moves into them
  */
-public record ConjuredDoor(Vec3 at, float yaw, double size, double crossed, Phase phase) {
+public record ConjuredDoor(Vec3 at, float yaw, double unzipped, double widened, double crossed, Phase phase) {
 
     /** How far before the caster's feet the door stands while it grows, in blocks. */
     public static final double STANDS_OFF = 1.5;
@@ -33,16 +36,17 @@ public record ConjuredDoor(Vec3 at, float yaw, double size, double crossed, Phas
     public static final StreamCodec<ByteBuf, ConjuredDoor> STREAM_CODEC = StreamCodec.composite(
             Vec3.STREAM_CODEC, ConjuredDoor::at,
             ByteBufCodecs.FLOAT, ConjuredDoor::yaw,
-            ByteBufCodecs.DOUBLE, ConjuredDoor::size,
+            ByteBufCodecs.DOUBLE, ConjuredDoor::unzipped,
+            ByteBufCodecs.DOUBLE, ConjuredDoor::widened,
             ByteBufCodecs.DOUBLE, ConjuredDoor::crossed,
             ByteBufCodecs.idMapper(ordinal -> Phase.values()[ordinal], Phase::ordinal), ConjuredDoor::phase,
             ConjuredDoor::new);
 
     /** Where a conjured door stands in its life. */
     public enum Phase {
-        /** Standing before the caster, growing with the charge. */
+        /** Standing before the caster, unzipping with the charge. */
         GROWING,
-        /** Full size, moving into the caster. */
+        /** Unzipped to the floor, widening as it moves into the caster. */
         ENVELOPING,
         /** In the room, moving off the arriver the way they face and closing back to a crack. */
         RELEASING
@@ -53,8 +57,8 @@ public record ConjuredDoor(Vec3 at, float yaw, double size, double crossed, Phas
 
     /**
      * The door releasing a player into their room, the entry's motion
-     * reversed: on their feet at full size as they arrive, then moving off
-     * them the way they face to its stand-off, narrowing back to a crack as
+     * reversed: on their feet at full width as they arrive, then moving off
+     * them the way they face to its stand-off, narrowing back to a slash as
      * it goes.
      * decision matching-doorway-opens-in-the-room-and-releases-you
      *
@@ -67,7 +71,7 @@ public record ConjuredDoor(Vec3 at, float yaw, double size, double crossed, Phas
     public static ConjuredDoor releasing(Vec3 feet, float yaw, double tick, int releaseTicks) {
         double released = Math.clamp(tick / Math.max(1, releaseTicks), 0, 1);
         double crossed = 1 - released;
-        return new ConjuredDoor(placedAt(feet, yaw, crossed), yaw, crossed, crossed, Phase.RELEASING);
+        return new ConjuredDoor(placedAt(feet, yaw, crossed), yaw, 1, crossed, crossed, Phase.RELEASING);
     }
 
     /**
@@ -82,11 +86,11 @@ public record ConjuredDoor(Vec3 at, float yaw, double size, double crossed, Phas
     public static ConjuredDoor standing(Vec3 feet, float yaw, int held, int charge) {
         int growing = Math.max(1, charge - ENVELOP_TICKS);
         if (held <= growing) {
-            return new ConjuredDoor(placedAt(feet, yaw, 0), yaw, Math.max(0, held) / (double) growing, 0,
+            return new ConjuredDoor(placedAt(feet, yaw, 0), yaw, Math.max(0, held) / (double) growing, 0, 0,
                     Phase.GROWING);
         }
         double crossed = Math.min(1, (held - growing) / (double) (charge - growing));
-        return new ConjuredDoor(placedAt(feet, yaw, crossed), yaw, 1, crossed, Phase.ENVELOPING);
+        return new ConjuredDoor(placedAt(feet, yaw, crossed), yaw, 1, crossed, crossed, Phase.ENVELOPING);
     }
 
     /**
