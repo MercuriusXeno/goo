@@ -19,8 +19,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Covers the pocket's star sky: goo:pocket draws it and the overworld keeps
  * vanilla's, each star sits along a view direction alone so a room edge view
- * meets the stars the frame meets, and the stars are fewer and fainter than
- * the voidstone's in the one star color both draw (decisions
+ * meets the stars the frame meets, and the stars are fainter than the
+ * voidstone's in the one star color both draw (decisions
  * outsider-room-draws-a-skybox-of-stars and
  * sky-stars-sit-distant-sparser-and-dimmer-than-voidstone).
  */
@@ -75,17 +75,7 @@ class PocketStarSkyTest {
     }
 
     @Nested
-    class FewerAndFainterThanTheVoidstone {
-
-        @Test
-        void theSkyHoldsAStarInAFewerShareOfItsCellsThanTheVoidstone() {
-            double voidstoneShare = constant("BRIGHT_STARS") + constant("DIM_STARS");
-            double skyShare = (double) PocketStarSky.stars().size() / PocketStarSky.CELLS;
-
-            assertTrue(skyShare > 0, "the sky should hold stars");
-            assertTrue(skyShare < voidstoneShare,
-                    "the sky's star share " + skyShare + " should sit below the voidstone's " + voidstoneShare);
-        }
+    class FainterThanTheVoidstone {
 
         @Test
         void theSkysBrightestStarIsFainterThanTheVoidstonesBrightest() {

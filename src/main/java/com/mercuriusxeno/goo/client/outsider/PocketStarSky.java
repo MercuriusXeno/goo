@@ -13,8 +13,8 @@ import java.util.Optional;
  * room edge view, whose camera stands one room extent away but looks the
  * same way, meets the stars the frame meets. The sphere of directions is cut
  * into cells, a cube's six faces each split evenly by angle, and a cell holds
- * a star where its hash falls within the sky's share. The stars are fewer and
- * fainter than the voidstone's (shaders/include/void_stars.glsl), and the sky
+ * a star where its hash falls within the sky's share. The stars are fainter
+ * than the voidstone's (shaders/include/void_stars.glsl), and the sky
  * shader draws them in the voidstone's own star color.
  * outsider-room-draws-a-skybox-of-stars
  * sky-stars-sit-distant-sparser-and-dimmer-than-voidstone

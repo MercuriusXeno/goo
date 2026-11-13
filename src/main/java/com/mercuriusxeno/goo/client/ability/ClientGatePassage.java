@@ -8,8 +8,10 @@ import com.mercuriusxeno.goo.network.GateCrossedPayload;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.SectionPos;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.chunk.EmptyLevelChunk;
 import net.minecraft.world.phys.Vec3;
 import java.util.Optional;
 
@@ -26,6 +28,35 @@ import java.util.Optional;
 public final class ClientGatePassage {
 
     private static final double HALF = 0.5;
+    /** The longest a body holds its height waiting for the ground under it, so a lost chunk never pins it. */
+    private static final long GROUND_WAIT_NANOS = 1_000_000_000L;
+    /** When the local player was last carried, 0 once the ground under it has come. */
+    private static long carriedAt;
+    private static double landedY;
+
+    /**
+     * Holds the local player's height after a carry until the client holds
+     * the chunk under it: a crossing wider than the client's view lands where
+     * no chunk has come yet, and the body would drop into the gap.
+     * outsider-room-wraps-and-repeats-at-the-platform-edge
+     *
+     * @param mc     the client
+     * @param player the local player
+     */
+    private static void holdUntilGroundArrives(Minecraft mc, LocalPlayer player) {
+        if (carriedAt == 0) {
+            return;
+        }
+        boolean groundCame = !(mc.level.getChunk(SectionPos.blockToSectionCoord(player.getBlockX()),
+                SectionPos.blockToSectionCoord(player.getBlockZ())) instanceof EmptyLevelChunk);
+        if (groundCame || System.nanoTime() - carriedAt > GROUND_WAIT_NANOS) {
+            carriedAt = 0;
+            return;
+        }
+        player.setPos(player.getX(), landedY, player.getZ());
+        player.setDeltaMovement(player.getDeltaMovement().multiply(1, 0, 1));
+        player.resetFallDistance();
+    }
 
     private ClientGatePassage() {
     }
@@ -41,6 +72,7 @@ public final class ClientGatePassage {
         if (player == null || mc.level == null || GatePassage.clientPairs().isEmpty()) {
             return;
         }
+        holdUntilGroundArrives(mc, player);
         float partial = delta.getGameTimeDeltaPartialTick(true);
         Vec3 feetBefore = new Vec3(player.xo, player.yo, player.zo);
         Vec3 feetNow = player.getPosition(partial);
@@ -91,6 +123,8 @@ public final class ClientGatePassage {
         GatePassage.Landing before = new GatePassage.Landing(eyeClearOfTheFace(way.other(), landedBefore.feet(),
                 player.getEyeHeight(), look), landedBefore.motion(), landedBefore.yaw(), landedBefore.pitch());
         placeAt(player, now, before);
+        landedY = player.getY();
+        carriedAt = System.nanoTime();
         recordTilt(player.getId(), way, player.level().getGameTime());
         player.connection.send(new ServerboundCustomPayloadPacket(new GateCrossedPayload(way.one(), feet, motion,
                 yaw, pitch)));
