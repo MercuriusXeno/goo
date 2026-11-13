@@ -101,20 +101,19 @@ class StreamMotesTest {
     /**
      * A caster over time, in ticks from the launch.
      *
-     * @param eye    where the eye stands
-     * @param yaw    the look's yaw in degrees
-     * @param travel the travel velocity the server sent, blocks per tick
+     * @param eye where the eye stands
+     * @param yaw the look's yaw in degrees
      */
-    private record Caster(DoubleFunction<Vec3> eye, DoubleFunction<Float> yaw, Vec3 travel) {
+    private record Caster(DoubleFunction<Vec3> eye, DoubleFunction<Float> yaw) {
     }
 
     private static Caster moving(Vec3 travel) {
-        return new Caster(time -> EYE.add(travel.scale(time)), time -> 0f, travel);
+        return new Caster(time -> EYE.add(travel.scale(time)), time -> 0f);
     }
 
     /** A caster turning ten degrees a tick. */
     private static Caster turning() {
-        return new Caster(time -> EYE, time -> (float) (10 * time), Vec3.ZERO);
+        return new Caster(time -> EYE, time -> (float) (10 * time));
     }
 
     /**
@@ -189,8 +188,7 @@ class StreamMotesTest {
     /** The stream's tick as the server sends it for a caster, its glove a tick before the tick reaches the client. */
     private static StreamMotesPayload sprayTick(Caster caster) {
         return new StreamMotesPayload(CASTER, sourceOf(caster, -1), SPRAY_AXIS,
-                Identifier.fromNamespaceAndPath("goo", "goop_spray_drip"), CONE_DEGREES, 0, caster.travel(),
-                THROW_SPEED, false);
+                Identifier.fromNamespaceAndPath("goo", "goop_spray_drip"), CONE_DEGREES, 0, THROW_SPEED, false);
     }
 
     /**

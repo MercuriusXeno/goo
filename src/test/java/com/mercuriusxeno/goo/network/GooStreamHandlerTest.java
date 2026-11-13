@@ -49,30 +49,20 @@ class GooStreamHandlerTest {
         private static final double DELTA = 1e-12;
 
         @Test
-        void aMoteLaunchesAlongItsHeadingPlusThePlayersTravel() {
-            Vec3 travel = new Vec3(0.2, -0.1, 0.3);
+        void aMoteLaunchesAlongItsHeadingAtItsSpeedAlone() {
+            Vec3 launch = GooStreamHandler.moteLaunch(HEADING, SPEED);
 
-            Vec3 launch = GooStreamHandler.moteLaunch(HEADING, SPEED, travel);
-
-            assertEquals(0.6 * SPEED + 0.2, launch.x, DELTA);
-            assertEquals(-0.1, launch.y, DELTA);
-            assertEquals(0.8 * SPEED + 0.3, launch.z, DELTA);
-        }
-
-        @Test
-        void aMoteFromAStandingPlayerLaunchesAlongItsHeadingAlone() {
-            Vec3 launch = GooStreamHandler.moteLaunch(HEADING, SPEED, Vec3.ZERO);
-
-            assertEquals(HEADING.scale(SPEED), launch);
+            assertEquals(0.6 * SPEED, launch.x, DELTA);
+            assertEquals(0, launch.y, DELTA);
+            assertEquals(0.8 * SPEED, launch.z, DELTA);
         }
     }
 
     /**
      * A stream's mote off the arc launches along its heading at the speed
      * that rests it as far off as the crosshair lands, or at the stream's
-     * range past it, plus its caster's travel.
+     * range past it.
      * mycosis-spore-stream-buds-and-poisons
-     * glove-stream-motes-carry-the-players-travel-velocity
      */
     @Nested
     class SprayLaunch {
@@ -101,14 +91,12 @@ class GooStreamHandlerTest {
 
         private void assertCrosshairLaunch(double crosshairDistance, double restsAt) {
             Vec3 axis = new Vec3(0.6, 0, 0.8);
-            Vec3 travel = new Vec3(0.2, -0.1, 0.3);
             StreamMotesPayload spores = new StreamMotesPayload(1, GLOVE, axis, SPORE, 0,
-                    GooStreamHandler.crosshairSpeed(RANGE, crosshairDistance), travel, Delivery.NO_THROW_SPEED,
-                    false);
+                    GooStreamHandler.crosshairSpeed(RANGE, crosshairDistance), Delivery.NO_THROW_SPEED, false);
 
             Vec3 launch = GooStreamHandler.moteLaunch(spores, AXIS);
 
-            assertNear(axis.scale(restsAt * 0.1).add(travel), launch);
+            assertNear(axis.scale(restsAt * 0.1), launch);
         }
     }
     @Nested
