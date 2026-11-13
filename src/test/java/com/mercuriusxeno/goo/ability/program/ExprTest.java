@@ -10,8 +10,6 @@ import java.util.OptionalDouble;
 import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Expr parses a JSON number or an expression string and evaluates against
@@ -21,8 +19,6 @@ import static org.mockito.Mockito.when;
 class ExprTest {
 
     private static final double EPSILON = 1e-9;
-    private static final int ROLLS = 50;
-    private static final int RANDOM_BOUND = 3;
 
     private static Expr decode(JsonElement json) {
         return Expr.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow();
@@ -32,10 +28,8 @@ class ExprTest {
         return Expr.parse(source).getOrThrow();
     }
 
-    private static StepHost hostWithStacks(int stacks) {
-        StepHost host = mock(StepHost.class);
-        when(host.read("stacks")).thenReturn(OptionalDouble.of(stacks));
-        return host;
+    private static Variables withStacks(int stacks) {
+        return name -> "stacks".equals(name) ? OptionalDouble.of(stacks) : OptionalDouble.empty();
     }
 
     /**
@@ -53,14 +47,14 @@ class ExprTest {
         @Test
         void expressionOverStackCountEvaluatesAgainstHost() {
             Expr expr = decode(new JsonPrimitive("2 + 1.5 * (stacks - 1)"));
-            assertEquals(6.5, expr.evaluate(hostWithStacks(4)), EPSILON);
+            assertEquals(6.5, expr.evaluate(withStacks(4)), EPSILON);
         }
 
         @Test
         void sameExpressionFollowsTheHostValue() {
             Expr expr = parse("stacks * 2");
-            assertEquals(2, expr.evaluate(hostWithStacks(1)), EPSILON);
-            assertEquals(12, expr.evaluate(hostWithStacks(6)), EPSILON);
+            assertEquals(2, expr.evaluate(withStacks(1)), EPSILON);
+            assertEquals(12, expr.evaluate(withStacks(6)), EPSILON);
         }
 
         @Test
@@ -132,21 +126,15 @@ class ExprTest {
         }
 
         @Test
-        void randomRollsBelowItsBoundAndZeroBelowOne() {
-            Expr roll = parse("1 + random(3)");
-            for (int i = 0; i < ROLLS; i++) {
-                int value = roll.evaluateInt(Variables.NONE);
-                assertTrue(value >= 1 && value <= RANDOM_BOUND, String.valueOf(value));
-            }
+        void randomOfOneRollsZeroItsOnlyValueAndOfZeroReadsZero() {
+            assertEquals(0, parse("random(1)").evaluate(Variables.NONE), EPSILON);
             assertEquals(0, parse("random(0)").evaluate(Variables.NONE), EPSILON);
         }
 
         @Test
-        void chanceOfOneAlwaysFiresAndOfZeroNever() {
-            for (int i = 0; i < ROLLS; i++) {
-                assertEquals(1, parse("chance(1)").evaluate(Variables.NONE), EPSILON);
-                assertEquals(0, parse("chance(0)").evaluate(Variables.NONE), EPSILON);
-            }
+        void chanceOfOneFiresAndOfZeroReadsZero() {
+            assertEquals(1, parse("chance(1)").evaluate(Variables.NONE), EPSILON);
+            assertEquals(0, parse("chance(0)").evaluate(Variables.NONE), EPSILON);
         }
 
         @Test

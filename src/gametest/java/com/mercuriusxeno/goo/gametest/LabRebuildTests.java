@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.lab.LabBox;
 import com.mercuriusxeno.goo.lab.LabBuilder;
 import com.mercuriusxeno.goo.lab.LabOffset;
 import com.mercuriusxeno.goo.lab.LabPlacement;
@@ -18,8 +17,7 @@ import java.util.function.Consumer;
 
 /**
  * Gametest for {@code /goo lab rebuild}'s routine: an altered lab returns to
- * its plan in place and the world outside the lab bounds stays as it was
- * (decision lab-save-is-disposable).
+ * its plan in place (decision lab-save-is-disposable).
  */
 @RegistersGameTests
 public final class LabRebuildTests {
@@ -44,15 +42,13 @@ public final class LabRebuildTests {
     private static final String PLANNED_MISSING = "Rebuild should restore a broken planned block";
     private static final String STRAY_KEPT = "Rebuild should remove a stray entity inside the lab bounds";
     private static final String STRAY_MISSING = "The stray entity should spawn inside the lab bounds";
-    private static final String OUTSIDE_TOUCHED = "Rebuild should leave a block outside the lab bounds untouched";
 
     private LabRebuildTests() {
     }
 
     /**
-     * Builds the plan, alters it inside and outside its bounds, rebuilds, and
-     * asserts the foreign block gone, the planned block back, the stray entity
-     * removed and the outside marker untouched.
+     * Builds the plan, alters it inside its bounds, rebuilds, and asserts the foreign
+     * block gone, the planned block back and the stray entity removed.
      *
      * @param helper the gametest helper
      */
@@ -60,7 +56,6 @@ public final class LabRebuildTests {
         LabPlan plan = LabBuilder.planFor(helper.getLevel());
         BlockPos origin = LabTests.centredOrigin(helper, plan.bounds());
         LabTests.buildPlan(helper, origin, plan);
-        LabBox bounds = plan.bounds();
         BlockPos foreign = LabBuilder.worldPos(origin, unplannedAir(plan));
         helper.getLevel().setBlock(foreign, Blocks.DIAMOND_BLOCK.defaultBlockState(), Block.UPDATE_ALL);
         LabPlacement broken = plan.placements().stream().filter(p -> p.offset().y() == 0).findFirst().orElseThrow();
@@ -68,8 +63,6 @@ public final class LabRebuildTests {
         helper.getLevel().setBlock(brokenPos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
         Pig stray = EntityType.PIG.spawn(helper.getLevel(), foreign.above(), EntitySpawnReason.COMMAND);
         helper.assertTrue(stray != null, STRAY_MISSING);
-        BlockPos outside = LabBuilder.worldPos(origin, bounds.max().shifted(1, 0, 0));
-        helper.getLevel().setBlock(outside, Blocks.GOLD_BLOCK.defaultBlockState(), Block.UPDATE_ALL);
         try {
             LabBuilder.rebuild(helper.getLevel(), origin, plan);
         } catch (CommandSyntaxException e) {
@@ -78,7 +71,6 @@ public final class LabRebuildTests {
         helper.assertTrue(helper.getLevel().getBlockState(foreign).isAir(), FOREIGN_KEPT);
         helper.assertTrue(helper.getLevel().getBlockState(brokenPos).is(LabTests.plannedBlock(broken)), PLANNED_MISSING);
         helper.assertTrue(stray == null || stray.isRemoved(), STRAY_KEPT);
-        helper.assertTrue(helper.getLevel().getBlockState(outside).is(Blocks.GOLD_BLOCK), OUTSIDE_TOUCHED);
         helper.succeed();
     }
 

@@ -5,7 +5,6 @@ import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.EnumSource;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
@@ -49,37 +48,23 @@ class PlaceBlockStepTest {
     }
 
     // decision place-block-ability-grows-block
-    @ParameterizedTest
-    @EnumSource(Direction.class)
-    void glowCrystalFacesThePlacedFaceAtItsOneSize(Direction face) {
-        MarkerHost host = host(face);
+    @Test
+    void glowCrystalFacesThePlacedFaceAtItsOneSize() {
+        MarkerHost host = host(Direction.NORTH);
         ProgramBehavior program = new ProgramBehavior(List.of(glowCrystal()));
 
         program.tick(host);
 
-        verify(host).placeBlock(GLOW_CRYSTAL, Map.of(FACING, face.getName(), SHAPE, "bump", SIZE, "tiny"));
+        verify(host).placeBlock(GLOW_CRYSTAL, Map.of(FACING, Direction.NORTH.getName(), SHAPE, "bump", SIZE, "tiny"));
         assertFalse(program.isActive());
     }
 
     @ParameterizedTest
     @CsvSource({"0, tiny", "2, medium", "9, large", "-1, tiny"})
     void pickIndexesItsValuesClampedToTheList(int index, String size) {
-        MarkerHost host = host(Direction.UP);
-        PlaceBlockStep step = new PlaceBlockStep(GLOW_CRYSTAL, Map.of(SIZE, new StateValue.Pick(expr(String.valueOf(index)), SIZES)));
+        StateValue.Pick pick = new StateValue.Pick(expr(String.valueOf(index)), SIZES);
 
-        new ProgramBehavior(List.of(step)).tick(host);
-
-        verify(host).placeBlock(GLOW_CRYSTAL, Map.of(SIZE, size));
-    }
-
-    @Test
-    void namedValuePassesThrough() {
-        MarkerHost host = host(Direction.SOUTH);
-        PlaceBlockStep step = new PlaceBlockStep(GLOW_CRYSTAL, Map.of(SHAPE, new StateValue.Named("flat")));
-
-        new ProgramBehavior(List.of(step)).tick(host);
-
-        verify(host).placeBlock(GLOW_CRYSTAL, Map.of(SHAPE, "flat"));
+        assertEquals(size, pick.resolve(new StepContext(host(Direction.UP), 0, 0)));
     }
 
     @Test

@@ -7,26 +7,30 @@ import com.mercuriusxeno.goo.client.outsider.RoomBodyCopyRenderer;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mockStatic;
 
 /**
- * Covers the hand the aim line starts from: the first-person glove stores it,
- * and a glove drawn on a copy of the player's body in an Outsider room's
- * copies leaves it where the player's own glove put it
- * (decision room-tiles-to-render-distance-held-to-the-picture). Covers the
- * palm blob a glove extracts: none while its holder's spray lifts it to the
- * spray source, and the blob at rest size once the spray ends
+ * The glove body submits on the cutout block-atlas type and the palm blob's
+ * core on the solid one (decision diagnose-and-correct-the-palm-core-cull).
+ * The hand the aim line starts from: the first-person glove stores it, and a
+ * glove drawn on a copy of the player's body in an Outsider room's copies
+ * leaves it where the player's own glove put it
+ * (decision room-tiles-to-render-distance-held-to-the-picture). The palm
+ * blob a glove extracts: none while its holder's blob is off the palm at the
+ * spray source or settling back, and the blob at rest size once it arrives
  * (decision palm-blob-lifts-as-the-spray-source).
  */
 class GloveSpecialRendererTest {
 
+    private static final Identifier BLOCK_ATLAS = Identifier.withDefaultNamespace("textures/atlas/blocks.png");
     /** The game time of the holder's last stream tick. */
     private static final long SPRAYED = 400L;
     /**
@@ -39,6 +43,16 @@ class GloveSpecialRendererTest {
     private static final double COPY_AWAY = 30;
     /** Where the first-person glove's goo sits before the eye. */
     private static final double HAND_AHEAD = 0.5;
+
+    @Test
+    void theBodySubmitsOnTheCutoutBlockAtlasType() {
+        assertEquals(RenderTypes.entityCutout(BLOCK_ATLAS), GloveSpecialRenderer.bodyType());
+    }
+
+    @Test
+    void theCoreSubmitsOnTheSolidBlockAtlasType() {
+        assertEquals(RenderTypes.entitySolid(BLOCK_ATLAS), GloveSpecialRenderer.coreType());
+    }
 
     @Test
     void aGloveOnABodysCopyLeavesTheHandWhereThePlayersOwnGlovePutIt() {

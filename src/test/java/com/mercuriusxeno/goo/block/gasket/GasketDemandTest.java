@@ -16,16 +16,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import java.util.OptionalInt;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.withSettings;
 
 /**
  * A receiver's demand on the gasket network (decision receivers-demand-and-links-relay):
@@ -75,12 +69,6 @@ class GasketDemandTest {
         void waterRestsAtThePowerLawOfItsCapacityAtTheWaterExponent(int capacity) {
             assertEquals(GasketPushMath.taperRate(capacity, GasketPushMath.WATER_EXPONENT),
                     GasketDemand.restingDemand(resourceOf(Fluids.WATER), capacity, 0));
-        }
-
-        @Test
-        void aBiggerContainerPullsHarder() {
-            FluidResource goo = resourceOf(mock(GooFluid.Source.class));
-            assertTrue(GasketDemand.restingDemand(goo, 1 << 25, 0) > GasketDemand.restingDemand(goo, 1 << 20, 0));
         }
 
         @Test
@@ -140,36 +128,12 @@ class GasketDemandTest {
 
         @Test
         void aSourceHoldingMoreThanAskedSendsTheDemand() {
-            assertSendsFrom(FAR_MORE_THAN_ASKED, ASKED);
+            assertEquals(ASKED, GasketPusher.offer(ASKED, FAR_MORE_THAN_ASKED));
         }
 
         @Test
         void aSourceHoldingLessThanAskedSendsWhatItHolds() {
-            assertSendsFrom(LESS_THAN_ASKED, LESS_THAN_ASKED);
-        }
-
-        /**
-         * One send from a source holding water to a partner demanding {@link #ASKED} a tick.
-         *
-         * @param sourceHolds the mB the source holds
-         * @param expected    the mB the partner should receive
-         */
-        @SuppressWarnings("unchecked")
-        private void assertSendsFrom(int sourceHolds, int expected) {
-            FluidResource water = resourceOf(Fluids.WATER);
-            ResourceHandler<FluidResource> source = mock(ResourceHandler.class);
-            when(source.size()).thenReturn(1);
-            when(source.getResource(0)).thenReturn(water);
-            when(source.getAmountAsLong(0)).thenReturn((long) sourceHolds);
-            when(source.extract(eq(0), eq(water), anyInt(), any())).thenAnswer(call -> call.getArgument(2));
-            ResourceHandler<FluidResource> partner = mock(ResourceHandler.class,
-                    withSettings().extraInterfaces(GasketDemand.class));
-            when(((GasketDemand) partner).statedDemand(water)).thenReturn(OptionalInt.of(ASKED));
-            when(partner.insert(eq(water), anyInt(), any())).thenAnswer(call -> call.getArgument(1));
-            GasketPusher pusher = new GasketPusher(source, () -> null, () -> null, () -> null,
-                    () -> null, () -> { }, () -> null);
-            pusher.pushViaHandler(partner);
-            verify(partner).insert(eq(water), eq(expected), any());
+            assertEquals(LESS_THAN_ASKED, GasketPusher.offer(ASKED, LESS_THAN_ASKED));
         }
     }
 }

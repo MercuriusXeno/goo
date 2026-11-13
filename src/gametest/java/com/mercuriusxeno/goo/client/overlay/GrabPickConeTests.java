@@ -41,8 +41,6 @@ public final class GrabPickConeTests {
     private static final BlockPos STAND_POS = new BlockPos(0, 1, 2);
     /** Five blocks east of the player, far enough that the turned look passes beside the pig's box. */
     private static final BlockPos FIVE_BLOCKS_OUT = new BlockPos(5, 1, 2);
-    /** How far off the pig the look turns: past the shared pick cone of 4 degrees, inside Grab's. */
-    private static final float INSIDE_GRABS_CONE = 7f;
     /** How far the test's look ray runs: past the pig, short of the bay's far wall. */
     private static final double IN_THE_BAY = 6;
     private static final int HOLD_TICKS = 5;
@@ -81,7 +79,10 @@ public final class GrabPickConeTests {
         KnownRecipes.teachRequires(player, grab);
         Pig pig = helper.spawn(EntityType.PIG, FIVE_BLOCKS_OUT);
         player.lookAt(EntityAnchorArgument.Anchor.EYES, pig.getBoundingBox().getCenter());
-        player.setYRot(player.getYRot() + INSIDE_GRABS_CONE);
+        // How far off the pig the look turns: midway between the shared pick cone and Grab's live one.
+        float insideGrabsCone = (float) ((AimAssistResolver.AIM_ASSIST_DEGREES
+                + GrabStep.pickConeOf(grab.behaviors()).orElseThrow()) / 2);
+        player.setYRot(player.getYRot() + insideGrabsCone);
         // Grab's own reach runs the ray into the neighbouring tests' bays, where a mob on the ray is an
         // exact hit and outranks the cone; the ray stops inside this bay, past the pig.
         double reach = Math.min(IN_THE_BAY, GrabStep.reachOf(grab.behaviors(), null).orElseThrow());
@@ -93,7 +94,7 @@ public final class GrabPickConeTests {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, holdTick(player, grab, reach, picks)));
         }
         helper.runAfterDelay(HOLD_TICKS + 1, () -> {
-            helper.assertTrue(GrabEvents.heldBy(player) == pig, "The pig the look passes " + INSIDE_GRABS_CONE
+            helper.assertTrue(GrabEvents.heldBy(player) == pig, "The pig the look passes " + insideGrabsCone
                     + " degrees beside should be picked and held, held " + GrabEvents.heldBy(player) + ", picked "
                     + picks);
             helper.getLevel().getServer().getPlayerList().remove(player);

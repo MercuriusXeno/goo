@@ -20,6 +20,7 @@ import com.mojang.blaze3d.vertex.QuadInstance;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.special.SpecialModelRenderer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
@@ -158,8 +159,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         QuadCollection model = GloveBodyModels.getModel(gloveItem);
         // phased-things-draw-as-a-ghostly-image: a phased player's own held glove draws under the phase fade
         boolean ghost = PhasedHands.ghosting();
-        nodeCollector.submitCustomGeometry(poseStack, ghost ? GooSubmitter.renderType()
-                        : GooSubmitter.cutoutOnBlockAtlas(),
+        nodeCollector.submitCustomGeometry(poseStack, ghost ? GooSubmitter.renderType() : bodyType(),
                 (pose, c) -> {
                     QuadInstance qi = new QuadInstance();
                     qi.setColor(ghost ? PhaseLook.bodyTint(COLOR_WHITE) : COLOR_WHITE);
@@ -169,6 +169,26 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
                         c.putBakedQuad(pose, quad, qi);
                     }
                 });
+    }
+
+    /**
+     * The render type the glove body submits on: cutout on the block atlas,
+     * opaque, so the hand pass draws it before any translucent face
+     * (decision diagnose-and-correct-the-palm-core-cull).
+     *
+     * @return entityCutout on the block atlas
+     */
+    static RenderType bodyType() {
+        return GooSubmitter.cutoutOnBlockAtlas();
+    }
+
+    /**
+     * The render type the palm blob's core submits on: solid on the block atlas.
+     *
+     * @return entitySolid on the block atlas
+     */
+    static RenderType coreType() {
+        return GooSubmitter.solidOnBlockAtlas();
     }
 
     /**
@@ -197,7 +217,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
 
         poseStack.pushPose();
         poseStack.translate(cx, cy, cz);
-        nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.solidOnBlockAtlas(),
+        nodeCollector.submitCustomGeometry(poseStack, coreType(),
                 (pose, c) -> GooFlightRenderer.emitCore(pose, c, type, gameTime, scale));
         nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
                 (pose, c) -> GooFlightRenderer.emitShell(pose, c, type, scale));

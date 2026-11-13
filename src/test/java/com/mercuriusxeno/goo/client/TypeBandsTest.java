@@ -17,7 +17,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Tests that the type bands partition [0, 1] over a vat's goo, one band per
  * type, in the fixed type order for a surface and largest first for a
- * dissolve glow, each as wide as its type's volume ratio, and that their
+ * dissolve glow, each as wide as its type's volume ratio and seeded by its
+ * type's place in the order, which no change of volumes moves, and that their
  * layers over-blend to each type's volume ratio.
  */
 class TypeBandsTest {
@@ -87,6 +88,25 @@ class TypeBandsTest {
             float ratio = (float) contents.getVolume(band.type()) / contents.totalVolume();
             assertEquals(ratio, coverage, COVERAGE_TOLERANCE);
         }
+    }
+
+    // decision mingle-noise-keyed-by-type
+    @Test
+    void eachBandIsSeededByItsTypesPlaceInTheTypeOrder() {
+        List<TypeBand> bands = TypeBands.over(new GooContents(Map.of(GooTypes.BLAZE, 300, GooTypes.FROST, 900)));
+
+        assertEquals(List.of(GooTypes.indexOf(GooTypes.BLAZE), GooTypes.indexOf(GooTypes.FROST)),
+            bands.stream().map(TypeBand::seed).toList());
+    }
+
+    // decision mingle-noise-keyed-by-type
+    @Test
+    void aTypeKeepsItsPlaceAndSeedWhenAnotherTypesVolumePassesIt() {
+        List<TypeBand> before = TypeBands.over(new GooContents(Map.of(GooTypes.BLAZE, 300, GooTypes.FROST, 900)));
+        List<TypeBand> after = TypeBands.over(new GooContents(Map.of(GooTypes.BLAZE, 900, GooTypes.FROST, 300)));
+
+        assertEquals(before.stream().map(band -> Map.entry(band.type(), band.seed())).toList(),
+            after.stream().map(band -> Map.entry(band.type(), band.seed())).toList());
     }
 
     @Test

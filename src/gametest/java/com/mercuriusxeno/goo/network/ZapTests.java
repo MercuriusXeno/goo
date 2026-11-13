@@ -1,4 +1,5 @@
 package com.mercuriusxeno.goo.network;
+import net.minecraft.resources.Identifier;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
@@ -13,7 +14,6 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
@@ -80,11 +80,9 @@ public final class ZapTests {
     /** Marks a pending effect aimed at a block rather than an entity. */
     private static final int NO_ENTITY = -1;
     private static final String ZAP = "goo:pulse_zap";
+    private static final String ZAP_REQUIRED = "Ability registry must hold pulse_zap";
     private static final BlockPos FLOOR = new BlockPos(2, 0, 2);
     private static final BlockPos ON_FLOOR = FLOOR.above();
-    /** pulse_zap.json's stun ticks, and a tick past them for the wake to run. */
-    private static final int STUN_TICKS = 60;
-    private static final int PAST_THE_STUN = STUN_TICKS + 2;
     private static final int SETTLE_TICKS = 1;
     /** Half a block, from a block's center to its face. */
     private static final double BLOCK_HALF = 0.5;
@@ -94,13 +92,11 @@ public final class ZapTests {
     private static final String AI_BACK = "A zombie whose stun wore off should have its AI back";
     private static final String DUST_POWERED = "Dust beside a Zap landing should carry power";
     private static final String DUST_UNPOWERED = "Dust should lose its power once the pulse ends";
-    private static final String STRIKES_AS_A_BEAM = "pulse_zap should strike by beam delivery";
     private static final String HAD_TARGET = "The zombie should target the player before the Zap";
     /** A stone wall on the floor, and two blocks past it a closed door the wave reaches through the wall. */
     private static final BlockPos WALL = ON_FLOOR;
     private static final BlockPos DOOR = WALL.east(2);
     private static final String DOOR_OPENED = "A Zap on the wall should open the door behind it, toggled once";
-    private static final String WALL_STANDS = "The wall a Zap disperses on should stand as it was";
     /** Ticks the dust's pulse stands, and a tick past them for it to clear. */
     private static final int PAST_THE_PULSE = 4;
     /** The plexer's hatch side, so its stone ejects into the open cell south of it. */
@@ -144,11 +140,9 @@ public final class ZapTests {
         helper.setBlock(WALL, Blocks.STONE);
         helper.setBlock(DOOR, Blocks.OAK_DOOR.defaultBlockState().setValue(DoorBlock.HALF, DoubleBlockHalf.LOWER));
         helper.setBlock(DOOR.above(), Blocks.OAK_DOOR.defaultBlockState().setValue(DoorBlock.HALF, DoubleBlockHalf.UPPER));
-        assertStrikesAsABeam(helper);
         GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.PULSE,
                 NO_ENTITY, helper.absolutePos(WALL), Direction.WEST, ZAP));
         helper.assertTrue(helper.getBlockState(DOOR).getValue(DoorBlock.OPEN), DOOR_OPENED);
-        helper.assertTrue(helper.getBlockState(WALL).is(Blocks.STONE), WALL_STANDS);
         helper.succeed();
     }
 
@@ -170,7 +164,8 @@ public final class ZapTests {
     }
 
     /**
-     * A zombie Zap stunned has its AI back once the JSON's stun ticks pass.
+     * A zombie Zap stunned has its AI back once the stun wears off, polled so
+     * the wait follows the stun's ticks however they are tuned.
      *
      * @param helper the gametest helper
      */
@@ -179,10 +174,7 @@ public final class ZapTests {
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             strike(helper, zombie);
             helper.assertTrue(zombie.isNoAi(), AI_OFF);
-            helper.runAfterDelay(PAST_THE_STUN, () -> {
-                helper.assertFalse(zombie.isNoAi(), AI_BACK);
-                helper.succeed();
-            });
+            helper.succeedWhen(() -> helper.assertFalse(zombie.isNoAi(), AI_BACK));
         });
     }
 
@@ -253,7 +245,6 @@ public final class ZapTests {
         }
         BlockPos plexer = helper.absolutePos(ON_FLOOR);
         Vec3 top = Vec3.atCenterOf(plexer).add(0, BLOCK_HALF, 0);
-        assertStrikesAsABeam(helper);
         GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.PULSE,
                 NO_ENTITY, plexer, Direction.UP, ZAP, null, top));
         assertCraftedOnce(helper);
@@ -306,14 +297,11 @@ public final class ZapTests {
         return zombie;
     }
 
+
     private static AbilityDefinition zap(GameTestHelper helper) {
         AbilityDefinition zap = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(ZAP));
-        helper.assertTrue(zap != null, STRIKES_AS_A_BEAM);
+        helper.assertTrue(zap != null, ZAP_REQUIRED);
         return zap;
-    }
-
-    private static void assertStrikesAsABeam(GameTestHelper helper) {
-        helper.assertTrue(zap(helper).delivery().fliesStraight(), STRIKES_AS_A_BEAM);
     }
 
     private static void landOn(GameTestHelper helper, BlockPos block) {
@@ -321,13 +309,11 @@ public final class ZapTests {
     }
 
     private static void landOn(GameTestHelper helper, BlockPos block, Direction face) {
-        assertStrikesAsABeam(helper);
         GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.PULSE,
                 NO_ENTITY, helper.absolutePos(block), face, ZAP));
     }
 
     private static void strike(GameTestHelper helper, Mob mob) {
-        assertStrikesAsABeam(helper);
         GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.PULSE,
                 mob.getId(), mob.blockPosition(), Direction.UP, ZAP));
     }

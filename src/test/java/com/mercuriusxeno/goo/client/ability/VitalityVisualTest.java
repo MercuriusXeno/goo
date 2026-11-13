@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.client.ability;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 
@@ -15,6 +14,9 @@ class VitalityVisualTest {
     private static final Vec3 EAST = new Vec3(1, 0, 0);
     private static final double RANGE = 6;
     private static final double CONE = 50;
+    private static final Vec3 FEET = new Vec3(10, 64, 10);
+    private static final double STAR_HEIGHT = 1.8;
+    private static final float STAR_YAW = 60f;
 
     @Test
     void fogAtTheStartOfTheConeSitsOnTheGlove() {
@@ -35,12 +37,11 @@ class VitalityVisualTest {
         assertEquals(expected, at.subtract(APEX.add(EAST.scale(RANGE))).length(), DELTA);
     }
 
+    /** At its crest the undulation swells the rim by a quarter, at its trough it shrinks it by a quarter. */
     @Test
-    void theUndulationSwellsAndShrinksTheRimWithinItsShare() {
-        for (int tick = 0; tick < 40; tick++) {
-            double scale = VitalityVisual.undulation(0.3, tick);
-            assertTrue(scale >= 1 - VitalityVisual.UNDULATION - DELTA && scale <= 1 + VitalityVisual.UNDULATION + DELTA);
-        }
+    void theUndulationSwellsTheRimByAQuarterAtItsCrestAndShrinksItByAQuarterAtItsTrough() {
+        assertEquals(1.25, VitalityVisual.undulation(1.0 / 6, 0), DELTA);
+        assertEquals(0.75, VitalityVisual.undulation(0.5, 0), DELTA);
     }
 
     @Test
@@ -56,22 +57,27 @@ class VitalityVisualTest {
         assertTrue(at.subtract(APEX.add(0, RANGE, 0)).length() > 0);
     }
 
-    /** A first-person caster's own stars rise before them, clear of the camera, waist to over the head. */
+    /**
+     * A first-person caster facing yaw 60 sees a star on the lowest rolls 60 degrees to one side of their facing,
+     * at yaw 0, 0.7 out past the near clip and at the waist, half their 1.8 height.
+     */
     @Test
-    void aFirstPersonCastersStarsRiseInFrontOfTheirEyesWhereTheyCanSeeThem() {
-        Vec3 feet = new Vec3(10, 64, 10);
-        double height = 1.8;
-        float yaw = 30f;
-        Vec3 facing = Vec3.directionFromRotation(0f, yaw);
-        RandomSource random = RandomSource.create(7L);
-        for (int star = 0; star < 200; star++) {
-            Vec3 at = VitalityVisual.starBeforeTheEyes(feet, height, yaw, random);
-            Vec3 flat = new Vec3(at.x - feet.x, 0, at.z - feet.z);
-            assertTrue(flat.length() >= VitalityVisual.STAR_REACH_MIN - DELTA, "a star sits inside the near clip");
-            assertTrue(flat.normalize().dot(facing) > Math.cos(VitalityVisual.STAR_ARC_HALF) - 1e-6,
-                    "a star sits outside the arc before the eyes");
-            assertTrue(at.y >= feet.y + height * VitalityVisual.STAR_LOW_SHARE - DELTA
-                    && at.y <= feet.y + height * VitalityVisual.STAR_HIGH_SHARE + DELTA, "a star sits off the band");
-        }
+    void aFirstPersonCastersLowestRollStarRisesAtTheArcsEdgeNearAndAtTheWaist() {
+        Vec3 at = VitalityVisual.starAt(FEET, STAR_HEIGHT, STAR_YAW, 0, 0, 0);
+        assertEquals(FEET.x, at.x, DELTA);
+        assertEquals(FEET.y + 0.9, at.y, DELTA);
+        assertEquals(FEET.z + 0.7, at.z, DELTA);
+    }
+
+    /**
+     * A first-person caster facing yaw 60 sees a star on the highest rolls 60 degrees to the other side, at yaw 120,
+     * 1.2 out and just over the head, 1.15 of their 1.8 height.
+     */
+    @Test
+    void aFirstPersonCastersHighestRollStarRisesAtTheArcsOtherEdgeFarAndOverTheHead() {
+        Vec3 at = VitalityVisual.starAt(FEET, STAR_HEIGHT, STAR_YAW, 1, 1, 1);
+        assertEquals(FEET.x - 0.6 * Math.sqrt(3), at.x, DELTA);
+        assertEquals(FEET.y + 2.07, at.y, DELTA);
+        assertEquals(FEET.z - 0.6, at.z, DELTA);
     }
 }

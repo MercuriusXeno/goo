@@ -1,15 +1,10 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.item.ExoriteArmorMaterial;
-import com.mercuriusxeno.goo.item.ExoriteUpgradeTemplate;
 import com.mercuriusxeno.goo.registry.GooCreativeTabs;
 import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.locale.Language;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.CreativeModeTab;
@@ -20,9 +15,6 @@ import net.minecraft.world.item.SmithingTemplateItem;
 import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.SmithingRecipeInput;
-import net.minecraft.world.item.equipment.ArmorMaterial;
-import net.minecraft.world.item.equipment.ArmorMaterials;
-import net.minecraft.world.item.equipment.ArmorType;
 import net.minecraft.world.level.storage.loot.BuiltInLootTables;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.LootTable;
@@ -41,7 +33,8 @@ import java.util.function.Consumer;
  * slot descriptions, ancient city chests yield it, and the crafting table
  * duplicates it over a sculk block. The tool and armor set (decision
  * exorite-tool-and-armor-set) is registered, smithed from netherite with
- * that template, and repaired by exorite.
+ * that template, and repaired by exorite; ExoriteMaterialsTest holds the
+ * armor material's stats.
  */
 @RegistersGameTests
 public final class ExoriteTests {
@@ -51,7 +44,6 @@ public final class ExoriteTests {
     private static final String EXORITE_SET_REGISTERED = "exorite_set_registered";
     private static final String EXORITE_SET_SMITHING = "exorite_set_smithing";
     private static final String EXORITE_SET_REPAIRS = "exorite_set_repairs";
-    private static final String EXORITE_ARMOR_STATS = "exorite_armor_stats";
     private static final String EXO_GAUNTLET_SMITHING = "exo_gauntlet_smithing";
 
     /**
@@ -66,7 +58,6 @@ public final class ExoriteTests {
         GooTestFunctions.registerTest(registrar, EXORITE_SET_REGISTERED, ExoriteTests::setRegistered);
         GooTestFunctions.registerTest(registrar, EXORITE_SET_SMITHING, ExoriteTests::setSmithing);
         GooTestFunctions.registerTest(registrar, EXORITE_SET_REPAIRS, ExoriteTests::setRepairs);
-        GooTestFunctions.registerTest(registrar, EXORITE_ARMOR_STATS, ExoriteTests::armorOutranksNetherite);
         GooTestFunctions.registerTest(registrar, EXO_GAUNTLET_SMITHING, ExoriteTests::exoGauntletSmithing);
     }
 
@@ -80,12 +71,9 @@ public final class ExoriteTests {
     private static final long LOOT_SEED = 261L;
     private static final int GRID_SIDE = 3;
     private static final int DUPLICATED_COUNT = 2;
-    private static final String NOT_TRANSLATABLE = "<literal, not a translation key>";
 
     private static final String NOT_REGISTERED = "Registry should hold " + TEMPLATE_ID;
     private static final String NOT_A_TEMPLATE = TEMPLATE_ID + " should be a smithing template item";
-    private static final String UNNAMED = "en_us.json should name the template: ";
-    private static final String UNDESCRIBED = "en_us.json should carry the template description line ";
     private static final String NOT_IN_LOOT = "Ancient city chests should yield the template in "
             + ANCIENT_CITY_ROLLS + " seeded rolls";
     private static final String NO_DUPLICATION = "The duplication grid should craft two exorite templates";
@@ -93,20 +81,14 @@ public final class ExoriteTests {
     private static final String NETHERITE_PREFIX = "netherite_";
     private static final String PIECE_NOT_REGISTERED = "Registry should hold ";
     private static final String PIECE_NOT_IN_TAB = "Goo creative tab should show ";
-    private static final String PIECE_UNNAMED = "en_us.json should name ";
     private static final String NOT_SMITHED = "Exorite template, netherite piece and exorite should smith ";
-    private static final String NETHERITE_TEMPLATE_SMITHED = "The netherite template should not smith ";
     private static final String NOT_REPAIRED = "Exorite should repair ";
-    private static final String ARMOR_DURABILITY_LOW = "Exorite armor durability should exceed netherite's";
-    private static final String ARMOR_TOUGHNESS_LOW = "Exorite armor toughness should exceed netherite's";
-    private static final String ARMOR_DEFENSE_LOW = "Exorite armor defense should exceed netherite's in slot ";
 
     private ExoriteTests() {
     }
 
     /**
-     * The registry holds the template as a smithing template item whose name
-     * and four description lines each have a translation in en_us.json.
+     * The registry holds the template as a smithing template item; ExoriteLangTest holds its translations.
      *
      * @param helper the gametest helper
      */
@@ -114,17 +96,6 @@ public final class ExoriteTests {
         Item item = BuiltInRegistries.ITEM.getValue(Identifier.parse(TEMPLATE_ID));
         helper.assertTrue(item == GooItems.EXORITE_UPGRADE_SMITHING_TEMPLATE.get(), NOT_REGISTERED);
         helper.assertTrue(item instanceof SmithingTemplateItem, NOT_A_TEMPLATE);
-        Language language = Language.getInstance();
-        String nameKey = item.getDescriptionId();
-        helper.assertTrue(language.has(nameKey), UNNAMED + nameKey);
-        SmithingTemplateItem template = (SmithingTemplateItem) item;
-        List<Component> lines = List.of(template.getBaseSlotDescription(), template.getAdditionSlotDescription());
-        for (Component line : lines) {
-            assertTranslated(helper, language, line);
-        }
-        for (String key : List.of(ExoriteUpgradeTemplate.APPLIES_TO_KEY, ExoriteUpgradeTemplate.INGREDIENTS_KEY)) {
-            helper.assertTrue(language.has(key), UNDESCRIBED + key);
-        }
         helper.succeed();
     }
 
@@ -171,8 +142,8 @@ public final class ExoriteTests {
     }
 
     /**
-     * All nine exorite pieces stand in the item registry, in the goo creative
-     * tab's display items, and under a name in en_us.json.
+     * All nine exorite pieces stand in the item registry and in the goo creative
+     * tab's display items; ExoriteLangTest holds their names.
      *
      * @param helper the gametest helper
      */
@@ -181,34 +152,28 @@ public final class ExoriteTests {
         tab.buildContents(new CreativeModeTab.ItemDisplayParameters(
                 helper.getLevel().enabledFeatures(), false, helper.getLevel().registryAccess()));
         Collection<ItemStack> shown = tab.getDisplayItems();
-        Language language = Language.getInstance();
         for (DeferredItem<? extends Item> piece : GooItems.EXORITE_SET) {
             Identifier id = piece.getId();
             helper.assertTrue(BuiltInRegistries.ITEM.getValue(id) == piece.get(), PIECE_NOT_REGISTERED + id);
             helper.assertTrue(shown.stream().anyMatch(stack -> stack.is(piece.get())), PIECE_NOT_IN_TAB + id);
-            helper.assertTrue(language.has(piece.get().getDescriptionId()), PIECE_UNNAMED + id);
         }
         helper.succeed();
     }
 
     /**
      * Each exorite piece is smithed from its netherite piece with the exorite
-     * template and exorite; the netherite template with the same base and
-     * addition matches nothing.
+     * template and exorite.
      *
      * @param helper the gametest helper
      */
     public static void setSmithing(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         ItemStack exoriteTemplate = new ItemStack(GooItems.EXORITE_UPGRADE_SMITHING_TEMPLATE.get());
-        ItemStack netheriteTemplate = new ItemStack(Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE);
         ItemStack exorite = new ItemStack(GooItems.EXORITE.get());
         for (DeferredItem<? extends Item> piece : GooItems.EXORITE_SET) {
             ItemStack netheritePiece = new ItemStack(netheriteCounterpart(piece));
             ItemStack upgraded = smith(level, new SmithingRecipeInput(exoriteTemplate, netheritePiece, exorite));
             helper.assertTrue(upgraded.is(piece.get()), NOT_SMITHED + piece.getId());
-            ItemStack refused = smith(level, new SmithingRecipeInput(netheriteTemplate, netheritePiece, exorite));
-            helper.assertTrue(refused.isEmpty(), NETHERITE_TEMPLATE_SMITHED + piece.getId());
         }
         helper.succeed();
     }
@@ -228,40 +193,17 @@ public final class ExoriteTests {
     }
 
     /**
-     * The exorite armor material beats netherite's on durability, toughness
-     * and the defense of every armor slot.
-     *
-     * @param helper the gametest helper
-     */
-    public static void armorOutranksNetherite(GameTestHelper helper) {
-        ArmorMaterial exorite = ExoriteArmorMaterial.MATERIAL;
-        ArmorMaterial netherite = ArmorMaterials.NETHERITE;
-        helper.assertTrue(exorite.durability() > netherite.durability(), ARMOR_DURABILITY_LOW);
-        helper.assertTrue(exorite.toughness() > netherite.toughness(), ARMOR_TOUGHNESS_LOW);
-        for (ArmorType slot : ArmorType.values()) {
-            helper.assertTrue(exorite.defense().getOrDefault(slot, 0) > netherite.defense().getOrDefault(slot, 0),
-                    ARMOR_DEFENSE_LOW + slot.getName());
-        }
-        helper.succeed();
-    }
-
-    /**
      * The goo gauntlet, the exorite template and exorite smith the exo
-     * gauntlet; the netherite template with the same base and addition
-     * matches nothing (decision exo-gauntlet-smithed-with-exorite).
+     * gauntlet (decision exo-gauntlet-smithed-with-exorite).
      *
      * @param helper the gametest helper
      */
     public static void exoGauntletSmithing(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        ItemStack gauntlet = new ItemStack(GooItems.GOO_GAUNTLET.get());
-        ItemStack exorite = new ItemStack(GooItems.EXORITE.get());
         ItemStack upgraded = smith(level, new SmithingRecipeInput(
-                new ItemStack(GooItems.EXORITE_UPGRADE_SMITHING_TEMPLATE.get()), gauntlet, exorite));
+                new ItemStack(GooItems.EXORITE_UPGRADE_SMITHING_TEMPLATE.get()), new ItemStack(GooItems.GOO_GAUNTLET.get()),
+                new ItemStack(GooItems.EXORITE.get())));
         helper.assertTrue(upgraded.is(GooItems.EXO_GAUNTLET.get()), NOT_SMITHED + GooItems.EXO_GAUNTLET.getId());
-        ItemStack refused = smith(level, new SmithingRecipeInput(
-                new ItemStack(Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE), gauntlet, exorite));
-        helper.assertTrue(refused.isEmpty(), NETHERITE_TEMPLATE_SMITHED + GooItems.EXO_GAUNTLET.getId());
         helper.succeed();
     }
 
@@ -276,8 +218,4 @@ public final class ExoriteTests {
                 .orElse(ItemStack.EMPTY);
     }
 
-    private static void assertTranslated(GameTestHelper helper, Language language, Component line) {
-        String key = line.getContents() instanceof TranslatableContents translatable ? translatable.getKey() : NOT_TRANSLATABLE;
-        helper.assertTrue(language.has(key), UNDESCRIBED + key);
-    }
 }

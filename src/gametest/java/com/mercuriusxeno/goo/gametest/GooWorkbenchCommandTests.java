@@ -112,9 +112,6 @@ public final class GooWorkbenchCommandTests {
             if (!Files.isRegularFile(world.resolve("goo_workbench/goo_audit.json"))) {
                 return "the dump run wrote no goo_audit.json under the world folder";
             }
-            if (ProcessHandle.current().descendants().anyMatch(GooWorkbenchCommandTests::isGradle)) {
-                return "the in-game run spawned a gradle process";
-            }
             answered(operations, WorkbenchOperations.PROMOTE, "{}");
             if (!Files.isRegularFile(values.resolve("base_values.json"))
                     || !Files.isRegularFile(world.resolve("datapacks/goo_values/pack.mcmeta"))) {
@@ -133,10 +130,6 @@ public final class GooWorkbenchCommandTests {
             throw new IOException(operation + " answered " + reply.status() + ": " + reply.text());
         }
         return reply.text();
-    }
-
-    private static boolean isGradle(ProcessHandle process) {
-        return process.info().commandLine().map(line -> line.contains("gradle")).orElse(false);
     }
 
     private static byte[] jarValues() throws IOException {

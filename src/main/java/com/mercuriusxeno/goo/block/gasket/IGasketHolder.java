@@ -285,7 +285,7 @@ public interface IGasketHolder {
      * @param role   the gasket role choosing the half
      * @return the role's half
      */
-    private static AABB splitAtMidY(AABB bounds, GasketRole role) {
+    static AABB splitAtMidY(AABB bounds, GasketRole role) {
         double midY = (bounds.minY + bounds.maxY) / 2.0;
         return role == GasketRole.RECEIVER
                 ? new AABB(bounds.minX, midY, bounds.minZ, bounds.maxX, bounds.maxY, bounds.maxZ)
