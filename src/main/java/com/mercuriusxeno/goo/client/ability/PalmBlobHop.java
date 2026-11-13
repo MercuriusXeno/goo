@@ -4,22 +4,30 @@ import com.mercuriusxeno.goo.client.throwing.BlobShape;
 import net.minecraft.util.Mth;
 
 /**
- * The palm blob's pose through a lift, pure functions of the ticks gone: a
- * lift from the palm hops, pressing a little flatter, recoiling up taller
- * and thinner than the cube with its bottom on the palm, then leaving the
- * palm to rise to the source and settle into the cube; a lift turned round
- * off the palm rises from where it was with no hop; a settle eases back and
- * presses flat on the palm with no hop on landing. Volume holds throughout:
- * a pose's spread sets its width and depth and its height takes the rest.
+ * The palm blob's pose through a lift, pure functions of the ticks gone. A
+ * pose's height runs along the palm's normal, off the palm, and its width
+ * and depth across the palm. A lift from the palm hops: pressing a little
+ * flatter, recoiling up off the palm taller and thinner than the cube with
+ * its bottom on the palm, then leaving the palm to rise to the source and
+ * settle into the cube. A lift turned round off the palm rises from where
+ * it was with no hop. A settle comes back down as the cube, and as its
+ * bottom meets the palm it smears across it, squashing into the pancake;
+ * the palm stops it. A pose's spread sets its width and depth and its
+ * height takes the rest of one volume; the size it draws at is the lift's.
  * Kept apart from the spray so any lift, Knives' charge's as well as a
  * spray's, runs the same hop and settle.
  * every-lift-begins-with-a-hop
  * palm-blob-rests-pressed-and-stands-into-the-cube
+ * operator ruling 2026-11-13: the blob smears across the palm on contact as it lands
  */
 public final class PalmBlobHop {
 
-    /** The ticks the rise from the palm to the source takes, and the settle back. */
+    /** The ticks the rise from the palm to the source takes, and the settle's descent back. */
     public static final int EASE_TICKS = 6;
+    /** The ticks the landing blob takes to smear across the palm into the pancake. */
+    static final int SMEAR_TICKS = 3;
+    /** The ticks a settle takes: the descent onto the palm, then the smear. */
+    public static final int SETTLE_TICKS = EASE_TICKS + SMEAR_TICKS;
     /**
      * The pressed palm blob's width and depth against the cube it stands
      * into; its height is what holds the cube's volume. At rest the shell
@@ -147,21 +155,28 @@ public final class PalmBlobHop {
      */
     public static Pose risePoseAt(Pose from, double ticks) {
         float risen = eased(ticks / EASE_TICKS);
-        return new Pose(Mth.lerp(risen, from.share(), 1f), Mth.lerp(risen, from.spread(), 1f), from.bottomOffThePalm());
+        return new Pose(Mth.lerp(risen, from.share(), 1f), Mth.lerp(risen, from.spread(), 1f),
+                from.bottomOffThePalm());
     }
 
     /**
-     * The pose of a settle back onto the palm, with no hop on landing: from
-     * the pose the lift had reached it eases home and presses flat.
+     * The pose of a settle back onto the palm: from the pose the lift had
+     * reached it comes down as the cube until its bottom meets the palm,
+     * then smears across the palm into the pancake, its bottom held on the
+     * palm, so the palm stops it rather than letting it into the hand.
+     * operator ruling 2026-11-13: the blob smears across the palm on contact as it lands
      *
      * @param reached the pose the lift had reached as it ended
      * @param ticks   the ticks since the lift ended, with the frame's partial tick
      * @return the pose
      */
     public static Pose settlePoseAt(Pose reached, double ticks) {
-        float settled = eased(ticks / EASE_TICKS);
-        return new Pose(reached.share() * (1f - settled), Mth.lerp(settled, reached.spread(), PRESSED_SPREAD),
-                reached.bottomOffThePalm() * (1f - settled));
+        if (ticks < EASE_TICKS) {
+            float down = eased(ticks / EASE_TICKS);
+            return new Pose(reached.share() * (1f - down), Mth.lerp(down, reached.spread(), 1f),
+                    reached.bottomOffThePalm() * (1f - down));
+        }
+        return onThePalm(Mth.lerp(eased((ticks - EASE_TICKS) / SMEAR_TICKS), 1f, PRESSED_SPREAD));
     }
 
     /**
