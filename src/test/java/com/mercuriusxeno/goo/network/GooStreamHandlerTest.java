@@ -103,7 +103,8 @@ class GooStreamHandlerTest {
             Vec3 axis = new Vec3(0.6, 0, 0.8);
             Vec3 travel = new Vec3(0.2, -0.1, 0.3);
             StreamMotesPayload spores = new StreamMotesPayload(1, GLOVE, axis, SPORE, 0,
-                    GooStreamHandler.crosshairSpeed(RANGE, crosshairDistance), travel, Delivery.NO_THROW_SPEED);
+                    GooStreamHandler.crosshairSpeed(RANGE, crosshairDistance), travel, Delivery.NO_THROW_SPEED,
+                    false);
 
             Vec3 launch = GooStreamHandler.moteLaunch(spores, AXIS);
 

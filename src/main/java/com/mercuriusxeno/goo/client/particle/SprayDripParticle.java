@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.network.DripFlights;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import com.mercuriusxeno.goo.throwing.CoatRay;
+import com.mercuriusxeno.goo.throwing.DripArc;
 import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.ParticleProvider;
@@ -44,6 +45,7 @@ public final class SprayDripParticle extends SingleQuadParticle {
     private final GooRenderUtil.UvRect uv;
     private final int rgb;
     private Source source;
+    private DripArc.LivingNear living = DripArc.NO_LIVING;
     private boolean thrown;
     private SprayDrip drip;
 
@@ -83,10 +85,12 @@ public final class SprayDripParticle extends SingleQuadParticle {
      *
      * @param sprayFrom where the caster's spray source stands, read when the drip is thrown
      * @param launch    the launch velocity the server's drip for its share took, blocks per tick
+     * @param meets     the living the drip splats on when it meets one, as the server's drip strikes them
      */
-    public void flyArcFrom(Source sprayFrom, Vec3 launch) {
+    public void flyArcFrom(Source sprayFrom, Vec3 launch, DripArc.LivingNear meets) {
         this.source = sprayFrom;
         this.drip = new SprayDrip(rgb, launch);
+        this.living = meets;
     }
 
     /** Throws the drip from its source on its first tick, flies it on, and splats it at its end. */
@@ -100,7 +104,7 @@ public final class SprayDripParticle extends SingleQuadParticle {
         this.zo = this.z;
         this.age++;
         SprayDrip.Step step = drip.step(new Vec3(this.x, this.y, this.z), new Vec3(this.xd, this.yd, this.zd),
-                CoatRay.clipping(this.level), DripFlights.airspaceOf(this.level));
+                CoatRay.clipping(this.level), living, DripFlights.airspaceOf(this.level));
         this.setPos(step.position().x, step.position().y, step.position().z);
         this.xd = step.velocity().x;
         this.yd = step.velocity().y;

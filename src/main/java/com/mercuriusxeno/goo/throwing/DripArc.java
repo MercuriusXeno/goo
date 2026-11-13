@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.throwing;
 
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -19,6 +21,8 @@ public final class DripArc {
     /** The pull gravity puts on a drip's velocity each tick, blocks per tick per tick. */
     public static final double GRAVITY = 0.02;
     private static final Vec3 PULL = new Vec3(0, -GRAVITY, 0);
+    /** The living near a drip that strikes no living thing: none. */
+    public static final LivingNear NO_LIVING = (from, to) -> List.of();
 
     private DripArc() {
     }
@@ -37,20 +41,46 @@ public final class DripArc {
     }
 
     /**
+     * A living thing a drip may strike, handed to the arc as its box.
+     *
+     * @param entityId the living thing's entity id
+     * @param box      its bounding box
+     */
+    public record LivingBox(int entityId, AABB box) {
+    }
+
+    /**
+     * The living things standing near a tick's segment, the caster aside.
+     */
+    @FunctionalInterface
+    public interface LivingNear {
+
+        /**
+         * @param from the segment's start
+         * @param to   the segment's end
+         * @return the boxes of the living the segment may meet
+         */
+        List<LivingBox> along(Vec3 from, Vec3 to);
+    }
+
+
+    /**
      * Where one tick of flight leaves a drip.
      *
      * @param position where the drip stands after the tick: the strike point where it struck
      * @param velocity its velocity for the next tick
-     * @param strike   the block face the tick's segment met, empty while the drip flies on
+     * @param strike   the block face the tick's segment met, empty while the drip flies on or struck a living thing
+     * @param living   the living thing the tick's segment met before any block, empty where it met none
      * @param lost     whether the drip left the airspace unstruck, ending there
      */
-    public record Step(Vec3 position, Vec3 velocity, Optional<CoatRay.BlockStrike> strike, boolean lost) {
+    public record Step(Vec3 position, Vec3 velocity, Optional<CoatRay.BlockStrike> strike,
+                       Optional<LivingBox> living, boolean lost) {
 
         /**
-         * @return true once the drip struck a block or left the airspace
+         * @return true once the drip struck a block or a living thing, or left the airspace
          */
         public boolean ended() {
-            return strike.isPresent() || lost;
+            return strike.isPresent() || living.isPresent() || lost;
         }
     }
 
@@ -80,14 +110,68 @@ public final class DripArc {
      * @return where the tick leaves it
      */
     public static Step step(Vec3 position, Vec3 velocity, CoatRay.BlockClip clip, Airspace airspace) {
+        return step(position, velocity, clip, NO_LIVING, airspace);
+    }
+
+    /**
+     * One tick of a drip's flight that may end on a living thing: of the
+     * living boxes and the blocks the tick's segment meets, the nearest ends it.
+     * goop-wobbles-a-mob-its-drip-strikes
+     *
+     * @param position where the drip stands
+     * @param velocity its velocity, blocks per tick
+     * @param clip     the blocks its segment may meet
+     * @param living   the living its segment may meet
+     * @param airspace where it may fly
+     * @return where the tick leaves it
+     */
+    public static Step step(Vec3 position, Vec3 velocity, CoatRay.BlockClip clip, LivingNear living,
+                            Airspace airspace) {
         Vec3 next = position.add(velocity);
         // the airspace is read before the clip, so no segment reaches into a chunk the world holds unloaded
         if (!airspace.holds(next)) {
-            return new Step(next, velocity, Optional.empty(), true);
+            return new Step(next, velocity, Optional.empty(), Optional.empty(), true);
         }
         Optional<CoatRay.BlockStrike> strike = clip.firstHit(position, next);
-        return strike.map(struck -> new Step(struck.point(), velocity, strike, false))
-                .orElseGet(() -> new Step(next, velocity.add(PULL), Optional.empty(), false));
+        double blockReach = strike.map(struck -> position.distanceToSqr(struck.point())).orElse(Double.MAX_VALUE);
+        Optional<Step> onTheLiving = nearestLiving(position, next, living, blockReach)
+                .map(hit -> new Step(hit.point(), velocity, Optional.empty(), Optional.of(hit.box()), false));
+        if (onTheLiving.isPresent()) {
+            return onTheLiving.get();
+        }
+        return strike.map(struck -> new Step(struck.point(), velocity, strike, Optional.empty(), false))
+                .orElseGet(() -> new Step(next, velocity.add(PULL), Optional.empty(), Optional.empty(), false));
+    }
+
+    /**
+     * Where a segment first meets a living box.
+     *
+     * @param point the point on the box
+     * @param box   the box
+     */
+    private record LivingHit(Vec3 point, LivingBox box) {
+    }
+
+    /**
+     * The living box a segment meets first, where it meets one nearer than a reach.
+     *
+     * @param from   the segment's start
+     * @param to     the segment's end
+     * @param living the living the segment may meet
+     * @param within the squared distance from the start the hit must stand nearer than
+     * @return the nearest hit, empty where none stands within the reach
+     */
+    private static Optional<LivingHit> nearestLiving(Vec3 from, Vec3 to, LivingNear living, double within) {
+        LivingHit nearest = null;
+        double reach = within;
+        for (LivingBox box : living.along(from, to)) {
+            Optional<Vec3> hit = box.box().contains(from) ? Optional.of(from) : box.box().clip(from, to);
+            if (hit.isPresent() && from.distanceToSqr(hit.get()) < reach) {
+                nearest = new LivingHit(hit.get(), box);
+                reach = from.distanceToSqr(hit.get());
+            }
+        }
+        return Optional.ofNullable(nearest);
     }
 
     /**

@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.program.SimpleParticles;
 import com.mercuriusxeno.goo.client.particle.GloveMote;
 import com.mercuriusxeno.goo.client.particle.GloveSwing;
 import com.mercuriusxeno.goo.client.particle.SprayDripParticle;
+import com.mercuriusxeno.goo.network.DripFlights;
 import com.mercuriusxeno.goo.network.GooStreamHandler;
 import com.mercuriusxeno.goo.network.StreamMotesPayload;
 import com.mercuriusxeno.goo.throwing.CoatRay;
@@ -92,8 +93,10 @@ public final class StreamMotes {
                 launch.z);
         if (mote instanceof SprayDripParticle drip) {
             // palm-blob-lifts-as-the-spray-source: the drip leaves the lifted blob, easing or at the source
+            // goop-wobbles-a-mob-its-drip-strikes: a drawn drip splats on a mob it meets, as the server's strikes it
             drip.flyArcFrom(partialTick -> LiftedPalmBlob.dripLeavesFrom(payload.casterId(), apex, partialTick),
-                    launch);
+                    launch, payload.strikesLiving() ? DripFlights.livingNear(mc.level, payload.casterId())
+                            : DripArc.NO_LIVING);
             return true;
         }
         return false;

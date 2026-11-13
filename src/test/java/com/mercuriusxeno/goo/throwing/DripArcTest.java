@@ -2,8 +2,10 @@ package com.mercuriusxeno.goo.throwing;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
+import java.util.List;
 import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -72,6 +74,29 @@ class DripArcTest {
         assertEquals(LEDGE, strike.get().block(), "the drip's arc meets the ledge first, struck at "
                 + strike.get().point());
         assertEquals(LEDGE_TOP, strike.get().point().y, TOLERANCE, "the strike should stand on the ledge's top");
+    }
+
+    @Test
+    void aDripMeetingAMobBeforeTheFloorEndsOnTheMob() {
+        AABB mob = new AABB(3, 0, 0, 4, 2, 1);
+        DripArc.LivingBox zombie = new DripArc.LivingBox(17, mob);
+        DripArc.Step step = DripArc.step(new Vec3(0, 1, 0.5), new Vec3(4.5, -1.2, 0), FLOOR,
+                (from, to) -> List.of(zombie), INSIDE_THE_WORLD);
+
+        assertEquals(Optional.of(zombie), step.living(), "the mob stands nearer than the floor along the path");
+        assertTrue(step.strike().isEmpty(), "a drip ending on a mob strikes no block behind it");
+        assertTrue(mob.inflate(TOLERANCE).contains(step.position()), "the strike should lie on the mob's box, lies at "
+                + step.position());
+    }
+
+    @Test
+    void aDripMeetingTheFloorBeforeAMobEndsOnTheFloor() {
+        DripArc.LivingBox beyond = new DripArc.LivingBox(17, new AABB(6, -1, 0, 7, 2, 1));
+        DripArc.Step step = DripArc.step(new Vec3(0, 1, 0.5), new Vec3(8, -2, 0), FLOOR,
+                (from, to) -> List.of(beyond), INSIDE_THE_WORLD);
+
+        assertTrue(step.living().isEmpty(), "the floor stands nearer than the mob along the path");
+        assertTrue(step.strike().isPresent(), "the drip should strike the floor");
     }
 
     @Test

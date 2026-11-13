@@ -17,6 +17,7 @@ import org.jspecify.annotations.NonNull;
  * caster itself.
  * glove-stream-motes-swing-with-the-glove-at-launch
  * goop-and-slick-coat-lands-where-each-drip-arc-strikes
+ * goop-wobbles-a-mob-its-drip-strikes
  *
  * @param casterId    the spraying player
  * @param apex        the cone's apex, the glove the motes leave
@@ -28,9 +29,10 @@ import org.jspecify.annotations.NonNull;
  * @param throwSpeed  the speed the stream throws its drips at along the cone's fan, each flying the arc the
  *                    server's drip flies; {@link com.mercuriusxeno.goo.ability.Delivery#NO_THROW_SPEED} for motes
  *                    off the arc
+ * @param strikesLiving whether a drawn drip ends on a living thing it meets, as the server's drip does
  */
 public record StreamMotesPayload(int casterId, Vec3 apex, Vec3 axis, Identifier particle, double coneDegrees,
-                                 double speed, Vec3 travel, double throwSpeed)
+                                 double speed, Vec3 travel, double throwSpeed, boolean strikesLiving)
         implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
@@ -47,6 +49,7 @@ public record StreamMotesPayload(int casterId, Vec3 apex, Vec3 axis, Identifier 
             ByteBufCodecs.DOUBLE, StreamMotesPayload::speed,
             Vec3.STREAM_CODEC, StreamMotesPayload::travel,
             ByteBufCodecs.DOUBLE, StreamMotesPayload::throwSpeed,
+            ByteBufCodecs.BOOL, StreamMotesPayload::strikesLiving,
             StreamMotesPayload::new);
 
     @Override

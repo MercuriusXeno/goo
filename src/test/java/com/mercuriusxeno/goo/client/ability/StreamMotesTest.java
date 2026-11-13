@@ -183,7 +183,7 @@ class StreamMotesTest {
 
             // the server's echo carries the glove a tick before the stream's tick reaches this client
             StreamMotes.handle(new StreamMotesPayload(CASTER, sourceOf(caster, -1), new Vec3(0, -0.5, 1).normalize(),
-                    Identifier.fromNamespaceAndPath("goo", "goop_spray_drip"), 16, 0, caster.travel(), THROW_SPEED),
+                    Identifier.fromNamespaceAndPath("goo", "goop_spray_drip"), 16, 0, caster.travel(), THROW_SPEED, false),
                     runningAtOnce());
             now[0] = FIRST_DRAWN;
 
