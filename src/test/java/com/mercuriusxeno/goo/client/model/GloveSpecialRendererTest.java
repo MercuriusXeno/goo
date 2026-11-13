@@ -29,8 +29,12 @@ class GloveSpecialRendererTest {
 
     /** The game time of the holder's last stream tick. */
     private static final long SPRAYED = 400L;
-    /** Ticks after the last stream tick past the stream's gap, by which the spray reads ended. */
-    private static final long STREAM_STOPPED = 10L;
+    /**
+     * The game tick the holder's blob arrives back on the palm: the spray
+     * reads ended a tick past the stream's gap, and the blob settles over its ease.
+     */
+    private static final long SETTLED = SPRAYED + LiftedPalmBlob.STREAM_GAP_TICKS + 1
+            + (long) Math.ceil(LiftedPalmBlob.EASE_TICKS);
     /** Where a far copy of the player stands from the camera, a room width or more away. */
     private static final double COPY_AWAY = 30;
     /** Where the first-person glove's goo sits before the eye. */
@@ -75,16 +79,30 @@ class GloveSpecialRendererTest {
     }
 
     @Test
-    void aGloveWhoseHoldersStreamTicksStoppedCarriesThePalmBlobAtRestSize() {
+    void aGloveWhoseHoldersBlobIsStillSettlingGivesThePalmNoBlobToDraw() {
         try (SprayingClient client = SprayingClient.another(GooTypes.ZOO);
              MockedStatic<GloveUseTracker> tracker = mockStatic(GloveUseTracker.class)) {
             tracker.when(GloveUseTracker::isSelectedTypeAvailable).thenReturn(true);
-            client.at(SPRAYED + STREAM_STOPPED);
+            client.at(SETTLED - 1);
             LiftedPalmBlob.sprayed(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, SPRAYED);
 
             GloveSpecialRenderer.GloveData data = new GloveSpecialRenderer().extractArgument(client.glove());
 
-            assertFalse(data.palmLifted(), "the palm should draw its blob again once the spray ends");
+            assertTrue(data.palmLifted(), "the palm should draw no blob before the settling blob arrives");
+        }
+    }
+
+    @Test
+    void aGloveWhoseHoldersBlobHasSettledCarriesThePalmBlobAtRestSize() {
+        try (SprayingClient client = SprayingClient.another(GooTypes.ZOO);
+             MockedStatic<GloveUseTracker> tracker = mockStatic(GloveUseTracker.class)) {
+            tracker.when(GloveUseTracker::isSelectedTypeAvailable).thenReturn(true);
+            client.at(SETTLED);
+            LiftedPalmBlob.sprayed(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, SPRAYED);
+
+            GloveSpecialRenderer.GloveData data = new GloveSpecialRenderer().extractArgument(client.glove());
+
+            assertFalse(data.palmLifted(), "the palm should draw its blob again once the settling blob arrives");
             assertEquals(GooTypes.ZOO, data.selectedType());
             assertEquals(KnivesCharge.palmScaleAt(0f), data.blobScale(), "the palm blob should be at rest size");
         }
