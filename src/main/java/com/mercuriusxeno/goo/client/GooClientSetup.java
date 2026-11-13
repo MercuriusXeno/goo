@@ -130,6 +130,10 @@ public final class GooClientSetup {
      */
     private static final String RENDERER_GLOVE = "glove_goo";
     /**
+     * Special renderer key for the goo item drawn in the level.
+     */
+    private static final String RENDERER_GOO_CUBOID = "goo_cuboid";
+    /**
      * Property name for the goo texture a stack's type names.
      */
     private static final String PROP_GOO_TEXTURE = "goo_texture";
@@ -492,6 +496,11 @@ public final class GooClientSetup {
         event.register(
                 Identifier.fromNamespaceAndPath(Goo.MODID, RENDERER_GLOVE),
                 GloveSpecialRenderer.Unbaked.MAP_CODEC
+        );
+        // decision goo-item-in-world-draws-as-the-palm-cuboid
+        event.register(
+                Identifier.fromNamespaceAndPath(Goo.MODID, RENDERER_GOO_CUBOID),
+                GooCuboidSpecialRenderer.Unbaked.MAP_CODEC
         );
         event.register(
                 Identifier.fromNamespaceAndPath(Goo.MODID, RENDERER_GOO_LABEL),
