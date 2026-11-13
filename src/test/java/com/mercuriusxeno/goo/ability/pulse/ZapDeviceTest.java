@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.pulse;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.ButtonBlock;
 import net.minecraft.world.level.block.ComparatorBlock;
@@ -12,10 +13,12 @@ import net.minecraft.world.level.block.RepeaterBlock;
 import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.WeatheringCopperDoorBlock;
 import net.minecraft.world.level.block.piston.PistonBaseBlock;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -67,5 +70,55 @@ class ZapDeviceTest {
     @Test
     void aPlainBlockDisperses() {
         assertFalse(ZapDevice.ticks(ZapDevice.POWER_SOURCE, false));
+    }
+
+    /** Which blocks Tick pulses rather than toggles (decision tick-pulses-anything-a-signal-runs-while-held). */
+    @Nested
+    class PulsedByTick {
+        @Test
+        void aReceiverAndARepeaterTakeAPulse() {
+            assertTrue(ZapDevice.pulsedByTick(ZapDevice.POWER_SOURCE, true));
+            assertTrue(ZapDevice.pulsedByTick(ZapDevice.REPEATER, false));
+        }
+
+        @Test
+        void aHandDeviceTogglesInstead() {
+            assertFalse(ZapDevice.pulsedByTick(ZapDevice.LEVER, false));
+            assertFalse(ZapDevice.pulsedByTick(ZapDevice.DOOR, false));
+        }
+
+        @Test
+        void aPlainBlockTakesNothing() {
+            assertFalse(ZapDevice.pulsedByTick(ZapDevice.POWER_SOURCE, false));
+        }
+    }
+
+    /** Where a receiver's pulse stands (decision zap-powers-anything-a-signal-runs). */
+    @Nested
+    class PulseCell {
+        private final BlockPos device = new BlockPos(0, 64, 0);
+
+        @Test
+        void anEmptyLandingCellTakesThePulse() {
+            BlockPos above = device.above();
+            assertEquals(Optional.of(above), ZapDevice.pulseCell(pos -> true, device, above));
+        }
+
+        @Test
+        void aLandingInsideTheReceiverPulsesFromItsFirstEmptyNeighbor() {
+            BlockPos north = device.north();
+            assertEquals(Optional.of(north), ZapDevice.pulseCell(north::equals, device, device));
+        }
+
+        @Test
+        void anOccupiedLandingCellPulsesFromTheReceiversEmptyNeighbor() {
+            BlockPos south = device.south();
+            assertEquals(Optional.of(south), ZapDevice.pulseCell(south::equals, device, device.above()));
+        }
+
+        @Test
+        void aReceiverWithNoEmptyNeighborTakesNoPulse() {
+            assertEquals(Optional.empty(), ZapDevice.pulseCell(pos -> false, device, device.above()));
+        }
     }
 }
