@@ -30,11 +30,6 @@ public class GooCuboidSpecialRenderer implements SpecialModelRenderer<GooCuboidS
      * item stands.
      */
     private static final float MODEL_CENTER = 0.5f;
-    /**
-     * The cuboid's size against a flying blob's, the palm blob's rest size in
-     * the glove's model, so the goo item reads as the palm cuboid.
-     */
-    private static final float PALM_REST_SCALE = 1f;
 
     /**
      * Creates a goo cuboid special renderer.
@@ -51,14 +46,15 @@ public class GooCuboidSpecialRenderer implements SpecialModelRenderer<GooCuboidS
     @Override
     public @Nullable GooCuboid extractArgument(ItemStack stack) {
         ResourceKey<GooTypeDefinition> type = GooStacks.keyOf(stack);
-        return type == null ? null : new GooCuboid(type);
+        return type == null ? null : new GooCuboid(type, GooStacks.volumeOf(stack));
     }
 
     /**
      * Submits the palm cuboid of the stack's goo type about the model's
-     * center: the core on the solid block atlas inside the translucent shell,
-     * the pair the glove's palm blob submits. A stack with no goo type draws
-     * nothing.
+     * center, sized by its volume: the core on the solid block atlas inside
+     * the translucent shell, the pair the glove's palm blob submits. A stack
+     * with no goo type draws nothing.
+     * decision fleck-size-follows-volume-on-a-log-scale
      *
      * @param data          the cuboid to draw, or null
      * @param poseStack     the current pose stack
@@ -76,23 +72,24 @@ public class GooCuboidSpecialRenderer implements SpecialModelRenderer<GooCuboidS
         }
         ResourceKey<GooTypeDefinition> type = data.type();
         float gameTime = GloveSpecialRenderer.gameTime();
+        float size = GooCuboidSize.sizeOf(data.volume());
         poseStack.pushPose();
         poseStack.translate(MODEL_CENTER, MODEL_CENTER, MODEL_CENTER);
         nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.solidOnBlockAtlas(),
-                (pose, c) -> GooFlightRenderer.emitCore(pose, c, type, gameTime, PALM_REST_SCALE));
+                (pose, c) -> GooFlightRenderer.emitCore(pose, c, type, gameTime, size));
         nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
-                (pose, c) -> GooFlightRenderer.emitShell(pose, c, type, PALM_REST_SCALE));
+                (pose, c) -> GooFlightRenderer.emitShell(pose, c, type, size));
         poseStack.popPose();
     }
 
     /**
-     * Reports the shell's corners, the cuboid's outer bound.
+     * Reports the shell's corners at the capped size, the cuboid's outer bound.
      *
      * @param output consumer for extent corner vertices
      */
     @Override
     public void getExtents(Consumer<Vector3fc> output) {
-        float halfWidth = GooFlightRenderer.SHELL_HW * PALM_REST_SCALE;
+        float halfWidth = GooFlightRenderer.SHELL_HW * GooCuboidSize.CAPPED_SIZE;
         output.accept(new Vector3f(MODEL_CENTER - halfWidth));
         output.accept(new Vector3f(MODEL_CENTER + halfWidth));
     }
@@ -100,9 +97,10 @@ public class GooCuboidSpecialRenderer implements SpecialModelRenderer<GooCuboidS
     /**
      * The goo item's render data.
      *
-     * @param type the goo type the stack carries
+     * @param type   the goo type the stack carries
+     * @param volume the goo the stack holds, in mB
      */
-    public record GooCuboid(ResourceKey<GooTypeDefinition> type) {
+    public record GooCuboid(ResourceKey<GooTypeDefinition> type, double volume) {
     }
 
     /**
