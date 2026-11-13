@@ -23,18 +23,22 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * One cell of the two-tall, door-shaped dimension doorway standing alone in
- * each Outsider room: a sheet running east to west that a player walks into
- * to be carried back to the exact place they cast Outsider from. Nothing
+ * each Outsider room: a whole block of portal that a player walks into to
+ * be carried back to the exact place they cast Outsider from. Nothing
  * breaks it, and the pocket stands it again if anything removes it.
  * decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform
- * The sheet draws as the End portal's starfield, through the cell's block
- * entity, as the conjured door does; the block's model draws nothing.
- * decision room-door-wears-the-end-portal-starfield
+ * The cell draws as a cube of the sky funnel's starfield, through the cell's
+ * block entity; the block's model draws nothing.
+ * decision sky-funnel-points-down-to-the-doorway-from-any-distance
  */
 public class DimensionDoorBlock extends Block implements Portal, EntityBlock {
 
-    /** The sheet: the full width east to west, a quarter block thick at the cell's middle. */
-    private static final VoxelShape SHEET = Block.box(0, 0, 6, 16, 16, 10);
+    /**
+     * The cell's whole block, so the doorway stands, outlines and takes a
+     * player in as the one by one by two cuboid of portal it draws.
+     * decision sky-funnel-points-down-to-the-doorway-from-any-distance
+     */
+    private static final VoxelShape CUBOID = Shapes.block();
     /** How far either side of the sheet's middle a mote rises. */
     private static final double PARTICLE_SPREAD = 0.4;
     private static final double CELL_MIDDLE = 0.5;
@@ -48,7 +52,7 @@ public class DimensionDoorBlock extends Block implements Portal, EntityBlock {
 
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        return SHEET;
+        return CUBOID;
     }
 
     @Override
@@ -60,7 +64,7 @@ public class DimensionDoorBlock extends Block implements Portal, EntityBlock {
     @Override
     protected VoxelShape getEntityInsideCollisionShape(BlockState state, BlockGetter level, BlockPos pos,
                                                        Entity entity) {
-        return SHEET;
+        return CUBOID;
     }
 
     @Override
