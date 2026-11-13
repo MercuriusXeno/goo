@@ -72,6 +72,27 @@ class ZapDeviceTest {
         assertFalse(ZapDevice.ticks(ZapDevice.POWER_SOURCE, false));
     }
 
+    /** Which blocks Tick pulses rather than toggles (decision tick-pulses-anything-a-signal-runs-while-held). */
+    @Nested
+    class PulsedByTick {
+        @Test
+        void aReceiverAndARepeaterTakeAPulse() {
+            assertTrue(ZapDevice.pulsedByTick(ZapDevice.POWER_SOURCE, true));
+            assertTrue(ZapDevice.pulsedByTick(ZapDevice.REPEATER, false));
+        }
+
+        @Test
+        void aHandDeviceTogglesInstead() {
+            assertFalse(ZapDevice.pulsedByTick(ZapDevice.LEVER, false));
+            assertFalse(ZapDevice.pulsedByTick(ZapDevice.DOOR, false));
+        }
+
+        @Test
+        void aPlainBlockTakesNothing() {
+            assertFalse(ZapDevice.pulsedByTick(ZapDevice.POWER_SOURCE, false));
+        }
+    }
+
     /** Where a receiver's pulse stands (decision zap-powers-anything-a-signal-runs). */
     @Nested
     class PulseCell {
