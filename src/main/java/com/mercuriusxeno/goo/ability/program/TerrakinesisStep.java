@@ -281,12 +281,27 @@ public record TerrakinesisStep(double range, double radius, double near, double 
             // Its own slot takes it even where the holder stands in it; the holder is lifted onto it.
             return hold;
         }
+        return pushedClear(hold, shape, yaw, holderBox);
+    }
+
+    /**
+     * A held hunk's position pushed out the way the holder faces until its box
+     * stands clear of the holder's body and the column under it.
+     *
+     * @param hold      the hunk's position before the push
+     * @param shape     the hunk's bounding box, relative to its position
+     * @param yaw       the holder's facing in degrees
+     * @param holderBox the holder's bounding box
+     * @return the pushed position
+     */
+    static Vec3 pushedClear(Vec3 hold, AABB shape, float yaw, AABB holderBox) {
         Vec3 away = Vec3.directionFromRotation(0, yaw);
         AABB clearOf = holderBox.inflate(HOLDER_CLEARANCE).expandTowards(0, -MOST_PUSH, 0);
-        for (double pushed = 0; shape.move(hold).intersects(clearOf) && pushed < MOST_PUSH; pushed += PUSH_STEP) {
-            hold = hold.add(away.scale(PUSH_STEP));
+        Vec3 pushedTo = hold;
+        for (double pushed = 0; shape.move(pushedTo).intersects(clearOf) && pushed < MOST_PUSH; pushed += PUSH_STEP) {
+            pushedTo = pushedTo.add(away.scale(PUSH_STEP));
         }
-        return hold;
+        return pushedTo;
     }
 
     /**
@@ -358,10 +373,8 @@ public record TerrakinesisStep(double range, double radius, double near, double 
         if (struck == null) {
             return null;
         }
-        AABB underfoot = player.getBoundingBox().expandTowards(0, -radius - 1, 0);
-        // Never the ground the holder stands on, so the hunk never rises through them.
-        List<BlockPos> cells = hunkCells(struck, radius, cell -> liftable(level, cell)
-                && !new AABB(cell).intersects(underfoot));
+        Predicate<BlockPos> clear = clearOfTheHolder(player.getBoundingBox(), radius);
+        List<BlockPos> cells = hunkCells(struck, radius, cell -> liftable(level, cell) && clear.test(cell));
         if (!pay(player, cost)) {
             return null;
         }
@@ -430,6 +443,19 @@ public record TerrakinesisStep(double range, double radius, double near, double 
         };
     }
 
+    /**
+     * Whether a cell stands clear of the ground a holder stands on, the
+     * column under their body to the hunk's reach, so the hunk never rises
+     * through them.
+     *
+     * @param holderBox the holder's bounding box
+     * @param radius    how far the hunk reaches
+     * @return true for a cell outside the holder's column
+     */
+    static Predicate<BlockPos> clearOfTheHolder(AABB holderBox, double radius) {
+        AABB underfoot = holderBox.expandTowards(0, -radius - 1, 0);
+        return cell -> !new AABB(cell).intersects(underfoot);
+    }
     /**
      * The cells a hunk lifts: the struck block and every block joined to it
      * face to face, through blocks the hunk lifts, within the radius of the

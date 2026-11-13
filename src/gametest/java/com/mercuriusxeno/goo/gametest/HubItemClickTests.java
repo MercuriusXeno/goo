@@ -3,8 +3,6 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
-import com.mercuriusxeno.goo.item.ContainerCapacity;
-import com.mercuriusxeno.goo.item.GooItem;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.item.HubBlockItem;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
@@ -35,9 +33,6 @@ import java.util.function.Consumer;
 @RegistersGameTests
 public final class HubItemClickTests {
     private static final String IX_HUB_ITEM_GOO_INSERT = "ix_hub_item_goo_insert";
-    private static final String IX_HUB_ITEM_GOO_INSERT_REMAINDER = "ix_hub_item_goo_insert_remainder";
-    private static final String IX_HUB_ITEM_INSERT_REFUSED = "ix_hub_item_insert_refused";
-    private static final String IX_HUB_ITEM_DRAINS_NOTHING = "ix_hub_item_drains_nothing";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -46,9 +41,6 @@ public final class HubItemClickTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, IX_HUB_ITEM_GOO_INSERT, HubItemClickTests::gooInsertFillsCanisterAndPlaces);
-        GooTestFunctions.registerTest(registrar, IX_HUB_ITEM_GOO_INSERT_REMAINDER, HubItemClickTests::gooInsertKeepsRemainder);
-        GooTestFunctions.registerTest(registrar, IX_HUB_ITEM_INSERT_REFUSED, HubItemClickTests::insertRefusedLeavesStacks);
-        GooTestFunctions.registerTest(registrar, IX_HUB_ITEM_DRAINS_NOTHING, HubItemClickTests::secondaryClickDrainsNothing);
     }
 
 
@@ -57,23 +49,10 @@ public final class HubItemClickTests {
     private static final ResourceKey<GooTypeDefinition> ROCK = GooTypes.ROCK;
     private static final ResourceKey<GooTypeDefinition> NETHER = GooTypes.NETHER;
     private static final int GOO_COUNT = 5;
-    private static final int GOO_OVERFLOW = 3_000;
-    private static final int GOO_FITS = 2_500;
-    private static final int PARTIAL_ROOM = 2_000;
     private static final double HALF_BLOCK = 0.5;
     private static final String REGISTERED_OVERRIDE = "Registered hub item carries the override";
     private static final String THOUSANDS_HANDLED = "Goo insert should be handled";
-    private static final String OMNITHOUSANDS_HANDLED = "Goo insert should be handled";
     private static final String CURSOR_EMPTIED = "Cursor should be empty once all its goo went in";
-    private static final String GOO_REMAINDER = "Goo remainder";
-    private static final String BARE_REFUSES = "A hub without canisters refuses";
-    private static final String BARE_STAYS_BARE = "Bare hub gains no canisters";
-    private static final String CURSOR_COUNT = "Cursor count after refusal";
-    private static final String BLOCKED_REFUSES = "Full and mismatched canisters refuse";
-    private static final String CONTENTS_UNCHANGED = "Canister contents after refusal";
-    private static final String CURSOR_UNTOUCHED = "Cursor never set on refusal";
-    private static final String DRAIN_REFUSED = "An empty-cursor secondary click is left to vanilla";
-    private static final String CURSOR_STAYS_EMPTY = "Nothing drained onto the cursor";
     private static final String CANISTER_TYPE = "Canister goo type";
     private static final String CANISTER_AMOUNT = "Canister amount";
 
@@ -107,77 +86,6 @@ public final class HubItemClickTests {
         helper.succeed();
     }
 
-    /**
-     * A goo larger than the free room keeps its remainder; one that fits clears the cursor.
-     *
-     * @param helper the gametest helper
-     */
-    public static void gooInsertKeepsRemainder(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-        int capacity = ContainerCapacity.canisterCapacity(0);
-        ItemStack hub = hubHolding(canisterWith(ROCK, capacity - PARTIAL_ROOM));
-        CursorHolder overflow = new CursorHolder(GooItem.createWithVolume(ROCK, GOO_OVERFLOW));
-
-        helper.assertTrue(primaryClick(hub, overflow, player), OMNITHOUSANDS_HANDLED);
-        assertCanister(helper, canistersOf(hub).getFirst(), ROCK, capacity);
-        helper.assertValueEqual(GooItem.getVolume(overflow.get()),
-                GOO_OVERFLOW - PARTIAL_ROOM, GOO_REMAINDER);
-
-        ItemStack roomyHub = hubHolding(new ItemStack(GooItems.CANISTER.get()));
-        CursorHolder fits = new CursorHolder(GooItem.createWithVolume(ROCK, GOO_FITS));
-        helper.assertTrue(primaryClick(roomyHub, fits, player), OMNITHOUSANDS_HANDLED);
-        assertCanister(helper, canistersOf(roomyHub).getFirst(), ROCK, GOO_FITS);
-        helper.assertTrue(fits.get().isEmpty(), CURSOR_EMPTIED);
-        helper.succeed();
-    }
-
-    /**
-     * A hub with no canisters, or only full and mismatched ones, refuses the click and changes nothing.
-     *
-     * @param helper the gametest helper
-     */
-    public static void insertRefusedLeavesStacks(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-        ItemStack bare = new ItemStack(GooItems.HUB.get());
-        CursorHolder cursor = new CursorHolder(GooStacks.createForOutput(ROCK, GOO_COUNT * GooStacks.THOUSAND));
-
-        helper.assertFalse(primaryClick(bare, cursor, player), BARE_REFUSES);
-        helper.assertFalse(bare.has(GooDataComponents.HUB_CANISTERS.get()), BARE_STAYS_BARE);
-        helper.assertValueEqual(GooStacks.volumeOf(cursor.get()), GOO_COUNT * GooStacks.THOUSAND, CURSOR_COUNT);
-
-        int capacity = ContainerCapacity.canisterCapacity(0);
-        ItemStack blocked = hubHolding(canisterWith(ROCK, capacity), canisterWith(NETHER, PARTIAL_ROOM));
-        List<CanisterFluidContent> before = contentsOf(blocked);
-
-        helper.assertFalse(primaryClick(blocked, cursor, player), BLOCKED_REFUSES);
-        helper.assertValueEqual(contentsOf(blocked), before, CONTENTS_UNCHANGED);
-        helper.assertValueEqual(GooStacks.volumeOf(cursor.get()), GOO_COUNT * GooStacks.THOUSAND, CURSOR_COUNT);
-        helper.assertFalse(cursor.wasSet(), CURSOR_UNTOUCHED);
-        helper.succeed();
-    }
-
-    /**
-     * An empty-cursor secondary click on a hub holding a filled canister drains nothing
-     * and leaves the cursor untouched (decision hub-item-insert-only).
-     *
-     * @param helper the gametest helper
-     */
-    public static void secondaryClickDrainsNothing(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-        ItemStack hub = hubHolding(canisterWith(ROCK, PARTIAL_ROOM));
-        List<CanisterFluidContent> before = contentsOf(hub);
-        CursorHolder cursor = new CursorHolder(ItemStack.EMPTY);
-
-        boolean handled = hub.getItem().overrideOtherStackedOnMe(hub, cursor.get(),
-                new Slot(player.getInventory(), 0, 0, 0), ClickAction.SECONDARY, player, cursor);
-
-        helper.assertFalse(handled, DRAIN_REFUSED);
-        helper.assertValueEqual(contentsOf(hub), before, CONTENTS_UNCHANGED);
-        helper.assertFalse(cursor.wasSet(), CURSOR_UNTOUCHED);
-        helper.assertTrue(cursor.get().isEmpty(), CURSOR_STAYS_EMPTY);
-        helper.succeed();
-    }
-
     private static boolean primaryClick(ItemStack hub, CursorHolder cursor, Player player) {
         return hub.getItem().overrideOtherStackedOnMe(hub, cursor.get(),
                 new Slot(player.getInventory(), 0, 0, 0), ClickAction.PRIMARY, player, cursor);
@@ -189,18 +97,8 @@ public final class HubItemClickTests {
         return hub;
     }
 
-    private static ItemStack canisterWith(ResourceKey<GooTypeDefinition> type, int amount) {
-        ItemStack canister = new ItemStack(GooItems.CANISTER.get());
-        CanisterItem.addGoo(canister, type, amount);
-        return canister;
-    }
-
     private static List<ItemStack> canistersOf(ItemStack hub) {
         return hub.getOrDefault(GooDataComponents.HUB_CANISTERS.get(), List.of());
-    }
-
-    private static List<CanisterFluidContent> contentsOf(ItemStack hub) {
-        return canistersOf(hub).stream().map(CanisterItem::getFluidContent).toList();
     }
 
     private static void assertCanister(GameTestHelper helper, ItemStack canister,

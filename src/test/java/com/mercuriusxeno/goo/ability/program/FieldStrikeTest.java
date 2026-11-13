@@ -1,9 +1,13 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * A strike in flight re-aims at its entity's body center as the entity
@@ -26,5 +30,14 @@ class FieldStrikeTest {
         FieldStrike reaimed = new FieldStrike(7, 0f, 0f, 0f, 2).reaimedAt(new Vec3(1, 1, 1));
 
         assertEquals(new FieldStrike(7, 1f, 1f, 1f, 3), reaimed.aged());
+    }
+
+    @Test
+    void followingAStrikeReaimsItAtItsEntitysBodyCenter() {
+        LivingEntity zombie = mock(LivingEntity.class);
+        when(zombie.getBoundingBox()).thenReturn(new AABB(1, 0, 1, 2, 2, 2));
+        FieldStrike inFlight = new FieldStrike(7, 0f, 0f, 0f, 3);
+
+        assertEquals(inFlight.reaimedAt(new Vec3(1.5, 1, 1.5)), FieldStrike.followed(inFlight, zombie));
     }
 }

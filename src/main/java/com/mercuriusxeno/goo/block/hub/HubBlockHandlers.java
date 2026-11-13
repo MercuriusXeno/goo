@@ -16,6 +16,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Static interaction handlers for HubBlock.
@@ -36,13 +38,24 @@ final class HubBlockHandlers {
      */
     static ItemStack resolveTargetedCanister(HubBlockEntity hub, BlockPos pos) {
         var hit = ISidedProxy.get().getCrosshairHit();
-        if (!(hit instanceof BlockHitResult blockHit) || !blockHit.getBlockPos().equals(pos)) {
+        if (!aimsAt(hit, pos)) {
             return ItemStack.EMPTY;
         }
-        int slot = HubBlock.hitSlot(blockHit, pos);
+        int slot = HubBlock.hitSlot((BlockHitResult) hit, pos);
         if (slot < 0) { return ItemStack.EMPTY; }
         ItemStack canister = hub.getCanister(slot);
         return canister.isEmpty() ? ItemStack.EMPTY : canister.copy();
+    }
+
+    /**
+     * Whether a crosshair hit aims at the block at a position: a block hit on that position.
+     *
+     * @param hit the crosshair hit, or null when there is none
+     * @param pos the block position
+     * @return true if the hit is a block hit on {@code pos}
+     */
+    static boolean aimsAt(@Nullable HitResult hit, BlockPos pos) {
+        return hit instanceof BlockHitResult blockHit && blockHit.getBlockPos().equals(pos);
     }
 
     /**

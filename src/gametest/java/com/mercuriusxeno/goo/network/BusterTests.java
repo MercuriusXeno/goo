@@ -41,7 +41,6 @@ public final class BusterTests {
     private static final String SHOULD_BUST = "Eating Buster should lay its blast radius, laid %.1f";
     private static final String SHOULD_HURT_BESIDE = "A Buster punch should hurt the zombie at %s beside the struck one, health %.1f of %.1f";
     private static final String SHOULD_BREAK = "Breaking the obsidian should break its obsidian neighbor at %s";
-    private static final String SHOULD_STAND = "A neighbor harder than obsidian should stand at %s";
 
     /** The zombie the player punches, inside the bay. */
     private static final BlockPos STRUCK_POS = new BlockPos(3, 1, 3);
@@ -49,8 +48,6 @@ public final class BusterTests {
     private static final BlockPos[] BESIDE_POS = {new BlockPos(4, 1, 3), new BlockPos(3, 1, 4)};
     /** The middle of the obsidian 3x3x3. */
     private static final BlockPos CUBE_CENTER = new BlockPos(3, 2, 3);
-    /** One neighbor of the middle laid in reinforced deepslate, harder than obsidian. */
-    private static final BlockPos HARDER_POS = new BlockPos(4, 3, 4);
     /** Where the miner stands, outside the 3x3x3. */
     private static final BlockPos MINER_POS = new BlockPos(1, 1, 1);
 
@@ -93,8 +90,8 @@ public final class BusterTests {
 
     /**
      * A player under Buster mines the middle of an obsidian 3x3x3 with a
-     * diamond pickaxe: every obsidian neighbor breaks, and the one reinforced
-     * deepslate neighbor, harder than obsidian, stands.
+     * diamond pickaxe: every obsidian neighbor breaks; BusterEventsTest holds a
+     * harder neighbor standing.
      *
      * @param helper the gametest helper
      */
@@ -102,7 +99,6 @@ public final class BusterTests {
         for (BlockPos pos : BlockPos.betweenClosed(CUBE_CENTER.offset(-1, -1, -1), CUBE_CENTER.offset(1, 1, 1))) {
             helper.setBlock(pos, Blocks.OBSIDIAN);
         }
-        helper.setBlock(HARDER_POS, Blocks.REINFORCED_DEEPSLATE);
         ServerPlayer player = buster(helper);
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(MINER_POS));
         player.setPos(stand.x, stand.y, stand.z);
@@ -112,13 +108,8 @@ public final class BusterTests {
 
         helper.getLevel().getServer().getPlayerList().remove(player);
         for (BlockPos pos : BlockPos.betweenClosed(CUBE_CENTER.offset(-1, -1, -1), CUBE_CENTER.offset(1, 1, 1))) {
-            if (pos.equals(HARDER_POS)) {
-                helper.assertBlockPresent(Blocks.REINFORCED_DEEPSLATE, pos);
-            } else {
-                helper.assertTrue(helper.getBlockState(pos).isAir(), String.format(SHOULD_BREAK, pos.immutable()));
-            }
+            helper.assertTrue(helper.getBlockState(pos).isAir(), String.format(SHOULD_BREAK, pos.immutable()));
         }
-        helper.assertTrue(!helper.getBlockState(HARDER_POS).isAir(), String.format(SHOULD_STAND, HARDER_POS));
         helper.succeed();
     }
 

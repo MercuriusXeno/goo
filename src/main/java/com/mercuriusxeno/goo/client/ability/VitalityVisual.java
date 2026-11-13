@@ -11,7 +11,6 @@ import com.mercuriusxeno.goo.network.StreamHealedPayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -187,9 +186,27 @@ public final class VitalityVisual {
      * @return the star's point
      */
     static Vec3 starBeforeTheEyes(Vec3 feet, double height, float yaw, RandomSource random) {
-        double angle = Math.toRadians(yaw) + Mth.nextDouble(random, -STAR_ARC_HALF, STAR_ARC_HALF);
-        double out = STAR_REACH_MIN + random.nextDouble() * (STAR_REACH_MAX - STAR_REACH_MIN);
-        double up = height * (STAR_LOW_SHARE + random.nextDouble() * (STAR_HIGH_SHARE - STAR_LOW_SHARE));
+        return starAt(feet, height, yaw, random.nextDouble(), random.nextDouble(), random.nextDouble());
+    }
+
+    /**
+     * Where a healing star rises before a first-person player for three rolls
+     * from zero to one: the arc roll sweeps the star across the arc before
+     * them, the reach roll from the near clip outward, the height roll from
+     * the waist to just over the head.
+     *
+     * @param feet       the player's feet
+     * @param height     the player's height
+     * @param yaw        the way the player faces, in degrees
+     * @param arcRoll    where across the arc, zero to one
+     * @param reachRoll  how far out, zero to one
+     * @param heightRoll how high up, zero to one
+     * @return the star's point
+     */
+    static Vec3 starAt(Vec3 feet, double height, float yaw, double arcRoll, double reachRoll, double heightRoll) {
+        double angle = Math.toRadians(yaw) + (arcRoll * (STAR_ARC_HALF + STAR_ARC_HALF) - STAR_ARC_HALF);
+        double out = STAR_REACH_MIN + reachRoll * (STAR_REACH_MAX - STAR_REACH_MIN);
+        double up = height * (STAR_LOW_SHARE + heightRoll * (STAR_HIGH_SHARE - STAR_LOW_SHARE));
         return feet.add(-Math.sin(angle) * out, up, Math.cos(angle) * out);
     }
 

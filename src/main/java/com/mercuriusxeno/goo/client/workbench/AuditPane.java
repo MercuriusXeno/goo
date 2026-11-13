@@ -234,9 +234,8 @@ final class AuditPane {
     // the whole line green where it flags nothing.
     private static void drawHeader(GuiGraphicsExtractor graphics, Font font, AuditTab.AuditSection section, int left,
                                    int textTop) {
-        // Decision flagless-section-draws-green-with-a-checkmark.
-        boolean flagless = section.flags().isEmpty();
-        int color = flagless ? Palette.GOOD : Palette.TEXT;
+        HeaderLook look = headerLook(section);
+        int color = look.color();
         String header = section.header();
         int results = header.indexOf(RESULTS_OPEN);
         // Decision heading-name-weighs-more-than-its-parenthesized-results.
@@ -250,7 +249,23 @@ final class AuditPane {
             graphics.text(font, plain, x, textTop, color);
             x += font.width(plain);
         }
-        graphics.text(font, flagless ? CHECKMARK : section.badge(), x + font.width(PART_GAP), textTop, color);
+        graphics.text(font, look.trailing(), x + font.width(PART_GAP), textTop, color);
+    }
+
+    /**
+     * The color a section's header line draws in and the piece it ends on.
+     *
+     * @param color    the whole line's color
+     * @param trailing the piece after the name and results
+     */
+    record HeaderLook(int color, String trailing) {
+    }
+
+    // Green ending on a checkmark where the section flags nothing, the text color ending on its flag count otherwise.
+    // Decision flagless-section-draws-green-with-a-checkmark.
+    static HeaderLook headerLook(AuditTab.AuditSection section) {
+        boolean flagless = section.flags().isEmpty();
+        return new HeaderLook(flagless ? Palette.GOOD : Palette.TEXT, flagless ? CHECKMARK : section.badge());
     }
 
     private int drawLines(GuiGraphicsExtractor graphics, Font font, List<String> lines, Row row, int color,

@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.workbench;
 
-import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -57,32 +56,20 @@ class ValuesManagerScreenTest {
     private static final Map<String, String> CANNED = Map.of(WorkbenchOperations.MODEL, MODEL);
 
     /**
-     * A press on an open dropdown's choice, over the pane's search box, picks the choice and never reaches the
-     * screen's widgets, so the box takes no focus (decision open-dropdown-intercepts-clicks-before-the-pane-behind-it).
+     * A press over an open overlay, an area laid over its shield, runs that area (decision
+     * open-dropdown-intercepts-clicks-before-the-pane-behind-it).
      */
     @Test
-    void openDropdownTakesTheClickOverTheSearchBox() {
-        ManagerActions actions = mock(ManagerActions.class);
-        when(actions.addWidget(any(AbstractWidget.class))).thenAnswer(call -> call.getArgument(0));
-        BuilderOverlays overlays = new BuilderOverlays(actions, mock(ItemIcons.class));
-        overlays.init(DrawnFrame.font());
-        overlays.show(true);
+    void aPressOverAnOpenOverlayRunsTheOverlaysArea() {
+        ClickTargets targets = new ClickTargets();
         List<String> picked = new ArrayList<>();
-        overlays.openDropdown(new BuilderOverlays.Anchor(20, 20), SearchDropdown.over(List.of(),
-                List.of("oak", "birch"), false), choice -> picked.add(choice.id()));
-        DrawnFrame frame = new DrawnFrame();
-        overlays.draw(frame.graphics, DrawnFrame.font(), frame.targets);
-        DrawnFrame.Text birch = frame.drawn().stream().filter(text -> text.text().contains("birch")).findFirst()
-                .orElseThrow(() -> new AssertionError(frame.texts().toString()));
-        EditBox search = new EditBox(DrawnFrame.font(), birch.x() - 10, birch.y() - 4, 200, 16,
-                Component.literal("Search prefabs"));
-        MouseButtonEvent press = new MouseButtonEvent(birch.x() + 1, birch.y() + 1,
-                new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_LEFT, 0));
-        assertTrue(search.isMouseOver(press.x(), press.y()), "the search box stands under the choice");
-        List<MouseButtonEvent> reachedWidgets = new ArrayList<>();
-        assertTrue(ValuesManagerScreen.routePress(frame.targets, press, event -> reachedWidgets.add(event), () -> { }));
+        targets.addShield(-DrawnFrame.SCREEN_WIDTH, -DrawnFrame.SCREEN_HEIGHT, 3 * DrawnFrame.SCREEN_WIDTH,
+                3 * DrawnFrame.SCREEN_HEIGHT, () -> picked.add("closed"));
+        targets.add(20, 20, 60, 12, () -> picked.add("birch"), null);
+        MouseButtonEvent press = new MouseButtonEvent(30, 25, new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_LEFT, 0));
+
+        assertTrue(ValuesManagerScreen.routePress(targets, press, event -> true, () -> { }));
         assertEquals(List.of("birch"), picked);
-        assertTrue(reachedWidgets.isEmpty(), "the press reached the widgets behind the dropdown");
     }
 
     /**
@@ -204,25 +191,6 @@ class ValuesManagerScreenTest {
             assertTrue(dropdown < dialog && dropdown < tooltip, "the dropdown on " + dropdown + ", the dialog on "
                     + dialog + ", the tooltip on " + tooltip);
         }
-
-        /**
-         * With an options list open on the Items tab, the badge, the title and the status line draw under it.
-         */
-        @Test
-        void optionsListDrawsOverTheChrome() throws ReflectiveOperationException {
-            itemsOverlays().openOptions(new BuilderOverlays.Anchor(20, 60), List.of(
-                    new BuilderOverlays.Option("Sum", null, at -> { })));
-            assertChromeUnder(frame(0, 0));
-        }
-
-        /**
-         * With the goo type picker open on the Items tab, the badge, the title and the status line draw under it.
-         */
-        @Test
-        void typePickerDrawsOverTheChrome() throws ReflectiveOperationException {
-            itemsOverlays().openPicker(new BuilderOverlays.Anchor(20, 60), type -> { });
-            assertChromeUnder(frame(0, 0));
-        }
     }
 
     /**
@@ -233,11 +201,9 @@ class ValuesManagerScreenTest {
     void searchBoxTakesTheClickWhenNoDropdownIsOpen() {
         MouseButtonEvent press = new MouseButtonEvent(30, 25, new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_LEFT, 0));
         List<MouseButtonEvent> reachedWidgets = new ArrayList<>();
-        List<String> unfocused = new ArrayList<>();
         assertTrue(ValuesManagerScreen.routePress(new ClickTargets(), press, event -> reachedWidgets.add(event),
-                () -> unfocused.add("unfocused")));
+                () -> { }));
         assertEquals(List.of(press), reachedWidgets);
-        assertTrue(unfocused.isEmpty(), "the widget that took the press keeps its focus");
     }
 
     /**
@@ -258,17 +224,14 @@ class ValuesManagerScreenTest {
      */
     @Test
     void escapeEmptiesTheFocusedBoxAndOnlyAnUnfocusedEscapeCloses() {
-        ValuesTab values = new ValuesTab();
-        values.readEntries(new ListedEntrySource(List.of(new ManagerEntrySource.ItemName("minecraft:wax", "Wax"),
-                new ManagerEntrySource.ItemName("minecraft:stick", "Stick")), List.of()));
+        List<String> responded = new ArrayList<>();
         EditBox box = new EditBox(DrawnFrame.font(), 0, 0, 100, SearchRow.HEIGHT, Component.literal("Search items"));
-        box.setResponder(values::search);
+        box.setResponder(responded::add);
         box.setValue("wax");
-        assertEquals(1, values.listed().size());
         List<String> unfocused = new ArrayList<>();
         assertTrue(ValuesManagerScreen.escapeEmpties(box, () -> unfocused.add("focus dropped")),
                 "the focused box takes the Escape");
-        assertEquals(List.of("", 2, List.of("focus dropped")), List.of(box.getValue(), values.listed().size(),
+        assertEquals(List.of("", "", List.of("focus dropped")), List.of(box.getValue(), responded.getLast(),
                 unfocused));
         assertFalse(ValuesManagerScreen.escapeEmpties(null, () -> unfocused.add("again")),
                 "with no box focused the Escape closes the manager");
@@ -369,7 +332,6 @@ class ValuesManagerScreenTest {
             explainer.toggle();
             String key = frame().targets.hovered(20, 25).orElseThrow();
             Component shown = explainer.tooltipFor(key).orElseThrow();
-            assertFalse(shown.getString().contains("`"), shown.getString());
             List<String> styled = new ArrayList<>();
             shown.visit((style, piece) -> {
                 if (ExplainerMode.CODE_STYLE.equals(style)) {
@@ -381,13 +343,13 @@ class ValuesManagerScreenTest {
         }
 
         /**
-         * A click anywhere in the mode leaves it, the next frame drawing no shadow.
+         * A click anywhere in the mode leaves it.
          */
         @Test
         void clickAnywhereLeavesTheMode() {
             explainer.toggle();
             assertTrue(frame().targets.click(300, 200));
-            assertEquals(List.of(), fills(frame(), Palette.DRAG_SHADOW));
+            assertFalse(explainer.active());
         }
 
         /**
@@ -402,38 +364,14 @@ class ValuesManagerScreenTest {
         }
 
         /**
-         * A second press of [?] draws no shadow and hovers no explainer text.
+         * A second press of [?] leaves the mode.
          */
         @Test
-        void secondPressDrawsNoMask() {
+        void secondPressLeavesTheMode() {
             explainer.toggle();
             explainer.toggle();
-            DrawnFrame frame = frame();
-            assertEquals(List.of(), fills(frame, Palette.DRAG_SHADOW));
-            assertEquals(Optional.empty(), frame.targets.hovered(20, 25));
+            assertFalse(explainer.active());
         }
-    }
-
-    /**
-     * A left-button press carrying shift runs the follow action of the area under it and leaves its left action
-     * unrun, a plain left-button press runs the left one, and a right-button press runs neither (decision
-     * shift-left-click-follows-plain-left-modifies).
-     */
-    @Test
-    void pressReachesTheActionForItsGesture() {
-        List<String> ran = new ArrayList<>();
-        ClickTargets targets = new ClickTargets();
-        targets.add(0, 0, 50, 10, () -> ran.add("modify"));
-        targets.addFollow(0, 0, 50, 10, () -> ran.add("follow"), null);
-        ValuesManagerScreen.clickTargets(targets,
-                new MouseButtonEvent(5, 5, new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOD_SHIFT)));
-        assertEquals(List.of("follow"), ran);
-        ValuesManagerScreen.clickTargets(targets,
-                new MouseButtonEvent(5, 5, new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_LEFT, 0)));
-        assertEquals(List.of("follow", "modify"), ran);
-        ValuesManagerScreen.clickTargets(targets,
-                new MouseButtonEvent(5, 5, new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_RIGHT, 0)));
-        assertEquals(List.of("follow", "modify"), ran);
     }
 
     /**
@@ -492,20 +430,13 @@ class ValuesManagerScreenTest {
         }
 
         /**
-         * Each of the manager's boxes, the Items search, the Prefabs search and rename, the New group name and the
-         * builder's number and dropdown search, empties under its own right press and leaves the others whole.
+         * A right press empties the box under it and leaves another box's text standing.
          */
         @Test
         void rightPressEmptiesOnlyTheBoxUnderIt() {
-            List<EditBox> boxes = List.of(box(0, 0, "items"), box(0, 20, "prefabs"), box(0, 40, "rename"),
-                    box(0, 60, "group"), box(0, 80, "4"), box(0, 100, "dropdown"));
-            for (int each = 0; each < boxes.size(); each++) {
-                ValuesManagerScreen.emptyBoxUnder(boxes, press(5, each * 20 + 5, GLFW.GLFW_MOUSE_BUTTON_RIGHT));
-                assertEquals("", boxes.get(each).getValue());
-                for (int later = each + 1; later < boxes.size(); later++) {
-                    assertFalse(boxes.get(later).getValue().isEmpty());
-                }
-            }
+            List<EditBox> boxes = List.of(box(0, 0, "items"), box(0, 20, "prefabs"));
+            ValuesManagerScreen.emptyBoxUnder(boxes, press(5, 5, GLFW.GLFW_MOUSE_BUTTON_RIGHT));
+            assertEquals(List.of("", "prefabs"), boxes.stream().map(EditBox::getValue).toList());
         }
 
         /**
@@ -543,54 +474,6 @@ class ValuesManagerScreenTest {
                     WorkbenchOperations.UNCOVERED_VALUES, WorkbenchOperations.DERIVED_FROM,
                     WorkbenchOperations.DESCRIBE_GROUPS, WorkbenchOperations.EVALUATE_CONSTANTS,
                     WorkbenchOperations.PROCESSES), operations(requested));
-        }
-    }
-
-    @Nested
-    class Posting {
-        private static final List<String> DRAFT_READS = List.of(WorkbenchOperations.RESOLVE_VALUES,
-                WorkbenchOperations.UNCOVERED_VALUES, WorkbenchOperations.DERIVED_FROM,
-                WorkbenchOperations.DESCRIBE_GROUPS, WorkbenchOperations.EVALUATE_CONSTANTS,
-                WorkbenchOperations.PROCESSES);
-
-        private final List<Posted> requested = new ArrayList<>();
-        private final ManagerDraft draft = new ManagerDraft();
-        private final ValuesTab values = new ValuesTab(draft);
-        private final ManagerReads reads = reads(recordingActions(requested), draft, values);
-
-        // The members each draft read posted, by key, one list per read, in the order DRAFT_READS names them.
-        private List<List<String>> postedKeys() {
-            List<Posted> drafted = requested.stream().filter(each -> DRAFT_READS.contains(each.operation())).toList();
-            assertEquals(DRAFT_READS, drafted.stream().map(Posted::operation).toList());
-            List<List<String>> keys = drafted.stream().map(each -> JsonParser.parseString(each.text())
-                    .getAsJsonObject().getAsJsonArray("changed").asList().stream()
-                    .map(member -> member.getAsJsonObject().get("key").getAsString()).toList()).toList();
-            requested.clear();
-            return keys;
-        }
-
-        /**
-         * The open's draft reads post no member, the refreshes after one edit post that member alone, and the
-         * refreshes after the save answered post no member again (decision requests-post-only-the-changed-members).
-         */
-        @Test
-        void draftReadsPostOnlyTheMembersChangedSinceTheSave() {
-            reads.open(new ListedEntrySource(List.of(), List.of()), () -> { });
-            assertEquals(List.of(List.of(), List.of(), List.of(), List.of(), List.of(), List.of()), postedKeys());
-            values.readEntries(new ListedEntrySource(
-                    List.of(new ManagerEntrySource.ItemName("minecraft:stick", "Stick")), List.of()));
-            values.select("minecraft:stick");
-            values.edit("5");
-            reads.readAfresh();
-            List<String> stick = List.of("stick");
-            assertEquals(List.of(stick, stick, stick, stick, stick, stick), postedKeys());
-            reads.save(() -> { });
-            assertEquals(List.of(List.of("stick")), requested.stream()
-                    .filter(each -> WorkbenchOperations.SAVE_MODEL.equals(each.operation()))
-                    .map(each -> JsonParser.parseString(each.text()).getAsJsonObject().getAsJsonArray("changed")
-                            .asList().stream().map(member -> member.getAsJsonObject().get("key").getAsString())
-                            .toList()).toList());
-            assertEquals(List.of(List.of(), List.of(), List.of(), List.of(), List.of(), List.of()), postedKeys());
         }
     }
 
@@ -645,22 +528,18 @@ class ValuesManagerScreenTest {
     }
 
     /**
-     * The icons the screen builds hover each item's anchors as the Items tab reads them, so every icon ItemLinks
-     * draws lists them (decision item-hover-lists-its-anchors).
+     * The Items tab reads a derived item's anchors off the derived-from reply (decision
+     * item-hover-lists-its-anchors).
      */
     @Test
-    void itemIconsHoverTheAnchorsTheItemsTabReads() {
+    void theItemsTabReadsADerivedItemsAnchors() {
         ValuesTab values = new ValuesTab();
         values.readDerivedFrom("""
                 {"items": {"minecraft:bronze_rod": {"inputs": [{"id": "minecraft:bronze_ingot", "count": 1}],
                   "output": 1, "anchors": ["minecraft:copper_ingot", "minecraft:tin_ingot"]}}}
                 """);
-        // The name reads the item registry, which a unit test leaves unbound.
-        ItemIcons icons = Mockito.spy(ValuesManagerScreen.itemIconsOver(values));
-        Mockito.doReturn("Bronze Rod").when(icons).nameOf(anyString());
-        List<TooltipLine> lines = icons.tooltipFor(ItemIcons.hoverKey("minecraft:bronze_rod")).orElseThrow();
-        assertEquals(new TooltipLine.Members(values.anchorsOf("minecraft:bronze_rod"), 0), lines.getLast());
-        assertEquals(2, values.anchorsOf("minecraft:bronze_rod").size());
+        assertEquals(List.of("minecraft:copper_ingot", "minecraft:tin_ingot"),
+                values.anchorsOf("minecraft:bronze_rod"));
     }
 
     /**

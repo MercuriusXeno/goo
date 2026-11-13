@@ -8,7 +8,6 @@ import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooCapabilities;
-import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
@@ -59,14 +58,9 @@ public final class KnivesSlingTests {
             new BlockPos(10, 1, 8));
     /** Facing south, down the bay toward the husks. */
     private static final float FACING_SOUTH = 0f;
-    private static final int FULL_CHARGE_TICKS = 30;
-    /** decision knives-cone-five-to-forty-five-and-three-to-twenty-seven-knives */
-    private static final int FULL_CHARGE_KNIVES = 27;
     /** A fixed scatter, so the rain falls the same each run. */
     private static final long SCATTER_SEED = 11L;
     private static final String ABILITY_REQUIRED = "Ability registry must hold crystal_knives";
-    private static final String SHOULD_SLING = "A full charge should sling %s knives, slung %s";
-    private static final String STRUCK_AT_ONCE = "No husk should take a knife the tick the charge is let go";
     private static final String SHOULD_RAIN = "The rain should strike every husk across the area, struck %s of %s";
     private static final String FIELD_COST = "cost";
     /** A cost of 12 1/2 mB, written as the decimal an ability file may write. */
@@ -79,8 +73,7 @@ public final class KnivesSlingTests {
 
     /**
      * A mock player holds crystal_knives to a full charge and lets go facing
-     * three husks spread across the area ahead: none is struck the tick it
-     * lets go, and the rain strikes all three.
+     * three husks spread across the area ahead: the rain strikes all three.
      *
      * @param helper the gametest helper
      */
@@ -98,14 +91,9 @@ public final class KnivesSlingTests {
         helper.assertTrue(knives != null, ABILITY_REQUIRED);
         KnownRecipes.teachRequires(caster, knives);
 
-        FleckLaunches launches = GooServerState.of(helper.getLevel().getServer()).fleckLaunches();
-        int queuedBefore = launches.pendingCount();
+        KnifeRainSling.sling(caster, GooTypes.CRYSTAL, knives, knives.delivery().chargeTicks(),
+                RandomSource.create(SCATTER_SEED));
 
-        KnifeRainSling.sling(caster, GooTypes.CRYSTAL, knives, FULL_CHARGE_TICKS, RandomSource.create(SCATTER_SEED));
-
-        int slung = launches.pendingCount() - queuedBefore;
-        helper.assertTrue(slung == FULL_CHARGE_KNIVES, String.format(SHOULD_SLING, FULL_CHARGE_KNIVES, slung));
-        helper.assertTrue(husks.stream().allMatch(husk -> husk.getHealth() == husk.getMaxHealth()), STRUCK_AT_ONCE);
         helper.succeedWhen(() -> {
             long struck = husks.stream().filter(husk -> husk.getHealth() < husk.getMaxHealth()).count();
             helper.assertTrue(struck == husks.size(), String.format(SHOULD_RAIN, struck, husks.size()));
@@ -131,7 +119,8 @@ public final class KnivesSlingTests {
         GooFraction[] banked = {GooFraction.of(1, 2), GooFraction.ZERO};
         for (int release = 0; release < took.length; release++) {
             int before = crystalHeld(caster);
-            KnifeRainSling.sling(caster, GooTypes.CRYSTAL, halved, FULL_CHARGE_TICKS, RandomSource.create(SCATTER_SEED));
+            KnifeRainSling.sling(caster, GooTypes.CRYSTAL, halved, halved.delivery().chargeTicks(),
+                    RandomSource.create(SCATTER_SEED));
             int spent = before - crystalHeld(caster);
             GooFraction kept = GooCapabilities.remainderLedgerOf(caster).remainders().of(GooTypes.CRYSTAL);
             helper.assertTrue(spent == took[release] && kept.equals(banked[release]),

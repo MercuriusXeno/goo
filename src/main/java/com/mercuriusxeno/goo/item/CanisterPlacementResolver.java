@@ -95,8 +95,8 @@ public final class CanisterPlacementResolver {
      * @param canister the held canister
      * @return true when the aimed block handles the click
      */
-    private static boolean aimedBlockTakesTheClick(Level level, @Nullable BlockEntity aimed, BlockHitResult hit,
-                                                   ItemStack canister) {
+    static boolean aimedBlockTakesTheClick(Level level, @Nullable BlockEntity aimed, BlockHitResult hit,
+                                           ItemStack canister) {
         if (aimed instanceof ICanisterHolder || aimed instanceof ICutawayMachine
                 || aimed instanceof ICanisterClickTaker) {
             return gooMachineTakesTheClick(aimed, hit, canister);

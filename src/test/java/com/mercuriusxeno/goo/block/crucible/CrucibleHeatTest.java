@@ -99,9 +99,8 @@ class CrucibleHeatTest {
     }
 
     /**
-     * Runs one melt tick the way CrucibleMelting does: burn heat, then advance the
-     * queue's clocks on the burning grade, every item under the combo and the next one under
-     * a lone fuel, moving goo from the pool into the reservoir.
+     * Runs one melt tick the way CrucibleMelting does: burn heat, then advance the queue's clocks through
+     * CrucibleMelting.advanceClocks, moving goo from the pool into the reservoir.
      *
      * @param heat   the heat
      * @param grades the fuel grades in burn order
@@ -113,10 +112,7 @@ class CrucibleHeatTest {
         if (burning == null) {
             return;
         }
-        double exponent = burning.grade().meltExponent();
-        pool.contents = burning.combo()
-                ? pool.queue.advanceEvery(exponent, pool.contents, stock::accept)
-                : pool.queue.advanceNext(exponent, pool.contents, stock::accept);
+        pool.contents = CrucibleMelting.advanceClocks(pool.queue, burning, pool.contents, stock::accept);
     }
 
     /**

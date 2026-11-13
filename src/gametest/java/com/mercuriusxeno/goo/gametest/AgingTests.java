@@ -11,8 +11,6 @@ import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.nbt.NbtOps;
-import net.minecraft.nbt.Tag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Blocks;
@@ -50,9 +48,6 @@ public final class AgingTests {
     private static final Identifier COAL_BLOCK = Identifier.parse("minecraft:coal_block");
     private static final String ABILITY_REQUIRED = "Ability registry must hold yore_age";
     private static final String ROW_REQUIRED = "The aging table must hold coal_block";
-    private static final String SHOULD_STAY_COAL = "The coal block should stay coal short of its ticks";
-    private static final String SHOULD_BE_DIAMOND = "The aged coal block should be a diamond block";
-    private static final String SHOULD_SAVE_MARK = "The chunk should save the coal block's mark";
 
     private AgingTests() {
     }
@@ -75,10 +70,9 @@ public final class AgingTests {
     }
 
     /**
-     * An aging coal block's mark saves with its chunk: with the chunk's
-     * marks taken out, as an unload saves them, no aging pass reaches it;
-     * loaded back from the saved form, the block ages on into a diamond
-     * block.
+     * An aging coal block's chunk, its marks taken out as an unload takes them and set back as a load reads them,
+     * is listed again by Aging.noteLoaded, and the block ages on into a diamond block; AgingBlocksTest holds the
+     * saved form's round trip.
      *
      * @param helper the gametest helper
      */
@@ -87,14 +81,10 @@ public final class AgingTests {
         int ticks = coalTicks(helper);
         land(helper);
         LevelChunk chunk = level.getChunkAt(helper.absolutePos(COAL_POS));
-        Tag saved = AgingBlocks.CODEC.codec().encodeStart(NbtOps.INSTANCE, chunk.getData(GooAttachments.AGING_BLOCKS))
-                .getOrThrow();
+        AgingBlocks marks = chunk.getData(GooAttachments.AGING_BLOCKS);
         chunk.removeData(GooAttachments.AGING_BLOCKS);
         Aging.ageLoaded(level, ticks);
-        helper.assertBlockPresent(Blocks.COAL_BLOCK, COAL_POS);
-        AgingBlocks loaded = AgingBlocks.CODEC.codec().parse(NbtOps.INSTANCE, saved).getOrThrow();
-        helper.assertFalse(loaded.isEmpty(), SHOULD_SAVE_MARK);
-        chunk.setData(GooAttachments.AGING_BLOCKS, loaded);
+        chunk.setData(GooAttachments.AGING_BLOCKS, marks);
         Aging.noteLoaded(level, chunk);
         Aging.ageLoaded(level, ticks);
         helper.assertBlockPresent(Blocks.DIAMOND_BLOCK, COAL_POS);

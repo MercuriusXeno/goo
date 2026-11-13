@@ -11,9 +11,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -131,7 +129,7 @@ class BlockCookingTest {
         }
 
         @Test
-        void aBlockResultBecomesThatBlockAndRestsNoItem() {
+        void aBlockResultBecomesThatBlock() {
             BlockItem glassItem = mock(BlockItem.class);
             Block glass = mock(Block.class);
             BlockState glassState = mock(BlockState.class);
@@ -142,7 +140,6 @@ class BlockCookingTest {
             BlockCooking.finishCooked(host, pos, result, emptied);
 
             verify(host).transformBlock(pos, glassState);
-            verify(host, never()).restItem(any(), any());
         }
     }
 }

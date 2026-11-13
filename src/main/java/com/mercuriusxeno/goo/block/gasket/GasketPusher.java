@@ -20,6 +20,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.Objects;
 import java.util.OptionalInt;
 import java.util.UUID;
+import java.util.function.IntPredicate;
 import java.util.function.Supplier;
 
 /**
@@ -397,21 +398,32 @@ public class GasketPusher {
      * @param target the destination fluid handler
      */
     void pushViaHandler(ResourceHandler<FluidResource> target) {
-        int slots = source.size();
-        boolean moved = false;
-        int firstSent = nextTurn;
-        for (int step = 0; step < slots; step++) {
-            int i = (nextTurn + step) % slots;
-            if (sendSlot(target, i)) {
-                firstSent = moved ? firstSent : i;
-                moved = true;
-            }
-        }
-        if (moved) {
-            nextTurn = (firstSent + 1) % slots;
+        OptionalInt next = nextTurnAfter(nextTurn, source.size(), slot -> sendSlot(target, slot));
+        if (next.isPresent()) {
+            nextTurn = next.getAsInt();
             idleTicks = 0;
             sync.run();
         }
+    }
+
+    /**
+     * Walks every slot once from the start, wrapping, asking each to send, and
+     * answers the turn after the first slot that sent, so the next walk starts there.
+     *
+     * @param start the slot the walk starts at
+     * @param slots how many slots the source holds
+     * @param sent  sends a slot, answering whether it moved fluid; asked of every slot
+     * @return the next walk's start, or empty when no slot sent
+     */
+    static OptionalInt nextTurnAfter(int start, int slots, IntPredicate sent) {
+        OptionalInt firstSent = OptionalInt.empty();
+        for (int step = 0; step < slots; step++) {
+            int i = (start + step) % slots;
+            if (sent.test(i) && firstSent.isEmpty()) {
+                firstSent = OptionalInt.of(i);
+            }
+        }
+        return firstSent.isPresent() ? OptionalInt.of((firstSent.getAsInt() + 1) % slots) : OptionalInt.empty();
     }
 
     /**
@@ -427,8 +439,19 @@ public class GasketPusher {
             return false;
         }
         int amount = (int) source.getAmountAsLong(slot);
-        int offer = Math.min(GasketDemand.demandOf(target, resource), amount);
+        int offer = offer(GasketDemand.demandOf(target, resource), amount);
         return offer > 0 && transferSlot(target, slot, resource, offer);
+    }
+
+    /**
+     * The mB a slot offers: the lesser of the target's demand and what the slot holds.
+     *
+     * @param demand the mB the target asks
+     * @param held   the mB the slot holds
+     * @return the mB to offer
+     */
+    static int offer(int demand, int held) {
+        return Math.min(demand, held);
     }
 
     /**
