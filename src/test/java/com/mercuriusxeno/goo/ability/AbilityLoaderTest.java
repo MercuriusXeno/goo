@@ -476,7 +476,7 @@ class AbilityLoaderTest {
 
         private static final Map<String, String> SHIPPED_FORMULAS = Map.of(
                 "ender_blink", "200 + 100/block",
-                "void_black_hole", "1K x r\u00B3",
+                "void_dark_star", "1K x r\u00B3",
                 "unstable_explode", "1K x r\u00B3",
                 "rock_spire", "%s/m³",
                 "rock_terrakinesis", "%s",
@@ -731,6 +731,55 @@ class AbilityLoaderTest {
 
             assertTrue(lang.has(slick.description()), slick.description() + " has no lang entry");
             assertFalse(lang.get(slick.description()).getAsString().isBlank(), slick.description() + " is blank");
+        }
+    }
+
+    /**
+     * Vacuum ships among Void's abilities as a held stream of 8 blocks and a 40 degree cone, costing 1 mb of void
+     * goo each 20 held ticks and requiring no item.
+     * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
+     * vacuum-costs-one-mb-of-void-a-second
+     */
+    @Nested
+    class VoidVacuum {
+
+        private static final String VACUUM = "void_vacuum";
+        private final AbilityDefinition vacuum = AbilityJson.decode(VACUUM);
+
+        @Test
+        void vacuumIsAVoidStream() {
+            assertEquals(GooTypes.VOID, vacuum.gooType());
+            assertEquals(DeliveryKind.STREAM, vacuum.delivery().kind());
+        }
+
+        @Test
+        void vacuumReachesEightBlocksThroughAFortyDegreeCone() {
+            assertEquals(8, vacuum.delivery().range());
+            assertEquals(40, vacuum.delivery().coneDegrees());
+        }
+
+        @Test
+        void vacuumCostsOneMbEachTwentyHeldTicks() {
+            assertEquals(1, vacuum.cost().in(GooValueTable.EMPTY));
+            assertEquals(20, vacuum.delivery().ticksPerCharge());
+        }
+
+        @Test
+        void vacuumRequiresNoItem() {
+            assertEquals(List.of(), vacuum.requires());
+        }
+
+        @Test
+        void vacuumShipsUnderVoidNamedVacuumWithItsIcon() throws IOException {
+            assertPetalShipsAs(GooTypes.VOID, VACUUM, "Vacuum");
+        }
+
+        @Test
+        void vacuumCarriesADescription() throws IOException {
+            JsonObject lang = shippedLang();
+
+            assertTrue(lang.has(vacuum.description()), vacuum.description() + " has no lang entry");
+            assertFalse(lang.get(vacuum.description()).getAsString().isBlank(), vacuum.description() + " is blank");
         }
     }
 

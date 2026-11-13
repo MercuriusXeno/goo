@@ -1,4 +1,16 @@
 {
+  "effects.vacuum_slurp": {
+    "category": "players",
+    "subtitle": "subtitles.goo.vacuum_slurp",
+    "sounds": [
+      { "name": "minecraft:mob/slime/small1", "volume": 0.6, "attenuation_distance": 12, "stream": false },
+      { "name": "minecraft:mob/slime/small2", "volume": 0.6, "attenuation_distance": 12, "stream": false },
+      { "name": "minecraft:mob/slime/small3", "volume": 0.6, "attenuation_distance": 12, "stream": false },
+      { "name": "minecraft:item/bottle/drink_honey1", "volume": 0.8, "attenuation_distance": 12, "stream": false },
+      { "name": "minecraft:item/bottle/drink_honey2", "volume": 0.8, "attenuation_distance": 12, "stream": false },
+      { "name": "minecraft:item/bottle/drink_honey3", "volume": 0.8, "attenuation_distance": 12, "stream": false }
+    ]
+  },
   "effects.black_hole": {
     "category": "blocks",
     "sounds": [
@@ -84,6 +96,16 @@
       }
     ]
   },
+  "ability.click_trail": {
+    "category": "blocks",
+    "subtitle": "subtitles.block.comparator.click",
+    "sounds": [
+      {
+        "name": "minecraft:block.comparator.click",
+        "type": "event"
+      }
+    ]
+  },
   "effects.earth_rumble": {
     "category": "blocks",
     "subtitle": "subtitles.goo.earth_rumble",
@@ -151,6 +173,16 @@
   "effects.outsider_conjure": {
     "category": "players",
     "subtitle": "subtitles.goo.outsider_conjure",
+    "sounds": [
+      {
+        "name": "goo:effects/outsider_conjure",
+        "stream": false
+      }
+    ]
+  },
+  "effects.outsider_door": {
+    "category": "players",
+    "subtitle": "subtitles.goo.outsider_door",
     "sounds": [
       {
         "name": "goo:effects/outsider_conjure",

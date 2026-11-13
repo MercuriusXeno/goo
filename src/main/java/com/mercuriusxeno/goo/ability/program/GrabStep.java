@@ -195,9 +195,7 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
 
     /**
      * How far Grab reaches to a body: straight where nothing stands between,
-     * else the shorter of the straight line and the shortest way through a
-     * linked pair, so a pair standing far off never lengthens the reach to a
-     * body the straight line already reaches.
+     * else along the shortest way through a linked pair where one runs.
      * aim-and-shots-carry-through-linked-gates
      *
      * @param player the grabbing player
@@ -208,22 +206,27 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
         Vec3 eye = player.getEyePosition();
         Vec3 middle = body.getBoundingBox().getCenter();
         double straight = eye.distanceTo(middle);
-        double length = inSight(player, eye, middle) ? straight
-                : shorterWay(straight, GateRay.shortestRoute(GatePassage.pairsOf(player.level().getServer()), eye,
-                        middle).map(GateRay.Route::length));
+        boolean seen = inSight(player, eye, middle);
+        Optional<Double> route = seen ? Optional.empty()
+                : GateRay.shortestRoute(GatePassage.pairsOf(player.level().getServer()), eye, middle)
+                        .map(GateRay.Route::length);
+        double length = reachedLength(straight, seen, route);
         return length * length;
     }
 
     /**
-     * The shorter of a straight line and a way through a linked pair.
-     * aim-and-shots-carry-through-linked-gates
+     * How far Grab reaches to a body, given the straight line to it, whether
+     * the eye sees it, and the shortest way round through a linked pair: an
+     * unseen body is reached the shorter way, so a pair standing far off
+     * never stretches the reach past the straight line.
      *
-     * @param straight the straight line's length
-     * @param throughPair the way through a pair's length, empty where no pair offers one
-     * @return the shorter length
+     * @param straight the straight distance, eye to the body's middle
+     * @param seen     whether nothing solid stands on that line
+     * @param route    the shortest way through a linked pair, empty where none runs
+     * @return the reach
      */
-    static double shorterWay(double straight, Optional<Double> throughPair) {
-        return throughPair.filter(length -> length < straight).orElse(straight);
+    static double reachedLength(double straight, boolean seen, Optional<Double> route) {
+        return seen ? straight : Math.min(straight, route.orElse(straight));
     }
 
     /**

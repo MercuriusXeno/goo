@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.hud;
 
-import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import java.util.ArrayList;
@@ -380,7 +379,7 @@ final class VeinNetwork {
      * @param strength how fully the vignette stands
      * @param rgb      the veins' color
      */
-    void draw(GuiGraphicsExtractor graphics, TendrilVignette.Screen screen, float time, float strength, int rgb) {
+    void draw(VignetteCanvas graphics, TendrilVignette.Screen screen, float time, float strength, int rgb) {
         float shorter = Math.min(screen.width(), screen.height());
         for (Vein vein : grown) {
             for (Branch branch : vein.branches()) {
@@ -416,7 +415,7 @@ final class VeinNetwork {
      * @param strength how strongly it draws, the vignette's strength times its fade
      * @param rgb      the veins' color
      */
-    private static void drawLink(GuiGraphicsExtractor graphics, Link link, Stroke from, Stroke to, float strength,
+    private static void drawLink(VignetteCanvas graphics, Link link, Stroke from, Stroke to, float strength,
                                  int rgb) {
         float across = Mth.clamp((from.grownFor() - link.startsAt()) / LINK_GROW_TICKS, 0f, 1f);
         int alpha = Math.round(Mth.clamp(VEIN_ALPHA * strength, 0f, 1f) * OPAQUE);
@@ -492,7 +491,7 @@ final class VeinNetwork {
         }
     }
 
-    private static void drawBranch(GuiGraphicsExtractor graphics, Stroke stroke, Branch branch, float strength,
+    private static void drawBranch(VignetteCanvas graphics, Stroke stroke, Branch branch, float strength,
                                    int rgb) {
         Vein vein = stroke.vein();
         for (int point = 1; point < branch.inward().length; point++) {
@@ -516,7 +515,7 @@ final class VeinNetwork {
      * @param stroke   how wide it draws, in pixels
      * @param color    its color
      */
-    private static void line(GuiGraphicsExtractor graphics, int[] from, int[] to, int stroke, int color) {
+    private static void line(VignetteCanvas graphics, int[] from, int[] to, int stroke, int color) {
         int steps = Math.max(Math.abs(to[0] - from[0]), Math.abs(to[1] - from[1]));
         for (int step = 1; step <= steps; step++) {
             int x = Math.round(from[0] + (to[0] - from[0]) * (float) step / steps - HALF * (stroke - 1));

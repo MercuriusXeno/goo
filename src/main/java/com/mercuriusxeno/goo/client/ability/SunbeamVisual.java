@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.RayStep;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
@@ -389,12 +388,10 @@ public final class SunbeamVisual {
      * @return the aim
      */
     private static SunbeamRayEnd.OwnAim ownAim(Player player, float partialTick) {
-        Vec3 eye = player.getEyePosition(partialTick);
         Vec3 lockedMob = AimTracker.currentTarget() instanceof TargetResult.EntityTarget locked
                 ? locked.entity().getPosition(partialTick).add(0, locked.entity().getBbHeight() * HALF, 0) : null;
         boolean locksOn = GloveThrowSender.locksOn(GloveAim.selectedAbilityId(player));
-        return new SunbeamRayEnd.OwnAim(eye,
-                ChannelAim.heldAimPoint(locksOn, lockedMob, eye.add(player.getViewVector(partialTick))));
+        return SunbeamRayEnd.ownAim(CameraEye.of(Minecraft.getInstance(), player, partialTick), locksOn, lockedMob);
     }
 
     /**
