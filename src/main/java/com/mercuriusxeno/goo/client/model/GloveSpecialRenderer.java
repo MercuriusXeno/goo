@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.ability.GloveGlow;
 import com.mercuriusxeno.goo.client.ability.KnivesCharge;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
+import com.mercuriusxeno.goo.client.ability.PalmBlobHop;
 import com.mercuriusxeno.goo.client.ability.PhaseLook;
 import com.mercuriusxeno.goo.client.ability.PhasedHands;
 import com.mercuriusxeno.goo.client.ability.PortalView;
@@ -231,7 +232,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * @return the shape against the rest cube
      */
     private static BlobShape palmShape(float blobScale) {
-        return LiftedPalmBlob.shapeAt(0f).scaled(blobScale);
+        return PalmBlobHop.pressed().scaled(blobScale);
     }
 
     /**
@@ -274,10 +275,12 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
     /**
      * Submits the local first-person player's lifted blob in the hand's pass,
      * so it draws over the glove and turns with it: from the palm blob's own
-     * center, size and pressed shape it eases toward the spray source as the
-     * hand's pass shows it, growing to the lifted size and standing into the cube.
+     * center, size and pressed shape it hops, its bottom on the palm as it
+     * stands up, then eases toward the spray source as the hand's pass shows
+     * it, growing to the lifted size and settling into the cube.
      * palm-blob-lifts-as-the-spray-source
      * palm-blob-rests-pressed-and-stands-into-the-cube
+     * every-lift-begins-with-a-hop
      *
      * @param poseStack     the pose stack, at the glove's model
      * @param nodeCollector the render node collector
@@ -287,7 +290,8 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
     private static void submitLiftedGoo(PoseStack poseStack, SubmitNodeCollector nodeCollector,
                                         ResourceKey<GooTypeDefinition> type, LiftedPalmBlob.HandLift lift) {
         Matrix4f toHandPass = new Matrix4f(poseStack.last().pose());
-        Vector3f palm = toHandPass.transformPosition(palmCenter(palmShape(REST_SCALE)));
+        Vector3f standing = palmCenter(palmShape(REST_SCALE)).add(0f, lift.stand() * SHELL_HW_PX / BLOCK_PIXELS, 0f);
+        Vector3f palm = toHandPass.transformPosition(standing);
         Vector3f lifted = palm.lerp(lift.sourceInHand().toVector3f(), lift.share());
         submitBlob(poseStack, nodeCollector, type, toHandPass.invert().transformPosition(lifted), lift.shape());
     }
