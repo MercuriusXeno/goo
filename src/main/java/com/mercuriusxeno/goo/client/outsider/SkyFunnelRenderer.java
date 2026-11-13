@@ -20,16 +20,15 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Draws SkyFunnel once a level pass in goo:pocket, over the room's own
- * doorway, with goo's copy of the End portal's shader: its starfield read
- * from texture coordinates on the funnel's surface, so the stars lie on the
- * walls and shrink with distance, and each vertex's brightness fading from
- * the funnel's nearest point to its farthest, so the near walls stand in
- * front of the far. Each face draws both ways round, so the funnel shows
- * from inside and out. It draws in the level pass rather than
- * the sky pass, so near the doorway the blocks before it hide it as they
- * hide the doorway, and past the far plane SkyFunnel draws each vertex back
- * inside it. The funnel is its own draw, outside the doorway's block entity
+ * Draws SkyFunnel once a level pass in goo:pocket, round the room's own
+ * doorway, with goo's copy of the End portal's shader: the doorway's own
+ * screen-space starfield, so the pillar reads as the doorway it hides, and
+ * each vertex's brightness fading from the funnel's nearest point to its
+ * farthest, so the near walls stand in front of the far. Each face draws
+ * both ways round, so the funnel shows from inside and out. It draws in the
+ * level pass rather than the sky pass, so the blocks before it hide it as
+ * they hide the doorway, and past the far plane SkyFunnel draws each vertex
+ * back inside it. The funnel is its own draw, outside the doorway's block entity
  * and outside the room copies, so one funnel draws however many copies the
  * frame shows; the room's own doorway stands at its center, never farther
  * than a copy's. A view through a linked portal draws it around that view's
@@ -70,12 +69,12 @@ public final class SkyFunnelRenderer {
      */
     static void submit(SubmitNodeCollector collector, PoseStack poses, RoomExtent.Bounds bounds, Vec3 camera,
             double farthest) {
-        List<List<SkyFunnel.Corner>> quads = SkyFunnel.quads(bounds);
+        List<List<Vec3>> quads = SkyFunnel.quads(bounds);
         DoubleSummaryStatistics distances = quads.stream().flatMap(List::stream)
-                .mapToDouble(corner -> corner.place().distanceTo(camera)).summaryStatistics();
+                .mapToDouble(corner -> corner.distanceTo(camera)).summaryStatistics();
         collector.submitCustomGeometry(poses, GooRenderTypes.SKY_FUNNEL_TYPE, (pose, buffer) -> {
-            for (List<SkyFunnel.Corner> quad : quads) {
-                for (SkyFunnel.Corner corner : quad) {
+            for (List<Vec3> quad : quads) {
+                for (Vec3 corner : quad) {
                     addCorner(buffer, pose, corner, camera, farthest, distances);
                 }
                 for (int index = quad.size() - 1; index >= 0; index--) {
@@ -87,21 +86,19 @@ public final class SkyFunnelRenderer {
 
     /**
      * Writes one corner: drawn along its line of sight within the pass's
-     * reach, its starfield coordinates, and its brightness by distance.
+     * reach, its brightness by distance.
      *
      * @param buffer    the funnel's vertex consumer
      * @param pose      the pass's pose, standing at the camera
-     * @param corner    the corner
+     * @param corner    the corner's true place in world blocks
      * @param camera    the pass's camera
      * @param farthest  the farthest depth the pass draws
      * @param distances the funnel's corners' true distances from the camera
      */
-    private static void addCorner(VertexConsumer buffer, PoseStack.Pose pose, SkyFunnel.Corner corner, Vec3 camera,
+    private static void addCorner(VertexConsumer buffer, PoseStack.Pose pose, Vec3 corner, Vec3 camera,
             double farthest, DoubleSummaryStatistics distances) {
-        float brightness = SkyFunnel.brightnessAt(corner.place().distanceTo(camera), distances.getMin(),
-                distances.getMax());
-        buffer.addVertex(pose, SkyFunnel.fromCamera(camera, corner.place(), farthest).toVector3f())
-                .setUv((float) corner.around(), (float) corner.up())
+        float brightness = SkyFunnel.brightnessAt(corner.distanceTo(camera), distances.getMin(), distances.getMax());
+        buffer.addVertex(pose, SkyFunnel.fromCamera(camera, corner, farthest).toVector3f())
                 .setColor(brightness, brightness, brightness, 1F);
     }
 }

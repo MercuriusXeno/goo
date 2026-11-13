@@ -624,9 +624,8 @@ public final class GooRenderTypes {
     private static final int SKY_FUNNEL_PORTAL_LAYERS = 15;
 
     /**
-     * The sky funnel over an Outsider room's doorway: goo's copy of the End
-     * portal's shader, its starfield read from the funnel's texture
-     * coordinates so it lies on the surface and shrinks with distance, each
+     * The sky funnel round an Outsider room's doorway: goo's copy of the End
+     * portal's shader, the doorway's own screen-space starfield, each
      * vertex's color dimming it with distance; depth tested and written as
      * the funnel stands in the world.
      * decision sky-funnel-points-down-to-the-doorway-from-any-distance
@@ -639,7 +638,7 @@ public final class GooRenderTypes {
             .withSampler("Sampler0")
             .withSampler("Sampler1")
             .withShaderDefine("PORTAL_LAYERS", SKY_FUNNEL_PORTAL_LAYERS)
-            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS)
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
             .withDepthStencilState(DepthStencilState.DEFAULT)
             .build();
 

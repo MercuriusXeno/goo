@@ -7,39 +7,38 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The funnel standing over an Outsider room's own doorway, so the way out
- * reads from anywhere in the room: a parabola split in half with its sides
- * inverted, revolved about the vertical axis through the room's center
- * block. Its height above the doorway is a downward parabola of its radius,
- * so its walls meet in a point on the doorway's top at an angle and flatten
- * to level at its rim. The funnel is sky-sized and the doorway may stand
- * past the far plane, so each vertex draws moved along its own line of
- * sight to inside the farthest depth the pass draws: the picture is the
- * true funnel's at any distance. The place reads from the room's bounds
- * alone, which the server syncs, so it holds where the doorway's chunk
- * stands unloaded.
+ * The funnel standing on an Outsider room's own doorway, so the way out
+ * reads from anywhere in the room: the doorway is its pillar, a round column
+ * the door's width standing from the floor with the door hidden in it,
+ * holding that width almost all the way up to its ceiling, then peeling out
+ * and expanding all the way out to cover the sky. Its radius grows with the
+ * inverse of the height left below the ceiling, so it runs without bound
+ * there; the rings stop at a radius past any far plane. The funnel is
+ * sky-sized and the doorway may stand past the far plane, so each vertex
+ * draws moved along its own line of sight to inside the farthest depth the
+ * pass draws: the picture is the true funnel's at any distance. The place
+ * reads from the room's bounds alone, which the server syncs, so it holds
+ * where the doorway's chunk stands unloaded.
  * decision sky-funnel-points-down-to-the-doorway-from-any-distance
  */
 public final class SkyFunnel {
 
-    /** How high above the doorway's top the rim stands. */
-    static final double HEIGHT = 160;
-    /** The rim's radius, where the walls stand level. */
-    static final double RIM_RADIUS = 96;
-    /** The rings from the point out to the rim, less one, evenly spaced by radius. */
-    static final int BANDS = 32;
+    /** The pillar's radius at the floor: half the doorway's one-block width. */
+    static final double HALF_WIDTH = 0.5;
+    /** How high above the floor the funnel's ceiling stands, where its radius runs without bound. */
+    static final double CEILING = 1024;
+    /** How soon below the ceiling the pillar peels out: the larger, the sooner and wider. */
+    static final double PEEL = CEILING / 40;
+    /** The radius the top ring stands at, past the far plane of any render distance. */
+    static final double TOP_RADIUS = 100_000;
+    /** The rings from the floor to the top, less one, spaced evenly in the log of the gap to the ceiling. */
+    static final int BANDS = 64;
     /** The quads round each band. */
     static final int SEGMENTS = 48;
-    /** How many times the starfield repeats round the funnel, whole so it meets itself. */
-    static final int AROUND_REPEATS = 12;
-    /** How many blocks of height one repeat of the starfield spans up the funnel. */
-    static final double BLOCKS_PER_REPEAT_UP = 16;
     /** The share of the farthest drawn depth a vertex is drawn within, clear of the far plane. */
     static final double REACH_SHARE = 0.9;
     /** The brightness of the funnel's farthest point, its nearest drawing full. */
     static final float FARTHEST_BRIGHTNESS = 0.3F;
-    /** The doorway's cells stacked on the center voidstone. */
-    private static final int DOORWAY_CELLS = 2;
     private static final double HALF_BLOCK = 0.5;
     private static final double FULL_TURN = Math.PI * 2;
 
@@ -47,96 +46,75 @@ public final class SkyFunnel {
     }
 
     /**
-     * One corner of the funnel's surface.
+     * The funnel's radius at a height above the floor: the doorway's half
+     * width at the floor, barely wider until near the ceiling, then running
+     * out without bound.
      *
-     * @param place  its true place in world blocks
-     * @param around the starfield's coordinate round the funnel
-     * @param up     the starfield's coordinate up the funnel
+     * @param height blocks above the floor, below the ceiling
+     * @return the radius in blocks
      */
-    public record Corner(Vec3 place, double around, double up) {
+    public static double radiusAt(double height) {
+        return HALF_WIDTH + PEEL * (1 / (CEILING - height) - 1 / CEILING);
     }
 
     /**
-     * The funnel's height above the doorway's top at a radius: zero at the
-     * point, rising steepest there and levelling off at the rim.
+     * The height the pillar stands from: the floor the doorway stands on,
+     * the top of the center voidstone.
      *
-     * @param radius blocks out from the axis, zero to the rim
-     * @return the height in blocks
+     * @return the floor's y in world blocks
      */
-    public static double heightAt(double radius) {
-        double towardRim = 1 - radius / RIM_RADIUS;
-        return HEIGHT * (1 - towardRim * towardRim);
+    public static double floorHeight() {
+        return OutsiderRooms.ROOM_FLOOR_Y + 1;
     }
 
     /**
-     * The height the point stands at: the top of the doorway's upper cell,
-     * the doorway standing on the center voidstone.
-     *
-     * @return the point's y in world blocks
-     */
-    public static double spoutHeight() {
-        return OutsiderRooms.ROOM_FLOOR_Y + 1 + DOORWAY_CELLS;
-    }
-
-    /**
-     * The funnel's rings in world blocks, the point first and the rim last,
+     * The funnel's rings in world blocks, the floor first and the top last,
      * each ring's points running once round the axis through the room's
-     * center block.
+     * center block. The gap to the ceiling shrinks by the same share each
+     * band, so the long straight pillar takes few rings and the flare many.
      *
      * @param bounds the room's boundary
      * @return the rings
      */
     public static List<List<Vec3>> rings(RoomExtent.Bounds bounds) {
-        return cornerRings(bounds).stream()
-                .map(ring -> ring.subList(0, SEGMENTS).stream().map(Corner::place).toList()).toList();
-    }
-
-    /**
-     * The funnel's quads, each four corners in order round it, band by band
-     * from the point out.
-     *
-     * @param bounds the room's boundary
-     * @return the quads
-     */
-    public static List<List<Corner>> quads(RoomExtent.Bounds bounds) {
-        List<List<Corner>> rings = cornerRings(bounds);
-        List<List<Corner>> quads = new ArrayList<>(BANDS * SEGMENTS);
-        for (int band = 0; band < BANDS; band++) {
-            List<Corner> inner = rings.get(band);
-            List<Corner> outer = rings.get(band + 1);
-            for (int segment = 0; segment < SEGMENTS; segment++) {
-                quads.add(List.of(inner.get(segment), inner.get(segment + 1), outer.get(segment + 1),
-                        outer.get(segment)));
-            }
-        }
-        return quads;
-    }
-
-    /**
-     * Each ring's corners once round and the first again at a full turn, so
-     * the starfield's last repeat closes on its first rather than running
-     * back across the last quad.
-     *
-     * @param bounds the room's boundary
-     * @return the rings of corners, the point first and the rim last
-     */
-    private static List<List<Corner>> cornerRings(RoomExtent.Bounds bounds) {
         double axisX = bounds.centerX() + HALF_BLOCK;
         double axisZ = bounds.centerZ() + HALF_BLOCK;
-        List<List<Corner>> rings = new ArrayList<>(BANDS + 1);
+        double topGap = 1 / ((TOP_RADIUS - HALF_WIDTH) / PEEL + 1 / CEILING);
+        double shrink = Math.pow(topGap / CEILING, 1.0 / BANDS);
+        List<List<Vec3>> rings = new ArrayList<>(BANDS + 1);
         for (int band = 0; band <= BANDS; band++) {
-            double radius = RIM_RADIUS * band / BANDS;
-            double height = heightAt(radius);
-            List<Corner> ring = new ArrayList<>(SEGMENTS + 1);
-            for (int segment = 0; segment <= SEGMENTS; segment++) {
-                double turned = (double) segment / SEGMENTS;
-                double angle = FULL_TURN * turned;
-                ring.add(new Corner(new Vec3(axisX + radius * Math.cos(angle), spoutHeight() + height,
-                        axisZ + radius * Math.sin(angle)), turned * AROUND_REPEATS, height / BLOCKS_PER_REPEAT_UP));
+            double height = CEILING - CEILING * Math.pow(shrink, band);
+            double radius = radiusAt(height);
+            List<Vec3> ring = new ArrayList<>(SEGMENTS);
+            for (int segment = 0; segment < SEGMENTS; segment++) {
+                double angle = FULL_TURN * segment / SEGMENTS;
+                ring.add(new Vec3(axisX + radius * Math.cos(angle), floorHeight() + height,
+                        axisZ + radius * Math.sin(angle)));
             }
             rings.add(ring);
         }
         return rings;
+    }
+
+    /**
+     * The funnel's quads in world blocks, each four corners in order round
+     * it, band by band from the floor up.
+     *
+     * @param bounds the room's boundary
+     * @return the quads
+     */
+    public static List<List<Vec3>> quads(RoomExtent.Bounds bounds) {
+        List<List<Vec3>> rings = rings(bounds);
+        List<List<Vec3>> quads = new ArrayList<>(BANDS * SEGMENTS);
+        for (int band = 0; band < BANDS; band++) {
+            List<Vec3> lower = rings.get(band);
+            List<Vec3> upper = rings.get(band + 1);
+            for (int segment = 0; segment < SEGMENTS; segment++) {
+                int next = (segment + 1) % SEGMENTS;
+                quads.add(List.of(lower.get(segment), lower.get(next), upper.get(next), upper.get(segment)));
+            }
+        }
+        return quads;
     }
 
     /**

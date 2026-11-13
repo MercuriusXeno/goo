@@ -13,8 +13,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Covers the sky funnel's shape and place: a horn whose radius grows with
- * the square of its height, its spout on the room's own doorway, and every
+ * Covers the sky funnel's shape and place: a door-width pillar standing from
+ * the floor round the room's own doorway, peeling out toward its ceiling to
+ * cover the sky, and every
  * vertex drawn along its own line of sight inside the farthest drawn depth
  * (decision sky-funnel-points-down-to-the-doorway-from-any-distance).
  */
@@ -28,35 +29,28 @@ class SkyFunnelTest {
     private static final double FARTHEST = 1024;
     private static final double TEN_TIMES = 10;
     private static final double A_THOUSAND_TIMES = 1000;
+    private static final double NINE_TENTHS = 0.9;
+    private static final double QUARTER_BLOCK = 0.25;
 
     @Nested
     class Profile {
 
         @Test
-        void theWallsMeetInAPointOnTheDoorwaysTop() {
-            BlockPos upperCell = OutsiderRooms.doorOf(0).above();
-            List<Vec3> point = SkyFunnel.rings(NEAR_ROOM).getFirst();
-
-            assertEquals(0, SkyFunnel.heightAt(0), EXACT, "the point stands on the doorway's top");
-            for (Vec3 vertex : point) {
-                assertEquals(NEAR_ROOM.centerX() + HALF_BLOCK, vertex.x(), EXACT, "at radius zero");
-                assertEquals(NEAR_ROOM.centerZ() + HALF_BLOCK, vertex.z(), EXACT, "at radius zero");
-                assertEquals(upperCell.getY() + 1, vertex.y(), EXACT, "on the top of the upper cell");
-            }
+        void thePillarHoldsTheDoorsWidthAlmostAllTheWayUp() {
+            assertEquals(HALF_BLOCK, SkyFunnel.radiusAt(0), EXACT, "the doorway's half width at the floor");
+            assertTrue(SkyFunnel.radiusAt(SkyFunnel.CEILING * NINE_TENTHS) - HALF_BLOCK < QUARTER_BLOCK,
+                    "within a quarter block of it at nine tenths of the ceiling");
         }
 
         @Test
-        void theHeightIsADownwardParabolaOfTheRadiusLevelAtTheRim() {
-            double step = SkyFunnel.RIM_RADIUS / SkyFunnel.BANDS;
-            double firstGain = SkyFunnel.heightAt(step) - SkyFunnel.heightAt(0);
-            double gainBelow = Double.MAX_VALUE;
-            for (int band = 0; band < SkyFunnel.BANDS; band++) {
-                double gain = SkyFunnel.heightAt((band + 1) * step) - SkyFunnel.heightAt(band * step);
-                assertTrue(gain > 0, "each step stands higher than the one before");
-                assertTrue(gain < gainBelow, "each step gains less height than the one before");
-                gainBelow = gain;
+        void thePillarPeelsOutToCoverTheSky() {
+            List<Double> radii = SkyFunnel.rings(NEAR_ROOM).stream()
+                    .map(ring -> Math.hypot(ring.getFirst().x() - HALF_BLOCK, ring.getFirst().z() - HALF_BLOCK))
+                    .toList();
+            for (int ring = 1; ring < radii.size(); ring++) {
+                assertTrue(radii.get(ring) > radii.get(ring - 1), "each ring wider than the ring below");
             }
-            assertTrue(gainBelow < firstGain / 10, "the last step before the rim is level");
+            assertTrue(radii.getLast() > FARTHEST, "the top ring reaches past a sixteen-chunk pass's far depth");
         }
     }
 
@@ -78,14 +72,30 @@ class SkyFunnelTest {
         }
 
         @Test
-        void theLowestRingSitsOnTheTopOfTheDoorwaysUpperCell() {
-            BlockPos upperCell = OutsiderRooms.doorOf(0).above();
+        void theLowestRingSitsOnTheFloorTheDoorwayStandsOn() {
+            BlockPos lowerCell = OutsiderRooms.doorOf(0);
             for (RoomExtent.Bounds bounds : List.of(NEAR_ROOM, FAR_ROOM)) {
                 List<List<Vec3>> rings = SkyFunnel.rings(bounds);
                 double lowest = rings.stream().flatMap(List::stream).mapToDouble(Vec3::y).min().orElseThrow();
-                assertEquals(upperCell.getY() + 1, lowest, EXACT, "on the top of the upper cell");
+                assertEquals(lowerCell.getY(), lowest, EXACT, "at the foot of the doorway's lower cell");
                 for (Vec3 vertex : rings.getFirst()) {
-                    assertEquals(upperCell.getY() + 1, vertex.y(), EXACT, "the first ring is the lowest");
+                    assertEquals(lowerCell.getY(), vertex.y(), EXACT, "the first ring is the lowest");
+                }
+            }
+        }
+
+        @Test
+        void theWallEnclosesBothDoorwayCells() {
+            double upperTop = OutsiderRooms.doorOf(0).above().getY() + 1;
+            for (RoomExtent.Bounds bounds : List.of(NEAR_ROOM, FAR_ROOM)) {
+                List<List<Vec3>> doorwayRings = SkyFunnel.rings(bounds).stream()
+                        .filter(ring -> ring.getFirst().y() <= upperTop).toList();
+                assertFalse(doorwayRings.isEmpty(), "rings stand round the doorway");
+                for (List<Vec3> ring : doorwayRings) {
+                    Vec3 first = ring.getFirst();
+                    double radius = Math.hypot(first.x() - (bounds.centerX() + HALF_BLOCK),
+                            first.z() - (bounds.centerZ() + HALF_BLOCK));
+                    assertTrue(radius >= HALF_BLOCK - EXACT, "no narrower than the doorway's half width");
                 }
             }
         }
