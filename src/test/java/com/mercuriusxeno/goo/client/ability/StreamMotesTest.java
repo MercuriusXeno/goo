@@ -189,7 +189,7 @@ class StreamMotesTest {
             // the server's echo carries the glove a tick before the stream's tick reaches this client
             StreamMotes.handle(new StreamMotesPayload(CASTER, sourceOf(caster, -1), new Vec3(0, -0.5, 1).normalize(),
                     Identifier.fromNamespaceAndPath("goo", "goop_spray_drip"), 16, 0, caster.travel(),
-                    Optional.of(new CoatSpray(EYE, new Vec3(0, -0.5, 1).normalize(), 8))), runningAtOnce());
+                    Optional.of(new CoatSpray(EYE, new Vec3(0, -0.5, 1).normalize(), 8)), 0), runningAtOnce());
             now[0] = FIRST_DRAWN;
 
             assertTrue(!drips.isEmpty(), "the stream's tick should launch spray drips");

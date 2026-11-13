@@ -1,25 +1,32 @@
 package com.mercuriusxeno.goo.client.particle;
 
+import com.mercuriusxeno.goo.throwing.CoatRay;
+import com.mercuriusxeno.goo.throwing.DripArc;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * One Goop or Slick spray drip's flight: thrown from the glove carrying its
- * caster's travel, it arcs at a steady pace onto the end of its coat ray and
- * splats there; only its color is rolled. A light gravity lifts the arc, and
- * a pull against the travel bends it back out, so a moving caster's drips
- * still land on the coat.
+ * One Goop or Slick spray drip's flight; only its color is rolled. A Goop
+ * drip flies the arc the server's drip flies, from its launch under the same
+ * gravity, and splats where its own segment meets a block. A Slick drip,
+ * thrown from the glove carrying its caster's travel, arcs at a steady pace
+ * onto the end of its coat ray and splats there: a light gravity lifts the
+ * arc, and a pull against the travel bends it back out, so a moving
+ * caster's drips still land on the coat.
  * goop-and-slick-spray-throws-goo-drips-that-splat
+ * goop-and-slick-coat-lands-where-each-drip-arc-strikes
  * goop-and-slick-spray-follows-the-coat
  * glove-stream-motes-carry-the-players-travel-velocity
  *
  * @param rgb         the drip's color
  * @param velocity    the drip's velocity at launch, blocks per tick
  * @param pull        the change in the drip's velocity each tick
- * @param flightTicks the ticks the drip flies before it splats
+ * @param flightTicks the ticks the drip flies before it splats, {@link #UNTIL_IT_STRIKES} for a drip flying its arc
  */
 public record SprayDrip(int rgb, Vec3 velocity, Vec3 pull, int flightTicks) {
 
+    /** The flight ticks of a drip flying its arc until it strikes, with no planned end. */
+    static final int UNTIL_IT_STRIKES = 0;
     /** The drip's pace along the line to its end, blocks per tick. */
     private static final double CRUISE_SPEED = 0.6;
     /** The arc's gravity, blocks per tick per tick; a drip flying eight blocks peaks about half a block up. */
@@ -40,6 +47,18 @@ public record SprayDrip(int rgb, Vec3 velocity, Vec3 pull, int flightTicks) {
      */
     static SprayDrip launch(Vec3 apex, Vec3 end, Vec3 travel, BlendPalette palette, RandomSource random) {
         return toward(apex, end, travel, palette.colorAt(random.nextFloat()));
+    }
+
+    /**
+     * A drip flying its arc from a launch until it strikes.
+     * goop-and-slick-coat-lands-where-each-drip-arc-strikes
+     *
+     * @param launch the drip's launch velocity, blocks per tick, the caster's travel carried in it
+     * @param rgb    the drip's color
+     * @return the drip
+     */
+    static SprayDrip thrown(Vec3 launch, int rgb) {
+        return new SprayDrip(rgb, launch, ARC_PULL, UNTIL_IT_STRIKES);
     }
 
     /**
@@ -65,8 +84,17 @@ public record SprayDrip(int rgb, Vec3 velocity, Vec3 pull, int flightTicks) {
     }
 
     /**
-     * One tick of the drip's flight: it moves by its velocity, then the pull
-     * bends the velocity.
+     * Whether the drip flies its arc until it strikes, rather than a planned flight onto a coat ray's end.
+     *
+     * @return true for a drip thrown on its arc
+     */
+    boolean arcs() {
+        return flightTicks == UNTIL_IT_STRIKES;
+    }
+
+    /**
+     * One tick of a planned flight: the drip moves by its velocity, then the
+     * pull bends the velocity.
      *
      * @param position where the drip stands
      * @param velocity the drip's velocity, blocks per tick
@@ -74,7 +102,23 @@ public record SprayDrip(int rgb, Vec3 velocity, Vec3 pull, int flightTicks) {
      * @return where the drip stands after the tick, and whether it splats there
      */
     Step step(Vec3 position, Vec3 velocity, int flown) {
-        return new Step(position.add(velocity), velocity.add(pull), flown + 1 >= flightTicks);
+        return new Step(position.add(velocity), velocity.add(pull), flown + 1 >= flightTicks, false);
+    }
+
+    /**
+     * One tick of the drip's arc, the server drip's own: it splats on the
+     * point its segment meets a block, and ends where it leaves the airspace.
+     * goop-and-slick-coat-lands-where-each-drip-arc-strikes
+     *
+     * @param position where the drip stands
+     * @param velocity the drip's velocity, blocks per tick
+     * @param clip     the blocks its segment may meet
+     * @param airspace where it may fly
+     * @return where the drip stands after the tick, and whether it splats there or is lost
+     */
+    Step step(Vec3 position, Vec3 velocity, CoatRay.BlockClip clip, DripArc.Airspace airspace) {
+        DripArc.Step arc = DripArc.step(position, velocity, clip, airspace);
+        return new Step(arc.position(), arc.velocity(), arc.strike().isPresent(), arc.lost());
     }
 
     /**
@@ -83,7 +127,8 @@ public record SprayDrip(int rgb, Vec3 velocity, Vec3 pull, int flightTicks) {
      * @param position where the drip stands
      * @param velocity the drip's velocity, blocks per tick
      * @param splats   whether the drip has reached its end, splatting there and leaving the world
+     * @param lost     whether the drip left the airspace unstruck, leaving the world with no splat
      */
-    record Step(Vec3 position, Vec3 velocity, boolean splats) {
+    record Step(Vec3 position, Vec3 velocity, boolean splats, boolean lost) {
     }
 }

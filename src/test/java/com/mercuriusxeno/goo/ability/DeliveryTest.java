@@ -315,14 +315,26 @@ class DeliveryTest {
     class SprayFollowsTheCoat {
 
         @Test
-        void goopAndSlickAloneSprayOntoTheirCoat() {
+        void slickAloneSpraysOntoItsCoat() {
             Set<Identifier> following = AbilityJson.files().stream()
                     .filter(file -> AbilityJson.decode(file).delivery().sprayFollowsCoat())
                     .map(file -> AbilityJson.idOf(file.getFileName().toString()))
                     .collect(Collectors.toSet());
 
-            assertEquals(Set.of(Identifier.fromNamespaceAndPath("goo", "weird_goop"),
-                    Identifier.fromNamespaceAndPath("goo", "kinetic_slick")), following);
+            assertEquals(Set.of(Identifier.fromNamespaceAndPath("goo", "kinetic_slick")), following);
+        }
+
+        /**
+         * goop-and-slick-coat-lands-where-each-drip-arc-strikes
+         */
+        @Test
+        void goopAloneThrowsDripsOnTheirArcs() {
+            Set<Identifier> throwing = AbilityJson.files().stream()
+                    .filter(file -> AbilityJson.decode(file).delivery().throwsDrips())
+                    .map(file -> AbilityJson.idOf(file.getFileName().toString()))
+                    .collect(Collectors.toSet());
+
+            assertEquals(Set.of(Identifier.fromNamespaceAndPath("goo", "weird_goop")), throwing);
         }
     }
 
