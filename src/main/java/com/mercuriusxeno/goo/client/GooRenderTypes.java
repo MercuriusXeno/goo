@@ -11,6 +11,7 @@ import com.mojang.blaze3d.textures.TextureFormat;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.blockentity.AbstractEndPortalRenderer;
 import net.minecraft.client.renderer.rendertype.LayeringTransform;
 import net.minecraft.client.renderer.rendertype.OutputTarget;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
@@ -617,6 +618,36 @@ public final class GooRenderTypes {
     /** RenderType for a gate's swirl band. */
     public static final RenderType GOO_PORTAL_SWIRL_BAND_TYPE = RenderType.create("goo_portal_swirl_band",
             RenderSetup.builder(GOO_PORTAL_SWIRL_BAND).setOutputTarget(OutputTarget.MAIN_TARGET).sortOnUpload()
+                    .createRenderSetup());
+
+    /** The layers of the End portal's starfield the sky funnel draws, as the End portal's own. */
+    private static final int SKY_FUNNEL_PORTAL_LAYERS = 15;
+
+    /**
+     * The sky funnel and the doorway it rises from: goo's copy of the End
+     * portal's shader as a window into space, its starfield read by the
+     * direction each point is seen through, each vertex's color dimming it
+     * with distance; depth tested and written as the funnel stands in the
+     * world.
+     * decision sky-funnel-points-down-to-the-doorway-from-any-distance
+     */
+    public static final RenderPipeline SKY_FUNNEL = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "sky_funnel"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "sky_funnel"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "sky_funnel"))
+            .withSampler("Sampler0")
+            .withSampler("Sampler1")
+            .withShaderDefine("PORTAL_LAYERS", SKY_FUNNEL_PORTAL_LAYERS)
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withDepthStencilState(DepthStencilState.DEFAULT)
+            .build();
+
+    /** RenderType for the sky funnel, over the End sky and End portal textures the End portal reads. */
+    public static final RenderType SKY_FUNNEL_TYPE = RenderType.create("goo_sky_funnel",
+            RenderSetup.builder(SKY_FUNNEL)
+                    .withTexture("Sampler0", AbstractEndPortalRenderer.END_SKY_LOCATION)
+                    .withTexture("Sampler1", AbstractEndPortalRenderer.END_PORTAL_LOCATION)
                     .createRenderSetup());
 
     /** Per-texture memoized render types on the glow beam pipeline. */
@@ -1785,6 +1816,7 @@ public final class GooRenderTypes {
         event.registerPipeline(BLOCK_MINGLE_TRANSLUCENT);
         event.registerPipeline(VOIDSTONE);
         event.registerPipeline(POCKET_SKY);
+        event.registerPipeline(SKY_FUNNEL);
         event.registerPipeline(PETRIFY_FOG);
         event.registerPipeline(FIRE_FIELD);
         event.registerPipeline(BORE_VORTEX);
