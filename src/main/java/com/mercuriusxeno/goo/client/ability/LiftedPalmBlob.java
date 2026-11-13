@@ -30,12 +30,12 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The palm blob lifted off the glove to a channel's source: as a caster's
- * Goop or Slick spray begins, the blob eases off the palm to the spray
- * source, swelling from its rest size and standing up from pressed flat into
- * the cube as it goes, and stands there in the
- * goo type the glove has selected, beating between two sizes above its rest
- * size while the spray runs. Once the stream's ticks stop for longer than
- * the stream's gap it eases back onto the palm and shrinks to rest size. The
+ * Goop or Slick spray begins, the blob hops off the palm to the spray
+ * source, shrinking from the pancake spread over the palm into a smaller
+ * cube as it goes, and stands there in the goo type the glove has selected,
+ * beating between two sizes below the pancake's while the spray runs. Once
+ * the stream's ticks stop for longer than the stream's gap it comes back
+ * down and smears across the palm into the pancake. The
  * glove's palm draws none while the blob is off it, so the caster shows one
  * blob, and each spray drip leaves the blob where it stands. The local
  * first-person player's blob draws in the hand's pass, over the glove and
@@ -54,9 +54,13 @@ public final class LiftedPalmBlob {
     public static final int STREAM_GAP_TICKS = StreamHolds.LATEST_CONTINUING_GAP;
     /** The ticks one beat of the lifted blob's swell takes. */
     static final double BEAT_TICKS = 12;
-    /** The lifted blob's least and greatest size against the palm blob's rest size. */
-    static final float LIFTED_LEAST = 1.05f;
-    static final float LIFTED_GREATEST = 1.2f;
+    /**
+     * The lifted cube's least and greatest size against the palm blob's rest
+     * size, both below it, so the pancake shrinks into a smaller cube as it lifts.
+     * operator ruling 2026-11-13: the pancake can be spread out and then it shrinks in cuboid form
+     */
+    static final float LIFTED_LEAST = 0.75f;
+    static final float LIFTED_GREATEST = 0.9f;
     /**
      * A flying blob's size the palm blob at rest shows as in the world: the
      * first-person glove draws its model at half size, so its rest blob reads
@@ -159,7 +163,7 @@ public final class LiftedPalmBlob {
          * @return true while the palm draws no blob
          */
         boolean standsAt(double now) {
-            return now >= began && now < endedAt() + PalmBlobHop.EASE_TICKS;
+            return now >= began && now < endedAt() + PalmBlobHop.SETTLE_TICKS;
         }
     }
 

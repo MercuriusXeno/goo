@@ -71,7 +71,7 @@ class GloveSpecialRendererTest {
      * reads ended a tick past the stream's gap, and the blob settles over its ease.
      */
     private static final long SETTLED = SPRAYED + LiftedPalmBlob.STREAM_GAP_TICKS + 1
-            + PalmBlobHop.EASE_TICKS;
+            + PalmBlobHop.SETTLE_TICKS;
     /** Where a far copy of the player stands from the camera, a room width or more away. */
     private static final double COPY_AWAY = 30;
     /** Where the first-person glove's goo sits before the eye. */
@@ -209,9 +209,10 @@ class GloveSpecialRendererTest {
 
     /**
      * The palm blob the glove draws, first person, in another player's hand
-     * and in the inventory slot alike, sits pressed on the palm: its shell's
-     * bottom on the palm floor and its back on the palm's back face, at rest
-     * and at Knives' full charge, which swells it evenly
+     * and in the inventory slot alike, lies pressed on the palm: thin along
+     * the palm's normal and spread across it, its face toward the palm just
+     * clear of the palm's face and its edge against the fingers, never inside
+     * the hand, at rest and at Knives' full charge, which swells it evenly
      * (decision palm-blob-rests-pressed-and-stands-into-the-cube).
      */
     @Nested
@@ -219,21 +220,38 @@ class GloveSpecialRendererTest {
 
         @ParameterizedTest
         @ValueSource(floats = {0f, 1f})
-        void theShellRestsOnThePalmFloorWithItsBackOnThePalmsBackFace(float chargeShare) {
+        void theShellLiesOnThePalmsFaceWithItsEdgeAgainstTheFingers(float chargeShare) throws IOException {
             Box shell = shellDrawnAt(KnivesCharge.palmScaleAt(chargeShare));
+            float palmFace = elementOfTheGloveBody("body").min().z();
 
             assertEquals(GloveSpecialRenderer.PALM_FLOOR_PX / PIXELS, shell.min().y(), WITHIN,
-                    "the shell's bottom should rest on the palm floor");
-            assertEquals(GloveSpecialRenderer.PALM_BACK_Z_PX / PIXELS, shell.max().z(), WITHIN,
-                    "the shell's back should sit on the palm's back face");
+                    "the shell's edge should lie against the fingers");
+            assertEquals(palmFace - GloveSpecialRenderer.PALM_CLEARANCE_PX / PIXELS, shell.max().z(), WITHIN,
+                    "the shell's face toward the palm should rest just clear of the palm's face " + palmFace);
+        }
+
+        /**
+         * operator ruling 2026-11-13: the blob was drawn into the hand and clipped through it settling back
+         */
+        @ParameterizedTest
+        @ValueSource(floats = {0f, 1f})
+        void theShellOverlapsNoPartOfTheGlove(float chargeShare) throws IOException {
+            Box shell = shellDrawnAt(KnivesCharge.palmScaleAt(chargeShare));
+            for (String part : List.of("body", "cuff", "finger_plate")) {
+                Box glove = elementOfTheGloveBody(part);
+
+                assertFalse(shell.overlaps(glove), "the shell " + shell + " should stand clear of the glove's "
+                        + part + " " + glove);
+            }
         }
 
         @Test
-        void theRestingShellIsPressedWiderAndDeeperThanTall() {
+        void theRestingShellIsSpreadAcrossThePalmAndThinOffIt() {
             Vector3f rest = shellDrawnAt(KnivesCharge.palmScaleAt(0f)).size();
 
-            assertEquals(rest.x(), rest.z(), WITHIN, "the pressed shell should be as deep as it is wide");
-            assertTrue(rest.x() > rest.y(), "the pressed shell " + rest + " should be wider than tall");
+            assertEquals(rest.x(), rest.y(), WITHIN, "the pressed shell should run as far along the palm as across it");
+            assertTrue(rest.x() > rest.z(), "the pressed shell " + rest + " should be wider than it is thick off the "
+                    + "palm");
         }
 
         /**
@@ -245,31 +263,31 @@ class GloveSpecialRendererTest {
         @Test
         void theRestingShellsSidesStandInsideTheHandsSides() throws IOException {
             Box shell = shellDrawnAt(KnivesCharge.palmScaleAt(0f));
-            JsonArray hand = handOfTheGloveBody();
-            float handLeft = hand.get(0).getAsFloat() / PIXELS;
-            float handRight = hand.get(1).getAsFloat() / PIXELS;
+            Box hand = elementOfTheGloveBody("body");
 
-            assertTrue(shell.min().x() > handLeft + SIDE_CLEARANCE, "the shell's side " + shell.min().x()
-                    + " should stand inside the hand's side " + handLeft);
-            assertTrue(shell.max().x() < handRight - SIDE_CLEARANCE, "the shell's side " + shell.max().x()
-                    + " should stand inside the hand's side " + handRight);
+            assertTrue(shell.min().x() > hand.min().x() + SIDE_CLEARANCE, "the shell's side " + shell.min().x()
+                    + " should stand inside the hand's side " + hand.min().x());
+            assertTrue(shell.max().x() < hand.max().x() - SIDE_CLEARANCE, "the shell's side " + shell.max().x()
+                    + " should stand inside the hand's side " + hand.max().x());
         }
 
-        /** The glove body's hand element's left and right sides along x, in model pixels. */
-        private static JsonArray handOfTheGloveBody() throws IOException {
+        /** A named element of the glove body's model, in block units. */
+        private static Box elementOfTheGloveBody(String name) throws IOException {
             try (InputStream model = GloveSpecialRendererTest.class.getResourceAsStream(
                     "/assets/goo/models/item/glove_body.json")) {
-                JsonObject body = StreamSupport.stream(JsonParser.parseReader(new InputStreamReader(
+                JsonObject element = StreamSupport.stream(JsonParser.parseReader(new InputStreamReader(
                                 Objects.requireNonNull(model), StandardCharsets.UTF_8)).getAsJsonObject()
                                 .getAsJsonArray("elements").spliterator(), false)
                         .map(JsonElement::getAsJsonObject)
-                        .filter(element -> "body".equals(element.get("name").getAsString()))
+                        .filter(candidate -> name.equals(candidate.get("name").getAsString()))
                         .findFirst().orElseThrow();
-                JsonArray sides = new JsonArray();
-                sides.add(body.getAsJsonArray("from").get(0));
-                sides.add(body.getAsJsonArray("to").get(0));
-                return sides;
+                return new Box(cornerOf(element.getAsJsonArray("from")), cornerOf(element.getAsJsonArray("to")));
             }
+        }
+
+        private static Vector3f cornerOf(JsonArray pixels) {
+            return new Vector3f(pixels.get(0).getAsFloat(), pixels.get(1).getAsFloat(), pixels.get(2).getAsFloat())
+                    .div(PIXELS);
         }
 
         @Test
@@ -327,6 +345,11 @@ class GloveSpecialRendererTest {
 
         Vector3f size() {
             return new Vector3f(max).sub(min);
+        }
+
+        boolean overlaps(Box other) {
+            return min.x() < other.max().x() && max.x() > other.min().x() && min.y() < other.max().y()
+                    && max.y() > other.min().y() && min.z() < other.max().z() && max.z() > other.min().z();
         }
     }
 

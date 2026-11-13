@@ -32,6 +32,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
 import org.joml.Vector4f;
@@ -63,16 +64,29 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      */
     private static final float GOO_CX_PX = 8f;
     /**
-     * Where the palm blob's bottom rests in model pixels: a quarter pixel
-     * above the finger plate's top face, so the shell never shares that face
-     * and swells up the palm rather than down through the fingers.
+     * Where the palm blob's edge toward the fingers sits along the palm in
+     * model pixels: a quarter pixel past the finger plate's top face, so the
+     * shell never shares that face and spreads up the palm rather than
+     * through the fingers.
      */
     static final float PALM_FLOOR_PX = 1.25f;
     /**
-     * Where the palm blob's back face sits in model pixels: inside the
-     * hand, hidden by it, so the swell grows out of the palm.
+     * The palm's face in model pixels: the hand body's north face, which the
+     * first-person glove turns up toward the eye.
      */
-    static final float PALM_BACK_Z_PX = 8.5f;
+    static final float PALM_FACE_Z_PX = 5f;
+    /**
+     * The gap between the palm and the face of the blob resting on it, in
+     * model pixels: enough that the two never share a plane.
+     */
+    static final float PALM_CLEARANCE_PX = 0.1f;
+    /**
+     * The turn that stands a blob on the palm: its up, the axis it presses
+     * flat along and stretches up along, onto the palm's normal (-z), and its
+     * depth along the palm toward the cuff (+y).
+     * palm-blob-rests-pressed-and-stands-into-the-cube: pressed against the palm, not the fingers
+     */
+    private static final Quaternionf STANDING_ON_THE_PALM = new Quaternionf().rotationX((float) (-Math.PI / 2));
     /**
      * Half-width of the shell at rest in model pixels, a flight blob's own.
      */
@@ -237,16 +251,17 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
 
     /**
      * Where the palm blob's center sits in the model for its shape: its
-     * bottom on the fingers and its back in the hand, so it grows up and out
-     * of the palm.
+     * bottom on the palm's face, just clear of it, and its edge against the
+     * fingers, so it lies spread over the palm and grows up off it, never
+     * into the hand.
      * palm-blob-rests-pressed-and-stands-into-the-cube
      *
      * @param shape the palm blob's shape
      * @return the center in block coords
      */
     private static Vector3f palmCenter(BlobShape shape) {
-        return new Vector3f(GOO_CX_PX / BLOCK_PIXELS, (PALM_FLOOR_PX + SHELL_HW_PX * shape.height()) / BLOCK_PIXELS,
-                (PALM_BACK_Z_PX - SHELL_HW_PX * shape.depth()) / BLOCK_PIXELS);
+        return new Vector3f(GOO_CX_PX / BLOCK_PIXELS, (PALM_FLOOR_PX + SHELL_HW_PX * shape.depth()) / BLOCK_PIXELS,
+                (PALM_FACE_Z_PX - PALM_CLEARANCE_PX - SHELL_HW_PX * shape.height()) / BLOCK_PIXELS);
     }
 
     /**
@@ -265,6 +280,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         float gameTime = gameTime();
         poseStack.pushPose();
         poseStack.translate(center.x(), center.y(), center.z());
+        poseStack.mulPose(STANDING_ON_THE_PALM);
         nodeCollector.submitCustomGeometry(poseStack, coreType(),
                 (pose, c) -> GooFlightRenderer.emitCore(pose, c, type, gameTime, shape));
         nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
@@ -290,7 +306,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
     private static void submitLiftedGoo(PoseStack poseStack, SubmitNodeCollector nodeCollector,
                                         ResourceKey<GooTypeDefinition> type, LiftedPalmBlob.HandLift lift) {
         Matrix4f toHandPass = new Matrix4f(poseStack.last().pose());
-        Vector3f standing = palmCenter(palmShape(REST_SCALE)).add(0f, lift.stand() * SHELL_HW_PX / BLOCK_PIXELS, 0f);
+        Vector3f standing = palmCenter(palmShape(REST_SCALE)).add(0f, 0f, -lift.stand() * SHELL_HW_PX / BLOCK_PIXELS);
         Vector3f palm = toHandPass.transformPosition(standing);
         Vector3f lifted = palm.lerp(lift.sourceInHand().toVector3f(), lift.share());
         submitBlob(poseStack, nodeCollector, type, toHandPass.invert().transformPosition(lifted), lift.shape());

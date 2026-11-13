@@ -62,9 +62,19 @@ class LiftedPalmBlobTest {
         return lift;
     }
 
+    /** The game time a lift's spray reads ended at, a tick past the stream's gap, and its settle begins. */
+    private static double endedAt(long lastStreamTick) {
+        return lastStreamTick + LiftedPalmBlob.STREAM_GAP_TICKS + 1;
+    }
+
     /** The game time a lift's settle ends at, the blob back on the palm. */
     private static double settledAt(long lastStreamTick) {
-        return lastStreamTick + LiftedPalmBlob.STREAM_GAP_TICKS + 1 + PalmBlobHop.EASE_TICKS;
+        return endedAt(lastStreamTick) + PalmBlobHop.SETTLE_TICKS;
+    }
+
+    /** Part way down the settle's descent, the blob between the source and the palm. */
+    private static double partWayDown(long lastStreamTick) {
+        return endedAt(lastStreamTick) + PalmBlobHop.EASE_TICKS / 2;
     }
 
     private static void sprayEveryTickThroughTheEase() {
@@ -135,10 +145,11 @@ class LiftedPalmBlobTest {
     }
 
     @Nested
-    class BeatsAboveTheRestSize {
+    class BeatsBelowThePancakesSize {
 
+        /** operator ruling 2026-11-13: the pancake can be spread out and then it shrinks in cuboid form */
         @Test
-        void theLiftedSizeBeatsBetweenTwoSizesAboveThePalmBlobsRestAndRepeatsEachBeat() {
+        void theLiftedSizeBeatsBetweenTwoSizesBelowThePalmBlobsRestAndRepeatsEachBeat() {
             double least = Double.MAX_VALUE;
             double greatest = -Double.MAX_VALUE;
             for (int sample = 0; sample <= SAMPLES; sample++) {
@@ -149,8 +160,8 @@ class LiftedPalmBlobTest {
                 assertEquals(size, LiftedPalmBlob.liftedSizeAt(time + LiftedPalmBlob.BEAT_TICKS), 1e-4,
                         "the size a beat later should be the size now");
             }
-            assertTrue(least > KnivesCharge.PALM_REST, "the least lifted size " + least
-                    + " should be above the palm blob's rest size " + KnivesCharge.PALM_REST);
+            assertTrue(greatest < KnivesCharge.PALM_REST, "the greatest lifted size " + greatest
+                    + " should be below the palm blob's rest size " + KnivesCharge.PALM_REST);
             assertTrue(greatest > least, "the lifted size should beat, from " + least + " to " + greatest);
         }
     }
@@ -208,7 +219,7 @@ class LiftedPalmBlobTest {
 
             assertStrictlyBetween(LiftedPalmBlob.placeAt(share, PALM, SOURCE), PALM, SOURCE);
             float size = LiftedPalmBlob.sizeAt(share, partWay);
-            assertTrue(size > KnivesCharge.PALM_REST && size < LiftedPalmBlob.liftedSizeAt(partWay),
+            assertTrue(size < KnivesCharge.PALM_REST && size > LiftedPalmBlob.liftedSizeAt(partWay),
                     "part way through the ease the size " + size + " should lie between rest and lifted");
         }
 
@@ -227,7 +238,7 @@ class LiftedPalmBlobTest {
 
         @Test
         void partWayThroughTheSettleTheBlobStandsBetweenTheSourceAndThePalm() {
-            double partWay = settledAt(EASED) - PalmBlobHop.EASE_TICKS / 2;
+            double partWay = partWayDown(EASED);
             float share = sprayedThrough(NOW, EASED).shareAt(partWay);
 
             assertStrictlyBetween(LiftedPalmBlob.placeAt(share, PALM, SOURCE), SOURCE, PALM);
@@ -245,7 +256,7 @@ class LiftedPalmBlobTest {
         @Test
         void aSprayPressedAgainWhileTheBlobSettlesTurnsItRoundFromWhereItStands() {
             LiftedPalmBlob.Lift settling = sprayedThrough(NOW, EASED);
-            long pressedAgain = (long) (settledAt(EASED) - PalmBlobHop.EASE_TICKS / 2);
+            long pressedAgain = (long) partWayDown(EASED);
             float reached = settling.shareAt(pressedAgain);
 
             LiftedPalmBlob.Lift turned = settling.sprayedAt(pressedAgain, SprayingClient.SENT_GLOVE);
@@ -460,7 +471,7 @@ class LiftedPalmBlobTest {
 
         @Test
         void aSprayPressedAgainOffThePalmTurnsTheBlobRoundWhereItStandsWithNoHop() {
-            long pressedAgain = (long) (settledAt(EASED) - PalmBlobHop.EASE_TICKS / 2);
+            long pressedAgain = (long) partWayDown(EASED);
             try (SprayingClient client = SprayingClient.another(GooTypes.ZOO)) {
                 for (long tick = NOW; tick <= EASED; tick++) {
                     LiftedPalmBlob.sprayed(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, tick);
@@ -477,6 +488,36 @@ class LiftedPalmBlobTest {
             LiftedPalmBlob.Lift turned = sprayedThrough(NOW, EASED).sprayedAt(pressedAgain, SprayingClient.SENT_GLOVE);
             assertTrue(turned.sprayedAt(pressedAgain + 1, SprayingClient.SENT_GLOVE).poseAt(pressedAgain + 1)
                     .bottomOffThePalm() > 0f, "a tick on, the turned blob's bottom should stand off the palm");
+        }
+
+        /** operator ruling 2026-11-13: the blob smears across the palm on contact as it lands */
+        @Test
+        void theLandingBlobMeetsThePalmAsTheCubeAndSmearsAcrossItIntoThePancake() {
+            LiftedPalmBlob.Lift lift = sprayedThrough(NOW, EASED);
+            double contact = endedAt(EASED) + PalmBlobHop.EASE_TICKS;
+            PalmBlobHop.Pose landing = lift.poseAt(contact);
+
+            assertEquals(0f, landing.bottomOffThePalm(), DELTA, "the blob's bottom should meet the palm");
+            assertShape(BlobShape.CUBE, landing.shape());
+            BlobShape before = landing.shape();
+            for (double now = contact; now <= settledAt(EASED); now += HOP_STEP) {
+                PalmBlobHop.Pose pose = lift.poseAt(now);
+
+                assertEquals(0f, pose.bottomOffThePalm(), DELTA, "smearing, the bottom should stay on the palm");
+                assertTrue(pose.shape().width() >= before.width() && pose.shape().height() <= before.height(),
+                        "smearing, the blob should only spread and flatten, " + before + " to " + pose.shape());
+                before = pose.shape();
+            }
+            assertShape(PalmBlobHop.pressed(), lift.poseAt(settledAt(EASED)).shape());
+        }
+
+        @Test
+        void theBlobsBottomNeverPassesBelowThePalm() {
+            LiftedPalmBlob.Lift lift = sprayedThrough(NOW, EASED);
+            for (double now = NOW; now <= settledAt(EASED); now += HOP_STEP) {
+                assertTrue(lift.poseAt(now).bottomOffThePalm() >= -DELTA, "the blob's bottom should never pass "
+                        + "into the hand, at " + now);
+            }
         }
 
         @Test
