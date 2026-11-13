@@ -38,7 +38,8 @@ class GooItemEntityRendererTest {
     private static final float WITHIN = 1e-5f;
     private static final float SIZE = 2f;
     private static final int VERTICES_PER_FACE = 4;
-    private static final float ONE_PIXEL = 1f / 16f;
+    /** The most a resting cuboid stands above its feet: almost flush, in blocks. */
+    private static final float ALMOST_FLUSH = 0.001f;
     /** The shadow radius vanilla ItemEntityRenderer's constructor sets. */
     private static final float VANILLA_ITEM_SHADOW = 0.15f;
 
@@ -66,9 +67,9 @@ class GooItemEntityRendererTest {
                         "every face should lie on a plane square to a world axis");
             }
             float lowest = (float) young.stream().mapToDouble(Vector3f::y).min().orElseThrow();
-            assertTrue(lowest > WITHIN && lowest < ONE_PIXEL, "the cuboid's bottom should rest on the entity's "
-                    + "feet, clear of the floor's face so the two never z-fight, but within a pixel: no hover; "
-                    + "it stands at " + lowest);
+            assertTrue(lowest > WITHIN && lowest <= ALMOST_FLUSH + WITHIN, "the cuboid's bottom should stand "
+                    + "almost flush on the entity's feet, clear of the floor's face so the two never z-fight but no "
+                    + "more than " + ALMOST_FLUSH + " blocks above it; it stands at " + lowest);
         }
     }
 
