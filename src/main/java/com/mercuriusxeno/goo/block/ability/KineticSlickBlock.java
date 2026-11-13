@@ -4,8 +4,10 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.LoadedAbilityCost;
 import com.mercuriusxeno.goo.ability.program.SlickStep;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -50,11 +52,6 @@ public class KineticSlickBlock extends Block {
     public static final Identifier SLICK_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "kinetic_slick");
     /** Ice's friction, so the film is as slippery as ice. */
     public static final float SLIPPERY = 0.98F;
-    /**
-     * The kinetic goo a broken film gives back, in mb, what a goop layer gives back.
-     * breaking-slick-drops-kinetic-goo-worth-its-film
-     */
-    public static final int MB_PER_FILM = 12;
     private static final VoxelShape FILM = box(0, 0, 0, 16, 1, 16);
 
     /**
@@ -76,24 +73,28 @@ public class KineticSlickBlock extends Block {
     }
 
     /**
-     * The kinetic goo a broken film gives back: one film's worth, as a goop
-     * layer gives back its weird goo.
+     * The kinetic goo a broken film gives back: Slick's cost, the price the
+     * stream charged the film, the whole mb of it.
      * breaking-slick-drops-kinetic-goo-worth-its-film
+     * slick-drains-per-film-it-lays
      *
+     * @param slickCost Slick's cost, the price of one film
      * @return the goo
      */
-    static Reclaim reclaimed() {
-        return new Reclaim(GooTypes.KINETIC, MB_PER_FILM);
+    static Reclaim reclaimed(GooFraction slickCost) {
+        return new Reclaim(GooTypes.KINETIC, slickCost.floor());
     }
 
     /**
-     * Gives back the kinetic goo the film holds, whatever breaks it.
+     * Gives back the kinetic goo the film cost, whatever breaks it; a film
+     * broken where no Slick definition loads gives back nothing.
      * breaking-slick-drops-kinetic-goo-worth-its-film
      */
     @Override
     protected @NonNull List<ItemStack> getDrops(@NonNull BlockState state, LootParams.@NonNull Builder builder) {
-        Reclaim reclaim = reclaimed();
-        return List.of(GooStacks.createForOutput(reclaim.type(), reclaim.mb()));
+        return LoadedAbilityCost.of(builder.getLevel(), SLICK_ABILITY).map(KineticSlickBlock::reclaimed)
+                .filter(reclaim -> reclaim.mb() > 0)
+                .map(reclaim -> List.of(GooStacks.createForOutput(reclaim.type(), reclaim.mb()))).orElse(List.of());
     }
 
     /**
