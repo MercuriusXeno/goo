@@ -1,10 +1,13 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.client.throwing.BlobShape;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -25,6 +28,8 @@ class LiftedPalmBlobTest {
     private static final long NOW = 400L;
     private static final float PARTIAL_TICK = 0.5f;
     private static final double DELTA = 1e-6;
+    /** How far a float product of three shares may stray from the volume it holds. */
+    private static final float VOLUME_TOLERANCE = 1e-5f;
     /** How far Mth.sin's lookup table strays, which Vec3.directionFromRotation reads. */
     private static final double SINE_TABLE = 1e-3;
     /** Samples taken across one beat. */
@@ -241,6 +246,122 @@ class LiftedPalmBlobTest {
             assertTrue(turned.sprayedAt(pressedAgain + 1, SprayingClient.SENT_GLOVE).shareAt(pressedAgain + 1)
                     > reached, "a tick later the blob should be lifting again");
         }
+    }
+
+    @Nested
+    class PressesOnThePalmAndStandsIntoTheCube {
+
+        @Test
+        void onThePalmTheBlobIsWiderAndDeeperThanItIsTall() {
+            BlobShape pressed = LiftedPalmBlob.shapeAt(0f);
+
+            assertEquals(pressed.width(), pressed.depth(), DELTA, "the pressed blob should be as deep as it is wide");
+            assertTrue(pressed.width() > pressed.height(), "the pressed blob " + pressed + " should be wider than tall");
+        }
+
+        @Test
+        void atTheSprayingSourceTheBlobIsACube() {
+            BlobShape lifted = LiftedPalmBlob.shapeAt(1f);
+
+            assertEquals(lifted.width(), lifted.height(), DELTA, "the lifted blob " + lifted + " should be a cube");
+            assertEquals(lifted.depth(), lifted.height(), DELTA, "the lifted blob " + lifted + " should be a cube");
+        }
+
+        @Test
+        void acrossTheWholeLiftTheBlobHoldsThePressedBlobsVolume() {
+            float pressedVolume = volumeOf(LiftedPalmBlob.shapeAt(0f));
+            for (int sample = 1; sample <= SAMPLES; sample++) {
+                BlobShape shape = LiftedPalmBlob.shapeAt((float) sample / SAMPLES);
+                assertEquals(pressedVolume, volumeOf(shape), VOLUME_TOLERANCE, "the blob " + shape
+                        + " should hold the pressed blob's volume");
+            }
+        }
+    }
+
+    /**
+     * The shape each pass draws a lifted blob in: the hand's pass for the
+     * local first-person player and the level's pass for another player.
+     */
+    enum Pass {
+        HAND {
+            @Override
+            BlobShape drawnAt(long now, long lastStreamTick) {
+                try (SprayingClient client = SprayingClient.local(GooTypes.ZOO)) {
+                    sprayThrough(client, now, lastStreamTick);
+                    return LiftedPalmBlob.liftHeldInView().orElseThrow().shape();
+                }
+            }
+        },
+        LEVEL {
+            @Override
+            BlobShape drawnAt(long now, long lastStreamTick) {
+                try (SprayingClient client = SprayingClient.another(GooTypes.ZOO)) {
+                    sprayThrough(client, now, lastStreamTick);
+                    return LiftedPalmBlob.blobOf(SprayingClient.CASTER, 0f).orElseThrow().shape();
+                }
+            }
+        };
+
+        /**
+         * The shape the pass draws the blob in at a time, its stream having
+         * ticked every game tick from {@link #NOW} through its last tick.
+         */
+        abstract BlobShape drawnAt(long now, long lastStreamTick);
+
+        private static void sprayThrough(SprayingClient client, long now, long lastStreamTick) {
+            client.at(now);
+            for (long tick = NOW; tick <= lastStreamTick; tick++) {
+                LiftedPalmBlob.sprayed(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, tick);
+            }
+        }
+    }
+
+    @Nested
+    class CarriesOneShapeInBothPasses {
+
+        private static final BlobShape REST = LiftedPalmBlob.shapeAt(0f).scaled(KnivesCharge.PALM_REST);
+
+        @ParameterizedTest
+        @EnumSource(Pass.class)
+        void atTheSpraysFirstTickTheBlobIsThePressedPalmBlob(Pass pass) {
+            assertShape(REST, pass.drawnAt(NOW, NOW));
+        }
+
+        @ParameterizedTest
+        @EnumSource(Pass.class)
+        void atTheLiftsEndTheBlobIsTheCube(Pass pass) {
+            long easeEnd = NOW + LiftedPalmBlob.EASE_TICKS;
+
+            assertShape(BlobShape.CUBE.scaled(LiftedPalmBlob.liftedSizeAt(easeEnd)), pass.drawnAt(easeEnd, easeEnd));
+        }
+
+        @Test
+        void atEveryTickOfTheLiftAndTheSettleBothPassesDrawOneShape() {
+            long settled = (long) settledAt(EASED);
+            for (long tick = NOW; tick < settled; tick++) {
+                long lastStreamTick = Math.min(tick, EASED);
+
+                assertShape(Pass.HAND.drawnAt(tick, lastStreamTick), Pass.LEVEL.drawnAt(tick, lastStreamTick));
+            }
+        }
+
+        @Test
+        void onceTheSettleEndsTheLiftsShapeIsThePressedPalmBlob() {
+            double settled = settledAt(EASED);
+            float share = sprayedThrough(NOW, EASED).shareAt(settled);
+
+            assertShape(REST, LiftedPalmBlob.drawnShapeAt(share, settled));
+        }
+    }
+
+    private static float volumeOf(BlobShape shape) {
+        return shape.width() * shape.depth() * shape.height();
+    }
+
+    private static void assertShape(BlobShape expected, BlobShape actual) {
+        assertEquals(expected.width(), actual.width(), DELTA, "width of " + actual + ", expected " + expected);
+        assertEquals(expected.depth(), actual.depth(), DELTA, "depth of " + actual + ", expected " + expected);
+        assertEquals(expected.height(), actual.height(), DELTA, "height of " + actual + ", expected " + expected);
     }
 
     /** Asserts a point lies on the segment between two ends, short of both. */
