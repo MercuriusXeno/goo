@@ -120,13 +120,12 @@ class DripArcTest {
     }
 
     @Test
-    void anAxisDripLaunchesAlongTheAxisAtTheThrowSpeedCarryingTheTravel() {
+    void aDripLaunchesAlongItsShareOfTheConeAtTheThrowSpeedAlone() {
         Vec3 axis = new Vec3(0, -0.5, 1);
-        Vec3 travel = new Vec3(0.2, 0, -0.1);
 
-        Vec3 launch = DripArc.launch(axis, 16, new CoatRay.ConeShare(0, 0), 0.6, travel);
+        Vec3 launch = DripArc.launch(axis, 16, new CoatRay.ConeShare(0.7, 0.3), 0.6);
 
-        Vec3 expected = axis.normalize().scale(0.6).add(travel);
+        Vec3 expected = StreamCone.launchDirection(axis, 16, 0.7, 0.3).scale(0.6);
         assertEquals(expected.x, launch.x, TOLERANCE, "x");
         assertEquals(expected.y, launch.y, TOLERANCE, "y");
         assertEquals(expected.z, launch.z, TOLERANCE, "z");
