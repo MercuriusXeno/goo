@@ -28,6 +28,7 @@
     "WorldDimensionsGooStableMixin"
   ],
   "client": [
+    "ClientChunkCachePocketBiomeMixin",
     "ClientLevelGooValuesMixin",
     "ClientLevelMeltKeepsMixin",
     "ClientLevelSculkerEchoMixin",
