@@ -399,6 +399,8 @@ public final class GrabChannelTests {
             "grab_aimed_through_a_portal_draws_through_it_though_a_straight_way_stands_open";
     /** The near pillar's column, the bay's last inside the barrier ring, past the hold point. */
     private static final int PILLAR_X = 5;
+    /** The x of the hold point whose straight way to the zombie the layout leaves open, short of the near pillar. */
+    private static final double OPEN_HOLD_POINT_X = 3.5;
     /** The near pillar's lower block, the near portal on its west face before the player. */
     private static final BlockPos NEAR_PILLAR = new BlockPos(PILLAR_X, 1, 2);
     /** The far pillar's lower block, three blocks south and one nearer, the far portal on its east face. */
@@ -418,6 +420,12 @@ public final class GrabChannelTests {
      */
     public static void grabAimedThroughAPortalDrawsThroughItThoughAStraightWayStandsOpen(GameTestHelper helper) {
         ServerPlayer player = grabber(helper);
+        // The hold point stays where the layout leaves its straight way open, the player standing its live hold
+        // distance west of it, no farther west than the bay's first column.
+        double eyeX = Math.max(EYE_AT_STAND.x(), OPEN_HOLD_POINT_X - holdDistance(helper));
+        Vec3 stand = helper.absoluteVec(new Vec3(eyeX, STAND_POS.getY(), EYE_AT_STAND.z()));
+        player.setPos(stand.x, stand.y, stand.z);
+        Vec3 eyeAtStand = new Vec3(eyeX, EYE_AT_STAND.y(), EYE_AT_STAND.z());
         for (BlockPos pillar : java.util.List.of(NEAR_PILLAR, FAR_PILLAR)) {
             helper.setBlock(pillar, Blocks.STONE);
             helper.setBlock(pillar.above(), Blocks.STONE);
@@ -430,7 +438,7 @@ public final class GrabChannelTests {
         PortalChoice.place(level, player.getUUID(), near);
         PortalChoice.place(level, player.getUUID(), far);
         Zombie zombie = helper.spawn(EntityType.ZOMBIE, IN_PLAIN_SIGHT);
-        Vec3 holdMiddle = helper.absoluteVec(EYE_AT_STAND.add(holdDistance(helper), 0, 0));
+        Vec3 holdMiddle = helper.absoluteVec(eyeAtStand.add(holdDistance(helper), 0, 0));
         net.minecraft.world.phys.BlockHitResult straight = level.clip(new net.minecraft.world.level.ClipContext(
                 zombie.getBoundingBox().getCenter(), holdMiddle, net.minecraft.world.level.ClipContext.Block.COLLIDER,
                 net.minecraft.world.level.ClipContext.Fluid.NONE,
