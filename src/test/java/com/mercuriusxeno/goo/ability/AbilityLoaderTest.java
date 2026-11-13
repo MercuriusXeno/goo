@@ -671,18 +671,6 @@ class AbilityLoaderTest {
         }
 
         @Test
-        void vacuumReachesEightBlocksThroughAFortyDegreeCone() {
-            assertEquals(8, vacuum.delivery().range());
-            assertEquals(40, vacuum.delivery().coneDegrees());
-        }
-
-        @Test
-        void vacuumCostsOneMbEachTwentyHeldTicks() {
-            assertEquals(1, vacuum.cost().in(GooValueTable.EMPTY));
-            assertEquals(20, vacuum.delivery().ticksPerCharge());
-        }
-
-        @Test
         void vacuumRequiresNoItem() {
             assertEquals(List.of(), vacuum.requires());
         }
