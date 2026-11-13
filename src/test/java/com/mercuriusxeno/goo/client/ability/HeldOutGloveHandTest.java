@@ -160,7 +160,7 @@ class HeldOutGloveHandTest {
             mc.when(Minecraft::getInstance).thenReturn(minecraft);
             models.when(() -> GloveBodyModels.getModel(any())).thenReturn(body);
             util.when(() -> GooRenderUtil.lookupFluidSprite(any())).thenReturn(sprite);
-            new GloveSpecialRenderer().submit(new GloveSpecialRenderer.GloveData((Item) null, GooTypes.BLAZE, 0f, 1f),
+            new GloveSpecialRenderer().submit(new GloveSpecialRenderer.GloveData((Item) null, GooTypes.BLAZE, 0f, 1f, false),
                     poseStack, collector, 0, 0, false, 0);
             return readBack(submissions);
         }

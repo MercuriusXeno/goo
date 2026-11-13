@@ -65,7 +65,7 @@ class GloveHandThroughPortalTest {
     }
 
     private static void submitGloveAt(PoseStack poseStack) {
-        new GloveSpecialRenderer().submit(new GloveSpecialRenderer.GloveData((Item) null, GooTypes.BLAZE, 0f, 1f),
+        new GloveSpecialRenderer().submit(new GloveSpecialRenderer.GloveData((Item) null, GooTypes.BLAZE, 0f, 1f, false),
                 poseStack, mock(SubmitNodeCollector.class), 0, 0, false, 0);
     }
 }

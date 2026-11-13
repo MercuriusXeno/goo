@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.ability.GloveGlow;
 import com.mercuriusxeno.goo.client.ability.KnivesCharge;
+import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
 import com.mercuriusxeno.goo.client.ability.PhaseLook;
 import com.mercuriusxeno.goo.client.ability.PhasedHands;
 import com.mercuriusxeno.goo.client.ability.PortalView;
@@ -281,7 +282,9 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
             type = null;
         }
         return new GloveData(stack.getItem(), type, channelGlowOf(type, stack),
-                KnivesCharge.palmScaleAt(KnivesCharge.localPalmShare(stack)));
+                KnivesCharge.palmScaleAt(KnivesCharge.localPalmShare(stack)),
+                // palm-blob-lifts-as-the-spray-source
+                type != null && LiftedPalmBlob.liftedFrom(stack));
     }
 
     /**
@@ -317,11 +320,30 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         submitGloveBody(poseStack, nodeCollector, packedLight, gloveItem);
 
         if (data != null && data.selectedType() != null) {
-            submitHeldGoo(poseStack, nodeCollector, data.selectedType(), data.blobScale());
-            submitChannelGlow(poseStack, nodeCollector, data.channelGlow());
+            submitPalm(data, poseStack, nodeCollector);
         }
 
         poseStack.popPose();
+    }
+
+    /**
+     * Submits the palm's goo and its glow, or, while the palm blob stands
+     * lifted at the spray source, only the palm's place for the aim line.
+     * palm-blob-lifts-as-the-spray-source
+     * decision charge-swells-the-palm-blob
+     *
+     * @param data          extracted glove data with a goo type selected
+     * @param poseStack     the current pose stack
+     * @param nodeCollector the render node collector
+     */
+    private static void submitPalm(GloveData data, PoseStack poseStack, SubmitNodeCollector nodeCollector) {
+        if (data.palmLifted()) {
+            captureGooCenter(poseStack, GOO_CX_PX / BLOCK_PIXELS, (PALM_FLOOR_PX + SHELL_HW_PX) / BLOCK_PIXELS,
+                    (PALM_BACK_Z_PX - SHELL_HW_PX) / BLOCK_PIXELS);
+            return;
+        }
+        submitHeldGoo(poseStack, nodeCollector, data.selectedType(), data.blobScale());
+        submitChannelGlow(poseStack, nodeCollector, data.channelGlow());
     }
 
     /**
@@ -343,9 +365,10 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * @param selectedType the selected goo type, or null if none selected
      * @param channelGlow  how strongly the light around the held goo glows while a glow channel holds, zero to one
      * @param blobScale    the palm blob's size against its rest size, swelling with the local charge
+     * @param palmLifted   whether the palm blob stands lifted at the holder's spray source, leaving the palm none
      */
     public record GloveData(Item item, @Nullable ResourceKey<GooTypeDefinition> selectedType, float channelGlow,
-                            float blobScale) {
+                            float blobScale, boolean palmLifted) {
     }
 
 

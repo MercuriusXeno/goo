@@ -20,10 +20,11 @@ import java.util.Optional;
  * glove along its own heading inside the cone, or onto the end of a coat ray
  * for a stream whose spray follows its coat, carrying the caster's travel;
  * a goo mote swings with its caster's glove over its opening ticks, and a
- * spray drip appears at a source held in its caster's view near the glove
+ * spray drip leaves a source held in its caster's view near the glove, where
+ * the tick keeps the caster's lifted palm blob standing
  * (decisions glove-stream-motes-carry-the-players-travel-velocity,
  * glove-stream-motes-swing-with-the-glove-at-launch, goop-and-slick-spray-follows-the-coat,
- * goop-and-slick-spray-emanates-from-the-glove).
+ * goop-and-slick-spray-emanates-from-the-glove, palm-blob-lifts-as-the-spray-source).
  */
 public final class StreamMotes {
 
@@ -51,20 +52,43 @@ public final class StreamMotes {
         }
         RandomSource random = mc.level.getRandom();
         CoatRay.BlockClip clip = CoatRay.clipping(mc.level);
-        Vec3 apex = payload.apex();
+        boolean threwDrips = false;
         for (int i = 0; i < MOTES_PER_TICK; i++) {
             CoatRay.ConeShare share = new CoatRay.ConeShare(random.nextDouble(), random.nextDouble());
-            Optional<Vec3> coatEnd = GooStreamHandler.coatEnd(payload, share, clip);
-            Vec3 launch = GooStreamHandler.moteLaunch(payload, share, coatEnd);
-            Particle mote = mc.particleEngine.createParticle(particle, apex.x, apex.y, apex.z, launch.x, launch.y,
-                    launch.z);
-            if (mote instanceof SprayDripParticle drip && coatEnd.isPresent()) {
-                // goop-and-slick-spray-emanates-from-the-glove: the drip appears at the source held in the view
-                drip.leaveFrom(partialTick -> SpraySource.of(payload.casterId(), apex, partialTick), coatEnd.get(),
-                        payload.travel());
-            } else if (mote instanceof GloveMote gloveMote) {
-                gloveMote.swingWith(new GloveSwing.Tracker(payload.casterId(), CasterPoses::poseOf));
-            }
+            threwDrips |= launchMote(mc, payload, particle, share, clip);
         }
+        if (threwDrips) {
+            // palm-blob-lifts-as-the-spray-source: a tick throwing drips keeps the caster's spray running
+            LiftedPalmBlob.sprayed(payload.casterId(), payload.apex(), mc.level.getGameTime());
+        }
+    }
+
+    /**
+     * Launches one mote of the tick at its share of the cone.
+     *
+     * @param mc       the client
+     * @param payload  the stream's tick
+     * @param particle the mote's particle
+     * @param share    the mote's place in the cone
+     * @param clip     the blocks the coat's ray meets
+     * @return true where the mote is a spray drip thrown onto its coat
+     */
+    private static boolean launchMote(Minecraft mc, StreamMotesPayload payload, SimpleParticleType particle,
+                                      CoatRay.ConeShare share, CoatRay.BlockClip clip) {
+        Vec3 apex = payload.apex();
+        Optional<Vec3> coatEnd = GooStreamHandler.coatEnd(payload, share, clip);
+        Vec3 launch = GooStreamHandler.moteLaunch(payload, share, coatEnd);
+        Particle mote = mc.particleEngine.createParticle(particle, apex.x, apex.y, apex.z, launch.x, launch.y,
+                launch.z);
+        if (mote instanceof SprayDripParticle drip && coatEnd.isPresent()) {
+            // goop-and-slick-spray-emanates-from-the-glove: the drip leaves the source held in the view
+            drip.leaveFrom(partialTick -> SpraySource.of(payload.casterId(), apex, partialTick), coatEnd.get(),
+                    payload.travel());
+            return true;
+        }
+        if (mote instanceof GloveMote gloveMote) {
+            gloveMote.swingWith(new GloveSwing.Tracker(payload.casterId(), CasterPoses::poseOf));
+        }
+        return false;
     }
 }
