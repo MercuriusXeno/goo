@@ -20,18 +20,21 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.gameevent.GameEvent;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 /**
  * How Zap ticks the redstone device its blob landed on, one row per kind of
  * device: a lever, button, door, trapdoor or fence gate toggles as a hand
  * would, a repeater fires one pulse, and a redstone receiver in the
- * {@code goo:zap_receivers} tag takes a full-power source in the landing cell
- * for a moment. Any other block is no device, and the Zap disperses into the
+ * {@code goo:zap_receivers} tag takes a full-power source beside it for a
+ * moment. Any other block is no device, and the Zap disperses into the
  * Signal wave there instead.
  * zap-ticks-the-device-and-stuns
  * zap-disperses-into-signal
+ * zap-powers-anything-a-signal-runs
  */
 public enum ZapDevice {
     /** A lever flips. */
@@ -81,23 +84,45 @@ public enum ZapDevice {
         }
     },
     /**
-     * A redstone receiver takes a full-power source in the empty landing cell
-     * beside it, which powers the dust, lamp, piston or dispenser it touches
-     * and removes itself; a cell holding anything takes none.
+     * A redstone receiver takes a full-power source for one pulse, which
+     * powers the dust, lamp, piston, plexer or reactor it touches and removes
+     * itself. The source stands in the landing cell where that cell is
+     * empty, and otherwise in the receiver's first empty neighbor, so a
+     * landing inside the receiver's own cell or in a cell holding water or a
+     * plant still pulses it; a receiver with no empty neighbor takes none.
+     * zap-powers-anything-a-signal-runs
      */
     POWER_SOURCE {
         @Override
         void tick(ServerLevel level, BlockPos device, BlockState state, BlockPos cell) {
-            if (level.getBlockState(cell).isAir()) {
-                level.setBlock(cell, GooBlocks.ZAP_PULSE.get().defaultBlockState(), Block.UPDATE_ALL);
-            }
+            pulseCell(pos -> level.getBlockState(pos).isAir(), device, cell).ifPresent(source ->
+                    level.setBlock(source, GooBlocks.ZAP_PULSE.get().defaultBlockState(), Block.UPDATE_ALL));
         }
     };
 
     /**
+     * The cell a receiver's pulse stands in: the landing cell where it is
+     * empty and beside the receiver, otherwise the receiver's first empty
+     * neighbor.
+     *
+     * @param empty  whether a cell holds nothing
+     * @param device the receiver
+     * @param cell   the cell the blob landed in, beside the receiver or its own
+     * @return the cell, or empty where the receiver has no empty neighbor
+     */
+    static Optional<BlockPos> pulseCell(Predicate<BlockPos> empty, BlockPos device, BlockPos cell) {
+        if (!cell.equals(device) && empty.test(cell)) {
+            return Optional.of(cell);
+        }
+        return Arrays.stream(Direction.values()).map(device::relative).filter(empty).findFirst();
+    }
+
+    /**
      * The redstone receivers a Zap powers through the power source: dust,
-     * lamps, pistons and the like, which read power and take no hand
-     * (decision zap-disperses-into-signal).
+     * lamps, pistons, the plexer, the reactor and every other block that
+     * reads a neighbor's signal and takes no hand.
+     * zap-disperses-into-signal
+     * zap-powers-anything-a-signal-runs
      */
     public static final TagKey<Block> RECEIVERS =
             TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath(Goo.MODID, "zap_receivers"));
