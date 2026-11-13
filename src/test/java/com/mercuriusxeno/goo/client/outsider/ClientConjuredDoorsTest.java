@@ -9,12 +9,14 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Covers the client drawing a conjured door: it grows smoothly between the
- * updates the server sends, and once they stop, its channel let go, it
+ * Covers the client drawing a conjured door: it unzips and widens smoothly
+ * between the updates the server sends, and once they stop, its channel let go, it
  * collapses to nothing over a few ticks and is gone
- * (decision channeling-to-the-pocket-conjures-a-door-that-envelops-the-player);
+ * (decisions channeling-to-the-pocket-conjures-a-door-that-envelops-the-player,
+ * door-unzips-from-a-starfield-pixel-then-widens-into-you);
  * the local caster's door follows the look of the frame drawn, and another
  * caster's turns between updates along the shorter arc
  * (decision conjured-door-follows-the-look-smoothly).
@@ -34,17 +36,32 @@ class ClientConjuredDoorsTest {
     }
 
     @Test
-    void aDoorGrowsBetweenUpdatesThenCollapsesOnceTheyStop() {
-        ConjuredDoor fourth = ConjuredDoor.standing(FEET, 0f, 4, CHARGE);
-        ConjuredDoor fifth = ConjuredDoor.standing(FEET, 0f, 5, CHARGE);
-        ClientConjuredDoors.take(new ConjuredDoorPayload(CASTER, fourth), 0);
-        ClientConjuredDoors.take(new ConjuredDoorPayload(CASTER, fifth), 1);
+    void aDoorDrawsBetweenItsLastTwoUpdatesOnBothShares() {
+        ConjuredDoor unzippingBefore = new ConjuredDoor(FEET, 0f, 0.2, 0, 0, ConjuredDoor.Phase.GROWING);
+        ConjuredDoor unzippingNow = new ConjuredDoor(FEET, 0f, 0.4, 0, 0, ConjuredDoor.Phase.GROWING);
+        ClientConjuredDoors.take(new ConjuredDoorPayload(CASTER, unzippingBefore), 0);
+        ClientConjuredDoors.take(new ConjuredDoorPayload(CASTER, unzippingNow), 1);
 
-        assertEquals((fourth.size() + fifth.size()) / 2, ClientConjuredDoors.drawnAt(1.5).get(CASTER).size(), EXACT,
-                "halfway between its updates");
+        assertEquals(0.3, ClientConjuredDoors.drawnAt(1.5).get(CASTER).unzipped(), EXACT, "unzipped halfway");
+
+        ClientConjuredDoors.forget();
+        ConjuredDoor wideningBefore = new ConjuredDoor(FEET, 0f, 1, 0.2, 0.2, ConjuredDoor.Phase.ENVELOPING);
+        ConjuredDoor wideningNow = new ConjuredDoor(FEET, 0f, 1, 0.4, 0.4, ConjuredDoor.Phase.ENVELOPING);
+        ClientConjuredDoors.take(new ConjuredDoorPayload(CASTER, wideningBefore), 0);
+        ClientConjuredDoors.take(new ConjuredDoorPayload(CASTER, wideningNow), 1);
+
+        assertEquals(0.3, ClientConjuredDoors.drawnAt(1.5).get(CASTER).widened(), EXACT, "widened halfway");
+    }
+
+    @Test
+    void aDoorCollapsesOnceItsUpdatesStop() {
+        ConjuredDoor last = new ConjuredDoor(FEET, 0f, 1, 0.4, 0.4, ConjuredDoor.Phase.ENVELOPING);
+        ClientConjuredDoors.take(new ConjuredDoorPayload(CASTER, last), 1);
+
         double collapsing = 1 + ClientConjuredDoors.OUTLASTS + ClientConjuredDoors.COLLAPSE_TICKS / 2.0;
-        assertEquals(fifth.size() / 2, ClientConjuredDoors.drawnAt(collapsing).get(CASTER).size(), EXACT,
-                "half collapsed");
+        ClientConjuredDoors.Drawn half = ClientConjuredDoors.drawnAt(collapsing).get(CASTER);
+        assertEquals(0.5, half.unzipped(), EXACT, "half collapsed, unzipped");
+        assertEquals(0.2, half.widened(), EXACT, "half collapsed, widened");
         double gone = 1 + ClientConjuredDoors.OUTLASTS + ClientConjuredDoors.COLLAPSE_TICKS + 1;
         assertFalse(ClientConjuredDoors.drawnAt(gone).containsKey(CASTER), "collapsed and gone");
     }
@@ -83,19 +100,24 @@ class ClientConjuredDoorsTest {
         }
 
         @Test
-        void waitsOnTheCoverThenPlaysFromTheFrameItClears() {
-            ClientConjuredDoors.takeLocalRelease(ConjuredDoor.releasing(FEET, 0f, 0, ConjuredDoor.RELEASE_TICKS));
+        void waitsOnTheCoverThenPlaysTheWholeReleaseFromTheFrameItClears() {
+            ClientConjuredDoors.takeLocalRelease(ConjuredDoor.releasing(FEET, 0f, 0));
             ClientConjuredDoors.Look look = new ClientConjuredDoors.Look(FEET, 0f);
+            double cleared = 40;
 
             assertFalse(ClientConjuredDoors.releasedAt(5, look, true).isPresent(), "nothing shows under the cover");
-            assertEquals(1, ClientConjuredDoors.releasedAt(40, look, false).orElseThrow().size(), EXACT,
-                    "full size the frame the cover clears");
-            double halfway = 40 + ConjuredDoor.RELEASE_TICKS / 2.0;
-            ClientConjuredDoors.Drawn moving = ClientConjuredDoors.releasedAt(halfway, look, false).orElseThrow();
-            assertEquals(0.5, moving.size(), EXACT, "half closed halfway through");
+            assertEquals(1, ClientConjuredDoors.releasedAt(cleared, look, false).orElseThrow().widened(), EXACT,
+                    "full width the frame the cover clears");
+            double movingOff = cleared + ConjuredDoor.MOVE_OFF_TICKS / 2.0;
+            ClientConjuredDoors.Drawn moving = ClientConjuredDoors.releasedAt(movingOff, look, false).orElseThrow();
+            assertEquals(0.5, moving.widened(), EXACT, "half narrowed halfway through the move-off");
             assertEquals(ConjuredDoor.STANDS_OFF / 2, moving.at().distanceTo(FEET), EXACT, "half its stand-off off");
-            assertFalse(ClientConjuredDoors.releasedAt(40 + ConjuredDoor.RELEASE_TICKS + 1, look, false).isPresent(),
-                    "gone once its release ticks pass");
+            double zippingUp = cleared + ConjuredDoor.MOVE_OFF_TICKS + ConjuredDoor.ZIP_UP_TICKS / 2.0;
+            ClientConjuredDoors.Drawn zipping = ClientConjuredDoors.releasedAt(zippingUp, look, false).orElseThrow();
+            assertEquals(0, zipping.widened(), EXACT, "a slash during the zip-up");
+            assertTrue(zipping.unzipped() < 1, "zipping up, unzipped " + zipping.unzipped());
+            double past = cleared + ConjuredDoor.MOVE_OFF_TICKS + ConjuredDoor.ZIP_UP_TICKS + 1;
+            assertFalse(ClientConjuredDoors.releasedAt(past, look, false).isPresent(), "gone once the release ends");
         }
     }
 
