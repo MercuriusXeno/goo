@@ -107,15 +107,15 @@ public final class SlickTests {
             + " faster than it walked the stone: %.4f against %.4f on stone";
     private static final String NOT_FASTER_THAN_ICE = "A husk %d ticks onto slick should outpace a husk %d ticks"
             + " onto ice: %.4f on ice, %.4f on slick";
-    private static final String SLICK_LANDS_LEVEL_AHEAD = "slick_lands_about_twelve_blocks_ahead_on_flat_ground";
+    private static final String SLICK_LANDS_LEVEL_AHEAD = "slick_lands_about_eight_blocks_ahead_on_flat_ground";
     private static final String SLICK_LANDS_AFTER_RELEASE = "slick_lands_below_a_high_perch_after_the_hold_ends";
     /** Where the streamer stands in the light bay, at its west wall, on the strip's first stone. */
     private static final BlockPos FAR_STREAMER_POS = new BlockPos(0, 1, 8);
     /** The light bay is sixteen blocks across, so the strip runs from the streamer to its east wall. */
     private static final int FAR_STRIP_EAST = 15;
     /** The nearest and farthest the level shot's film may stand ahead of the streamer, in cells. */
-    private static final int NEAREST_AHEAD = 11;
-    private static final int FARTHEST_AHEAD = 13;
+    private static final int NEAREST_AHEAD = 7;
+    private static final int FARTHEST_AHEAD = 9;
     /** Ticks given the last drips of a hold to fall onto the floor, past the longest fall these tests make. */
     private static final int FALL_TICKS = 60;
     /** The perched floor stands over the light bay's barrier roof, in open air the roof does not cut. */
@@ -128,7 +128,7 @@ public final class SlickTests {
     private static final double PERCH_EDGE = 0.4;
     /** Pitched steeply down, so the drips fall onto the floor inside the bay's span. */
     private static final float DOWN_OFF_THE_PERCH = 75f;
-    private static final String NO_FILM_AHEAD = "A level Slick shot should lay a film 11 to 13 blocks ahead,"
+    private static final String NO_FILM_AHEAD = "A level Slick shot should lay a film 7 to 9 blocks ahead,"
             + " films stand %s blocks ahead";
     private static final String NO_FILM_BELOW = "Slick aimed down from %d blocks up should lay a film on the floor";
     private static final String LANDED_BEFORE_RELEASE = "The high perch's first drips should still be falling when"
@@ -165,7 +165,7 @@ public final class SlickTests {
         GooTestFunctions.registerTest(registrar, SLICK_LAYS_FASTER, SlickTests::slickLaysFasterUnderAStreamerTravelingOnSlick);
         GooTestFunctions.registerTest(registrar, SLICK_DRIPS_LAUNCH_AS_FROM_REST,
                 SlickTests::slickDripsLaunchAsFromRestWhileTheStreamerMoves);
-        GooTestFunctions.registerTest(registrar, SLICK_LANDS_LEVEL_AHEAD, SlickTests::slickLandsAboutTwelveBlocksAhead);
+        GooTestFunctions.registerTest(registrar, SLICK_LANDS_LEVEL_AHEAD, SlickTests::slickLandsAboutEightBlocksAhead);
         GooTestFunctions.registerTest(registrar, SLICK_LANDS_AFTER_RELEASE,
                 SlickTests::slickLandsBelowAHighPerchAfterRelease);
         GooTestFunctions.registerTest(registrar, SLICK_DRAINS_PER_FILM, SlickTests::slickDrainsItsCostForEachFilmItLays);
@@ -308,13 +308,13 @@ public final class SlickTests {
     /**
      * A streamer standing at the head of a long strip of stone holds Slick
      * level, then lets go: once the drips have fallen a slick film stands in
-     * a cell 11 to 13 blocks ahead along the look.
+     * a cell 7 to 9 blocks ahead along the look.
      * slick-sprays-twelve-blocks-ahead
      * goop-and-slick-throw-keeps-todays-level-reach
      *
      * @param helper the gametest helper
      */
-    public static void slickLandsAboutTwelveBlocksAhead(GameTestHelper helper) {
+    public static void slickLandsAboutEightBlocksAhead(GameTestHelper helper) {
         for (int east = 0; east <= FAR_STRIP_EAST; east++) {
             helper.setBlock(FAR_STREAMER_POS.below().east(east), Blocks.STONE);
         }
