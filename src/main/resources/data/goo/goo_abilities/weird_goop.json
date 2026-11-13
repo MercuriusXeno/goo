@@ -1,11 +1,14 @@
 {
   "gooType": "weird",
   "displayName": "goo.ability.weird.goop",
+  "cost_mechanics": "goo.ability.weird.goop.cost_mechanics",
   "badge": "channeled",
   "order": 0,
-  "cost": 12,
+  "cost": 96,
+  "cost_formula": "%s/m³",
   "delivery": {
     "kind": "stream",
+    "drains_on_placement": true,
     "range": 8,
     "cone": 16,
     "ticks_per_charge": 20,
