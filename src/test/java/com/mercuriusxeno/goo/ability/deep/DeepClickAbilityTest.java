@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Deep's Click loads from deep_click.json as a scan costing 1 mB of deep,
+ * Deep's Click loads from deep_click.json as a scan in deep goo,
  * unlocked by the sculk sensor and ordered after Shriek, whose landing runs a
  * vibrate step and then a sound at the host, and en_us names it with a
  * description (decisions click-is-a-hit-scan-drawn-as-a-delayed-wave,

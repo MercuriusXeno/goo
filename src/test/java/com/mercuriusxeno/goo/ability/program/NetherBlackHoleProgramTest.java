@@ -20,7 +20,7 @@ import static org.mockito.Mockito.when;
  * The void_dark_star program, decoded from its JSON and loaded for the
  * marker host, runs its phases in order on a Mockito marker host holding a
  * real phase cursor; each phase holds the steps of its part of the hole, its
- * renderer radius is the cast size, and every cut takes a quarter of health.
+ * renderer radius is the cast size.
  * The potions and the hit act on each scanned entity itself, which no unit
  * test can build, so the black-hole gametest proves them (decision step-tick-holds-effect).
  */
@@ -114,10 +114,6 @@ class NetherBlackHoleProgramTest {
 
     private static List<String> typesOf(List<Step> steps) {
         return steps.stream().map(step -> step.type().name()).toList();
-    }
-
-    private static Stream<Step> stepAndDescendants(Step step) {
-        return Stream.concat(Stream.of(step), step.children().flatMap(NetherBlackHoleProgramTest::stepAndDescendants));
     }
 
     @Test

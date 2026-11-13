@@ -307,7 +307,7 @@ class FieldEffectStepTest {
     }
 
     @Test
-    void theCooldownHoldsTheNextStrikeTenTicks() throws IOException {
+    void theCooldownHoldsTheNextStrikeForItsTicks() throws IOException {
         EntityHost first = walker(WALKER_ID);
         EntityHost second = walker(OTHER_WALKER_ID);
         MarkerHost host = marker(List.of(first, second));

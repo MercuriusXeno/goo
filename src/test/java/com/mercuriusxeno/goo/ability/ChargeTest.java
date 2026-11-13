@@ -6,9 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Knives' shipped charge ramps its knife count and cone linearly from its
- * no-charge floors to its full charge (decisions shards-sling-then-morph-to-flechettes,
- * knives-cone-five-to-forty-five-and-three-to-twenty-seven-knives).
+ * Knives' shipped charge slings flecks, and only a charge naming flecks slings
+ * (decision shards-sling-then-morph-to-flechettes).
  */
 class ChargeTest {
 

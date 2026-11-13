@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.HeldRoute;
-import com.mercuriusxeno.goo.ability.program.SlashStep;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -303,7 +302,6 @@ class ReapSlashTest {
     class ShippedReap {
 
         private final AbilityDefinition reap = AbilityJson.decode("leaf_reap");
-        private final SlashStep step = (SlashStep) reap.behaviors().getFirst();
 
         @Test
         void reapIsChanneledAndThrowsNothing() {
