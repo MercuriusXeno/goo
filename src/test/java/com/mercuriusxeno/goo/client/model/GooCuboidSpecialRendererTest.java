@@ -39,7 +39,7 @@ class GooCuboidSpecialRendererTest {
              MockedStatic<GooFlightRenderer> flight = mockStatic(GooFlightRenderer.class)) {
             client.when(Minecraft::getInstance).thenReturn(mock(Minecraft.class));
 
-            new GooCuboidSpecialRenderer().submit(new GooCuboidSpecialRenderer.GooCuboid(GooTypes.ZOO, 1),
+            new GooCuboidSpecialRenderer().submit(GooCuboidSpecialRenderer.GooCuboid.ofVolume(GooTypes.ZOO, 1),
                     new PoseStack(), collector, 0, 0, false, 0);
 
             ArgumentCaptor<RenderType> types = ArgumentCaptor.forClass(RenderType.class);
@@ -65,7 +65,7 @@ class GooCuboidSpecialRendererTest {
              MockedStatic<GooFlightRenderer> flight = mockStatic(GooFlightRenderer.class)) {
             client.when(Minecraft::getInstance).thenReturn(mock(Minecraft.class));
 
-            new GooCuboidSpecialRenderer().submit(new GooCuboidSpecialRenderer.GooCuboid(GooTypes.ZOO, volume),
+            new GooCuboidSpecialRenderer().submit(GooCuboidSpecialRenderer.GooCuboid.ofVolume(GooTypes.ZOO, volume),
                     new PoseStack(), collector, 0, 0, false, 0);
 
             ArgumentCaptor<SubmitNodeCollector.CustomGeometryRenderer> geometry =
