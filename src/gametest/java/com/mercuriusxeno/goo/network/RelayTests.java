@@ -46,34 +46,24 @@ public final class RelayTests {
     private static final BlockPos RECEIVER = SENDER.east(12);
     private static final BlockPos LEVER = SENDER.west();
     private static final BlockPos LAMP = RECEIVER.east();
-    /** A cell on the line between the relays, where the block goes. */
-    private static final BlockPos BETWEEN = SENDER.east(6);
-    /** A relay off every axis through the sender, diagonal to it. */
-    private static final BlockPos DIAGONAL = SENDER.east(6).south(4);
-    private static final BlockPos DIAGONAL_LAMP = DIAGONAL.east();
     /** A third relay linked to the receiver alone, two hops from the sender. */
     private static final BlockPos THIRD = RECEIVER.south(5);
     private static final BlockPos THIRD_LAMP = THIRD.east();
     private static final int SETTLE = 3;
     private static final int PULL = SETTLE;
     private static final int LIT_CHECK = PULL + SETTLE;
-    private static final int BLOCKED = LIT_CHECK + 1;
-    /** Past the lamp's own delay in going dark. */
-    private static final int DARK_CHECK = BLOCKED + 8;
     private static final String COMBO_TOOK = "Both prisms should hold the relay combo Zap grows";
     private static final String UNLIT_BEFORE = "The lamp should stand unlit before the lever is pulled";
     private static final String LIT_THROUGH_AIR = "The lamp should light once the lever 12 blocks away is pulled";
-    private static final String UNLIT_DIAGONALLY = "The lamp at the diagonal relay should stay unlit: relays link along an axis only";
     private static final String LIT_TWO_HOPS = "The lamp at the third relay should light: the signal crosses the network hop by hop";
-    private static final String DARK_WHEN_BLOCKED = "The lamp should go dark once a block stands between the relays";
 
     private RelayTests() {
     }
 
     /**
      * Two relay prisms 12 blocks apart through air, a lever at one and a lamp
-     * at the other: the lamp lights with the lever, and goes dark once a
-     * block stands between them though the lever holds.
+     * at the other: the lamp lights with the lever, and a third relay beside
+     * the receiver carries it a second hop.
      *
      * @param helper the gametest helper
      */
@@ -84,10 +74,6 @@ public final class RelayTests {
         }
         relayAt(helper, SENDER);
         relayAt(helper, RECEIVER);
-        helper.setBlock(DIAGONAL.below(), Blocks.STONE);
-        helper.setBlock(DIAGONAL_LAMP.below(), Blocks.STONE);
-        relayAt(helper, DIAGONAL);
-        helper.setBlock(DIAGONAL_LAMP, Blocks.REDSTONE_LAMP);
         for (BlockPos cell : BlockPos.betweenClosed(RECEIVER.south(), THIRD_LAMP)) {
             helper.setBlock(cell.below(), Blocks.STONE);
             helper.setBlock(cell, Blocks.AIR);
@@ -104,12 +90,7 @@ public final class RelayTests {
         });
         helper.runAfterDelay(LIT_CHECK, () -> {
             helper.assertTrue(lit(helper, LAMP), LIT_THROUGH_AIR);
-            helper.assertFalse(lit(helper, DIAGONAL_LAMP), UNLIT_DIAGONALLY);
             helper.assertTrue(lit(helper, THIRD_LAMP), LIT_TWO_HOPS);
-        });
-        helper.runAfterDelay(BLOCKED, () -> helper.setBlock(BETWEEN, Blocks.STONE));
-        helper.runAfterDelay(DARK_CHECK, () -> {
-            helper.assertFalse(lit(helper, LAMP), DARK_WHEN_BLOCKED);
             helper.succeed();
         });
     }

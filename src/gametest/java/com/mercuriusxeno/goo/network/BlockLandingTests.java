@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
-import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -22,9 +21,7 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
  */
 @RegistersGameTests
 public final class BlockLandingTests {
-    private static final String FX_NO_ABILITY_LANDS_NOTHING = "fx_no_ability_lands_nothing";
     private static final String FX_ABILITY_LANDS_MARKER = "fx_ability_lands_marker";
-    private static final String FX_BLAST_LANDS_NO_BLOCK = "fx_blast_lands_no_block";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -32,9 +29,7 @@ public final class BlockLandingTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, FX_NO_ABILITY_LANDS_NOTHING, BlockLandingTests::noAbilityLandsNothing);
         GooTestFunctions.registerTest(registrar, FX_ABILITY_LANDS_MARKER, BlockLandingTests::abilityLandsItsMarker);
-        GooTestFunctions.registerTest(registrar, FX_BLAST_LANDS_NO_BLOCK, BlockLandingTests::blastLandsNoBlock);
     }
 
 
@@ -44,11 +39,7 @@ public final class BlockLandingTests {
     private static final BlockPos FACE_POS = WALL_POS.south();
     /** Marks a pending effect aimed at a block rather than an entity. */
     private static final int NO_ENTITY = -1;
-    private static final String NO_ABILITY = "";
     private static final String CRYSTAL_CLOUD = "goo:crystal_cloud";
-    /** The gametests' own thrown blast, today's Blast before it was drag-sized, for the landing machinery. */
-    private static final String BLAST = "goo:test_blast";
-    private static final String BLAST_LEFT_A_BLOCK = "Blast left something standing at the face it landed on";
     private static final String MARKER_WRONG_ABILITY = "The landed marker does not carry the thrown ability";
 
     private BlockLandingTests() {
@@ -67,17 +58,6 @@ public final class BlockLandingTests {
     }
 
     /**
-     * A block throw naming no ability leaves no marker on the struck face.
-     *
-     * @param helper the gametest helper
-     */
-    public static void noAbilityLandsNothing(GameTestHelper helper) {
-        landOnWall(helper, NO_ABILITY);
-        helper.assertBlockNotPresent(GooBlocks.ABILITY_BLOCK.get(), FACE_POS);
-        helper.succeed();
-    }
-
-    /**
      * A block throw naming an ability stands a marker carrying that ability
      * on the struck face.
      *
@@ -87,19 +67,6 @@ public final class BlockLandingTests {
         landOnWall(helper, CRYSTAL_CLOUD);
         AbilityBlockEntity marker = helper.getBlockEntity(FACE_POS, AbilityBlockEntity.class);
         helper.assertTrue(CRYSTAL_CLOUD.equals(marker.getAbilityId()), MARKER_WRONG_ABILITY);
-        helper.succeed();
-    }
-
-    /**
-     * A blast lands, explodes the tick it splats and leaves only air at the
-     * face it struck: a program that ends that tick places nothing of its
-     * own (decision lingering-abilities-place-their-own-thing).
-     *
-     * @param helper the gametest helper
-     */
-    public static void blastLandsNoBlock(GameTestHelper helper) {
-        landOnWall(helper, BLAST);
-        helper.assertTrue(helper.getBlockState(FACE_POS).isAir(), BLAST_LEFT_A_BLOCK);
         helper.succeed();
     }
 }

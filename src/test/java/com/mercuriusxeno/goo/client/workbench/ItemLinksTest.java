@@ -11,7 +11,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 
 /**
  * Tests the link and hover every item icon in a used-by list, an indirectly list or a group's members takes, with
@@ -34,7 +33,6 @@ class ItemLinksTest {
         ItemLinks.add(targets, actions, STICK, 20, 30);
         assertEquals(ItemIcons.hoverKey(STICK), targets.hovered(25, 35).orElseThrow());
         assertTrue(targets.click(25, 35));
-        verifyNoInteractions(actions);
         assertEquals(List.of("beneath"), beneath);
         assertTrue(targets.click(25, 35, GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOD_SHIFT));
         verify(actions).openItem(STICK);

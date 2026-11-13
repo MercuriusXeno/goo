@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.block.fluid;
 
+import com.mercuriusxeno.goo.block.crucible.CrucibleCapacity;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.StampedGoo;
@@ -8,6 +9,7 @@ import com.mojang.serialization.JsonOps;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
@@ -42,5 +44,17 @@ class GooFluidHandlerTest {
         loaded.loadFrom(persisted);
 
         assertEquals(GooFraction.of(1, 3), loaded.ledger().remainders().of(GooTypes.LEAF));
+    }
+
+    /**
+     * A reservoir built per type, the crucible's, holds the whole capacity in each of its tanks, so one type
+     * filling takes no room from another (decision crucible-refuses-past-two-billion).
+     */
+    @Test
+    void aReservoirBuiltPerTypeHoldsTheWholeCapacityInEachTank() {
+        GooFluidHandler reservoir = GooFluidHandler.withCapacityPerType(CrucibleCapacity.TYPE_CAPACITY, () -> { });
+
+        assertEquals(List.of(CrucibleCapacity.TYPE_CAPACITY, CrucibleCapacity.TYPE_CAPACITY),
+                List.of(reservoir.getCapacity(0, null), reservoir.getCapacity(1, null)));
     }
 }

@@ -3,6 +3,8 @@ package com.mercuriusxeno.goo.block.ability;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.data.GooFraction;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -12,6 +14,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -31,7 +34,6 @@ import static org.mockito.Mockito.when;
 class SlimeCoatBlockTest {
 
     private static final String BLOCKSTATE_JSON = "/assets/goo/blockstates/slime_coat.json";
-    private static final String GOOP_JSON = "/data/goo/goo_abilities/weird_goop.json";
 
     @Nested
     class Faces {
@@ -89,28 +91,32 @@ class SlimeCoatBlockTest {
         }
     }
 
+    /**
+     * A broken cell gives back, per layer, an eighth of Goop's cost, the
+     * price the stream charged it, whatever the workbench sets that cost to
+     * (decision breaking-slime-drops-weird-goo-worth-its-layers).
+     */
     @Nested
     class Reclaim {
 
+        private static final int LAYERS = 3;
+        private static final GooFraction A_COST = GooFraction.of(96);
+        private static final GooFraction RETUNED_COST = GooFraction.of(160);
+
         @Test
-        void oneLayerReclaimsTheGooOneLayerCosts() {
-            assertEquals(SlimeCoatBlock.MB_PER_LAYER, SlimeCoatBlock.reclaimed(1));
+        void aBrokenCellReturnsAnEighthOfTheCostPerLayer() {
+            assertEquals(LAYERS * 96 / SlimeCoatBlock.MAX_LAYERS, SlimeCoatBlock.reclaimed(LAYERS, A_COST));
         }
 
         @Test
-        void eightLayersReclaimEightLayersOfGoo() {
-            assertEquals(8 * SlimeCoatBlock.MB_PER_LAYER, SlimeCoatBlock.reclaimed(8));
+        void aRetunedCostRetunesTheRefund() {
+            assertEquals(LAYERS * 160 / SlimeCoatBlock.MAX_LAYERS, SlimeCoatBlock.reclaimed(LAYERS, RETUNED_COST));
         }
 
+        /** goop-drains-per-cubic-meter-of-slime-placed: Goop's cost reads as a price per cubic meter of slime */
         @Test
-        void aLayerCostsBetweenSixAndTwentyFourMb() {
-            assertTrue(SlimeCoatBlock.MB_PER_LAYER >= 6 && SlimeCoatBlock.MB_PER_LAYER <= 24,
-                    "a coat layer costs " + SlimeCoatBlock.MB_PER_LAYER + " mb");
-        }
-
-        @Test
-        void goopsStreamCostsOneLayer() throws IOException {
-            assertEquals(SlimeCoatBlock.MB_PER_LAYER, classpathJson(GOOP_JSON).get("cost").getAsInt());
+        void goopsCostPricesACubicMeter() {
+            assertEquals(Optional.of("%s/m³"), AbilityJson.decode("weird_goop").costFormula());
         }
     }
 

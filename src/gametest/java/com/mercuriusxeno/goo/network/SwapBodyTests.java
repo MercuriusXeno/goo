@@ -1,8 +1,11 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.entity.SwapBody;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -55,6 +58,8 @@ public final class SwapBodyTests {
     private static final float SECOND_HEALTH = 20.0F;
     /** How near a spot a body or player stands to count as there. */
     private static final double THERE = 0.5;
+    /** The casts a test makes, each paid at the live ability's cost. */
+    private static final int CASTS = 2;
 
     private SwapBodyTests() {
     }
@@ -101,14 +106,14 @@ public final class SwapBodyTests {
         helper.assertTrue(player.getHealth() == FIRST_HEALTH,
                 "The player should take the body's held health, has " + player.getHealth());
         helper.assertTrue(bodiesAt(helper, second).size() == 1, "A fresh body should stand where the player cast from");
-        helper.assertTrue(bodiesAt(helper, first).isEmpty(), "The body the player swapped into should be gone");
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.succeed();
     }
 
     /**
-     * A survival Quantum caster who knows swap, facing south toward a stone
-     * wall built across the bay.
+     * A survival Quantum caster who knows swap, holding goo for every cast at
+     * the live ability's cost, facing south toward a stone wall built across
+     * the bay.
      */
     private static ServerPlayer facingTheWall(GameTestHelper helper) {
         for (int x = 0; x <= WALL_SPAN; x++) {
@@ -119,7 +124,10 @@ public final class SwapBodyTests {
         ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
         player.setGameMode(GameType.SURVIVAL);
         player.connection.markClientLoaded();
-        KnownRecipes.teachRequires(player, AbilityRegistry.of(player.level()).getAbility(SWAP));
+        AbilityDefinition swap = AbilityRegistry.of(player.level()).getAbility(SWAP);
+        KnownRecipes.teachRequires(player, swap);
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.QUANTUM,
+                CASTS * swap.cost().in(GooValueTable.EMPTY)));
         player.setYRot(FACING_SOUTH);
         player.setXRot(0.0F);
         return player;

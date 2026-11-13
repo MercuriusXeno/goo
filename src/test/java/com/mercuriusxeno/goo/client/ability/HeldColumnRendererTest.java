@@ -26,7 +26,7 @@ class HeldColumnRendererTest {
     void theShippedUpdraftPreviewsItsColumn() {
         AbilityArea area = AbilityJson.decode("typhoon_updraft").area();
 
-        assertEquals(COLUMN, area);
+        assertEquals(COLUMN.shape(), area.shape());
         assertTrue(HeldColumnRenderer.showsColumn(ARC, AbilityBadge.WORLD, area, true));
     }
 

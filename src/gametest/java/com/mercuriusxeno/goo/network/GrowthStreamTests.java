@@ -53,7 +53,7 @@ public final class GrowthStreamTests {
     private static final float LOOKING_AT_WHEAT = 20.5f;
     /** The longest hold; wheat under the breeze ripens in a fraction of it. */
     private static final int HOLD_TICKS = 160;
-    /** leaf_growth.json costs a thousand a second; the player holds enough for the whole hold and then some. */
+    /** Leaf goo the player holds, thousands: enough to pay for the whole hold and then some. */
     private static final int HELD_GOO = 10;
     private static final Identifier LEAF_GROWTH = Identifier.parse("goo:leaf_growth");
     private static final String ABILITY_REQUIRED = "Ability registry must hold leaf_growth";

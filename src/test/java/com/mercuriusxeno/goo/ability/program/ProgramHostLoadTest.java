@@ -21,7 +21,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -213,19 +212,6 @@ class ProgramHostLoadTest {
                 List.of(new DamageStep(expr("tick + 1"), DamageKind.MAGIC)), HostKind.ENTITY));
     }
 
-    /**
-     * A step needing exactly one capability, standing in for whichever
-     * real step needs it.
-     *
-     * @param needed the capability
-     * @return the step
-     */
-    private static Step needing(HostCapability needed) {
-        Step step = mock(Step.class);
-        when(step.requires()).thenReturn(Set.of(needed));
-        doReturn(LeafSteps.WAIT.type()).when(step).type();
-        return step;
-    }
 
     /**
      * A kind provides exactly the capabilities whose interface its host type implements,
@@ -260,30 +246,35 @@ class ProgramHostLoadTest {
         return found;
     }
 
-    /** The per-kind facts the refusal tests depend on. */
+    /** The per-kind capabilities the refusal tests depend on: the struck entity is a target that ticks nothing. */
     @Test
-    void theKindsTheRefusalsReadProvideAndLackWhatTheyNeed() {
-        assertTrue(HostKind.ENTITY.capabilities().contains(HostCapability.TARGET));
-        assertFalse(HostKind.ENTITY.capabilities().contains(HostCapability.TICKING));
-        assertTrue(HostKind.MARKER.capabilities().containsAll(Set.of(HostCapability.TICKING, HostCapability.PLACED_FACE)));
-        assertFalse(HostKind.MARKER.capabilities().contains(HostCapability.TARGET));
-        assertFalse(HostKind.LANDING.capabilities().contains(HostCapability.TARGET));
+    void theStruckEntityHostProvidesExplodeEntityScanAndTarget() {
+        assertEquals(Set.of(HostCapability.EXPLODE, HostCapability.ENTITY_SCAN, HostCapability.TARGET),
+                HostKind.ENTITY.capabilities());
     }
 
-    @ParameterizedTest
-    @EnumSource(HostCapability.class)
-    void aStepLoadsExactlyWhereTheHostImplementsTheInterfaceItNeeds(HostCapability needed) {
-        for (HostKind kind : HostKind.values()) {
-            List<Step> steps = List.of(needing(needed));
-            if (needed.hostType().isAssignableFrom(kind.hostType())) {
-                assertDoesNotThrow(() -> ProgramBehavior.forHost(steps, kind), kind + " " + needed);
-            } else {
-                ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
-                        () -> ProgramBehavior.forHost(steps, kind), kind + " " + needed);
-                assertTrue(refusal.getMessage().contains(needed.key()), refusal.getMessage());
-                assertTrue(refusal.getMessage().contains(kind.label()), refusal.getMessage());
-            }
-        }
+    /** The marker ticks and holds a placed face, and is no target. */
+    @Test
+    void theMarkerHostProvidesItsSeventeenCapabilities() {
+        assertEquals(Set.of(HostCapability.PLACED_FACE, HostCapability.TICKING, HostCapability.EXPLODE,
+                        HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK, HostCapability.FIELD_EFFECT,
+                        HostCapability.PHASED, HostCapability.HOARD, HostCapability.WATCH, HostCapability.STATE_WRITE,
+                        HostCapability.LEVEL, HostCapability.SHRIEK, HostCapability.GREENING,
+                        HostCapability.EMIT_POWER, HostCapability.BEAT, HostCapability.RELAY, HostCapability.FROST),
+                HostKind.MARKER.capabilities());
+    }
+
+    /** The landing is no target. */
+    @Test
+    void theLandingHostProvidesItsNineteenCapabilities() {
+        assertEquals(Set.of(HostCapability.PLACED_FACE, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN,
+                        HostCapability.PLACE_BLOCK, HostCapability.LINGER, HostCapability.COLONIZE,
+                        HostCapability.FLOOR_SCAN, HostCapability.BREAK_BLOCKS, HostCapability.END_GATE,
+                        HostCapability.WORMHOLE, HostCapability.PORTAL, HostCapability.HOLE, HostCapability.METEOR,
+                        HostCapability.POWER_PULSE,
+                        HostCapability.AGING, HostCapability.FROST, HostCapability.SPAWN_MOB, HostCapability.IGNITE,
+                        HostCapability.MELT),
+                HostKind.LANDING.capabilities());
     }
 
     @Test

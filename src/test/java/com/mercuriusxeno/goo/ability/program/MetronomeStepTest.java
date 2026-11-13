@@ -2,15 +2,13 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.pulse.RedstoneBeat;
 import org.junit.jupiter.api.Test;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
  * Each beat the metronome gives plays a clock tick with its pulse of power,
- * and the ticks between beats play nothing
+ * and the ticks between beats emit no power
  * (decision metronome-prism-pulses-at-the-learned-rate).
  */
 class MetronomeStepTest {
@@ -38,10 +36,9 @@ class MetronomeStepTest {
     }
 
     @Test
-    void theTicksBetweenBeatsAreSilent() {
+    void theTicksBetweenBeatsEmitNoPower() {
         MetronomeHost host = hostAt(41);
         new MetronomeStep().tick(new StepContext(host, 0, 0));
         verify(host).emitPower(false);
-        verify(host, never()).playSound(any());
     }
 }

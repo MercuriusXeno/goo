@@ -59,7 +59,7 @@ public record GlacialStep(double radius) implements Step {
         BlockPos prism = host.position();
         GooServerState.of(level.getServer()).glacialFields().renew(level.dimension(), prism, radius,
                 level.getGameTime());
-        if (context.stepTicks() % FREEZE_EVERY_TICKS == 0) {
+        if (freezesOn(context.stepTicks())) {
             FreezeBlocksStep.freezeWithin(level, host.frostCenter(), radius, true);
         }
         if (pulsesOn(context.stepTicks())) {
@@ -67,6 +67,17 @@ public record GlacialStep(double radius) implements Step {
                     new NovaRingPayload(host.frostCenter(), (float) radius));
         }
         return false;
+    }
+
+    /**
+     * Whether a tick of the combo runs the prism's freeze pass over its water,
+     * lava and fire: the first, then every FREEZE_EVERY_TICKS.
+     *
+     * @param stepTicks the ticks the step has run
+     * @return true on a freeze tick
+     */
+    static boolean freezesOn(int stepTicks) {
+        return stepTicks % FREEZE_EVERY_TICKS == 0;
     }
 
     /**

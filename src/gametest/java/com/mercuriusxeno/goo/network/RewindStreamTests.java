@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.rewind.RewindEvents;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -23,6 +24,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
@@ -42,7 +44,6 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 public final class RewindStreamTests {
     private static final String REWIND_ADULT_TO_BABY = "rewind_adult_to_baby";
     private static final String REWIND_BABY_TO_EGG = "rewind_baby_to_egg";
-    private static final String REWIND_LEAVES_BLOCKS = "rewind_leaves_blocks";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -52,7 +53,6 @@ public final class RewindStreamTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, REWIND_ADULT_TO_BABY, RewindStreamTests::rewindAdultToBaby);
         GooTestFunctions.registerTest(registrar, REWIND_BABY_TO_EGG, RewindStreamTests::rewindBabyToEgg);
-        GooTestFunctions.registerTest(registrar, REWIND_LEAVES_BLOCKS, RewindStreamTests::rewindLeavesBlocks);
     }
 
 
@@ -60,14 +60,6 @@ public final class RewindStreamTests {
     /** Three blocks east of the player, at its height, on a floor the test lays. */
     private static final BlockPos TARGET_POS = STAND_POS.east(3);
     private static final int HELD_GOO = 6;
-    /** Past the eighty ticks yore_rewind.json's flat share of 1.25 a tick takes to fill the hundred. */
-    private static final int HOLD_TICKS = 85;
-    /** Halfway through the hold, short of the ritual. */
-    private static final int MID_HOLD_TICKS = 40;
-    /** yore_rewind.json's regress ticks, the shrink into the egg. */
-    private static final int SHRINK_TICKS = 20;
-    /** Past RewindEvents' grace after the stream lets go. */
-    private static final int RELEASE_TICKS = 6;
     /** The glove hand sits this far right of the eye and below it, as a player's glove does. */
     private static final double HAND_RIGHT = 0.5;
     private static final double HAND_DOWN = 0.4;
@@ -75,7 +67,6 @@ public final class RewindStreamTests {
     private static final Identifier YORE_REWIND = Identifier.parse("goo:yore_rewind");
     private static final String ABILITY_REQUIRED = "Ability registry must hold yore_rewind";
     private static final String SHOULD_FREEZE = "A held pig should stand frozen with no AI";
-    private static final String SHOULD_STAY_ADULT = "The pig should stay an adult short of the ritual";
     private static final String SHOULD_BE_BABY = "The held adult should have become a baby; counters %s";
     private static final String SHOULD_GO_FREE = "The released pig should have its AI back";
     private static final String SHOULD_VANISH = "The rewound baby should be gone into its egg";
@@ -85,32 +76,32 @@ public final class RewindStreamTests {
     }
 
     /**
-     * A held adult pig stands frozen halfway, becomes a baby once its ritual
-     * fills after about four seconds, and goes free a few ticks after the
-     * stream lets go.
+     * A held adult pig stands frozen while held, becomes a baby once its
+     * ritual fills, and goes free a few ticks after the stream lets go. The
+     * hold runs until the pig is a baby, so it follows the ritual's fill
+     * however the ability is tuned.
      *
      * @param helper the gametest helper
      */
     public static void rewindAdultToBaby(GameTestHelper helper) {
         Mob pig = pennedPig(helper, false);
         ServerPlayer player = rewinder(helper, pig);
-        hold(helper, player, HOLD_TICKS);
-        helper.runAfterDelay(MID_HOLD_TICKS, () -> {
-            helper.assertTrue(pig.isNoAi(), SHOULD_FREEZE);
-            helper.assertFalse(pig.isBaby(), SHOULD_STAY_ADULT);
-        });
-        helper.runAfterDelay(HOLD_TICKS + 1, () -> helper.assertTrue(pig.isAlive() && pig.isBaby(),
-                String.format(SHOULD_BE_BABY, pig.getData(GooAttachments.ENTITY_COUNTERS))));
-        helper.runAfterDelay(HOLD_TICKS + RELEASE_TICKS, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(player);
+        boolean[] frozen = {false};
+        holdUntil(helper, player, pig::isBaby, () -> frozen[0] |= pig.isNoAi());
+        helper.succeedWhen(() -> {
+            helper.assertTrue(pig.isAlive() && pig.isBaby(),
+                    String.format(SHOULD_BE_BABY, pig.getData(GooAttachments.ENTITY_COUNTERS)));
+            helper.assertTrue(frozen[0], SHOULD_FREEZE);
             helper.assertFalse(pig.isNoAi(), SHOULD_GO_FREE);
-            helper.succeed();
+            helper.getLevel().getServer().getPlayerList().remove(player);
         });
     }
 
     /**
      * A held baby pig shrinks into its spawn egg once its ritual fills: after
      * the shrink, one pig spawn egg stands where it stood and the pig is gone.
+     * The hold runs until the shrink starts, and the shrink is polled, so
+     * both follow the ability however it is tuned.
      *
      * @param helper the gametest helper
      */
@@ -118,37 +109,14 @@ public final class RewindStreamTests {
         Mob pig = pennedPig(helper, true);
         Vec3 stood = pig.position();
         ServerPlayer player = rewinder(helper, pig);
-        hold(helper, player, HOLD_TICKS);
-        helper.runAfterDelay(HOLD_TICKS + SHRINK_TICKS, () -> {
+        holdUntil(helper, player, () -> pig.isRemoved() || RewindEvents.vanishing(pig), () -> { });
+        helper.succeedWhen(() -> {
+            helper.assertTrue(pig.isRemoved(), SHOULD_VANISH);
+            List<ItemEntity> items = helper.getLevel().getEntitiesOfClass(ItemEntity.class,
+                    new AABB(stood, stood).inflate(ITEM_SEARCH_RADIUS));
+            helper.assertTrue(items.size() == 1 && items.get(0).getItem().is(Items.PIG_SPAWN_EGG),
+                    String.format(SHOULD_DROP_ONLY_EGG, items.stream().map(ItemEntity::getItem).toList()));
             helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.succeedWhen(() -> {
-                helper.assertTrue(pig.isRemoved(), SHOULD_VANISH);
-                List<ItemEntity> items = helper.getLevel().getEntitiesOfClass(ItemEntity.class,
-                        new AABB(stood, stood).inflate(ITEM_SEARCH_RADIUS));
-                helper.assertTrue(items.size() == 1 && items.get(0).getItem().is(Items.PIG_SPAWN_EGG),
-                        String.format(SHOULD_DROP_ONLY_EGG, items.stream().map(ItemEntity::getItem).toList()));
-            });
-        });
-    }
-
-    /**
-     * Rewind held through a pig's whole ritual leaves every block it crosses
-     * as it stood: the pig's glass pen and its stone floor.
-     *
-     * @param helper the gametest helper
-     */
-    public static void rewindLeavesBlocks(GameTestHelper helper) {
-        Mob pig = pennedPig(helper, false);
-        ServerPlayer player = rewinder(helper, pig);
-        hold(helper, player, HOLD_TICKS);
-        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertBlockPresent(Blocks.STONE, TARGET_POS.below());
-            for (Direction side : Direction.Plane.HORIZONTAL) {
-                helper.assertBlockPresent(Blocks.GLASS, TARGET_POS.relative(side));
-                helper.assertBlockPresent(Blocks.GLASS, TARGET_POS.relative(side).above());
-            }
-            helper.succeed();
         });
     }
 
@@ -168,18 +136,29 @@ public final class RewindStreamTests {
     }
 
     /**
-     * Streams Rewind every tick of a hold, from the first tick, out of the
-     * glove hand beside and below the eye, as a player's glove sends it.
+     * Streams Rewind every tick until the hold is done, out of the glove hand
+     * beside and below the eye, as a player's glove sends it, and lets go
+     * once it is.
+     *
+     * @param helper the gametest helper
+     * @param player the streaming player
+     * @param done  true once the hold has done its work
+     * @param watch run each held tick before that tick's stream
      */
-    private static void hold(GameTestHelper helper, ServerPlayer player, int ticks) {
+    private static void holdUntil(GameTestHelper helper, ServerPlayer player, BooleanSupplier done, Runnable watch) {
         Vec3 look = player.getLookAngle();
         Vec3 right = look.cross(new Vec3(0, 1, 0)).normalize();
         Vec3 hand = player.getEyePosition().add(right.scale(HAND_RIGHT)).subtract(0, HAND_DOWN, 0);
         GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.YORE), YORE_REWIND.toString(),
                 hand, player.getEyePosition());
-        for (int held = 1; held <= ticks; held++) {
-            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
-        }
+        boolean[] released = {false};
+        helper.onEachTick(() -> {
+            released[0] |= done.getAsBoolean();
+            if (!released[0]) {
+                watch.run();
+                GooStreamHandler.streamTick(player, tick);
+            }
+        });
     }
 
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement

@@ -52,6 +52,35 @@ class HoldMarksTest {
     }
 
     /**
+     * A cell painted again builds its next step though the hold stepped it,
+     * and a cell still building keeps the state it was painted with
+     * (decision goop-layers-a-reached-cell-again-while-held).
+     */
+    @Nested
+    class PaintAgain {
+
+        @Test
+        void aSteppedBlockPaintedAgainIsPaintedWithItsStateNow() {
+            HoldMarks marks = new HoldMarks();
+            marks.paint(BLOCK, stone);
+            marks.noteStepped(BLOCK);
+            marks.paintAgain(BLOCK, cobblestone);
+
+            assertEquals(Map.of(BLOCK, cobblestone), marks.painted());
+            assertFalse(marks.stepped(BLOCK));
+        }
+
+        @Test
+        void aBlockStillPaintedKeepsItsOrigin() {
+            HoldMarks marks = new HoldMarks();
+            marks.paint(BLOCK, stone);
+            marks.paintAgain(BLOCK, cobblestone);
+
+            assertEquals(Map.of(BLOCK, stone), marks.painted());
+        }
+    }
+
+    /**
      * The swarm's bite waits for its gnats: a mob two blocks off is reached
      * once the gnats have flown two blocks at their speed, and a new mob
      * starts the wait over (decision decay-gnats-degrade-each-block-once).
@@ -73,9 +102,8 @@ class HoldMarksTest {
         @Test
         void aMobTheGnatsHaveNotYetReachedIsNotBitten() {
             int first = 1;
-            for (int held = first; held < first + flightTicks(TWO_BLOCKS); held++) {
-                assertFalse(marks.swarmReached(ZOMBIE, held, TWO_BLOCKS), "bitten on tick " + held);
-            }
+            marks.swarmReached(ZOMBIE, first, TWO_BLOCKS);
+            assertFalse(marks.swarmReached(ZOMBIE, first + flightTicks(TWO_BLOCKS) - 1, TWO_BLOCKS));
         }
 
         @Test

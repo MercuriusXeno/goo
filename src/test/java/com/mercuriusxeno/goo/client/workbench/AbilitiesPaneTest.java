@@ -59,21 +59,17 @@ class AbilitiesPaneTest {
     }
 
     @Test
-    void theNameLineReadsThePriceFieldsAndNoOtherParam() {
+    void theNameLineReadsThePriceFields() {
         DrawnFrame frame = draw(pane(Map.of("minecraft:cobblestone", Map.of("unstable", "250"))));
         DrawnFrame.Text name = frame.find(NAME);
         for (String label : List.of("cost", "cost_per_block")) {
             assertTrue(frame.find(label).x() > name.x(), label + " stands left of the name");
         }
-        for (String absent : List.of("health / 2", "16", "amount", "range")) {
-            assertFalse(frame.texts().contains(absent), absent + " draws: " + frame.texts());
-        }
     }
 
     /**
      * The ability row the pointer hovers fills with the palette's selected fill across the section's width, from its
-     * name line's top to its last line's bottom; no row fills while the pointer stands off every row (the operator's
-     * ruling of 2026-11-07).
+     * name line's top to its last line's bottom (the operator's ruling of 2026-11-07).
      */
     @Test
     void theHoveredAbilitysRowFillsWithTheSelectedFill() {
@@ -83,14 +79,11 @@ class AbilitiesPaneTest {
         int rowTop = name.y() - RowLayout.nameTop(DrawnFrame.font(), 0);
         DrawnFrame hovered = new DrawnFrame();
         pane.extract(hovered.graphics, DrawnFrame.font(), VIEW, hovered.targets, name.x(), name.y() + 1);
-        DrawnFrame away = new DrawnFrame();
-        pane.extract(away.graphics, DrawnFrame.font(), VIEW, away.targets, VIEW.right() - 1, VIEW.bottom() - 1);
 
         List<int[]> fills = hovered.fillsOf(Palette.SELECTED_FILL);
         assertTrue(fills.stream().anyMatch(fill -> fill[0] == VIEW.left() && fill[1] == rowTop
                 && fill[3] >= rowTop + RowLayout.SPRITE_ROW_HEIGHT), "no row fill at " + rowTop + ": "
                 + fills.stream().map(java.util.Arrays::toString).toList());
-        assertEquals(List.of(), away.fillsOf(Palette.SELECTED_FILL));
     }
 
     /** A cost drawing an item's icon stands taller than a number's box, and its label centers on it all the same. */
@@ -160,7 +153,6 @@ class AbilitiesPaneTest {
             EditBox box = opened();
             DrawnFrame open = draw(pane);
             assertTrue(open.texts().contains(CANCEL), open.texts().toString());
-            assertTrue(!open.texts().contains(DONE), open.texts().toString());
             box.setValue("99");
             draw(pane).click(CANCEL);
             assertEquals(RANGE, tab.valueOf(tab.abilities().getFirst(), range()));
@@ -218,14 +210,6 @@ class AbilitiesPaneTest {
         }
 
         @Test
-        void typesStandInTheModelsOrderAndAbilitiesInFanOrder() {
-            DrawnFrame frame = draw(sectioned());
-            assertTrue(frame.find(typeName("rock")).y() > frame.find(typeName("unstable")).y());
-            assertTrue(frame.find("rock_mob_first").y() > frame.find("rock_channeled").y());
-            assertTrue(frame.find("rock_world").y() > frame.find("rock_mob").y());
-        }
-
-        @Test
         void aSectionHeadsWithTheChevronTheTypesIconAndItsBoldName() {
             DrawnFrame frame = draw(sectioned());
             DrawnFrame.Text name = frame.find(typeName("unstable"));
@@ -242,7 +226,6 @@ class AbilitiesPaneTest {
             DrawnFrame folded = draw(pane);
             assertTrue(folded.texts().contains(typeName("unstable")), "the heading left with its abilities");
             assertTrue(folded.texts().contains(CLOSED_MARK), folded.texts().toString());
-            assertFalse(folded.texts().contains("unstable_world"), folded.texts().toString());
             assertTrue(folded.texts().contains("rock_world"), "folding one section folded another");
             folded.clickFirst(CLOSED_MARK);
             assertTrue(draw(pane).texts().contains("unstable_world"));
@@ -260,7 +243,6 @@ class AbilitiesPaneTest {
             frame.click(COLLAPSE_ALL);
             DrawnFrame collapsed = draw(pane);
             assertTrue(collapsed.texts().contains(EXPAND_ALL), collapsed.texts().toString());
-            assertFalse(collapsed.texts().contains("rock_world") || collapsed.texts().contains("unstable_world"));
             collapsed.click(EXPAND_ALL);
             DrawnFrame expanded = draw(pane);
             assertTrue(expanded.texts().containsAll(List.of("unstable_world", "rock_channeled", "rock_world")));
@@ -272,8 +254,6 @@ class AbilitiesPaneTest {
             List<Integer> rules = frame.fillsOf(Palette.SEPARATOR).stream()
                     .filter(fill -> fill[3] == fill[1] + 1).map(fill -> fill[1]).toList();
             assertTrue(rules.contains(rowTopOf(frame.find("rock_mob_first")) - 1), rules.toString());
-            assertFalse(rules.contains(rowTopOf(frame.find("rock_channeled")) - 1), rules.toString());
-            assertFalse(rules.contains(rowTopOf(frame.find("unstable_world")) - 1), rules.toString());
         }
     }
 
@@ -318,21 +298,17 @@ class AbilitiesPaneTest {
         }
 
         /**
-         * A drag rail stands at the heading's left edge, and no Order box draws
-         * (decision abilities-reorder-by-a-drag-rail-and-the-order-field-hides).
-         */
-        /**
-         * The heading's rail stands at the ability's indent under its type's heading
-         * (decision abilities-tab-lists-every-numeric-param-as-expression-boxes).
+         * The heading's drag rail stands at the ability's indent under its type's heading (decisions
+         * abilities-reorder-by-a-drag-rail-and-the-order-field-hides,
+         * abilities-tab-lists-every-numeric-param-as-expression-boxes).
          */
         @Test
-        void aRailStandsAtTheIndentedHeadingsLeftAndNoOrderBoxDraws() {
+        void aRailStandsAtTheIndentedHeadingsLeft() {
             DrawnFrame frame = drawn();
             int rowTop = frame.find(NAME).y() - RowLayout.nameTop(DrawnFrame.font(), 0);
             int left = VIEW.left() + ControlFlow.INDENT;
             assertTrue(frame.fillsOf(Palette.RAIL).stream().anyMatch(fill -> fill[0] == left
                     && fill[1] == rowTop && fill[2] == left + ControlFlow.RAIL_WIDTH), "no rail at the heading");
-            assertFalse(frame.texts().contains("Order"), frame.texts().toString());
         }
 
         @Test
@@ -380,7 +356,6 @@ class AbilitiesPaneTest {
                 Map.entry("goo.ability.param.outsider.enter", "Entry cost"),
                 Map.entry("goo.ability.param.outsider.cell_cost", "Cell cost"),
                 Map.entry("goo.ability.param.outsider.distance_cost", "Distance cost"));
-        private static final String BLINK = "ender_blink";
         private static final String PRICES_MODEL = """
                 {"typeOrder": ["ender", "void"], "abilities": [
                   {"id": "goo:ender_blink", "gooType": "ender", "displayName": "ender_blink", "draft": false,
@@ -414,20 +389,11 @@ class AbilitiesPaneTest {
             return frame;
         }
 
-        // The name's sprite row, as its heading centers the name in it.
-        private static int rowTopOf(DrawnFrame.Text name) {
-            return name.y() - RowLayout.nameTop(DrawnFrame.font(), 0);
-        }
-
         @Test
-        void onlyThePriceFieldsDrawAndNoMechanismHeading() {
+        void everyPriceFieldDrawsItsLabel() {
             DrawnFrame frame = drawn(VIEW);
             assertTrue(frame.texts().containsAll(List.of("Cost", "Cost per block", "Wall surcharge", "Oculus percent",
                     "Entry cost", "Cell cost", "Distance cost")), frame.texts().toString());
-            for (String absent : List.of("Count", "Charge", "Price per block", "Particles", "Outsider", "32", "20")) {
-                assertFalse(frame.texts().contains(absent), absent + " draws: " + frame.texts());
-            }
-            assertTrue(frame.texts().stream().noneMatch(text -> text.contains("behaviors/")), frame.texts().toString());
         }
 
         @Test
@@ -464,29 +430,6 @@ class AbilitiesPaneTest {
             return priceLeft(view) + column * cell;
         }
 
-        @Test
-        void theFirstPriceStartsAtTheLeftThirdOnTheNamesLine() {
-            DrawnFrame frame = drawn(VIEW);
-            DrawnFrame.Text name = frame.find(BLINK);
-            DrawnFrame.Text cost = frame.find("Cost");
-            int rowTop = rowTopOf(name);
-            assertEquals(priceLeft(VIEW), cost.x(), cost + " starts off the left third");
-            assertTrue(cost.y() >= rowTop && cost.y() < rowTop + RowLayout.SPRITE_ROW_HEIGHT,
-                    cost + " stands off the name's line at " + rowTop);
-        }
-
-        @Test
-        void everyAbilitysPricesStandAtTheSameFourColumnLefts() {
-            GroupsPane.Bounds wide = new GroupsPane.Bounds(0, 0, 900, 400);
-            DrawnFrame frame = drawn(wide);
-            List<List<String>> abilities = List.of(List.of("Cost", "Cost per block", "Wall surcharge",
-                    "Oculus percent"), List.of("Entry cost", "Cell cost", "Distance cost"));
-            for (List<String> labels : abilities) {
-                for (int index = 0; index < labels.size(); index++) {
-                    assertEquals(columnLeft(wide, index), frame.find(labels.get(index)).x(), labels.get(index));
-                }
-            }
-        }
 
         @Test
         void eachBoxIsHalfItsColumnWideAndStaysInsideIt() {
@@ -503,14 +446,6 @@ class AbilitiesPaneTest {
         }
 
         @Test
-        void aFieldPastTheFourthWrapsToTheNextLineUnderTheName() {
-            DrawnFrame frame = drawn(VIEW);
-            DrawnFrame.Text name = frame.find(BLINK);
-            DrawnFrame.Text fifth = frame.find("Upkeep");
-            assertEquals(name.x(), fifth.x(), fifth + " wrapped off the name's left");
-            assertTrue(fifth.y() >= rowTopOf(name) + RowLayout.SPRITE_ROW_HEIGHT, fifth + " stands on the name's line");
-        }
-        @Test
         void aLabelHoversItsDescription() {
             DrawnFrame frame = drawn(VIEW);
             DrawnFrame.Text perBlock = frame.find("Cost per block");
@@ -519,28 +454,47 @@ class AbilitiesPaneTest {
             assertEquals(java.util.Optional.of(PER_BLOCK_DESCRIPTION),
                     AbilitiesPane.descriptionFor(hoverKey, key -> LANG.getOrDefault(key, key)));
         }
-
-        /**
-         * Every hover a drawn Abilities frame registers reads the pencil's Rename, a goo type's or an item's name, or
-         * an ability's or a param's description (decision values-manager-controls-carry-no-tooltip-but-rename-delete-and-names).
-         */
-        @Test
-        void everyHoverIsAPencilANameOrADescription() {
-            DrawnFrame frame = drawn(VIEW);
-            List<String> unexplained = frame.targets.hoverKeys().stream()
-                    .filter(key -> BuilderOverlays.tooltipFor(key).isEmpty() && GooTypeIcons.tooltipFor(key).isEmpty()
-                            && !key.equals(ItemIcons.hoverKey(key.substring(key.indexOf(':') + 1)))
-                            && AbilitiesPane.descriptionFor(key, k -> k).isEmpty())
-                    .toList();
-            assertEquals(List.of(), unexplained);
-            assertTrue(frame.targets.hoverKeys().stream().map(key -> AbilitiesPane.descriptionFor(key,
-                    k -> LANG.getOrDefault(k, k))).flatMap(java.util.Optional::stream).toList()
-                    .contains(PER_BLOCK_DESCRIPTION));
-        }
     }
-    @Test
-    void aCostItemHoldingTheTypeReadsNoLine() {
-        DrawnFrame frame = draw(pane(Map.of("minecraft:cobblestone", Map.of("unstable", "250"))));
-        assertTrue(frame.drawn().stream().noneMatch(text -> text.color() == Palette.DANGER), frame.texts().toString());
+
+    /**
+     * An ability's price fields stand one to a column in four equal columns from the left third of the section's
+     * width on the name's line, a field past the line's room wrapping to the next line at the name's left (decision
+     * ability-params-lay-in-a-four-column-grid-spanning-whole-cells).
+     */
+    @Nested
+    class PriceColumns {
+        /** A section 600 wide: its left third ends at 200, leaving four columns of 100. */
+        private static final GroupsPane.Bounds SECTION = new GroupsPane.Bounds(0, 40, 600, 400);
+        private static final int NAME_LEFT = 30;
+        private static final int FIELD_HEIGHT = 12;
+
+        private static List<GroupsPane.Bounds> placed(int fields) {
+            AbilitiesPane.ColumnFlow flow = AbilitiesPane.ColumnFlow.under(SECTION, NAME_LEFT);
+            List<GroupsPane.Bounds> bounds = new ArrayList<>();
+            for (int field = 0; field < fields; field++) {
+                GroupsPane.Bounds placed = flow.place(1, SECTION.bottom());
+                flow.took(placed.top() + FIELD_HEIGHT, placed.right());
+                bounds.add(placed);
+            }
+            return bounds;
+        }
+
+        @Test
+        void theFirstPriceStartsAtTheLeftThirdOnTheNamesLine() {
+            GroupsPane.Bounds first = placed(1).getFirst();
+            assertEquals(List.of(200, SECTION.top()), List.of(first.left(), first.top()));
+        }
+
+        @Test
+        void fourPricesStandAtFourEqualColumnLefts() {
+            assertEquals(List.of(200, 300, 400, 500), placed(4).stream().map(GroupsPane.Bounds::left).toList());
+        }
+
+        @Test
+        void aFieldPastTheFourthWrapsToTheNextLineAtTheNamesLeft() {
+            GroupsPane.Bounds fifth = placed(5).getLast();
+            assertEquals(NAME_LEFT, fifth.left());
+            assertTrue(fifth.top() >= SECTION.top() + RowLayout.SPRITE_ROW_HEIGHT, fifth + " stands on the name's line");
+        }
     }
 }

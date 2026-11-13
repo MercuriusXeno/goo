@@ -90,22 +90,12 @@ class PlayerHostTest {
     @Nested
     class ThrowerLook {
 
+        // decision self-delivery-runs-on-player
         @Test
-        void teleportAlongThrowerLookFollowsThePlayersOwnLook() {
-            ServerPlayer player = playerLooking(new Vec3(1, 0, 0));
+        void thePlayerIsItsOwnThrower() {
+            ServerPlayer player = mock(ServerPlayer.class);
 
-            run(List.of(new TeleportStep(TeleportMode.THROWER_LOOK, Expr.literal(BLINK))), player);
-
-            verify(player).teleportTo(X + BLINK, Y, Z);
-        }
-
-        @Test
-        void teleportAlongThrowerLookClimbsWithThePitch() {
-            ServerPlayer player = playerLooking(new Vec3(0, 0.6, 0.8));
-
-            run(List.of(new TeleportStep(TeleportMode.THROWER_LOOK, Expr.literal(BLINK))), player);
-
-            verify(player).teleportTo(X, Y + 0.6 * BLINK, Z + 0.8 * BLINK);
+            assertEquals(player, new PlayerHost(mock(ServerLevel.class), player).thrower());
         }
 
         /**
@@ -129,7 +119,6 @@ class PlayerHostTest {
     @Nested
     class Push {
 
-        private static final double STRENGTH = 1.5;
         /** A held self push: its speed and the shares it steers by, without and with an elytra. */
         private static final double JET_STRENGTH = 1.2;
         private static final double JET_STEER = 0.2;
@@ -151,24 +140,14 @@ class PlayerHostTest {
             verify(player).resetFallDistance();
         }
 
-        @Test
-        void pushSendsThePlayerAlongItsOwnLook() {
-            Vec3 look = new Vec3(0.6, 0.8, 0);
-            ServerPlayer player = playerLooking(look);
-
-            run(List.of(new PushStep(Expr.literal(STRENGTH))), player);
-
-            verify(player).setDeltaMovement(look.scale(STRENGTH));
-        }
-
         // decision jet-pushes-along-the-look-while-held
         @Test
         void jetTurnsAStillPlayerAFifthOfTheWayTowardItsLook() {
-            ServerPlayer player = playerLooking(EAST);
+            Vec3 steered = PushStep.steered(Vec3.ZERO, EAST.scale(JET_STRENGTH), JET_STEER);
 
-            run(List.of(JET), player);
-
-            assertEquals(JET_STRENGTH * JET_STEER, pushedAlongEast(player), TOLERANCE);
+            assertEquals(0.24, steered.x, TOLERANCE);
+            assertEquals(0, steered.y, TOLERANCE);
+            assertEquals(0, steered.z, TOLERANCE);
         }
 
         // decision jet-pushes-along-the-look-while-held
@@ -187,15 +166,11 @@ class PlayerHostTest {
         // decision jet-pushes-along-the-look-while-held
         @Test
         void jetKeepsTheRestOfAMovingPlayersVelocity() {
-            ServerPlayer player = playerLooking(EAST);
-            when(player.getDeltaMovement()).thenReturn(new Vec3(0, 0, 1));
+            Vec3 steered = PushStep.steered(new Vec3(0, 0, 1), EAST.scale(JET_STRENGTH), JET_STEER);
 
-            run(List.of(JET), player);
-
-            ArgumentCaptor<Vec3> set = ArgumentCaptor.forClass(Vec3.class);
-            verify(player).setDeltaMovement(set.capture());
-            assertEquals(1 - JET_STEER, set.getValue().z, TOLERANCE);
-            assertEquals(JET_STRENGTH * JET_STEER, set.getValue().x, TOLERANCE);
+            assertEquals(0.24, steered.x, TOLERANCE);
+            assertEquals(0, steered.y, TOLERANCE);
+            assertEquals(0.8, steered.z, TOLERANCE);
         }
 
         private static double pushedAlongEast(ServerPlayer player) {

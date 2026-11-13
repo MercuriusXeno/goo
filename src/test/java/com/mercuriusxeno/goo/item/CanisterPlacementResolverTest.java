@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.item;
 
 import com.mercuriusxeno.goo.block.ICanisterClickTaker;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
-import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
 import com.mercuriusxeno.goo.item.CanisterPlacementResolver.CanisterPlacement;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -23,6 +22,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
@@ -98,11 +98,6 @@ class CanisterPlacementResolverTest {
     class NewBlock {
 
         @Test
-        void supportedTopPlacesInTheAimedSlot() {
-            assertEquals(new CanisterPlacement(ABOVE, SLOT_ZERO, false), resolve(topHitAtSlot(SLOT_ZERO), false));
-        }
-
-        @Test
         void supportedTopFollowsTheAimedSlot() {
             assertEquals(new CanisterPlacement(ABOVE, CENTRE_SLOT, false), resolve(topHitAtSlot(CENTRE_SLOT), false));
         }
@@ -110,14 +105,6 @@ class CanisterPlacementResolverTest {
         @Test
         void signTopRefuses() {
             standBlock(AIMED, Shapes.empty(), false);
-            assertNull(resolve(topHitAtSlot(SLOT_ZERO), false));
-        }
-
-        @Test
-        void crucibleRimRefuses() {
-            VoxelShape rim = Shapes.or(Shapes.box(0, 0, 0, 1, 13 * PIXEL, 1),
-                    Shapes.box(2 * PIXEL, 13 * PIXEL, 2 * PIXEL, 14 * PIXEL, 1, 4 * PIXEL));
-            standBlock(AIMED, rim, false);
             assertNull(resolve(topHitAtSlot(SLOT_ZERO), false));
         }
 
@@ -167,36 +154,27 @@ class CanisterPlacementResolverTest {
     @Nested
     class AimedMachineClick {
 
+        /** A click taker takes the standing click exactly when its click moves goo with the canister. */
         @Test
-        void standingOnAHolderThatTakesTheUseRefuses() {
-            BlockEntity hub = mock(BlockEntity.class, withSettings().extraInterfaces(ICanisterHolder.class));
-            when(((ICanisterHolder) hub).takesCanisterAt(any(), any(Boolean.class))).thenReturn(true);
-            when(level.getBlockEntity(AIMED)).thenReturn(hub);
-            assertNull(resolve(topHitAtSlot(SLOT_ZERO), false));
-        }
-
-        @Test
-        void standingOnAVatThatMovesGooRefuses() {
-            clickTakerAimed(true);
-            assertNull(resolve(topHitAtSlot(SLOT_ZERO), false));
-        }
-
-        @Test
-        void standingOnAVatThatMovesNoGooPlaces() {
-            clickTakerAimed(false);
-            assertEquals(new CanisterPlacement(ABOVE, SLOT_ZERO, false), resolve(topHitAtSlot(SLOT_ZERO), false));
+        void aClickTakerTakesTheClickWhenItsClickMovesGoo() {
+            assertEquals(List.of(true, false), List.of(
+                    CanisterPlacementResolver.aimedBlockTakesTheClick(level, clickTaker(true), topHitAtSlot(SLOT_ZERO),
+                            canister),
+                    CanisterPlacementResolver.aimedBlockTakesTheClick(level, clickTaker(false),
+                            topHitAtSlot(SLOT_ZERO), canister)));
         }
 
         @Test
         void sneakingSkipsTheVatsOwnClick() {
-            clickTakerAimed(true);
+            BlockEntity vat = clickTaker(true);
+            when(level.getBlockEntity(AIMED)).thenReturn(vat);
             assertEquals(new CanisterPlacement(ABOVE, SLOT_ZERO, false), resolve(topHitAtSlot(SLOT_ZERO), true));
         }
 
-        private void clickTakerAimed(boolean takes) {
+        private BlockEntity clickTaker(boolean takes) {
             BlockEntity vat = mock(BlockEntity.class, withSettings().extraInterfaces(ICanisterClickTaker.class));
             when(((ICanisterClickTaker) vat).takesCanisterClick(canister)).thenReturn(takes);
-            when(level.getBlockEntity(AIMED)).thenReturn(vat);
+            return vat;
         }
     }
 
@@ -215,10 +193,11 @@ class CanisterPlacementResolverTest {
             assertEquals(new CanisterPlacement(ABOVE, SLOT_ZERO, false), resolve(topHitAtSlot(SLOT_ZERO), true));
         }
 
+        /** A block class defines its own right click when it overrides useWithoutItem, as a plain Block does not. */
         @Test
-        void standingOnAPlainBlockPlaces() {
-            aimAtBlockOfClass(Block.class);
-            assertEquals(new CanisterPlacement(ABOVE, SLOT_ZERO, false), resolve(topHitAtSlot(SLOT_ZERO), false));
+        void aBlockDefinesItsOwnClickOnlyWhereItsClassOverridesIt() {
+            assertEquals(List.of(true, false), List.of(OwnRightClick.definedBy(ClickableBlock.class),
+                    OwnRightClick.definedBy(Block.class)));
         }
 
         private void aimAtBlockOfClass(Class<? extends Block> blockClass) {

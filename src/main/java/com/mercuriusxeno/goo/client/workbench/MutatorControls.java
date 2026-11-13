@@ -218,11 +218,11 @@ final class MutatorControls {
         }
         flow.typeIcon(formula.target(), pickTarget);
         // The target's ratio takes a mixed number either side, M : K reading M / K, reduced as it is written.
-        numberControl(flow, formula.multiplier(),
-                typed -> writeRatio(typed.numerator(), typed.denominator() * formula.divisor(), ratio));
+        numberControl(flow, formula.multiplier(), typed -> multiplierRatio(typed, formula.divisor())
+                .ifPresent(written -> ratio.accept(written.first(), written.second())));
         flow.ratioColon(RATIO, Palette.MUTED);
-        divisorControl(flow, formula.divisor(),
-                typed -> writeRatio(formula.multiplier() * typed.denominator(), typed.numerator(), ratio));
+        divisorControl(flow, formula.divisor(), typed -> divisorRatio(typed, formula.multiplier())
+                .ifPresent(written -> ratio.accept(written.first(), written.second())));
     }
 
     // A fraction typed for the source's divisor folds its denominator into the target's multiplier.
@@ -423,7 +423,7 @@ final class MutatorControls {
      * @param numerator   above the bar
      * @param denominator below it, never 0
      */
-    private record Fraction(long numerator, long denominator) {
+    record Fraction(long numerator, long denominator) {
         // The value where it is whole, empty for a fraction.
         OptionalInt whole() {
             return denominator == 1 ? OptionalInt.of((int) numerator) : OptionalInt.empty();
@@ -432,20 +432,45 @@ final class MutatorControls {
 
     // A whole, a fraction or a whole then a fraction, as the builder's box reads them; empty where it reads none or a
     // part outgrows an int.
-    private static Optional<Fraction> fractionOf(String typed) {
+    static Optional<Fraction> fractionOf(String typed) {
         return ExpressionBuilder.mixedNumber(typed).filter(parts -> parts[0].bitLength() < Integer.SIZE
                 && parts[1].bitLength() < Integer.SIZE).map(parts -> new Fraction(parts[0].longValue(),
                 parts[1].longValue()));
     }
 
-    // A ratio a : b reduced to its lowest terms, empty where a term outgrows an int; written through write.
-    private static void writeRatio(long first, long second, RatioWriter write) {
+    /**
+     * A convert target's ratio, multiplier to divisor, in its lowest terms.
+     *
+     * @param first  the multiplier
+     * @param second the divisor
+     */
+    record Ratio(int first, int second) {
+    }
+
+    // A ratio a : b reduced to its lowest terms, empty where a term outgrows an int.
+    static Optional<Ratio> reduced(long first, long second) {
         long common = gcd(first, second);
         long reducedFirst = first / common;
         long reducedSecond = second / common;
-        if (reducedFirst <= Integer.MAX_VALUE && reducedSecond <= Integer.MAX_VALUE) {
-            write.accept((int) reducedFirst, (int) reducedSecond);
-        }
+        return reducedFirst <= Integer.MAX_VALUE && reducedSecond <= Integer.MAX_VALUE
+                ? Optional.of(new Ratio((int) reducedFirst, (int) reducedSecond)) : Optional.empty();
+    }
+
+    // The target's ratio a multiplier typed over the standing divisor writes, the typed fraction's denominator folded
+    // into the divisor.
+    static Optional<Ratio> multiplierRatio(Fraction typed, int divisor) {
+        return reduced(typed.numerator(), typed.denominator() * divisor);
+    }
+
+    // The target's ratio a divisor typed under the standing multiplier writes, the typed fraction's denominator
+    // folded into the multiplier.
+    static Optional<Ratio> divisorRatio(Fraction typed, int multiplier) {
+        return reduced(multiplier * typed.denominator(), typed.numerator());
+    }
+
+    // A ratio a : b reduced to its lowest terms, written through write unless a term outgrows an int.
+    private static void writeRatio(long first, long second, RatioWriter write) {
+        reduced(first, second).ifPresent(ratio -> write.accept(ratio.first(), ratio.second()));
     }
 
     private static long gcd(long first, long second) {

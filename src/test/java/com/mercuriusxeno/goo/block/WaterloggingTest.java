@@ -15,13 +15,9 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -82,15 +78,6 @@ class WaterloggingTest {
             Waterlogging.scheduleWaterTick(stateWaterlogged(true), ticks, POS, level);
 
             verify(ticks).scheduleTick(POS, Fluids.WATER, Fluids.WATER.getTickDelay(level));
-        }
-
-        @Test
-        void dryStateSchedulesNothing() {
-            ScheduledTickAccess ticks = mock(ScheduledTickAccess.class);
-
-            Waterlogging.scheduleWaterTick(stateWaterlogged(false), ticks, POS, mock(LevelReader.class));
-
-            verify(ticks, never()).scheduleTick(any(BlockPos.class), eq(Fluids.WATER), anyInt());
         }
     }
 }

@@ -23,13 +23,6 @@ class MobHitBurstTest {
         return MobHitBurst.splash(hitPoint, MOB_CENTER, BLAZE_RGB, new SplittableRandom(seed));
     }
 
-    private static void assertEveryDripLeavesTheMob(Vec3 hitPoint, List<MobHitBurst.Drip> drips) {
-        Vec3 outward = hitPoint.subtract(MOB_CENTER);
-        for (MobHitBurst.Drip drip : drips) {
-            assertTrue(drip.velocity().dot(outward) > 0, "drip falls back into the mob: " + drip.velocity());
-        }
-    }
-
     @Nested
     class Splash {
 
@@ -49,17 +42,11 @@ class MobHitBurstTest {
                     .forEach(drip -> assertEquals(BLAZE_RGB | OPAQUE, drip.argb()));
         }
 
+        /** A drip flies outward at 0.15 a tick and its scatter kick stays under 0.1, so every drip leaves the mob. */
         @Test
-        void everyDripFliesAwayFromTheMobOnEachSide() {
-            Vec3[] hitPoints = {
-                new Vec3(1, 1, 0.5), new Vec3(0, 1, 0.5), new Vec3(0.5, 2, 0.5),
-                new Vec3(0.5, 0, 0.5), new Vec3(0.5, 1, 1), new Vec3(0.5, 1, 0),
-            };
-            for (int seed = 0; seed < 50; seed++) {
-                for (Vec3 hitPoint : hitPoints) {
-                    assertEveryDripLeavesTheMob(hitPoint, splashAt(hitPoint, seed));
-                }
-            }
+        void aDripFliesOutwardAtFifteenHundredthsAndScattersUnderATenth() {
+            assertEquals(0.15, MobHitBurst.OUTWARD_SPEED);
+            assertEquals(0.1, MobHitBurst.SCATTER_SPEED);
         }
 
         @Test

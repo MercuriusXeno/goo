@@ -14,6 +14,7 @@ import com.mercuriusxeno.goo.ability.program.FloorReach;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.LeafStep;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
+import com.mercuriusxeno.goo.ability.program.PlacementPrice;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
@@ -197,7 +198,9 @@ public final class GooStreamHandler {
     }
 
     /**
-     * Drains this tick's share of the ability's cost.
+     * Drains this tick's share of the ability's cost; a stream draining on
+     * placement takes nothing for the tick, paying as what it lays lands.
+     * goop-drains-per-cubic-meter-of-slime-placed
      *
      * @param player  the streaming player
      * @param gooType the ability's goo type
@@ -211,6 +214,9 @@ public final class GooStreamHandler {
         int held = GooServerState.of(server).streamHolds().advance(player.getUUID(), server.getTickCount());
         if (held == 0 || !paysReagents(player, ability, held)) {
             return 0;
+        }
+        if (ability.delivery().drainsOnPlacement()) {
+            return held;
         }
         int share = StreamHolds.shareAt(ability.cost().exactIn(GooValues.of(player.level())),
                 ability.delivery().ticksPerCharge(), held);
@@ -457,7 +463,26 @@ public final class GooStreamHandler {
         ServerPlayer player = cast.player();
         ChannelAim aim = new ChannelAim(player.getEyePosition().add(axis.scale(delivery.range())), null,
                 delivery.coneDegrees(), held, reaching);
-        runSteps(PlayerHost.channeling(player.level(), player, aim), HostKind.PLAYER, blockSteps, cast);
+        runSteps(PlayerHost.channeling(player.level(), player, aim, placementPrice(player, ability)), HostKind.PLAYER,
+                blockSteps, cast);
+    }
+
+    /**
+     * What each thing a stream lays pays as it lands: for a stream draining
+     * on placement, the cost over the placements one cost buys, charged
+     * exactly with the remainder paying first; for any other, nothing.
+     * goop-drains-per-cubic-meter-of-slime-placed
+     *
+     * @param player  the streaming player
+     * @param ability the stream ability
+     * @return the placement price
+     */
+    static PlacementPrice placementPrice(ServerPlayer player, AbilityDefinition ability) {
+        if (!ability.delivery().drainsOnPlacement()) {
+            return PlacementPrice.FREE;
+        }
+        return placementsPerCost -> AbilityCharges.charge(player, ability.gooType(),
+                ability.cost().exactIn(GooValues.of(player.level())).dividedBy(placementsPerCost));
     }
 
     /**
@@ -515,7 +540,18 @@ public final class GooStreamHandler {
                 && (inCone(apex, axis, delivery, entity) || inCone(eye, axis, delivery, entity)));
     }
 
-    private static boolean inCone(Vec3 apex, Vec3 axis, Delivery delivery, LivingEntity living) {
+    /**
+     * Whether a living entity stands inside the stream's cone cast from an
+     * apex, out to how far the stream reaches the living, or crosses the
+     * cone's axis within that reach.
+     *
+     * @param apex     the cone's apex
+     * @param axis     the cone's axis
+     * @param delivery the stream delivery
+     * @param living   the candidate
+     * @return true when the stream reaches the entity from the apex
+     */
+    static boolean inCone(Vec3 apex, Vec3 axis, Delivery delivery, LivingEntity living) {
         // decay-gnats-degrade-each-block-once: a stream may seek the living past the blocks it works
         double reach = delivery.livingReach();
         return StreamCone.contains(apex, axis, reach, delivery.coneDegrees(), living.getBoundingBox().getCenter())

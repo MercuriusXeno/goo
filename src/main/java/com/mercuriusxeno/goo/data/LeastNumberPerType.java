@@ -104,12 +104,12 @@ public final class LeastNumberPerType {
         public List<String> lines() {
             List<String> lines = new ArrayList<>();
             String verdict;
-            if (items.isEmpty() || highest == null) {
-                verdict = NO_ITEM;
-            } else if (resolvable) {
-                verdict = highest.bound() + AT + highest.item() + meltAndCost(highest.bound());
-            } else {
+            if (!resolvable) {
                 verdict = NO_LEAST_VALUE + CYCLE_NEVER_SETTLES;
+            } else if (items.isEmpty() || highest == null) {
+                verdict = NO_ITEM;
+            } else {
+                verdict = highest.bound() + AT + highest.item() + meltAndCost(highest.bound());
             }
             lines.add(LINE_INDENT + type + SEPARATOR + verdict);
             items.forEach(item -> lines.add(item.line()));

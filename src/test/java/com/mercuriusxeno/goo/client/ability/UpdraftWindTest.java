@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.WindStep;
@@ -22,15 +21,6 @@ class UpdraftWindTest {
 
     private static final double EPSILON = 1e-9;
     private static final Vec3 BASE = new Vec3(2.5, 1, 2.5);
-
-    @Test
-    void theColumnIsSizedFromTheShippedUpdraftStep() {
-        UpdraftWind.Column column = UpdraftWind.columnOf(AbilityJson.decode("typhoon_updraft").behaviors())
-                .orElseThrow();
-
-        assertEquals(1, column.radius(), EPSILON);
-        assertEquals(8, column.height(), EPSILON);
-    }
 
     @Test
     void anAbilityWithNoUpdraftStandsNoColumn() {

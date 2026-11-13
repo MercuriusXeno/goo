@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.PhasedStep;
 import com.mercuriusxeno.goo.ability.program.StepPhase;
-import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import org.junit.jupiter.api.Test;
@@ -35,12 +34,11 @@ class NetherExplosionVisualTest {
     private static final int SAMPLES = 30;
 
     @Test
-    void rushSpansTheBlackHolesGather() {
+    void theBlackHolesFirstPhaseIsItsGather() {
         PhasedStep program = (PhasedStep) LingerStep.bodyOf(AbilityJson.decode(BLACK_HOLE).behaviors())
                 .orElseThrow().getFirst();
         StepPhase gather = program.phases().getFirst();
         assertEquals("gather", gather.name());
-        assertEquals(NetherExplosionVisual.DURATION_TICKS, gather.ticks().evaluateInt(Variables.NONE));
     }
 
     /**

@@ -39,4 +39,18 @@ class VatStackRedistributorTest {
 
         assertEquals(Map.of(GooTypes.ROCK, BASE), VatStackRedistributor.takeSlice(pool, BASE).getAll());
     }
+
+    /**
+     * A blaze-labeled vat draws on blaze alone and leaves the rock in the pool for the vat above
+     * (decision labeled-vessel-accepts-only-its-label-type).
+     */
+    @Test
+    void aLabeledVatDrawsItsLabelsTypeAloneAndLeavesTheRestStanding() {
+        Map<ResourceKey<GooTypeDefinition>, Integer> pool = new HashMap<>(Map.of(GooTypes.ROCK, 300, GooTypes.BLAZE, 200));
+
+        GooContents labeled = VatStackRedistributor.takeSlice(pool, BASE, GooTypes.BLAZE);
+
+        assertEquals(java.util.List.of(Map.of(GooTypes.BLAZE, 200), Map.of(GooTypes.ROCK, 300)),
+                java.util.List.of(labeled.getAll(), pool));
+    }
 }

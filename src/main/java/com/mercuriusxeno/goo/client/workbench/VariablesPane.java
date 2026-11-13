@@ -361,16 +361,24 @@ final class VariablesPane {
                             GroupsPane.Bounds box, ClickTargets targets) {
         if (!builder.isOpen() || !block.name().equals(building)) {
             building = block.name();
-            builder.openPrefab(block.name(), block.expression(), typed -> {
-                variables.edit(block.name(), typed);
-                actions.draftChanged();
-            }, () -> {
+            builder.openPrefab(block.name(), block.expression(), typed -> writeBuilt(block.name(), typed), () -> {
                 building = null;
                 variables.stopEditing();
                 actions.draftChanged();
             });
         }
         return builder.extract(graphics, font, box, box.top(), targets);
+    }
+
+    /**
+     * Writes what the builder typed over a prefab and evaluates the draft afresh.
+     *
+     * @param name  the prefab's name
+     * @param typed the expression the builder holds
+     */
+    void writeBuilt(String name, String typed) {
+        variables.edit(name, typed);
+        actions.draftChanged();
     }
 
     // The listed blocks and the list's bar, which stands right of the blocks' bounds.

@@ -125,8 +125,22 @@ public final class AbilityImpact {
         }
         BlockPos cell = spot.get().cell();
         LandingHost host = new LandingHost(level, cell, spot.get().face(), spot.get().waterlogged(), type,
-                ability.id().toString(), point == null ? Vec3.atCenterOf(cell) : point, size, caster);
+                ability.id().toString(), anchor(cell, point), size, caster);
         AbilitySplat.resolve(new Landing(host, ability));
+    }
+
+    /**
+     * Where a landing's world actions anchor: the aimed point where the
+     * throw names one, so a free ability resolves where it was aimed, and the
+     * landing cell's center otherwise.
+     * aim-point-follows-the-cursor
+     *
+     * @param cell  the landing cell
+     * @param point the aimed point, or null for none
+     * @return the anchor
+     */
+    static Vec3 anchor(BlockPos cell, @Nullable Vec3 point) {
+        return point == null ? Vec3.atCenterOf(cell) : point;
     }
 
     /**

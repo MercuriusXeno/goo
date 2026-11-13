@@ -36,4 +36,44 @@ class MemberRailsTest {
                 List.of(lit.getFirst()[0], lit.getFirst()[1], lit.getFirst()[2], lit.getFirst()[3]),
                 "the first row lit from the column's top edge");
     }
+
+    /**
+     * A member's rail stands at its row's left and its 1-based number between the rail and the member's icon.
+     */
+    @Test
+    void aMembersRailStandsAtItsRowsLeftAndItsNumberBetweenTheRailAndTheIcon() {
+        MemberRails rails = new MemberRails((from, to) -> { });
+        GroupsPane.Bounds card = new GroupsPane.Bounds(300, 120, 500, 120 + GroupsPane.CARD_HEIGHT);
+        rails.layList(card.top(), 3);
+        DrawnFrame frame = new DrawnFrame();
+
+        rails.draw(frame.graphics, DrawnFrame.font(), card, 1, "minecraft:birch_log", frame.targets);
+
+        DrawnFrame.Text number = frame.find("2");
+        int[] rail = frame.fillsOf(Palette.RAIL).getFirst();
+        assertEquals(card.left(), rail[0], "the rail at the row's left");
+        assertTrue(rail[2] <= number.x() && number.x() < rails.iconLeft(DrawnFrame.font(), card),
+                number + " between the rail ending at " + rail[2] + " and the icon");
+    }
+
+    /**
+     * A rail released over another row hands the mover the member's index and that row's.
+     */
+    @Test
+    void aRailReleasedOverTheFirstRowMovesItsMemberThere() {
+        List<List<Integer>> moved = new ArrayList<>();
+        MemberRails rails = new MemberRails((from, to) -> moved.add(List.of(from, to)));
+        int listTop = 120;
+        rails.layList(listTop, 3);
+        GroupsPane.Bounds third = new GroupsPane.Bounds(300, listTop + 2 * GroupsPane.CARD_HEIGHT, 500,
+                listTop + 3 * GroupsPane.CARD_HEIGHT);
+        DrawnFrame frame = new DrawnFrame();
+        rails.draw(frame.graphics, DrawnFrame.font(), third, 2, "minecraft:spruce_log", frame.targets);
+
+        assertTrue(frame.targets.click(third.left() + 1, third.top() + 1), "the rail takes the press");
+        frame.targets.drag(third.left() + 1, listTop + 1);
+        frame.targets.release();
+
+        assertEquals(List.of(List.of(2, 0)), moved);
+    }
 }

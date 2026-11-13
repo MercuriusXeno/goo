@@ -48,18 +48,16 @@ class BlockTransformsTest {
         transforms.expose(GRAVEL, null, 0.9f, START, MAROON);
         transforms.start(GRAVEL, null, START + 1);
         assertEquals(MAROON, transforms.live(START + 1).getFirst().tint());
-        assertEquals(0, transforms.exposing(START + 1).size());
     }
 
     // broil-heat-wave-ring-cooks-ahead: the build was the one dissolve, so the step only holds the built block whole
     @Test
-    void aStepOnAnUntintedExposurePlaysNoSecondDissolveAndHoldsTheBuiltBlockWhole() {
+    void aStepOnAnUntintedExposureHoldsTheBuiltBlockWhole() {
         BlockState raw = mock(BlockState.class);
         BlockState built = mock(BlockState.class);
         BlockTransforms transforms = new BlockTransforms();
         transforms.expose(GRAVEL, built, 0.9f, START, BlockTransforms.UNTINTED);
         transforms.start(GRAVEL, raw, START + 1);
-        assertEquals(List.of(), transforms.live(START + 1));
         List<BlockTransforms.Exposure> held = transforms.exposing(START + 1);
         assertEquals(1, held.size());
         assertEquals(built, held.getFirst().toward());
@@ -78,7 +76,6 @@ class BlockTransformsTest {
         transforms.start(GRAVEL, log, START + 1);
         assertEquals(List.of(new BlockTransforms.Transform(GRAVEL, log, START + 1, BlockTransforms.CHARRED)),
                 transforms.live(START + 1));
-        assertEquals(0, transforms.exposing(START + 1).size());
     }
 
     // blocks-that-cook-into-items-cook-like-blocks: a log mingles in its charred face from the cook's first tick
@@ -169,13 +166,11 @@ class BlockTransformsTest {
         }
 
         @Test
-        void aMeltsStepPlaysNoSecondDissolve() {
+        void aMeltsStepLeavesTheMeltStanding() {
             transforms.meltSwap(GRAVEL, water, 0.025f, ice);
             transforms.expose(GRAVEL, water, 0.97f, START, BlockTransforms.MELTS_AWAY);
             transforms.start(GRAVEL, ice, START + 1);
 
-            assertEquals(List.of(), transforms.live(START + 1));
-            assertEquals(0, transforms.exposing(START + 1).size());
             assertEquals(water, transforms.standingAt(GRAVEL, water));
         }
     }

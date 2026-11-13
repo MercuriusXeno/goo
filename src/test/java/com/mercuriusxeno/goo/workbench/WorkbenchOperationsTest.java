@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.data.GooBaseValuesPreview;
 import com.mercuriusxeno.goo.data.GooConstantResolver;
 import com.mercuriusxeno.goo.data.GooValue;
@@ -312,6 +313,71 @@ class WorkbenchOperationsTest {
         }
     }
 
+    /**
+     * An abilities Save writes one draft for the edited ability and hands the ability files every draft standing; a
+     * promote lands the draft over its live file and reads the live values without seeding a draft, so a second
+     * promote finds no draft of either kind (decision ability-drafts-promote-per-file-like-base-values).
+     */
+    @Nested
+    class AbilitySaveAndPromote {
+        private static final Identifier LURKER = Identifier.fromNamespaceAndPath("goo", "unstable_lurker");
+        private static final int EDITED_COST = 777;
+        private final List<Map<Identifier, JsonObject>> applied = new java.util.ArrayList<>();
+        private WorkbenchOperations abilities;
+
+        @BeforeEach
+        void bindTheAbilityFiles() {
+            JsonObject shipped = JsonParser.parseString(AbilityJson.read("unstable_lurker")).getAsJsonObject();
+            abilities = new WorkbenchOperations(paths, () -> new byte[0], () -> { }, (draft, progress) -> 0,
+                    text -> { }, new AbilityFiles() {
+                        @Override
+                        public Map<Identifier, JsonObject> live() {
+                            return Map.of(LURKER, shipped);
+                        }
+
+                        @Override
+                        public void apply(Map<Identifier, JsonObject> drafts) {
+                            applied.add(drafts);
+                        }
+                    }, () -> GooTypes.BUNDLED);
+        }
+
+        private void answeredOk(String operation, String posted) {
+            WorkbenchReply reply = abilities.answer(operation, posted);
+            assertEquals(200, reply.status(), reply.text());
+        }
+
+        private static String costEdit() {
+            JsonObject changes = new JsonObject();
+            changes.addProperty("cost", EDITED_COST);
+            JsonObject edited = new JsonObject();
+            edited.add(LURKER.toString(), changes);
+            JsonObject posted = new JsonObject();
+            posted.add("abilities", edited);
+            return posted.toString();
+        }
+
+        @Test
+        void aSaveWritesTheEditedAbilitysDraftAndHandsItToTheAbilityFiles() throws IOException {
+            answeredOk(WorkbenchOperations.SAVE_ABILITIES, costEdit());
+
+            assertEquals(List.of(EDITED_COST, EDITED_COST), List.of(
+                    AbilityDrafts.read(paths.abilityDrafts()).get(LURKER)
+                            .get("cost").getAsInt(),
+                    applied.getLast().get(LURKER).get("cost").getAsInt()));
+        }
+
+        @Test
+        void aPromoteLandsTheDraftOverItsLiveFileAndASecondPromoteFindsNoDraft() throws IOException {
+            answeredOk(WorkbenchOperations.SAVE_ABILITIES, costEdit());
+            answeredOk(WorkbenchOperations.PROMOTE, "");
+
+            Path live = AbilityDrafts.liveFileOf(paths.abilities(), LURKER);
+            assertEquals(List.of(EDITED_COST, 409), List.of(
+                    JsonParser.parseString(Files.readString(live)).getAsJsonObject().get("cost").getAsInt(),
+                    abilities.answer(WorkbenchOperations.PROMOTE, "").status()));
+        }
+    }
     @Nested
     class LiveApply {
 
