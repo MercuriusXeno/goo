@@ -1,39 +1,39 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.block.ability.SlimeCoatBlock;
-import com.mercuriusxeno.goo.network.HoldMarks;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.state.BlockState;
-import java.util.Collection;
 import java.util.Optional;
-import java.util.OptionalInt;
 import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Weird Goop's block step, run each held tick of the stream: the slime
- * paints the open cell over every block it reaches whose top can hold a
- * coat, and every cell the hold has painted builds toward a slime coat while
- * the hold lasts, whether or not the aim is still on it, coating once it has
- * built the JSON's ticks. A painted cell past nine tenths of its coat is left to
- * finish alone, even after the hold ends. A cell the spray still reaches
- * takes another layer each time the JSON's ticks pass, until it is a whole
- * block of slime; a cell the aim left stops at the layer it was building.
- * The block under the coat is left as it stood. Each layer pays its price
- * as it lands.
+ * Weird Goop's block step: the coat lands where each of the stream's drips
+ * strikes. A drip striking a block's top feeds the open cell over it, where
+ * that top can hold a coat, and a drip striking slime short of a whole block
+ * feeds that slime; a drip striking a side feeds nothing. Each strike builds
+ * its cell one share of the JSON's ticks toward a layer, so a cell drips
+ * strike every tick coats in those ticks, and a cell drips keep striking
+ * takes another layer each time they pass, until it is a whole block of
+ * slime. A cell past nine tenths of its layer finishes alone. A drip still in
+ * flight when the hold ends lands its share when it strikes, and each layer
+ * pays its price as it lands. The block under the coat is left as it stood.
+ * goop-and-slick-coat-lands-where-each-drip-arc-strikes
  * coat-is-a-green-slime-film-over-the-blocks-own-texture
  * goop-drains-per-cubic-meter-of-slime-placed
  * slime-is-a-layered-cell-that-levels-out
  * goop-layers-a-reached-cell-again-while-held
  * bounce-leaves-the-mod-and-goop-stands-alone
  *
- * @param ticks the ticks of stream a cell takes to coat
+ * @param ticks the ticks of strikes a cell takes to coat
  */
-public record CoatStep(int ticks) implements TakesNoEntity {
+public record CoatStep(int ticks) implements TakesNoEntity, DripLanding {
 
     private static final String NAME = "coat";
     private static final String FIELD_TICKS = "ticks";
@@ -55,26 +55,96 @@ public record CoatStep(int ticks) implements TakesNoEntity {
         return TYPE;
     }
 
+    /**
+     * Runs nothing on the hold's tick: the stream's drips lay the coat as they strike.
+     *
+     * @param context the step's context
+     * @return true, the step never fails
+     */
     @Override
     public boolean tick(StepContext context) {
-        ChannelHost host = context.hostAs(ChannelHost.class);
-        host.channelAim().ifPresent(aim -> {
-            HoldMarks marks = host.holdMarks();
-            if (aim.reaching()) {
-                paintOpenTops(host, PaintedHold.seenReach(host, aim), marks);
-            }
-            PlacementPrice price = host.placementPrice();
-            // the coat mingles in wearing its own green
-            PaintedHold.buildPaintedStates(host, CoatStep::coatOver, CoatStep::sameLayers, marks, 1f / ticks,
-                    raw -> OptionalInt.empty(), (pos, raw, into) -> layPaidFor(host, price, pos, into));
-        });
         return true;
     }
 
     /**
+     * What the coat reads of the cells a strike may feed.
+     */
+    interface CoatCells {
+
+        /**
+         * @param pos a cell
+         * @return true where the cell holds slime short of a whole block
+         */
+        boolean thickens(BlockPos pos);
+
+        /**
+         * @param pos a cell
+         * @return true where the cell stands open over a top that can hold a coat
+         */
+        boolean takesACoat(BlockPos pos);
+    }
+
+    @Override
+    public Optional<BlockPos> cellFed(ChannelHost host, CoatRay.BlockStrike strike) {
+        return cellFedBy(strike, new CoatCells() {
+            @Override
+            public boolean thickens(BlockPos pos) {
+                int layers = SlimeCoatBlock.layersOf(host.stateAt(pos));
+                return layers > 0 && layers < SlimeCoatBlock.MAX_LAYERS;
+            }
+
+            @Override
+            public boolean takesACoat(BlockPos pos) {
+                return host.airAt(pos) && SlimeCoatBlock.liesOn(host.level(), pos);
+            }
+        });
+    }
+
+    /**
+     * The cell a drip's strike feeds: slime short of a whole block struck on
+     * its top, else the open cell over a struck top that can hold a coat; a
+     * strike on a block's side or bottom feeds nothing.
+     * goop-and-slick-coat-lands-where-each-drip-arc-strikes
+     *
+     * @param strike where the drip struck
+     * @param cells  what the coat reads of the cells
+     * @return the cell, empty where the strike lays nothing
+     */
+    static Optional<BlockPos> cellFedBy(CoatRay.BlockStrike strike, CoatCells cells) {
+        // the operator's ruling: a coat lies only on a block's top, so a struck side lays nothing and slides nowhere
+        if (strike.face() != Direction.UP) {
+            return Optional.empty();
+        }
+        BlockPos struck = strike.block();
+        if (cells.thickens(struck)) {
+            return Optional.of(struck);
+        }
+        BlockPos over = struck.above();
+        return cells.takesACoat(over) ? Optional.of(over) : Optional.empty();
+    }
+
+    @Override
+    public void feed(ChannelHost host, BlockPos cell) {
+        if (host.finishingAlone(cell)) {
+            return;
+        }
+        coatOver(host.stateAt(cell)).ifPresent(into -> {
+            PlacementPrice price = host.placementPrice();
+            float share = 1f / ticks;
+            // the coat mingles in wearing its own green
+            float built = host.exposeBlock(cell, into, share);
+            if (built >= 1f) {
+                layPaidFor(host, price, cell, into);
+            } else if (built > PaintedHold.FINISHES_ALONE) {
+                host.finishBlockAlone(cell, share, () -> layPaidFor(host, price, cell, into));
+            }
+        });
+    }
+
+    /**
      * Lands a layer once the player pays its price, an eighth of a cubic
-     * meter of slime, the hold's or a layer finishing alone after release
-     * alike; a layer the player cannot pay for does not land.
+     * meter of slime, a strike's or a layer finishing alone alike; a layer
+     * the player cannot pay for does not land.
      * goop-drains-per-cubic-meter-of-slime-placed
      *
      * @param host  the channel host
@@ -89,51 +159,15 @@ public record CoatStep(int ticks) implements TakesNoEntity {
     }
 
     /**
-     * Paints the open cell over each reached block whose top can hold a
-     * coat, and each reached cell already holding slime, again though the
-     * hold already layered it.
-     * slime-is-a-layered-cell-that-levels-out
-     * goop-layers-a-reached-cell-again-while-held
-     *
-     * @param host  the channel host
-     * @param seen  the cells the stream's rays reached
-     * @param marks the hold's marks
-     */
-    private static void paintOpenTops(ChannelHost host, Collection<BlockPos> seen, HoldMarks marks) {
-        for (BlockPos pos : seen) {
-            BlockPos over = pos.above();
-            if (SlimeCoatBlock.layersOf(host.stateAt(pos)) > 0) {
-                marks.paintAgain(pos, host.stateAt(pos));
-            }
-            if (!host.airAt(pos) && host.airAt(over) && SlimeCoatBlock.liesOn(host.level(), over)) {
-                marks.paintAgain(over, host.stateAt(over));
-            }
-        }
-    }
-
-    /**
-     * What a painted cell becomes: an open cell takes a coat of one layer,
-     * a slime cell one layer more, anything else nothing.
+     * What a fed cell becomes: an open cell takes a coat of one layer, a
+     * slime cell one layer more, anything else nothing.
      * slime-is-a-layered-cell-that-levels-out
      *
-     * @param standing the state the cell held when painted
+     * @param standing the state the cell holds
      * @return the thickened state, empty where the cell takes no layer
      */
     private static Optional<BlockState> coatOver(BlockState standing) {
         return SlimeCoatBlock.thickened(standing, GooBlocks.SLIME_COAT.get());
-    }
-
-    /**
-     * Whether a painted cell still stands as painted: the same block holding
-     * the same layers, so a slime cell that thickened alone is built no
-     * further while its drips may change beside a new coat.
-     *
-     * @param now the cell's state now
-     * @param raw the state it held when painted
-     * @return true while the hold builds on it
-     */
-    private static boolean sameLayers(BlockState now, BlockState raw) {
-        return now.getBlock() == raw.getBlock() && SlimeCoatBlock.layersOf(now) == SlimeCoatBlock.layersOf(raw);
     }
 
     @Override
