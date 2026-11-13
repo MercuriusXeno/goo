@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.network;
 
-import com.mercuriusxeno.goo.block.ability.KineticSlickBlock;
 import com.mercuriusxeno.goo.block.ability.SlimeCoatBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.HeardSounds;
@@ -189,8 +188,9 @@ public final class VacuumTests {
 
     /**
      * Vacuum held over the lane breaks every goop and slick cell in its cone,
-     * and the goo items dropped total what the cells cost: 12 mb of weird goo
-     * a goop layer and 12 mb of kinetic goo a slick film.
+     * and the goo items dropped total what the cells cost: a layer's price
+     * of weird goo a goop layer and a film's price of kinetic goo a slick
+     * film, each read from the loaded definitions.
      * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
      * breaking-slick-drops-kinetic-goo-worth-its-film
      *
@@ -208,8 +208,8 @@ public final class VacuumTests {
             }
             int layers = LANE.values().stream().mapToInt(Integer::intValue).sum();
             long films = LANE.values().stream().filter(held -> held == SLICK).count();
-            assertDropped(helper, vacuumer, GooTypes.WEIRD, layers * SlimeCoatBlock.MB_PER_LAYER);
-            assertDropped(helper, vacuumer, GooTypes.KINETIC, (int) films * KineticSlickBlock.MB_PER_FILM);
+            assertDropped(helper, vacuumer, GooTypes.WEIRD, layers * ResidualPrices.layersRefund(helper, 1));
+            assertDropped(helper, vacuumer, GooTypes.KINETIC, ResidualPrices.filmsRefund(helper, (int) films));
             helper.getLevel().getServer().getPlayerList().remove(vacuumer);
             helper.succeed();
         });
@@ -330,8 +330,8 @@ public final class VacuumTests {
             helper.getLevel().getServer().getPlayerList().remove(vacuumer);
             helper.assertTrue(sticks == 1, String.format(NOT_PICKED_UP, sticks, inside.isAlive()
                     ? inside.position() : "gone"));
-            helper.assertTrue(weird == SlimeCoatBlock.MB_PER_LAYER,
-                    String.format(GOO_NOT_PICKED_UP, SlimeCoatBlock.MB_PER_LAYER, weird));
+            int refund = ResidualPrices.layersRefund(helper, 1);
+            helper.assertTrue(weird == refund, String.format(GOO_NOT_PICKED_UP, refund, weird));
             helper.assertTrue(behind.isAlive() && behind.position().distanceTo(behindAt) < STILL,
                     String.format(MOVED, "The stick behind the player", behindAt, behind.position()));
             helper.succeed();
@@ -425,7 +425,7 @@ public final class VacuumTests {
             }
             BlockState left = helper.getBlockState(cell);
             helper.assertTrue(left.isAir(), String.format(NOT_CLEARED, DECAYED, left));
-            assertDropped(helper, vacuumer, GooTypes.WEIRD, DECAYED_LAYERS * SlimeCoatBlock.MB_PER_LAYER);
+            assertDropped(helper, vacuumer, GooTypes.WEIRD, ResidualPrices.layersRefund(helper, DECAYED_LAYERS));
             helper.getLevel().getServer().getPlayerList().remove(vacuumer);
             helper.succeed();
         });

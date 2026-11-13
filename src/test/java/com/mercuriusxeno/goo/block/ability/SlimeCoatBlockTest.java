@@ -93,34 +93,40 @@ class SlimeCoatBlockTest {
         }
     }
 
+    /**
+     * A broken cell gives back, per layer, an eighth of Goop's cost, the
+     * price the stream charged it, whatever the workbench sets that cost to
+     * (decision breaking-slime-drops-weird-goo-worth-its-layers).
+     */
     @Nested
     class Reclaim {
 
+        private static final int LAYERS = 3;
+        private static final GooFraction SHIPPED_COST = GooFraction.of(96);
+        private static final GooFraction RETUNED_COST = GooFraction.of(160);
+
         @Test
-        void oneLayerReclaimsTheGooOneLayerCosts() {
-            assertEquals(SlimeCoatBlock.MB_PER_LAYER, SlimeCoatBlock.reclaimed(1));
+        void aBrokenCellReturnsAnEighthOfTheCostPerLayer() {
+            assertEquals(LAYERS * 96 / SlimeCoatBlock.MAX_LAYERS, SlimeCoatBlock.reclaimed(LAYERS, SHIPPED_COST));
         }
 
         @Test
-        void eightLayersReclaimEightLayersOfGoo() {
-            assertEquals(8 * SlimeCoatBlock.MB_PER_LAYER, SlimeCoatBlock.reclaimed(8));
+        void aRetunedCostRetunesTheRefund() {
+            assertEquals(LAYERS * 160 / SlimeCoatBlock.MAX_LAYERS, SlimeCoatBlock.reclaimed(LAYERS, RETUNED_COST));
         }
 
         @Test
-        void aLayerCostsBetweenSixAndTwentyFourMb() {
-            assertTrue(SlimeCoatBlock.MB_PER_LAYER >= 6 && SlimeCoatBlock.MB_PER_LAYER <= 24,
-                    "a coat layer costs " + SlimeCoatBlock.MB_PER_LAYER + " mb");
+        void aShippedLayerCostsBetweenSixAndTwentyFourMb() {
+            GooFraction layerPrice = AbilityJson.decode("weird_goop").cost().exactIn(GooValueTable.EMPTY)
+                    .dividedBy(SlimeCoatBlock.MAX_LAYERS);
+            assertTrue(layerPrice.compareTo(GooFraction.of(6)) >= 0 && layerPrice.compareTo(GooFraction.of(24)) <= 0,
+                    "a coat layer costs " + layerPrice + " mb");
         }
 
         /** goop-drains-per-cubic-meter-of-slime-placed */
         @Test
-        void goopsCostPricesACubicMeterAndALayerReclaimsItsEighth() {
-            AbilityDefinition goop = AbilityJson.decode("weird_goop");
-
-            assertEquals(Optional.of("%s/m³"), goop.costFormula());
-            GooFraction layerPrice = goop.cost().exactIn(GooValueTable.EMPTY).dividedBy(SlimeCoatBlock.MAX_LAYERS);
-            assertEquals(0, GooFraction.of(SlimeCoatBlock.reclaimed(1)).compareTo(layerPrice),
-                    "a layer costs " + layerPrice + " and reclaims " + SlimeCoatBlock.reclaimed(1));
+        void goopsCostPricesACubicMeter() {
+            assertEquals(Optional.of("%s/m³"), AbilityJson.decode("weird_goop").costFormula());
         }
     }
 

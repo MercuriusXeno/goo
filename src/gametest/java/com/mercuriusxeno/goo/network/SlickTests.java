@@ -3,9 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.SlickStep;
-import com.mercuriusxeno.goo.block.ability.SlimeCoatBlock;
 import com.mercuriusxeno.goo.data.GooFraction;
-import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
@@ -180,7 +178,7 @@ public final class SlickTests {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
             int films = filmsIn(helper);
             helper.assertTrue(films > 0, NO_FILMS);
-            GooFraction owed = filmPrice(helper).times(films);
+            GooFraction owed = ResidualPrices.filmPrice(helper).times(films);
             int drained = before - kineticHeld(streamer);
             helper.assertTrue(drained == owed.ceiling(), String.format(DRAINED_WRONG, films, owed, drained));
             helper.succeed();
@@ -220,7 +218,8 @@ public final class SlickTests {
     public static void slickLaysNoFilmTheStreamerCannotPayFor(GameTestHelper helper) {
         layStrip(helper);
         ServerPlayer streamer = slickStreamer(helper);
-        GooSourceScanner.deplete(streamer, GooTypes.KINETIC, kineticHeld(streamer) - filmPrice(helper).ceiling());
+        GooSourceScanner.deplete(streamer, GooTypes.KINETIC,
+                kineticHeld(streamer) - ResidualPrices.filmPrice(helper).ceiling());
         holdSlickFor(helper, streamer, THREE_FILMS_TICKS);
         helper.runAfterDelay(THREE_FILMS_TICKS + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
@@ -244,18 +243,6 @@ public final class SlickTests {
         for (int held = 1; held <= ticks; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(streamer, tick));
         }
-    }
-
-    /**
-     * One film's price: Slick's cost, read from the loaded definition.
-     *
-     * @param helper the gametest helper
-     * @return the exact price in mb
-     */
-    private static GooFraction filmPrice(GameTestHelper helper) {
-        AbilityDefinition slick = AbilityRegistry.of(helper.getLevel()).getAbility(SLICK);
-        helper.assertTrue(slick != null, ABILITY_REQUIRED);
-        return slick.cost().exactIn(GooValues.of(helper.getLevel()));
     }
 
     private static int kineticHeld(ServerPlayer player) {
@@ -295,7 +282,7 @@ public final class SlickTests {
             List<ItemStack> kinetic = helper.getEntities(EntityType.ITEM, slicked, 1.0).stream()
                     .map(ItemEntity::getItem).filter(stack -> GooTypes.KINETIC.equals(GooStacks.keyOf(stack)))
                     .toList();
-            int owed = SlimeCoatBlock.MB_PER_LAYER;
+            int owed = ResidualPrices.filmsRefund(helper, 1);
             helper.assertTrue(kinetic.size() == 1 && GooStacks.volumeOf(kinetic.getFirst()) == owed,
                     String.format(RECLAIM_WRONG, owed, kinetic));
             helper.succeed();
