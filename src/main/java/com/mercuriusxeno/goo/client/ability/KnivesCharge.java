@@ -259,7 +259,7 @@ public final class KnivesCharge {
      * @param partial    the partial tick
      * @return the hand's place in the world
      */
-    private static Vec3 handAt(Player player, boolean gloveRight, float eased, float partial) {
+    static Vec3 handAt(Player player, boolean gloveRight, float eased, float partial) {
         float bodyYaw = Mth.rotLerp(partial, player.yBodyRotO, player.yBodyRot);
         Vec3 ahead = Vec3.directionFromRotation(0f, bodyYaw);
         Vec3 glove = Vec3.directionFromRotation(0f, bodyYaw + (gloveRight ? RIGHT_ANGLE : -RIGHT_ANGLE));
