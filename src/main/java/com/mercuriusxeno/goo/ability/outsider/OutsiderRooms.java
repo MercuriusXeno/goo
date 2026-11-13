@@ -621,6 +621,33 @@ public final class OutsiderRooms {
     }
 
     /**
+     * Puts a player's own room back as it is first laid: everything built in
+     * its grown square cleared, the floor whole, the extent the 9 by 9, the
+     * center voidstone and the doorway standing. The room number and the
+     * return point stay, so the doorway still leads where the player cast
+     * from. A player standing in the pocket is told the new edges.
+     * decision reset-command-returns-my-room-to-nine-by-nine-and-clears-its-blocks
+     *
+     * @param player the room's owner
+     * @return true once the room is reset, false for a player holding no room
+     */
+    public static boolean resetRoom(ServerPlayer player) {
+        ServerLevel pocket = player.level().getServer().getLevel(POCKET);
+        VoidPockets pockets = VoidPockets.get(player.level());
+        Integer room = pockets.roomOf(player.getUUID());
+        if (pocket == null || room == null) {
+            return false;
+        }
+        // Read before lowering: the grown extent bounds everything built.
+        double grown = Math.max(RoomExtent.LAID, pockets.platformOf(player.getUUID()).extent());
+        RoomClearance.clear(pocket, voidstoneOf(room), grown);
+        pockets.keepPlatform(player.getUUID(), VoidPockets.Platform.LAID);
+        restoreRoom(pocket, room);
+        sendEdges(player);
+        return true;
+    }
+
+    /**
      * Lays an owner's room whole, handing the owner one first where they hold none.
      *
      * @param pocket the pocket dimension
