@@ -120,11 +120,13 @@ public final class SkyFunnel {
      * @return the quads
      */
     public static List<List<Corner>> quads(RoomExtent.Bounds bounds) {
-        List<List<Corner>> rings = cornerRings(bounds);
+        List<Double> heights = ringHeights(bounds);
+        Vec3 axis = axisOf(bounds);
         List<List<Corner>> quads = new ArrayList<>(BANDS * SEGMENTS);
         for (int band = 0; band < BANDS; band++) {
-            List<Corner> lower = rings.get(band);
-            List<Corner> upper = rings.get(band + 1);
+            boolean pillar = wrapsAsPillar(heights.get(band));
+            List<Corner> lower = ringAt(axis, heights.get(band), bounds.extent(), pillar);
+            List<Corner> upper = ringAt(axis, heights.get(band + 1), bounds.extent(), pillar);
             for (int segment = 0; segment < SEGMENTS; segment++) {
                 quads.add(List.of(lower.get(segment), lower.get(segment + 1), upper.get(segment + 1),
                         upper.get(segment)));
@@ -136,38 +138,53 @@ public final class SkyFunnel {
     /**
      * Each ring's corners once round and the first again at a full turn, so
      * the pillar's stars close on themselves rather than run back across the
-     * last quad. The gap to the ceiling shrinks by the same share each band
-     * out to the room's corners, so the long straight pillar takes few rings
-     * and the flare many; a point past the room's edges stands on them.
+     * last quad, each ring read by its own mapping.
      *
      * @param bounds the room's boundary
      * @return the rings of corners, the doorway's top first
      */
     private static List<List<Corner>> cornerRings(RoomExtent.Bounds bounds) {
-        double extent = bounds.extent();
-        double topGap = 1 / ((extent * CORNER_REACH - HALF_WIDTH) / PEEL + 1 / CEILING);
+        Vec3 axis = axisOf(bounds);
+        return ringHeights(bounds).stream()
+                .map(height -> ringAt(axis, height, bounds.extent(), wrapsAsPillar(height))).toList();
+    }
+
+    /**
+     * The rings' heights above the doorway's top. The gap to the ceiling
+     * shrinks by the same share each band out to the room's corners, so the
+     * long straight pillar takes few rings and the flare many.
+     *
+     * @param bounds the room's boundary
+     * @return the heights, the doorway's top first
+     */
+    private static List<Double> ringHeights(RoomExtent.Bounds bounds) {
+        double topGap = 1 / ((bounds.extent() * CORNER_REACH - HALF_WIDTH) / PEEL + 1 / CEILING);
         double shrink = Math.pow(topGap / CEILING, 1.0 / BANDS);
-        Vec3 axis = new Vec3(bounds.centerX() + HALF_BLOCK, spoutHeight(), bounds.centerZ() + HALF_BLOCK);
-        List<List<Corner>> rings = new ArrayList<>(BANDS + 1);
+        List<Double> heights = new ArrayList<>(BANDS + 1);
         for (int band = 0; band <= BANDS; band++) {
-            rings.add(ringAt(axis, CEILING - CEILING * Math.pow(shrink, band), extent));
+            heights.add(CEILING - CEILING * Math.pow(shrink, band));
         }
-        return rings;
+        return heights;
+    }
+
+    private static Vec3 axisOf(RoomExtent.Bounds bounds) {
+        return new Vec3(bounds.centerX() + HALF_BLOCK, spoutHeight(), bounds.centerZ() + HALF_BLOCK);
     }
 
     /**
      * One ring's corners at a height, once round and the first again, each
      * stood on the room's edges where it would pass them, its stars wrapped
-     * round the pillar or laid flat across the ceiling.
+     * round the pillar or laid flat across the ceiling. A band reads both its
+     * rings by its lower ring's mapping, so no quad mixes the two.
      *
      * @param axis   the doorway's top at the room's center
      * @param height blocks above the doorway's top
      * @param extent the room's extent
+     * @param pillar whether the stars wrap round the pillar rather than lie flat
      * @return the ring's corners
      */
-    private static List<Corner> ringAt(Vec3 axis, double height, double extent) {
+    private static List<Corner> ringAt(Vec3 axis, double height, double extent, boolean pillar) {
         double radius = radiusAt(height);
-        boolean pillar = wrapsAsPillar(height);
         List<Corner> ring = new ArrayList<>(SEGMENTS + 1);
         for (int segment = 0; segment <= SEGMENTS; segment++) {
             double turned = (double) segment / SEGMENTS;
