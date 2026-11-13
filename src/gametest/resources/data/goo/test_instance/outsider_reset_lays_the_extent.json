@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:outsider_reset_lays_the_extent",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}
