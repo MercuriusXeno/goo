@@ -9,20 +9,18 @@ import org.jspecify.annotations.Nullable;
  * target-kind-configured-per-ability
  */
 enum AimIndicator {
-    /** Draws nothing: a self ability, or none selected. */
+    /** Draws nothing, leaving the vanilla crosshair to aim. */
     NONE,
-    /** The aimed entity's outline, and the touch ring for a mob ability flying a line. */
+    /** The aimed entity's outline. */
     ENTITY_OUTLINE,
     /** The aimed block's outline and the bullseye on its struck face. */
-    BLOCK_OUTLINE,
-    /** A small reticule at the aimed point. */
-    RETICULE;
+    BLOCK_OUTLINE;
 
     /**
      * The mark a badge draws: mob the entity outline, world the block outline,
-     * self nothing, and every badge aiming the ray's point a reticule there,
-     * until an ability customizes its own. A Grab press holding a mob draws
-     * the held mob's outline and no reticule, leaving the vanilla crosshair.
+     * and every other badge nothing, the vanilla crosshair aiming the point. A
+     * Grab press holding a mob draws the held mob's outline.
+     * vanilla-crosshair-aims-everything-without-reticule-line-or-touch-ring
      * grab-hides-the-reticle-once-a-mob-is-held
      *
      * @param badge         the selected ability's badge, or null when none is synced
@@ -37,10 +35,9 @@ enum AimIndicator {
             return ENTITY_OUTLINE;
         }
         return switch (TargetingHint.of(badge)) {
-            case NONE -> NONE;
+            case NONE, POINT -> NONE;
             case ENTITY -> ENTITY_OUTLINE;
             case BLOCK -> BLOCK_OUTLINE;
-            case POINT -> RETICULE;
         };
     }
 }

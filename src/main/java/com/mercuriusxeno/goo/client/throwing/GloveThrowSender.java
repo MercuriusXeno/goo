@@ -30,7 +30,6 @@ import com.mercuriusxeno.goo.network.GooDragCastPayload;
 import com.mercuriusxeno.goo.network.GooStreamPayload;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
-import com.mercuriusxeno.goo.network.GooTouchHandler;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -427,19 +426,6 @@ public final class GloveThrowSender {
         }
         sendPayload(payload);
         return true;
-    }
-
-    /**
-     * Whether the selected ability touches an entity within reach, the radius
-     * the aim draws its ring at.
-     * decision mob-ability-touches-at-reach
-     *
-     * @param abilityId the selected ability id string
-     * @return true for a selected mob ability that flies a line
-     */
-    public static boolean selectedTouchesAtReach(@Nullable String abilityId) {
-        ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
-        return ability != null && GooTouchHandler.touchesAtReach(ability.delivery(), ability.badge());
     }
 
     /**

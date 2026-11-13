@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.ability;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.mercuriusxeno.goo.client.overlay.ArcRenderer;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mojang.serialization.DataResult;
@@ -224,17 +223,17 @@ class DeliveryTest {
         }
 
         /**
-         * A lob flight flies the peak the aim indicator draws for the same start
-         * and top face, whether the hand sits below the face or above it
+         * A lob flight flies the lob peak for its start and top face, whether
+         * the hand sits below the face or above it
          * (decision lob-apex-at-top-face-height).
          */
         @Test
-        void grannyArcFliesTheIndicatorPeak() {
+        void grannyArcFliesTheLobPeak() {
             Vec3 faceAboveHand = START.add(0, 2, 8);
             Vec3 faceBelowHand = START.add(0, -2, 8);
-            assertEquals(ArcRenderer.computeArcPeak(START, faceAboveHand, 1),
+            assertEquals(ThrowArc.lobPeak(START, faceAboveHand),
                     Delivery.ARC.peak(START, faceAboveHand, true), TOLERANCE);
-            assertEquals(ArcRenderer.computeArcPeak(START, faceBelowHand, 1),
+            assertEquals(ThrowArc.lobPeak(START, faceBelowHand),
                     Delivery.ARC.peak(START, faceBelowHand, true), TOLERANCE);
         }
 
@@ -307,22 +306,26 @@ class DeliveryTest {
     }
 
     /**
-     * Goop and Slick are the shipped streams whose spray follows the coat;
-     * every other stream's motes keep the crosshair-distance launch.
+     * Goop and Slick are the shipped streams throwing drips, so their spray
+     * lands where their coat lands; every other stream's motes keep the
+     * crosshair-distance launch.
      * goop-and-slick-spray-follows-the-coat
      */
     @Nested
     class SprayFollowsTheCoat {
 
+        /**
+         * goop-and-slick-coat-lands-where-each-drip-arc-strikes
+         */
         @Test
-        void goopAndSlickAloneSprayOntoTheirCoat() {
-            Set<Identifier> following = AbilityJson.files().stream()
-                    .filter(file -> AbilityJson.decode(file).delivery().sprayFollowsCoat())
+        void goopAndSlickAloneThrowDripsOnTheirArcs() {
+            Set<Identifier> throwing = AbilityJson.files().stream()
+                    .filter(file -> AbilityJson.decode(file).delivery().throwsDrips())
                     .map(file -> AbilityJson.idOf(file.getFileName().toString()))
                     .collect(Collectors.toSet());
 
             assertEquals(Set.of(Identifier.fromNamespaceAndPath("goo", "weird_goop"),
-                    Identifier.fromNamespaceAndPath("goo", "kinetic_slick")), following);
+                    Identifier.fromNamespaceAndPath("goo", "kinetic_slick")), throwing);
         }
     }
 
