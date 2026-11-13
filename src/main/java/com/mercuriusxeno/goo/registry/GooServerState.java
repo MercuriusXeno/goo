@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.frost.GlacialFields;
 import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
 import com.mercuriusxeno.goo.ability.program.MorphBirths;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
+import com.mercuriusxeno.goo.network.DripFlights;
 import com.mercuriusxeno.goo.network.FleckLaunches;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
 import com.mercuriusxeno.goo.network.ScanWaves;
@@ -13,8 +14,8 @@ import net.minecraft.world.level.Level;
 import org.jspecify.annotations.Nullable;
 
 /**
- * What one server holds between ticks: the goo effects and marker falls in
- * flight, and the stream holds. Each server holds its
+ * What one server holds between ticks: the goo effects, marker falls and
+ * spray drips in flight, and the stream holds. Each server holds its
  * own and a server stop clears it, so nothing in flight lands against a
  * stopped server's levels (decision type-package-and-per-server-holders).
  */
@@ -28,6 +29,7 @@ public final class GooServerState {
     private final StreamHolds streamHolds = new StreamHolds();
     private final GlacialFields glacialFields = new GlacialFields();
     private final ScanWaves scanWaves = new ScanWaves();
+    private final DripFlights dripFlights = new DripFlights();
 
     /**
      * Answers the state the server holds.
@@ -110,6 +112,16 @@ public final class GooServerState {
     }
 
     /**
+     * The spray drips in flight, each landing where its arc strikes
+     * (decision goop-and-slick-coat-lands-where-each-drip-arc-strikes).
+     *
+     * @return the drip flights
+     */
+    public DripFlights dripFlights() {
+        return dripFlights;
+    }
+
+    /**
      * @return how long each player has held a stream
      */
     public StreamHolds streamHolds() {
@@ -135,6 +147,9 @@ public final class GooServerState {
         if (scanWaves.hasPending()) {
             scanWaves.drainArrived(currentTick);
         }
+        if (dripFlights.hasPending()) {
+            dripFlights.tick(server);
+        }
         morphBirths.bearArrived(currentTick);
         blockExposures.decay(server);
         streamHolds.releaseLapsed(currentTick);
@@ -152,5 +167,6 @@ public final class GooServerState {
         morphBirths.clear();
         glacialFields.clear();
         scanWaves.clear();
+        dripFlights.clear();
     }
 }

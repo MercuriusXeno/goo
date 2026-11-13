@@ -18,6 +18,7 @@ import java.util.Optional;
  * caster itself.
  * glove-stream-motes-swing-with-the-glove-at-launch
  * goop-and-slick-spray-follows-the-coat
+ * goop-and-slick-coat-lands-where-each-drip-arc-strikes
  *
  * @param casterId    the spraying player
  * @param apex        the cone's apex, the glove the motes leave
@@ -28,9 +29,13 @@ import java.util.Optional;
  * @param travel      the caster's travel velocity, blocks per tick, which each mote launches with
  * @param coat        the coat the motes fly onto in place of their heading and speed, empty for a stream
  *                    whose spray does not follow its coat
+ * @param throwSpeed  the speed the stream throws its drips at along the cone's fan, each flying the arc the
+ *                    server's drip flies; {@link com.mercuriusxeno.goo.ability.Delivery#NO_THROW_SPEED} for motes
+ *                    off the arc
  */
 public record StreamMotesPayload(int casterId, Vec3 apex, Vec3 axis, Identifier particle, double coneDegrees,
-                                 double speed, Vec3 travel, Optional<CoatSpray> coat) implements CustomPacketPayload {
+                                 double speed, Vec3 travel, Optional<CoatSpray> coat, double throwSpeed)
+        implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
     public static final Type<StreamMotesPayload> TYPE =
@@ -46,6 +51,7 @@ public record StreamMotesPayload(int casterId, Vec3 apex, Vec3 axis, Identifier 
             ByteBufCodecs.DOUBLE, StreamMotesPayload::speed,
             Vec3.STREAM_CODEC, StreamMotesPayload::travel,
             ByteBufCodecs.optional(CoatSpray.STREAM_CODEC), StreamMotesPayload::coat,
+            ByteBufCodecs.DOUBLE, StreamMotesPayload::throwSpeed,
             StreamMotesPayload::new);
 
     @Override

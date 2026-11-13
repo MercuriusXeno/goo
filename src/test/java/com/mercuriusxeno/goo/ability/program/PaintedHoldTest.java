@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.network.HoldMarks;
 import com.mercuriusxeno.goo.throwing.CoatRay;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -125,7 +126,8 @@ class PaintedHoldTest {
         private static final double TOLERANCE = 1e-9;
         /** The floor's top face at y 0, the only block a ray meets. */
         private static final CoatRay.BlockClip FLOOR = (from, to) -> from.y > 0 && to.y <= 0
-                ? Optional.of(from.add(to.subtract(from).scale(from.y / (from.y - to.y))))
+                ? Optional.of(new CoatRay.BlockStrike(from.add(to.subtract(from).scale(from.y / (from.y - to.y))),
+                        BlockPos.ZERO, Direction.UP))
                 : Optional.empty();
 
         @Test

@@ -8,6 +8,8 @@ import com.mercuriusxeno.goo.ability.program.PetrifyStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mercuriusxeno.goo.throwing.StreamCone;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
@@ -91,7 +93,8 @@ class GooStreamHandlerTest {
         private static final double TOLERANCE = 1e-9;
         /** The floor's top face at y 0, the only block a ray meets. */
         private static final CoatRay.BlockClip FLOOR = (from, to) -> from.y > 0 && to.y <= 0
-                ? Optional.of(from.add(to.subtract(from).scale(from.y / (from.y - to.y))))
+                ? Optional.of(new CoatRay.BlockStrike(from.add(to.subtract(from).scale(from.y / (from.y - to.y))),
+                        BlockPos.ZERO, Direction.UP))
                 : Optional.empty();
         private static final CoatRay.BlockClip OPEN_AIR = (from, to) -> Optional.empty();
 
@@ -99,7 +102,7 @@ class GooStreamHandlerTest {
 
         private StreamMotesPayload coatMotes(Vec3 look, Vec3 travel) {
             return new StreamMotesPayload(1, GLOVE, look, DRIP, CONE, 0, travel,
-                    Optional.of(new CoatSpray(EYE, look, RANGE)));
+                    Optional.of(new CoatSpray(EYE, look, RANGE)), Delivery.NO_THROW_SPEED);
         }
 
         private void assertNear(Vec3 expected, Vec3 actual) {
@@ -112,7 +115,7 @@ class GooStreamHandlerTest {
         void aCoatMoteRestsWhereItsRayMeetsTheFloorShortOfTheRange() {
             Vec3 look = new Vec3(0, -0.5, 1).normalize();
             Vec3 direction = StreamCone.launchDirection(look, CONE, SHARE.tilt(), SHARE.turn());
-            Vec3 hit = FLOOR.firstHit(EYE, EYE.add(direction.scale(RANGE))).orElseThrow();
+            Vec3 hit = FLOOR.firstHit(EYE, EYE.add(direction.scale(RANGE))).orElseThrow().point();
             Vec3 end = hit.add(direction.scale(0.01));
             assertTrue(EYE.distanceTo(end) < RANGE, "the floor should stand short of the range");
 
@@ -155,7 +158,8 @@ class GooStreamHandlerTest {
             Vec3 axis = new Vec3(0.6, 0, 0.8);
             Vec3 travel = new Vec3(0.2, -0.1, 0.3);
             StreamMotesPayload spores = new StreamMotesPayload(1, GLOVE, axis, SPORE, 0,
-                    GooStreamHandler.crosshairSpeed(RANGE, crosshairDistance), travel, Optional.empty());
+                    GooStreamHandler.crosshairSpeed(RANGE, crosshairDistance), travel, Optional.empty(),
+                    Delivery.NO_THROW_SPEED);
 
             Vec3 launch = GooStreamHandler.moteLaunch(spores, SHARE, OPEN_AIR);
 

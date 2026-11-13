@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.StreamSound;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.ChannelHost;
+import com.mercuriusxeno.goo.ability.program.DripLanding;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.FloorReach;
 import com.mercuriusxeno.goo.ability.program.HostKind;
@@ -29,6 +30,7 @@ import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.CoatRay;
+import com.mercuriusxeno.goo.throwing.DripArc;
 import com.mercuriusxeno.goo.throwing.StreamCone;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -268,7 +270,7 @@ public final class GooStreamHandler {
         CastOn cast = new CastOn(level, player, ability.id());
         List<Step> entitySteps = channelSteps(ability.behaviors(), false);
         TickHeals heals = new TickHeals(new ArrayList<>(), new ArrayList<>());
-        if (delivery.range() > 0) {
+        if (delivery.range() > 0 || delivery.throwsDrips()) {
             // reserve-hearts-sit-behind-the-bar: a stream reaching nothing runs only on its caster
             List<LivingEntity> struck = sprayAndStrike(cast, apex, axis, ability, held);
             boolean heal = heals(entitySteps);
@@ -328,6 +330,12 @@ public final class GooStreamHandler {
                                                      int held) {
         ServerPlayer player = cast.player();
         Delivery delivery = ability.delivery();
+        if (delivery.throwsDrips()) {
+            List<LivingEntity> struck = runPasses(cast, apex, axis, ability, delivery, held);
+            throwDrips(player, apex, axis, ability);
+            sprayParticles(player, apex, axis, delivery, 0, travelOf(player), Optional.empty());
+            return struck;
+        }
         // decay-gnats-degrade-each-block-once: what the stream strikes follows the look; only its motes
         // fly from the hand, a mob-first swarm's converging on the mob it chases or the block it paints
         BlockHitResult crosshair = crosshairHit(player, delivery.range());
@@ -341,6 +349,54 @@ public final class GooStreamHandler {
                 crosshairSpeed(delivery.range(), apex.distanceTo(crosshair.getLocation())), travelOf(player),
                 coatOf(player, delivery));
         return struck;
+    }
+
+    /**
+     * Throws a stream's drips into flight from the cone's apex, one along
+     * each share of the cone's fan at the delivery's throw speed, carrying
+     * the caster's travel; each lands what the program's landing step lays
+     * where its arc strikes, during the hold or after it.
+     * goop-and-slick-coat-lands-where-each-drip-arc-strikes
+     *
+     * @param player  the spraying player
+     * @param apex    the cone's apex
+     * @param axis    the cone's axis
+     * @param ability the stream ability
+     */
+    private static void throwDrips(ServerPlayer player, Vec3 apex, Vec3 axis, AbilityDefinition ability) {
+        Optional<DripLanding> landing = DripLanding.in(channelSteps(ability.behaviors(), true));
+        if (landing.isEmpty()) {
+            return;
+        }
+        Delivery delivery = ability.delivery();
+        Vec3 travel = travelOf(player);
+        DripFlights flights = GooServerState.of(player.level().getServer()).dripFlights();
+        for (CoatRay.ConeShare share : CoatRay.coneFan()) {
+            flights.launch(new DripFlights.Flight(player.level().dimension(), player.getUUID(), ability,
+                    landing.get(), apex, DripArc.launch(axis, delivery.coneDegrees(), share, delivery.throwSpeed(),
+                    travel)));
+        }
+    }
+
+    /**
+     * Where a stream's block pass reaches along the look: the end of its
+     * range, or, for a stream throwing drips, where its axis drip's arc ends.
+     * goop-and-slick-coat-lands-where-each-drip-arc-strikes
+     *
+     * @param player the streaming player
+     * @param apex   the cone's apex
+     * @param axis   the look
+     * @param delivery the stream's delivery
+     * @return the point the block pass aims at
+     */
+    static Vec3 reachEnd(ServerPlayer player, Vec3 apex, Vec3 axis, Delivery delivery) {
+        if (!delivery.throwsDrips()) {
+            return player.getEyePosition().add(axis.scale(delivery.range()));
+        }
+        ServerLevel level = player.level();
+        return DripArc.flyToItsEnd(apex, DripArc.launch(axis, delivery.coneDegrees(), CoatRay.coneFan().getFirst(),
+                delivery.throwSpeed(), travelOf(player)), CoatRay.clipping(level), DripFlights.airspaceOf(level))
+                .position();
     }
 
     /**
@@ -448,21 +504,22 @@ public final class GooStreamHandler {
      * (decisions bore-vortex-with-a-worldspace-shake, petrify-stone-encasement-and-calcify-map).
      *
      * @param cast     the tick's cast
+     * @param apex     the cone's apex
      * @param axis     the look
      * @param delivery the stream's delivery this tick
      * @param ability  the stream ability
      * @param held     the hold's tick count, which a wave front grows by
      * @param reaching whether the pass reaches new blocks, false while a mob-first stream bites
      */
-    private static void runBlockPass(CastOn cast, Vec3 axis, Delivery delivery, AbilityDefinition ability, int held,
-                                     boolean reaching) {
+    private static void runBlockPass(CastOn cast, Vec3 apex, Vec3 axis, Delivery delivery, AbilityDefinition ability,
+                                     int held, boolean reaching) {
         List<Step> blockSteps = channelSteps(ability.behaviors(), true);
         if (blockSteps.isEmpty()) {
             return;
         }
         ServerPlayer player = cast.player();
-        ChannelAim aim = new ChannelAim(player.getEyePosition().add(axis.scale(delivery.range())), null,
-                delivery.coneDegrees(), held, reaching);
+        ChannelAim aim = new ChannelAim(reachEnd(player, apex, axis, delivery), null, delivery.coneDegrees(), held,
+                reaching);
         runSteps(PlayerHost.channeling(player.level(), player, aim, placementPrice(player, ability)), HostKind.PLAYER,
                 blockSteps, cast);
     }
@@ -580,7 +637,7 @@ public final class GooStreamHandler {
         // the operator's ruling: blocks already painted keep stepping while the swarm bites
         boolean mobFirst = ability.hasTag(AbilityTags.MOB_FIRST);
         List<LivingEntity> struck = mobFirst ? mostAlignedMob(inCone, cast.player().getEyePosition(), axis) : inCone;
-        runBlockPass(cast, axis, delivery, ability, held, !mobFirst || struck.isEmpty());
+        runBlockPass(cast, apex, axis, delivery, ability, held, !mobFirst || struck.isEmpty());
         return struck;
     }
 
@@ -605,9 +662,10 @@ public final class GooStreamHandler {
 
     /**
      * Tells the caster's watchers to launch this tick's motes of the
-     * delivery's particle from the glove. A stream whose spray follows its
-     * coat flies each mote to the end of one of the coat's rays (decision
-     * goop-and-slick-spray-follows-the-coat); any other flies each out along
+     * delivery's particle from the glove. A stream throwing drips flies each
+     * along one of its drips' arcs (decision goop-and-slick-coat-lands-where-each-drip-arc-strikes);
+     * a stream whose spray follows its coat flies each mote to the end of one
+     * of the coat's rays (decision goop-and-slick-spray-follows-the-coat); any other flies each out along
      * its own heading inside the cone at the speed given, coming to rest as
      * far off as the crosshair lands (decision mycosis-spore-stream-buds-and-poisons).
      * The clients launch them, naming the caster, so each mote swings with its own
@@ -624,7 +682,8 @@ public final class GooStreamHandler {
     static void sprayParticles(ServerPlayer player, Vec3 apex, Vec3 axis, Delivery delivery, double speed,
                                Vec3 travel, Optional<CoatSpray> coat) {
         delivery.particle().ifPresent(particle -> EntityVisuals.sendToWatchers(player, new StreamMotesPayload(
-                player.getId(), apex, axis, particle, delivery.coneDegrees(), speed, travel, coat)));
+                player.getId(), apex, axis, particle, delivery.coneDegrees(), speed, travel, coat,
+                delivery.throwSpeed())));
     }
 
     /**
