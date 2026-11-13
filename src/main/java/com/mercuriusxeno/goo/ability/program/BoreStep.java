@@ -110,7 +110,7 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, double vortexNearRa
         host.channelAim().ifPresent(aim -> {
             BorePick pick = BorePick.of(host.eye(), vortexNearRadius, vortexFarRadius, aim, host::airAt,
                     breakable);
-            host.gradualBreak().progress(pace.ratesByGroup(pick.groups()), host);
+            host.gradualBreak().progress(pace.ratesByGroup(pick.groups()), host, true);
             strikeIn(host, pick.tunnel());
         });
         return true;

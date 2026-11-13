@@ -71,7 +71,7 @@ class BoreStepTest {
             BlockPos pos = call.getArgument(0);
             return !standing.test(pos) && !solid.contains(pos);
         });
-        doAnswer(call -> broken.add(call.getArgument(0))).when(host).breakBlock(any());
+        doAnswer(call -> broken.add(call.getArgument(0))).when(host).breakBlockQuietly(any());
         return host;
     }
 
@@ -111,11 +111,11 @@ class BoreStepTest {
             for (int held = 1; held < PACE.breakTicks(); held++) {
                 run(host, bore);
             }
-            verify(host, never()).breakBlock(any());
+            verify(host, never()).breakBlockQuietly(any());
 
             run(host, bore);
-            verify(host).breakBlock(FIRST_ON_LINE);
-            verify(host, times(1)).breakBlock(any());
+            verify(host).breakBlockQuietly(FIRST_ON_LINE);
+            verify(host, times(1)).breakBlockQuietly(any());
         }
 
         @Test
@@ -153,9 +153,9 @@ class BoreStepTest {
             }
 
             for (int east = 1; east <= 4; east++) {
-                verify(host).breakBlock(new BlockPos(east, 2, 0));
+                verify(host).breakBlockQuietly(new BlockPos(east, 2, 0));
             }
-            verify(host, never()).breakBlock(beside);
+            verify(host, never()).breakBlockQuietly(beside);
         }
     }
 
@@ -256,7 +256,7 @@ class BoreStepTest {
             run(host, new BoreStep(BREAKABLE, PACE, NEAR, FAR, List.of(), List.of()));
 
             ArgumentCaptor<Map<BlockPos, Double>> rates = ArgumentCaptor.forClass(Map.class);
-            verify(gradualBreak).progress(rates.capture(), any());
+            verify(gradualBreak).progress(rates.capture(), any(), org.mockito.ArgumentMatchers.eq(true));
             assertTrue(rates.getValue().getOrDefault(BESIDE_THE_LINE, 0.0) > 0,
                     "the vortex's block gains no progress");
             assertTrue(rates.getValue().get(FIRST_ON_LINE) > rates.getValue().get(new BlockPos(4, 2, 0)),
@@ -278,8 +278,8 @@ class BoreStepTest {
                 run(host, bore);
             }
 
-            verify(host).breakBlock(FIRST_ON_LINE);
-            verify(host, times(1)).breakBlock(any());
+            verify(host).breakBlockQuietly(FIRST_ON_LINE);
+            verify(host, times(1)).breakBlockQuietly(any());
             ArgumentCaptor<List<BlockPos>> struck = ArgumentCaptor.forClass(List.class);
             verify(host, times(HELD_TICKS)).forEachLivingIn(struck.capture(), any(), any());
             assertEquals(Set.of(FIRST_ON_LINE), Set.copyOf(struck.getValue()));
