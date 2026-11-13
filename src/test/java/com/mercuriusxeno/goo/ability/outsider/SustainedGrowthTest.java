@@ -28,6 +28,11 @@ class SustainedGrowthTest {
     private static final double RING_FIVE_WHOLE = 5.5;
     /** The holding that stalled the game for seconds when the reckoner walked it tick by tick. */
     private static final double BILLION = 1.0E9;
+    /**
+     * Longer than the closed form takes on the busiest test machine, shorter than the seconds a walk of a billion
+     * mB took: 50 ms timed out under the whole suite's load though the closed form takes microseconds.
+     */
+    private static final Duration WALK_WOULD_TAKE_LONGER = Duration.ofSeconds(1);
 
     private final JsonObject outsider = JsonParser.parseString(AbilityJson.read("void_outsider")).getAsJsonObject()
             .getAsJsonArray("behaviors").get(0).getAsJsonObject();
@@ -88,7 +93,7 @@ class SustainedGrowthTest {
      */
     @Test
     void aBillionMillibucketsReckonsAtOnce() {
-        long ticks = assertTimeoutPreemptively(Duration.ofMillis(50), () -> SustainedGrowth.ticksAfforded(
+        long ticks = assertTimeoutPreemptively(WALK_WOULD_TAKE_LONGER, () -> SustainedGrowth.ticksAfforded(
                 RoomExtent.LAID, BILLION, 0, base, perDistance, ringTicks));
 
         assertTrue(ticks > 0, "a billion mB affords growth, reckons " + ticks);
