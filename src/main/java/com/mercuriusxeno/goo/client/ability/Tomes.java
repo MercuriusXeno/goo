@@ -84,8 +84,8 @@ public final class Tomes {
     /** Ticks after Fuse's merge its one book starts snapping shut. */
     private static final int CLOSE_AFTER_MERGE = 8;
     /** How far in front of the eyes the tome floats, and how far below them. */
-    private static final double REACH = 1.1;
-    private static final double DROP = 0.3;
+    static final double REACH = 1.1;
+    static final double DROP = 0.3;
     /** How far apart Fuse's two books float, each from the middle. */
     private static final double PAIR_SPREAD = 0.35;
     private static final double BOB_REACH = 0.03;
@@ -307,17 +307,18 @@ public final class Tomes {
         }
     }
 
+    private static Vec3 anchorOf(Player player, float partialTick) {
+        return anchorFrom(CameraEye.entitySight(player, partialTick));
+    }
+
     /**
-     * Where a player's tome floats: in front of their eyes along their look,
-     * a little below.
+     * Where a tome floats: in front of the eye along the look, a little below.
      *
-     * @param player      the player
-     * @param partialTick the partial tick
+     * @param sight the eye and look the tome is placed from, {@link CameraEye#of}'s
      * @return the tome's point
      */
-    private static Vec3 anchorOf(Player player, float partialTick) {
-        return player.getEyePosition(partialTick).add(player.getViewVector(partialTick).scale(REACH))
-                .add(0, -DROP, 0);
+    static Vec3 anchorFrom(CameraEye.Sight sight) {
+        return sight.eye().add(sight.look().scale(REACH)).add(0, -DROP, 0);
     }
 
     private static Vec3 sideOf(Player player, float partialTick) {
@@ -410,8 +411,9 @@ public final class Tomes {
     }
 
     private static void drawHeld(Pen pen, Player player, float partialTick, float time) {
-        Vec3 anchor = anchorOf(player, partialTick).add(0, Math.sin(time * BOB_PER_TICK) * BOB_REACH, 0);
-        Vec3 eye = player.getEyePosition(partialTick);
+        CameraEye.Sight sight = CameraEye.of(pen.mc(), player, partialTick);
+        Vec3 anchor = anchorFrom(sight).add(0, Math.sin(time * BOB_PER_TICK) * BOB_REACH, 0);
+        Vec3 eye = sight.eye();
         if (heldKind == TomeKind.FUSE) {
             Vec3 side = sideOf(player, partialTick).scale(PAIR_SPREAD);
             pen.draw(anchor.add(side), eye, 0f, 0f, holdFade);
@@ -422,8 +424,9 @@ public final class Tomes {
     }
 
     private static void drawShow(Pen pen, Player caster, Show show, float ticks, float partialTick) {
-        Vec3 anchor = anchorOf(caster, partialTick);
-        Vec3 eye = caster.getEyePosition(partialTick);
+        CameraEye.Sight sight = CameraEye.of(pen.mc(), caster, partialTick);
+        Vec3 anchor = anchorFrom(sight);
+        Vec3 eye = sight.eye();
         float flip = ticks * PAGE_FLIPS_PER_TICK;
         if (show.kind() == TomeKind.ENCHANT) {
             float alpha = showAlpha(ticks, SNAP_AT + 1, ENCHANT_TICKS);

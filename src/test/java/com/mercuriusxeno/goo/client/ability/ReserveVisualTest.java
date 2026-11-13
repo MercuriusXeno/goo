@@ -46,4 +46,33 @@ class ReserveVisualTest {
             assertEquals(1 + ReserveVisual.BOW, bow.y, DELTA);
         }
     }
+
+    /**
+     * Where the drain's motes and the banked ring spawn as the player sneaks:
+     * from the camera's eased eye above the feet in first person, from the
+     * body height otherwise
+     * (decision diagnose-and-correct-body-height-visuals-jumping-on-sneak).
+     */
+    @Nested
+    class OnSneak {
+
+        private static final Vec3 FEET = new Vec3(0, 64, 0);
+        private static final double CAMERA_ABOVE_FEET = 1.62;
+
+        private static double heightFor(boolean followsTheCamera, double bodyHeight) {
+            return CameraEye.bodyHeight(followsTheCamera, CAMERA_ABOVE_FEET, bodyHeight);
+        }
+
+        @Test
+        void inFirstPersonTheBodyHeightsStepMovesNeitherSpawnPoint() {
+            assertEquals(ReserveVisual.chestOf(FEET, heightFor(true, 1.8)), ReserveVisual.chestOf(FEET, heightFor(true, 1.5)));
+            assertEquals(ReserveVisual.ringOf(FEET, heightFor(true, 1.8)), ReserveVisual.ringOf(FEET, heightFor(true, 1.5)));
+        }
+
+        @Test
+        void outsideTheLocalFirstPersonViewTheSpawnPointsFollowTheBodyHeight() {
+            assertEquals(64 + 1.5 * ReserveVisual.CHEST_HEIGHT, ReserveVisual.chestOf(FEET, heightFor(false, 1.5)).y, DELTA);
+            assertEquals(64 + 1.5 * ReserveVisual.PULSE_HEIGHT, ReserveVisual.ringOf(FEET, heightFor(false, 1.5)).y, DELTA);
+        }
+    }
 }

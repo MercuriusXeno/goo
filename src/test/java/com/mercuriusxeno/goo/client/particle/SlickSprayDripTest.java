@@ -14,39 +14,51 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Slick's stream sprays the kinetic mist, the gnat-stream particle Goop's slime mist is, blending
- * two blues of the slime in Slick's block texture.
- * slick-coats-the-ground-with-kinetic-speed
+ * Slick's stream throws Slick's spray drip, the mod's blocky goo drip blending
+ * from its texture's light slime blue, 6A9AE0, to its dark slime blue, 2C7DC1.
+ * goop-and-slick-spray-throws-goo-drips-that-splat
  * slick-spray-takes-its-blue-slime-texture-colors
  */
-class KineticMistTest {
+class SlickSprayDripTest {
 
     private static final String SLICK_JSON = "/data/goo/goo_abilities/kinetic_slick.json";
     private static final String SLICK_TEXTURE = "/assets/goo/textures/block/kinetic_slick.png";
     private static final float CHANNEL_TOLERANCE = 1f / 255f;
 
     @Test
-    void slicksStreamSpraysTheKineticMist() throws IOException {
-        try (InputStream in = KineticMistTest.class.getResourceAsStream(SLICK_JSON)) {
+    void slicksStreamThrowsSlicksSprayDrip() throws IOException {
+        try (InputStream in = SlickSprayDripTest.class.getResourceAsStream(SLICK_JSON)) {
             assertNotNull(in, SLICK_JSON);
             JsonObject slick = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
-            assertEquals("goo:kinetic_mist", slick.getAsJsonObject("delivery").get("particle").getAsString());
+            assertEquals("goo:slick_spray_drip", slick.getAsJsonObject("delivery").get("particle").getAsString());
         }
     }
 
     @Test
-    void theKineticMistsEndsAreColorsOfSlicksTexture() throws IOException {
-        BufferedImage texture = slickTexture();
-        GnatPalette mist = GnatPalette.KINETIC_MIST;
+    void slicksSprayDripRunsFromTheLightSlimeBlueToTheDarkSlimeBlue() {
+        BlendPalette blues = BlendPalette.SLICK_SLIME_BLUES;
 
-        assertTrue(textureHolds(texture, mist.lightRed(), mist.lightGreen(), mist.lightBlue()),
-                "the light end should be a pixel of " + SLICK_TEXTURE + ", " + mist);
-        assertTrue(textureHolds(texture, mist.darkRed(), mist.darkGreen(), mist.darkBlue()),
-                "the dark end should be a pixel of " + SLICK_TEXTURE + ", " + mist);
+        assertEquals(0x6A9AE0, rgbOf(blues.lightRed(), blues.lightGreen(), blues.lightBlue()), blues.toString());
+        assertEquals(0x2C7DC1, rgbOf(blues.darkRed(), blues.darkGreen(), blues.darkBlue()), blues.toString());
+    }
+
+    @Test
+    void slicksSprayDripsEndsAreColorsOfSlicksTexture() throws IOException {
+        BufferedImage texture = slickTexture();
+        BlendPalette blues = BlendPalette.SLICK_SLIME_BLUES;
+
+        assertTrue(textureHolds(texture, blues.lightRed(), blues.lightGreen(), blues.lightBlue()),
+                "the light end should be a pixel of " + SLICK_TEXTURE + ", " + blues);
+        assertTrue(textureHolds(texture, blues.darkRed(), blues.darkGreen(), blues.darkBlue()),
+                "the dark end should be a pixel of " + SLICK_TEXTURE + ", " + blues);
+    }
+
+    private static int rgbOf(float red, float green, float blue) {
+        return Math.round(red * 255) << 16 | Math.round(green * 255) << 8 | Math.round(blue * 255);
     }
 
     private static BufferedImage slickTexture() throws IOException {
-        try (InputStream in = KineticMistTest.class.getResourceAsStream(SLICK_TEXTURE)) {
+        try (InputStream in = SlickSprayDripTest.class.getResourceAsStream(SLICK_TEXTURE)) {
             assertNotNull(in, SLICK_TEXTURE);
             return ImageIO.read(in);
         }

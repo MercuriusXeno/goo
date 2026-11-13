@@ -4,6 +4,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.ParticleProvider;
 import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.core.particles.SimpleParticleType;
+import net.minecraft.util.ARGB;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
@@ -33,7 +34,7 @@ public final class GnatParticle extends GloveMote {
     private @Nullable Supplier<Vec3> prey;
 
     private GnatParticle(ClientLevel level, double x, double y, double z, double vx, double vy, double vz,
-                         SpriteSet sprites, GnatPalette palette) {
+                         SpriteSet sprites, BlendPalette palette) {
         super(level, x, y, z, sprites.get(0, 1));
         this.xd = vx;
         this.yd = vy;
@@ -44,13 +45,13 @@ public final class GnatParticle extends GloveMote {
         tint(level.getRandom(), palette);
     }
 
-    private void tint(RandomSource random, GnatPalette palette) {
-        float blend = random.nextFloat();
+    private void tint(RandomSource random, BlendPalette palette) {
+        int color = palette.colorAt(random.nextFloat());
         this.lifetime = BASE_LIFETIME + random.nextInt(LIFETIME_VARIANCE);
         this.quadSize = BASE_QUAD_SIZE + random.nextFloat() * QUAD_SIZE_VARIANCE;
-        this.rCol = palette.lightRed() + (palette.darkRed() - palette.lightRed()) * blend;
-        this.gCol = palette.lightGreen() + (palette.darkGreen() - palette.lightGreen()) * blend;
-        this.bCol = palette.lightBlue() + (palette.darkBlue() - palette.lightBlue()) * blend;
+        this.rCol = ARGB.redFloat(color);
+        this.gCol = ARGB.greenFloat(color);
+        this.bCol = ARGB.blueFloat(color);
         this.alpha = START_ALPHA;
     }
 
@@ -100,7 +101,7 @@ public final class GnatParticle extends GloveMote {
     public static class Provider implements ParticleProvider<SimpleParticleType> {
 
         private final SpriteSet sprites;
-        private final GnatPalette palette;
+        private final BlendPalette palette;
 
         /**
          * Creates a provider over the gnat sprite, drawing Decay's maroon gnats.
@@ -108,7 +109,7 @@ public final class GnatParticle extends GloveMote {
          * @param sprites the sprite set
          */
         public Provider(SpriteSet sprites) {
-            this(sprites, GnatPalette.MAROON);
+            this(sprites, BlendPalette.MAROON);
         }
 
         /**
@@ -117,7 +118,7 @@ public final class GnatParticle extends GloveMote {
          * @param sprites the sprite set
          * @param palette the colors its gnats blend between
          */
-        public Provider(SpriteSet sprites, GnatPalette palette) {
+        public Provider(SpriteSet sprites, BlendPalette palette) {
             this.sprites = sprites;
             this.palette = palette;
         }

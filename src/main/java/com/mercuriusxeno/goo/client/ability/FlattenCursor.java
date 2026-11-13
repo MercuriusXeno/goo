@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -46,11 +47,25 @@ public final class FlattenCursor {
             return;
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        BlockPos aimed = new ChannelAim(GloveThrowSender.cursorPoint(player), plane)
-                .aimedBlock(player.getEyePosition(partialTick));
+        BlockPos cell = cellUnder(CameraEye.of(mc, player, partialTick).eye(),
+                GloveThrowSender.drawnCursorPoint(player, partialTick), plane);
         BurnoutFrame frame = new BurnoutFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera().position(), mc.level.getGameTime() + partialTick);
-        RockExplosionVisual.INSTANCE.renderCursor(frame, plane.cellOutFrom(aimed), plane.face());
+        RockExplosionVisual.INSTANCE.renderCursor(frame, cell, plane.face());
+    }
+
+    /**
+     * The cell the disc lies on: out from the press plane, in line with the
+     * block the cursor's point rests on, read along the line from the eye.
+     * decision diagnose-and-correct-eye-aimed-visuals-jumping-on-sneak
+     *
+     * @param eye         the eye the cursor's ray leaves from, {@link CameraEye#of}'s
+     * @param cursorPoint the drawn cursor's world point
+     * @param plane       the face the hold began on
+     * @return the cell
+     */
+    static BlockPos cellUnder(Vec3 eye, Vec3 cursorPoint, ChannelAim.FacePlane plane) {
+        return plane.cellOutFrom(new ChannelAim(cursorPoint, plane).aimedBlock(eye));
     }
 
     /**

@@ -13,7 +13,6 @@ import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
-import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
@@ -181,14 +180,48 @@ public final class HeatWaveEffect {
      * @return the point, in world coordinates
      */
     private static Vec3 reachPoint(LocalPlayer player, float partialTick, double reach) {
-        Vec3 eye = player.getEyePosition(partialTick);
-        Vec3 end = eye.add(player.getViewVector(partialTick).scale(reach));
-        BlockHitResult block = player.level().clip(new ClipContext(eye, end, ClipContext.Block.OUTLINE,
-                ClipContext.Fluid.NONE, player));
+        return reachAlong(CameraEye.of(Minecraft.getInstance(), player, partialTick), reach,
+                CameraEye.blocksSeenBy(player), (from, to) -> {
+                    EntityHitResult mob = ProjectileUtil.getEntityHitResult(player, from, to,
+                            new AABB(from, to).inflate(1), LivingEntity.class::isInstance, from.distanceToSqr(to));
+                    return mob == null ? null : mob.getLocation();
+                });
+    }
+
+    /**
+     * Finds the first living thing a line meets.
+     */
+    @FunctionalInterface
+    interface MobClip {
+
+        /**
+         * The first living thing the line meets.
+         *
+         * @param from the line's start
+         * @param to   the line's end
+         * @return where the line meets it, null where it meets none
+         */
+        @Nullable Vec3 firstMob(Vec3 from, Vec3 to);
+    }
+
+    /**
+     * Where the flame reaches along a sight: the first living thing or block
+     * the sight line meets within the reach, or the reach's end in open air.
+     * decision diagnose-and-correct-eye-aimed-visuals-jumping-on-sneak
+     *
+     * @param sight  the eye and look the line leaves from, {@link CameraEye#of}'s
+     * @param reach  the stream's reach
+     * @param blocks the clip the line is traced against
+     * @param mobs   the living things the line is traced against
+     * @return the point, in world coordinates
+     */
+    static Vec3 reachAlong(CameraEye.Sight sight, double reach, CameraEye.ViewClip blocks, MobClip mobs) {
+        Vec3 eye = sight.eye();
+        Vec3 end = eye.add(sight.look().scale(reach));
+        BlockHitResult block = blocks.clip(eye, end);
         Vec3 stop = block.getType() == HitResult.Type.BLOCK ? block.getLocation() : end;
-        EntityHitResult mob = ProjectileUtil.getEntityHitResult(player, eye, stop,
-                new AABB(eye, stop).inflate(1), LivingEntity.class::isInstance, eye.distanceToSqr(stop));
-        return mob != null ? mob.getLocation() : stop;
+        Vec3 mob = mobs.firstMob(eye, stop);
+        return mob != null ? mob : stop;
     }
 
     /**

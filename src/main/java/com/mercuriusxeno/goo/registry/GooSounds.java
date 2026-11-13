@@ -55,6 +55,10 @@ public final class GooSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> CLICK =
         SOUND_EVENTS.register("ability.click", () -> SoundEvent.createVariableRangeEvent(GooSoundIds.CLICK));
 
+    /** The echo Click's wave sheds on its way, rung at 5 under Sculker (decision click-travel-echoes-ring-at-rank-five). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> CLICK_TRAIL =
+        SOUND_EVENTS.register("ability.click_trail", () -> SoundEvent.createVariableRangeEvent(GooSoundIds.CLICK_TRAIL));
+
     /** A portal standing (decision portal-placement-plays-a-zap-that-opens-into-a-hum). */
     public static final DeferredHolder<SoundEvent, SoundEvent> PORTAL_PLACE =
         SOUND_EVENTS.register("effects.portal_place",
@@ -81,6 +85,11 @@ public final class GooSounds {
         SOUND_EVENTS.register("effects.outsider_conjure",
             () -> SoundEvent.createVariableRangeEvent(GooSoundIds.OUTSIDER_CONJURE));
 
+    /** The door carrying a player into the pocket (decision door-carries-its-own-sound-through-the-change). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> OUTSIDER_DOOR =
+        SOUND_EVENTS.register("effects.outsider_door",
+            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.OUTSIDER_DOOR));
+
     /** Void's hole opening (decision hole-opens-with-the-outsider-wub-pitched-up). */
     public static final DeferredHolder<SoundEvent, SoundEvent> HOLE_OPEN =
         SOUND_EVENTS.register("effects.hole_open",
@@ -90,6 +99,11 @@ public final class GooSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> HOLE_CLOSE =
         SOUND_EVENTS.register("effects.hole_close",
             () -> SoundEvent.createVariableRangeEvent(GooSoundIds.HOLE_CLOSE));
+
+    /** A residual Vacuum takes (decision vacuum-sounds-a-suction-wind-and-rising-slurps). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> VACUUM_SLURP =
+        SOUND_EVENTS.register("effects.vacuum_slurp",
+            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.VACUUM_SLURP));
 
     private GooSounds() {}
 }

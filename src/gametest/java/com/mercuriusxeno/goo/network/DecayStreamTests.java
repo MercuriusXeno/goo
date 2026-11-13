@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.DamageStep;
+import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -16,6 +18,7 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -41,9 +44,9 @@ public final class DecayStreamTests {
     private static final String DECAY_BITES_OFF_THE_AIM = "decay_bites_a_mob_off_the_aim";
     private static final String DECAY_BITES_PAST_THE_BLOCK_REACH = "decay_bites_a_mob_past_the_block_reach";
     private static final String SHOULD_BITE_PAST_THE_BLOCK_REACH =
-            "Decay's swarm should bite the zombie seven blocks off, inside its eight-block seek";
+            "Decay's swarm should bite the vindicator seven blocks off, inside its eight-block seek";
     private static final String SHOULD_BITE_OFF_THE_AIM =
-            "Decay's swarm should bite the zombie about 34 degrees off the aim, inside its 45 either side";
+            "Decay's swarm should bite the vindicator about 34 degrees off the aim, inside its 45 either side";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -61,6 +64,117 @@ public final class DecayStreamTests {
         GooTestFunctions.registerTest(registrar, DECAY_BITES_OFF_THE_AIM, DecayStreamTests::decayBitesAMobOffTheAim);
         GooTestFunctions.registerTest(registrar, DECAY_BITES_PAST_THE_BLOCK_REACH,
                 DecayStreamTests::decayBitesAMobPastTheBlockReach);
+        GooTestFunctions.registerTest(registrar, DECAY_HEALS_ZOMBIE, DecayStreamTests::decayHealsAWoundedZombie);
+        GooTestFunctions.registerTest(registrar, DECAY_HEALS_UNDEAD_CASTER, DecayStreamTests::decayHealsItsUndeadCaster);
+        GooTestFunctions.registerTest(registrar, DECAY_SPARES_LIVING_CASTER, DecayStreamTests::decaySparesItsLivingCaster);
+    }
+
+    /**
+     * A mock player holds decay on a wounded zombie: the swarm heals the
+     * zombie by a bite's amount each bite, and no faster than its bites land
+     * on a living mob, once each half second of i-frames.
+     * decay-and-hive-heal-an-undead-target
+     *
+     * @param helper the gametest helper
+     */
+    public static void decayHealsAWoundedZombie(GameTestHelper helper) {
+        BlockPos zombiePos = TARGET_POS.east();
+        helper.setBlock(zombiePos.below(), Blocks.BEDROCK);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, zombiePos);
+        // the helmet keeps the noon sun off the zombie, so only the swarm touches its health
+        zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
+        zombie.setHealth(WOUNDED_ZOMBIE_HEALTH);
+        ServerPlayer player = decayer(helper);
+        player.setXRot(LOOKING_AT_VINDICATOR);
+        float bite = biteAmount(helper);
+        hold(helper, player, 1, FINISH_TICKS);
+        helper.runAfterDelay(FINISH_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            float healed = zombie.getHealth() - WOUNDED_ZOMBIE_HEALTH;
+            float most = bite * bitesWithin(FINISH_TICKS);
+            helper.assertTrue(healed > 0 && healed <= most + HEALTH_SLACK,
+                    String.format(SHOULD_HEAL_AT_THE_BITE, healed, most));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A wounded player under nether's Undead holds decay at the open sky:
+     * the spray takes its caster in, and its bite heals the undead caster.
+     * undead-player-counts-as-undead-for-heal-and-decay
+     *
+     * @param helper the gametest helper
+     */
+    public static void decayHealsItsUndeadCaster(GameTestHelper helper) {
+        ServerPlayer undead = UndeadTests.undeadAt(helper, STAND_POS);
+        float health = holdDecayWounded(helper, undead);
+        helper.runAfterDelay(FINISH_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(undead);
+            helper.assertTrue(undead.getHealth() > health,
+                    String.format(SHOULD_HEAL_UNDEAD_CASTER, health, undead.getHealth()));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A wounded living survival player holds decay at the open sky: the
+     * spray takes its caster in and bites it not at all.
+     * undead-player-counts-as-undead-for-heal-and-decay
+     *
+     * @param helper the gametest helper
+     */
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    public static void decaySparesItsLivingCaster(GameTestHelper helper) {
+        ServerPlayer living = helper.makeMockServerPlayerInLevel();
+        // the mock player helper makes a creative player, whom no hit lands on
+        living.setGameMode(GameType.SURVIVAL);
+        // a player whose client has not reported loaded is invulnerable, and no mock client reports
+        living.connection.markClientLoaded();
+        float health = holdDecayWounded(helper, living);
+        helper.runAfterDelay(FINISH_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(living);
+            helper.assertTrue(living.getHealth() >= health,
+                    String.format(SHOULD_SPARE_LIVING_CASTER, health, living.getHealth()));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Wounds a caster, arms it with decay, stands it facing the open sky so
+     * the spray strikes no mob, and holds decay from it.
+     *
+     * @param helper the gametest helper
+     * @param caster the player to hold decay
+     * @return the health the caster was wounded to
+     */
+    private static float holdDecayWounded(GameTestHelper helper, ServerPlayer caster) {
+        AbilityDefinition decay = AbilityRegistry.of(helper.getLevel()).getAbility(NETHER_DECAY);
+        helper.assertTrue(decay != null, ABILITY_REQUIRED);
+        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STAND_POS));
+        caster.setPos(stand.x, stand.y, stand.z);
+        caster.setYRot(FACING_EAST);
+        caster.setXRot(LOOKING_AT_SKY);
+        caster.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
+        caster.getInventory().add(GooStacks.createForOutput(GooTypes.NETHER, HELD_GOO * GooStacks.THOUSAND));
+        KnownRecipes.teachRequires(caster, decay);
+        // a fed player regenerates, which would heal the caster whatever the spray does
+        caster.getFoodData().setFoodLevel(UNFED_FOOD);
+        caster.setHealth(WOUNDED_PLAYER_HEALTH);
+        hold(helper, caster, 1, FINISH_TICKS);
+        return WOUNDED_PLAYER_HEALTH;
+    }
+
+    /**
+     * The health one of Decay's bites takes, read from the spray's damage step.
+     *
+     * @param helper the gametest helper
+     * @return the bite's amount
+     */
+    private static float biteAmount(GameTestHelper helper) {
+        AbilityDefinition decay = AbilityRegistry.of(helper.getLevel()).getAbility(NETHER_DECAY);
+        helper.assertTrue(decay != null, ABILITY_REQUIRED);
+        return decay.behaviors().stream().filter(DamageStep.class::isInstance).map(DamageStep.class::cast)
+                .findFirst().orElseThrow().amount().evaluateFloat(Variables.NONE);
     }
 
 
@@ -86,15 +200,28 @@ public final class DecayStreamTests {
     private static final int FINISH_TICKS = STEP_TICKS + 10;
     private static final Identifier NETHER_DECAY = Identifier.parse("goo:nether_decay");
     private static final String ABILITY_REQUIRED = "Ability registry must hold nether_decay";
-    private static final String SHOULD_BITE = "Decay's swarm should bite the zombie in its cone";
+    private static final String SHOULD_BITE = "Decay's swarm should bite the vindicator in its cone";
     private static final String SHOULD_BITE_THROUGH_I_FRAMES =
-            "Decay's swarm bit %.2f health, one 2-point bite each half second of i-frames gives %.2f";
-    /** nether_decay.json's bite. */
-    private static final float BITE = 2f;
+            "Decay's swarm bit %.2f health, one bite each half second of i-frames gives %.2f";
+    private static final String DECAY_HEALS_ZOMBIE = "decay_heals_a_wounded_zombie";
+    private static final String DECAY_HEALS_UNDEAD_CASTER = "decay_heals_its_undead_caster";
+    private static final String DECAY_SPARES_LIVING_CASTER = "decay_spares_its_living_caster";
+    /** Under the eighteen food a player regenerates at, and above starving. */
+    private static final int UNFED_FOOD = 10;
+    /** A zombie's twenty less sixteen, room for a heal every tick to show past the bites' pace. */
+    private static final float WOUNDED_ZOMBIE_HEALTH = 4f;
+    /** Half a player's twenty, room to heal. */
+    private static final float WOUNDED_PLAYER_HEALTH = 10f;
+    private static final String SHOULD_HEAL_AT_THE_BITE =
+            "Decay's swarm should heal the zombie, at most a bite each half second; healed %.2f of at most %.2f";
+    private static final String SHOULD_HEAL_UNDEAD_CASTER =
+            "An undead player's own decay should heal it from %.1f, stands at %.2f";
+    private static final String SHOULD_SPARE_LIVING_CASTER =
+            "A living player's own decay should not harm it from %.1f, stands at %.2f";
     /** Vanilla's i-frames: a mob hit takes no hit of the same size again for half a second. */
     private static final int I_FRAME_TICKS = 10;
     private static final float HEALTH_SLACK = 0.01f;
-    /** A zombie stands two blocks out, in the cone the player aims at the stone three out. */
+    /** A vindicator stands two blocks out, in the cone the player aims at the stone three out. */
     private static final BlockPos IN_THE_CONE = STAND_POS.east(2);
     /**
      * Three blocks out and two to the player's left as it faces east: its
@@ -104,20 +231,20 @@ public final class DecayStreamTests {
     private static final BlockPos OFF_THE_AIM = STAND_POS.east(3).north(2);
     /** Seven blocks out, past the six the swarm paints blocks within and inside the eight it seeks a mob within. */
     private static final BlockPos PAST_THE_BLOCK_REACH = STAND_POS.east(7);
-    /** Pitch down from the eye onto the middle of a zombie seven blocks off. */
-    private static final float LOOKING_AT_FAR_ZOMBIE = 5.3f;
+    /** Pitch down from the eye onto the middle of a vindicator seven blocks off. */
+    private static final float LOOKING_AT_FAR_VINDICATOR = 5.3f;
     /**
-     * Pitch down onto the middle of a zombie four blocks off; the stone five
+     * Pitch down onto the middle of a vindicator four blocks off; the stone five
      * off, behind it, lies under three degrees from that line, inside the cone.
      */
-    private static final float LOOKING_AT_ZOMBIE = 9.2f;
+    private static final float LOOKING_AT_VINDICATOR = 9.2f;
     /**
      * Pitch down onto the stone's top face a tenth of a block short of its far
      * edge, ten degrees off the stone's center, outside the cone's five.
      */
     private static final float LOOKING_AT_FAR_EDGE = 10.3f;
-    /** The stone the swarm passes over for the zombie in front of it. */
-    private static final BlockPos BEHIND_ZOMBIE = TARGET_POS.east(2);
+    /** The stone the swarm passes over for the vindicator in front of it. */
+    private static final BlockPos BEHIND_VINDICATOR = TARGET_POS.east(2);
 
     private DecayStreamTests() {
     }
@@ -194,40 +321,39 @@ public final class DecayStreamTests {
     }
 
     /**
-     * A mock player holds decay on a zombie standing on stone: the swarm bites
-     * the zombie and paints no block, so the stone under it stands as stone
+     * A mock player holds decay on a vindicator standing on stone: the swarm bites
+     * the vindicator and paints no block, so the stone under it stands as stone
      * though the hold runs past a block's step.
      *
      * @param helper the gametest helper
      */
     public static void decayBitesTheMobAndSparesTheBlocks(GameTestHelper helper) {
-        BlockPos zombiePos = TARGET_POS.east();
-        helper.setBlock(zombiePos.below(), Blocks.BEDROCK);
-        helper.setBlock(BEHIND_ZOMBIE.below(), Blocks.BEDROCK);
-        helper.setBlock(BEHIND_ZOMBIE, Blocks.STONE);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, zombiePos);
-        zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
+        BlockPos vindicatorPos = TARGET_POS.east();
+        helper.setBlock(vindicatorPos.below(), Blocks.BEDROCK);
+        helper.setBlock(BEHIND_VINDICATOR.below(), Blocks.BEDROCK);
+        helper.setBlock(BEHIND_VINDICATOR, Blocks.STONE);
+        Mob vindicator = helper.spawnWithNoFreeWill(EntityType.VINDICATOR, vindicatorPos);
         ServerPlayer player = decayer(helper);
-        player.setXRot(LOOKING_AT_ZOMBIE);
+        player.setXRot(LOOKING_AT_VINDICATOR);
         // decay-gnats-degrade-each-block-once: the first bite waits while the gnats fly the gap
-        int flight = (int) Math.ceil(player.getEyePosition().distanceTo(zombie.getBoundingBox().getCenter())
+        int flight = (int) Math.ceil(player.getEyePosition().distanceTo(vindicator.getBoundingBox().getCenter())
                 / SwarmMotes.GNAT_SPEED);
         hold(helper, player, 1, FINISH_TICKS);
         helper.runAfterDelay(FINISH_TICKS + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
-            // then it bites 2 a bite, as often as the zombie's i-frames allow
-            float bitten = zombie.getMaxHealth() - zombie.getHealth();
-            float expected = BITE * bitesWithin(FINISH_TICKS - flight);
+            // then it bites 2 a bite, as often as the vindicator's i-frames allow
+            float bitten = vindicator.getMaxHealth() - vindicator.getHealth();
+            float expected = biteAmount(helper) * bitesWithin(FINISH_TICKS - flight);
             helper.assertTrue(Math.abs(bitten - expected) < HEALTH_SLACK,
                     String.format(SHOULD_BITE_THROUGH_I_FRAMES, bitten, expected));
-            helper.assertBlockPresent(Blocks.STONE, BEHIND_ZOMBIE);
+            helper.assertBlockPresent(Blocks.STONE, BEHIND_VINDICATOR);
             helper.succeed();
         });
     }
 
     /**
      * A mock player brushes decay across stone for a few ticks, short of half
-     * its step, then a zombie steps into the cone and the swarm bites it while
+     * its step, then a vindicator steps into the cone and the swarm bites it while
      * the hold goes on: the painted stone keeps stepping to cobblestone
      * through the bite (the operator's ruling on decision
      * decay-gnats-degrade-each-block-once).
@@ -238,21 +364,20 @@ public final class DecayStreamTests {
         ServerPlayer player = decayerOverStone(helper);
         helper.setBlock(IN_THE_CONE.below(), Blocks.BEDROCK);
         hold(helper, player, 1, BRUSH_TICKS + FINISH_TICKS);
-        Mob[] zombie = new Mob[1];
+        Mob[] vindicator = new Mob[1];
         helper.runAfterDelay(BRUSH_TICKS + 1, () -> {
-            zombie[0] = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, IN_THE_CONE);
-            zombie[0].setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
+            vindicator[0] = helper.spawnWithNoFreeWill(EntityType.VINDICATOR, IN_THE_CONE);
         });
         helper.runAfterDelay(BRUSH_TICKS + FINISH_TICKS + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(zombie[0].getHealth() < zombie[0].getMaxHealth(), SHOULD_BITE);
+            helper.assertTrue(vindicator[0].getHealth() < vindicator[0].getMaxHealth(), SHOULD_BITE);
             helper.assertBlockPresent(Blocks.COBBLESTONE, TARGET_POS);
             helper.succeed();
         });
     }
 
     /**
-     * A mock player holds decay on stone with a zombie standing well off the
+     * A mock player holds decay on stone with a vindicator standing well off the
      * aim, about 34 degrees to its left: the swarm seeks it out and bites it
      * (decision decay-gnats-degrade-each-block-once).
      *
@@ -261,33 +386,31 @@ public final class DecayStreamTests {
     public static void decayBitesAMobOffTheAim(GameTestHelper helper) {
         ServerPlayer player = decayerOverStone(helper);
         helper.setBlock(OFF_THE_AIM.below(), Blocks.BEDROCK);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, OFF_THE_AIM);
-        zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
+        Mob vindicator = helper.spawnWithNoFreeWill(EntityType.VINDICATOR, OFF_THE_AIM);
         hold(helper, player, 1, FINISH_TICKS);
         helper.runAfterDelay(FINISH_TICKS + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(zombie.getHealth() < zombie.getMaxHealth(), SHOULD_BITE_OFF_THE_AIM);
+            helper.assertTrue(vindicator.getHealth() < vindicator.getMaxHealth(), SHOULD_BITE_OFF_THE_AIM);
             helper.succeed();
         });
     }
 
     /**
-     * A mock player holds decay on a zombie seven blocks off, past the six
-     * blocks it paints within: the swarm still seeks the zombie out and bites
+     * A mock player holds decay on a vindicator seven blocks off, past the six
+     * blocks it paints within: the swarm still seeks the vindicator out and bites
      * it (decision decay-gnats-degrade-each-block-once).
      *
      * @param helper the gametest helper
      */
     public static void decayBitesAMobPastTheBlockReach(GameTestHelper helper) {
         helper.setBlock(PAST_THE_BLOCK_REACH.below(), Blocks.BEDROCK);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, PAST_THE_BLOCK_REACH);
-        zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
+        Mob vindicator = helper.spawnWithNoFreeWill(EntityType.VINDICATOR, PAST_THE_BLOCK_REACH);
         ServerPlayer player = decayer(helper);
-        player.setXRot(LOOKING_AT_FAR_ZOMBIE);
+        player.setXRot(LOOKING_AT_FAR_VINDICATOR);
         hold(helper, player, 1, FINISH_TICKS);
         helper.runAfterDelay(FINISH_TICKS + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(zombie.getHealth() < zombie.getMaxHealth(), SHOULD_BITE_PAST_THE_BLOCK_REACH);
+            helper.assertTrue(vindicator.getHealth() < vindicator.getMaxHealth(), SHOULD_BITE_PAST_THE_BLOCK_REACH);
             helper.succeed();
         });
     }

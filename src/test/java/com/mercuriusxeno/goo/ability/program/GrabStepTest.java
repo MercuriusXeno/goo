@@ -295,28 +295,32 @@ class GrabStepTest {
     }
 
     /**
-     * A blocked body's reach is the shorter of the straight line and a way
-     * through a linked pair, so a pair standing far off never lengthens it
+     * A body the eye does not see is reached the shorter way: straight, or
+     * round through a linked pair where that runs shorter, so a pair standing
+     * far off never stretches the reach past the straight line
      * (decision aim-and-shots-carry-through-linked-gates).
      */
     @Nested
-    class BlockedReach {
+    class ReachedLength {
 
-        private static final double STRAIGHT = 4.4;
+        /** The pig on the gametest's ledge: 4.4 blocks from the eye, its middle behind the ledge's edge. */
+        private static final double BEHIND_THE_LEDGE = 4.4;
+        /** The way round through another test's pair forty blocks off, as the full suite measured it. */
+        private static final double ROUND_A_FAR_PAIR = 85.6;
+        /** A way round through a pair beside the player, shorter than the walled straight line. */
+        private static final double THROUGH_A_NEAR_PAIR = 3.0;
+        private static final double EXACT = 1.0E-9;
 
         @Test
-        void aFarPairLeavesTheStraightReach() {
-            assertEquals(STRAIGHT, GrabStep.shorterWay(STRAIGHT, Optional.of(85.6)));
+        void aFarPairNeverStretchesTheReachOfAnUnseenBody() {
+            assertEquals(BEHIND_THE_LEDGE,
+                    GrabStep.reachedLength(BEHIND_THE_LEDGE, false, Optional.of(ROUND_A_FAR_PAIR)), EXACT);
         }
 
         @Test
-        void aNearPairShortensTheReach() {
-            assertEquals(3.0, GrabStep.shorterWay(STRAIGHT, Optional.of(3.0)));
-        }
-
-        @Test
-        void noPairLeavesTheStraightReach() {
-            assertEquals(STRAIGHT, GrabStep.shorterWay(STRAIGHT, Optional.empty()));
+        void aNearPairShortensTheReachOfAnUnseenBody() {
+            assertEquals(THROUGH_A_NEAR_PAIR,
+                    GrabStep.reachedLength(BEHIND_THE_LEDGE, false, Optional.of(THROUGH_A_NEAR_PAIR)), EXACT);
         }
     }
 }
