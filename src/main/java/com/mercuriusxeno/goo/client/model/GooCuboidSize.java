@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.client.model;
 
+import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
+
 /**
  * The goo cuboid's size by the volume it holds, against a thrown blob's size
  * in the item model, whose ground display draws it at half: a fleck at
@@ -16,7 +18,34 @@ final class GooCuboidSize {
     /** The volume in mB at which the cuboid stops growing, the largest sprite tier's. */
     static final double CAP_VOLUME = 1_000_000_000d;
 
+    /**
+     * The item model's ground display scale, item/generated's: a cuboid of a
+     * size in the model stands half as wide in the level, and a dropped goo
+     * item draws in the level at that same width.
+     */
+    static final float GROUND_DISPLAY_SCALE = 0.5f;
+
     private GooCuboidSize() {
+    }
+
+    /**
+     * A cuboid's size in the level, against a thrown blob's there, at a size in the item model.
+     *
+     * @param size the size against a thrown blob's in the item model
+     * @return the size in the level
+     */
+    static float sizeInLevel(float size) {
+        return size * GROUND_DISPLAY_SCALE;
+    }
+
+    /**
+     * A cuboid's half width in the level at a size, its shell's.
+     *
+     * @param size the size against a thrown blob's in the item model
+     * @return the half width in blocks
+     */
+    static double halfWidthInLevel(float size) {
+        return GooFlightRenderer.SHELL_HW * sizeInLevel(size);
     }
 
     /**

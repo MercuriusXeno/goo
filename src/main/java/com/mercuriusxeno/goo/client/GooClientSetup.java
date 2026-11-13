@@ -260,6 +260,8 @@ public final class GooClientSetup {
         // heater-prism-flames-nearby-creatures: a heater prism glows ember
         PrismComboStyles.register(HeaterPrismStyle.COMBO, new HeaterPrismStyle());
         event.registerBlockEntityRenderer(GooBlockEntities.STATUE.get(), StatueRenderer::new);
+        // decision flecks-move-by-flexible-goo-physics-and-stay-items: a dropped goo item draws as its cuboid, still
+        event.registerEntityRenderer(EntityType.ITEM, GooItemEntityRenderer::new);
         event.registerEntityRenderer(GooEntities.COMPRESSION_SPHERE.get(), CompressionSphereRenderer::new);
         event.registerEntityRenderer(GooEntities.FEED_PILE.get(), FeedPileRenderer::new);
         event.registerEntityRenderer(GooEntities.BLOCK_HUNK.get(), BlockHunkRenderer::new);

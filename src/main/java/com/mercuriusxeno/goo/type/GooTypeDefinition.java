@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.type;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
+import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.world.level.material.MapColor;
 import java.util.Locale;
@@ -34,11 +35,13 @@ import java.util.Locale;
  *                       per mB of this type it holds, 0 for a type that
  *                       sources nothing (decision infinity-sources-whatever-shares-its-vessel)
  * @param hueCycle       how the color channels drift around the hue wheel, {@link HueCycle#NONE} for a still type
+ * @param elasticity     the share of its speed into a block face a fleck of the type keeps rebounding off it,
+ *                       0 landing dead to 1 keeping all of it
  */
 public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, int bright, int highlight, int edge,
                                 int density, int viscosity, int temperature, boolean extinguishes, MapColor mapColor,
                                 float levity, int baseFlightTime, GooTypeTextures textures,
-                                int vesselSourcePerMb, HueCycle hueCycle) {
+                                int vesselSourcePerMb, HueCycle hueCycle, float elasticity) {
 
     /**
      * JSON key of {@link #peakLight}.
@@ -101,6 +104,11 @@ public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, 
      */
     public static final String VESSEL_SOURCE_PER_MB = "vessel_source_per_mb";
     /**
+     * JSON key for the share of its speed a fleck keeps rebounding off a block face.
+     * decision each-goo-type-carries-elasticity-and-viscosity
+     */
+    public static final String ELASTICITY = "elasticity";
+    /**
      * The rate of a type whose JSON leaves {@link #VESSEL_SOURCE_PER_MB} out.
      */
     public static final int NO_VESSEL_SOURCE = 0;
@@ -149,8 +157,31 @@ public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, 
             GooTypeTextures.CODEC.optionalFieldOf(TEXTURES, GooTypeTextures.NONE).forGetter(GooTypeDefinition::textures),
             Codec.intRange(0, Integer.MAX_VALUE).optionalFieldOf(VESSEL_SOURCE_PER_MB, NO_VESSEL_SOURCE)
                     .forGetter(GooTypeDefinition::vesselSourcePerMb),
-            HueCycle.MAP_CODEC.forGetter(GooTypeDefinition::hueCycle)
-    ).apply(instance, GooTypeDefinition::new));
+            Tail.MAP_CODEC.forGetter(Tail::of)
+    ).apply(instance, (peakLight, saturationFill, wheel, bright, highlight, edge, density, viscosity, temperature,
+                       extinguishes, mapColor, levity, baseFlightTime, textures, vesselSourcePerMb, tail) ->
+            new GooTypeDefinition(peakLight, saturationFill, wheel, bright, highlight, edge, density, viscosity,
+                    temperature, extinguishes, mapColor, levity, baseFlightTime, textures, vesselSourcePerMb,
+                    tail.hueCycle(), tail.elasticity())));
+
+    /**
+     * The type JSON's last fields, the hue cycle's and the elasticity, read as one
+     * group so the record's codec stays within the sixteen fields a group holds.
+     *
+     * @param hueCycle   how the color channels drift around the hue wheel
+     * @param elasticity the share of its speed a fleck keeps rebounding off a block face
+     */
+    private record Tail(HueCycle hueCycle, float elasticity) {
+
+        static final MapCodec<Tail> MAP_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+                HueCycle.MAP_CODEC.forGetter(Tail::hueCycle),
+                Codec.floatRange(0f, 1f).fieldOf(ELASTICITY).forGetter(Tail::elasticity)
+        ).apply(instance, Tail::new));
+
+        static Tail of(GooTypeDefinition definition) {
+            return new Tail(definition.hueCycle(), definition.elasticity());
+        }
+    }
 
     /**
      * Parses six hex digits into an RGB int.
