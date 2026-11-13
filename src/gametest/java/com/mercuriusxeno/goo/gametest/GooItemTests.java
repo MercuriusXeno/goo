@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.data.GooValueTable;
+import com.mercuriusxeno.goo.item.FleckHost;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
@@ -117,7 +118,9 @@ public final class GooItemTests {
     private static final double ABOVE_THE_FLOOR = 0.5;
     /** How near the wall's face a clinging fleck stands, test-relative x. */
     private static final double AT_THE_WALL = WALL_X - 0.5;
-    private static final Vec3 SECOND_GOO = new Vec3(2.5, 1, 1.5);
+    /** Two blocks along the wall from where the thrown goo clings. */
+    private static final Vec3 ALONG_THE_WALL = new Vec3(0, 0, 2);
+    private static final String NEVER_CLUNG = "The thrown thick goo should cling to the wall before its neighbor is spawned";
     private static final String THICK_NOT_ON_WALL = "The thick goo should still cling to the wall, standing at ";
     private static final String RUNNY_NOT_ON_FLOOR = "The runny goo should have dripped to the floor, standing at ";
 
@@ -147,8 +150,9 @@ public final class GooItemTests {
     }
 
     /**
-     * A thick goo item clinging to a wall and a same-type goo item two blocks
-     * from it stand as one goo item holding their summed volume.
+     * A thick goo item thrown at a wall reads clinging, and only then a
+     * same-type goo item is spawned two blocks along the wall from it; the two
+     * stand as one goo item holding their summed volume.
      * decision flecks-move-by-flexible-goo-physics-and-stay-items
      * decision combining-flecks-join-into-one-cuboid
      *
@@ -157,9 +161,17 @@ public final class GooItemTests {
     public static void clingingGooStillJoins(GameTestHelper helper) {
         layStoneFloor(helper);
         layWall(helper);
-        throwAtTheWall(helper, THICK_TYPE, THICK_THROW);
-        CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(THICK_TYPE, FAR_VOLUME), SECOND_GOO);
+        ItemEntity clinging = throwAtTheWall(helper, THICK_TYPE, THICK_THROW);
+        boolean[] spawned = {false};
+        helper.onEachTick(() -> {
+            if (!spawned[0] && clinging.isAlive() && ((FleckHost) clinging).goo$cling() != null) {
+                Vec3 beside = helper.relativeVec(clinging.position()).add(ALONG_THE_WALL);
+                CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(THICK_TYPE, FAR_VOLUME), beside);
+                spawned[0] = true;
+            }
+        });
         helper.succeedWhen(() -> {
+            helper.assertTrue(spawned[0], NEVER_CLUNG);
             List<Integer> volumes = helper.getLevel().getEntitiesOfClass(ItemEntity.class,
                             new AABB(helper.absolutePos(BlockPos.ZERO)).inflate(6),
                             item -> item.isAlive() && THICK_TYPE.equals(GooStacks.keyOf(item.getItem())))
