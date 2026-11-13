@@ -243,6 +243,43 @@ public enum ZapDevice {
     }
 
     /**
+     * Whether Tick pulses the block rather than toggling it: a device a Zap
+     * powers that no hand toggles, the repeater and every receiver in
+     * {@link #RECEIVERS}.
+     * tick-pulses-anything-a-signal-runs-while-held
+     *
+     * @param state the block's state
+     * @return true for a repeater or a redstone receiver
+     */
+    public static boolean pulsedByTick(BlockState state) {
+        return pulsedByTick(of(state.getBlock().getClass()), state.is(RECEIVERS));
+    }
+
+    /**
+     * Whether Tick pulses a block, read off its row and the receiver tag.
+     *
+     * @param row      the block's row
+     * @param receiver whether the block stands in {@link #RECEIVERS}
+     * @return true for the repeater's row, or the power source's row on a receiver
+     */
+    static boolean pulsedByTick(ZapDevice row, boolean receiver) {
+        return !row.byHand() && ticks(row, receiver);
+    }
+
+    /**
+     * Gives a repeater or a receiver the one pulse a Zap landing inside its
+     * cell would: the repeater fires its own, a receiver takes the power
+     * source in its first empty neighbor.
+     * tick-pulses-anything-a-signal-runs-while-held
+     *
+     * @param level  the server level
+     * @param device the repeater or receiver
+     */
+    public static void pulseInPlace(ServerLevel level, BlockPos device) {
+        pulse(level, device, device);
+    }
+
+    /**
      * Whether a hand toggles the row's devices: every row but the repeater's
      * pulse and the power source.
      *
