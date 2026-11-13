@@ -25,10 +25,13 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.component.DamageResistant;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
@@ -55,6 +58,40 @@ public final class GooItemTests {
         GooTestFunctions.registerTest(registrar, ITEM_THROWN_GOO_OWN_TYPE, GooItemTests::thrownGooLandOwnType);
         GooTestFunctions.registerTest(registrar, ITEM_TAB_DATAPACK_TYPE, GooItemTests::creativeTabOffersDatapackType);
         GooTestFunctions.registerTest(registrar, EXO_GAUNTLET_KEEPS_BENEFITS, GooItemTests::exoGauntletKeepsBenefits);
+        GooTestFunctions.registerTest(registrar, ITEM_GOO_JOINS_FROM_TWO_BLOCKS, GooItemTests::gooTwoBlocksApartJoins);
+    }
+
+    private static final String ITEM_GOO_JOINS_FROM_TWO_BLOCKS = "item_goo_joins_from_two_blocks";
+    /** Two blocks apart on the floor, farther than vanilla's own item merge reaches. */
+    private static final Vec3 NEAR_GOO = new Vec3(1.5, 1, 2.5);
+    private static final Vec3 FAR_GOO = new Vec3(3.5, 1, 2.5);
+    private static final int NEAR_VOLUME = 30;
+    private static final int FAR_VOLUME = 12;
+    private static final String GOO_NOT_JOINED = "Two same-type goo items two blocks apart should stand as one "
+            + "goo item holding their summed volume; the goo items standing hold ";
+
+    /**
+     * Two same-type goo items dropped two blocks apart on a stone floor draw
+     * together and stand as one goo item entity holding their summed volume.
+     * decision combining-flecks-join-into-one-cuboid
+     *
+     * @param helper the gametest helper
+     */
+    public static void gooTwoBlocksApartJoins(GameTestHelper helper) {
+        for (int x = 0; x < 6; x++) {
+            for (int z = 0; z < 6; z++) {
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
+            }
+        }
+        CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(GooTypes.ZOO, NEAR_VOLUME), NEAR_GOO);
+        CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(GooTypes.ZOO, FAR_VOLUME), FAR_GOO);
+        helper.succeedWhen(() -> {
+            List<Integer> volumes = helper.getLevel().getEntitiesOfClass(ItemEntity.class,
+                            new AABB(helper.absolutePos(BlockPos.ZERO)).inflate(6),
+                            item -> item.isAlive() && GooTypes.ZOO.equals(GooStacks.keyOf(item.getItem())))
+                    .stream().map(item -> GooStacks.volumeOf(item.getItem())).toList();
+            helper.assertTrue(volumes.equals(List.of(NEAR_VOLUME + FAR_VOLUME)), GOO_NOT_JOINED + volumes);
+        });
     }
 
 

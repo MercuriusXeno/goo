@@ -38,7 +38,10 @@ public class GooCuboidSpecialRenderer implements SpecialModelRenderer<GooCuboidS
     }
 
     /**
-     * Extracts the goo type the stack carries.
+     * Extracts the goo type the stack carries and the size it draws at: a
+     * running join's eased size while the stack is that join's anchor's, its
+     * volume's size otherwise.
+     * decision combining-flecks-join-into-one-cuboid
      *
      * @param stack the goo item stack
      * @return the cuboid to draw, or null for a stack with no goo type
@@ -46,7 +49,11 @@ public class GooCuboidSpecialRenderer implements SpecialModelRenderer<GooCuboidS
     @Override
     public @Nullable GooCuboid extractArgument(ItemStack stack) {
         ResourceKey<GooTypeDefinition> type = GooStacks.keyOf(stack);
-        return type == null ? null : new GooCuboid(type, GooStacks.volumeOf(stack));
+        if (type == null) {
+            return null;
+        }
+        Float joining = GooJoins.anchorSizeOf(stack);
+        return joining != null ? new GooCuboid(type, joining) : GooCuboid.ofVolume(type, GooStacks.volumeOf(stack));
     }
 
     /**
@@ -72,7 +79,7 @@ public class GooCuboidSpecialRenderer implements SpecialModelRenderer<GooCuboidS
         }
         ResourceKey<GooTypeDefinition> type = data.type();
         float gameTime = GloveSpecialRenderer.gameTime();
-        float size = GooCuboidSize.sizeOf(data.volume());
+        float size = data.size();
         poseStack.pushPose();
         poseStack.translate(MODEL_CENTER, MODEL_CENTER, MODEL_CENTER);
         nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.solidOnBlockAtlas(),
@@ -97,10 +104,22 @@ public class GooCuboidSpecialRenderer implements SpecialModelRenderer<GooCuboidS
     /**
      * The goo item's render data.
      *
-     * @param type   the goo type the stack carries
-     * @param volume the goo the stack holds, in mB
+     * @param type the goo type the stack carries
+     * @param size the cuboid's size against a thrown blob's
      */
-    public record GooCuboid(ResourceKey<GooTypeDefinition> type, double volume) {
+    public record GooCuboid(ResourceKey<GooTypeDefinition> type, float size) {
+
+        /**
+         * The cuboid a stack draws as at rest, sized by its volume.
+         * decision fleck-size-follows-volume-on-a-log-scale
+         *
+         * @param type   the goo type the stack carries
+         * @param volume the goo the stack holds, in mB
+         * @return the cuboid
+         */
+        public static GooCuboid ofVolume(ResourceKey<GooTypeDefinition> type, double volume) {
+            return new GooCuboid(type, GooCuboidSize.sizeOf(volume));
+        }
     }
 
     /**
