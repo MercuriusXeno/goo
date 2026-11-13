@@ -56,8 +56,11 @@ public final class WeirdTests {
     private static final BlockPos POOL_FLOOR = new BlockPos(2, 0, 2);
     private static final BlockPos STREAMER_POS = new BlockPos(0, 1, 2);
     private static final float FACING_EAST = -90f;
-    /** Pitched down at the floor three and four blocks east, so both floor cells stand in Goop's cone. */
-    private static final float AT_THE_FLOOR = 32f;
+    /**
+     * Past the far lava cell's east side, low in the floor, where the axis drip is aimed, so its arc ends beyond
+     * both lava cells and both stand in the cone out to it.
+     */
+    private static final Vec3 PAST_THE_LAVA = new Vec3(4.9, 0.1, 2.5);
     /** Pitched a little down at a zombie four blocks east. */
     private static final float AT_THE_ZOMBIE = 8f;
     /** Two floor cells three and four blocks east of the streamer, inside Goop's cone pitched at the floor. */
@@ -79,10 +82,11 @@ public final class WeirdTests {
     private static final String GOOP_PAST_NINE_TENTHS_FINISHES = "goop_past_nine_tenths_finishes_after_release";
     /** Three blocks east of the streamer, at its height, on a block the test lays. */
     private static final BlockPos COATED_POS = STREAMER_POS.east(3);
-    /** Pitch down from the eye toward the stone's center three blocks off. */
-    private static final float AT_THE_STONE = 20.5f;
     /** Ticks past a coat's worth, so a coat has surely landed. */
     private static final int COAT_SLACK_TICKS = 5;
+    /** Ticks a hold's last drips take to fall onto a cell three blocks off, with room to spare. */
+    private static final int DRIP_FLIGHT_TICKS = 10;
+
     /** Coats a hold lays on one cell in the layering test. */
     private static final int THREE_COATS = 3;
     /** Coats the turned-to cell takes in the two cell hold. */
@@ -464,7 +468,8 @@ public final class WeirdTests {
         for (BlockPos cell : LAVA_CELLS) {
             helper.setBlock(cell, Blocks.LAVA);
         }
-        ServerPlayer streamer = streamerAt(helper, AT_THE_FLOOR);
+        ServerPlayer streamer = streamerAt(helper, 0);
+        aimDripAt(helper, streamer, helper.absoluteVec(PAST_THE_LAVA));
         holdGoop(helper, streamer, () -> {
             for (BlockPos cell : LAVA_CELLS) {
                 helper.assertTrue(helper.getBlockState(cell).is(Blocks.MAGMA_BLOCK), LAVA_LEFT + cell);
@@ -482,7 +487,8 @@ public final class WeirdTests {
         ServerPlayer streamer = goopStreamerOverStone(helper);
         int hold = coatTicks(helper) + COAT_SLACK_TICKS;
         holdGoopFor(helper, streamer, hold);
-        helper.runAfterDelay(hold + 1, () -> {
+        // goop-and-slick-coat-lands-where-each-drip-arc-strikes: the hold's last drips land after it ends
+        helper.runAfterDelay(hold + DRIP_FLIGHT_TICKS, () -> {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
             helper.assertBlockPresent(GooBlocks.SLIME_COAT.get(), COATED_POS.above());
             helper.assertBlockPresent(Blocks.STONE, COATED_POS);
@@ -520,12 +526,21 @@ public final class WeirdTests {
      */
     public static void goopStopsAReachedCellAtAWholeBlock(GameTestHelper helper) {
         ServerPlayer streamer = goopStreamerOverStone(helper);
-        streamer.setXRot(AT_THE_SLIME);
+        // stood a block up, so the drips fall onto the slime's top rather than rising into its side
+        helper.setBlock(STREAMER_POS, Blocks.STONE);
+        streamer.setPos(streamer.getX(), streamer.getY() + 1, streamer.getZ());
         BlockPos sprayed = COATED_POS.above();
         wallInFacingWest(helper, sprayed);
         helper.setBlock(sprayed, slimeOf(SlimeCoatBlock.MAX_LAYERS - 2));
         int held = coatTicks(helper) * THREE_COATS + HOLD_SLACK_TICKS;
-        holdGoopFor(helper, streamer, held);
+        GooStreamPayload tick = goopTick(streamer);
+        for (int at = 1; at <= held; at++) {
+            helper.runAfterDelay(at, () -> {
+                // a drip striking the slime's side lays nothing, so the aim follows the slime's top as it thickens
+                aimDripAtTopOf(helper, streamer, sprayed);
+                GooStreamHandler.streamTick(streamer, tick);
+            });
+        }
         helper.runAfterDelay(held + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
             assertLayers(helper, sprayed, SlimeCoatBlock.MAX_LAYERS);
@@ -682,10 +697,10 @@ public final class WeirdTests {
         int coat = coatTicks(helper);
         int pastNineTenths = coat - 1;
         holdGoopFor(helper, streamer, pastNineTenths);
-        helper.runAfterDelay(pastNineTenths, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(streamer);
-        });
         helper.runAfterDelay(pastNineTenths + coat, () -> {
+            // goop-and-slick-coat-lands-where-each-drip-arc-strikes: the streamer stays to pay for the drips still
+            // falling at release
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
             helper.assertBlockPresent(GooBlocks.SLIME_COAT.get(), COATED_POS.above());
             helper.succeed();
         });
@@ -712,9 +727,37 @@ public final class WeirdTests {
     private static ServerPlayer goopStreamerOverStone(GameTestHelper helper) {
         helper.setBlock(COATED_POS.below(), Blocks.BEDROCK);
         helper.setBlock(COATED_POS, Blocks.STONE);
-        return goopStreamerAt(helper, AT_THE_STONE);
+        ServerPlayer streamer = goopStreamerAt(helper, 0);
+        aimDripAtTopOf(helper, streamer, COATED_POS.above());
+        return streamer;
     }
 
+    /**
+     * Aims a streamer's axis drip down onto the middle of a cell's floor or
+     * of the slime standing in it, since a drip striking a side lays nothing.
+     * goop-and-slick-coat-lands-where-each-drip-arc-strikes
+     *
+     * @param helper   the gametest helper
+     * @param streamer the streaming player
+     * @param cell     the cell
+     */
+    private static void aimDripAtTopOf(GameTestHelper helper, ServerPlayer streamer, BlockPos cell) {
+        double top = (double) SlimeCoatBlock.layersOf(helper.getBlockState(cell)) / SlimeCoatBlock.MAX_LAYERS;
+        aimDripAt(helper, streamer, Vec3.atBottomCenterOf(helper.absolutePos(cell)).add(0, top, 0));
+    }
+
+    /**
+     * Aims a streamer's axis drip at a point at the live Goop's throw speed.
+     *
+     * @param helper   the gametest helper
+     * @param streamer the streaming player
+     * @param target   the point, in world space
+     */
+    private static void aimDripAt(GameTestHelper helper, ServerPlayer streamer, Vec3 target) {
+        AbilityDefinition goop = AbilityRegistry.of(helper.getLevel()).getAbility(GOOP);
+        helper.assertTrue(goop != null, ABILITY_REQUIRED);
+        DripAim.at(streamer, target, goop.delivery().throwSpeed(), Vec3.ZERO);
+    }
     /**
      * Stands a Goop streamer at the bay's west side facing east, pitched down.
      *

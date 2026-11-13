@@ -5,10 +5,10 @@ import com.mercuriusxeno.goo.client.particle.BlendPalette;
 import com.mercuriusxeno.goo.client.particle.SprayDripParticle;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.type.GooTypes;
-import com.mercuriusxeno.goo.network.CoatSpray;
 import com.mercuriusxeno.goo.network.KnifeRainSling;
 import com.mercuriusxeno.goo.network.StreamMotesPayload;
 import com.mercuriusxeno.goo.throwing.CoatRay;
+import com.mercuriusxeno.goo.throwing.DripArc;
 import net.minecraft.client.Camera;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
@@ -55,8 +55,8 @@ import static org.mockito.Mockito.when;
 /**
  * A Goop or Slick spray drip draws nothing before its first tick, the frames
  * the lifted palm blob alone stands where it is, and is first drawn in
- * flight from the blob, as the blob stood at the tick's start, toward its
- * coat end, even on a spray's first ticks while the blob still eases off the
+ * flight from the blob, as the blob stood at the tick's start, at the launch
+ * its server drip took, even on a spray's first ticks while the blob still eases off the
  * palm toward the spray source, a point held in the caster's view ahead of
  * the eye, out to the glove's side and a little below the look; for the
  * local caster and for another player, standing, walking, strafing and
@@ -67,6 +67,7 @@ import static org.mockito.Mockito.when;
  * goop-and-slick-spray-emanates-from-the-glove
  * diagnose-and-correct-the-spray-not-leaving-the-glove
  * palm-blob-lifts-as-the-spray-source
+ * goop-and-slick-coat-lands-where-each-drip-arc-strikes
  */
 class StreamMotesTest {
 
@@ -80,22 +81,15 @@ class StreamMotesTest {
     /** Ticks from the stream's tick being handled to the drips' first tick. */
     private static final double FIRST_TICK = 2;
     private static final float PARTIAL_TICK = 0.5f;
-    /**
-     * The most a drip's first drawn quad strays off the line from the source
-     * to its coat end: half a step of the arc's lift, at most 0.13 a tick on
-     * an eight-block flight, and of the caster's travel, at most 0.28 here.
-     */
-    private static final double OFF_THE_LINE = 0.25;
+    /** Goop's throw speed, blocks per tick. */
+    private static final double THROW_SPEED = 0.6;
+    /** How far a drip's first drawn quad may stray from half its launch out of the blob: the quad's float precision. */
+    private static final double ON_THE_LAUNCH = 1e-3;
     /** How far short of the spray source the blob stands while it still eases off the palm. */
     private static final double STILL_EASING = 0.05;
     /** How near the blob's place a drip's flight starts: the quad's float precision. */
     private static final double LEFT_THE_BLOB = 1e-4;
-    /**
-     * The farthest a drip's first drawn quad stands from where it left: half
-     * a tick at its 0.6 a tick pace, plus half a tick of the arc's lift and
-     * the caster's travel.
-     */
-    private static final double FIRST_HALF_STEP = 0.55;
+
     private static final float WORLD_FOV = 70f;
 
     /**
@@ -168,28 +162,29 @@ class StreamMotesTest {
     private static void assertFirstDrawnInFlightFromTheBlob(Caster caster, boolean local) {
         double[] now = {0};
         List<SprayDripParticle> drips = new ArrayList<>();
-        List<Vec3> coatEnds = new ArrayList<>();
+        List<Vec3> launches = new ArrayList<>();
         Minecraft minecraft = clientDrawing(drips, caster, local, now);
         try (MockedStatic<Minecraft> mc = mockStatic(Minecraft.class);
              MockedStatic<SimpleParticles> particles = mockStatic(SimpleParticles.class);
              MockedStatic<CoatRay> rays = mockStatic(CoatRay.class, CALLS_REAL_METHODS);
+             MockedStatic<DripArc> arcs = mockStatic(DripArc.class, CALLS_REAL_METHODS);
              MockedStatic<KnifeRainSling> sling = mockStatic(KnifeRainSling.class);
              MockedStatic<GooGloveItem> gloves = mockStatic(GooGloveItem.class)) {
             mc.when(Minecraft::getInstance).thenReturn(minecraft);
             gloves.when(() -> GooGloveItem.getSelectedType(any())).thenReturn(GooTypes.ZOO);
             particles.when(() -> SimpleParticles.resolve(any())).thenReturn(Optional.of(mock(SimpleParticleType.class)));
             rays.when(() -> CoatRay.clipping(any())).thenReturn((CoatRay.BlockClip) (from, to) -> Optional.empty());
-            rays.when(() -> CoatRay.end(any(), any(), any(), anyDouble(), anyDouble(), any())).thenAnswer(call -> {
-                Vec3 coatEnd = (Vec3) call.callRealMethod();
-                coatEnds.add(coatEnd);
-                return coatEnd;
+            arcs.when(() -> DripArc.launch(any(), anyDouble(), any(), anyDouble(), any())).thenAnswer(call -> {
+                Vec3 launch = (Vec3) call.callRealMethod();
+                launches.add(launch);
+                return launch;
             });
             sling.when(() -> KnifeRainSling.gloveOnTheRight(any())).thenReturn(true);
 
             // the server's echo carries the glove a tick before the stream's tick reaches this client
             StreamMotes.handle(new StreamMotesPayload(CASTER, sourceOf(caster, -1), new Vec3(0, -0.5, 1).normalize(),
-                    Identifier.fromNamespaceAndPath("goo", "goop_spray_drip"), 16, 0, caster.travel(),
-                    Optional.of(new CoatSpray(EYE, new Vec3(0, -0.5, 1).normalize(), 8))), runningAtOnce());
+                    Identifier.fromNamespaceAndPath("goo", "goop_spray_drip"), 16, 0, caster.travel(), THROW_SPEED, false),
+                    runningAtOnce());
             now[0] = FIRST_DRAWN;
 
             assertTrue(!drips.isEmpty(), "the stream's tick should launch spray drips");
@@ -207,25 +202,19 @@ class StreamMotesTest {
                 Vec3 left = drawnAt(drip, 0f);
                 assertTrue(left.distanceTo(blob) <= LEFT_THE_BLOB, "a drip should leave the blob where it stands, "
                         + blob + ", left from " + left);
-                assertInFlightOnTheLine(drawnAt(drip, PARTIAL_TICK), blob, coatEnds.get(i));
+                assertDrawnOnItsLaunch(drawnAt(drip, PARTIAL_TICK), blob, launches.get(i));
             }
         }
     }
 
     /**
-     * Asserts a drawn point lies past the blob along the line to the coat
-     * end and within {@link #OFF_THE_LINE} of it.
+     * Asserts a drawn point stands half its launch out of the blob, as half
+     * a tick of flight carries a drip thrown from the blob at that launch.
      */
-    private static void assertInFlightOnTheLine(Vec3 drawn, Vec3 blob, Vec3 coatEnd) {
-        Vec3 line = coatEnd.subtract(blob);
-        double along = drawn.subtract(blob).dot(line) / line.lengthSqr();
-        Vec3 nearest = blob.add(line.scale(along));
-        assertTrue(along > 0 && along < 1, "a drip's first quad should lie past the blob " + blob
-                + " toward its coat end " + coatEnd + ", drawn at " + drawn + ", " + along + " of the way");
-        assertTrue(drawn.distanceTo(nearest) <= OFF_THE_LINE, "a drip's first quad should lie on the line from the"
-                + " blob to its coat end, drawn " + drawn.distanceTo(nearest) + " blocks off it");
-        assertTrue(drawn.distanceTo(blob) <= FIRST_HALF_STEP, "a drip's first quad should be half a step out of "
-                + "the blob, drawn " + drawn.distanceTo(blob) + " blocks from it");
+    private static void assertDrawnOnItsLaunch(Vec3 drawn, Vec3 blob, Vec3 launch) {
+        Vec3 halfway = blob.add(launch.scale(PARTIAL_TICK));
+        assertTrue(drawn.distanceTo(halfway) <= ON_THE_LAUNCH, "a drip's first quad should stand half its launch "
+                + launch + " out of the blob " + blob + ", at " + halfway + ", drawn at " + drawn);
     }
 
     private static Minecraft clientDrawing(List<SprayDripParticle> drips, Caster caster, boolean local,
@@ -233,6 +222,7 @@ class StreamMotesTest {
         Minecraft minecraft = mock(Minecraft.class);
         ClientLevel level = mock(ClientLevel.class, RETURNS_DEEP_STUBS);
         when(level.getRandom()).thenReturn(RandomSource.create(1L));
+        when(level.hasChunk(anyInt(), anyInt())).thenReturn(true);
         minecraft.level = level;
         when(level.getGameTime()).thenAnswer(call -> (long) Math.floor(now[0]));
         Player player = local ? mock(LocalPlayer.class) : mock(Player.class);

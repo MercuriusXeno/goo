@@ -38,8 +38,8 @@ public class GooParticles {
         PARTICLE_TYPES.register("gnat", () -> new SimpleParticleType(false));
 
     /**
-     * Goop's spray drip: the mod's blocky goo drip in slime greens, thrown
-     * onto the end of its coat ray, where it splats.
+     * Goop's spray drip: the mod's blocky goo drip in slime greens, flying
+     * its arc until it strikes, where it splats and the coat lands.
      * goop-and-slick-spray-throws-goo-drips-that-splat
      * goop-sprays-a-slime-colored-mist
      */
@@ -48,7 +48,7 @@ public class GooParticles {
 
     /**
      * Slick's spray drip: the mod's blocky goo drip in the blue slime of
-     * Slick's texture, thrown onto the end of its coat ray, where it splats.
+     * Slick's texture, flying its arc until it strikes, where it splats and the film lands.
      * goop-and-slick-spray-throws-goo-drips-that-splat
      * slick-spray-takes-its-blue-slime-texture-colors
      */
