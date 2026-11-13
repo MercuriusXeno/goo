@@ -6,9 +6,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -22,7 +19,8 @@ import static org.mockito.Mockito.when;
  * RayStep's cadence and a prism's split: the hold's first tick hits and then
  * one in every ten; a refracted hit is raised by its factor and thinned by
  * the target count to its exponent, costing each target only a little;
- * the ray passes through blocks with no collision and stops on a prism's outline.
+ * the ray strikes a block by its collision shape, so it passes through a sign,
+ * and a prism by its outline.
  * decision sunbeam-splits-at-the-prism-with-a-glisten
  */
 class RayStepTest {
@@ -31,41 +29,15 @@ class RayStepTest {
     private static final RayStep RAY = new RayStep(32, 10, List.of(), SUNBEAM, List.of(), List.of());
     private static final double TOLERANCE = 1e-9;
 
-    /** A sign stands an outline and no collision. */
-    private static BlockState sign() {
-        BlockState state = mock(BlockState.class);
-        when(state.getBlock()).thenReturn(mock(Block.class));
-        when(state.getShape(any(BlockGetter.class), any(BlockPos.class))).thenReturn(Shapes.block());
-        when(state.getCollisionShape(any(BlockGetter.class), any(BlockPos.class))).thenReturn(Shapes.empty());
-        return state;
-    }
-
-    private static BlockState wall() {
-        BlockState state = mock(BlockState.class);
-        when(state.getBlock()).thenReturn(mock(Block.class));
-        when(state.getShape(any(BlockGetter.class), any(BlockPos.class))).thenReturn(Shapes.block());
-        when(state.getCollisionShape(any(BlockGetter.class), any(BlockPos.class))).thenReturn(Shapes.block());
-        return state;
-    }
-
+    /** A sign stands an outline and no collision, so the ray passes through it. */
     @Test
-    void theRayPassesThroughASignToTheWallBehindIt() {
-        BlockPos signAt = new BlockPos(0, 0, 3);
-        BlockPos wallAt = new BlockPos(0, 0, 6);
-        BlockState sign = sign();
-        BlockState wall = wall();
-        BlockState air = mock(BlockState.class);
-        when(air.getBlock()).thenReturn(mock(Block.class));
-        when(air.getShape(any(BlockGetter.class), any(BlockPos.class))).thenReturn(Shapes.empty());
-        when(air.getCollisionShape(any(BlockGetter.class), any(BlockPos.class))).thenReturn(Shapes.empty());
-        BlockGetter level = mock(BlockGetter.class);
-        when(level.getBlockState(any(BlockPos.class))).thenAnswer(call -> {
-            BlockPos pos = call.getArgument(0);
-            return pos.equals(signAt) ? sign : pos.equals(wallAt) ? wall : air;
-        });
-        BlockHitResult hit = RayStep.clipStriking(level, new Vec3(0.5, 0.5, 0.5), new Vec3(0.5, 0.5, 10));
-        assertEquals(HitResult.Type.BLOCK, hit.getType());
-        assertEquals(wallAt, hit.getBlockPos(), "the ray stopped on the sign");
+    void aBlockThatIsNoPrismIsStruckByItsCollisionShape() {
+        BlockState sign = mock(BlockState.class);
+        when(sign.getBlock()).thenReturn(mock(Block.class));
+        when(sign.getShape(any(BlockGetter.class), any(BlockPos.class))).thenReturn(Shapes.block());
+        when(sign.getCollisionShape(any(BlockGetter.class), any(BlockPos.class))).thenReturn(Shapes.empty());
+
+        assertEquals(Shapes.empty(), RayStep.strikingShape(sign, mock(BlockGetter.class), BlockPos.ZERO));
     }
 
     @Test

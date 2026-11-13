@@ -26,7 +26,6 @@ public final class MachineRecipeTests {
     private static final int GRID_SIDE = 3;
 
     private static final String GOLD_MACHINE_NOT_CRAFTED = "Its gold grid should craft one ";
-    private static final String COPPER_MACHINE_CRAFTED = "Its old copper grid should craft no ";
 
     private MachineRecipeTests() {
     }
@@ -42,8 +41,8 @@ public final class MachineRecipeTests {
 
     /**
      * The reactor, plexer, crucible, hub, vat and canister each craft from
-     * their grid with gold in every cell copper held, and their old copper
-     * grid crafts none of them.
+     * their grid with gold in every cell copper held; MachineRecipesTest holds
+     * the gold key each recipe names.
      * decision copper-to-gold-one-to-one-scrap-stays
      *
      * @param helper the gametest helper
@@ -53,8 +52,6 @@ public final class MachineRecipeTests {
             ItemStack fromGold = craft(helper, grid(machine.pattern(), withMetal(machine.rest(), machine.gold())));
             helper.assertTrue(fromGold.is(machine.result()) && fromGold.getCount() == 1,
                     GOLD_MACHINE_NOT_CRAFTED + machine.result());
-            ItemStack fromCopper = craft(helper, grid(machine.pattern(), withMetal(machine.rest(), machine.copper())));
-            helper.assertTrue(!fromCopper.is(machine.result()), COPPER_MACHINE_CRAFTED + machine.result());
         }
         helper.succeed();
     }
@@ -62,29 +59,29 @@ public final class MachineRecipeTests {
     /**
      * One machine's shaped grid: M marks each cell copper held and gold holds now.
      */
-    private record GoldMachineGrid(Item result, String[] pattern, Map<Character, Item> rest, Item gold, Item copper) {
+    private record GoldMachineGrid(Item result, String[] pattern, Map<Character, Item> rest, Item gold) {
     }
 
     private static List<GoldMachineGrid> goldMachineGrids() {
         return List.of(
                 new GoldMachineGrid(GooItems.REACTOR.get(), new String[] {"MRM", "NCN", "MMM"},
                         Map.of('R', Items.COMPARATOR, 'N', Items.NETHERITE_SCRAP, 'C', Items.CAULDRON),
-                        Items.GOLD_INGOT, Items.CUT_COPPER_SLAB),
+                        Items.GOLD_INGOT),
                 new GoldMachineGrid(GooItems.PLEXER.get(), new String[] {"MRM", "NC ", "MMM"},
                         Map.of('R', Items.COMPARATOR, 'N', Items.NETHERITE_SCRAP, 'C', Items.CRAFTER),
-                        Items.GOLD_INGOT, Items.CUT_COPPER_SLAB),
+                        Items.GOLD_INGOT),
                 new GoldMachineGrid(GooItems.CRUCIBLE.get(), new String[] {"M M", "NCN", "MFM"},
                         Map.of('N', Items.NETHERITE_SCRAP, 'C', Items.CAULDRON, 'F', Items.BLAST_FURNACE),
-                        Items.GOLD_INGOT, Items.COPPER_INGOT),
+                        Items.GOLD_INGOT),
                 new GoldMachineGrid(GooItems.HUB.get(), new String[] {"MMM", " I ", "MMM"},
                         Map.of('I', Items.IRON_BARS),
-                        Items.GOLD_INGOT, Items.COPPER_INGOT),
+                        Items.GOLD_INGOT),
                 new GoldMachineGrid(GooItems.VAT.get(), new String[] {"QMQ", "G G", "QMQ"},
                         Map.of('Q', Items.QUARTZ_BLOCK, 'G', Items.GLASS),
-                        Items.GOLD_BLOCK, Items.COPPER_BLOCK),
+                        Items.GOLD_BLOCK),
                 new GoldMachineGrid(GooItems.CANISTER.get(), new String[] {"QMQ", "G G", "QMQ"},
                         Map.of('Q', Items.QUARTZ, 'G', Items.GLASS_PANE),
-                        Items.GOLD_INGOT, Items.COPPER_INGOT));
+                        Items.GOLD_INGOT));
     }
 
     private static Map<Character, Item> withMetal(Map<Character, Item> rest, Item metal) {

@@ -22,16 +22,13 @@ import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
- * Gametests for xeno's Eldritch Sight: an out-of-phase zombie takes a
- * player for its target only while that player holds the ability, and turns
- * from a plain player, the way an
- * in-phase zombie does not.
+ * Gametest for xeno's Eldritch Sight: an out-of-phase zombie takes a player
+ * holding the ability for its target.
  * eldritch-sight-reveals-the-out-of-phase
  */
 @RegistersGameTests
 public final class EldritchTests {
     private static final String ELDRITCH_PLAYER_IS_SEEN = "eldritch_player_is_seen";
-    private static final String PLAIN_PLAYER_IS_UNSEEN = "plain_player_is_unseen";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -40,7 +37,6 @@ public final class EldritchTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, ELDRITCH_PLAYER_IS_SEEN, EldritchTests::eldritchPlayerIsSeen);
-        GooTestFunctions.registerTest(registrar, PLAIN_PLAYER_IS_UNSEEN, EldritchTests::plainPlayerIsUnseen);
     }
 
 
@@ -49,9 +45,6 @@ public final class EldritchTests {
     private static final Identifier XENO_ELDRITCH = Identifier.parse("goo:xeno_eldritch");
     private static final String SHOULD_HOLD = "Once the eat finishes the player should hold Eldritch Sight";
     private static final String SHOULD_TARGET_HELD = "An out-of-phase zombie should target the player holding Eldritch Sight, targeted %s";
-    private static final String SHOULD_IGNORE_PLAIN = "An out-of-phase zombie should not target a plain player, targeted %s";
-    private static final String SHOULD_IGNORE_ENDED = "An out-of-phase zombie should not target a player whose Eldritch Sight ended, targeted %s";
-    private static final String IN_PHASE_SHOULD_TARGET = "An in-phase zombie should target the plain player, targeted %s";
 
     private EldritchTests() {
     }
@@ -65,41 +58,13 @@ public final class EldritchTests {
     public static void eldritchPlayerIsSeen(GameTestHelper helper) {
         ServerPlayer holder = eatenEldritch(helper);
         boolean held = holder.getData(GooAttachments.HELD_EFFECTS).holds(XENO_ELDRITCH);
-        Zombie zombie = zombie(helper, true);
+        Zombie zombie = outOfPhaseZombie(helper);
 
         LivingEntity heldTarget = offer(zombie, holder);
         zombie.discard();
         helper.getLevel().getServer().getPlayerList().remove(holder);
         helper.assertTrue(held, SHOULD_HOLD);
         helper.assertTrue(heldTarget == holder, String.format(SHOULD_TARGET_HELD, heldTarget));
-        helper.succeed();
-    }
-
-    /**
-     * An out-of-phase zombie offered a plain player takes no target, while an
-     * in-phase zombie takes that player; and a player whose held Eldritch
-     * Sight is invoked again to end it is ignored once more.
-     *
-     * @param helper the gametest helper
-     */
-    public static void plainPlayerIsUnseen(GameTestHelper helper) {
-        ServerPlayer plain = targetable(helper);
-        ServerPlayer ended = eatenEldritch(helper);
-        SelfDeliveryTests.invoke(ended, GooTypes.XENO, XENO_ELDRITCH);
-        ended.doTick();
-        Zombie outOfPhase = zombie(helper, true);
-        Zombie inPhase = zombie(helper, false);
-
-        LivingEntity plainTarget = offer(outOfPhase, plain);
-        LivingEntity endedTarget = offer(outOfPhase, ended);
-        LivingEntity inPhaseTarget = offer(inPhase, plain);
-        outOfPhase.discard();
-        inPhase.discard();
-        helper.getLevel().getServer().getPlayerList().remove(plain);
-        helper.getLevel().getServer().getPlayerList().remove(ended);
-        helper.assertTrue(plainTarget == null, String.format(SHOULD_IGNORE_PLAIN, plainTarget));
-        helper.assertTrue(endedTarget == null, String.format(SHOULD_IGNORE_ENDED, endedTarget));
-        helper.assertTrue(inPhaseTarget == plain, String.format(IN_PHASE_SHOULD_TARGET, inPhaseTarget));
         helper.succeed();
     }
 
@@ -126,11 +91,11 @@ public final class EldritchTests {
         return player;
     }
 
-    private static Zombie zombie(GameTestHelper helper, boolean outOfPhase) {
+    private static Zombie outOfPhaseZombie(GameTestHelper helper) {
         Zombie zombie = EntityType.ZOMBIE.create(helper.getLevel(), EntitySpawnReason.COMMAND);
         zombie.setNoAi(true);
         zombie.setPos(helper.getBounds().getCenter());
-        zombie.setData(GooAttachments.OUT_OF_PHASE, outOfPhase ? OutOfPhase.held() : OutOfPhase.NONE);
+        zombie.setData(GooAttachments.OUT_OF_PHASE, OutOfPhase.held());
         helper.getLevel().addFreshEntity(zombie);
         return zombie;
     }

@@ -290,7 +290,7 @@ public final class HeldEffectsEvents {
      * @param player the player
      * @param lays   the states the ended effect laid
      */
-    private static void clearMindStates(ServerPlayer player, Set<LaidState> lays) {
+    static void clearMindStates(ServerPlayer player, Set<LaidState> lays) {
         if (lays.contains(LaidState.SIGHT)) {
             // sight-lengthens-shift-and-outlines-fungus: the sight ends with its held effect
             player.setData(GooAttachments.SIGHT, Sight.NONE);
@@ -324,7 +324,7 @@ public final class HeldEffectsEvents {
      * @param player the player
      * @param lays   the state the effect laid
      */
-    private static void clearSensesAndReach(ServerPlayer player, Set<LaidState> lays) {
+    static void clearSensesAndReach(ServerPlayer player, Set<LaidState> lays) {
         if (lays.contains(LaidState.LIFETAP)) {
             // lifetap-trades-regen-for-leech: the leech ends with its held effect
             player.setData(GooAttachments.LIFETAP, Lifetap.NONE);

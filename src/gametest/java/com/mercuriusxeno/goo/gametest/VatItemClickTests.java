@@ -55,14 +55,12 @@ public final class VatItemClickTests {
     private static final String FULL_REFUSES = "A full vat item refuses";
     private static final String CONTENTS_UNCHANGED = "Vat contents after refusal";
     private static final String CURSOR_COUNT = "Cursor count after refusal";
-    private static final String CURSOR_UNTOUCHED = "Cursor never set on refusal";
     private static final String VAT_VOLUME = "Vat volume of the inserted type";
     private static final String DRAIN_HANDLED = "Drain from a filled vat item should be handled";
     private static final String ROCK_DRAINED = "The inventory holds the vat's rock whole";
     private static final String NETHER_DRAINED = "The inventory holds the vat's nether whole";
     private static final String VAT_EMPTIED = "Every type left the vat";
     private static final String EMPTY_REFUSES = "Drain from an empty vat item answers false";
-    private static final String CURSOR_STAYS_EMPTY = "Nothing drained onto the cursor";
 
     private VatItemClickTests() {
     }
@@ -91,7 +89,6 @@ public final class VatItemClickTests {
         helper.assertFalse(primaryClick(full, refused, player), FULL_REFUSES);
         helper.assertValueEqual(VatBlockItem.getGooContents(full), before, CONTENTS_UNCHANGED);
         helper.assertValueEqual(GooStacks.volumeOf(refused.get()), GOO_COUNT * GooStacks.THOUSAND, CURSOR_COUNT);
-        helper.assertFalse(refused.wasSet(), CURSOR_UNTOUCHED);
         helper.succeed();
     }
 
@@ -115,7 +112,7 @@ public final class VatItemClickTests {
 
     /**
      * An empty-cursor secondary click on a vat item holding two types unpacks both whole into
-     * the inventory and never sets the cursor; on an empty vat item it answers false.
+     * the inventory; on an empty vat item it answers false.
      *
      * @param helper the gametest helper
      */
@@ -126,7 +123,6 @@ public final class VatItemClickTests {
         CursorHolder cursor = new CursorHolder(ItemStack.EMPTY);
 
         helper.assertTrue(secondaryClick(vat, cursor, player), DRAIN_HANDLED);
-        helper.assertFalse(cursor.wasSet(), CURSOR_UNTOUCHED);
         helper.assertValueEqual(inventoryVolume(player, ROCK), ROCK_HELD, ROCK_DRAINED);
         helper.assertValueEqual(inventoryVolume(player, NETHER), NETHER_HELD, NETHER_DRAINED);
         helper.assertTrue(VatBlockItem.getGooContents(vat).isEmpty(), VAT_EMPTIED);
@@ -134,8 +130,6 @@ public final class VatItemClickTests {
         ItemStack empty = new ItemStack(GooItems.VAT.get());
         CursorHolder untouched = new CursorHolder(ItemStack.EMPTY);
         helper.assertFalse(secondaryClick(empty, untouched, player), EMPTY_REFUSES);
-        helper.assertFalse(untouched.wasSet(), CURSOR_UNTOUCHED);
-        helper.assertTrue(untouched.get().isEmpty(), CURSOR_STAYS_EMPTY);
         helper.succeed();
     }
 

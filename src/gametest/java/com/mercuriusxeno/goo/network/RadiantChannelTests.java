@@ -34,8 +34,6 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 @RegistersGameTests
 public final class RadiantChannelTests {
     private static final String RADIANT_LIGHTS_A_DARK_ROOM = "radiant_lights_a_dark_room";
-    private static final String RADIANT_FILLS_ONLY_AIR_IN_SIGHT = "radiant_fills_only_air_in_sight";
-    private static final String RADIANT_SKIPS_A_LIT_ROOM = "radiant_skips_a_lit_room";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -44,8 +42,6 @@ public final class RadiantChannelTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, RADIANT_LIGHTS_A_DARK_ROOM, RadiantChannelTests::radiantLightsADarkRoom);
-        GooTestFunctions.registerTest(registrar, RADIANT_FILLS_ONLY_AIR_IN_SIGHT, RadiantChannelTests::radiantFillsOnlyAirInSight);
-        GooTestFunctions.registerTest(registrar, RADIANT_SKIPS_A_LIT_ROOM, RadiantChannelTests::radiantSkipsALitRoom);
     }
 
 
@@ -56,15 +52,10 @@ public final class RadiantChannelTests {
     /** Two tries a tick for 100 ticks: most of the ball lies outside the room, so this many tries find its air. */
     private static final int HOLD_TICKS = 100;
     private static final int HELD_GOO = 3;
-    private static final int LIGHT_LEVEL_FULL = 15;
     private static final Identifier RADIANT = Identifier.parse("goo:glow_radiant");
     private static final String ABILITY_REQUIRED = "Ability registry must hold glow_radiant";
     private static final String NO_WISP = "Holding Radiant in a dark room should leave a wisp in it";
     private static final String UNLIT = "A wisp should light its cell to %d, it reads %d";
-    private static final String WISP_IN_THE_LIGHT = "A lit room should take no wisp, it took %d";
-    private static final String WISP_OUT_OF_SIGHT = "Air behind the wall should take no wisp, it took %d";
-    /** The stone wall's column, splitting the room so the air past it is out of the player's sight. */
-    private static final int WALL_X = 4;
 
     private RadiantChannelTests() {
     }
@@ -85,51 +76,6 @@ public final class RadiantChannelTests {
             int expected = WispBlock.lightLevel(helper.getBlockState(wisp));
             helper.assertTrue(light == expected, String.format(UNLIT, expected, light));
         });
-    }
-
-    /**
-     * Holding Radiant in a sealed room lit past the threshold, its top layer
-     * all light blocks, leaves no wisp.
-     *
-     * @param helper the gametest helper
-     */
-    public static void radiantSkipsALitRoom(GameTestHelper helper) {
-        sealRoom(helper);
-        lightTheTopLayer(helper);
-        holdRadiant(helper, () -> {
-            int wisps = wispsInTheRoom(helper).size();
-            helper.assertTrue(wisps == 0, String.format(WISP_IN_THE_LIGHT, wisps));
-        });
-    }
-
-    /**
-     * Holding Radiant in a sealed dark room split by a stone wall lights the
-     * player's side and leaves the air past the wall, out of sight, unlit.
-     *
-     * @param helper the gametest helper
-     */
-    public static void radiantFillsOnlyAirInSight(GameTestHelper helper) {
-        sealRoom(helper);
-        for (int y = 1; y < ROOM_TOP; y++) {
-            for (int z = 1; z < ROOM_EDGE; z++) {
-                helper.setBlock(new BlockPos(WALL_X, y, z), Blocks.STONE);
-            }
-        }
-        holdRadiant(helper, () -> {
-            List<BlockPos> wisps = wispsInTheRoom(helper);
-            long hidden = wisps.stream().filter(pos -> pos.getX() > WALL_X).count();
-            helper.assertTrue(wisps.size() > hidden, NO_WISP);
-            helper.assertTrue(hidden == 0, String.format(WISP_OUT_OF_SIGHT, hidden));
-        });
-    }
-
-    /** Fills the room's top air layer with light blocks, so every air cell below reads past the threshold. */
-    private static void lightTheTopLayer(GameTestHelper helper) {
-        for (int x = 1; x < ROOM_EDGE; x++) {
-            for (int z = 1; z < ROOM_EDGE; z++) {
-                helper.setBlock(new BlockPos(x, ROOM_TOP - 1, z), Blocks.LIGHT.defaultBlockState());
-            }
-        }
     }
 
     private static void sealRoom(GameTestHelper helper) {

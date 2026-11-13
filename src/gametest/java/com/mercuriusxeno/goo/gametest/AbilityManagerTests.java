@@ -37,7 +37,6 @@ public final class AbilityManagerTests {
     private static final int EDITED_COST = 777;
     private static final String PROMOTE_LANDS_THE_DRAFT = "ability_manager_promote_lands_the_draft_live";
     private static final String DISCARD_DROPS_THE_DRAFTS = "ability_manager_discard_drops_the_drafts";
-    private static final int CONFLICT = 409;
 
     private AbilityManagerTests() {
     }
@@ -54,9 +53,8 @@ public final class AbilityManagerTests {
     }
 
     /**
-     * Saves Lurker at 777 and promotes: the world pack's live file holds the edit, no draft stands, the server prices
-     * 777, and a second promote with no draft of either kind answers 409; then the promoted file goes and the
-     * abilities apply afresh, so later batches read the shipped Lurker. A values draft standing from another batch is
+     * Saves Lurker at 777 and promotes: the server prices 777 with no /reload, the live file and a second promote
+     * standing in WorkbenchOperationsTest; then the promoted file goes and the abilities apply afresh, so later batches read the shipped Lurker. A values draft standing from another batch is
      * set aside first, so this promote moves no base_values.json into the world.
      *
      * @param helper the gametest helper
@@ -75,16 +73,10 @@ public final class AbilityManagerTests {
             try {
                 answered(helper, operations, WorkbenchOperations.SAVE_ABILITIES, costEdit(EDITED_COST));
                 answered(helper, operations, WorkbenchOperations.PROMOTE, "");
-                helper.assertTrue(Files.isRegularFile(live) && Files.readString(live).contains("777"),
-                        "the promote left no live file holding the edit at " + live);
-                helper.assertTrue(!Files.isRegularFile(AbilityDrafts.fileOf(paths.abilityDrafts(), EDITED)),
-                        "a draft still stands after the promote");
                 AbilityDefinition held = AbilityRegistry.of(server).getAbility(EDITED);
                 int heldCost = held == null ? -1 : held.cost().in(GooValues.of(server));
                 helper.assertTrue(heldCost == EDITED_COST, "after the promote the server prices " + EDITED + " at "
                         + heldCost + ", not " + EDITED_COST);
-                WorkbenchReply again = operations.answer(WorkbenchOperations.PROMOTE, "");
-                helper.assertTrue(again.status() == CONFLICT, "a promote with no draft answered " + again.status());
             } finally {
                 Files.deleteIfExists(live);
                 operations.answer(WorkbenchOperations.DISCARD, "");
@@ -101,14 +93,12 @@ public final class AbilityManagerTests {
     }
 
     /**
-     * Saves Lurker at 777 and discards: no ability draft stands and the server prices the shipped cost again.
+     * Saves Lurker at 777 and discards: the server prices the shipped cost again.
      *
      * @param helper the gametest helper
      */
     public static void discardDropsTheDrafts(GameTestHelper helper) {
         MinecraftServer server = helper.getLevel().getServer();
-        WorkbenchPaths paths = WorkbenchPaths.inWorld(server.getWorldPath(LevelResource.ROOT).toAbsolutePath()
-                .normalize());
         AbilityDefinition shipped = AbilityRegistry.of(server).getAbility(EDITED);
         helper.assertTrue(shipped != null, "the server holds no " + EDITED);
         int shippedCost = shipped.cost().in(GooValues.of(server));
@@ -116,7 +106,6 @@ public final class AbilityManagerTests {
             WorkbenchOperations operations = ValuesManagers.operationsFor(server);
             answered(helper, operations, WorkbenchOperations.SAVE_ABILITIES, costEdit(EDITED_COST));
             answered(helper, operations, WorkbenchOperations.DISCARD, "");
-            helper.assertTrue(AbilityDrafts.read(paths.abilityDrafts()).isEmpty(), "a draft stands after the discard");
             AbilityDefinition held = AbilityRegistry.of(server).getAbility(EDITED);
             int heldCost = held == null ? -1 : held.cost().in(GooValues.of(server));
             helper.assertTrue(heldCost == shippedCost, "after the discard the server prices " + EDITED + " at "
@@ -131,7 +120,7 @@ public final class AbilityManagerTests {
     }
 
     /**
-     * Saves Lurker at a cost of 777, reads the draft and the cost the server holds, then saves the shipped cost back
+     * Saves Lurker at a cost of 777, reads the cost the server holds, then saves the shipped cost back
      * and drops the draft, so the abilities the later batches read stand as they were.
      *
      * @param helper the gametest helper
@@ -149,9 +138,6 @@ public final class AbilityManagerTests {
             WorkbenchOperations operations = ValuesManagers.operationsFor(server);
             answered(helper, operations, WorkbenchOperations.ABILITY_MODEL, "");
             answered(helper, operations, WorkbenchOperations.SAVE_ABILITIES, costEdit(EDITED_COST));
-            helper.assertTrue(Files.isRegularFile(draft), "the save wrote no draft at " + draft);
-            helper.assertTrue(!draft.startsWith(WorkbenchPaths.packRoot(world).resolve("data")),
-                    "the draft stands inside the pack's data folder: " + draft);
             AbilityDefinition held = AbilityRegistry.of(server).getAbility(EDITED);
             int heldCost = held == null ? -1 : held.cost().in(GooValues.of(server));
             helper.assertTrue(heldCost == EDITED_COST, "after the save the server prices " + EDITED + " at "

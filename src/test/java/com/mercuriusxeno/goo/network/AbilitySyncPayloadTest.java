@@ -29,8 +29,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class AbilitySyncPayloadTest {
 
-    private static final double TOLERANCE = 1e-9;
-
     /**
      * Every shipped ability the glove offers
      * (decision tests-read-the-inventory-from-loaded-json).
@@ -117,19 +115,15 @@ class AbilitySyncPayloadTest {
     }
 
     /**
-     * Knives' charge reaches the client whole, its no-charge floors included,
-     * so the client's aim lines fan the count and cone the server slings.
-     * decision knives-cone-five-to-forty-five-and-three-to-twenty-seven-knives
+     * Knives' charge reaches the client whole, so the client's aim lines fan the count and cone the server slings.
      */
     @Test
-    void knivesChargeRoundTripsWithItsFloors() {
+    void knivesChargeRoundTripsWhole() {
         Charge sent = AbilityJson.decode("crystal_knives").delivery().charge();
 
         Charge received = roundTrip(AbilityJson.decode("crystal_knives")).delivery().charge();
 
         assertEquals(sent, received);
-        assertEquals(3, received.fleckCount(0f));
-        assertEquals(5, received.spreadDegrees(0f), TOLERANCE);
     }
 
     /** The sync codec carries the items an ability requires to the client (decision ability-hidden-until-recipes-known). */

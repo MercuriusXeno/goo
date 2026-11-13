@@ -18,6 +18,8 @@ class SlickBuildTest {
     /** Faster than kinetic_slick.json's start speed, so its entry is ramped alone, and short of its top speed. */
     private static final Vec3 EASTWARD = new Vec3(0.4, 0, 0);
     private static final int EASTWARD_TICKS = 10;
+    private static final double JUST_PAST_THE_START = 1.01;
+    private static final int TURNING_BUILD_TICKS = 2;
 
     @Test
     void theRaiseIsTheEntryTicksAlone() {
@@ -66,8 +68,10 @@ class SlickBuildTest {
     @Test
     void aSliderThatTurnsKeepsItsBuild() {
         SlickStep slick = SlickRampTest.shippedSlick();
-        FakeSlider slider = new FakeSlider(EASTWARD, new Object(), false);
-        slider.slideFor(EASTWARD_TICKS, slick);
+        // just past the slick's start speed, whatever the slick is tuned to, so a few ticks build without topping out
+        FakeSlider slider = new FakeSlider(new Vec3(slick.startSpeed() * JUST_PAST_THE_START, 0, 0), new Object(),
+                false);
+        slider.slideFor(TURNING_BUILD_TICKS, slick);
         double lastEastward = slider.lastRamp;
 
         slider.velocity = new Vec3(-slider.velocity.x, 0, 0);

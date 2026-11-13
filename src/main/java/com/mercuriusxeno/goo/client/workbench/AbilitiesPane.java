@@ -389,8 +389,7 @@ final class AbilitiesPane {
     private int drawAbility(GuiGraphicsExtractor graphics, Font font, AbilitiesTab.Ability ability,
                             GroupsPane.Bounds from, ClickTargets targets) {
         int nameLeft = drawHeading(graphics, font, ability, from.left() + ControlFlow.INDENT, from.top(), targets);
-        int priceLeft = from.left() + (from.right() - from.left()) / NAME_SHARE;
-        ColumnFlow flow = new ColumnFlow(priceLeft, nameLeft, (from.right() - priceLeft) / COLUMNS, from);
+        ColumnFlow flow = ColumnFlow.under(from, nameLeft);
         for (AbilitiesTab.Leaf leaf : ability.prices()) {
             boolean editingLeaf = editing != null && editing.holds(ability, leaf);
             GroupsPane.Bounds field = isBuilding(ability, leaf) ? flow.placeLine(from.bottom())
@@ -406,7 +405,7 @@ final class AbilitiesPane {
      * name's line, and a field past the line's room wrapping to the next line at the name's left, at the same column
      * width.
      */
-    private static final class ColumnFlow {
+    static final class ColumnFlow {
         private final int wrapLeft;
         private final int cell;
         private final int right;
@@ -422,6 +421,12 @@ final class AbilitiesPane {
             this.x = firstLeft;
             this.top = from.top();
             this.bottom = from.top() + RowLayout.SPRITE_ROW_HEIGHT;
+        }
+
+        // An ability's flow: its columns start at the left third of the section's width and wrap to the name's left.
+        static ColumnFlow under(GroupsPane.Bounds from, int nameLeft) {
+            int priceLeft = from.left() + (from.right() - from.left()) / NAME_SHARE;
+            return new ColumnFlow(priceLeft, nameLeft, (from.right() - priceLeft) / COLUMNS, from);
         }
 
         // The whole columns a field of the width given takes, at most the line's.

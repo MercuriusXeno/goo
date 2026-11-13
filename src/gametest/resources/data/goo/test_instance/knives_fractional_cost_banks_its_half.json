@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:knives_fractional_cost_banks_its_half",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 20,
+  "setup_ticks": 0,
+  "required": true
+}

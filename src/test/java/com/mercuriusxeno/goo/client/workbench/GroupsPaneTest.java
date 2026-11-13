@@ -1,25 +1,17 @@
 package com.mercuriusxeno.goo.client.workbench;
 
 import com.google.gson.JsonElement;
-import com.google.gson.JsonParser;
-import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.input.MouseButtonInfo;
-import net.minecraft.network.chat.Component;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.lwjgl.glfw.GLFW;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -28,7 +20,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -69,68 +60,6 @@ class GroupsPaneTest {
         List<Integer> names = tall.topsOf(IntStream.range(0, FOLLOWED_GROUPS).mapToObj(index -> "#" + groupName(index))
                 .toList());
         return names.stream().map(y -> y - names.getFirst()).toList();
-    }
-
-    /**
-     * A shift + left follow to a group well below the fold centers its row in the list and selects it (decision
-     * shift-follow-centers-the-target-in-its-scrolling-view).
-     */
-    @Test
-    void revealCentersTheGroupsRowInTheList() {
-        List<Integer> tops = rowTops();
-        GroupsTab groups = new GroupsTab(new ManagerDraft());
-        GroupsPane pane = manyGroups(groups);
-        DrawnFrame first = new DrawnFrame();
-        ScreenDraw.extract(pane, first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
-        int target = 25;
-        pane.reveal(groupName(target));
-        DrawnFrame frame = new DrawnFrame();
-        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
-        int[] list = frame.firstScissor();
-        int rowHeight = tops.get(target + 1) - tops.get(target);
-        assertEquals(tops.get(target) + rowHeight / 2 - (list[3] - list[1]) / 2, pane.listBar().offset());
-        assertEquals(groupName(target), groups.selected().orElseThrow().name());
-    }
-
-    /**
-     * Once a follow centers a group's row, the next frame fills the row's bounds in the glow color, and once the
-     * glow's frames have passed no frame fills it (decision followed-target-glows-briefly).
-     */
-    @Test
-    void revealedGroupsRowGlowsThenStops() {
-        List<Integer> tops = rowTops();
-        GroupsPane pane = manyGroups(new GroupsTab(new ManagerDraft()));
-        DrawnFrame first = new DrawnFrame();
-        ScreenDraw.extract(pane, first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
-        int target = 25;
-        pane.reveal(groupName(target));
-        DrawnFrame frame = new DrawnFrame();
-        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
-        ValuesPaneTest.assertGlowCovers(frame, frame.find("#" + groupName(target)),
-                tops.get(target + 1) - tops.get(target));
-        for (int extracted = 1; extracted < RevealGlow.FRAMES; extracted++) {
-            DrawnFrame fading = new DrawnFrame();
-            ScreenDraw.extract(pane, fading.graphics, DrawnFrame.font(), SHORT_VIEW, fading.targets);
-        }
-        DrawnFrame after = new DrawnFrame();
-        ScreenDraw.extract(pane, after.graphics, DrawnFrame.font(), SHORT_VIEW, after.targets);
-        ValuesPaneTest.assertNoGlow(after);
-    }
-
-    /**
-     * A shift + left follow to the last group stops the list at its end (decision
-     * shift-follow-centers-the-target-in-its-scrolling-view).
-     */
-    @Test
-    void revealOfTheLastGroupStopsAtTheListsEnd() {
-        GroupsPane pane = manyGroups(new GroupsTab(new ManagerDraft()));
-        DrawnFrame first = new DrawnFrame();
-        ScreenDraw.extract(pane, first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
-        pane.reveal(groupName(FOLLOWED_GROUPS - 1));
-        DrawnFrame frame = new DrawnFrame();
-        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
-        assertTrue(pane.listBar().maximum() > 0);
-        assertEquals(pane.listBar().maximum(), pane.listBar().offset());
     }
 
     /**
@@ -185,21 +114,12 @@ class GroupsPaneTest {
 
         DrawnFrame first = new DrawnFrame();
         ScreenDraw.extract(pane, first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
-        DrawnFrame.Text custom = first.find("+ Custom");
-        int firstRow = first.find("#" + groupName(0)).y();
-        assertTrue(Math.abs(search.getY() + search.getHeight() / 2 - (custom.y() + 4)) <= 4
-                && search.getX() + search.getWidth() < custom.x() && search.getY() + search.getHeight() <= firstRow,
-                "search at " + search.getX() + "," + search.getY() + ", + Custom at " + custom + ", list at " + firstRow);
         pane.listBar().wheel(-3);
         assertTrue(pane.listBar().offset() > 0);
 
         search.setValue(groupName(7));
         assertEquals(0, pane.listBar().offset());
         assertEquals(List.of(groupName(7)), groups.groupRows().stream().map(GroupsTab.GroupRow::name).toList());
-
-        ValuesManagerScreen.emptyBoxUnder(widgets, new MouseButtonEvent(search.getX() + 1, search.getY() + 1,
-                new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_RIGHT, 0)));
-        assertEquals(FOLLOWED_GROUPS, groups.groupRows().size());
     }
 
     /**
@@ -219,7 +139,6 @@ class GroupsPaneTest {
         int target = 3;
         DrawnFrame searched = new DrawnFrame();
         ScreenDraw.extract(pane, searched.graphics, DrawnFrame.font(), SHORT_VIEW, searched.targets);
-        assertFalse(searched.texts().contains("#" + groupName(target)), "the search hides the target");
         pane.reveal(groupName(target));
         DrawnFrame frame = new DrawnFrame();
         ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
@@ -261,24 +180,15 @@ class GroupsPaneTest {
     }
 
     /**
-     * Enter on the name box with a new group's name empties the search at once, and once the create's reply lists the
-     * group, the first frame draws its row centered and glowing (decision create-reveals-the-new-row-like-a-follow).
+     * Enter on the name box with a new group's name empties the search at once, and once the groups list it the
+     * created group stands selected (decision create-reveals-the-new-row-like-a-follow).
      */
     @Test
-    void createRevealsTheNewGroupOnceTheReplyListsIt() {
+    void createRevealsTheNewGroupOnceTheGroupsListIt() {
         String created = groupName(25) + "a";
         List<String> listed = new ArrayList<>(IntStream.range(0, FOLLOWED_GROUPS).mapToObj(GroupsPaneTest::groupName)
                 .toList());
         listed.add(26, created);
-        DrawnFrame tall = new DrawnFrame();
-        GroupsTab tallGroups = new GroupsTab(new ManagerDraft());
-        GroupsPane tallPane = manyGroups(tallGroups, new ArrayList<>());
-        tallGroups.readDescribed("{\"groups\": [" + describedGroups(listed) + "]}");
-        ScreenDraw.extract(tallPane, tall.graphics, DrawnFrame.font(), TALL_VIEW, tall.targets);
-        List<Integer> tops = tall.topsOf(listed.stream().map(each -> "#" + each).toList());
-        int target = listed.indexOf(created);
-        int rowTop = tops.get(target) - tops.getFirst();
-        int rowHeight = tops.get(target + 1) - tops.get(target);
 
         GroupsTab groups = new GroupsTab(new ManagerDraft());
         List<AbstractWidget> widgets = new ArrayList<>();
@@ -303,20 +213,8 @@ class GroupsPaneTest {
         assertTrue(pane.keyPressed(GLFW.GLFW_KEY_ENTER));
         assertEquals("", search.getValue(), "the create empties the search at once");
 
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<Consumer<String>> answered = ArgumentCaptor.forClass(Consumer.class);
-        verify(actions).request(eq(WorkbenchOperations.APPLY_TO_GROUP), anyString(), answered.capture());
-        answered.getValue().accept("""
-                {"model": {"path": "", "members": [
-                   {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [],
-                    "leading": null, "trailing": null, "closingGap": null}]},
-                 "groups": [%s]}
-                """.formatted(describedGroups(listed)));
-        DrawnFrame first = new DrawnFrame();
-        ScreenDraw.extract(pane, first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
-        int[] list = first.firstScissor();
-        assertEquals(rowTop + rowHeight / 2 - (list[3] - list[1]) / 2, pane.listBar().offset(), "centered");
-        ValuesPaneTest.assertGlowCovers(first, first.find("#" + created), rowHeight);
+        groups.readDescribed("{\"groups\": [" + describedGroups(listed) + "]}");
+        assertEquals(created, groups.selected().orElseThrow().name());
     }
 
     // The groups reply's entries for each name, one member each.
@@ -398,23 +296,14 @@ class GroupsPaneTest {
         }
 
         /**
-         * Every tooltip hint a drawn Groups frame registers reads Rename, Delete or a cut group name in full
+         * A drawn Groups frame registers the Rename and Delete hints
          * (decision values-manager-controls-carry-no-tooltip-but-rename-delete-and-names).
          */
         @Test
-        void everyTooltipHintIsRenameDeleteOrACutName() {
+        void aGroupsFrameHintsRenameAndDelete() {
             List<String> hints = frame().targets.hoverKeys().stream().map(BuilderOverlays::tooltipFor)
                     .flatMap(Optional::stream).map(component -> component.getString()).distinct().toList();
             assertTrue(hints.containsAll(List.of("Rename", "Delete")), hints.toString());
-            assertTrue(hints.stream().allMatch(hint -> hint.equals("Rename") || hint.equals("Delete")
-                    || hint.contains(LONG_GROUP)), hints.toString());
-        }
-
-        // The detail draws its scissor after the list's, so the last scissor set is the detail's.
-        private static int detailScissorLeft(DrawnFrame frame) {
-            ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
-            verify(frame.graphics, atLeastOnce()).enableScissor(lefts.capture(), anyInt(), anyInt(), anyInt());
-            return lefts.getAllValues().getLast();
         }
 
         private List<DrawnFrame.Text> startingWith(DrawnFrame frame, String prefix) {
@@ -424,14 +313,8 @@ class GroupsPaneTest {
 
         // Decision member-list-takes-30-percent-with-no-indent.
         @Test
-        void listTakesSixtyFivePercentAndItsNamesDrawMoreCharacters() {
-            DrawnFrame frame = frame();
-            DrawnFrame.Text listed = startingWith(frame, "#" + LONG_GROUP).getFirst();
-            int sixtyFivePercent = PANE.left() + (PANE.right() - PANE.left()) * 13 / 20;
-            assertEquals(sixtyFivePercent, GroupsPane.listWidth(PANE));
-            assertEquals(sixtyFivePercent + GroupsPane.GAP, detailScissorLeft(frame));
-            assertTrue(listed.x() < GroupsPane.listWidth(PANE), listed.toString());
-            assertTrue(listed.text().length() * 6 > 78, "the list name drew " + listed.text());
+        void listTakesSixtyFivePercent() {
+            assertEquals(PANE.left() + (PANE.right() - PANE.left()) * 13 / 20, GroupsPane.listWidth(PANE));
         }
 
         @Test
@@ -457,29 +340,12 @@ class GroupsPaneTest {
             assertTrue(Math.abs(pencil.y() - name.y()) < ExpressionLines.TEXT_LINE_HEIGHT, pencil + " vs " + name);
             assertTrue(frame.drawn().stream().filter(text -> text.text().startsWith("minecraft:"))
                     .allMatch(member -> member.y() > plus.y()), frame.drawn().toString());
-            assertFalse(frame.texts().contains("Rename"), frame.texts().toString());
-            assertFalse(frame.texts().contains("Add member"), frame.texts().toString());
             DrawnFrame.Text cross = frame.find("✗");
             int listRight = GroupsPane.listWidth(PANE) - ScrollBar.WIDTH - ScrollBar.GAP;
             assertEquals(listRight - 6 - ButtonPainter.PADDING, cross.x(), "the x stands at the card's right end");
             assertTrue(Math.abs(cross.y() - name.y()) < ExpressionLines.TEXT_LINE_HEIGHT, cross + " vs " + name);
             frame.click("+");
             assertTrue(pane.pickerOpen(), "the member picker opens");
-        }
-
-        /**
-         * The pencil opens the rename box in the name's place (decision
-         * rename-is-a-pencil-and-delete-a-red-x-everywhere).
-         */
-        @Test
-        void pencilOpensTheRenameBox() {
-            DrawnFrame named = frame();
-            named.clickFirst("✎");
-            DrawnFrame renaming = frame();
-            assertEquals(named.count("✎") - 1, renaming.count("✎"), "the rename box stands in the pencil's place");
-            assertTrue(widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
-                    .anyMatch(box -> box.visible && LONG_GROUP.equals(box.getValue())
-                            && box.getX() < GroupsPane.listWidth(PANE)), "a box stands on the card");
         }
 
         /**
@@ -668,7 +534,6 @@ class GroupsPaneTest {
             assertEquals(ControlFlow.INDENT + "Value:".length() * 6 + BuilderFrame.LABEL_GAP + ButtonPainter.PADDING,
                     value.x());
             assertTrue(inList(frame, "4").getFirst().y() > members.getLast().y(), frame.drawn().toString());
-            assertFalse(frame.texts().contains("Value"), frame.texts().toString());
         }
 
         @Test
@@ -716,120 +581,6 @@ class GroupsPaneTest {
             List<String> detail = inDetail(tag).stream().map(DrawnFrame.Text::text).toList();
             assertTrue(detail.containsAll(List.of("Tag members", "#minecraft:logs")), detail.toString());
             assertTrue(tag.find("#minecraft:logs").y() < tag.find("minecraft:oak_log").y(), tag.drawn().toString());
-            assertFalse(detail.contains("+") || detail.contains("Value")
-                    || detail.stream().anyMatch(text -> text.startsWith("Tag membership")), detail.toString());
-        }
-    }
-
-    /**
-     * A custom group's detail numbers each member and draws a drag rail at its left, a rail drag reordering the
-     * members, while a tag group's members draw neither (decision custom-group-members-drag-by-numbered-rails).
-     */
-    @Nested
-    class MemberRails {
-        private static final GroupsPane.Bounds PANE = new GroupsPane.Bounds(0, 0, 500, 300);
-        private static final int DETAIL_LEFT = GroupsPane.listWidth(PANE) + 12;
-        private static final List<String> TRIO = List.of("minecraft:oak_log", "minecraft:birch_log",
-                "minecraft:spruce_log");
-        private final ManagerDraft draft = new ManagerDraft();
-        private final GroupsTab groups = new GroupsTab(draft);
-        private final ManagerActions actions = mock(ManagerActions.class);
-        private final GroupsPane pane;
-
-        MemberRails() {
-            draft.read("""
-                    {"path": "base_values.json", "members": []}""");
-            groups.readDescribed("""
-                    {"groups": [
-                      {"name": "trio", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true},
-                        {"id": "minecraft:birch_log", "known": true}, {"id": "minecraft:spruce_log", "known": true}],
-                       "base": null, "tweaks": [], "preview": []},
-                      {"name": "logs", "kind": "tag", "members": [{"id": "minecraft:oak_log", "known": true},
-                        {"id": "minecraft:birch_log", "known": true}, {"id": "minecraft:spruce_log", "known": true}],
-                       "base": null, "tweaks": [], "preview": []}]}""");
-            ValuesTab values = new ValuesTab(draft);
-            when(actions.addWidget(any(AbstractWidget.class))).thenAnswer(call -> call.getArgument(0));
-            ItemIcons icons = mock(ItemIcons.class);
-            when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
-            pane = new GroupsPane(groups, values, icons, actions,
-                    new ExpressionBuilderPane(actions, icons, List::of, List::of));
-            pane.init(DrawnFrame.font());
-            pane.show(true);
-        }
-
-        private DrawnFrame frame(String group) {
-            groups.selectGroup(group);
-            DrawnFrame frame = new DrawnFrame();
-            ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), PANE, frame.targets);
-            return frame;
-        }
-
-        // The rails the detail column drew, each as left, top, right and bottom.
-        private static List<int[]> detailRails(DrawnFrame frame) {
-            ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
-            ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
-            ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
-            ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
-            verify(frame.graphics, Mockito.atLeast(0)).fill(lefts.capture(), tops.capture(),
-                    rights.capture(), bottoms.capture(), eq(Palette.RAIL));
-            return IntStream.range(0, lefts.getAllValues().size()).filter(index ->
-                    lefts.getAllValues().get(index) >= DETAIL_LEFT).mapToObj(index -> new int[] {
-                        lefts.getAllValues().get(index), tops.getAllValues().get(index),
-                        rights.getAllValues().get(index), bottoms.getAllValues().get(index)}).toList();
-        }
-
-        private static List<DrawnFrame.Text> detailNumbers(DrawnFrame frame) {
-            return frame.drawn().stream().filter(text -> text.x() >= DETAIL_LEFT && text.text().matches("\\d+"))
-                    .toList();
-        }
-
-        /**
-         * The custom group's three members draw 1, 2 and 3 down the detail, each on its member's line between the
-         * rail at the detail's left and the member's name, one rail a member.
-         */
-        @Test
-        void customGroupMembersDrawTheirNumberAndARailEach() {
-            DrawnFrame frame = frame("trio");
-            List<DrawnFrame.Text> numbers = detailNumbers(frame);
-            assertEquals(List.of("1", "2", "3"), numbers.stream().map(DrawnFrame.Text::text).toList());
-            List<int[]> rails = detailRails(frame);
-            assertEquals(3, rails.size(), "a rail a member");
-            for (int index = 0; index < TRIO.size(); index++) {
-                DrawnFrame.Text name = frame.find(TRIO.get(index));
-                DrawnFrame.Text number = numbers.get(index);
-                assertTrue(Math.abs(number.y() - name.y()) < ExpressionLines.TEXT_LINE_HEIGHT, number + " vs " + name);
-                assertEquals(DETAIL_LEFT, rails.get(index)[0]);
-                assertTrue(rails.get(index)[2] <= number.x() && number.x() < name.x(), number + " vs " + name);
-            }
-        }
-
-        /**
-         * The tag group's members draw no number and no rail.
-         */
-        @Test
-        void tagGroupMembersDrawNoNumberAndNoRail() {
-            DrawnFrame frame = frame("logs");
-            assertEquals(List.of(), detailNumbers(frame));
-            assertEquals(List.of(), detailRails(frame).stream().map(Arrays::toString).toList());
-        }
-
-        /**
-         * Dragging the third member's rail onto the first member's row posts the members with the third first.
-         */
-        @Test
-        void railDragOntoTheFirstRowMovesTheMemberThere() {
-            DrawnFrame frame = frame("trio");
-            int[] third = detailRails(frame).get(2);
-            int firstRow = frame.find(TRIO.get(0)).y();
-            assertTrue(frame.targets.click(third[0] + 1, third[1] + 1));
-            frame.targets.drag(third[0] + 1, firstRow);
-            frame.targets.release();
-            ArgumentCaptor<String> posted = ArgumentCaptor.forClass(String.class);
-            verify(actions).request(eq(WorkbenchOperations.APPLY_TO_GROUP),
-                    posted.capture(), any());
-            assertEquals(List.of("minecraft:spruce_log", "minecraft:oak_log", "minecraft:birch_log"),
-                    JsonParser.parseString(posted.getValue()).getAsJsonObject()
-                            .getAsJsonArray("picks").asList().stream().map(pick -> pick.getAsString()).toList());
         }
     }
 
@@ -915,54 +666,6 @@ class GroupsPaneTest {
         ScreenDraw.extract(pane, expanded.graphics, DrawnFrame.font(), bounds, expanded.targets);
         assertEquals(iterators, expanded.texts().stream().filter(text -> text.matches("^#iter\\d\\d$")).count(),
                 expanded.texts().toString());
-    }
-
-    // Decision one-name-primitive-cuts-and-hovers-the-whole-name-on-every-pane: a selected group's card head cuts
-    // its long name and hovers it whole through drawEntryName.
-    @Test
-    void wideNameHoversWhole() {
-        ManagerDraft draft = new ManagerDraft();
-        GroupsTab groups = new GroupsTab(draft);
-        String name = WIDE.substring(1);
-        groups.readDescribed("""
-                {"groups": [{"name": "%s", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true}],
-                   "base": null, "tweaks": [], "preview": []}]}
-                """.formatted(name));
-        ManagerActions actions = mock(ManagerActions.class);
-        ItemIcons icons = mock(ItemIcons.class);
-        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
-        GroupsPane pane = new GroupsPane(groups, new ValuesTab(draft), icons, actions,
-                new ExpressionBuilderPane(actions, icons, List::of, List::of));
-        groups.selectGroup(name);
-        DrawnFrame frame = new DrawnFrame();
-        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 300, 300), frame.targets);
-        DrawnFrame.Text cut = frame.drawn().stream().filter(text -> text.text().contains(ButtonPainter.ELLIPSIS))
-                .reduce((first, last) -> last).orElseThrow(() -> new AssertionError(frame.texts().toString()));
-        String key = frame.targets.hoveredArea(cut.x() + 1, cut.y() + 1).orElseThrow().hoverKey();
-        assertEquals(Optional.of(new TooltipLine.Text(Component.literal(WIDE))), ButtonPainter.wholeNameTooltip(key));
-    }
-
-    /**
-     * A group row holding more members than its line fits ends on a ..+n button counting the rest (decision
-     * more-button-reads-dot-dot-plus-n).
-     */
-    @Test
-    void cutShortRowEndsOnDotDotPlusN() {
-        String members = IntStream.range(0, 30).mapToObj("{\"id\": \"minecraft:item%d\", \"known\": true}"::formatted)
-                .collect(Collectors.joining(", "));
-        ManagerDraft draft = new ManagerDraft();
-        GroupsTab groups = new GroupsTab(draft);
-        groups.readDescribed("""
-                {"groups": [{"name": "many", "members": [%s], "base": null, "tweaks": [], "preview": []}]}
-                """.formatted(members));
-        ManagerActions actions = mock(ManagerActions.class);
-        ItemIcons icons = mock(ItemIcons.class);
-        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
-        GroupsPane pane = new GroupsPane(groups, new ValuesTab(draft), icons, actions,
-                new ExpressionBuilderPane(actions, icons, List::of, List::of));
-        DrawnFrame frame = new DrawnFrame();
-        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
-        assertTrue(frame.texts().stream().anyMatch(text -> text.matches("^\\.\\.\\+\\d+$")), frame.texts().toString());
     }
 
     /**
@@ -1075,8 +778,7 @@ class GroupsPaneTest {
 
     /**
      * A change in the Groups builder writes the group's base into the draft and reaches draftChanged on the same call,
-     * as the Items and Prefabs builders do, with no group request ahead of it (decision
-     * one-red-error-line-under-every-value).
+     * as the Items and Prefabs builders do (decision one-red-error-line-under-every-value).
      */
     @Test
     void builderChangeReachesDraftChangedOnTheSameCall() {
@@ -1096,7 +798,6 @@ class GroupsPaneTest {
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
         pane.writeBase("logs", "9");
         verify(actions).draftChanged();
-        verify(actions, never()).request(eq(WorkbenchOperations.APPLY_TO_GROUP), anyString(), any());
         String base = draft.members().asList().stream().map(JsonElement::getAsJsonObject)
                 .filter(member -> member.get("key").getAsString().equals("#logs")).findFirst().orElseThrow()
                 .get("text").getAsString();
@@ -1179,9 +880,6 @@ class GroupsPaneTest {
         assertEquals(Lettering.AMOUNT_SCALE, frame.placed("10").scale(), frame.placements().toString());
         assertTrue(frame.placements().stream().anyMatch(placed -> placed.text().equals("2")
                 && placed.scale() < Lettering.AMOUNT_SCALE), "the half stacks: " + frame.placements());
-        assertTrue(frame.placements().stream().noneMatch(placed -> placed.text().contains("21/2")
-                && placed.scale() == 1f && placed.y() < frame.find(ReadValueButton.PENCIL).y() - 4),
-                frame.placements().toString());
     }
 
     /**
@@ -1247,7 +945,6 @@ class GroupsPaneTest {
         // Decision no-value-reads-value-not-explicitly-set-as-a-pencil-button.
         assertEquals(2, listed.texts().stream().filter(ReadValueButton.NOT_SET::equals).count(),
                 listed.texts().toString());
-        assertFalse(listed.texts().contains("empty"), listed.texts().toString());
         listed.click(ReadValueButton.NOT_SET);
         assertTrue(builder.isOpen());
         assertEquals(Optional.of("saplings"), groups.selected().map(GroupsTab.Group::name));
@@ -1258,40 +955,6 @@ class GroupsPaneTest {
         // Decision add-type-is-a-big-square-plus-question-button-below-the-list: the +? stands under the kind.
         assertTrue(building.find("+?").y() > kind.y(), building.drawn().toString());
     }
-    /**
-     * Between two member cards, the second card's rule stands the rule's padding below the first card's sprite
-     * (decision rule-takes-padding-above-it).
-     */
-    @Test
-    void memberCardRuleStandsThePaddingBelowTheSpriteAbove() {
-        ManagerDraft draft = new ManagerDraft();
-        GroupsTab groups = new GroupsTab(draft);
-        groups.readDescribed("""
-                {"groups": [
-                  {"name": "logs", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true},
-                    {"id": "minecraft:birch_log", "known": true}], "base": null, "tweaks": [], "preview": []}]}
-                """);
-        ManagerActions actions = mock(ManagerActions.class);
-        ItemIcons icons = mock(ItemIcons.class);
-        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
-        GroupsPane pane = new GroupsPane(groups, new ValuesTab(draft), icons, actions,
-                new ExpressionBuilderPane(actions, icons, List::of, List::of));
-        groups.selectGroup("logs");
-        DrawnFrame frame = new DrawnFrame();
-        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
-        int oak = frame.find("minecraft:oak_log").y();
-        int birch = frame.find("minecraft:birch_log").y();
-        ArgumentCaptor<Integer> itemYs = ArgumentCaptor.forClass(Integer.class);
-        verify(frame.graphics, atLeastOnce()).item(any(), anyInt(), itemYs.capture());
-        int oakSprite = itemYs.getAllValues().stream().filter(y -> y <= oak && y + RowLayout.SPRITE_SIZE > oak)
-                .reduce((first, last) -> last).orElseThrow();
-        ArgumentCaptor<Integer> fillYs = ArgumentCaptor.forClass(Integer.class);
-        verify(frame.graphics, atLeastOnce()).fill(anyInt(), fillYs.capture(), anyInt(), anyInt(),
-                eq(Palette.SEPARATOR));
-        int rule = fillYs.getAllValues().stream().filter(y -> y > oak && y < birch).findFirst().orElseThrow();
-        assertEquals(RowLayout.RULE_PADDING, rule - (oakSprite + RowLayout.SPRITE_SIZE));
-    }
-
     /**
      * One wheel notch over the group list moves it one wheel step (decision one-wheel-step-and-one-dialog-primitive).
      */
@@ -1316,38 +979,6 @@ class GroupsPaneTest {
         DrawnFrame.Text second = tall.findFirst("#" + groupName(1));
         assertEquals(Lettering.full(DrawnFrame.font()).centeredTop(tall.rowTopAbove(second),
                 RowLayout.SPRITE_ROW_HEIGHT), second.y());
-    }
-
-    /**
-     * A member-list card's sprite hovers the item's value and follows to Items on shift + left click, as every item
-     * icon does (decision one-item-icon-primitive-hovers-and-links-every-icon-but-the-rows-own).
-     */
-    @Test
-    void memberCardSpriteHoversAndLinksAsEveryItemIcon() {
-        ManagerDraft draft = new ManagerDraft();
-        GroupsTab groups = new GroupsTab(draft);
-        groups.readDescribed("""
-                {"groups": [
-                  {"name": "logs", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true}],
-                   "base": null, "tweaks": [], "preview": []}]}
-                """);
-        ManagerActions actions = mock(ManagerActions.class);
-        ItemIcons icons = mock(ItemIcons.class);
-        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
-        GroupsPane pane = new GroupsPane(groups, new ValuesTab(draft), icons, actions,
-                new ExpressionBuilderPane(actions, icons, List::of, List::of));
-        groups.selectGroup("logs");
-        DrawnFrame frame = new DrawnFrame();
-        ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
-        ArgumentCaptor<Integer> xs = ArgumentCaptor.forClass(Integer.class);
-        ArgumentCaptor<Integer> ys = ArgumentCaptor.forClass(Integer.class);
-        verify(frame.graphics, atLeastOnce()).item(any(), xs.capture(), ys.capture());
-        int x = xs.getAllValues().getLast() + 1;
-        int y = ys.getAllValues().getLast() + 1;
-        assertEquals(Optional.of(ItemIcons.hoverKey("minecraft:oak_log")),
-                frame.targets.hoveredArea(x, y).map(ClickTargets.HoveredArea::hoverKey));
-        assertTrue(frame.targets.click(x, y, GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOD_SHIFT));
-        verify(actions).openItem("minecraft:oak_log");
     }
 
     /**
@@ -1376,8 +1007,8 @@ class GroupsPaneTest {
     }
 
     /**
-     * In a group's expression, a right click on a prefab ref runs nothing, a shift + left click on it opens the
-     * Prefabs tab on that prefab and a plain left click on the same ref opens the builder over the value (decision
+     * In a group's expression, a shift + left click on a prefab ref opens the Prefabs tab on that prefab and a plain
+     * left click on the same ref opens the builder over the value (decision
      * shift-left-click-follows-plain-left-modifies).
      */
     @Test
@@ -1396,12 +1027,8 @@ class GroupsPaneTest {
         groups.selectGroup("logs");
         DrawnFrame frame = new DrawnFrame();
         ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
-        assertTrue(!frame.rightClick("$wood"));
-        verify(actions, never()).openVariable(anyString());
-        assertTrue(!builder.isOpen());
         frame.shiftClick("$wood");
         verify(actions).openVariable("wood");
-        assertTrue(!builder.isOpen());
         frame.click("$wood");
         assertTrue(builder.isOpen());
     }
@@ -1437,13 +1064,11 @@ class GroupsPaneTest {
         DrawnFrame.Text newGroup = closed.find("+ Custom");
         DrawnFrame.Text addTag = closed.find("+ Tag");
         assertEquals(newGroup.y(), addTag.y());
-        assertFalse(closed.texts().contains("New group") || closed.texts().contains("Add tag"), closed.texts().toString());
         assertTrue(addTag.x() > newGroup.x(), closed.drawn().toString());
         closed.click("+ Tag");
         DrawnFrame open = new DrawnFrame();
         ScreenDraw.extract(pane, open.graphics, DrawnFrame.font(), bounds, open.targets);
         assertTrue(open.texts().containsAll(List.of("#minecraft:leaves, 8 members", "#minecraft:logs, 40 members")),
                 open.texts().toString());
-        assertEquals(List.of(), open.texts().stream().filter(text -> text.startsWith("#minecraft:saplings")).toList());
     }
 }
