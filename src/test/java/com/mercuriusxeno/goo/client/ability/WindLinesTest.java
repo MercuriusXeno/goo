@@ -1,10 +1,13 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.program.WindStep;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -17,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class WindLinesTest {
 
     private static final double EPSILON = 1e-9;
+    private static final int RGB = 0xFFFFFF;
     private static final Vec3 EAST = new Vec3(1, 0, 0);
     private static final Vec3 SOUTH = new Vec3(0, 0, 1);
     private static final Vec3 UP = new Vec3(0, 1, 0);
@@ -74,6 +78,194 @@ class WindLinesTest {
 
     private static WindLines.Line line(WindLines.Sway sway, boolean carried) {
         return new WindLines.Line(Vec3.ZERO, EAST, SOUTH, EAST.cross(SOUTH), STRAIGHT, sway, 1, 0f, true, 0L, carried);
+    }
+
+    /**
+     * Vacuum's wind runs inward: each line starts inside the cone and its head
+     * closes on the glove, speeding up as it nears, while every other wind
+     * still rushes out (decision vacuum-streaks-wind-lines-inward-to-the-glove).
+     */
+    @Nested
+    class Inward {
+
+        private final WindLines.Line inward = new WindLines.Line(Vec3.ZERO, EAST, SOUTH, EAST.cross(SOUTH), STRAIGHT,
+                SWAYING, 1, 0f, false, 0L, false, true);
+
+        @Test
+        void anInwardLineStartsInsideTheConeAtItsStraightRun() {
+            assertEquals(STRAIGHT, WindLines.pathPoint(inward, 0).length(), WindLines.SWAY * 2);
+        }
+
+        @Test
+        void anInwardLinesHeadClosesOnTheGloveAlongItsLife() {
+            for (int tick = 1; tick <= WindLines.LIFE_TICKS; tick++) {
+                assertTrue(WindLines.pathPoint(inward, tick).length() < WindLines.pathPoint(inward, tick - 1).length(),
+                        "tick " + tick + " should stand nearer the glove");
+            }
+            assertEquals(0, WindLines.pathPoint(inward, WindLines.LIFE_TICKS).length(), EPSILON);
+        }
+
+        @Test
+        void anInwardLineSpeedsUpAsItNearsTheGlove() {
+            double early = closing(2);
+            double late = closing(WindLines.LIFE_TICKS - 1);
+            assertTrue(late > early, "the head should close faster near the glove: " + early + " then " + late);
+        }
+
+        @Test
+        void anOutwardLinesHeadDrawsAwayFromTheGloveAlongItsLife() {
+            WindLines.Line outward = line(WindLines.Sway.NONE);
+            for (int tick = 1; tick <= WindLines.LIFE_TICKS; tick++) {
+                assertTrue(WindLines.pathPoint(outward, tick).length() > WindLines.pathPoint(outward, tick - 1).length(),
+                        "tick " + tick + " should stand farther from the glove");
+            }
+        }
+
+        @Test
+        void theWindStepReadsInwardOnVacuumAlone() {
+            assertTrue(windOf("void_vacuum").inward(), "Vacuum's wind runs inward");
+            assertFalse(windOf("frost_cold").inward(), "Cold's wind runs out");
+            assertFalse(windOf("typhoon_gust").inward(), "Gust's wind runs out");
+        }
+
+        // vacuum-wind-lines-run-straight-and-far-in-void-colors-with-motes
+        @Test
+        void anInwardLineRunsItsCourseWithNoSway() {
+            WindLines.Line steady = new WindLines.Line(Vec3.ZERO, EAST, SOUTH, EAST.cross(SOUTH), STRAIGHT,
+                    WindLines.Sway.NONE, 1, 0f, false, 0L, false, true);
+            for (int tick = 0; tick <= WindLines.LIFE_TICKS; tick++) {
+                assertEquals(0, WindLines.pathPoint(inward, tick).distanceTo(WindLines.pathPoint(steady, tick)),
+                        EPSILON, "tick " + tick + " sways off course");
+            }
+        }
+
+        @Test
+        void anOutwardLineStillSways() {
+            double most = 0;
+            for (int tick = 0; tick <= WindLines.LIFE_TICKS; tick++) {
+                most = Math.max(most, WindLines.pathPoint(line(SWAYING), tick)
+                        .distanceTo(WindLines.pathPoint(line(WindLines.Sway.NONE), tick)));
+            }
+            assertTrue(most > EPSILON, "an outward line should sway off its course");
+        }
+
+        @Test
+        void anInwardLineRunsTheWholeOfItsGustsRange() {
+            for (double range : new double[] {8, 5}) {
+                double run = WindLines.runOf(range, true, 0.3);
+                WindLines.Line spanning = new WindLines.Line(Vec3.ZERO, EAST, SOUTH, EAST.cross(SOUTH), run,
+                        WindLines.Sway.NONE, 1, 0f, false, 0L, false, true);
+
+                assertEquals(range, run, EPSILON);
+                assertEquals(range, WindLines.pathPoint(spanning, 0).length(), EPSILON);
+                assertEquals(0, WindLines.pathPoint(spanning, WindLines.LIFE_TICKS).length(), EPSILON);
+            }
+        }
+
+        @Test
+        void anInwardLineTurnsGentlyOneWayAboutTheConesAxis() {
+            double about = 0.7;
+            Vec3 outward = WindLines.radial(EAST, about);
+            Vec3 across = EAST.cross(outward).normalize();
+            WindLines.Line tilted = new WindLines.Line(Vec3.ZERO, WindLines.tilt(EAST, Math.toRadians(15), about),
+                    outward, across, STRAIGHT, WindLines.Sway.NONE, 1, 0f, false, 0L, false, true);
+            double start = angleAbout(tilted, 0, outward, across);
+            double last = start;
+            double direction = 0;
+            for (int tick = 1; tick < WindLines.LIFE_TICKS; tick++) {
+                double angle = angleAbout(tilted, tick, outward, across);
+                double turned = angle - last;
+                assertTrue(direction == 0 || Math.signum(turned) == direction, "tick " + tick + " turns back");
+                direction = direction == 0 ? Math.signum(turned) : direction;
+                last = angle;
+            }
+            double total = Math.abs(last - start);
+            assertTrue(total > 0 && total <= Math.PI / 2, "the twist turns " + Math.toDegrees(total) + " degrees");
+        }
+
+        private double closing(int tick) {
+            return WindLines.pathPoint(inward, tick - 1).length() - WindLines.pathPoint(inward, tick).length();
+        }
+
+        private static double angleAbout(WindLines.Line line, int tick, Vec3 outward, Vec3 across) {
+            Vec3 head = WindLines.pathPoint(line, tick);
+            return Math.atan2(head.dot(across), head.dot(outward));
+        }
+
+        @Test
+        void aLineDrawsBetweenTheTwoColorsItCarries() {
+            WindStep.LineColors voidPair = new WindStep.LineColors(0x7A52B0, 0xB48CE8);
+            for (WindStep.LineColors colors : new WindStep.LineColors[] {WindStep.LineColors.WIND, voidPair}) {
+                assertEquals(colors.light(), WindLines.trailColor(colored(0f, colors), 0f, 0f) & RGB);
+                assertEquals(colors.dark(), WindLines.trailColor(colored(1f, colors), 0f, 0f) & RGB);
+            }
+        }
+
+        @Test
+        void vacuumsLinesCarryColorsOfTheirOwnAndColdsAndGustsTheWinds() {
+            assertTrue(!WindStep.LineColors.WIND.equals(windOf("void_vacuum").colors()), "Vacuum draws the wind's white");
+            assertEquals(WindStep.LineColors.WIND, windOf("frost_cold").colors());
+            assertEquals(WindStep.LineColors.WIND, windOf("typhoon_gust").colors());
+        }
+
+        @Test
+        void aVoidMoteLeavesFromTheLineAndEndsAtTheGlove() {
+            Vec3 glove = new Vec3(2, 64, -3);
+            WindLines.Line far = new WindLines.Line(glove, EAST, SOUTH, EAST.cross(SOUTH), STRAIGHT,
+                    WindLines.Sway.NONE, 1, 0f, false, 0L, false, true);
+            for (int age : new int[] {5, 20, 40}) {
+                WindLines.MoteFlight flight = WindLines.moteFlight(far, age);
+                Vec3 toGlove = glove.subtract(flight.from());
+
+                assertEquals(0, flight.from().distanceTo(WindLines.pathPoint(far, age)), EPSILON);
+                assertEquals(1, flight.velocity().normalize().dot(toGlove.normalize()), EPSILON);
+                double carried = (1 - Math.pow(WindLines.MOTE_FRICTION, flight.ticks())) / (1 - WindLines.MOTE_FRICTION);
+                assertEquals(0, flight.from().add(flight.velocity().scale(carried)).distanceTo(glove), 1e-6,
+                        "a mote should end its flight at the glove");
+            }
+        }
+
+        /**
+         * The client blows a stream's wind through the ability's area, so an
+         * ability naming none blows lines of no length and motes that never
+         * leave the glove; Vacuum's area spans its own stream's reach and cone.
+         * vacuum-wind-lines-run-straight-and-far-in-void-colors-with-motes
+         */
+        @Test
+        void vacuumsWindBlowsThroughItsStreamsReachAndCone() {
+            AbilityDefinition vacuum = AbilityJson.decode("void_vacuum");
+
+            assertEquals(vacuum.delivery().range(), vacuum.area().size(), EPSILON, "the wind's reach");
+            assertEquals(vacuum.delivery().coneDegrees(), vacuum.area().angle(), EPSILON, "the wind's cone");
+        }
+
+        // the operator's ruling: the violet motes were too slow
+        @Test
+        void aVoidMoteFliesToTheGloveQuickly() {
+            WindLines.Line far = new WindLines.Line(Vec3.ZERO, EAST, SOUTH, EAST.cross(SOUTH), STRAIGHT,
+                    WindLines.Sway.NONE, 1, 0f, false, 0L, false, true);
+            for (int age : new int[] {0, 20, 45}) {
+                assertTrue(WindLines.moteFlight(far, age).ticks() <= WindLines.MOTE_FLIGHT_TICKS,
+                        "a mote leaving at age " + age + " flies " + WindLines.moteFlight(far, age).ticks() + " ticks");
+            }
+        }
+
+        @Test
+        void voidMotesRideVacuumsLinesAloneAndSnowflakesColdsAlone() {
+            assertTrue(windOf("void_vacuum").voidMotes() && !windOf("void_vacuum").snowflakes());
+            assertTrue(windOf("frost_cold").snowflakes() && !windOf("frost_cold").voidMotes());
+            assertFalse(windOf("typhoon_gust").snowflakes() || windOf("typhoon_gust").voidMotes());
+        }
+
+        private static WindLines.Line colored(float gray, WindStep.LineColors colors) {
+            return new WindLines.Line(Vec3.ZERO, EAST, SOUTH, EAST.cross(SOUTH), STRAIGHT, WindLines.Sway.NONE, 1,
+                    gray, false, 0L, false, true, colors, false);
+        }
+
+        private static WindStep windOf(String ability) {
+            return AbilityJson.decode(ability).behaviors().stream().filter(WindStep.class::isInstance)
+                    .map(WindStep.class::cast).findFirst().orElseThrow();
+        }
     }
 
     @Nested
