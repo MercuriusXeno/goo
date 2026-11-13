@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 
 /**
  * The cell a blob landing on a block lands in, decided through
@@ -43,7 +44,7 @@ public record LandingSpot(BlockPos cell, boolean waterlogged, Direction face) {
      * @return the landing, or empty when neither candidate takes it
      */
     public static Optional<LandingSpot> resolve(Level level, BlockPos hit, Direction face) {
-        return between(level, hit, face);
+        return between(pos -> candidate(level, pos), hit, face);
     }
 
     /**
@@ -60,14 +61,30 @@ public record LandingSpot(BlockPos cell, boolean waterlogged, Direction face) {
      * @return the landing, or empty when no neighbor of the struck block takes it
      */
     public static Optional<LandingSpot> resolve(Level level, BlockPos hit, Direction face, Vec3 point) {
-        Optional<LandingSpot> spot = resolve(level, hit, face);
+        return resolve(pos -> candidate(level, pos), hit, face, point);
+    }
+
+    /**
+     * Decides where a blob striking a block face at a point lands, reading each cell through the function given:
+     * the struck block or the cell beyond the face, and where neither takes it, the struck block's free neighbor
+     * nearest the point.
+     *
+     * @param cells each cell's state for the placement rules
+     * @param hit   the struck block
+     * @param face  the struck face
+     * @param point the point the blob struck
+     * @return the landing, or empty when no neighbor of the struck block takes it
+     */
+    static Optional<LandingSpot> resolve(Function<BlockPos, CandidateState> cells, BlockPos hit, Direction face,
+                                         Vec3 point) {
+        Optional<LandingSpot> spot = between(cells, hit, face);
         if (spot.isPresent()) {
             return spot;
         }
         List<Direction> nearestFirst = new ArrayList<>(List.of(Direction.values()));
         nearestFirst.sort(Comparator.comparingDouble(side -> Vec3.atCenterOf(hit.relative(side)).distanceToSqr(point)));
         for (Direction side : nearestFirst) {
-            Optional<LandingSpot> beside = between(level, hit, side);
+            Optional<LandingSpot> beside = between(cells, hit, side);
             if (beside.isPresent()) {
                 return beside;
             }
@@ -78,14 +95,15 @@ public record LandingSpot(BlockPos cell, boolean waterlogged, Direction face) {
     /**
      * Decides between the struck block and the cell on one side of it.
      *
-     * @param level the current level
+     * @param cells each cell's state for the placement rules
      * @param hit   the struck block
      * @param side  the struck block's side the cell beside it stands on
      * @return the landing, or empty when neither candidate takes it
      */
-    private static Optional<LandingSpot> between(Level level, BlockPos hit, Direction side) {
+    private static Optional<LandingSpot> between(Function<BlockPos, CandidateState> cells, BlockPos hit,
+                                                 Direction side) {
         BlockPos adjacent = hit.relative(side);
-        Decision decision = ChainPlacementRules.decide(candidate(level, hit), candidate(level, adjacent),
+        Decision decision = ChainPlacementRules.decide(cells.apply(hit), cells.apply(adjacent),
                 WaterHandling.WATERLOG);
         BlockPos cell = decision.candidateIndex() == 0 ? hit : adjacent;
         return switch (decision.action()) {

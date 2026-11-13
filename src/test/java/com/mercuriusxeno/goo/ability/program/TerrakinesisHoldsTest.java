@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import org.junit.jupiter.api.Test;
+import java.util.List;
 import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -49,5 +50,16 @@ class TerrakinesisHoldsTest {
         assertEquals(1, TerrakinesisHolds.windUpOf(player).tickAt(ready));
         assertEquals(TerrakinesisStep.WINDUP_TICKS - 1,
                 TerrakinesisHolds.windUpOf(player).tickAt(ready + TerrakinesisStep.WINDUP_TICKS - 2));
+    }
+
+    @Test
+    void aThrowHoldsOffTheNextGrabUntilItsCooldownEnds() {
+        UUID player = UUID.randomUUID();
+        long thrown = PRESS + 40;
+        TerrakinesisHolds.threw(player, thrown);
+        long ready = thrown + TerrakinesisStep.THROW_COOLDOWN_TICKS;
+
+        assertEquals(List.of(true, false),
+                List.of(TerrakinesisHolds.coolingDown(player, ready - 1), TerrakinesisHolds.coolingDown(player, ready)));
     }
 }

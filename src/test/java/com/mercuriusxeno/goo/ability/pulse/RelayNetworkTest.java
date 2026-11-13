@@ -1,11 +1,17 @@
 package com.mercuriusxeno.goo.ability.pulse;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.state.BlockState;
 import org.junit.jupiter.api.Test;
+import java.util.List;
 import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * A relay link crosses every cell between the two relays' centers, the
@@ -57,5 +63,25 @@ class RelayNetworkTest {
     @Test
     void aRelayDoesNotLinkToItself() {
         assertFalse(RelayNetwork.inLinkReach(BlockPos.ZERO, BlockPos.ZERO));
+    }
+
+    /**
+     * A link joins only where every cell between the two relays is air, so a block set on the line breaks it.
+     */
+    @Test
+    void aBlockOnTheLineBreaksTheLink() {
+        BlockPos from = new BlockPos(0, 0, 0);
+        BlockPos to = new BlockPos(4, 0, 0);
+        BlockState air = mock(BlockState.class);
+        when(air.isAir()).thenReturn(true);
+        BlockState stone = mock(BlockState.class);
+        ServerLevel clear = mock(ServerLevel.class);
+        when(clear.getBlockState(any())).thenReturn(air);
+        ServerLevel blocked = mock(ServerLevel.class);
+        when(blocked.getBlockState(any())).thenAnswer(call ->
+                call.<BlockPos>getArgument(0).equals(new BlockPos(2, 0, 0)) ? stone : air);
+
+        assertEquals(List.of(true, false),
+                List.of(RelayNetwork.linksThroughAir(clear, from, to), RelayNetwork.linksThroughAir(blocked, from, to)));
     }
 }

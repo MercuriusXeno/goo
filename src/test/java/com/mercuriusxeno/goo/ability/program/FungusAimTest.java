@@ -1,6 +1,9 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import java.util.List;
@@ -8,6 +11,9 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Fungal Shift's aim snaps to a fungus block within three degrees of the
@@ -43,5 +49,22 @@ class FungusAimTest {
         List<BlockPos> candidates = FungusAim.snapCandidates(EYE, EAST, REACH, fungus::contains);
 
         assertEquals(List.of(onTheLine, besideIt), candidates);
+    }
+
+    @Test
+    void aFungusWithinTheNearReachOfTheFeetCountsAndOnePastItDoesNot() {
+        BlockPos twoEast = new BlockPos(2, 0, 0);
+        BlockState mushroom = mock(BlockState.class);
+        when(mushroom.is(ShiftStep.FUNGUS)).thenReturn(true);
+        BlockState air = mock(BlockState.class);
+        Level level = mock(Level.class);
+        when(level.getBlockState(any(BlockPos.class))).thenAnswer(call ->
+                call.<BlockPos>getArgument(0).equals(twoEast) ? mushroom : air);
+        Entity shifter = mock(Entity.class);
+        when(shifter.position()).thenReturn(new Vec3(0.5, 0, 0.5));
+        when(shifter.blockPosition()).thenReturn(BlockPos.ZERO);
+
+        assertEquals(List.of(true, false), List.of(FungusAim.standsNearFungus(level, shifter, 3),
+                FungusAim.standsNearFungus(level, shifter, 1)));
     }
 }

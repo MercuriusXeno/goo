@@ -62,16 +62,21 @@ class CanisterSlotRelayTest {
         return pusher;
     }
 
-    private int relayedWith(OptionalInt machine, OptionalInt partner) {
+    private CanisterSlot slotFeedingAPartner(OptionalInt machine) {
         CanisterSlot slot = slotStatingMachineDemand(machine);
-        slot.setPusher(pusherWhosePartnerStates(partner, goo));
-        handler.setConsumerDemand(slot::consumerDemand);
-        return GasketDemand.demandOf(handler, goo);
+        slot.setPusher(pusherWhosePartnerStates(OptionalInt.of(PARTNER_DEMAND), goo));
+        return slot;
     }
 
     @Test
-    void aSlotFeedingAPartnerAsksItsRestPlusThatPartnersDemand() {
-        assertEquals(resting + PARTNER_DEMAND, relayedWith(OptionalInt.empty(), OptionalInt.of(PARTNER_DEMAND)));
+    void aSlotWithNoMachineReadsItsConsumerFromThePartnerBehindItsGasket() {
+        assertEquals(OptionalInt.of(PARTNER_DEMAND), slotFeedingAPartner(OptionalInt.empty()).consumerDemand(goo));
+    }
+
+    @Test
+    void aCanisterAsksItsRestPlusItsConsumersDemand() {
+        handler.setConsumerDemand(resource -> OptionalInt.of(PARTNER_DEMAND));
+        assertEquals(resting + PARTNER_DEMAND, GasketDemand.demandOf(handler, goo));
     }
 
     @Test
@@ -82,23 +87,7 @@ class CanisterSlotRelayTest {
     }
 
     @Test
-    void aSlotWhosePartnerStatesNoneRests() {
-        assertEquals(resting, relayedWith(OptionalInt.empty(), OptionalInt.empty()));
-    }
-
-    @Test
-    void aSlotWhosePartnerAsksNothingRests() {
-        assertEquals(resting, relayedWith(OptionalInt.empty(), OptionalInt.of(0)));
-    }
-
-    @Test
-    void theMachineDrawingOnTheSlotIsTheConsumerItStacks() {
-        assertEquals(resting + MACHINE_DEMAND, relayedWith(OptionalInt.of(MACHINE_DEMAND), OptionalInt.of(PARTNER_DEMAND)));
-    }
-
-    @Test
-    void aLoopOfLinksRests() {
-        handler.setConsumerDemand(resource -> GasketDemand.statedDemandOf(handler, resource));
-        assertEquals(resting, GasketDemand.demandOf(handler, goo));
+    void theMachineDrawingOnTheSlotIsItsConsumerAheadOfThePartner() {
+        assertEquals(OptionalInt.of(MACHINE_DEMAND), slotFeedingAPartner(OptionalInt.of(MACHINE_DEMAND)).consumerDemand(goo));
     }
 }

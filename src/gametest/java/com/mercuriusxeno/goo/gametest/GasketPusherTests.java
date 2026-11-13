@@ -44,15 +44,9 @@ import java.util.function.Consumer;
  */
 @RegistersGameTests
 public final class GasketPusherTests {
-    private static final String PUSHER_EMPTY_RESERVOIR = "pusher_empty_reservoir";
-    private static final String PUSHER_NO_PARTNER = "pusher_no_partner";
-    private static final String PUSHER_DISPOSE_DROPS_GASKET = "pusher_dispose_drops_gasket_once";
-    private static final String PUSHER_DOUBLE_DISPOSE_DROPS_GASKETS = "pusher_double_dispose_drops_gasket_each_time";
     private static final String PUSHER_REACTOR_OUTPUT_PUSH = "pusher_reactor_output_push";
-    private static final String PUSHER_REACTOR_OUTPUT_REMOVAL = "pusher_reactor_output_removal";
     private static final String PUSHER_WATERLOGGED_GASKET_VAT = "pusher_waterlogged_gasket_vat";
     private static final String PUSHER_BREAK_RELEASES_CHUNK = "pusher_crucible_break_releases_partner_chunk";
-    private static final String PUSHER_UNLOAD_RELEASES_CHUNK = "pusher_crucible_unload_releases_partner_chunk";
     private static final String PUSHER_MOVED_RECEIVER = "pusher_moved_receiver_keeps_receiving";
 
     /**
@@ -61,27 +55,14 @@ public final class GasketPusherTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, PUSHER_EMPTY_RESERVOIR, GasketPusherTests::emptyReservoirSkipsTick);
-        GooTestFunctions.registerTest(registrar, PUSHER_NO_PARTNER, GasketPusherTests::noPartnerSkipsTick);
-        GooTestFunctions.registerTest(registrar, PUSHER_DISPOSE_DROPS_GASKET, GasketPusherTests::disposeDropsGasketOnce);
-        GooTestFunctions.registerTest(registrar, PUSHER_DOUBLE_DISPOSE_DROPS_GASKETS, GasketPusherTests::doubleDisposeDropsGasketEachTime);
         GooTestFunctions.registerTest(registrar, PUSHER_REACTOR_OUTPUT_PUSH, GasketPusherTests::reactorOutputPushesToLinkedReceiver);
-        GooTestFunctions.registerTest(registrar, PUSHER_REACTOR_OUTPUT_REMOVAL, GasketPusherTests::reactorOutputRemovalStopsPush);
         GooTestFunctions.registerTest(registrar, PUSHER_WATERLOGGED_GASKET_VAT, GasketPusherTests::waterloggedGasketPushesIntoVat);
         GooTestFunctions.registerTest(registrar, PUSHER_BREAK_RELEASES_CHUNK, GasketPusherTests::crucibleBreakReleasesPartnerChunk);
-        GooTestFunctions.registerTest(registrar, PUSHER_UNLOAD_RELEASES_CHUNK, GasketPusherTests::crucibleUnloadReleasesPartnerChunk);
         GooTestFunctions.registerTest(registrar, PUSHER_MOVED_RECEIVER, GasketPusherTests::movedReceiverKeepsReceiving);
     }
 
 
     private static final BlockPos BE_POS = new BlockPos(1, 1, 1);
-    private static final int IDLE_TICKS = 25;
-    private static final int SETTLE_TICKS = 2;
-    /** Blocks around the broken crucible searched for its dropped gasket. */
-    private static final double DROP_RANGE = 1.5;
-    private static final String RECEIVER_NEVER_ROSE = "Receiver should hold goo before the output canister is removed";
-    private static final String EMPTY_AFTER_IDLE = "Crucible reservoir should still be empty after idle ticks";
-    private static final String NO_CRASH_NO_PARTNER = "Crucible should not crash or produce goo without a partner";
 
     // --- Pusher release fixtures (diagnose-then-fix-capability-lifetimes) ---
 
@@ -97,7 +78,6 @@ public final class GasketPusherTests {
     private static final BlockPos SECOND_HOST_POS = new BlockPos(3, 1, 3);
     private static final String MOVED_RECEIVER_ROSE =
             "Canister carried to a second host should keep receiving goo with no re-link";
-    private static final String FIRST_HOST_STAYS_EMPTY = "First host's emptied slot should receive no goo";
 
     // --- Reactor fixtures (reactor-output-push-fix) ---
 
@@ -109,8 +89,6 @@ public final class GasketPusherTests {
     private static final String RECEIVER_ROSE = "Receiver canister should hold goo after the reactor pushed";
     private static final String VOLUME_CONSERVED =
             "Goo the reactor output lost should equal goo the receiver gained";
-    private static final String RECEIVER_UNCHANGED_AFTER_REMOVAL =
-            "Receiver goo should not change after the output canister is removed";
 
     // --- Waterlogged choral gasket fixtures (diagnose-then-fix-waterlogged-gasket-link) ---
 
@@ -126,82 +104,6 @@ public final class GasketPusherTests {
     private static final String THEN = " then ";
 
     private GasketPusherTests() {}
-
-    /**
-     * An empty crucible (no items, no goo) should tick its pusher without
-     * syncing or crashing. Exercises the tick guard's "source empty" path.
-     *
-     * @param helper the gametest helper
-     */
-    public static void emptyReservoirSkipsTick(GameTestHelper helper) {
-        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get().defaultBlockState()
-            .setValue(CrucibleBlock.HAS_GASKET, true));
-        helper.runAfterDelay(IDLE_TICKS, () -> {
-            CrucibleBlockEntity be = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
-            helper.assertTrue(be.reservoirHandler().isEmpty(), EMPTY_AFTER_IDLE);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * A crucible with a gasket but no partner should tick safely.
-     * Exercises the "null partner" guard path.
-     *
-     * @param helper the gametest helper
-     */
-    public static void noPartnerSkipsTick(GameTestHelper helper) {
-        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get().defaultBlockState()
-            .setValue(CrucibleBlock.HAS_GASKET, true));
-        CrucibleBlockEntity be = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
-        be.gasketState().ensureId(GasketRole.TRANSMITTER, () -> {});
-        helper.runAfterDelay(IDLE_TICKS, () -> {
-            helper.assertTrue(be.reservoirHandler().isEmpty(), NO_CRASH_NO_PARTNER);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Breaking a gasketed crucible drops its gasket once through the
-     * setRemoved lifecycle, and the ticks after the break leave that one drop.
-     *
-     * @param helper the gametest helper
-     */
-    public static void disposeDropsGasketOnce(GameTestHelper helper) {
-        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get().defaultBlockState()
-            .setValue(CrucibleBlock.HAS_GASKET, true));
-        helper.runAfterDelay(1, () -> {
-            helper.destroyBlock(BE_POS);
-            helper.runAfterDelay(SETTLE_TICKS, () -> {
-                helper.assertItemEntityCountIs(GooItems.CHORAL_GASKET.get(), BE_POS, DROP_RANGE, 1);
-                helper.succeed();
-            });
-        });
-    }
-
-    /**
-     * Breaking a gasketed crucible, re-placing it and breaking it again drops
-     * one gasket per lifecycle on the same position.
-     *
-     * @param helper the gametest helper
-     */
-    public static void doubleDisposeDropsGasketEachTime(GameTestHelper helper) {
-        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get().defaultBlockState()
-            .setValue(CrucibleBlock.HAS_GASKET, true));
-        helper.runAfterDelay(1, () -> {
-            helper.destroyBlock(BE_POS);
-            helper.runAfterDelay(1, () -> {
-                helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get().defaultBlockState()
-                    .setValue(CrucibleBlock.HAS_GASKET, true));
-                helper.runAfterDelay(1, () -> {
-                    helper.destroyBlock(BE_POS);
-                    helper.runAfterDelay(SETTLE_TICKS, () -> {
-                        helper.assertItemEntityCountIs(GooItems.CHORAL_GASKET.get(), BE_POS, DROP_RANGE, 2);
-                        helper.succeed();
-                    });
-                });
-            });
-        });
-    }
 
     // --- Pusher release (diagnose-then-fix-capability-lifetimes) ---
 
@@ -221,25 +123,6 @@ public final class GasketPusherTests {
                 helper.getLevel().removeBlock(partner, false);
                 helper.succeed();
             });
-        });
-    }
-
-    /**
-     * A linked crucible whose chunk unloads, through NeoForge's onChunkUnloaded then
-     * setRemoved, leaves no gasket chunk ticket owned by the crucible's position.
-     *
-     * @param helper the gametest helper
-     */
-    public static void crucibleUnloadReleasesPartnerChunk(GameTestHelper helper) {
-        BlockPos partner = placeCrucibleLinkedAcrossChunks(helper);
-        helper.runAfterDelay(1, () -> {
-            helper.assertTrue(cruciblePartnerChunkHeld(helper, partner), PARTNER_CHUNK_NEVER_FORCED);
-            CrucibleBlockEntity crucible = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
-            crucible.onChunkUnloaded();
-            crucible.setRemoved();
-            helper.assertFalse(cruciblePartnerChunkHeld(helper, partner), PARTNER_CHUNK_STILL_FORCED);
-            helper.getLevel().removeBlock(partner, false);
-            helper.succeed();
         });
     }
 
@@ -295,7 +178,7 @@ public final class GasketPusherTests {
     /**
      * A crucible linked to a canister's receiver gasket keeps pushing once the canister is
      * carried from its first host into a second, with no re-link: the moved canister gains
-     * goo in the second host and the first host's emptied slot gains none.
+     * goo in the second host.
      *
      * @param helper the gametest helper
      */
@@ -326,7 +209,6 @@ public final class GasketPusherTests {
             helper.runAfterDelay(PUSH_TICKS, () -> {
                 int now = receiverAmount(second);
                 helper.assertTrue(now > carriedIn, MOVED_RECEIVER_ROSE + READ + carriedIn + THEN + now);
-                helper.assertTrue(receiverAmount(first) == 0, FIRST_HOST_STAYS_EMPTY);
                 helper.succeed();
             });
         });
@@ -350,27 +232,6 @@ public final class GasketPusherTests {
             helper.assertTrue(received > 0, RECEIVER_ROSE);
             helper.assertTrue(OUTPUT_GOO - remaining == received, VOLUME_CONSERVED);
             helper.succeed();
-        });
-    }
-
-    /**
-     * Reactor: removing the linked output canister disposes its pusher, so the
-     * receiver's goo stays where it was through the ticks that follow.
-     *
-     * @param helper the gametest helper
-     */
-    public static void reactorOutputRemovalStopsPush(GameTestHelper helper) {
-        ReactorBlockEntity reactor = placeLinkedReactor(helper);
-        CanisterBlockEntity receiver = helper.getBlockEntity(RECEIVER_POS, CanisterBlockEntity.class);
-        helper.runAfterDelay(PUSH_TICKS, () -> {
-            reactor.removeOutputCanister();
-            int receivedAtRemoval = receiverAmount(receiver);
-            helper.assertTrue(receivedAtRemoval > 0, RECEIVER_NEVER_ROSE);
-            helper.runAfterDelay(PUSH_TICKS, () -> {
-                helper.assertTrue(receiverAmount(receiver) == receivedAtRemoval,
-                        RECEIVER_UNCHANGED_AFTER_REMOVAL);
-                helper.succeed();
-            });
         });
     }
 

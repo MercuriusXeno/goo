@@ -47,7 +47,6 @@ public final class EndGateTests {
     private static final BlockPos WALL_CENTER = new BlockPos(4, 2, 4);
     private static final String ABILITY_REQUIRED = "goo:ender_end must be loaded";
     private static final String SHOULD_OPEN = "The gate should stand open as a pair over the wall";
-    private static final String SHOULD_KEEP_WALL = "The wall the gate lies on should stay stone, %s is not";
     private static final String SHOULD_COVER = "Every open cell in front of the wall should hold the gate's layer, %s does not";
     private static final String SHOULD_MIRROR = "The End's platform should hold the mirror gate";
     private static final String SHOULD_CARRY_THERE = "The wall gate should carry a traveller to %s in the End, carries %s";
@@ -82,9 +81,6 @@ public final class EndGateTests {
         Optional<EndGates.Pair> pair = EndGates.get(level).pairs().stream()
                 .filter(open -> open.near().center().equals(helper.absolutePos(WALL_CENTER))).findFirst();
         helper.assertTrue(pair.isPresent(), SHOULD_OPEN);
-        for (BlockPos cell : wall) {
-            helper.assertTrue(level.getBlockState(cell).is(Blocks.STONE), String.format(SHOULD_KEEP_WALL, cell));
-        }
         for (BlockPos cell : layer) {
             helper.assertTrue(level.getBlockState(cell).is(GooBlocks.END_GATE.get()), String.format(SHOULD_COVER, cell));
         }

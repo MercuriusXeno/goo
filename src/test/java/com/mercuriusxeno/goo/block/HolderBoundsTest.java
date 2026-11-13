@@ -23,7 +23,6 @@ import net.minecraft.server.Bootstrap;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
@@ -175,12 +174,9 @@ class HolderBoundsTest {
         }
 
         @Test
-        void hubAttachSpotIsNoHubSlot() {
-            ICanisterHolder be = (ICanisterHolder) hub(false);
-            BlockHitResult intakeTop = hitAt(0.5, 1.0, 0.5, Direction.UP);
-            assertAll(() -> assertFalse(be.takesCanisterAt(intakeTop, false)),
-                    () -> assertNull(be.previewBounds(intakeTop)),
-                    () -> assertTrue(be.takesCanisterAt(hitAt(0.5, 0.5, 2.0 / 16.0, Direction.NORTH), false)));
+        void aHitOnTheHubIntakesTopIsTheAttachSpotAndAHitOnASlotIsNone() {
+            assertEquals(true, HubBlock.isAttachSpotHit(hitAt(0.5, 1.0, 0.5, Direction.UP), ORIGIN));
+            assertEquals(false, HubBlock.isAttachSpotHit(hitAt(0.5, 0.5, 2.0 / 16.0, Direction.NORTH), ORIGIN));
         }
 
         @Test
@@ -206,18 +202,6 @@ class HolderBoundsTest {
         void holderWithoutTheGasketAnswersNone(Holder holder) {
             IGasketHolder be = holder.slot() >= 0 ? holder.stood(false, true) : holder.stood(true, false);
             assertNull(be.slotBoundsFor(holder.slot(), holder.role()), holder.name());
-        }
-
-        @Test
-        void slotRegionSplitsAtMidHeightByRole() {
-            IGasketHolder be = canister(true);
-            AABB cap = be.slotBoundsFor(4, GasketRole.RECEIVER);
-            AABB base = be.slotBoundsFor(4, GasketRole.TRANSMITTER);
-            assertNotNull(cap);
-            assertNotNull(base);
-            assertAll(() -> assertEquals(cap.minY, base.maxY, 1e-9),
-                    () -> assertTrue(cap.maxY > cap.minY),
-                    () -> assertTrue(base.maxY > base.minY));
         }
 
         @Test

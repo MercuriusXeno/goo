@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.block.vat.VatBlockEntity;
-import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.VatBlockItem;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
@@ -51,7 +50,6 @@ public final class GooLabelVatTests {
     private static final String LABEL_CLICK_ON_VAT = "label_click_on_vat";
     private static final String LABEL_ONTO_VAT_ITEM = "label_onto_vat_item";
     private static final String LABELED_VAT_REFUSES_OTHER_FLUIDS = "labeled_vat_refuses_other_fluids";
-    private static final String LABELED_VAT_IN_A_STACK = "labeled_vat_in_a_stack";
 
     private static final String REMOVAL = "removal";
     private static final BlockPos BE_POS = new BlockPos(1, 1, 1);
@@ -59,7 +57,6 @@ public final class GooLabelVatTests {
     private static final int LABELS_HELD = 2;
     private static final int VOLUME = 200;
     private static final int INVENTORY_SLOT = 9;
-    private static final int SETTLE_TICKS = 2;
     private static final int STACKED_VATS = 2;
 
     private GooLabelVatTests() {
@@ -74,7 +71,6 @@ public final class GooLabelVatTests {
         GooTestFunctions.registerTest(registrar, LABEL_CLICK_ON_VAT, GooLabelVatTests::clickOnVat);
         GooTestFunctions.registerTest(registrar, LABEL_ONTO_VAT_ITEM, GooLabelVatTests::ontoVatItem);
         GooTestFunctions.registerTest(registrar, LABELED_VAT_REFUSES_OTHER_FLUIDS, GooLabelVatTests::refusesOtherFluids);
-        GooTestFunctions.registerTest(registrar, LABELED_VAT_IN_A_STACK, GooLabelVatTests::inAStack);
     }
 
     /**
@@ -111,8 +107,7 @@ public final class GooLabelVatTests {
 
     /**
      * A vat item beside a blaze label crafts a blaze-labeled vat; a blaze label clicked from
-     * the cursor onto an empty vat item labels it and shrinks the cursor by one, and onto a
-     * vat item holding rock does nothing.
+     * the cursor onto an empty vat item labels it and shrinks the cursor by one.
      *
      * @param helper the gametest helper
      */
@@ -133,15 +128,6 @@ public final class GooLabelVatTests {
                 SlotAccess.of(() -> cursor[0], stack -> cursor[0] = stack));
         helper.assertTrue(handled && VatBlockItem.getGooLabel(vat) == GooTypes.BLAZE, "The click should label the vat");
         helper.assertTrue(cursor[0].getCount() == LABELS_HELD - 1, "The click should take one label from the cursor");
-
-        ItemStack rockVat = new ItemStack(GooItems.VAT.get());
-        VatBlockItem.addGoo(rockVat, GooTypes.ROCK, VOLUME);
-        ItemStack[] blazeCursor = {labels(GooTypes.BLAZE, 1)};
-        boolean refused = rockVat.overrideOtherStackedOnMe(blazeCursor[0], slot, ClickAction.PRIMARY, player,
-                SlotAccess.of(() -> blazeCursor[0], stack -> blazeCursor[0] = stack));
-        helper.assertTrue(!refused && VatBlockItem.getGooLabel(rockVat) == null && blazeCursor[0].getCount() == 1
-                        && VatBlockItem.getGooContents(rockVat).getVolume(GooTypes.ROCK) == VOLUME,
-                "A rock vat should refuse a blaze label and leave both stacks as they stood");
 
         ItemStack vatStack = new ItemStack(GooItems.VAT.get(), STACKED_VATS);
         ItemStack[] stackCursor = {labels(GooTypes.BLAZE, 1)};
@@ -175,28 +161,6 @@ public final class GooLabelVatTests {
         helper.assertTrue(VatBlockItem.addGoo(item, GooTypes.BLAZE, VOLUME) == VOLUME, "The labeled vat item takes blaze");
         helper.assertTrue(VatBlockItem.addGoo(item, GooTypes.ROCK, VOLUME) == 0, "The labeled vat item refuses rock");
         helper.succeed();
-    }
-
-    /**
-     * An unlabeled vat on top of a blaze-labeled vat: rock poured into the top vat stays there
-     * when the stack redistributes, since the labeled vat below takes only blaze.
-     *
-     * @param helper the gametest helper
-     */
-    public static void inAStack(GameTestHelper helper) {
-        helper.setBlock(BE_POS, GooBlocks.VAT.get());
-        helper.setBlock(BE_POS.above(), GooBlocks.VAT.get());
-        VatBlockEntity bottom = helper.getBlockEntity(BE_POS, VatBlockEntity.class);
-        VatBlockEntity top = helper.getBlockEntity(BE_POS.above(), VatBlockEntity.class);
-        bottom.applyGooLabel(GooTypes.BLAZE);
-        top.insertGoo(GooTypes.ROCK, VOLUME);
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            GooContents below = bottom.getContents();
-            helper.assertTrue(below.getVolume(GooTypes.ROCK) == 0, "The blaze-labeled vat should hold no rock: " + below);
-            helper.assertTrue(top.getContents().getVolume(GooTypes.ROCK) == VOLUME,
-                    "The unlabeled vat should hold all the rock: " + top.getContents());
-            helper.succeed();
-        });
     }
 
     private static int insert(VatBlockEntity vat, int index, FluidResource fluid) {

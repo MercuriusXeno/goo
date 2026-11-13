@@ -10,9 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -63,6 +61,66 @@ class ControlFlowTest {
         GroupsPane.Bounds term = flow.closeSegments();
         verify(graphics).fill(term.left(), term.top(), term.right(), term.top() + Frame.TERM.thickness(),
                 Frame.TERM.border());
+    }
+
+    // A grab recording every place the pointer handed it.
+    private static final class RecordingGrab implements ClickTargets.PointerGrab {
+        final List<List<Double>> moves = new ArrayList<>();
+
+        @Override
+        public void moved(double x, double y) {
+            moves.add(List.of(x, y));
+        }
+
+        @Override
+        public void released() {
+        }
+    }
+
+    // A box drawn a pixel inside another, as left, top, right and bottom.
+    private static List<Integer> inset(List<Integer> box) {
+        return List.of(box.get(0) + 1, box.get(1) + 1, box.get(2) - 1, box.get(3) - 1);
+    }
+
+    /**
+     * A container's rail segment paints its rail filling the segment a pixel inside its border, once the frame
+     * knows its thing may drop (decisions rails-fill-the-left-edge-of-their-box,
+     * containers-segment-into-click-to-edit-buttons).
+     */
+    @Test
+    void aRailSegmentPaintsItsRailFillingTheSegmentInsideItsBorder() {
+        GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
+        ControlFlow flow = new ControlFlow(graphics, font(), new ClickTargets(), null, 0, 400, 0);
+        flow.openSegments(ControlFlow.RAIL_SEGMENT_WIDTH, ButtonPainter.HEIGHT);
+
+        flow.railSegment("term", new RecordingGrab());
+        flow.paintRails(name -> true);
+
+        assertEquals(inset(RailsTest.fillsIn(graphics, Palette.BORDER).getFirst()),
+                RailsTest.fillsIn(graphics, Palette.RAIL).getFirst());
+    }
+
+    /**
+     * A grab control draws its rail flush inside its left border, and a press anywhere on it hands the pointer to
+     * its grab (decisions parenthetical-handle-drags-onto-a-term,
+     * parenthetical-handle-carries-a-rail-and-hovers-its-drop).
+     */
+    @Test
+    void aGrabControlDrawsItsRailInsideItsBorderAndHandsItsPressToTheGrab() {
+        GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
+        ClickTargets targets = new ClickTargets();
+        RecordingGrab grab = new RecordingGrab();
+
+        new ControlFlow(graphics, font(), targets, null, 0, 400, 0).grabControl("()", grab, null);
+
+        List<Integer> border = RailsTest.fillsIn(graphics, Palette.BORDER).getFirst();
+        List<Integer> rail = RailsTest.fillsIn(graphics, Palette.RAIL).getFirst();
+        assertEquals(List.of(border.get(0) + 1, border.get(1) + 1, border.get(3) - 1),
+                List.of(rail.get(0), rail.get(1), rail.get(3)), "the rail flush inside the border");
+        double x = border.get(2) - 1.0;
+        double y = border.get(1) + 1.0;
+        assertTrue(targets.click(x, y), "the press took");
+        assertEquals(List.of(List.of(x, y)), grab.moves);
     }
 
     /**
@@ -137,23 +195,31 @@ class ControlFlowTest {
         assertEquals(List.of(ring.top(), ring.bottom()), List.of(pressed.getFirst().y(), pressed.getFirst().bottom()));
     }
 
+    /**
+     * A runs segment draws its suffix inside the segment, flush after its runs, as a member's 's sits against its
+     * word (decision possessive-sits-flush-against-its-word-button).
+     */
+    @Test
+    void aRunsSegmentDrawsItsSuffixFlushAfterItsRunsInsideTheSegment() {
+        DrawnFrame frame = new DrawnFrame();
+        ControlFlow flow = ControlFlow.lettered(frame.graphics, DrawnFrame.font(), frame.targets, null,
+                new ControlFlow.Span(0, 400, 20), null);
+        flow.openSegments(200, ControlFlow.LINE);
+        flow.runsSegment(REF, "'s", at -> { });
+        flow.closeSegments();
+        DrawnFrame.Text word = frame.find("waxed");
+        DrawnFrame.Text possessive = frame.find("'s");
+        assertEquals(List.of(List.of(frame.buttonAround(word)[0], frame.buttonAround(word)[2]),
+                        word.x() + new Lettering(DrawnFrame.font(), ControlFlow.BUILDER_SCALE).width("waxed")),
+                List.of(List.of(frame.buttonAround(possessive)[0], frame.buttonAround(possessive)[2]), possessive.x()),
+                "the 's in the word's segment, flush after it");
+    }
+
     private static void drawTwoMoreLines(ControlFlow flow) {
         flow.newLine();
         flow.control("second", null, at -> { });
         flow.newLine();
         flow.control("third", null, at -> { });
-    }
-
-    /**
-     * A run that takes no click lays no box and no target.
-     */
-    @Test
-    void unpressedRunsDrawNoButton() {
-        GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
-        ClickTargets targets = new ClickTargets();
-        new ControlFlow(graphics, font(), targets, null, 0, 400, 0).runs(REF, null, null);
-        verify(graphics, never()).fill(anyInt(), anyInt(), anyInt(), anyInt(), eq(Palette.BORDER));
-        assertFalse(targets.click(1, 5));
     }
 
     /**

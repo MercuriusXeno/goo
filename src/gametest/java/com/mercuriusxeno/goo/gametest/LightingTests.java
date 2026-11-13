@@ -86,10 +86,6 @@ public final class LightingTests {
     private static final String NEIGHBOUR_LIT_AFTER_LOAD = "Air above a loaded canister should hold block light after onLoad";
     private static final String DATAPACK_LIGHT_IGNORED =
             "A canister of the datapack type should emit the light_level its JSON names, and emitted ";
-    private static final String BLAZE_LIGHT_IGNORED =
-            "A canister of blaze should emit the light_level blaze's JSON names, and emitted ";
-    private static final String LIGHTS_MATCH =
-            "Two types whose JSONs name different light_levels should not emit the same light";
 
     private static final String STEP_ONE_FILLED = "one filled vat";
     private static final String STEP_SECOND_PLACED = "second vat placed";
@@ -262,20 +258,17 @@ public final class LightingTests {
 
     /**
      * A type's light_level in its JSON is what a canister of it emits, read on
-     * a type only the test-resources datapack adds and on a bundled one. Each
-     * is filled to the saturation_fill both JSONs name, where the sqrt curve
-     * reaches 1, so the emission reads back as that type's own light_level and
-     * the two differ (decision type-json-light-fields).
+     * a type only the test-resources datapack adds, filled to the saturation_fill
+     * its JSON names, where the sqrt curve reaches 1, so the emission reads back as
+     * its own light_level (decision type-json-light-fields); GooLightContributionTest
+     * holds the curve.
      *
      * @param helper the gametest helper
      */
     public static void datapackLightLevelDrivesCanisterEmission(GameTestHelper helper) {
         int datapackLight = canisterEmissionOf(helper, DATAPACK_TYPE);
-        int blazeLight = canisterEmissionOf(helper, GooTypes.BLAZE);
 
         helper.assertTrue(datapackLight == DATAPACK_LIGHT_LEVEL, DATAPACK_LIGHT_IGNORED + datapackLight);
-        helper.assertTrue(blazeLight == BLAZE_LIGHT_LEVEL, BLAZE_LIGHT_IGNORED + blazeLight);
-        helper.assertTrue(datapackLight != blazeLight, LIGHTS_MATCH);
         helper.succeed();
     }
 

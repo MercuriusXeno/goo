@@ -2,12 +2,7 @@ package com.mercuriusxeno.goo.block;
 
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
-import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
-import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlockEntity;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
-import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
-import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
-import com.mercuriusxeno.goo.block.vat.VatBlockEntity;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -18,17 +13,14 @@ import net.neoforged.fml.loading.FMLLoader;
 import net.neoforged.neoforge.attachment.AttachmentHolder;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
-import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.withSettings;
@@ -36,8 +28,9 @@ import static org.mockito.Mockito.withSettings;
 /**
  * Every machine block entity runs the lifecycle the base owns, each hook reaching the
  * gasket attachment or the machine's held slots exactly once (decision
- * machine-base-owns-the-lifecycle). Each machine is a real-method spy whose attachment
- * and held slots are mocks, so the base's forwarding is all that runs.
+ * machine-base-owns-the-lifecycle), and its update tag is its full metadata save. The
+ * lifecycle hooks are final in {@link GooMachineBlockEntity}, so the canister, a real-method
+ * spy whose attachment and held slots are mocks, stands for every machine.
  */
 class GooMachineBlockEntityTest {
 
@@ -57,12 +50,6 @@ class GooMachineBlockEntityTest {
         }
     }
 
-    static Stream<Class<? extends GooMachineBlockEntity>> machines() {
-        return Stream.of(CanisterBlockEntity.class, HubBlockEntity.class, VatBlockEntity.class,
-                CrucibleBlockEntity.class, ReactorBlockEntity.class,
-                ChoralGasketBlockEntity.class);
-    }
-
     private static GooMachineBlockEntity spyMachine(Class<? extends GooMachineBlockEntity> type,
                                                     GasketAttachment attachment, SlottedCanisterData slots) {
         GooMachineBlockEntity be = mock(type, withSettings().defaultAnswer(CALLS_REAL_METHODS));
@@ -74,27 +61,23 @@ class GooMachineBlockEntityTest {
     @Nested
     class SetLevel {
 
-        @ParameterizedTest
-        @MethodSource("com.mercuriusxeno.goo.block.GooMachineBlockEntityTest#machines")
-        void clientLevelReachesAttachmentOnceAndRegistersNoSlotGasket(Class<? extends GooMachineBlockEntity> type) {
+        @Test
+        void clientLevelReachesAttachmentOnce() {
             GasketAttachment attachment = mock(GasketAttachment.class);
             SlottedCanisterData slots = mock(SlottedCanisterData.class);
-            GooMachineBlockEntity be = spyMachine(type, attachment, slots);
+            GooMachineBlockEntity be = spyMachine(CanisterBlockEntity.class, attachment, slots);
             Level level = mock(Level.class);
 
             be.setLevel(level);
 
             verify(attachment, times(1)).onSetLevel(level);
-            verify(slots, never()).registerSlotGaskets();
         }
 
-        @ParameterizedTest
-        @MethodSource("com.mercuriusxeno.goo.block.GooMachineBlockEntityTest#machines")
-        void serverLevelReachesAttachmentOnceAndRegistersSlotGasketsOnce(
-                Class<? extends GooMachineBlockEntity> type) {
+        @Test
+        void serverLevelReachesAttachmentOnceAndRegistersSlotGasketsOnce() {
             GasketAttachment attachment = mock(GasketAttachment.class);
             SlottedCanisterData slots = mock(SlottedCanisterData.class);
-            GooMachineBlockEntity be = spyMachine(type, attachment, slots);
+            GooMachineBlockEntity be = spyMachine(CanisterBlockEntity.class, attachment, slots);
             ServerLevel level = mock(ServerLevel.class);
 
             be.setLevel(level);
@@ -107,12 +90,11 @@ class GooMachineBlockEntityTest {
     @Nested
     class OnLoad {
 
-        @ParameterizedTest
-        @MethodSource("com.mercuriusxeno.goo.block.GooMachineBlockEntityTest#machines")
-        void reachesAttachmentOnce(Class<? extends GooMachineBlockEntity> type) {
+        @Test
+        void reachesAttachmentOnce() {
             GasketAttachment attachment = mock(GasketAttachment.class);
             SlottedCanisterData slots = mock(SlottedCanisterData.class);
-            GooMachineBlockEntity be = spyMachine(type, attachment, slots);
+            GooMachineBlockEntity be = spyMachine(CanisterBlockEntity.class, attachment, slots);
 
             be.onLoad();
 
@@ -123,33 +105,30 @@ class GooMachineBlockEntityTest {
     @Nested
     class SetRemoved {
 
-        @ParameterizedTest
-        @MethodSource("com.mercuriusxeno.goo.block.GooMachineBlockEntityTest#machines")
-        void releasesSlotGasketsOnce(Class<? extends GooMachineBlockEntity> type) {
+        @Test
+        void releasesSlotGasketsOnce() {
             SlottedCanisterData slots = mock(SlottedCanisterData.class);
-            GooMachineBlockEntity be = spyMachine(type, mock(GasketAttachment.class), slots);
+            GooMachineBlockEntity be = spyMachine(CanisterBlockEntity.class, mock(GasketAttachment.class), slots);
 
             be.setRemoved();
 
             verify(slots, times(1)).releaseSlotGaskets();
         }
 
-        @ParameterizedTest
-        @MethodSource("com.mercuriusxeno.goo.block.GooMachineBlockEntityTest#machines")
-        void releasesBlockLevelPusherOnceWhenLeaving(Class<? extends GooMachineBlockEntity> type) {
+        @Test
+        void releasesBlockLevelPusherOnceWhenLeaving() {
             GasketAttachment attachment = mock(GasketAttachment.class);
-            GooMachineBlockEntity be = spyMachine(type, attachment, mock(SlottedCanisterData.class));
+            GooMachineBlockEntity be = spyMachine(CanisterBlockEntity.class, attachment, mock(SlottedCanisterData.class));
 
             be.setRemoved();
 
             verify(attachment, times(1)).releasePusher();
         }
 
-        @ParameterizedTest
-        @MethodSource("com.mercuriusxeno.goo.block.GooMachineBlockEntityTest#machines")
-        void releasesBlockLevelPusherOnceWhenUnloading(Class<? extends GooMachineBlockEntity> type) {
+        @Test
+        void releasesBlockLevelPusherOnceWhenUnloading() {
             GasketAttachment attachment = mock(GasketAttachment.class);
-            GooMachineBlockEntity be = spyMachine(type, attachment, mock(SlottedCanisterData.class));
+            GooMachineBlockEntity be = spyMachine(CanisterBlockEntity.class, attachment, mock(SlottedCanisterData.class));
 
             be.onChunkUnloaded();
             be.setRemoved();
@@ -158,14 +137,16 @@ class GooMachineBlockEntityTest {
         }
     }
 
+    /**
+     * The update tag is final in {@link GooSyncedBlockEntity}, so one machine stands for every one.
+     */
     @Nested
     class UpdateTag {
 
-        @ParameterizedTest
-        @MethodSource("com.mercuriusxeno.goo.block.GooMachineBlockEntityTest#machines")
-        void carriesTheFullMetadataSave(Class<? extends GooMachineBlockEntity> type) {
-            SlottedCanisterData slots = mock(SlottedCanisterData.class);
-            GooMachineBlockEntity be = spyMachine(type, mock(GasketAttachment.class), slots);
+        @Test
+        void carriesTheFullMetadataSave() {
+            GooMachineBlockEntity be = mock(CanisterBlockEntity.class,
+                    withSettings().defaultAnswer(CALLS_REAL_METHODS));
             HolderLookup.Provider registries = mock(HolderLookup.Provider.class);
             CompoundTag saved = new CompoundTag();
             doReturn(saved).when(be).saveWithFullMetadata(registries);

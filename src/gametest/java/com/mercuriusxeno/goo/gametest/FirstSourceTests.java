@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.GooItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
-import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.item.VatBlockItem;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -23,10 +22,8 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
 /**
- * Gametest theory for the crosshair panel's source: over inventories mixing
- * thousands, gooStacks, canisters (a hub's included) and vats in main slots and
- * the offhand, GooSourceScanner.firstSource names the stack a deplete of one
- * mB shrinks (decision crosshair-panel-shows-source-and-cost).
+ * Gametest for the crosshair panel's source: over a real goo stack, canister, hub and vat,
+ * GooSourceScanner.firstSource names the stack a deplete of one mB shrinks (decision crosshair-panel-shows-source-and-cost).
  */
 @RegistersGameTests
 public final class FirstSourceTests {
@@ -44,29 +41,18 @@ public final class FirstSourceTests {
 
     private static final ResourceKey<GooTypeDefinition> ROCK = GooTypes.ROCK;
     private static final ResourceKey<GooTypeDefinition> NETHER = GooTypes.NETHER;
-    private static final int OFFHAND = Inventory.SLOT_OFFHAND;
     private static final int VOLUME = 3_000;
     private static final int ONE_MB = 1;
-    private static final int GOO_COUNT = 2;
     private static final int NO_SLOT = -1;
     private static final int SLOT_0 = 0;
-    private static final int SLOT_1 = 1;
     private static final int SLOT_2 = 2;
-    private static final int SLOT_3 = 3;
     private static final int SLOT_4 = 4;
-    private static final int SLOT_5 = 5;
-    private static final int SLOT_7 = 7;
     private static final int SLOT_9 = 9;
-    private static final int SLOT_30 = 30;
     private static final String NO_SOURCE = "Inventory %d: firstSource named no stack";
     private static final String NOT_SHRUNK = "Inventory %d: the deplete shrank slot %d, not firstSource's slot %d";
     private static final String NOTHING_SHRUNK = "Inventory %d: a deplete of one mB shrank no rock source";
 
     private FirstSourceTests() {
-    }
-
-    private static Supplier<ItemStack> thousands(ResourceKey<GooTypeDefinition> type) {
-        return () -> GooStacks.createForOutput(type, GOO_COUNT * GooStacks.THOUSAND);
     }
 
     private static Supplier<ItemStack> goo(ResourceKey<GooTypeDefinition> type) {
@@ -98,22 +84,18 @@ public final class FirstSourceTests {
     }
 
     /**
-     * The inventories the theory runs over.
+     * One inventory per real carrier kind, so each kind's gooVolume and drawGoo are read on a real stack; the walk
+     * order across slots and passes stands in GooSourceScannerTest.
      *
      * @return each inventory's filled slots and what each holds
      */
     private static List<Map<Integer, Supplier<ItemStack>>> inventories() {
         return List.of(
-                Map.of(SLOT_0, canister(ROCK), SLOT_5, thousands(ROCK)),
-                Map.of(SLOT_0, vat(ROCK), SLOT_9, goo(ROCK)),
-                Map.of(SLOT_2, canister(ROCK), SLOT_1, vat(ROCK)),
-                Map.of(OFFHAND, thousands(ROCK), SLOT_30, thousands(ROCK)),
-                Map.of(OFFHAND, vat(ROCK), SLOT_0, canister(NETHER)),
-                Map.of(SLOT_0, goo(NETHER), SLOT_1, canister(ROCK), SLOT_3, thousands(ROCK)),
-                Map.of(SLOT_4, hub(ROCK), SLOT_2, vat(ROCK)),
-                Map.of(SLOT_7, canister(ROCK), SLOT_3, canister(ROCK), OFFHAND, goo(ROCK)));
+                Map.of(SLOT_9, goo(ROCK)),
+                Map.of(SLOT_2, canister(ROCK)),
+                Map.of(SLOT_4, hub(ROCK)),
+                Map.of(SLOT_0, vat(ROCK)));
     }
-
     /**
      * For every inventory, firstSource names the stack a deplete of one mB shrinks.
      *

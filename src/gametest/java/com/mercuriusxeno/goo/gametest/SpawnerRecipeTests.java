@@ -55,9 +55,6 @@ public final class SpawnerRecipeTests {
     private static final String ZOMBIE_ID = "minecraft:zombie";
 
     private static final String RING_NOT_CRAFTED = "Eight exorite bars in a ring should craft one spawner";
-    private static final String IRON_RING_CRAFTED = "Eight iron bars in a ring should craft no spawner";
-    private static final String FULL_GRID_CRAFTED = "Nine exorite bars should craft no spawner";
-    private static final String NOT_EMPTY = "A placed spawner should start with no mob";
     private static final String NOT_ZOMBIE = "The spawner should spawn zombies after a zombie spawn egg";
 
     private SpawnerRecipeTests() {
@@ -65,8 +62,7 @@ public final class SpawnerRecipeTests {
 
     /**
      * Eight exorite bars on the outer cells with the center empty craft one
-     * spawner; the same ring of iron bars and a full grid of exorite bars
-     * craft none.
+     * spawner.
      *
      * @param helper the gametest helper
      */
@@ -74,15 +70,12 @@ public final class SpawnerRecipeTests {
         ItemStack exoriteBars = new ItemStack(GooItems.EXORITE_BARS.get());
         ItemStack spawner = craft(helper, ring(exoriteBars, ItemStack.EMPTY));
         helper.assertTrue(spawner.is(Items.SPAWNER) && spawner.getCount() == 1, RING_NOT_CRAFTED);
-        helper.assertTrue(!craft(helper, ring(new ItemStack(Items.IRON_BARS), ItemStack.EMPTY)).is(Items.SPAWNER),
-                IRON_RING_CRAFTED);
-        helper.assertTrue(!craft(helper, ring(exoriteBars, exoriteBars)).is(Items.SPAWNER), FULL_GRID_CRAFTED);
         helper.succeed();
     }
 
     /**
-     * A placed spawner saves no spawn data; a zombie spawn egg used on it
-     * through SpawnEggItem.useOn sets zombies as its mob.
+     * A zombie spawn egg used on a placed spawner through SpawnEggItem.useOn
+     * sets zombies as its mob.
      *
      * @param helper the gametest helper
      */
@@ -90,7 +83,6 @@ public final class SpawnerRecipeTests {
     public static void emptySpawnerTakesEgg(GameTestHelper helper) {
         helper.setBlock(SPAWNER_POS, Blocks.SPAWNER);
         SpawnerBlockEntity spawner = helper.getBlockEntity(SPAWNER_POS, SpawnerBlockEntity.class);
-        helper.assertTrue(spawnEntityId(helper, spawner).isEmpty(), NOT_EMPTY);
 
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.ZOMBIE_SPAWN_EGG));

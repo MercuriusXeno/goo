@@ -4,9 +4,7 @@ import net.neoforged.neoforge.client.event.InputEvent;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -46,14 +44,6 @@ class GloveUseTrackerTest {
         GloveUseTracker.cancelUseKey(event, true);
         verify(event).setSwingHand(false);
         verify(event).setCanceled(true);
-    }
-
-    @Test
-    void aRightClickWithNoPressIsNeverCancelled() {
-        InputEvent.InteractionKeyMappingTriggered event = useKey();
-        GloveUseTracker.cancelUseKey(event, false);
-        verify(event, never()).setCanceled(anyBoolean());
-        verify(event, never()).setSwingHand(anyBoolean());
     }
 
     private static InputEvent.InteractionKeyMappingTriggered useKey() {

@@ -1,46 +1,14 @@
 package com.mercuriusxeno.goo.client.workbench;
 
-import com.mercuriusxeno.goo.workbench.Processes;
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Supplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
- * Tests that a Mutators row reads Valid or Invalid with its mark, and that a multiply-and-divide factor reads as a
- * ratio, each number its own box, with mocked graphics and no Screen (decisions
- * mutators-read-valid-or-invalid-with-a-mark, factor-reads-as-a-ratio).
+ * Tests that a Mutators row reads Valid or Invalid with its mark, and that the builder labels a multiplier Nx and a
+ * divisor /n (decisions mutators-read-valid-or-invalid-with-a-mark,
+ * multiplier-reads-nx-before-the-identity-and-divisor-slash-n-after).
  */
 class MutatorsReadTest {
-    private static final String RATIO = ":";
-
-    private static Font font() {
-        Font font = mock(Font.class);
-        when(font.width(anyString())).thenAnswer(call -> call.<String>getArgument(0).length() * 6);
-        when(font.plainSubstrByWidth(anyString(), anyInt())).thenAnswer(call -> call.getArgument(0));
-        return font;
-    }
-
-    // Every string the graphics drew, in order.
-    private static List<String> drawn(GuiGraphicsExtractor graphics) {
-        ArgumentCaptor<String> texts = ArgumentCaptor.forClass(String.class);
-        verify(graphics, atLeastOnce()).text(any(Font.class), texts.capture(), anyInt(), anyInt(), anyInt());
-        return texts.getAllValues();
-    }
 
     /**
      * Valid reads a green check and Invalid a red x.
@@ -58,25 +26,15 @@ class MutatorsReadTest {
     }
 
     /**
-     * The builder's factor reads as a ratio too: times 3 reads 3:1 and divided by 4 reads 1:4.
+     * The builder labels times 3 as 3x and divided by 4 as /4.
      */
     @Test
-    void builderFactorReadsAsARatio() {
+    void builderLabelsAMultiplierNxAndADivisorSlashN() {
         // Decision multiplier-reads-nx-before-the-identity-and-divisor-slash-n-after: the builder reads a multiplier
-        // as Nx before the term and a divisor as /n after it, in symbols, never in words.
-        assertTrue(builderTexts("3 $waxed").contains("3x"));
-        assertTrue(builderTexts("$waxed / 4").contains("/4"));
-    }
-
-    private static List<String> builderTexts(String shown) {
-        ExpressionBuilderPane pane = new ExpressionBuilderPane(mock(ManagerActions.class),
-                new ItemIcons(id -> Map.of(), id -> List.of()), List::of, () -> List.of(new BuilderGrammar.Prefab("waxed", true)));
-        pane.open(shown, typed -> { }, () -> { });
-        // The builder letters its words under a pose, which DrawnFrame's graphics carry.
-        DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, font(), new GroupsPane.Bounds(0, 0, 600, 400), 0, frame.targets);
-        List<String> texts = frame.texts();
-        assertFalse(texts.contains("times") || texts.contains("divided by"), texts.toString());
-        return texts;
+        // as Nx before the term and a divisor as /n after it, in symbols.
+        assertEquals("3x", ExpressionBuilderPane.sideLabel(ExpressionBuilder.of("3 $waxed").terms().getFirst(),
+                ExpressionBuilder.Op.MULTIPLY));
+        assertEquals("/4", ExpressionBuilderPane.sideLabel(ExpressionBuilder.of("$waxed / 4").terms().getFirst(),
+                ExpressionBuilder.Op.DIVIDE));
     }
 }

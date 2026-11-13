@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.program;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ShriekParticleOption;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Mob;
@@ -33,8 +34,10 @@ public final class SculkCall {
     static final double WALK_SPEED = 1.0;
     /** The goal priority a called mob's walk takes, ahead of every goal vanilla gives a mob. */
     private static final int WALK_PRIORITY = -1;
+    /** The shriek the blob cries, the sculk shrieker's own. */
+    static final SoundEvent SHRIEK = SoundEvents.SCULK_SHRIEKER_SHRIEK;
     /** The shriek particles the column rises from, one after another, as a sculk shrieker's. */
-    private static final int COLUMN_PARTICLES = 10;
+    static final int COLUMN_PARTICLES = 10;
     /** Ticks between one shriek particle of the column and the next. */
     private static final int COLUMN_DELAY_TICKS = 5;
     /** How far above the blob's floor the column rises from, a shrieker's mouth. */
@@ -56,7 +59,7 @@ public final class SculkCall {
      */
     public static void shriek(ServerLevel level, BlockPos blobCell, double reach) {
         Vec3 blob = Vec3.atBottomCenterOf(blobCell);
-        level.playSound(null, blob.x, blob.y, blob.z, SoundEvents.SCULK_SHRIEKER_SHRIEK, SoundSource.BLOCKS,
+        level.playSound(null, blob.x, blob.y, blob.z, SHRIEK, SoundSource.BLOCKS,
                 SHRIEK_VOLUME, SHRIEK_PITCH);
         for (int particle = 0; particle < COLUMN_PARTICLES; particle++) {
             level.sendParticles(new ShriekParticleOption(particle * COLUMN_DELAY_TICKS), blob.x, blob.y + MOUTH_LIFT,

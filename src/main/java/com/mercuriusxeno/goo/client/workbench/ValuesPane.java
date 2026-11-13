@@ -261,13 +261,17 @@ final class ValuesPane {
         int left = chipsLeft(labels, font::width, line);
         ChipLayout layout = layChips(labels, font::width, left, line.top(), values.filter());
         for (Chip chip : layout.chips()) {
-            drawChip(graphics, font, chip, warns(chip.filter(), uncovered, negative) ? Palette.DANGER : Palette.TEXT,
-                    targets);
+            drawChip(graphics, font, chip, chipColor(chip.filter(), uncovered, negative), targets);
         }
         // Decision one-search-row-per-list-with-its-create-control-beside-it: the box stretches to the chips.
         SearchRow.Laid laid = SearchRow.lay(line.left(), line.top(), line.right(), line.right() - left);
         SearchRow.place(search, laid);
         return Math.max(layout.bottom(), line.top() + SearchRow.HEIGHT);
+    }
+
+    // A chip's color: red while it warns, the text color otherwise.
+    static int chipColor(ValuesTab.Filter filter, int uncovered, int negative) {
+        return warns(filter, uncovered, negative) ? Palette.DANGER : Palette.TEXT;
     }
 
     // Uncovered and Negative draw red while they count an item (decision items-filter-set-takes-a-negative-chip).
@@ -562,7 +566,7 @@ final class ValuesPane {
         return places.height();
     }
 
-    private static HeadLine headLine(Font font, int top, int right) {
+    static HeadLine headLine(Font font, int top, int right) {
         return new HeadLine(top + 1, Lettering.full(font).centeredTop(top, ROW_HEIGHT), right);
     }
 
@@ -939,7 +943,7 @@ final class ValuesPane {
 
     // An empty entry offers neither the x nor the restore arrow; it reads as no entry at all.
     // Decision removed-entry-shows-the-derived-value-and-no-restore-on-empty.
-    private boolean hasNonEmptyEntry(ValuesTab.ManagerEntry entry) {
+    boolean hasNonEmptyEntry(ValuesTab.ManagerEntry entry) {
         return values.hasEntry(entry.id()) && !values.rowOf(entry.id()).expression().isBlank();
     }
 
@@ -952,16 +956,21 @@ final class ValuesPane {
         values.select(row.id());
         building = row.id();
         boolean hadEntry = values.hasEntry(row.id());
-        builder.open(row.expression(), typed -> {
-            if (!hadEntry && typed.isBlank()) {
-                values.dropEntry(row.id());
-            } else {
-                values.edit(row.id(), typed);
-            }
-            actions.draftChanged();
-        }, () -> {
+        builder.open(row.expression(), typed -> writeBuilt(row.id(), hadEntry, typed), () -> {
             building = null;
             actions.draftChanged();
         });
+    }
+
+    // A builder's write over the entry it opened on: a blank write over an item that had no entry drops the entry,
+    // any other write edits it; either way the draft evaluates afresh.
+    // Decision cancelling-a-new-entry-leaves-nothing.
+    void writeBuilt(String id, boolean hadEntry, String typed) {
+        if (!hadEntry && typed.isBlank()) {
+            values.dropEntry(id);
+        } else {
+            values.edit(id, typed);
+        }
+        actions.draftChanged();
     }
 }

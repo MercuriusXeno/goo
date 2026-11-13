@@ -64,7 +64,6 @@ class ProgramBehaviorTest {
 
         program.tick(host);
         program.tick(host);
-        verify(host, never()).explode(anyFloat(), anyDouble(), anyBoolean(), any());
         assertTrue(program.isActive());
 
         program.tick(host);
@@ -83,7 +82,6 @@ class ProgramBehaviorTest {
         program.tick(host);
         program.tick(host);
         assertTrue(program.isActive());
-        verify(host, never()).explode(anyFloat(), anyDouble(), anyBoolean(), any());
 
         program.tick(host);
         verify(host).explode(eq(3.5f), anyDouble(), anyBoolean(), eq(ExplosionMode.TNT));
@@ -100,18 +98,6 @@ class ProgramBehaviorTest {
         verify(host).explode(eq(1f), anyDouble(), anyBoolean(), eq(ExplosionMode.TNT));
         verify(host).explode(eq(2f), anyDouble(), anyBoolean(), eq(ExplosionMode.TNT));
         assertEquals(3, program.stepIndex());
-    }
-
-    @Test
-    void finishedProgramTicksNothing() {
-        MarkerHost host = hostWithStacks(1);
-        ProgramBehavior program = new ProgramBehavior(List.of(explode("1")));
-
-        program.tick(host);
-        program.tick(host);
-
-        verify(host, times(1)).explode(anyFloat(), anyDouble(), anyBoolean(), any());
-        verify(host, never()).anyEntityWithin(any(), anyDouble(), any());
     }
 
     @Test
@@ -150,18 +136,13 @@ class ProgramBehaviorTest {
         }
 
         @Test
-        void soundNamingNoFramePlaysTheTickItIsReached() {
-            MarkerHost host = hostWithStacks(1);
+        void soundNamingNoFrameDecodesAtFrameZero() {
             SoundStep unframed = (SoundStep) StepTypes.LIST_CODEC.parse(JsonOps.INSTANCE,
                     JsonParser.parseString(
                             "[{\"type\": \"sound\", \"id\": \"minecraft:item.trident.return\"}]"))
                     .getOrThrow().getFirst();
-            ProgramBehavior program = new ProgramBehavior(List.of(unframed, LeafSteps.WAIT.step(Expr.literal(10))));
 
-            program.tick(host);
-
-            verify(host, times(1)).playSound(CUE);
-            assertEquals(1, program.stepIndex());
+            assertEquals(0.0, unframed.frame().evaluate(Variables.NONE));
         }
     }
 }

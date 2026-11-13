@@ -104,7 +104,7 @@ public final class GooSelfHandler {
      * @param ability the self ability
      * @return true when a sound step runs in its program
      */
-    private static boolean playsItsOwnSound(AbilityDefinition ability) {
+    static boolean playsItsOwnSound(AbilityDefinition ability) {
         return ability.behaviors().stream().anyMatch(SoundStep.class::isInstance);
     }
 

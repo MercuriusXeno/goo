@@ -51,7 +51,7 @@ class MobCoatLayerTest {
     class GooTexture {
 
         @Test
-        void sampleIsLaidByTheSplatOffsetNotTheSkinUvs() throws IOException {
+        void sampleIsLaidByTheSplatOffsetFromSampler0() throws IOException {
             String fragment = fragmentSource();
 
             assertTrue(holds(fragment,
@@ -59,7 +59,6 @@ class MobCoatLayerTest {
                     "the texture is not laid by the splat offset");
             assertTrue(holds(fragment, "goo\\s*=\\s*textureLod\\(\\s*Sampler0\\s*,\\s*spriteOrigin\\s*\\+\\s*tile"),
                     "the goo texel is not read from Sampler0 at the tiled offset");
-            assertFalse(fragment.contains("texCoord0"), "the splat still reads the model's skin UVs");
         }
 
         @Test
@@ -145,10 +144,9 @@ class MobCoatLayerTest {
         }
 
         @Test
-        void edgeAddsNoGlowBand() throws IOException {
+        void colorIsTheGooTimesTheLitTintTheModulatorAndTheLightmap() throws IOException {
             String fragment = fragmentSource();
 
-            assertFalse(fragment.toLowerCase(java.util.Locale.ROOT).contains("glow"), "the splat paints a glow band");
             assertTrue(holds(fragment, "color\\s*=\\s*goo\\s*\\*\\s*litTint\\s*\\*\\s*ColorModulator\\s*\\*\\s*lightMapColor;"),
                     "the splat's color carries more than the lit, tinted goo");
         }

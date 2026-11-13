@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.gametest;
 
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.hole.HoleDrift;
@@ -8,6 +9,7 @@ import com.mercuriusxeno.goo.ability.hole.HoleOpening;
 import com.mercuriusxeno.goo.ability.hole.PortableHole;
 import com.mercuriusxeno.goo.ability.hole.PortableHoles;
 import com.mercuriusxeno.goo.ability.pocket.PocketShelves;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
@@ -202,14 +204,12 @@ public final class HoleTests {
     }
 
     private static final Identifier VOID_HOLE = Identifier.parse("goo:void_hole");
-    /** void_hole.json's fixed cost. */
-    private static final int HOLE_COST = 1000;
-    /** Void the caster holds past the casts' cost, which no storing may touch. */
+    /** Void the caster holds past the casts' live cost, which no storing may touch. */
     private static final int SPARE_VOID = 500;
-    /** void_hole.json's lifetime: the hole closes after ten seconds. */
-    static final int LIFETIME = 200;
-    /** void_hole.json's refresh: a swallow floors the time left at five seconds. */
-    static final int REFRESH = 100;
+    /** The ticks a hole opened uncast stands, this suite's own, past any watch that opens one. */
+    static final int UNCAST_LIFETIME = 300;
+    /** The ticks left a swallow raises an uncast hole's time left to, this suite's own. */
+    static final int UNCAST_REFRESH = 150;
     /** The floor block, relative, whose top face the hole opens on. */
     static final BlockPos FLOOR = new BlockPos(2, 0, 2);
     /** A second floor block, relative, a second cast opens on. */
@@ -571,7 +571,8 @@ public final class HoleTests {
         List<Identifier> seeded = BuiltInRegistries.ITEM.stream().filter(item -> item != Items.AIR)
                 .limit(MANY_KINDS).map(BuiltInRegistries.ITEM::getKey).toList();
         seeded.forEach(kind -> shelves.add(caster.getUUID(), new ItemStack(BuiltInRegistries.ITEM.getValue(kind)), 1));
-        HoleOpening.open(helper.getLevel(), caster, helper.absolutePos(FLOOR), Direction.UP, LIFETIME, REFRESH);
+        HoleOpening.open(helper.getLevel(), caster, helper.absolutePos(FLOOR), Direction.UP, UNCAST_LIFETIME,
+                UNCAST_REFRESH);
         helper.runAfterDelay(1, () -> {
             Optional<PortableHole> hole = PortableHoles.of(caster.getUUID());
             List<Identifier> told = hole.map(open -> PortableHoles.mouthOf(shelves, open).stored().stream()
@@ -615,7 +616,8 @@ public final class HoleTests {
     public static void closesWhenItsBlockBreaks(GameTestHelper helper) {
         helper.setBlock(FLOOR, Blocks.STONE);
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
-        HoleOpening.open(helper.getLevel(), caster, helper.absolutePos(FLOOR), Direction.UP, LIFETIME, REFRESH);
+        HoleOpening.open(helper.getLevel(), caster, helper.absolutePos(FLOOR), Direction.UP, UNCAST_LIFETIME,
+                UNCAST_REFRESH);
         helper.runAfterDelay(1, () -> {
             assertHoleOn(helper, caster, FLOOR, Direction.UP);
             helper.getLevel().destroyBlock(helper.absolutePos(FLOOR), false);
@@ -637,7 +639,8 @@ public final class HoleTests {
         // A cast leaves synced attachments a mock connection refuses on a level change, so the hole opens uncast.
         helper.setBlock(FLOOR, Blocks.STONE);
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.VOID);
-        HoleOpening.open(helper.getLevel(), caster, helper.absolutePos(FLOOR), Direction.UP, LIFETIME, REFRESH);
+        HoleOpening.open(helper.getLevel(), caster, helper.absolutePos(FLOOR), Direction.UP, UNCAST_LIFETIME,
+                UNCAST_REFRESH);
         helper.runAfterDelay(1, () -> {
             assertHoleOn(helper, caster, FLOOR, Direction.UP);
             ServerLevel nether = helper.getLevel().getServer().getLevel(Level.NETHER);
@@ -658,7 +661,7 @@ public final class HoleTests {
                 "The caster's hole should stand on " + face + " of " + helper.absolutePos(block) + ", stands " + hole);
     }
 
-    /** A survival Void caster knowing the hole and holding its cost for some casts and a spare. */
+    /** A survival Void caster knowing the hole and holding its live cost for some casts and a spare. */
     static ServerPlayer caster(GameTestHelper helper, int casts) {
         helper.setBlock(FLOOR, Blocks.STONE);
         helper.setBlock(SECOND_FLOOR, Blocks.STONE);
@@ -667,8 +670,10 @@ public final class HoleTests {
         caster.connection.markClientLoaded();
         caster.getInventory().clearContent();
         caster.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
-        caster.getInventory().add(GooStacks.createForOutput(GooTypes.VOID, HOLE_COST * casts + SPARE_VOID));
-        KnownRecipes.teachRequires(caster, AbilityRegistry.of(caster.level()).getAbility(VOID_HOLE));
+        AbilityDefinition hole = AbilityRegistry.of(caster.level()).getAbility(VOID_HOLE);
+        caster.getInventory().add(GooStacks.createForOutput(GooTypes.VOID,
+                hole.cost().in(GooValueTable.EMPTY) * casts + SPARE_VOID));
+        KnownRecipes.teachRequires(caster, hole);
         caster.snapTo(helper.absoluteVec(START));
         return caster;
     }
