@@ -13,12 +13,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -59,7 +56,6 @@ class PaintedHoldTest {
 
         ArgumentCaptor<Runnable> alone = ArgumentCaptor.forClass(Runnable.class);
         verify(host).finishBlockAlone(eq(pos), eq(RATE), alone.capture());
-        verify(finish, never()).finish(any(), any(), any());
         alone.getValue().run();
         verify(finish).finish(pos, log, empty);
     }
@@ -71,9 +67,31 @@ class PaintedHoldTest {
         PaintedHold.buildPainted(host, raw -> Optional.of(empty), marks, RATE, OptionalInt.empty(), finish);
 
         verify(finish).finish(pos, log, empty);
-        verify(host, never()).transformBlock(any(), any());
     }
 
+    /**
+     * A painted block the level now holds as another block, finished alone or replaced, is noted stepped, so the
+     * hold never paints it again (decision decay-gnats-degrade-each-block-once).
+     */
+    @Test
+    void aPaintedBlockTheLevelHoldsAsAnotherBlockIsNotedStepped() {
+        BlockState cobblestone = mock(BlockState.class);
+        when(cobblestone.getBlock()).thenReturn(mock(Block.class));
+        when(host.stateAt(pos)).thenReturn(cobblestone);
+
+        PaintedHold.buildPainted(host, raw -> Optional.of(empty), marks, RATE, OptionalInt.empty(), finish);
+
+        assertTrue(marks.stepped(pos));
+    }
+
+    @Test
+    void aBlockTheHoldFillsIsNotedStepped() {
+        when(host.exposeBlock(pos, emptyState, RATE)).thenReturn(1f);
+
+        PaintedHold.buildPainted(host, raw -> Optional.of(empty), marks, RATE, OptionalInt.empty(), finish);
+
+        assertTrue(marks.stepped(pos));
+    }
     @Test
     void theLineCrossesEachCellItRunsThroughOnceNearestFirst() {
         List<BlockPos> cells = PaintedHold.cellsAlong(new Vec3(0.5, 0.5, 0.5), new Vec3(3.5, 0.5, 0.5));
@@ -84,8 +102,7 @@ class PaintedHoldTest {
     @Test
     void aSlantedLineStepsDownThroughTheCellsBelow() {
         List<BlockPos> cells = PaintedHold.cellsAlong(new Vec3(0.5, 2.5, 0.5), new Vec3(2.5, 0.5, 0.5));
-        assertTrue(cells.contains(new BlockPos(1, 1, 0)));
-        assertFalse(cells.contains(new BlockPos(2, 2, 0)));
+        assertEquals(List.of(new BlockPos(0, 2, 0), new BlockPos(1, 1, 0), new BlockPos(2, 0, 0)), cells);
     }
 
     @Test

@@ -1,37 +1,50 @@
 package com.mercuriusxeno.goo.ability.held;
 
-import static org.mockito.ArgumentMatchers.any;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.when;
 
-import com.mercuriusxeno.goo.network.EntityVisuals;
-import net.minecraft.server.level.ServerPlayer;
+import com.mercuriusxeno.goo.Goo;
+import java.util.Set;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import org.junit.jupiter.api.Test;
-import org.mockito.MockedStatic;
 
-/** Telekinesis lengthens the reach and lays no overlay on the player, since Kinetic is electric blue and white and no decision asked for one (decision kinetic-is-electric-blue-and-white). */
+/** Telekinesis lays its reach as an ADD_VALUE modifier on the player's block and entity interaction ranges. */
 class TelekinesisTest {
 
     private static final double REACH = 8;
+    private static final Identifier BLOCK_REACH = Identifier.fromNamespaceAndPath(Goo.MODID, "telekinesis_block_reach");
+    private static final Identifier ENTITY_REACH = Identifier.fromNamespaceAndPath(Goo.MODID, "telekinesis_entity_reach");
 
-    @Test
-    void layingTheReachSendsNoOverlay() {
-        ServerPlayer player = mock(ServerPlayer.class);
-        try (MockedStatic<EntityVisuals> visuals = mockStatic(EntityVisuals.class)) {
-            Telekinesis.lay(player, REACH);
+    private final AttributeInstance blockRange = new AttributeInstance(Attributes.BLOCK_INTERACTION_RANGE, range -> { });
+    private final AttributeInstance entityRange = new AttributeInstance(Attributes.ENTITY_INTERACTION_RANGE, range -> { });
 
-            visuals.verify(() -> EntityVisuals.sendToWatchers(any(), any()), never());
-        }
+    private void layOnAPlayer() {
+        LivingEntity player = mock(LivingEntity.class);
+        when(player.getAttribute(Attributes.BLOCK_INTERACTION_RANGE)).thenReturn(blockRange);
+        when(player.getAttribute(Attributes.ENTITY_INTERACTION_RANGE)).thenReturn(entityRange);
+        Telekinesis.lay(player, REACH);
     }
 
+    // decision telekinesis-enacts-at-extended-reach
     @Test
-    void clearingTheReachSendsNoOverlay() {
-        ServerPlayer player = mock(ServerPlayer.class);
-        try (MockedStatic<EntityVisuals> visuals = mockStatic(EntityVisuals.class)) {
-            Telekinesis.clear(player);
+    void theBlockInteractionRangeGainsTheReachAsAnAddedValue() {
+        layOnAPlayer();
 
-            visuals.verify(() -> EntityVisuals.sendToWatchers(any(), any()), never());
-        }
+        assertEquals(Set.of(new AttributeModifier(BLOCK_REACH, REACH, AttributeModifier.Operation.ADD_VALUE)),
+                blockRange.getModifiers());
+    }
+
+    // decision telekinesis-enacts-at-extended-reach
+    @Test
+    void theEntityInteractionRangeGainsTheReachAsAnAddedValue() {
+        layOnAPlayer();
+
+        assertEquals(Set.of(new AttributeModifier(ENTITY_REACH, REACH, AttributeModifier.Operation.ADD_VALUE)),
+                entityRange.getModifiers());
     }
 }

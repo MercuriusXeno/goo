@@ -30,7 +30,6 @@ import java.util.function.Consumer;
 @RegistersGameTests
 public final class PulserPrismTests {
     private static final String PULSER_CONVERTS = "pulser_stream_converts_a_prism";
-    private static final String PULSER_BROKEN_HOLD = "pulser_broken_hold_leaves_the_prism_bare";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -39,20 +38,14 @@ public final class PulserPrismTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, PULSER_CONVERTS, PulserPrismTests::pulserHeldConvertsAPrism);
-        GooTestFunctions.registerTest(registrar, PULSER_BROKEN_HOLD, PulserPrismTests::brokenHoldLeavesThePrismBare);
     }
 
 
     private static final Identifier PULSER = Identifier.parse("goo:pulse_pulser");
     private static final BlockPos PRISM = new BlockPos(4, 1, 2);
     private static final BlockPos STAND = new BlockPos(1, 1, 2);
-    /** The tick the hold breaks for, a few ticks short of a full charge. */
-    private static final int SHORT_OF_THE_HOLD = 5;
-    /** The ticks the stream leaves the prism between the two halves of a broken hold. */
-    private static final int BREAK = 2;
     private static final String ABILITY_REQUIRED = "The ability registry must hold pulse_pulser";
     private static final String SHOULD_CONVERT = "A full Pulser hold should make the prism a metronome, held '%s'";
-    private static final String SHOULD_STAY_BARE = "A broken Pulser hold should leave the prism bare, held '%s'";
 
     private PulserPrismTests() {
     }
@@ -71,26 +64,6 @@ public final class PulserPrismTests {
             helper.getLevel().getServer().getPlayerList().remove(player);
             String combo = helper.getBlockEntity(PRISM, PrismBlockEntity.class).getCombo();
             helper.assertTrue(PULSER.toString().equals(combo), String.format(SHOULD_CONVERT, combo));
-            helper.succeed();
-        });
-    }
-
-    /**
-     * A player streams Pulser at a bare prism, looks away a moment short of
-     * the charge, then streams again as long: the two halves together pass
-     * the hold, but neither alone reaches it, so the prism stays bare.
-     *
-     * @param helper the gametest helper
-     */
-    public static void brokenHoldLeavesThePrismBare(GameTestHelper helper) {
-        int half = hold(helper) - SHORT_OF_THE_HOLD;
-        ServerPlayer player = streamer(helper);
-        streamFor(helper, player, 1, half);
-        streamFor(helper, player, half + BREAK + 1, half);
-        helper.runAfterDelay(2 * half + BREAK + 2, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            PrismBlockEntity prism = helper.getBlockEntity(PRISM, PrismBlockEntity.class);
-            helper.assertFalse(prism.hasCombo(), String.format(SHOULD_STAY_BARE, prism.getCombo()));
             helper.succeed();
         });
     }

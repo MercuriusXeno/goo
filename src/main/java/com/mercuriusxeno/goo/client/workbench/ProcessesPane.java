@@ -238,7 +238,7 @@ final class ProcessesPane {
         overlays.commitOnBlur();
         nameBoxPlaced = false;
         // Decision mutators-iterators-split-fifty-fifty: the two columns meet at the pane's midpoint.
-        columnsMiddle = pane.left() + (pane.right() - pane.left()) / HALF;
+        columnsMiddle = columnsMiddle(pane);
         // Decision mutators-tab-renames-and-searches-by-name: each column's search stands above its scrolling rows.
         for (boolean iterators : KINDS) {
             drawSearchRow(new Frame(graphics, font, columnOf(pane, pane.top(), iterators), targets), iterators);
@@ -277,8 +277,19 @@ final class ProcessesPane {
     }
 
     private GroupsPane.Bounds columnOf(GroupsPane.Bounds area, int top, boolean iterators) {
-        return iterators ? new GroupsPane.Bounds(columnsMiddle + COLUMN_GAP / HALF, top, area.right(), area.bottom())
-                : new GroupsPane.Bounds(area.left(), top, columnsMiddle - COLUMN_GAP / HALF, area.bottom());
+        return splitColumn(columnsMiddle, area, top, iterators);
+    }
+
+    // Decision mutators-iterators-split-fifty-fifty: the pane splits at its middle.
+    static int columnsMiddle(GroupsPane.Bounds pane) {
+        return pane.left() + (pane.right() - pane.left()) / HALF;
+    }
+
+    // A column's bounds: the mutators column ends half the column gap left of the middle, the iterators column starts
+    // half the gap right of it.
+    static GroupsPane.Bounds splitColumn(int middle, GroupsPane.Bounds area, int top, boolean iterators) {
+        return iterators ? new GroupsPane.Bounds(middle + COLUMN_GAP / HALF, top, area.right(), area.bottom())
+                : new GroupsPane.Bounds(area.left(), top, middle - COLUMN_GAP / HALF, area.bottom());
     }
 
     // A column's search row: its box stretching to the column's [+], or to the open name box standing in the [+]'s

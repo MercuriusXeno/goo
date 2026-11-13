@@ -78,6 +78,18 @@ class GooReactionTest {
     }
 
     /**
+     * One nether and one glow give two pulse.
+     */
+    // decision nether-plus-glow-gives-two-pulse
+    @Test
+    void pulseReactionTakesNetherAndGlowAndGivesTwoPulse() throws IOException, URISyntaxException {
+        GooReaction reaction = shippedReactions().get("pulse_from_nether_glow");
+        assertNotNull(reaction, "pulse_from_nether_glow is not shipped");
+        assertEquals(Map.of(GooTypes.NETHER, 1, GooTypes.GLOW, 1), amounts(reaction.inputs()));
+        assertEquals(Map.of(GooTypes.PULSE, 2), amounts(reaction.outputs()));
+    }
+
+    /**
      * Every pair of shipped reactions differs in its input set.
      */
     @Test

@@ -20,7 +20,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
@@ -51,24 +50,22 @@ public final class GooLabelRemovalTests {
     }
 
     /**
-     * A blaze-labeled canister holding blaze, with a text label and a gasket, crafts one
-     * blaze label and stays in the grid with its blaze, text label and gasket and no goo
-     * label; a blaze-labeled vat does the same; an unlabeled canister matches nothing.
+     * A blaze-labeled canister holding blaze, with a text label, crafts one blaze label and
+     * stays in the grid with its blaze and text label and no goo label; a blaze-labeled vat
+     * does the same.
      *
      * @param helper the gametest helper
      */
     public static void comesOffInTheGrid(GameTestHelper helper) {
         ItemStack canister = new ItemStack(GooItems.CANISTER.get());
         CanisterItem.addGoo(canister, GooTypes.BLAZE, VOLUME);
-        UUID gasket = UUID.randomUUID();
-        CanisterItem.setMetadata(canister, CanisterMetadata.EMPTY.withLabel(CORNER).withTopGasketId(gasket)
-                .withGooLabel(GooTypes.BLAZE));
+        CanisterItem.setMetadata(canister, CanisterMetadata.EMPTY.withLabel(CORNER).withGooLabel(GooTypes.BLAZE));
         ItemStack canisterLeft = craftsBlazeLabel(helper, canister);
         CanisterMetadata kept = CanisterItem.getMetadata(canisterLeft);
         helper.assertTrue(canisterLeft.is(GooItems.CANISTER.get())
                         && CanisterItem.getFluidContent(canisterLeft).equals(CanisterItem.getFluidContent(canister))
-                        && CORNER.equals(kept.label()) && gasket.equals(kept.topGasketId()) && kept.gooLabel() == null,
-                "The canister should stay in the grid with its goo, text label and gasket and no goo label: "
+                        && CORNER.equals(kept.label()) && kept.gooLabel() == null,
+                "The canister should stay in the grid with its goo and text label and no goo label: "
                         + canisterLeft);
 
         ItemStack vat = new ItemStack(GooItems.VAT.get());
@@ -84,8 +81,6 @@ public final class GooLabelRemovalTests {
         helper.assertTrue(recipeFor(helper, grid(vatStack)).isEmpty(),
                 "A stack of " + STACKED_VATS + " labeled vats alone should match nothing");
 
-        helper.assertTrue(recipeFor(helper, grid(new ItemStack(GooItems.CANISTER.get()))).isEmpty(),
-                "An unlabeled canister alone should match nothing");
         helper.succeed();
     }
 

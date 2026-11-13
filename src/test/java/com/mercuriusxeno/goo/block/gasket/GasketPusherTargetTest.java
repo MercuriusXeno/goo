@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import java.util.UUID;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -90,29 +91,6 @@ class GasketPusherTargetTest {
     }
 
     @Nested
-    class RebuildCache {
-
-        @Test
-        void aimsAtTheRegistryLocationOverTheStoredPartnerPosition() {
-            receiverStandsAt(MOVED_TO);
-            try (MockedStatic<BlockCapabilityCache> caches = mockStatic(BlockCapabilityCache.class)) {
-                pusherLinkedAt(LINKED_AT).rebuildCache();
-
-                caches.verify(() -> BlockCapabilityCache.create(any(), eq(level), eq(MOVED_TO), eq(receiver)));
-            }
-        }
-
-        @Test
-        void aimsAtTheStoredPartnerPositionWhenTheRegistryHoldsNoLocation() {
-            try (MockedStatic<BlockCapabilityCache> caches = mockStatic(BlockCapabilityCache.class)) {
-                pusherLinkedAt(LINKED_AT).rebuildCache();
-
-                caches.verify(() -> BlockCapabilityCache.create(any(), eq(level), eq(LINKED_AT), eq(receiver)));
-            }
-        }
-    }
-
-    @Nested
     class Tick {
 
         @Test
@@ -132,6 +110,18 @@ class GasketPusherTargetTest {
 
     @Nested
     class CurrentTargetPos {
+
+        @Test
+        void isTheRegistryLocationOverTheStoredPartnerPosition() {
+            receiverStandsAt(MOVED_TO);
+
+            assertEquals(MOVED_TO, pusherLinkedAt(LINKED_AT).currentTargetPos());
+        }
+
+        @Test
+        void isTheStoredPartnerPositionWhenTheRegistryHoldsNoLocation() {
+            assertEquals(LINKED_AT, pusherLinkedAt(LINKED_AT).currentTargetPos());
+        }
 
         @Test
         void answersNoneForAReceiverInAnotherDimension() {

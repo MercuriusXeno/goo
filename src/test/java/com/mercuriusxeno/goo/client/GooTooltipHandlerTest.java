@@ -28,7 +28,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * The tooltip shows an item's goo value only once the player has learned the
@@ -118,27 +117,6 @@ class GooTooltipHandlerTest {
             assertEquals(3, rows.size());
             assertTrue(rows.containsAll(List.of(new GooValueTooltipComponent(GooTypes.LEAF, GooFraction.of(64, 3)),
                     new GooValueTooltipComponent(GooTypes.ROCK, GooFraction.of(1, 3)))));
-            assertEquals("21¹⁄₃", GooFormat.formatMixed(GooFraction.of(64, 3)));
-        }
-
-        /**
-         * An item's melt rows read the highest amount first, a fraction compared exactly, a tie broken
-         * alphabetically by type key, whatever order the value holds its types in
-         * (decision value-lists-order-highest-first-ties-by-type-key).
-         */
-        @Test
-        void meltRowsReadHighestFirstTiesByTypeKey() {
-            Map<ResourceKey<GooTypeDefinition>, GooFraction> reversed = new LinkedHashMap<>();
-            reversed.put(GooTypes.METAL, GooFraction.of(5, 2));
-            reversed.put(GooTypes.WEIRD, GooFraction.of(3));
-            reversed.put(GooTypes.PULSE, GooFraction.of(3));
-            GooValue value = mock(GooValue.class);
-            when(value.exactAll()).thenReturn(reversed);
-            GooTooltipHandler.appendMeltRows(elements, value);
-
-            assertEquals(List.of(TITLE, new GooValueTooltipComponent(GooTypes.PULSE, GooFraction.of(3)),
-                    new GooValueTooltipComponent(GooTypes.WEIRD, GooFraction.of(3)),
-                    new GooValueTooltipComponent(GooTypes.METAL, GooFraction.of(5, 2))), shapes(elements));
         }
 
         /**

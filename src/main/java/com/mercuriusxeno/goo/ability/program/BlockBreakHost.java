@@ -2,10 +2,12 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.network.BlockTransformPayload;
 import com.mercuriusxeno.goo.registry.GooServerState;
+import com.mercuriusxeno.goo.registry.GooSounds;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -13,6 +15,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
@@ -204,6 +207,31 @@ public interface BlockBreakHost extends StepHost {
     }
 
     /**
+     * Tells the watching clients a block stepped from one state to another,
+     * as a transform does, for a step that set the block some other way; a
+     * cell the clients drew melting away stops drawing the melt.
+     * vacuumed-residuals-decay-through-mingle-noise-before-breaking
+     *
+     * @param pos  the block
+     * @param from the state it was
+     * @param to   the state it is now
+     */
+    default void sendTransform(BlockPos pos, BlockState from, BlockState to) {
+        new BlockTransformPayload(pos, Block.getId(from), Block.getId(to)).sendToTracking(level());
+    }
+
+    /**
+     * Plays a slurp at a block's middle, heard by everyone near.
+     * vacuum-sounds-a-suction-wind-and-rising-slurps
+     *
+     * @param pos   the block
+     * @param pitch the slurp's pitch
+     */
+    default void slurpAt(BlockPos pos, float pitch) {
+        level().playSound(null, pos, GooSounds.VACUUM_SLURP.get(), SoundSource.PLAYERS, 1f, pitch);
+    }
+
+    /**
      * Breaks a block, dropping its loot as a pickaxe harvests it and playing
      * its break particles.
      *
@@ -211,6 +239,26 @@ public interface BlockBreakHost extends StepHost {
      */
     default void breakBlock(BlockPos pos) {
         harvest(level(), pos, breaker());
+    }
+
+    /**
+     * Breaks a block, dropping its loot as a pickaxe harvests it, with no
+     * break particles or break sound: Bore's particles spit only from where
+     * its vortex meets the block, and its rumble is its sound.
+     * decision bore-shows-a-big-drill-from-the-glove
+     *
+     * @param pos the block
+     */
+    default void breakBlockQuietly(BlockPos pos) {
+        ServerLevel level = level();
+        BlockState state = level.getBlockState(pos);
+        if (state.isAir()) {
+            return;
+        }
+        @Nullable Entity breaker = breaker();
+        Block.dropResources(state, level, pos, level.getBlockEntity(pos), breaker, new ItemStack(Items.IRON_PICKAXE));
+        level.setBlock(pos, level.getFluidState(pos).createLegacyBlock(), Block.UPDATE_ALL);
+        level.gameEvent(GameEvent.BLOCK_DESTROY, pos, GameEvent.Context.of(breaker, state));
     }
 
     /**

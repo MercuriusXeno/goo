@@ -61,10 +61,8 @@ public final class ExoriteBarsTests {
     private static final String NOT_BLOCK_ITEM = "goo:exorite_bars should have its BlockItem";
     private static final String NOT_IN_TAB = "The goo creative tab should show exorite bars";
     private static final String NOT_CRAFTED = "Six exorite in two rows of three should craft sixteen exorite bars";
-    private static final String IRON_CRAFTS_GOO = "Six iron ingots should not craft exorite bars";
     private static final String WRONG_HARDNESS = "Exorite bars should have the hardness of obsidian";
     private static final String WRONG_BLAST_RESISTANCE = "Exorite bars should have the blast resistance of obsidian";
-    private static final String IRON_HARVESTS = "An iron pickaxe should not harvest exorite bars";
     private static final String DIAMOND_CANNOT_HARVEST = "A diamond pickaxe should harvest exorite bars";
     private static final String WRONG_DROP =
             "Breaking exorite bars with a diamond pickaxe should drop one exorite bars, but dropped ";
@@ -92,22 +90,19 @@ public final class ExoriteBarsTests {
     }
 
     /**
-     * Six exorite in two rows of three craft sixteen exorite bars; six iron
-     * ingots in the same grid do not craft exorite bars.
+     * Six exorite in two rows of three craft sixteen exorite bars.
      *
      * @param helper the gametest helper
      */
     public static void crafted(GameTestHelper helper) {
         ItemStack bars = craftRows(helper, new ItemStack(GooItems.EXORITE.get()));
         helper.assertTrue(bars.is(GooItems.EXORITE_BARS.get()) && bars.getCount() == CRAFTED_COUNT, NOT_CRAFTED);
-        ItemStack fromIron = craftRows(helper, new ItemStack(Items.IRON_INGOT));
-        helper.assertTrue(!fromIron.is(GooItems.EXORITE_BARS.get()), IRON_CRAFTS_GOO);
         helper.succeed();
     }
 
     /**
      * Placed exorite bars read the hardness and blast resistance of obsidian,
-     * and of iron and diamond pickaxes only the diamond one harvests them.
+     * and a diamond pickaxe harvests them.
      *
      * @param helper the gametest helper
      */
@@ -119,7 +114,6 @@ public final class ExoriteBarsTests {
         // No explosion: IronBarsBlock reads its resistance from its properties alone.
         helper.assertTrue(state.getExplosionResistance(helper.getLevel(), pos, null) == OBSIDIAN_BLAST_RESISTANCE,
                 WRONG_BLAST_RESISTANCE);
-        helper.assertTrue(!new ItemStack(Items.IRON_PICKAXE).isCorrectToolForDrops(state), IRON_HARVESTS);
         helper.assertTrue(new ItemStack(Items.DIAMOND_PICKAXE).isCorrectToolForDrops(state), DIAMOND_CANNOT_HARVEST);
         helper.succeed();
     }

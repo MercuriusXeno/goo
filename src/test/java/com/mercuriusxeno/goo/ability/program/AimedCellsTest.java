@@ -4,7 +4,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import java.util.List;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -20,9 +19,9 @@ class AimedCellsTest {
     private static final BlockPos FAR_CELL = new BlockPos(5, 0, 5);
 
     @Test
-    void theConeAloneMissesAFarCellAimedAtNearItsCorner() {
+    void theAimLineCrossesAFarCellAimedAtNearItsCorner() {
         Vec3 reach = EYE.add(CORNER_OF_A_FAR_CELL.subtract(EYE).normalize().scale(8));
-        assertFalse(CalcifyStep.blocksInCone(EYE, reach, CONE).contains(FAR_CELL));
+        assertTrue(AimedCells.onTheLine(EYE, reach).contains(FAR_CELL));
     }
 
     @Test

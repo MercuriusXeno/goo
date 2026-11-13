@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:vacuum_released_early_leaves_a_far_cell_whole",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

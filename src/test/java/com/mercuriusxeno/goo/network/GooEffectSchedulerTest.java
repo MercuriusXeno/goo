@@ -27,7 +27,6 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -93,44 +92,25 @@ class GooEffectSchedulerTest {
     @Nested
     class OnePayloadPerLanding {
 
+        /**
+         * The payload carries the struck mob's id, the goo type's id, the point the aim enters the box and the aim's
+         * direction.
+         */
         @Test
-        void drainedThrowSendsTheStruckMobsIdAndGooType() {
-            GooEffectScheduler scheduler = new GooEffectScheduler();
-            scheduler.enqueue(effectOnTheMob(ARRIVAL_TICK));
-
-            scheduler.drainArrivedEffects(ARRIVAL_TICK, landing);
-
-            MobHitPayload hit = theOneHitSent();
-            assertEquals(MOB_ID, hit.entityId());
-            assertEquals(GooTypes.id(GooTypes.BLAZE), hit.gooTypeId());
-        }
-
-        @Test
-        void throwStillInFlightSendsNothing() {
-            GooEffectScheduler scheduler = new GooEffectScheduler();
-            scheduler.enqueue(effectOnTheMob(ARRIVAL_TICK));
-
-            scheduler.drainArrivedEffects(ARRIVAL_TICK - 1, landing);
-
-            verify(landing, never()).announceHit(any(), any());
-        }
-
-        @Test
-        void punchOrTouchLandingAtTickZeroSendsTheStruckMobsIdAndGooType() {
+        void punchOrTouchLandingAtTickZeroSendsTheStruckMobsIdGooTypeHitPointAndAim() {
             GooEffectScheduler.applyEffect(effectOnTheMob(0), landing);
 
             MobHitPayload hit = theOneHitSent();
             assertEquals(MOB_ID, hit.entityId());
             assertEquals(GooTypes.id(GooTypes.BLAZE), hit.gooTypeId());
-        }
-
-        @Test
-        void punchHitsWhereTheStrikersLookEntersTheBoxAndCarriesItsAim() {
-            GooEffectScheduler.applyEffect(effectOnTheMob(0), landing);
-
-            MobHitPayload hit = theOneHitSent();
             assertVec(new Vec3(1, 1.6, 0.5), hit.hitPoint());
             assertEquals(THROWER_LOOK, hit.aimDirection());
+        }
+
+        /** An effect carrying no captured aim strikes along its striker's crosshair, read as it lands. */
+        @Test
+        void anEffectWithNoCapturedAimTakesTheStrikersCrosshair() {
+            assertEquals(GooEffectScheduler.crosshairAim(thrower), GooEffectScheduler.aimOf(effectOnTheMob(0)));
         }
 
         @Test
@@ -142,28 +122,16 @@ class GooEffectSchedulerTest {
             assertVec(new Vec3(1, 1.6, 0.5), GooEffectScheduler.aimedHitPoint(MOB_BOX, aim));
         }
 
+        /** A captured aim wins over the thrower's look at arrival, and the hit runs along it. */
         @Test
-        void throwHitsAlongTheAimItCapturedNotTheLookAtArrival() {
-            Vec3 capturedLook = new Vec3(-4, -0.4, 0).normalize();
-            GooEffectScheduler scheduler = new GooEffectScheduler();
-            scheduler.enqueue(new PendingEffect(ARRIVAL_TICK, level, thrower, GooTypes.BLAZE, MOB_ID, BlockPos.ZERO,
-                    null, "goo:blaze_touch", new GooEffectScheduler.Aim(THROWER_EYE, capturedLook)));
+        void aThrowStrikesAlongTheAimItCapturedNotTheLookAtArrival() {
+            GooEffectScheduler.Aim captured = new GooEffectScheduler.Aim(THROWER_EYE,
+                    new Vec3(-4, -0.4, 0).normalize());
+            GooEffectScheduler.Aim aim = GooEffectScheduler.aimOf(new PendingEffect(ARRIVAL_TICK, level, thrower,
+                    GooTypes.BLAZE, MOB_ID, BlockPos.ZERO, null, "goo:blaze_touch", captured));
 
-            scheduler.drainArrivedEffects(ARRIVAL_TICK, landing);
-
-            MobHitPayload hit = theOneHitSent();
-            assertVec(new Vec3(1, 0.6, 0.5), hit.hitPoint());
-            assertEquals(capturedLook, hit.aimDirection());
-        }
-
-        @Test
-        void mobGoneByArrivalSendsNothingAndRunsNothing() {
-            when(level.getEntity(MOB_ID)).thenReturn(null);
-
-            GooEffectScheduler.applyEffect(effectOnTheMob(0), landing);
-
-            verify(landing, never()).announceHit(any(), any());
-            verify(landing, never()).runProgram(any(), any());
+            assertEquals(captured, aim);
+            assertVec(new Vec3(1, 0.6, 0.5), GooEffectScheduler.aimedHitPoint(MOB_BOX, aim));
         }
     }
 

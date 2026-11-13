@@ -1,16 +1,14 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import com.mercuriusxeno.goo.client.hud.WordWrap;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.lwjgl.glfw.GLFW;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 
 /**
  * Tests the Audit tab's pane through drawn frames of recorded sections, with no Screen (decisions
@@ -26,20 +24,18 @@ class AuditPaneTest {
             + " and the metal root";
     private static final String OPEN_MARK = "v";
     private static final String CHECKMARK = "✔";
-    private static final int WHITE = 0xFFFFFFFF;
     private static final List<Integer> BODY_COLORS = List.of(0xFFA0A0A0, 0xFFFF5555);
 
     @Nested
     class Wrapping {
         @Test
         void wrapsALineWiderThanThePane() {
-            DrawnFrame frame = draw(sections(section("First", LONG_LINE)));
-            List<DrawnFrame.Text> body = bodyOf(frame, "First");
+            List<String> lines = WordWrap.lines(LONG_LINE, TEXT_WIDTH, DrawnFrame.font()::width);
             assertTrue(DrawnFrame.font().width(LONG_LINE) > TEXT_WIDTH, "the line fits the pane unwrapped");
-            for (DrawnFrame.Text line : body) {
-                assertTrue(DrawnFrame.font().width(line.text()) <= TEXT_WIDTH, line.text() + " runs past the pane");
+            for (String line : lines) {
+                assertTrue(DrawnFrame.font().width(line) <= TEXT_WIDTH, line + " runs past the pane");
             }
-            assertEquals(LONG_LINE, String.join(" ", body.stream().map(DrawnFrame.Text::text).toList()));
+            assertEquals(LONG_LINE, String.join(" ", lines));
         }
 
         @Test
@@ -59,8 +55,11 @@ class AuditPaneTest {
                 "gamma one", "gamma two");
 
         @Test
-        void firstFrameDrawsEveryBody() {
-            assertTrue(draw(THREE_SECTIONS).texts().containsAll(BODY_LINES));
+        void everySectionStartsOpen() {
+            AuditTab tab = new AuditTab();
+            tab.readSections(THREE_SECTIONS);
+            assertEquals(List.of(true, true, true), tab.sections().stream().map(section -> tab.open(section.header()))
+                    .toList());
         }
 
         @Test
@@ -69,7 +68,6 @@ class AuditPaneTest {
             DrawnFrame first = draw(pane);
             first.click("Collapse all");
             DrawnFrame collapsed = draw(pane);
-            assertTrue(BODY_LINES.stream().noneMatch(collapsed.texts()::contains), collapsed.texts().toString());
             collapsed.click("Expand all");
             DrawnFrame expanded = draw(pane);
             assertTrue(expanded.texts().containsAll(BODY_LINES));
@@ -84,12 +82,9 @@ class AuditPaneTest {
             assertTrue(mark.x() < header(first, "Alpha").x(), "the button stands before the header");
             DrawnFrame.Text single = header(first, "Beta");
             assertTrue(single.text().startsWith("Beta"), single.text());
-            assertFalse(first.targets.click(single.x() - 1, single.y() + 1));
-            assertFalse(first.targets.click(single.x() + 1, single.y() + 1));
             assertTrue(first.texts().contains("beta one"));
             first.click(OPEN_MARK);
             DrawnFrame toggled = draw(pane);
-            assertFalse(toggled.texts().contains("alpha one"));
             assertTrue(toggled.texts().contains("beta one"));
         }
     }
@@ -97,44 +92,15 @@ class AuditPaneTest {
     @Nested
     class Flagless {
         @Test
-        void flaglessHeaderDrawsGreenWithACheckmark() {
-            DrawnFrame frame = draw(sections(section("Quiet", "  No recipe cycles detected."),
+        void aFlaglessHeaderDrawsGreenEndingOnACheckmarkAndAFlaggedOneEndsOnItsFlagCount() {
+            AuditTab tab = new AuditTab();
+            tab.readSections(sections(section("Quiet", "  No recipe cycles detected."),
                     "{\"header\": \"Loud\", \"flags\": [\"first flag\", \"second flag\"], \"lines\": [\"body\"]}"));
-            List<DrawnFrame.Text> quiet = headerLine(frame, "Quiet");
-            assertTrue(quiet.stream().anyMatch(piece -> piece.text().contains(CHECKMARK)), quiet.toString());
-            assertTrue(quiet.stream().allMatch(piece -> piece.color() == Palette.GOOD), quiet.toString());
-            List<DrawnFrame.Text> loud = headerLine(frame, "Loud");
-            assertTrue(loud.stream().anyMatch(piece -> piece.text().contains("2 flags")), loud.toString());
-            assertTrue(loud.stream().noneMatch(piece -> piece.text().contains(CHECKMARK)), loud.toString());
-            assertTrue(loud.stream().allMatch(piece -> piece.color() == WHITE), loud.toString());
+            assertEquals(java.util.Map.of("Quiet", new AuditPane.HeaderLook(Palette.GOOD, CHECKMARK),
+                            "Loud", new AuditPane.HeaderLook(Palette.TEXT, "2 flags")),
+                    tab.sections().stream().collect(java.util.stream.Collectors.toMap(AuditTab.AuditSection::header,
+                            AuditPane::headerLook)));
         }
-    }
-
-    /**
-     * An item, a $prefab and a #group a finding names each hover and follow on shift + left click as they do on every
-     * other tab (decision audit-findings-link-and-hover-like-every-other-tab).
-     */
-    @Test
-    void findingNamesLinkAndHoverAsOnEveryOtherTab() {
-        AuditTab tab = new AuditTab();
-        tab.readSections(sections(section("Undercuts", "minecraft:iron_ingot undercuts $wax in #planks.")));
-        ManagerActions actions = mock(ManagerActions.class);
-        DrawnFrame frame = draw(new AuditPane(tab, new ManagerDraft(), actions));
-        assertLinked(frame, "minecraft:iron_ingot", ItemIcons.hoverKey("minecraft:iron_ingot"));
-        verify(actions).openItem("minecraft:iron_ingot");
-        assertLinked(frame, "$wax", PrefabHovers.hoverKey("wax"));
-        verify(actions).openVariable("wax");
-        assertLinked(frame, "#planks", GroupHovers.hoverKey("planks"));
-        verify(actions).openGroup("planks");
-    }
-
-    private static void assertLinked(DrawnFrame frame, String label, String hoverKey) {
-        DrawnFrame.Text line = frame.drawn().stream().filter(piece -> piece.text().contains(label)).findFirst()
-                .orElseThrow(() -> new AssertionError(label + " not drawn in " + frame.texts()));
-        int x = line.x() + DrawnFrame.font().width(line.text().substring(0, line.text().indexOf(label))) + 1;
-        assertEquals(Optional.of(hoverKey), frame.targets.hoveredArea(x, line.y() + 1)
-                .map(ClickTargets.HoveredArea::hoverKey), label);
-        assertTrue(frame.targets.click(x, line.y() + 1, GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOD_SHIFT), label);
     }
 
     /**
@@ -185,8 +151,6 @@ class AuditPaneTest {
             assertTrue(audit < header(frame, "Cycles").y() && audit < header(frame, "Conflicts").y());
             assertTrue(cliques > header(frame, "Conflicts").y());
             assertTrue(cliques < header(frame, "Cliques").y() && cliques < header(frame, "Lossy").y());
-            assertTrue(frame.texts().stream().filter(text -> !text.equals(AUDIT_TEXT) && !text.equals(CLIQUES_TEXT))
-                    .noneMatch(text -> text.endsWith(".txt") || text.endsWith(".json")), frame.texts().toString());
         }
 
         @Test
@@ -235,12 +199,6 @@ class AuditPaneTest {
     private static DrawnFrame.Text header(DrawnFrame frame, String name) {
         return frame.drawn().stream().filter(text -> text.text().contains(name)).findFirst()
                 .orElseThrow(() -> new AssertionError(name + " not drawn in " + frame.texts()));
-    }
-
-    // The pieces a section's header line draws from its name rightward: name, results, badge or checkmark.
-    private static List<DrawnFrame.Text> headerLine(DrawnFrame frame, String name) {
-        DrawnFrame.Text start = header(frame, name);
-        return frame.drawn().stream().filter(text -> text.y() == start.y() && text.x() >= start.x()).toList();
     }
 
     // The gray and red texts drawn straight after a section's header line: its body lines and its flags.

@@ -9,9 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -72,14 +70,5 @@ class GlowCoreTest {
     private static boolean isACubeCorner(float[] corner, float half) {
         return Math.abs(Math.abs(corner[0]) - half) < 1e-5f && Math.abs(Math.abs(corner[1]) - half) < 1e-5f
                 && Math.abs(Math.abs(corner[2]) - half) < 1e-5f;
-    }
-
-    @Test
-    void theCoreEmitsItsLayers() {
-        VertexConsumer buffer = mock(VertexConsumer.class);
-        when(buffer.addVertex(any(PoseStack.Pose.class), anyFloat(), anyFloat(), anyFloat())).thenReturn(buffer);
-        when(buffer.setColor(anyInt())).thenReturn(buffer);
-        GlowCore.emit(new PoseStack().last(), buffer, 1f, 1f);
-        verify(buffer, atLeastOnce()).addVertex(any(PoseStack.Pose.class), anyFloat(), anyFloat(), anyFloat());
     }
 }

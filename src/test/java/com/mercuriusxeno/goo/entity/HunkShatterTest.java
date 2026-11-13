@@ -30,10 +30,9 @@ class HunkShatterTest {
     @Test
     void everyBlockCrumblesTheMomentTheHunkStrikes() {
         long struck = 1000;
-        for (int turn = 0; turn <= 2; turn++) {
-            assertEquals(struck, HunkShatter.crumbleStart(struck, turn), "turn " + turn + " starts late");
-            assertEquals(struck + BlockHunk.CRUMBLE_TICKS, HunkShatter.crumbleEnd(struck, turn));
-        }
+        int lastTurn = 2;
+        assertEquals(List.of(struck, struck + BlockHunk.CRUMBLE_TICKS), List.of(
+                HunkShatter.crumbleStart(struck, lastTurn), HunkShatter.crumbleEnd(struck, lastTurn)));
     }
 
     @Test

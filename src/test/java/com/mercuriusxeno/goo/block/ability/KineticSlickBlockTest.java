@@ -1,10 +1,15 @@
 package com.mercuriusxeno.goo.block.ability;
 
+import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooValueTable;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
@@ -14,7 +19,8 @@ import static org.mockito.Mockito.mock;
 /**
  * Neighbouring slick films read as one film, a film hiding its side face
  * toward another film as goop's coat does, asked through the block state as
- * the renderer asks it (decision diagnose-and-correct-the-slick-film-seams).
+ * the renderer asks it (decision diagnose-and-correct-the-slick-film-seams),
+ * and a broken film gives back the goo it cost.
  */
 class KineticSlickBlockTest {
 
@@ -41,6 +47,42 @@ class KineticSlickBlockTest {
             BlockState state = mock(BlockState.class, CALLS_REAL_METHODS);
             doReturn(block).when(state).getBlock();
             return state;
+        }
+    }
+
+    /**
+     * A broken film gives back kinetic goo worth Slick's cost, the price the
+     * stream charged it, whatever the workbench sets that cost to
+     * (decisions breaking-slick-drops-kinetic-goo-worth-its-film, slick-drains-per-film-it-lays).
+     */
+    @Nested
+    class Reclaim {
+
+        private static final GooFraction SHIPPED_COST = GooFraction.of(12);
+        private static final GooFraction RETUNED_COST = GooFraction.of(20);
+
+        @Test
+        void aBrokenFilmReclaimsKineticGoo() {
+            assertEquals(GooTypes.KINETIC, KineticSlickBlock.reclaimed(SHIPPED_COST).type());
+        }
+
+        @Test
+        void aBrokenFilmReturnsSlicksCost() {
+            assertEquals(12, KineticSlickBlock.reclaimed(SHIPPED_COST).mb());
+        }
+
+        @Test
+        void aRetunedCostRetunesTheRefund() {
+            assertEquals(20, KineticSlickBlock.reclaimed(RETUNED_COST).mb());
+        }
+
+        /** slick-drains-per-film-it-lays: one film's price is what a broken film gives back */
+        @Test
+        void aBrokenFilmReclaimsWhatTheShippedCostChargesAFilm() {
+            GooFraction filmPrice = AbilityJson.decode("kinetic_slick").cost().exactIn(GooValueTable.EMPTY);
+
+            assertEquals(0, GooFraction.of(KineticSlickBlock.reclaimed(filmPrice).mb()).compareTo(filmPrice),
+                    "a film costs " + filmPrice + " and reclaims " + KineticSlickBlock.reclaimed(filmPrice).mb());
         }
     }
 }

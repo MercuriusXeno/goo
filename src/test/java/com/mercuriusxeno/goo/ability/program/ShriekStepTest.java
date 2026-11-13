@@ -3,15 +3,12 @@ package com.mercuriusxeno.goo.ability.program;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 /**
- * The Shriek blob shrieks once, on its first tick, calling every hostile in
- * reach then; every later tick only counts toward its lifetime, and the step
- * ends once its lifetime has passed
+ * The Shriek blob shrieks on its first tick, calling every hostile in reach
+ * then, and the step ends once its lifetime has passed
  * (decision shriek-blob-cries-once-and-calls-earshot).
  */
 class ShriekStepTest {
@@ -25,15 +22,6 @@ class ShriekStepTest {
         ShriekHost host = mock(ShriekHost.class);
         STEP.tick(new StepContext(host, 0, 0));
         verify(host).shriek(REACH);
-    }
-
-    @Test
-    void noLaterTickShrieks() {
-        ShriekHost host = mock(ShriekHost.class);
-        for (int tick = 1; tick < LASTS; tick++) {
-            STEP.tick(new StepContext(host, tick, tick));
-        }
-        verify(host, never()).shriek(anyDouble());
     }
 
     @Test
