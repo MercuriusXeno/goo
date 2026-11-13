@@ -21,21 +21,27 @@ import static org.mockito.Mockito.mock;
 
 /**
  * Covers the sky funnel's draw: one funnel a frame, under goo's copy of the
- * End portal shader reading the doorway's screen-space starfield, fading
- * from its nearest point to its farthest, every quad both ways round, at the
- * room's own doorway however many copies stand
+ * End portal shader with its stars fixed to the surface at a set size in
+ * blocks, round the pillar by its own width and flat across the ceiling,
+ * fading with the log of distance, every quad both ways round, at the room's
+ * own doorway however many copies stand
  * (decision sky-funnel-points-down-to-the-doorway-from-any-distance).
  */
 class SkyFunnelRendererTest {
 
     private static final float EXACT = 1.0E-3f;
+    /** How near a starfield coordinate reads to its expected value, the vertex read back in floats. */
+    private static final double COORDINATE_EXACT = 1.0E-2;
+    /** How near a brightness reads to the log fade, two steps of its byte. */
+    private static final double BRIGHTNESS_EXACT = 2.0 / 255;
     /** How near the mean of the funnel's vertices stands to the center, its far rings drawn in floats. */
     private static final double CENTERED = 1.0E-1;
+    private static final double FULL_TURN = Math.PI * 2;
     private static final int RED_SHIFT = 16;
     private static final int BYTE = 0xFF;
     private static final int QUAD = 4;
     private static final double HALF_BLOCK = 0.5;
-    private static final RoomExtent.Bounds ROOM = new RoomExtent.Bounds(1_000, -3_000, RoomExtent.LAID);
+    private static final RoomExtent.Bounds ROOM = new RoomExtent.Bounds(1_000, -3_000, 40.5);
     /** The camera stands by the doorway, so no vertex is drawn nearer than its true place. */
     private static final Vec3 BY_THE_DOOR = new Vec3(1_003.5, 65, -2_996.5);
     private static final double FAR_ENOUGH_FOR_ALL = 1.0E6;
@@ -45,30 +51,57 @@ class SkyFunnelRendererTest {
     }
 
     @Test
-    void theFunnelDrawsTheDoorwaysStarfieldInScreenSpace() {
-        Submitted submitted = submit();
-
-        assertEquals(List.of(GooRenderTypes.SKY_FUNNEL_TYPE), submitted.types(), "goo's funnel render type");
-        assertFalse(submitted.vertices().isEmpty(), "the funnel writes vertices");
-        for (RecordingVertexConsumer.Vertex vertex : submitted.vertices()) {
-            assertEquals(0f, vertex.u(), 0f, "no texture coordinate written, the starfield reads the screen");
-            assertEquals(0f, vertex.v(), 0f, "no texture coordinate written, the starfield reads the screen");
-        }
+    void theFunnelDrawsWithGoosCopyOfTheEndPortalShader() {
+        assertEquals(List.of(GooRenderTypes.SKY_FUNNEL_TYPE), submit().types(), "goo's funnel render type");
     }
 
     @Test
-    void theNearestVertexDrawsBrightestAndTheFarthestDimmest() {
+    void theStarsRunRoundThePillarAndFlatAcrossTheCeilingAtTheirBlocksPerRepeat() {
         List<RecordingVertexConsumer.Vertex> vertices = submit().vertices();
-        RecordingVertexConsumer.Vertex nearest = vertices.stream().min(Comparator.comparingDouble(
-                SkyFunnelRendererTest::distanceOf)).orElseThrow();
-        RecordingVertexConsumer.Vertex farthest = vertices.stream().max(Comparator.comparingDouble(
-                SkyFunnelRendererTest::distanceOf)).orElseThrow();
-        int brightest = vertices.stream().mapToInt(SkyFunnelRendererTest::brightnessOf).max().orElseThrow();
-        int dimmest = vertices.stream().mapToInt(SkyFunnelRendererTest::brightnessOf).min().orElseThrow();
+        assertFalse(vertices.isEmpty(), "the funnel writes vertices");
+        boolean pillarSeen = false;
+        boolean ceilingSeen = false;
+        for (RecordingVertexConsumer.Vertex vertex : vertices) {
+            double east = vertex.x() + BY_THE_DOOR.x() - (ROOM.centerX() + HALF_BLOCK);
+            double south = vertex.z() + BY_THE_DOOR.z() - (ROOM.centerZ() + HALF_BLOCK);
+            double height = vertex.y() + BY_THE_DOOR.y() - SkyFunnel.spoutHeight();
+            if (SkyFunnel.wrapsAsPillar(height)) {
+                pillarSeen = true;
+                assertEquals(height / SkyFunnel.PILLAR_BLOCKS_PER_REPEAT, vertex.v(), COORDINATE_EXACT,
+                        "up the pillar by height");
+                double around = Math.atan2(south, east) / FULL_TURN;
+                double apart = Math.abs(around - vertex.u()) % 1;
+                assertTrue(Math.min(apart, 1 - apart) < COORDINATE_EXACT, "round the pillar by its own width");
+            } else {
+                ceilingSeen = true;
+                assertEquals(east / SkyFunnel.CEILING_BLOCKS_PER_REPEAT, vertex.u(), COORDINATE_EXACT,
+                        "across the ceiling by east");
+                assertEquals(south / SkyFunnel.CEILING_BLOCKS_PER_REPEAT, vertex.v(), COORDINATE_EXACT,
+                        "across the ceiling by south");
+            }
+        }
+        assertTrue(pillarSeen && ceilingSeen, "the funnel draws both its pillar and its ceiling");
+    }
 
-        assertTrue(brightest > dimmest, "the funnel fades with distance");
-        assertEquals(brightest, brightnessOf(nearest), "the nearest vertex draws brightest");
-        assertEquals(dimmest, brightnessOf(farthest), "the farthest vertex draws dimmest");
+    @Test
+    void theBrightnessFadesWithTheLogOfDistance() {
+        List<RecordingVertexConsumer.Vertex> vertices = submit().vertices();
+        double nearest = vertices.stream().mapToDouble(SkyFunnelRendererTest::distanceOf).min().orElseThrow();
+        double farthest = vertices.stream().mapToDouble(SkyFunnelRendererTest::distanceOf).max().orElseThrow();
+        for (RecordingVertexConsumer.Vertex vertex : vertices) {
+            double nearToFar = Math.log(distanceOf(vertex) / nearest) / Math.log(farthest / nearest);
+            double expected = 1 - (1 - SkyFunnel.FARTHEST_BRIGHTNESS) * nearToFar;
+            assertEquals(expected, brightnessOf(vertex) / (double) BYTE, BRIGHTNESS_EXACT,
+                    "brightness by the log of distance");
+        }
+        RecordingVertexConsumer.Vertex nearestVertex = vertices.stream()
+                .min(Comparator.comparingDouble(SkyFunnelRendererTest::distanceOf)).orElseThrow();
+        RecordingVertexConsumer.Vertex farthestVertex = vertices.stream()
+                .max(Comparator.comparingDouble(SkyFunnelRendererTest::distanceOf)).orElseThrow();
+        assertEquals(vertices.stream().mapToInt(SkyFunnelRendererTest::brightnessOf).max().orElseThrow(),
+                brightnessOf(nearestVertex), "the nearest vertex brightest");
+        assertEquals(vertices.stream().mapToInt(SkyFunnelRendererTest::brightnessOf).min().orElseThrow(),
+                brightnessOf(farthestVertex), "the farthest vertex dimmest");
     }
 
     @Test
@@ -83,19 +116,11 @@ class SkyFunnelRendererTest {
                 assertEquals(forward.x(), back.x(), EXACT, "the reverse winding repeats the corners");
                 assertEquals(forward.y(), back.y(), EXACT, "the reverse winding repeats the corners");
                 assertEquals(forward.z(), back.z(), EXACT, "the reverse winding repeats the corners");
-                assertEquals(forward.u(), back.u(), EXACT, "the reverse winding repeats the texture");
-                assertEquals(forward.v(), back.v(), EXACT, "the reverse winding repeats the texture");
+                assertEquals(forward.u(), back.u(), EXACT, "the reverse winding repeats the stars");
+                assertEquals(forward.v(), back.v(), EXACT, "the reverse winding repeats the stars");
                 assertEquals(forward.color(), back.color(), "the reverse winding repeats the brightness");
             }
         }
-    }
-
-    private static double distanceOf(RecordingVertexConsumer.Vertex vertex) {
-        return Math.sqrt(vertex.x() * vertex.x() + vertex.y() * vertex.y() + vertex.z() * vertex.z());
-    }
-
-    private static int brightnessOf(RecordingVertexConsumer.Vertex vertex) {
-        return vertex.color() >> RED_SHIFT & BYTE;
     }
 
     @Test
@@ -114,6 +139,14 @@ class SkyFunnelRendererTest {
                 .average().orElseThrow();
         assertEquals(ROOM.centerX() + HALF_BLOCK, east, CENTERED, "at the room's own center, the zero copy offset");
         assertEquals(ROOM.centerZ() + HALF_BLOCK, south, CENTERED, "at the room's own center, the zero copy offset");
+    }
+
+    private static double distanceOf(RecordingVertexConsumer.Vertex vertex) {
+        return Math.sqrt(vertex.x() * vertex.x() + vertex.y() * vertex.y() + vertex.z() * vertex.z());
+    }
+
+    private static int brightnessOf(RecordingVertexConsumer.Vertex vertex) {
+        return vertex.color() >> RED_SHIFT & BYTE;
     }
 
     private static Submitted submit() {
