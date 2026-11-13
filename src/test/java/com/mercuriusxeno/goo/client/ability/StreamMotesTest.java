@@ -83,7 +83,7 @@ class StreamMotesTest {
     private static final double FIRST_TICK = 2;
     private static final float PARTIAL_TICK = 0.5f;
     /** Goop's throw speed, blocks per tick. */
-    private static final double THROW_SPEED = 0.6;
+    private static final double THROW_SPEED = 0.84;
     /** The spray's axis, south and down. */
     private static final Vec3 SPRAY_AXIS = new Vec3(0, -0.5, 1).normalize();
     private static final double CONE_DEGREES = 16;
@@ -250,13 +250,15 @@ class StreamMotesTest {
     }
 
     /**
-     * Asserts a drawn point stands half its launch out of the blob, as half
-     * a tick of flight carries a drip thrown from the blob at that launch.
+     * Asserts a drawn point stands halfway along the first tick a drip
+     * thrown from the blob at its launch flies through open air.
      */
     private static void assertDrawnOnItsLaunch(Vec3 drawn, Vec3 blob, Vec3 launch) {
-        Vec3 halfway = blob.add(launch.scale(PARTIAL_TICK));
-        assertTrue(drawn.distanceTo(halfway) <= ON_THE_LAUNCH, "a drip's first quad should stand half its launch "
-                + launch + " out of the blob " + blob + ", at " + halfway + ", drawn at " + drawn);
+        Vec3 firstTick = DripArc.step(blob, launch, (from, to) -> Optional.empty(), point -> true).position();
+        Vec3 halfway = blob.add(firstTick.subtract(blob).scale(PARTIAL_TICK));
+        assertTrue(drawn.distanceTo(halfway) <= ON_THE_LAUNCH, "a drip's first quad should stand halfway along its"
+                + " first tick from the blob " + blob + " at its launch " + launch + ", at " + halfway + ", drawn at "
+                + drawn);
     }
 
     private static Minecraft clientDrawing(List<SprayDripParticle> drips, Caster caster, boolean local,
