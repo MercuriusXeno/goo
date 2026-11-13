@@ -21,14 +21,27 @@ class BoreContactSprayTest {
     private static final double FAR = 0.1;
     private static final double SLACK = 1e-9;
 
+    /** The spew flies back from the drill's point toward the holder, never back into the block. */
     @ParameterizedTest
     @EnumSource(Direction.class)
-    void aSpitLeavesOutOfTheFaceItMeets(Direction face) {
-        for (double spread : new double[] {-1, 0, 1}) {
-            Vec3 velocity = BoreContactSpray.spitVelocity(face, spread, -spread, spread);
-            assertTrue(velocity.dot(Vec3.atLowerCornerOf(face.getUnitVec3i())) > 0,
-                    "a spit off " + face + " runs " + velocity);
+    void theSpewFliesBackTowardTheHolder(Direction backward) {
+        Vec3 towardHolder = Vec3.atLowerCornerOf(backward.getUnitVec3i());
+        for (double around : new double[] {0, 0.25, 0.5, 0.75}) {
+            Vec3 velocity = BoreContactSpray.spewVelocity(towardHolder, around, 1);
+            assertTrue(velocity.dot(towardHolder) > 0, "a spew toward " + backward + " runs " + velocity);
         }
+    }
+
+    /** The spew fans out in a ring round the drill's axis: opposite points of the ring fly opposite ways. */
+    @Test
+    void theSpewFansOutInARingRoundTheAxis() {
+        Vec3 towardHolder = new Vec3(0, 0, -1);
+        Vec3 one = BoreContactSpray.spewVelocity(towardHolder, 0, 1);
+        Vec3 opposite = BoreContactSpray.spewVelocity(towardHolder, 0.5, 1);
+        Vec3 sideOne = one.subtract(towardHolder.scale(one.dot(towardHolder)));
+        Vec3 sideOpposite = opposite.subtract(towardHolder.scale(opposite.dot(towardHolder)));
+        assertTrue(sideOne.length() > 0, "the spew flies straight back with no ring");
+        assertTrue(sideOne.dot(sideOpposite) < 0, "opposite points of the ring fly the same way");
     }
 
     /** The spit comes from where the drawn vortex meets the block, so it traces the drawn vortex's own axis. */
@@ -44,14 +57,7 @@ class BoreContactSprayTest {
     }
 
     @Test
-    void itSpitsOneParticleATick() {
-        assertEquals(1, BoreContactSpray.SPITS_PER_TICK);
-    }
-
-    @Test
-    void theSpitSpreadsAcrossTheVortexsWidthAtTheContactsDepth() {
-        assertEquals(NEAR, BoreContactSpray.widthAt(0, REACH, NEAR, FAR), SLACK);
-        assertEquals(FAR, BoreContactSpray.widthAt(REACH, REACH, NEAR, FAR), SLACK);
-        assertEquals((NEAR + FAR) / 2, BoreContactSpray.widthAt(REACH / 2, REACH, NEAR, FAR), SLACK);
+    void itSpewsEightParticlesATick() {
+        assertEquals(8, BoreContactSpray.SPITS_PER_TICK);
     }
 }

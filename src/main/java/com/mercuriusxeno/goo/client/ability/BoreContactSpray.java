@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.Direction;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.util.RandomSource;
@@ -21,45 +20,54 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 
 /**
- * Where Bore's drawn vortex makes contact with a breakable block, a particle
- * of the block spits out of the face it meets each tick the bore runs,
- * scattered across the vortex's width there, so the vortex reads as tearing
- * into the block while the block clips it. The contact is traced along the
- * drawn vortex's own axis, from where it is held below the line of sight.
+ * Where Bore's drawn vortex makes contact with a breakable block, particles of
+ * the block spew from the drill's point each tick the bore runs, flying back
+ * toward the holder's face and fanning out in a ring round the drill's axis,
+ * so the vortex reads as tearing into the block while the block clips it.
+ * The contact is traced along the drawn vortex's own axis, from where it is
+ * held below the line of sight.
  * decision bore-shows-a-big-drill-from-the-glove
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class BoreContactSpray {
 
-    /** Particles spat a tick where the vortex meets a breakable block. */
-    static final int SPITS_PER_TICK = 1;
-    /** How fast a particle leaves the face, in blocks a tick. */
-    static final double SPIT_SPEED = 0.12;
-    /** How fast a particle scatters along the face, at most, in blocks a tick. */
-    static final double SPIT_SCATTER = 0.08;
+    /** Particles spewed a tick where the vortex meets a breakable block. */
+    static final int SPITS_PER_TICK = 8;
+    /** How fast a particle flies back toward the holder, in blocks a tick. */
+    static final double BACK_SPEED = 0.28;
+    /** How fast a particle fans out round the drill's axis, at most, in blocks a tick. */
+    static final double RING_SPEED = 0.18;
+    /** How much each particle's speed back varies either way, as a share. */
+    private static final double SPEED_VARY = 0.3;
     /** How far out from the face a particle starts, so it never starts inside the block. */
     private static final double OFF_THE_FACE = 0.05;
+    private static final double TWO_PI = 2 * Math.PI;
     private static final double HALF = 0.5;
     private static final double BOTH_WAYS = 2;
+    private static final Vec3 WORLD_UP = new Vec3(0, 1, 0);
+    private static final Vec3 WORLD_EAST = new Vec3(1, 0, 0);
+    private static final double NEARLY_UPRIGHT = 0.99;
 
     private BoreContactSpray() {
     }
 
     /**
-     * A spat particle's velocity: out of the face it meets, scattered along
-     * the face, never back into the block.
+     * A spewed particle's velocity: back toward the holder from the drill's
+     * point, fanned out round the drill's axis at a place on a ring, so the
+     * spew flies back in a circle rather than a line.
      *
-     * @param face the face the vortex meets
-     * @param x    the scatter along the world's x, -1 to 1
-     * @param y    the scatter along the world's y, -1 to 1
-     * @param z    the scatter along the world's z, -1 to 1
+     * @param towardHolder the unit direction from the drill's point back toward the holder
+     * @param around       where round the ring the particle fans out, 0 to 1
+     * @param flare        how far it fans out, 0 to 1
      * @return the velocity, in blocks a tick
      */
-    static Vec3 spitVelocity(Direction face, double x, double y, double z) {
-        Vec3 normal = Vec3.atLowerCornerOf(face.getUnitVec3i());
-        Vec3 scatter = new Vec3(x, y, z).scale(SPIT_SCATTER);
-        Vec3 along = scatter.subtract(normal.scale(scatter.dot(normal)));
-        return normal.scale(SPIT_SPEED).add(along);
+    static Vec3 spewVelocity(Vec3 towardHolder, double around, double flare) {
+        Vec3 reference = Math.abs(towardHolder.dot(WORLD_UP)) > NEARLY_UPRIGHT ? WORLD_EAST : WORLD_UP;
+        Vec3 side = towardHolder.cross(reference).normalize();
+        Vec3 up = side.cross(towardHolder);
+        double angle = around * TWO_PI;
+        Vec3 ring = side.scale(Math.cos(angle)).add(up.scale(Math.sin(angle)));
+        return towardHolder.scale(BACK_SPEED).add(ring.scale(RING_SPEED * (HALF + HALF * flare)));
     }
 
     /**
@@ -77,20 +85,6 @@ public final class BoreContactSpray {
     static Vec3[] contactLine(Vec3 eye, Vec3 look, float yaw, double reach, double near, double far) {
         ConeSections.Volume drawn = BoreDrill.volume(eye, look, yaw, reach, near, far);
         return new Vec3[] {drawn.apex(), drawn.apex().add(drawn.axis().scale(drawn.range()))};
-    }
-
-    /**
-     * The vortex's radius at a depth along the line of sight, from the bore
-     * step's near and far radii, which the spit scatters across.
-     *
-     * @param depth the depth along the line of sight, in blocks
-     * @param reach the bore's reach
-     * @param near  the vortex's radius at the eye
-     * @param far   the vortex's radius at the reach
-     * @return the radius, in blocks
-     */
-    static double widthAt(double depth, double reach, double near, double far) {
-        return near + (far - near) * Math.clamp(depth / reach, 0, 1);
     }
 
     /**
@@ -115,7 +109,7 @@ public final class BoreContactSpray {
     }
 
     /**
-     * Spits particles where the line of sight meets a block within reach,
+     * Spews particles where the drawn vortex meets a block within reach,
      * where that block is one the bore breaks.
      *
      * @param level  the client level
@@ -135,19 +129,16 @@ public final class BoreContactSpray {
         if (hit.getType() == HitResult.Type.MISS || !state.is(step.breaks())) {
             return;
         }
-        spit(level, state, hit, widthAt(hit.getLocation().distanceTo(eye), reach, step.vortexNearRadius(),
-                step.vortexFarRadius()));
+        spew(level, state, hit, line[0].subtract(line[1]).normalize());
     }
 
-    private static void spit(ClientLevel level, BlockState state, BlockHitResult hit, double width) {
+    private static void spew(ClientLevel level, BlockState state, BlockHitResult hit, Vec3 towardHolder) {
         RandomSource random = level.getRandom();
-        Direction face = hit.getDirection();
-        Vec3 normal = Vec3.atLowerCornerOf(face.getUnitVec3i());
+        Vec3 normal = Vec3.atLowerCornerOf(hit.getDirection().getUnitVec3i());
+        Vec3 at = hit.getLocation().add(normal.scale(OFF_THE_FACE));
         for (int spit = 0; spit < SPITS_PER_TICK; spit++) {
-            Vec3 across = new Vec3(signed(random), signed(random), signed(random)).scale(width);
-            Vec3 onFace = across.subtract(normal.scale(across.dot(normal)));
-            Vec3 at = hit.getLocation().add(onFace).add(normal.scale(OFF_THE_FACE));
-            Vec3 velocity = spitVelocity(face, signed(random), signed(random), signed(random));
+            double speed = 1 + SPEED_VARY * signed(random);
+            Vec3 velocity = spewVelocity(towardHolder, random.nextDouble(), random.nextDouble()).scale(speed);
             level.addParticle(new BlockParticleOption(ParticleTypes.BLOCK, state), at.x, at.y, at.z,
                     velocity.x, velocity.y, velocity.z);
         }
