@@ -51,30 +51,38 @@ class KineticSlickBlockTest {
     }
 
     /**
-     * A broken film gives back kinetic goo worth one film, the 12 mb a goop
-     * layer gives back as weird goo
-     * (decision breaking-slick-drops-kinetic-goo-worth-its-film).
+     * A broken film gives back kinetic goo worth Slick's cost, the price the
+     * stream charged it, whatever the workbench sets that cost to
+     * (decisions breaking-slick-drops-kinetic-goo-worth-its-film, slick-drains-per-film-it-lays).
      */
     @Nested
     class Reclaim {
 
+        private static final GooFraction SHIPPED_COST = GooFraction.of(12);
+        private static final GooFraction RETUNED_COST = GooFraction.of(20);
+
         @Test
         void aBrokenFilmReclaimsKineticGoo() {
-            assertEquals(GooTypes.KINETIC, KineticSlickBlock.reclaimed().type());
+            assertEquals(GooTypes.KINETIC, KineticSlickBlock.reclaimed(SHIPPED_COST).type());
         }
 
         @Test
-        void aBrokenFilmReclaimsTwelveMb() {
-            assertEquals(12, KineticSlickBlock.reclaimed().mb());
+        void aBrokenFilmReturnsSlicksCost() {
+            assertEquals(12, KineticSlickBlock.reclaimed(SHIPPED_COST).mb());
+        }
+
+        @Test
+        void aRetunedCostRetunesTheRefund() {
+            assertEquals(20, KineticSlickBlock.reclaimed(RETUNED_COST).mb());
         }
 
         /** slick-drains-per-film-it-lays: one film's price is what a broken film gives back */
         @Test
-        void aBrokenFilmReclaimsWhatSlicksCostChargesAFilm() {
+        void aBrokenFilmReclaimsWhatTheShippedCostChargesAFilm() {
             GooFraction filmPrice = AbilityJson.decode("kinetic_slick").cost().exactIn(GooValueTable.EMPTY);
 
-            assertEquals(0, GooFraction.of(KineticSlickBlock.reclaimed().mb()).compareTo(filmPrice),
-                    "a film costs " + filmPrice + " and reclaims " + KineticSlickBlock.reclaimed().mb());
+            assertEquals(0, GooFraction.of(KineticSlickBlock.reclaimed(filmPrice).mb()).compareTo(filmPrice),
+                    "a film costs " + filmPrice + " and reclaims " + KineticSlickBlock.reclaimed(filmPrice).mb());
         }
     }
 }

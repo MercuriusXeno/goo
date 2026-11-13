@@ -1,10 +1,14 @@
 package com.mercuriusxeno.goo.block.ability;
 
+import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.LoadedAbilityCost;
 import com.mercuriusxeno.goo.block.ability.SlimeFlow.Side;
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
@@ -59,14 +63,8 @@ public class SlimeCoatBlock extends Block {
     public static final IntegerProperty LAYERS = BlockStateProperties.LAYERS;
     /** The most coat layers one cell holds: a whole block of slime. */
     public static final int MAX_LAYERS = 8;
-    /**
-     * The weird goo one coat layer costs and a broken cell gives back per
-     * layer, in mb; Goop's cost in its JSON prices a whole block of slime,
-     * so it equals this times {@link #MAX_LAYERS}.
-     * breaking-slime-drops-weird-goo-worth-its-layers
-     * goop-drains-per-cubic-meter-of-slime-placed
-     */
-    public static final int MB_PER_LAYER = 12;
+    /** The ability whose cost prices a whole block of slime, an eighth of it per layer. */
+    public static final Identifier GOOP_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "weird_goop");
     /** Ticks between one pour and the next, as a fluid spreads. */
     static final int FLOW_TICKS = 2;
     private static final Map<Direction, BooleanProperty> DRIPS = Map.of(Direction.NORTH, NORTH,
@@ -105,24 +103,30 @@ public class SlimeCoatBlock extends Block {
     }
 
     /**
-     * The weird goo a broken cell gives back: what its layers cost.
+     * The weird goo a broken cell gives back: what its layers cost, an
+     * eighth of Goop's cost each, the whole mb of it.
      * breaking-slime-drops-weird-goo-worth-its-layers
+     * goop-drains-per-cubic-meter-of-slime-placed
      *
-     * @param layers the coat layers the cell held
+     * @param layers   the coat layers the cell held
+     * @param goopCost Goop's cost, the price of a whole block of slime
      * @return the goo in mb
      */
-    static int reclaimed(int layers) {
-        return layers * MB_PER_LAYER;
+    static int reclaimed(int layers, GooFraction goopCost) {
+        return goopCost.times(layers).dividedBy(MAX_LAYERS).floor();
     }
 
     /**
      * Gives back the weird goo the cell's layers cost, as the glow crystal
-     * gives back its goo, whatever breaks the cell.
+     * gives back its goo, whatever breaks the cell; a cell broken where no
+     * Goop definition loads gives back nothing.
      * breaking-slime-drops-weird-goo-worth-its-layers
      */
     @Override
     protected @NonNull List<ItemStack> getDrops(@NonNull BlockState state, LootParams.@NonNull Builder builder) {
-        return List.of(GooStacks.createForOutput(GooTypes.WEIRD, reclaimed(state.getValue(LAYERS))));
+        int mb = LoadedAbilityCost.of(builder.getLevel(), GOOP_ABILITY)
+                .map(cost -> reclaimed(state.getValue(LAYERS), cost)).orElse(0);
+        return mb > 0 ? List.of(GooStacks.createForOutput(GooTypes.WEIRD, mb)) : List.of();
     }
 
     /**

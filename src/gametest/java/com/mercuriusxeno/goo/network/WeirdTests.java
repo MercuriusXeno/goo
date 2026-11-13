@@ -8,7 +8,6 @@ import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.ability.weird.Wobbled;
 import com.mercuriusxeno.goo.block.ability.SlimeCoatBlock;
 import com.mercuriusxeno.goo.data.GooFraction;
-import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooBlocks;
@@ -263,7 +262,8 @@ public final class WeirdTests {
 
     /**
      * A slime cell of three layers, walled in so nothing pours, broken in a
-     * live world leaves a weird goo item in its cell worth three layers of goo.
+     * live world leaves a weird goo item in its cell worth three layers'
+     * price, read from the loaded Goop definition.
      * breaking-slime-drops-weird-goo-worth-its-layers
      *
      * @param helper the gametest helper
@@ -277,7 +277,7 @@ public final class WeirdTests {
         List<ItemEntity> drops = helper.getEntities(EntityType.ITEM, FLOW_CELL, 1.0);
         int weird = drops.stream().map(ItemEntity::getItem)
                 .filter(stack -> GooTypes.WEIRD.equals(GooStacks.keyOf(stack))).mapToInt(GooStacks::volumeOf).sum();
-        int owed = BROKEN_LAYERS * SlimeCoatBlock.MB_PER_LAYER;
+        int owed = ResidualPrices.layersRefund(helper, BROKEN_LAYERS);
         helper.assertTrue(weird == owed, String.format(RECLAIM_WRONG, owed, weird, drops));
         helper.succeed();
     }
@@ -305,7 +305,7 @@ public final class WeirdTests {
         List<ItemEntity> drops = helper.getEntities(EntityType.ITEM, FLOW_CELL, 1.0);
         int weird = drops.stream().map(ItemEntity::getItem)
                 .filter(stack -> GooTypes.WEIRD.equals(GooStacks.keyOf(stack))).mapToInt(GooStacks::volumeOf).sum();
-        int owed = BROKEN_LAYERS * SlimeCoatBlock.MB_PER_LAYER;
+        int owed = ResidualPrices.layersRefund(helper, BROKEN_LAYERS);
         helper.assertTrue(standing == BROKEN_LAYERS || weird == owed,
                 String.format(PLACED_OVER_SLIME, BROKEN_LAYERS, owed, helper.getBlockState(FLOW_CELL), weird));
         helper.succeed();
@@ -605,7 +605,7 @@ public final class WeirdTests {
         helper.runAfterDelay(held + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
             assertLayers(helper, sprayed, THREE_COATS);
-            assertDrained(helper, layerPrice(helper).times(THREE_COATS), before - weirdHeld(streamer));
+            assertDrained(helper, ResidualPrices.layerPrice(helper).times(THREE_COATS), before - weirdHeld(streamer));
             helper.succeed();
         });
     }
@@ -644,7 +644,8 @@ public final class WeirdTests {
         streamer.setXRot(AT_THE_SLIME);
         BlockPos sprayed = COATED_POS.above();
         wallInFacingWest(helper, sprayed);
-        GooSourceScanner.deplete(streamer, GooTypes.WEIRD, weirdHeld(streamer) - SlimeCoatBlock.MB_PER_LAYER);
+        GooSourceScanner.deplete(streamer, GooTypes.WEIRD,
+                weirdHeld(streamer) - ResidualPrices.layerPrice(helper).ceiling());
         int held = COAT_STEP_TICKS * THREE_COATS + HOLD_SLACK_TICKS;
         holdGoopFor(helper, streamer, held);
         helper.runAfterDelay(held + 1, () -> {
@@ -654,19 +655,6 @@ public final class WeirdTests {
                     + weirdHeld(streamer));
             helper.succeed();
         });
-    }
-
-    /**
-     * One slime layer's price: Goop's cost, the price of a cubic meter of
-     * slime, over the layers a whole block holds.
-     *
-     * @param helper the gametest helper
-     * @return the exact price in mb
-     */
-    private static GooFraction layerPrice(GameTestHelper helper) {
-        AbilityDefinition goop = AbilityRegistry.of(helper.getLevel()).getAbility(GOOP);
-        helper.assertTrue(goop != null, ABILITY_REQUIRED);
-        return goop.cost().exactIn(GooValues.of(helper.getLevel())).dividedBy(SlimeCoatBlock.MAX_LAYERS);
     }
 
     private static int weirdHeld(ServerPlayer player) {
