@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.client.particle;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.network.DripFlights;
-import com.mercuriusxeno.goo.network.GooStreamHandler;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import com.mercuriusxeno.goo.throwing.CoatRay;
 import net.minecraft.client.Camera;
@@ -25,9 +24,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * A Goop or Slick spray drip: the mod's blocky goo drip, the trail-drip's
  * sprite in the ability's colors, thrown from the spray's source near and
- * above the glove, a Goop drip on the arc its server drip flies and a Slick
- * drip onto the end of its coat ray, splatting where it lands as the
- * trail-drip does and gone.
+ * above the glove on the arc its server drip flies, splatting where it
+ * strikes as the trail-drip does and gone.
  * <p>
  * The client draws a frame after running its ticks, and the particle engine
  * takes a new particle in only after ticking the ones already flying, so a
@@ -46,13 +44,8 @@ public final class SprayDripParticle extends SingleQuadParticle {
     private final GooRenderUtil.UvRect uv;
     private final int rgb;
     private Source source;
-    private Vec3 end;
-    private Vec3 travel = Vec3.ZERO;
-    /** The launch a drip thrown on its arc leaves with, null for a drip flying onto a coat ray's end. */
-    private @Nullable Vec3 arcLaunch;
     private boolean thrown;
     private SprayDrip drip;
-    private int flown;
 
     /**
      * Where a drip's spray source stands at a frame's partial tick.
@@ -67,12 +60,11 @@ public final class SprayDripParticle extends SingleQuadParticle {
         Vec3 at(float partialTick);
     }
 
-    private SprayDripParticle(ClientLevel level, Vec3 apex, Vec3 end, TextureAtlasSprite sprite, SprayDrip drip) {
+    private SprayDripParticle(ClientLevel level, Vec3 apex, TextureAtlasSprite sprite, SprayDrip drip) {
         super(level, apex.x, apex.y, apex.z, sprite);
         this.uv = GooSubmitter.spriteUv(sprite);
         this.rgb = drip.rgb();
         this.source = partialTick -> apex;
-        this.end = end;
         this.drip = drip;
         this.gravity = 0f;
         this.hasPhysics = false;
@@ -81,34 +73,20 @@ public final class SprayDripParticle extends SingleQuadParticle {
         this.bCol = ARGB.blueFloat(rgb);
     }
 
-    /**
-     * Names the spray source the drip leaves and the coat ray's end it
-     * splats on: the drip's first tick throws it from the source, carrying
-     * its caster's travel.
-     * goop-and-slick-spray-emanates-from-the-glove
-     *
-     * @param sprayFrom    where the caster's spray source stands, read when the drip is thrown
-     * @param coatEnd      the end of the drip's coat ray
-     * @param casterTravel the caster's travel velocity the server sent, blocks per tick
-     */
-    public void leaveFrom(Source sprayFrom, Vec3 coatEnd, Vec3 casterTravel) {
-        this.source = sprayFrom;
-        this.end = coatEnd;
-        this.travel = casterTravel;
-    }
 
     /**
      * Names the spray source the drip leaves and the launch it flies its arc
      * from: the drip's first tick throws it from the source at that launch,
      * and it flies until its segment meets a block, splatting there.
      * goop-and-slick-coat-lands-where-each-drip-arc-strikes
+     * goop-and-slick-spray-emanates-from-the-glove
      *
      * @param sprayFrom where the caster's spray source stands, read when the drip is thrown
      * @param launch    the launch velocity the server's drip for its share took, blocks per tick
      */
     public void flyArcFrom(Source sprayFrom, Vec3 launch) {
         this.source = sprayFrom;
-        this.arcLaunch = launch;
+        this.drip = new SprayDrip(rgb, launch);
     }
 
     /** Throws the drip from its source on its first tick, flies it on, and splats it at its end. */
@@ -121,7 +99,8 @@ public final class SprayDripParticle extends SingleQuadParticle {
         this.yo = this.y;
         this.zo = this.z;
         this.age++;
-        SprayDrip.Step step = flyOneTick();
+        SprayDrip.Step step = drip.step(new Vec3(this.x, this.y, this.z), new Vec3(this.xd, this.yd, this.zd),
+                CoatRay.clipping(this.level), DripFlights.airspaceOf(this.level));
         this.setPos(step.position().x, step.position().y, step.position().z);
         this.xd = step.velocity().x;
         this.yd = step.velocity().y;
@@ -135,28 +114,11 @@ public final class SprayDripParticle extends SingleQuadParticle {
         }
     }
 
-    /**
-     * Flies the drip one tick: on its arc through the level's blocks, or on
-     * its planned flight onto its coat ray's end.
-     *
-     * @return where the tick leaves the drip
-     */
-    private SprayDrip.Step flyOneTick() {
-        Vec3 position = new Vec3(this.x, this.y, this.z);
-        Vec3 velocity = new Vec3(this.xd, this.yd, this.zd);
-        if (drip.arcs()) {
-            return drip.step(position, velocity, CoatRay.clipping(this.level), DripFlights.airspaceOf(this.level));
-        }
-        SprayDrip.Step step = drip.step(position, velocity, flown);
-        flown++;
-        return step;
-    }
 
     /** Throws the drip from its source as the last frame drew it, which the tick's start reads at partial 0. */
     private void throwFromTheSource() {
         Vec3 from = source.at(0f);
         this.setPos(from.x, from.y, from.z);
-        this.drip = arcLaunch != null ? SprayDrip.thrown(arcLaunch, rgb) : SprayDrip.toward(from, end, travel, rgb);
         this.xd = drip.velocity().x;
         this.yd = drip.velocity().y;
         this.zd = drip.velocity().z;
@@ -233,10 +195,8 @@ public final class SprayDripParticle extends SingleQuadParticle {
         public @Nullable SprayDripParticle createParticle(SimpleParticleType type, ClientLevel level, double x,
                                                           double y, double z, double xSpeed, double ySpeed,
                                                           double zSpeed, RandomSource random) {
-            Vec3 apex = new Vec3(x, y, z);
-            Vec3 end = GooStreamHandler.launchEnd(apex, new Vec3(xSpeed, ySpeed, zSpeed));
-            return new SprayDripParticle(level, apex, end, sprites.get(0, 1),
-                    SprayDrip.launch(apex, end, Vec3.ZERO, palette, random));
+            return new SprayDripParticle(level, new Vec3(x, y, z), sprites.get(0, 1),
+                    SprayDrip.launch(new Vec3(xSpeed, ySpeed, zSpeed), palette, random));
         }
     }
 }

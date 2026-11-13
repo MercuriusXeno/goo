@@ -70,9 +70,8 @@ final class PaintedHold {
     }
 
     /**
-     * Where each of the stream's rays stops, read as Slick's motes read
-     * their ends.
-     * goop-and-slick-spray-follows-the-coat
+     * Where each of the stream's rays stops, on its share of the cone's fan.
+     * decay-gnats-degrade-each-block-once
      *
      * @param clip        the blocks the rays meet
      * @param eye         the rays' start

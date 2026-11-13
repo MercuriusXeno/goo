@@ -333,7 +333,7 @@ public final class GooStreamHandler {
         if (delivery.throwsDrips()) {
             List<LivingEntity> struck = runPasses(cast, apex, axis, ability, delivery, held);
             throwDrips(player, apex, axis, ability);
-            sprayParticles(player, apex, axis, delivery, 0, travelOf(player), Optional.empty());
+            sprayParticles(player, apex, axis, delivery, 0, travelOf(player));
             return struck;
         }
         // decay-gnats-degrade-each-block-once: what the stream strikes follows the look; only its motes
@@ -346,8 +346,7 @@ public final class GooStreamHandler {
             return SwarmStrike.reached(player, apex, struck, held);
         }
         sprayParticles(player, apex, aim, delivery,
-                crosshairSpeed(delivery.range(), apex.distanceTo(crosshair.getLocation())), travelOf(player),
-                coatOf(player, delivery));
+                crosshairSpeed(delivery.range(), apex.distanceTo(crosshair.getLocation())), travelOf(player));
         return struck;
     }
 
@@ -399,19 +398,6 @@ public final class GooStreamHandler {
                 .position();
     }
 
-    /**
-     * The coat a stream's motes fly onto, where its spray follows its coat.
-     * goop-and-slick-spray-follows-the-coat
-     *
-     * @param player   the spraying player, whose eye and look the coat's rays leave along
-     * @param delivery the stream delivery
-     * @return the coat, empty for a stream whose motes keep the crosshair-distance launch
-     */
-    private static Optional<CoatSpray> coatOf(ServerPlayer player, Delivery delivery) {
-        return delivery.sprayFollowsCoat()
-                ? Optional.of(new CoatSpray(player.getEyePosition(), player.getLookAngle(), delivery.range()))
-                : Optional.empty();
-    }
 
     /**
      * Runs the entity pass on the caster of a stream tagged self, then tells
@@ -663,9 +649,9 @@ public final class GooStreamHandler {
     /**
      * Tells the caster's watchers to launch this tick's motes of the
      * delivery's particle from the glove. A stream throwing drips flies each
-     * along one of its drips' arcs (decision goop-and-slick-coat-lands-where-each-drip-arc-strikes);
-     * a stream whose spray follows its coat flies each mote to the end of one
-     * of the coat's rays (decision goop-and-slick-spray-follows-the-coat); any other flies each out along
+     * along one of its drips' arcs, so the drips land where the coat lands
+     * (decisions goop-and-slick-coat-lands-where-each-drip-arc-strikes,
+     * goop-and-slick-spray-follows-the-coat); any other flies each out along
      * its own heading inside the cone at the speed given, coming to rest as
      * far off as the crosshair lands (decision mycosis-spore-stream-buds-and-poisons).
      * The clients launch them, naming the caster, so each mote swings with its own
@@ -677,12 +663,11 @@ public final class GooStreamHandler {
      * @param delivery the stream delivery
      * @param speed    each mote's launch speed along its heading, blocks per tick
      * @param travel   the spraying player's travel velocity, blocks per tick
-     * @param coat     the coat the motes fly onto, empty for motes flying their heading
      */
     static void sprayParticles(ServerPlayer player, Vec3 apex, Vec3 axis, Delivery delivery, double speed,
-                               Vec3 travel, Optional<CoatSpray> coat) {
+                               Vec3 travel) {
         delivery.particle().ifPresent(particle -> EntityVisuals.sendToWatchers(player, new StreamMotesPayload(
-                player.getId(), apex, axis, particle, delivery.coneDegrees(), speed, travel, coat,
+                player.getId(), apex, axis, particle, delivery.coneDegrees(), speed, travel,
                 delivery.throwSpeed())));
     }
 
@@ -698,7 +683,7 @@ public final class GooStreamHandler {
     }
 
     /**
-     * The launch speed of a mote off the coat: it rests as far off as the
+     * The launch speed of a mote: it rests as far off as the
      * crosshair lands, or at the stream's range past it
      * (decision mycosis-spore-stream-buds-and-poisons).
      *
@@ -711,49 +696,16 @@ public final class GooStreamHandler {
     }
 
     /**
-     * One mote's launch velocity for its share of the cone. A mote of a
-     * stream spraying onto its coat flies from the glove toward the end of
-     * the coat ray its share names, at the speed that rests it there; any
-     * other flies its heading inside the cone at the payload's speed. Either
-     * carries the caster's travel.
-     * goop-and-slick-spray-follows-the-coat
+     * One mote's launch velocity for its share of the cone: its heading
+     * inside the cone at the payload's speed, carrying the caster's travel.
      *
      * @param motes the tick's motes
      * @param share the mote's place in the cone
-     * @param clip  the blocks the coat's ray meets
      * @return the launch velocity, blocks per tick
      */
-    public static Vec3 moteLaunch(StreamMotesPayload motes, CoatRay.ConeShare share, CoatRay.BlockClip clip) {
-        return moteLaunch(motes, share, coatEnd(motes, share, clip));
-    }
-
-    /**
-     * One mote's launch velocity toward the coat ray end already cast for its
-     * share, or along its heading inside the cone where none was.
-     *
-     * @param motes   the tick's motes
-     * @param share   the mote's place in the cone
-     * @param coatEnd the end of the mote's coat ray, empty for a stream whose spray keeps off its coat
-     * @return the launch velocity, blocks per tick
-     */
-    public static Vec3 moteLaunch(StreamMotesPayload motes, CoatRay.ConeShare share, Optional<Vec3> coatEnd) {
-        return coatEnd.map(end -> end.subtract(motes.apex()).scale(LAUNCH_SPEED_PER_BLOCK).add(motes.travel()))
-                .orElseGet(() -> moteLaunch(StreamCone.launchDirection(motes.axis(), motes.coneDegrees(),
-                        share.tilt(), share.turn()), motes.speed(), motes.travel()));
-    }
-
-    /**
-     * The end of the coat ray a mote's share names, where a spray drip splats.
-     * goop-and-slick-spray-follows-the-coat
-     *
-     * @param motes the tick's motes
-     * @param share the mote's place in the cone
-     * @param clip  the blocks the coat's ray meets
-     * @return the ray's end, empty for a stream whose spray keeps off its coat
-     */
-    public static Optional<Vec3> coatEnd(StreamMotesPayload motes, CoatRay.ConeShare share, CoatRay.BlockClip clip) {
-        return motes.coat().map(coat -> CoatRay.end(clip, coat.eye(), coat.look(), motes.coneDegrees(),
-                coat.range(), share));
+    public static Vec3 moteLaunch(StreamMotesPayload motes, CoatRay.ConeShare share) {
+        return moteLaunch(StreamCone.launchDirection(motes.axis(), motes.coneDegrees(), share.tilt(), share.turn()),
+                motes.speed(), motes.travel());
     }
 
     /**
@@ -771,18 +723,6 @@ public final class GooStreamHandler {
         return heading.scale(speed).add(travel);
     }
 
-    /**
-     * The point a mote's launch aims it at: a mote slowing by a tenth each
-     * tick comes to rest there, and a spray drip flies there and splats.
-     * goop-and-slick-spray-throws-goo-drips-that-splat
-     *
-     * @param apex   the glove the mote leaves
-     * @param launch the mote's launch velocity, blocks per tick
-     * @return the point the launch aims at
-     */
-    public static Vec3 launchEnd(Vec3 apex, Vec3 launch) {
-        return apex.add(launch.scale(1.0 / LAUNCH_SPEED_PER_BLOCK));
-    }
 
     /**
      * The spraying player's travel velocity: the known movement, since the

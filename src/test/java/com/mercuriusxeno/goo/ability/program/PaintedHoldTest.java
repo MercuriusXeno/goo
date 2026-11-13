@@ -113,12 +113,13 @@ class PaintedHoldTest {
     }
 
     /**
-     * The spray's mote for a pair of tilt and turn shares flies to the end the
-     * coat's ray takes for the same shares.
-     * goop-and-slick-spray-follows-the-coat
+     * Each ray a painting stream casts runs along the cone's fan and ends on
+     * the first block it meets or at the stream's range, where the ray for
+     * its share of the fan ends.
+     * decay-gnats-degrade-each-block-once
      */
     @Nested
-    class SprayFollowsTheCoat {
+    class RaysEndOnTheirFirstBlock {
 
         private static final Vec3 EYE = new Vec3(0, 1.62, 0);
         private static final double CONE = 24;
@@ -131,7 +132,7 @@ class PaintedHoldTest {
                 : Optional.empty();
 
         @Test
-        void everyCoatRaysEndIsTheSprayEndForItsShares() {
+        void everyRayEndsWhereItsShareOfTheFanEnds() {
             Vec3 look = new Vec3(0, -0.2, 1).normalize();
             List<Vec3> directions = PaintedHold.rayDirections(look, CONE);
             List<Vec3> coatEnds = PaintedHold.rayEnds(FLOOR, EYE, look.scale(RANGE), CONE);
@@ -143,10 +144,10 @@ class PaintedHoldTest {
                     "some ray should run to the range");
             for (int i = 0; i < directions.size(); i++) {
                 Vec3 coatEnd = coatEnds.get(i);
-                Vec3 sprayEnd = CoatRay.end(FLOOR, EYE, look, CONE, RANGE, shares.get(i));
-                assertEquals(0, coatEnd.distanceTo(sprayEnd), TOLERANCE, "ray " + i);
+                Vec3 shareEnd = CoatRay.end(FLOOR, EYE, look, CONE, RANGE, shares.get(i));
+                assertEquals(0, coatEnd.distanceTo(shareEnd), TOLERANCE, "ray " + i);
                 assertEquals(0, coatEnd.subtract(EYE).normalize().distanceTo(directions.get(i)), TOLERANCE,
-                        "ray " + i + " should run along the coat's fan");
+                        "ray " + i + " should run along the cone's fan");
             }
         }
     }
