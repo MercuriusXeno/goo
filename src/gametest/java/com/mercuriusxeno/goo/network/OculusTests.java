@@ -36,7 +36,7 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
  */
 @RegistersGameTests
 public final class OculusTests {
-    private static final String OCULUS_BLINK_PAYS_ITS_TRIP = "oculus_blink_costs_a_tenth";
+    private static final String OCULUS_BLINK_PAYS_ITS_TRIP = "oculus_blink_pays_its_trip";
     private static final String BLINK_MAKES_AN_OCULUS = "blink_at_a_bare_prism_makes_an_oculus";
 
     /**

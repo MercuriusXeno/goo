@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooBlocks;
@@ -11,10 +13,9 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
-import com.mercuriusxeno.goo.gametest.GooTestFunctions;
-import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for Colonize: a blob landing on a shroom network spreads that
@@ -46,6 +47,8 @@ public final class ColonizeTests {
     private static final String COLONIZE = "goo:shroom_colonize";
     private static final BlockPos LANDED_ON = new BlockPos(2, 0, 2);
     private static final BlockPos BESIDE = LANDED_ON.east();
+    /** How far south of the landing's middle the pig stands: under a block, inside any spore radius of one. */
+    private static final double CLOSE_BESIDE = 0.6;
     private static final BlockPos TWO_OFF = LANDED_ON.south(2);
     private static final String LANDING_BUDDED = "Colonize landing on no network should bud the landing";
     private static final int SETTLE_TICKS = 2;
@@ -71,8 +74,8 @@ public final class ColonizeTests {
     }
 
     /**
-     * Colonize lands on grass, on no network, with dirt beside it and a pig a
-     * block off: the landing takes a bud and the pig carries the spore poison
+     * Colonize lands on grass, on no network, with dirt beside it and a pig close
+     * beside: the landing takes a bud and the pig carries the spore poison
      * and spores.
      *
      * @param helper the gametest helper
@@ -81,6 +84,8 @@ public final class ColonizeTests {
         helper.setBlock(LANDED_ON, Blocks.GRASS_BLOCK);
         helper.setBlock(BESIDE, Blocks.DIRT);
         Mob pig = helper.spawnWithNoFreeWill(EntityType.PIG, LANDED_ON.above().south());
+        // well inside the spore radius however it is tuned, at the landing cell's own south edge
+        pig.setPos(helper.absoluteVec(Vec3.atBottomCenterOf(LANDED_ON.above()).add(0, 0, CLOSE_BESIDE)));
         landOn(helper, LANDED_ON);
         helper.assertTrue(helper.getBlockState(LANDED_ON.above()).is(GooBlocks.FUNGAL_BUD.get()), LANDING_BUDDED);
         helper.assertTrue(pig.hasEffect(GooMobEffects.MYCOSIS) && pig.hasData(GooAttachments.SPORED), PIG_SPORED);
