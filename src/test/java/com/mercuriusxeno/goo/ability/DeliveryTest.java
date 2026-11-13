@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.ability;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.mercuriusxeno.goo.client.overlay.ArcRenderer;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mojang.serialization.DataResult;
@@ -224,17 +223,17 @@ class DeliveryTest {
         }
 
         /**
-         * A lob flight flies the peak the aim indicator draws for the same start
-         * and top face, whether the hand sits below the face or above it
+         * A lob flight flies the lob peak for its start and top face, whether
+         * the hand sits below the face or above it
          * (decision lob-apex-at-top-face-height).
          */
         @Test
-        void grannyArcFliesTheIndicatorPeak() {
+        void grannyArcFliesTheLobPeak() {
             Vec3 faceAboveHand = START.add(0, 2, 8);
             Vec3 faceBelowHand = START.add(0, -2, 8);
-            assertEquals(ArcRenderer.computeArcPeak(START, faceAboveHand, 1),
+            assertEquals(ThrowArc.lobPeak(START, faceAboveHand),
                     Delivery.ARC.peak(START, faceAboveHand, true), TOLERANCE);
-            assertEquals(ArcRenderer.computeArcPeak(START, faceBelowHand, 1),
+            assertEquals(ThrowArc.lobPeak(START, faceBelowHand),
                     Delivery.ARC.peak(START, faceBelowHand, true), TOLERANCE);
         }
 
