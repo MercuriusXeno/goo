@@ -22,6 +22,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
 import java.util.Map;
 import java.util.Optional;
@@ -51,8 +52,6 @@ public final class LiftedPalmBlob {
      * keep the spray running: the gap a server hold continues across.
      */
     public static final int STREAM_GAP_TICKS = StreamHolds.LATEST_CONTINUING_GAP;
-    /** The ticks the blob takes to ease off the palm to the source, and to settle back. */
-    public static final int EASE_TICKS = 6;
     /** The ticks one beat of the lifted blob's swell takes. */
     static final double BEAT_TICKS = 12;
     /** The lifted blob's least and greatest size against the palm blob's rest size. */
@@ -64,19 +63,8 @@ public final class LiftedPalmBlob {
      * half a flying blob's width.
      */
     static final float FLIGHT_SIZE_OF_PALM_REST = 0.5f;
-    /**
-     * The pressed palm blob's width and depth against the cube it stands
-     * into; its height is what holds the cube's volume. At rest the shell
-     * stands just inside the hand's six-pixel width, 5.76 pixels wide.
-     * operator ruling 2026-11-13: at 1.25 the shell's sides sat flush with the gauntlet's and z-fought;
-     * they stand just inside the hand
-     */
-    static final float PRESSED_SPREAD = 1.2f;
     private static final double FULL_TURN = Math.PI * 2;
     private static final double HALF = 0.5;
-    /** The smoothstep's terms, 3s² - 2s³, slow at both ends of an ease. */
-    private static final float SMOOTHSTEP_RISE = 3f;
-    private static final float SMOOTHSTEP_EASE = 2f;
 
     /** Each lifting caster's lift, by entity id. */
     private static final Map<Integer, Lift> LIFTS = new ConcurrentHashMap<>();
@@ -85,33 +73,37 @@ public final class LiftedPalmBlob {
     }
 
     /**
-     * A caster's blob off the palm: the share lifted, 0 on the palm to 1 at
-     * the source, eases up from where it stood as the spray began and back
-     * down once the spray ends, a pure function of the time.
+     * A caster's blob off the palm, a pure function of the time: from the
+     * palm it hops, rises to the source and stands there while the spray
+     * runs, and once the spray ends it settles back onto the palm. A spray
+     * begun again while the blob is off the palm turns it round from the pose
+     * it had reached, with no hop.
+     * every-lift-begins-with-a-hop
      *
      * @param began          the game time the spray began
-     * @param from           the share the blob stood at as the spray began, above 0 where it began mid-settle
+     * @param from           the pose the blob stood in as the spray began
+     * @param hops           whether the lift began on the palm, so it hops
      * @param lastStreamTick the game time of the caster's last stream tick that threw drips
      * @param sentGlove      the glove the server sent with that tick
      */
-    record Lift(long began, float from, long lastStreamTick, Vec3 sentGlove) {
+    record Lift(long began, PalmBlobHop.Pose from, boolean hops, long lastStreamTick, Vec3 sentGlove) {
 
         /**
-         * A lift as a spray begins.
+         * A lift from the palm as a spray begins.
          *
          * @param gameTime  the game time of the spray's first stream tick
-         * @param from      the share the blob stands at then
          * @param sentGlove the glove the server sent with that tick
          * @return the lift
          */
-        static Lift beginning(long gameTime, float from, Vec3 sentGlove) {
-            return new Lift(gameTime, from, gameTime, sentGlove);
+        static Lift beginning(long gameTime, Vec3 sentGlove) {
+            return new Lift(gameTime, PalmBlobHop.Pose.ON_THE_PALM, true, gameTime, sentGlove);
         }
 
         /**
-         * The lift after a stream tick: a running spray runs on, and a spray
-         * that had ended begins again from the share the blob had reached,
-         * so a blob settling turns round where it stands.
+         * The lift after a stream tick: a running spray runs on, a spray
+         * that had ended turns the blob round from the pose it had reached
+         * while it is still off the palm, and one whose blob is home hops
+         * off the palm again.
          * AbilityPoses.heldAt is the shape: an ease reversing part way starts from where it got to
          *
          * @param gameTime  the game time of the stream tick
@@ -120,14 +112,33 @@ public final class LiftedPalmBlob {
          */
         Lift sprayedAt(long gameTime, Vec3 sentGlove) {
             if (runningAt(lastStreamTick, gameTime)) {
-                return new Lift(began, from, gameTime, sentGlove);
+                return new Lift(began, from, hops, gameTime, sentGlove);
             }
-            return beginning(gameTime, standsAt(gameTime) ? shareAt(gameTime) : 0f, sentGlove);
+            if (standsAt(gameTime)) {
+                return new Lift(gameTime, poseAt(gameTime), false, gameTime, sentGlove);
+            }
+            return beginning(gameTime, sentGlove);
         }
 
         /** @return the game time the spray reads ended, a tick past the stream's gap */
         private double endedAt() {
             return lastStreamTick + STREAM_GAP_TICKS + 1.0;
+        }
+
+        /**
+         * The blob's pose at a time.
+         *
+         * @param now the game time, with the frame's partial tick
+         * @return the pose
+         */
+        PalmBlobHop.Pose poseAt(double now) {
+            double ended = endedAt();
+            PalmBlobHop.Pose reached = runningPoseAt(Math.min(now, ended) - began);
+            return now < ended ? reached : PalmBlobHop.settlePoseAt(reached, now - ended);
+        }
+
+        private PalmBlobHop.Pose runningPoseAt(double ticks) {
+            return hops ? PalmBlobHop.hopPoseAt(ticks) : PalmBlobHop.risePoseAt(from, ticks);
         }
 
         /**
@@ -137,9 +148,7 @@ public final class LiftedPalmBlob {
          * @return the share, 0 on the palm to 1 at the source
          */
         float shareAt(double now) {
-            double ended = endedAt();
-            float risen = Mth.lerp(eased((Math.min(now, ended) - began) / EASE_TICKS), from, 1f);
-            return now < ended ? risen : risen * (1f - eased((now - ended) / EASE_TICKS));
+            return poseAt(now).share();
         }
 
         /**
@@ -150,7 +159,7 @@ public final class LiftedPalmBlob {
          * @return true while the palm draws no blob
          */
         boolean standsAt(double now) {
-            return now >= began && now < endedAt() + EASE_TICKS;
+            return now >= began && now < endedAt() + PalmBlobHop.EASE_TICKS;
         }
     }
 
@@ -165,17 +174,6 @@ public final class LiftedPalmBlob {
     }
 
     /**
-     * An ease's progress, slow at both ends.
-     *
-     * @param share the share of the ease's ticks gone, clamped to 0 to 1
-     * @return the eased share
-     */
-    private static float eased(double share) {
-        float clamped = (float) Math.clamp(share, 0.0, 1.0);
-        return clamped * clamped * (SMOOTHSTEP_RISE - SMOOTHSTEP_EASE * clamped);
-    }
-
-    /**
      * Marks a caster's spray running at a stream tick that threw drips.
      *
      * @param casterId  the caster's entity id
@@ -183,7 +181,7 @@ public final class LiftedPalmBlob {
      * @param gameTime  the level's game time the tick reached this client
      */
     public static void sprayed(int casterId, Vec3 sentGlove, long gameTime) {
-        LIFTS.compute(casterId, (id, lift) -> lift == null ? Lift.beginning(gameTime, 0f, sentGlove)
+        LIFTS.compute(casterId, (id, lift) -> lift == null ? Lift.beginning(gameTime, sentGlove)
                 : lift.sprayedAt(gameTime, sentGlove));
     }
 
@@ -236,30 +234,15 @@ public final class LiftedPalmBlob {
     }
 
     /**
-     * The blob's shape at a share lifted, before its size: pressed flat on
-     * the palm, wider and deeper than a cube and shorter, narrowing and
-     * growing taller as it rises until it is the cube at the source. The
-     * width and depth fall from the pressed spread by the same power the
-     * height rises, so the product of the three is one at every share.
+     * The box a blob in a pose draws in: its shape at its size.
      * palm-blob-rests-pressed-and-stands-into-the-cube
      *
-     * @param share the share lifted, 0 on the palm to 1 at the source
-     * @return the shape against a cube of the blob's size
+     * @param pose the blob's pose
+     * @param time the game time in ticks, with the frame's partial tick
+     * @return the box, against the palm blob's rest cube
      */
-    public static BlobShape shapeAt(float share) {
-        float spread = (float) Math.pow(PRESSED_SPREAD, 1f - Math.clamp(share, 0f, 1f));
-        return new BlobShape(spread, spread, 1f / (spread * spread));
-    }
-
-    /**
-     * The blob's shape and size at a share lifted.
-     *
-     * @param share the share lifted, 0 to 1
-     * @param time  the game time in ticks, with the frame's partial tick
-     * @return the box it draws in, against the palm blob's rest cube
-     */
-    static BlobShape drawnShapeAt(float share, double time) {
-        return shapeAt(share).scaled(sizeAt(share, time));
+    static BlobShape drawnShapeAt(PalmBlobHop.Pose pose, double time) {
+        return pose.shape().scaled(sizeAt(pose.share(), time));
     }
 
     /**
@@ -272,6 +255,22 @@ public final class LiftedPalmBlob {
      */
     static Vec3 placeAt(float share, Vec3 palm, Vec3 source) {
         return palm.lerp(source, share);
+    }
+
+    /**
+     * Where a blob in a pose stands: on the line from where it stands up
+     * off the palm to the source, so through the hop its bottom stays where
+     * the palm blob's rests and its center rises only as it stretches.
+     * every-lift-begins-with-a-hop
+     *
+     * @param pose   the blob's pose
+     * @param palm   where the resting palm blob's center is
+     * @param up     the blob's up, a rest half-edge long
+     * @param source where the spray source stands
+     * @return the blob's place
+     */
+    static Vec3 placeAt(PalmBlobHop.Pose pose, Vec3 palm, Vec3 up, Vec3 source) {
+        return placeAt(pose.share(), palm.add(up.scale(pose.stand())), source);
     }
 
 
@@ -292,10 +291,24 @@ public final class LiftedPalmBlob {
         if (!lift.standsAt(now)) {
             return Optional.empty();
         }
-        float share = lift.shareAt(now);
+        PalmBlobHop.Pose pose = lift.poseAt(now);
         Vec3 source = SpraySource.of(casterId, lift.sentGlove(), partialTick);
-        return Optional.of(new Standing(caster, placeAt(share, palmOf(mc, caster, partialTick), source), share,
-                now));
+        return Optional.of(new Standing(caster, placeAt(pose, palmOf(mc, caster, partialTick),
+                upOf(caster, partialTick), source), pose, now));
+    }
+
+    /**
+     * A caster's blob's up in the world, a rest half-edge long: the level
+     * draws it turned with the caster's look at a flying blob's palm size.
+     *
+     * @param caster      the caster
+     * @param partialTick the frame's partial tick
+     * @return the up
+     */
+    private static Vec3 upOf(Player caster, float partialTick) {
+        Vector3f up = new Vector3f(0f, GooFlightRenderer.SHELL_HW * FLIGHT_SIZE_OF_PALM_REST, 0f)
+                .rotate(facingTheLook(caster.getViewXRot(partialTick), caster.getViewYRot(partialTick)));
+        return new Vec3(up);
     }
 
     /**
@@ -303,10 +316,10 @@ public final class LiftedPalmBlob {
      *
      * @param caster the caster
      * @param place  where the blob stands in the world
-     * @param share  the share lifted, 0 on the palm to 1 at the source
+     * @param pose   its pose
      * @param now    the game time, with the frame's partial tick
      */
-    private record Standing(Player caster, Vec3 place, float share, double now) {
+    private record Standing(Player caster, Vec3 place, PalmBlobHop.Pose pose, double now) {
     }
 
     /**
@@ -336,19 +349,21 @@ public final class LiftedPalmBlob {
     static Optional<Blob> blobOf(int casterId, float partialTick) {
         return standingOf(casterId, partialTick).flatMap(standing -> Optional.ofNullable(
                 GooGloveItem.getSelectedType(gloveOf(standing.caster())))
-                .map(type -> new Blob(standing.place(), type, drawnShapeAt(standing.share(), standing.now()))));
+                .map(type -> new Blob(standing.place(), type, drawnShapeAt(standing.pose(), standing.now()))));
     }
 
     /**
      * The local player's blob as the hand's pass draws it: the share lifted,
-     * the spray source carried into the hand pass, and the shape.
+     * the spray source carried into the hand pass, the shape, and how far
+     * its center stands above the resting palm blob's.
      * palm-blob-lifts-as-the-spray-source: drawn in the hand's pass, the blob draws over the glove
      *
      * @param share        the share lifted, 0 on the palm to 1 at the source
      * @param sourceInHand the spray source in the hand pass's camera-relative world axes
      * @param shape        the blob's box against the palm blob's rest cube
+     * @param stand        the center's rise above the resting palm blob's along the blob's up, in rest half-edges
      */
-    public record HandLift(float share, Vec3 sourceInHand, BlobShape shape) {
+    public record HandLift(float share, Vec3 sourceInHand, BlobShape shape, float stand) {
     }
 
     /**
@@ -370,9 +385,9 @@ public final class LiftedPalmBlob {
         }
         Camera camera = mc.gameRenderer.getMainCamera();
         Vec3 source = SpraySource.of(mc.player.getId(), lift.sentGlove(), partial).subtract(camera.position());
-        float share = lift.shareAt(now);
-        return Optional.of(new HandLift(share, HandPassView.toHandPass(source, camera.rotation(), camera.getFov()),
-                drawnShapeAt(share, now)));
+        PalmBlobHop.Pose pose = lift.poseAt(now);
+        return Optional.of(new HandLift(pose.share(), HandPassView.toHandPass(source, camera.rotation(),
+                camera.getFov()), drawnShapeAt(pose, now), pose.stand()));
     }
 
     /**

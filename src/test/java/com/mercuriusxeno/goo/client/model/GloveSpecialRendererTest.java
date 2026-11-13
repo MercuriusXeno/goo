@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mercuriusxeno.goo.client.ability.HandPassView;
 import com.mercuriusxeno.goo.client.ability.KnivesCharge;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
+import com.mercuriusxeno.goo.client.ability.PalmBlobHop;
 import com.mercuriusxeno.goo.client.ability.SprayingClient;
 import com.mercuriusxeno.goo.client.outsider.RoomBodyCopyRenderer;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
@@ -70,7 +71,7 @@ class GloveSpecialRendererTest {
      * reads ended a tick past the stream's gap, and the blob settles over its ease.
      */
     private static final long SETTLED = SPRAYED + LiftedPalmBlob.STREAM_GAP_TICKS + 1
-            + (long) Math.ceil(LiftedPalmBlob.EASE_TICKS);
+            + PalmBlobHop.EASE_TICKS;
     /** Where a far copy of the player stands from the camera, a room width or more away. */
     private static final double COPY_AWAY = 30;
     /** Where the first-person glove's goo sits before the eye. */
@@ -191,7 +192,7 @@ class GloveSpecialRendererTest {
     void aLiftAtTheEasesEndDrawsTheCoreInTheHandsPassWhereTheSprayingSourceShows() {
         try (SprayingClient client = SprayingClient.local(GooTypes.ZOO);
              MockedStatic<GloveBodyModels> models = bodiless()) {
-            long eased = SPRAYED + LiftedPalmBlob.EASE_TICKS;
+            long eased = SPRAYED + PalmBlobHop.LIFT_TICKS;
             client.at(eased);
             for (long tick = SPRAYED; tick <= eased; tick++) {
                 LiftedPalmBlob.sprayed(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, tick);
