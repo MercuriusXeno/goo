@@ -65,6 +65,20 @@ public class GooItemEntityRenderer extends ItemEntityRenderer {
     }
 
     /**
+     * A goo item casts no entity shadow, so it reads as goo lying there rather
+     * than an entity; any other item casts vanilla's.
+     * operator ruling: "lose the shadows please, I want the illusion of them being entities to be more or less
+     * non-existent"
+     *
+     * @param state the extracted state
+     * @return the shadow's radius, zero for goo
+     */
+    @Override
+    protected float getShadowRadius(ItemEntityRenderState state) {
+        return state instanceof GooItemRenderState goo && goo.gooType != null ? 0f : super.getShadowRadius(state);
+    }
+
+    /**
      * Draws a goo item's cuboid on its feet, or any other item as vanilla does.
      *
      * @param state         the extracted state
@@ -96,7 +110,7 @@ public class GooItemEntityRenderer extends ItemEntityRenderer {
         float scale = GooCuboidSize.sizeInLevel(size);
         float gameTime = GloveSpecialRenderer.gameTime();
         poseStack.pushPose();
-        poseStack.translate(0, GooCuboidSize.halfWidthInLevel(size), 0);
+        poseStack.translate(0, GooCuboidSize.restingCenterHeight(size), 0);
         nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.solidOnBlockAtlas(),
                 (pose, c) -> GooFlightRenderer.emitCore(pose, c, type, gameTime, scale));
         nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),

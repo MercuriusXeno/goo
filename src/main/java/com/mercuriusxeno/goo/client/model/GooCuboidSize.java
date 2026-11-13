@@ -25,7 +25,25 @@ final class GooCuboidSize {
      */
     static final float GROUND_DISPLAY_SCALE = 0.5f;
 
+    /**
+     * How far, in blocks, a resting cuboid's bottom stands clear of the face
+     * under it: a quarter pixel, as the palm blob stands clear of the finger
+     * plate, so the shell never shares the floor's face and z-fights with it.
+     */
+    static final double FLOOR_CLEARANCE = 1d / 64d;
+
     private GooCuboidSize() {
+    }
+
+    /**
+     * How high above the point a goo item stands its resting cuboid's center
+     * sits: its bottom just clear of the face under it.
+     *
+     * @param size the size against a thrown blob's in the item model
+     * @return the height in blocks
+     */
+    static double restingCenterHeight(float size) {
+        return halfWidthInLevel(size) + FLOOR_CLEARANCE;
     }
 
     /**

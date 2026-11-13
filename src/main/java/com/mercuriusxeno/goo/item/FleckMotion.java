@@ -71,11 +71,12 @@ public final class FleckMotion {
      * spent its bounce, takes its cling. A fleck that reached the floor lets
      * go of any face.
      *
-     * @param self   the item entity vanilla just moved
-     * @param before its velocity before the move
+     * @param self        the item entity vanilla just moved
+     * @param before      its velocity before the move
+     * @param wasOnGround whether it stood on the ground before the move, so the floor it meets is the one it rests on
      */
-    public static void afterMove(ItemEntity self, Vec3 before) {
-        typeOf(self).ifPresent(type -> answerStruckFaces(self, before, type.elasticity()));
+    public static void afterMove(ItemEntity self, Vec3 before, boolean wasOnGround) {
+        typeOf(self).ifPresent(type -> answerStruckFaces(self, before, type.elasticity(), wasOnGround));
         if (self.onGround()) {
             ((FleckHost) self).goo$setCling(null);
         }
@@ -124,7 +125,7 @@ public final class FleckMotion {
         return !self.level().noCollision(self, self.getBoundingBox().move(into));
     }
 
-    private static void answerStruckFaces(ItemEntity self, Vec3 before, float elasticity) {
+    private static void answerStruckFaces(ItemEntity self, Vec3 before, float elasticity, boolean wasOnGround) {
         Vec3 velocity = self.getDeltaMovement();
         boolean changed = false;
         for (Direction.Axis axis : Direction.Axis.values()) {
@@ -134,6 +135,11 @@ public final class FleckMotion {
             }
             Direction face = Direction.fromAxisAndDirection(axis,
                     approach > 0 ? Direction.AxisDirection.POSITIVE : Direction.AxisDirection.NEGATIVE);
+            if (face == Direction.DOWN && wasOnGround) {
+                // vanilla gathers gravity on a resting item over the ticks it skips moving; meeting the floor it
+                // already rests on is no landing, so it never hops
+                continue;
+            }
             if (face != Direction.DOWN && FleckCling.spentItsBounce(approach * elasticity)) {
                 if (((FleckHost) self).goo$cling() == null) {
                     ((FleckHost) self).goo$setCling(new FleckCling.Cling(face, 0));

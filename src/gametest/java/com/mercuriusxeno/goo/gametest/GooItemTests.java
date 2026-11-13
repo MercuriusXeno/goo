@@ -63,6 +63,41 @@ public final class GooItemTests {
         GooTestFunctions.registerTest(registrar, ITEM_GOO_PICKED_UP, GooItemTests::gooIsPickedUp);
         GooTestFunctions.registerTest(registrar, ITEM_GOO_CLINGS_BY_VISCOSITY, GooItemTests::gooClingsByViscosity);
         GooTestFunctions.registerTest(registrar, ITEM_GOO_CLINGING_STILL_JOINS, GooItemTests::clingingGooStillJoins);
+        GooTestFunctions.registerTest(registrar, ITEM_GOO_RESTS_STILL, GooItemTests::restingElasticGooStaysStill);
+    }
+
+    private static final String ITEM_GOO_RESTS_STILL = "item_goo_rests_still";
+    /** Ticks a goo item set on the floor takes to settle before it is watched. */
+    private static final int SETTLE_TICKS = 20;
+    /** Ticks it is watched resting, past vanilla's every-fourth-tick move on the ground many times over. */
+    private static final int REST_WATCH_TICKS = 60;
+    /** How far above the floor a resting goo item may stand at the most. */
+    private static final double RESTING_RISE = 0.01;
+    private static final String HOPPED = "A goo item resting on the floor should stay on it; it rose above the floor by ";
+
+    /**
+     * An elastic goo item set on a floor stays on it: once settled it never
+     * rises off the floor while it rests.
+     * decision flecks-move-by-flexible-goo-physics-and-stay-items
+     *
+     * @param helper the gametest helper
+     */
+    public static void restingElasticGooStaysStill(GameTestHelper helper) {
+        layStoneFloor(helper);
+        ItemEntity resting = CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(GooTypes.ASTRAL, DROPPED_VOLUME),
+                PICKUP_SPOT);
+        double floor = helper.absoluteVec(FLOOR_TOP).y;
+        double[] highest = {0};
+        int[] tick = {0};
+        helper.onEachTick(() -> {
+            if (tick[0]++ >= SETTLE_TICKS) {
+                highest[0] = Math.max(highest[0], resting.getY() - floor);
+            }
+        });
+        helper.runAfterDelay(SETTLE_TICKS + REST_WATCH_TICKS, () -> {
+            helper.assertTrue(highest[0] < RESTING_RISE, HOPPED + highest[0]);
+            helper.succeed();
+        });
     }
 
     private static final String ITEM_GOO_CLINGS_BY_VISCOSITY = "item_goo_clings_by_viscosity";

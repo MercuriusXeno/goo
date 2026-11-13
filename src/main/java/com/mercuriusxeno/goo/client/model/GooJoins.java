@@ -110,7 +110,7 @@ public final class GooJoins {
      * @return the center
      */
     private static Vec3 centerAbove(Vec3 feet, double volume) {
-        return feet.add(0, GooCuboidSize.halfWidthInLevel(GooCuboidSize.sizeOf(volume)), 0);
+        return feet.add(0, GooCuboidSize.restingCenterHeight(GooCuboidSize.sizeOf(volume)), 0);
     }
 
     /**
