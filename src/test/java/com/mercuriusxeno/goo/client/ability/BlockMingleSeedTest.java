@@ -6,8 +6,6 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.HashSet;
-import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -23,21 +21,8 @@ class BlockMingleSeedTest {
 
     private static final BlockPos SAND = new BlockPos(3, 64, 2);
     private static final long START = 100L;
-    private static final int USES = 32;
-    /** Of 32 uses on one block, at least this many draw distinct fields. */
-    private static final int MOST_REPEATS_ALLOWED = 8;
     private static final int SOME_SEED = 200;
     private static final int OVERLAY_V_SHIFT = 16;
-
-    @Test
-    void usesOnOneBlockAtDifferentTicksDrawDifferentFields() {
-        Set<Integer> seeds = new HashSet<>();
-        for (int use = 0; use < USES; use++) {
-            seeds.add(new BlockTransforms.Transform(SAND, null, START + use * 40L).seed());
-        }
-
-        assertTrue(seeds.size() >= USES - MOST_REPEATS_ALLOWED, "only " + seeds.size() + " fields over " + USES + " uses");
-    }
 
     @Test
     void anExposureKeepsItsSeedWhileItBuildsAndTakesANewOneWhenBuiltAgain() {

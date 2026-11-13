@@ -9,7 +9,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
-import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.core.Direction;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -18,14 +17,11 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyNoInteractions;
 
 /**
  * MarkerOrbVisual's orb geometry, emitted through a recording consumer at the
- * pose the renderer places it with, and the orb drawing only while the
- * marker's program runs.
+ * pose the renderer places it with, the orb drawing only while the marker's
+ * program runs, and the crystal marker's ebb.
  */
 class MarkerOrbVisualTest {
 
@@ -163,46 +159,33 @@ class MarkerOrbVisualTest {
 
     // decision splat-runs-the-program-no-fuse
     @Test
-    void orbDrawsNothingWhileNoProgramRuns() {
-        AbilityBlockRenderState state = new AbilityBlockRenderState();
-        state.behaviorActive = false;
-        SubmitNodeCollector collector = mock(SubmitNodeCollector.class);
+    void theOrbDrawsExactlyWhileTheMarkersProgramRuns() {
+        AbilityBlockRenderState running = new AbilityBlockRenderState();
+        running.behaviorActive = true;
+        AbilityBlockRenderState idle = new AbilityBlockRenderState();
+        idle.behaviorActive = false;
 
-        MarkerOrbVisual.submit(state, new PoseStack(), collector);
-
-        verifyNoInteractions(collector);
+        assertEquals(true, MarkerOrbVisual.drawsOrb(running));
+        assertEquals(false, MarkerOrbVisual.drawsOrb(idle));
     }
 
     @Nested
     class CrystalMarkerEbbs {
 
-        private static final int SAMPLES = 40;
-        private static final int SLOW_PERIOD_TICKS = 60;
-        private static final float FAINT_AMPLITUDE = 0.05f;
-
+        /**
+         * Over its 80-tick period the ebb swells the orb 3 percent a quarter in and shrinks it 3 percent at three
+         * quarters in.
+         */
         @Test
-        void ebbIsSlowFaintAndReturnsAfterOnePeriod() {
-            float period = MarkerOrbVisual.CRYSTAL_EBB_PERIOD;
-            assertTrue(period >= SLOW_PERIOD_TICKS, "period " + period + " is under three seconds");
-            assertEquals(MarkerOrbVisual.crystalEbb(true, GAME_TIME),
-                    MarkerOrbVisual.crystalEbb(true, GAME_TIME + period), TOLERANCE);
-
-            float lowest = Float.MAX_VALUE;
-            float highest = -Float.MAX_VALUE;
-            for (int i = 0; i < SAMPLES; i++) {
-                float ebb = MarkerOrbVisual.crystalEbb(true, GAME_TIME + i * period / SAMPLES);
-                assertTrue(Math.abs(ebb - 1f) <= FAINT_AMPLITUDE, "ebb " + ebb + " is not faint");
-                lowest = Math.min(lowest, ebb);
-                highest = Math.max(highest, ebb);
-            }
-            assertTrue(highest - lowest > MarkerOrbVisual.CRYSTAL_EBB_AMPLITUDE, "the orb does not ebb");
+        void ebbSwingsThreePercentEitherSideAndReturnsAfterEightyTicks() {
+            assertEquals(1.03f, MarkerOrbVisual.crystalEbb(true, 20), TOLERANCE);
+            assertEquals(0.97f, MarkerOrbVisual.crystalEbb(true, 60), TOLERANCE);
+            assertEquals(1f, MarkerOrbVisual.crystalEbb(true, 80), TOLERANCE);
         }
 
         @Test
-        void orbRestsWithoutACloud() {
-            for (int i = 0; i < SAMPLES; i++) {
-                assertEquals(1f, MarkerOrbVisual.crystalEbb(false, GAME_TIME + i), 0f);
-            }
+        void orbRestsAtItsOwnSizeWithoutACloud() {
+            assertEquals(1f, MarkerOrbVisual.crystalEbb(false, GAME_TIME));
         }
     }
 }

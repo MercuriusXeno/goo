@@ -38,8 +38,11 @@ import java.util.function.Consumer;
  * @param player        the invoking player
  * @param channelAim    the held channel's aim this tick, empty outside a channel
  * @param charge        the share of a full charge a charged ability's hold reached, 0 outside a charge
+ * @param placementPrice what each thing a held stream lays pays as it lands, free outside a stream draining on
+ *                       placement
  */
-public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<ChannelAim> channelAim, float charge)
+public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<ChannelAim> channelAim, float charge,
+                         PlacementPrice placementPrice)
         implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, FrostHost, OutsiderHost {
 
     /** The share of the player's height Nova emanates from. */
@@ -51,7 +54,7 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
     /** Blocks past the interaction range a channel still breaks at, vanilla's own slack for a block break. */
     public static final double REACH_SLACK = 1.0;
     /** Log: how many devices a Pulser tick found to toggle among its cone's cells. */
-    private static final String LOG_TOGGLES = "Tick toggles {} devices among {} cells";
+    private static final String LOG_TOGGLES = "Tick toggles {} devices and pulses {} receivers among {} cells";
 
     /**
      * The host of a glove invocation.
@@ -60,11 +63,11 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
      * @param player the invoking player
      */
     public PlayerHost(ServerLevel level, ServerPlayer player) {
-        this(level, player, Optional.empty(), NO_CHARGE);
+        this(level, player, Optional.empty(), NO_CHARGE, PlacementPrice.FREE);
     }
 
     /**
-     * The host of one tick of a held channel.
+     * The host of one tick of a held channel paying by the tick.
      *
      * @param level  the server level
      * @param player the channeling player
@@ -72,7 +75,21 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
      * @return the host carrying the aim
      */
     public static PlayerHost channeling(ServerLevel level, ServerPlayer player, ChannelAim aim) {
-        return new PlayerHost(level, player, Optional.of(aim), NO_CHARGE);
+        return channeling(level, player, aim, PlacementPrice.FREE);
+    }
+
+    /**
+     * The host of one tick of a held stream, carrying what each thing it lays pays as it lands.
+     * goop-drains-per-cubic-meter-of-slime-placed
+     *
+     * @param level  the server level
+     * @param player the streaming player
+     * @param aim    the hold's aim this tick
+     * @param price  what each placement pays, free for a stream paying by the tick
+     * @return the host carrying the aim and the price
+     */
+    public static PlayerHost channeling(ServerLevel level, ServerPlayer player, ChannelAim aim, PlacementPrice price) {
+        return new PlayerHost(level, player, Optional.of(aim), NO_CHARGE, price);
     }
 
     /**
@@ -85,7 +102,7 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
      * @return the host carrying the charge
      */
     public static PlayerHost charged(ServerLevel level, ServerPlayer player, float charge) {
-        return new PlayerHost(level, player, Optional.empty(), charge);
+        return new PlayerHost(level, player, Optional.empty(), charge, PlacementPrice.FREE);
     }
 
     @Override
@@ -206,15 +223,21 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
 
 
     /**
-     * Toggles each device standing in the cells once, a door's two halves
-     * counting as one device (decision pulser-toggles-rapidly-while-held).
+     * Toggles each hand device standing in the cells once, a door's two
+     * halves counting as one device, and gives each repeater and redstone
+     * receiver there one Zap pulse.
+     * pulser-toggles-rapidly-while-held
+     * tick-pulses-anything-a-signal-runs-while-held
      */
     @Override
     public void toggleEachDevice(List<BlockPos> cells) {
         List<BlockPos> devices = cells.stream().map(pos -> ZapDevice.handDevice(level, pos)).flatMap(Optional::stream)
                 .distinct().toList();
-        Goo.LOGGER.debug(LOG_TOGGLES, devices.size(), cells.size());
+        List<BlockPos> receivers = cells.stream().filter(pos -> ZapDevice.pulsedByTick(level.getBlockState(pos)))
+                .map(BlockPos::immutable).distinct().toList();
+        Goo.LOGGER.debug(LOG_TOGGLES, devices.size(), receivers.size(), cells.size());
         devices.forEach(device -> ZapDevice.toggleByHand(level, device));
+        receivers.forEach(receiver -> ZapDevice.pulseInPlace(level, receiver));
     }
 
     @Override

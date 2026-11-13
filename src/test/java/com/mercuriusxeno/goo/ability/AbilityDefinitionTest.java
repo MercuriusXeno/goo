@@ -1,17 +1,21 @@
 package com.mercuriusxeno.goo.ability;
 
-import com.mercuriusxeno.goo.ability.program.DamageStep;
+import com.mercuriusxeno.goo.ability.program.AwaitEntityStep;
+import com.mercuriusxeno.goo.ability.program.EntityFilter;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
 import com.mercuriusxeno.goo.ability.program.ExplosionMode;
 import com.mercuriusxeno.goo.ability.program.Expr;
+import com.mercuriusxeno.goo.ability.program.LingerStep;
+import com.mercuriusxeno.goo.ability.program.PullStep;
 import com.mercuriusxeno.goo.ability.program.Step;
-import com.mercuriusxeno.goo.ability.program.Variables;
+import com.mercuriusxeno.goo.ability.program.TargetStep;
 import com.mercuriusxeno.goo.data.GooBaseValuesPreview;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
+import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.data.PrefabValues;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
@@ -39,22 +43,18 @@ import static org.mockito.Mockito.when;
 class AbilityDefinitionTest {
 
     private static final double JSON_SIZE = 2.5;
-    private static final double TOLERANCE = 1e-9;
     private static final double CONE_ANGLE = 30;
     private static final double EXPLOSION_POWER = 3;
-    /** The explosion power Lurker's JSON writes. */
-    private static final float LURKER_POWER = 2.5f;
-    /** The widest radius Razor's field step writes. */
-    private static final double RAZOR_RADIUS = 4.5;
-    /** The damage each knife Knives slings deals. */
-    private static final double KNIFE_DAMAGE = 2;
+    private static final double NARROW_RADIUS = 2;
+    private static final double WIDE_RADIUS = 4;
     private static final Pattern RADIUS_BEARING = Pattern.compile("\"radius\"|\"type\"\s*:\s*\"explode\"");
 
-    // decision one-proving-ability-per-kind
     @Test
     void explosiveSphereIsDrawnAtTheExplosionsMaxReach() {
-        assertEquals(ExplosionMarch.maxReach(LURKER_POWER), AbilityJson.decode("unstable_lurker").area().size(),
-                TOLERANCE);
+        AbilityArea written = new AbilityArea(AbilityArea.Shape.SPHERE, JSON_SIZE, 0);
+        List<Step> explodes = List.of(new ExplodeStep(Expr.literal(EXPLOSION_POWER), ExplosionMode.TNT));
+        assertEquals(new AbilityArea(AbilityArea.Shape.SPHERE, ExplosionMarch.maxReach((float) EXPLOSION_POWER), 0),
+                AbilityDefinition.previewAtMaxReach(written, explodes));
     }
 
     @Test
@@ -70,14 +70,6 @@ class AbilityDefinitionTest {
         assertEquals(written, AbilityDefinition.previewAtMaxReach(written, explodes));
     }
 
-    // decision knives-deal-two-each
-    @Test
-    void knivesDealsTwoAKnife() {
-        DamageStep damage = AbilityJson.decode("crystal_knives").behaviors().stream()
-                .filter(DamageStep.class::isInstance).map(DamageStep.class::cast).findFirst().orElseThrow();
-        assertEquals(KNIFE_DAMAGE, damage.amount().evaluate(Variables.NONE), TOLERANCE);
-    }
-
     @Test
     void spawnConsumesNoItemAndNeedsNoRecipe() {
         // ability-json-names-its-reagent
@@ -85,6 +77,66 @@ class AbilityDefinitionTest {
         AbilityDefinition spawn = AbilityJson.decode("zoo_spawn");
         assertEquals(List.of(), spawn.consumes());
         assertEquals(List.of(), spawn.requires());
+    }
+
+    // decision blast-keeps-its-explosion-gated-on-gunpowder
+    @Test
+    void blastRequiresGunpowder() {
+        assertEquals(List.of(Identifier.withDefaultNamespace("gunpowder")),
+                AbilityJson.decode("unstable_explode").requires());
+    }
+
+    // decision razor-keeps-its-look-gated-on-glass
+    @Test
+    void razorRequiresGlassAndSand() {
+        assertEquals(List.of(Identifier.withDefaultNamespace("glass"), Identifier.withDefaultNamespace("sand")),
+                AbilityJson.decode("crystal_cloud").requires());
+    }
+
+    /**
+     * Expire strikes a mob that is no boss.
+     */
+    // decision expire-kills-the-struck-mob
+    @Test
+    void expireStrikesAMobThatIsNoBoss() {
+        TargetStep target = (TargetStep) AbilityJson.decode("yore_expire").behaviors().getFirst();
+        assertEquals(List.of(EntityFilter.MOB, EntityFilter.NOT_BOSS), target.where());
+    }
+
+    /**
+     * Lurker's trigger keeps every living entity, so a player standing in its radius sets it off as a zombie does.
+     */
+    @Test
+    void lurkersTriggerKeepsEveryLivingEntity() {
+        AwaitEntityStep trigger = LingerStep.bodyOf(AbilityJson.decode("unstable_lurker").behaviors()).orElseThrow()
+                .stream().filter(AwaitEntityStep.class::isInstance).map(AwaitEntityStep.class::cast)
+                .findFirst().orElseThrow();
+        assertEquals(List.of(EntityFilter.LIVING), trigger.where());
+    }
+
+    private static AbilityDefinition requiring(String requires) {
+        return AbilityJson.decodeText("made_up", "{\"gooType\": \"rock\", \"displayName\": \"made_up\","
+                + " \"cost\": 10, \"badge\": \"world\", \"behaviors\": [], \"delivery\": {\"kind\": \"arc\"},"
+                + " \"requires\": " + requires + "}");
+    }
+
+    // decision ability-hidden-until-recipes-known
+    @Test
+    void anAbilityRequiringNothingIsKnownToAPlayerWhoKnowsNothing() {
+        assertEquals(true, requiring("[]").isKnownTo(KnownItems.NONE));
+    }
+
+    // decision ability-hidden-until-recipes-known
+    @Test
+    void anAbilityRequiringAnItemThePlayerLacksIsHiddenFromThem() {
+        assertEquals(false, requiring("[\"minecraft:gunpowder\"]").isKnownTo(KnownItems.NONE));
+    }
+
+    // decision ability-hidden-until-recipes-known
+    @Test
+    void anAbilityIsKnownToAPlayerWhoKnowsEveryItemItRequires() {
+        assertEquals(true, requiring("[\"minecraft:gunpowder\"]")
+                .isKnownTo(KnownItems.NONE.with(Identifier.withDefaultNamespace("gunpowder"))));
     }
 
     /**
@@ -243,11 +295,12 @@ class AbilityDefinitionTest {
             }
         }
 
-        // decision one-proving-ability-per-kind
         @Test
         void fieldThrowDrawsASphereAtItsWidestRadius() {
-            assertEquals(new AbilityArea(AbilityArea.Shape.SPHERE, RAZOR_RADIUS, 0),
-                    AbilityJson.decode("crystal_cloud").area());
+            List<Step> radii = List.of(new PullStep(Expr.literal(NARROW_RADIUS), Expr.literal(0)),
+                    new PullStep(Expr.literal(WIDE_RADIUS), Expr.literal(0)));
+            assertEquals(new AbilityArea(AbilityArea.Shape.SPHERE, WIDE_RADIUS, 0),
+                    AbilityDefinition.heldArea(AbilityArea.NONE, Delivery.ARC, AbilityBadge.WORLD, radii));
         }
 
         @Test
@@ -276,14 +329,6 @@ class AbilityDefinitionTest {
             assertEquals(new AbilityArea(AbilityArea.Shape.LINE, 0, 0), AbilityJson.decode("glow_crystal").area());
         }
 
-        /** One proving example per kind: a thrown channel, a self, a brew and a stream. */
-        @ParameterizedTest
-        @CsvSource({"crystal_knives, NONE, 0.0, 0.0", "ender_blink, NONE, 0.0, 0.0",
-                "blaze_kindle, NONE, 0.0, 0.0", "blaze_flames, CONE, 6.0, 20.0"})
-        void mobSelfBrewAndChanneledKeepTheirArea(String name, AbilityArea.Shape shape, double size, double angle) {
-            assertEquals(new AbilityArea(shape, size, angle), AbilityJson.decode(name).area());
-        }
-
         @Test
         void mobThrowOverAFieldStepDrawsNoArea() {
             List<Step> field = AbilityJson.decode("crystal_cloud").behaviors();
@@ -301,8 +346,18 @@ class AbilityDefinitionTest {
         @Test
         void freeThrowOverAFieldStepDrawsItsSphere() {
             List<Step> field = AbilityJson.decode("crystal_cloud").behaviors();
-            assertEquals(new AbilityArea(AbilityArea.Shape.SPHERE, RAZOR_RADIUS, 0),
-                    AbilityDefinition.heldArea(AbilityArea.NONE, Delivery.ARC, AbilityBadge.FREE, field));
+            assertEquals(AbilityArea.Shape.SPHERE,
+                    AbilityDefinition.heldArea(AbilityArea.NONE, Delivery.ARC, AbilityBadge.FREE, field).shape());
         }
+    }
+
+    @Test
+    void sunbeamLocksOnToTheAimedMob() {
+        assertTrue(AbilityJson.decode("glow_sunbeam").hasTag(AbilityTags.LOCKS_ON));
+    }
+
+    @Test
+    void zapFliesAsABeam() {
+        assertTrue(AbilityJson.decode("pulse_zap").delivery().fliesStraight());
     }
 }

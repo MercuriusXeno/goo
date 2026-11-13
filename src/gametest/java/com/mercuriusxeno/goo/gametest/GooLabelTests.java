@@ -9,9 +9,7 @@ import net.minecraft.core.NonNullList;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.SlotAccess;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.ClickAction;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -41,7 +39,6 @@ public final class GooLabelTests {
     private static final int PAPER_CELL = 0;
     private static final int GOO_CELL = 4;
     private static final int GOO_VOLUME = 250;
-    private static final int FROST_VOLUME = 10;
 
     private GooLabelTests() {
     }
@@ -58,8 +55,7 @@ public final class GooLabelTests {
 
     /**
      * Paper beside blaze goo at 250 mB crafts one blaze label and leaves the goo at
-     * 249 mB in its cell; at 1 mB the goo leaves the grid; at 0 mB, and for a label
-     * beside paper, nothing crafts.
+     * 249 mB in its cell; GooLabelCraftTest holds the 1 mB, 0 mB and label-back grids.
      *
      * @param helper the gametest helper
      */
@@ -75,23 +71,12 @@ public final class GooLabelTests {
         ItemStack goo = remainders.get(gooCellOf(input));
         helper.assertTrue(GooStacks.keyOf(goo) == GooTypes.BLAZE && GooStacks.volumeOf(goo) == GOO_VOLUME - 1,
                 "The goo should stay in the grid 1 mB lighter: " + goo);
-
-        CraftingInput lastMb = CraftingInput.of(GRID_SIDE, GRID_SIDE, grid(GooItem.createWithVolume(GooTypes.BLAZE, 1)));
-        RecipeHolder<CraftingRecipe> lastRecipe = recipeFor(helper, lastMb)
-                .orElseThrow(() -> helper.assertionException("Paper beside 1 mB of goo should match a recipe"));
-        helper.assertTrue(lastRecipe.value().getRemainingItems(lastMb).get(gooCellOf(lastMb)).isEmpty(),
-                "Goo at 1 mB should leave the grid");
-
-        CraftingInput dry = CraftingInput.of(GRID_SIDE, GRID_SIDE, grid(GooItem.createWithVolume(GooTypes.BLAZE, 0)));
-        helper.assertTrue(recipeFor(helper, dry).isEmpty(), "Goo at 0 mB should match nothing");
-        CraftingInput labelBack = CraftingInput.of(GRID_SIDE, GRID_SIDE, grid(GooItems.GOO_LABEL.get().labelOf(GooTypes.BLAZE)));
-        helper.assertTrue(recipeFor(helper, labelBack).isEmpty(), "A label beside paper should match nothing");
         helper.succeed();
     }
 
     /**
      * Two blaze labels merge to one stack of two in an inventory and a frost label
-     * stands apart; frost goo clicked onto a blaze label leaves both unchanged.
+     * stands apart.
      *
      * @param helper the gametest helper
      */
@@ -107,19 +92,6 @@ public final class GooLabelTests {
         helper.assertTrue(held.size() == 2, "Blaze and frost labels should stand in two stacks: " + held);
         helper.assertTrue(held.stream().anyMatch(stack -> GooLabelItem.typeOf(stack) == GooTypes.BLAZE
                 && stack.getCount() == 2), "Two blaze labels should merge to one stack of two: " + held);
-
-        ItemStack blazeLabel = GooItems.GOO_LABEL.get().labelOf(GooTypes.BLAZE);
-        Slot slot = new Slot(inventory, 0, 0, 0);
-        inventory.setItem(0, blazeLabel);
-        for (ClickAction action : ClickAction.values()) {
-            ItemStack[] cursor = {GooItem.createWithVolume(GooTypes.FROST, FROST_VOLUME)};
-            blazeLabel.overrideOtherStackedOnMe(cursor[0], slot, action, player,
-                    SlotAccess.of(() -> cursor[0], stack -> cursor[0] = stack));
-            helper.assertTrue(GooLabelItem.typeOf(blazeLabel) == GooTypes.BLAZE,
-                    "A label's type should never change after the craft");
-            helper.assertTrue(GooStacks.keyOf(cursor[0]) == GooTypes.FROST
-                    && GooStacks.volumeOf(cursor[0]) == FROST_VOLUME, "The goo should stay unchanged");
-        }
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.succeed();
     }

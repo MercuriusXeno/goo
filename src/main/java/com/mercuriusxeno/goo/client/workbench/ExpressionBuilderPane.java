@@ -1050,7 +1050,7 @@ final class ExpressionBuilderPane {
 
     // A factor side's label: the multiplier as Nx, the divisor as /n (decision
     // multiplier-reads-nx-before-the-identity-and-divisor-slash-n-after).
-    private static String sideLabel(ExpressionBuilder.Piece piece, ExpressionBuilder.Op side) {
+    static String sideLabel(ExpressionBuilder.Piece piece, ExpressionBuilder.Op side) {
         return side == ExpressionBuilder.Op.MULTIPLY ? piece.multiplier() + TIMES_SIGN
                 : DIVIDE_SIGN + piece.divisor();
     }
@@ -1462,13 +1462,12 @@ final class ExpressionBuilderPane {
         }
         flow.typeSegment(member, at -> overlays.openPicker(at, type -> apply(b -> b.setMember(path, type)),
                 place.inRow() ? null : () -> apply(b -> b.setMember(path, null)), grammar.memberHidden(),
-                typesLackedBy(ref)));
+                typesLackedBy(worth.apply(ref).keySet())));
     }
 
     // Decision builder-disables-the-type-buttons-the-referent-lacks: every goo type the referent's resolved value
     // holds no amount of; a referent resolving to no value lacks nothing the manager can know.
-    private Set<String> typesLackedBy(ExpressionBuilder.Ref ref) {
-        Set<String> held = worth.apply(ref).keySet();
+    static Set<String> typesLackedBy(Set<String> held) {
         if (held.isEmpty()) {
             return Set.of();
         }

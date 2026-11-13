@@ -8,10 +8,12 @@ import java.util.stream.Stream;
 /**
  * Pulser's block step, run each held tick of the stream: every JSON-named
  * count of held ticks, every lever, button, door, trapdoor or fence gate in
- * the cone along the aim toggles, for as long as right click holds, with no
- * cap on how often each toggles:
- * {@code pulser_toggle every=4}.
+ * the cone along the aim toggles and every repeater and redstone receiver
+ * there takes one Zap pulse, for as long as right click holds, with no cap
+ * on how often each toggles: {@code pulser_toggle every=4}. The pulse stands
+ * fewer ticks than the period, so each toggling tick is a rising edge.
  * pulser-toggles-rapidly-while-held
+ * tick-pulses-anything-a-signal-runs-while-held
  *
  * @param every the held ticks between toggles, evaluated when the step runs
  */

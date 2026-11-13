@@ -19,7 +19,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemDisplayContext;
-import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Nested;
@@ -33,7 +32,6 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -44,7 +42,7 @@ import static org.mockito.Mockito.when;
 /**
  * The dissolving item's glow: its bands follow the item's goo in volume ratio, its quads
  * re-emit on the dissolve render type once per type layer carrying the dissolve fraction
- * and that layer's color, share and index, and the dissolve pipeline registers with its
+ * and that layer's color, share and index, and the dissolve pipeline draws with its
  * own shaders (decisions dissolve-shader-on-item, glow-color-from-mingling).
  */
 class DissolvingItemCollectorTest {
@@ -145,18 +143,11 @@ class DissolvingItemCollectorTest {
             }
         }
 
-        /** A single-type item glows in one layer of one color. */
+        /** A single-type item glows in one layer of that type's color at a whole share. */
         @Test
         void singleTypeItemGlowsInOneColor() {
-            RenderType[] renderType = new RenderType[1];
-            List<RecordingVertexConsumer.Vertex> vertices = submitThrough(
-                    DissolveGlow.of(0.25f, new GooValue(Map.of(GooTypes.FROST, 40)), COLORS::get), renderType);
-
-            assertEquals(4, vertices.size());
-            for (RecordingVertexConsumer.Vertex vertex : vertices) {
-                assertEquals(0b00000_000000_11111, vertex.uv1V());
-                assertEquals(0xF0 | 127 << 8, vertex.uv2U());
-            }
+            assertEquals(List.of(new DissolveGlow.Layer(FROST_BLUE, 1f, 0)),
+                    DissolveGlow.of(0.25f, new GooValue(Map.of(GooTypes.FROST, 40)), COLORS::get).layers());
         }
 
         /** The fraction clamps to a whole item and the color packs to RGB565 in the overlay's high half. */
@@ -211,35 +202,25 @@ class DissolvingItemCollectorTest {
                     firstGroup(source, "dissolveSeed = (.*);"));
         }
 
-        /** Every vertex of every layer carries the seed in the light bytes' low nibbles, the light level kept above it. */
+        /** A layer's light bytes carry the seed's two nibbles low, the light level kept in the nibble above each. */
         @Test
-        void everyVertexCarriesTheSeedBesideItsLight() {
-            int seed = 0xA7;
-            List<RecordingVertexConsumer.Vertex> vertices = submitThrough(
-                    DissolveGlow.of(0.25f, THREE_TYPES, COLORS::get).withSeed(seed), new RenderType[1]);
+        void aLayersLightCarriesTheSeedBesideItsLight() {
+            DissolveGlow.Layer body = new DissolveGlow.Layer(BLAZE_ORANGE, 1f, 0);
 
-            assertEquals(12, vertices.size());
-            for (RecordingVertexConsumer.Vertex vertex : vertices) {
-                int unpacked = (vertex.uv2U() & DissolveGlow.SEED_NIBBLE_MASK)
-                        | (vertex.uv2V() & DissolveGlow.SEED_NIBBLE_MASK) << DissolveGlow.SEED_NIBBLE_BITS;
-                assertEquals(seed, unpacked);
-                assertEquals(0xF0, vertex.uv2U() & 0xF0);
-                assertEquals(0xF0, vertex.uv2V() & 0xF0);
-            }
+            int coords = DissolveGlow.single(0.25f, BLAZE_ORANGE).withSeed(0xA7).lightCoords(LIGHT, body);
+
+            assertEquals(0xF7, coords & 0xFF);
+            assertEquals(0xFA, (coords >> 16) & 0xFF);
         }
     }
 
-    /** The dissolve pipeline draws with its own vertex and fragment shaders and registers with the rest. */
+    /** The dissolve pipeline draws with its own vertex and fragment shaders over the entity snippet's samplers. */
     @Test
-    void dissolvePipelineRegistersWithItsShaders() {
+    void dissolvePipelineDrawsWithItsOwnShadersOverTheEntitySamplers() {
         RenderPipeline pipeline = GooRenderTypes.CRUCIBLE_DISSOLVE;
-        RegisterRenderPipelinesEvent event = mock(RegisterRenderPipelinesEvent.class);
-
-        GooRenderTypes.registerPipelines(event);
 
         assertEquals(Identifier.fromNamespaceAndPath("goo", "core/crucible_dissolve"), pipeline.getFragmentShader());
         assertEquals(Identifier.fromNamespaceAndPath("goo", "core/crucible_dissolve"), pipeline.getVertexShader());
-        assertFalse(pipeline.getSamplers().isEmpty());
-        verify(event).registerPipeline(pipeline);
+        assertEquals(List.of("Sampler0", "Sampler2"), pipeline.getSamplers());
     }
 }

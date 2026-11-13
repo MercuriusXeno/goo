@@ -12,20 +12,19 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Tests the audit as a walk over its rules: the discovered rules write every section the audit dump test
- * reads, in order, and a rule added beside them adds its section to the text and the JSON with nothing
+ * Tests the audit as a walk over its rules: the discovered rules write every section of the audit dump,
+ * in order, and a rule added beside them adds its section to the text and the JSON with nothing
  * else changed (decision each-check-is-one-rule-added-alone).
  */
 class GooAuditRulesTest {
 
     private static final List<String> SECTIONS_IN_ORDER = List.of(
             "EXPRESSION WARNINGS", "PHANTOM IDS", "CYCLES", "CONFLICTS", "UNDERCUT MANUAL VALUES",
-            "LEAST VALUE PER TYPE", "NO VALUE", "FORMULAS", "REACTIONS", "ALL VALUES", "TYPE PROVENANCE",
-            "ROOT REMAINDERS", "CONVERSION FLOWS");
+            "LEAST VALUE PER TYPE", "NO VALUE", "FORMULAS", "REACTIONS", "ALL VALUES", "CLIQUES",
+            "TYPE PROVENANCE", "ROOT REMAINDERS", "CONVERSION FLOWS");
     private static final String SMALL_VALUES = """
             {
                 "_constants": {"base": 4},
@@ -60,19 +59,15 @@ class GooAuditRulesTest {
     }
 
     /**
-     * The discovered rules alone write every section the audit dump test reads, in that order, and the
-     * scratch clique dump's header stands nowhere.
+     * The discovered rules alone write the fourteen sections of the audit dump, in order; the text and the
+     * JSON are written from one walk over the rules, so the JSON's section names stand for both.
      */
     @Test
     void discoveredRulesWriteEverySectionInOrder() throws IOException {
         GooAuditReport.Built report = GooAuditReport.build(smallInputs(), GooAuditRules.discovered());
-        int from = 0;
-        for (String section : SECTIONS_IN_ORDER) {
-            int found = headerIndex(report.lines(), section, from);
-            assertTrue(found >= 0, section);
-            from = found + 1;
-        }
-        assertFalse(report.lines().contains("CLIQUES AND LOSSY RECIPES"));
+        List<String> sections = JsonParser.parseString(report.json()).getAsJsonObject().getAsJsonArray("sections")
+                .asList().stream().map(section -> section.getAsJsonObject().get("section").getAsString()).toList();
+        assertEquals(SECTIONS_IN_ORDER, sections);
     }
 
     /**

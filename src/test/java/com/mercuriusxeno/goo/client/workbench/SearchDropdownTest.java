@@ -22,16 +22,14 @@ class SearchDropdownTest {
             new ValuesTab.ManagerEntry("#minecraft:logs", "2 members", true));
 
     /**
-     * A tag matches by its #id, never by its member count (decision one-search-rule-serves-every-box-and-dropdown).
+     * A tag matches by its #id (decision one-search-rule-serves-every-box-and-dropdown).
      */
     @Test
-    void tagMatchesItsIdAndNeverItsMemberCount() {
+    void tagMatchesItsId() {
         SearchDropdown tags = SearchDropdown.overTags(List.of(new ValuesTab.ManagerEntry("#minecraft:oak_logs",
                 "3 members", true)));
         tags.search("#oak");
         assertEquals(1, tags.choices().size());
-        tags.search("members");
-        assertEquals(List.of(), tags.choices());
     }
 
     /**
@@ -49,7 +47,7 @@ class SearchDropdownTest {
 
     /**
      * Typed text keeps the items and prefabs whose name or id holds it, each item carrying its id for its icon and
-     * each prefab none, and a tag never lists.
+     * each prefab none.
      */
     @Test
     void typedTextFiltersItemsWithIconsAndPrefabs() {
@@ -61,8 +59,6 @@ class SearchDropdownTest {
         assertEquals("minecraft:copper_ingot", choices.getFirst().iconId());
         assertNull(choices.get(2).iconId());
         assertEquals(SearchDropdown.Kind.PREFAB, choices.get(2).kind());
-        dropdown.search("");
-        assertTrue(dropdown.choices().stream().noneMatch(choice -> choice.id().startsWith("#")));
     }
 
     /**

@@ -137,11 +137,21 @@ public final class IcebornEvents {
     private static void leechEntities(ServerLevel level, ServerPlayer player) {
         AABB around = player.getBoundingBox().inflate(LEECH_RADIUS);
         for (Entity entity : level.getEntities(player, around)) {
-            if (entity instanceof AbstractHurtingProjectile fireball) {
-                fireball.discard();
-            } else if (entity.isOnFire()) {
-                entity.clearFire();
-            }
+            cool(entity);
+        }
+    }
+
+    /**
+     * Leeches the heat of one entity in reach: a fireball goes out whole, and a
+     * burning entity stops burning.
+     *
+     * @param entity the entity the leech reaches
+     */
+    static void cool(Entity entity) {
+        if (entity instanceof AbstractHurtingProjectile fireball) {
+            fireball.discard();
+        } else if (entity.isOnFire()) {
+            entity.clearFire();
         }
     }
 

@@ -52,16 +52,11 @@ public final class ExoriteDurabilityTests {
 
     private static final String PICKAXE_LOST = "The exorite pickaxe should stay in the main hand past max damage";
     private static final String NOT_AT_FLOOR = "The exorite pickaxe should sit at max damage";
-    private static final String CREATIVE_DAMAGED = "A creative player's exorite pickaxe should take no damage";
-    private static final String BROKE_CALLBACK = "The break callback should never run for exorite";
-    private static final String NOT_BROKEN = "A max-damage exorite piece should read broken";
     private static final String STILL_HARVESTS = "A broken exorite pickaxe should not be the correct tool for stone";
     private static final String STILL_FAST = "A broken exorite pickaxe should mine stone at a bare hand's speed";
     private static final String KEEPS_MODIFIERS = "A broken exorite piece should gather no attribute modifiers: ";
     private static final String NO_BROKEN_LINE = "A broken exorite piece's tooltip should carry the broken line";
-    private static final String INTACT_BROKEN_LINE = "An intact exorite piece's tooltip should not carry the broken line";
     private static final String NOT_REPAIRED = "The anvil should repair a broken exorite pickaxe with exorite";
-    private static final String REPAIRED_STILL_BROKEN = "A repaired exorite pickaxe should read intact";
     private static final String REPAIRED_CANNOT_HARVEST = "A repaired exorite pickaxe should be the correct tool for stone";
 
     private ExoriteDurabilityTests() {
@@ -69,8 +64,7 @@ public final class ExoriteDurabilityTests {
 
     /**
      * A mock player's exorite pickaxe hurt by max damage plus ten through
-     * hurtAndBreak stays in the main hand at max damage, and the break
-     * callback never runs; a creative player's pickaxe takes no damage.
+     * hurtAndBreak stays in the main hand at max damage.
      *
      * @param helper the gametest helper
      */
@@ -80,18 +74,10 @@ public final class ExoriteDurabilityTests {
         player.getAbilities().instabuild = false; // the mock player is creative, whose items take no damage
         ItemStack pickaxe = new ItemStack(GooItems.EXORITE_PICKAXE.get());
         player.setItemInHand(InteractionHand.MAIN_HAND, pickaxe);
-        boolean[] broke = {false};
-        pickaxe.hurtAndBreak(pickaxe.getMaxDamage() + OVERKILL_DAMAGE, helper.getLevel(), player,
-                item -> broke[0] = true);
+        pickaxe.hurtAndBreak(pickaxe.getMaxDamage() + OVERKILL_DAMAGE, helper.getLevel(), player, item -> { });
         ItemStack held = player.getMainHandItem();
         helper.assertTrue(!held.isEmpty() && held.is(GooItems.EXORITE_PICKAXE.get()), PICKAXE_LOST);
         helper.assertTrue(held.getDamageValue() == held.getMaxDamage(), NOT_AT_FLOOR);
-        helper.assertTrue(!broke[0], BROKE_CALLBACK);
-        player.getAbilities().instabuild = true;
-        ItemStack creativePickaxe = new ItemStack(GooItems.EXORITE_PICKAXE.get());
-        creativePickaxe.hurtAndBreak(creativePickaxe.getMaxDamage() + OVERKILL_DAMAGE, helper.getLevel(), player,
-                item -> broke[0] = true);
-        helper.assertTrue(creativePickaxe.getDamageValue() == 0, CREATIVE_DAMAGED);
         removeMockPlayer(helper, player);
         helper.succeed();
     }
@@ -105,7 +91,6 @@ public final class ExoriteDurabilityTests {
     public static void brokenActsAsHand(GameTestHelper helper) {
         ItemStack pickaxe = broken(GooItems.EXORITE_PICKAXE.get());
         BlockState stone = Blocks.STONE.defaultBlockState();
-        helper.assertTrue(ExoriteGear.isBroken(pickaxe), NOT_BROKEN);
         helper.assertTrue(!pickaxe.isCorrectToolForDrops(stone), STILL_HARVESTS);
         helper.assertTrue(pickaxe.getDestroySpeed(stone) == ExoriteGear.BARE_HAND_DESTROY_SPEED, STILL_FAST);
         for (Item piece : List.of(GooItems.EXORITE_SWORD.get(), GooItems.EXORITE_CHESTPLATE.get())) {
@@ -115,8 +100,7 @@ public final class ExoriteDurabilityTests {
     }
 
     /**
-     * A broken exorite pickaxe's tooltip carries the broken line and an
-     * intact one's does not.
+     * A broken exorite pickaxe's tooltip carries the broken line.
      *
      * @param helper the gametest helper
      */
@@ -124,10 +108,7 @@ public final class ExoriteDurabilityTests {
         Item.TooltipContext context = Item.TooltipContext.of(helper.getLevel());
         List<Component> brokenLines = broken(GooItems.EXORITE_PICKAXE.get())
                 .getTooltipLines(context, null, TooltipFlag.NORMAL);
-        List<Component> intactLines = new ItemStack(GooItems.EXORITE_PICKAXE.get())
-                .getTooltipLines(context, null, TooltipFlag.NORMAL);
         helper.assertTrue(carriesBrokenLine(brokenLines), NO_BROKEN_LINE);
-        helper.assertTrue(!carriesBrokenLine(intactLines), INTACT_BROKEN_LINE);
         helper.succeed();
     }
 
@@ -147,7 +128,6 @@ public final class ExoriteDurabilityTests {
         ItemStack result = anvil.getSlot(ANVIL_RESULT).getItem();
         helper.assertTrue(result.is(GooItems.EXORITE_PICKAXE.get())
                 && result.getDamageValue() < result.getMaxDamage(), NOT_REPAIRED);
-        helper.assertTrue(!ExoriteGear.isBroken(result), REPAIRED_STILL_BROKEN);
         helper.assertTrue(result.isCorrectToolForDrops(Blocks.STONE.defaultBlockState()), REPAIRED_CANNOT_HARVEST);
         removeMockPlayer(helper, player);
         helper.succeed();

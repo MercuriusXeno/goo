@@ -18,46 +18,58 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 
 /**
- * Covers the conjured door's submit: its crack draws under the end portal
- * render type with position-only vertices, the doorway's span, seen from
- * either side (decision crack-and-doorway-wear-the-end-portal-shader).
+ * Covers the conjured door's submit: the outline its two shares give draws
+ * under the end portal render type with position-only vertices, seen from
+ * either side (decisions crack-and-doorway-wear-the-end-portal-shader,
+ * door-unzips-from-a-starfield-pixel-then-widens-into-you).
  */
 class ConjuredDoorRendererTest {
 
     private static final Vec3 FEET = new Vec3(3.5, 64, 8.5);
     private static final float EXACT = 1.0E-5f;
+    private static final float HALF_PIXEL = 1f / 32;
 
     private record Submitted(List<RenderType> types, RecordingVertexConsumer vertices) {
     }
 
     @Test
-    void theDoorSubmitsUnderTheEndPortalRenderType() {
-        Submitted submitted = submit(new ClientConjuredDoors.Drawn(FEET, 0f, 1));
+    void aHalfUnzippedSlashDrawsFromTheHeadHalfwayDownUnderTheEndPortal() {
+        Submitted submitted = submit(new ClientConjuredDoors.Drawn(FEET, 0f, 0.5, 0));
 
-        assertFalse(submitted.types().isEmpty(), "the door submitted geometry");
-        for (RenderType type : submitted.types()) {
-            assertEquals(RenderTypes.endPortal(), type);
+        assertEquals(List.of(RenderTypes.endPortal()), submitted.types(), "one end portal submit");
+        List<RecordingVertexConsumer.Vertex> vertices = submitted.vertices().vertices();
+        assertFalse(vertices.isEmpty(), "the slash emitted vertices");
+        for (RecordingVertexConsumer.Vertex vertex : vertices) {
+            assertTrue(vertex.y() >= 1 - EXACT && vertex.y() <= 2 + EXACT, "between one and two up: " + vertex.y());
+            assertTrue(Math.abs(vertex.x()) <= HALF_PIXEL + EXACT, "within half a pixel of the centerline: "
+                    + vertex.x());
         }
     }
 
     @Test
-    void theDoorEmitsPositionsAloneSpanningTheDoorway() {
-        List<RecordingVertexConsumer.Vertex> vertices = submit(new ClientConjuredDoors.Drawn(FEET, 0f, 1))
-                .vertices().vertices();
+    void aFullDoorEmitsPositionsAloneSpanningTheDoorway() {
+        Submitted submitted = submit(new ClientConjuredDoors.Drawn(FEET, 0f, 1, 1));
 
+        assertEquals(List.of(RenderTypes.endPortal()), submitted.types(), "one end portal submit");
+        List<RecordingVertexConsumer.Vertex> vertices = submitted.vertices().vertices();
         assertFalse(vertices.isEmpty(), "the door emitted vertices");
         double lowest = Double.MAX_VALUE;
         double highest = -Double.MAX_VALUE;
+        double leftmost = Double.MAX_VALUE;
+        double rightmost = -Double.MAX_VALUE;
         for (RecordingVertexConsumer.Vertex vertex : vertices) {
             assertEquals(0, vertex.color(), "no color written");
             assertEquals(0f, vertex.u(), EXACT, "no texture written");
             assertEquals(0f, vertex.nz(), EXACT, "no normal written");
-            assertTrue(Math.abs(vertex.x()) <= 0.5f + EXACT, "within the doorway's width: " + vertex.x());
             lowest = Math.min(lowest, vertex.y());
             highest = Math.max(highest, vertex.y());
+            leftmost = Math.min(leftmost, vertex.x());
+            rightmost = Math.max(rightmost, vertex.x());
         }
         assertEquals(0, lowest, EXACT, "standing on the feet");
         assertEquals(2, highest, EXACT, "two tall");
+        assertEquals(-0.5, leftmost, EXACT, "half a block to the left");
+        assertEquals(0.5, rightmost, EXACT, "half a block to the right");
     }
 
     /** Submits one door seen from its own feet and records what it handed the collector. */

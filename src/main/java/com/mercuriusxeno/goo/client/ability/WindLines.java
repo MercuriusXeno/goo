@@ -6,9 +6,11 @@ import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.WindStep;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
+import com.mercuriusxeno.goo.client.particle.VoidMoteParticle;
+import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.particle.Particle;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
@@ -90,8 +92,24 @@ public final class WindLines {
     /** Snowflakes a line drops along itself each tick it lives. */
     private static final float SNOWFLAKES_PER_LINE_TICK = 0.2f;
     private static final int MAX_ALPHA = 200;
-    private static final int WHITE = 0xF4F8FF;
-    private static final int PALE_GRAY = 0xD6DDE8;
+    /**
+     * The turn an inward line makes about its gust's axis over its run: a
+     * fifth of a turn, one way, for the vortex without a loop.
+     * vacuum-wind-lines-run-straight-and-far-in-void-colors-with-motes
+     */
+    static final double INWARD_TWIST = 0.2 * 2 * Math.PI;
+    /** A void mote's friction, the velocity it keeps each tick. */
+    static final float MOTE_FRICTION = VoidMoteParticle.FRICTION;
+    /**
+     * The most ticks a void mote takes to reach the glove, so it streams in
+     * quickly; the operator found motes flying the line's whole life too slow.
+     * vacuum-wind-lines-run-straight-and-far-in-void-colors-with-motes
+     */
+    static final int MOTE_FLIGHT_TICKS = 8;
+    /** The chance a held tick drops a void mote off each inward line carrying them. */
+    private static final float MOTES_PER_LINE_TICK = 0.4f;
+    /** An updraft column's wind: lines rising out of the floor in the wind's colors, no snowflakes. */
+    private static final WindStep RISING_WIND = new WindStep(false);
     private static final double TWO_PI = 2 * Math.PI;
     private static final double HALF = 0.5;
     private static final double NEAR_VERTICAL = 0.99;
@@ -144,9 +162,54 @@ public final class WindLines {
      * @param snowflakes whether snowflakes flit along it
      * @param startTick  the game time it left the glove
      * @param carried    whether it rides along with the player, a jet's tailwind
+     * @param inward     whether it runs from its straight run's end into the glove rather than out of it
      */
     record Line(Vec3 origin, Vec3 axis, Vec3 outward, Vec3 across, double straight, Sway sway, double winding,
-                float gray, boolean snowflakes, long startTick, boolean carried) {
+                float gray, boolean snowflakes, long startTick, boolean carried, boolean inward,
+                WindStep.LineColors colors, boolean voidMotes) {
+
+        /**
+         * A line in the wind's white and pale gray, carrying no void motes.
+         *
+         * @param origin     where it leaves: in the world, or relative to the player's feet when carried
+         * @param axis       the unit direction it rushes along
+         * @param outward    the unit direction out from the cone's middle it curls toward
+         * @param across     the unit direction square to the look and to outward
+         * @param straight   blocks it rushes straight before curling
+         * @param sway       how it sways off its course
+         * @param winding    which way its curl winds, 1 or -1
+         * @param gray       how far its color leans from white to pale gray, 0 to 1
+         * @param snowflakes whether snowflakes flit along it
+         * @param startTick  the game time it left the glove
+         * @param carried    whether it rides along with the player, a jet's tailwind
+         * @param inward     whether it runs from its straight run's end into the glove rather than out of it
+         */
+        Line(Vec3 origin, Vec3 axis, Vec3 outward, Vec3 across, double straight, Sway sway, double winding,
+             float gray, boolean snowflakes, long startTick, boolean carried, boolean inward) {
+            this(origin, axis, outward, across, straight, sway, winding, gray, snowflakes, startTick, carried, inward,
+                    WindStep.LineColors.WIND, false);
+        }
+
+        /**
+         * A line rushing out of the glove.
+         *
+         * @param origin     where it leaves: in the world, or relative to the player's feet when carried
+         * @param axis       the unit direction it rushes along
+         * @param outward    the unit direction out from the cone's middle it curls toward
+         * @param across     the unit direction square to the look and to outward
+         * @param straight   blocks it rushes straight before curling
+         * @param sway       how it sways off its course
+         * @param winding    which way its curl winds, 1 or -1
+         * @param gray       how far its color leans from white to pale gray, 0 to 1
+         * @param snowflakes whether snowflakes flit along it
+         * @param startTick  the game time it left the glove
+         * @param carried    whether it rides along with the player, a jet's tailwind
+         */
+        Line(Vec3 origin, Vec3 axis, Vec3 outward, Vec3 across, double straight, Sway sway, double winding,
+             float gray, boolean snowflakes, long startTick, boolean carried) {
+            this(origin, axis, outward, across, straight, sway, winding, gray, snowflakes, startTick, carried, false,
+                    WindStep.LineColors.WIND, false);
+        }
     }
 
     private final List<Line> live = new ArrayList<>();
@@ -158,6 +221,8 @@ public final class WindLines {
     private long snowflakesDroppedAt = -1;
     /** Whether the playing wind is a jet's tailwind, whose pitch rises with the player's speed. */
     private volatile boolean pitchesWithSpeed;
+    /** The pitch the playing wind sounds at, as its wind step names it: low for Vacuum's suction. */
+    private volatile float windPitch = WIND_PITCH;
 
     private WindLines() {
     }
@@ -179,6 +244,11 @@ public final class WindLines {
     }
 
     private static Vec3 coursePoint(Line line, double age) {
+        if (line.inward()) {
+            double drawn = drawnIn(age);
+            Vec3 run = line.axis().scale(line.straight() * (1 - drawn));
+            return line.origin().add(turnedAbout(run, gustAxisOf(line), line.winding() * INWARD_TWIST * drawn));
+        }
         if (age <= STRAIGHT_TICKS) {
             return line.origin().add(line.axis().scale(line.straight() * launched(age / STRAIGHT_TICKS)));
         }
@@ -214,9 +284,97 @@ public final class WindLines {
      */
     static Vec3 swayAt(Line line, double age) {
         Sway sway = line.sway();
+        if (line.inward()) {
+            // vacuum-wind-lines-run-straight-and-far-in-void-colors-with-motes: no sway, so no loops
+            return Vec3.ZERO;
+        }
         double growth = Math.min(1, age / STRAIGHT_TICKS);
         return sway.first().scale(Math.sin(sway.firstRate() * age + sway.firstPhase()) * growth)
                 .add(sway.second().scale(Math.sin(sway.secondRate() * age + sway.secondPhase()) * growth));
+    }
+
+    /**
+     * The share of its run an inward line has drawn in toward the glove: it
+     * leaves its far end at half its average pace and speeds up to half again
+     * its average as it nears, reaching the glove as it ends.
+     * vacuum-streaks-wind-lines-inward-to-the-glove
+     *
+     * @param age ticks since the line started
+     * @return the share drawn in, 0 at its start to 1 at the glove
+     */
+    /**
+     * Where a void mote leaves an inward line and how it flies: from the
+     * line's head, toward the glove, at the speed that, slowed by a void
+     * mote's friction each tick, carries it to the glove as its flight ends,
+     * so it never passes the glove. It flies the ticks the line has left, at
+     * most MOTE_FLIGHT_TICKS.
+     * vacuum-wind-lines-run-straight-and-far-in-void-colors-with-motes
+     *
+     * @param line the inward line
+     * @param age  ticks since the line started
+     * @return the mote's start, velocity and flight ticks
+     */
+    static MoteFlight moteFlight(Line line, double age) {
+        Vec3 from = pathPoint(line, age);
+        int ticks = Math.clamp(Math.round(LIFE_TICKS - age), 1, MOTE_FLIGHT_TICKS);
+        double carriedPerSpeed = (1 - Math.pow(MOTE_FRICTION, ticks)) / (1 - MOTE_FRICTION);
+        return new MoteFlight(from, line.origin().subtract(from).scale(1 / carriedPerSpeed), ticks);
+    }
+
+    /**
+     * A void mote's flight along an inward line.
+     *
+     * @param from     where it leaves
+     * @param velocity its starting velocity, in blocks a tick
+     * @param ticks    the ticks it flies before it fades at the glove
+     */
+    record MoteFlight(Vec3 from, Vec3 velocity, int ticks) {
+    }
+
+    /**
+     * How far a line runs: an inward line the whole of its gust's range, so it
+     * starts at the reach's far end; an outward line a random share of it
+     * before it curls.
+     * vacuum-wind-lines-run-straight-and-far-in-void-colors-with-motes
+     *
+     * @param range  the gust's range, in blocks
+     * @param inward whether the line runs into the glove
+     * @param spread a random draw from 0 to 1 sizing an outward line's run
+     * @return the run, in blocks
+     */
+    static double runOf(double range, boolean inward, double spread) {
+        return inward ? range : range * STRAIGHT_SHARE * (HALF + spread);
+    }
+
+    static double drawnIn(double age) {
+        double lived = Math.clamp(age / LIFE_TICKS, 0, 1);
+        // vacuum-wind-lines-run-straight-and-far-in-void-colors-with-motes: moving from its first tick, so it reads
+        return lived * (HALF + HALF * lived);
+    }
+
+    /**
+     * The axis of the gust a line was blown along: square to the line's
+     * outward and across, which the gust's look built.
+     *
+     * @param line the line
+     * @return the gust's unit axis
+     */
+    static Vec3 gustAxisOf(Line line) {
+        return line.outward().cross(line.across()).normalize();
+    }
+
+    /**
+     * A vector turned about a unit axis by an angle, right-handed.
+     *
+     * @param vector the vector
+     * @param axis   the unit axis
+     * @param angle  the angle, in radians
+     * @return the turned vector
+     */
+    static Vec3 turnedAbout(Vec3 vector, Vec3 axis, double angle) {
+        double cos = Math.cos(angle);
+        return vector.scale(cos).add(axis.cross(vector).scale(Math.sin(angle)))
+                .add(axis.scale(axis.dot(vector) * (1 - cos)));
     }
 
     /**
@@ -248,8 +406,9 @@ public final class WindLines {
             Gust gust = wind.tailwind()
                     .map(tailwind -> tailwindGust(tailwind, player.getEyeHeight(), player.getLookAngle()))
                     .orElseGet(() -> new Gust(apex, player.getLookAngle(), area.size(), area.angle(), false));
-            CLIENT.add(player.level().getRandom(), gust, wind.snowflakes(), player.level().getGameTime());
+            CLIENT.add(player.level().getRandom(), gust, wind, player.level().getGameTime());
             CLIENT.pitchesWithSpeed = gust.carried();
+            CLIENT.windPitch = wind.pitch();
             CLIENT.keepWindBlowing(player);
         });
     }
@@ -268,7 +427,7 @@ public final class WindLines {
      */
     public void rise(RandomSource random, Vec3 base, double radius, double height, long now) {
         add(random, riseGust(base, radius, height, bothSides(random.nextDouble()), bothSides(random.nextDouble())),
-                false, now);
+                RISING_WIND, now);
     }
 
     private static double bothSides(double unit) {
@@ -375,7 +534,7 @@ public final class WindLines {
             this.looping = true;
             this.delay = 0;
             this.volume = WIND_VOLUME;
-            this.pitch = WIND_PITCH;
+            this.pitch = windPitch;
             follow();
         }
 
@@ -388,7 +547,8 @@ public final class WindLines {
             long sinceLetGo = player.level().getGameTime() - windHeldAt - WIND_LINGER_TICKS;
             this.volume = windVolume(sinceLetGo);
             // jet-pushes-along-the-look-while-held: a jet's wind whistles higher the faster it carries the player
-            this.pitch = pitchesWithSpeed ? pitchAt(player.getDeltaMovement().length()) : WIND_PITCH;
+            // vacuum-sounds-a-suction-wind-and-rising-slurps: a wind step names the pitch its held wind sounds at
+            this.pitch = pitchesWithSpeed ? pitchAt(player.getDeltaMovement().length()) : windPitch;
             if (this.volume <= 0f) {
                 stop();
             } else {
@@ -403,7 +563,7 @@ public final class WindLines {
         }
     }
 
-    private void add(RandomSource random, Gust gust, boolean snowflakes, long now) {
+    private void add(RandomSource random, Gust gust, WindStep wind, long now) {
         if (!blowsOn(now)) {
             return;
         }
@@ -415,10 +575,10 @@ public final class WindLines {
         Vec3 axis = tilt(look, spread * Math.sqrt(random.nextDouble()), about);
         Vec3 outward = radial(look, about);
         Vec3 across = look.cross(outward).normalize();
-        double straight = range * STRAIGHT_SHARE * (HALF + random.nextDouble());
+        double straight = runOf(range, wind.inward(), random.nextDouble());
         double winding = random.nextBoolean() ? CLOCKWISE : COUNTERCLOCKWISE;
         live.add(new Line(apex, axis, outward, across, straight, sway(random, axis), winding, random.nextFloat(),
-                snowflakes, now, gust.carried()));
+                wind.snowflakes(), now, gust.carried(), wind.inward(), wind.colors(), wind.voidMotes()));
     }
 
     /**
@@ -513,7 +673,8 @@ public final class WindLines {
      */
     static int trailColor(Line line, float life, float tail) {
         float alpha = (1f - life) * (1f - tail);
-        return ARGB.color(Math.round(alpha * MAX_ALPHA), ARGB.srgbLerp(line.gray(), WHITE, PALE_GRAY));
+        return ARGB.color(Math.round(alpha * MAX_ALPHA),
+                ARGB.srgbLerp(line.gray(), line.colors().light(), line.colors().dark()));
     }
 
     /** Drops every line, as a disconnect does. */
@@ -549,7 +710,7 @@ public final class WindLines {
             drawLine(lines, camera, line, gameTime - line.startTick(), anchorOf(line, rider));
         }
         buffers.endBatch(type);
-        CLIENT.dropSnowflakes(mc.level, now, mc.player == null ? Vec3.ZERO : mc.player.position());
+        CLIENT.dropAlongLines(mc, now, mc.player == null ? Vec3.ZERO : mc.player.position());
     }
 
     /**
@@ -577,19 +738,46 @@ public final class WindLines {
         }
     }
 
-    private void dropSnowflakes(ClientLevel level, long now, Vec3 rider) {
-        if (snowflakesDroppedAt == now) {
+    /**
+     * Drops this tick's snowflakes along the lines carrying them, and the
+     * void motes along the inward lines carrying those, each mote flying to
+     * the glove and fading there.
+     * vacuum-wind-lines-run-straight-and-far-in-void-colors-with-motes
+     *
+     * @param mc    the client
+     * @param now   the game time
+     * @param rider the local player's position, which carried lines ride with
+     */
+    private void dropAlongLines(Minecraft mc, long now, Vec3 rider) {
+        if (snowflakesDroppedAt == now || mc.level == null) {
             return;
         }
         snowflakesDroppedAt = now;
-        RandomSource random = level.getRandom();
+        RandomSource random = mc.level.getRandom();
         for (Line line : live) {
+            double age = now - line.startTick();
             if (line.snowflakes() && random.nextFloat() < SNOWFLAKES_PER_LINE_TICK) {
-                double age = now - line.startTick();
                 Vec3 at = anchorOf(line, rider).add(pathPoint(line, age));
                 Vec3 along = at.subtract(anchorOf(line, rider).add(pathPoint(line, age - 1)));
-                level.addParticle(GooParticles.SNOWFLAKE.get(), at.x, at.y, at.z, along.x, along.y, along.z);
+                mc.level.addParticle(GooParticles.SNOWFLAKE.get(), at.x, at.y, at.z, along.x, along.y, along.z);
             }
+            if (line.voidMotes() && line.inward() && age < LIFE_TICKS && random.nextFloat() < MOTES_PER_LINE_TICK) {
+                dropMote(mc, moteFlight(line, age));
+            }
+        }
+    }
+
+    private static void dropMote(Minecraft mc, MoteFlight flight) {
+        Vec3 at = flight.from();
+        Vec3 velocity = flight.velocity();
+        Particle mote = mc.particleEngine.createParticle(GooParticles.VOID_MOTE.get(), at.x, at.y, at.z, velocity.x,
+                velocity.y, velocity.z);
+        if (mote != null) {
+            mote.setLifetime(flight.ticks());
+        }
+        if (mote instanceof VoidMoteParticle homing) {
+            // the operator saw motes land where the hand had been: each homes on the hand where it is now
+            homing.homeTo(() -> GloveAim.handPosition(mc.gameRenderer.getMainCamera()));
         }
     }
 }

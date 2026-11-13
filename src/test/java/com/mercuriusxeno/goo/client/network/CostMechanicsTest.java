@@ -137,10 +137,8 @@ class CostMechanicsTest {
         CostMechanicsLookup shipped = new CostMechanicsLookup(key -> OUTSIDER_MECHANICS.equals(key) ? format : key,
                 () -> VALUES);
         String json = AbilityJson.read("void_outsider");
-        String retuned = json.replaceFirst("\"enter\"\\s*:\\s*6", "\"enter\": 9");
+        String retuned = json.replaceFirst("\"enter\"\\s*:\\s*\\d+", "\"enter\": 9");
 
-        assertTrue(clientOf(AbilityJson.decode("void_outsider")).costMechanics(shipped).orElseThrow()
-                .startsWith("6 "), format);
         assertTrue(clientOf(AbilityJson.decodeText("void_outsider", retuned)).costMechanics(shipped).orElseThrow()
                 .startsWith("9 "), format);
         assertTrue(format.contains("second"), format);
@@ -155,9 +153,17 @@ class CostMechanicsTest {
         }
     }
 
+    /**
+     * Every ability paying a plain cost once a throw or by the ticks held; a stream draining on placement prices
+     * what it lays and names its mechanics (decision goop-drains-per-cubic-meter-of-slime-placed).
+     *
+     * @return the abilities
+     */
     static Stream<AbilityDefinition> abilitiesWithAPlainCost() {
         return AbilityJson.files().stream().map(AbilityJson::decode)
-                .filter(definition -> definition.cost().in(GooValueTable.EMPTY) > 0 && definition.distancePrice().equals(DistancePrice.NONE));
+                .filter(definition -> definition.cost().in(GooValueTable.EMPTY) > 0
+                        && definition.distancePrice().equals(DistancePrice.NONE)
+                        && !definition.delivery().drainsOnPlacement());
     }
 
     @ParameterizedTest

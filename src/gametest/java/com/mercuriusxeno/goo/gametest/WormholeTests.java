@@ -2,11 +2,14 @@ package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.ability.program.Variables;
+import com.mercuriusxeno.goo.ability.program.WormholeStep;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.OpenHoles;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
 import com.mercuriusxeno.goo.ability.quantum.QuantumPortals;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
@@ -38,7 +41,7 @@ import java.util.stream.Stream;
  * Gametests for Quantum's tunnel, a wormhole: thrown at a wall, it opens a
  * mouth on the struck face and one at the first opening ahead a player fits
  * in, a 3x3 or a 2x3 within it; stepping into either comes out of the other
- * until it closes after ten seconds; thrown where no opening lies within its
+ * until it closes once its lifetime runs out; thrown where no opening lies within its
  * reach it is refused at the face and costs nothing; no block is made
  * see-through (decision hole-closes-the-space-to-an-opening-ahead).
  */
@@ -122,8 +125,6 @@ public final class WormholeTests {
     private static final String CLOSES_AFTER_ITS_LIFETIME = "tunnel_closes_after_its_lifetime";
 
     private static final Identifier QUANTUM_TUNNEL = Identifier.parse("goo:quantum_tunnel");
-    /** quantum_tunnel.json's cost, which the caster holds exactly. */
-    private static final int HOLE_COST = 2000;
     /** The wall block the blob strikes on its north face, the centre of the scan. */
     private static final BlockPos STRUCK = new BlockPos(2, 2, 2);
     /** Where the caster stands, north of the wall. */
@@ -149,8 +150,6 @@ public final class WormholeTests {
     private static final int LANDED = 30;
     /** Ticks a step into a mouth is given to carry the traveller. */
     private static final int STEP = 3;
-    /** quantum_tunnel.json's lifetime: the mouths close after thirty seconds. */
-    private static final int LIFETIME = 600;
 
     private WormholeTests() {
     }
@@ -217,8 +216,8 @@ public final class WormholeTests {
         buildWall(helper);
         ServerPlayer caster = caster(helper);
         throwAt(caster, helper.absolutePos(STRUCK), Direction.NORTH);
-        helper.runAfterDelay(LANDED + LIFETIME, () -> crossAt(helper, caster, THROUGH_THE_FACE));
-        helper.runAfterDelay(LANDED + LIFETIME + STEP, () -> {
+        helper.runAfterDelay(LANDED + lifetime(helper), () -> crossAt(helper, caster, THROUGH_THE_FACE));
+        helper.runAfterDelay(LANDED + lifetime(helper) + STEP, () -> {
             assertAt(helper, caster, THROUGH_THE_FACE, "A closed hole should carry no one");
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.succeed();
@@ -273,9 +272,11 @@ public final class WormholeTests {
         }
         ServerPlayer caster = caster(helper);
         Vec3 start = caster.position();
+        int heldBefore = GooSourceScanner.aggregateAvailable(caster).getOrDefault(GooTypes.QUANTUM, 0);
         throwAt(caster, top, Direction.UP);
-        helper.assertTrue(GooSourceScanner.hasEnough(caster, GooTypes.QUANTUM, HOLE_COST),
-                "A refused hole should cost nothing");
+        int heldAfter = GooSourceScanner.aggregateAvailable(caster).getOrDefault(GooTypes.QUANTUM, 0);
+        helper.assertTrue(heldAfter == heldBefore,
+                "A refused hole should cost nothing, held " + heldBefore + " then " + heldAfter);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             helper.assertTrue(caster.position().distanceTo(start) < THERE,
                     "A refused hole should leave the caster where they stood, stands at " + caster.position());
@@ -324,7 +325,7 @@ public final class WormholeTests {
                 helper.setBlock(new BlockPos(x, FLOOR_Y - 1, z), x == 2 && z == 2 ? Blocks.AIR : Blocks.STONE);
                 // Stone deeper than the hole's reach under the floor, so a smaller mouth beside the open cell, which
                 // the 3x3 centred on the struck block also tries, finds no opening below.
-                for (int depth = FLOOR_Y - 2; depth >= FLOOR_Y - 2 - HOLE_REACH; depth--) {
+                for (int depth = FLOOR_Y - 2; depth >= FLOOR_Y - 2 - holeReach(helper); depth--) {
                     helper.setBlock(new BlockPos(x, depth, z), Blocks.STONE);
                 }
             }
@@ -345,8 +346,8 @@ public final class WormholeTests {
     }
 
     /**
-     * Thrown up at a ceiling twenty blocks thick, past sixteen blocks but
-     * within the hole's thirty-two, the hole opens through to the room above.
+     * Thrown up at a ceiling twenty blocks thick, well within the hole's
+     * reach, the hole opens through to the room above.
      * The wall runs up over the bay rather than across it, since the bay is
      * six blocks deep and a wall twenty long across it stands in the next
      * test's bay, and the world's floor lies too near beneath it.
@@ -385,12 +386,12 @@ public final class WormholeTests {
         ServerPlayer caster = caster(helper);
         throwAt(caster, helper.absolutePos(STRUCK), Direction.NORTH);
         helper.runAfterDelay(LANDED, () -> standAt(helper, caster, IN_THE_MOUTH));
-        helper.runAfterDelay(LANDED + LIFETIME + STEP, () -> {
+        helper.runAfterDelay(LANDED + lifetime(helper) + STEP, () -> {
             helper.assertTrue(holeStruckAt(helper, STRUCK).isPresent(), "A hole with a body in its mouth should stay "
                     + "open past its time");
             standAt(helper, caster, START);
         });
-        helper.runAfterDelay(LANDED + LIFETIME + STEP + STEP, () -> {
+        helper.runAfterDelay(LANDED + lifetime(helper) + STEP + STEP, () -> {
             helper.assertTrue(holeStruckAt(helper, STRUCK).isEmpty(), "A hole past its time should close once the "
                     + "body steps clear");
             helper.getLevel().getServer().getPlayerList().remove(caster);
@@ -585,9 +586,7 @@ public final class WormholeTests {
     private static final Vec3 SUNK_IN_THE_FLOOR = new Vec3(2.5, FLOOR_Y, 2.5);
     /** Where feet come out, in the one-block cell beneath the floor. */
     private static final Vec3 IN_THE_CELL_BELOW = new Vec3(2.5, FLOOR_Y - 1, 2.5);
-    /** How many cells past the struck block a hole's scan runs, as quantum_tunnel.json reads. */
-    private static final int HOLE_REACH = 32;
-    /** A wall thicker than sixteen blocks and thinner than thirty-two. */
+    /** A wall twenty blocks thick, well within the hole's reach. */
     private static final int THICK_WALL = 20;
     /** How tall the room over the thick ceiling stands, room for a body to come out. */
     private static final int ROOM_ABOVE = 3;
@@ -607,6 +606,27 @@ public final class WormholeTests {
         }
     }
 
+    /** The live tunnel's wormhole step, whose reach and lifetime the tests below read rather than copy. */
+    private static WormholeStep wormhole(GameTestHelper helper) {
+        return AbilityRegistry.of(helper.getLevel()).getAbility(QUANTUM_TUNNEL).behaviors().stream()
+                .filter(WormholeStep.class::isInstance).map(WormholeStep.class::cast).findFirst().orElseThrow();
+    }
+
+    /** The tunnel's cost, which the caster holds exactly. */
+    private static int holeCost(GameTestHelper helper) {
+        return AbilityRegistry.of(helper.getLevel()).getAbility(QUANTUM_TUNNEL).cost().in(GooValueTable.EMPTY);
+    }
+
+    /** The ticks the mouths stand open before they close. */
+    private static int lifetime(GameTestHelper helper) {
+        return wormhole(helper).lifetime().evaluateInt(Variables.NONE);
+    }
+
+    /** How far through a wall the hole reaches. */
+    private static int holeReach(GameTestHelper helper) {
+        return wormhole(helper).reach().evaluateInt(Variables.NONE);
+    }
+
     /** A survival Quantum caster holding the hole's cost exactly and knowing the hole. */
     private static ServerPlayer caster(GameTestHelper helper) {
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
@@ -614,7 +634,7 @@ public final class WormholeTests {
         caster.connection.markClientLoaded();
         caster.getInventory().clearContent();
         caster.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
-        caster.getInventory().add(GooStacks.createForOutput(GooTypes.QUANTUM, HOLE_COST));
+        caster.getInventory().add(GooStacks.createForOutput(GooTypes.QUANTUM, holeCost(helper)));
         KnownRecipes.teachRequires(caster, AbilityRegistry.of(caster.level()).getAbility(QUANTUM_TUNNEL));
         caster.snapTo(helper.absoluteVec(START));
         return caster;

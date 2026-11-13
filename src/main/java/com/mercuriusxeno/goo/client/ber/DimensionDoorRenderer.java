@@ -1,35 +1,37 @@
 package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.block.outsider.DimensionDoorBlockEntity;
+import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Draws a room doorway cell's share of the doorway as the End portal's
- * starfield: a flat quad filling the cell east to west in the plane through
- * its middle, where the swirling sheet stood, seen from either side. The
- * doorway's two cells together stand the one wide, two tall doorway the
- * conjured door opens into, and the shader's screen-space starfield reads
- * them as one rectangle.
- * decision room-door-wears-the-end-portal-starfield
+ * Draws a room doorway cell as a full cube of the sky funnel's window into
+ * space, every face seen from either side at full brightness, so the
+ * doorway's two cells stand the one by one by two cuboid of portal the
+ * funnel rises from, and the door and the funnel read as one material where
+ * they meet.
+ * decision sky-funnel-points-down-to-the-doorway-from-any-distance
  */
 public class DimensionDoorRenderer implements BlockEntityRenderer<DimensionDoorBlockEntity, BlockEntityRenderState> {
 
-    /** The plane through the cell's middle, running east to west. */
-    private static final float MIDDLE = 0.5f;
-    /** The cell's face in that plane, in order around the quad. */
-    private static final Vector3f[] FACE = {
-        new Vector3f(0, 0, MIDDLE), new Vector3f(1, 0, MIDDLE), new Vector3f(1, 1, MIDDLE),
-        new Vector3f(0, 1, MIDDLE)};
+    /** The cube's six faces, each four corners in order round it. */
+    private static final Vector3f[][] FACES = {
+        {new Vector3f(0, 0, 0), new Vector3f(0, 1, 0), new Vector3f(0, 1, 1), new Vector3f(0, 0, 1)},
+        {new Vector3f(1, 0, 0), new Vector3f(1, 0, 1), new Vector3f(1, 1, 1), new Vector3f(1, 1, 0)},
+        {new Vector3f(0, 0, 0), new Vector3f(0, 0, 1), new Vector3f(1, 0, 1), new Vector3f(1, 0, 0)},
+        {new Vector3f(0, 1, 0), new Vector3f(1, 1, 0), new Vector3f(1, 1, 1), new Vector3f(0, 1, 1)},
+        {new Vector3f(0, 0, 0), new Vector3f(1, 0, 0), new Vector3f(1, 1, 0), new Vector3f(0, 1, 0)},
+        {new Vector3f(0, 0, 1), new Vector3f(0, 1, 1), new Vector3f(1, 1, 1), new Vector3f(1, 0, 1)}};
 
     /**
      * Creates the doorway renderer.
@@ -54,13 +56,27 @@ public class DimensionDoorRenderer implements BlockEntityRenderer<DimensionDoorB
     @Override
     public void submit(BlockEntityRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector,
                        CameraRenderState camera) {
-        nodeCollector.submitCustomGeometry(poseStack, RenderTypes.endPortal(), (pose, buffer) -> {
-            for (Vector3f corner : FACE) {
-                buffer.addVertex(pose, corner);
-            }
-            for (int index = FACE.length - 1; index >= 0; index--) {
-                buffer.addVertex(pose, FACE[index]);
+        nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.SKY_FUNNEL_TYPE, (pose, buffer) -> {
+            for (Vector3f[] corners : FACES) {
+                for (Vector3f corner : corners) {
+                    addCorner(buffer, pose, corner);
+                }
+                for (int index = corners.length - 1; index >= 0; index--) {
+                    addCorner(buffer, pose, corners[index]);
+                }
             }
         });
+    }
+
+    /**
+     * Writes one corner of a face at full brightness; the shader reads its
+     * stars by the direction the corner is seen through.
+     *
+     * @param buffer the doorway's vertex consumer
+     * @param pose   the cell's pose
+     * @param corner the corner within the cell
+     */
+    private static void addCorner(VertexConsumer buffer, PoseStack.Pose pose, Vector3f corner) {
+        buffer.addVertex(pose, corner).setColor(1F, 1F, 1F, 1F);
     }
 }

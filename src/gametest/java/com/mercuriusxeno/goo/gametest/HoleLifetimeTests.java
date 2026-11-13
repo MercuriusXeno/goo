@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.gametest;
 
+import com.mercuriusxeno.goo.ability.hole.HoleOpening;
 import com.mercuriusxeno.goo.ability.hole.PortableHoles;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -14,11 +15,13 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * Gametests for how long Void's hole stands: 200 ticks when nothing is thrown
- * in, and each item it swallows raises the time left to 100 ticks when less
- * remains and leaves it be when more remains. Each test watches the hole every
- * tick from the tick it is first seen standing, so a check one tick either side
- * of a closing reads the closing itself, not the throw's flight.
+ * Gametests for how long Void's hole stands: a cast hole closes on its own
+ * once its time runs out, and each item a hole swallows raises the time left
+ * to its refresh when less remains and leaves it be when more remains. The
+ * swallow tests open their hole uncast, with this suite's own lifetime and
+ * refresh, so their timings read no number the ability gives. Each test
+ * watches the hole every tick from the tick it is first seen standing, so a
+ * check one tick either side of a closing reads the closing itself.
  * decision hole-holds-twelve-seconds-and-each-throw-in-floors-six
  */
 @RegistersGameTests
@@ -27,14 +30,18 @@ public final class HoleLifetimeTests {
     private static final String STANDS_ITS_LIFETIME = "hole_stands_its_lifetime";
     private static final String LATE_SWALLOW_FLOORS_TIME_LEFT = "hole_late_swallow_floors_time_left";
     private static final String EARLY_SWALLOW_CHANGES_NOTHING = "hole_early_swallow_changes_nothing";
+    /** The ticks an uncast hole stands untouched, this suite's own. */
+    private static final int OWN_LIFETIME = 120;
+    /** The ticks left a swallow raises an uncast hole's time left to, this suite's own. */
+    private static final int OWN_REFRESH = 60;
     /** The hole's age a late item falls in at, with less than the refresh left. */
-    private static final int LATE_DROP_AGE = 160;
+    private static final int LATE_DROP_AGE = 100;
     /** The hole's age a late-fed hole is checked still standing at, past its untouched lifetime. */
-    private static final int LATE_CHECK_AGE = 250;
+    private static final int LATE_CHECK_AGE = 140;
     /** The hole's age an early item falls in at, with more than the refresh left. */
     private static final int EARLY_DROP_AGE = 20;
     /** Ticks after the last check the test ends, so every check has its tick watched. */
-    private static final int WATCH_PAST = 10;
+    private static final int WATCH_PAST = 20;
 
     private HoleLifetimeTests() {
     }
@@ -53,50 +60,55 @@ public final class HoleLifetimeTests {
     }
 
     /**
-     * A hole nothing is thrown into stands at tick 199 of its life and is gone
-     * after tick 200.
+     * A cast hole nothing is thrown into stands, then closes on its own once
+     * its time runs out.
      *
      * @param helper the gametest helper
      */
     public static void standsItsLifetime(GameTestHelper helper) {
-        HoleWatch watch = watchACast(helper, -1);
-        helper.runAfterDelay(HoleTests.LANDED + HoleTests.LIFETIME + WATCH_PAST, () -> {
+        ServerPlayer caster = HoleTests.caster(helper, 1);
+        HoleTests.castAt(caster, helper.absolutePos(HoleTests.FLOOR), Direction.UP);
+        HoleWatch watch = new HoleWatch(caster);
+        helper.onEachTick(() -> watch.observe(helper, -1));
+        helper.succeedWhen(() -> {
+            helper.assertTrue(watch.firstSeen >= 0, "The cast hole should stand");
+            helper.assertTrue(PortableHoles.of(caster.getUUID()).isEmpty(),
+                    "The untouched hole should close on its own once its time runs out");
             watch.release(helper);
-            assertStandsThenGone(helper, watch, watch.firstSeen + HoleTests.LIFETIME, "untouched");
-            helper.succeed();
         });
     }
 
     /**
-     * An item swallowed at tick 160, with 40 ticks left, raises the time left to
-     * 100: the hole stands at tick 250 and is gone 100 ticks after the swallow.
+     * An item swallowed at tick 100 of a 120-tick hole, with 20 ticks left,
+     * raises the time left to the refresh of 60: the hole stands at tick 140
+     * and is gone 60 ticks after the swallow.
      *
      * @param helper the gametest helper
      */
     public static void lateSwallowFloorsTimeLeft(GameTestHelper helper) {
-        HoleWatch watch = watchACast(helper, LATE_DROP_AGE);
-        helper.runAfterDelay(HoleTests.LANDED + LATE_DROP_AGE + HoleTests.REFRESH + WATCH_PAST, () -> {
+        HoleWatch watch = watchAnOpening(helper, LATE_DROP_AGE);
+        helper.runAfterDelay(LATE_DROP_AGE + OWN_REFRESH + WATCH_PAST, () -> {
             watch.release(helper);
             helper.assertTrue(watch.swallowedAt > 0, "The item dropped into the mouth should be swallowed");
             helper.assertTrue(watch.standsAt(watch.firstSeen + LATE_CHECK_AGE),
                     "The hole fed at tick " + LATE_DROP_AGE + " should stand at tick " + LATE_CHECK_AGE);
-            assertStandsThenGone(helper, watch, watch.swallowedAt + HoleTests.REFRESH, "fed late");
+            assertStandsThenGone(helper, watch, watch.swallowedAt + OWN_REFRESH, "fed late");
             helper.succeed();
         });
     }
 
     /**
-     * An item swallowed at tick 20, with 180 ticks left, changes nothing: the
-     * hole is gone after tick 200 as an untouched hole is.
+     * An item swallowed at tick 20 of a 120-tick hole, with 100 ticks left,
+     * changes nothing: the hole is gone after tick 120 as an untouched hole is.
      *
      * @param helper the gametest helper
      */
     public static void earlySwallowChangesNothing(GameTestHelper helper) {
-        HoleWatch watch = watchACast(helper, EARLY_DROP_AGE);
-        helper.runAfterDelay(HoleTests.LANDED + HoleTests.LIFETIME + WATCH_PAST, () -> {
+        HoleWatch watch = watchAnOpening(helper, EARLY_DROP_AGE);
+        helper.runAfterDelay(OWN_LIFETIME + WATCH_PAST, () -> {
             watch.release(helper);
             helper.assertTrue(watch.swallowedAt > 0, "The item dropped into the mouth should be swallowed");
-            assertStandsThenGone(helper, watch, watch.firstSeen + HoleTests.LIFETIME, "fed early");
+            assertStandsThenGone(helper, watch, watch.firstSeen + OWN_LIFETIME, "fed early");
             helper.succeed();
         });
     }
@@ -114,14 +126,16 @@ public final class HoleLifetimeTests {
     }
 
     /**
-     * Casts a hole on the floor and watches it every tick, dropping an item
-     * into its mouth at an age when one is asked for.
+     * Opens a hole uncast on the floor with this suite's own lifetime and
+     * refresh and watches it every tick, dropping an item into its mouth at
+     * the age asked for.
      *
-     * @param dropAge the hole's age an item falls in at, negative for none
+     * @param dropAge the hole's age an item falls in at
      */
-    private static HoleWatch watchACast(GameTestHelper helper, int dropAge) {
+    private static HoleWatch watchAnOpening(GameTestHelper helper, int dropAge) {
         ServerPlayer caster = HoleTests.caster(helper, 1);
-        HoleTests.castAt(caster, helper.absolutePos(HoleTests.FLOOR), Direction.UP);
+        HoleOpening.open(helper.getLevel(), caster, helper.absolutePos(HoleTests.FLOOR), Direction.UP, OWN_LIFETIME,
+                OWN_REFRESH);
         HoleWatch watch = new HoleWatch(caster);
         helper.onEachTick(() -> watch.observe(helper, dropAge));
         return watch;

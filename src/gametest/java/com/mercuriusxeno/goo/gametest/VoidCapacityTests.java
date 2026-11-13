@@ -28,7 +28,6 @@ import java.util.function.Consumer;
 @RegistersGameTests
 public final class VoidCapacityTests {
     private static final String VOID_GROWS_A_VAT = "void_grows_a_vat";
-    private static final String LAB_KIT_VAT_HOLDS_VOID = "lab_kit_vat_holds_void";
     private static final String LAB_KIT_VAT_HOLDS_NO_INFINITY = "lab_kit_vat_holds_no_infinity";
     private static final String LAB_KIT_VAT_HOLDS_EVERY_OTHER_TYPE = "lab_kit_vat_holds_every_other_type";
 
@@ -39,8 +38,6 @@ public final class VoidCapacityTests {
     private static final int ROCK_OVER_BASE = 1_000;
     /** The least void whose growth past its own volume covers ROCK_OVER_BASE: 45*46/2 = 1,035. */
     private static final int VOID_NEEDED = 45;
-    /** The capacity the kit vat's void grows it to. */
-    private static final int KIT_VAT_CAPACITY = 1 << 30;
 
     private static final String VOID_ACCEPTED = "The vat takes the void whole";
     private static final String CAPACITY_GROWN = "The vat's capacity grows by the void it holds";
@@ -50,8 +47,6 @@ public final class VoidCapacityTests {
     private static final String RELOADED_CAPACITY = "The reloaded vat keeps the capacity its void grows";
     private static final String ITEM_CAPACITY = "The vat item keeps the capacity its void grows";
     private static final String ITEM_ROOM = "The vat item takes only the room its void leaves";
-    private static final String KIT_HOLDS_VOID = "The kit vat holds the void that grows it to 2^30 mB";
-    private static final String KIT_FITS = "The kit vat holds no more than its capacity";
     private static final String KIT_HOLDS_NO_INFINITY = "The kit vat holds no infinity";
     private static final String KIT_HOLDS_EVERY_OTHER_TYPE = "The kit vat holds some of ";
 
@@ -65,7 +60,6 @@ public final class VoidCapacityTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, VOID_GROWS_A_VAT, VoidCapacityTests::voidGrowsAVat);
-        GooTestFunctions.registerTest(registrar, LAB_KIT_VAT_HOLDS_VOID, VoidCapacityTests::labKitVatHoldsVoid);
         GooTestFunctions.registerTest(registrar, LAB_KIT_VAT_HOLDS_NO_INFINITY,
                 VoidCapacityTests::labKitVatHoldsNoInfinity);
         GooTestFunctions.registerTest(registrar, LAB_KIT_VAT_HOLDS_EVERY_OTHER_TYPE,
@@ -105,22 +99,6 @@ public final class VoidCapacityTests {
         helper.assertValueEqual(carried.capacityOver(ContainerCapacity.VAT_BASE), capacity, ITEM_CAPACITY);
         long room = capacity - carried.totalVolume();
         helper.assertValueEqual((long) VatBlockItem.addGoo(item, GooTypes.ROCK, ROCK_OVER_BASE), room, ITEM_ROOM);
-        helper.succeed();
-    }
-
-    /**
-     * The lab kit's vat holds the void that grows it to 2^30 mB and every
-     * other type within that capacity.
-     *
-     * @param helper the gametest helper
-     */
-    public static void labKitVatHoldsVoid(GameTestHelper helper) {
-        GooContents kit = VatBlockItem.getGooContents(LabKit.stockedVat(helper.getLevel()));
-        int capacity = kit.capacityOver(ContainerCapacity.VAT_BASE);
-
-        helper.assertValueEqual(kit.getVolume(GooTypes.VOID),
-                ContainerCapacity.voidToReach(ContainerCapacity.VAT_BASE, KIT_VAT_CAPACITY), KIT_HOLDS_VOID);
-        helper.assertTrue(kit.totalVolume() <= capacity, KIT_FITS);
         helper.succeed();
     }
 

@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
@@ -60,7 +61,7 @@ public record CalcifyStep(Identifier map, int ticks) implements TakesNoEntity {
     public boolean tick(StepContext context) {
         ChannelHost host = context.hostAs(ChannelHost.class);
         Optional<BlockMap> steps = BlockMaps.get(map);
-        host.channelAim().ifPresent(aim -> steps.ifPresent(found -> calcifyCone(host, aim, found, 1f / ticks)));
+        host.channelAim().ifPresent(aim -> steps.ifPresent(found -> calcifyCone(host, aim, found::next, 1f / ticks)));
         return true;
     }
 
@@ -71,10 +72,10 @@ public record CalcifyStep(Identifier map, int ticks) implements TakesNoEntity {
      *
      * @param host  the channel host
      * @param aim   the stream's aim, its reach along the look
-     * @param steps the block map
+     * @param steps the block map's next rung for a block, empty at its top
      * @param rate  the share one tick of fog builds
      */
-    private static void calcifyCone(ChannelHost host, ChannelAim aim, BlockMap steps, float rate) {
+    static void calcifyCone(ChannelHost host, ChannelAim aim, Function<Block, Optional<Block>> steps, float rate) {
         HoldMarks marks = host.holdMarks();
         for (BlockPos pos : blocksInCone(host.eye(), aim.aimPoint(), aim.coneDegrees())) {
             Optional<Block> next = nextRung(host, steps, marks, pos);
@@ -89,17 +90,18 @@ public record CalcifyStep(Identifier map, int ticks) implements TakesNoEntity {
      * The rung a fogged position builds toward this tick.
      *
      * @param host  the channel host
-     * @param steps the block map
+     * @param steps the block map's next rung for a block, empty at its top
      * @param marks the hold's marks
      * @param pos   the block
      * @return the next rung, or empty where the position is air, faces no air,
      *         tops the map or was stepped this hold
      */
-    private static Optional<Block> nextRung(ChannelHost host, BlockMap steps, HoldMarks marks, BlockPos pos) {
+    private static Optional<Block> nextRung(ChannelHost host, Function<Block, Optional<Block>> steps, HoldMarks marks,
+                                            BlockPos pos) {
         if (host.airAt(pos) || marks.stepped(pos) || !facesAir(host, pos)) {
             return Optional.empty();
         }
-        return steps.next(host.blockAt(pos));
+        return steps.apply(host.blockAt(pos));
     }
 
     /**

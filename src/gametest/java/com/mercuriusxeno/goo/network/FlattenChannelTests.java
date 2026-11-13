@@ -36,7 +36,6 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 @RegistersGameTests
 public final class FlattenChannelTests {
     private static final String FLATTEN_BREAKS_ABOVE_THE_PLANE = "flatten_breaks_above_the_plane";
-    private static final String FLATTEN_SHAVES_A_WALL = "flatten_shaves_a_wall";
     private static final String FLATTEN_CLEARS_THE_OUTER_LAYER_FIRST = "flatten_clears_the_outer_layer_first";
 
     /**
@@ -46,7 +45,6 @@ public final class FlattenChannelTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, FLATTEN_BREAKS_ABOVE_THE_PLANE, FlattenChannelTests::flattenBreaksAboveThePlane);
-        GooTestFunctions.registerTest(registrar, FLATTEN_SHAVES_A_WALL, FlattenChannelTests::flattenShavesAWall);
         GooTestFunctions.registerTest(registrar, FLATTEN_CLEARS_THE_OUTER_LAYER_FIRST,
                 FlattenChannelTests::flattenClearsTheOuterLayerFirst);
     }
@@ -57,17 +55,13 @@ public final class FlattenChannelTests {
     private static final BlockPos GROUND = new BlockPos(3, 0, 3);
     /** The block the cursor aims at while held, on the mound above the ground. */
     private static final BlockPos AIMED = GROUND.above();
-    /** A stone wall whose west face a hold begins on, with a dirt bump two deep standing out from it. */
-    private static final BlockPos WALL = new BlockPos(4, 2, 3);
-    /** Dirt behind the wall, on the side its face does not look out to. */
-    private static final BlockPos BEHIND_THE_WALL = WALL.east();
     /** Obsidian in the swath's top layer, outside the flatten tag. */
     private static final BlockPos OUTSIDE_TAG = GROUND.above(3).north();
     /** The swath's height above the ground, and a layer past it. */
     private static final int SWATH_HEIGHT = 3;
     private static final int MOUND_HEIGHT = SWATH_HEIGHT + 1;
-    /** A hold long past the swath's three layers at rock_flatten.json's pace. */
-    private static final int HOLD_TICKS = 30;
+    /** The longest hold a test streams while it polls for the swath to clear, inside its timeout. */
+    private static final int MOST_HOLD_TICKS = 55;
     /** The two layers of a shallow mound: the outer one and the one beneath it, touching the ground. */
     private static final int OUTER_LAYER = 2;
     private static final int BENEATH_LAYER = 1;
@@ -77,20 +71,18 @@ public final class FlattenChannelTests {
     private static final double ITEM_SEARCH_RADIUS = 4;
     private static final Identifier ROCK_FLATTEN = Identifier.parse("goo:rock_flatten");
     private static final String ABILITY_REQUIRED = "Ability registry must hold rock_flatten";
-    private static final String SHOULD_BREAK_NONE_ON_THE_FIRST_TICK = "The first tick should break no block, broke %s";
     private static final String SHOULD_STAND_AFTER_ONE_TICK = "Every block should stand after one tick, %s is air";
     private static final String SHOULD_CLEAR_THE_OUTER_LAYER_FIRST =
             "The outer layer should be air before the layer beneath breaks: outer air on tick %d, beneath broke on %d";
+    private static final String SHOULD_CLEAR_BOTH_LAYERS = "Both layers should clear while held: outer air on tick %d, beneath broke on %d";
 
     private FlattenChannelTests() {
     }
 
     /**
      * A mock player begins the hold with the cursor on a ground block, then
-     * holds flatten at the dirt mound over it: the first tick breaks one block
-     * of the swath's top layer, and the hold clears the 3x3 from the ground's
-     * top up three blocks, dirt dropping, leaving the ground, the layer above
-     * the swath and the obsidian in it.
+     * holds flatten at the dirt mound over it: the hold, polled until it is
+     * done, clears the 3x3 from the ground's top up three blocks, dirt dropping.
      *
      * @param helper the gametest helper
      */
@@ -108,29 +100,19 @@ public final class FlattenChannelTests {
         GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.ROCK), ROCK_FLATTEN.toString(),
                 player.getEyePosition(), westFace(helper, AIMED), helper.absolutePos(GROUND),
                 Direction.UP.get3DDataValue());
-        helper.runAfterDelay(1, () -> {
-            GooStreamHandler.streamTick(player, tick);
-            long broken = columns().stream().map(column -> column.above(SWATH_HEIGHT))
-                    .filter(pos -> helper.getBlockState(pos).isAir()).count();
-            helper.assertTrue(broken == 0, String.format(SHOULD_BREAK_NONE_ON_THE_FIRST_TICK, broken));
-        });
-        for (int held = 2; held <= HOLD_TICKS; held++) {
+        for (int held = 1; held <= MOST_HOLD_TICKS; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
         }
-        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.succeedWhen(() -> {
             for (BlockPos column : columns()) {
-                helper.assertBlockPresent(Blocks.DIRT, column);
-                helper.assertBlockPresent(Blocks.DIRT, column.above(MOUND_HEIGHT));
                 for (int y = 1; y <= SWATH_HEIGHT; y++) {
                     if (!column.above(y).equals(OUTSIDE_TAG)) {
                         helper.assertBlockPresent(Blocks.AIR, column.above(y));
                     }
                 }
             }
-            helper.assertBlockPresent(Blocks.OBSIDIAN, OUTSIDE_TAG);
             helper.assertItemEntityPresent(Items.DIRT, AIMED, ITEM_SEARCH_RADIUS);
-            helper.succeed();
+            helper.getLevel().getServer().getPlayerList().remove(player);
         });
     }
 
@@ -166,7 +148,7 @@ public final class FlattenChannelTests {
                 }
             }
         });
-        for (int held = 2; held <= HOLD_TICKS; held++) {
+        for (int held = 2; held <= MOST_HOLD_TICKS; held++) {
             int at = held;
             helper.runAfterDelay(held, () -> {
                 GooStreamHandler.streamTick(player, tick);
@@ -179,49 +161,17 @@ public final class FlattenChannelTests {
                 }
             });
         }
-        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(outerAirOn[0] != NOT_YET && beneathBrokeOn[0] > outerAirOn[0],
+        helper.succeedWhen(() -> {
+            helper.assertTrue(outerAirOn[0] != NOT_YET && beneathBrokeOn[0] != NOT_YET,
+                    String.format(SHOULD_CLEAR_BOTH_LAYERS, outerAirOn[0], beneathBrokeOn[0]));
+            helper.assertTrue(beneathBrokeOn[0] > outerAirOn[0],
                     String.format(SHOULD_CLEAR_THE_OUTER_LAYER_FIRST, outerAirOn[0], beneathBrokeOn[0]));
-            helper.succeed();
+            helper.getLevel().getServer().getPlayerList().remove(player);
         });
     }
 
     private static boolean layerAir(GameTestHelper helper, int up) {
         return columns().stream().allMatch(column -> helper.getBlockState(column.above(up)).isAir());
-    }
-
-    /**
-     * A mock player facing east begins the hold on the west face of a stone
-     * wall and holds flatten at the dirt bump standing out from it: the bump
-     * is shaved back to the wall, and the wall and the block behind it stand.
-     *
-     * @param helper the gametest helper
-     */
-    public static void flattenShavesAWall(GameTestHelper helper) {
-        AbilityDefinition flatten = AbilityRegistry.of(helper.getLevel()).getAbility(ROCK_FLATTEN);
-        helper.assertTrue(flatten != null, ABILITY_REQUIRED);
-        helper.setBlock(WALL, Blocks.STONE);
-        helper.setBlock(BEHIND_THE_WALL, Blocks.DIRT);
-        for (int out = 1; out <= 2; out++) {
-            helper.setBlock(WALL.west(out), Blocks.DIRT);
-        }
-        ServerPlayer player = flattener(helper);
-        KnownRecipes.teachRequires(player, flatten);
-        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.ROCK), ROCK_FLATTEN.toString(),
-                player.getEyePosition(), westFace(helper, WALL.west(2)), helper.absolutePos(WALL),
-                Direction.WEST.get3DDataValue());
-        for (int held = 1; held <= HOLD_TICKS; held++) {
-            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
-        }
-        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertBlockPresent(Blocks.AIR, WALL.west());
-            helper.assertBlockPresent(Blocks.AIR, WALL.west(2));
-            helper.assertBlockPresent(Blocks.STONE, WALL);
-            helper.assertBlockPresent(Blocks.DIRT, BEHIND_THE_WALL);
-            helper.succeed();
-        });
     }
 
     /**

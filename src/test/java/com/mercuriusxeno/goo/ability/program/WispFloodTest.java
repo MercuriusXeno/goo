@@ -4,21 +4,20 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
 import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.function.Predicate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * WispFlood: the flood lights the cells nearest the eyes first, within a
- * tick's budget, keeps every placed wisp out of another's light and clear
- * of the eyes, passes only through open cells, places only where the eyes
- * see, stops at its range, and picks its dark cells by a roll under the
- * density, so two rolls light two scatters.
+ * tick's budget, reckons a placed wisp's light out to its lit steps,
+ * passes only through open cells, places only where the eyes
+ * see, stops at its range, and picks a dark, sighted cell on a roll under
+ * the density, so the wisps scatter at random among the dark.
  * decision radiant-wisps-where-light-is-low
  * decision radiant-scatters-wisps-at-random-among-the-dark
  */
@@ -32,6 +31,7 @@ class WispFloodTest {
     /** Every test that leaves the density at one rolls this, which then decides nothing. */
     private static final RandomSource ROLL = RandomSource.create(0L);
     private static final double HALF_THE_DARK = 0.5;
+    private static final double ROLL_UNDER_HALF = 0.25;
 
     @Test
     void theFirstTickLightsTheCellsNearestTheEyes() {
@@ -43,16 +43,14 @@ class WispFloodTest {
     }
 
     @Test
-    void noWispSitsInAnotherWispsLightNorAtTheEyes() {
-        Grid grid = new Grid(WispFloodTest::inTheRoom, cell -> true);
-        new WispFlood(EYES, RANGE, 0).walk(TICK_BUDGET * 3, grid, ROLL);
-        for (BlockPos wisp : grid.placed) {
-            assertTrue(wisp.distManhattan(EYES) > WispFlood.CLEAR_OF_THE_EYES, wisp + " sits at the eyes");
-            for (BlockPos other : grid.placed) {
-                assertTrue(wisp.equals(other) || wisp.distManhattan(other) > WispFlood.LIT_STEPS,
-                        wisp + " sits in the light of " + other);
-            }
-        }
+    void aPlacedWispLightsTheCellsWithinItsLitStepsAndNoFurther() {
+        BlockPos wisp = EYES.east(ROOM_HALF - 1);
+        WispFlood flood = new WispFlood(EYES, RANGE, 0);
+        flood.walk(TICK_BUDGET * 3, new Grid(WispFloodTest::inTheRoom, wisp::equals), ROLL);
+
+        assertEquals(List.of(wisp), flood.placed());
+        assertEquals(true, flood.litByThisFlood(wisp.west(WispFlood.LIT_STEPS)));
+        assertEquals(false, flood.litByThisFlood(wisp.west(WispFlood.LIT_STEPS + 1)));
     }
 
     @Test
@@ -133,42 +131,12 @@ class WispFloodTest {
     }
 
     @Test
-    void twoRollsPickTwoScattersAmongTheDarkCells() {
-        Grid grid = new Grid(WispFloodTest::inTheRoom, cell -> true);
-        Set<BlockPos> dark = new HashSet<>();
-        BlockPos.betweenClosed(-ROOM_HALF, -ROOM_HALF, -ROOM_HALF, ROOM_HALF, ROOM_HALF, ROOM_HALF)
-                .forEach(cell -> dark.add(cell.immutable()));
-        Set<BlockPos> first = picked(dark, grid, RandomSource.create(1L));
-        Set<BlockPos> second = picked(dark, grid, RandomSource.create(2L));
-        assertNotEquals(first, second, "Two rolls should pick two different scatters");
-        for (Set<BlockPos> scatter : List.of(first, second)) {
-            assertFalse(scatter.isEmpty(), "A roll at half should pick some dark cells");
-            assertTrue(dark.containsAll(scatter) && scatter.size() < dark.size(),
-                    "A roll should pick some of the dark cells and leave the rest");
-        }
-    }
+    void aDarkSightedCellIsPickedOnARollUnderTheDensity() {
+        RandomSource roll = mock(RandomSource.class);
+        when(roll.nextDouble()).thenReturn(ROLL_UNDER_HALF);
 
-    @Test
-    void twoRollsFloodTwoScattersThroughTheRoom() {
-        Grid firstGrid = new Grid(WispFloodTest::inTheRoom, cell -> true);
-        Grid secondGrid = new Grid(WispFloodTest::inTheRoom, cell -> true);
-        new WispFlood(EYES, RANGE, 0, WispFlood.LIT_STEPS, HALF_THE_DARK)
-                .walk(TICK_BUDGET * 3, firstGrid, RandomSource.create(1L));
-        new WispFlood(EYES, RANGE, 0, WispFlood.LIT_STEPS, HALF_THE_DARK)
-                .walk(TICK_BUDGET * 3, secondGrid, RandomSource.create(2L));
-        assertFalse(firstGrid.placed.isEmpty(), "The flood should still light the room");
-        assertNotEquals(Set.copyOf(firstGrid.placed), Set.copyOf(secondGrid.placed),
-                "Two rolls should flood two different scatters");
-    }
-
-    private static Set<BlockPos> picked(Set<BlockPos> dark, WispFlood.Cells cells, RandomSource random) {
-        Set<BlockPos> picked = new HashSet<>();
-        for (BlockPos cell : dark) {
-            if (WispFlood.picks(cell, cells, random, HALF_THE_DARK)) {
-                picked.add(cell);
-            }
-        }
-        return picked;
+        assertTrue(WispFlood.picks(EYES.east(5), new Grid(WispFloodTest::inTheRoom, cell -> true), roll,
+                HALF_THE_DARK));
     }
 
     private static boolean inTheRoom(BlockPos cell) {

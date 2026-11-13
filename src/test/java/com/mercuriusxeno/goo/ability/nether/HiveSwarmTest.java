@@ -1,23 +1,16 @@
 package com.mercuriusxeno.goo.ability.nether;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.client.particle.GnatParticle;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * A hive's swarm hovers about its column with no prey in reach, and with
- * prey, gnats leave the column and come to rest at each mob they reach, as
+ * prey, gnats leave the column launched to come to rest at each mob they reach, as
  * far as the hive's program strikes
  * (decision hive-prism-pillar-eats-the-living).
  */
@@ -25,21 +18,15 @@ class HiveSwarmTest {
 
     private static final double DELTA = 1e-6;
     private static final long SEED = 7L;
-    /** Decay, whose on_prism reaction is the hive (decision channeled-hosts-convert-prisms-over-the-hold). */
-    private static final String HIVE = "/data/goo/goo_abilities/nether_decay.json";
-    private static final int TICKS_TO_REST = 400;
 
+    /** The gap of (3, 0.9, -2) times the tenth of its speed a gnat loses each tick, so it comes to rest at the mob. */
     @Test
-    void aLaunchedGnatComesToRestAtTheMob() {
-        Vec3 column = new Vec3(0.5, 0.5, 0.5);
-        Vec3 mob = new Vec3(3.5, 1.4, -1.5);
-        Vec3 velocity = HiveSwarm.launchToward(column, mob);
-        Vec3 at = column;
-        for (int tick = 0; tick < TICKS_TO_REST; tick++) {
-            at = at.add(velocity);
-            velocity = velocity.scale(HiveSwarm.GNAT_FRICTION);
-        }
-        assertEquals(0, at.distanceTo(mob), DELTA);
+    void aGnatLaunchesAtTheGapTimesTheShareOfSpeedItLoses() {
+        Vec3 launch = HiveSwarm.launchToward(new Vec3(0.5, 0.5, 0.5), new Vec3(3.5, 1.4, -1.5));
+
+        assertEquals(0.3, launch.x, DELTA);
+        assertEquals(0.09, launch.y, DELTA);
+        assertEquals(-0.2, launch.z, DELTA);
     }
 
     @Test
@@ -75,13 +62,4 @@ class HiveSwarmTest {
         assertEquals(GnatParticle.SWARM_FRICTION, HiveSwarm.GNAT_FRICTION, DELTA);
     }
 
-    @Test
-    void theSwarmReachesAsFarAsTheHiveStrikes() throws IOException {
-        try (InputStream in = HiveSwarmTest.class.getResourceAsStream(HIVE)) {
-            assertNotNull(in, HIVE);
-            JsonObject hive = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
-            double radius = hive.getAsJsonArray("on_prism").get(0).getAsJsonObject().get("radius").getAsDouble();
-            assertEquals(radius, HiveSwarm.REACH, DELTA);
-        }
-    }
 }

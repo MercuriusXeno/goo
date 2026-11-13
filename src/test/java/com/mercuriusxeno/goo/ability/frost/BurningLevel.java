@@ -25,7 +25,6 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -97,16 +96,6 @@ public final class BurningLevel implements AutoCloseable {
         assertTrue("block.fire.extinguish".equals(FrostFire.HISS.sound().getPath()));
         verify(level).sendParticles(eq(smoke), eq(at.x()), eq(at.y()), eq(at.z()), eq(FrostFire.SMOKE_COUNT),
                 anyDouble(), anyDouble(), anyDouble(), anyDouble());
-    }
-
-    /**
-     * Asserts a fire block still burns, with no hiss played at it.
-     *
-     * @param pos the fire block
-     */
-    public void assertStillBurning(BlockPos pos) {
-        assertTrue(fire.contains(pos), "the fire at " + pos + " went out");
-        sounds.verify(() -> SoundPlays.play(level, Vec3.atCenterOf(pos), FrostFire.HISS), never());
     }
 
     @Override
