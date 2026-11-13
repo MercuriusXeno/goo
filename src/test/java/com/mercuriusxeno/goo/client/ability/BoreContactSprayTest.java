@@ -56,6 +56,22 @@ class BoreContactSprayTest {
         assertTrue(line[0].y < eye.y, "the trace starts on the line of sight, not where the vortex is held");
     }
 
+    /** Each particle starts on the cone's outside, round its axis at its radius there, and flies out from its place. */
+    @Test
+    void theSpewStartsRoundTheOutsideOfTheCone() {
+        Vec3 contact = new Vec3(0.5, 65.0, 3.0);
+        Vec3 towardHolder = new Vec3(0, 0, -1);
+        double radius = 0.2;
+        for (double around : new double[] {0, 0.25, 0.5, 0.75}) {
+            Vec3 start = BoreContactSpray.spewOrigin(contact, towardHolder, around, radius);
+            Vec3 offset = start.subtract(contact);
+            Vec3 fromAxis = offset.subtract(towardHolder.scale(offset.dot(towardHolder)));
+            assertEquals(radius, fromAxis.length(), 1e-6, "a particle at " + around + " starts off the cone's outside");
+            Vec3 velocity = BoreContactSpray.spewVelocity(towardHolder, around, 1);
+            assertTrue(velocity.dot(fromAxis) > 0, "a particle at " + around + " flies inward, not out from its place");
+        }
+    }
+
     @Test
     void itSpewsEightParticlesATick() {
         assertEquals(8, BoreContactSpray.SPITS_PER_TICK);
