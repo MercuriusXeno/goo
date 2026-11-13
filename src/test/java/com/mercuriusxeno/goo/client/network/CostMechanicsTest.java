@@ -155,9 +155,17 @@ class CostMechanicsTest {
         }
     }
 
+    /**
+     * Every ability paying a plain cost once a throw or by the ticks held; a stream draining on placement prices
+     * what it lays and names its mechanics (decision goop-drains-per-cubic-meter-of-slime-placed).
+     *
+     * @return the abilities
+     */
     static Stream<AbilityDefinition> abilitiesWithAPlainCost() {
         return AbilityJson.files().stream().map(AbilityJson::decode)
-                .filter(definition -> definition.cost().in(GooValueTable.EMPTY) > 0 && definition.distancePrice().equals(DistancePrice.NONE));
+                .filter(definition -> definition.cost().in(GooValueTable.EMPTY) > 0
+                        && definition.distancePrice().equals(DistancePrice.NONE)
+                        && !definition.delivery().drainsOnPlacement());
     }
 
     @ParameterizedTest
