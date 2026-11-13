@@ -297,7 +297,7 @@ public final class OutsiderTests {
     private static final String SHOULD_CONJURE = "A channel toward the pocket should conjure a door at tick %d";
     private static final String SHOULD_STAND_BEFORE = "The door should stand %.1f before the caster's facing, "
             + "stands at %s with the caster at %s facing %.1f";
-    private static final String SHOULD_GROW_DOOR = "The door should grow with the charge, sized %.3f, %.3f, %.3f";
+    private static final String SHOULD_GROW_DOOR = "The door should unzip with the charge, unzipped %.3f, %.3f, %.3f";
     private static final String SHOULD_CONJURE_SOUND = "The conjuring sound should play once, sounds sent %s";
     private static final String SHOULD_ENVELOP = "The full charge's door should envelop the caster at %s, is %s";
     private static final String SHOULD_COLLAPSE = "A channel let go early should leave no door, leaves %s";
@@ -329,12 +329,12 @@ public final class OutsiderTests {
                     Vec3 expected = caster.position().add(facing.scale(DOOR_STANDS_OFF));
                     helper.assertTrue(door.at().distanceTo(expected) < FACING_KEPT, String.format(
                             SHOULD_STAND_BEFORE, DOOR_STANDS_OFF, door.at(), caster.position(), caster.getYRot()));
-                    sizes[0] = door.size();
+                    sizes[0] = door.unzipped();
                     conjuredAt[0] = door.at();
                 }));
-        helper.runAfterDelay(CHARGE_TICKS / 2, () -> sizes[1] = doorOf(helper, caster, CHARGE_TICKS / 2).size());
+        helper.runAfterDelay(CHARGE_TICKS / 2, () -> sizes[1] = doorOf(helper, caster, CHARGE_TICKS / 2).unzipped());
         helper.runAfterDelay(CHARGE_TICKS, () -> {
-            sizes[2] = doorOf(helper, caster, CHARGE_TICKS).size();
+            sizes[2] = doorOf(helper, caster, CHARGE_TICKS).unzipped();
             helper.assertTrue(sizes[0] > 0 && sizes[0] < sizes[1] && sizes[1] < sizes[2],
                     String.format(SHOULD_GROW_DOOR, sizes[0], sizes[1], sizes[2]));
             // Casters in the gametests beside this one conjure within earshot, so only this door's sound counts.
@@ -536,7 +536,7 @@ public final class OutsiderTests {
             Vec3 arrival = arrivalOf(assertEntered(helper, caster));
             Optional<ConjuredDoor> door = ConjuredDoors.releaseOf(caster.getUUID());
             helper.assertTrue(door.filter(standing -> standing.phase() == ConjuredDoor.Phase.RELEASING
-                            && standing.at().distanceTo(arrival) < KEPT && standing.size() == 1).isPresent()
+                            && standing.at().distanceTo(arrival) < KEPT && standing.widened() == 1).isPresent()
                             && caster.level().dimension() == OutsiderRooms.POCKET,
                     String.format(SHOULD_RELEASE, arrival, door, caster.level().dimension().identifier()));
         });
