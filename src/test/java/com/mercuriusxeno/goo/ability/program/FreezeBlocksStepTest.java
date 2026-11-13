@@ -25,8 +25,7 @@ class FreezeBlocksStepTest {
     void theFreezePutsOutTheFireAndTheBurningMobsInItsSphere() {
         Entity burning = BurningLevel.burningAt(1);
         try (BurningLevel world = new BurningLevel(Set.of(FIRE_IN_SPHERE), List.of(burning))) {
-            FrostFireHosts.tickOnce(new FreezeBlocksStep(Expr.literal(RADIUS), false),
-                    FrostFireHosts.frostingFrom(world.level(), CENTER));
+            FreezeBlocksStep.freezeWithin(world.level(), CENTER, RADIUS, false);
 
             world.assertPutOut(FIRE_IN_SPHERE);
             verify(burning).clearFire();

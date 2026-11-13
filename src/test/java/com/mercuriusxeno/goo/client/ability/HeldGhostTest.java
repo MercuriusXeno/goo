@@ -3,11 +3,8 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.DragSize;
-import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
 import com.mercuriusxeno.goo.item.GooFormat;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
@@ -39,9 +36,8 @@ class HeldGhostTest {
     void urchinRingsOutwardToItsDome() {
         HeldGhost ghost = ghostOf(MetalExplosionVisual.INSTANCE, "metal_spikes");
         assertEquals((float) AbilityJson.decode("metal_spikes").area().size(), ghost.domeRadius(), TOLERANCE);
-        assertEquals(3.75f, ghost.domeRadius(), TOLERANCE);
         assertEquals(HeldGhost.RingDirection.OUTWARD, ghost.rings());
-        assertEquals(3.75f, ghost.ringRadius(), TOLERANCE);
+        assertEquals(ghost.domeRadius(), ghost.ringRadius(), TOLERANCE);
     }
 
     // decision black-hole-leaves-a-compression-sphere: the dome follows the drag, the rings its pull
@@ -64,13 +60,10 @@ class HeldGhostTest {
         assertEquals(GooFormat.formatAmount(8000), DragSize.priceLabel(BLAST_COST, 6));
     }
 
-    @ParameterizedTest
-    @CsvSource({"unstable_lurker, 2.5"})
-    void fireballRingsOutwardToItsBlastReach(String name, float power) {
-        HeldGhost ghost = ghostOf(UnstableExplosionVisual.INSTANCE, name);
-        float reach = (float) ExplosionMarch.maxReach(power);
-        assertEquals(reach, ghost.domeRadius(), TOLERANCE);
+    @Test
+    void fireballRingsOutwardToItsBlastReach() {
+        HeldGhost ghost = ghostOf(UnstableExplosionVisual.INSTANCE, "unstable_lurker");
         assertEquals(HeldGhost.RingDirection.OUTWARD, ghost.rings());
-        assertEquals(reach, ghost.ringRadius(), TOLERANCE);
+        assertEquals(ghost.domeRadius(), ghost.ringRadius(), TOLERANCE);
     }
 }

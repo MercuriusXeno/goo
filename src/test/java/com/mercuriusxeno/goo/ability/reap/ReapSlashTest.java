@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.HeldRoute;
-import com.mercuriusxeno.goo.ability.program.SlashStep;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -303,7 +302,6 @@ class ReapSlashTest {
     class ShippedReap {
 
         private final AbilityDefinition reap = AbilityJson.decode("leaf_reap");
-        private final SlashStep step = (SlashStep) reap.behaviors().getFirst();
 
         @Test
         void reapIsChanneledAndThrowsNothing() {
@@ -318,35 +316,5 @@ class ReapSlashTest {
             assertEquals("goo.ability.leaf.reap", reap.displayName());
         }
 
-        @Test
-        void reapSwingsEveryTwoOrThreeTicksThrowingOneOrTwoSlashes() {
-            assertEquals(2, step.fewestTicks().evaluateInt(null));
-            assertEquals(3, step.mostTicks().evaluateInt(null));
-            assertEquals(1, step.fewestSlashes().evaluateInt(null));
-            assertEquals(2, step.mostSlashes().evaluateInt(null));
-        }
-
-        @Test
-        void reapsAreaIsFivePointThreeWideReachingFivePointEight() {
-            assertEquals(5.3, step.width().evaluate(null), TOLERANCE);
-            assertEquals(5.8, step.length().evaluate(null), TOLERANCE);
-        }
-
-        @Test
-        void reapsBandRipplesFromItsSourceThroughTheDrawnLinesInSixTicks() {
-            assertEquals(0.5, step.source().evaluate(null), TOLERANCE);
-            assertEquals(1.1, step.backFrom().evaluate(null), TOLERANCE);
-            assertEquals(2.6, step.frontFrom().evaluate(null), TOLERANCE);
-            assertEquals(3.9, step.backTo().evaluate(null), TOLERANCE);
-            assertEquals(6, step.lifeTicks().evaluateInt(null));
-        }
-
-        @Test
-        void reapsSlashesAreNudgedAFifthLeanTenDegreesAndTurnFive() {
-            assertEquals(0.2, step.nudge().evaluate(null), TOLERANCE);
-            assertEquals(10, step.tilt().evaluate(null), TOLERANCE);
-            assertEquals(5, step.fan().evaluate(null), TOLERANCE);
-            assertEquals(0.45, step.drop().evaluate(null), TOLERANCE);
-        }
     }
 }

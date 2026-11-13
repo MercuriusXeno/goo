@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:slick_lays_ahead_to_its_range_and_no_further",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

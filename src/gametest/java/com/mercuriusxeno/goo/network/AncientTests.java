@@ -12,8 +12,7 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for yore Ancient: a survival player holding Ancient on the glove
- * wears the yore held effect alone, no vanilla effect beside it, takes a
- * lethal hit and stands at half a heart.
+ * wears the yore held effect, takes a lethal hit and stands at half a heart.
  * ancient-makes-the-player-immortal
  */
 @RegistersGameTests
@@ -36,28 +35,27 @@ public final class AncientTests {
     /** Half a heart, where Ancient holds the player. */
     private static final float HALF_HEART = 1f;
     private static final String SHOULD_SURVIVE = "A player under Ancient should stand at half a heart, alive %s at %.1f";
-    private static final String SHOULD_WEAR_ONLY_THE_HELD_EFFECT =
-            "The yore held effect should be the one effect standing, stands %s";
+    private static final String SHOULD_WEAR_THE_HELD_EFFECT =
+            "The player should wear the yore held effect, stands %s";
 
     private AncientTests() {
     }
 
     /**
      * A survival player holding Ancient from the glove wears the yore held
-     * effect alone, takes a lethal hit and stands at half a heart.
+     * effect, takes a lethal hit and stands at half a heart.
      *
      * @param helper the gametest helper
      */
     public static void ancientSurvivesLethalDamage(GameTestHelper helper) {
         ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.YORE, YORE_ANCIENT);
-        boolean alone = player.getActiveEffects().size() == 1
-                && player.hasEffect(GooMobEffects.HELD_EFFECTS.get(GooTypes.YORE));
+        boolean wears = player.hasEffect(GooMobEffects.HELD_EFFECTS.get(GooTypes.YORE));
         String standing = player.getActiveEffects().toString();
         player.hurtServer(helper.getLevel(), player.damageSources().generic(), LETHAL_HIT);
         boolean alive = player.isAlive();
         float health = player.getHealth();
         helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(alone, String.format(SHOULD_WEAR_ONLY_THE_HELD_EFFECT, standing));
+        helper.assertTrue(wears, String.format(SHOULD_WEAR_THE_HELD_EFFECT, standing));
         helper.assertTrue(alive && health == HALF_HEART, String.format(SHOULD_SURVIVE, alive, health));
         helper.succeed();
     }

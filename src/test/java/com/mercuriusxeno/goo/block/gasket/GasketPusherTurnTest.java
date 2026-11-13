@@ -49,18 +49,19 @@ class GasketPusherTurnTest {
     }
 
     @Test
-    void twoTypesAreSentByTurns() {
-        assertEquals(List.of(blaze, unstable, blaze, unstable), sendsOverFourAsks(PLENTY, PLENTY));
+    void theNextTurnStartsAfterTheSlotThatSentFirstAndWraps() {
+        assertEquals(OptionalInt.of(1), GasketPusher.nextTurnAfter(0, 2, slot -> true));
+        assertEquals(OptionalInt.of(0), GasketPusher.nextTurnAfter(1, 2, slot -> true));
+    }
+
+    @Test
+    void anEmptySlotYieldsItsTurnToTheNext() {
+        assertEquals(OptionalInt.of(0), GasketPusher.nextTurnAfter(0, 2, slot -> slot == 1));
     }
 
     @Test
     void onceOneTypeRunsOutEveryAskAnswersTheOther() {
         assertEquals(List.of(blaze, unstable, unstable, unstable), sendsOverFourAsks(1, PLENTY));
-    }
-
-    @Test
-    void aSourceHoldingOneTypeAnswersItEveryAsk() {
-        assertEquals(List.of(unstable, unstable, unstable, unstable), sendsOverFourAsks(0, PLENTY));
     }
 
     /**

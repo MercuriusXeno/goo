@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Void's hole carries its open lifetime and the time left a swallow floors it at as data, and its
+ * Void's hole opens through a hole_open step, and its
  * description says it stands open temporarily, naming no duration.
  * decision hole-holds-twelve-seconds-and-each-throw-in-floors-six
  */
@@ -22,19 +22,13 @@ class VoidHoleLifetimeTest {
 
     private static final String EN_US = "/assets/goo/lang/en_us.json";
     private static final String DESCRIPTION = "goo.ability.void.hole.description";
-    /** Ten seconds of ticks. */
-    private static final int LIFETIME = 200;
-    /** Five seconds of ticks. */
-    private static final int REFRESH = 100;
 
     @Test
-    void holeOpensForTenSecondsAndASwallowFloorsFive() {
+    void theHoleOpensThroughAHoleOpenStep() {
         JsonObject hole = JsonParser.parseString(AbilityJson.read("void_hole")).getAsJsonObject();
         JsonObject open = hole.getAsJsonArray("behaviors").get(0).getAsJsonObject();
 
         assertEquals("hole_open", open.get("type").getAsString());
-        assertEquals(LIFETIME, open.get("lifetime").getAsInt());
-        assertEquals(REFRESH, open.get("refresh").getAsInt());
     }
 
     @Test

@@ -12,6 +12,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
+import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -68,12 +69,22 @@ public record ToxinStep(Identifier effect, Expr sharePerSecond, Expr duration, i
             return true;
         }
         LivingEntity target = context.hostAs(TargetHost.class).target();
-        MobEffectInstance standing = target.getEffect(holder.get());
-        int amplifier = nextAmplifier(standing == null ? UNTOXINED : standing.getAmplifier(), maxAmplitude);
+        int amplifier = amplifierOver(target.getEffect(holder.get()), maxAmplitude);
         target.setData(GooAttachments.ENTITY_COUNTERS, target.getData(GooAttachments.ENTITY_COUNTERS)
                 .withValue(BioToxinEffect.SHARE_PER_SECOND, sharePerSecond.evaluate(context)));
         target.addEffect(new MobEffectInstance(holder.get(), duration.evaluateInt(context), amplifier));
         return true;
+    }
+
+    /**
+     * The amplifier an application over the toxin a mob holds leaves.
+     *
+     * @param standing     the toxin the mob holds, null for a mob the toxin has not reached
+     * @param maxAmplitude the highest amplitude, the amplifier plus one
+     * @return the amplifier to apply
+     */
+    static int amplifierOver(@Nullable MobEffectInstance standing, int maxAmplitude) {
+        return nextAmplifier(standing == null ? UNTOXINED : standing.getAmplifier(), maxAmplitude);
     }
 
     /**

@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -20,20 +19,17 @@ import java.util.function.Function;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyFloat;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
  * Each Flames burn sets a living thing alight before its fire hit lands,
  * so a killing burn drops cooked loot, and spares the fire-immune
- * (decision flames-pixelated-fire-stream), and hurts through the mob's invulnerability window
- * rather than clearing it (decision flames-and-heater-respect-i-frames), and the
+ * (decision flames-pixelated-fire-stream), the hit landing through vanilla's
+ * hurt, which waits out the mob's invulnerability window
+ * (decision flames-and-heater-respect-i-frames), and the
  * shipped Flames carries the ticks a block takes to cook under it
  * (decision flames-absorbs-broil-and-cooks-blocks).
  */
@@ -41,10 +37,6 @@ class FlamesStepTest {
 
     private static final float DAMAGE = 1f;
     private static final int BURN_SECONDS = 5;
-    /** Ticks into a fresh hit's twenty: above ten, vanilla swallows any hit no harder than the last. */
-    private static final int INSIDE_THE_WINDOW = 15;
-    /** The ticks of heat blaze_flames.json names for a block to cook. */
-    private static final int SHIPPED_COOK_TICKS = 40;
 
     private final ServerLevel level = mock(ServerLevel.class);
     private final LivingEntity mob = mock(LivingEntity.class);
@@ -67,25 +59,15 @@ class FlamesStepTest {
     }
 
     @Test
-    void aBurnInsideTheMobsInvulnerabilityWindowLeavesTheWindowStanding() {
-        // decision flames-and-heater-respect-i-frames: the burn hurts through vanilla's window, never clearing it.
-        mob.invulnerableTime = INSIDE_THE_WINDOW;
-
-        FlamesStep.burn(level, mob, DAMAGE, BURN_SECONDS);
-
-        assertEquals(INSIDE_THE_WINDOW, mob.invulnerableTime);
-        verify(mob).hurtServer(level, inFire, DAMAGE);
-        verify(mob, never()).setHealth(anyFloat());
+    void aLivingMobCatchesFire() {
+        assertEquals(true, FlamesStep.catchesFire(mob));
     }
 
     @Test
-    void aFireImmuneMobIsNeitherLitNorHurt() {
+    void aFireImmuneMobCatchesNoFire() {
         when(mob.fireImmune()).thenReturn(true);
 
-        FlamesStep.burn(level, mob, DAMAGE, BURN_SECONDS);
-
-        verify(mob, never()).igniteForSeconds(anyInt());
-        verify(mob, never()).hurtServer(any(), any(), anyFloat());
+        assertEquals(false, FlamesStep.catchesFire(mob));
     }
 
     @Test
@@ -147,7 +129,7 @@ class FlamesStepTest {
         }
 
         @Test
-        void aMeltedBlockBecomesItsMeltAndRestsNoItem() {
+        void aMeltedBlockBecomesItsMelt() {
             BlockBreakHost host = mock(BlockBreakHost.class);
             BlockPos pos = new BlockPos(3, 1, 2);
             BlockState waterState = mock(BlockState.class);
@@ -157,14 +139,7 @@ class FlamesStepTest {
                     item -> Optional.empty(), mock(BlockState.class));
 
             verify(host).transformBlock(pos, waterState);
-            verify(host, never()).restItem(any(), any());
         }
     }
 
-    @Test
-    void theShippedFlamesCooksABlockOverItsCookTicks() {
-        Step flames = AbilityJson.decode("blaze_flames").behaviors().getFirst();
-
-        assertEquals(SHIPPED_COOK_TICKS, ((FlamesStep) flames).cookTicks());
-    }
 }

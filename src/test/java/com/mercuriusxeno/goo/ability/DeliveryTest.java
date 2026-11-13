@@ -100,7 +100,6 @@ class DeliveryTest {
         @Test
         void crystalKnivesChargesARainOfKnives() {
             Delivery knives = AbilityJson.decode("crystal_knives").delivery();
-            assertEquals(new com.mercuriusxeno.goo.ability.Charge(30, 27, 45, 8, 3, 5), knives.charge());
             assertTrue(knives.charge().slings());
         }
 

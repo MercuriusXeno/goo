@@ -1,8 +1,9 @@
 package com.mercuriusxeno.goo.client.overlay;
 
-import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.AbilityTags;
+import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.client.TargetResult;
 import net.minecraft.core.BlockPos;
@@ -16,6 +17,9 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -165,24 +169,21 @@ class GooTargetHighlighterTest {
     @Nested
     class DrawsTheThrowArc {
 
-        private static boolean drawsAimLine(String abilityName) {
-            AbilityDefinition ability = AbilityJson.decode(abilityName);
-            return GooTargetHighlighter.drawsAimLine(ability.delivery(), ability.hasTag(AbilityTags.DRAG_SIZED));
+        @Test
+        void aThrownArcDrawsItsAimLine() {
+            assertEquals(true, GooTargetHighlighter.drawsAimLine(Delivery.of(DeliveryKind.ARC), false));
         }
 
         @Test
-        void blastDrawsNoArc() {
-            assertFalse(drawsAimLine("unstable_explode"));
+        void aDragSizedArcDrawsNoAimLine() {
+            assertEquals(false, GooTargetHighlighter.drawsAimLine(Delivery.of(DeliveryKind.ARC), true));
         }
 
         @Test
-        void theBlackHoleDrawsNoArc() {
-            assertFalse(drawsAimLine("void_dark_star"));
-        }
-
-        @Test
-        void aThrownBlobDrawsItsArc() {
-            assertTrue(drawsAimLine("frost_orb"));
+        void theBlastAndTheBlackHoleAreDragSizedAndTheFrostOrbIsThrown() {
+            assertEquals(Map.of("unstable_explode", true, "void_dark_star", true, "frost_orb", false),
+                    Stream.of("unstable_explode", "void_dark_star", "frost_orb").collect(Collectors.toMap(
+                            name -> name, name -> AbilityJson.decode(name).hasTag(AbilityTags.DRAG_SIZED))));
         }
     }
 }

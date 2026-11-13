@@ -10,9 +10,7 @@ import com.mercuriusxeno.goo.lab.LabBox;
 import com.mercuriusxeno.goo.lab.LabBuilder;
 import com.mercuriusxeno.goo.lab.LabLayout;
 import com.mercuriusxeno.goo.lab.LabMachine;
-import com.mercuriusxeno.goo.lab.LabOffset;
 import com.mercuriusxeno.goo.lab.LabPen;
-import com.mercuriusxeno.goo.lab.LabPlacement;
 import com.mercuriusxeno.goo.lab.LabPlan;
 import com.mercuriusxeno.goo.lab.LabPlot;
 import com.mercuriusxeno.goo.lab.LabRigs;
@@ -22,8 +20,6 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.FenceBlock;
 import net.minecraft.world.phys.AABB;
 import java.util.List;
 import java.util.UUID;
@@ -63,10 +59,7 @@ public final class LabBayTests {
     private static final String NO_RECEIVER_GASKET = "Gasket run receiver should carry a top gasket";
     private static final String NOT_PAIRED = "Registry should pair the source gasket to the receiver gasket";
     private static final String NO_PARTNER = "Receiver should name the source as its top partner";
-    private static final String RING_OPEN = "Pen fence ring should be closed at ";
     private static final String MOB_MISSING = "Pen should hold each planned ";
-    private static final String TARGET_MISSING = "Range target missing at ";
-    private static final String LINE_MISSING = "Firing line should stand in the floor at ";
 
     private LabBayTests() {
     }
@@ -116,8 +109,8 @@ public final class LabBayTests {
     }
 
     /**
-     * The pens stand closed fence rings holding one of each planned mob, and
-     * the range holds each target and its firing line.
+     * Each pen holds as many of each planned mob as it plans, the one observation of LabBuilder's spawns; the fence
+     * rings, range targets and firing line stand in LabLayoutTest and LabTests#buildShell.
      *
      * @param helper the gametest helper
      */
@@ -127,53 +120,9 @@ public final class LabBayTests {
         for (LabPen pen : plan.pens()) {
             LabTests.buildRegion(helper, origin, plan, pen.bounds());
         }
-        LabTests.buildRegion(helper, origin, plan, plan.range().bounds());
-        plan.pens().forEach(pen -> assertPen(helper, origin, plan, pen));
-        for (LabPlacement target : plan.range().targets()) {
-            BlockPos pos = LabBuilder.worldPos(origin, target.offset());
-            helper.assertTrue(helper.getLevel().getBlockState(pos).is(LabTests.plannedBlock(target)),
-                    TARGET_MISSING + target.offset());
-        }
-        LabBox line = plan.range().firingLine();
-        for (int x = line.min().x(); x <= line.max().x(); x++) {
-            BlockPos pos = LabBuilder.worldPos(origin, new LabOffset(x, line.min().y(), line.min().z()));
-            helper.assertTrue(helper.getLevel().getBlockState(pos).is(Blocks.RED_CONCRETE), LINE_MISSING + x);
-        }
+        plan.pens().forEach(pen -> assertMobsInside(helper, origin, plan, pen));
         helper.succeed();
     }
-
-    /**
-     * Asserts a pen's fence ring is closed and each of its mobs stands inside it.
-     *
-     * @param helper the gametest helper
-     * @param origin the world position of the plan's zero offset
-     * @param plan   the plan
-     * @param pen    the pen
-     */
-    private static void assertPen(GameTestHelper helper, BlockPos origin, LabPlan plan, LabPen pen) {
-        LabBox bounds = pen.bounds();
-        int fenceY = bounds.min().y() + 1;
-        for (int x = bounds.min().x(); x <= bounds.max().x(); x++) {
-            assertFence(helper, origin.offset(x, fenceY, bounds.min().z()));
-            assertFence(helper, origin.offset(x, fenceY, bounds.max().z()));
-        }
-        for (int z = bounds.min().z(); z <= bounds.max().z(); z++) {
-            assertFence(helper, origin.offset(bounds.min().x(), fenceY, z));
-            assertFence(helper, origin.offset(bounds.max().x(), fenceY, z));
-        }
-        assertMobsInside(helper, origin, plan, pen);
-    }
-
-    /**
-     * Asserts a fence stands at a ring position.
-     *
-     * @param helper the gametest helper
-     * @param pos    the world position
-     */
-    private static void assertFence(GameTestHelper helper, BlockPos pos) {
-        helper.assertTrue(helper.getLevel().getBlockState(pos).getBlock() instanceof FenceBlock, RING_OPEN + pos);
-    }
-
     /**
      * Asserts as many entities of each of a pen's planned mob types stand inside its interior as the pen plans.
      *

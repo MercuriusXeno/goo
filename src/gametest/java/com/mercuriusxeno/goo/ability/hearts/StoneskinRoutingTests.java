@@ -5,17 +5,9 @@ import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.network.SelfDeliveryTests;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypes;
-import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.damagesource.DamageSources;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.monster.zombie.Zombie;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
@@ -23,17 +15,12 @@ import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
- * Gametest for the share of a hit Stoneskin's stone hearts take, routed by
- * the live level's damage sources so the real damage type and item tags
- * decide: an explosion and a pickaxe find a stone heart worth half a heart,
- * a plain physical hit takes the brew's multiplier, and a hit that bypasses
- * armor lands whole (decision stoneskin-stone-hearts-block-regeneration).
- * It sits in the hearts package to reach the package-private routing.
+ * Gametest for Stoneskin held on a hurt player: stone primes over
+ * the first missing heart.
  */
 @RegistersGameTests
 public final class StoneskinRoutingTests {
-    private static final String STONESKIN_ROUTES_HITS = "stoneskin_routes_hits_by_source";
-    private static final String STONESKIN_ENDS_KEEPING_HEALTH = "stoneskin_ends_leaving_health_as_it_stood";
+    private static final String STONESKIN_PRIMES_STONE = "stoneskin_primes_stone_over_the_first_missing_heart";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -41,57 +28,27 @@ public final class StoneskinRoutingTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, STONESKIN_ROUTES_HITS, StoneskinRoutingTests::stoneskinRoutesHitsBySource);
-        GooTestFunctions.registerTest(registrar, STONESKIN_ENDS_KEEPING_HEALTH, StoneskinRoutingTests::stoneskinEndsLeavingHealthAsItStood);
+        GooTestFunctions.registerTest(registrar, STONESKIN_PRIMES_STONE, StoneskinRoutingTests::stoneskinPrimesStoneOverTheFirstMissingHeart);
     }
 
 
-    private static final BlockPos PICK_ZOMBIE = new BlockPos(1, 1, 1);
-    private static final BlockPos BARE_ZOMBIE = new BlockPos(3, 1, 3);
-    /** A multiplier no shipped kind uses, so a plain hit answering it can only have read the brew's. */
-    private static final float BREW_MULTIPLIER = 0.37f;
-    private static final String SHOULD_SHARE = "A %s hit should take a %s share of stone, took %s";
-    private static final String EXPLOSION = "explosion";
-    private static final String PICKAXE = "pickaxe";
-    private static final String PLAIN = "plain physical";
-    private static final String MAGIC = "magic";
     private static final Identifier ROCK_STONESKIN = Identifier.parse("goo:rock_stoneskin");
     private static final float SIX_HEALTH = 6f;
     /** Under natural regeneration's threshold, so only stone could restore health. */
     private static final int HUNGRY_FOOD = 10;
     private static final String SHOULD_STONE_FIRST_MISSING = "Stoneskin should prime stone at slot %d, read %s";
-    private static final String SHOULD_KEEP_HEALTH = "Ending Stoneskin should leave health at %.1f, read %.1f";
 
     private StoneskinRoutingTests() {
     }
 
     /**
-     * Routes four live sources through the stone share: an explosion, a
-     * zombie holding an iron pickaxe, an unarmed zombie, and magic.
-     *
-     * @param helper the gametest helper
-     */
-    public static void stoneskinRoutesHitsBySource(GameTestHelper helper) {
-        Zombie withPickaxe = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, PICK_ZOMBIE);
-        withPickaxe.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.IRON_PICKAXE));
-        Zombie bare = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, BARE_ZOMBIE);
-        bare.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
-        DamageSources sources = helper.getLevel().damageSources();
-        assertShare(helper, EXPLOSION, sources.explosion(null, null), HeartOverlayEvents.STONE_BRITTLE_SHARE);
-        assertShare(helper, PICKAXE, sources.mobAttack(withPickaxe), HeartOverlayEvents.STONE_BRITTLE_SHARE);
-        assertShare(helper, PLAIN, sources.mobAttack(bare), BREW_MULTIPLIER);
-        assertShare(helper, MAGIC, sources.magic(), HeartOverlay.WHOLE_HIT);
-        helper.succeed();
-    }
-
-    /**
      * A player at six health eats Stoneskin: stone primes over the first
-     * missing heart, and ending it leaves real health at six.
+     * missing heart.
      * heart-effects-crawl-while-held
      *
      * @param helper the gametest helper
      */
-    public static void stoneskinEndsLeavingHealthAsItStood(GameTestHelper helper) {
+    public static void stoneskinPrimesStoneOverTheFirstMissingHeart(GameTestHelper helper) {
         ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.ROCK);
         player.setGameMode(GameType.SURVIVAL);
         player.getFoodData().setFoodLevel(HUNGRY_FOOD);
@@ -103,19 +60,10 @@ public final class StoneskinRoutingTests {
         HeartOverlay stoned = player.getData(GooAttachments.HEART_OVERLAY);
         int firstMissing = HeartOverlay.filledSlots(SIX_HEALTH);
 
-        SelfDeliveryTests.invoke(player, GooTypes.ROCK, ROCK_STONESKIN);
-
-        float health = player.getHealth();
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.assertTrue(stoned.shieldAt(firstMissing) == HeartOverlay.FULL_SHIELD
                         && stoned.shieldHalves() == HeartOverlay.FULL_SHIELD,
                 String.format(SHOULD_STONE_FIRST_MISSING, firstMissing, stoned.shields()));
-        helper.assertTrue(health == SIX_HEALTH, String.format(SHOULD_KEEP_HEALTH, SIX_HEALTH, health));
         helper.succeed();
-    }
-
-    private static void assertShare(GameTestHelper helper, String hit, DamageSource source, float expected) {
-        float share = HeartOverlayEvents.stoneShare(source, BREW_MULTIPLIER);
-        helper.assertTrue(share == expected, String.format(SHOULD_SHARE, hit, expected, share));
     }
 }

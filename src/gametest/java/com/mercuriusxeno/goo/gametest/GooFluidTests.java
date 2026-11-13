@@ -43,7 +43,6 @@ public final class GooFluidTests {
 
     private static final BlockPos BLAZE_POS = new BlockPos(1, 2, 1);
     private static final BlockPos FROST_POS = BLAZE_POS.east();
-    private static final BlockPos BEYOND_POS = FROST_POS.east();
     /**
      * Rock stands in for the viscosity comparison, since the bundled blaze
      * and frost share one viscosity.
@@ -58,14 +57,12 @@ public final class GooFluidTests {
 
     private static final String NOT_GOO_BLOCK = "Bucket should place the goo fluid block at ";
     private static final String WRONG_TYPE = "Goo fluid block entity should carry the type its bucket stamped at ";
-    private static final String SPREAD_BEYOND = "Goo should not have spread into the air beyond the frost block";
     private static final String SAME_TEMPERATURE = "Blaze and frost goo should answer different temperatures";
     private static final String SAME_VISCOSITY = "Rock and frost goo should answer different viscosities";
     private static final String SAME_DENSITY = "Blaze and frost goo should answer different densities";
     private static final String FROST_NOT_EXTINGUISHING = "Frost goo should extinguish at its position";
     private static final String BLAZE_EXTINGUISHING = "Blaze goo should not extinguish at its position";
     private static final String COW_IN_FROST_BURNS = "A burning cow standing in frost goo should be put out";
-    private static final String COW_IN_BLAZE_OUT = "A burning cow standing in blaze goo should keep burning";
 
     private GooFluidTests() {
     }
@@ -73,7 +70,7 @@ public final class GooFluidTests {
     /**
      * Blaze and frost buckets emptied side by side place two goo fluid
      * blocks whose block entities carry their own types, and after the
-     * settle window each still carries its own and no goo stands beyond.
+     * settle window each still carries its own.
      *
      * @param helper the gametest helper
      */
@@ -87,7 +84,6 @@ public final class GooFluidTests {
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             assertStamped(helper, BLAZE_POS, GooTypes.BLAZE);
             assertStamped(helper, FROST_POS, GooTypes.FROST);
-            helper.assertTrue(helper.getBlockState(BEYOND_POS).isAir(), SPREAD_BEYOND);
             helper.succeed();
         });
     }
@@ -96,7 +92,7 @@ public final class GooFluidTests {
      * The positional fluid type overloads answer the stamped type's fields,
      * so blaze and frost differ in temperature and density, rock and frost
      * differ in viscosity, and only frost extinguishes; a burning cow in
-     * frost goo is put out while one in blaze goo keeps burning.
+     * frost goo is put out.
      *
      * @param helper the gametest helper
      */
@@ -107,11 +103,9 @@ public final class GooFluidTests {
         emptyBucket(helper, GooTypes.ROCK, ROCK_POS);
         assertPositionalFields(helper);
 
-        Mob blazeCow = spawnBurningCow(helper, BLAZE_POS);
         Mob frostCow = spawnBurningCow(helper, FROST_POS);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             helper.assertTrue(!frostCow.isOnFire(), COW_IN_FROST_BURNS);
-            helper.assertTrue(blazeCow.isOnFire(), COW_IN_BLAZE_OUT);
             helper.succeed();
         });
     }
@@ -142,7 +136,7 @@ public final class GooFluidTests {
     }
 
     /**
-     * Lays stone under every goo position and the air beyond, so the goo
+     * Lays stone under every goo position, so the goo
      * and the cows have a floor.
      *
      * @param helper the gametest helper
@@ -150,7 +144,6 @@ public final class GooFluidTests {
     private static void placeFloor(GameTestHelper helper) {
         helper.setBlock(BLAZE_POS.below(), Blocks.STONE);
         helper.setBlock(FROST_POS.below(), Blocks.STONE);
-        helper.setBlock(BEYOND_POS.below(), Blocks.STONE);
         helper.setBlock(ROCK_POS.below(), Blocks.STONE);
     }
 

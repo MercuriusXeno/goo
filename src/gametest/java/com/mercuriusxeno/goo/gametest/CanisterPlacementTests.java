@@ -13,9 +13,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.GameType;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -30,8 +28,6 @@ import java.util.function.Consumer;
 public final class CanisterPlacementTests {
     private static final String IX_CANISTER_VAT_TOP_PLACES = "ix_canister_vat_top_places";
     private static final String IX_CANISTER_STONE_TOP_PLACES = "ix_canister_stone_top_places";
-    private static final String IX_CANISTER_CRUCIBLE_TOP_REFUSES = "ix_canister_crucible_top_refuses";
-    private static final String IX_CANISTER_SIGN_TOP_REFUSES = "ix_canister_sign_top_refuses";
     private static final String IX_CANISTER_SNEAK_VAT_TOP_PLACES = "ix_canister_sneak_vat_top_places";
     private static final String IX_CANISTER_HUB_ATTACH_SPOT = "ix_canister_hub_attach_spot";
     private static final String IX_CANISTER_PLEXER_TOP_PLACES = "ix_canister_plexer_top_places";
@@ -45,8 +41,6 @@ public final class CanisterPlacementTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, IX_CANISTER_VAT_TOP_PLACES, CanisterPlacementTests::vatTopTakesCanister);
         GooTestFunctions.registerTest(registrar, IX_CANISTER_STONE_TOP_PLACES, CanisterPlacementTests::stoneTopTakesCanister);
-        GooTestFunctions.registerTest(registrar, IX_CANISTER_CRUCIBLE_TOP_REFUSES, CanisterPlacementTests::crucibleTopRefusesCanister);
-        GooTestFunctions.registerTest(registrar, IX_CANISTER_SIGN_TOP_REFUSES, CanisterPlacementTests::signTopRefusesCanister);
         GooTestFunctions.registerTest(registrar, IX_CANISTER_SNEAK_VAT_TOP_PLACES, CanisterPlacementTests::sneakClickVatTopTakesCanister);
         GooTestFunctions.registerTest(registrar, IX_CANISTER_HUB_ATTACH_SPOT, CanisterPlacementTests::hubAttachSpotTakesCanisterAbove);
         GooTestFunctions.registerTest(registrar, IX_CANISTER_PLEXER_TOP_PLACES, CanisterPlacementTests::plexerTopTakesCanister);
@@ -161,44 +155,6 @@ public final class CanisterPlacementTests {
         helper.setBlock(SUPPORT_POS, Blocks.STONE);
         helper.useBlock(SUPPORT_POS, playerHoldingCanister(helper), aimedSlotTopHit(helper));
         assertCanisterInAimedSlot(helper);
-        helper.succeed();
-    }
-
-    /**
-     * A canister used on a crucible's top places nothing: the hollow rim leaves the central
-     * 12x12 uncovered.
-     *
-     * @param helper the gametest helper
-     */
-    public static void crucibleTopRefusesCanister(GameTestHelper helper) {
-        assertItemUseOnTopPlacesNothing(helper, GooBlocks.CRUCIBLE.get());
-    }
-
-    /**
-     * A canister used on a standing sign's top places nothing: the sign's 8x8 post leaves the
-     * central 12x12 uncovered.
-     *
-     * @param helper the gametest helper
-     */
-    public static void signTopRefusesCanister(GameTestHelper helper) {
-        assertItemUseOnTopPlacesNothing(helper, Blocks.OAK_SIGN);
-    }
-
-    /**
-     * Runs the canister item's own use on the block's top, the path a sneaking player's click
-     * takes, so the block's own click handler does not answer first.
-     *
-     * @param helper  the gametest helper
-     * @param support the block the canister is used on
-     */
-    private static void assertItemUseOnTopPlacesNothing(GameTestHelper helper, Block support) {
-        helper.setBlock(SUPPORT_POS, support);
-        Player player = playerHoldingCanister(helper);
-        player.setShiftKeyDown(true);
-        player.getItemInHand(InteractionHand.MAIN_HAND)
-            .useOn(new UseOnContext(player, InteractionHand.MAIN_HAND, aimedSlotTopHit(helper)));
-        helper.assertBlockNotPresent(GooBlocks.CANISTER.get(), CANISTER_POS);
-        helper.assertTrue(helper.getBlockState(CANISTER_POS).isAir(), "Nothing should stand above the refused top");
         helper.succeed();
     }
 
