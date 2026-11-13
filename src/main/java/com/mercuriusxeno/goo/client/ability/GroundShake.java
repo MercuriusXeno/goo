@@ -17,6 +17,7 @@ import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.SheetedDecalTextureGenerator;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -25,6 +26,8 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.block.ModelBlockRenderer;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.state.level.BlockBreakingRenderState;
+import net.minecraft.client.resources.model.ModelBakery;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
@@ -49,6 +52,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.Predicate;
 
@@ -96,8 +100,23 @@ public final class GroundShake {
 
     /** The blocks the last frame shook, which the tick sheds dust from. */
     private static final List<BlockPos> shaken = new ArrayList<>();
+    /** Whether the ability shaking the ground last frame sheds crumbs off its blocks. */
+    private static boolean crumbsShed;
 
     private GroundShake() {
+    }
+
+    /**
+     * Whether an ability's shaking blocks shed crumbs: a flatten's and a
+     * Terrakinesis's do; a bore's do not, since its particles spit only from
+     * where its vortex meets the block.
+     * decision bore-shows-a-big-drill-from-the-glove
+     *
+     * @param ability the selected ability's synced copy, or null when none
+     * @return true where the shaking blocks shed crumbs
+     */
+    static boolean shedsCrumbs(@Nullable ClientAbility ability) {
+        return ability != null && ability.behaviors().stream().noneMatch(BoreStep.class::isInstance);
     }
 
     /** Where the ground shakes, and how strongly each block in it does. */
@@ -164,19 +183,23 @@ public final class GroundShake {
     }
 
     /**
-     * Where a bore shakes the ground: every block on the eye line it is
-     * progressing, the pick its tick hands the gradual break, so the shaking
-     * blocks are the cracking blocks.
+     * Where a bore shakes the ground: every block on the eye line and in
+     * the vortex it is progressing, the pick its tick hands the gradual
+     * break, so the shaking blocks are the cracking blocks.
      * decision only-the-blocks-about-to-break-shake-briefly-and-gently
+     * decision bore-breaks-what-is-in-the-vortex
      *
-     * @param eye       the boring player's eye
-     * @param aim       the stream's aim: its reach along the look
-     * @param air       whether a cell holds air
-     * @param breakable whether a cell holds a block the bore breaks
+     * @param eye        the boring player's eye, where the line and the vortex run from
+     * @param nearRadius the vortex's radius at the eye
+     * @param farRadius  the vortex's radius at the reach
+     * @param aim        the stream's aim: its reach along the look
+     * @param air        whether a cell holds air
+     * @param breakable  whether a cell holds a block the bore breaks
      * @return the zone
      */
-    static Zone boreZone(Vec3 eye, ChannelAim aim, Predicate<BlockPos> air, Predicate<BlockPos> breakable) {
-        return cellsZone(BoreStep.progressing(eye, aim, air, breakable));
+    static Zone boreZone(Vec3 eye, double nearRadius, double farRadius, ChannelAim aim, Predicate<BlockPos> air,
+                         Predicate<BlockPos> breakable) {
+        return cellsZone(BoreStep.progressing(eye, nearRadius, farRadius, aim, air, breakable));
     }
 
     /**
@@ -299,8 +322,10 @@ public final class GroundShake {
     }
 
     /**
-     * The line blocks the local player's bore is progressing, read off the
-     * client's level along the aim the server bores by.
+     * The blocks the local player's bore is progressing, its eye line's and
+     * its vortex's, read off the client's level along the aim the server
+     * bores by.
+     * decision bore-breaks-what-is-in-the-vortex
      *
      * @param player      the local player
      * @param bore        the selected bore
@@ -314,7 +339,8 @@ public final class GroundShake {
         Level level = player.level();
         ChannelAim aim = new ChannelAim(eye.add(player.getViewVector(partialTick).scale(ability.delivery().range())),
                 null, ability.delivery().coneDegrees());
-        return boreZone(eye, aim, cell -> level.getBlockState(cell).isAir(),
+        return boreZone(eye, bore.vortexNearRadius(), bore.vortexFarRadius(), aim,
+                cell -> level.getBlockState(cell).isAir(),
                 cell -> level.getBlockState(cell).is(bore.breaks()));
     }
 
@@ -390,9 +416,12 @@ public final class GroundShake {
         if (zone == null) {
             return;
         }
+        String abilityId = GloveAim.selectedAbilityId(player);
+        crumbsShed = shedsCrumbs(abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId));
         collectShaken(level, zone);
         if (!shaken.isEmpty()) {
-            drawShaken(mc, event.getPoseStack(), zone, level.getGameTime() + partialTick);
+            drawShaken(mc, event.getPoseStack(), new Shake(zone, level.getGameTime() + partialTick,
+                    event.getLevelRenderState().blockBreakingRenderStates));
         }
     }
 
@@ -408,39 +437,80 @@ public final class GroundShake {
     }
 
     /**
+     * One frame's shake: where the ground shakes, when, and the cracks
+     * vanilla draws this frame.
+     *
+     * @param zone     where the ground shakes
+     * @param time     the game time including the partial tick
+     * @param breaking the blocks vanilla draws a crack on, each with its stage
+     */
+    private record Shake(Zone zone, float time, Collection<BlockBreakingRenderState> breaking) {
+    }
+
+    /**
      * Draws each shaking block's own model over itself, tesselated as the
      * world tesselates it so its light and culled faces match, swollen by as
      * much as it can move so the copy always stands in front of the still
-     * block, and offset by the shake.
+     * block, and offset by the shake; a block vanilla cracks draws its crack
+     * on the copy, since the copy hides the crack on the block's own faces.
+     * decision diagnose-and-remove-flattens-particle-artifacting
      *
      * @param mc        the client
      * @param poseStack the level's pose stack, camera relative
-     * @param zone      where the ground shakes
-     * @param time      the game time including the partial tick
+     * @param shake     the frame's shake
      */
-    private static void drawShaken(Minecraft mc, PoseStack poseStack, Zone zone, float time) {
+    private static void drawShaken(Minecraft mc, PoseStack poseStack, Shake shake) {
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        MultiBufferSource.BufferSource crumbling = mc.renderBuffers().crumblingBufferSource();
         RenderType blocks = renderType();
         VertexConsumer consumer = buffers.getBuffer(blocks);
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         ModelBlockRenderer tesselator = new ModelBlockRenderer(mc.options.ambientOcclusion().get(), true,
                 mc.getBlockColors());
         for (BlockPos pos : shaken) {
-            BlockState state = mc.level.getBlockState(pos);
-            BlockStateModel model = mc.getModelManager().getBlockStateModelSet().get(state);
-            Vec3 offset = offsetAt(pos, zone, time);
-            float swell = (float) (1 + BOTH_SIDES * AMPLITUDE * zone.strengthAt(pos));
             poseStack.pushPose();
-            poseStack.translate(pos.getX() - camera.x + offset.x + HALF, pos.getY() - camera.y + offset.y + HALF,
-                    pos.getZ() - camera.z + offset.z + HALF);
-            poseStack.scale(swell, swell, swell);
-            poseStack.translate(-HALF, -HALF, -HALF);
+            placeCopy(poseStack, pos, camera, shake);
             PoseStack.Pose pose = poseStack.last();
-            tesselator.tesselateBlock((x, y, z, quad, instance) -> consumer.putBakedQuad(pose, quad, instance),
-                    0f, 0f, 0f, mc.level, pos, state, model, state.getSeed(pos));
+            tesselateCopy(mc, tesselator, pos, consumer, pose);
+            crackStageOn(pos, shake.breaking()).ifPresent(stage -> tesselateCopy(mc, tesselator, pos,
+                    new SheetedDecalTextureGenerator(crumbling.getBuffer(ModelBakery.DESTROY_TYPES.get(stage)),
+                            pose, 1f), pose));
             poseStack.popPose();
         }
         buffers.endBatch(blocks);
+        crumbling.endBatch();
+    }
+
+    private static void placeCopy(PoseStack poseStack, BlockPos pos, Vec3 camera, Shake shake) {
+        Vec3 offset = offsetAt(pos, shake.zone(), shake.time());
+        float swell = (float) (1 + BOTH_SIDES * AMPLITUDE * shake.zone().strengthAt(pos));
+        poseStack.translate(pos.getX() - camera.x + offset.x + HALF, pos.getY() - camera.y + offset.y + HALF,
+                pos.getZ() - camera.z + offset.z + HALF);
+        poseStack.scale(swell, swell, swell);
+        poseStack.translate(-HALF, -HALF, -HALF);
+    }
+
+    private static void tesselateCopy(Minecraft mc, ModelBlockRenderer tesselator, BlockPos pos,
+                                      VertexConsumer consumer, PoseStack.Pose pose) {
+        BlockState state = mc.level.getBlockState(pos);
+        BlockStateModel model = mc.getModelManager().getBlockStateModelSet().get(state);
+        tesselator.tesselateBlock((x, y, z, quad, instance) -> consumer.putBakedQuad(pose, quad, instance),
+                0f, 0f, 0f, mc.level, pos, state, model, state.getSeed(pos));
+    }
+
+    /**
+     * The crack stage a shaking block's copy draws over itself: the stage
+     * vanilla shows on the block, since the copy stands in front of the
+     * block and hides the crack vanilla draws on the block's own faces.
+     * decision diagnose-and-remove-flattens-particle-artifacting
+     *
+     * @param pos      the shaking block
+     * @param breaking the blocks vanilla draws a crack on this frame, each with its stage
+     * @return the stage, or empty where the block shows no crack
+     */
+    static OptionalInt crackStageOn(BlockPos pos, Collection<BlockBreakingRenderState> breaking) {
+        return breaking.stream().filter(state -> state.blockPos().equals(pos))
+                .mapToInt(BlockBreakingRenderState::progress).findFirst();
     }
 
     /**
@@ -460,7 +530,7 @@ public final class GroundShake {
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         ClientLevel level = Minecraft.getInstance().level;
-        if (level == null || shaken.isEmpty() || Minecraft.getInstance().isPaused()) {
+        if (level == null || shaken.isEmpty() || !crumbsShed || Minecraft.getInstance().isPaused()) {
             return;
         }
         RandomSource random = level.getRandom();

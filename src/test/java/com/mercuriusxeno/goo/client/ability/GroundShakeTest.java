@@ -12,16 +12,19 @@ import com.mercuriusxeno.goo.ability.program.FlattenStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.TerrakinesisStep;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import net.minecraft.client.renderer.state.level.BlockBreakingRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.Predicate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -50,6 +53,9 @@ class GroundShakeTest {
     private static final Vec3 LOOK_EAST = new Vec3(1, 0, 0);
     private static final double BORE_RANGE = 8;
     private static final double BORE_CONE_DEGREES = 15;
+    /** rock_bore.json's vortex radii at its near and far ends. */
+    private static final double VORTEX_NEAR = 0.35;
+    private static final double VORTEX_FAR = 0.1;
     private static final BreakPace PACE = new BreakPace(5, 1.5);
     /** The jitter's amplitude before this change, read from GroundShake.AMPLITUDE at 128a57da7. */
     private static final double PREVIOUS_AMPLITUDE = 0.04;
@@ -97,11 +103,25 @@ class GroundShakeTest {
                 new BlockPos(7, 64, 0), new BlockPos(2, 62, 0));
         private final ChannelAim aim = new ChannelAim(EYE.add(LOOK_EAST.scale(BORE_RANGE)), null, BORE_CONE_DEGREES);
         private final Predicate<BlockPos> air = cell -> !stone.contains(cell);
-        private final GroundShake.Zone zone = GroundShake.boreZone(EYE, aim, air, stone::contains);
+        private final GroundShake.Zone zone = GroundShake.boreZone(EYE, 0, 0, aim, air, stone::contains);
 
         @Test
         void theShakenBlocksAreTheBlocksTheBoreHandsTheGradualBreak() {
-            assertEquals(Set.copyOf(BoreStep.progressing(EYE, aim, air, stone::contains)), shakenIn(zone));
+            assertEquals(Set.copyOf(BoreStep.progressing(EYE, 0, 0, aim, air, stone::contains)), shakenIn(zone));
+        }
+
+        /** decision bore-breaks-what-is-in-the-vortex */
+        @Test
+        void theBlocksTheVortexCrossesBesideTheLineShakeAsTheBoreBreaksThem() {
+            Vec3 corner = new Vec3(0.5, 64.0, 0.0);
+            ChannelAim cornerAim = new ChannelAim(corner.add(LOOK_EAST.scale(BORE_RANGE)), null, BORE_CONE_DEGREES);
+            Predicate<BlockPos> rock = cell -> cell.getX() >= 1 && cell.getX() <= 7;
+            GroundShake.Zone vortexZone = GroundShake.boreZone(corner, VORTEX_NEAR, VORTEX_FAR, cornerAim,
+                    rock.negate(), rock);
+            Set<BlockPos> shaken = shakenIn(vortexZone);
+            assertEquals(Set.copyOf(BoreStep.progressing(corner, VORTEX_NEAR, VORTEX_FAR, cornerAim, rock.negate(),
+                    rock)), shaken);
+            assertTrue(shaken.contains(new BlockPos(1, 63, -1)), "the vortex's block beside the line stays still");
         }
 
         @Test
@@ -172,6 +192,13 @@ class GroundShakeTest {
     @Nested
     class Players {
 
+        /** decision bore-shows-a-big-drill-from-the-glove: Bore's particles come from its vortex's contact alone */
+        @Test
+        void aBoreShedsNoCrumbsWhileAFlattenStillDoes() {
+            assertFalse(GroundShake.shedsCrumbs(ability(new BoreStep(BREAKABLE, PACE))));
+            assertTrue(GroundShake.shedsCrumbs(ability(new FlattenStep(BREAKABLE, PACE))));
+        }
+
         @Test
         void aHeldBoreAndAHeldFlattenEachShakeTheGround() {
             assertTrue(GroundShake.shakes(ability(new BoreStep(BREAKABLE, PACE)), true, HELD_LONG));
@@ -216,6 +243,33 @@ class GroundShakeTest {
             for (BlockPos beside : List.of(struck.west(), struck.above(), struck.north(), struck.east().east())) {
                 assertEquals(0, widestSwing(beside, zone), STILL, beside + " moves");
             }
+        }
+    }
+
+    /**
+     * A shaking block's copy stands in front of the block, so it draws the
+     * crack vanilla shows on the block over itself
+     * (decision diagnose-and-remove-flattens-particle-artifacting).
+     */
+    @Nested
+    class Cracks {
+
+        private static final BlockPos CRACKING = new BlockPos(2, 64, 0);
+        private static final int STAGE = 4;
+
+        @Test
+        void aShakingBlockVanillaCracksDrawsThatCrackOnItsCopy() {
+            List<BlockBreakingRenderState> breaking = List.of(
+                    new BlockBreakingRenderState(CRACKING.east(), mock(BlockState.class), 1),
+                    new BlockBreakingRenderState(CRACKING, mock(BlockState.class), STAGE));
+            assertEquals(OptionalInt.of(STAGE), GroundShake.crackStageOn(CRACKING, breaking));
+        }
+
+        @Test
+        void aShakingBlockVanillaLeavesUncrackedDrawsNoCrack() {
+            List<BlockBreakingRenderState> breaking = List.of(
+                    new BlockBreakingRenderState(CRACKING.east(), mock(BlockState.class), STAGE));
+            assertEquals(OptionalInt.empty(), GroundShake.crackStageOn(CRACKING, breaking));
         }
     }
 }

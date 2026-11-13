@@ -1207,8 +1207,9 @@ public final class GooRenderTypes {
 
     /**
      * Petrify's fog pipeline (decision petrify-stone-encasement-and-calcify-map):
-     * cross-sections of the cone drawn through {@code petrify_fog.vsh / .fsh},
-     * undulating dust-fog waves washing forward through them.
+     * puffs of dust poured over the cone, each a quad facing the camera drawn
+     * through {@code petrify_fog.vsh / .fsh}, churning as it billows out
+     * (decision petrify-fog-is-billowing-roiling-dust).
      */
     public static final RenderPipeline PETRIFY_FOG = burnoutPipeline("petrify_fog", BlendFunction.TRANSLUCENT);
 
@@ -1307,15 +1308,34 @@ public final class GooRenderTypes {
     /** The leaf ghost's through-blocks render type. */
     public static final RenderType LEAF_GHOST_THROUGH_BLOCKS_TYPE = burnoutType(LEAF_GHOST_THROUGH_BLOCKS);
 
-    /**
-     * Bore's vortex pipeline (decision bore-vortex-with-a-worldspace-shake):
-     * sections down the tunnel drawn through {@code bore_vortex.vsh / .fsh},
-     * spiralling dust arms turning about the look.
-     */
-    public static final RenderPipeline BORE_VORTEX = burnoutPipeline("bore_vortex", BlendFunction.TRANSLUCENT);
+    /** The uniform block the bore drill pipeline reads the bit's shape from. */
+    public static final String BORE_DRILL_BLOCK = "BoreDrill";
 
-    /** The bore vortex render type. */
-    public static final RenderType BORE_VORTEX_TYPE = burnoutType(BORE_VORTEX);
+    /** The sampler the bore drill reads a copy of the world's depth through. */
+    public static final String BORE_DRILL_DEPTH_SAMPLER = "BoreDrillDepthSampler";
+
+    /**
+     * Bore's drill pipeline (decision bore-shows-a-big-drill-from-the-glove),
+     * built as Drain's vortex pipeline is: a box around the bit whose
+     * fragments march its churning earth dust through
+     * {@code bore_drill.vsh / .fsh}, reading a copy of the world's depth so a
+     * block the vortex meets clips it.
+     * Blended translucent; it passes every depth test and writes none, since
+     * the march clips itself against the world.
+     */
+    public static final RenderPipeline BORE_DRILL = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "bore_drill"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "bore_drill"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "bore_drill"))
+            .withUniform(BORE_DRILL_BLOCK, UniformType.UNIFORM_BUFFER)
+            .withSampler(BORE_DRILL_DEPTH_SAMPLER)
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+            .withCull(true)
+            .build();
 
     /**
      * Ghost trail pipeline (decision ghost-trail-spans-the-blink): an entity's
@@ -1819,7 +1839,7 @@ public final class GooRenderTypes {
         event.registerPipeline(SKY_FUNNEL);
         event.registerPipeline(PETRIFY_FOG);
         event.registerPipeline(FIRE_FIELD);
-        event.registerPipeline(BORE_VORTEX);
+        event.registerPipeline(BORE_DRILL);
         registerOverlayPipelines(event);
     }
 
