@@ -2,16 +2,15 @@ package com.mercuriusxeno.goo.client.outsider;
 
 import org.junit.jupiter.api.Test;
 import java.util.List;
-import java.util.function.ToDoubleFunction;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Covers the conjured door's outline: a jagged rip pointed at head and foot,
- * each side its own uneven zigzag, standing the doorway's full height at
- * every size and widening in its own shape to the one wide, two tall doorway
- * (decision conjured-door-opens-as-a-jagged-rip).
+ * Covers the conjured door's outline: a thin crack standing nearly the
+ * doorway's height while small, widening to the one wide, two tall doorway
+ * at full size, never narrowing as it grows
+ * (decision door-opens-from-a-thin-crack-in-the-air).
  */
 class DoorCrackTest {
 
@@ -20,73 +19,56 @@ class DoorCrackTest {
     private static final double EXACT = 1.0E-9;
 
     @Test
-    void aFullRipSpansTheDoorwayAndPointsOnTheCenterlineAtHeadAndFoot() {
-        List<RipRow> outline = DoorCrack.outline(1);
+    void aSmallDoorIsACrackFarTallerThanWide() {
+        List<DoorCrack.Corner> outline = DoorCrack.outline(0.1);
+
+        double heightShare = height(outline) / FULL_TALL;
+        double widthShare = width(outline) / FULL_WIDE;
+        assertTrue(heightShare >= 4 * widthShare,
+                "height share " + heightShare + " against width share " + widthShare);
+    }
+
+    @Test
+    void aFullDoorIsTheDoorwayOneWideTwoTall() {
+        List<DoorCrack.Corner> outline = DoorCrack.outline(1);
 
         assertEquals(FULL_WIDE, width(outline), EXACT, "wide");
         assertEquals(FULL_TALL, height(outline), EXACT, "tall");
-        assertPointedAt(outline.getFirst(), 0, "foot");
-        assertPointedAt(outline.getLast(), FULL_TALL, "head");
     }
 
     @Test
-    void eachSideZigzagsUnevenlyAndTheSidesDiffer() {
-        List<RipRow> outline = DoorCrack.outline(1);
-
-        assertTrue(turnsOf(outline, RipRow::leftReach) >= 2, "the left side turns back on itself twice");
-        assertTrue(turnsOf(outline, RipRow::rightReach) >= 2, "the right side turns back on itself twice");
-        assertTrue(outline.stream().anyMatch(row -> Math.abs(row.leftReach() - row.rightReach()) > EXACT),
-                "at some height the left reach and the right reach differ");
-    }
-
-    @Test
-    void atEverySizeTheRipHoldsItsShapeAndNeverNarrows() {
-        double was = 0;
-        for (int step = 1; step <= 20; step++) {
+    void atEverySizeTheCrackIsAFullHeightRectangleCenteredOnTheDoorway() {
+        for (int step = 0; step <= 20; step++) {
             double size = step / 20.0;
-            List<RipRow> outline = DoorCrack.outline(size);
+            List<DoorCrack.Corner> outline = DoorCrack.outline(size);
+            for (DoorCrack.Corner corner : outline) {
+                assertEquals(FULL_WIDE * size / 2, Math.abs(corner.across()), EXACT,
+                        "at size " + size + " every corner stands on a side, not a point: " + corner);
+                assertTrue(Math.abs(corner.up()) < EXACT || Math.abs(corner.up() - FULL_TALL) < EXACT,
+                        "at size " + size + " every corner stands on the foot or the head: " + corner);
+            }
+            assertEquals(FULL_TALL, height(outline), EXACT, "the full height from the start, at size " + size);
+        }
+    }
 
-            assertEquals(FULL_TALL, height(outline), EXACT, "the full height at size " + size);
-            assertPointedAt(outline.getFirst(), 0, "foot at size " + size);
-            assertPointedAt(outline.getLast(), FULL_TALL, "head at size " + size);
-            assertTrue(turnsOf(outline, RipRow::leftReach) >= 2, "the left side zigzags at size " + size);
-            assertTrue(turnsOf(outline, RipRow::rightReach) >= 2, "the right side zigzags at size " + size);
-            double wide = width(outline);
+    @Test
+    void theCrackNeverNarrowsAsItOpens() {
+        double was = 0;
+        for (int step = 0; step <= 20; step++) {
+            double size = step / 20.0;
+            double wide = width(DoorCrack.outline(size));
             assertTrue(wide >= was, "at size " + size + " the width " + wide + " fell below " + was);
             was = wide;
         }
     }
 
-    private static void assertPointedAt(RipRow row, double up, String end) {
-        assertEquals(up, row.up(), EXACT, end + " height");
-        assertEquals(0, row.leftReach(), EXACT, end + " left reach meets the centerline");
-        assertEquals(0, row.rightReach(), EXACT, end + " right reach meets the centerline");
+    private static double width(List<DoorCrack.Corner> outline) {
+        return outline.stream().mapToDouble(DoorCrack.Corner::across).max().orElseThrow()
+                - outline.stream().mapToDouble(DoorCrack.Corner::across).min().orElseThrow();
     }
 
-    /** How many times a side's reach changes direction from foot to head. */
-    private static int turnsOf(List<RipRow> outline, ToDoubleFunction<RipRow> reach) {
-        int turns = 0;
-        double lastStep = 0;
-        for (int index = 1; index < outline.size(); index++) {
-            double step = reach.applyAsDouble(outline.get(index)) - reach.applyAsDouble(outline.get(index - 1));
-            if (Math.abs(step) < EXACT) {
-                continue;
-            }
-            if (lastStep != 0 && Math.signum(step) != Math.signum(lastStep)) {
-                turns++;
-            }
-            lastStep = step;
-        }
-        return turns;
-    }
-
-    private static double width(List<RipRow> outline) {
-        return outline.stream().mapToDouble(RipRow::rightAcross).max().orElseThrow()
-                - outline.stream().mapToDouble(RipRow::leftAcross).min().orElseThrow();
-    }
-
-    private static double height(List<RipRow> outline) {
-        return outline.stream().mapToDouble(RipRow::up).max().orElseThrow()
-                - outline.stream().mapToDouble(RipRow::up).min().orElseThrow();
+    private static double height(List<DoorCrack.Corner> outline) {
+        return outline.stream().mapToDouble(DoorCrack.Corner::up).max().orElseThrow()
+                - outline.stream().mapToDouble(DoorCrack.Corner::up).min().orElseThrow();
     }
 }
