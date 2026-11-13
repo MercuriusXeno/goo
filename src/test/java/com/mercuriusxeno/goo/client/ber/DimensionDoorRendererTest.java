@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
-import com.mercuriusxeno.goo.client.outsider.SkyFunnel;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
@@ -24,9 +23,9 @@ import static org.mockito.Mockito.mock;
 
 /**
  * Covers the room door's draw: each of its two cells draws a full cube of
- * the sky funnel's starfield, every face both ways round, its stars fixed to
- * the face at the pillar's blocks per repeat, so the doorway reads as one
- * material with the funnel rising from its top
+ * the sky funnel's window into space, every face both ways round at full
+ * brightness, so the doorway reads as one material with the funnel rising
+ * from its top
  * (decision sky-funnel-points-down-to-the-doorway-from-any-distance).
  */
 class DimensionDoorRendererTest {
@@ -73,22 +72,12 @@ class DimensionDoorRendererTest {
     }
 
     @Test
-    void theStarsSitOnEachFaceByPlaceAtThePillarsBlocksPerRepeat() {
+    void eachFaceIsAWindowIntoSpaceAtFullBrightness() {
         for (BlockPos cell : List.of(LOWER_CELL, LOWER_CELL.above())) {
-            List<RecordingVertexConsumer.Vertex> vertices = submitCell(cell).vertices();
-            for (int start = 0; start < vertices.size(); start += 2 * QUAD) {
-                List<RecordingVertexConsumer.Vertex> face = vertices.subList(start, start + 2 * QUAD);
-                int across = constantAxisOf(face);
-                for (RecordingVertexConsumer.Vertex vertex : face) {
-                    double height = cell.getY() + vertex.y() - SkyFunnel.spoutHeight();
-                    double expectedU = across == 0 ? vertex.z() : vertex.x();
-                    double expectedV = across == 1 ? vertex.z() : height;
-                    assertEquals(expectedU / SkyFunnel.PILLAR_BLOCKS_PER_REPEAT, vertex.u(), EXACT,
-                            "across the face by place");
-                    assertEquals(expectedV / SkyFunnel.PILLAR_BLOCKS_PER_REPEAT, vertex.v(), EXACT,
-                            "up the face by height, flat faces by place");
-                    assertEquals(OPAQUE_WHITE, vertex.color(), "full brightness");
-                }
+            for (RecordingVertexConsumer.Vertex vertex : submitCell(cell).vertices()) {
+                assertEquals(0f, vertex.u(), 0f, "no texture coordinate written, the stars read the view direction");
+                assertEquals(0f, vertex.v(), 0f, "no texture coordinate written, the stars read the view direction");
+                assertEquals(OPAQUE_WHITE, vertex.color(), "full brightness");
             }
         }
     }

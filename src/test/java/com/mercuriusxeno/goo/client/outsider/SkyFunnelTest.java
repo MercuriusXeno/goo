@@ -13,9 +13,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Covers the sky funnel's shape and place: a door-width pillar rising from
- * the doorway's top, peeling out toward its ceiling until it meets the
- * room's edges, its top the room's rectangle, and every vertex drawn along
+ * Covers the sky funnel's shape and place: a door-width square column rising
+ * from the doorway's top, curving out ever faster until it meets the room's
+ * edges at its ceiling, its top the room's rectangle, and every vertex drawn along
  * its own line of sight inside the farthest drawn depth
  * (decision sky-funnel-points-down-to-the-doorway-from-any-distance).
  */
@@ -30,39 +30,62 @@ class SkyFunnelTest {
     private static final double FARTHEST = 1024;
     private static final double TEN_TIMES = 10;
     private static final double A_THOUSAND_TIMES = 1000;
-    private static final double NINE_TENTHS = 0.9;
     private static final double QUARTER_BLOCK = 0.25;
+    /** The ceiling's height, above goo:pocket's build height of 256. */
+    private static final double CEILING_Y = 512;
 
     @Nested
     class Profile {
 
         @Test
-        void thePillarHoldsTheDoorsWidthAlmostAllTheWayUp() {
-            assertEquals(HALF_BLOCK, SkyFunnel.radiusAt(0), EXACT, "the doorway's half width at its top");
-            assertTrue(SkyFunnel.radiusAt(SkyFunnel.CEILING * NINE_TENTHS) - HALF_BLOCK < QUARTER_BLOCK,
-                    "within a quarter block of it at nine tenths of the ceiling");
+        void everyRingIsASquareCenteredOnTheCenterBlock() {
             for (RoomExtent.Bounds bounds : List.of(NEAR_ROOM, GROWN_ROOM)) {
-                for (Vec3 vertex : SkyFunnel.rings(bounds).getFirst()) {
-                    assertEquals(HALF_BLOCK, radiusOf(bounds, vertex), EXACT, "the first ring the door's width");
+                for (List<Vec3> ring : SkyFunnel.rings(bounds)) {
+                    double halfWidth = halfWidthOf(bounds, ring.getFirst());
+                    for (Vec3 vertex : ring) {
+                        assertEquals(halfWidth, halfWidthOf(bounds, vertex), EXACT, "on the ring's square");
+                        assertEquals(ring.getFirst().y(), vertex.y(), EXACT, "level");
+                    }
+                    for (double side : List.of(-halfWidth, halfWidth)) {
+                        assertTrue(ring.stream().anyMatch(vertex -> Math.abs(eastOf(bounds, vertex) - side) < EXACT
+                                && Math.abs(southOf(bounds, vertex) - side) < EXACT), "the square's corners stand");
+                    }
                 }
             }
         }
 
         @Test
-        void eachRingStandsNoNarrowerThanTheOneBelow() {
+        void thePillarHoldsTheDoorsWidthUpToHalfItsHeight() {
             for (RoomExtent.Bounds bounds : List.of(NEAR_ROOM, GROWN_ROOM)) {
                 List<List<Vec3>> rings = SkyFunnel.rings(bounds);
-                double below = 0;
+                assertEquals(HALF_BLOCK, halfWidthOf(bounds, rings.getFirst().getFirst()), EXACT,
+                        "the first ring the doorway's half width");
+                double halfHeight = (SkyFunnel.spoutHeight() + SkyFunnel.CEILING_Y) / 2;
                 for (List<Vec3> ring : rings) {
-                    double widest = ring.stream().mapToDouble(vertex -> radiusOf(bounds, vertex)).max().orElseThrow();
-                    assertTrue(widest >= below - EXACT, "no narrower than the ring below");
-                    below = widest;
+                    if (ring.getFirst().y() <= halfHeight) {
+                        assertTrue(halfWidthOf(bounds, ring.getFirst()) - HALF_BLOCK < QUARTER_BLOCK,
+                                "within a quarter block of the door's half width up to half the height");
+                    }
                 }
             }
         }
 
         @Test
-        void theFunnelStopsAtTheRoomsEdgesItsTopTheRoomsRectangle() {
+        void eachRingWidensMoreThanTheOneBelow() {
+            for (RoomExtent.Bounds bounds : List.of(NEAR_ROOM, GROWN_ROOM)) {
+                List<List<Vec3>> rings = SkyFunnel.rings(bounds);
+                double widenedBelow = 0;
+                for (int ring = 1; ring < rings.size(); ring++) {
+                    double widened = halfWidthOf(bounds, rings.get(ring).getFirst())
+                            - halfWidthOf(bounds, rings.get(ring - 1).getFirst());
+                    assertTrue(widened > widenedBelow, "each ring widens more than the one below");
+                    widenedBelow = widened;
+                }
+            }
+        }
+
+        @Test
+        void theTopRingIsTheRoomsRectangleAtTheCeiling() {
             for (RoomExtent.Bounds bounds : List.of(NEAR_ROOM, GROWN_ROOM)) {
                 RoomExtent.Planes planes = RoomExtent.planesAround(
                         new BlockPos(bounds.centerX(), 0, bounds.centerZ()), bounds.extent());
@@ -73,17 +96,22 @@ class SkyFunnelTest {
                             "inside the room's boundary planes");
                 }
                 for (Vec3 vertex : rings.getLast()) {
-                    boolean onAPlane = Math.abs(vertex.x() - planes.west()) < EXACT
-                            || Math.abs(vertex.x() - planes.east()) < EXACT
-                            || Math.abs(vertex.z() - planes.north()) < EXACT
-                            || Math.abs(vertex.z() - planes.south()) < EXACT;
-                    assertTrue(onAPlane, "the top ring on the room's edge");
+                    assertEquals(CEILING_Y, vertex.y(), EXACT, "at the ceiling, y 512");
+                    assertEquals(bounds.extent(), halfWidthOf(bounds, vertex), EXACT, "on the room's edges");
                 }
             }
         }
 
-        private static double radiusOf(RoomExtent.Bounds bounds, Vec3 vertex) {
-            return Math.hypot(vertex.x() - (bounds.centerX() + HALF_BLOCK), vertex.z() - (bounds.centerZ() + HALF_BLOCK));
+        private static double eastOf(RoomExtent.Bounds bounds, Vec3 vertex) {
+            return vertex.x() - (bounds.centerX() + HALF_BLOCK);
+        }
+
+        private static double southOf(RoomExtent.Bounds bounds, Vec3 vertex) {
+            return vertex.z() - (bounds.centerZ() + HALF_BLOCK);
+        }
+
+        private static double halfWidthOf(RoomExtent.Bounds bounds, Vec3 vertex) {
+            return Math.max(Math.abs(eastOf(bounds, vertex)), Math.abs(southOf(bounds, vertex)));
         }
     }
 
