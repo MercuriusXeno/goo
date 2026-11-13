@@ -20,29 +20,29 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Draws SkyFunnel once a level pass in goo:pocket, rising from the room's own
+ * Draws SkyColumn once a level pass in goo:pocket, rising from the room's own
  * doorway, with goo's copy of the End portal's shader as a window into
  * space, as the doorway's cuboid wears it: its stars read by the direction
  * each point is seen through, and each vertex's brightness fading with the
- * log of its distance from the funnel's nearest point to its farthest, so
- * the near column stands in front of the far ceiling. Each face draws both ways round, so the
- * funnel shows from inside and out. It draws in the level pass rather than
- * the sky pass, so the blocks before it hide it as they hide the doorway,
- * and past the far plane SkyFunnel draws each vertex back inside it. The funnel is its own draw, outside the doorway's block entity
- * and outside the room copies, so one funnel draws however many copies the
- * frame shows; the room's own doorway stands at its center, never farther
- * than a copy's. A view through a linked portal draws it around that view's
+ * log of its distance from the column's nearest point to its farthest, so
+ * it dims as it rises away. Each face draws both ways round, so the column
+ * shows from inside and out. It draws in the level pass rather than the sky
+ * pass, so the blocks before it hide it as they hide the doorway, and past
+ * the far plane SkyColumn draws each vertex back inside it. The column is its
+ * own draw, outside the doorway's block entity and outside the room copies,
+ * so one column draws however many copies the frame shows; the room's own
+ * doorway stands at its center, never farther than a copy's. A view through a linked portal draws it around that view's
  * own camera, at the same true place, as RoomCopyRenderer draws the copies.
  * decision sky-funnel-points-down-to-the-doorway-from-any-distance
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
-public final class SkyFunnelRenderer {
+public final class SkyColumnRenderer {
 
-    private SkyFunnelRenderer() {
+    private SkyColumnRenderer() {
     }
 
     /**
-     * Submits the funnel for the pass drawing now, in the room the player stands in.
+     * Submits the column for the pass drawing now, in the room the player stands in.
      *
      * @param event the custom geometry submit event
      */
@@ -58,7 +58,7 @@ public final class SkyFunnelRenderer {
     }
 
     /**
-     * Submits one funnel over a room's own doorway, each quad's corners in
+     * Submits one column over a room's own doorway, each quad's corners in
      * order and then reversed.
      *
      * @param collector the pass's submit collector
@@ -69,7 +69,7 @@ public final class SkyFunnelRenderer {
      */
     static void submit(SubmitNodeCollector collector, PoseStack poses, RoomExtent.Bounds bounds, Vec3 camera,
             double farthest) {
-        List<List<Vec3>> quads = SkyFunnel.quads(bounds);
+        List<List<Vec3>> quads = SkyColumn.quads(bounds);
         DoubleSummaryStatistics distances = quads.stream().flatMap(List::stream)
                 .mapToDouble(corner -> corner.distanceTo(camera)).summaryStatistics();
         collector.submitCustomGeometry(poses, GooRenderTypes.SKY_FUNNEL_TYPE, (pose, buffer) -> {
@@ -88,17 +88,17 @@ public final class SkyFunnelRenderer {
      * Writes one corner: drawn along its line of sight within the pass's
      * reach, its brightness by distance.
      *
-     * @param buffer    the funnel's vertex consumer
+     * @param buffer    the column's vertex consumer
      * @param pose      the pass's pose, standing at the camera
      * @param corner    the corner's true place in world blocks
      * @param camera    the pass's camera
      * @param farthest  the farthest depth the pass draws
-     * @param distances the funnel's corners' true distances from the camera
+     * @param distances the column's corners' true distances from the camera
      */
     private static void addCorner(VertexConsumer buffer, PoseStack.Pose pose, Vec3 corner, Vec3 camera,
             double farthest, DoubleSummaryStatistics distances) {
-        float brightness = SkyFunnel.brightnessAt(corner.distanceTo(camera), distances.getMin(), distances.getMax());
-        buffer.addVertex(pose, SkyFunnel.fromCamera(camera, corner, farthest).toVector3f())
+        float brightness = SkyColumn.brightnessAt(corner.distanceTo(camera), distances.getMin(), distances.getMax());
+        buffer.addVertex(pose, SkyColumn.fromCamera(camera, corner, farthest).toVector3f())
                 .setColor(brightness, brightness, brightness, 1F);
     }
 }

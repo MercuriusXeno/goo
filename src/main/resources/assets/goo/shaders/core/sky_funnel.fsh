@@ -19,7 +19,7 @@ in vec3 seenAlong;
 in vec4 brightness;
 
 // How many repeats of the star layers span a direction plane's unit: more repeats, smaller stars.
-const float STARS_ACROSS = 3.0;
+const float STARS_ACROSS = 1.5;
 // How sharply each plane's share falls off as the direction turns from it.
 const float PLANE_FOCUS = 8.0;
 
