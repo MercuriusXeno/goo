@@ -21,8 +21,9 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 
 /**
  * Where Bore's drawn vortex makes contact with a breakable block, particles of
- * the block spew from the drill's point each tick the bore runs, flying back
- * toward the holder's face and fanning out in a ring round the drill's axis,
+ * the block spew from round the outside of its cone there each tick the bore
+ * runs, each flying back toward the holder's face and out from its place on
+ * the ring,
  * so the vortex reads as tearing into the block while the block clips it.
  * The contact is traced along the drawn vortex's own axis, from where it is
  * held below the line of sight.
@@ -39,8 +40,8 @@ public final class BoreContactSpray {
     static final double RING_SPEED = 0.18;
     /** How much each particle's speed back varies either way, as a share. */
     private static final double SPEED_VARY = 0.3;
-    /** How far out from the face a particle starts, so it never starts inside the block. */
-    private static final double OFF_THE_FACE = 0.05;
+    /** How far back toward the holder a particle starts, so it never starts inside the block. */
+    private static final double BACK_OFF = 0.1;
     private static final double TWO_PI = 2 * Math.PI;
     private static final double HALF = 0.5;
     private static final double BOTH_WAYS = 2;
@@ -62,12 +63,38 @@ public final class BoreContactSpray {
      * @return the velocity, in blocks a tick
      */
     static Vec3 spewVelocity(Vec3 towardHolder, double around, double flare) {
+        Vec3 ring = ringAt(towardHolder, around);
+        return towardHolder.scale(BACK_SPEED).add(ring.scale(RING_SPEED * (HALF + HALF * flare)));
+    }
+
+    /**
+     * Where a spewed particle starts: on the outside of the drill's cone where
+     * it meets the block, at a place round its axis, a little back toward the
+     * holder so it never starts inside the block.
+     *
+     * @param contact      the point the drill's axis meets the block
+     * @param towardHolder the unit direction from the drill's point back toward the holder
+     * @param around       where round the cone the particle starts, 0 to 1
+     * @param radius       the cone's radius where it meets the block
+     * @return the start, in world space
+     */
+    static Vec3 spewOrigin(Vec3 contact, Vec3 towardHolder, double around, double radius) {
+        return contact.add(ringAt(towardHolder, around).scale(radius)).add(towardHolder.scale(BACK_OFF));
+    }
+
+    /**
+     * The unit direction out from the drill's axis at a place round it.
+     *
+     * @param towardHolder the unit direction along the axis back toward the holder
+     * @param around       the place round the axis, 0 to 1
+     * @return the direction
+     */
+    private static Vec3 ringAt(Vec3 towardHolder, double around) {
         Vec3 reference = Math.abs(towardHolder.dot(WORLD_UP)) > NEARLY_UPRIGHT ? WORLD_EAST : WORLD_UP;
         Vec3 side = towardHolder.cross(reference).normalize();
         Vec3 up = side.cross(towardHolder);
         double angle = around * TWO_PI;
-        Vec3 ring = side.scale(Math.cos(angle)).add(up.scale(Math.sin(angle)));
-        return towardHolder.scale(BACK_SPEED).add(ring.scale(RING_SPEED * (HALF + HALF * flare)));
+        return side.scale(Math.cos(angle)).add(up.scale(Math.sin(angle)));
     }
 
     /**
@@ -121,6 +148,8 @@ public final class BoreContactSpray {
         Minecraft mc = Minecraft.getInstance();
         Vec3 eye = mc.options.getCameraType().isFirstPerson() ? mc.gameRenderer.getMainCamera().position()
                 : player.getEyePosition();
+        ConeSections.Volume drawn = BoreDrill.volume(eye, player.getViewVector(1f), player.getYRot(), reach,
+                step.vortexNearRadius(), step.vortexFarRadius());
         Vec3[] line = contactLine(eye, player.getViewVector(1f), player.getYRot(), reach, step.vortexNearRadius(),
                 step.vortexFarRadius());
         BlockHitResult hit = level.clip(new ClipContext(line[0], line[1], ClipContext.Block.OUTLINE,
@@ -129,16 +158,17 @@ public final class BoreContactSpray {
         if (hit.getType() == HitResult.Type.MISS || !state.is(step.breaks())) {
             return;
         }
-        spew(level, state, hit, line[0].subtract(line[1]).normalize());
+        double radius = drawn.radiusAt().applyAsDouble(hit.getLocation().distanceTo(drawn.apex()));
+        spew(level, state, hit.getLocation(), drawn.axis().reverse(), radius);
     }
 
-    private static void spew(ClientLevel level, BlockState state, BlockHitResult hit, Vec3 towardHolder) {
+    private static void spew(ClientLevel level, BlockState state, Vec3 contact, Vec3 towardHolder, double radius) {
         RandomSource random = level.getRandom();
-        Vec3 normal = Vec3.atLowerCornerOf(hit.getDirection().getUnitVec3i());
-        Vec3 at = hit.getLocation().add(normal.scale(OFF_THE_FACE));
         for (int spit = 0; spit < SPITS_PER_TICK; spit++) {
+            double around = random.nextDouble();
+            Vec3 at = spewOrigin(contact, towardHolder, around, radius);
             double speed = 1 + SPEED_VARY * signed(random);
-            Vec3 velocity = spewVelocity(towardHolder, random.nextDouble(), random.nextDouble()).scale(speed);
+            Vec3 velocity = spewVelocity(towardHolder, around, random.nextDouble()).scale(speed);
             level.addParticle(new BlockParticleOption(ParticleTypes.BLOCK, state), at.x, at.y, at.z,
                     velocity.x, velocity.y, velocity.z);
         }
