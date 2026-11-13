@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -55,6 +56,15 @@ public final class SlickTests {
     private static final double TRAVEL_SPEED = 0.6;
     private static final String NOT_LAID_FASTER = "Slick under a traveling streamer should have laid by held tick %d,"
             + " short of the %d held ticks it takes at rest, the stone's top holds %s";
+    private static final String SLICK_DRIPS_LAUNCH_AS_FROM_REST =
+            "slick_drips_launch_as_from_rest_while_the_streamer_moves";
+    /** A streamer's known movement, sprinting east while rising off a bounce, in blocks a tick. */
+    private static final Vec3 MOVING_AND_RISING = new Vec3(0.28, 0.42, -0.1);
+    /** How far two launches may differ and stand equal: double rounding. */
+    private static final double SAME_LAUNCH = 1e-9;
+    private static final String LAUNCHED_UNEVENLY = "Each tick should throw the same drips: %d at rest, %d moving";
+    private static final String LAUNCHED_WITH_MOVEMENT = "A moving streamer's drip should launch as at rest: %s at"
+            + " rest, %s moving";
     private static final BlockPos STREAMER_POS = new BlockPos(0, 1, 2);
     private static final float FACING_EAST = -90f;
     /** Ticks a hold's last drips take to fall onto a cell three blocks off, with room to spare. */
@@ -153,6 +163,8 @@ public final class SlickTests {
         GooTestFunctions.registerTest(registrar, BREAKING_SLICK_DROPS, SlickTests::breakingSlickDropsItsKineticGoo);
         GooTestFunctions.registerTest(registrar, PLACING_KEEPS_SLICK, SlickTests::placingABlockKeepsTheSlick);
         GooTestFunctions.registerTest(registrar, SLICK_LAYS_FASTER, SlickTests::slickLaysFasterUnderAStreamerTravelingOnSlick);
+        GooTestFunctions.registerTest(registrar, SLICK_DRIPS_LAUNCH_AS_FROM_REST,
+                SlickTests::slickDripsLaunchAsFromRestWhileTheStreamerMoves);
         GooTestFunctions.registerTest(registrar, SLICK_LANDS_LEVEL_AHEAD, SlickTests::slickLandsAboutTwelveBlocksAhead);
         GooTestFunctions.registerTest(registrar, SLICK_LANDS_AFTER_RELEASE,
                 SlickTests::slickLandsBelowAHighPerchAfterRelease);
@@ -426,9 +438,52 @@ public final class SlickTests {
         ServerPlayer streamer = slickStreamer(helper);
         streamer.setPos(streamer.getX(), streamer.getY() + SLICK_FILM, streamer.getZ());
         streamer.setKnownMovement(new Vec3(TRAVEL_SPEED, 0, 0));
-        // the drips carry the streamer's travel, so the aim reckons it in
-        aimAtTheStone(helper, streamer);
         holdUntilSlick(helper, streamer);
+    }
+
+    /**
+     * A streamer at rest throws a held tick of Slick's drips, then throws the
+     * next tick with the same aim while its known movement runs east and up:
+     * the drips DripFlights holds launch at the same velocities both ticks.
+     * goop-and-slick-drips-add-none-of-the-players-movement
+     *
+     * @param helper the gametest helper
+     */
+    public static void slickDripsLaunchAsFromRestWhileTheStreamerMoves(GameTestHelper helper) {
+        ServerPlayer streamer = slickStreamer(helper);
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.KINETIC), SLICK.toString(),
+                streamer.getEyePosition(), streamer.getEyePosition());
+        List<Vec3> atRest = new ArrayList<>();
+        helper.runAfterDelay(1, () -> atRest.addAll(launchedThisTick(helper, streamer, tick)));
+        helper.runAfterDelay(2, () -> {
+            streamer.setKnownMovement(MOVING_AND_RISING);
+            List<Vec3> moving = launchedThisTick(helper, streamer, tick);
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
+            helper.assertTrue(!atRest.isEmpty() && atRest.size() == moving.size(),
+                    String.format(LAUNCHED_UNEVENLY, atRest.size(), moving.size()));
+            for (int i = 0; i < atRest.size(); i++) {
+                helper.assertTrue(atRest.get(i).distanceTo(moving.get(i)) <= SAME_LAUNCH,
+                        String.format(LAUNCHED_WITH_MOVEMENT, atRest.get(i), moving.get(i)));
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Streams one tick and answers the velocities of the drips it threw.
+     *
+     * @param helper   the gametest helper
+     * @param streamer the streaming player
+     * @param tick     the stream's tick
+     * @return the launch velocities of the drips the tick threw, in the order thrown
+     */
+    private static List<Vec3> launchedThisTick(GameTestHelper helper, ServerPlayer streamer, GooStreamPayload tick) {
+        DripFlights flights = GooServerState.of(helper.getLevel().getServer()).dripFlights();
+        List<DripFlights.Flight> before = flights.flyingFrom(streamer.getUUID());
+        GooStreamHandler.streamTick(streamer, tick);
+        return flights.flyingFrom(streamer.getUUID()).stream()
+                .filter(flight -> before.stream().noneMatch(earlier -> earlier == flight))
+                .map(DripFlights.Flight::velocity).toList();
     }
 
     /**
@@ -779,7 +834,7 @@ public final class SlickTests {
 
     /**
      * Aims a streamer's axis drip down onto the middle of the slicked stone's
-     * top, carrying the streamer's travel, since a drip striking a side lays nothing.
+     * top, since a drip striking a side lays nothing.
      * goop-and-slick-coat-lands-where-each-drip-arc-strikes
      *
      * @param helper   the gametest helper
@@ -787,7 +842,7 @@ public final class SlickTests {
      */
     private static void aimAtTheStone(GameTestHelper helper, ServerPlayer streamer) {
         DripAim.at(streamer, Vec3.upFromBottomCenterOf(helper.absolutePos(SLICKED_STONE), 1),
-                slick(helper).delivery().throwSpeed(), streamer.getKnownMovement());
+                slick(helper).delivery().throwSpeed());
     }
 
     /**

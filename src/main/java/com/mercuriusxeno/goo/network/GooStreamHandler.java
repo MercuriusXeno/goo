@@ -354,12 +354,13 @@ public final class GooStreamHandler {
 
     /**
      * Throws a stream's drips into flight from the cone's apex, one along
-     * each share of the cone's fan at the delivery's throw speed, carrying
-     * the caster's travel; each lands what the program's landing step lays
+     * each share of the cone's fan at the delivery's throw speed alone;
+     * each lands what the program's landing step lays
      * where its arc strikes, during the hold or after it, and a drip of a
      * program striking the living ends on the first living thing it meets.
      * goop-and-slick-coat-lands-where-each-drip-arc-strikes
      * goop-wobbles-a-mob-its-drip-strikes
+     * goop-and-slick-drips-add-none-of-the-players-movement
      *
      * @param player  the spraying player
      * @param apex    the cone's apex
@@ -376,11 +377,10 @@ public final class GooStreamHandler {
         DripFlights.Thrower thrower = new DripFlights.Thrower(player.level().dimension(), player.getUUID(),
                 player.getId(), ability, landing, strikesLiving);
         Delivery delivery = ability.delivery();
-        Vec3 travel = travelOf(player);
         DripFlights flights = GooServerState.of(player.level().getServer()).dripFlights();
         for (CoatRay.ConeShare share : CoatRay.coneFan()) {
             flights.launch(new DripFlights.Flight(thrower, apex, DripArc.launch(axis, delivery.coneDegrees(), share,
-                    delivery.throwSpeed(), travel)));
+                    delivery.throwSpeed())));
         }
         return strikesLiving;
     }
@@ -419,7 +419,7 @@ public final class GooStreamHandler {
         }
         ServerLevel level = player.level();
         return DripArc.flyToItsEnd(apex, DripArc.launch(axis, delivery.coneDegrees(), CoatRay.coneFan().getFirst(),
-                delivery.throwSpeed(), travelOf(player)), CoatRay.clipping(level), DripFlights.airspaceOf(level))
+                delivery.throwSpeed()), CoatRay.clipping(level), DripFlights.airspaceOf(level))
                 .position();
     }
 

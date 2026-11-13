@@ -86,18 +86,17 @@ public final class DripArc {
 
     /**
      * A drip's launch velocity for its share of the cone: its heading inside
-     * the cone at the throw speed, plus the caster's travel.
+     * the cone at the throw speed, wherever and however the caster moves.
+     * goop-and-slick-drips-add-none-of-the-players-movement
      *
      * @param axis        the cone's axis
      * @param coneDegrees the cone, apex to rim, in degrees
      * @param share       the drip's place in the cone
      * @param throwSpeed  the delivery's throw speed, blocks per tick
-     * @param travel      the caster's travel velocity, blocks per tick
      * @return the launch velocity, blocks per tick
      */
-    public static Vec3 launch(Vec3 axis, double coneDegrees, CoatRay.ConeShare share, double throwSpeed,
-                              Vec3 travel) {
-        return StreamCone.launchDirection(axis, coneDegrees, share.tilt(), share.turn()).scale(throwSpeed).add(travel);
+    public static Vec3 launch(Vec3 axis, double coneDegrees, CoatRay.ConeShare share, double throwSpeed) {
+        return StreamCone.launchDirection(axis, coneDegrees, share.tilt(), share.turn()).scale(throwSpeed);
     }
 
     /**

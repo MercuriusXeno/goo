@@ -20,16 +20,18 @@ import java.util.List;
 
 /**
  * Plays a tick of a glove stream's motes on the client: each flies from the
- * glove along its own heading inside the cone, or along one of the arcs the
- * server's drips fly for a stream throwing drips, so the drips land where
- * the coat lands, carrying the caster's travel;
+ * glove along its own heading inside the cone carrying the caster's travel,
+ * or along one of the arcs the server's drips fly for a stream throwing
+ * drips, so the drips land where the coat lands, carrying none of the
+ * caster's movement;
  * a goo mote swings with its caster's glove over its opening ticks, and a
  * spray drip leaves a source held in its caster's view near the glove, where
  * the tick keeps the caster's lifted palm blob standing
  * (decisions glove-stream-motes-carry-the-players-travel-velocity,
  * glove-stream-motes-swing-with-the-glove-at-launch, goop-and-slick-spray-follows-the-coat,
  * goop-and-slick-spray-emanates-from-the-glove, palm-blob-lifts-as-the-spray-source,
- * goop-and-slick-coat-lands-where-each-drip-arc-strikes).
+ * goop-and-slick-coat-lands-where-each-drip-arc-strikes,
+ * goop-and-slick-drips-add-none-of-the-players-movement).
  */
 public final class StreamMotes {
 
@@ -87,8 +89,7 @@ public final class StreamMotes {
     private static boolean throwOnItsArc(Minecraft mc, StreamMotesPayload payload, SimpleParticleType particle,
                                          CoatRay.ConeShare share) {
         Vec3 apex = payload.apex();
-        Vec3 launch = DripArc.launch(payload.axis(), payload.coneDegrees(), share, payload.throwSpeed(),
-                payload.travel());
+        Vec3 launch = DripArc.launch(payload.axis(), payload.coneDegrees(), share, payload.throwSpeed());
         Particle mote = mc.particleEngine.createParticle(particle, apex.x, apex.y, apex.z, launch.x, launch.y,
                 launch.z);
         if (mote instanceof SprayDripParticle drip) {
