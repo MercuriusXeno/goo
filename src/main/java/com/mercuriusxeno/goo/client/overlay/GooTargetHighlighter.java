@@ -4,8 +4,6 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.SpireFootprint;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
-import com.mercuriusxeno.goo.ability.quantum.GatePassage;
-import com.mercuriusxeno.goo.ability.quantum.GateRay;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.ability.HeldColumnRenderer;
@@ -17,7 +15,6 @@ import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.client.throwing.SpireCast;
-import com.mercuriusxeno.goo.throwing.GateArc;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
@@ -27,7 +24,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -39,8 +35,8 @@ import java.util.OptionalDouble;
 /**
  * Draws the glove's aim each frame from the frame's {@link AimTracker}: a
  * goo-colored outline and face ripple on the targeted block or ability block
- * at the opaque stage, with no fill over the block, and the throw arc, or a
- * line per knife for a delivery slinging a fan, after translucent blocks. The entity outline
+ * at the opaque stage, with no fill over the block, and a line per knife for
+ * a delivery slinging a fan after translucent blocks. The entity outline
  * rides the render state modifier AimTracker registers (decision
  * render-context-is-the-one-emitter).
  */
@@ -50,36 +46,44 @@ public final class GooTargetHighlighter {
     private static final double NANOS_PER_SECOND = 1e9;
 
     /**
-     * Target the opaque stage leaves for the translucent arc stage, or null
-     * when the frame drew none or the arc stage already took it.
+     * Goo type the opaque stage leaves for the translucent line stage, or null
+     * when the frame aimed none or the line stage already took it.
      */
-    private static @Nullable TargetResult cachedArcTarget;
-    /**
-     * Goo type for the cached arc target.
-     */
-    private static @Nullable ResourceKey<GooTypeDefinition> cachedArcType;
-    /**
-     * Delivery of the selected ability for the cached arc target.
-     */
-    private static @Nullable Delivery cachedArcDelivery;
-    /**
-     * Whether the selected ability touches an entity within reach, so the
-     * arc stage draws the touch ring.
-     */
-    private static boolean cachedArcTouchesAtReach;
-    /** Whether the selected ability is drag-sized, so the arc stage draws no throw arc for it. */
-    private static boolean cachedArcDragSized;
-    /**
-     * Partial tick captured at the opaque stage.
-     */
-    private static float cachedArcPartialTick;
+    private static @Nullable ResourceKey<GooTypeDefinition> cachedLineType;
+    /** Delivery of the selected ability for the line stage. */
+    private static @Nullable Delivery cachedLineDelivery;
+    /** Partial tick captured at the opaque stage. */
+    private static float cachedLinePartialTick;
 
     private GooTargetHighlighter() {
     }
 
     /**
+     * The line the aim pass draws: the knife lines while a fan-slinging press
+     * is held, and no other, the vanilla crosshair aiming every other ability.
+     * vanilla-crosshair-aims-everything-without-reticule-line-or-touch-ring
+     */
+    enum AimPassLine {
+        /** No line. */
+        NONE,
+        /** A line per knife the charge slings. */
+        KNIFE_LINES
+    }
+
+    /**
+     * The line the aim pass draws for the selected delivery.
+     *
+     * @param delivery the selected delivery
+     * @param armed    whether right click holds an armed press
+     * @return the line
+     */
+    static AimPassLine aimPassLine(@Nullable Delivery delivery, boolean armed) {
+        return KnifeAimLineRenderer.showsLines(delivery, armed) ? AimPassLine.KNIFE_LINES : AimPassLine.NONE;
+    }
+
+    /**
      * Renders the targeted block or ability block highlight and leaves the
-     * target for the arc stage.
+     * selected delivery for the line stage.
      *
      * @param event the event instance
      */
@@ -89,7 +93,7 @@ public final class GooTargetHighlighter {
             drawMarksThroughTheGate(event);
             return;
         }
-        clearCachedArc();
+        clearCachedLine();
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null || !mc.options.getCameraType().isFirstPerson()) {
             return;
@@ -99,13 +103,10 @@ public final class GooTargetHighlighter {
             return;
         }
         TargetResult target = AimTracker.currentTarget();
-        cachedArcTarget = target;
-        cachedArcType = selectedType;
         String abilityId = GloveAim.selectedAbilityId(mc.player);
-        cachedArcDelivery = GloveThrowSender.selectedDelivery(abilityId);
-        cachedArcTouchesAtReach = GloveThrowSender.selectedTouchesAtReach(abilityId);
-        cachedArcDragSized = GloveThrowSender.selectedDragSized(abilityId);
-        cachedArcPartialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        cachedLineType = selectedType;
+        cachedLineDelivery = GloveThrowSender.selectedDelivery(abilityId);
+        cachedLinePartialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         HighlightFrame frame = new HighlightFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera(), mc, selectedType);
         if (drawsMarks(false, null, target.passage())) {
@@ -118,8 +119,8 @@ public final class GooTargetHighlighter {
     /**
      * In a view through a gate, draws the marks of a target the aim reached
      * through that gate, seen from the view's camera, so the outline and the
-     * ripple show on the far side through the view; the line and the held
-     * ghost stay the frame's own.
+     * ripple show on the far side through the view; the knife lines and the
+     * held ghost stay the frame's own.
      * aim-and-shots-carry-through-linked-gates
      *
      * @param event the view pass's render stage event
@@ -327,199 +328,28 @@ public final class GooTargetHighlighter {
     }
 
     /**
-     * Renders the deferred throw-arc line after translucent blocks so
-     * the depth buffer contains both opaque and water depth for
-     * correct sorting. A granny arc only follows a block target
-     * classified as an upper-edge hit.
+     * Draws the knife lines after translucent blocks, so the depth buffer
+     * holds both opaque and water depth for correct sorting.
+     * vanilla-crosshair-aims-everything-without-reticule-line-or-touch-ring
      *
      * @param event the event instance
      */
     @SubscribeEvent
     public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
         if (PortalView.drawing()) {
-            drawFarLegThroughTheGate(event);
             return;
         }
-        TargetResult target = cachedArcTarget;
-        ResourceKey<GooTypeDefinition> type = cachedArcType;
-        Delivery delivery = cachedArcDelivery;
-        float partialTick = cachedArcPartialTick;
-        boolean touchesAtReach = cachedArcTouchesAtReach;
-        boolean dragSized = cachedArcDragSized;
-        clearCachedArc();
-        if (target == null || type == null || delivery == null) {
-            return;
-        }
-        if (KnifeAimLineRenderer.showsLines(delivery, GloveUseTracker.showsArea())) {
-            Minecraft mc = Minecraft.getInstance();
-            KnifeAimLineRenderer.render(event.getPoseStack(), mc.renderBuffers().bufferSource(),
-                    mc.gameRenderer.getMainCamera(), delivery, ClientGooTypes.highlight(type), partialTick);
-            return;
-        }
-        if (drawsAimLine(delivery, dragSized)) {
-            renderLineAim(event, target, type, delivery, partialTick, touchesAtReach);
-        }
-    }
-
-    /**
-     * Draws a line aim: the touch ring where the ability touches at reach,
-     * and the aim line for a delivery aiming one.
-     *
-     * @param event          the render stage event
-     * @param target         the target this frame aims at
-     * @param type           the selected goo type
-     * @param delivery       the selected delivery
-     * @param partialTick    the partial tick captured at the opaque stage
-     * @param touchesAtReach whether the selected ability touches an entity within reach
-     */
-    private static void renderLineAim(RenderLevelStageEvent.AfterTranslucentBlocks event, TargetResult target,
-                                      ResourceKey<GooTypeDefinition> type, Delivery delivery, float partialTick,
-                                      boolean touchesAtReach) {
-        if (touchesAtReach) {
-            renderTouchRing(event, type, partialTick);
-        }
-        renderAimLine(event, target, type, delivery, partialTick);
-    }
-
-    /**
-     * Draws the aim line to its end for the target, the same frame the tile
-     * highlight draws, with nothing carried from the last frame.
-     * aim-line-snaps-with-the-tile-highlight
-     * aim-line-roots-to-the-aimed-mob-or-block
-     *
-     * @param event       the render stage event
-     * @param target      the target this frame aims at
-     * @param type        the selected goo type
-     * @param delivery    the selected delivery, an arc or a beam
-     * @param partialTick the partial tick captured at the opaque stage
-     */
-    private static void renderAimLine(RenderLevelStageEvent.AfterTranslucentBlocks event, TargetResult target,
-                                      ResourceKey<GooTypeDefinition> type, Delivery delivery, float partialTick) {
-        Vec3 end = aimLineEnd(target);
-        if (end == null) {
+        ResourceKey<GooTypeDefinition> type = cachedLineType;
+        Delivery delivery = cachedLineDelivery;
+        float partialTick = cachedLinePartialTick;
+        clearCachedLine();
+        if (type == null || delivery == null
+                || aimPassLine(delivery, GloveUseTracker.showsArea()) != AimPassLine.KNIFE_LINES) {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
-        Optional<GateArc.Hop> hop = hopOf(target);
-        if (hop.isPresent()) {
-            // aim-and-shots-carry-through-linked-gates: the frame draws the near leg, ending on the gate's face
-            Camera camera = mc.gameRenderer.getMainCamera();
-            ArcRenderer.renderGateLeg(event.getPoseStack(), mc.renderBuffers().bufferSource(), camera,
-                    GloveAim.handPosition(camera), hop.get(), end, false,
-                    new ArcRenderer.LineStyle(ClientGooTypes.highlight(type), partialTick,
-                            grannyWeight(target, delivery), delivery.aimsStraight()));
-            return;
-        }
-        ArcRenderer.renderTargetArc(event.getPoseStack(), mc.renderBuffers().bufferSource(),
-                mc.gameRenderer.getMainCamera(), end, ClientGooTypes.highlight(type),
-                partialTick, grannyWeight(target, delivery), delivery.aimsStraight());
-    }
-
-    /**
-     * The hop through a gate the aim line makes to reach a target, empty for
-     * a target on the near side.
-     *
-     * @param target the target this frame aims at
-     * @return the hop
-     */
-    private static Optional<GateArc.Hop> hopOf(TargetResult target) {
-        TargetResult.Passage passage = target.passage();
-        return passage == null ? Optional.empty()
-                : GateRay.hopThrough(GatePassage.clientPairs(), passage.gate(), passage.facePoint());
-    }
-
-    /**
-     * In a view through a gate, draws the aim line's far leg, from the
-     * partner to the target, where the aim passed that gate, so the line is
-     * seen carrying on through it.
-     * aim-and-shots-carry-through-linked-gates
-     *
-     * @param event the view pass's render stage event
-     */
-    private static void drawFarLegThroughTheGate(RenderLevelStageEvent.AfterTranslucentBlocks event) {
-        Minecraft mc = Minecraft.getInstance();
-        TargetResult target = AimTracker.currentTarget();
-        Optional<GateArc.Hop> hop = hopOf(target);
-        Vec3 end = aimLineEnd(target);
-        boolean seenHere = drawsMarks(true, PortalView.viewedGate(), target.passage());
-        if (mc.player == null || hop.isEmpty() || end == null || !seenHere) {
-            return;
-        }
-        ResourceKey<GooTypeDefinition> type = GloveAim.selectedGooType(mc.player);
-        String abilityId = GloveAim.selectedAbilityId(mc.player);
-        Delivery delivery = GloveThrowSender.selectedDelivery(abilityId);
-        if (type == null || delivery == null || !drawsAimLine(delivery, GloveThrowSender.selectedDragSized(abilityId))) {
-            return;
-        }
-        if (!mc.options.getCameraType().isFirstPerson()
-                || KnifeAimLineRenderer.showsLines(delivery, GloveUseTracker.showsArea())) {
-            return;
-        }
-        float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        ArcRenderer.renderGateLeg(event.getPoseStack(), mc.renderBuffers().bufferSource(), PortalView.camera(),
-                GloveAim.handPosition(mc.gameRenderer.getMainCamera()), hop.get(), end, true,
-                new ArcRenderer.LineStyle(ClientGooTypes.highlight(type), partialTick,
-                        grannyWeight(target, delivery), delivery.aimsStraight()));
-    }
-
-    /**
-     * Whether the held glove draws the throw arc for the selected ability: a
-     * beam or a one-blob arc that is thrown, never a drag-sized ability,
-     * which opens where it is pinned and draws its drag ring alone.
-     * blast-draws-no-throw-arc
-     *
-     * @param delivery  the selected ability's delivery
-     * @param dragSized whether the selected ability is drag-sized
-     * @return true where the aim line draws
-     */
-    static boolean drawsAimLine(Delivery delivery, boolean dragSized) {
-        return delivery.aimsALine() && !dragSized;
-    }
-
-    /**
-     * Where the aim line ends for a target: the bullseye's anchor on an aimed
-     * mob or block, so hand sway leaves the line rooted, and the cursor for
-     * free aim, which favors nothing to root to.
-     * aim-line-roots-to-the-aimed-mob-or-block
-     *
-     * @param target the target this frame aims at
-     * @return the line's end, or null when nothing is aimed at
-     */
-    static @Nullable Vec3 aimLineEnd(TargetResult target) {
-        return switch (target) {
-            case TargetResult.PointTarget free -> free.point();
-            case TargetResult.None none -> null;
-            default -> target.resolveEndpoint();
-        };
-    }
-
-    /**
-     * Draws the ring a mob ability touches within, the player's entity
-     * interaction range around the player's feet.
-     * decision mob-ability-touches-at-reach
-     *
-     * @param event       the render stage event
-     * @param type        the selected goo type
-     * @param partialTick the partial tick captured at the opaque stage
-     */
-    private static void renderTouchRing(RenderLevelStageEvent.AfterTranslucentBlocks event,
-                                        ResourceKey<GooTypeDefinition> type, float partialTick) {
-        Minecraft mc = Minecraft.getInstance();
-        ArcRenderer.renderReachRing(event.getPoseStack(), mc.renderBuffers().bufferSource(),
-                mc.gameRenderer.getMainCamera(), mc.player.getPosition(partialTick),
-                mc.player.entityInteractionRange(), ClientGooTypes.highlight(type), partialTick);
-    }
-
-    /**
-     * The peak weight the aim line draws toward: 1 for a lob onto a top face
-     * the selected delivery allows, 0 otherwise.
-     *
-     * @param target   the target this frame aims at
-     * @param delivery the selected ability's delivery
-     * @return the granny weight
-     */
-    private static double grannyWeight(TargetResult target, Delivery delivery) {
-        return delivery.grannyAllowed() && target instanceof TargetResult.BlockTarget bt && bt.grannyArc() ? 1 : 0;
+        KnifeAimLineRenderer.render(event.getPoseStack(), mc.renderBuffers().bufferSource(),
+                mc.gameRenderer.getMainCamera(), delivery, ClientGooTypes.highlight(type), partialTick);
     }
 
     /**
@@ -533,14 +363,11 @@ public final class GooTargetHighlighter {
     }
 
     /**
-     * Drops the target the arc stage would draw.
+     * Drops what the line stage would draw.
      */
-    private static void clearCachedArc() {
-        cachedArcTarget = null;
-        cachedArcType = null;
-        cachedArcDelivery = null;
-        cachedArcTouchesAtReach = false;
-        cachedArcDragSized = false;
-        cachedArcPartialTick = 0f;
+    private static void clearCachedLine() {
+        cachedLineType = null;
+        cachedLineDelivery = null;
+        cachedLinePartialTick = 0f;
     }
 }
