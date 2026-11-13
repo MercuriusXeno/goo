@@ -124,7 +124,7 @@ public final class AbilityImpact {
             return;
         }
         BlockPos cell = spot.get().cell();
-        LandingHost host = new LandingHost(level, cell, face, spot.get().waterlogged(), type,
+        LandingHost host = new LandingHost(level, cell, spot.get().face(), spot.get().waterlogged(), type,
                 ability.id().toString(), anchor(cell, point), size, caster);
         AbilitySplat.resolve(new Landing(host, ability));
     }

@@ -594,7 +594,7 @@ public final class AbilitySyncHandler {
          * @return the formula filled, or empty where the cost reads as a number
          */
         private Optional<String> formulaLabel() {
-            return costPrice.isFree() || pricedPerBlockGrown() || freeWhile.isPresent() ? formula() : Optional.empty();
+            return costPrice.isFree() || pricedByWhatItLays() || freeWhile.isPresent() ? formula() : Optional.empty();
         }
 
         /**
@@ -631,7 +631,7 @@ public final class AbilitySyncHandler {
         }
 
         private List<String> formulaArguments() {
-            if (pricedPerBlockGrown()) {
+            if (pricedByWhatItLays()) {
                 return List.of(GooFormat.formatMixed(costPrice.exactIn(ClientGooValues::current)));
             }
             return terrakinesis().map(step -> List.of(GooFormat.formatAmount(step.cost()))).orElse(List.of());
@@ -646,6 +646,18 @@ public final class AbilitySyncHandler {
          */
         private boolean pricedPerBlockGrown() {
             return behaviors.stream().anyMatch(SpireStep.class::isInstance);
+        }
+
+        /**
+         * Whether the ability's cost prices what it lays, charged as each block lands rather than once a
+         * throw or by the ticks held: a Spire's block grown, or a placement-drained stream's slime or film.
+         * spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
+         * goop-drains-per-cubic-meter-of-slime-placed
+         *
+         * @return true for an ability priced by what it lays
+         */
+        private boolean pricedByWhatItLays() {
+            return pricedPerBlockGrown() || delivery.drainsOnPlacement();
         }
 
         /**
@@ -845,7 +857,7 @@ public final class AbilitySyncHandler {
                         GooFormat.formatAmount(distancePrice.wallCost()),
                         Integer.toString(distancePrice.nodePercent()));
             }
-            if (pricedPerBlockGrown()) {
+            if (pricedByWhatItLays()) {
                 return List.of(GooFormat.formatMixed(costPrice.exactIn(lookup.values())));
             }
             return stepPriceArguments();

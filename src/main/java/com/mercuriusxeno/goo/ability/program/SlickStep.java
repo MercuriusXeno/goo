@@ -25,8 +25,9 @@ import java.util.stream.Stream;
  * so the JSON names how fast the slick drives a thing trying to move on it:
  * the ramp starts gentle and grows to its strongest over the build's ticks
  * the thing keeps trying, and a thing stepping on slower than the start
- * speed is raised to it.
+ * speed is raised to it. Each film pays Slick's cost as it lands.
  * slick-coats-the-ground-with-kinetic-speed
+ * slick-drains-per-film-it-lays
  * slick-ramp-grows-while-a-thing-keeps-moving
  * slick-raises-a-slow-entry-to-a-start-speed
  *
@@ -47,6 +48,8 @@ public record SlickStep(int ticks, double startRamp, double strongestRamp, int b
     private static final String FIELD_BUILD_TICKS = "build_ticks";
     private static final String FIELD_TOP_SPEED = "top_speed";
     private static final String FIELD_START_SPEED = "start_speed";
+    /** One whole cost buys one film (decision slick-drains-per-film-it-lays). */
+    private static final int FILMS_PER_COST = 1;
 
     /**
      * Codec for the step's params.
@@ -88,10 +91,28 @@ public record SlickStep(int ticks, double startRamp, double strongestRamp, int b
             if (aim.reaching()) {
                 paintOpenTops(host, PaintedHold.seenReach(host, aim), marks);
             }
+            PlacementPrice price = host.placementPrice();
             PaintedHold.buildPaintedStates(host, SlickStep::slickOver, SlickStep::sameBlock, marks, layRate(host),
-                    raw -> OptionalInt.empty(), (pos, raw, into) -> host.transformBlock(pos, into));
+                    raw -> OptionalInt.empty(), (pos, raw, into) -> layPaidFor(host, price, pos, into));
         });
         return true;
+    }
+
+    /**
+     * Lands a film once the player pays its price, Slick's whole cost, the
+     * hold's or a film finishing alone after release alike; a film the
+     * player cannot pay for does not land.
+     * slick-drains-per-film-it-lays
+     *
+     * @param host  the channel host
+     * @param price what the film pays as it lands
+     * @param pos   the cell
+     * @param into  the slick
+     */
+    private static void layPaidFor(ChannelHost host, PlacementPrice price, BlockPos pos, BlockState into) {
+        if (price.pay(FILMS_PER_COST)) {
+            host.transformBlock(pos, into);
+        }
     }
 
     /**

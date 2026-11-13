@@ -3,31 +3,43 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.SlickStep;
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
  * Gametests for Kinetic's Slick, cast through the real stream tick.
  * slick-coats-the-ground-with-kinetic-speed
  * slick-ramp-grows-while-a-thing-keeps-moving
+ * breaking-slick-drops-kinetic-goo-worth-its-film
  */
 @RegistersGameTests
 public final class SlickTests {
@@ -96,6 +108,20 @@ public final class SlickTests {
     private static final String LAID_PAST_RANGE = "Slick should not lay over the stone at %s, %.2f blocks from"
             + " the eye and past the stream's %.1f block range, holds %s";
 
+    private static final String BREAKING_SLICK_DROPS = "breaking_slick_drops_its_kinetic_goo";
+    private static final String PLACING_KEEPS_SLICK = "placing_a_block_keeps_the_slick";
+    private static final String RECLAIM_WRONG = "A broken slick film should drop one kinetic goo of %d mb, dropped %s";
+    private static final String PLACED_OVER_SLICK = "A block placed against a slick film should leave the film"
+            + " standing at %s, the cell holds %s";
+
+    private static final String SLICK_DRAINS_PER_FILM = "slick_drains_its_cost_for_each_film_it_lays";
+    private static final String SLICK_LAYING_NOTHING_DRAINS_NOTHING = "slick_laying_no_film_drains_no_goo";
+    private static final String SLICK_UNPAID_FILM_STAYS_OUT = "slick_lays_no_film_the_streamer_cannot_pay_for";
+    private static final String NO_FILMS = "The hold should lay at least one film";
+    private static final String DRAINED_WRONG = "The hold laid %d films and should drain %s mb of kinetic goo,"
+            + " drained %d";
+    private static final String FILMS_WRONG = "The hold should leave %d slick films, leaves %d";
+
     private SlickTests() {
     }
 
@@ -108,8 +134,145 @@ public final class SlickTests {
         GooTestFunctions.registerTest(registrar, SLICK_SLIDES_AN_ITEM, SlickTests::slickSlidesAnItemWithoutSpeedingIt);
         GooTestFunctions.registerTest(registrar, SLICK_SPEEDS_A_MOB, SlickTests::slickSpeedsUpAMobWalkingOnIt);
         GooTestFunctions.registerTest(registrar, SLICK_RAISES_A_WALKER, SlickTests::slickRaisesASlowWalkerToItsStartSpeed);
+        GooTestFunctions.registerTest(registrar, BREAKING_SLICK_DROPS, SlickTests::breakingSlickDropsItsKineticGoo);
+        GooTestFunctions.registerTest(registrar, PLACING_KEEPS_SLICK, SlickTests::placingABlockKeepsTheSlick);
         GooTestFunctions.registerTest(registrar, SLICK_LAYS_FASTER, SlickTests::slickLaysFasterUnderAStreamerTravelingOnSlick);
         GooTestFunctions.registerTest(registrar, SLICK_REACHES_ITS_RANGE, SlickTests::slickLaysAheadToItsRangeAndNoFurther);
+        GooTestFunctions.registerTest(registrar, SLICK_DRAINS_PER_FILM, SlickTests::slickDrainsItsCostForEachFilmItLays);
+        GooTestFunctions.registerTest(registrar, SLICK_LAYING_NOTHING_DRAINS_NOTHING,
+                SlickTests::slickLayingNoFilmDrainsNoGoo);
+        GooTestFunctions.registerTest(registrar, SLICK_UNPAID_FILM_STAYS_OUT,
+                SlickTests::slickLaysNoFilmTheStreamerCannotPayFor);
+    }
+
+    /**
+     * A Slick hold over a strip of stone drains Slick's cost once for each
+     * film it lays, and nothing for the ticks held.
+     * slick-drains-per-film-it-lays
+     *
+     * @param helper the gametest helper
+     */
+    public static void slickDrainsItsCostForEachFilmItLays(GameTestHelper helper) {
+        layStrip(helper);
+        ServerPlayer streamer = slickStreamer(helper);
+        int before = kineticHeld(streamer);
+        int held = layTicks(helper) + LAY_SLACK_TICKS;
+        holdSlickFor(helper, streamer, held);
+        helper.runAfterDelay(held + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
+            int films = filmsIn(helper);
+            helper.assertTrue(films > 0, NO_FILMS);
+            GooFraction owed = ResidualPrices.filmPrice(helper).times(films);
+            int drained = before - kineticHeld(streamer);
+            helper.assertTrue(drained == owed.ceiling(), String.format(DRAINED_WRONG, films, owed, drained));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A Slick hold over a strip already slick, so no cell it reaches takes a
+     * film, lasting three films' worth of ticks, drains no kinetic goo.
+     * slick-drains-per-film-it-lays
+     *
+     * @param helper the gametest helper
+     */
+    public static void slickLayingNoFilmDrainsNoGoo(GameTestHelper helper) {
+        layStrip(helper);
+        for (int east = STRIP_WEST; east <= STRIP_EAST; east++) {
+            helper.setBlock(SLICKED_STONE.east(east).above(), GooBlocks.KINETIC_SLICK.get());
+        }
+        ServerPlayer streamer = slickStreamer(helper);
+        int before = kineticHeld(streamer);
+        int threeFilms = 3 * layTicks(helper);
+        holdSlickFor(helper, streamer, threeFilms);
+        helper.runAfterDelay(threeFilms + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
+            int drained = before - kineticHeld(streamer);
+            helper.assertTrue(drained == 0, String.format(DRAINED_WRONG, 0, GooFraction.ZERO, drained));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A streamer holding one film's price of kinetic goo holds Slick across
+     * a strip of open stone tops: one film lands and the goo runs out.
+     * slick-drains-per-film-it-lays
+     *
+     * @param helper the gametest helper
+     */
+    public static void slickLaysNoFilmTheStreamerCannotPayFor(GameTestHelper helper) {
+        layStrip(helper);
+        ServerPlayer streamer = slickStreamer(helper);
+        GooSourceScanner.deplete(streamer, GooTypes.KINETIC,
+                kineticHeld(streamer) - ResidualPrices.filmPrice(helper).ceiling());
+        int threeFilms = 3 * layTicks(helper);
+        holdSlickFor(helper, streamer, threeFilms);
+        helper.runAfterDelay(threeFilms + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
+            helper.assertTrue(filmsIn(helper) == 1, String.format(FILMS_WRONG, 1, filmsIn(helper)));
+            helper.assertTrue(kineticHeld(streamer) == 0, "The streamer should hold no kinetic goo, holds "
+                    + kineticHeld(streamer));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Streams Slick every tick of a hold from the first tick, aimed wherever the streamer looks.
+     *
+     * @param helper   the gametest helper
+     * @param streamer the streaming player
+     * @param ticks    how many ticks the hold lasts
+     */
+    private static void holdSlickFor(GameTestHelper helper, ServerPlayer streamer, int ticks) {
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.KINETIC), SLICK.toString(),
+                streamer.getEyePosition(), streamer.getEyePosition());
+        for (int held = 1; held <= ticks; held++) {
+            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(streamer, tick));
+        }
+    }
+
+    private static int kineticHeld(ServerPlayer player) {
+        return GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.KINETIC, 0);
+    }
+
+    /**
+     * The slick films standing anywhere in the test's bounds.
+     *
+     * @param helper the gametest helper
+     * @return the count
+     */
+    private static int filmsIn(GameTestHelper helper) {
+        AABB bounds = helper.getBounds();
+        int films = 0;
+        for (BlockPos pos : BlockPos.betweenClosed(BlockPos.containing(bounds.minX, bounds.minY, bounds.minZ),
+                BlockPos.containing(bounds.maxX, bounds.maxY, bounds.maxZ))) {
+            if (helper.getLevel().getBlockState(pos).is(GooBlocks.KINETIC_SLICK.get())) {
+                films++;
+            }
+        }
+        return films;
+    }
+
+    /**
+     * Slick's stream lays slick over a strip of stone; the film broken in a
+     * live world leaves one kinetic goo item in its cell worth 12 mb.
+     * breaking-slick-drops-kinetic-goo-worth-its-film
+     *
+     * @param helper the gametest helper
+     */
+    public static void breakingSlickDropsItsKineticGoo(GameTestHelper helper) {
+        BlockPos slicked = SLICKED_STONE.above();
+        laySlick(helper, () -> {
+            // GameTestHelper.destroyBlock breaks with drops off; the level's own break drops what the block gives
+            helper.getLevel().destroyBlock(helper.absolutePos(slicked), true);
+            List<ItemStack> kinetic = helper.getEntities(EntityType.ITEM, slicked, 1.0).stream()
+                    .map(ItemEntity::getItem).filter(stack -> GooTypes.KINETIC.equals(GooStacks.keyOf(stack)))
+                    .toList();
+            int owed = ResidualPrices.filmsRefund(helper, 1);
+            helper.assertTrue(kinetic.size() == 1 && GooStacks.volumeOf(kinetic.getFirst()) == owed,
+                    String.format(RECLAIM_WRONG, owed, kinetic));
+            helper.succeed();
+        });
     }
 
     /**
@@ -138,6 +301,30 @@ public final class SlickTests {
             GooStreamHandler.streamTick(streamer, tick);
             helper.getLevel().getServer().getPlayerList().remove(streamer);
             assertLaidToItsRange(helper, eye, hold);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Slick's stream lays slick over a strip of stone; a survival player
+     * uses a stone block item against the film's top, and the film still
+     * stands, the stone set over it rather than in its place.
+     * breaking-slick-drops-kinetic-goo-worth-its-film
+     *
+     * @param helper the gametest helper
+     */
+    public static void placingABlockKeepsTheSlick(GameTestHelper helper) {
+        BlockPos slicked = SLICKED_STONE.above();
+        laySlick(helper, () -> {
+            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+            ItemStack stone = new ItemStack(Items.STONE);
+            player.setItemInHand(InteractionHand.MAIN_HAND, stone);
+            BlockPos cell = helper.absolutePos(slicked);
+            Vec3 filmTop = Vec3.atBottomCenterOf(cell).add(0, SLICK_FILM, 0);
+            stone.useOn(new UseOnContext(player, InteractionHand.MAIN_HAND,
+                    new BlockHitResult(filmTop, Direction.UP, cell, false)));
+            helper.assertTrue(helper.getBlockState(slicked).is(GooBlocks.KINETIC_SLICK.get()),
+                    String.format(PLACED_OVER_SLICK, slicked, helper.getBlockState(slicked)));
             helper.succeed();
         });
     }

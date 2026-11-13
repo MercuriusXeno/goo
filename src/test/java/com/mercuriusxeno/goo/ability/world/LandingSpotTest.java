@@ -30,7 +30,7 @@ class LandingSpotTest {
         Optional<LandingSpot> spot = LandingSpot.resolve(pos -> free.contains(pos) ? AIR : OCCUPIED, CORNER,
                 Direction.SOUTH, INSIDE_THE_CORNER);
 
-        assertEquals(Optional.of(new LandingSpot(CORNER.above(), false)), spot);
+        assertEquals(Optional.of(new LandingSpot(CORNER.above(), false, Direction.UP)), spot);
     }
 
     /** A blob striking a replaceable block, as grass on soil, lands in that block's own cell. */
@@ -41,6 +41,6 @@ class LandingSpotTest {
         Optional<LandingSpot> spot = LandingSpot.resolve(pos -> pos.equals(CORNER) ? grass : AIR, CORNER,
                 Direction.UP, Vec3.atCenterOf(CORNER));
 
-        assertEquals(Optional.of(new LandingSpot(CORNER, false)), spot);
+        assertEquals(Optional.of(new LandingSpot(CORNER, false, Direction.UP)), spot);
     }
 }

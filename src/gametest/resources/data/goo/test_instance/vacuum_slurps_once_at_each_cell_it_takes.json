@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:vacuum_slurps_once_at_each_cell_it_takes",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

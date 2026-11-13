@@ -4,13 +4,21 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.LoadedAbilityCost;
 import com.mercuriusxeno.goo.ability.program.SlickStep;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
@@ -18,6 +26,7 @@ import net.minecraft.world.level.ScheduledTickAccess;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
@@ -30,10 +39,12 @@ import java.util.Optional;
  * horizontal velocity ramped each tick by a ramp that grows the longer it
  * keeps trying, as kinetic_slick.json's slick step names; anything else only
  * slides. The client reads that step from the abilities it was synced, since
- * it moves its own player.
+ * it moves its own player. It stands until something destroys it, then drops
+ * the kinetic goo its film cost.
  * slick-coats-the-ground-with-kinetic-speed
  * slick-ramp-grows-while-a-thing-keeps-moving
  * kinetic-is-electric-blue-and-white
+ * breaking-slick-drops-kinetic-goo-worth-its-film
  */
 public class KineticSlickBlock extends Block {
 
@@ -50,6 +61,52 @@ public class KineticSlickBlock extends Block {
      */
     public KineticSlickBlock(Properties properties) {
         super(properties);
+    }
+
+    /**
+     * The goo a broken film gives back.
+     *
+     * @param type the goo type
+     * @param mb   the goo in mb
+     */
+    record Reclaim(ResourceKey<GooTypeDefinition> type, int mb) {
+    }
+
+    /**
+     * The kinetic goo a broken film gives back: Slick's cost, the price the
+     * stream charged the film, the whole mb of it.
+     * breaking-slick-drops-kinetic-goo-worth-its-film
+     * slick-drains-per-film-it-lays
+     *
+     * @param slickCost Slick's cost, the price of one film
+     * @return the goo
+     */
+    static Reclaim reclaimed(GooFraction slickCost) {
+        return new Reclaim(GooTypes.KINETIC, slickCost.floor());
+    }
+
+    /**
+     * Gives back the kinetic goo the film cost, whatever breaks it; a film
+     * broken where no Slick definition loads gives back nothing.
+     * breaking-slick-drops-kinetic-goo-worth-its-film
+     */
+    @Override
+    protected @NonNull List<ItemStack> getDrops(@NonNull BlockState state, LootParams.@NonNull Builder builder) {
+        return LoadedAbilityCost.of(builder.getLevel(), SLICK_ABILITY).map(KineticSlickBlock::reclaimed)
+                .filter(reclaim -> reclaim.mb() > 0)
+                .map(reclaim -> List.of(GooStacks.createForOutput(reclaim.type(), reclaim.mb()))).orElse(List.of());
+    }
+
+    /**
+     * Refuses a placed block the cell, so building on slick sets the block
+     * over it rather than deleting the goo its film holds; the cell stays
+     * replaceable for the slick step and the rules that read
+     * BlockState.canBeReplaced().
+     * breaking-slick-drops-kinetic-goo-worth-its-film
+     */
+    @Override
+    protected boolean canBeReplaced(@NonNull BlockState state, @NonNull BlockPlaceContext context) {
+        return false;
     }
 
     /**
