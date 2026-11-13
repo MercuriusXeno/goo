@@ -1,0 +1,16 @@
+{
+  "light_level": 0,
+  "saturation_fill": 0.5,
+  "wheel": "5A3A1A",
+  "bright": "7A5A2A",
+  "highlight": "6A4A22",
+  "edge": "4A2A12",
+  "density": 1000,
+  "viscosity": 6000,
+  "elasticity": 0.05,
+  "temperature": 300,
+  "extinguishes": false,
+  "levity": 1.0,
+  "base_flight_time": 3,
+  "map_color": "color_brown"
+}

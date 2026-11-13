@@ -61,6 +61,90 @@ public final class GooItemTests {
         GooTestFunctions.registerTest(registrar, ITEM_GOO_JOINS_FROM_TWO_BLOCKS, GooItemTests::gooTwoBlocksApartJoins);
         GooTestFunctions.registerTest(registrar, ITEM_GOO_BOUNCES_BY_ELASTICITY, GooItemTests::gooBouncesByElasticity);
         GooTestFunctions.registerTest(registrar, ITEM_GOO_PICKED_UP, GooItemTests::gooIsPickedUp);
+        GooTestFunctions.registerTest(registrar, ITEM_GOO_CLINGS_BY_VISCOSITY, GooItemTests::gooClingsByViscosity);
+        GooTestFunctions.registerTest(registrar, ITEM_GOO_CLINGING_STILL_JOINS, GooItemTests::clingingGooStillJoins);
+    }
+
+    private static final String ITEM_GOO_CLINGS_BY_VISCOSITY = "item_goo_clings_by_viscosity";
+    private static final String ITEM_GOO_CLINGING_STILL_JOINS = "item_goo_clinging_still_joins";
+    /** The test datapack's thick type, viscosity 6000; blaze art states 1000. */
+    private static final ResourceKey<GooTypeDefinition> THICK_TYPE = ResourceKey.create(
+            GooTypes.REGISTRY, Identifier.fromNamespaceAndPath("gootest", "molasses"));
+    /** The wall's column, test-relative x, standing from the floor up. */
+    private static final int WALL_X = 4;
+    private static final int WALL_HEIGHT = 4;
+    private static final Vec3 THICK_THROW = new Vec3(2.5, 3.5, 1.5);
+    private static final Vec3 RUNNY_THROW = new Vec3(2.5, 3.5, 3.5);
+    private static final Vec3 TOWARD_THE_WALL = new Vec3(0.5, 0, 0);
+    /** Ticks past the throw when a runny fleck has dripped off the wall and a thick one still clings. */
+    private static final int CLING_READ_TICK = 45;
+    /** How far above the floor a fleck still on the wall stands, at the least. */
+    private static final double ABOVE_THE_FLOOR = 0.5;
+    /** How near the wall's face a clinging fleck stands, test-relative x. */
+    private static final double AT_THE_WALL = WALL_X - 0.5;
+    private static final Vec3 SECOND_GOO = new Vec3(2.5, 1, 1.5);
+    private static final String THICK_NOT_ON_WALL = "The thick goo should still cling to the wall, standing at ";
+    private static final String RUNNY_NOT_ON_FLOOR = "The runny goo should have dripped to the floor, standing at ";
+
+    /**
+     * Two goo items thrown at a wall with one velocity, one of a thick type
+     * and one of a runny type: at one later tick the thick one still stands
+     * on the wall above the floor while the runny one rests on the floor.
+     * decision flecks-move-by-flexible-goo-physics-and-stay-items
+     * decision each-goo-type-carries-elasticity-and-viscosity
+     *
+     * @param helper the gametest helper
+     */
+    public static void gooClingsByViscosity(GameTestHelper helper) {
+        layStoneFloor(helper);
+        layWall(helper);
+        ItemEntity thick = throwAtTheWall(helper, THICK_TYPE, THICK_THROW);
+        ItemEntity runny = throwAtTheWall(helper, DEAD_TYPE, RUNNY_THROW);
+        double floor = helper.absoluteVec(FLOOR_TOP).y;
+        helper.runAfterDelay(CLING_READ_TICK, () -> {
+            Vec3 thickAt = helper.relativeVec(thick.position());
+            Vec3 runnyAt = helper.relativeVec(runny.position());
+            helper.assertTrue(thick.getY() > floor + ABOVE_THE_FLOOR && thickAt.x > AT_THE_WALL,
+                    THICK_NOT_ON_WALL + thickAt);
+            helper.assertTrue(runny.getY() < floor + AT_THE_FLOOR, RUNNY_NOT_ON_FLOOR + runnyAt);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A thick goo item clinging to a wall and a same-type goo item two blocks
+     * from it stand as one goo item holding their summed volume.
+     * decision flecks-move-by-flexible-goo-physics-and-stay-items
+     * decision combining-flecks-join-into-one-cuboid
+     *
+     * @param helper the gametest helper
+     */
+    public static void clingingGooStillJoins(GameTestHelper helper) {
+        layStoneFloor(helper);
+        layWall(helper);
+        throwAtTheWall(helper, THICK_TYPE, THICK_THROW);
+        CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(THICK_TYPE, FAR_VOLUME), SECOND_GOO);
+        helper.succeedWhen(() -> {
+            List<Integer> volumes = helper.getLevel().getEntitiesOfClass(ItemEntity.class,
+                            new AABB(helper.absolutePos(BlockPos.ZERO)).inflate(6),
+                            item -> item.isAlive() && THICK_TYPE.equals(GooStacks.keyOf(item.getItem())))
+                    .stream().map(item -> GooStacks.volumeOf(item.getItem())).toList();
+            helper.assertTrue(volumes.equals(List.of(DROPPED_VOLUME + FAR_VOLUME)), GOO_NOT_JOINED + volumes);
+        });
+    }
+
+    private static ItemEntity throwAtTheWall(GameTestHelper helper, ResourceKey<GooTypeDefinition> type, Vec3 from) {
+        ItemEntity goo = CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(type, DROPPED_VOLUME), from);
+        goo.setDeltaMovement(TOWARD_THE_WALL);
+        return goo;
+    }
+
+    private static void layWall(GameTestHelper helper) {
+        for (int y = 1; y <= WALL_HEIGHT; y++) {
+            for (int z = 0; z < 6; z++) {
+                helper.setBlock(new BlockPos(WALL_X, y, z), Blocks.STONE);
+            }
+        }
     }
 
     private static final String ITEM_GOO_BOUNCES_BY_ELASTICITY = "item_goo_bounces_by_elasticity";
