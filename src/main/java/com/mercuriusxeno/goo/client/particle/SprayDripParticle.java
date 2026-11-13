@@ -28,13 +28,14 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * The client draws a frame after running its ticks, and the particle engine
  * takes a new particle in only after ticking the ones already flying, so a
- * drip is drawn a tick or more after the stream's tick launched it, before
- * its own first tick. Until that tick it is drawn on the spray's source as
- * the source stands that frame, and its first tick throws it from the source
- * where it stands then, so the spray appears at its source for a caster
- * standing, walking, strafing or turning.
+ * drip reaches a frame a tick or more after the stream's tick launched it,
+ * before its own first tick. Until that tick it draws nothing, the lifted
+ * palm blob standing at the source alone, and its first tick throws it from
+ * the source where it stands then, so the spray leaves its source for a
+ * caster standing, walking, strafing or turning.
  * goop-and-slick-spray-throws-goo-drips-that-splat
  * goop-and-slick-spray-emanates-from-the-glove
+ * palm-blob-lifts-as-the-spray-source
  */
 public final class SprayDripParticle extends SingleQuadParticle {
 
@@ -75,12 +76,12 @@ public final class SprayDripParticle extends SingleQuadParticle {
     }
 
     /**
-     * Names the spray source the drip appears at and the coat ray's end it
-     * splats on: the drip is drawn on the source until its first tick throws
-     * it from there, carrying its caster's travel.
+     * Names the spray source the drip leaves and the coat ray's end it
+     * splats on: the drip's first tick throws it from the source, carrying
+     * its caster's travel.
      * goop-and-slick-spray-emanates-from-the-glove
      *
-     * @param sprayFrom    where the caster's spray source stands, read when the drip is drawn and thrown
+     * @param sprayFrom    where the caster's spray source stands, read when the drip is thrown
      * @param coatEnd      the end of the drip's coat ray
      * @param casterTravel the caster's travel velocity the server sent, blocks per tick
      */
@@ -126,8 +127,9 @@ public final class SprayDripParticle extends SingleQuadParticle {
     }
 
     /**
-     * Draws the drip on its source as the source stands this frame until its
-     * first tick throws it, and where its flight has carried it after.
+     * Draws the drip where its flight has carried it, and nothing before its
+     * first tick throws it, while the lifted palm blob alone stands at the source.
+     * palm-blob-lifts-as-the-spray-source
      *
      * @param reusedState the reusable render state for quad particles
      * @param camera      the active camera
@@ -137,10 +139,11 @@ public final class SprayDripParticle extends SingleQuadParticle {
     @Override
     protected void extractRotatedQuad(QuadParticleRenderState reusedState, Camera camera, Quaternionf rotation,
                                       float partialTick) {
-        Vec3 at = thrown
-                ? new Vec3(Mth.lerp(partialTick, this.xo, this.x), Mth.lerp(partialTick, this.yo, this.y),
-                        Mth.lerp(partialTick, this.zo, this.z))
-                : source.at(partialTick);
+        if (!thrown) {
+            return;
+        }
+        Vec3 at = new Vec3(Mth.lerp(partialTick, this.xo, this.x), Mth.lerp(partialTick, this.yo, this.y),
+                Mth.lerp(partialTick, this.zo, this.z));
         Vec3 cameraPos = camera.position();
         this.extractRotatedQuad(reusedState, rotation, (float) (at.x - cameraPos.x), (float) (at.y - cameraPos.y),
                 (float) (at.z - cameraPos.z), partialTick);
