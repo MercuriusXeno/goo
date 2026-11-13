@@ -13,8 +13,6 @@ import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
-import com.mercuriusxeno.goo.throwing.DripArc;
-import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -39,7 +37,6 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
@@ -89,12 +86,7 @@ public final class WeirdTests {
     private static final int COAT_SLACK_TICKS = 5;
     /** Ticks a hold's last drips take to fall onto a cell three blocks off, with room to spare. */
     private static final int DRIP_FLIGHT_TICKS = 10;
-    /** The steepest a drip is aimed up and down, in degrees of pitch, within which a higher aim lands higher. */
-    private static final float STEEPEST_UP = -45f;
-    private static final float STEEPEST_DOWN = 80f;
-    /** Halvings of the pitch range the drip's aim is found by, far finer than a block at these reaches. */
-    private static final int AIM_HALVINGS = 40;
-    private static final double HALF = 0.5;
+
     /** Coats a hold lays on one cell in the layering test. */
     private static final int THREE_COATS = 3;
     /** Coats the turned-to cell takes in the two cell hold. */
@@ -755,60 +747,17 @@ public final class WeirdTests {
     }
 
     /**
-     * Turns a streamer toward a point and pitches it so the axis drip, thrown
-     * from the eye at the live Goop's throw speed, passes through the point,
-     * the pitch found by halving between the steepest aims.
-     * goop-and-slick-coat-lands-where-each-drip-arc-strikes
+     * Aims a streamer's axis drip at a point at the live Goop's throw speed.
      *
      * @param helper   the gametest helper
      * @param streamer the streaming player
      * @param target   the point, in world space
      */
     private static void aimDripAt(GameTestHelper helper, ServerPlayer streamer, Vec3 target) {
-        streamer.lookAt(EntityAnchorArgument.Anchor.EYES, target);
         AbilityDefinition goop = AbilityRegistry.of(helper.getLevel()).getAbility(GOOP);
         helper.assertTrue(goop != null, ABILITY_REQUIRED);
-        double speed = goop.delivery().throwSpeed();
-        Vec3 eye = streamer.getEyePosition();
-        double reach = target.subtract(eye).horizontalDistance();
-        float up = STEEPEST_UP;
-        float down = STEEPEST_DOWN;
-        for (int halving = 0; halving < AIM_HALVINGS; halving++) {
-            float pitch = (up + down) / 2;
-            Vec3 launch = Vec3.directionFromRotation(pitch, streamer.getYRot()).scale(speed);
-            if (heightAt(eye, launch, reach) > target.y) {
-                up = pitch;
-            } else {
-                down = pitch;
-            }
-        }
-        streamer.setXRot((up + down) / 2);
+        DripAim.at(streamer, target, goop.delivery().throwSpeed(), Vec3.ZERO);
     }
-
-    /**
-     * How high a drip's arc stands once it has flown a level distance from its launch, through open air.
-     *
-     * @param from   the drip's launch point
-     * @param launch its launch velocity, blocks per tick
-     * @param reach  the level distance
-     * @return the arc's height there, read between the two ticks either side
-     */
-    private static double heightAt(Vec3 from, Vec3 launch, double reach) {
-        Vec3 at = from;
-        Vec3 velocity = launch;
-        while (true) {
-            DripArc.Step step = DripArc.step(at, velocity, (start, end) -> Optional.empty(), point -> true);
-            double before = at.subtract(from).horizontalDistance();
-            double after = step.position().subtract(from).horizontalDistance();
-            if (after >= reach) {
-                double share = after > before ? (reach - before) / (after - before) : HALF;
-                return at.y + (step.position().y - at.y) * share;
-            }
-            at = step.position();
-            velocity = step.velocity();
-        }
-    }
-
     /**
      * Stands a Goop streamer at the bay's west side facing east, pitched down.
      *

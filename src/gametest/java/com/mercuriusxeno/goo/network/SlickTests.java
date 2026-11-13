@@ -32,6 +32,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -56,8 +57,8 @@ public final class SlickTests {
             + " short of the %d held ticks it takes at rest, the stone's top holds %s";
     private static final BlockPos STREAMER_POS = new BlockPos(0, 1, 2);
     private static final float FACING_EAST = -90f;
-    /** Pitch down from the eye toward the stone's center three blocks off. */
-    private static final float AT_THE_STONE = 20.5f;
+    /** Ticks a hold's last drips take to fall onto a cell three blocks off, with room to spare. */
+    private static final int DRIP_FLIGHT_TICKS = 10;
     /** Three blocks east of the streamer, at its height, on a block the test lays. */
     private static final BlockPos SLICKED_STONE = STREAMER_POS.east(3);
     /** The westmost and eastmost offsets from SLICKED_STONE of the strip the stream slicks. */
@@ -96,17 +97,32 @@ public final class SlickTests {
             + " faster than it walked the stone: %.4f against %.4f on stone";
     private static final String NOT_FASTER_THAN_ICE = "A husk %d ticks onto slick should outpace a husk %d ticks"
             + " onto ice: %.4f on ice, %.4f on slick";
-    private static final String SLICK_REACHES_ITS_RANGE = "slick_lays_ahead_to_its_range_and_no_further";
+    private static final String SLICK_LANDS_LEVEL_AHEAD = "slick_lands_about_twelve_blocks_ahead_on_flat_ground";
+    private static final String SLICK_LANDS_AFTER_RELEASE = "slick_lands_below_a_high_perch_after_the_hold_ends";
     /** Where the streamer stands in the light bay, at its west wall, on the strip's first stone. */
     private static final BlockPos FAR_STREAMER_POS = new BlockPos(0, 1, 8);
     /** The light bay is sixteen blocks across, so the strip runs from the streamer to its east wall. */
     private static final int FAR_STRIP_EAST = 15;
-    /** The stone ten blocks east of the streamer, its top about 10.1 blocks from their eye, well inside the stream's range. */
-    private static final BlockPos FAR_INSIDE = FAR_STREAMER_POS.below().east(10);
-    private static final String NOT_LAID_FAR_INSIDE = "Slick should lay %d held ticks on over the stone at %s,"
-            + " inside the stream's %.1f block range, holds %s";
-    private static final String LAID_PAST_RANGE = "Slick should not lay over the stone at %s, %.2f blocks from"
-            + " the eye and past the stream's %.1f block range, holds %s";
+    /** The nearest and farthest the level shot's film may stand ahead of the streamer, in cells. */
+    private static final int NEAREST_AHEAD = 11;
+    private static final int FARTHEST_AHEAD = 13;
+    /** Ticks given the last drips of a hold to fall onto the floor, past the longest fall these tests make. */
+    private static final int FALL_TICKS = 60;
+    /** The perched floor stands over the light bay's barrier roof, in open air the roof does not cut. */
+    private static final int PERCHED_FLOOR_Y = 10;
+    /** How far the perch's top stands over the floor's top: its drips fall longer than the hold lasts. */
+    private static final int HIGH_PERCH = 40;
+    /** The perched floor runs this far north and south of the streamer's row, wider than the cone's spread. */
+    private static final int FLOOR_HALF_WIDTH = 4;
+    /** How far east of the perch's middle the streamer stands, near its edge. */
+    private static final double PERCH_EDGE = 0.4;
+    /** Pitched steeply down, so the drips fall onto the floor inside the bay's span. */
+    private static final float DOWN_OFF_THE_PERCH = 75f;
+    private static final String NO_FILM_AHEAD = "A level Slick shot should lay a film 11 to 13 blocks ahead,"
+            + " films stand %s blocks ahead";
+    private static final String NO_FILM_BELOW = "Slick aimed down from %d blocks up should lay a film on the floor";
+    private static final String LANDED_BEFORE_RELEASE = "The high perch's first drips should still be falling when"
+            + " the hold ends, %d films stand";
 
     private static final String BREAKING_SLICK_DROPS = "breaking_slick_drops_its_kinetic_goo";
     private static final String PLACING_KEEPS_SLICK = "placing_a_block_keeps_the_slick";
@@ -137,7 +153,9 @@ public final class SlickTests {
         GooTestFunctions.registerTest(registrar, BREAKING_SLICK_DROPS, SlickTests::breakingSlickDropsItsKineticGoo);
         GooTestFunctions.registerTest(registrar, PLACING_KEEPS_SLICK, SlickTests::placingABlockKeepsTheSlick);
         GooTestFunctions.registerTest(registrar, SLICK_LAYS_FASTER, SlickTests::slickLaysFasterUnderAStreamerTravelingOnSlick);
-        GooTestFunctions.registerTest(registrar, SLICK_REACHES_ITS_RANGE, SlickTests::slickLaysAheadToItsRangeAndNoFurther);
+        GooTestFunctions.registerTest(registrar, SLICK_LANDS_LEVEL_AHEAD, SlickTests::slickLandsAboutTwelveBlocksAhead);
+        GooTestFunctions.registerTest(registrar, SLICK_LANDS_AFTER_RELEASE,
+                SlickTests::slickLandsBelowAHighPerchAfterRelease);
         GooTestFunctions.registerTest(registrar, SLICK_DRAINS_PER_FILM, SlickTests::slickDrainsItsCostForEachFilmItLays);
         GooTestFunctions.registerTest(registrar, SLICK_LAYING_NOTHING_DRAINS_NOTHING,
                 SlickTests::slickLayingNoFilmDrainsNoGoo);
@@ -276,35 +294,81 @@ public final class SlickTests {
     }
 
     /**
-     * A streamer at rest at the head of a long strip of stone, looking at the
-     * stone ten blocks east, lays slick over it once held past the slick
-     * step's ticks, and every stone on the strip whose top lies wholly past
-     * the stream's range from their eye stays bare. The hold and the range
-     * are read from the ability, so a retune moves them both.
+     * A streamer standing at the head of a long strip of stone holds Slick
+     * level, then lets go: once the drips have fallen a slick film stands in
+     * a cell 11 to 13 blocks ahead along the look.
      * slick-sprays-twelve-blocks-ahead
+     * goop-and-slick-throw-keeps-todays-level-reach
      *
      * @param helper the gametest helper
      */
-    public static void slickLaysAheadToItsRangeAndNoFurther(GameTestHelper helper) {
+    public static void slickLandsAboutTwelveBlocksAhead(GameTestHelper helper) {
         for (int east = 0; east <= FAR_STRIP_EAST; east++) {
             helper.setBlock(FAR_STREAMER_POS.below().east(east), Blocks.STONE);
         }
         ServerPlayer streamer = slickStreamerAt(helper, FAR_STREAMER_POS);
-        lookAt(streamer, Vec3.upFromBottomCenterOf(helper.absolutePos(FAR_INSIDE), 1));
-        Vec3 eye = streamer.getEyePosition();
-        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.KINETIC), SLICK.toString(), eye, eye);
+        streamer.setYRot(FACING_EAST);
+        streamer.setXRot(0);
         int hold = layTicks(helper) + LAY_SLACK_TICKS;
-        for (int held = 1; held < hold; held++) {
-            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(streamer, tick));
-        }
-        helper.runAfterDelay(hold, () -> {
-            GooStreamHandler.streamTick(streamer, tick);
+        holdSlickFor(helper, streamer, hold);
+        helper.runAfterDelay(hold + FALL_TICKS, () -> {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
-            assertLaidToItsRange(helper, eye, hold);
+            List<Integer> filmed = new ArrayList<>();
+            for (int east = 0; east <= FAR_STRIP_EAST; east++) {
+                if (helper.getBlockState(FAR_STREAMER_POS.east(east)).is(GooBlocks.KINETIC_SLICK.get())) {
+                    filmed.add(east);
+                }
+            }
+            helper.assertTrue(filmed.stream().anyMatch(east -> east >= NEAREST_AHEAD && east <= FARTHEST_AHEAD),
+                    String.format(NO_FILM_AHEAD, filmed));
             helper.succeed();
         });
     }
 
+    /**
+     * A streamer on a perch forty blocks over a stone floor holds Slick aimed
+     * down off the perch for a film's worth and lets go before the first drip
+     * lands: the floor stands bare when the hold ends, and a slick film
+     * stands on it once the drips have fallen.
+     * goop-and-slick-coat-lands-where-each-drip-arc-strikes
+     *
+     * @param helper the gametest helper
+     */
+    public static void slickLandsBelowAHighPerchAfterRelease(GameTestHelper helper) {
+        for (int east = 0; east <= FAR_STRIP_EAST; east++) {
+            for (int z = FAR_STREAMER_POS.getZ() - FLOOR_HALF_WIDTH; z <= FAR_STREAMER_POS.getZ() + FLOOR_HALF_WIDTH;
+                 z++) {
+                helper.setBlock(new BlockPos(east, PERCHED_FLOOR_Y, z), Blocks.STONE);
+            }
+        }
+        BlockPos stand = new BlockPos(FAR_STREAMER_POS.getX(), PERCHED_FLOOR_Y + 1 + HIGH_PERCH,
+                FAR_STREAMER_POS.getZ());
+        helper.setBlock(stand.below(), Blocks.STONE);
+        ServerPlayer streamer = slickStreamerAt(helper, stand);
+        // stood at the perch's east edge, so the steep cone clears the perch
+        streamer.setPos(streamer.getX() + PERCH_EDGE, streamer.getY(), streamer.getZ());
+        streamer.setYRot(FACING_EAST);
+        streamer.setXRot(DOWN_OFF_THE_PERCH);
+        int hold = layTicks(helper) + LAY_SLACK_TICKS;
+        holdSlickFor(helper, streamer, hold);
+        helper.runAfterDelay(hold + 1, () -> helper.assertTrue(filmsIn(helper) == 0,
+                String.format(LANDED_BEFORE_RELEASE, filmsIn(helper))));
+        helper.runAfterDelay(hold + FALL_TICKS, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
+            int films = 0;
+            for (int east = 0; east <= FAR_STRIP_EAST; east++) {
+                for (int z = FAR_STREAMER_POS.getZ() - FLOOR_HALF_WIDTH;
+                     z <= FAR_STREAMER_POS.getZ() + FLOOR_HALF_WIDTH; z++) {
+                    if (helper.getBlockState(new BlockPos(east, PERCHED_FLOOR_Y + 1, z))
+                            .is(GooBlocks.KINETIC_SLICK.get())) {
+                        films++;
+                    }
+                }
+            }
+            helper.assertTrue(films > 0, String.format(NO_FILM_BELOW, HIGH_PERCH));
+            helper.succeed();
+        });
+    }
     /**
      * Slick's stream lays slick over a strip of stone; a survival player
      * uses a stone block item against the film's top, and the film still
@@ -330,32 +394,6 @@ public final class SlickTests {
     }
 
     /**
-     * Asserts slick over the stone well inside the stream's range and air
-     * over every stone on the strip whose top lies wholly past it.
-     *
-     * @param helper the gametest helper
-     * @param eye    the streamer's eye
-     * @param hold   the held ticks the stream ran
-     */
-    private static void assertLaidToItsRange(GameTestHelper helper, Vec3 eye, int hold) {
-        double range = slick(helper).delivery().range();
-        BlockPos laid = FAR_INSIDE.above();
-        helper.assertTrue(helper.getBlockState(laid).is(GooBlocks.KINETIC_SLICK.get()),
-                String.format(NOT_LAID_FAR_INSIDE, hold, laid, range, helper.getBlockState(laid)));
-        for (int east = 0; east <= FAR_STRIP_EAST; east++) {
-            BlockPos stone = helper.absolutePos(FAR_STREAMER_POS.below().east(east));
-            AABB top = new AABB(stone.getX(), stone.getY() + 1, stone.getZ(),
-                    stone.getX() + 1, stone.getY() + 1, stone.getZ() + 1);
-            double nearest = Math.sqrt(top.distanceToSqr(eye));
-            BlockPos bare = FAR_STREAMER_POS.east(east);
-            if (nearest > range) {
-                helper.assertTrue(helper.getBlockState(bare).isAir(),
-                        String.format(LAID_PAST_RANGE, bare, nearest, range, helper.getBlockState(bare)));
-            }
-        }
-    }
-
-    /**
      * @param helper the gametest helper
      * @return the live Slick ability
      */
@@ -373,17 +411,6 @@ public final class SlickTests {
         return SlickStep.in(slick(helper).behaviors()).orElseThrow().ticks();
     }
 
-    /**
-     * Turns a streamer's look onto a point.
-     *
-     * @param streamer the streamer
-     * @param target   the point to look at
-     */
-    private static void lookAt(ServerPlayer streamer, Vec3 target) {
-        Vec3 line = target.subtract(streamer.getEyePosition());
-        streamer.setYRot((float) Math.toDegrees(Math.atan2(-line.x, line.z)));
-        streamer.setXRot((float) Math.toDegrees(-Math.atan2(line.y, line.horizontalDistance())));
-    }
 
     /**
      * A streamer standing on slick and traveling east at TRAVEL_SPEED, near
@@ -399,6 +426,8 @@ public final class SlickTests {
         ServerPlayer streamer = slickStreamer(helper);
         streamer.setPos(streamer.getX(), streamer.getY() + SLICK_FILM, streamer.getZ());
         streamer.setKnownMovement(new Vec3(TRAVEL_SPEED, 0, 0));
+        // the drips carry the streamer's travel, so the aim reckons it in
+        aimAtTheStone(helper, streamer);
         holdUntilSlick(helper, streamer);
     }
 
@@ -525,7 +554,8 @@ public final class SlickTests {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(streamer, tick));
         }
         BlockPos slicked = SLICKED_STONE.above();
-        helper.runAfterDelay(hold + 1, () -> {
+        // goop-and-slick-coat-lands-where-each-drip-arc-strikes: the hold's last drips land after it ends
+        helper.runAfterDelay(hold + DRIP_FLIGHT_TICKS, () -> {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
             helper.assertTrue(helper.getBlockState(slicked).is(GooBlocks.KINETIC_SLICK.get()),
                     String.format(NO_SLICK, slicked, helper.getBlockState(slicked)));
@@ -743,9 +773,21 @@ public final class SlickTests {
      */
     private static ServerPlayer slickStreamer(GameTestHelper helper) {
         ServerPlayer streamer = slickStreamerAt(helper, STREAMER_POS);
-        streamer.setYRot(FACING_EAST);
-        streamer.setXRot(AT_THE_STONE);
+        aimAtTheStone(helper, streamer);
         return streamer;
+    }
+
+    /**
+     * Aims a streamer's axis drip down onto the middle of the slicked stone's
+     * top, carrying the streamer's travel, since a drip striking a side lays nothing.
+     * goop-and-slick-coat-lands-where-each-drip-arc-strikes
+     *
+     * @param helper   the gametest helper
+     * @param streamer the streaming player
+     */
+    private static void aimAtTheStone(GameTestHelper helper, ServerPlayer streamer) {
+        DripAim.at(streamer, Vec3.upFromBottomCenterOf(helper.absolutePos(SLICKED_STONE), 1),
+                slick(helper).delivery().throwSpeed(), streamer.getKnownMovement());
     }
 
     /**

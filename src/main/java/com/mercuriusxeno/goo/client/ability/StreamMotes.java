@@ -16,13 +16,12 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Plays a tick of a glove stream's motes on the client: each flies from the
- * glove along its own heading inside the cone, onto the end of a coat ray
- * for a stream whose spray follows its coat, or along one of the arcs the
- * server's drips fly for a stream throwing drips, carrying the caster's travel;
+ * glove along its own heading inside the cone, or along one of the arcs the
+ * server's drips fly for a stream throwing drips, so the drips land where
+ * the coat lands, carrying the caster's travel;
  * a goo mote swings with its caster's glove over its opening ticks, and a
  * spray drip leaves a source held in its caster's view near the glove, where
  * the tick keeps the caster's lifted palm blob standing
@@ -56,7 +55,6 @@ public final class StreamMotes {
             return;
         }
         RandomSource random = mc.level.getRandom();
-        CoatRay.BlockClip clip = CoatRay.clipping(mc.level);
         List<CoatRay.ConeShare> fan = CoatRay.coneFan();
         boolean threwDrips = false;
         for (int i = 0; i < MOTES_PER_TICK; i++) {
@@ -64,8 +62,7 @@ public final class StreamMotes {
                 // goop-and-slick-coat-lands-where-each-drip-arc-strikes: each drawn drip flies one of the server's arcs
                 threwDrips |= throwOnItsArc(mc, payload, particle, fan.get(random.nextInt(fan.size())));
             } else {
-                CoatRay.ConeShare share = new CoatRay.ConeShare(random.nextDouble(), random.nextDouble());
-                threwDrips |= launchMote(mc, payload, particle, share, clip);
+                launchMote(mc, payload, particle, new CoatRay.ConeShare(random.nextDouble(), random.nextDouble()));
             }
         }
         if (threwDrips) {
@@ -109,25 +106,15 @@ public final class StreamMotes {
      * @param payload  the stream's tick
      * @param particle the mote's particle
      * @param share    the mote's place in the cone
-     * @param clip     the blocks the coat's ray meets
-     * @return true where the mote is a spray drip thrown onto its coat
      */
-    private static boolean launchMote(Minecraft mc, StreamMotesPayload payload, SimpleParticleType particle,
-                                      CoatRay.ConeShare share, CoatRay.BlockClip clip) {
+    private static void launchMote(Minecraft mc, StreamMotesPayload payload, SimpleParticleType particle,
+                                   CoatRay.ConeShare share) {
         Vec3 apex = payload.apex();
-        Optional<Vec3> coatEnd = GooStreamHandler.coatEnd(payload, share, clip);
-        Vec3 launch = GooStreamHandler.moteLaunch(payload, share, coatEnd);
+        Vec3 launch = GooStreamHandler.moteLaunch(payload, share);
         Particle mote = mc.particleEngine.createParticle(particle, apex.x, apex.y, apex.z, launch.x, launch.y,
                 launch.z);
-        if (mote instanceof SprayDripParticle drip && coatEnd.isPresent()) {
-            // palm-blob-lifts-as-the-spray-source: the drip leaves the lifted blob, easing or at the source
-            drip.leaveFrom(partialTick -> LiftedPalmBlob.dripLeavesFrom(payload.casterId(), apex, partialTick),
-                    coatEnd.get(), payload.travel());
-            return true;
-        }
         if (mote instanceof GloveMote gloveMote) {
             gloveMote.swingWith(new GloveSwing.Tracker(payload.casterId(), CasterPoses::poseOf));
         }
-        return false;
     }
 }

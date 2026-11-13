@@ -13,13 +13,14 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * One ray of a coating stream's fan: it leaves the eye along a heading
+ * One ray of a painting stream's fan: it leaves the eye along a heading
  * inside the cone and ends just inside the first block it meets, foliage
- * included, or at the stream's range where it meets none. The coat paints
- * the cells its rays cross, and Slick's motes fly to the same ends, so the
- * cloud lands on the area the stream coats; Goop's drips fly their own arcs
- * through the same clip.
- * goop-and-slick-spray-follows-the-coat
+ * included, or at the stream's range where it meets none; Decay, Broil and
+ * Petrify paint the cells their rays cross. Goop's and Slick's drips launch
+ * along the same fan and meet blocks through the same clip, and their coat
+ * lands where each drip's arc strikes.
+ * decay-gnats-degrade-each-block-once
+ * goop-and-slick-coat-lands-where-each-drip-arc-strikes
  */
 public final class CoatRay {
 
@@ -87,7 +88,7 @@ public final class CoatRay {
 
     /**
      * The places in the cone a stream's fan runs: the axis, then rings of
-     * shares out to the cone's rim. The coat's rays run them, and Goop's drips
+     * shares out to the cone's rim. A painting stream's rays run them, and Goop's and Slick's drips
      * launch along them.
      *
      * @return the shares, the axis first
