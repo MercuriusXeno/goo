@@ -38,6 +38,7 @@ class GooItemEntityRendererTest {
     private static final float WITHIN = 1e-5f;
     private static final float SIZE = 2f;
     private static final int VERTICES_PER_FACE = 4;
+    private static final float ONE_PIXEL = 1f / 16f;
 
     @Test
     void aDroppedGooItemDrawsTheSameAxisAlignedCuboidOnItsFeetAtEveryAge() {
@@ -63,8 +64,20 @@ class GooItemEntityRendererTest {
                         "every face should lie on a plane square to a world axis");
             }
             float lowest = (float) young.stream().mapToDouble(Vector3f::y).min().orElseThrow();
-            assertEquals(0f, lowest, WITHIN, "the cuboid's bottom should rest at the entity's feet: no hover");
+            assertTrue(lowest > WITHIN && lowest < ONE_PIXEL, "the cuboid's bottom should rest on the entity's "
+                    + "feet, clear of the floor's face so the two never z-fight, but within a pixel: no hover; "
+                    + "it stands at " + lowest);
         }
+    }
+
+    @Test
+    void aDroppedGooItemCastsNoShadow() {
+        GooItemEntityRenderer renderer = new GooItemEntityRenderer(context());
+        GooItemEntityRenderer.GooItemRenderState state = renderer.createRenderState();
+        state.gooType = GooTypes.ZOO;
+        state.gooSize = SIZE;
+
+        assertEquals(0f, renderer.getShadowRadius(state), "a dropped goo item should cast no entity shadow");
     }
 
     private static boolean squareToAnAxis(List<Vector3f> face) {

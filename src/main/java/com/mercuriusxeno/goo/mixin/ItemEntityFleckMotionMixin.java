@@ -56,8 +56,9 @@ public abstract class ItemEntityFleckMotionMixin implements FleckHost {
     private void goo$movesAsAFleck(ItemEntity self, MoverType type, Vec3 delta, Operation<Void> move) {
         Vec3 moving = FleckMotion.beforeMove(self, delta);
         Vec3 before = self.getDeltaMovement();
+        boolean wasOnGround = self.onGround();
         move.call(self, type, moving);
-        FleckMotion.afterMove(self, before);
+        FleckMotion.afterMove(self, before, wasOnGround);
     }
 
     /**
