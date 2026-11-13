@@ -4,20 +4,18 @@
 #moj_import <minecraft:dynamictransforms.glsl>
 
 // The sky funnel and the doorway it rises from (decision
-// sky-funnel-points-down-to-the-doorway-from-any-distance): vanilla's End portal vertex shader,
-// its starfield coordinates taken from the surface rather than the screen, so the stars sit on
-// the walls at a size in blocks and shrink with distance, and its color carrying the vertex's
-// brightness.
+// sky-funnel-points-down-to-the-doorway-from-any-distance): a window into space. The position
+// arrives relative to the camera in the world's axes, so it is the direction the point is seen
+// through, which the fragment shader reads the stars along; the color carries the brightness.
 
 in vec3 Position;
-in vec2 UV0;
 in vec4 Color;
 
-out vec2 surfaceCoord;
+out vec3 seenAlong;
 out vec4 brightness;
 
 void main() {
     gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);
-    surfaceCoord = UV0;
+    seenAlong = Position;
     brightness = Color;
 }

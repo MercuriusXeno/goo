@@ -4,16 +4,24 @@
 #moj_import <minecraft:globals.glsl>
 
 // The sky funnel and the doorway it rises from (decision
-// sky-funnel-points-down-to-the-doorway-from-any-distance): vanilla's End portal fragment shader,
-// its layers read at the surface's coordinates in place of the screen point, dimmed by the
-// vertex's brightness. It applies no fog: each vertex draws pulled inside the far plane, so fog
-// would read the pulled distance, and the brightness already fades the funnel with distance.
+// sky-funnel-points-down-to-the-doorway-from-any-distance): vanilla's End portal fragment shader as
+// a window into space. Its layers are read along the direction each point is seen through, not at
+// the screen point or on the surface, so the stars stand infinitely far behind it: they stay put
+// as the viewer walks and never stretch on the surface. The direction is projected onto the three
+// planes facing its axes, each weighted by how squarely the direction faces it, so no cube seam
+// shows. It applies no fog: each vertex draws pulled inside the far plane, so fog would read the
+// pulled distance, and the brightness already fades the funnel with distance.
 
 uniform sampler2D Sampler0;
 uniform sampler2D Sampler1;
 
-in vec2 surfaceCoord;
+in vec3 seenAlong;
 in vec4 brightness;
+
+// How many repeats of the star layers span a direction plane's unit: more repeats, smaller stars.
+const float STARS_ACROSS = 3.0;
+// How sharply each plane's share falls off as the direction turns from it.
+const float PLANE_FOCUS = 8.0;
 
 const vec3[] COLORS = vec3[](
     vec3(0.022087, 0.098399, 0.110818),
@@ -56,13 +64,25 @@ mat4 end_portal_layer(float layer) {
     return mat4(scale * rotate) * translate * SCALE_TRANSLATE;
 }
 
+// The End portal's layers read at one point of a direction plane.
+vec3 layersAt(vec2 across) {
+    vec4 point = vec4(across * STARS_ACROSS, 0.0, 1.0);
+    vec3 color = textureProj(Sampler0, point).rgb * COLORS[0];
+    for (int i = 0; i < PORTAL_LAYERS; i++) {
+        color += textureProj(Sampler1, point * end_portal_layer(float(i + 1))).rgb * COLORS[i];
+    }
+    return color;
+}
+
 out vec4 fragColor;
 
 void main() {
-    vec4 surface = vec4(surfaceCoord, 0.0, 1.0);
-    vec3 color = textureProj(Sampler0, surface).rgb * COLORS[0];
-    for (int i = 0; i < PORTAL_LAYERS; i++) {
-        color += textureProj(Sampler1, surface * end_portal_layer(float(i + 1))).rgb * COLORS[i];
-    }
+    vec3 along = normalize(seenAlong);
+    vec3 facing = abs(along);
+    vec3 share = pow(facing, vec3(PLANE_FOCUS));
+    share /= share.x + share.y + share.z;
+    vec3 color = share.x * layersAt(along.yz / max(facing.x, 1e-4))
+            + share.y * layersAt(along.xz / max(facing.y, 1e-4))
+            + share.z * layersAt(along.xy / max(facing.z, 1e-4));
     fragColor = vec4(color * brightness.rgb, 1.0);
 }
