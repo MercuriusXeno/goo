@@ -625,8 +625,11 @@ public final class OutsiderRooms {
      * its grown square cleared, the floor whole, the extent the 9 by 9, the
      * center voidstone and the doorway standing. The room number and the
      * return point stay, so the doorway still leads where the player cast
-     * from. A player standing in the pocket is told the new edges.
+     * from. A player standing in the pocket is set back at the doorway, in
+     * the room as laid, and told the new edges; a player elsewhere stays where
+     * they stand.
      * decision reset-command-returns-my-room-to-nine-by-nine-and-clears-its-blocks
+     * decision reset-sets-a-player-in-the-room-back-at-the-doorway
      *
      * @param player the room's owner
      * @return true once the room is reset, false for a player holding no room
@@ -643,8 +646,26 @@ public final class OutsiderRooms {
         RoomClearance.clear(pocket, voidstoneOf(room), grown);
         pockets.keepPlatform(player.getUUID(), VoidPockets.Platform.LAID);
         restoreRoom(pocket, room);
+        if (player.level().dimension() == POCKET) {
+            setBackAtTheDoor(player, pocket, room);
+        }
         sendEdges(player);
         return true;
+    }
+
+    /**
+     * Sets a player in the pocket on their room's arrival cell facing the
+     * door, with no motion and no fall built up.
+     * decision reset-sets-a-player-in-the-room-back-at-the-doorway
+     *
+     * @param player the player in the pocket
+     * @param pocket the pocket dimension
+     * @param room   the player's room number
+     */
+    private static void setBackAtTheDoor(ServerPlayer player, ServerLevel pocket, int room) {
+        player.teleport(new TeleportTransition(pocket, arrivalOf(room), Vec3.ZERO, FACING_DOOR, 0f,
+                TeleportTransition.DO_NOTHING));
+        player.resetFallDistance();
     }
 
     /**
