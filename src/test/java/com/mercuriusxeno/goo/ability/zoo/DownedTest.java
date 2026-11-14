@@ -93,7 +93,7 @@ class DownedTest {
 
     @Test
     void aMobStillDownDiesAtFifteenSeconds() {
-        Downed downed = new Downed(DOWNED_AT, false);
+        Downed downed = new Downed(DOWNED_AT, false, 0f);
         assertFalse(downed.diesAt(DOWNED_AT + Downed.DEATH_TICKS - 1));
         assertTrue(downed.diesAt(DOWNED_AT + Downed.DEATH_TICKS));
     }

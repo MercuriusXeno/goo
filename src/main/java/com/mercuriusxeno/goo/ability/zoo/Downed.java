@@ -10,20 +10,23 @@ import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.damagesource.DamageSource;
 
 /**
- * A rallied mob fallen downed instead of dying: the game time it went down
- * and whether its AI was off before the fall, so a raise puts the AI back as
- * it stood. For its first stretch down it shrugs off attacks and falls; past
- * its death span it dies. Saved with the mob and synced to every client
- * drawing it, which lays it on its side.
+ * A rallied mob fallen downed instead of dying: the game time it went down,
+ * whether its AI was off before the fall, so a raise puts the AI back as it
+ * stood, and the negative health its killing blow left it, which heals count
+ * up from until it passes 0. For its first stretch down it shrugs off attacks
+ * and falls; past its death span it dies. Saved with the mob and synced to
+ * every client drawing it, which lays it on its side.
  * rallied-mob-falls-downed-instead-of-dying
+ * downed-mob-revives-only-healed-past-zero
  *
- * @param downedAt the game time the mob went down
- * @param wasNoAi  whether the mob's AI was off before it went down
+ * @param downedAt       the game time the mob went down
+ * @param wasNoAi        whether the mob's AI was off before it went down
+ * @param negativeHealth the health below zero the mob holds, at or below 0 while it lies down
  */
-public record Downed(long downedAt, boolean wasNoAi) {
+public record Downed(long downedAt, boolean wasNoAi, float negativeHealth) {
 
     /** No fall: the mob stands. */
-    public static final Downed NONE = new Downed(0L, false);
+    public static final Downed NONE = new Downed(0L, false, 0f);
 
     /** Ticks a downed mob shrugs off attacks and falls for, 5 seconds. */
     public static final int IMMUNE_TICKS = 100;
@@ -32,18 +35,45 @@ public record Downed(long downedAt, boolean wasNoAi) {
 
     private static final String FIELD_DOWNED_AT = "downed_at";
     private static final String FIELD_WAS_NO_AI = "was_no_ai";
+    private static final String FIELD_NEGATIVE_HEALTH = "negative_health";
 
-    /** Saves the fall with the mob, so a reload keeps its timers. */
+    /** Saves the fall with the mob, so a reload keeps its timers and its negative health. */
     public static final MapCodec<Downed> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             Codec.LONG.fieldOf(FIELD_DOWNED_AT).forGetter(Downed::downedAt),
-            Codec.BOOL.fieldOf(FIELD_WAS_NO_AI).forGetter(Downed::wasNoAi)
+            Codec.BOOL.fieldOf(FIELD_WAS_NO_AI).forGetter(Downed::wasNoAi),
+            Codec.FLOAT.optionalFieldOf(FIELD_NEGATIVE_HEALTH, 0f).forGetter(Downed::negativeHealth)
     ).apply(inst, Downed::new));
 
-    /** Syncs the fall to the clients drawing the mob, which lay it on its side. */
+    /**
+     * Syncs the fall to the clients drawing the mob, which lay it on its side
+     * and draw its negative health.
+     */
     public static final StreamCodec<ByteBuf, Downed> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.VAR_LONG, Downed::downedAt,
             ByteBufCodecs.BOOL, Downed::wasNoAi,
+            ByteBufCodecs.FLOAT, Downed::negativeHealth,
             Downed::new);
+
+    /**
+     * This fall with a heal's amount added to its negative health.
+     * downed-mob-revives-only-healed-past-zero
+     *
+     * @param amount the health the heal restores
+     * @return the fall after the heal
+     */
+    public Downed healedBy(float amount) {
+        return new Downed(downedAt, wasNoAi, negativeHealth + amount);
+    }
+
+    /**
+     * Whether heals have carried the negative health past 0, so the mob stands.
+     * downed-mob-revives-only-healed-past-zero
+     *
+     * @return true once the count is above 0
+     */
+    public boolean revives() {
+        return negativeHealth > 0f;
+    }
 
     /**
      * Ticks the mob has lain downed at a game time.

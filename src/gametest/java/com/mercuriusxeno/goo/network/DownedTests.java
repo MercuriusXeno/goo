@@ -57,6 +57,13 @@ public final class DownedTests {
     private static final String DIED_TOO_SOON = "The downed cow should be alive and downed at 200 ticks";
     private static final String OUTLIVED_THE_SPAN = "The downed cow should be dead past 300 ticks";
 
+    private static final String BLOW_LEAVES_ITS_NEGATIVE_HEALTH = "downed_blow_leaves_the_cow_its_negative_health";
+    /** The health the cow stands at when the blow lands. */
+    private static final float HEALTH_BEFORE_THE_BLOW = 4f;
+    /** A blow 3 past the cow's health, leaving it at minus 3. */
+    private static final float BLOW_PAST_ITS_HEALTH = 7f;
+    private static final String WRONG_NEGATIVE_HEALTH = "The downed cow should carry negative health %s, reads %s";
+
     private static final String ZOMBIE_DROPS_THE_DOWNED_COW = "downed_zombie_drops_the_downed_cow";
     /** Past the 5 second immunity, short of the death span. */
     private static final int PAST_THE_IMMUNITY_TICKS = 150;
@@ -85,6 +92,40 @@ public final class DownedTests {
         GooTestFunctions.registerTest(registrar, COW_DIES_AT_FIFTEEN_SECONDS_UNRALLIED,
                 helper -> cowDiesAtFifteenSeconds(helper, true));
         GooTestFunctions.registerTest(registrar, ZOMBIE_DROPS_THE_DOWNED_COW, DownedTests::zombieDropsTheDownedCow);
+        GooTestFunctions.registerTest(registrar, BLOW_LEAVES_ITS_NEGATIVE_HEALTH,
+                DownedTests::blowLeavesTheCowItsNegativeHealth);
+    }
+
+    /**
+     * A rallied cow at 4 health struck for 7 goes down carrying a negative
+     * health of 4 less 7, minus 3
+     * (decision downed-mob-revives-only-healed-past-zero).
+     *
+     * @param helper the gametest helper
+     */
+    public static void blowLeavesTheCowItsNegativeHealth(GameTestHelper helper) {
+        Zombie zombie = attacker(helper);
+        Cow cow = ralliedCow(helper);
+        float expected = HEALTH_BEFORE_THE_BLOW - BLOW_PAST_ITS_HEALTH;
+        downTo(helper, cow, zombie, HEALTH_BEFORE_THE_BLOW, BLOW_PAST_ITS_HEALTH);
+        helper.assertTrue(cow.hasData(GooAttachments.DOWNED), NOT_DOWNED);
+        float carried = cow.getData(GooAttachments.DOWNED).negativeHealth();
+        helper.assertTrue(carried == expected, String.format(WRONG_NEGATIVE_HEALTH, expected, carried));
+        helper.succeed();
+    }
+
+    /**
+     * Sets a cow's health and strikes it with a zombie's attack of a set damage.
+     *
+     * @param helper the gametest helper
+     * @param cow    the cow struck
+     * @param zombie the zombie dealing the attack
+     * @param health the health the cow stands at when struck
+     * @param damage the attack's damage
+     */
+    static void downTo(GameTestHelper helper, Cow cow, Zombie zombie, float health, float damage) {
+        cow.setHealth(health);
+        cow.hurtServer(helper.getLevel(), zombie.damageSources().mobAttack(zombie), damage);
     }
 
     /**
