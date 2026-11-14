@@ -145,7 +145,7 @@ public final class BoreBlobPlace {
         ClientAbility ability = BlobRest.selectedAbility(caster);
         double reach = ability == null ? 0 : ability.delivery().reachingTo(caster.blockInteractionRange()).range();
         Vec3 point = BoreDrill.pointAhead(mc.level, sight, bore, reach);
-        return placeFor(sight.eye(), sight.look(), point, rest, bore.drillLength(), bore.drillAngle());
+        return placeFor(sight.eye(), sight.look(), point, rest, bore.shape().length(), bore.shape().angle());
     }
 
     /**

@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.program.BoreStep;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.sound.FadingLoops;
+import com.mercuriusxeno.goo.network.KnifeRainSling;
 import com.mercuriusxeno.goo.registry.GooSoundIds;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -91,7 +92,7 @@ public final class BoreRumble {
         Delivery reaching = bore.delivery().reachingTo(player.blockInteractionRange());
         ChannelAim aim = new ChannelAim(eye.add(player.getViewVector(1f).scale(reaching.range())), null,
                 reaching.coneDegrees());
-        return BoreStep.progressing(eye, step.pointRadius(), aim,
+        return BoreStep.progressing(eye, step.shape(), KnifeRainSling.gloveOnTheRight(player), aim,
                 cell -> level.getBlockState(cell).isAir(), cell -> level.getBlockState(cell).is(step.breaks()));
     }
 }
