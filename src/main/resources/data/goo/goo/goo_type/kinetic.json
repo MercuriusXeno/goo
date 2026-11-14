@@ -7,6 +7,7 @@
   "edge": "D8ECFF",
   "density": 1800,
   "viscosity": 800,
+  "elasticity": 0.9,
   "temperature": 300,
   "extinguishes": false,
   "levity": 1.0,

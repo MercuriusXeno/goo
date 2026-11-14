@@ -126,6 +126,10 @@ public final class GooClientSetup {
      */
     private static final String RENDERER_GLOVE = "glove_goo";
     /**
+     * Special renderer key for the goo item drawn in the level.
+     */
+    private static final String RENDERER_GOO_CUBOID = "goo_cuboid";
+    /**
      * Property name for the goo texture a stack's type names.
      */
     private static final String PROP_GOO_TEXTURE = "goo_texture";
@@ -252,6 +256,8 @@ public final class GooClientSetup {
         // heater-prism-flames-nearby-creatures: a heater prism glows ember
         PrismComboStyles.register(HeaterPrismStyle.COMBO, new HeaterPrismStyle());
         event.registerBlockEntityRenderer(GooBlockEntities.STATUE.get(), StatueRenderer::new);
+        // decision flecks-move-by-flexible-goo-physics-and-stay-items: a dropped goo item draws as its cuboid, still
+        event.registerEntityRenderer(EntityType.ITEM, GooItemEntityRenderer::new);
         event.registerEntityRenderer(GooEntities.COMPRESSION_SPHERE.get(), CompressionSphereRenderer::new);
         event.registerEntityRenderer(GooEntities.FEED_PILE.get(), FeedPileRenderer::new);
         event.registerEntityRenderer(GooEntities.BLOCK_HUNK.get(), BlockHunkRenderer::new);
@@ -475,6 +481,11 @@ public final class GooClientSetup {
         event.register(
                 Identifier.fromNamespaceAndPath(Goo.MODID, RENDERER_GLOVE),
                 GloveSpecialRenderer.Unbaked.MAP_CODEC
+        );
+        // decision goo-item-in-world-draws-as-the-palm-cuboid
+        event.register(
+                Identifier.fromNamespaceAndPath(Goo.MODID, RENDERER_GOO_CUBOID),
+                GooCuboidSpecialRenderer.Unbaked.MAP_CODEC
         );
         event.register(
                 Identifier.fromNamespaceAndPath(Goo.MODID, RENDERER_GOO_LABEL),
