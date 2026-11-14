@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.hud.InWorldHud;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
@@ -16,21 +17,21 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Draws the life mark over each rallied or charmed mob, and each mob Heal or
- * Drain touched lately or Kin senses, turned to face the camera in vanilla's heart sprites: the empty
- * heart whole, the full heart over it cropped where the life's share ends,
- * and the count right of the heart. The mark draws see-through, over any
- * block between it and the camera, so a wall or ceiling the mark floats into
- * cuts none of it.
+ * Draws the life mark over each rallied, charmed or downed mob, and each mob
+ * Heal or Drain touched lately or Kin senses, turned to face the camera in
+ * vanilla's heart sprites: the empty heart whole, the full heart over it
+ * cropped where the life's share ends, and the count right of the heart; a
+ * downed mob draws the skull whole in the heart's slot, its negative count
+ * beside it. The mark draws see-through, over any block between it and the
+ * camera, so a wall or ceiling the mark floats into cuts none of it.
  * health-bar-is-one-heart-filling-left-to-right
  * leader-shows-life-bars-while-it-stands
  * rallied-and-charmed-mobs-always-show-their-health-bar
+ * downed-mob-shows-a-skull-and-its-negative-health
  */
 final class LifeMarkBillboard {
 
-    /** Vanilla's heart sprites, read as whole textures as InWorldHud reads the effect background. */
-    private static final Identifier CONTAINER =
-            Identifier.withDefaultNamespace("textures/gui/sprites/hud/heart/container.png");
+    /** Vanilla's full heart sprite, read as a whole texture as InWorldHud reads the effect background. */
     private static final Identifier FULL = Identifier.withDefaultNamespace("textures/gui/sprites/hud/heart/full.png");
     /** A heart sprite's side, in pixels. */
     private static final float HEART_SIZE = 9f;
@@ -154,41 +155,46 @@ final class LifeMarkBillboard {
     }
 
     /**
-     * Whether a mob draws a life mark: it is rallied or charmed, Heal or
-     * Drain touched it lately, or Kin senses it.
+     * Whether a mob draws a life mark: it is rallied, charmed or downed, Heal
+     * or Drain touched it lately, or Kin senses it. Downed outlasts the
+     * rally, so a downed mob whose rally ended keeps its mark.
      * leader-shows-life-bars-while-it-stands
      * rallied-and-charmed-mobs-always-show-their-health-bar
+     * downed-mob-shows-a-skull-and-its-negative-health
      *
      * @param entityId   the mob's id
      * @param tick       the game tick
      * @param touched    the mobs Heal or Drain touched
      * @param kin     the mobs Kin senses
      * @param headMarked whether the mob wears the rally or the charm head mark
-     * @return true for a head-marked, a touched or a sensed mob
+     * @param downed     whether the mob lies downed
+     * @return true for a head-marked, a downed, a touched or a sensed mob
      */
     static boolean showsLifeMark(int entityId, long tick, TouchedMobs touched, KinSense kin,
-                                 boolean headMarked) {
-        return headMarked || touched.marked(entityId, tick) || kin.appearsGlowing(entityId);
+                                 boolean headMarked, boolean downed) {
+        return headMarked || downed || touched.marked(entityId, tick) || kin.appearsGlowing(entityId);
     }
 
     /**
-     * How strongly a mob's life mark draws: whole always on a rallied or
-     * charmed mob; otherwise whole while Kin senses it and stands, fading
-     * with Kin's outline after it ends, and at TouchedMobs' own fade where
-     * only a touch marks it, the stronger of the two answering.
+     * How strongly a mob's life mark draws: whole always on a rallied,
+     * charmed or downed mob; otherwise whole while Kin senses it and stands,
+     * fading with Kin's outline after it ends, and at TouchedMobs' own fade
+     * where only a touch marks it, the stronger of the two answering.
      * leader-shows-life-bars-while-it-stands
      * rallied-and-charmed-mobs-always-show-their-health-bar
+     * downed-mob-shows-a-skull-and-its-negative-health
      *
      * @param entityId   the mob's id
      * @param time       the game time including the partial tick
      * @param touched    the mobs Heal or Drain touched
      * @param kin     the mobs Kin senses
      * @param headMarked whether the mob wears the rally or the charm head mark
+     * @param downed     whether the mob lies downed
      * @return the strength, zero to one
      */
     static float markStrength(int entityId, float time, TouchedMobs touched, KinSense kin,
-                              boolean headMarked) {
-        if (headMarked) {
+                              boolean headMarked, boolean downed) {
+        if (headMarked || downed) {
             return 1f;
         }
         float touchedStrength = touched.opacity(entityId, time);
@@ -197,7 +203,8 @@ final class LifeMarkBillboard {
 
     /**
      * Draws every marked mob's life mark, the rally and charm icons first,
-     * then the empty hearts, then the fills, then the counts, one batch each.
+     * then the empty hearts and the skulls, then the fills, then the counts,
+     * one batch each.
      *
      * @param poseStack   the level's pose stack
      * @param shown       the living in sight that wear a life mark
@@ -215,7 +222,8 @@ final class LifeMarkBillboard {
         for (HeadMark headMark : HeadMark.values()) {
             drawIcons(poseStack, camera, buffers, marks, partialTick, headMark);
         }
-        drawHearts(poseStack, camera, buffers, marks, partialTick, CONTAINER);
+        drawHearts(poseStack, camera, buffers, marks, partialTick, LifeMark.HEART);
+        drawHearts(poseStack, camera, buffers, marks, partialTick, LifeMark.SKULL);
         drawHearts(poseStack, camera, buffers, marks, partialTick, FULL);
         for (Shown mark : marks) {
             faceCamera(poseStack, camera, mark.living(), partialTick, () -> drawCount(poseStack, buffers, mc.font,
@@ -258,10 +266,12 @@ final class LifeMarkBillboard {
      * @return the mark as the frame draws it
      */
     private static Shown shownAt(LivingEntity living, float time, Font font) {
-        LifeMark mark = LifeMark.of(living.getHealth(), living.getMaxHealth());
+        boolean downed = living.hasData(GooAttachments.DOWNED);
+        LifeMark mark = downed ? LifeMark.downed(living.getData(GooAttachments.DOWNED).negativeHealth())
+                : LifeMark.of(living.getHealth(), living.getMaxHealth());
         Optional<HeadMark> headMark = HeadMarks.headMarkOf(living);
         float strength = markStrength(living.getId(), time, TouchedMobs.CLIENT, KinSense.CLIENT,
-                headMark.isPresent());
+                headMark.isPresent(), downed);
         return new Shown(living, mark, tint(strength), Layout.of(font.width(mark.count()), headMark.isPresent()),
                 headMark);
     }
@@ -271,23 +281,24 @@ final class LifeMarkBillboard {
     }
 
     /**
-     * Draws one heart sprite on every mark: the empty heart whole, or the
-     * full heart cropped at the right edge of its filled columns, the quad's
-     * width and its u cut together.
+     * Draws one heart-slot sprite on every mark: the empty heart or the
+     * skull whole on each mark naming it, or the full heart cropped at the
+     * right edge of its filled columns, the quad's width and its u cut
+     * together.
      *
      * @param poseStack   the level's pose stack
      * @param camera      the render camera
      * @param buffers     the frame's buffers
      * @param marks       the marks to draw
      * @param partialTick the frame's partial tick
-     * @param sprite      the empty or the full heart
+     * @param sprite      the empty heart, the skull or the full heart
      */
     private static void drawHearts(PoseStack poseStack, Camera camera, MultiBufferSource.BufferSource buffers,
                                    List<Shown> marks, float partialTick, Identifier sprite) {
         RenderType icon = RenderTypes.textSeeThrough(sprite);
         VertexConsumer consumer = buffers.getBuffer(icon);
         for (Shown mark : marks) {
-            float edge = sprite.equals(CONTAINER) ? HEART_SIZE : fillEdge(mark.mark().fill());
+            float edge = sprite.equals(FULL) ? fillEdge(mark.mark().fill()) : wholeWhereNamed(mark.mark(), sprite);
             if (edge > 0f) {
                 Layout layout = mark.layout();
                 faceCamera(poseStack, camera, mark.living(), partialTick, () -> quad(consumer, poseStack.last(),
@@ -322,6 +333,18 @@ final class LifeMarkBillboard {
             }
         }
         buffers.endBatch(icon);
+    }
+
+    /**
+     * The edge a whole heart-slot sprite draws to on a mark: all of it where
+     * the mark names the sprite, none where it names the other.
+     *
+     * @param mark   the mark
+     * @param sprite the empty heart or the skull
+     * @return the edge in sprite pixels
+     */
+    private static float wholeWhereNamed(LifeMark mark, Identifier sprite) {
+        return mark.sprite().equals(sprite) ? HEART_SIZE : 0f;
     }
 
     /**
