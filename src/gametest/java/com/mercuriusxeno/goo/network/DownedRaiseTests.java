@@ -61,11 +61,10 @@ public final class DownedRaiseTests {
     /** The health the stream test's cow stands at when the downing blow lands. */
     private static final float STREAM_HEALTH_BEFORE_THE_BLOW = 2f;
     /**
-     * A blow leaving the stream test's cow at minus 1 and a half: deeper
-     * than one heal of either the per-tick stream or a pulse of 1, so the
-     * first heal leaves it down.
+     * A blow leaving the stream test's cow at minus 4 and a half: deeper
+     * than one of Heal's pulses of 2, so the first heal leaves it down.
      */
-    private static final float STREAM_BLOW = 3.5f;
+    private static final float STREAM_BLOW = 6.5f;
     /** A hit too light to down the raised cow again. */
     private static final float LIGHT_HIT = 0.5f;
     /** Past the hurt frames the downing blow leaves. */
@@ -172,7 +171,7 @@ public final class DownedRaiseTests {
     }
 
     /**
-     * Jelly's Heal stream held on a cow downed to minus 1 and a half: the
+     * Jelly's Heal stream held on a cow downed to minus 4 and a half: the
      * first heal that lands leaves it holding DOWNED with the count raised,
      * and the stream stands it up once the heals landed carry the count
      * past 0. Counted by heals landed, whatever the stream's cadence.
