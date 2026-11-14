@@ -82,7 +82,7 @@ public final class MetalExplosionVisual implements BurnoutVisual, HeldGhostVisua
         if (length <= 0f) {
             return;
         }
-        Urchin urchin = new Urchin(burnout.placedFace(), length, SPIKE_BASE_RADIUS, NetherDiscMesh.toByte(progress),
+        Urchin urchin = new Urchin(burnout.placedFace(), length, SPIKE_BASE_RADIUS, ColorBytes.toByte(progress),
                 OPAQUE);
         BurnoutGeometry.drawAtMarker(frame, burnout.pos(), GooRenderTypes.METAL_EXPLOSION_TYPE, urchin::emit);
     }
@@ -124,8 +124,8 @@ public final class MetalExplosionVisual implements BurnoutVisual, HeldGhostVisua
      */
     static Urchin heldUrchin(Direction face, float opacity, double nowSeconds) {
         float sweep = (float) Mth.frac(nowSeconds / HELD_SWEEP_SECONDS);
-        return new Urchin(face, SPIKE_REACH, SPIKE_BASE_RADIUS, NetherDiscMesh.toByte(sweep),
-                NetherDiscMesh.toByte(opacity));
+        return new Urchin(face, SPIKE_REACH, SPIKE_BASE_RADIUS, ColorBytes.toByte(sweep),
+                ColorBytes.toByte(opacity));
     }
 
     /**
@@ -140,7 +140,7 @@ public final class MetalExplosionVisual implements BurnoutVisual, HeldGhostVisua
      * @return the urchin
      */
     static Urchin bristled(Direction face, float sweep, float share) {
-        return new Urchin(face, SPIKE_REACH * share, SPIKE_BASE_RADIUS, NetherDiscMesh.toByte(sweep), OPAQUE);
+        return new Urchin(face, SPIKE_REACH * share, SPIKE_BASE_RADIUS, ColorBytes.toByte(sweep), OPAQUE);
     }
 
     /**

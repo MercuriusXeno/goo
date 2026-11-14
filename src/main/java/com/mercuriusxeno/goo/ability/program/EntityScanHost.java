@@ -44,15 +44,6 @@ public interface EntityScanHost extends StepHost {
     void forEntity(int entityId, Consumer<TargetHost> body);
 
     /**
-     * Pulls every living entity within a sphere around the anchor toward
-     * the anchor's center.
-     *
-     * @param radius the sphere radius in blocks
-     * @param speed  the velocity added toward the center, in blocks per tick
-     */
-    void pullEntitiesWithin(double radius, double speed);
-
-    /**
      * Carries every entity standing in a column of air above the anchor
      * upward (decision updraft-blob-stands-a-column-of-wind).
      *

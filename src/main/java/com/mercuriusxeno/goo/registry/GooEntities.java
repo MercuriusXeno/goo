@@ -7,11 +7,9 @@ import com.mercuriusxeno.goo.entity.EldritchMonstrosity;
 import com.mercuriusxeno.goo.entity.FeedPile;
 import com.mercuriusxeno.goo.entity.Meteor;
 import com.mercuriusxeno.goo.entity.RollingGoo;
-import com.mercuriusxeno.goo.entity.SwapBody;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.SpawnPlacementTypes;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -27,8 +25,7 @@ import net.neoforged.neoforge.registries.DeferredRegister;
  * registered here only where a thing moves or acts on its own: a goo rolling through
  * the air (decision orb-carries-a-swirling-nova), the orb a black hole
  * leaves (decision black-hole-leaves-a-compression-sphere), the feed
- * Jelly's Feed lays (decision feed-blob-feeds-and-draws-mobs), and a quantum
- * swap body (decision swap-body-stands-until-reverted), and the Eldritch
+ * Jelly's Feed lays (decision feed-blob-feeds-and-draws-mobs), the Eldritch
  * Monstrosity living out of phase (decision monstrosities-harvest-under-quantum),
  * and a hunk of blocks moving as one (decision spire-entity-izes-its-blocks-and-raises-them-smoothly).
  */
@@ -45,11 +42,6 @@ public final class GooEntities {
     private static final float SPHERE_SIZE = 0.25f;
     private static final int SPHERE_TRACKING_CHUNKS = 6;
     private static final int SPHERE_UPDATE_TICKS = 20;
-    private static final float PLAYER_WIDTH = 0.6f;
-    private static final float PLAYER_HEIGHT = 1.8f;
-    private static final float PLAYER_EYE_HEIGHT = 1.62f;
-    private static final int SWAP_BODY_TRACKING_CHUNKS = 10;
-    private static final int SWAP_BODY_UPDATE_TICKS = 2;
     private static final float METEOR_SIZE = 1.0f;
     private static final float HUNK_CELL_SIZE = 1.0f;
     private static final int HUNK_TRACKING_CHUNKS = 10;
@@ -81,19 +73,6 @@ public final class GooEntities {
             .clientTrackingRange(SPHERE_TRACKING_CHUNKS)
             .updateInterval(SPHERE_UPDATE_TICKS)
             .noLootTable()
-            .build(ResourceKey.create(Registries.ENTITY_TYPE, id)));
-
-    /**
-     * A quantum swap body: an inert figure wearing its owner's skin
-     * (decision swap-body-stands-until-reverted), sized as a player.
-     */
-    public static final DeferredHolder<EntityType<?>, EntityType<SwapBody>> SWAP_BODY =
-        ENTITIES.register("swap_body", id -> EntityType.Builder.<SwapBody>of(SwapBody::build, MobCategory.MISC)
-            .sized(PLAYER_WIDTH, PLAYER_HEIGHT)
-            .eyeHeight(PLAYER_EYE_HEIGHT)
-            .noLootTable()
-            .clientTrackingRange(SWAP_BODY_TRACKING_CHUNKS)
-            .updateInterval(SWAP_BODY_UPDATE_TICKS)
             .build(ResourceKey.create(Registries.ENTITY_TYPE, id)));
 
     /**
@@ -159,14 +138,12 @@ public final class GooEntities {
     }
 
     /**
-     * Gives the swap body the attributes every living thing carries, without
-     * which it cannot stand, and the monstrosity a monster's.
+     * Gives the monstrosity a monster's attributes.
      *
      * @param event the attribute creation event
      */
     @SubscribeEvent
     public static void onAttributeCreation(EntityAttributeCreationEvent event) {
-        event.put(SWAP_BODY.get(), LivingEntity.createLivingAttributes().build());
         event.put(ELDRITCH_MONSTROSITY.get(), EldritchMonstrosity.createAttributes().build());
     }
 }

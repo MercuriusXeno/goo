@@ -2,8 +2,6 @@ package com.mercuriusxeno.goo.block.ability;
 
 import com.mercuriusxeno.goo.block.BlockEntityTicks;
 import com.mercuriusxeno.goo.block.Waterlogging;
-import com.mercuriusxeno.goo.entity.CompressionSphere;
-import com.mercuriusxeno.goo.entity.SphereCore;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -33,7 +31,6 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.redstone.Orientation;
-import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
@@ -106,18 +103,6 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
      * Center of a block in pixels (for shape positioning).
      */
     private static final float SHAPE_CENTER_PX = 8f;
-    /**
-     * Soul particles the black hole's void marker emits each animate tick.
-     */
-    private static final int BLACK_HOLE_PARTICLES = 3;
-    /**
-     * Downward drift speed for soul particles.
-     */
-    private static final double SOUL_DRIFT_SPEED = -0.01;
-    /**
-     * Smoke particle spawn chance denominator (1 in N) for the black hole.
-     */
-    private static final int BLACK_HOLE_SMOKE_CHANCE = 4;
 
     /**
      * Maps goo types to their particle emitter; types without particles are absent.
@@ -128,8 +113,6 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
         Map<ResourceKey<GooTypeDefinition>, ParticleEmitter> m = new HashMap<>();
         m.put(GooTypes.BLAZE, AbilityBlock::spawnBlazeParticles);
         m.put(GooTypes.ROCK, AbilityBlock::spawnRockParticles);
-        // anti-moves-from-nether-to-void: the black hole is the one Void ability that stands a marker
-        m.put(GooTypes.VOID, AbilityBlock::spawnBlackHoleParticles);
         m.put(GooTypes.METAL, AbilityBlock::spawnMetalParticles);
         // Crystal uses shard cloud BER visual instead of ambient particles.
         PARTICLE_EMITTERS = Map.copyOf(m);
@@ -185,16 +168,14 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
     }
 
     /**
-     * Returns true if a marker stands at pos, its support block is air, and
-     * its running program does not hold it in place.
+     * Returns true if a marker stands at pos and its support block is air.
      *
      * @param level the current level
      * @param pos   the marker block position
      * @return true if the marker has no support and falls
      */
     private static boolean isMarkerWithNoSupport(Level level, BlockPos pos) {
-        if (!(level.getBlockEntity(pos) instanceof AbilityBlockEntity be)
-                || be.getBehavior() != null && be.getBehavior().holdsItsPlace()) {
+        if (!(level.getBlockEntity(pos) instanceof AbilityBlockEntity be)) {
             return false;
         }
         return level.getBlockState(supportOf(pos, be.getPlacedFace())).isAir();
@@ -259,24 +240,6 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
      */
     private static boolean isProtectedFromBreaking(AbilityBlockEntity be) {
         return be.getBehavior() != null && be.getBehavior().standsAgainstBreaking();
-    }
-
-    /**
-     * Leaves what a mid-implosion ability block pulled in as a compression
-     * sphere at {@code pos} when it is broken. No-op on the client, for a
-     * marker that pulled in nothing, or if the block entity is missing.
-     *
-     * @param level the current level
-     * @param pos   the marker position
-     */
-    private static void dropInterruptedAccumulator(Level level, BlockPos pos) {
-        if (!(level instanceof ServerLevel server)) {
-            return;
-        }
-        if (!(server.getBlockEntity(pos) instanceof AbilityBlockEntity be)) {
-            return;
-        }
-        CompressionSphere.leave(server, Vec3.atCenterOf(pos), be.programState().hoard(), SphereCore.BLACK);
     }
 
     /**
@@ -371,30 +334,6 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
             double oz = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
             level.addParticle(ParticleTypes.DUST_PLUME, cx + ox, cy + oy, cz + oz,
                     0, DUST_FALL_SPEED, 0);
-        }
-    }
-
-    /**
-     * Emits drifting soul particles and occasional smoke for the black hole's marker.
-     *
-     * @param cx     block center X coordinate
-     * @param cy     block center Y coordinate
-     * @param cz     block center Z coordinate
-     * @param spread the particle offset radius
-     * @param level  the current level
-     * @param random the random source for particle offsets
-     */
-    private static void spawnBlackHoleParticles(double cx, double cy, double cz,
-                                             double spread, Level level, RandomSource random) {
-        for (int i = 0; i < BLACK_HOLE_PARTICLES; i++) {
-            double ox = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
-            double oy = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
-            double oz = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
-            level.addParticle(ParticleTypes.SOUL, cx + ox, cy + oy, cz + oz,
-                    0, SOUL_DRIFT_SPEED, 0);
-        }
-        if (random.nextInt(BLACK_HOLE_SMOKE_CHANCE) == 0) {
-            level.addParticle(ParticleTypes.SMOKE, cx, cy, cz, 0, 0, 0);
         }
     }
 
@@ -593,8 +532,7 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
      * Falls the marker when its support is still gone. The check waits for
      * a block tick, since a fall taken inside a program tick would snapshot
      * the program before the tick finished and replay the rest of it where
-     * the marker lands. A black hole that consumed its own support holds its
-     * place and never falls.
+     * the marker lands.
      *
      * @param state  the block state
      * @param level  the server level
@@ -607,24 +545,6 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
         if (isMarkerWithNoSupport(level, pos)) {
             initiateFall(state, level, pos);
         }
-    }
-
-    /**
-     * Drops the partial accumulator at the marker position if the player
-     * breaks the block mid-implosion or mid-popping. Other phases and
-     * empty accumulators fall through to vanilla handling unchanged.
-     *
-     * @param level  the current level
-     * @param pos    the block position
-     * @param state  the block state being destroyed
-     * @param player the player breaking the block
-     * @return the (possibly updated) block state, forwarded to super
-     */
-    @Override
-    public @NonNull BlockState playerWillDestroy(@NonNull Level level, @NonNull BlockPos pos,
-                                                 @NonNull BlockState state, @NonNull Player player) {
-        dropInterruptedAccumulator(level, pos);
-        return super.playerWillDestroy(level, pos, state, player);
     }
 
     /**

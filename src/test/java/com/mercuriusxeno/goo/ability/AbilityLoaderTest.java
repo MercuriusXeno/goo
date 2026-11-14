@@ -40,6 +40,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.item.Items;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -64,6 +65,7 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -162,6 +164,38 @@ class AbilityLoaderTest {
             assertTrue(flight.behaviors().stream().anyMatch(AirbornStep.class::isInstance), "no airborn step");
             assertTrue(LaidState.laidBy(flight.behaviors()).contains(LaidState.AIRBORN),
                     "Float lays no flight to end with its held effect");
+        }
+    }
+
+    /**
+     * The abilities each type ships after the inventory pass dropped Link, Swap, Buster and Dark Star.
+     * decision link-swap-buster-and-dark-star-leave-the-mod
+     */
+    @Nested
+    class DroppedAbilitiesLeft {
+
+        private static Set<String> shippedPathsOf(ResourceKey<GooTypeDefinition> type) {
+            return shippedById().values().stream().filter(def -> def.gooType() == type)
+                    .map(def -> def.id().getPath()).collect(Collectors.toSet());
+        }
+
+        @Test
+        void quantumShipsItsPhasesAndPortalsAlone() {
+            assertEquals(Set.of("quantum_phase", "quantum_phase_shift", "quantum_portal", "quantum_tunnel"),
+                    shippedPathsOf(GooTypes.QUANTUM));
+        }
+
+        /** decision goo-type-ships-without-a-durative-ability */
+        @Test
+        void unstableShipsBlastAndLurkerAndNoDurative() {
+            assertEquals(Set.of("unstable_explode", "unstable_lurker"), shippedPathsOf(GooTypes.UNSTABLE));
+            assertNull(new AbilityRegistry(shippedById()).durativeAbilityFor(GooTypes.UNSTABLE));
+        }
+
+        @Test
+        void voidShipsEraseHoleOutsiderAndVacuum() {
+            assertEquals(Set.of("void_erase", "void_hole", "void_outsider", "void_vacuum"),
+                    shippedPathsOf(GooTypes.VOID));
         }
     }
 
@@ -407,7 +441,7 @@ class AbilityLoaderTest {
     @Nested
     class CostFormula {
 
-        private static final List<String> DYNAMIC_ABILITIES = List.of("ender_blink", "void_dark_star",
+        private static final List<String> DYNAMIC_ABILITIES = List.of("ender_blink",
                 "unstable_explode", "rock_spire", "rock_terrakinesis", "yore_age");
 
         @Test
@@ -494,8 +528,7 @@ class AbilityLoaderTest {
 
     /**
      * Each goo type carries at most one durative ability: a second fails
-     * the load naming both, and a type carrying none is answered for the load's
-     * warning (decision every-type-ships-one-brew-ability).
+     * the load naming both (decision every-type-ships-one-brew-ability).
      */
     @Nested
     class OneBrewPerType {
@@ -515,18 +548,10 @@ class AbilityLoaderTest {
             Map<Identifier, AbilityDefinition> abilities = byId(brew("rock_stoneskin"), brew("rock_pebbleskin"));
 
             ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
-                    () -> AbilityLoader.typesLackingADurative(abilities, List.of(GooTypes.ROCK)));
+                    () -> AbilityLoader.refuseASecondDurative(abilities));
 
             assertTrue(refusal.getMessage().contains("goo:rock_stoneskin")
                     && refusal.getMessage().contains("goo:rock_pebbleskin"), refusal.getMessage());
-        }
-
-        @Test
-        void typeCarryingNoBrewIsNamedAndOneCarryingABrewIsNot() {
-            Map<Identifier, AbilityDefinition> abilities = byId(brew("rock_stoneskin"));
-
-            assertEquals(List.of(GooTypes.FROST),
-                    AbilityLoader.typesLackingADurative(abilities, List.of(GooTypes.ROCK, GooTypes.FROST)));
         }
 
         @Test
@@ -564,6 +589,52 @@ class AbilityLoaderTest {
             assertEquals(DeliveryKind.SELF, leader.delivery().kind());
             assertTrue(leader.upkeep().in(GooValueTable.EMPTY) > 0, "upkeep " + leader.upkeep().in(GooValueTable.EMPTY));
             assertTrue(SelfEatRoute.eats(leader.delivery(), leader.badge()));
+        }
+    }
+
+    /**
+     * A goo type whose abilities include none badged durative loads through the loader, which hands on a
+     * registry holding that type's abilities.
+     * decision goo-type-ships-without-a-durative-ability
+     */
+    @Nested
+    class TypeWithoutADurative {
+
+        private static final String FIXTURE_NAMESPACE = "gootest";
+        private static final String FIXTURE_ABILITIES = "datapacks/seventeenth_goo_type/data/gootest/goo_abilities";
+        private static final ResourceKey<GooTypeDefinition> SEVENTEENTH = ResourceKey.create(
+                GooTypes.REGISTRY, Identifier.fromNamespaceAndPath(FIXTURE_NAMESPACE, "seventeenth"));
+
+        @Test
+        void typeCarryingNoDurativeLoadsAndItsAbilitiesRegister() {
+            ResourceManager manager = managerListing(FIXTURE_NAMESPACE, AbilityJson.filesUnder(FIXTURE_ABILITIES));
+            Map<Identifier, AbilityDefinition> fixture = IdentifiedJsonScan.scan(manager,
+                    FileToIdConverter.json(DIRECTORY), JsonOps.INSTANCE, AbilityDefinition::codecFor);
+            HeldRegistry held = new HeldRegistry();
+
+            new AbilityLoader(held).apply(fixture, manager, mock(ProfilerFiller.class));
+
+            Set<String> seventeenth = held.abilityRegistry().getAbilitiesForType(SEVENTEENTH).stream()
+                    .map(def -> def.id().getPath()).collect(Collectors.toSet());
+            assertEquals(Set.of("seventeenth_probe", "seventeenth_bulb_probe", "seventeenth_prism_probe",
+                    "seventeenth_late_prism_probe"), seventeenth);
+            assertNull(held.abilityRegistry().durativeAbilityFor(SEVENTEENTH));
+        }
+
+        /** The load's resources, holding the registry the loader hands it. */
+        private static final class HeldRegistry implements AbilityRegistrySource {
+
+            private AbilityRegistry registry = AbilityRegistry.EMPTY;
+
+            @Override
+            public AbilityRegistry abilityRegistry() {
+                return registry;
+            }
+
+            @Override
+            public void holdAbilityRegistry(AbilityRegistry loaded) {
+                registry = loaded;
+            }
         }
     }
 
@@ -732,10 +803,17 @@ class AbilityLoaderTest {
      * A resource manager whose listing under the ability directory is the given files.
      */
     private static ResourceManager managerListing(List<Path> files) {
+        return managerListing(Goo.MODID, files);
+    }
+
+    /**
+     * A resource manager whose listing under the ability directory is the given files, in the given namespace.
+     */
+    private static ResourceManager managerListing(String namespace, List<Path> files) {
         PackResources pack = mock(PackResources.class);
         Map<Identifier, Resource> listing = new HashMap<>();
         for (Path file : files) {
-            Identifier path = Identifier.fromNamespaceAndPath(Goo.MODID, DIRECTORY + "/" + file.getFileName());
+            Identifier path = Identifier.fromNamespaceAndPath(namespace, DIRECTORY + "/" + file.getFileName());
             listing.put(path, new Resource(pack, () -> Files.newInputStream(file)));
         }
         ResourceManager manager = mock(ResourceManager.class);

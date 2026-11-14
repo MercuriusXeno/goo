@@ -99,14 +99,14 @@ class GooTargetHighlighterTest {
         }
     }
 
-    /** The blast and the black hole are sized by a drag rather than thrown (decision blast-draws-no-throw-arc). */
+    /** The blast is sized by a drag rather than thrown (decision blast-draws-no-throw-arc). */
     @Nested
     class DragSizedAbilities {
 
         @Test
-        void theBlastAndTheBlackHoleAreDragSizedAndTheFrostOrbIsThrown() {
-            assertEquals(Map.of("unstable_explode", true, "void_dark_star", true, "frost_orb", false),
-                    Stream.of("unstable_explode", "void_dark_star", "frost_orb").collect(Collectors.toMap(
+        void theBlastIsDragSizedAndTheFrostOrbIsThrown() {
+            assertEquals(Map.of("unstable_explode", true, "frost_orb", false),
+                    Stream.of("unstable_explode", "frost_orb").collect(Collectors.toMap(
                             name -> name, name -> AbilityJson.decode(name).hasTag(AbilityTags.DRAG_SIZED))));
         }
     }

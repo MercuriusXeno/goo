@@ -53,7 +53,7 @@ class RockExplosionVisualTest {
     @Test
     void heldDustTurnsWithNoCut() {
         Vector3f side = new Vector3f(1f, 0f, 0f);
-        int progressByte = NetherDiscMesh.toByte(RockExplosionVisual.HELD_PROGRESS);
+        int progressByte = ColorBytes.toByte(RockExplosionVisual.HELD_PROGRESS);
         double frame = 1.0 / 60.0;
         for (double seconds = 0.0; seconds < 10.0; seconds += frame) {
             int before = RockExplosionVisual.domeColor(side, Direction.UP, RockExplosionVisual.heldSpin(seconds),

@@ -8,7 +8,6 @@ import com.mercuriusxeno.goo.client.ability.MarkerOrbVisual;
 import com.mercuriusxeno.goo.client.ability.MetalSpikeVisual;
 import com.mercuriusxeno.goo.client.ability.UpdraftWind;
 import com.mercuriusxeno.goo.client.ability.VineTrapVisual;
-import com.mercuriusxeno.goo.client.ber.style.NetherHoleStyles;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
@@ -34,19 +33,14 @@ import org.jspecify.annotations.Nullable;
  *   <li>{@link MarkerOrbVisual} - the slime-like orb while the program runs</li>
  *   <li>{@link MetalSpikeVisual} - Urchin's bristle and the spike each shot shoots</li>
  *   <li>{@link CrystalCloudVisual} - the shard cloud a crystal marker stands</li>
- *   <li>{@link NetherHoleStyles#active()} - the swappable black-hole style</li>
  *   <li>{@link VineTrapVisual} - the Vines trap's knot and tendrils on the ground</li>
  * </ul>
  */
 public class AbilityBlockRenderer
         implements BlockEntityRenderer<AbilityBlockEntity, AbilityBlockRenderState> {
 
-    /** Center offset in block units. */
-    private static final float BLOCK_CENTER = 0.5f;
     /** Half-extent of the render bounding box around an ability block, in blocks, the least any marker draws in. */
     static final double RENDER_BOX_HALF_EXTENT = 12.0;
-    /** A sized black hole pulls from three times its size, void_dark_star.json's {@code 3 * size}. */
-    private static final double PULL_REACH_PER_SIZE = 3;
 
     public AbilityBlockRenderer(BlockEntityRendererProvider.Context context) {
     }
@@ -88,45 +82,15 @@ public class AbilityBlockRenderer
     }
 
     /**
-     * Extends the render bounding box so the implosion sphere is not
-     * frustum-culled when the player looks away from the marker block, out
-     * to a sized black hole's pull reach, three times the size it was dragged
-     * to (decision black-hole-leaves-a-compression-sphere).
+     * Extends the render bounding box so a marker's visual is not
+     * frustum-culled when the player looks away from the marker block.
      *
      * @param blockEntity the ability block block entity
      * @return an AABB large enough to contain the marker's whole visual
      */
     @Override
     public @NonNull AABB getRenderBoundingBox(@NonNull AbilityBlockEntity blockEntity) {
-        return AABB.ofSize(Vec3.atCenterOf(blockEntity.getBlockPos()), 1, 1, 1)
-                .inflate(visualReach(blockEntity.programState().castSize()));
-    }
-
-    /**
-     * Draws the marker while the camera is within the view distance of the
-     * nearest edge of its visual, so a hole dragged huge still shows from
-     * far off (decision black-hole-leaves-a-compression-sphere).
-     *
-     * @param blockEntity    the ability block block entity
-     * @param cameraPosition the camera's position
-     * @return true when the marker draws
-     */
-    @Override
-    public boolean shouldRender(@NonNull AbilityBlockEntity blockEntity, @NonNull Vec3 cameraPosition) {
-        double reach = getViewDistance() + visualReach(blockEntity.programState().castSize());
-        return Vec3.atCenterOf(blockEntity.getBlockPos()).closerThan(cameraPosition, reach);
-    }
-
-    /**
-     * How far a marker's visual reaches from its center: the box every
-     * marker draws in, or a sized black hole's pull, three times its size,
-     * where that is wider.
-     *
-     * @param castSize the size the marker's cast was dragged to, zero for none
-     * @return the reach in blocks
-     */
-    static double visualReach(double castSize) {
-        return Math.max(RENDER_BOX_HALF_EXTENT, castSize * PULL_REACH_PER_SIZE + BLOCK_CENTER);
+        return AABB.ofSize(Vec3.atCenterOf(blockEntity.getBlockPos()), 1, 1, 1).inflate(RENDER_BOX_HALF_EXTENT);
     }
 
     @Override
@@ -140,7 +104,6 @@ public class AbilityBlockRenderer
         state.lurkerGlow = LurkerPulses.CLIENT.glowAt(be.getBlockPos(), state.gameTime);
         MetalSpikeVisual.extract(be, state);
         CrystalCloudVisual.extract(be, state);
-        NetherHoleStyles.active().extract(be, state);
         VineTrapVisual.extract(be, state);
         // updraft-blob-stands-a-column-of-wind
         if (state.behaviorActive && be.getLevel() != null) {
@@ -151,10 +114,6 @@ public class AbilityBlockRenderer
     @Override
     public void submit(AbilityBlockRenderState state, PoseStack poseStack,
                        SubmitNodeCollector nodeCollector, CameraRenderState cameraState) {
-        if (state.netherActive) {
-            NetherHoleStyles.active().submit(state, poseStack, nodeCollector);
-            return;
-        }
         if (state.vinesTrap) {
             VineTrapVisual.submit(state, poseStack, nodeCollector);
             return;

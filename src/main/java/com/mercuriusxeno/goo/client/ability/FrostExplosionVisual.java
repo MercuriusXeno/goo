@@ -102,10 +102,10 @@ public final class FrostExplosionVisual implements BurnoutVisual, HeldGhostVisua
      */
     static void emitWholeFog(PoseStack.Pose pose, VertexConsumer c, Direction face, float lift, float reach,
                                     float opacity) {
-        int progressByte = NetherDiscMesh.toByte(HELD_PROGRESS);
-        int fog = NetherDiscMesh.toByte(opacity);
-        int center = ARGB.color(fog, progressByte, NetherDiscMesh.toByte(SIGNED_TO_UNIT),
-                NetherDiscMesh.toByte(SIGNED_TO_UNIT));
+        int progressByte = ColorBytes.toByte(HELD_PROGRESS);
+        int fog = ColorBytes.toByte(opacity);
+        int center = ARGB.color(fog, progressByte, ColorBytes.toByte(SIGNED_TO_UNIT),
+                ColorBytes.toByte(SIGNED_TO_UNIT));
         BurnoutGeometry.emitAnnulus(pose, c, face, lift, 0f, reach, RING_SEGMENTS,
                 (angle, outer) -> outer ? edgeColor(fog, progressByte, angle) : center);
     }
@@ -193,10 +193,10 @@ public final class FrostExplosionVisual implements BurnoutVisual, HeldGhostVisua
      */
     static void drawDisc(BurnoutFrame frame, Vec3 corner, Direction face, float lift, float radius, float progress,
                          float fogShare, float seed) {
-        int progressByte = NetherDiscMesh.toByte(progress);
-        int fog = NetherDiscMesh.toByte(fogShare);
-        int center = ARGB.color(fog, progressByte, NetherDiscMesh.toByte(SIGNED_TO_UNIT),
-                NetherDiscMesh.toByte(SIGNED_TO_UNIT));
+        int progressByte = ColorBytes.toByte(progress);
+        int fog = ColorBytes.toByte(fogShare);
+        int center = ARGB.color(fog, progressByte, ColorBytes.toByte(SIGNED_TO_UNIT),
+                ColorBytes.toByte(SIGNED_TO_UNIT));
         BurnoutGeometry.drawAt(frame, corner, GooRenderTypes.FROST_EXPLOSION_TYPE, (pose, c) ->
                 BurnoutGeometry.emitAnnulus(pose, c, face, lift, 0f, radius, RING_SEGMENTS,
                         (angle, outer) -> outer ? edgeColor(fog, progressByte, angle) : center, seedNormal(seed)));
@@ -249,8 +249,8 @@ public final class FrostExplosionVisual implements BurnoutVisual, HeldGhostVisua
      * @return the packed color
      */
     private static int edgeColor(int fog, int progressByte, double angle) {
-        int u = NetherDiscMesh.toByte(((float) Math.cos(angle) + 1f) * SIGNED_TO_UNIT);
-        int v = NetherDiscMesh.toByte(((float) Math.sin(angle) + 1f) * SIGNED_TO_UNIT);
+        int u = ColorBytes.toByte(((float) Math.cos(angle) + 1f) * SIGNED_TO_UNIT);
+        int v = ColorBytes.toByte(((float) Math.sin(angle) + 1f) * SIGNED_TO_UNIT);
         return ARGB.color(fog, progressByte, u, v);
     }
 }

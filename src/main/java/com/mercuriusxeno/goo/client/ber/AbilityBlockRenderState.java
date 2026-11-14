@@ -8,9 +8,8 @@ import net.minecraft.resources.ResourceKey;
 
 /**
  * Render state snapshot for the ability block BER. Captures goo type,
- * stack count and program state for the slime-like orb visual, plus
- * a flag + sphere fields populated when a nether {@code ProgramBehavior}
- * is active so the BER can submit the black-hole shader sphere.
+ * stack count and program state for the slime-like orb visual and the
+ * visuals of the abilities that linger.
  */
 public class AbilityBlockRenderState extends BlockEntityRenderState {
 
@@ -79,32 +78,6 @@ public class AbilityBlockRenderState extends BlockEntityRenderState {
 
     /** Full cloud radius in blocks, read from the field effect. */
     public float crystalRadius;
-
-    /** True when a black-hole behavior is active on this marker.
-     * The BER uses this flag to branch between the orb visual (false) and
-     * the shader sphere (true). */
-    public boolean netherActive;
-
-    /** How far the black hole's startup ramp has run, 1 once it has run (decision dome-fades-in-before-its-start). */
-    public float holeRamp = 1f;
-
-    /** Visible scale of the sphere in [0, 1]: grows through EXPAND, 1
-     * during HOLD, shrinks through CONTRACT. Only meaningful when
-     * {@link #netherActive} is true. */
-    public float visibleScale;
-
-    /** Accretion disc expansion scale in [0, 1]. Runs on a separate
-     * curve from {@link #visibleScale} so the disc sweeps outward past
-     * the sphere instead of inflating in lockstep with it. Only
-     * meaningful when {@link #netherActive} is true. */
-    public float diskExpansionScale;
-
-    /** Effect radius of the nether blast in blocks. Only meaningful
-     * when {@link #netherActive} is true. */
-    public float implodeRadius;
-
-    /** Cycling animation phase in [0, 1] used by the shader's swirl. */
-    public float animationTime;
 
     /** True when the marker is a Vines trap waiting on the ground (decision vines-unpack-root-and-thorn). */
     public boolean vinesTrap;

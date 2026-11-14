@@ -67,8 +67,8 @@ public final class GlowExplosionVisual implements BurnoutVisual {
      * @return the packed ARGB color
      */
     static int domeColor(float progress, int alpha) {
-        return ARGB.color(alpha, NetherDiscMesh.toByte(progress), 0,
-                NetherDiscMesh.toByte(brightness(progress)));
+        return ARGB.color(alpha, ColorBytes.toByte(progress), 0,
+                ColorBytes.toByte(brightness(progress)));
     }
 
     /**

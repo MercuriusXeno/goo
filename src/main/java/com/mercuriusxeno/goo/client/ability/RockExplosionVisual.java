@@ -143,8 +143,8 @@ public final class RockExplosionVisual implements BurnoutVisual, HeldGhostVisual
      */
     private static void emitHeld(PoseStack.Pose pose, VertexConsumer c, HeldGhost ghost, Direction face,
                                  float opacity, double nowSeconds) {
-        int progressByte = NetherDiscMesh.toByte(HELD_PROGRESS);
-        int alphaByte = NetherDiscMesh.toByte(opacity);
+        int progressByte = ColorBytes.toByte(HELD_PROGRESS);
+        int alphaByte = ColorBytes.toByte(opacity);
         double spin = heldSpin(nowSeconds);
         BurnoutGeometry.emitSphere(pose, c, ghost.domeRadius(),
                 direction -> domeColor(direction, face, spin, progressByte, alphaByte));
@@ -179,8 +179,8 @@ public final class RockExplosionVisual implements BurnoutVisual, HeldGhostVisual
         float sin = (float) Math.sin(spin);
         float turnedU = across[0] * cos - across[1] * sin;
         float turnedV = across[0] * sin + across[1] * cos;
-        int u = NetherDiscMesh.toByte((turnedU * DOME_DUST_REACH + 1f) * SIGNED_TO_UNIT);
-        int v = NetherDiscMesh.toByte((turnedV * DOME_DUST_REACH + 1f) * SIGNED_TO_UNIT);
+        int u = ColorBytes.toByte((turnedU * DOME_DUST_REACH + 1f) * SIGNED_TO_UNIT);
+        int v = ColorBytes.toByte((turnedV * DOME_DUST_REACH + 1f) * SIGNED_TO_UNIT);
         return ARGB.color(alphaByte, progressByte, u, v);
     }
 
@@ -214,9 +214,9 @@ public final class RockExplosionVisual implements BurnoutVisual, HeldGhostVisual
      */
     private static void drawDisc(BurnoutFrame frame, BlockPos cell, Direction face, float progress, float radius,
                                  float lift) {
-        int progressByte = NetherDiscMesh.toByte(progress);
-        int center = ARGB.color(OPAQUE, progressByte, NetherDiscMesh.toByte(SIGNED_TO_UNIT),
-                NetherDiscMesh.toByte(SIGNED_TO_UNIT));
+        int progressByte = ColorBytes.toByte(progress);
+        int center = ARGB.color(OPAQUE, progressByte, ColorBytes.toByte(SIGNED_TO_UNIT),
+                ColorBytes.toByte(SIGNED_TO_UNIT));
         BurnoutGeometry.drawAtMarker(frame, cell, GooRenderTypes.ROCK_EXPLOSION_TYPE, (pose, c) ->
                 BurnoutGeometry.emitAnnulus(pose, c, face, lift, 0f, radius, DISC_SEGMENTS,
                         (angle, outer) -> outer ? edgeColor(progressByte, angle) : center));
@@ -252,8 +252,8 @@ public final class RockExplosionVisual implements BurnoutVisual, HeldGhostVisual
      * @return the packed color
      */
     private static int edgeColor(int progressByte, double angle) {
-        int u = NetherDiscMesh.toByte(((float) Math.cos(angle) + 1f) * SIGNED_TO_UNIT);
-        int v = NetherDiscMesh.toByte(((float) Math.sin(angle) + 1f) * SIGNED_TO_UNIT);
+        int u = ColorBytes.toByte(((float) Math.cos(angle) + 1f) * SIGNED_TO_UNIT);
+        int v = ColorBytes.toByte(((float) Math.sin(angle) + 1f) * SIGNED_TO_UNIT);
         return ARGB.color(OPAQUE, progressByte, u, v);
     }
 }

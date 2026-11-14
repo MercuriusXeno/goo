@@ -105,7 +105,7 @@ public final class ReapSwells {
             if (radius <= 0f) {
                 continue;
             }
-            int color = ARGB.color(NetherDiscMesh.toByte(swell.strengthAt(time)), OPAQUE, 0, 0);
+            int color = ARGB.color(ColorBytes.toByte(swell.strengthAt(time)), OPAQUE, 0, 0);
             PoseStack poseStack = event.getPoseStack();
             poseStack.pushPose();
             Vec3 corner = swell.center().subtract(camera).subtract(BurnoutGeometry.BLOCK_CENTER,

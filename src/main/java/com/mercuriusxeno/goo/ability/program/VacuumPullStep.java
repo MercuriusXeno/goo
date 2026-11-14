@@ -22,8 +22,7 @@ import java.util.stream.Stream;
  * as a pickup, as Grab pulls an item, the goo a vacuumed residual drops
  * among them; each mob is dragged level toward the player at a steady pace
  * its knockback resistance slows, takes no damage, and stops about a block in
- * front. Bosses and players are not dragged. The nether black hole's sphere
- * pull is PullStep's, left as it stands.
+ * front. Bosses and players are not dragged.
  * vacuum-pulls-items-to-pickup-and-drags-mobs
  *
  * @param itemSpeed    the speed an item flies to the player at, in blocks a tick

@@ -255,10 +255,10 @@ class ProgramHostLoadTest {
 
     /** The marker ticks and holds a placed face, and is no target. */
     @Test
-    void theMarkerHostProvidesItsSeventeenCapabilities() {
+    void theMarkerHostProvidesItsFifteenCapabilities() {
         assertEquals(Set.of(HostCapability.PLACED_FACE, HostCapability.TICKING, HostCapability.EXPLODE,
                         HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK, HostCapability.FIELD_EFFECT,
-                        HostCapability.PHASED, HostCapability.HOARD, HostCapability.WATCH, HostCapability.STATE_WRITE,
+                        HostCapability.WATCH, HostCapability.STATE_WRITE,
                         HostCapability.LEVEL, HostCapability.SHRIEK, HostCapability.GREENING,
                         HostCapability.EMIT_POWER, HostCapability.BEAT, HostCapability.RELAY, HostCapability.FROST),
                 HostKind.MARKER.capabilities());

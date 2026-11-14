@@ -19,8 +19,6 @@ import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.program.TerrakinesisWindUp;
 import com.mercuriusxeno.goo.ability.pulse.Stunned;
 import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
-import com.mercuriusxeno.goo.ability.quantum.SharedFate;
-import com.mercuriusxeno.goo.ability.quantum.SwapBodyRef;
 import com.mercuriusxeno.goo.ability.reserve.Reserve;
 import com.mercuriusxeno.goo.ability.rewind.Rewinding;
 import com.mercuriusxeno.goo.ability.root.Rooted;
@@ -46,8 +44,6 @@ import net.neoforged.neoforge.network.payload.SyncAttachmentsPayload;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
-import java.util.Optional;
-import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
@@ -189,16 +185,6 @@ public final class GooAttachments {
      */
     public static final Supplier<AttachmentType<Vec3>> JUMP_SOURCE =
             ATTACHMENT_TYPES.register("jump_source", () -> AttachmentType.builder(() -> Vec3.ZERO).build());
-
-    /**
-     * The radius a busting player's melee hits blast at, laid by the buster step
-     * as its held effect starts and cleared to zero when that effect ends,
-     * saved with the player while it stands (decision buster-makes-tools-and-attacks-aoe).
-     */
-    public static final Supplier<AttachmentType<Float>> BUSTER_RADIUS =
-            ATTACHMENT_TYPES.register("buster_radius",
-                    () -> AttachmentType.builder(() -> 0f)
-                            .serialize(Codec.FLOAT.fieldOf("radius"), radius -> radius > 0f).build());
 
     /**
      * The Lux a player holds, keeping night vision up and glistening the mob
@@ -408,37 +394,6 @@ public final class GooAttachments {
                             .serialize(OutOfPhase.CODEC, OutOfPhase::laid)
                             .sync(GooAttachments::syncsToWatcher, OutOfPhase.STREAM_CODEC)
                             .build());
-
-    /**
-     * The swap body a player has standing, saved with the player while one stands.
-     * swap-body-stands-until-reverted
-     */
-    public static final Supplier<AttachmentType<Optional<SwapBodyRef>>> SWAP_BODY =
-            ATTACHMENT_TYPES.register("swap_body",
-                    () -> AttachmentType.<Optional<SwapBodyRef>>builder(Optional::empty)
-                            .serialize(SwapBodyRef.CODEC.optionalFieldOf("ref"), Optional::isPresent)
-                            .build());
-
-    /**
-     * A creature's shared fate with its partner, saved while laid and synced to
-     * every client drawing it, which draws the thread between the pair.
-     * shared-fate-pools-health-and-status
-     */
-    public static final Supplier<AttachmentType<SharedFate>> SHARED_FATE =
-            ATTACHMENT_TYPES.register("shared_fate",
-                    () -> AttachmentType.builder(() -> SharedFate.NONE)
-                            .serialize(SharedFate.CODEC, SharedFate::laid)
-                            .sync(GooAttachments::syncsToWatcher, SharedFate.STREAM_CODEC)
-                            .build());
-
-    /**
-     * The creature a player's shared-fate link struck first, waiting for its
-     * pair. Not saved.
-     * shared-fate-pools-health-and-status
-     */
-    public static final Supplier<AttachmentType<Optional<UUID>>> FATE_WAITING =
-            ATTACHMENT_TYPES.register("fate_waiting",
-                    () -> AttachmentType.<Optional<UUID>>builder(Optional::empty).build());
 
     /**
      * The float Float leaves on a mob while its levitation lasts, saved with
