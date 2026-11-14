@@ -8,12 +8,8 @@ import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.FieldEffectStep;
 import com.mercuriusxeno.goo.ability.program.FloorsStep;
-import com.mercuriusxeno.goo.ability.program.LeafStep;
-import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.OutsiderStep;
-import com.mercuriusxeno.goo.ability.program.PhasedStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
-import com.mercuriusxeno.goo.ability.program.PullStep;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepTypes;
@@ -512,15 +508,12 @@ public record AbilityDefinition(
     /** Reads the radius a radius-bearing step reaches, each reader answering empty for any other step. */
     private static final List<Function<Step, Optional<Expr>>> RADIUS_READERS = List.of(
             radiusOf(FieldEffectStep.class, FieldEffectStep::radius),
-            radiusOf(PhasedStep.class, PhasedStep::radius),
             radiusOf(EntitiesStep.class, EntitiesStep::radius),
-            radiusOf(PullStep.class, PullStep::radius),
             radiusOf(AwaitEntityStep.class, AwaitEntityStep::radius),
             radiusOf(BloomStep.class, BloomStep::radius),
             // colonize-blob-grows-the-network
             radiusOf(ColonizeStep.class, ColonizeStep::radius),
-            radiusOf(FloorsStep.class, FloorsStep::radius),
-            AbilityDefinition::consumedBlocksRadius);
+            radiusOf(FloorsStep.class, FloorsStep::radius));
 
     /**
      * Codec for a cost or an upkeep: one whole number of mB (decision flat-cost-per-throw), or an expression
@@ -780,11 +773,6 @@ public record AbilityDefinition(
 
     private static <S extends Step> Function<Step, Optional<Expr>> radiusOf(Class<S> type, Function<S, Expr> radius) {
         return step -> type.isInstance(step) ? Optional.of(radius.apply(type.cast(step))) : Optional.empty();
-    }
-
-    private static Optional<Expr> consumedBlocksRadius(Step step) {
-        return step instanceof LeafStep<?> leaf && leaf.leaf() == LeafSteps.CONSUME_BLOCKS
-                && leaf.params() instanceof Expr radius ? Optional.of(radius) : Optional.empty();
     }
 
     /**

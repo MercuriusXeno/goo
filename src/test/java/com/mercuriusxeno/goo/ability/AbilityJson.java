@@ -35,7 +35,7 @@ public final class AbilityJson {
     /**
      * The id an ability file loads under: the goo namespace and the filename without its suffix.
      *
-     * @param fileName the file's name, such as {@code void_dark_star.json}
+     * @param fileName the file's name, such as {@code void_hole.json}
      * @return the ability id
      */
     public static Identifier idOf(String fileName) {
@@ -62,9 +62,19 @@ public final class AbilityJson {
      * @return the ability file paths
      */
     public static List<Path> files() {
-        URL dir = AbilityJson.class.getClassLoader().getResource(ABILITIES_DIR);
+        return filesUnder(ABILITIES_DIR);
+    }
+
+    /**
+     * Every ability file under a classpath directory, sorted by name.
+     *
+     * @param classpathDir the directory, relative to the classpath root
+     * @return the ability file paths
+     */
+    public static List<Path> filesUnder(String classpathDir) {
+        URL dir = AbilityJson.class.getClassLoader().getResource(classpathDir);
         if (dir == null) {
-            throw new IllegalStateException("Classpath holds no " + ABILITIES_DIR);
+            throw new IllegalStateException("Classpath holds no " + classpathDir);
         }
         try (Stream<Path> files = Files.list(Path.of(dir.toURI()))) {
             return files.filter(p -> p.getFileName().toString().endsWith(JSON_SUFFIX)).sorted().toList();
@@ -78,7 +88,7 @@ public final class AbilityJson {
     /**
      * Decodes one shipped ability by name.
      *
-     * @param name the ability's filename without its suffix, such as {@code void_dark_star}
+     * @param name the ability's filename without its suffix, such as {@code void_hole}
      * @return the decoded definition
      */
     public static AbilityDefinition decode(String name) {

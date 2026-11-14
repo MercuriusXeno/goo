@@ -172,11 +172,6 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
 
 
     @Override
-    public void pullEntitiesWithin(double radius, double speed) {
-        EntityPull.pullWithin(level, target.position(), radius, speed, target);
-    }
-
-    @Override
     public void liftEntitiesInColumn(double radius, double height, double speed) {
         EntityLift.liftInColumn(level, target.position(), radius, height, speed);
     }

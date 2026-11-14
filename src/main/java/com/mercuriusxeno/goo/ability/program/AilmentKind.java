@@ -46,9 +46,7 @@ public enum AilmentKind {
      */
     GRABBED(0xFFFFFF, AilmentPattern.SHIMMER, 0f),
     /** Ancient: aged stone veined with gold (decision ancient-makes-the-player-immortal). */
-    ANCIENT(0xC9A85C, AilmentPattern.STONE, 0.75f),
-    /** Buster: an unstable green shimmer over the player while it stands (decision buster-makes-tools-and-attacks-aoe). */
-    BUSTER(0x39FF14, AilmentPattern.SHIMMER, 0.5f);
+    ANCIENT(0xC9A85C, AilmentPattern.STONE, 0.75f);
 
     /** Codec for the kind as an ability JSON writes it, in lower case. */
     public static final Codec<AilmentKind> CODEC = LowerCaseEnumCodec.of(AilmentKind.class, "ailment kind");

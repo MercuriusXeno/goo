@@ -45,16 +45,6 @@ public enum HostCapability {
      */
     FIELD_EFFECT(FieldEffectHost.class),
     /**
-     * A phased-step cursor the host keeps across ticks and its renderer
-     * reads: the phase running, its progress and the declared reach.
-     */
-    PHASED(PhasedHost.class),
-    /**
-     * A hoard of stacks the host fills from the blocks and items around its
-     * anchor and leaves as a compression sphere.
-     */
-    HOARD(HoardHost.class),
-    /**
      * A landing where the ability can stand its own block, which runs the
      * steps handed to it (decision lingering-abilities-place-their-own-thing).
      */

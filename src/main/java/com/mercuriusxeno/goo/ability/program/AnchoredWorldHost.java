@@ -52,11 +52,6 @@ public interface AnchoredWorldHost extends EntityScanHost {
     }
 
     @Override
-    default void pullEntitiesWithin(double radius, double speed) {
-        EntityPull.pullWithin(level(), anchor(), radius, speed, null);
-    }
-
-    @Override
     default void liftEntitiesInColumn(double radius, double height, double speed) {
         EntityLift.liftInColumn(level(), anchor(), radius, height, speed);
     }

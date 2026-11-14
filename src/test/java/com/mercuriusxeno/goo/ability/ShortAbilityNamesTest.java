@@ -51,7 +51,6 @@ class ShortAbilityNamesTest {
                 Arguments.of("goo.ability.jelly.heal", "Heal"),
                 Arguments.of("goo.ability.pulse.extender", "Extend"),
                 Arguments.of("goo.ability.pulse.pulser", "Tick"),
-                Arguments.of("goo.ability.quantum.link", "Tether"),
                 Arguments.of("goo.ability.quantum.phase_shift", "Shift"),
                 Arguments.of("goo.ability.kinetic.telekinesis", "Remote"),
                 Arguments.of("goo.ability.rock.terrakinesis", "Gouge"),
@@ -61,7 +60,7 @@ class ShortAbilityNamesTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"Sunbeam", "Radiant", "Eldritch Sight", "Vitality", "Extender", "Pulser",
-            "Shared Fate", "Phase Shift", "Telekinesis", "Terrakinesis", "Flatten", "Fungal Shift"})
+            "Phase Shift", "Telekinesis", "Terrakinesis", "Flatten", "Fungal Shift"})
     void everyLangValueReadsTheNewNameInPlaceOfTheOld(String oldName) {
         List<String> stillOld = lang.entrySet().stream()
                 .filter(entry -> entry.getValue().getAsString().contains(oldName))

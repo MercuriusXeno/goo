@@ -28,7 +28,6 @@ class HeldGhostTest {
         HeldGhost ghost = ghostOf(CrystalExplosionVisual.INSTANCE, "crystal_cloud");
         float synced = (float) AbilityJson.decode("crystal_cloud").area().size();
         assertEquals(synced, ghost.domeRadius(), TOLERANCE);
-        assertEquals(HeldGhost.RingDirection.OUTWARD, ghost.rings());
         assertEquals(ghost.domeRadius(), ghost.ringRadius(), TOLERANCE);
     }
 
@@ -36,17 +35,7 @@ class HeldGhostTest {
     void urchinRingsOutwardToItsDome() {
         HeldGhost ghost = ghostOf(MetalExplosionVisual.INSTANCE, "metal_spikes");
         assertEquals((float) AbilityJson.decode("metal_spikes").area().size(), ghost.domeRadius(), TOLERANCE);
-        assertEquals(HeldGhost.RingDirection.OUTWARD, ghost.rings());
         assertEquals(ghost.domeRadius(), ghost.ringRadius(), TOLERANCE);
-    }
-
-    // decision black-hole-leaves-a-compression-sphere: the dome follows the drag, the rings its pull
-    @Test
-    void aSizedBlackHoleRingsInwardFromItsPullToItsDraggedDome() {
-        HeldGhost ghost = NetherHeldGhost.INSTANCE.sizedGhost(5f);
-        assertEquals(5f, ghost.domeRadius(), TOLERANCE);
-        assertEquals(HeldGhost.RingDirection.INWARD, ghost.rings());
-        assertEquals(15f, ghost.ringRadius(), TOLERANCE);
     }
 
     // decision blast-is-drag-sized-like-the-black-hole: the dome follows the drag, the rings run out to it
@@ -54,7 +43,6 @@ class HeldGhostTest {
     void aSizedBlastRingsOutwardToItsDraggedDomeAndPricesByVolume() {
         HeldGhost ghost = UnstableExplosionVisual.INSTANCE.sizedGhost(6f);
         assertEquals(6f, ghost.domeRadius(), TOLERANCE);
-        assertEquals(HeldGhost.RingDirection.OUTWARD, ghost.rings());
         assertEquals(6f, ghost.ringRadius(), TOLERANCE);
         assertEquals(GooFormat.formatAmount(DragSize.costAt(BLAST_COST, 6)), DragSize.priceLabel(BLAST_COST, 6));
         assertEquals(GooFormat.formatAmount(8000), DragSize.priceLabel(BLAST_COST, 6));
@@ -63,7 +51,6 @@ class HeldGhostTest {
     @Test
     void fireballRingsOutwardToItsBlastReach() {
         HeldGhost ghost = ghostOf(UnstableExplosionVisual.INSTANCE, "unstable_lurker");
-        assertEquals(HeldGhost.RingDirection.OUTWARD, ghost.rings());
         assertEquals(ghost.domeRadius(), ghost.ringRadius(), TOLERANCE);
     }
 }
