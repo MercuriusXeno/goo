@@ -62,9 +62,19 @@ public final class AbilityJson {
      * @return the ability file paths
      */
     public static List<Path> files() {
-        URL dir = AbilityJson.class.getClassLoader().getResource(ABILITIES_DIR);
+        return filesUnder(ABILITIES_DIR);
+    }
+
+    /**
+     * Every ability file under a classpath directory, sorted by name.
+     *
+     * @param classpathDir the directory, relative to the classpath root
+     * @return the ability file paths
+     */
+    public static List<Path> filesUnder(String classpathDir) {
+        URL dir = AbilityJson.class.getClassLoader().getResource(classpathDir);
         if (dir == null) {
-            throw new IllegalStateException("Classpath holds no " + ABILITIES_DIR);
+            throw new IllegalStateException("Classpath holds no " + classpathDir);
         }
         try (Stream<Path> files = Files.list(Path.of(dir.toURI()))) {
             return files.filter(p -> p.getFileName().toString().endsWith(JSON_SUFFIX)).sorted().toList();
