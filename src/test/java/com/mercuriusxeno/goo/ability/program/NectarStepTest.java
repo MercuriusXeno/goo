@@ -12,14 +12,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 /**
- * Covers what Jelly Feed's program takes: the sound beside the feed acts on
- * no entity, so the ability takes the animals and slimes the feed takes and
+ * Covers what Jelly's Nectar's program takes: the sound beside the nectar acts on
+ * no entity, so the ability takes the animals and slimes the nectar takes and
  * no zombie or player (decision steps-declare-the-entities-they-take).
  */
-class FeedStepTest {
+class NectarStepTest {
 
     private final List<Step> jellyFeed = List.of(
-            new FeedStep(Expr.literal(12), Expr.literal(100)),
+            new NectarStep(Expr.literal(12), Expr.literal(100)),
             new SoundStep(Identifier.fromNamespaceAndPath("minecraft", "entity.generic.eat"), FxAnchor.HOST,
                     SoundKind.PLAYERS, Expr.literal(1), Expr.literal(1), Expr.literal(0)));
 

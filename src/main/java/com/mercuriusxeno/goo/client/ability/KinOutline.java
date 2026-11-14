@@ -8,14 +8,14 @@ import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.world.entity.Entity;
 
 /**
- * Outlines every mob Leader senses in Scry's pulsing outline in Zoo's color.
+ * Outlines every mob Kin senses in Scry's pulsing outline in Zoo's color.
  * Rally's outline, the ailment outlines and the glove's aim outline are
  * stamped after this one, so they override Zoo's color while they stand.
  * leader-outlines-every-mob-through-walls
  */
-public final class LeaderOutline {
+public final class KinOutline {
 
-    private LeaderOutline() {
+    private KinOutline() {
     }
 
     /**
@@ -26,10 +26,10 @@ public final class LeaderOutline {
      * @param state  its render state
      */
     public static void stampOutline(Entity entity, EntityRenderState state) {
-        if (LeaderSense.CLIENT.appearsGlowing(entity.getId())) {
+        if (KinSense.CLIENT.appearsGlowing(entity.getId())) {
             float time = entity.level().getGameTime()
                     + Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
-            state.outlineColor = color(ClientGooTypes.color(GooTypes.ZOO), time, LeaderSense.CLIENT.strength(time));
+            state.outlineColor = color(ClientGooTypes.color(GooTypes.ZOO), time, KinSense.CLIENT.strength(time));
         }
     }
 

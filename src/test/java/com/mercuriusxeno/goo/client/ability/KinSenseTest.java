@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.zoo.Leader;
+import com.mercuriusxeno.goo.ability.zoo.Kin;
 import com.mercuriusxeno.goo.client.fade.Afterglow;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
@@ -18,15 +18,15 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Covers Leader's sensed set on the client: every mob inside the radius,
+ * Covers Kin's sensed set on the client: every mob inside the radius,
  * hostile and passive alike, appears glowing, and the outline's strength
- * stands whole while Leader stands and fades over the second after it ends.
+ * stands whole while Kin stands and fades over the second after it ends.
  * leader-outlines-every-mob-through-walls
  */
-class LeaderSenseTest {
+class KinSenseTest {
 
     private static final Vec3 CENTER = new Vec3(0, 64, 0);
-    private static final Leader STANDING = new Leader(12, 4);
+    private static final Kin STANDING = new Kin(12, 4);
     private static final float NOW = 1000f;
     private static final float EPSILON = 1e-6f;
 
@@ -42,23 +42,23 @@ class LeaderSenseTest {
 
         @Test
         void sensesHostileAndPassiveMobsInsideTheRadius() {
-            assertTrue(LeaderSense.senses(at(Monster.class, 1, 5), CENTER, STANDING.radius()));
-            assertTrue(LeaderSense.senses(at(Mob.class, 2, 11.5), CENTER, STANDING.radius()));
+            assertTrue(KinSense.senses(at(Monster.class, 1, 5), CENTER, STANDING.radius()));
+            assertTrue(KinSense.senses(at(Mob.class, 2, 11.5), CENTER, STANDING.radius()));
         }
 
         @Test
         void mobBeyondTheRadiusIsNotSensed() {
-            assertFalse(LeaderSense.senses(at(Mob.class, 3, 12.5), CENTER, STANDING.radius()));
+            assertFalse(KinSense.senses(at(Mob.class, 3, 12.5), CENTER, STANDING.radius()));
         }
 
         @Test
         void nonMobEntityIsNotSensed() {
-            assertFalse(LeaderSense.senses(at(ItemEntity.class, 4, 1), CENTER, STANDING.radius()));
+            assertFalse(KinSense.senses(at(ItemEntity.class, 4, 1), CENTER, STANDING.radius()));
         }
 
         @Test
         void sensedMobAppearsGlowing() {
-            LeaderSense sense = new LeaderSense();
+            KinSense sense = new KinSense();
             Mob near = at(Mob.class, 5, 3);
             Mob far = at(Mob.class, 6, 30);
 
@@ -74,24 +74,24 @@ class LeaderSenseTest {
     class Strength {
 
         @Test
-        void outlineIsWholeWhileLeaderStands() {
-            LeaderSense sense = new LeaderSense();
+        void outlineIsWholeWhileKinStands() {
+            KinSense sense = new KinSense();
             sense.sense(STANDING, List.of(at(Mob.class, 7, 3)), CENTER, NOW);
 
             assertEquals(1f, sense.strength(NOW + Afterglow.FADE_TICKS * 3), EPSILON);
         }
 
         @Test
-        void outlineFadesOverASecondAfterLeaderEnds() {
-            LeaderSense sense = new LeaderSense();
+        void outlineFadesOverASecondAfterKinEnds() {
+            KinSense sense = new KinSense();
             Mob near = at(Mob.class, 8, 3);
             sense.sense(STANDING, List.of(near), CENTER, NOW - 1);
-            sense.sense(Leader.NONE, List.of(near), CENTER, NOW);
+            sense.sense(Kin.NONE, List.of(near), CENTER, NOW);
 
-            assertTrue(sense.appearsGlowing(8), "the outline lingers where Leader left it");
+            assertTrue(sense.appearsGlowing(8), "the outline lingers where Kin left it");
             assertEquals(0.5f, sense.strength(NOW + Afterglow.FADE_TICKS / 2f), EPSILON);
             assertEquals(0f, sense.strength(NOW + Afterglow.FADE_TICKS), EPSILON);
-            sense.sense(Leader.NONE, List.of(near), CENTER, NOW + Afterglow.FADE_TICKS);
+            sense.sense(Kin.NONE, List.of(near), CENTER, NOW + Afterglow.FADE_TICKS);
             assertFalse(sense.appearsGlowing(8), "the outline is gone once the fade is spent");
         }
     }

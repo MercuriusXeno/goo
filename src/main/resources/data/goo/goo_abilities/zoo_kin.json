@@ -1,13 +1,13 @@
 {
   "gooType": "zoo",
-  "displayName": "goo.ability.zoo.leader",
+  "displayName": "goo.ability.zoo.kin",
   "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
   "badge": "durative",
   "order": 40,
   "upkeep": 1,
   "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "leader", "radius": 12, "distance": 4 },
+    { "type": "kin", "radius": 12, "distance": 4 },
     { "type": "sound", "id": "minecraft:entity.sheep.ambient", "at": "target", "source": "players", "volume": 1, "pitch": 1 }
   ],
   "tags": ["self"]

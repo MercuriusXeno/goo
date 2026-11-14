@@ -30,7 +30,7 @@ import com.mercuriusxeno.goo.ability.typhoon.Breath;
 import com.mercuriusxeno.goo.ability.typhoon.Floating;
 import com.mercuriusxeno.goo.ability.weird.Wobbled;
 import com.mercuriusxeno.goo.ability.xeno.Eldritch;
-import com.mercuriusxeno.goo.ability.zoo.Leader;
+import com.mercuriusxeno.goo.ability.zoo.Kin;
 import com.mercuriusxeno.goo.ability.zoo.Rallied;
 import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.data.KnownItems;
@@ -434,15 +434,15 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The Leader a player holds, saved while it stands and synced to the
+     * The Kin a player holds, saved while it stands and synced to the
      * owning client, which outlines the mobs it senses.
      * leader-is-zoos-brew-ability
      */
-    public static final Supplier<AttachmentType<Leader>> LEADER =
-            ATTACHMENT_TYPES.register("leader",
-                    () -> AttachmentType.builder(() -> Leader.NONE)
-                            .serialize(Leader.CODEC, Leader::stands)
-                            .sync(GooAttachments::syncsToOwner, Leader.STREAM_CODEC)
+    public static final Supplier<AttachmentType<Kin>> KIN =
+            ATTACHMENT_TYPES.register("kin",
+                    () -> AttachmentType.builder(() -> Kin.NONE)
+                            .serialize(Kin.CODEC, Kin::stands)
+                            .sync(GooAttachments::syncsToOwner, Kin.STREAM_CODEC)
                             .build());
 
     /**

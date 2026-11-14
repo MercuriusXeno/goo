@@ -160,7 +160,7 @@ class StepCodecTest {
             Map.entry("gluttony", new GluttonyStep(Expr.literal(20), Expr.literal(20))),
             Map.entry("reserve_drain", new ReserveDrainStep(Expr.literal(0.05), Expr.literal(0.5), Expr.literal(10),
                     Expr.literal(0.5))),
-            Map.entry("feed", new FeedStep(Expr.literal(12), Expr.literal(100))),
+            Map.entry("nectar", new NectarStep(Expr.literal(12), Expr.literal(100))),
             Map.entry("seal", new SealStep(Expr.literal(6), Expr.literal(32))),
             Map.entry("elude", new EludeStep(Expr.literal(8))),
             Map.entry("shriek", new ShriekStep(Expr.literal(16), Expr.literal(600))),
@@ -195,7 +195,7 @@ class StepCodecTest {
             Map.entry("enchant_book", LeafSteps.ENCHANT_BOOK.step(Unit.INSTANCE)),
             Map.entry("fuse_books", new FuseBooksStep(Optional.of(new SoundCue(
                     Identifier.withDefaultNamespace("block.fire.extinguish"), SoundKind.PLAYERS, 0.4f, 1.6f)))),
-            Map.entry("leader", new LeaderStep(12, 4)),
+            Map.entry("kin", new KinStep(12, 4)),
             Map.entry("rally", new RallyStep(Expr.literal(6), Expr.literal(1.5), Expr.literal(0.5))),
             Map.entry("transmute_slime", new SlimeTransmuteStep(GooTypes.ZOO, true, 20,
                     List.of(new AilmentOverlayStep(AilmentKind.HEX, Expr.literal(60))))),

@@ -59,7 +59,10 @@ class InventoryRenamedAbilitiesTest {
                 Arguments.of("quantum_phase_other", "Phase Other"),
                 Arguments.of("blaze_molten", "Molten"),
                 Arguments.of("crystal_shatter", "Shatter"),
-                Arguments.of("crystal_glimmer", "Glimmer"));
+                Arguments.of("crystal_glimmer", "Glimmer"),
+                Arguments.of("jelly_nectar", "Nectar"),
+                Arguments.of("void_cancel", "Cancel"),
+                Arguments.of("zoo_kin", "Kin"));
     }
 
     @ParameterizedTest
@@ -84,7 +87,10 @@ class InventoryRenamedAbilitiesTest {
         return Stream.of(
                 Arguments.of("blaze", Set.of("blaze_flames", "blaze_ignite", "blaze_kindle", "blaze_molten")),
                 Arguments.of("crystal", Set.of("crystal_glimmer", "crystal_knives", "crystal_prism", "crystal_scales",
-                        "crystal_shatter")));
+                        "crystal_shatter")),
+                Arguments.of("jelly", Set.of("jelly_gluttony", "jelly_heal", "jelly_nectar", "jelly_reserve")),
+                Arguments.of("void", Set.of("void_cancel", "void_hole", "void_vacuum", "void_zone")),
+                Arguments.of("zoo", Set.of("zoo_allure", "zoo_kin", "zoo_rally", "zoo_shape", "zoo_spawn")));
     }
 
     @Test

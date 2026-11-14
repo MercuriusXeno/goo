@@ -15,11 +15,11 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
- * Covers the outline a mob Leader senses wears: Zoo's highlight, opaque
- * while Leader stands, its brightness pulsing.
+ * Covers the outline a mob Kin senses wears: Zoo's highlight, opaque
+ * while Kin stands, its brightness pulsing.
  * leader-outlines-every-mob-through-walls
  */
-class LeaderOutlineTest {
+class KinOutlineTest {
 
     private static final String ZOO_TYPE = "/data/goo/goo/goo_type/zoo.json";
     private static final int OPAQUE = 0xFF;
@@ -27,7 +27,7 @@ class LeaderOutlineTest {
 
     @BeforeAll
     static void readZoosHighlight() throws IOException {
-        try (InputStream in = LeaderOutlineTest.class.getResourceAsStream(ZOO_TYPE)) {
+        try (InputStream in = KinOutlineTest.class.getResourceAsStream(ZOO_TYPE)) {
             assertNotNull(in, ZOO_TYPE + " is missing");
             try (Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
                 zooHighlight = Integer.parseInt(
@@ -38,15 +38,15 @@ class LeaderOutlineTest {
 
     @Test
     void outlineIsZoosColor() {
-        assertEquals(ARGB.opaque(zooHighlight), LeaderOutline.color(zooHighlight, 0f, 1f));
-        int dimmest = LeaderOutline.color(zooHighlight, PulsingOutline.PULSE_PERIOD / 2f, 1f);
+        assertEquals(ARGB.opaque(zooHighlight), KinOutline.color(zooHighlight, 0f, 1f));
+        int dimmest = KinOutline.color(zooHighlight, PulsingOutline.PULSE_PERIOD / 2f, 1f);
         assertEquals(OPAQUE, ARGB.alpha(dimmest));
         assertEquals(PulsingOutline.color(zooHighlight, PulsingOutline.PULSE_PERIOD / 2f), dimmest);
     }
 
     @Test
     void outlineBrightnessPulses() {
-        assertNotEquals(ARGB.red(LeaderOutline.color(zooHighlight, 0f, 1f)),
-                ARGB.red(LeaderOutline.color(zooHighlight, PulsingOutline.PULSE_PERIOD / 2f, 1f)));
+        assertNotEquals(ARGB.red(KinOutline.color(zooHighlight, 0f, 1f)),
+                ARGB.red(KinOutline.color(zooHighlight, PulsingOutline.PULSE_PERIOD / 2f, 1f)));
     }
 }

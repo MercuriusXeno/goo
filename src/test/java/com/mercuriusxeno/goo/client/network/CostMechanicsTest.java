@@ -175,7 +175,7 @@ class CostMechanicsTest {
     // decision ability-json-names-its-reagent
     @Test
     void eraseConsumesNoItem() {
-        assertTrue(AbilityJson.decode("void_erase").consumes().isEmpty());
+        assertTrue(AbilityJson.decode("void_cancel").consumes().isEmpty());
     }
 
     @Test

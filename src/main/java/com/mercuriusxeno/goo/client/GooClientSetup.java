@@ -24,7 +24,7 @@ import com.mercuriusxeno.goo.client.ability.GhostTrails;
 import com.mercuriusxeno.goo.client.ability.GlassKnives;
 import com.mercuriusxeno.goo.client.ability.GrabFlail;
 import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
-import com.mercuriusxeno.goo.client.ability.LeaderOutline;
+import com.mercuriusxeno.goo.client.ability.KinOutline;
 import com.mercuriusxeno.goo.client.ability.LiftWind;
 import com.mercuriusxeno.goo.client.ability.MeteorScorches;
 import com.mercuriusxeno.goo.client.ability.MobAilments;
@@ -58,8 +58,8 @@ import com.mercuriusxeno.goo.client.ber.style.VerdantPrismStyle;
 import com.mercuriusxeno.goo.client.entity.BlockHunkRenderer;
 import com.mercuriusxeno.goo.client.entity.CompressionSphereRenderer;
 import com.mercuriusxeno.goo.client.entity.EldritchMonstrosityRenderer;
-import com.mercuriusxeno.goo.client.entity.FeedPileRenderer;
 import com.mercuriusxeno.goo.client.entity.MeteorRenderer;
+import com.mercuriusxeno.goo.client.entity.NectarPileRenderer;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -259,7 +259,7 @@ public final class GooClientSetup {
         // decision flecks-move-by-flexible-goo-physics-and-stay-items: a dropped goo item draws as its cuboid, still
         event.registerEntityRenderer(EntityType.ITEM, GooItemEntityRenderer::new);
         event.registerEntityRenderer(GooEntities.COMPRESSION_SPHERE.get(), CompressionSphereRenderer::new);
-        event.registerEntityRenderer(GooEntities.FEED_PILE.get(), FeedPileRenderer::new);
+        event.registerEntityRenderer(GooEntities.NECTAR_PILE.get(), NectarPileRenderer::new);
         event.registerEntityRenderer(GooEntities.BLOCK_HUNK.get(), BlockHunkRenderer::new);
         // orb-carries-a-swirling-nova: RollingGooRenderer draws the ball and its swirl from the level stage
         event.registerEntityRenderer(GooEntities.ROLLING_GOO.get(), NoopRenderer::new);
@@ -365,7 +365,7 @@ public final class GooClientSetup {
     public static void registerRenderStateModifiers(
             RegisterRenderStateModifiersEvent event) {
         List<BiConsumer<Entity, EntityRenderState>> stamps = List.of(
-                LeaderOutline::stampOutline,
+                KinOutline::stampOutline,
                 RallyOutline::stampOutline,
                 AilmentOverlayLayer::stampAilments,
                 AimTracker::modifyEntityRenderState,

@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.entity;
 
-import com.mercuriusxeno.goo.ability.feed.Feeding;
+import com.mercuriusxeno.goo.ability.nectar.Feeding;
 import com.mercuriusxeno.goo.registry.GooEntities;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * The feed Jelly's Feed lays where it lands on the ground: a goo-owned
+ * The nectar Jelly's Nectar lays where it lands on the ground: a goo-owned
  * pseudo-item that falls to the ground and never enters an inventory.
  * Animals and mobs within its radius path to it; the first animal to reach
  * it eats it as its food, a lone hostile reaching it eats it, and hostiles
@@ -32,15 +32,15 @@ import java.util.Set;
  * trying again (decision feed-blob-feeds-and-draws-mobs). A slime that eats it
  * grows a size step (decision slimes-grow-on-jelly-feed).
  */
-public class FeedPile extends Entity {
+public class NectarPile extends Entity {
 
-    /** Blocks from the feed a mob reaches it within. */
+    /** Blocks from the nectar a mob reaches it within. */
     public static final double REACH = 1.5;
-    /** Hostiles that must reach the feed together before they fight over it. */
+    /** Hostiles that must reach the nectar together before they fight over it. */
     private static final int FIGHTERS_TO_FIGHT = 2;
-    /** The speed a lured mob walks toward the feed at, its navigation's own multiple. */
+    /** The speed a lured mob walks toward the nectar at, its navigation's own multiple. */
     private static final double LURE_SPEED = 1.0;
-    /** Ticks the feed lies before it spoils, a few minutes. */
+    /** Ticks the nectar lies before it spoils, a few minutes. */
     static final int LIFETIME = 6000;
     private static final String TAG_RADIUS = "Radius";
     private static final String TAG_FIGHT_TICKS = "FightTicks";
@@ -55,36 +55,36 @@ public class FeedPile extends Entity {
     private final Set<Mob> fighters = new HashSet<>();
 
     /**
-     * The constructor the entity type builds a loaded or synced feed with.
+     * The constructor the entity type builds a loaded or synced nectar with.
      *
      * @param type  the entity type
      * @param level the level
      */
-    public FeedPile(EntityType<? extends FeedPile> type, Level level) {
+    public NectarPile(EntityType<? extends NectarPile> type, Level level) {
         super(type, level);
     }
 
     /**
-     * Lays a feed at a point, still, so it falls straight down to the ground below.
+     * Lays a nectar at a point, still, so it falls straight down to the ground below.
      *
      * @param level      the server level
-     * @param at         where the feed appears
-     * @param radius     the blocks out to which the feed draws mobs
+     * @param at         where the nectar appears
+     * @param radius     the blocks out to which the nectar draws mobs
      * @param fightTicks the ticks hostiles reaching it together fight for
-     * @return the feed laid
+     * @return the nectar laid
      */
-    public static FeedPile lay(ServerLevel level, Vec3 at, double radius, int fightTicks) {
-        FeedPile feed = new FeedPile(GooEntities.FEED_PILE.get(), level);
-        feed.setPos(at);
-        feed.radius = radius;
-        feed.fightTicks = fightTicks;
-        level.addFreshEntity(feed);
-        return feed;
+    public static NectarPile lay(ServerLevel level, Vec3 at, double radius, int fightTicks) {
+        NectarPile pile = new NectarPile(GooEntities.NECTAR_PILE.get(), level);
+        pile.setPos(at);
+        pile.radius = radius;
+        pile.fightTicks = fightTicks;
+        level.addFreshEntity(pile);
+        return pile;
     }
 
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder entityData) {
-        // the client draws the feed and reads nothing the server holds
+        // the client draws the nectar and reads nothing the server holds
     }
 
     @Override
@@ -131,12 +131,12 @@ public class FeedPile extends Entity {
     }
 
     /**
-     * Whether a mob's path already ends at the feed, so the lure leaves it be;
+     * Whether a mob's path already ends at the nectar, so the lure leaves it be;
      * a path another goal laid since, a player tempting it or a stroll, is
      * taken back.
      *
-     * @param mob a mob within the feed's radius
-     * @return true when its path ends within reach of the feed
+     * @param mob a mob within the nectar's radius
+     * @return true when its path ends within reach of the nectar
      */
     private boolean headsHere(Mob mob) {
         Path path = mob.getNavigation().getPath();
@@ -184,7 +184,7 @@ public class FeedPile extends Entity {
     }
 
     /**
-     * @return the blocks out to which the feed draws mobs
+     * @return the blocks out to which the nectar draws mobs
      */
     public double radius() {
         return radius;
