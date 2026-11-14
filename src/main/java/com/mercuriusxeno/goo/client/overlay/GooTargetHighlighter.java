@@ -171,7 +171,7 @@ public final class GooTargetHighlighter {
      * @param frame     what the frame draws with
      */
     private static void renderHeldDome(TargetResult target, @Nullable String abilityId, HighlightFrame frame) {
-        if (renderSizedPreview(target, abilityId, frame)) {
+        if (renderSizedPreview(abilityId, frame)) {
             return;
         }
         ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
@@ -202,13 +202,11 @@ public final class GooTargetHighlighter {
      * (decision spire-rips-walls-and-platforms) or a charge-sized ability's
      * dome (decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob).
      *
-     * @param target    the aim target
      * @param abilityId the selected ability id
      * @param frame     what the frame draws with
      * @return true where a sized cast drew its preview in place of the held ghost
      */
-    private static boolean renderSizedPreview(TargetResult target, @Nullable String abilityId,
-                                              HighlightFrame frame) {
+    private static boolean renderSizedPreview(@Nullable String abilityId, HighlightFrame frame) {
         Optional<SpireFootprint> footprint = SpireCast.footprint();
         if (footprint.isPresent()) {
             SpirePreviewRenderer.render(frame.ps(), frame.buf(), frame.camera().position(), footprint.get(),
@@ -216,7 +214,7 @@ public final class GooTargetHighlighter {
             return true;
         }
         if (GloveThrowSender.selectedSizesByCharge(abilityId)) {
-            renderSizedDome(target, frame);
+            renderSizedDome(frame);
             return true;
         }
         return false;
@@ -243,23 +241,23 @@ public final class GooTargetHighlighter {
     }
 
     /**
-     * Draws a sized ability's ghost at the aimed target at the size its
-     * charge has reached, following the charge as right click holds
+     * Draws a sized ability's ghost at the spot its charge rooted at, at the
+     * size its charge has reached, following the charge as right click holds
      * (decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob).
      *
-     * @param target the aim target
-     * @param frame  what the frame draws with
+     * @param frame what the frame draws with
      */
-    private static void renderSizedDome(TargetResult target, HighlightFrame frame) {
+    private static void renderSizedDome(HighlightFrame frame) {
         // blast-eases-between-stages-at-a-second-each: the spheroid eases while the cast keeps its whole stage
         OptionalDouble size = GloveThrowSender.drawnChargeRadius(frame.mc().player,
                 frame.mc().getDeltaTracker().getGameTimeDeltaPartialTick(false));
         if (size.isEmpty()) {
             return;
         }
-        HeldDomeRenderer.renderSized(frame.ps(), frame.buf(), frame.camera().position(), target,
-                (float) size.getAsDouble(), frame.selectedType(), ClientGooTypes.highlight(frame.selectedType()),
-                realTimeSeconds());
+        // blast-roots-to-the-spot-the-cast-began: the spheroid draws where the charge began, not where the aim is
+        HeldDomeRenderer.renderSized(frame.ps(), frame.buf(), frame.camera().position(),
+                GloveThrowSender.chargeAnchor(), (float) size.getAsDouble(), frame.selectedType(),
+                ClientGooTypes.highlight(frame.selectedType()), realTimeSeconds());
     }
 
     /**

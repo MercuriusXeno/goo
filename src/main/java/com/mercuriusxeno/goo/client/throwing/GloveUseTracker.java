@@ -108,8 +108,23 @@ public final class GloveUseTracker {
         if (!PRESS.isArmed()) {
             pressHand = hand;
             pressPlane = crosshairPlane(Minecraft.getInstance());
+            rootASizedCharge(player);
         }
         PRESS.arm();
+    }
+
+    /**
+     * Roots a charge-sized selection's charge at the crosshair's target as
+     * the press begins, so its spheroid and its release hold that spot.
+     * decision blast-roots-to-the-spot-the-cast-began
+     *
+     * @param player the local player, or null where none stands
+     */
+    private static void rootASizedCharge(@Nullable LocalPlayer player) {
+        GloveSelection selection = player == null ? null : GloveThrowSender.heldSelection(player);
+        if (selection != null && GloveThrowSender.selectedSizesByCharge(selection.abilityId())) {
+            GloveThrowSender.rootTheCharge();
+        }
     }
 
     /**
@@ -324,6 +339,8 @@ public final class GloveUseTracker {
      */
     public static void cancelCharge(LocalPlayer player) {
         PRESS.cancelCharge(pressActions(player));
+        // blast-roots-to-the-spot-the-cast-began: a cancel clears the rooted spot
+        GloveThrowSender.unrootTheCharge();
     }
 
     /**
