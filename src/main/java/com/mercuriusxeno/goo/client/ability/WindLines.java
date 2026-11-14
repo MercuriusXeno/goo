@@ -420,8 +420,10 @@ public final class WindLines {
      */
     public static void blow(Player player, String abilityId, AbilityArea area, Vec3 apex) {
         windOf(abilityId).ifPresent(wind -> {
+            Minecraft mc = Minecraft.getInstance();
+            double eyeHeight = CameraEye.eyeHeight(mc, player, mc.getDeltaTracker().getGameTimeDeltaPartialTick(false));
             Gust gust = wind.tailwind()
-                    .map(tailwind -> tailwindGust(tailwind, player.getEyeHeight(), player.getLookAngle()))
+                    .map(tailwind -> tailwindGust(tailwind, eyeHeight, player.getLookAngle()))
                     .orElseGet(() -> new Gust(apex, player.getLookAngle(), area.size(), area.angle(), false));
             CLIENT.add(player.level().getRandom(), gust, wind, player.level().getGameTime(), !gust.carried());
             CLIENT.pitchesWithSpeed = gust.carried();

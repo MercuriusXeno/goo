@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
@@ -132,6 +133,38 @@ public final class CameraEye {
      */
     static double bodyHeight(boolean followsTheCamera, double cameraAboveFeet, double bodyHeight) {
         return followsTheCamera ? cameraAboveFeet / EYE_SHARE_OF_STANDING_HEIGHT : bodyHeight;
+    }
+
+    /**
+     * The eye height above the feet a visual placed relative to a caster's
+     * feet starts at this frame: the camera's eased eye height for the local
+     * player in first person, else the caster's own. The camera's eye height
+     * is read off the camera rather than its position, so a caller on a game
+     * tick, where the feet have moved on since the last frame, reads it whole.
+     * decision diagnose-and-correct-eye-drawn-visuals-jumping-on-sneak
+     *
+     * @param mc          the client
+     * @param caster      the caster the visual is placed on
+     * @param partialTick the frame's partial tick
+     * @return the eye height, in blocks above the feet
+     */
+    public static double eyeHeight(Minecraft mc, Entity caster, float partialTick) {
+        Camera camera = mc.gameRenderer.getMainCamera();
+        return eyeHeight(followsTheCamera(mc, caster), Mth.lerp(partialTick, camera.eyeHeightOld, camera.eyeHeight),
+                caster.getEyeHeight());
+    }
+
+    /**
+     * The eye height a visual placed relative to the feet starts at, from the
+     * camera's eased eye height or the entity's own.
+     *
+     * @param followsTheCamera whether the caster is the local player seen in first person
+     * @param cameraEyeHeight  the camera's eased eye height above the feet, in blocks
+     * @param entityEyeHeight  the entity's eye height, which steps with its pose
+     * @return the eye height, in blocks
+     */
+    static double eyeHeight(boolean followsTheCamera, double cameraEyeHeight, double entityEyeHeight) {
+        return followsTheCamera ? cameraEyeHeight : entityEyeHeight;
     }
 
     /**
