@@ -177,7 +177,7 @@ public final class GloveUseTracker {
      */
     @SubscribeEvent
     public static void onUseKeyInteraction(InputEvent.InteractionKeyMappingTriggered event) {
-        cancelUseKey(event, PRESS.isArmed());
+        cancelUseKey(event, PRESS.holdsTheUseKey());
     }
 
     /**
@@ -339,6 +339,27 @@ public final class GloveUseTracker {
      */
     static boolean heldVisualRuns(boolean armed, boolean gooLeft) {
         return armed && gooLeft;
+    }
+
+    /**
+     * Whether a charge stands: a press that is not channeled previews with
+     * the use key held.
+     * abilities-not-channeled-charge-and-cancel-on-left-click
+     *
+     * @return true while a charge stands
+     */
+    public static boolean charging() {
+        return PRESS.isPreviewing();
+    }
+
+    /**
+     * Cancels the local player's charge standing, sending nothing.
+     * abilities-not-channeled-charge-and-cancel-on-left-click
+     *
+     * @param player the local player
+     */
+    public static void cancelCharge(LocalPlayer player) {
+        PRESS.cancelCharge(pressActions(player));
     }
 
     /**

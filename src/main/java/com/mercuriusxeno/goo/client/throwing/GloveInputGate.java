@@ -81,10 +81,12 @@ public final class GloveInputGate {
     private int channelTicks;
     /** The scatter the live press slings its knives by. */
     private long scatterSeed;
+    /** Whether a charge was cancelled with the use key still down, so no press arms until it comes up. */
+    private boolean cancelledUntilRelease;
 
     /** Starts a press when the glove's use reaches the client; a live press ignores the repeat. */
     public void arm() {
-        if (!armed) {
+        if (!armed && !cancelledUntilRelease) {
             armed = true;
             streaming = false;
             previewing = false;
@@ -155,6 +157,36 @@ public final class GloveInputGate {
         return scatterSeed;
     }
 
+    /**
+     * Cancels a charge standing, the attack key's way out of a mistaken cast:
+     * the arm drops, nothing is sent, and the use key's repeats arm nothing
+     * until it comes up, so letting go fires nothing. A channel or a stream
+     * runs on untouched.
+     * abilities-not-channeled-charge-and-cancel-on-left-click
+     *
+     * @param actions the arm pose the press resolves to
+     * @return true where a charge stood and was cancelled
+     */
+    public boolean cancelCharge(PressActions actions) {
+        if (!armed || !previewing) {
+            return false;
+        }
+        actions.dropPose();
+        cancel();
+        cancelledUntilRelease = true;
+        return true;
+    }
+
+    /**
+     * Whether the use key belongs to the glove: a press is live, or a
+     * cancelled charge waits for the key to come up.
+     *
+     * @return true while the use key's turns are the glove's
+     */
+    public boolean holdsTheUseKey() {
+        return armed || cancelledUntilRelease;
+    }
+
     /** Drops the live press. */
     public void cancel() {
         armed = false;
@@ -174,6 +206,7 @@ public final class GloveInputGate {
      */
     public void tick(boolean useKeyDown, PressActions actions) {
         if (!armed) {
+            cancelledUntilRelease &= useKeyDown;
             return;
         }
         if (streams(actions)) {
