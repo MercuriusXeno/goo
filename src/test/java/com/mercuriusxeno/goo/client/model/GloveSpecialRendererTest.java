@@ -23,6 +23,7 @@ import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.geometry.QuadCollection;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Nested;
@@ -201,7 +202,7 @@ class GloveSpecialRendererTest {
             Vec3 lifted = coreDrawnAt(new GloveSpecialRenderer.GloveData(null, GooTypes.ZOO, 0f, 1f, true, true));
 
             Vec3 shown = HandPassView.toHandPass(SprayingClient.sourceOffTheEye(), client.camera().rotation(),
-                    SprayingClient.WORLD_FOV);
+                    SprayingClient.WORLD_FOV, new Matrix4f());
             assertEquals(0, lifted.distanceTo(shown), WITHIN, "the eased blob should draw where the spray source "
                     + "shows, " + shown + ", drawn at " + lifted);
         }

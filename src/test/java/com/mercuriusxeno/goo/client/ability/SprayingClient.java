@@ -12,6 +12,7 @@ import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.player.RemotePlayer;
 import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.state.GameRenderState;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.item.ItemStack;
@@ -86,6 +87,7 @@ public final class SprayingClient implements AutoCloseable {
         when(minecraft.getDeltaTracker()).thenReturn(frames);
         GameRenderer renderer = mock(GameRenderer.class);
         when(renderer.getMainCamera()).thenReturn(camera);
+        setRenderState(renderer);
         Options options = mock(Options.class);
         when(options.getCameraType()).thenReturn(CameraType.FIRST_PERSON);
         setField("gameRenderer", renderer);
@@ -148,6 +150,21 @@ public final class SprayingClient implements AutoCloseable {
             Field field = Minecraft.class.getDeclaredField(name);
             field.setAccessible(true);
             field.set(minecraft, value);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /**
+     * Hands a mocked renderer a frame's render state, which the view bob reads; the mock bobs nothing.
+     *
+     * @param renderer the mocked renderer
+     */
+    static void setRenderState(GameRenderer renderer) {
+        try {
+            Field field = GameRenderer.class.getDeclaredField("gameRenderState");
+            field.setAccessible(true);
+            field.set(renderer, new GameRenderState());
         } catch (ReflectiveOperationException e) {
             throw new IllegalStateException(e);
         }
