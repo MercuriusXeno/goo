@@ -2,13 +2,13 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
+import com.mercuriusxeno.goo.block.ability.CellBinding;
 import com.mercuriusxeno.goo.block.ability.FungalBudBlock;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
-import com.mercuriusxeno.goo.block.ability.KineticSlickBlock;
 import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
-import com.mercuriusxeno.goo.block.ability.SlimeCoatBlock;
+import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.block.ability.WispBlock;
 import com.mercuriusxeno.goo.block.ability.ZapPulseBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
@@ -154,16 +154,18 @@ public class GooBlocks {
                     .replaceable()
                     .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
     /**
-     * Slime coat: the layered green slime Weird's Goop lays on a
-     * block's top, standing until destroyed and then dropping the weird goo
-     * its layers cost through SlimeCoatBlock.getDrops, no loot table
+     * Slime coat: the volume cell bound to Weird's slime, the layered green
+     * slime Goop lays on a block's top, one to fifteen layers, bouncing what
+     * lands on it, standing until destroyed and then dropping the weird goo
+     * its layers cost through VolumeCellBlock.getDrops, no loot table
      * (decisions coat-is-a-green-slime-film-over-the-blocks-own-texture,
-     * breaking-slime-drops-weird-goo-worth-its-layers).
+     * slime-and-slick-are-one-volume-cell-tech, breaking-slime-drops-weird-goo-worth-its-layers).
      */
-    public static final DeferredBlock<SlimeCoatBlock> SLIME_COAT = BLOCKS.registerBlock(
-            "slime_coat", SlimeCoatBlock::new,
+    public static final DeferredBlock<VolumeCellBlock> SLIME_COAT = BLOCKS.registerBlock(
+            "slime_coat", properties -> new VolumeCellBlock(properties, CellBinding.SLIME),
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.GRASS)
+                    .friction(CellBinding.SLIME.surface().friction())
                     .sound(SoundType.SLIME_BLOCK)
                     .instabreak()
                     .noOcclusion()
@@ -171,17 +173,18 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
     /**
-     * Slick: the thin electric blue and white film Kinetic's Slick lays on a
-     * block's top, slippery as ice and ramping what moves on it, dropping the
-     * kinetic goo its film cost through KineticSlickBlock.getDrops, no loot
-     * table (decisions slick-coats-the-ground-with-kinetic-speed,
-     * kinetic-is-electric-blue-and-white, breaking-slick-drops-kinetic-goo-worth-its-film).
+     * Slick: the volume cell bound to Kinetic's slick, the electric blue and
+     * white goo Slick lays on a block's top, one to fifteen layers, slippery
+     * as ice and ramping what moves on it, dropping the kinetic goo its layers
+     * cost through VolumeCellBlock.getDrops, no loot table
+     * (decisions slick-coats-the-ground-with-kinetic-speed, kinetic-is-electric-blue-and-white,
+     * slime-and-slick-are-one-volume-cell-tech, breaking-slick-drops-kinetic-goo-worth-its-film).
      */
-    public static final DeferredBlock<KineticSlickBlock> KINETIC_SLICK = BLOCKS.registerBlock(
-            "kinetic_slick", KineticSlickBlock::new,
+    public static final DeferredBlock<VolumeCellBlock> KINETIC_SLICK = BLOCKS.registerBlock(
+            "kinetic_slick", properties -> new VolumeCellBlock(properties, CellBinding.SLICK),
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_LIGHT_BLUE)
-                    .friction(KineticSlickBlock.SLIPPERY)
+                    .friction(CellBinding.SLICK.surface().friction())
                     .sound(SoundType.SLIME_BLOCK)
                     .instabreak()
                     .noOcclusion()

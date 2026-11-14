@@ -25,6 +25,7 @@ import com.mercuriusxeno.goo.ability.program.SoundPlays;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepHost;
 import com.mercuriusxeno.goo.ability.spray.SprayPrograms;
+import com.mercuriusxeno.goo.block.ability.SlickLayPace;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
@@ -42,6 +43,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
@@ -338,7 +340,7 @@ public final class GooStreamHandler {
             // goop-wobbles-a-mob-its-drip-strikes: a stream throwing drips strikes the living its drips strike, not
             // the living in its cone
             runBlockPass(cast, apex, axis, delivery, ability, held, true);
-            boolean strikesLiving = throwDrips(player, apex, axis, ability);
+            boolean strikesLiving = throwDrips(player, apex, axis, ability, held);
             sprayParticles(player, apex, axis, delivery, 0, strikesLiving);
             return List.of();
         }
@@ -357,12 +359,14 @@ public final class GooStreamHandler {
     }
 
     /**
-     * Throws a stream's drips into flight from the cone's apex, one along
-     * each share of the cone's fan at the delivery's throw speed alone;
-     * each lands what the program's landing step lays
-     * where its arc strikes, during the hold or after it, and a drip of a
-     * program striking the living ends on the first living thing it meets.
+     * Throws a stream's drips into flight from the cone's apex, as many as
+     * the delivery throws a tick, each along its share of the cone's fan at
+     * the delivery's throw speed alone; each lands what the program's
+     * landing step lays where its arc strikes, during the hold or after it,
+     * and a drip of a program striking the living ends on the first living
+     * thing it meets.
      * goop-and-slick-coat-lands-where-each-drip-arc-strikes
+     * goop-drains-per-cubic-meter-of-slime-placed: the spray's pace is how many drips land a tick, each a layer
      * goop-wobbles-a-mob-its-drip-strikes
      * goop-and-slick-drips-add-none-of-the-players-movement
      *
@@ -370,9 +374,11 @@ public final class GooStreamHandler {
      * @param apex    the cone's apex
      * @param axis    the cone's axis
      * @param ability the stream ability
+     * @param held    the hold's tick count, which picks the tick's shares of the fan
      * @return true where the drips strike the living they meet
      */
-    private static boolean throwDrips(ServerPlayer player, Vec3 apex, Vec3 axis, AbilityDefinition ability) {
+    private static boolean throwDrips(ServerPlayer player, Vec3 apex, Vec3 axis, AbilityDefinition ability,
+                                      int held) {
         Optional<DripLanding> landing = DripLanding.in(channelSteps(ability.behaviors(), true));
         boolean strikesLiving = !channelSteps(ability.behaviors(), false).isEmpty();
         if (landing.isEmpty() && !strikesLiving) {
@@ -382,9 +388,9 @@ public final class GooStreamHandler {
                 player.getId(), ability, landing, strikesLiving);
         Delivery delivery = ability.delivery();
         DripFlights flights = GooServerState.of(player.level().getServer()).dripFlights();
-        for (CoatRay.ConeShare share : CoatRay.coneFan()) {
+        for (CoatRay.ConeShare share : CoatRay.scatteredShares(held, dripsThisTick(player, delivery, landing, held))) {
             flights.launch(new DripFlights.Flight(thrower, apex, DripArc.launch(axis, delivery.coneDegrees(), share,
-                    delivery.throwSpeed())));
+                    exitSpeedOf(player, delivery))));
         }
         return strikesLiving;
     }
@@ -423,7 +429,7 @@ public final class GooStreamHandler {
         }
         ServerLevel level = player.level();
         return DripArc.flyToItsEnd(apex, DripArc.launch(axis, delivery.coneDegrees(), CoatRay.coneFan().getFirst(),
-                delivery.throwSpeed()), CoatRay.clipping(level), DripFlights.airspaceOf(level))
+                exitSpeedOf(player, delivery)), CoatRay.clipping(level), DripFlights.airspaceOf(level))
                 .position();
     }
 
@@ -713,7 +719,44 @@ public final class GooStreamHandler {
                                        boolean strikesLiving) {
         delivery.particle().ifPresent(particle -> EntityVisuals.sendToWatchers(player, new StreamMotesPayload(
                 player.getId(), apex, axis, particle, delivery.coneDegrees(), speed,
-                delivery.throwSpeed(), strikesLiving)));
+                exitSpeedOf(player, delivery), strikesLiving)));
+    }
+
+    /**
+     * The drips a stream throws this tick: its delivery's drips a tick, or,
+     * for a landing whose drips come faster with speed, that many times the
+     * caster's horizontal speed over their base walking speed, never fewer,
+     * so it lays the same goo per block the caster covers.
+     * slick-resolves-faster-by-speed-over-unadjusted-speed
+     *
+     * @param player   the streaming player
+     * @param delivery the stream delivery
+     * @param landing  what the stream's drips lay, empty where they lay nothing
+     * @param held     the hold's tick count
+     * @return the tick's drips
+     */
+    static int dripsThisTick(ServerPlayer player, Delivery delivery, Optional<DripLanding> landing, int held) {
+        if (landing.filter(DripLanding::throwsFasterBySpeed).isEmpty()) {
+            return delivery.dripsPerTick();
+        }
+        double walk = SlickLayPace.unadjustedSpeed(player.getAttributeBaseValue(Attributes.MOVEMENT_SPEED));
+        double factor = SlickLayPace.factor(player.getKnownMovement().horizontalDistance(), walk);
+        return SlickLayPace.dripsThisTick(delivery.dripsPerTick(), factor, held);
+    }
+
+    /**
+     * The speed a stream's drips leave a caster at: the delivery's throw
+     * speed plus the horizontal speed the caster's client reports, since the
+     * server leaves a player's delta movement at rest, so a running caster
+     * never outruns the goo they lay; the drawn drips leave at the same.
+     * goop-and-slick-drips-leave-at-one-exit-speed
+     *
+     * @param player   the streaming player
+     * @param delivery the stream delivery
+     * @return the exit speed, blocks per tick
+     */
+    static double exitSpeedOf(ServerPlayer player, Delivery delivery) {
+        return delivery.exitSpeedAt(player.getKnownMovement().horizontalDistance());
     }
 
     /**
