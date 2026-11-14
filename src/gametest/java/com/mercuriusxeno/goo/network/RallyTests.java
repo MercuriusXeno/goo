@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.zoo.RallyEvents;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -61,6 +62,124 @@ public final class RallyTests {
         GooTestFunctions.registerTest(registrar, RALLY_ENDS_ON_THE_RALLIERS_HIT, RallyTests::rallyEndsOnTheRalliersHit);
         GooTestFunctions.registerTest(registrar, RALLY_COW_WEARS_HALF_ITS_RALLIERS_ARMOR,
                 RallyTests::rallyCowWearsHalfItsRalliersArmor);
+        GooTestFunctions.registerTest(registrar, RALLY_AGAIN_RELEASES_THE_COW, RallyTests::rallyAgainReleasesTheCow);
+        GooTestFunctions.registerTest(registrar, RALLY_RELEASE_DEALS_NO_DAMAGE, RallyTests::rallyReleaseDealsNoDamage);
+        GooTestFunctions.registerTest(registrar, RALLY_BY_A_SECOND_PLAYER_KEEPS_THE_FIRST,
+                RallyTests::rallyByASecondPlayerKeepsTheFirst);
+        GooTestFunctions.registerTest(registrar, RELEASED_COW_TAKES_A_FRESH_RALLY,
+                RallyTests::releasedCowTakesAFreshRally);
+    }
+
+    private static final String RALLY_AGAIN_RELEASES_THE_COW = "rally_again_releases_the_cow";
+    private static final String RALLY_RELEASE_DEALS_NO_DAMAGE = "rally_release_deals_no_damage";
+    private static final String RALLY_BY_A_SECOND_PLAYER_KEEPS_THE_FIRST = "rally_by_a_second_player_keeps_the_first";
+    private static final String RELEASED_COW_TAKES_A_FRESH_RALLY = "released_cow_takes_a_fresh_rally";
+    private static final String RELEASE_LEFT_THE_RALLY = "The rallier's second Rally should release the cow";
+    private static final String RELEASE_LEFT_A_MODIFIER = "The released cow's %s should carry no %s";
+    private static final String RELEASE_HEALTH = "The released cow's health should be %s, stands %s";
+    private static final String RELEASE_HURT_THE_COW = "The release should record no damage on the cow, recorded %s";
+    private static final String SECOND_PLAYER_TOOK_THE_RALLY =
+            "A second player's Rally should leave the first player as the cow's rallier";
+    private static final String NOT_RALLIED_FRESH = "The third Rally should rally the released cow for its caster";
+
+    /**
+     * The rallier casts Rally again on its rallied cow, and the cow holds no
+     * rally and none of the rally's modifiers
+     * (decision rally-cast-on-your-rallied-mob-releases-it).
+     *
+     * @param helper the gametest helper
+     */
+    public static void rallyAgainReleasesTheCow(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
+        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        rally(helper, cow, caster);
+        helper.assertTrue(cow.hasData(GooAttachments.RALLIED), COW_NOT_RALLIED);
+
+        rally(helper, cow, caster);
+
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        helper.assertFalse(cow.hasData(GooAttachments.RALLIED), RELEASE_LEFT_THE_RALLY);
+        assertNoModifier(helper, cow, Attributes.MAX_HEALTH, RallyEvents.HEALTH_MODIFIER);
+        assertNoModifier(helper, cow, Attributes.MOVEMENT_SPEED, RallyEvents.SPEED_MODIFIER);
+        assertNoModifier(helper, cow, Attributes.ARMOR, RallyEvents.ARMOR_MODIFIER);
+        assertNoModifier(helper, cow, Attributes.ARMOR_TOUGHNESS, RallyEvents.TOUGHNESS_MODIFIER);
+        helper.succeed();
+    }
+
+    private static void assertNoModifier(GameTestHelper helper, Mob mob, Holder<Attribute> attribute,
+                                         Identifier modifier) {
+        helper.assertTrue(mob.getAttribute(attribute).getModifier(modifier) == null,
+                String.format(RELEASE_LEFT_A_MODIFIER, attribute.getRegisteredName(), modifier));
+    }
+
+    /**
+     * The release deals the cow no damage: its health falls only to its
+     * unbuffed max, and it records no damage source
+     * (decision rally-cast-on-your-rallied-mob-releases-it).
+     *
+     * @param helper the gametest helper
+     */
+    public static void rallyReleaseDealsNoDamage(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
+        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        float unbuffedMax = cow.getMaxHealth();
+        rally(helper, cow, caster);
+        float before = cow.getHealth();
+
+        rally(helper, cow, caster);
+
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        float expected = Math.min(before, unbuffedMax);
+        helper.assertTrue(cow.getHealth() == expected, String.format(RELEASE_HEALTH, expected, cow.getHealth()));
+        helper.assertTrue(cow.getLastDamageSource() == null,
+                String.format(RELEASE_HURT_THE_COW, cow.getLastDamageSource()));
+        helper.succeed();
+    }
+
+    /**
+     * A second player's Rally on a cow the first player rallied leaves the
+     * rally standing for the first player
+     * (decision rally-remembers-the-first-rallier).
+     *
+     * @param helper the gametest helper
+     */
+    public static void rallyByASecondPlayerKeepsTheFirst(GameTestHelper helper) {
+        ServerPlayer first = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
+        ServerPlayer second = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
+        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        rally(helper, cow, first);
+
+        rally(helper, cow, second);
+
+        helper.getLevel().getServer().getPlayerList().remove(first);
+        helper.getLevel().getServer().getPlayerList().remove(second);
+        helper.assertTrue(cow.hasData(GooAttachments.RALLIED)
+                && cow.getData(GooAttachments.RALLIED).caster().equals(first.getUUID()), SECOND_PLAYER_TOOK_THE_RALLY);
+        helper.succeed();
+    }
+
+    /**
+     * A cow released by its rallier's second Rally takes a fresh rally, with
+     * its health buff, from a third
+     * (decision rally-cast-on-your-rallied-mob-releases-it).
+     *
+     * @param helper the gametest helper
+     */
+    public static void releasedCowTakesAFreshRally(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
+        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        rally(helper, cow, caster);
+        rally(helper, cow, caster);
+        helper.assertFalse(cow.hasData(GooAttachments.RALLIED), RELEASE_LEFT_THE_RALLY);
+
+        rally(helper, cow, caster);
+
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        helper.assertTrue(cow.hasData(GooAttachments.RALLIED)
+                && cow.getData(GooAttachments.RALLIED).caster().equals(caster.getUUID()), NOT_RALLIED_FRESH);
+        helper.assertTrue(cow.getAttribute(Attributes.MAX_HEALTH).getModifier(RallyEvents.HEALTH_MODIFIER) != null,
+                NOT_RALLIED_FRESH);
+        helper.succeed();
     }
 
     private static final String RALLY_COW_WEARS_HALF_ITS_RALLIERS_ARMOR = "rally_cow_wears_half_its_ralliers_armor";
