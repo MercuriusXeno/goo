@@ -149,7 +149,7 @@ public final class DownedEvents {
      */
     static void down(Mob mob, float negativeHealth) {
         mob.setHealth(DOWNED_HEALTH);
-        mob.setData(GooAttachments.DOWNED, new Downed(mob.level().getGameTime(), mob.isNoAi(), negativeHealth));
+        mob.setData(GooAttachments.DOWNED, new Downed(mob.level().getGameTime(), mob.isNoAi(), negativeHealth, 0L));
         StunEvents.forget(mob);
         mob.setNoAi(true);
         if (mob.level() instanceof ServerLevel level) {

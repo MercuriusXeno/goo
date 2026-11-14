@@ -30,8 +30,10 @@ public final class DownedRaise {
     /**
      * Counts a heal on a downed mob into its negative health in place of its
      * vanilla health, and raises the mob once the count passes 0, standing
-     * at the health healed past 0; short of that it lies down still.
+     * at the health healed past 0; short of that it lies down still, with
+     * at least 10 seconds left to live.
      * downed-mob-revives-only-healed-past-zero
+     * downed-mob-dies-at-twenty-seconds-and-a-heal-floors-ten
      *
      * @param event the heal event, before the health is restored
      */
@@ -44,7 +46,7 @@ public final class DownedRaise {
             if (healed.revives()) {
                 raise(mob, healed);
             } else {
-                mob.setData(GooAttachments.DOWNED, healed);
+                mob.setData(GooAttachments.DOWNED, healed.flooredByHealAt(mob.level().getGameTime()));
             }
         }
     }

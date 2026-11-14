@@ -21,7 +21,7 @@ import java.util.function.Consumer;
  * Gametests for a rallied mob falling downed instead of dying: a lethal
  * attack downs it where a plain mob dies, the world's harm kills it
  * outright, attacks bounce off it for as long as it is down and lava does not, and it
- * dies 15 seconds after going down, its rally standing or not
+ * dies 20 seconds after going down, its rally standing or not
  * (decision rallied-mob-falls-downed-instead-of-dying).
  */
 @RegistersGameTests
@@ -33,9 +33,9 @@ public final class DownedTests {
     private static final String LAVA_KILLS_A_COW_DOWN_PAST_FIVE_SECONDS =
             "downed_lava_kills_a_cow_down_past_five_seconds";
     private static final String LAVA_KILLS_A_RALLIED_COW_OUTRIGHT = "downed_lava_kills_a_rallied_cow_outright";
-    private static final String COW_DIES_AT_FIFTEEN_SECONDS = "downed_cow_dies_at_fifteen_seconds";
-    private static final String COW_DIES_AT_FIFTEEN_SECONDS_UNRALLIED =
-            "downed_cow_dies_at_fifteen_seconds_unrallied";
+    private static final String COW_DIES_AT_TWENTY_SECONDS = "downed_cow_dies_at_twenty_seconds";
+    private static final String COW_DIES_AT_TWENTY_SECONDS_UNRALLIED =
+            "downed_cow_dies_at_twenty_seconds_unrallied";
 
     private static final BlockPos COW_POS = new BlockPos(2, 1, 3);
     private static final BlockPos PLAIN_COW_POS = new BlockPos(2, 1, 1);
@@ -45,8 +45,11 @@ public final class DownedTests {
     /** Past the 5 second window a downed mob once shrugged hits off for, short of the death span. */
     private static final int PAST_FIVE_SECONDS_TICKS = 150;
     /** Short of the death span. */
-    private static final int STILL_DOWN_TICKS = 200;
-    /** Past the 15 second death span. */
+    /** One tick short of 20 seconds down. */
+    private static final int SHORT_OF_TWENTY_SECONDS_TICKS = 399;
+    /** One tick past 20 seconds down. */
+    private static final int PAST_TWENTY_SECONDS_TICKS = 401;
+    /** Past the 20 second death span. */
     static final int PAST_THE_DEATH_TICKS = Downed.DEATH_TICKS + 10;
 
     private static final String RALLIED_COW_DIED = "The rallied cow should live through the lethal attack";
@@ -58,8 +61,8 @@ public final class DownedTests {
             "An attack should leave the cow's negative health at %s, reads %s";
     private static final String LAVA_SPARED = "Lava should kill the cow";
     private static final String DOWNED_BY_LAVA = "Lava should kill the rallied cow without downing it";
-    private static final String DIED_TOO_SOON = "The downed cow should be alive and downed at 200 ticks";
-    private static final String OUTLIVED_THE_SPAN = "The downed cow should be dead past 300 ticks";
+    private static final String DIED_TOO_SOON = "The downed cow should be alive and downed at 399 ticks";
+    private static final String OUTLIVED_THE_SPAN = "The downed cow should be dead at 401 ticks";
 
     private static final String BLOW_LEAVES_ITS_NEGATIVE_HEALTH = "downed_blow_leaves_the_cow_its_negative_health";
     /** The health the cow stands at when the blow lands. */
@@ -90,10 +93,10 @@ public final class DownedTests {
                 DownedTests::lavaKillsACowDownPastFiveSeconds);
         GooTestFunctions.registerTest(registrar, LAVA_KILLS_A_RALLIED_COW_OUTRIGHT,
                 DownedTests::lavaKillsARalliedCowOutright);
-        GooTestFunctions.registerTest(registrar, COW_DIES_AT_FIFTEEN_SECONDS,
-                helper -> cowDiesAtFifteenSeconds(helper, false));
-        GooTestFunctions.registerTest(registrar, COW_DIES_AT_FIFTEEN_SECONDS_UNRALLIED,
-                helper -> cowDiesAtFifteenSeconds(helper, true));
+        GooTestFunctions.registerTest(registrar, COW_DIES_AT_TWENTY_SECONDS,
+                helper -> cowDiesAtTwentySeconds(helper, false));
+        GooTestFunctions.registerTest(registrar, COW_DIES_AT_TWENTY_SECONDS_UNRALLIED,
+                helper -> cowDiesAtTwentySeconds(helper, true));
         GooTestFunctions.registerTest(registrar, ZOMBIE_DROPS_THE_DOWNED_COW, DownedTests::zombieDropsTheDownedCow);
         GooTestFunctions.registerTest(registrar, BLOW_LEAVES_ITS_NEGATIVE_HEALTH,
                 DownedTests::blowLeavesTheCowItsNegativeHealth);
@@ -227,24 +230,26 @@ public final class DownedTests {
     }
 
     /**
-     * A downed cow left unhealed is alive and downed at 200 ticks and dead
-     * past 300; with its rally taken off right after it went down, the same.
+     * A downed cow left unhealed is alive and downed one tick short of 20
+     * seconds down and dead one tick past; with its rally taken off right
+     * after it went down, the same
+     * (decision downed-mob-dies-at-twenty-seconds-and-a-heal-floors-ten).
      *
      * @param helper        the gametest helper
      * @param removeTheRally whether the rally is taken off right after the cow goes down
      */
-    public static void cowDiesAtFifteenSeconds(GameTestHelper helper, boolean removeTheRally) {
+    public static void cowDiesAtTwentySeconds(GameTestHelper helper, boolean removeTheRally) {
         Zombie zombie = attacker(helper);
         Cow cow = ralliedCow(helper);
         strike(helper, cow, zombie);
         if (removeTheRally) {
             cow.removeData(GooAttachments.RALLIED);
         }
-        helper.runAfterDelay(STILL_DOWN_TICKS, () -> {
+        helper.runAfterDelay(SHORT_OF_TWENTY_SECONDS_TICKS, () -> {
             helper.assertTrue(cow.isAlive(), DIED_TOO_SOON);
             helper.assertTrue(cow.hasData(GooAttachments.DOWNED), DIED_TOO_SOON);
         });
-        helper.runAfterDelay(PAST_THE_DEATH_TICKS, () -> {
+        helper.runAfterDelay(PAST_TWENTY_SECONDS_TICKS, () -> {
             helper.assertFalse(cow.isAlive(), OUTLIVED_THE_SPAN);
             helper.succeed();
         });

@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.zoo;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -21,12 +22,18 @@ import java.util.Set;
 
 /**
  * A downed mob's damage rule and timers: at any time down an attack or a
- * fall is negated and the world's other harm lands, and a mob still down
- * dies at 15 seconds.
+ * fall is negated and the world's other harm lands, a mob still down dies
+ * at 20 seconds, and a heal floors the time it has left at 10 seconds.
  */
 class DownedTest {
 
     private static final long DOWNED_AT = 1000L;
+    private static final long HALF_A_SECOND = 10L;
+    private static final long TWO_SECONDS = 40L;
+    private static final long TEN_SECONDS = 200L;
+    private static final long FIFTEEN_SECONDS = 300L;
+    private static final long TWENTY_SECONDS = 400L;
+    private static final long TWENTY_FIVE_SECONDS = 500L;
 
     private static DamageSource hit(ResourceKey<DamageType> type, Set<TagKey<DamageType>> tags,
                                     @Nullable Entity causing) {
@@ -94,9 +101,39 @@ class DownedTest {
     }
 
     @Test
-    void aMobStillDownDiesAtFifteenSeconds() {
-        Downed downed = new Downed(DOWNED_AT, false, 0f);
-        assertFalse(downed.diesAt(DOWNED_AT + Downed.DEATH_TICKS - 1));
-        assertTrue(downed.diesAt(DOWNED_AT + Downed.DEATH_TICKS));
+    void aMobStillDownDiesAtTwentySeconds() {
+        Downed downed = fallAt(DOWNED_AT);
+        assertFalse(downed.diesAt(DOWNED_AT + TWENTY_SECONDS - 1));
+        assertTrue(downed.diesAt(DOWNED_AT + TWENTY_SECONDS));
+    }
+
+    private static Downed fallAt(long downedAt) {
+        return new Downed(downedAt, false, -1f, 0L);
+    }
+
+    /** A heal on a downed mob floors the time it has left at 10 seconds. */
+    @Nested
+    class AHealFloorsTheTimeLeft {
+
+        @Test
+        void aHealAtFifteenSecondsDownDiesAtTwentyFive() {
+            Downed healed = fallAt(DOWNED_AT).flooredByHealAt(DOWNED_AT + FIFTEEN_SECONDS);
+            assertEquals(DOWNED_AT + TWENTY_FIVE_SECONDS, healed.deathAt());
+        }
+
+        @Test
+        void aHealAtTwoSecondsDownLeavesItDyingAtTwenty() {
+            Downed healed = fallAt(DOWNED_AT).flooredByHealAt(DOWNED_AT + TWO_SECONDS);
+            assertEquals(DOWNED_AT + TWENTY_SECONDS, healed.deathAt());
+        }
+
+        /** The second heal leaves 10 seconds, not the 19 and a half a heal stacking on the first would. */
+        @Test
+        void aSecondHealInsideOneSecondAddsNoTime() {
+            long secondHeal = DOWNED_AT + FIFTEEN_SECONDS + HALF_A_SECOND;
+            Downed twice = fallAt(DOWNED_AT).flooredByHealAt(DOWNED_AT + FIFTEEN_SECONDS)
+                    .flooredByHealAt(secondHeal);
+            assertEquals(TEN_SECONDS, twice.deathAt() - secondHeal);
+        }
     }
 }

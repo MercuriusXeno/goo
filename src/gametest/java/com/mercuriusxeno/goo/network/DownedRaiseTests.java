@@ -36,6 +36,17 @@ public final class DownedRaiseTests {
     private static final String HEAL_PAST_ZERO_RAISES_THE_COW = "downed_heal_past_zero_raises_the_cow_with_a_hop";
     private static final String JELLY_HEAL_COUNTS_THE_COW_UP = "downed_jelly_heal_counts_the_cow_up_and_raises_it";
     private static final String RAISED_COW_IS_FAIR_GAME = "downed_raised_cow_takes_hits_and_aims";
+    private static final String HEAL_AT_FIFTEEN_SECONDS_FLOORS_TEN_MORE =
+            "downed_heal_at_fifteen_seconds_floors_ten_more";
+    /** 15 seconds down, when the floor test's heal lands. */
+    private static final int FIFTEEN_SECONDS_TICKS = 300;
+    /** One tick short of 10 seconds after that heal. */
+    private static final int SHORT_OF_TEN_AFTER_THE_HEAL_TICKS = 499;
+    /** One tick past 10 seconds after that heal. */
+    private static final int PAST_TEN_AFTER_THE_HEAL_TICKS = 501;
+    private static final String DIED_INSIDE_THE_FLOOR =
+            "The cow healed at 15 seconds down should be alive and downed at 499 ticks";
+    private static final String OUTLIVED_THE_FLOOR = "The cow healed at 15 seconds down should be dead at 501 ticks";
 
     /** The health the cow stands at when the downing blow lands. */
     private static final float HEALTH_BEFORE_THE_BLOW = 4f;
@@ -75,7 +86,7 @@ public final class DownedRaiseTests {
     private static final String STILL_DOWNED = "The cow healed past 0 should hold no DOWNED";
     private static final String NO_HOP = "The healed cow should rise on the tick of the heal, moves %s";
     private static final String WRONG_HEALTH = "The raised cow should stand at %s health, reads %s";
-    private static final String DIED_RAISED = "The raised cow should outlive the 15 second death span";
+    private static final String DIED_RAISED = "The raised cow should outlive the 20 second death span";
     private static final String FIRST_HEAL_RAISED = "The stream's first heal should leave the cow holding DOWNED";
     private static final String FIRST_HEAL_UNCOUNTED = "The stream's first heal should raise the count from %s, reads %s";
     private static final String NO_FIRST_HEAL = "The stream should land a heal on the cow before it stands";
@@ -98,6 +109,29 @@ public final class DownedRaiseTests {
         GooTestFunctions.registerTest(registrar, JELLY_HEAL_COUNTS_THE_COW_UP,
                 DownedRaiseTests::jellyHealCountsTheCowUp);
         GooTestFunctions.registerTest(registrar, RAISED_COW_IS_FAIR_GAME, DownedRaiseTests::raisedCowIsFairGame);
+        GooTestFunctions.registerTest(registrar, HEAL_AT_FIFTEEN_SECONDS_FLOORS_TEN_MORE,
+                DownedRaiseTests::healAtFifteenSecondsFloorsTenMore);
+    }
+
+    /**
+     * A cow downed to minus 3 and healed by 1 at 15 seconds down outlives
+     * the 20 second span: alive and downed at 499 ticks down, dead at 501,
+     * 10 seconds after the heal
+     * (decision downed-mob-dies-at-twenty-seconds-and-a-heal-floors-ten).
+     *
+     * @param helper the gametest helper
+     */
+    public static void healAtFifteenSecondsFloorsTenMore(GameTestHelper helper) {
+        Cow cow = downedCow(helper, HEALTH_BEFORE_THE_BLOW, BLOW_PAST_ITS_HEALTH);
+        helper.runAfterDelay(FIFTEEN_SECONDS_TICKS, () -> cow.heal(SHORT_HEAL));
+        helper.runAfterDelay(SHORT_OF_TEN_AFTER_THE_HEAL_TICKS, () -> {
+            helper.assertTrue(cow.isAlive(), DIED_INSIDE_THE_FLOOR);
+            helper.assertTrue(cow.hasData(GooAttachments.DOWNED), DIED_INSIDE_THE_FLOOR);
+        });
+        helper.runAfterDelay(PAST_TEN_AFTER_THE_HEAL_TICKS, () -> {
+            helper.assertFalse(cow.isAlive(), OUTLIVED_THE_FLOOR);
+            helper.succeed();
+        });
     }
 
     /**
