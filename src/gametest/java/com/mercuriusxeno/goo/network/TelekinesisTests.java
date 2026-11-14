@@ -59,6 +59,7 @@ public final class TelekinesisTests {
     private static final int HELD_GOO = 3;
     private static final int FIRST_SEQUENCE = 1;
     private static final String SHOULD_START_OUT_OF_REACH = "The %s should stand past vanilla reach before the hold";
+    private static final String SHOULD_STAND_IN_THE_STRUCTURE = "The far %s should stand inside this test's structure";
     private static final String SHOULD_WEAR_ONE_EFFECT = "The kinetic held effect should be the one effect worn, wears %s";
 
     private TelekinesisTests() {
@@ -71,6 +72,7 @@ public final class TelekinesisTests {
      * @param helper the gametest helper
      */
     public static void telekinesisBreaksBeyondReach(GameTestHelper helper) {
+        assertInsideTheStructure(helper, FAR_BLOCK, "block");
         ServerPlayer player = reacher(helper);
         helper.setBlock(FAR_BLOCK, Blocks.SLIME_BLOCK);
         BlockPos far = helper.absolutePos(FAR_BLOCK);
@@ -95,6 +97,7 @@ public final class TelekinesisTests {
      * @param helper the gametest helper
      */
     public static void telekinesisHitsBeyondReach(GameTestHelper helper) {
+        assertInsideTheStructure(helper, FAR_MOB, "zombie");
         ServerPlayer player = reacher(helper);
         Zombie zombie = helper.spawn(EntityType.ZOMBIE, FAR_MOB);
         zombie.setNoAi(true);
@@ -111,6 +114,17 @@ public final class TelekinesisTests {
         helper.assertTrue(healthAfter < health,
                 "A zombie past vanilla reach should take the hit under Telekinesis, health " + health + " to " + healthAfter);
         helper.succeed();
+    }
+
+    /**
+     * Fails unless a far cell lies inside this test's own structure. A mob
+     * spawned past it lands in the next test's padding, whose chunk the level
+     * may hold unloaded for entities, and there the attack handler finds no
+     * entity by the zombie's id and drops the hit.
+     */
+    private static void assertInsideTheStructure(GameTestHelper helper, BlockPos far, String what) {
+        helper.assertTrue(helper.getRelativeBounds().contains(Vec3.atCenterOf(far)),
+                String.format(SHOULD_STAND_IN_THE_STRUCTURE, what));
     }
 
     private static String oneKineticHeldEffect(ServerPlayer player) {
