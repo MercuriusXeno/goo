@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -15,8 +16,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class BoreContactSprayTest {
 
-    /** rock_bore.json's reach and point radius. */
-    private static final double REACH = 4;
+    /** A survival player's block reach, and rock_bore.json's point radius. */
+    private static final double REACH = 4.5;
     private static final double POINT_RADIUS = 0.1;
     private static final double SLACK = 1e-9;
 
@@ -43,16 +44,24 @@ class BoreContactSprayTest {
         assertTrue(sideOne.dot(sideOpposite) < 0, "opposite points of the ring fly the same way");
     }
 
-    /** The spit comes from where the drawn vortex meets the block, so it traces the drawn vortex's own axis. */
+    /**
+     * The spit comes from the drill's point, its far end, where the sight
+     * meets the breakable block, though the drill is drawn from a blob off
+     * the line of sight
+     * (decision bore-drill-point-floats-along-the-crosshair-to-the-aimed-block).
+     */
     @Test
-    void theContactIsTracedAlongTheDrawnVortexNotTheLineOfSight() {
-        Vec3 eye = new Vec3(0.5, 65.62, 0.5);
+    void theContactIsTheFarEndOfADrillDrawnFromABlobOffTheLineOfSight() {
+        Vec3 eye = new Vec3(0.5, 65.5, 0.5);
         Vec3 look = new Vec3(0, 0, 1);
-        ConeSections.Volume drawn = BoreDrill.volume(eye, look, 0f, REACH, POINT_RADIUS);
-        Vec3[] line = BoreContactSpray.contactLine(eye, look, 0f, REACH, POINT_RADIUS);
-        assertEquals(0, line[0].distanceTo(drawn.apex()), SLACK);
-        assertEquals(0, line[1].distanceTo(drawn.apex().add(drawn.axis().scale(drawn.range()))), SLACK);
-        assertTrue(line[0].y < eye.y, "the trace starts on the line of sight, not where the vortex is held");
+        Vec3 blob = eye.add(-0.4, -0.35, 0.6);
+        BlockPos stone = new BlockPos(0, 65, 3);
+        Vec3 point = BoreDrill.pointOf(new CameraEye.Sight(eye, look), REACH, cell -> !cell.equals(stone),
+                stone::equals);
+        ConeSections.Volume drawn = BoreDrill.volume(blob, point, 0f, POINT_RADIUS);
+        Vec3 contact = BoreContactSpray.contactOf(drawn);
+        assertEquals(0, contact.distanceTo(drawn.apex().add(drawn.axis().scale(drawn.range()))), SLACK);
+        assertEquals(0, contact.distanceTo(new Vec3(0.5, 65.5, 3)), 1e-6);
     }
 
     /** Each particle starts on the cone's outside, round its axis at its radius there, and flies out from its place. */

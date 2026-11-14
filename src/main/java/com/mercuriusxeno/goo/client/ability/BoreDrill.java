@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.program.BorePoint;
 import com.mercuriusxeno.goo.ability.program.BoreStep;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -8,6 +9,8 @@ import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.EventPriority;
@@ -16,19 +19,24 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 /**
- * Bore's vortex: while right click holds a bore stream, a vortex of earth
- * magic is held out in front of the player, starting a little below their
- * line of sight with a wide mouth so they look down along it and see its
- * shape, and meeting their line of sight at the bore's reach, narrowing
- * toward a point, never wider than a block. At its far end it is as wide as
- * the point the bore breaks at, the drill drawn from the size of the break,
- * clipped by the blocks it meets,
- * where {@link BoreContactSpray} spits their particles. {@link BoreDrillPass} marches it
- * as Drain's vortex is marched: a churning, sparse, patchy swirl of earthy
- * dust in rock's tones, its cone defined by a rifled shell, ragged.
+ * Bore's drill: while right click holds a bore stream, a vortex of earth
+ * magic extends from the lifted blob by the glove, in whichever hand holds
+ * it, to its point, which floats along the crosshair to the aimed block: the
+ * point Bore breaks at, where the sight meets the first breakable block
+ * within reach, or the end of reach where it meets none. It starts at the
+ * blob with a wide mouth and narrows to the point, never wider than a block,
+ * as wide at its point as what Bore breaks, so it renders from the size of
+ * the break, and follows the point deeper as blocks break. It is clipped by
+ * the blocks it meets, and {@link BoreContactSpray} spits their particles at
+ * its point. {@link BoreDrillPass} marches it as Drain's vortex is marched: a
+ * churning, sparse, patchy swirl of earthy dust in rock's tones, its cone
+ * defined by a rifled shell, ragged.
  * decision bore-shows-a-big-drill-from-the-glove
+ * decision bore-blob-lifts-by-the-glove-and-the-drill-extends-from-that-hand
+ * decision bore-drill-point-floats-along-the-crosshair-to-the-aimed-block
  * decision bore-breaks-what-is-in-the-vortex
  * decision bore-vortex-with-a-worldspace-shake
  */
@@ -39,15 +47,8 @@ public final class BoreDrill {
     private static final int RINGS = 1;
     /** How many ticks the vortex takes to pour out to its full length. */
     static final double EMERGE_TICKS = 5;
-    /** How far ahead of the eye, in blocks along the look, the held vortex starts. */
-    static final double HELD_AHEAD = 1.0;
-    /** How far below the line of sight, in blocks, the held vortex starts. */
-    static final double HELD_BELOW = 0.35;
     /** The drill's radius at its wide mouth, in blocks, under the half block that keeps it narrower than a block. */
     static final double MOUTH_RADIUS = 0.35;
-    private static final Vec3 WORLD_UP = new Vec3(0, 1, 0);
-    private static final Vec3 WORLD_SOUTH = new Vec3(0, 0, 1);
-    private static final double NEARLY_UPRIGHT = 0.999;
     /** Ticks the vortex takes to build up to full once the bore starts. */
     static final double FADE_IN_TICKS = 6;
     /** Ticks the vortex takes to disperse once the bore ends. */
@@ -79,38 +80,41 @@ public final class BoreDrill {
     }
 
     /**
-     * The vortex at its full length, held out in front: from a point ahead
-     * of the eye and a little below the line of sight to the bore's reach on
-     * the line of sight, narrowing from its wide mouth to the point radius
-     * the bore breaks with, so its far end is as wide as what Bore breaks.
-     * decision bore-shows-a-big-drill-from-the-glove
+     * The drill at its full length: from its mouth at the lifted blob to its
+     * point, narrowing from its wide mouth to the point radius the bore
+     * breaks with, so its point is as wide as what Bore breaks.
+     * decision bore-blob-lifts-by-the-glove-and-the-drill-extends-from-that-hand
      * decision bore-breaks-what-is-in-the-vortex
      *
-     * @param eye         the eye, camera relative
-     * @param look        the look's unit vector
+     * @param mouth       the lifted blob's place, where the drill starts
+     * @param point       the drill's point, {@link #pointOf}'s, in the same space as the mouth
      * @param yaw         the look's yaw in degrees
-     * @param reach       the bore's reach from the eye
      * @param pointRadius the radius of the point the bore breaks at, the bore step's JSON number
-     * @return the vortex, its apex where it is held
+     * @return the drill, its apex at the mouth
      */
-    static ConeSections.Volume volume(Vec3 eye, Vec3 look, float yaw, double reach, double pointRadius) {
-        Vec3 held = eye.add(look.scale(HELD_AHEAD)).add(below(look).scale(HELD_BELOW));
-        Vec3 toFar = eye.add(look.scale(reach)).subtract(held);
-        double length = toFar.length();
-        return new ConeSections.Volume(held, toFar.normalize(), yaw, 0, length, RINGS,
+    static ConeSections.Volume volume(Vec3 mouth, Vec3 point, float yaw, double pointRadius) {
+        Vec3 toPoint = point.subtract(mouth);
+        double length = toPoint.length();
+        return new ConeSections.Volume(mouth, toPoint.normalize(), yaw, 0, length, RINGS,
                 distance -> MOUTH_RADIUS + (pointRadius - MOUTH_RADIUS) * Math.clamp(distance / length, 0, 1));
     }
 
     /**
-     * The unit direction below the line of sight: square to the look, in
-     * its upright plane, toward the ground.
+     * Where the drill's point stands: where the sight meets the first
+     * breakable block within reach, the point Bore breaks at, or the end of
+     * reach along the sight where it meets none.
+     * decision bore-drill-point-floats-along-the-crosshair-to-the-aimed-block
      *
-     * @param look the look's unit vector
-     * @return the direction
+     * @param sight     the sight the bore aims along, {@link CameraEye#of}'s
+     * @param reach     the bore's reach along the sight
+     * @param air       whether a cell holds air
+     * @param breakable whether a cell holds a block the bore breaks
+     * @return the point, in world space
      */
-    static Vec3 below(Vec3 look) {
-        Vec3 up = Math.abs(look.dot(WORLD_UP)) > NEARLY_UPRIGHT ? WORLD_SOUTH : WORLD_UP;
-        return look.scale(look.dot(up)).subtract(up).normalize();
+    static Vec3 pointOf(CameraEye.Sight sight, double reach, Predicate<BlockPos> air,
+                        Predicate<BlockPos> breakable) {
+        Vec3 reachEnd = sight.eye().add(sight.look().scale(reach));
+        return BoreStep.pointOf(sight.eye(), reachEnd, air, breakable).map(BorePoint::at).orElse(reachEnd);
     }
 
     /**
@@ -157,9 +161,9 @@ public final class BoreDrill {
             return;
         }
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        ConeSections.Volume full = volume(vortexEye(CameraEye.of(mc, player, partialTick), camera),
-                player.getViewVector(partialTick), player.getViewYRot(partialTick), lastReach,
-                lastStep.pointRadius());
+        ConeSections.Volume full = volume(CastOrigin.ofLocal(mc).subtract(camera),
+                pointAhead(mc.level, CameraEye.of(mc, player, partialTick), lastStep, lastReach).subtract(camera),
+                player.getViewYRot(partialTick), lastStep.pointRadius());
         double poured = held ? emergedShare(GloveUseTracker.channelTicks() + partialTick) : 1;
         BoreDrillPass.draw(emerged(full, poured), presence, event.getModelViewMatrix());
     }
@@ -190,19 +194,43 @@ public final class BoreDrill {
     }
 
     /**
-     * Where the vortex's eye stands, camera relative: the eye of
-     * {@link CameraEye#of}'s sight, the camera itself in first person, which
-     * eases down as the player sneaks, so the vortex eases with the view
-     * rather than snapping to the pose; the player's eye in any other view.
-     * The ground shake runs Bore's zone from the same sight.
+     * Where the drill's point stands in a level along a sight: the sight of
+     * {@link CameraEye#of}, the camera itself in first person, which eases
+     * down as the player sneaks, so the point eases with the view rather than
+     * snapping to the pose. The ground shake runs Bore's zone from the same
+     * sight, so it shakes the blocks at the point.
      * decision diagnose-and-correct-eye-aimed-visuals-jumping-on-sneak
      *
-     * @param sight  the sight the drill draws from
-     * @param camera the camera's world position
-     * @return the eye, camera relative
+     * @param level the client level
+     * @param sight the sight the bore aims along
+     * @param bore  the bore, whose tag names what it breaks
+     * @param reach the bore's reach
+     * @return the point, in world space
      */
-    static Vec3 vortexEye(CameraEye.Sight sight, Vec3 camera) {
-        return sight.eye().subtract(camera);
+    static Vec3 pointAhead(Level level, CameraEye.Sight sight, BoreStep bore, double reach) {
+        return pointOf(sight, reach, airIn(level), breakableIn(level, bore));
+    }
+
+    /**
+     * The breakable block a bore's point lands on in a level along a sight.
+     *
+     * @param level the client level
+     * @param sight the sight the bore aims along
+     * @param bore  the bore, whose tag names what it breaks
+     * @param reach the bore's reach
+     * @return the point and its block, empty where the sight meets no breakable block within reach
+     */
+    static Optional<BorePoint> landingAhead(Level level, CameraEye.Sight sight, BoreStep bore, double reach) {
+        return BoreStep.pointOf(sight.eye(), sight.eye().add(sight.look().scale(reach)), airIn(level),
+                breakableIn(level, bore));
+    }
+
+    private static Predicate<BlockPos> airIn(Level level) {
+        return cell -> level.getBlockState(cell).isAir();
+    }
+
+    private static Predicate<BlockPos> breakableIn(Level level, BoreStep bore) {
+        return cell -> level.getBlockState(cell).is(bore.breaks());
     }
 
     static Optional<BoreStep> stepOf(ClientAbility bore) {

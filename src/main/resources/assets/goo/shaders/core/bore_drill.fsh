@@ -6,9 +6,9 @@
 
 // Bore's vortex (decisions bore-shows-a-big-drill-from-the-glove, bore-breaks-what-is-in-the-vortex): a
 // vortex of earth magic held out in front of the player, marched as Drain's vortex is (decision
-// drain-casts-a-filled-tornadic-miasma-vortex-along-the-look). From a little below the line of sight it
-// runs out to Bore's reach on the line of sight, from a wide mouth where it is held narrowing toward a
-// point, never wider than a block, its tip tattering a little. It is a sparse, chaotically patchy swirl of
+// drain-casts-a-filled-tornadic-miasma-vortex-along-the-look). From the lifted blob by the glove it runs
+// out to its point on the line of sight, the block the crosshair aims at, from a wide mouth at the blob
+// narrowing toward the point, never wider than a block, its tip tattering a little. It is a sparse, chaotically patchy swirl of
 // earthy dust, as Drain's is: clumps with holes between them, rippled by a warp, poured outward and swirled
 // round the axis, dark at a clump's thick core and paler at its thin edge. Its cone reads by its shell:
 // the dust thickens into a wall inside the vortex's edge, and screw threads wound round the cone stand out

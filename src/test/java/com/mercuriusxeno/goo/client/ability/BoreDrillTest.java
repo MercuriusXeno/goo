@@ -1,54 +1,78 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.function.Predicate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Bore's drawn vortex is held out in front: it starts ahead of the eye and a
- * little below the line of sight with a wide mouth, meets the line of sight
- * at Bore's reach, and narrows to the point radius Bore breaks with at its
- * far end, never wider than a block
- * (decisions bore-shows-a-big-drill-from-the-glove, bore-breaks-what-is-in-the-vortex).
+ * Bore's drawn drill extends from the lifted blob by the glove, in whichever
+ * hand holds it, to its point: where the sight meets the first breakable
+ * block within reach, or the end of reach where it meets none. It narrows
+ * from a wide mouth at the blob to the point radius Bore breaks with, never
+ * wider than a block
+ * (decisions bore-blob-lifts-by-the-glove-and-the-drill-extends-from-that-hand,
+ * bore-drill-point-floats-along-the-crosshair-to-the-aimed-block, bore-shows-a-big-drill-from-the-glove).
  */
 class BoreDrillTest {
 
-    /** rock_bore.json's delivery range. */
-    private static final double REACH = 4;
+    /** A survival player's block reach. */
+    private static final double REACH = 4.5;
     /** rock_bore.json's point radius. */
     private static final double POINT_RADIUS = 0.1;
     private static final double SLACK = 1e-9;
     private static final double HALF_A_BLOCK = 0.5;
-    private static final Vec3 EYE = new Vec3(3.2, 70.62, -8.4);
-    /** Yaw 0 looks along +Z, level. */
-    private static final float YAW = 0f;
+    /** An eye in the middle of a block's face height, looking along +Z, level. */
+    private static final Vec3 EYE = new Vec3(3.5, 70.5, -8.5);
     private static final Vec3 LOOK = new Vec3(0, 0, 1);
+    private static final CameraEye.Sight SIGHT = new CameraEye.Sight(EYE, LOOK);
+    /** Yaw 0 looks along +Z. */
+    private static final float YAW = 0f;
+    /** Where the lifted blob stands by a glove in the right hand, and by one in the left: right is -X facing +Z. */
+    private static final Vec3 RIGHT_HAND_BLOB = EYE.add(-0.4, -0.35, 0.6);
+    private static final Vec3 LEFT_HAND_BLOB = EYE.add(0.4, -0.35, 0.6);
     private static final int SAMPLES = 64;
+    private static final Predicate<BlockPos> NOTHING = cell -> false;
 
-    private static ConeSections.Volume vortex(double pointRadius) {
-        return BoreDrill.volume(EYE, LOOK, YAW, REACH, pointRadius);
-    }
-
-    private static Vec3 pointAlong(ConeSections.Volume volume, double distance) {
-        return volume.apex().add(volume.axis().scale(distance));
+    private static Vec3 farEndOf(ConeSections.Volume volume) {
+        return volume.apex().add(volume.axis().scale(volume.range()));
     }
 
     @Nested
-    class Ends {
+    class TheMouth {
 
         @Test
-        void itStartsAheadOfTheEyeAndBelowTheLineOfSight() {
-            Vec3 start = pointAlong(vortex(POINT_RADIUS), 0);
-            assertEquals(BoreDrill.HELD_AHEAD, start.subtract(EYE).dot(LOOK), SLACK);
-            assertEquals(EYE.y - BoreDrill.HELD_BELOW, start.y, SLACK);
+        void itStandsAtTheBlobByAGloveInTheRightHand() {
+            Vec3 point = BoreDrill.pointOf(SIGHT, REACH, NOTHING.negate(), NOTHING);
+            assertEquals(RIGHT_HAND_BLOB, BoreDrill.volume(RIGHT_HAND_BLOB, point, YAW, POINT_RADIUS).apex());
         }
 
         @Test
-        void itMeetsTheLineOfSightAtTheReach() {
-            ConeSections.Volume vortex = vortex(POINT_RADIUS);
-            assertEquals(0, pointAlong(vortex, vortex.range()).distanceTo(EYE.add(LOOK.scale(REACH))), SLACK);
+        void itStandsAtTheBlobByAGloveInTheLeftHand() {
+            Vec3 point = BoreDrill.pointOf(SIGHT, REACH, NOTHING.negate(), NOTHING);
+            assertEquals(LEFT_HAND_BLOB, BoreDrill.volume(LEFT_HAND_BLOB, point, YAW, POINT_RADIUS).apex());
+        }
+    }
+
+    @Nested
+    class ThePoint {
+
+        @Test
+        void itStandsWhereTheSightMeetsABreakableBlockTwoBlocksOut() {
+            BlockPos stone = BlockPos.containing(EYE.add(LOOK.scale(2.5)));
+            Vec3 point = BoreDrill.pointOf(SIGHT, REACH, cell -> !cell.equals(stone), stone::equals);
+            ConeSections.Volume drill = BoreDrill.volume(RIGHT_HAND_BLOB, point, YAW, POINT_RADIUS);
+            assertEquals(0, farEndOf(drill).distanceTo(new Vec3(EYE.x, EYE.y, stone.getZ())), 1e-6);
+        }
+
+        @Test
+        void itStandsAtTheEndOfReachWhereTheSightMeetsNoBreakableBlock() {
+            Vec3 point = BoreDrill.pointOf(SIGHT, REACH, NOTHING.negate(), NOTHING);
+            ConeSections.Volume drill = BoreDrill.volume(RIGHT_HAND_BLOB, point, YAW, POINT_RADIUS);
+            assertEquals(0, farEndOf(drill).distanceTo(EYE.add(LOOK.scale(REACH))), 1e-6);
         }
     }
 
@@ -73,25 +97,19 @@ class BoreDrillTest {
     class Radius {
 
         @Test
-        void itsMouthIsWideAndItsFarEndAsWideAsThePointBoreBreaks() {
-            for (double pointRadius : new double[] {POINT_RADIUS, 0.2}) {
-                ConeSections.Volume vortex = vortex(pointRadius);
-                assertEquals(BoreDrill.MOUTH_RADIUS, vortex.radiusAt().applyAsDouble(0), SLACK);
-                assertEquals(pointRadius, vortex.radiusAt().applyAsDouble(vortex.range()), SLACK);
-            }
-        }
-
-        @Test
-        void itNarrowsFromItsMouthToItsFarEndAndIsNeverWiderThanABlock() {
-            ConeSections.Volume vortex = vortex(POINT_RADIUS);
+        void itNarrowsFromItsMouthAtTheBlobToThePointRadiusAndIsNeverWiderThanABlock() {
+            Vec3 point = BoreDrill.pointOf(SIGHT, REACH, NOTHING.negate(), NOTHING);
+            ConeSections.Volume drill = BoreDrill.volume(RIGHT_HAND_BLOB, point, YAW, POINT_RADIUS);
+            assertEquals(POINT_RADIUS, drill.radiusAt().applyAsDouble(drill.range()), SLACK);
             double previous = Double.MAX_VALUE;
             for (int sample = 0; sample <= SAMPLES; sample++) {
-                double distance = vortex.range() * sample / SAMPLES;
-                double radius = vortex.radiusAt().applyAsDouble(distance);
-                assertTrue(radius <= previous, "the vortex widens to " + radius + " at " + distance);
-                assertTrue(radius < HALF_A_BLOCK, "the vortex is " + 2 * radius + " wide at " + distance);
+                double distance = drill.range() * sample / SAMPLES;
+                double radius = drill.radiusAt().applyAsDouble(distance);
+                assertTrue(radius <= previous, "the drill widens to " + radius + " at " + distance);
+                assertTrue(radius <= HALF_A_BLOCK, "the drill is " + 2 * radius + " wide at " + distance);
                 previous = radius;
             }
+            assertTrue(drill.radiusAt().applyAsDouble(0) > POINT_RADIUS, "the drill's mouth is no wider than its point");
         }
     }
 }
