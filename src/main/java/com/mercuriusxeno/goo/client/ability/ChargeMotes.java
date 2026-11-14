@@ -143,7 +143,19 @@ public final class ChargeMotes {
      * @return the share of its radius it draws at
      */
     public static double spheroidSwell(double time) {
-        return 1 + SWELL_DEPTH * (HALF - HALF * Math.cos(FULL_TURN * pulsePhase(time)));
+        return swellAtPhase(pulsePhase(time));
+    }
+
+    /**
+     * How far the spheroid swells at a point of the beat: not at all at its
+     * start, most at its middle, as the palm blob does.
+     * decision every-lifted-palm-blob-beats-once-a-second
+     *
+     * @param phase the beat's phase, 0 to 1
+     * @return the share of its radius it draws at
+     */
+    static double swellAtPhase(double phase) {
+        return 1 + SWELL_DEPTH * (HALF - HALF * Math.cos(FULL_TURN * phase));
     }
 
     /**
