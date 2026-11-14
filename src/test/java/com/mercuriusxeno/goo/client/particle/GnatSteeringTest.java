@@ -28,6 +28,8 @@ class GnatSteeringTest {
     private static final double WIDEST_LAUNCH_DEGREES = 45;
     private static final int TURNING_TICKS = 4;
     private static final int FLIGHT_TICKS = 40;
+    /** A sprint-jumping player's average speed, about 7.1 blocks a second, in blocks a tick. */
+    static final double SPRINT_JUMPING = 0.355;
     /** Within this of the prey's center a gnat has reached the mob it bites. */
     private static final double ON_THE_PREY = 0.5;
 
@@ -38,6 +40,12 @@ class GnatSteeringTest {
         void theWidestLaunchLeavesFortyFiveDegreesOffTheFiringLine() {
             assertEquals(WIDEST_LAUNCH_DEGREES,
                     degreesBetween(AIM, GnatSteering.launch(AIM, FAN_DEGREES, 1, 0)), DELTA);
+        }
+
+        @Test
+        void aGnatLeavesTheGloveTwiceAsFastAsASprintJumpingPlayerRuns() {
+            assertTrue(GnatSteering.CRUISE >= 2 * SPRINT_JUMPING, "a gnat leaves at " + GnatSteering.CRUISE
+                    + " blocks a tick, a sprint-jumping player runs " + SPRINT_JUMPING);
         }
 
         @Test

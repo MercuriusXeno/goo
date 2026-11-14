@@ -1,10 +1,12 @@
 package com.mercuriusxeno.goo.client.particle;
 
+import com.mercuriusxeno.goo.network.GooStreamHandler;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.ParticleProvider;
 import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -16,7 +18,8 @@ import org.jspecify.annotations.Nullable;
 public final class SporeParticle extends GloveMote {
 
     private static final float DRIFT_GRAVITY = 0.02f;
-    private static final float DRIFT_FRICTION = 0.9f;
+    /** The share of its speed a spore keeps each tick: it leaves fast and stops short. */
+    static final float DRIFT_FRICTION = 0.75f;
     /** A mote lives three to five seconds, so a cloud hangs before it thins. */
     private static final int BASE_LIFETIME = 60;
     private static final int LIFETIME_VARIANCE = 40;
@@ -33,13 +36,27 @@ public final class SporeParticle extends GloveMote {
     private SporeParticle(ClientLevel level, double x, double y, double z, double vx, double vy, double vz,
                           SpriteSet sprites) {
         super(level, x, y, z, sprites.get(0, 1));
-        this.xd = vx;
-        this.yd = vy;
-        this.zd = vz;
+        Vec3 launch = driftLaunch(new Vec3(vx, vy, vz));
+        this.xd = launch.x;
+        this.yd = launch.y;
+        this.zd = launch.z;
         this.gravity = DRIFT_GRAVITY;
         this.friction = DRIFT_FRICTION;
         this.hasPhysics = true;
         tint(level.getRandom());
+    }
+
+    /**
+     * A spore's launch from the server's spray: the server sizes its speed
+     * for a mote slowing by a tenth a tick, so a spore slowing harder leaves
+     * that much faster and comes to rest at the same place.
+     * glove-stream-motes-carry-the-players-travel-velocity: a spore outruns a sprint-jumping player
+     *
+     * @param sprayed the velocity the server sprayed the spore at, blocks per tick
+     * @return the velocity the spore leaves the glove at, blocks per tick
+     */
+    static Vec3 driftLaunch(Vec3 sprayed) {
+        return sprayed.scale((1 - DRIFT_FRICTION) / GooStreamHandler.LAUNCH_SPEED_PER_BLOCK);
     }
 
     private void tint(RandomSource random) {

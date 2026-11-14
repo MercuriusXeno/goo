@@ -75,7 +75,7 @@ public final class GooStreamHandler {
      * Launch speed per block of the stream's range: a mote slowing by a tenth
      * each tick carries ten times its launch speed, so it reaches the cone's end.
      */
-    private static final double LAUNCH_SPEED_PER_BLOCK = 0.1;
+    public static final double LAUNCH_SPEED_PER_BLOCK = 0.1;
     /** Below this squared gap the crosshair sits on the hand and the look aims instead. */
     private static final double MIN_AIM_LENGTH_SQUARED = 1e-6;
     /** Rays the spray casts each tick to find the floors it lands on. */
@@ -718,7 +718,7 @@ public final class GooStreamHandler {
      * @param reach how far the mote flies, in blocks
      * @return the launch speed, blocks per tick
      */
-    static double restingSpeed(double reach) {
+    public static double restingSpeed(double reach) {
         return reach * LAUNCH_SPEED_PER_BLOCK;
     }
 
