@@ -101,8 +101,10 @@ public final class BoreDrill {
 
     /**
      * Where the drill's point stands: where the sight meets the first
-     * breakable block within reach, the point Bore breaks at, or the end of
-     * reach along the sight where it meets none.
+     * breakable block within reach, the point Bore breaks at; where the sight
+     * first meets a solid block Bore cannot break, at that block's face, so
+     * the drill never runs through it; or the end of reach where it meets
+     * nothing.
      * decision bore-drill-point-floats-along-the-crosshair-to-the-aimed-block
      *
      * @param sight     the sight the bore aims along, {@link CameraEye#of}'s
@@ -113,8 +115,7 @@ public final class BoreDrill {
      */
     static Vec3 pointOf(CameraEye.Sight sight, double reach, Predicate<BlockPos> air,
                         Predicate<BlockPos> breakable) {
-        Vec3 reachEnd = sight.eye().add(sight.look().scale(reach));
-        return BoreStep.pointOf(sight.eye(), reachEnd, air, breakable).map(BorePoint::at).orElse(reachEnd);
+        return BoreStep.stopOf(sight.eye(), sight.eye().add(sight.look().scale(reach)), air, breakable);
     }
 
     /**

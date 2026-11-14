@@ -1,10 +1,15 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.program.BoreStep;
+import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -69,10 +74,66 @@ class BoreDrillTest {
         }
 
         @Test
+        void itStandsAtTheFaceOfASolidBlockOutsideTheTagTwoBlocksOut() {
+            BlockPos bedrock = BlockPos.containing(EYE.add(LOOK.scale(2.5)));
+            Vec3 point = BoreDrill.pointOf(SIGHT, REACH, cell -> !cell.equals(bedrock), NOTHING);
+            ConeSections.Volume drill = BoreDrill.volume(RIGHT_HAND_BLOB, point, YAW, POINT_RADIUS);
+            assertEquals(0, farEndOf(drill).distanceTo(new Vec3(EYE.x, EYE.y, bedrock.getZ())), 1e-6);
+        }
+
+        @Test
         void itStandsAtTheEndOfReachWhereTheSightMeetsNoBreakableBlock() {
             Vec3 point = BoreDrill.pointOf(SIGHT, REACH, NOTHING.negate(), NOTHING);
             ConeSections.Volume drill = BoreDrill.volume(RIGHT_HAND_BLOB, point, YAW, POINT_RADIUS);
             assertEquals(0, farEndOf(drill).distanceTo(EYE.add(LOOK.scale(REACH))), 1e-6);
+        }
+    }
+
+    /**
+     * The drill never passes into a block Bore is not drilling: every solid
+     * block its drawn body overlaps is one the bore's pick holds
+     * (decisions bore-drill-point-floats-along-the-crosshair-to-the-aimed-block,
+     * bore-breaks-what-is-in-the-vortex).
+     */
+    @Nested
+    class TheBlocksItEnters {
+
+        private static final int AROUND = 16;
+
+        /** Every cell the drawn drill's body overlaps, sampled along it and round its rim. */
+        private static Set<BlockPos> cellsEntered(ConeSections.Volume drill) {
+            Set<BlockPos> cells = new HashSet<>();
+            Vec3 side = Math.abs(drill.axis().y) > 0.99 ? new Vec3(1, 0, 0) : new Vec3(0, 1, 0);
+            Vec3 across = drill.axis().cross(side).normalize();
+            Vec3 lift = drill.axis().cross(across).normalize();
+            for (int sample = 0; sample < SAMPLES; sample++) {
+                double distance = drill.range() * sample / SAMPLES;
+                double radius = drill.radiusAt().applyAsDouble(distance) * 0.95;
+                Vec3 middle = drill.apex().add(drill.axis().scale(distance));
+                cells.add(BlockPos.containing(middle));
+                for (int turn = 0; turn < AROUND; turn++) {
+                    double angle = 2 * Math.PI * turn / AROUND;
+                    cells.add(BlockPos.containing(middle.add(across.scale(Math.cos(angle) * radius))
+                            .add(lift.scale(Math.sin(angle) * radius))));
+                }
+            }
+            return cells;
+        }
+
+        private static Set<BlockPos> undrilledEntered(Vec3 blob, CameraEye.Sight sight, Predicate<BlockPos> solid,
+                                                      Predicate<BlockPos> breakable) {
+            Predicate<BlockPos> air = solid.negate();
+            Vec3 point = BoreDrill.pointOf(sight, REACH, air, breakable);
+            ChannelAim aim = new ChannelAim(sight.eye().add(sight.look().scale(REACH)), null, 0);
+            Set<BlockPos> picked = Set.copyOf(BoreStep.progressing(sight.eye(), POINT_RADIUS, aim, air, breakable));
+            Set<BlockPos> entered = cellsEntered(BoreDrill.volume(blob, point, YAW, POINT_RADIUS));
+            return entered.stream().filter(solid).filter(cell -> !picked.contains(cell)).collect(Collectors.toSet());
+        }
+
+        @Test
+        void itStopsAtASolidBlockItCannotBreak() {
+            BlockPos bedrock = BlockPos.containing(EYE.add(LOOK.scale(2.5)));
+            assertEquals(Set.of(), undrilledEntered(RIGHT_HAND_BLOB, SIGHT, bedrock::equals, NOTHING));
         }
     }
 

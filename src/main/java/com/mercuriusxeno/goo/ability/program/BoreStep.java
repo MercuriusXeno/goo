@@ -148,6 +148,21 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, double pointRadius,
     }
 
     /**
+     * Where the bore's eye line stops: at its point on a breakable block, at
+     * the first solid block outside the tag, or at the end of the reach, so a
+     * drill drawn to it never runs into a block it does not break.
+     *
+     * @param eye       the eye the line runs from
+     * @param reachEnd  the end of the reach along the look
+     * @param air       whether a cell holds air
+     * @param breakable whether a cell holds a block in the tag
+     * @return where the line stops
+     */
+    public static Vec3 stopOf(Vec3 eye, Vec3 reachEnd, Predicate<BlockPos> air, Predicate<BlockPos> breakable) {
+        return BorePick.stopOf(eye, reachEnd, air, breakable);
+    }
+
+    /**
      * Runs the strike steps on every living entity in the tunnel that the
      * where filters keep.
      *
