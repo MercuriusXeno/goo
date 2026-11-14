@@ -18,8 +18,10 @@ import net.minecraft.server.level.ServerPlayer;
  * (decision lab-built-from-code); {@code rebuild} clears the lab footprint and
  * builds it again in place (decision lab-save-is-disposable); {@code kit} hands
  * the kit alone (decision lab-holds-bays-supply-pens-kit). The kit teaches nothing:
- * {@code learn} teaches every item recipe and {@code forget} returns the invoker to
- * knowing nothing, each run on request (decision lab-kit-teaches-every-recipe).
+ * the Goo Lab save's first join teaches every item recipe, {@code forget} returns
+ * the invoker to knowing nothing and {@code learn} teaches every recipe again, each
+ * run on request, so the lab keeps unlearned items only after a forget (decision
+ * lab-kit-teaches-every-recipe).
  * {@link GooCommand} gates the tree to operators.
  */
 public final class LabCommand {
