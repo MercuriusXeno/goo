@@ -88,7 +88,7 @@ public final class BoreRumble {
         Vec3 eye = player.getEyePosition();
         ChannelAim aim = new ChannelAim(eye.add(player.getViewVector(1f).scale(bore.delivery().range())), null,
                 bore.delivery().coneDegrees());
-        return BoreStep.progressing(eye, step.vortexNearRadius(), step.vortexFarRadius(), aim,
+        return BoreStep.progressing(eye, step.pointRadius(), aim,
                 cell -> level.getBlockState(cell).isAir(), cell -> level.getBlockState(cell).is(step.breaks()));
     }
 }

@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.BoreStep;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -26,12 +27,11 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametest for rock bore: streaming bore east into stone drills a one-block
- * tunnel along the eye line to the stream's reach, each block over several
- * ticks and the nearest first, dropping cobblestone, and leaves
- * the stone around the tunnel and past the reach standing; a cow penned in
- * the tunnel takes Bore's hit as the player's, with no knockback
- * (decisions bore-drills-the-eye-line-with-steady-progress, bore-breaks-a-15-degree-cone,
- * bore-vortex-with-a-worldspace-shake).
+ * tunnel along the eye line to the stream's reach, one block deep at a time,
+ * each block over several ticks, dropping cobblestone; a cow penned in the
+ * tunnel takes Bore's hit as the player's, with no knockback
+ * (decisions bore-breaks-the-block-at-the-point-and-its-surroundings,
+ * bore-drills-the-eye-line-with-steady-progress, bore-vortex-with-a-worldspace-shake).
  */
 @RegistersGameTests
 public final class BoreStreamTests {
@@ -56,7 +56,8 @@ public final class BoreStreamTests {
     /** The longest hold the tunnel test streams while it polls, inside its timeout. */
     private static final int MOST_HOLD_TICKS = 90;
     private static final String SHOULD_BREAK_AFTER_THE_NEARER =
-            "The block %d east should break after the block nearer the eye, broke on tick %d, the nearer on %d";
+            "The block %d east broke on tick %d, not %d ticks after the nearer block's break on tick %d";
+    private static final String SHOULD_STAND_BEHIND = "The block %d east had broken by the tick the block %d east broke";
     /** The yaw a player faces east, toward +x, at. */
     private static final float FACING_EAST = -90f;
     private static final double ITEM_SEARCH_RADIUS = 4;
@@ -69,12 +70,15 @@ public final class BoreStreamTests {
     }
 
     /**
-     * A mock player facing east streams bore into a block of stone: through the
-     * hold each block on the line breaks on a later tick than the block nearer
-     * the eye, and the hold runs until a one-block tunnel runs along the eye
-     * line to the whole blocks inside the stream's reach, read live from the
-     * ability, and cobblestone has dropped
-     * (decision bore-drills-the-eye-line-with-steady-progress).
+     * A mock player facing east streams bore into a block of stone, aimed at
+     * the middle of a block's face: the block behind each block on the line
+     * stands while the nearer one breaks and takes the whole of the bore's
+     * break ticks after it, so the tunnel goes one block deep at a time, and
+     * the hold runs until a one-block tunnel runs along the eye line to the
+     * whole blocks inside the stream's reach, read live from the ability, and
+     * cobblestone has dropped
+     * (decisions bore-breaks-the-block-at-the-point-and-its-surroundings,
+     * bore-drills-the-eye-line-with-steady-progress).
      *
      * @param helper the gametest helper
      */
@@ -82,6 +86,8 @@ public final class BoreStreamTests {
         AbilityDefinition bore = AbilityRegistry.of(helper.getLevel()).getAbility(ROCK_BORE);
         helper.assertTrue(bore != null, ABILITY_REQUIRED);
         int reach = (int) Math.floor(bore.delivery().range());
+        int breakTicks = bore.behaviors().stream().filter(BoreStep.class::isInstance).map(BoreStep.class::cast)
+                .findFirst().orElseThrow().pace().breakTicks();
         for (int east = 1; east <= reach + 1; east++) {
             for (BlockPos pos : slice(EYE_ROW.east(east))) {
                 helper.setBlock(pos, Blocks.STONE);
@@ -92,6 +98,7 @@ public final class BoreStreamTests {
         GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.ROCK), ROCK_BORE.toString(),
                 player.getEyePosition(), player.getEyePosition());
         int[] brokeOn = new int[reach + 1];
+        boolean[] behindStood = new boolean[reach + 1];
         for (int held = 1; held <= MOST_HOLD_TICKS; held++) {
             int at = held;
             helper.runAfterDelay(held, () -> {
@@ -99,6 +106,7 @@ public final class BoreStreamTests {
                 for (int east = 1; east <= reach; east++) {
                     if (brokeOn[east] == 0 && helper.getBlockState(EYE_ROW.east(east)).isAir()) {
                         brokeOn[east] = at;
+                        behindStood[east] = helper.getBlockState(EYE_ROW.east(east + 1)).is(Blocks.STONE);
                     }
                 }
             });
@@ -106,10 +114,12 @@ public final class BoreStreamTests {
         helper.succeedWhen(() -> {
             for (int east = 1; east <= reach; east++) {
                 helper.assertBlockPresent(Blocks.AIR, EYE_ROW.east(east));
+                helper.assertTrue(behindStood[east], String.format(SHOULD_STAND_BEHIND, east + 1, east));
             }
             for (int east = 2; east <= reach; east++) {
-                helper.assertTrue(brokeOn[east] > brokeOn[east - 1], String.format(SHOULD_BREAK_AFTER_THE_NEARER,
-                        east, brokeOn[east], brokeOn[east - 1]));
+                helper.assertTrue(brokeOn[east] - brokeOn[east - 1] >= breakTicks,
+                        String.format(SHOULD_BREAK_AFTER_THE_NEARER, east, brokeOn[east], breakTicks,
+                                brokeOn[east - 1]));
             }
             helper.assertItemEntityPresent(Items.COBBLESTONE, EYE_ROW.east(2), ITEM_SEARCH_RADIUS);
             helper.getLevel().getServer().getPlayerList().remove(player);
