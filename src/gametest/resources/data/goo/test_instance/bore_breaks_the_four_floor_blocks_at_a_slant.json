@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:bore_breaks_the_four_floor_blocks_at_a_slant",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}
