@@ -1,10 +1,9 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
+import com.mercuriusxeno.goo.client.ber.WispRenderer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
@@ -34,17 +33,14 @@ public final class ChargeMotes {
     static final int LIFE_TICKS = 16;
     /** How far outside the shell a shell mote fades in, in blocks. */
     static final double SHELL_GATHER = 1.5;
-    /** How far from the palm blob a blob mote fades in, in blocks. */
-    static final double BLOB_GATHER = 0.6;
+    /** How far from the palm blob a blob wisp fades in, in blocks: close around the held blob. */
+    static final double BLOB_GATHER = 0.3;
     /** The share of a mote's life it takes to fade in from nothing. */
     static final float FADE_IN_SHARE = 0.4f;
     /** The share of a mote's life it takes to fade out as it is absorbed. */
     static final float ABSORB_SHARE = 0.15f;
     /** How far the spheroid swells over the blob's beat, as a share of its radius. */
     static final double SWELL_DEPTH = 0.04;
-    private static final float MOTE_HALF = 0.04f;
-    private static final float MOTE_ALPHA = 0.85f;
-    private static final int OPAQUE = 255;
     private static final double FULL_TURN = Math.PI * 2;
     private static final double HALF = 0.5;
     private static final double TOP_TO_BOTTOM = 2;
@@ -62,8 +58,9 @@ public final class ChargeMotes {
      * @param born      the game tick it spawned on
      * @param lifeTicks the ticks it takes to arrive
      * @param rgb       its color
+     * @param haloHalf  its wisp's halo half-size, in blocks
      */
-    public record Mote(Vec3 from, Vec3 to, long born, int lifeTicks, int rgb) {
+    public record Mote(Vec3 from, Vec3 to, long born, int lifeTicks, int rgb, float haloHalf) {
 
         /**
          * Its alpha share at an age: nothing as it spawns, full once faded in,
@@ -117,13 +114,40 @@ public final class ChargeMotes {
         for (int i = 0; i < SHELL_MOTES_PER_TICK; i++) {
             Vec3 heading = randomUnit(random);
             spawned.add(new Mote(rooted.add(heading.scale(shellRadius + SHELL_GATHER)),
-                    rooted.add(heading.scale(shellRadius)), gameTime, LIFE_TICKS, UNSTABLE_GREEN));
+                    rooted.add(heading.scale(shellRadius)), gameTime, LIFE_TICKS, UNSTABLE_GREEN, SHELL_HALO_HALF));
         }
         for (int i = 0; i < BLOB_MOTES_PER_TICK; i++) {
             spawned.add(new Mote(blob.add(randomUnit(random).scale(BLOB_GATHER)), blob, gameTime, LIFE_TICKS,
-                    UNSTABLE_GREEN));
+                    UNSTABLE_GREEN, BLOB_HALO_HALF));
         }
         return spawned;
+    }
+
+    /** A shell wisp's halo half-size, in blocks: the wisps around the blast zone draw larger. */
+    static final float SHELL_HALO_HALF = 0.13f;
+    /** A blob wisp's halo half-size, in blocks. */
+    static final float BLOB_HALO_HALF = 0.06f;
+    /** A wisp's core half-size against its halo's, as a radiant wisp's core stands to its halo. */
+    static final float CORE_SHARE = 0.4f;
+    /** The paler green a wisp's core burns, as a radiant wisp's core is paler than its halo. */
+    static final int PALE_GREEN = 0xC8FFB4;
+    private static final int HALO_ALPHA = 70;
+    private static final int CORE_ALPHA = 210;
+
+    /**
+     * Emits a wisp at a share of its alpha: a pale green core cube inside a
+     * larger halo cube in Unstable's green, the look a radiant wisp has.
+     * decision blast-charge-pulls-green-motes-into-the-shell-and-the-blob
+     *
+     * @param pose     the pose at the wisp's center
+     * @param consumer the vertex consumer, position and color
+     * @param haloHalf the wisp's halo half-size, in blocks
+     * @param share    the wisp's alpha share, 0 to 1
+     */
+    static void emitWisp(PoseStack.Pose pose, VertexConsumer consumer, float haloHalf, float share) {
+        WispRenderer.emitCube(pose, consumer, haloHalf, ARGB.color(Math.round(HALO_ALPHA * share), UNSTABLE_GREEN));
+        WispRenderer.emitCube(pose, consumer, haloHalf * CORE_SHARE,
+                ARGB.color(Math.round(CORE_ALPHA * share), PALE_GREEN));
     }
 
     /**
@@ -178,26 +202,18 @@ public final class ChargeMotes {
     }
 
     /**
-     * Draws the live motes.
+     * Queues the live motes to draw as wisps after the translucent blocks.
      *
-     * @param poseStack the pose stack, camera relative
-     * @param buffers   the buffer source
-     * @param camera    the camera's world position
-     * @param now       the game time, partial ticks included
+     * @param now the game time, partial ticks included
      */
-    public static void render(PoseStack poseStack, MultiBufferSource.BufferSource buffers, Vec3 camera, double now) {
-        if (LIVE.isEmpty()) {
-            return;
-        }
-        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.SPORE_SHELL_TYPE);
+    public static void render(double now) {
         for (Mote mote : LIVE) {
             double age = now - mote.born();
-            Vec3 at = mote.placeAt(age).subtract(camera);
-            int alpha = Math.round(Mth.clamp(mote.alphaAt(age) * MOTE_ALPHA, 0f, 1f) * OPAQUE);
-            SporeMotes.emit(poseStack.last(), consumer, (float) at.x, (float) at.y, (float) at.z, MOTE_HALF,
-                    ARGB.color(alpha, mote.rgb()));
+            float share = Mth.clamp(mote.alphaAt(age), 0f, 1f);
+            // blast-charge-pulls-green-motes-into-the-shell-and-the-blob: wisps draw after the translucent blocks
+            WispGlow.queue(new WispGlow.Sprite(mote.placeAt(age), 0f,
+                    (pose, consumer) -> emitWisp(pose, consumer, mote.haloHalf(), share)));
         }
-        buffers.endBatch(GooRenderTypes.SPORE_SHELL_TYPE);
     }
 
     /**
