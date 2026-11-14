@@ -171,8 +171,8 @@ class BoreStepTest {
         private static final double SLACK = 1e-9;
         private static final double REACH = 4;
         private static final Vec3 EAST = new Vec3(1, 0, 0);
-        /** rock_bore.json's drill: 0.7 wide at the blob, 2 long, 15 degrees off the look, 1 past the plane. */
-        private static final BoreDrillShape SHIPPED = new BoreDrillShape(0.7, 2, 15, 1);
+        /** rock_bore.json's drill: 1 wide at the blob, 2 long, 15 degrees off the look, 1 past the plane. */
+        private static final BoreDrillShape SHIPPED = new BoreDrillShape(1, 2, 15, 1);
         /** An eye where four blocks meet: on the line between y 1 and 2 and between z -1 and 0. */
         private static final Vec3 AT_A_CORNER = new Vec3(0.5, 2.0, 0.0);
         /** An eye in the middle of a block's face: y 2 and z 0. */
@@ -194,7 +194,7 @@ class BoreStepTest {
         void rockBoresJsonCarriesTheDrillsFourDimensions() {
             BoreDrillShape shape = AbilityJson.decode("rock_bore").behaviors().stream()
                     .filter(BoreStep.class::isInstance).map(BoreStep.class::cast).findFirst().orElseThrow().shape();
-            assertEquals(0.7, shape.width(), SLACK);
+            assertEquals(1, shape.width(), SLACK);
             assertEquals(2, shape.length(), SLACK);
             assertEquals(15, shape.angle(), SLACK);
             assertEquals(1, shape.pastLength(), SLACK);
@@ -257,15 +257,15 @@ class BoreStepTest {
         }
 
         @Test
-        void aimingAQuarterFromACornerOnBothAxesPicksOne() {
-            assertEquals(Set.of(new BlockPos(1, 2, 0)), pickFrom(new Vec3(0.5, 2.25, 0.25), SHIPPED));
+        void aimingPointThreeFromACornerOnBothAxesPicksOne() {
+            assertEquals(Set.of(new BlockPos(1, 2, 0)), pickFrom(new Vec3(0.5, 2.3, 0.3), SHIPPED));
         }
 
         @Test
         void aShorterPastLengthNarrowsThePickAtTheSameAim() {
-            Vec3 nearACorner = new Vec3(0.5, 2.11, 0.11);
+            Vec3 nearACorner = new Vec3(0.5, 2.15, 0.15);
             assertEquals(cornerBlocks(), pickFrom(nearACorner, SHIPPED));
-            assertEquals(Set.of(new BlockPos(1, 2, 0)), pickFrom(nearACorner, new BoreDrillShape(0.7, 2, 15, 0.5)));
+            assertEquals(Set.of(new BlockPos(1, 2, 0)), pickFrom(nearACorner, new BoreDrillShape(1, 2, 15, 0.5)));
         }
 
         /**
@@ -347,7 +347,7 @@ class BoreStepTest {
         @Test
         void aBlockOutsideTheTubeSetsNoDepthAndTheEyeLinesWallBlockIsPicked() {
             Predicate<BlockPos> rock = WALL.or(NEAR::equals);
-            assertEquals(Set.of(new BlockPos(5, 1, 0)), pickFrom(eyeBelowTheNearBlockBy(0.25), rock, rock));
+            assertEquals(Set.of(new BlockPos(5, 1, 0)), pickFrom(eyeBelowTheNearBlockBy(0.35), rock, rock));
         }
 
         @Test
