@@ -7,7 +7,7 @@ import net.minecraft.world.phys.HitResult;
 
 /**
  * Where a mob-first stream's gnats converge while its swarm bites no mob:
- * the block under the crosshair, or the point at the stream's reach where
+ * the block under the crosshair, or a block-wide cloud at the stream's reach where
  * the crosshair meets none; and how fast a gnat flies, which the swarm's
  * bite waits on (decision decay-gnats-degrade-each-block-once).
  */
@@ -28,6 +28,8 @@ public final class SwarmMotes {
     public static final double DRAG = 0.5;
     /** How hard its target pulls a gnat each tick, blocks per tick per tick: what settles it on its speed. */
     public static final double PULL = GNAT_SPEED * (1 - DRAG) / DRAG;
+    /** Half the width of the cloud a swarm with no block under the crosshair spreads through at its reach. */
+    public static final double CLOUD_HALF_WIDTH = 0.5;
     /** How far off the struck face the gnats converge, so they settle on it rather than inside the block. */
     public static final double FACE_LIFT = 0.05;
 
@@ -40,11 +42,12 @@ public final class SwarmMotes {
      * draw a gnat on a line that strikes the face short of the block.
      *
      * @param crosshair the block the crosshair lands on, or a miss at the stream's reach
-     * @return a thin slab over the struck face, else the point at the stream's reach
+     * @return a thin slab over the struck face, else a block-wide cloud around the stream's reach
      */
     static AABB moteTarget(BlockHitResult crosshair) {
         if (crosshair.getType() != HitResult.Type.BLOCK) {
-            return new AABB(crosshair.getLocation(), crosshair.getLocation());
+            // operator ruling 2026-11-13: one point ended every swept burst's gnats in a straight line in midair
+            return new AABB(crosshair.getLocation(), crosshair.getLocation()).inflate(CLOUD_HALF_WIDTH);
         }
         AABB cell = new AABB(crosshair.getBlockPos());
         Direction face = crosshair.getDirection();
