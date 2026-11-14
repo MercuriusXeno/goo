@@ -4,6 +4,10 @@ import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.PayloadRecorder;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.HealPulse;
+import com.mercuriusxeno.goo.ability.program.LeafStep;
+import com.mercuriusxeno.goo.ability.program.LeafSteps;
+import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -17,6 +21,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.cow.Cow;
 import net.minecraft.world.item.ItemStack;
@@ -32,7 +37,8 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
  * the ability on it each tick of the hold, drains blaze goo while held,
  * and drains nothing once released
  * (decision stream-delivery-held-cone); holding jelly heal at a hurt cow heals
- * the cow and the caster both and courts no cow (decision nourish-and-healing-ship-on-jelly).
+ * the cow and the caster both and courts no cow (decision nourish-and-healing-ship-on-jelly),
+ * once per pulse interval (decision diagnose-and-correct-heal-spamming-zombie-noises).
  */
 @RegistersGameTests
 public final class StreamDeliveryTests {
@@ -54,6 +60,146 @@ public final class StreamDeliveryTests {
         GooTestFunctions.registerTest(registrar, FLAMES_DAMAGES_PER_TICK, StreamDeliveryTests::flamesDamagesPerTick);
         GooTestFunctions.registerTest(registrar, HEAL_TOUCHES_FULL_COW, StreamDeliveryTests::healTouchesAFullHealthCow);
         GooTestFunctions.registerTest(registrar, HEAL_HARMS_ZOMBIE, StreamDeliveryTests::healHarmsAZombie);
+        GooTestFunctions.registerTest(registrar, HEAL_PULSES_ON_COW, StreamDeliveryTests::healPulsesOnAWoundedCow);
+        GooTestFunctions.registerTest(registrar, HEAL_PULSES_ON_CASTER, StreamDeliveryTests::healPulsesOnAWoundedCaster);
+    }
+
+    /**
+     * A mock player holds jelly heal on a wounded cow four blocks ahead for
+     * three pulse intervals: after each held tick the cow stands at its
+     * starting health plus one pulse amount for each pulse landed so far, a
+     * pulse on the hold's first tick and one each interval after.
+     * diagnose-and-correct-heal-spamming-zombie-noises
+     *
+     * @param helper the gametest helper
+     */
+    public static void healPulsesOnAWoundedCow(GameTestHelper helper) {
+        AbilityDefinition heal = jellyHeal(helper);
+        HealPulse pulse = healPulseOf(heal);
+        float amount = amountOf(pulse);
+        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, ZOMBIE_POS);
+        cow.setHealth(cow.getMaxHealth() - (HELD_PULSES + 1) * amount);
+        ServerPlayer player = streamer(helper, GooTypes.JELLY);
+        KnownRecipes.teachRequires(player, heal);
+        holdHealTracing(helper, player, HELD_PULSES * pulse.every(), cow,
+                health -> assertPulsedHealth(helper, health, pulse.every(), amount));
+    }
+
+    /**
+     * A hungry, wounded mock player holds jelly heal for three pulse
+     * intervals: after each held tick the caster stands at its starting
+     * health plus one pulse amount for each pulse landed so far. Its food
+     * sits below natural regeneration, so only the stream heals it.
+     * diagnose-and-correct-heal-spamming-zombie-noises
+     *
+     * @param helper the gametest helper
+     */
+    public static void healPulsesOnAWoundedCaster(GameTestHelper helper) {
+        AbilityDefinition heal = jellyHeal(helper);
+        HealPulse pulse = healPulseOf(heal);
+        float amount = amountOf(pulse);
+        ServerPlayer player = streamer(helper, GooTypes.JELLY);
+        KnownRecipes.teachRequires(player, heal);
+        player.setHealth(player.getMaxHealth() - (HELD_PULSES + 1) * amount);
+        player.getFoodData().setFoodLevel(FOOD_BELOW_REGEN);
+        player.getFoodData().setSaturation(0);
+        holdHealTracing(helper, player, HELD_PULSES * pulse.every(), player,
+                health -> assertPulsedHealth(helper, health, pulse.every(), amount));
+    }
+
+    /**
+     * Holds jelly heal for a number of ticks, reading a watched thing's
+     * health after each held tick inside that tick's own task, then removes
+     * the player, runs the check over the readings and succeeds.
+     *
+     * @param helper    the gametest helper
+     * @param player    the streaming player
+     * @param holdTicks the held ticks
+     * @param watched   the living thing whose health is read
+     * @param check     what the readings must show; index 0 holds the health before the hold
+     */
+    static void holdHealTracing(GameTestHelper helper, ServerPlayer player, int holdTicks, LivingEntity watched,
+                                Consumer<float[]> check) {
+        float[] health = new float[holdTicks + 1];
+        health[0] = watched.getHealth();
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.JELLY), JELLY_HEAL.toString(),
+                player.getEyePosition(), player.getEyePosition());
+        for (int held = 1; held <= holdTicks; held++) {
+            int reading = held;
+            helper.runAfterDelay(held, () -> {
+                GooStreamHandler.streamTick(player, tick);
+                health[reading] = watched.getHealth();
+            });
+        }
+        helper.runAfterDelay(holdTicks + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            check.accept(health);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Fails the test unless each reading stands at the first plus one pulse
+     * amount for each pulse landed through its held tick.
+     *
+     * @param helper   the gametest helper
+     * @param health   the readings, index 0 before the hold and index n after its n-th tick
+     * @param every    the ticks between pulses
+     * @param perPulse the health each pulse adds, negative for one that harms
+     */
+    static void assertPulsedHealth(GameTestHelper helper, float[] health, int every, float perPulse) {
+        for (int held = 1; held < health.length; held++) {
+            float expected = health[0] + perPulse * pulsesThrough(held, every);
+            helper.assertTrue(Math.abs(health[held] - expected) < HEALTH_TOLERANCE,
+                    String.format(SHOULD_STAND_PULSED, held, expected, health[held]));
+        }
+    }
+
+    /**
+     * The pulses a hold has landed through a held tick: one on its first
+     * tick and one each interval after.
+     *
+     * @param held  the hold's tick count, 1 on its first tick
+     * @param every the ticks between pulses
+     * @return the pulses landed
+     */
+    static int pulsesThrough(int held, int every) {
+        return (held - 1) / every + 1;
+    }
+
+    /**
+     * The loaded jelly heal, failing the test where the registry lacks it.
+     *
+     * @param helper the gametest helper
+     * @return the ability
+     */
+    static AbilityDefinition jellyHeal(GameTestHelper helper) {
+        AbilityDefinition heal = AbilityRegistry.of(helper.getLevel()).getAbility(JELLY_HEAL);
+        helper.assertTrue(heal != null, VITALITY_REQUIRED);
+        return heal;
+    }
+
+    /**
+     * The pulse jelly heal's heal step carries, as the loaded definition reads it.
+     *
+     * @param heal the loaded jelly heal
+     * @return the heal step's params
+     */
+    static HealPulse healPulseOf(AbilityDefinition heal) {
+        return heal.behaviors().stream()
+                .filter(step -> step instanceof LeafStep<?> leaf && leaf.leaf() == LeafSteps.HEAL)
+                .map(step -> (HealPulse) ((LeafStep<?>) step).params())
+                .findFirst().orElseThrow();
+    }
+
+    /**
+     * The health one pulse restores, its amount evaluated as a literal.
+     *
+     * @param pulse the heal step's params
+     * @return the health
+     */
+    static float amountOf(HealPulse pulse) {
+        return pulse.amount().evaluateFloat(Variables.NONE);
     }
 
     /**
@@ -144,7 +290,7 @@ public final class StreamDeliveryTests {
 
     private static final BlockPos STAND_POS = new BlockPos(1, 1, 3);
     /** Four blocks east of the player. */
-    private static final BlockPos ZOMBIE_POS = STAND_POS.east(4);
+    static final BlockPos ZOMBIE_POS = STAND_POS.east(4);
     private static final int HELD_GOO = 2;
     /** The yaw a player faces east, toward +x, at. */
     private static final float FACING_EAST = -90f;
@@ -173,6 +319,12 @@ public final class StreamDeliveryTests {
     private static final String HEAL_HARMS_ZOMBIE = "heal_harms_a_zombie";
     private static final String SHOULD_HARM_ZOMBIE =
             "The healed zombie should lose health where a living mob would gain it, lost %.2f";
+    private static final String HEAL_PULSES_ON_COW = "heal_pulses_on_a_wounded_cow";
+    private static final String HEAL_PULSES_ON_CASTER = "heal_pulses_on_a_wounded_caster";
+    /** The pulse intervals a pulse test's hold spans. */
+    static final int HELD_PULSES = 3;
+    private static final float HEALTH_TOLERANCE = 1e-3f;
+    private static final String SHOULD_STAND_PULSED = "After held tick %d health should stand at %.2f, stands at %.2f";
     private static final String SHOULD_TOUCH_FULL_COW =
             "A heal payload should name the full-health cow among its touched mobs; %d payloads named none";
 
@@ -246,7 +398,7 @@ public final class StreamDeliveryTests {
     }
 
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    private static ServerPlayer streamer(GameTestHelper helper, ResourceKey<GooTypeDefinition> gooType) {
+    static ServerPlayer streamer(GameTestHelper helper, ResourceKey<GooTypeDefinition> gooType) {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STAND_POS));
         player.setPos(stand.x, stand.y, stand.z);
