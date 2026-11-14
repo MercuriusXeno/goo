@@ -813,7 +813,7 @@ public record AbilityDefinition(
     private static Optional<ExplodeStep> firstExplosion(List<Step> behaviors) {
         return behaviors.stream().flatMap(AbilityDefinition::withDescendants)
                 .filter(ExplodeStep.class::isInstance).map(ExplodeStep.class::cast)
-                // blast-is-drag-sized-like-the-black-hole: a power read off the drag names no resting reach
+                // spontaneous-abilities-cast-at-the-target-with-no-thrown-blob: a power read off the charge names no resting reach
                 .filter(step -> step.power().variables().isEmpty()).findFirst();
     }
 

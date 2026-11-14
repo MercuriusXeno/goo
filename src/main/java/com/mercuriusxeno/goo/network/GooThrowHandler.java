@@ -134,17 +134,23 @@ public final class GooThrowHandler {
 
     /**
      * Fires a released charge by its delivery: on the player for a self
-     * ability, as a rain of glass knives for a thrown one that slings.
+     * ability, at the aimed target at the size the hold reached for a
+     * spontaneous cast sized by its charge, as a rain of glass knives for a
+     * thrown one that slings.
+     * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
      *
      * @param player    the releasing player
      * @param gooType   the ability's goo type
      * @param ability   the charged ability
-     * @param payload   the charge payload, its hold and its scatter seed
+     * @param payload   the charge payload, its hold, its scatter seed and its aimed target
      */
     private static void fireCharge(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
                                    AbilityDefinition ability, GooChargePayload payload) {
         if (ability.delivery().kind() == DeliveryKind.SELF) {
             GooSelfHandler.release(player, gooType, ability, payload.heldTicks());
+        } else if (ability.delivery().sizesByCharge()) {
+            payload.aimed().ifPresent(aimed -> GooChargedCastHandler.cast(player, gooType, ability, aimed,
+                    payload.heldTicks()));
         } else if (ability.delivery().charge().slings()) {
             KnifeRainSling.sling(player, gooType, ability, payload.heldTicks(),
                     RandomSource.create(payload.scatterSeed()));
@@ -298,8 +304,9 @@ public final class GooThrowHandler {
     }
 
     /**
-     * Whether an ability may be thrown: never one sized at will, which opens
-     * by its drag (decision black-hole-leaves-a-compression-sphere), nor one
+     * Whether an ability may be thrown: never one sized by its charge, which
+     * casts on its charge's release
+     * (decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob), nor one
      * cast by its footprint (decision spire-rips-walls-and-platforms), and only
      * with every reagent it consumes held.
      *
@@ -308,7 +315,7 @@ public final class GooThrowHandler {
      * @return true when the throw goes ahead
      */
     private static boolean throwable(ServerPlayer player, AbilityDefinition ability) {
-        return !ability.hasTag(AbilityTags.DRAG_SIZED) && !ability.hasTag(AbilityTags.FOOTPRINT)
+        return !ability.delivery().sizesByCharge() && !ability.hasTag(AbilityTags.FOOTPRINT)
                 && holdsReagents(player, ability);
     }
 

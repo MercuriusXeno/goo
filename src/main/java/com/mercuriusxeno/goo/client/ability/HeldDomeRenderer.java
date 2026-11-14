@@ -18,7 +18,6 @@ import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
-import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.Map;
@@ -152,28 +151,28 @@ public final class HeldDomeRenderer {
     }
 
     /**
-     * Draws a sized ability's ghost at the epicenter its press pinned, at the
-     * radius its drag sets, its rings as its type's ghost names them, Blast's
-     * pulsing out to the radius dragged (decision blast-is-drag-sized-like-the-black-hole).
+     * Draws a sized ability's ghost at the aimed target, at the size its
+     * charge has reached, its rings as its type's ghost names them, Blast's
+     * pulsing out to that size
+     * (decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob).
      *
      * @param poseStack  the pose stack, camera relative
      * @param buffers    the buffer source
      * @param camera     the camera's world position
-     * @param pin        the block face and point the press pinned
-     * @param radius     the radius the drag sets, in blocks
+     * @param target     the aim target
+     * @param radius     the size the charge has reached, in blocks
      * @param type       the selected goo type
      * @param ringRgb    the goo type's highlight color
      * @param nowSeconds seconds on the real-time clock the rings run on
      */
     public static void renderSized(PoseStack poseStack, MultiBufferSource.BufferSource buffers, Vec3 camera,
-                                   BlockHitResult pin, float radius, ResourceKey<GooTypeDefinition> type,
+                                   TargetResult target, float radius, ResourceKey<GooTypeDefinition> type,
                                    int ringRgb, double nowSeconds) {
         HeldGhostVisual visual = ghostOf(type);
-        if (visual == null) {
+        DomeAnchor anchor = anchorOf(target);
+        if (visual == null || anchor == null) {
             return;
         }
-        DomeAnchor anchor = new DomeAnchor(Vec3.atLowerCornerOf(pin.getBlockPos().relative(pin.getDirection())),
-                pin.getLocation(), pin.getDirection());
         draw(poseStack, buffers, camera, new GhostAt(visual, anchor, visual.sizedGhost(radius)), ringRgb, nowSeconds);
     }
 

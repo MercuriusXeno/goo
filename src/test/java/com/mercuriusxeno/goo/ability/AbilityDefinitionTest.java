@@ -314,9 +314,9 @@ class AbilityDefinitionTest {
             String name = file.getFileName().toString().replace(".json", "");
             AbilityDefinition definition = AbilityJson.decode(file);
             boolean aimsTheWorld = definition.badge() == AbilityBadge.WORLD || definition.badge() == AbilityBadge.FREE;
-            // black-hole-leaves-a-compression-sphere: a sized cast draws its dragged radius, not a thrown area
-            return definition.delivery().kind() == DeliveryKind.ARC && aimsTheWorld
-                    && !definition.hasTag(AbilityTags.DRAG_SIZED)
+            // spontaneous-abilities-cast-at-the-target-with-no-thrown-blob: a sized cast draws its charged size
+            return definition.delivery().strikesTheAim() && aimsTheWorld
+                    && !definition.delivery().sizesByCharge()
                     && RADIUS_BEARING.matcher(AbilityJson.read(name)).find();
         }
     }

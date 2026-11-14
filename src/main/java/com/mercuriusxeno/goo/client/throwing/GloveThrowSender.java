@@ -3,9 +3,9 @@ package com.mercuriusxeno.goo.client.throwing;
 import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityTags;
+import com.mercuriusxeno.goo.ability.ChargeSize;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
-import com.mercuriusxeno.goo.ability.DragSize;
 import com.mercuriusxeno.goo.ability.DurativeRoute;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
@@ -29,7 +29,6 @@ import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
 import com.mercuriusxeno.goo.network.GooChargePayload;
-import com.mercuriusxeno.goo.network.GooDragCastPayload;
 import com.mercuriusxeno.goo.network.GooStreamPayload;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
@@ -99,9 +98,6 @@ public final class GloveThrowSender {
      */
     private static boolean sendFor(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId,
                                    int heldTicks) {
-        if (selectedDragSized(abilityId)) {
-            return sendDragCast(player, gooType, abilityId);
-        }
         Delivery delivery = selectedDelivery(abilityId);
         if (HeldRoute.runsWhileHeld(delivery, selectedBadge(abilityId))) {
             return sendStreamTick(player, gooType, abilityId);
@@ -316,64 +312,43 @@ public final class GloveThrowSender {
     }
 
     /**
-     * Whether the selected ability is sized at will, pinned on the press and
-     * opened on release at the radius dragged
-     * (decision black-hole-leaves-a-compression-sphere).
+     * Whether the selected ability is sized by its charge, growing while
+     * right click is held and cast at the aimed target on release.
+     * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
      *
      * @param abilityId the selected ability id string
-     * @return true for a drag-sized selection
+     * @return true for a selection sized by its charge
      */
-    public static boolean selectedDragSized(@Nullable String abilityId) {
-        ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
-        return ability != null && ability.tags().contains(AbilityTags.DRAG_SIZED);
+    public static boolean selectedSizesByCharge(@Nullable String abilityId) {
+        return selectedDelivery(abilityId).sizesByCharge();
     }
 
     /**
-     * The radius the live drag of the held glove's sized ability sets: the
-     * distance from the pin to the cursor, cut back to what the player's goo
-     * pays for.
+     * The size the live charge of the held glove's sized ability has reached,
+     * cut back to what the player's goo pays for.
+     * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
      *
      * @param player the local player
-     * @return the radius, or empty when no drag of a sized ability is live
+     * @return the size, or empty when no charge of a sized ability stands
      */
-    public static OptionalDouble dragRadius(Player player) {
+    public static OptionalDouble chargedSize(Player player) {
         GloveSelection selection = heldSelection(player);
-        BlockHitResult pin = GloveUseTracker.pressPin();
         ClientAbility ability = selection == null ? null : AbilitySyncHandler.findAbility(selection.abilityId());
-        if (pin == null || ability == null || selection.getGooType() == null
-                || !ability.tags().contains(AbilityTags.DRAG_SIZED)) {
+        if (ability == null || selection.getGooType() == null || !GloveUseTracker.charging()
+                || !ability.delivery().sizesByCharge()) {
             return OptionalDouble.empty();
         }
         int holdings = GooSourceScanner.aggregateAvailable(player).getOrDefault(selection.getGooType(), 0);
-        return OptionalDouble.of(DragSize.affordable(DragSize.dragged(pin.getLocation(), player.getEyePosition(),
-                player.getViewVector(1f)), ability.cost(), holdings));
-    }
-
-    /**
-     * Sends the release of a sized ability's drag at the pinned epicenter and
-     * the radius dragged, when the player's goo pays for it.
-     *
-     * @param player    the local player
-     * @param gooType   the selected goo type
-     * @param abilityId the selected ability id string
-     * @return true when the payload was sent
-     */
-    private static boolean sendDragCast(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId) {
-        BlockHitResult pin = GloveUseTracker.pressPin();
-        ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
-        OptionalDouble radius = dragRadius(player);
-        if (pin == null || ability == null || radius.isEmpty()
-                || !GooSourceScanner.hasEnough(player, gooType, DragSize.costAt(ability.cost(), radius.getAsDouble()))) {
-            return false;
-        }
-        sendPayload(new GooDragCastPayload(GooTypes.id(gooType), abilityId, pin.getBlockPos(),
-                pin.getDirection().get3DDataValue(), pin.getLocation(), radius.getAsDouble()));
-        return true;
+        return OptionalDouble.of(ChargeSize.affordable(ability.delivery().sizeAt(GloveUseTracker.heldTicks()),
+                ability.cost(), holdings));
     }
 
     /**
      * Sends a charged ability's release with the ticks it was held,
-     * when the player can afford it (decision nova-ring-grows-with-the-hold).
+     * when the player can afford it (decision nova-ring-grows-with-the-hold);
+     * a cast sized by its charge carries the target the crosshair aims, and
+     * sends nothing aiming at none.
+     * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
      *
      * @param player    the local player
      * @param gooType   the selected goo type
@@ -383,13 +358,27 @@ public final class GloveThrowSender {
      */
     private static boolean sendCharge(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId,
                                       int heldTicks) {
-        if (!affordsThrow(AbilitySyncHandler.findAbility(abilityId),
+        boolean sized = selectedSizesByCharge(abilityId);
+        Optional<GooThrowPayload> aimed = sized ? aimedTarget(gooType, abilityId) : Optional.empty();
+        if (sized && aimed.isEmpty() || !affordsThrow(AbilitySyncHandler.findAbility(abilityId),
                 amount -> GooSourceScanner.hasEnough(player, gooType, amount),
                 reagent -> ReagentScanner.holds(player, reagent))) {
             return false;
         }
-        sendPayload(new GooChargePayload(GooTypes.id(gooType), abilityId, heldTicks, GloveUseTracker.scatterSeed()));
+        sendPayload(new GooChargePayload(GooTypes.id(gooType), abilityId, heldTicks, GloveUseTracker.scatterSeed(),
+                aimed));
         return true;
+    }
+
+    /**
+     * The target the crosshair aims as a release lets go.
+     *
+     * @param gooType   the selected goo type
+     * @param abilityId the selected ability id string
+     * @return the target, empty where the crosshair aims at nothing
+     */
+    private static Optional<GooThrowPayload> aimedTarget(ResourceKey<GooTypeDefinition> gooType, String abilityId) {
+        return Optional.ofNullable(targetToPayload(AimTracker.currentTarget(), gooType, abilityId, throwOrigin()));
     }
 
     /**
@@ -565,18 +554,18 @@ public final class GloveThrowSender {
     }
 
     /**
-     * The cost of a cast sized as it is made: a drag-sized cast's dragged
-     * radius, or a Spire's planned stone.
+     * The cost of a cast sized as it is made: a charged cast's size reached,
+     * or a Spire's planned stone.
      *
      * @param player  the local player
      * @param ability the selected ability, or null where the client holds no synced copy
      * @return the cost, empty where no sized cast is live
      */
     private static OptionalInt sizedCost(Player player, @Nullable ClientAbility ability) {
-        OptionalDouble dragged = dragRadius(player);
-        if (ability != null && dragged.isPresent()) {
-            // black-hole-leaves-a-compression-sphere: a sized cast reads the price of the radius dragged
-            return OptionalInt.of(DragSize.costAt(ability.cost(), dragged.getAsDouble()));
+        OptionalDouble charged = chargedSize(player);
+        if (ability != null && charged.isPresent()) {
+            // spontaneous-abilities-cast-at-the-target-with-no-thrown-blob: a sized cast reads the price of its size
+            return OptionalInt.of(ChargeSize.costAt(ability.cost(), charged.getAsDouble()));
         }
         if (player instanceof LocalPlayer local && SpireCast.footprint().isPresent()) {
             // spire-grows-stone-out-of-the-top: a Spire reads the goo value of the stone it would grow

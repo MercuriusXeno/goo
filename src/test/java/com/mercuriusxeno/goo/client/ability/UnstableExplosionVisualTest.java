@@ -67,9 +67,9 @@ class UnstableExplosionVisualTest {
     }
 
     /**
-     * A burnout carries the size its cast was dragged to, and the burst fills
+     * A burnout carries the size its cast was charged to, and the burst fills
      * that sphere rather than a resting power's
-     * (decision blast-is-drag-sized-like-the-black-hole).
+     * (decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob).
      */
     @Test
     void burstReachFollowsTheCastsSize() {

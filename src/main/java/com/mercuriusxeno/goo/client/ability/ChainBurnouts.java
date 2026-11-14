@@ -23,8 +23,8 @@ public final class ChainBurnouts {
      * @param pos        the marker's block position
      * @param placedFace the face the marker was placed on
      * @param abilityId  the id of the ability the marker ran
-     * @param size       the size the cast was dragged to, in blocks, zero for a throw
-     *                   (decision blast-is-drag-sized-like-the-black-hole)
+     * @param size       the size the cast was charged to, in blocks, zero for a throw
+     *                   (decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob)
      * @param startTick  the game time the explosion began
      * @param visual     the explosion its goo type draws
      */
@@ -61,7 +61,7 @@ public final class ChainBurnouts {
      * @param placedFace the face the marker was placed on
      * @param gooType    the marker's goo type
      * @param abilityId  the id of the ability the marker ran
-     * @param size       the size the cast was dragged to, zero for a throw
+     * @param size       the size the cast was charged to, zero for a throw
      * @param now        the game time the burnout arrived
      * @return the burnout added
      */

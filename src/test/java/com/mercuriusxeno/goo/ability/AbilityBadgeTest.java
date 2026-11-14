@@ -82,7 +82,7 @@ class AbilityBadgeTest {
     }
 
     /**
-     * The badges a shipped ability may wear, read from its own fields: channeled for a stream or for any delivery that charges or writes a hold's ticks
+     * The badges a shipped ability may wear, read from its own fields: channeled for a stream or for any delivery that charges, its charge sizing no cast, or writes a hold's ticks
      * per charge, durative for a self delivery paying upkeep, instant for any other self delivery,
      * and for a thrown ability mob where it targets entities and world elsewhere. Free and
      * prism are carried by the badge alone, since no field marks them, so a thrown ability
@@ -93,7 +93,9 @@ class AbilityBadgeTest {
      * @return the badges it may wear
      */
     private static Set<AbilityBadge> allowedBadges(AbilityDefinition definition, JsonObject delivery) {
-        boolean holds = definition.delivery().charges() || delivery.has(TICKS_PER_CHARGE_FIELD);
+        // spontaneous-abilities-cast-at-the-target-with-no-thrown-blob: a charge sizing a cast still aims it
+        boolean holds = definition.delivery().charges() && !definition.delivery().sizesByCharge()
+                || delivery.has(TICKS_PER_CHARGE_FIELD);
         return switch (definition.delivery().kind()) {
             case STREAM -> EnumSet.of(AbilityBadge.CHANNELED);
             // self-effects-trickle-until-ended

@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.ability.AbilityJson;
-import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.client.TargetResult;
@@ -99,15 +98,18 @@ class GooTargetHighlighterTest {
         }
     }
 
-    /** The blast is sized by a drag rather than thrown (decision blast-draws-no-throw-arc). */
+    /**
+     * The blast is sized by its charge rather than thrown (decisions blast-draws-no-throw-arc,
+     * spontaneous-abilities-cast-at-the-target-with-no-thrown-blob).
+     */
     @Nested
-    class DragSizedAbilities {
+    class ChargeSizedAbilities {
 
         @Test
-        void theBlastIsDragSizedAndTheFrostOrbIsThrown() {
+        void theBlastIsSizedByItsChargeAndTheFrostOrbIsThrown() {
             assertEquals(Map.of("unstable_blast", true, "frost_orb", false),
                     Stream.of("unstable_blast", "frost_orb").collect(Collectors.toMap(
-                            name -> name, name -> AbilityJson.decode(name).hasTag(AbilityTags.DRAG_SIZED))));
+                            name -> name, name -> AbilityJson.decode(name).delivery().sizesByCharge())));
         }
     }
 }

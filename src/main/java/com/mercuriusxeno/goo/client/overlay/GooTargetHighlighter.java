@@ -23,7 +23,6 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.BlockHitResult;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -152,7 +151,7 @@ public final class GooTargetHighlighter {
      * @param frame     what the frame draws with
      */
     private static void renderHeldDome(TargetResult target, @Nullable String abilityId, HighlightFrame frame) {
-        if (renderSizedPreview(abilityId, frame)) {
+        if (renderSizedPreview(target, abilityId, frame)) {
             return;
         }
         ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
@@ -180,22 +179,24 @@ public final class GooTargetHighlighter {
 
     /**
      * Draws the preview of a cast sized as it is made: a Spire's footprint
-     * (decision spire-rips-walls-and-platforms) or a drag-sized ability's
-     * dome (decision black-hole-leaves-a-compression-sphere).
+     * (decision spire-rips-walls-and-platforms) or a charge-sized ability's
+     * dome (decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob).
      *
+     * @param target    the aim target
      * @param abilityId the selected ability id
      * @param frame     what the frame draws with
      * @return true where a sized cast drew its preview in place of the held ghost
      */
-    private static boolean renderSizedPreview(@Nullable String abilityId, HighlightFrame frame) {
+    private static boolean renderSizedPreview(TargetResult target, @Nullable String abilityId,
+                                              HighlightFrame frame) {
         Optional<SpireFootprint> footprint = SpireCast.footprint();
         if (footprint.isPresent()) {
             SpirePreviewRenderer.render(frame.ps(), frame.buf(), frame.camera().position(), footprint.get(),
                     SpireCast.rising(), ClientGooTypes.highlight(frame.selectedType()), realTimeSeconds());
             return true;
         }
-        if (GloveThrowSender.selectedDragSized(abilityId)) {
-            renderSizedDome(frame);
+        if (GloveThrowSender.selectedSizesByCharge(abilityId)) {
+            renderSizedDome(target, frame);
             return true;
         }
         return false;
@@ -222,19 +223,20 @@ public final class GooTargetHighlighter {
     }
 
     /**
-     * Draws a sized ability's ghost at its pin while right click drags its
-     * radius (decision black-hole-leaves-a-compression-sphere).
+     * Draws a sized ability's ghost at the aimed target at the size its
+     * charge has reached, following the charge as right click holds
+     * (decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob).
      *
-     * @param frame what the frame draws with
+     * @param target the aim target
+     * @param frame  what the frame draws with
      */
-    private static void renderSizedDome(HighlightFrame frame) {
-        BlockHitResult pin = GloveUseTracker.pressPin();
-        OptionalDouble radius = GloveThrowSender.dragRadius(frame.mc().player);
-        if (pin == null || radius.isEmpty()) {
+    private static void renderSizedDome(TargetResult target, HighlightFrame frame) {
+        OptionalDouble size = GloveThrowSender.chargedSize(frame.mc().player);
+        if (size.isEmpty()) {
             return;
         }
-        HeldDomeRenderer.renderSized(frame.ps(), frame.buf(), frame.camera().position(), pin,
-                (float) radius.getAsDouble(), frame.selectedType(), ClientGooTypes.highlight(frame.selectedType()),
+        HeldDomeRenderer.renderSized(frame.ps(), frame.buf(), frame.camera().position(), target,
+                (float) size.getAsDouble(), frame.selectedType(), ClientGooTypes.highlight(frame.selectedType()),
                 realTimeSeconds());
     }
 

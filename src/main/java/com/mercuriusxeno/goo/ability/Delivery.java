@@ -337,6 +337,28 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
     }
 
     /**
+     * Whether the hold sizes the cast: a spontaneous cast whose charge names
+     * a largest size.
+     * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
+     *
+     * @return true for a cast sized by its charge
+     */
+    public boolean sizesByCharge() {
+        return kind == DeliveryKind.SPONTANEOUS && charge.sizes();
+    }
+
+    /**
+     * The size a hold charges the cast to: growing with the ticks held up to
+     * the cap its charge names, and no larger past it.
+     *
+     * @param heldTicks the ticks the use key was held
+     * @return the size in blocks
+     */
+    public double sizeAt(int heldTicks) {
+        return charge.sizeAt(chargeShare(heldTicks));
+    }
+
+    /**
      * Whether the flight flies a straight line rather than an arc.
      *
      * @return true for a beam
