@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.OwnMinions;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -19,8 +20,12 @@ import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.projectile.ShulkerBullet;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.storage.TagValueOutput;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.List;
 import java.util.Optional;
@@ -41,6 +46,15 @@ public final class CharmLikeCastTests {
     private static final String PHASE_OTHER_DARTS = "phase_other_darts_to_the_taken_mob_and_phases_it";
     private static final String RALLY_DARTS = "rally_darts_to_the_taken_mob_and_rallies_it";
     private static final String SHULK_SPEWS = "shulk_spews_a_shulker_bullet_at_the_taken_mob";
+    private static final String REWIND_STEPS = "rewind_steps_a_cow_back_once_per_cast";
+    private static final Identifier REWIND = Identifier.parse("goo:yore_rewind");
+    /** Goo enough for both casts whatever Rewind's price, held beside the invoker's own. */
+    private static final int REWIND_GOO = 20;
+    /** Ticks a cast takes from the release until its step back has played out: the dart, then the shrink. */
+    private static final int STEP_TAKEN_TICKS = 35;
+    private static final double EGG_SEARCH_BLOCKS = 3;
+    private static final String COW_SHOULD_BE_A_BABY = "The first Rewind should leave the cow a baby";
+    private static final String COW_SHOULD_BE_AN_EGG = "The second Rewind should leave one cow spawn egg; found %d";
     private static final Identifier SHULK = Identifier.parse("goo:typhoon_shulk");
     /** How far around the zombie the test looks for the bullet, past the two blocks it starts from. */
     private static final double BULLET_SEARCH_BLOCKS = 8;
@@ -77,6 +91,7 @@ public final class CharmLikeCastTests {
         GooTestFunctions.registerTest(registrar, PHASE_OTHER_DARTS, CharmLikeCastTests::phaseOtherDartsAndPhases);
         GooTestFunctions.registerTest(registrar, RALLY_DARTS, CharmLikeCastTests::rallyDartsAndRallies);
         GooTestFunctions.registerTest(registrar, SHULK_SPEWS, CharmLikeCastTests::shulkSpewsAShulkerBulletAtTheTakenMob);
+        GooTestFunctions.registerTest(registrar, REWIND_STEPS, CharmLikeCastTests::rewindStepsACowBackOncePerCast);
     }
 
     /**
@@ -114,9 +129,7 @@ public final class CharmLikeCastTests {
         AbilityDefinition shulk = AbilityRegistry.of(helper.getLevel()).getAbility(SHULK);
         helper.assertTrue(shulk != null, ABILITY_REQUIRED);
         KnownRecipes.teachRequires(caster, shulk);
-        helper.runAfterDelay(SETTLE_TICKS, () -> GooThrowHandler.execute(caster, new GooThrowPayload(
-                GooTypes.id(GooTypes.TYPHOON), zombie.getId(), BlockPos.ZERO, NO_FACE, false, SHULK.toString(),
-                caster.getEyePosition(), zombie.getBoundingBox().getCenter())));
+        helper.runAfterDelay(SETTLE_TICKS, () -> castAt(caster, GooTypes.TYPHOON, SHULK, zombie));
         helper.runAfterDelay(SETTLE_TICKS + 1, () -> {
             List<ShulkerBullet> bullets = helper.getLevel().getEntitiesOfClass(ShulkerBullet.class,
                     zombie.getBoundingBox().inflate(BULLET_SEARCH_BLOCKS));
@@ -129,6 +142,49 @@ public final class CharmLikeCastTests {
                 helper.getLevel().getServer().getPlayerList().remove(caster);
             });
         });
+    }
+
+    /**
+     * Rewind cast at a cow takes it back one step a cast: the first leaves a
+     * baby cow, the second its spawn egg (operator: "A second cast takes them
+     * to egg if possible").
+     *
+     * @param helper the gametest helper
+     */
+    public static void rewindStepsACowBackOncePerCast(GameTestHelper helper) {
+        Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, MOB_POS);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.YORE, REWIND);
+        caster.getInventory().add(GooStacks.createForOutput(GooTypes.YORE, REWIND_GOO * GooStacks.THOUSAND));
+        AbilityDefinition rewind = AbilityRegistry.of(helper.getLevel()).getAbility(REWIND);
+        helper.assertTrue(rewind != null, ABILITY_REQUIRED);
+        KnownRecipes.teachRequires(caster, rewind);
+        Vec3 stood = cow.position();
+        helper.runAfterDelay(SETTLE_TICKS, () -> castAt(caster, GooTypes.YORE, REWIND, cow));
+        helper.runAfterDelay(SETTLE_TICKS + STEP_TAKEN_TICKS, () -> {
+            helper.assertTrue(cow.isAlive() && cow.isBaby(), COW_SHOULD_BE_A_BABY);
+            castAt(caster, GooTypes.YORE, REWIND, cow);
+        });
+        helper.runAfterDelay(SETTLE_TICKS + 2 * STEP_TAKEN_TICKS, () -> {
+            List<ItemEntity> eggs = helper.getLevel().getEntitiesOfClass(ItemEntity.class,
+                    new AABB(stood, stood).inflate(EGG_SEARCH_BLOCKS), item -> item.getItem().is(Items.COW_SPAWN_EGG));
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(cow.isRemoved() && eggs.size() == 1, String.format(COW_SHOULD_BE_AN_EGG, eggs.size()));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Sends a charm-like cast's release at the mob, as the glove sends it.
+     *
+     * @param caster  the casting player
+     * @param gooType the ability's goo type
+     * @param ability the cast ability
+     * @param mob     the mob the press took
+     */
+    private static void castAt(ServerPlayer caster, ResourceKey<GooTypeDefinition> gooType, Identifier ability,
+            Mob mob) {
+        GooThrowHandler.execute(caster, new GooThrowPayload(GooTypes.id(gooType), mob.getId(), BlockPos.ZERO,
+                NO_FACE, false, ability.toString(), caster.getEyePosition(), mob.getBoundingBox().getCenter()));
     }
 
     /**
@@ -163,8 +219,7 @@ public final class CharmLikeCastTests {
         helper.assertTrue(definition != null, ABILITY_REQUIRED);
         KnownRecipes.teachRequires(caster, definition);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            GooThrowHandler.execute(caster, new GooThrowPayload(GooTypes.id(gooType), mob.getId(), BlockPos.ZERO,
-                    NO_FACE, false, ability.toString(), caster.getEyePosition(), mob.getBoundingBox().getCenter()));
+            castAt(caster, gooType, ability, mob);
             helper.assertFalse(landed.test(mob), String.format(SHOULD_DART_NOT_TOUCH, ability));
             helper.runAfterDelay(DART_LANDED_TICKS, () -> {
                 boolean stands = landed.test(mob);
