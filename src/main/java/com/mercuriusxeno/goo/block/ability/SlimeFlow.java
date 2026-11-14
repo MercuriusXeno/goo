@@ -6,10 +6,12 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * The slime pour rule, pure of any level: a slime cell taller than a side
- * neighbour pours one layer a tick into it, and off a ledge downward, until
- * it stands level, as a fluid levels out.
+ * The pour rule of a layered cell, pure of any level: a cell taller than a
+ * side neighbour pours one whole layer into it, and off a ledge downward,
+ * until it stands level, as a fluid levels out; the giver loses the layer the
+ * taker gains, and the ticks between pours follow the goo type's viscosity.
  * slime-is-a-layered-cell-that-levels-out
+ * spread-decreases-the-cell-it-leaves
  */
 public final class SlimeFlow {
 
@@ -18,6 +20,13 @@ public final class SlimeFlow {
      * stands level, as it would only pour back.
      */
     static final int POUR_GAP = 2;
+    /**
+     * The viscosity one tick between pours stands for: weird's 1000 waits
+     * three ticks, kinetic's 800 two.
+     */
+    static final int VISCOSITY_PER_POUR_TICK = 400;
+    /** Water's viscosity, the pace of a cell whose goo type's definition does not load. */
+    static final int WATER_VISCOSITY = 1000;
 
     /** What a side neighbour's cell can do with a poured layer. */
     enum Footing {
@@ -55,7 +64,7 @@ public final class SlimeFlow {
     }
 
     /**
-     * Which side neighbour takes one of a cell's layers this tick: an open
+     * Which side neighbour takes one of a cell's layers this pour: an open
      * ledge before any neighbour, else the lowest neighbour holding at least
      * two layers fewer, the first listed among equals. A cell never pours
      * its last layer, so a one-layer film stays where it was laid, dripping
@@ -71,6 +80,41 @@ public final class SlimeFlow {
         List<Side> takers = sides.stream().filter(side -> takes(layers, side)).toList();
         Optional<Side> ledge = takers.stream().filter(side -> side.footing() == Footing.LEDGE).findFirst();
         return ledge.or(() -> takers.stream().min(Comparator.comparingInt(Side::layers))).map(Side::direction);
+    }
+
+    /**
+     * What a pour leaves its two cells holding.
+     *
+     * @param giver the layers the pouring cell holds after the pour
+     * @param taker the layers the cell taking the layer holds after it
+     */
+    record Poured(int giver, int taker) {
+    }
+
+    /**
+     * A pour of one whole layer: the giver loses it and the taker gains it.
+     * spread-decreases-the-cell-it-leaves
+     *
+     * @param giver the layers the pouring cell holds
+     * @param taker the layers the cell taking the layer holds, 0 for an open cell
+     * @return what the two cells hold after the pour
+     */
+    static Poured poured(int giver, int taker) {
+        return new Poured(giver - 1, taker + 1);
+    }
+
+    /**
+     * The ticks a cell waits between pours: its goo type's viscosity, on the
+     * scale where water is 1000 and higher is thicker, over the viscosity a
+     * tick of waiting stands for, rounded up, so a thinner goo pours sooner;
+     * at least one tick.
+     * spread-decreases-the-cell-it-leaves
+     *
+     * @param viscosity the goo type's viscosity
+     * @return the ticks between pours
+     */
+    static int pourTicks(int viscosity) {
+        return Math.max(1, (int) Math.ceil((double) viscosity / VISCOSITY_PER_POUR_TICK));
     }
 
     /**

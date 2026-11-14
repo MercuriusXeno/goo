@@ -110,12 +110,18 @@ public final class WeirdTests {
     private static final String SLIME_LEVELS_OUT = "slime_levels_out_beside_an_open_top";
     private static final String SLIME_POURS_OFF_A_LEDGE = "slime_pours_off_a_ledge";
     /** Ticks the flow is given to settle, far past the handful of pours each test needs. */
-    private static final int FLOW_SETTLE_TICKS = 40;
+    private static final int FLOW_SETTLE_TICKS = 60;
     /** The layers the levelling cell starts at, even so it settles into two equal halves. */
     private static final int EIGHT_LAYERS = 8;
     private static final int FOUR_LAYERS = 4;
     /** The layers a whole block of slime holds. */
     private static final int WHOLE_BLOCK_LAYERS = 15;
+    private static final String FULL_CELL_SETTLES = "a_full_slime_cell_settles_across_open_floor";
+    /** Ticks watched past the settle, several pours' worth at any pace, for a cell that still changes. */
+    private static final int SETTLED_WATCH_TICKS = 20;
+    private static final String NOT_SETTLED = "The cross of cells should stand within one layer of its middle"
+            + " and hold fifteen layers, holds %s, the middle first";
+    private static final String STILL_POURING = "A settled cross should change no cell, held %s, later %s";
     /** The slime cell the flow tests fill, on a stone top in the bay's floor row. */
     private static final BlockPos FLOW_CELL = new BlockPos(2, 1, 2);
     /** The ledge cell's slime, on a stone pillar one block over the floor row. */
@@ -158,6 +164,46 @@ public final class WeirdTests {
         GooTestFunctions.registerTest(registrar, SLIME_LEVELS_OUT, WeirdTests::slimeLevelsOutBesideAnOpenTop);
         GooTestFunctions.registerTest(registrar, SLIME_POURS_OFF_A_LEDGE, WeirdTests::slimePoursOffALedge);
         GooTestFunctions.registerTest(registrar, DRIPS_DRAIN_A_LAYER_EACH, WeirdTests::goopDripsDrainALayersPriceEach);
+        GooTestFunctions.registerTest(registrar, FULL_CELL_SETTLES, WeirdTests::aFullCellSettlesAcrossOpenFloor);
+    }
+
+    /**
+     * A full slime cell of fifteen layers, open floor on its four sides and
+     * stone walling that cross in, pours until each neighbour stands within
+     * one layer of it, the five cells holding the fifteen layers it held, and
+     * once settled a later tick changes no cell.
+     * slime-is-a-layered-cell-that-levels-out
+     * spread-decreases-the-cell-it-leaves
+     *
+     * @param helper the gametest helper
+     */
+    public static void aFullCellSettlesAcrossOpenFloor(GameTestHelper helper) {
+        List<BlockPos> cross = new java.util.ArrayList<>(List.of(FLOW_CELL));
+        Direction.Plane.HORIZONTAL.forEach(side -> cross.add(FLOW_CELL.relative(side)));
+        for (BlockPos cell : cross) {
+            stoneUnder(helper, cell);
+            for (Direction side : Direction.Plane.HORIZONTAL) {
+                if (!cross.contains(cell.relative(side))) {
+                    helper.setBlock(cell.relative(side), Blocks.STONE);
+                }
+            }
+            helper.setBlock(cell, Blocks.AIR);
+        }
+        helper.setBlock(FLOW_CELL, slimeOf(WHOLE_BLOCK_LAYERS));
+        helper.runAfterDelay(FLOW_SETTLE_TICKS, () -> {
+            List<Integer> settled = cross.stream().map(cell -> SlimeCoatBlock.layersOf(helper.getBlockState(cell)))
+                    .toList();
+            int middle = settled.getFirst();
+            helper.assertTrue(settled.stream().allMatch(layers -> Math.abs(layers - middle) <= 1)
+                    && settled.stream().mapToInt(Integer::intValue).sum() == WHOLE_BLOCK_LAYERS,
+                    String.format(NOT_SETTLED, settled));
+            helper.runAfterDelay(SETTLED_WATCH_TICKS, () -> {
+                List<Integer> later = cross.stream()
+                        .map(cell -> SlimeCoatBlock.layersOf(helper.getBlockState(cell))).toList();
+                helper.assertTrue(later.equals(settled), String.format(STILL_POURING, settled, later));
+                helper.succeed();
+            });
+        });
     }
 
     /**
