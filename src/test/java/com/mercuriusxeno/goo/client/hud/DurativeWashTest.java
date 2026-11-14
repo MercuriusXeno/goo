@@ -6,8 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The wash a durative self ability lays over the view as its use lands:
- * nothing as it begins, rising to cover the viewport, and gone again by its
- * named duration's end.
+ * one even tint opening at the middle and washing past every edge, then
+ * emptying from the middle out until the view is clear by its named
+ * duration's end.
  * durative-self-abilities-wash-over-the-view-in-place-of-eating
  */
 class DurativeWashTest {
@@ -44,31 +45,41 @@ class DurativeWashTest {
     private static final int HEIGHT = 270;
     private static final double EDGE = 1e-9;
 
-    /**
-     * operator ruling: "want it to wash over the screen as a rectangle. It's coming out of a cuboid so the
-     * circular flare makes no sense"
-     */
-    @Test
-    void theWashBeginsAsASquareTheBlobsSizeWhereTheBlobStands() {
-        DurativeWash.Box start = DurativeWash.boxAt(0, WIDTH, HEIGHT, true);
+    /** The tick the fill has covered the view and the empty begins. */
+    private static final double FILLED = DurativeWash.WASH_TICKS * DurativeWash.SWELL_SHARE;
 
-        assertEquals(start.right() - start.left(), start.bottom() - start.top(), EDGE,
-                "the wash should begin as the cuboid's square, " + start);
-        assertTrue(start.right() - start.left() < Math.min(WIDTH, HEIGHT) / 4.0,
-                "the wash should begin at the blob's size, " + start);
-        assertTrue((start.left() + start.right()) / 2 > WIDTH / 2.0,
-                "a right-hand glove's blob should stand right of the middle, " + start);
+    /** operator ruling: "I'd like it to open up in the middle and wash *past* the edges of the screen uniformly" */
+    @Test
+    void theFillOpensInTheMiddleOfTheView() {
+        DurativeWash.Box opening = DurativeWash.fillAt(1, WIDTH, HEIGHT);
+
+        assertEquals(WIDTH / 2.0, (opening.left() + opening.right()) / 2, EDGE, "the fill should open centered");
+        assertEquals(HEIGHT / 2.0, (opening.top() + opening.bottom()) / 2, EDGE, "the fill should open centered");
+        assertTrue(opening.right() - opening.left() > 0 && opening.right() - opening.left() < WIDTH / 2.0,
+                "early on the fill should be small, " + opening);
     }
 
     @Test
-    void theWashGrowsAsARectangleUntilItCoversTheViewport() {
-        DurativeWash.Box start = DurativeWash.boxAt(0, WIDTH, HEIGHT, true);
-        DurativeWash.Box partWay = DurativeWash.boxAt(0.5, WIDTH, HEIGHT, true);
+    void theFillWashesPastEveryEdgeBeforeItEmpties() {
+        DurativeWash.Box filled = DurativeWash.fillAt(FILLED, WIDTH, HEIGHT);
+        DurativeWash.Box hollow = DurativeWash.hollowAt(FILLED, WIDTH, HEIGHT);
 
-        assertEquals(new DurativeWash.Box(0, 0, WIDTH, HEIGHT), DurativeWash.boxAt(1, WIDTH, HEIGHT, true));
-        assertTrue(partWay.left() < start.left() && partWay.top() < start.top() && partWay.right() > start.right()
-                && partWay.bottom() > start.bottom(), "part way the wash should have grown out of the blob, "
-                + partWay + " from " + start);
+        assertTrue(filled.left() < 0 && filled.top() < 0 && filled.right() > WIDTH && filled.bottom() > HEIGHT,
+                "the fill should wash past every edge, " + filled);
+        assertEquals(0, hollow.right() - hollow.left(), EDGE, "nothing should have emptied yet, " + hollow);
+    }
+
+    /** operator ruling: "1 until it fills, and then it empties from the middle out" */
+    @Test
+    void theWashEmptiesFromTheMiddleOutToTheEdges() {
+        DurativeWash.Box emptying = DurativeWash.hollowAt((FILLED + DurativeWash.WASH_TICKS) / 2, WIDTH, HEIGHT);
+        DurativeWash.Box emptied = DurativeWash.hollowAt(DurativeWash.WASH_TICKS, WIDTH, HEIGHT);
+
+        assertEquals(WIDTH / 2.0, (emptying.left() + emptying.right()) / 2, EDGE, "the hollow should open centered");
+        assertTrue(emptying.left() > 0 && emptying.right() < WIDTH, "part way the hollow should stand inside the view, "
+                + emptying);
+        assertTrue(emptied.left() <= 0 && emptied.top() <= 0 && emptied.right() >= WIDTH && emptied.bottom() >= HEIGHT,
+                "by the wash's end the hollow should reach every edge, " + emptied);
     }
 
     /** operator ruling: "Too opaque" */

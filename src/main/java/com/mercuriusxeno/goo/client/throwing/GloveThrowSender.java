@@ -34,7 +34,6 @@ import com.mercuriusxeno.goo.network.GooDragCastPayload;
 import com.mercuriusxeno.goo.network.GooStreamPayload;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
-import com.mercuriusxeno.goo.network.KnifeRainSling;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -432,7 +431,7 @@ public final class GloveThrowSender {
     private static void washOverTheView(Player player, ResourceKey<GooTypeDefinition> gooType) {
         long now = player.level().getGameTime();
         LiftedPalmBlob.spend(player.getId(), now);
-        DurativeWash.wash(gooType, now, KnifeRainSling.gloveOnTheRight(player));
+        DurativeWash.wash(gooType, now);
     }
 
     /**
