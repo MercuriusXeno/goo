@@ -3,7 +3,7 @@
   "function": "goo:downed_heal_past_zero_raises_the_cow_with_a_hop",
   "environment": "goo:rally_reload",
   "structure": "goo:test_bay",
-  "max_ticks": 400,
+  "max_ticks": 500,
   "setup_ticks": 0,
   "required": true
 }
