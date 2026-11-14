@@ -29,14 +29,15 @@ import java.util.UUID;
 import java.util.WeakHashMap;
 
 /**
- * Runs a rallied mob for its caster until the caster strikes it: it walks to
- * the caster's nearest enemy within reach of the caster, a player who attacked
- * the caster first, and strikes it with the rally's damage on reaching it and
- * every strike interval after; with no enemy in reach it takes the side its
- * moving caster heads toward, or follows a standing caster.
- * It wears its share of the caster's armor, read again every refresh interval.
- * The caster's own hit ends the rally and takes its buffs off; a hit from
- * anyone else leaves it.
+ * Runs a rallied mob for its caster until the caster strikes it or casts Rally
+ * on it again: it walks to the caster's nearest enemy within reach of the
+ * caster, a player who attacked the caster first, and strikes it with the
+ * rally's damage on reaching it and every strike interval after; with no enemy
+ * in reach it takes the side its moving caster heads toward, or follows a
+ * standing caster. It wears its share of the caster's armor, read again every
+ * refresh interval. The caster's own hit, or the caster's second Rally cast,
+ * which deals no damage, ends the rally and takes its buffs off; a hit or a
+ * cast from anyone else leaves it.
  * unengaged-minions-move-where-you-move
  * zoo-rally-arms-the-peaceful
  * zoo-rally-holds-for-the-brew
@@ -44,6 +45,7 @@ import java.util.WeakHashMap;
  * rallied-mobs-follow-the-player-who-rallied-them
  * rallied-mobs-turn-on-a-player-who-attacks-their-rallier
  * rally-minions-get-half-your-armor-and-a-floor
+ * rally-cast-on-your-rallied-mob-releases-it
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class RallyEvents {
