@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.OwnMinions;
+import com.mercuriusxeno.goo.ability.RallyRelease;
 import com.mercuriusxeno.goo.ability.aging.Aging;
 import com.mercuriusxeno.goo.ability.aging.AgingTable;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
@@ -116,7 +117,7 @@ public final class GooThrowHandler {
     /**
      * Fires a charged ability the player let go, when it may: a self ability
      * on the player, a thrown one as a rain of glass knives.
-     * decision shards-sling-then-morph-to-flechettes
+     * decision knives-sling-then-morph-to-flechettes
      *
      * @param player  the releasing player
      * @param payload the charge payload
@@ -546,7 +547,9 @@ public final class GooThrowHandler {
     /** Resolves the throw cost from the ability definition, falling back to THROW_COST.
      * An aging throw costs the aging table's price for the block it is aimed
      * at, and {@link #REFUSED} where the table names none, which no
-     * inventory can pay (decision old-blob-ages-valuables-slowly).
+     * inventory can pay (decision old-blob-ages-valuables-slowly). A Rally
+     * throw releasing the thrower's own rallied mob costs nothing
+     * (decision rally-release-cast-costs-nothing).
      *
      * @param player  the throwing player
      * @param payload the throw payload
@@ -557,6 +560,8 @@ public final class GooThrowHandler {
             ResourceKey<GooTypeDefinition> gooType) {
         AbilityDefinition def = thrownAbility(player.level(), payload.abilityId(), gooType);
         if (def == null) { return GooFraction.of(THROW_COST); }
+        Entity aimed = payload.targetEntityId() >= 0 ? player.level().getEntity(payload.targetEntityId()) : null;
+        if (RallyRelease.releasesOwnRally(def.behaviors(), player, aimed)) { return GooFraction.ZERO; }
         if (ages(def)) {
             return GooFraction.of(AgingTable.priceOf(player.level().getBlockState(payload.targetPos()))
                     .orElse(REFUSED));

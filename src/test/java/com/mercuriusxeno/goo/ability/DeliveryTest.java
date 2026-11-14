@@ -123,7 +123,7 @@ class DeliveryTest {
             assertEquals(60, delivery.chargeTicks());
         }
 
-        // shards-sling-then-morph-to-flechettes
+        // knives-sling-then-morph-to-flechettes
         // knives-cone-five-to-forty-five-and-three-to-twenty-seven-knives
         @Test
         void crystalKnivesChargesARainOfKnives() {
