@@ -21,6 +21,7 @@ import com.mercuriusxeno.goo.client.ability.CameraEye;
 import com.mercuriusxeno.goo.client.ability.CastOrigin;
 import com.mercuriusxeno.goo.client.ability.ChargeEase;
 import com.mercuriusxeno.goo.client.ability.ChargeMotes;
+import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
 import com.mercuriusxeno.goo.client.ability.ReserveVisual;
 import com.mercuriusxeno.goo.client.ability.VitalityVisual;
 import com.mercuriusxeno.goo.client.ability.WindLines;
@@ -459,6 +460,7 @@ public final class GloveThrowSender {
         CHARGE_ROOT.clear();
         CHARGE_WUBS.reset();
         ChargeMotes.clear();
+        LiftedPalmBlob.clockOnGameTime();
     }
 
     /**
@@ -473,8 +475,15 @@ public final class GloveThrowSender {
         OptionalDouble radius = drawnChargeRadius(player, 0f);
         if (radius.isEmpty()) {
             ChargeMotes.clear();
+            LiftedPalmBlob.clockOnGameTime();
             return;
         }
+        // every-lifted-palm-blob-beats-once-a-second: the blob and the spheroid swell most on each stage step
+        chargingSizedAbility(player).ifPresent(charging -> {
+            Charge charge = charging.ability().delivery().charge();
+            LiftedPalmBlob.clockOnCharge(player.level().getGameTime() - GloveUseTracker.heldTicks(),
+                    charge.maxTicks() / (charge.maxSize() - charge.openingSize()));
+        });
         ChargeMotes.tick(player.level().getGameTime(), chargeAnchor(), radius.getAsDouble(), throwOrigin(),
                 player.getRandom());
     }
