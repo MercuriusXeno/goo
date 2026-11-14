@@ -12,6 +12,7 @@ import net.minecraft.world.entity.NeutralMob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
@@ -22,8 +23,10 @@ import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.WeakHashMap;
 
 /**
  * Runs a rallied mob for its caster until the caster strikes it: it walks to
@@ -56,6 +59,8 @@ public final class RallyEvents {
     private static final double FOLLOW_SPEED = 1.0;
     /** Ticks between one path to a moving rallier and the next. */
     private static final int REPATH_TICKS = 10;
+    /** Each unengaged minion's spot from last tick, held weakly so a mob gone from the world drops out. */
+    private static final Map<Mob, Vec3> HELD_SPOTS = new WeakHashMap<>();
 
     private RallyEvents() {
     }
@@ -71,6 +76,9 @@ public final class RallyEvents {
                 || !mob.hasData(GooAttachments.RALLIED)) {
             return;
         }
+        // unengaged-minions-move-where-you-move: no vanilla goal walks a rallied mob, so it goes only where the
+        // rally walks it; set after the mob's tick, which re-enables the flag every fifth tick
+        mob.goalSelector.disableControlFlag(Goal.Flag.MOVE);
         Rallied rally = mob.getData(GooAttachments.RALLIED);
         if (level.getEntity(rally.caster()) instanceof LivingEntity caster) {
             act(level, mob, caster, rally);
@@ -97,8 +105,9 @@ public final class RallyEvents {
     }
 
     /**
-     * Fights the caster's foe in reach; with none, takes the side the moving
-     * caster heads toward, or follows the standing caster.
+     * Fights the caster's foe in reach; with none, walks to the spot on the
+     * side the caster heads toward and holds there once the caster stops, or
+     * with no spot follows the caster.
      * rallied-mobs-follow-the-player-who-rallied-them
      * unengaged-minions-move-where-you-move
      *
@@ -112,10 +121,13 @@ public final class RallyEvents {
         Optional<LivingEntity> foe = RallyFoes.pick(caster.getUUID(), standingAttacker(mob, rally, nearby),
                 uuidOf(caster.getLastHurtByMob()), uuidOf(caster.getLastHurtMob()), nearby);
         Vec3 rallierVelocity = RallierMotion.velocityOf(caster, level.getGameTime());
-        switch (RallyFollow.choose(foe.isPresent(), mob.distanceToSqr(caster), rallierVelocity)) {
+        Optional<Vec3> spot = foe.isPresent() ? Optional.empty()
+                : RallyFollow.spot(Optional.ofNullable(HELD_SPOTS.get(mob)), caster.position(), rallierVelocity,
+                        mob.getId());
+        spot.ifPresentOrElse(taken -> HELD_SPOTS.put(mob, taken), () -> HELD_SPOTS.remove(mob));
+        switch (RallyFollow.choose(foe.isPresent(), mob.position(), caster.position(), spot)) {
             case FIGHT -> fight(level, mob, foe.orElseThrow(), rally.damage());
-            case PRE_EMPT -> RallyFollow.destination(caster.position(), rallierVelocity, mob.getId())
-                    .ifPresent(spot -> walkTo(mob, spot));
+            case PRE_EMPT -> walkTo(mob, spot.orElseThrow());
             case FOLLOW -> follow(mob, caster);
             case HOLD -> mob.getNavigation().stop();
         }
@@ -228,6 +240,8 @@ public final class RallyEvents {
      */
     public static void endRally(Mob mob) {
         mob.removeData(GooAttachments.RALLIED);
+        HELD_SPOTS.remove(mob);
+        mob.goalSelector.enableControlFlag(Goal.Flag.MOVE);
         removeModifier(mob.getAttribute(Attributes.MAX_HEALTH), HEALTH_MODIFIER);
         removeModifier(mob.getAttribute(Attributes.MOVEMENT_SPEED), SPEED_MODIFIER);
         mob.setHealth(Math.min(mob.getHealth(), mob.getMaxHealth()));

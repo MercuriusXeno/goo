@@ -5,8 +5,9 @@ import java.util.Optional;
 
 /**
  * What a rallied mob does each tick: it fights a foe in reach; with none it
- * takes the side its moving rallier heads toward, or walks to a standing
- * rallier from beyond the near distance and holds within it.
+ * walks to the spot on the side its rallier heads toward and holds there once
+ * the rallier stops, or with no spot walks to its rallier from beyond the near
+ * distance and holds within it.
  * rallied-mobs-follow-the-player-who-rallied-them
  * unengaged-minions-move-where-you-move
  */
@@ -22,6 +23,10 @@ public final class RallyFollow {
     static final double SPREAD_RADIUS = 1.5;
     /** The share of each tick's step a smoothed velocity takes, so one stutter cannot swing the group. */
     static final double STEP_WEIGHT = 0.3;
+    /** How near its spot a minion stands before it holds there, in blocks. */
+    static final double ARRIVAL_DISTANCE = 0.5;
+    /** How far from a standing rallier a held spot may lie and still be kept: the farthest spot, and a block over. */
+    static final double SPOT_REACH = LEAD_DISTANCE + SPREAD_RADIUS + 1.0;
     /** A step farther than this in one tick is a teleport, not travel, in blocks. */
     static final double TELEPORT_STEP = 2.0;
     /** The golden angle, which spreads any run of seeds evenly round a circle. */
@@ -35,11 +40,11 @@ public final class RallyFollow {
     enum Move {
         /** Chase and strike the foe in reach. */
         FIGHT,
-        /** Walk to the side the moving rallier heads toward. */
+        /** Walk to the spot on the side the rallier heads toward, or headed toward before it stopped. */
         PRE_EMPT,
         /** Walk toward the standing rallier. */
         FOLLOW,
-        /** Stand where it is, near the standing rallier. */
+        /** Stand where it is: at its spot, or near the standing rallier. */
         HOLD
     }
 
@@ -54,14 +59,44 @@ public final class RallyFollow {
      * @param rallierVelocity      the rallier's smoothed velocity, in blocks a tick
      * @return the move
      */
-    static Move choose(boolean foeInReach, double distanceSqrToRallier, Vec3 rallierVelocity) {
+    /**
+     * Chooses a rallied mob's move.
+     *
+     * @param foeInReach      whether a foe of the rallier stands in the mob's reach
+     * @param mobPosition     the mob's position
+     * @param rallierPosition the rallier's position
+     * @param spot            the spot the mob walks to on the side its rallier headed toward, from {@link #spot}
+     * @return the move
+     */
+    static Move choose(boolean foeInReach, Vec3 mobPosition, Vec3 rallierPosition, Optional<Vec3> spot) {
         if (foeInReach) {
             return Move.FIGHT;
         }
-        if (isMoving(rallierVelocity)) {
-            return Move.PRE_EMPT;
+        if (spot.isPresent()) {
+            return mobPosition.subtract(spot.get()).horizontalDistance() > ARRIVAL_DISTANCE ? Move.PRE_EMPT : Move.HOLD;
         }
-        return distanceSqrToRallier > NEAR_DISTANCE * NEAR_DISTANCE ? Move.FOLLOW : Move.HOLD;
+        return mobPosition.distanceToSqr(rallierPosition) > NEAR_DISTANCE * NEAR_DISTANCE ? Move.FOLLOW : Move.HOLD;
+    }
+
+    /**
+     * The spot an unengaged minion walks to: a fresh one while its rallier
+     * moves, and once the rallier stops the one it last took, so the minion
+     * walks on to it and holds there rather than halting where it stood. A
+     * held spot the rallier stands far from, as after a teleport, drops, and
+     * the minion follows the rallier again.
+     *
+     * @param heldSpot        the spot the minion took last tick, empty for none
+     * @param rallierPosition the rallier's position
+     * @param rallierVelocity the rallier's smoothed velocity, in blocks a tick
+     * @param spreadSeed      a number telling one minion from another, such as its entity id
+     * @return the spot, or empty for none
+     */
+    static Optional<Vec3> spot(Optional<Vec3> heldSpot, Vec3 rallierPosition, Vec3 rallierVelocity, int spreadSeed) {
+        Optional<Vec3> fresh = destination(rallierPosition, rallierVelocity, spreadSeed);
+        if (fresh.isPresent()) {
+            return fresh;
+        }
+        return heldSpot.filter(held -> held.subtract(rallierPosition).horizontalDistance() <= SPOT_REACH);
     }
 
     /**
