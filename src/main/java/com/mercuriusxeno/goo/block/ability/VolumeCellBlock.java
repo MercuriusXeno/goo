@@ -335,8 +335,43 @@ public class VolumeCellBlock extends Block {
     @Override
     protected void tick(@NonNull BlockState state, @NonNull ServerLevel level, @NonNull BlockPos pos,
                         @NonNull RandomSource random) {
+        pourOnce(level, pos, state);
+    }
+
+    /**
+     * Spreads a cell a drip just raised, at once: it pours into its side
+     * cells, and off its ledges, until none stands two layers below it, in
+     * the tick the drip lands; the side cells that took a layer spread on at
+     * their goo type's viscosity's pace.
+     * spread-decreases-the-cell-it-leaves
+     * operator ruling 2026-11-14: spread the blob when it updates, immediately
+     *
+     * @param level the level
+     * @param pos   the raised cell
+     */
+    public void spreadAtOnce(ServerLevel level, BlockPos pos) {
+        // each pour moves a layer the cell holds, so a cell runs out of pours within its fifteen layers
+        for (int pour = 0; pour < MAX_LAYERS; pour++) {
+            BlockState state = level.getBlockState(pos);
+            if (!state.is(this) || !pourOnce(level, pos, state)) {
+                return;
+            }
+        }
+    }
+
+    /**
+     * Pours one layer into the side the flow rule picks.
+     *
+     * @param level the level
+     * @param pos   the pouring cell
+     * @param state the pouring cell's state
+     * @return true where the cell gave a layer
+     */
+    private boolean pourOnce(ServerLevel level, BlockPos pos, BlockState state) {
         List<Side> sides = SIDES.stream().map(side -> sideOf(level, pos.relative(side), side)).toList();
-        SlimeFlow.pour(state.getValue(LAYERS), sides).ifPresent(side -> pourToward(level, pos, state, side));
+        Optional<Direction> toward = SlimeFlow.pour(state.getValue(LAYERS), sides);
+        toward.ifPresent(side -> pourToward(level, pos, state, side));
+        return toward.isPresent() && level.getBlockState(pos) != state;
     }
 
     /**

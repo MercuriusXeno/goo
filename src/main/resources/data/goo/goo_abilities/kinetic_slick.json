@@ -10,8 +10,8 @@
     "kind": "stream",
     "drains_on_placement": true,
     "throw_speed": 0.84,
-    "drips_per_tick": 2,
-    "cone": 24,
+    "drips_per_tick": 1,
+    "cone": 60,
     "ticks_per_charge": 20,
     "particle": "goo:slick_spray_drip",
     "sound": { "id": "minecraft:block.honey_block.slide", "every": 10, "volume": 1.0, "pitch": 1.0, "pitch_spread": 0.1 }

@@ -111,12 +111,15 @@ public final class CoatRay {
 
     /**
      * The places in the cone a stream's drips are thrown along on a tick of
-     * its hold: each drip at its own place, its tilt off the axis and its
-     * turn about it drawn evenly, so a hold scatters its goo over every cell
-     * the cone covers, thicker near the aim line, rather than stacking it on
-     * a fixed fan's few spots. The draw is seeded by the hold's tick, so a
-     * tick throws the same drips wherever the thrower moves.
+     * its hold: each drip at its own place, drawn evenly over the cone's
+     * cross-section, so a hold spreads its goo over every cell the cone
+     * covers with none taking more than its share, rather than stacking it
+     * on the aim line. The tilt off the axis is the square root of an even
+     * draw, since the area within a tilt grows as its square. The draw is
+     * seeded by the hold's tick, so a tick throws the same drips wherever the
+     * thrower moves.
      * operator ruling 2026-11-14: the spray scatters each drip and thins, so slick spreads a track, not walls
+     * operator ruling 2026-11-14: stop hitting the same block, so drips spread evenly over the cone's area
      * goop-drains-per-cubic-meter-of-slime-placed: the spray's pace is how many drips land a tick, each a layer
      *
      * @param held         the hold's tick count, 1 on its first tick
@@ -127,7 +130,7 @@ public final class CoatRay {
         RandomSource draw = RandomSource.create(held * SCATTER_SEED_STRIDE);
         List<ConeShare> thrown = new ArrayList<>(dripsPerTick);
         for (int drip = 0; drip < dripsPerTick; drip++) {
-            thrown.add(new ConeShare(draw.nextDouble(), draw.nextDouble()));
+            thrown.add(new ConeShare(Math.sqrt(draw.nextDouble()), draw.nextDouble()));
         }
         return thrown;
     }
