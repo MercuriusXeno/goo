@@ -181,7 +181,7 @@ class AbilityLoaderTest {
 
         @Test
         void quantumShipsItsPhasesAndPortalsAlone() {
-            assertEquals(Set.of("quantum_phase", "quantum_phase_shift", "quantum_portal", "quantum_tunnel"),
+            assertEquals(Set.of("quantum_phase_other", "quantum_phase_self", "quantum_portal", "quantum_tunnel"),
                     shippedPathsOf(GooTypes.QUANTUM));
         }
 

@@ -1,6 +1,6 @@
 {
   "gooType": "quantum",
-  "displayName": "goo.ability.quantum.phase",
+  "displayName": "goo.ability.quantum.phase_self",
   "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
   "badge": "durative",
   "order": 0,
