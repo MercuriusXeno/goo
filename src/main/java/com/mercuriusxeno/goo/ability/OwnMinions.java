@@ -19,9 +19,11 @@ public final class OwnMinions {
 
     /**
      * Whether a mob is the caster's own minion: its rally or its charm names
-     * the caster. A rally stands until its rallier strikes the mob, which
-     * takes the rally off it, so a rally the mob holds is a standing one.
+     * the caster. A rally stands until its rallier strikes the mob or casts
+     * Rally on it again, either of which takes the rally off it, so a rally
+     * the mob holds is a standing one.
      * rally-is-a-mob-effect-on-one-target
+     * rally-cast-on-your-rallied-mob-releases-it
      *
      * @param caster  the caster asked about
      * @param rallied the rally the mob holds, {@link Rallied#NONE} for none
