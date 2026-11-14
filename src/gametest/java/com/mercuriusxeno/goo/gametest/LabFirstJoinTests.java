@@ -1,11 +1,16 @@
 package com.mercuriusxeno.goo.gametest;
 
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.lab.LabBuilder;
 import com.mercuriusxeno.goo.lab.LabFirstJoin;
 import com.mercuriusxeno.goo.lab.LabFirstJoinMarker;
+import com.mercuriusxeno.goo.lab.LabKit;
 import com.mercuriusxeno.goo.lab.LabPen;
 import com.mercuriusxeno.goo.lab.LabPlacement;
 import com.mercuriusxeno.goo.lab.LabPlan;
+import com.mercuriusxeno.goo.network.PlayerKnowledge;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.core.BlockPos;
@@ -20,20 +25,25 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.Collection;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * Gametests for the Goo Lab save's first join: it builds the lab and hands the
- * kit once per save, and reads a lab already standing as built. Every gametest
- * in a run shares one level, so each test hands the routine a fresh marker and
- * its own origin.
+ * Gametests for the Goo Lab save's first join: it builds the lab, hands the
+ * kit and teaches every recipe once per save, reads a lab already standing as
+ * built, and leaves a forget standing across a rejoin. Every gametest in a run
+ * shares one level, so each test hands the routine a fresh marker and its own origin.
  * decision goo-lab-save-builds-and-kits-on-first-join
+ * decision goo-lab-save-teaches-every-recipe-on-first-join
  */
 @RegistersGameTests
 public final class LabFirstJoinTests {
     private static final String LAB_FIRST_JOIN_BUILDS_AND_KITS = "lab_first_join_builds_and_kits";
     private static final String LAB_SECOND_JOIN_KEEPS_WHAT_THE_PLAYER_LEFT = "lab_second_join_keeps_what_the_player_left";
     private static final String LAB_FIRST_JOIN_READS_A_STANDING_LAB_AS_BUILT = "lab_first_join_reads_a_standing_lab_as_built";
+    private static final String LAB_FIRST_JOIN_TEACHES_EVERY_ABILITY = "lab_first_join_teaches_every_ability";
+    private static final String LAB_FORGET_HOLDS_ACROSS_A_REJOIN = "lab_forget_holds_across_a_rejoin";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -46,6 +56,10 @@ public final class LabFirstJoinTests {
                 LabFirstJoinTests::secondJoinKeepsWhatThePlayerLeft);
         GooTestFunctions.registerTest(registrar, LAB_FIRST_JOIN_READS_A_STANDING_LAB_AS_BUILT,
                 LabFirstJoinTests::firstJoinReadsAStandingLabAsBuilt);
+        GooTestFunctions.registerTest(registrar, LAB_FIRST_JOIN_TEACHES_EVERY_ABILITY,
+                LabFirstJoinTests::firstJoinTeachesEveryAbility);
+        GooTestFunctions.registerTest(registrar, LAB_FORGET_HOLDS_ACROSS_A_REJOIN,
+                LabFirstJoinTests::forgetHoldsAcrossARejoin);
     }
 
     private static final String REMOVAL = "removal";
@@ -58,6 +72,10 @@ public final class LabFirstJoinTests {
     private static final String INVENTORY_REPLACED = "The join should leave the inventory holding the player's item alone";
     private static final String PEN_EMPTY = "The standing lab's pen should hold mobs before the join";
     private static final String PEN_RESPAWNED = "A join reading a standing lab should spawn no pen mob again";
+    private static final String NO_ABILITIES = "The gametest server should load abilities to unlock";
+    private static final String ABILITY_LOCKED = "First join should unlock the ability ";
+    private static final String TAUGHT_NOTHING = "First join should teach the player before the forget";
+    private static final String FORGET_UNDONE = "A rejoin after a forget should leave the player knowing stone alone";
 
     private LabFirstJoinTests() {
     }
@@ -130,6 +148,50 @@ public final class LabFirstJoinTests {
         helper.assertTrue(mobsInside(helper, origin, pen) == mobsBefore, PEN_RESPAWNED);
         assertHoldsAppleAlone(helper, player.getInventory());
         helper.assertTrue(marker.isBuilt(), MARKER_UNBUILT);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.succeed();
+    }
+
+    /**
+     * Runs the first join on a fresh marker and asserts every loaded ability is known to the player.
+     *
+     * @param helper the gametest helper
+     */
+    @SuppressWarnings(REMOVAL) // vanilla marks the mock server player helper for removal and names no replacement
+    public static void firstJoinTeachesEveryAbility(GameTestHelper helper) {
+        LabPlan plan = LabBuilder.planFor(helper.getLevel());
+        BlockPos origin = LabTests.centredOrigin(helper, plan.bounds());
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        fitOut(helper, origin, player, new LabFirstJoinMarker());
+        KnownItems known = PlayerKnowledge.of(player);
+        Collection<AbilityDefinition> abilities = AbilityRegistry.of(helper.getLevel()).all();
+        helper.assertFalse(abilities.isEmpty(), NO_ABILITIES);
+        for (AbilityDefinition ability : abilities) {
+            helper.assertTrue(ability.isKnownTo(known), ABILITY_LOCKED + ability.id());
+        }
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.succeed();
+    }
+
+    /**
+     * Runs the first join, forgets, teaches stone, runs the join again on the
+     * same marker, and asserts the player knows stone alone.
+     *
+     * @param helper the gametest helper
+     */
+    @SuppressWarnings(REMOVAL) // vanilla marks the mock server player helper for removal and names no replacement
+    public static void forgetHoldsAcrossARejoin(GameTestHelper helper) {
+        LabPlan plan = LabBuilder.planFor(helper.getLevel());
+        BlockPos origin = LabTests.centredOrigin(helper, plan.bounds());
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        LabFirstJoinMarker marker = new LabFirstJoinMarker();
+        fitOut(helper, origin, player, marker);
+        helper.assertTrue(PlayerKnowledge.of(player).items().size() > 1, TAUGHT_NOTHING);
+        LabKit.forget(player);
+        PlayerKnowledge.learn(player, Items.STONE);
+        fitOut(helper, origin, player, marker);
+        helper.assertTrue(PlayerKnowledge.of(player).items().equals(Set.of(PlayerKnowledge.idOf(Items.STONE))),
+                FORGET_UNDONE);
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.succeed();
     }
