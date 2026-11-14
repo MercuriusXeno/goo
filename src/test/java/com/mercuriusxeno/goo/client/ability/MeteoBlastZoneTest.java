@@ -3,15 +3,17 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
+import com.mercuriusxeno.goo.client.overlay.RippleRings;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Meteo's blast zone, drawn at the aimed target while its charge holds,
- * spans the meteor's blast reach and pulses on the clock, so it reads by
- * depth and animation rather than by color alone
- * (decisions spontaneous-abilities-cast-at-the-target-with-no-thrown-blob,
+ * Meteo's blast zone, drawn at the aimed target while its charge holds, is
+ * the held dome's rings alone: no sphere shell, the rings rippling over the
+ * aimed surface out to the meteor's blast reach on the clock
+ * (decisions meteo-blast-zone-is-ground-rings-only,
  * active-target-indicators-carry-depth-and-animation).
  */
 class MeteoBlastZoneTest {
@@ -20,14 +22,19 @@ class MeteoBlastZoneTest {
     private static final float METEOR_POWER = 4.0f;
 
     @Test
-    void zoneSpansTheMeteorsBlastReach() {
-        AbilityDefinition meteo = AbilityJson.decode("astral_meteo");
-        HeldGhost ghost = MeteoBlastZone.INSTANCE.ghost(meteo.area(), meteo.behaviors());
-        assertEquals((float) ExplosionMarch.maxReach(METEOR_POWER), ghost.domeRadius(), 1e-6f);
+    void zoneHoldsNoSphereShell() {
+        assertTrue(MeteoBlastZone.INSTANCE.heldLayers().isEmpty());
     }
 
     @Test
-    void zonePulsesWithTime() {
-        assertNotEquals(MeteoBlastZone.pulseAt(0.0), MeteoBlastZone.pulseAt(0.4));
+    void zoneRingsReachTheMeteorsBlastReach() {
+        AbilityDefinition meteo = AbilityJson.decode("astral_meteo");
+        HeldGhost ghost = MeteoBlastZone.INSTANCE.ghost(meteo.area(), meteo.behaviors());
+        assertEquals((float) ExplosionMarch.maxReach(METEOR_POWER), ghost.ringRadius(), 1e-6f);
+    }
+
+    @Test
+    void zoneRingPhaseAdvancesWithTime() {
+        assertFalse(RippleRings.ringPhases(0.0)[0] == RippleRings.ringPhases(0.4)[0]);
     }
 }
