@@ -4,7 +4,7 @@
   "badge": "world",
   "order": 40,
   "cost": 3000,
-  "delivery": { "kind": "arc" },
+  "delivery": { "kind": "spontaneous" },
   "behaviors": [
     { "type": "meteor", "power": 4.0, "fall_ticks": 40 }
   ],

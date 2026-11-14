@@ -47,6 +47,18 @@ public record MeteorStep(Expr power, int fallTicks) implements Step {
         return true;
     }
 
+    /**
+     * The radius the meteor's explosion cuts at most under these variables,
+     * the open-air reach of its power, the blast zone drawn while Meteo charges.
+     * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
+     *
+     * @param variables the host's variables
+     * @return the reach in blocks
+     */
+    public double reachAt(Variables variables) {
+        return ExplosionMarch.maxReach(power.evaluateFloat(variables));
+    }
+
     @Override
     public Stream<Expr> expressions() {
         return Stream.of(power);
