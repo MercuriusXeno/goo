@@ -13,8 +13,8 @@ import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
 import com.mercuriusxeno.goo.client.ability.LaserVisual;
 import com.mercuriusxeno.goo.client.ability.LeechWisps;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
-import com.mercuriusxeno.goo.client.ability.MeltAbsorbs;
 import com.mercuriusxeno.goo.client.ability.MeteorScorches;
+import com.mercuriusxeno.goo.client.ability.MoltenAbsorbs;
 import com.mercuriusxeno.goo.client.ability.PartnerView;
 import com.mercuriusxeno.goo.client.ability.ReapSlashBlades;
 import com.mercuriusxeno.goo.client.ability.ReapSwells;
@@ -24,7 +24,7 @@ import com.mercuriusxeno.goo.client.ability.Tomes;
 import com.mercuriusxeno.goo.client.ability.VitalityVisual;
 import com.mercuriusxeno.goo.client.hole.ClientPortableHoles;
 import com.mercuriusxeno.goo.client.model.GooJoins;
-import com.mercuriusxeno.goo.client.outsider.ClientConjuredDoors;
+import com.mercuriusxeno.goo.client.zone.ClientConjuredDoors;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.network.AfterimagePayload;
 import com.mercuriusxeno.goo.network.AilmentPayload;
@@ -49,10 +49,10 @@ import com.mercuriusxeno.goo.network.KnownItemsSyncPayload;
 import com.mercuriusxeno.goo.network.LaserPayload;
 import com.mercuriusxeno.goo.network.LeechPayload;
 import com.mercuriusxeno.goo.network.LurkerPulsePayload;
-import com.mercuriusxeno.goo.network.MeltAbsorbPayload;
 import com.mercuriusxeno.goo.network.MeteorScorchPayload;
 import com.mercuriusxeno.goo.network.MobHitPayload;
 import com.mercuriusxeno.goo.network.ModelShrinkPayload;
+import com.mercuriusxeno.goo.network.MoltenAbsorbPayload;
 import com.mercuriusxeno.goo.network.NovaRingPayload;
 import com.mercuriusxeno.goo.network.OpenNamingScreenPayload;
 import com.mercuriusxeno.goo.network.OpenValuesManagerPayload;
@@ -154,7 +154,7 @@ public final class GooClientNetworking {
 
     /**
      * Registers the handlers for the abilities' own visuals: the held sweeps of
-     * astral's Scry, crystal's Glitter and metal's Magnet,
+     * astral's Scry, crystal's Glimmer and metal's Magnet,
      * glow's Laser, hex's leech and tomes, frost's Nova rings and
      * leaf's Reap swells.
      *
@@ -167,7 +167,7 @@ public final class GooClientNetworking {
         event.register(TomePayload.TYPE, Tomes::handle);
         event.register(NovaRingPayload.TYPE, NovaRingHandler::handle);
         event.register(HeaterFlamePayload.TYPE, HeaterFlames::onPayload);
-        event.register(MeltAbsorbPayload.TYPE, MeltAbsorbs::onPayload);
+        event.register(MoltenAbsorbPayload.TYPE, MoltenAbsorbs::onPayload);
         event.register(ReapSwellPayload.TYPE, ReapSwells::handle);
         event.register(ReapSlashPayload.TYPE, ReapSlashBlades::handle);
         event.register(OreRevealPayload.TYPE, OreRevealHandler::handle);

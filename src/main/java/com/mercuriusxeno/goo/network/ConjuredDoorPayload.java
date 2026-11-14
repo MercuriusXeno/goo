@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.outsider.ConjuredDoor;
+import com.mercuriusxeno.goo.ability.zone.ConjuredDoor;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -10,7 +10,7 @@ import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.NonNull;
 
 /**
- * Server-to-client payload: the door a player channeling Outsider has
+ * Server-to-client payload: the door a player channeling Zone has
  * conjured this tick, sent to the caster and every player tracking them, so
  * each draws it growing, then moving into the caster; a door no longer sent
  * collapses on its own.

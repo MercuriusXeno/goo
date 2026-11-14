@@ -184,7 +184,7 @@ public final class RallyEvents {
 
     /**
      * Walks a mob toward the one it follows, re-pathing as that one moves:
-     * a rallied mob its rallier, a led mob the player holding Leader.
+     * a rallied mob its rallier, a led mob the player holding Kin.
      * rallied-mobs-follow-the-player-who-rallied-them
      * leader-leads-passive-mobs-at-a-short-distance
      *

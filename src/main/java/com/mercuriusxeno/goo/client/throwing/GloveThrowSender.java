@@ -476,7 +476,7 @@ public final class GloveThrowSender {
     /**
      * Whether the ability refuses the block the throw would strike, so the
      * aim sends nothing and nothing is paid, as an unaffordable click does;
-     * Melt strikes only meltable stone.
+     * Molten strikes only meltable stone.
      * melt-blob-absorbs-into-lava
      *
      * @param player  the local player

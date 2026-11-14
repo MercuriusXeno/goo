@@ -8,21 +8,21 @@ import com.mercuriusxeno.goo.ability.program.AfterimageStep;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
 import com.mercuriusxeno.goo.ability.program.AilmentOverlayStep;
 import com.mercuriusxeno.goo.ability.program.AirbornStep;
-import com.mercuriusxeno.goo.ability.program.CoatStep;
 import com.mercuriusxeno.goo.ability.program.ChannelHost;
 import com.mercuriusxeno.goo.ability.program.CharmStep;
+import com.mercuriusxeno.goo.ability.program.CoatStep;
 import com.mercuriusxeno.goo.ability.program.CoolLavaStep;
 import com.mercuriusxeno.goo.ability.program.EntityFilter;
-import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.FloatStep;
 import com.mercuriusxeno.goo.ability.program.GhostTrailStep;
 import com.mercuriusxeno.goo.ability.program.GluttonyStep;
+import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
-import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.SoundStep;
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.TargetStep;
 import com.mercuriusxeno.goo.ability.program.TeleportStep;
 import com.mercuriusxeno.goo.ability.program.TomeKind;
@@ -85,7 +85,7 @@ class AbilityLoaderTest {
     /** The one brew that starts silent (decision rally-drops-its-sound-and-gets-its-sprite). */
     private static final Identifier SILENT_BREW = Identifier.fromNamespaceAndPath(Goo.MODID, "zoo_rally");
     /** The proving example of a world ability that stays after its blob lands. */
-    private static final String LINGERING = "crystal_cloud";
+    private static final String LINGERING = "crystal_shatter";
     /** The ability whose program ends the tick it lands. */
     private static final String BLAST = "unstable_blast";
 
@@ -181,7 +181,7 @@ class AbilityLoaderTest {
 
         @Test
         void quantumShipsItsPhasesAndPortalsAlone() {
-            assertEquals(Set.of("quantum_phase", "quantum_phase_shift", "quantum_portal", "quantum_tunnel"),
+            assertEquals(Set.of("quantum_phase_other", "quantum_phase_self", "quantum_portal", "quantum_tunnel"),
                     shippedPathsOf(GooTypes.QUANTUM));
         }
 
@@ -193,8 +193,8 @@ class AbilityLoaderTest {
         }
 
         @Test
-        void voidShipsEraseHoleOutsiderAndVacuum() {
-            assertEquals(Set.of("void_erase", "void_hole", "void_outsider", "void_vacuum"),
+        void voidShipsCancelHoleZoneAndVacuum() {
+            assertEquals(Set.of("void_cancel", "void_hole", "void_zone", "void_vacuum"),
                     shippedPathsOf(GooTypes.VOID));
         }
     }
@@ -234,15 +234,15 @@ class AbilityLoaderTest {
     }
 
     /**
-     * Crystal's Prism and Glitter take no item cost (operator ruling
+     * Crystal's Prism and Glimmer take no item cost (operator ruling
      * 2026-10-10), and an ability naming no reagent consumes nothing
      * (decisions ability-json-names-its-reagent, glitter-sphere-icons-gem-ore-groups).
      */
     @Test
-    void prismAndGlitterConsumeNothing() {
+    void prismAndGlimmerConsumeNothing() {
         Map<Identifier, AbilityDefinition> scanned = shippedById();
 
-        for (String path : List.of("crystal_prism", "crystal_glitter", "crystal_cloud")) {
+        for (String path : List.of("crystal_prism", "crystal_glimmer", "crystal_shatter")) {
             assertEquals(List.of(), scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, path)).consumes(), path);
         }
     }
@@ -450,16 +450,16 @@ class AbilityLoaderTest {
         }
 
         /**
-         * Outsider's price is its step's entry, read live, so its file names no formula and loads
+         * Zone's price is its step's entry, read live, so its file names no formula and loads
          * (decision outsider-cost-text-reads-the-new-mechanics).
          */
         @Test
-        void outsiderNamesNoFormulaAndLoads() {
-            JsonObject outsider = JsonParser.parseString(AbilityJson.read("void_outsider")).getAsJsonObject();
+        void zoneNamesNoFormulaAndLoads() {
+            JsonObject zone = JsonParser.parseString(AbilityJson.read("void_zone")).getAsJsonObject();
 
-            assertFalse(outsider.has("cost_formula"), () -> "cost_formula reads " + outsider.get("cost_formula"));
-            assertEquals(Identifier.fromNamespaceAndPath(Goo.MODID, "void_outsider"),
-                    AbilityJson.decode("void_outsider").id());
+            assertFalse(zone.has("cost_formula"), () -> "cost_formula reads " + zone.get("cost_formula"));
+            assertEquals(Identifier.fromNamespaceAndPath(Goo.MODID, "void_zone"),
+                    AbilityJson.decode("void_zone").id());
         }
 
         @Test
@@ -582,7 +582,7 @@ class AbilityLoaderTest {
         /** decision leader-is-zoos-brew-ability */
         @Test
         void shippedZooLeaderHoldsOnAnUpkeep() {
-            AbilityDefinition leader = AbilityJson.decode("zoo_leader");
+            AbilityDefinition leader = AbilityJson.decode("zoo_kin");
 
             assertEquals(GooTypes.ZOO, leader.gooType());
             assertEquals(AbilityBadge.DURATIVE, leader.badge());

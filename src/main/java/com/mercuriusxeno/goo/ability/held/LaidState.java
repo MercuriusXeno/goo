@@ -6,7 +6,7 @@ import com.mercuriusxeno.goo.ability.program.EludeStep;
 import com.mercuriusxeno.goo.ability.program.ExtendStep;
 import com.mercuriusxeno.goo.ability.program.GluttonyStep;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
-import com.mercuriusxeno.goo.ability.program.LeaderStep;
+import com.mercuriusxeno.goo.ability.program.KinStep;
 import com.mercuriusxeno.goo.ability.program.LifetapStep;
 import com.mercuriusxeno.goo.ability.program.LowerCaseEnumCodec;
 import com.mercuriusxeno.goo.ability.program.LuxStep;
@@ -65,8 +65,8 @@ public enum LaidState {
     RALLY,
     /** The dive's swim through stone and its vision (decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks). */
     SCULKER,
-    /** Zoo's Leader, last since the client sync numbers states by order (decision leader-is-zoos-brew-ability). */
-    LEADER;
+    /** Zoo's Kin, last since the client sync numbers states by order (decision leader-is-zoos-brew-ability). */
+    KIN;
 
     /** Codec for the saved state. */
     public static final Codec<LaidState> CODEC = LowerCaseEnumCodec.of(LaidState.class, "laid state");
@@ -108,7 +108,7 @@ public enum LaidState {
             Map.entry(AncientStep.class, ANCIENT),
             Map.entry(PhaseStep.class, PHASE),
             Map.entry(SculkerStep.class, SCULKER),
-            Map.entry(LeaderStep.class, LEADER));
+            Map.entry(KinStep.class, KIN));
 
     private static Stream<Step> withDescendants(Step step) {
         return Stream.concat(Stream.of(step), step.children().flatMap(LaidState::withDescendants));

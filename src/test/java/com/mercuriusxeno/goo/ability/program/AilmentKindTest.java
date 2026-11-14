@@ -25,11 +25,11 @@ class AilmentKindTest {
 
     @Test
     void eachAilmentTheListsNameCarriesItsColor() {
-        Map<AilmentKind, Integer> named = Stream.of(AilmentKind.STASIS, AilmentKind.SCALES, AilmentKind.ZONE,
+        Map<AilmentKind, Integer> named = Stream.of(AilmentKind.STASIS, AilmentKind.SCALES, AilmentKind.SEAL,
                 AilmentKind.HEX, AilmentKind.PETRIFY, AilmentKind.FROZEN)
                 .collect(Collectors.toMap(Function.identity(), AilmentKind::rgb));
 
-        assertEquals(Map.of(AilmentKind.STASIS, 0xFFD447, AilmentKind.SCALES, 0x4AEDD9, AilmentKind.ZONE, 0xB05CFF,
+        assertEquals(Map.of(AilmentKind.STASIS, 0xFFD447, AilmentKind.SCALES, 0x4AEDD9, AilmentKind.SEAL, 0xB05CFF,
                 AilmentKind.HEX, 0x6A1FB0, AilmentKind.PETRIFY, 0x8C8A86, AilmentKind.FROZEN, 0xC4ECFF), named);
     }
 
@@ -48,8 +48,8 @@ class AilmentKindTest {
 
     @Test
     void eachRemainingAilmentWearsItsOwnLook() {
-        assertEquals(AilmentPattern.SHIMMER, AilmentKind.ZONE.pattern());
-        assertEquals(AilmentKind.ZONE.rgb(), AilmentKind.ELUDE.rgb());
+        assertEquals(AilmentPattern.SHIMMER, AilmentKind.SEAL.pattern());
+        assertEquals(AilmentKind.SEAL.rgb(), AilmentKind.ELUDE.rgb());
         assertEquals(AilmentPattern.SHIMMER, AilmentKind.ELUDE.pattern());
         assertTrue(AilmentKind.HEX.drawsOutline());
         assertNotEquals(AilmentKind.STASIS.rgb(), AilmentKind.HEX.rgb());

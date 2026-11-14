@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.ability.quantum;
 
-import com.mercuriusxeno.goo.ability.outsider.OutsiderRooms;
-import com.mercuriusxeno.goo.ability.outsider.RoomEdges;
-import com.mercuriusxeno.goo.ability.outsider.RoomExtent;
+import com.mercuriusxeno.goo.ability.zone.RoomEdges;
+import com.mercuriusxeno.goo.ability.zone.RoomExtent;
+import com.mercuriusxeno.goo.ability.zone.ZoneRooms;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
@@ -21,7 +21,7 @@ import static org.mockito.Mockito.when;
  */
 class RoomEdgeFloorHoldsTest {
 
-    private static final BlockPos CENTER = OutsiderRooms.voidstoneOf(6);
+    private static final BlockPos CENTER = ZoneRooms.voidstoneOf(6);
 
     @ParameterizedTest(name = "extent {0}")
     @ValueSource(doubles = {4.5, 12.97, 40.3})
@@ -30,7 +30,7 @@ class RoomEdgeFloorHoldsTest {
         RoomExtent.Planes planes = RoomExtent.planesAround(CENTER, extent);
         Player walker = mock(Player.class);
         when(walker.getDeltaMovement()).thenReturn(new Vec3(0.2, 0, 0));
-        int floor = OutsiderRooms.ROOM_FLOOR_Y;
+        int floor = ZoneRooms.ROOM_FLOOR_Y;
         int row = CENTER.getZ() + 1;
         int column = CENTER.getX() + 1;
         assertHolds(edges.east(), BlockPos.containing(planes.east() + 0.5, floor, row), walker);

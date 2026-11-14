@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.ability.quantum;
 
-import com.mercuriusxeno.goo.ability.outsider.OutsiderRooms;
-import com.mercuriusxeno.goo.ability.outsider.RoomEdges;
+import com.mercuriusxeno.goo.ability.zone.RoomEdges;
+import com.mercuriusxeno.goo.ability.zone.ZoneRooms;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.AABB;
@@ -21,14 +21,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class RoomEdgeWayThroughTest {
 
-    private static final BlockPos CENTER = OutsiderRooms.voidstoneOf(6);
+    private static final BlockPos CENTER = ZoneRooms.voidstoneOf(6);
 
     @Test
     void anEdgeTheRoomGrewPastStillLeadsThroughTheServersEdgeNow() {
         List<GatePassage.Pair> server = RoomEdges.around(CENTER, 167.35).pairs();
         RoomEdges.Edges crossed = RoomEdges.around(CENTER, 167.30);
 
-        Optional<GatePassage.Pair> way = GatePassage.wayThrough(server, crossed.east(), OutsiderRooms.POCKET);
+        Optional<GatePassage.Pair> way = GatePassage.wayThrough(server, crossed.east(), ZoneRooms.POCKET);
 
         assertTrue(way.isPresent(), "the edge crossed a tick before the room grew should still lead through");
         assertEquals(RoomEdges.around(CENTER, 167.35).east(), way.get().one(), "the server's east edge now");
@@ -40,7 +40,7 @@ class RoomEdgeWayThroughTest {
         List<GatePassage.Pair> server = RoomEdges.around(CENTER, 167.35).pairs();
         RoomEdges.Edges crossed = RoomEdges.around(CENTER, 167.30);
 
-        Optional<GatePassage.Pair> way = GatePassage.wayThrough(server, crossed.south(), OutsiderRooms.POCKET);
+        Optional<GatePassage.Pair> way = GatePassage.wayThrough(server, crossed.south(), ZoneRooms.POCKET);
 
         assertEquals(RoomEdges.around(CENTER, 167.35).south(), way.orElseThrow().one(),
                 "the south edge matches the south edge, not the east one");
@@ -48,14 +48,14 @@ class RoomEdgeWayThroughTest {
 
     @Test
     void aPortalMatchesOnlyItself() {
-        Gate portal = new Gate(OutsiderRooms.POCKET, new AABB(0, 64, 0, 1, 66, 1), Direction.EAST,
+        Gate portal = new Gate(ZoneRooms.POCKET, new AABB(0, 64, 0, 1, 66, 1), Direction.EAST,
                 Direction.UP.getUnitVec3());
-        Gate partner = new Gate(OutsiderRooms.POCKET, new AABB(10, 64, 0, 11, 66, 1), Direction.WEST,
+        Gate partner = new Gate(ZoneRooms.POCKET, new AABB(10, 64, 0, 11, 66, 1), Direction.WEST,
                 Direction.UP.getUnitVec3());
-        Gate nudged = new Gate(OutsiderRooms.POCKET, new AABB(0.5, 64, 0, 1.5, 66, 1), Direction.EAST,
+        Gate nudged = new Gate(ZoneRooms.POCKET, new AABB(0.5, 64, 0, 1.5, 66, 1), Direction.EAST,
                 Direction.UP.getUnitVec3());
 
         assertTrue(GatePassage.wayThrough(List.of(new GatePassage.Pair(portal, partner)), nudged,
-                OutsiderRooms.POCKET).isEmpty(), "a portal half a block off is another gate");
+                ZoneRooms.POCKET).isEmpty(), "a portal half a block off is another gate");
     }
 }

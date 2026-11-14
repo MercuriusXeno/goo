@@ -36,12 +36,12 @@ class HeldDomeRendererTest {
     class ShowPredicate {
         @Test
         void razorWithAnArmedPressShowsTheDome() {
-            assertTrue(shows("crystal_cloud", true));
+            assertTrue(shows("crystal_shatter", true));
         }
 
         @Test
         void razorWithNoPressShowsNoDome() {
-            assertFalse(shows("crystal_cloud", false));
+            assertFalse(shows("crystal_shatter", false));
         }
 
         @ParameterizedTest

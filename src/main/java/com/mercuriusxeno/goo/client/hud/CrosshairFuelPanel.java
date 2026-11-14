@@ -133,7 +133,7 @@ public final class CrosshairFuelPanel {
 
     /**
      * Builds the panel's row for the selected ability beside the upkeep standing on its type and the
-     * Outsider room the player stands in.
+     * Zone room the player stands in.
      * time-counts-net-standing-upkeep
      * decision outsider-panel-reads-the-seconds-the-void-affords
      *
@@ -142,7 +142,7 @@ public final class CrosshairFuelPanel {
      * @param holdings       the mB the player holds of the type across the inventory
      * @param reagentSets    the whole sets of the ability's consumed items the inventory holds
      * @param standing       the upkeep already standing on the type
-     * @param roomExtent     the extent of the Outsider room the player stands in, empty outside the pocket
+     * @param roomExtent     the extent of the Zone room the player stands in, empty outside the pocket
      * @param aimedCostLabel the live cost at the aim, which a dynamic ability's row reads
      * @return the row's cells, left to right
      */

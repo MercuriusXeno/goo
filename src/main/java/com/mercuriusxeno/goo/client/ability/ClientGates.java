@@ -6,7 +6,7 @@ import java.util.List;
 
 /**
  * Tells the passage which gates the client knows linked, the local player's
- * portal pair, each open hole's mouths and the edges of the Outsider room it
+ * portal pair, each open hole's mouths and the edges of the Zone room it
  * stands in, so the client's own movement walks into them as the server's does.
  * portals-link-by-looking-through-portal-vision
  * hole-closes-the-space-to-an-opening-ahead
