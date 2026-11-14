@@ -332,7 +332,8 @@ public final class GooThrowHandler {
 
     /**
      * Sends a named ability by its delivery: a self ability to the player, a
-     * scan along the look, a touch on an entity within reach, a flight otherwise.
+     * scan along the look, a spontaneous cast at the aimed target, a touch on
+     * an entity within reach, a flight otherwise.
      *
      * @param player  the throwing player
      * @param payload the throw payload data
@@ -346,6 +347,8 @@ public final class GooThrowHandler {
         } else if (ability.delivery().kind() == DeliveryKind.SCAN) {
             // click-is-a-hit-scan-drawn-as-a-delayed-wave
             GooScanHandler.scan(player, payload, gooType, ability);
+        } else if (ability.delivery().kind() == DeliveryKind.SPONTANEOUS) {
+            castAtTarget(player, payload, gooType);
         } else if (touchesTarget(player, payload, ability)) {
             GooTouchHandler.touch(player, payload, gooType);
         } else if (ability.delivery().rolls()) {
@@ -468,6 +471,26 @@ public final class GooThrowHandler {
         if (refuses(player, payload, cost) || !validateSupply(player, gooType, cost)) { return; }
         double distSq = targetDistanceSquared(player, payload);
         depleteAndThrow(player, payload, gooType, distSq, cost);
+    }
+
+    /**
+     * Makes a spontaneous cast at the aimed target the release names, once
+     * the range and the goo check out: it pays as a throw does and its
+     * program runs there this tick, with no flight and nothing thrown.
+     * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
+     *
+     * @param player  the casting player
+     * @param payload the release: the aimed block, face and point
+     * @param gooType the validated goo type
+     */
+    private static void castAtTarget(ServerPlayer player, GooThrowPayload payload,
+            ResourceKey<GooTypeDefinition> gooType) {
+        if (!validateRange(player, payload)) { return; }
+        GooFraction cost = resolveThrowCost(player, payload, gooType);
+        if (refuses(player, payload, cost) || !validateSupply(player, gooType, cost)) { return; }
+        AbilityCharges.charge(player, gooType, cost);
+        consumeReagents(player, payload.abilityId(), gooType);
+        GooEffectScheduler.castNow(player, payload, gooType);
     }
 
     /** Validates glove is held, logging rejection if not.

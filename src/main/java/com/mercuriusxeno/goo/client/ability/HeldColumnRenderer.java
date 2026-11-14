@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.Delivery;
-import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.client.TargetResult;
@@ -51,7 +50,7 @@ public final class HeldColumnRenderer {
     }
 
     private static boolean isWorldArc(Delivery delivery, AbilityBadge badge) {
-        return delivery.kind() == DeliveryKind.ARC && badge == AbilityBadge.WORLD;
+        return delivery.strikesTheAim() && badge == AbilityBadge.WORLD;
     }
 
     private static boolean isColumn(AbilityArea area) {

@@ -178,13 +178,36 @@ public final class GooEffectScheduler {
      */
     void enqueueArrival(ServerPlayer player, GooThrowPayload payload,
                                ResourceKey<GooTypeDefinition> gooType, int travelTicks) {
+        enqueue(pendingAt(player, payload, gooType, player.level().getServer().getTickCount() + travelTicks));
+    }
+
+    /**
+     * Lands a spontaneous cast at its aimed target this tick.
+     * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
+     *
+     * @param player  the casting player
+     * @param payload the release: the aimed block, face and point
+     * @param gooType the goo type cast
+     */
+    static void castNow(ServerPlayer player, GooThrowPayload payload, ResourceKey<GooTypeDefinition> gooType) {
+        applyEffect(pendingAt(player, payload, gooType, player.level().getServer().getTickCount()));
+    }
+
+    /**
+     * The effect a throw or a cast lands at its aimed target on a tick.
+     *
+     * @param player      the throwing player
+     * @param payload     the throw payload data
+     * @param gooType     the goo type thrown
+     * @param arrivalTick the server tick it lands on
+     * @return the pending effect
+     */
+    private static PendingEffect pendingAt(ServerPlayer player, GooThrowPayload payload,
+                                           ResourceKey<GooTypeDefinition> gooType, int arrivalTick) {
         ServerLevel level = player.level();
-        int arrivalTick = level.getServer().getTickCount() + travelTicks;
         Direction face = GooThrowHandler.directionFromOrdinal(payload.targetFace());
-        enqueue(new PendingEffect(
-                arrivalTick, level, player, gooType,
-                payload.targetEntityId(), payload.targetPos(), face,
-                payload.abilityId(), crosshairAim(player), resolvePoint(level, payload, gooType)));
+        return new PendingEffect(arrivalTick, level, player, gooType, payload.targetEntityId(), payload.targetPos(),
+                face, payload.abilityId(), crosshairAim(player), resolvePoint(level, payload, gooType));
     }
 
     /**

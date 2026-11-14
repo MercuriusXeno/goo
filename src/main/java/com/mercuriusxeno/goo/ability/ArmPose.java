@@ -74,14 +74,15 @@ public enum ArmPose {
 
     /**
      * The pose an ability naming none takes, by how it leaves the glove: an
-     * arc swung, a beam or a stream held out, a self ability held up.
+     * arc, a scan or a spontaneous cast swung, a beam or a stream held out,
+     * a self ability held up.
      *
      * @param kind the ability's delivery kind
      * @return the default pose
      */
     public static ArmPose defaultFor(DeliveryKind kind) {
         return switch (kind) {
-            case ARC, SCAN -> SWUNG;
+            case ARC, SCAN, SPONTANEOUS -> SWUNG;
             case BEAM, STREAM -> HELD_OUT;
             case SELF -> HELD_UP;
         };
