@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.ability.Delivery;
-import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
+import com.mercuriusxeno.goo.network.KnifeRainSling;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -18,9 +18,10 @@ import java.util.List;
 
 /**
  * Draws Knives' aim while right click holds an armed press: a faint dashed line per knife the current charge slings, each
- * leaving the drawn glove hand and arcing the way its knife flies until it
- * would strike a block.
+ * leaving the blob floating ahead of the hand and arcing the way its knife
+ * flies until it would strike a block.
  * knives-aims-a-spread-fan-not-a-blob-line
+ * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
  * aim-line-draws-quieter-so-the-dart-reads
  */
 final class KnifeAimLineRenderer {
@@ -61,17 +62,18 @@ final class KnifeAimLineRenderer {
         if (player == null || level == null) {
             return;
         }
-        Vec3 hand = GloveAim.handPosition(camera);
         KnifeAimLines.Strike blocks = (from, to) -> {
             BlockHitResult hit = level.clip(new ClipContext(from, to, ClipContext.Block.COLLIDER,
                     ClipContext.Fluid.NONE, player));
             return hit.getType() == HitResult.Type.BLOCK ? hit.getLocation() : null;
         };
-        List<Vec3[]> lines = KnifeAimLines.velocitiesAt(player.getViewYRot(partialTick),
-                        player.getViewXRot(partialTick), delivery.charge(),
-                        delivery.chargeShare(GloveUseTracker.heldTicks()), GloveUseTracker.scatterSeed()).stream()
-                .map(velocity -> KnifeAimLines.flight(hand, velocity, blocks).toArray(Vec3[]::new))
-                .toList();
+        int heldTicks = GloveUseTracker.heldTicks();
+        KnifeAimLines.Press press = new KnifeAimLines.Press(player.getEyePosition(partialTick),
+                player.getViewYRot(partialTick), player.getViewXRot(partialTick),
+                KnifeRainSling.gloveOnTheRight(player), heldTicks, delivery.chargeShare(heldTicks),
+                GloveUseTracker.scatterSeed());
+        List<Vec3[]> lines = KnifeAimLines.linesOf(press, delivery.charge(), blocks).stream()
+                .map(line -> line.toArray(Vec3[]::new)).toList();
         DashedGlowLines.render(poseStack, bufferSource, camera, lines, rgb, partialTick, KNIFE_LINE_GLOW);
     }
 }
