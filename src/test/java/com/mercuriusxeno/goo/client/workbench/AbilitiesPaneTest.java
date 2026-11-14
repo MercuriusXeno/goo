@@ -344,7 +344,7 @@ class AbilitiesPaneTest {
         private static final Map<String, String> LANG = Map.ofEntries(
                 Map.entry("goo.ability.mechanism.cost_per_block", "Price per block"),
                 Map.entry("goo.ability.mechanism.particles", "Particles"),
-                Map.entry("goo.ability.mechanism.outsider", "Outsider"),
+                Map.entry("goo.ability.mechanism.zone", "Zone"),
                 Map.entry("goo.ability.param.cost.cost", "Cost"),
                 Map.entry("goo.ability.param.cost_per_block.cost_per_block", "Cost per block"),
                 Map.entry("goo.ability.param.cost_per_block.cost_per_block.description", PER_BLOCK_DESCRIPTION),
@@ -352,24 +352,24 @@ class AbilitiesPaneTest {
                 Map.entry("goo.ability.param.node_percent.node_percent", "Oculus percent"),
                 Map.entry("goo.ability.param.upkeep.upkeep", "Upkeep"),
                 Map.entry("goo.ability.param.particles.count", "Count"),
-                Map.entry("goo.ability.param.outsider.charge", "Charge"),
-                Map.entry("goo.ability.param.outsider.enter", "Entry cost"),
-                Map.entry("goo.ability.param.outsider.cell_cost", "Cell cost"),
-                Map.entry("goo.ability.param.outsider.distance_cost", "Distance cost"));
+                Map.entry("goo.ability.param.zone.charge", "Charge"),
+                Map.entry("goo.ability.param.zone.enter", "Entry cost"),
+                Map.entry("goo.ability.param.zone.cell_cost", "Cell cost"),
+                Map.entry("goo.ability.param.zone.distance_cost", "Distance cost"));
         private static final String PRICES_MODEL = """
                 {"typeOrder": ["ender", "void"], "abilities": [
                   {"id": "goo:ender_blink", "gooType": "ender", "displayName": "ender_blink", "draft": false,
                    "badge": "self", "order": 10, "leaves": [
                     {"path": "cost", "value": "200", "kind": "COST", "mechanism": "cost", "field": "cost"},
                     %s, %s, %s, %s, %s]},
-                  {"id": "goo:void_outsider", "gooType": "void", "displayName": "void_outsider", "draft": false,
+                  {"id": "goo:void_zone", "gooType": "void", "displayName": "void_zone", "draft": false,
                    "badge": "channeled", "order": 10, "leaves": [%s, %s, %s, %s]}]}
                 """.formatted(leaf("cost_per_block", "cost_per_block", "cost_per_block", 100),
                 leaf("wall_cost", "wall_cost", "wall_cost", 400), leaf("node_percent", "node_percent", "node_percent",
                         10), leaf("upkeep", "upkeep", "upkeep", 4), leaf("behaviors/0/count", "particles", "count", 32),
-                leaf("behaviors/0/charge", "outsider", "charge", 20), leaf("behaviors/0/enter", "outsider", "enter", 6),
-                leaf("behaviors/0/cell_cost", "outsider", "cell_cost", 10),
-                leaf("behaviors/0/distance_cost", "outsider", "distance_cost", 1));
+                leaf("behaviors/0/charge", "zone", "charge", 20), leaf("behaviors/0/enter", "zone", "enter", 6),
+                leaf("behaviors/0/cell_cost", "zone", "cell_cost", 10),
+                leaf("behaviors/0/distance_cost", "zone", "distance_cost", 1));
 
         private static String leaf(String path, String mechanism, String field, int value) {
             return "{\"path\": \"" + path + "\", \"value\": " + value + ", \"kind\": \"NUMBER\","

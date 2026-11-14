@@ -1,13 +1,13 @@
 package com.mercuriusxeno.goo.network;
 
-import com.mercuriusxeno.goo.data.GooValueTable;
-import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
-import com.mercuriusxeno.goo.ability.zoo.Leader;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
+import com.mercuriusxeno.goo.ability.zoo.Kin;
+import com.mercuriusxeno.goo.data.GooValueTable;
+import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
@@ -59,7 +59,7 @@ public final class SelfDeliveryTests {
     private static final String SELF_KINDLE_INVOKED_AGAIN_ENDS = "self_kindle_invoked_again_ends";
     private static final String SELF_KINDLE_ENDS_WHEN_DRY = "self_kindle_ends_when_dry";
     private static final String SELF_SIGHT_HOLDS = "self_sight_holds_the_sight";
-    private static final String LEADER_LAYS_AND_ENDING_CLEARS = "leader_lays_its_state_and_ending_clears_it";
+    private static final String KIN_LAYS_AND_ENDING_CLEARS = "kin_lays_its_state_and_ending_clears_it";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -73,8 +73,8 @@ public final class SelfDeliveryTests {
         GooTestFunctions.registerTest(registrar, SELF_KINDLE_INVOKED_AGAIN_ENDS, SelfDeliveryTests::kindleInvokedAgainEnds);
         GooTestFunctions.registerTest(registrar, SELF_KINDLE_ENDS_WHEN_DRY, SelfDeliveryTests::kindleEndsWhenDry);
         GooTestFunctions.registerTest(registrar, SELF_SIGHT_HOLDS, SelfDeliveryTests::sightHoldsTheSight);
-        GooTestFunctions.registerTest(registrar, LEADER_LAYS_AND_ENDING_CLEARS,
-                SelfDeliveryTests::leaderLaysItsStateAndEndingClearsIt);
+        GooTestFunctions.registerTest(registrar, KIN_LAYS_AND_ENDING_CLEARS,
+                SelfDeliveryTests::kinLaysItsStateAndEndingClearsIt);
     }
 
 
@@ -90,10 +90,10 @@ public final class SelfDeliveryTests {
     private static final Identifier BLAZE_KINDLE = Identifier.parse("goo:blaze_kindle");
     private static final Identifier SHROOM_SIGHT = Identifier.parse("goo:shroom_sight");
     private static final String SHOULD_SEE = "Once Sight lands the player should hold fungal sight";
-    private static final Identifier ZOO_LEADER = Identifier.parse("goo:zoo_leader");
-    private static final String SHOULD_HOLD_LEADER = "Once Leader lands the player should hold Leader";
-    private static final String SHOULD_LAY_LEADER = "Leader should lay its state, laid %s";
-    private static final String SHOULD_CLEAR_LEADER = "Invoking held Leader again should end it and clear its state, reads %s";
+    private static final Identifier ZOO_KIN = Identifier.parse("goo:zoo_kin");
+    private static final String SHOULD_HOLD_KIN = "Once Kin lands the player should hold Kin";
+    private static final String SHOULD_LAY_KIN = "Kin should lay its state, laid %s";
+    private static final String SHOULD_CLEAR_KIN = "Invoking held Kin again should end it and clear its state, reads %s";
     /** One ember heart, which Kindle primes before its crawl embers the rest. */
     private static final int PRIMED_EMBERS = HeartOverlay.FULL_SHIELD;
     /** The ticks a held Kindle is watched paying its upkeep. */
@@ -382,27 +382,27 @@ public final class SelfDeliveryTests {
     }
 
     /**
-     * A survival player casts Leader from the glove: the Leader state stands,
-     * and invoking Leader
+     * A survival player casts Kin from the glove: the Kin state stands,
+     * and invoking Kin
      * again ends the held effect and clears that state.
      * leader-is-zoos-brew-ability
      *
      * @param helper the gametest helper
      */
-    public static void leaderLaysItsStateAndEndingClearsIt(GameTestHelper helper) {
-        requireAbility(helper, ZOO_LEADER);
-        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.ZOO, ZOO_LEADER);
-        boolean held = player.getData(GooAttachments.HELD_EFFECTS).holds(ZOO_LEADER);
-        Leader laid = player.getData(GooAttachments.LEADER);
+    public static void kinLaysItsStateAndEndingClearsIt(GameTestHelper helper) {
+        requireAbility(helper, ZOO_KIN);
+        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.ZOO, ZOO_KIN);
+        boolean held = player.getData(GooAttachments.HELD_EFFECTS).holds(ZOO_KIN);
+        Kin laid = player.getData(GooAttachments.KIN);
 
-        invoke(player, GooTypes.ZOO, ZOO_LEADER);
+        invoke(player, GooTypes.ZOO, ZOO_KIN);
 
-        boolean heldAfter = player.getData(GooAttachments.HELD_EFFECTS).holds(ZOO_LEADER);
-        Leader after = player.getData(GooAttachments.LEADER);
+        boolean heldAfter = player.getData(GooAttachments.HELD_EFFECTS).holds(ZOO_KIN);
+        Kin after = player.getData(GooAttachments.KIN);
         helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(held, SHOULD_HOLD_LEADER);
-        helper.assertTrue(laid.stands(), String.format(SHOULD_LAY_LEADER, laid));
-        helper.assertFalse(heldAfter || after.stands(), String.format(SHOULD_CLEAR_LEADER, after));
+        helper.assertTrue(held, SHOULD_HOLD_KIN);
+        helper.assertTrue(laid.stands(), String.format(SHOULD_LAY_KIN, laid));
+        helper.assertFalse(heldAfter || after.stands(), String.format(SHOULD_CLEAR_KIN, after));
         helper.succeed();
     }
 }

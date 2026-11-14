@@ -10,8 +10,8 @@ import com.mercuriusxeno.goo.client.ability.KnivesCharging;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
 import com.mercuriusxeno.goo.client.ability.PalmBlobHop;
 import com.mercuriusxeno.goo.client.ability.SprayingClient;
-import com.mercuriusxeno.goo.client.outsider.RoomBodyCopyRenderer;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
+import com.mercuriusxeno.goo.client.zone.RoomBodyCopyRenderer;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -54,7 +54,7 @@ import static org.mockito.Mockito.when;
  * The glove body submits on the cutout block-atlas type and the palm blob's
  * core on the solid one (decision diagnose-and-correct-the-palm-core-cull).
  * The hand the aim line starts from: the first-person glove stores it, and a
- * glove drawn on a copy of the player's body in an Outsider room's copies
+ * glove drawn on a copy of the player's body in a Zone room's copies
  * leaves it where the player's own glove put it
  * (decision room-tiles-to-render-distance-held-to-the-picture). The palm
  * blob a glove extracts: none while its holder's blob is off the palm at the

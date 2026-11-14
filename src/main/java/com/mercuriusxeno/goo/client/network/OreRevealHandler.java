@@ -6,7 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
- * Client-side handler for the ore veins a held sweep of Glitter or Magnet
+ * Client-side handler for the ore veins a held sweep of Glimmer or Magnet
  * reached: each shows through walls for its life.
  * decision held-sweeps-share-one-fast-shell-visual
  * decision glitter-sphere-icons-gem-ore-groups

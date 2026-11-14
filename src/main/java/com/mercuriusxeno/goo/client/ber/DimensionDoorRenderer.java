@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.ber;
 
-import com.mercuriusxeno.goo.block.outsider.DimensionDoorBlockEntity;
+import com.mercuriusxeno.goo.block.zone.DimensionDoorBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;

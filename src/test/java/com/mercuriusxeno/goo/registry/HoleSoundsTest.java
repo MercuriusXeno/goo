@@ -30,8 +30,8 @@ class HoleSoundsTest {
     private static final String HOLE = "Hole";
 
     @Test
-    void openingListsTheOutsiderRoomsTwoWubFiles() throws IOException {
-        assertEquals(List.of("goo:effects/outsider_wub", "goo:effects/outsider_wub2"),
+    void openingListsTheZoneRoomsTwoWubFiles() throws IOException {
+        assertEquals(List.of("goo:effects/zone_wub", "goo:effects/zone_wub2"),
                 filesOf(GooSoundIds.HOLE_OPEN));
     }
 
@@ -40,10 +40,10 @@ class HoleSoundsTest {
         assertSubtitleNamesTheHole(GooSoundIds.HOLE_OPEN);
     }
 
-    /** tools/outsider_sounds.py writes each as a shipped wub take's samples in reverse order. */
+    /** tools/zone_sounds.py writes each as a shipped wub take's samples in reverse order. */
     @Test
     void closingListsEachShippedWubTakeReversed() throws IOException {
-        assertEquals(List.of("goo:effects/outsider_wub_reversed", "goo:effects/outsider_wub2_reversed"),
+        assertEquals(List.of("goo:effects/zone_wub_reversed", "goo:effects/zone_wub2_reversed"),
                 filesOf(GooSoundIds.HOLE_CLOSE));
     }
 

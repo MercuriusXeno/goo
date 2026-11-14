@@ -31,6 +31,7 @@ class RallyShippedAssetsTest {
     private static final int RED_SHIFT = 16;
     private static final int GREEN_SHIFT = 8;
     private static final int CHANNEL = 0xFF;
+    private static final double HALF = 0.5;
 
     /** rally-is-a-mob-effect-on-one-target: a thrown mob ability at a flat cost, never a held area. */
     @Test
@@ -62,6 +63,18 @@ class RallyShippedAssetsTest {
                 .toList();
 
         assertEquals(List.of("rally"), steps);
+    }
+
+    /** rally-minions-get-half-your-armor-and-a-floor: half the rallier's armor, never under a floor above zero. */
+    @Test
+    void rallyStepLendsHalfTheRalliersArmorOverAFloor() {
+        JsonObject step = JsonParser.parseString(AbilityJson.read("zoo_rally")).getAsJsonObject()
+                .getAsJsonArray("behaviors").get(0).getAsJsonObject()
+                .getAsJsonArray("steps").get(0).getAsJsonObject();
+
+        assertTrue(step.has("armor_share") && step.has("armor_floor"), "rally step " + step);
+        assertEquals(HALF, step.get("armor_share").getAsDouble());
+        assertTrue(step.get("armor_floor").getAsDouble() > 0, "armor_floor " + step.get("armor_floor"));
     }
 
     @Test

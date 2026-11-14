@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:downed_zombie_drops_the_downed_cow",
+  "environment": "goo:rally_reload",
+  "structure": "goo:test_bay",
+  "max_ticks": 200,
+  "setup_ticks": 0,
+  "required": true
+}

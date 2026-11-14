@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class VacuumSoundsTest {
 
     private static final String SOUNDS_JSON = "/assets/goo/sounds.json";
-    private static final List<String> WUBS = List.of(GooSoundIds.OUTSIDER_WUB.getPath(),
+    private static final List<String> WUBS = List.of(GooSoundIds.ZONE_WUB.getPath(),
             GooSoundIds.HOLE_OPEN.getPath(), GooSoundIds.HOLE_CLOSE.getPath());
     private static final List<String> SLURP_SAMPLE_FOLDERS = List.of("minecraft:mob/slime/", "minecraft:item/bottle/drink_honey",
             "minecraft:block/honeyblock/");

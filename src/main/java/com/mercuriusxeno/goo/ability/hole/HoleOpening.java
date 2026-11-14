@@ -33,7 +33,7 @@ public final class HoleOpening {
     private static final float SOUND_VOLUME = 1.0F;
     private static final float REFUSED_PITCH = 0.6F;
     /**
-     * The Outsider room's wub pitched up, so the hole opens on a rising note.
+     * The Zone room's wub pitched up, so the hole opens on a rising note.
      * decision hole-opens-with-the-outsider-wub-pitched-up
      */
     private static final float OPENING_PITCH = 1.375F;

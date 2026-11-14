@@ -13,7 +13,7 @@ import java.util.List;
  * outward from the body by up to GROWTH_BLOCKS and fading over its life.
  * An inward afterimage plays the ripple backward in space: each silhouette
  * starts GROWTH_BLOCKS out and collapses onto the body, brightening as it
- * closes, the implosion void's Erase leaves where the struck mob stood.
+ * closes, the implosion void's Cancel leaves where the struck mob stood.
  * Decision afterimage-is-one-shared-effect.
  * Decision void-blob-deletes-the-struck-mob.
  *

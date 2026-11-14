@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.mixin;
 
-import com.mercuriusxeno.goo.client.outsider.RoomCopyRenderer;
-import com.mercuriusxeno.goo.client.outsider.VoidstoneFaces;
+import com.mercuriusxeno.goo.client.zone.RoomCopyRenderer;
+import com.mercuriusxeno.goo.client.zone.VoidstoneFaces;
 import net.minecraft.client.renderer.LevelRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;

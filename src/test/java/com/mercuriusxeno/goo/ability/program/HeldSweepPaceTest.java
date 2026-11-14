@@ -8,14 +8,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * A held sweep's front leaves the caster at one steady pace, 48 blocks a
  * second, with no ease and no rest, landing Scry's 96 blocks on tick 40 and
- * Glitter's and Magnet's 64 on tick 27; and a press starts a pulse at once
+ * Glimmer's and Magnet's 64 on tick 27; and a press starts a pulse at once
  * and a hold another every second (operator ruling 2026-11-06: fewer pulses).
  * decision held-sweeps-share-one-fast-shell-visual
  */
 class HeldSweepPaceTest {
 
     private static final HeldSweepPace SCRY = new HeldSweepPace(96);
-    private static final HeldSweepPace GLITTER = new HeldSweepPace(64);
+    private static final HeldSweepPace GLIMMER = new HeldSweepPace(64);
     /** 48 blocks a second, twenty ticks to the second. */
     private static final double BLOCKS_A_TICK = 2.4;
     private static final double EXACT = 1e-9;
@@ -29,13 +29,13 @@ class HeldSweepPaceTest {
     }
 
     @Test
-    void scrysFrontLandsOnTickFortyAndGlittersOnTickTwentySeven() {
+    void scrysFrontLandsOnTickFortyAndGlimmersOnTickTwentySeven() {
         assertEquals(40, SCRY.ticksToRange());
-        assertEquals(27, GLITTER.ticksToRange());
+        assertEquals(27, GLIMMER.ticksToRange());
         assertEquals(SCRY.range(), SCRY.radiusAt(40), EXACT);
         assertTrue(SCRY.radiusAt(39) < SCRY.range());
-        assertEquals(GLITTER.range(), GLITTER.radiusAt(27), EXACT);
-        assertTrue(GLITTER.radiusAt(26) < GLITTER.range());
+        assertEquals(GLIMMER.range(), GLIMMER.radiusAt(27), EXACT);
+        assertTrue(GLIMMER.radiusAt(26) < GLIMMER.range());
     }
 
     @Test

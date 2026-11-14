@@ -1,0 +1,14 @@
+{
+  "gooType": "void",
+  "displayName": "goo.ability.void.zone",
+  "cost_mechanics": "goo.ability.void.zone.cost_mechanics",
+  "badge": "channeled",
+  "order": 20,
+  "cost": 0,
+  "delivery": { "kind": "self", "ticks_per_charge": 20 },
+  "behaviors": [
+    { "type": "zone", "charge": 20, "enter": 6, "ring_ticks": 20, "cell_cost": 10, "distance_cost": 1 }
+  ],
+  "tags": ["self"],
+  "pose": "held_out"
+}

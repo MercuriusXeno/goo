@@ -8,7 +8,7 @@ package com.mercuriusxeno.goo.ability.world;
  * splat-runs-the-program-no-fuse). A program whose standing block explodes
  * later fires no burnout at the splat: the block plays it as it explodes, so
  * the explosion's visual lands with the explosion. A program that lingers
- * without exploding, Razor's cloud, plays it at the splat. A blob that
+ * without exploding, Shatter's cloud, plays it at the splat. A blob that
  * turns into its own block, Prism's, fires none: its morph into the block
  * is its landing (decision prism-is-one-pointed-quartz-column).
  */
