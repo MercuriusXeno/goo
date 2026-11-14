@@ -11,6 +11,6 @@
       "width": 5.3, "length": 5.8, "source": 0.5, "back_from": 1.1, "back_to": 3.9, "front_from": 2.6,
       "drop": 0.45, "nudge": 0.2, "tilt": 10, "fan": 5, "life_ticks": 6, "damage": 1 }
   ],
-  "tags": ["self"],
+  "tags": ["self", "centered"],
   "pose": "held_out"
 }

@@ -34,9 +34,10 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * The palm blob lifted off the glove while its caster holds any ability: as
  * a stream or a channel runs, or a release ability charges with right click
- * held, the blob hops off the palm to the steady source by the glove,
- * shrinking from the pancake spread over the palm into a smaller cube as it
- * goes, and stands there in the goo type the glove has selected, beating
+ * held, the blob hops off the palm to its rest point (BlobRest): the
+ * steady point by the glove, or the center line below the crosshair for a
+ * centered ability, shrinking from the pancake spread over the palm into a
+ * smaller cube as it goes, and stands there in the goo type the glove has selected, beating
  * between two sizes below the pancake's while the cast is held. Once the
  * held ticks stop for longer than a stream's gap it comes back down and
  * smears across the palm into the pancake. The glove's palm draws none
@@ -48,6 +49,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * turned with that caster's look.
  * palm-blob-lifts-as-the-spray-source
  * every-ability-casts-from-the-lifted-palm-blob
+ * centered-abilities-float-the-blob-below-the-crosshair
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class LiftedPalmBlob {
@@ -404,7 +406,8 @@ public final class LiftedPalmBlob {
             return Optional.empty();
         }
         PalmBlobHop.Pose pose = lift.poseAt(now);
-        Vec3 source = SpraySource.of(casterId, lift.sentGlove(), partialTick);
+        // centered-abilities-float-the-blob-below-the-crosshair: a centered ability rests on the center line
+        Vec3 source = BlobRest.of(casterId, lift.sentGlove(), partialTick);
         return Optional.of(new Standing(caster, placeAt(pose, palmOf(mc, caster, partialTick),
                 upOf(caster, partialTick), source), pose, now, swellOf(lift, caster, now)));
     }
@@ -532,7 +535,7 @@ public final class LiftedPalmBlob {
             return Optional.empty();
         }
         Camera camera = mc.gameRenderer.getMainCamera();
-        Vec3 source = SpraySource.of(mc.player.getId(), lift.sentGlove(), partial).subtract(camera.position());
+        Vec3 source = BlobRest.of(mc.player.getId(), lift.sentGlove(), partial).subtract(camera.position());
         PalmBlobHop.Pose pose = lift.poseAt(now);
         return Optional.of(new HandLift(pose.share(), HandPassView.toHandPass(source, camera.rotation(),
                 camera.getFov()), drawnShapeAt(pose, now).scaled(swellOf(lift, mc.player, now)),
