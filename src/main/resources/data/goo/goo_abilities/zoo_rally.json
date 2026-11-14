@@ -10,7 +10,7 @@
       "type": "target",
       "where": ["living", "peaceful"],
       "steps": [
-        { "type": "rally", "damage": 6, "health": 1.5, "speed": 0.5 }
+        { "type": "rally", "damage": 6, "health": 1.5, "speed": 0.5, "armor_share": 0.5, "armor_floor": 4 }
       ]
     }
   ],

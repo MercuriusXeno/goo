@@ -257,7 +257,7 @@ public final class MarkerOrbVisual {
      * The crystal marker's slow, faint ebb and flow while its cloud holds
      * the shards aloft (decision orchestration-animation-per-ability).
      *
-     * @param crystalActive true while the crystal cloud stands
+     * @param crystalActive true while the Shatter cloud stands
      * @param gameTime      the game time including the partial tick
      * @return the ebb factor, exactly 1 while no cloud stands
      */

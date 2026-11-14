@@ -48,13 +48,13 @@ class AbilityImpactTest {
     }
 
     /**
-     * Razor's cloud lingers through a field effect and never explodes, so its
+     * Shatter's cloud lingers through a field effect and never explodes, so its
      * prism dome plays at the landing.
      * decision diagnose-then-restore-the-razor-dome
      */
     @Test
     void theRazorCloudLingersWithoutExplodingLater() {
-        assertFalse(AbilityImpact.explodesLater(AbilityJson.decode("crystal_cloud")));
+        assertFalse(AbilityImpact.explodesLater(AbilityJson.decode("crystal_shatter")));
     }
 
     /**

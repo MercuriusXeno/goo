@@ -13,7 +13,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 
 /**
- * Each gem vein Glitter's front reaches bursts into sparkles the tick its
+ * Each gem vein Glimmer's front reaches bursts into sparkles the tick its
  * ore begins to show through walls, white glints and a few rising motes around the vein.
  * decision glitter-sphere-icons-gem-ore-groups
  */

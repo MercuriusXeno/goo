@@ -21,9 +21,9 @@ public enum AilmentKind {
     STASIS(0xFFD447),
     /** Scales: diamond blue, faceted. */
     SCALES(0x4AEDD9, AilmentPattern.FACETS),
-    /** Zone: an ender shimmer. */
-    ZONE(0xB05CFF, AilmentPattern.SHIMMER),
-    /** Elude: the zone shimmer. */
+    /** Seal: an ender shimmer. */
+    SEAL(0xB05CFF, AilmentPattern.SHIMMER),
+    /** Elude: the seal shimmer. */
     ELUDE(0xB05CFF, AilmentPattern.SHIMMER),
     /** Hex's charm: a dark purple outline. */
     HEX(0x6A1FB0),

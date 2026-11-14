@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Scry, Glitter and Magnet, decoded from their shipped JSON, each sweep
+ * Scry, Glimmer and Magnet, decoded from their shipped JSON, each sweep
  * through the one held-sweep payload; and a held sweep's pulses overlap:
  * a hold starts a second pulse while the first still
  * travels, each live pulse sending its own payload; the hold's
@@ -21,13 +21,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class HeldSweepStepTest {
 
-    private static final List<String> HELD_SWEEPS = List.of("astral_scry", "crystal_glitter", "metal_magnet");
+    private static final List<String> HELD_SWEEPS = List.of("astral_scry", "crystal_glimmer", "metal_magnet");
     private static final long PRESSED_AT = 1000;
     private static final double BLOCKS_A_TICK = 2.4;
     private static final double EXACT = 1e-5;
 
     @Test
-    void scryGlitterAndMagnetDrawThroughOneSweepVisual() {
+    void scryGlimmerAndMagnetDrawThroughOneSweepVisual() {
         HeldSweepPulses.Pulse pulse = new HeldSweepPulses.Pulse(1, Vec3.ZERO, PRESSED_AT);
         Set<Class<?>> visuals = HELD_SWEEPS.stream()
                 .map(name -> sweepOf(name).sweepOf(pulse, PRESSED_AT).getClass()).collect(Collectors.toSet());
@@ -35,13 +35,13 @@ class HeldSweepStepTest {
         assertEquals(Set.of(HeldSweepPayload.class), visuals, "one visual draws all three");
     }
 
-    /** Scry's fronts paint the mobs they cross; Glitter's and Magnet's, which find ores, do not. */
+    /** Scry's fronts paint the mobs they cross; Glimmer's and Magnet's, which find ores, do not. */
     @Test
-    void scrysFrontsPaintMobsAndGlittersAndMagnetsDoNot() {
+    void scrysFrontsPaintMobsAndGlimmersAndMagnetsDoNot() {
         HeldSweepPulses.Pulse pulse = new HeldSweepPulses.Pulse(1, Vec3.ZERO, PRESSED_AT);
 
         assertTrue(sweepOf("astral_scry").sweepOf(pulse, PRESSED_AT).paintsMobs(), "scry");
-        assertTrue(!sweepOf("crystal_glitter").sweepOf(pulse, PRESSED_AT).paintsMobs(), "glitter");
+        assertTrue(!sweepOf("crystal_glimmer").sweepOf(pulse, PRESSED_AT).paintsMobs(), "glimmer");
         assertTrue(!sweepOf("metal_magnet").sweepOf(pulse, PRESSED_AT).paintsMobs(), "magnet");
     }
 

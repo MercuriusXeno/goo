@@ -19,7 +19,7 @@ import java.util.stream.Stream;
  * fading in the goo type's color. Ender blink leaves one before its
  * teleport step and one after, so the ripple plays where the player stood
  * and where it lands: {@code afterimage goo=ender}. Inward, the silhouettes
- * start grown out and collapse onto the body, the implosion void's Erase
+ * start grown out and collapse onto the body, the implosion void's Cancel
  * leaves where the struck mob stood: {@code afterimage goo=void inward=true}.
  * Decision afterimage-is-one-shared-effect.
  * Decision void-blob-deletes-the-struck-mob.

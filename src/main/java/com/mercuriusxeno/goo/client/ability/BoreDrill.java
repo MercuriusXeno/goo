@@ -157,7 +157,7 @@ public final class BoreDrill {
             return;
         }
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        ConeSections.Volume full = volume(eyeSeenFrom(mc, player, partialTick, camera),
+        ConeSections.Volume full = volume(vortexEye(CameraEye.of(mc, player, partialTick), camera),
                 player.getViewVector(partialTick), player.getViewYRot(partialTick), lastReach,
                 lastStep.vortexNearRadius(), lastStep.vortexFarRadius());
         double poured = held ? emergedShare(GloveUseTracker.channelTicks() + partialTick) : 1;
@@ -189,20 +189,19 @@ public final class BoreDrill {
     }
 
     /**
-     * Where the vortex's eye stands, camera relative: the camera itself in
-     * first person, which eases down as the player sneaks, so the vortex
-     * eases with the view rather than snapping to the pose; the player's eye
-     * in any other view.
+     * Where the vortex's eye stands, camera relative: the eye of
+     * {@link CameraEye#of}'s sight, the camera itself in first person, which
+     * eases down as the player sneaks, so the vortex eases with the view
+     * rather than snapping to the pose; the player's eye in any other view.
+     * The ground shake runs Bore's zone from the same sight.
+     * decision diagnose-and-correct-eye-aimed-visuals-jumping-on-sneak
      *
-     * @param mc          the client
-     * @param player      the local player
-     * @param partialTick the frame's partial tick
-     * @param camera      the camera's world position
+     * @param sight  the sight the drill draws from
+     * @param camera the camera's world position
      * @return the eye, camera relative
      */
-    private static Vec3 eyeSeenFrom(Minecraft mc, LocalPlayer player, float partialTick, Vec3 camera) {
-        return mc.options.getCameraType().isFirstPerson() ? Vec3.ZERO
-                : player.getEyePosition(partialTick).subtract(camera);
+    static Vec3 vortexEye(CameraEye.Sight sight, Vec3 camera) {
+        return sight.eye().subtract(camera);
     }
 
     static Optional<BoreStep> stepOf(ClientAbility bore) {

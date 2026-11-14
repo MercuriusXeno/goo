@@ -4,8 +4,8 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.entity.BlockHunk;
 import com.mercuriusxeno.goo.entity.CompressionSphere;
 import com.mercuriusxeno.goo.entity.EldritchMonstrosity;
-import com.mercuriusxeno.goo.entity.FeedPile;
 import com.mercuriusxeno.goo.entity.Meteor;
+import com.mercuriusxeno.goo.entity.NectarPile;
 import com.mercuriusxeno.goo.entity.RollingGoo;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
@@ -24,8 +24,8 @@ import net.neoforged.neoforge.registries.DeferredRegister;
  * Entity type registry. World effects stand as blocks; an entity is
  * registered here only where a thing moves or acts on its own: a goo rolling through
  * the air (decision orb-carries-a-swirling-nova), the orb a black hole
- * leaves (decision black-hole-leaves-a-compression-sphere), the feed
- * Jelly's Feed lays (decision feed-blob-feeds-and-draws-mobs), the Eldritch
+ * leaves (decision black-hole-leaves-a-compression-sphere), the nectar
+ * Jelly's Nectar lays (decision feed-blob-feeds-and-draws-mobs), the Eldritch
  * Monstrosity living out of phase (decision monstrosities-harvest-under-quantum),
  * and a hunk of blocks moving as one (decision spire-entity-izes-its-blocks-and-raises-them-smoothly).
  */
@@ -76,12 +76,12 @@ public final class GooEntities {
             .build(ResourceKey.create(Registries.ENTITY_TYPE, id)));
 
     /**
-     * The feed Jelly's Feed lays on the ground, drawing the mobs about it
+     * The nectar Jelly's Nectar lays on the ground, drawing the mobs about it
      * (decision feed-blob-feeds-and-draws-mobs).
      */
-    public static final DeferredHolder<EntityType<?>, EntityType<FeedPile>> FEED_PILE =
-        ENTITIES.register("feed_pile", id -> EntityType.Builder
-            .<FeedPile>of(FeedPile::new, MobCategory.MISC)
+    public static final DeferredHolder<EntityType<?>, EntityType<NectarPile>> NECTAR_PILE =
+        ENTITIES.register("nectar_pile", id -> EntityType.Builder
+            .<NectarPile>of(NectarPile::new, MobCategory.MISC)
             .sized(SPHERE_SIZE, SPHERE_SIZE)
             .clientTrackingRange(SPHERE_TRACKING_CHUNKS)
             .updateInterval(SPHERE_UPDATE_TICKS)

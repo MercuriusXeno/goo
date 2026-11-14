@@ -9,10 +9,10 @@ import com.mercuriusxeno.goo.client.ability.PalmBlobHop;
 import com.mercuriusxeno.goo.client.ability.PhaseLook;
 import com.mercuriusxeno.goo.client.ability.PhasedHands;
 import com.mercuriusxeno.goo.client.ability.PortalView;
-import com.mercuriusxeno.goo.client.outsider.RoomBodyCopyRenderer;
 import com.mercuriusxeno.goo.client.throwing.BlobShape;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
+import com.mercuriusxeno.goo.client.zone.RoomBodyCopyRenderer;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -437,7 +437,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         // portal stands where that view's camera sees it, not before the player's eyes, so it leaves the aim line's
         // hand where the first-person glove put it.
         // decision room-tiles-to-render-distance-held-to-the-picture: so does a glove on the player's copy in an
-        // Outsider room's copies, which stands a room's width or more away
+        // Zone room's copies, which stands a room's width or more away
         if (PortalView.drawing() || RoomBodyCopyRenderer.drawingCopies()) {
             return;
         }

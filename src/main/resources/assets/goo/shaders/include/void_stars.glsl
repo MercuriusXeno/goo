@@ -1,4 +1,4 @@
-// The Outsider's stars, read by the voidstone and by the pocket's sky, so both draw the one pale star color
+// The Zone's stars, read by the voidstone and by the pocket's sky, so both draw the one pale star color
 // sky-stars-sit-distant-sparser-and-dimmer-than-voidstone
 
 const vec3 STAR = vec3(0.87, 0.86, 0.96);

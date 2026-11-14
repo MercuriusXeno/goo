@@ -110,10 +110,10 @@ public enum HostCapability {
      */
     HOLE(HoleHost.class),
     /**
-     * A channeling player who can be carried into their Outsider room
+     * A channeling player who can be carried into their Zone room
      * (decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform).
      */
-    OUTSIDER(OutsiderHost.class),
+    ZONE(ZoneHost.class),
     /**
      * A landing a meteor can be called down toward (decision
      * meteo-crashes-through-whatever-is-above).
@@ -173,7 +173,7 @@ public enum HostCapability {
      * A landing that melts the stone it struck into lava (decision
      * melt-blob-absorbs-into-lava).
      */
-    MELT(MeltHost.class),
+    MOLTEN(MoltenHost.class),
     /**
      * A spot a vibration carrying no source entity can go off at (decision
      * click-vibration-carries-no-source-entity).

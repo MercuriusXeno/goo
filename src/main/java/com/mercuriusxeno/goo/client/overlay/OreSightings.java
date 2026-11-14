@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The gem ore veins Glitter has revealed on this client: each vein's blocks
+ * The gem ore veins Glimmer has revealed on this client: each vein's blocks
  * show through walls from the tick the sphere's front reaches it to the end
  * of its life, fading in and fading away at its end, and a vein a later
  * hold finds again keeps showing rather than blinking out.
