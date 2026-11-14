@@ -332,7 +332,7 @@ public final class HeldEffectsEvents {
             // telekinesis-enacts-at-extended-reach: the reach returns to its own with the held effect
             Remote.clear(player);
         }
-        if (lays.contains(LaidState.ELDRITCH)) {
+        if (lays.contains(LaidState.UNVEIL)) {
             // eldritch-sight-reveals-the-out-of-phase: the eldritch state ends with its held effect
             EldritchEvents.end(player);
         }

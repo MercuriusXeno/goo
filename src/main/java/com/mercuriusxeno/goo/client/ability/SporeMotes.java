@@ -5,7 +5,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 
 /**
  * One spore mote: two small crossed quads, so it reads from any side, the way
- * shroom's held cloud and Fungal Shift's target column draw their motes.
+ * shroom's held cloud and Transmit's target column draw their motes.
  * held-visual-ghosts-the-landing-in-two-passes
  */
 public final class SporeMotes {

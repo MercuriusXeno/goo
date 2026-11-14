@@ -22,13 +22,13 @@ import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
- * Gametest for xeno's Eldritch Sight: an out-of-phase zombie takes a player
+ * Gametest for xeno's Unveil: an out-of-phase zombie takes a player
  * holding the ability for its target.
  * eldritch-sight-reveals-the-out-of-phase
  */
 @RegistersGameTests
-public final class EldritchTests {
-    private static final String ELDRITCH_PLAYER_IS_SEEN = "eldritch_player_is_seen";
+public final class UnveilTests {
+    private static final String UNVEILED_PLAYER_IS_SEEN = "unveiled_player_is_seen";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -36,28 +36,28 @@ public final class EldritchTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, ELDRITCH_PLAYER_IS_SEEN, EldritchTests::eldritchPlayerIsSeen);
+        GooTestFunctions.registerTest(registrar, UNVEILED_PLAYER_IS_SEEN, UnveilTests::unveiledPlayerIsSeen);
     }
 
 
     /** Goo the players carry, in thousands: enough for the eat and its upkeep. */
     private static final int HELD_GOO = 2;
-    private static final Identifier XENO_ELDRITCH = Identifier.parse("goo:xeno_eldritch");
-    private static final String SHOULD_HOLD = "Once the eat finishes the player should hold Eldritch Sight";
-    private static final String SHOULD_TARGET_HELD = "An out-of-phase zombie should target the player holding Eldritch Sight, targeted %s";
+    private static final Identifier XENO_UNVEIL = Identifier.parse("goo:xeno_unveil");
+    private static final String SHOULD_HOLD = "Once the eat finishes the player should hold Unveil";
+    private static final String SHOULD_TARGET_HELD = "An out-of-phase zombie should target the player holding Unveil, targeted %s";
 
-    private EldritchTests() {
+    private UnveilTests() {
     }
 
     /**
-     * A survival player eats Eldritch Sight from the glove: an out-of-phase
+     * A survival player eats Unveil from the glove: an out-of-phase
      * zombie offered the player takes it for its target.
      *
      * @param helper the gametest helper
      */
-    public static void eldritchPlayerIsSeen(GameTestHelper helper) {
-        ServerPlayer holder = eatenEldritch(helper);
-        boolean held = holder.getData(GooAttachments.HELD_EFFECTS).holds(XENO_ELDRITCH);
+    public static void unveiledPlayerIsSeen(GameTestHelper helper) {
+        ServerPlayer holder = eatenUnveil(helper);
+        boolean held = holder.getData(GooAttachments.HELD_EFFECTS).holds(XENO_UNVEIL);
         Zombie zombie = outOfPhaseZombie(helper);
 
         LivingEntity heldTarget = offer(zombie, holder);
@@ -80,12 +80,12 @@ public final class EldritchTests {
     }
 
     /**
-     * A targetable player who invoked Eldritch Sight from the glove and ate
+     * A targetable player who invoked Unveil from the glove and ate
      * it through, ticked once so the held effect stands.
      */
-    private static ServerPlayer eatenEldritch(GameTestHelper helper) {
+    private static ServerPlayer eatenUnveil(GameTestHelper helper) {
         ServerPlayer player = targetable(helper);
-        SelfDeliveryTests.invoke(player, GooTypes.XENO, XENO_ELDRITCH);
+        SelfDeliveryTests.invoke(player, GooTypes.XENO, XENO_UNVEIL);
         SelfDeliveryTests.eatThrough(player);
         player.doTick();
         return player;

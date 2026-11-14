@@ -149,7 +149,7 @@ public final class EffectExecutorTests {
     private static final int SPILLED_STONE = 70;
     private static final String SPHERE_STAYED_SHUT = "The touched sphere is still standing";
     private static final String SPHERE_SPILLED_WRONG = "The touched sphere spilled other than 70 stone and a diamond: ";
-    private static final String ABILITY_BLAST_DRAGGED = "goo:unstable_explode";
+    private static final String ABILITY_BLAST_DRAGGED = "goo:unstable_blast";
     /** The smallest and largest whole radius searched for the one Blast's own expression first gathers at. */
     private static final int SMALLEST_BLAST_SIZE = 1;
     private static final int LARGEST_BLAST_SIZE = 6;

@@ -44,7 +44,7 @@ public final class GooExplosionTests {
     }
 
 
-    private static final Identifier BLAST = Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_explode");
+    private static final Identifier BLAST = Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_blast");
     private static final int FLOOR_SPAN = 16;
     private static final int FLOOR_TOP = 2;
     private static final int BAY_HEIGHT = 5;
@@ -53,7 +53,7 @@ public final class GooExplosionTests {
     /** The aim point, the center of the struck block's top face. */
     private static final Vec3 AIM = new Vec3(8.5, FLOOR_TOP + 1.0, 8.5);
 
-    private static final String ABILITY_REQUIRED = "Ability registry must hold unstable_explode";
+    private static final String ABILITY_REQUIRED = "Ability registry must hold unstable_blast";
 
     private static final String DIRT_LOST = "Blast removed %d dirt but dropped %d dirt items";
     private static final String NOTHING_REMOVED = "Blast removed no dirt";

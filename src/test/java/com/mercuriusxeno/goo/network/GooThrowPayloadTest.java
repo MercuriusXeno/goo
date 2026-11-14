@@ -19,7 +19,7 @@ class GooThrowPayloadTest {
     @Test
     void theAimedPointRoundTripsThroughTheStreamCodec() {
         GooThrowPayload sent = new GooThrowPayload("goo:unstable", -1, new BlockPos(4, 63, 9), Direction.NORTH.ordinal(),
-                false, "goo:unstable_explode", ORIGIN, new Vec3(4.3, 63.75, 9.0));
+                false, "goo:unstable_blast", ORIGIN, new Vec3(4.3, 63.75, 9.0));
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
 
         GooThrowPayload.STREAM_CODEC.encode(buf, sent);
@@ -30,12 +30,12 @@ class GooThrowPayloadTest {
     @Test
     void aReAimedThrowLandsAtTheBlockHoldingThePointOnItsTopFace() {
         GooThrowPayload thrown = new GooThrowPayload("goo:unstable", -1, new BlockPos(4, 63, 9), Direction.NORTH.ordinal(),
-                false, "goo:unstable_explode", ORIGIN, new Vec3(90, 120, 9));
+                false, "goo:unstable_blast", ORIGIN, new Vec3(90, 120, 9));
         Vec3 capped = new Vec3(40.5, 100.25, 9.75);
 
         GooThrowPayload aimed = thrown.aimedAt(capped);
 
         assertEquals(new GooThrowPayload("goo:unstable", -1, new BlockPos(40, 100, 9), Direction.UP.ordinal(),
-                false, "goo:unstable_explode", ORIGIN, capped), aimed);
+                false, "goo:unstable_blast", ORIGIN, capped), aimed);
     }
 }

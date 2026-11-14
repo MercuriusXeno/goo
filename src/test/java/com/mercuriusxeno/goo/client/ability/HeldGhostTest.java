@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class HeldGhostTest {
 
     private static final float TOLERANCE = 1e-6f;
-    /** unstable_explode.json's cost, the price of the reference radius. */
+    /** unstable_blast.json's cost, the price of the reference radius. */
     private static final int BLAST_COST = 1000;
 
     private static HeldGhost ghostOf(HeldGhostVisual visual, String name) {

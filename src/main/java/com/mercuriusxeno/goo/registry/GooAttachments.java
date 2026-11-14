@@ -236,7 +236,7 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> Stunned.NONE).serialize(Stunned.CODEC).build());
 
     /**
-     * The fungal sight a player holds, lengthening Fungal Shift and synced to
+     * The fungal sight a player holds, lengthening Transmit and synced to
      * the owning client, which outlines fungus through walls while it stands
      * (decision sight-lengthens-shift-and-outlines-fungus).
      */
@@ -385,7 +385,7 @@ public final class GooAttachments {
      * An entity's standing out of phase and when it fades, saved with the
      * entity while laid and synced to every client drawing it, which draws it
      * translucent and grey. A plain attachment any ability may lay, which
-     * Eldritch sight reads too (decision eldritch-sight-reveals-the-out-of-phase).
+     * Unveil reads too (decision eldritch-sight-reveals-the-out-of-phase).
      * phase-shares-a-plane-between-the-phased
      */
     public static final Supplier<AttachmentType<OutOfPhase>> OUT_OF_PHASE =

@@ -1,8 +1,8 @@
 {
   "type": "minecraft:function",
-  "function": "goo:sight_shifts_through_a_wall",
+  "function": "goo:spore_spreads_nylium",
   "environment": "minecraft:default",
-  "structure": "goo:light_bay",
+  "structure": "goo:test_bay",
   "max_ticks": 20,
   "setup_ticks": 0,
   "required": true

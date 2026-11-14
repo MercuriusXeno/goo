@@ -22,10 +22,10 @@ class HeldEffectsEventsTest {
 
     // decision eldritch-sight-reveals-the-out-of-phase
     @Test
-    void endingEldritchSightEndsTheEldritchState() {
+    void endingUnveilEndsTheEldritchState() {
         ServerPlayer player = mock(ServerPlayer.class);
 
-        HeldEffectsEvents.clearSensesAndReach(player, Set.of(LaidState.ELDRITCH));
+        HeldEffectsEvents.clearSensesAndReach(player, Set.of(LaidState.UNVEIL));
 
         verify(player).removeData(GooAttachments.ELDRITCH);
     }

@@ -40,7 +40,7 @@ class FungusXrayTest {
     class AfterTheSightEnds {
 
         private static final float EPSILON = 1e-6f;
-        private static final int ALPHA_SHIFT = 24;
+        private static final int ALPHA_TRANSMIT = 24;
         private final Afterglow<Sight> glow = new Afterglow<>();
 
         @BeforeEach
@@ -53,8 +53,8 @@ class FungusXrayTest {
         void halfASecondAfterTheOutlinesDrawAtHalfAlpha() {
             float strength = FungusXray.outlineStrength(glow, Sight.NONE, NOW + 10, NOW + Afterglow.FADE_TICKS / 2f);
             assertEquals(0.5f, strength, EPSILON);
-            assertEquals(Math.round((FungusXray.GHOST_TINT >>> ALPHA_SHIFT) * 0.5f),
-                    FungusXray.ghostTint(strength) >>> ALPHA_SHIFT);
+            assertEquals(Math.round((FungusXray.GHOST_TINT >>> ALPHA_TRANSMIT) * 0.5f),
+                    FungusXray.ghostTint(strength) >>> ALPHA_TRANSMIT);
         }
 
         @Test

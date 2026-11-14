@@ -187,7 +187,7 @@ class AffordedCountTest {
     class Dynamic {
 
         private static final List<String> DYNAMIC_ABILITIES = List.of("ender_blink",
-                "unstable_explode", "rock_spire", "yore_age");
+                "unstable_blast", "rock_spire", "yore_age");
 
         @Test
         void zeroCostPetalReadsItsFormula() {

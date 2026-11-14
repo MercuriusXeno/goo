@@ -34,7 +34,7 @@ public final class MonstrosityTests {
     private static final String DROPS_XENO = "monstrosity_drops_xeno";
 
     private static final Identifier PHASE = Identifier.parse("goo:quantum_phase");
-    private static final Identifier XENO_ELDRITCH = Identifier.parse("goo:xeno_eldritch");
+    private static final Identifier XENO_UNVEIL = Identifier.parse("goo:xeno_unveil");
     private static final int HELD_XENO = 3;
     private static final BlockPos MONSTROSITY_POS = new BlockPos(3, 1, 3);
     private static final float KILLING_HIT = 1000.0F;
@@ -68,7 +68,7 @@ public final class MonstrosityTests {
     }
 
     /**
-     * A free-willed monstrosity beside a player holding Eldritch Sight on the glove takes
+     * A free-willed monstrosity beside a player holding Unveil on the glove takes
      * that player as its target through its own goals.
      *
      * @param helper the gametest helper
@@ -77,7 +77,7 @@ public final class MonstrosityTests {
         ServerPlayer eldritch = SurvivalPlayers.placeIn(helper);
         eldritch.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
         eldritch.getInventory().add(GooStacks.createForOutput(GooTypes.XENO, HELD_XENO * GooStacks.THOUSAND));
-        HeartOverlayTests.invoke(eldritch, GooTypes.XENO, XENO_ELDRITCH);
+        HeartOverlayTests.invoke(eldritch, GooTypes.XENO, XENO_UNVEIL);
         EldritchMonstrosity monstrosity = helper.spawn(GooEntities.ELDRITCH_MONSTROSITY.get(), MONSTROSITY_POS);
         helper.succeedWhen(() -> {
             helper.assertTrue(monstrosity.getTarget() == eldritch,

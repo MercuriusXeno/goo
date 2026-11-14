@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.FungusAim;
-import com.mercuriusxeno.goo.ability.program.ShiftStep;
+import com.mercuriusxeno.goo.ability.program.TransmitStep;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.ability.SporeMotes;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -30,14 +30,14 @@ import java.util.Optional;
 import java.util.SplittableRandom;
 
 /**
- * Fungal Shift's target marker: while the press is held near a fungus, the
+ * Transmit's target marker: while the press is held near a fungus, the
  * fungus the release would land on flares, its own shape swollen and quick-pulsing in
  * magenta, and a slim column of spore motes rises from where the player
  * would stand, both drawn through walls so the mark reads behind them.
  * fungal-shift-blinks-to-the-aimed-fungus
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
-public final class ShiftTargetMarker {
+public final class TransmitTargetMarker {
 
     /** How far the flare swells past the block. */
     private static final float FLARE_SWELL = 1.22f;
@@ -84,11 +84,11 @@ public final class ShiftTargetMarker {
     private static float targetYaw;
     private static float targetPitch;
 
-    private ShiftTargetMarker() {
+    private TransmitTargetMarker() {
     }
 
     /**
-     * Draws the marker after the translucent world while a held Fungal Shift aims at fungus.
+     * Draws the marker after the translucent world while a held Transmit aims at fungus.
      *
      * @param event the level render stage event
      */
@@ -107,7 +107,7 @@ public final class ShiftTargetMarker {
     }
 
     /**
-     * Whether the marker shows for the selected ability: it shifts to fungus,
+     * Whether the marker shows for the selected ability: it transmits to fungus,
      * and its indicator's rule holds for the press.
      *
      * @param ability the selected ability's synced copy, or null when none
@@ -115,7 +115,7 @@ public final class ShiftTargetMarker {
      * @return true while the marker shows
      */
     static boolean showsMarker(@Nullable ClientAbility ability, boolean useHeld) {
-        return ability != null && ShiftStep.fungusRange(ability.behaviors()).isPresent()
+        return ability != null && TransmitStep.fungusRange(ability.behaviors()).isPresent()
                 && ability.indicator().shows(useHeld);
     }
 
@@ -126,19 +126,19 @@ public final class ShiftTargetMarker {
 
     /**
      * The fungus the release would land on, resolved through the aim the
-     * server's shift takes, once per tick and look.
+     * server's transmit takes, once per tick and look.
      *
      * @param player  the local player
-     * @param ability the selected Fungal Shift
+     * @param ability the selected Transmit
      * @return the fungus, or empty when the look names none
      */
     private static Optional<BlockPos> aimedFungus(LocalPlayer player, ClientAbility ability) {
         long tick = player.level().getGameTime();
         if (tick != targetAt || player.getYRot() != targetYaw || player.getXRot() != targetPitch) {
             boolean near = FungusAim.standsNearFungus(player.level(), player,
-                    ShiftStep.fungusNear(ability.behaviors()).orElse(0));
+                    TransmitStep.fungusNear(ability.behaviors()).orElse(0));
             target = near ? FungusAim.aimedFungus(player.level(), player,
-                    ShiftStep.reachOf(player, ShiftStep.fungusRange(ability.behaviors()).orElseThrow()))
+                    TransmitStep.reachOf(player, TransmitStep.fungusRange(ability.behaviors()).orElseThrow()))
                     : Optional.empty();
             targetAt = tick;
             targetYaw = player.getYRot();
@@ -157,7 +157,7 @@ public final class ShiftTargetMarker {
                         FLARE_ALPHA)), FLARE_SWELL);
         buffers.endBatch(glow);
         RenderType motes = GooRenderTypes.SPORE_SHELL_THROUGH_BLOCKS_TYPE;
-        drawColumn(poseStack.last(), buffers.getBuffer(motes), ShiftStep.standingOn(mc.level, pos).subtract(camera),
+        drawColumn(poseStack.last(), buffers.getBuffer(motes), TransmitStep.standingOn(mc.level, pos).subtract(camera),
                 seconds);
         buffers.endBatch(motes);
     }

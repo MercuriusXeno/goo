@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.ability.colonize;
+package com.mercuriusxeno.goo.ability.spore;
 
 import com.mercuriusxeno.goo.Goo;
 import net.minecraft.core.BlockPos;
@@ -14,7 +14,7 @@ import java.util.Optional;
 import java.util.function.Predicate;
 
 /**
- * The shroom networks Colonize grows: each is the blocks its family tag
+ * The shroom networks Spore grows: each is the blocks its family tag
  * under {@code goo:shroom_network} holds, the ground block it spreads as,
  * and the ground it can take over. Crimson and warped nylium take
  * netherrack, sculk takes what vanilla sculk spreads over, and mycelium
