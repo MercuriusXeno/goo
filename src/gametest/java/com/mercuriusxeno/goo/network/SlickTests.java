@@ -18,6 +18,8 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket;
+import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -243,7 +245,123 @@ public final class SlickTests {
             + " should rise onto it with its move kept: moved %.3f of %.3f east, feet %.3f over the cell's top,"
             + " collided %s";
 
+    private static final String SPRAYED_AHEAD_KEEPS_MOMENTUM = "slick_sprayed_ahead_keeps_a_sliders_momentum";
+    /** Pitched a little down, so a slider's spray lands inside the bay ahead of it. */
+    private static final float A_LITTLE_DOWN = 20f;
+
+    private static final String RISEN_CELL_NO_SNAP = "slick_risen_ahead_of_a_runner_does_not_snap_them_back";
+    /** The runner's cell and the cell ahead it runs into, side by side on stone, walled north and south. */
+    private static final BlockPos RUNNER_CELL = new BlockPos(1, 1, 8);
+    /** The teleport ids a test player's join may have left awaiting the client. */
+    private static final int JOIN_TELEPORTS = 4;
+    private static final String SNAPPED_BACK = "A runner's move into a slick cell that rose a layer the client has not"
+            + " seen should stand: landed at %.3f east, %.3f asked";
+
     private SlickTests() {
+    }
+
+    /**
+     * A runner standing on two-layer slick moves into the next cell, which
+     * rose to three layers on the server a moment before their client saw it,
+     * so their move puts their feet a layer inside it: the server lets the
+     * move stand, where vanilla takes a move newly overlapping any block as
+     * wrong and snaps the runner back, stopping them dead.
+     * operator report 2026-11-14: running on slick and spraying ahead hitches several times a second
+     *
+     * @param helper the gametest helper
+     */
+    public static void slickRisenAheadOfARunnerDoesNotSnapThemBack(GameTestHelper helper) {
+        BlockPos ahead = RUNNER_CELL.east();
+        for (BlockPos cell : List.of(RUNNER_CELL, ahead)) {
+            helper.setBlock(cell.below(), Blocks.STONE);
+            helper.setBlock(cell.north(), Blocks.STONE);
+            helper.setBlock(cell.south(), Blocks.STONE);
+            helper.setBlock(cell, slickOf(2));
+        }
+        ServerPlayer runner = slickStreamerAt(helper, RUNNER_CELL);
+        // the client accepts the teleport it joined with, as a client does, so its moves are read
+        for (int teleport = 0; teleport <= JOIN_TELEPORTS; teleport++) {
+            runner.connection.handleAcceptTeleportPacket(new ServerboundAcceptTeleportationPacket(teleport));
+        }
+        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(RUNNER_CELL));
+        runner.setPos(stand.x, stand.y, stand.z);
+        double clientTop = helper.absolutePos(RUNNER_CELL).getY() + 2.0 / WHOLE_BLOCK_LAYERS;
+        runner.setPos(runner.getX(), clientTop, runner.getZ());
+        runner.connection.markClientLoaded();
+        runner.connection.handleMovePlayer(new ServerboundMovePlayerPacket.Pos(runner.position(), true, false));
+        // the drip lands on the server; the client has not had the cell's update when it moves the runner on
+        helper.setBlock(ahead, slickOf(3));
+        Vec3 target = Vec3.atBottomCenterOf(helper.absolutePos(ahead)).add(0, clientTop
+                - helper.absolutePos(ahead).getY(), 0);
+        runner.connection.handleMovePlayer(new ServerboundMovePlayerPacket.Pos(target, true, false));
+        double landed = runner.getX();
+        helper.getLevel().getServer().getPlayerList().remove(runner);
+        helper.assertTrue(Math.abs(landed - target.x) < 1e-6, String.format(SNAPPED_BACK,
+                landed - helper.absolutePos(RUNNER_CELL).getX(), target.x - helper.absolutePos(RUNNER_CELL).getX()));
+        helper.succeed();
+    }
+
+    /**
+     * A pig sliding east at a block a tick along a runway of one-layer
+     * slick, with Slick streamed ahead of it from where it stands each tick
+     * at its speed, the way a runner sprays ahead of themself, keeps its
+     * momentum through the slick it runs into: no tick takes more of its
+     * speed than slick's own friction.
+     * operator report 2026-11-14: running on slick and spraying straight ahead hitches several times a second
+     *
+     * @param helper the gametest helper
+     */
+    public static void slickSprayedAheadKeepsASlidersMomentum(GameTestHelper helper) {
+        int row = FAR_STREAMER_POS.getZ();
+        for (int east = 0; east <= FAR_STRIP_EAST; east++) {
+            for (int z = row - FLOOR_HALF_WIDTH; z <= row + FLOOR_HALF_WIDTH; z++) {
+                helper.setBlock(new BlockPos(east, FAR_STREAMER_POS.getY() - 1, z), Blocks.STONE);
+            }
+            if (east <= 2) {
+                helper.setBlock(FAR_STREAMER_POS.east(east), GooBlocks.KINETIC_SLICK.get());
+            }
+        }
+        Mob pig = helper.spawnWithNoFreeWill(EntityType.PIG, FAR_STREAMER_POS);
+        Vec3 start = Vec3.atBottomCenterOf(helper.absolutePos(FAR_STREAMER_POS));
+        pig.setPos(start.x, start.y + ONE_LAYER, start.z);
+        ServerPlayer streamer = slickStreamerAt(helper, FAR_STREAMER_POS);
+        streamer.setYRot(FACING_EAST);
+        streamer.setXRot(A_LITTLE_DOWN);
+        double westEdge = helper.absolutePos(FAR_STREAMER_POS).getX();
+        List<Double> speeds = new ArrayList<>();
+        List<String> losses = new ArrayList<>();
+        helper.runAfterDelay(SETTLE_TICKS, () -> pig.setDeltaMovement(SLIDE_PUSH, 0, 0));
+        for (int tick = SETTLE_TICKS + 1; tick <= SETTLE_TICKS + SLIDE_READ_TICKS; tick++) {
+            int now = tick;
+            helper.runAfterDelay(tick, () -> {
+                Vec3 moving = pig.getDeltaMovement();
+                double speed = moving.horizontalDistance();
+                if (!speeds.isEmpty() && speeds.getLast() >= SLIDE_PUSH / 4 && speed / speeds.getLast() < KEPT_SHARE) {
+                    BlockPos feet = BlockPos.containing(pig.getX(), pig.getY() - 0.01, pig.getZ());
+                    StringBuilder ahead = new StringBuilder();
+                    for (int dx = -1; dx <= 2; dx++) {
+                        ahead.append(VolumeCellBlock.layersOf(helper.getLevel().getBlockState(feet.east(dx))))
+                                .append(dx == 0 ? "* " : " ");
+                    }
+                    losses.add(String.format("tick %d at %.2f east kept %.3f, y %.3f in its block, onGround %s,"
+                                    + " collided %s, path layers west to east %s", now, pig.getX() - westEdge,
+                            speed / speeds.getLast(), pig.getY() - Math.floor(pig.getY()), pig.onGround(),
+                            pig.horizontalCollision, ahead.toString().trim()));
+                }
+                speeds.add(speed);
+                streamer.setPos(pig.getX(), pig.getY(), pig.getZ());
+                streamer.setKnownMovement(new Vec3(moving.x, 0, moving.z));
+                GooStreamHandler.streamTick(streamer, GooStreamPayload.unplaned(GooTypes.id(GooTypes.KINETIC),
+                        SLICK.toString(), streamer.getEyePosition(), streamer.getEyePosition()));
+            });
+        }
+        helper.runAfterDelay(SETTLE_TICKS + SLIDE_READ_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
+            pig.discard();
+            helper.assertTrue(losses.isEmpty(), "A slider running into the slick it sprays should keep its momentum: "
+                    + String.join("; ", losses) + "; speeds " + speeds);
+            helper.succeed();
+        });
     }
 
     /**
@@ -540,6 +658,9 @@ public final class SlickTests {
                 SlickTests::slickLaysATrackARampedRunnerRides);
         GooTestFunctions.registerTest(registrar, HELD_SPREADS_WITHOUT_STEPS, SlickTests::slickHeldAtOneSpotSpreadsWithoutSteps);
         GooTestFunctions.registerTest(registrar, KEEPS_MOMENTUM, SlickTests::slickKeepsASlidersMomentum);
+        GooTestFunctions.registerTest(registrar, RISEN_CELL_NO_SNAP, SlickTests::slickRisenAheadOfARunnerDoesNotSnapThemBack);
+        GooTestFunctions.registerTest(registrar, SPRAYED_AHEAD_KEEPS_MOMENTUM,
+                SlickTests::slickSprayedAheadKeepsASlidersMomentum);
         GooTestFunctions.registerTest(registrar, STEPS_UP_IN_THE_AIR, SlickTests::slickStepsAFallingSliderUpOntoARaisedCell);
     }
 
