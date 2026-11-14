@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mercuriusxeno.goo.client.ability.HandPassView;
 import com.mercuriusxeno.goo.client.ability.KnivesCharge;
+import com.mercuriusxeno.goo.client.ability.KnivesCharging;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
 import com.mercuriusxeno.goo.client.ability.PalmBlobHop;
 import com.mercuriusxeno.goo.client.ability.SprayingClient;
@@ -209,6 +210,79 @@ class GloveSpecialRendererTest {
     }
 
     /**
+     * Knives' charge lifts the blob off the palm from its first tick, leaving
+     * the palm nothing to draw; the hand's pass faces the floating blob along
+     * the look whatever the glove's turn; and once the blob settles after the
+     * backhand's sweep the palm draws its blob at rest size again (decisions
+     * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives, charge-swells-the-palm-blob).
+     */
+    @Nested
+    class KnivesChargeFloatsTheBlob {
+
+        /** The hand turned as the wind-up begins and as it reaches its furthest across the chest. */
+        private static final Quaternionf AT_THE_START = new Quaternionf().rotationXYZ(1.2f, 0.4f, -0.3f);
+        private static final Quaternionf AT_THE_FURTHEST = new Quaternionf().rotationXYZ(0.9f, -0.5f, 0.35f);
+
+        @ParameterizedTest
+        @ValueSource(booleans = {true, false})
+        void fromTheChargesFirstTickThePalmHasNoBlobToDraw(boolean local) {
+            try (SprayingClient client = local ? SprayingClient.local(GooTypes.CRYSTAL)
+                    : SprayingClient.another(GooTypes.CRYSTAL);
+                 KnivesCharging knives = KnivesCharging.heldTo(0f);
+                 MockedStatic<GloveUseTracker> tracker = mockStatic(GloveUseTracker.class)) {
+                tracker.when(GloveUseTracker::isSelectedTypeAvailable).thenReturn(true);
+                knives.windUp(client, SPRAYED, SPRAYED);
+
+                assertTrue(new GloveSpecialRenderer().extractArgument(client.glove()).palmLifted(),
+                        "from the charge's first tick the palm should draw no blob");
+            }
+        }
+
+        @Test
+        void theHandsPassFacesTheFloatingBlobAlongTheLookWhateverTheGlovesTurn() {
+            try (SprayingClient client = SprayingClient.local(GooTypes.CRYSTAL);
+                 KnivesCharging knives = KnivesCharging.heldTo(0f);
+                 MockedStatic<GloveBodyModels> models = bodiless()) {
+                knives.windUp(client, SPRAYED, SPRAYED + PalmBlobHop.LIFT_TICKS);
+                Quaternionf facing = LiftedPalmBlob.facingTheLook(SprayingClient.PITCH, SprayingClient.YAW);
+                GloveSpecialRenderer.GloveData lifted = new GloveSpecialRenderer.GloveData(null, GooTypes.CRYSTAL,
+                        0f, 1f, true, true);
+
+                for (Quaternionf handTurn : List.of(AT_THE_START, AT_THE_FURTHEST)) {
+                    Quaternionf drawn = coreTurnDrawnAt(lifted, handTurn);
+
+                    assertNear(new Vector3f(0, 0, 1).rotate(facing), new Vector3f(0, 0, 1).rotate(drawn), "front");
+                    assertNear(new Vector3f(0, 1, 0).rotate(facing), new Vector3f(0, 1, 0).rotate(drawn), "top");
+                }
+            }
+        }
+
+        @Test
+        void fromTheSettlesEndAfterTheSweepThePalmCarriesItsBlobAtRestSize() {
+            long released = SPRAYED + 20;
+            long swept = released + KnivesCharging.KNIVES.sweepTicks();
+            long settled = swept + LiftedPalmBlob.STREAM_GAP_TICKS + 1 + PalmBlobHop.SETTLE_TICKS;
+            try (SprayingClient client = SprayingClient.local(GooTypes.CRYSTAL);
+                 KnivesCharging knives = KnivesCharging.heldTo(1f);
+                 MockedStatic<GloveUseTracker> tracker = mockStatic(GloveUseTracker.class)) {
+                tracker.when(GloveUseTracker::isSelectedTypeAvailable).thenReturn(true);
+                knives.windUp(client, SPRAYED, released - 1);
+                knives.release(client, released, settled);
+
+                GloveSpecialRenderer.GloveData data = new GloveSpecialRenderer().extractArgument(client.glove());
+
+                assertFalse(data.palmLifted(), "once settled the palm should draw its blob");
+                assertEquals(KnivesCharge.palmScaleAt(0f), data.blobScale(), "the palm blob should be at rest size");
+            }
+        }
+
+        private static void assertNear(Vector3f expected, Vector3f actual, String axis) {
+            assertTrue(expected.distance(actual) < 1e-4f, "the blob's " + axis + " should lie along " + expected
+                    + ", lay along " + actual);
+        }
+    }
+
+    /**
      * The palm blob the glove draws, first person, in another player's hand
      * and in the inventory slot alike, lies pressed on the palm: thin along
      * the palm's normal and spread across it, its face toward the palm just
@@ -367,16 +441,30 @@ class GloveSpecialRendererTest {
      * the hand pass's camera-relative world axes.
      */
     private static Vec3 coreDrawnAt(GloveSpecialRenderer.GloveData data) {
+        Vector3f at = corePoseDrawnAt(data, new Quaternionf().rotationXYZ(1.2f, 0.4f, -0.3f))
+                .transformPosition(new Vector3f());
+        return new Vec3(at);
+    }
+
+    /**
+     * The turn a glove held in a hand turned some way draws its blob's core
+     * in, in the hand pass's camera-relative world axes.
+     */
+    private static Quaternionf coreTurnDrawnAt(GloveSpecialRenderer.GloveData data, Quaternionf handTurn) {
+        return corePoseDrawnAt(data, handTurn).getUnnormalizedRotation(new Quaternionf());
+    }
+
+    /** The pose a glove held in a turned, shrunk hand draws its blob's core in. */
+    private static Matrix4f corePoseDrawnAt(GloveSpecialRenderer.GloveData data, Quaternionf handTurn) {
         PoseStack hand = new PoseStack();
         hand.translate(HAND_AHEAD * 0.6, -HAND_AHEAD * 0.8, -HAND_AHEAD);
-        hand.mulPose(new Quaternionf().rotationXYZ(1.2f, 0.4f, -0.3f));
+        hand.mulPose(handTurn);
         hand.scale(0.5f, 0.5f, 0.5f);
-        List<Vec3> cores = new ArrayList<>();
+        List<Matrix4f> cores = new ArrayList<>();
         SubmitNodeCollector collector = mock(SubmitNodeCollector.class);
         doAnswer(call -> {
             if (call.getArgument(1) == GloveSpecialRenderer.coreType()) {
-                Vector3f at = call.<PoseStack>getArgument(0).last().pose().transformPosition(new Vector3f());
-                cores.add(new Vec3(at));
+                cores.add(new Matrix4f(call.<PoseStack>getArgument(0).last().pose()));
             }
             return null;
         }).when(collector).submitCustomGeometry(any(), any(), any());

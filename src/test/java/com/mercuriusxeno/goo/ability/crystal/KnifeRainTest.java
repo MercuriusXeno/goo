@@ -2,7 +2,10 @@ package com.mercuriusxeno.goo.ability.crystal;
 
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -77,6 +80,43 @@ class KnifeRainTest {
 
         assertEquals(0, new Vec3(-0.35, -0.3, 0.4).distanceTo(right), 1e-6, "facing south, the right hand is west");
         assertEquals(0, new Vec3(0.35, -0.3, 0.4).distanceTo(left), 1e-6, "a left glove mirrors the right");
+    }
+
+    /**
+     * The blob Knives' charge lifts floats ahead of and above the glove hand
+     * and moves with the hand as the wind-up eases it across the chest
+     * (decision knives-blob-floats-ahead-of-the-hand-and-spews-the-knives).
+     */
+    @Nested
+    class FloatsAheadOfAndAboveTheHand {
+
+        private final Vec3 eye = new Vec3(3, 65.62, -2);
+        private final float yaw = 20f;
+        private final Vec3 look = Vec3.directionFromRotation(30f, yaw);
+
+        @ParameterizedTest
+        @ValueSource(floats = {0f, 1f})
+        void atTheWindUpsStartAndItsFurthestTheBlobFloatsAboveAndAheadOfTheHand(float across) {
+            Vec3 floating = KnifeRain.floatPoint(eye, yaw, look, true, across);
+            Vec3 hand = KnifeRain.handPoint(eye, yaw, look, true, across);
+
+            assertTrue(floating.y > hand.y, "the blob " + floating + " should float above the hand " + hand);
+            assertTrue(floating.subtract(eye).dot(look) > hand.subtract(eye).dot(look), "the blob " + floating
+                    + " should float farther along the look than the hand " + hand);
+        }
+
+        @Test
+        void theBlobMovesBetweenTheTwoByTheHandsOwnTravelAcrossTheChest() {
+            Vec3 handTravel = KnifeRain.handPoint(eye, yaw, look, true, 1f)
+                    .subtract(KnifeRain.handPoint(eye, yaw, look, true, 0f));
+            Vec3 blobTravel = KnifeRain.floatPoint(eye, yaw, look, true, 1f)
+                    .subtract(KnifeRain.floatPoint(eye, yaw, look, true, 0f));
+
+            assertTrue(handTravel.length() > 0.1, "the wind-up should carry the hand across the chest, "
+                    + handTravel);
+            assertEquals(0, handTravel.distanceTo(blobTravel), 1e-9, "the blob should travel " + handTravel
+                    + " with the hand, travelled " + blobTravel);
+        }
     }
 
     @Test

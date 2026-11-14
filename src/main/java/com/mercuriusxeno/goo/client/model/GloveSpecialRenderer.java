@@ -32,7 +32,9 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
 import org.joml.Quaternionf;
+import org.joml.Quaternionfc;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
 import org.joml.Vector4f;
@@ -233,7 +235,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         BlobShape shape = palmShape(blobScale);
         Vector3f center = palmCenter(shape);
         captureGooCenter(poseStack, center.x(), center.y(), center.z());
-        submitBlob(poseStack, nodeCollector, type, center, shape);
+        submitBlob(poseStack, nodeCollector, type, center, shape, STANDING_ON_THE_PALM);
     }
 
     /**
@@ -274,13 +276,15 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * @param type          the goo type
      * @param center        the blob's center in the model, in block coords
      * @param shape         the blob's box against the palm blob's rest cube
+     * @param turn          the blob's turn in the model
      */
     private static void submitBlob(PoseStack poseStack, SubmitNodeCollector nodeCollector,
-                                   ResourceKey<GooTypeDefinition> type, Vector3fc center, BlobShape shape) {
+                                   ResourceKey<GooTypeDefinition> type, Vector3fc center, BlobShape shape,
+                                   Quaternionfc turn) {
         float gameTime = gameTime();
         poseStack.pushPose();
         poseStack.translate(center.x(), center.y(), center.z());
-        poseStack.mulPose(STANDING_ON_THE_PALM);
+        poseStack.mulPose(turn);
         nodeCollector.submitCustomGeometry(poseStack, coreType(),
                 (pose, c) -> GooFlightRenderer.emitCore(pose, c, type, gameTime, shape));
         nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
@@ -306,10 +310,31 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
     private static void submitLiftedGoo(PoseStack poseStack, SubmitNodeCollector nodeCollector,
                                         ResourceKey<GooTypeDefinition> type, LiftedPalmBlob.HandLift lift) {
         Matrix4f toHandPass = new Matrix4f(poseStack.last().pose());
+        Quaternionf turn = liftedTurn(toHandPass, lift);
         Vector3f standing = palmCenter(palmShape(REST_SCALE)).add(0f, 0f, -lift.stand() * SHELL_HW_PX / BLOCK_PIXELS);
         Vector3f palm = toHandPass.transformPosition(standing);
         Vector3f lifted = palm.lerp(lift.sourceInHand().toVector3f(), lift.share());
-        submitBlob(poseStack, nodeCollector, type, toHandPass.invert().transformPosition(lifted), lift.shape());
+        submitBlob(poseStack, nodeCollector, type, toHandPass.invert().transformPosition(lifted), lift.shape(), turn);
+    }
+
+    /**
+     * The turn a lifted blob draws in, in the glove's model: standing on the
+     * palm and turned with the glove, or, for a lift facing the look, turning
+     * off the glove's turn as it leaves the palm until it faces along the
+     * look whatever the hand's turn, the glove's own turn undone.
+     * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives: facing forward with the look, not the hand
+     *
+     * @param toHandPass the glove's model onto the hand pass's camera-relative world axes
+     * @param lift       the local player's lift
+     * @return the turn, in the glove's model
+     */
+    static Quaternionf liftedTurn(Matrix4fc toHandPass, LiftedPalmBlob.HandLift lift) {
+        if (lift.facing() == null) {
+            return new Quaternionf(STANDING_ON_THE_PALM);
+        }
+        Quaternionf facingInTheModel = toHandPass.getUnnormalizedRotation(new Quaternionf()).conjugate()
+                .mul(lift.facing());
+        return new Quaternionf(STANDING_ON_THE_PALM).slerp(facingInTheModel, lift.share());
     }
 
     /**

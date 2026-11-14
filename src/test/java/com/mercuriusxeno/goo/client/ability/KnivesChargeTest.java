@@ -1,17 +1,20 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.ArmPoseKind;
 import com.mercuriusxeno.goo.ability.Charge;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Knives' charge: a chime at each step as the charge grows, capped at the
- * steps it chimes, a goo blob in a remote hand and the glove's palm blob
- * swelling with the charge (decisions knives-sling-then-morph-to-flechettes,
- * charge-swells-the-palm-blob).
+ * steps it chimes, the glove's palm blob swelling with the charge, and the
+ * blob held afloat through the wind-up and the backhand's sweep (decisions
+ * knives-sling-then-morph-to-flechettes, charge-swells-the-palm-blob,
+ * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives).
  */
 class KnivesChargeTest {
 
@@ -26,18 +29,6 @@ class KnivesChargeTest {
             assertEquals(3, KnivesCharge.shownAt(KNIVES, 0f));
             assertEquals(8, KnivesCharge.shownAt(KNIVES, 0.2f));
             assertEquals(KnivesCharge.MOST_SHOWN, KnivesCharge.shownAt(KNIVES, 1f));
-        }
-    }
-
-    @Nested
-    class WorldBlobScale {
-
-        @Test
-        void theGooInTheHandSwellsWithTheCharge() {
-            assertEquals(KnivesCharge.BLOB_SMALLEST, KnivesCharge.blobScaleAt(0f), TOLERANCE);
-            assertTrue(KnivesCharge.blobScaleAt(0.5f) > KnivesCharge.blobScaleAt(0.25f));
-            assertEquals(KnivesCharge.BLOB_FULLEST, KnivesCharge.blobScaleAt(1f), TOLERANCE);
-            assertEquals(KnivesCharge.BLOB_FULLEST, KnivesCharge.blobScaleAt(2f), TOLERANCE);
         }
     }
 
@@ -59,6 +50,32 @@ class KnivesChargeTest {
         void thePalmBlobSwellsToItsFullestAtFullChargeAndNoFurther() {
             assertEquals(KnivesCharge.PALM_FULLEST, KnivesCharge.palmScaleAt(1f), TOLERANCE);
             assertEquals(KnivesCharge.PALM_FULLEST, KnivesCharge.palmScaleAt(2f), TOLERANCE);
+        }
+    }
+
+    @Nested
+    class FloatsTheBlob {
+
+        @Test
+        void theWindUpFloatsTheBlobHoweverLongItIsHeld() {
+            assertTrue(KnivesCharge.floatsAt(new AbilityPoses.Posed(ArmPoseKind.WIND_UP, 0, true, 0f), 100,
+                    KNIVES.sweepTicks()));
+        }
+
+        @Test
+        void theBackhandFloatsTheBlobThroughItsSweepAndNoLonger() {
+            AbilityPoses.Posed backhand = new AbilityPoses.Posed(ArmPoseKind.FLING, 0, true, 0.8f);
+
+            assertTrue(KnivesCharge.floatsAt(backhand, KNIVES.sweepTicks(), KNIVES.sweepTicks()),
+                    "at the sweep's last tick the blob should float");
+            assertFalse(KnivesCharge.floatsAt(backhand, KNIVES.sweepTicks() + 1, KNIVES.sweepTicks()),
+                    "past the sweep the blob should settle");
+        }
+
+        @Test
+        void aWindUpLetGoFloatsTheBlobNoLonger() {
+            assertFalse(KnivesCharge.floatsAt(new AbilityPoses.Posed(ArmPoseKind.WIND_UP, 0, true, 0.5f, true), 1,
+                    KNIVES.sweepTicks()));
         }
     }
 

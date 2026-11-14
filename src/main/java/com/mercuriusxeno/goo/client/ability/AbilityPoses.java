@@ -426,6 +426,27 @@ public final class AbilityPoses {
         return furthest.scaled(heldAt(posed, age).weight());
     }
 
+    /**
+     * How far a pose has eased the glove hand across the chest an age into
+     * it: the wind-up's ease, then the backhand sweeping the hand back out
+     * to the glove side from wherever the wind-up got to.
+     * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives: the floating blob moves with the hand
+     *
+     * @param posed the pose, or null for none
+     * @param age   ticks since it began
+     * @return the share across, 0 at the glove side to 1 at the wind-up's furthest
+     */
+    static float acrossAt(Posed posed, double age) {
+        if (posed == null) {
+            return 0f;
+        }
+        return switch (posed.kind()) {
+            case WIND_UP -> heldAt(posed, age).weight();
+            case FLING -> posed.from() * (1f - outShare(age));
+            default -> 0f;
+        };
+    }
+
     private static HumanoidArm gloveArm(Posed posed) {
         return posed.gloveRight() ? HumanoidArm.RIGHT : HumanoidArm.LEFT;
     }

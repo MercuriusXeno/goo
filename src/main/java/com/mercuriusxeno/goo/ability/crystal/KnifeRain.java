@@ -37,6 +37,14 @@ public final class KnifeRain {
     private static final double HAND_SIDE = 0.35;
     /** Blocks ahead of the eye the knives leave from. */
     private static final double HAND_REACH = 0.4;
+    /** Blocks the wind-up eases the hand across the chest at its furthest, past the body's middle. */
+    private static final double HAND_ACROSS = 0.45;
+    /**
+     * Blocks along the look and up the floating blob stands from the hand.
+     * First values, for the operator to tune.
+     */
+    private static final double FLOAT_AHEAD = 0.15;
+    private static final double FLOAT_ABOVE = 0.2;
     /** Degrees from the look to the thrower's right, around the vertical. */
     private static final float RIGHT_OF_LOOK = 90f;
     private static final double HALF = 0.5;
@@ -120,9 +128,42 @@ public final class KnifeRain {
      * @return the point
      */
     public static Vec3 handPoint(Vec3 eye, float yaw, Vec3 look, boolean gloveRight) {
+        return handPoint(eye, yaw, look, gloveRight, 0f);
+    }
+
+    /**
+     * The glove hand's point as the wind-up eases it across the chest: from
+     * the glove side toward the other side as the charge is held.
+     *
+     * @param eye        the thrower's eye
+     * @param yaw        the thrower's yaw, in degrees
+     * @param look       the thrower's look, a unit vector
+     * @param gloveRight whether the glove is in the right hand
+     * @param across     how far the hand has eased across the chest, 0 at the glove side to 1 at its furthest
+     * @return the point
+     */
+    public static Vec3 handPoint(Vec3 eye, float yaw, Vec3 look, boolean gloveRight, float across) {
         Vec3 right = Vec3.directionFromRotation(0f, yaw + RIGHT_OF_LOOK);
-        return eye.add(look.scale(HAND_REACH)).add(right.scale(gloveRight ? HAND_SIDE : -HAND_SIDE))
+        double side = HAND_SIDE - HAND_ACROSS * across;
+        return eye.add(look.scale(HAND_REACH)).add(right.scale(gloveRight ? side : -side))
                 .subtract(0, HAND_DROP, 0);
+    }
+
+    /**
+     * Where the blob lifted off the palm floats through Knives' charge:
+     * ahead of the glove hand along the look and above it, moving with the
+     * hand as it eases across the chest.
+     * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
+     *
+     * @param eye        the thrower's eye
+     * @param yaw        the thrower's yaw, in degrees
+     * @param look       the thrower's look, a unit vector
+     * @param gloveRight whether the glove is in the right hand
+     * @param across     how far the hand has eased across the chest, 0 at the glove side to 1 at its furthest
+     * @return the point
+     */
+    public static Vec3 floatPoint(Vec3 eye, float yaw, Vec3 look, boolean gloveRight, float across) {
+        return handPoint(eye, yaw, look, gloveRight, across).add(look.scale(FLOAT_AHEAD)).add(0, FLOAT_ABOVE, 0);
     }
 
     /**
