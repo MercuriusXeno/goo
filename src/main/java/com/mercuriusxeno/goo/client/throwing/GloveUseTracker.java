@@ -206,6 +206,8 @@ public final class GloveUseTracker {
         }
         PRESS.tick(mc.options.keyUse.isDown(), pressActions(player));
         liftThePalmBlob(mc, player);
+        // blast-charge-wubs-higher-at-each-stage: a sized charge wubs as it reaches each stage
+        GloveThrowSender.wubTheCharge(player);
     }
 
     /**

@@ -42,6 +42,7 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
@@ -449,11 +450,36 @@ public final class GloveThrowSender {
     static void rootTheCharge() {
         CHARGE_ROOT.clear();
         CHARGE_ROOT.holdAt(AimTracker.currentTarget());
+        CHARGE_WUBS.reset();
     }
 
-    /** Lets the next sized charge root afresh, as a cancel or a release leaves it. */
+    /** Lets the next sized charge root and sound afresh, as a cancel or a release leaves it. */
     static void unrootTheCharge() {
         CHARGE_ROOT.clear();
+        CHARGE_WUBS.reset();
+    }
+
+    /** The stages the live sized charge has sounded. */
+    private static final ChargeWubs CHARGE_WUBS = new ChargeWubs();
+    /** How loud a stage's wub sounds at the caster. */
+    private static final float WUB_VOLUME = 0.8f;
+
+    /**
+     * Wubs the live sized charge's stage at the caster, once as the hold
+     * reaches each stage the goo pays for.
+     * decision blast-charge-wubs-higher-at-each-stage
+     *
+     * @param player the local player
+     */
+    static void wubTheCharge(Player player) {
+        chargingSizedAbility(player).ifPresent(charging -> {
+            Charge charge = charging.ability().delivery().charge();
+            double paidFor = ChargeSize.affordable(charge.maxSize(), charging.ability().cost(), charging.holdings());
+            CHARGE_WUBS.tick(charge, GloveUseTracker.heldTicks(), paidFor).ifPresent(cue ->
+                    BuiltInRegistries.SOUND_EVENT.get(cue.sound()).ifPresent(sound ->
+                            player.level().playLocalSound(player.getX(), player.getY(), player.getZ(), sound.value(),
+                                    SoundSource.PLAYERS, WUB_VOLUME, cue.pitch(), false)));
+        });
     }
 
     /**
