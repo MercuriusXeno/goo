@@ -5,7 +5,7 @@
   "order": 0,
   "cost": 1000,
   "requires": ["minecraft:honey_bottle", "minecraft:cake", "minecraft:cookie"],
-  "delivery": { "kind": "envelop", "charge": { "max_ticks": 20 } },
+  "delivery": { "kind": "envelop" },
   "behaviors": [
     {
       "type": "target",

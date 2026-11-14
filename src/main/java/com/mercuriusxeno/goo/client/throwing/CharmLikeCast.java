@@ -8,8 +8,9 @@ import java.util.function.Supplier;
  * The charm-like cast's press: right click with a mob highlighted takes that
  * mob, and the cast keeps it whatever the aim does after, the player free to
  * look away, lose the highlight or lose sight of it, until the release sends
- * it once the wind-up is full. A press with no mob highlighted arms nothing,
- * and a taken mob that dies or unloads cancels the cast as a left click does.
+ * it, however briefly right click was held. A press with no mob highlighted
+ * arms nothing, and a taken mob that dies or unloads cancels the cast as a
+ * left click does.
  * decision charm-like-abilities-lock-the-highlighted-mob-on-right-click
  * operator: "It's just a more deliberate, more magical way of selecting a target."
  */
@@ -63,17 +64,14 @@ public final class CharmLikeCast {
     }
 
     /**
-     * The mob a release sends: the taken mob, once the hold filled the
-     * wind-up and the mob still stands. The release ends the cast either way.
+     * The mob a release sends: the taken mob, while it still stands. The
+     * release ends the cast either way.
      *
-     * @param heldTicks   the ticks the right click was held
-     * @param windUpTicks the ticks the ability's wind-up takes to fill
      * @return the taken mob's id, empty where the release sends nothing
      */
-    public OptionalInt release(int heldTicks, int windUpTicks) {
+    public OptionalInt release() {
         int mob = taken;
         taken = NO_MOB;
-        return mob != NO_MOB && heldTicks >= windUpTicks && stands.test(mob) ? OptionalInt.of(mob)
-                : OptionalInt.empty();
+        return mob != NO_MOB && stands.test(mob) ? OptionalInt.of(mob) : OptionalInt.empty();
     }
 }

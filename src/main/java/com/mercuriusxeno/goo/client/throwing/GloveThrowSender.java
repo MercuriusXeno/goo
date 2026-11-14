@@ -111,8 +111,7 @@ public final class GloveThrowSender {
             return sendStreamTick(player, gooType, abilityId);
         }
         if (delivery.envelops()) {
-            return sendAtTakenMob(player, gooType, abilityId,
-                    GloveUseTracker.releaseTakenMob(heldTicks, delivery.chargeTicks()));
+            return sendAtTakenMob(player, gooType, abilityId, GloveUseTracker.releaseTakenMob());
         }
         if (delivery.charges()) {
             return sendCharge(player, gooType, abilityId, heldTicks);

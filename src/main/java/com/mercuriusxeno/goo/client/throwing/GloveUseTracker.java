@@ -43,7 +43,7 @@ import java.util.OptionalInt;
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class GloveUseTracker {
     private static final GloveInputGate PRESS = new GloveInputGate();
-    /** The mob a charm-like cast's press took, held through the wind-up whatever the aim does. */
+    /** The mob a charm-like cast's press took, held until the release whatever the aim does. */
     private static final CharmLikeCast CHARM_LIKE = new CharmLikeCast(GloveUseTracker::highlightedMob,
             GloveUseTracker::mobStands);
     private static InteractionHand pressHand = InteractionHand.MAIN_HAND;
@@ -175,16 +175,13 @@ public final class GloveUseTracker {
     }
 
     /**
-     * The mob a charm-like cast's release sends: the mob its press took, once
-     * the hold filled the wind-up.
+     * The mob a charm-like cast's release sends: the mob its press took.
      * charm-like-abilities-lock-the-highlighted-mob-on-right-click
      *
-     * @param heldTicks   the ticks the right click was held
-     * @param windUpTicks the ticks the ability's wind-up takes to fill
      * @return the taken mob's id, empty where the release sends nothing
      */
-    public static OptionalInt releaseTakenMob(int heldTicks, int windUpTicks) {
-        return CHARM_LIKE.release(heldTicks, windUpTicks);
+    public static OptionalInt releaseTakenMob() {
+        return CHARM_LIKE.release();
     }
 
     /**
