@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.client.network;
 
 import com.mercuriusxeno.goo.client.ability.MobCoats;
 import com.mercuriusxeno.goo.client.ability.MobHitBurst;
-import com.mercuriusxeno.goo.client.ability.SlimeShells;
 import com.mercuriusxeno.goo.client.ability.SplatDrips;
 import com.mercuriusxeno.goo.network.MobHitPayload;
 import com.mercuriusxeno.goo.type.GooColors;
@@ -44,10 +43,7 @@ public final class MobHitHandler {
                 MobHitBurst.spawn(mc.level, payload.hitPoint(), payload.hitPoint().subtract(0, 1, 0), rgb);
                 return;
             }
-            if (payload.envelops()) {
-                // charm-like-abilities-lock-the-highlighted-mob-on-right-click: the dart wraps the mob in a slime shell
-                SlimeShells.CLIENT.envelop(payload.entityId(), gooType, mc.level.getGameTime());
-            } else {
+            if (!payload.envelops()) {
                 MobCoats.CLIENT.coat(payload.entityId(), gooType, mc.level.getGameTime(),
                         new MobCoats.Strike(payload.hitPoint(), payload.aimDirection(), SplatDrips.stanceOf(struck)));
             }
