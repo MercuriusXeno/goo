@@ -365,7 +365,7 @@ class GroundShakeTest {
                     new BoreStep(BREAKABLE, PACE, POINT_RADIUS, List.of(), List.of()), true, BORE_RANGE,
                     rock.negate(), rock);
 
-            Vec3 point = BoreDrill.pointOf(drawnFrom, BORE_RANGE, rock.negate(), rock);
+            Vec3 point = BoreDrill.pointOf(drawnFrom, BORE_RANGE, BoreDrillShape.SHIPPED, true, rock.negate(), rock);
             assertEquals(new Vec3(1, 65.47, 0.5), point);
             assertEquals(Set.of(new BlockPos(1, 65, 0)), shakenIn(zone));
         }

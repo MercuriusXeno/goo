@@ -57,7 +57,7 @@ class BoreDrillTest {
 
         @Test
         void itStandsAtTheBlobsEasedPlaceAndItsFarEndAtThePoint() {
-            Vec3 point = BoreDrill.pointOf(SIGHT, REACH, NOTHING.negate(), NOTHING);
+            Vec3 point = BoreDrill.pointOf(SIGHT, REACH, BoreDrillShape.SHIPPED, true, NOTHING.negate(), NOTHING);
             Vec3 eased = BoreBlobPlace.placeFor(EYE, LOOK, point, RIGHT_HAND_BLOB, 2, 22.5);
             ConeSections.Volume drill = BoreDrill.volume(eased, point, YAW, POINT_RADIUS);
             assertTrue(eased.distanceTo(RIGHT_HAND_BLOB) > 0.5, "the place stands at the glove's rest");
@@ -72,7 +72,8 @@ class BoreDrillTest {
         @Test
         void itStandsWhereTheSightMeetsABreakableBlockTwoBlocksOut() {
             BlockPos stone = BlockPos.containing(EYE.add(LOOK.scale(2.5)));
-            Vec3 point = BoreDrill.pointOf(SIGHT, REACH, cell -> !cell.equals(stone), stone::equals);
+            Vec3 point = BoreDrill.pointOf(SIGHT, REACH, BoreDrillShape.SHIPPED, true, cell -> !cell.equals(stone),
+                    stone::equals);
             ConeSections.Volume drill = BoreDrill.volume(RIGHT_HAND_BLOB, point, YAW, POINT_RADIUS);
             assertEquals(0, farEndOf(drill).distanceTo(new Vec3(EYE.x, EYE.y, stone.getZ())), 1e-6);
         }
@@ -80,14 +81,15 @@ class BoreDrillTest {
         @Test
         void itStandsAtTheFaceOfASolidBlockOutsideTheTagTwoBlocksOut() {
             BlockPos bedrock = BlockPos.containing(EYE.add(LOOK.scale(2.5)));
-            Vec3 point = BoreDrill.pointOf(SIGHT, REACH, cell -> !cell.equals(bedrock), NOTHING);
+            Vec3 point = BoreDrill.pointOf(SIGHT, REACH, BoreDrillShape.SHIPPED, true, cell -> !cell.equals(bedrock),
+                    NOTHING);
             ConeSections.Volume drill = BoreDrill.volume(RIGHT_HAND_BLOB, point, YAW, POINT_RADIUS);
             assertEquals(0, farEndOf(drill).distanceTo(new Vec3(EYE.x, EYE.y, bedrock.getZ())), 1e-6);
         }
 
         @Test
         void itStandsAtTheEndOfReachWhereTheSightMeetsNoBreakableBlock() {
-            Vec3 point = BoreDrill.pointOf(SIGHT, REACH, NOTHING.negate(), NOTHING);
+            Vec3 point = BoreDrill.pointOf(SIGHT, REACH, BoreDrillShape.SHIPPED, true, NOTHING.negate(), NOTHING);
             ConeSections.Volume drill = BoreDrill.volume(RIGHT_HAND_BLOB, point, YAW, POINT_RADIUS);
             assertEquals(0, farEndOf(drill).distanceTo(EYE.add(LOOK.scale(REACH))), 1e-6);
         }
@@ -127,7 +129,7 @@ class BoreDrillTest {
         private static Set<BlockPos> undrilledEntered(Vec3 blob, CameraEye.Sight sight, Predicate<BlockPos> solid,
                                                       Predicate<BlockPos> breakable) {
             Predicate<BlockPos> air = solid.negate();
-            Vec3 point = BoreDrill.pointOf(sight, REACH, air, breakable);
+            Vec3 point = BoreDrill.pointOf(sight, REACH, BoreDrillShape.SHIPPED, true, air, breakable);
             ChannelAim aim = new ChannelAim(sight.eye().add(sight.look().scale(REACH)), null, 0);
             Set<BlockPos> picked = Set.copyOf(BoreStep.progressing(sight.eye(), BoreDrillShape.SHIPPED, true, aim, air,
                     breakable));
@@ -164,7 +166,7 @@ class BoreDrillTest {
 
         @Test
         void itNarrowsFromItsMouthAtTheBlobToThePointRadiusAndIsNeverWiderThanABlock() {
-            Vec3 point = BoreDrill.pointOf(SIGHT, REACH, NOTHING.negate(), NOTHING);
+            Vec3 point = BoreDrill.pointOf(SIGHT, REACH, BoreDrillShape.SHIPPED, true, NOTHING.negate(), NOTHING);
             ConeSections.Volume drill = BoreDrill.volume(RIGHT_HAND_BLOB, point, YAW, POINT_RADIUS);
             assertEquals(POINT_RADIUS, drill.radiusAt().applyAsDouble(drill.range()), SLACK);
             double previous = Double.MAX_VALUE;

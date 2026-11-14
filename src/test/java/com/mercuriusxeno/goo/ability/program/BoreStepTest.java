@@ -366,6 +366,63 @@ class BoreStepTest {
         }
     }
 
+    /**
+     * A tube of rays the size of the cross section, the eye line and 8 round
+     * the ellipse's rim, sets the depth: the nearest block any ray meets puts
+     * the cross section there, and the rays pick nothing themselves
+     * (decisions bore-tube-rays-set-the-depth-of-the-cross-section,
+     * bore-drill-point-floats-along-the-crosshair-to-the-aimed-block).
+     */
+    @Nested
+    class TheTube {
+
+        private static final BoreDrillShape SHIPPED = BoreDrillShape.SHIPPED;
+        private static final Vec3 EAST = new Vec3(1, 0, 0);
+        private static final double REACH = 6;
+        /** A breakable block two east of the eye, its underside at y 2. */
+        private static final BlockPos NEAR = new BlockPos(2, 2, 0);
+        /** A breakable wall three blocks behind the near block. */
+        private static final Predicate<BlockPos> WALL = pos -> pos.getX() == 5;
+
+        private static Vec3 eyeBelowTheNearBlockBy(double gap) {
+            return new Vec3(0.5, NEAR.getY() - gap, 0.5);
+        }
+
+        private static Set<BlockPos> pickFrom(Vec3 eye, Predicate<BlockPos> solid, Predicate<BlockPos> breakable) {
+            ChannelAim aim = new ChannelAim(eye.add(EAST.scale(REACH)), null, CONE_DEGREES);
+            return Set.copyOf(BoreStep.progressing(eye, SHIPPED, true, aim, solid.negate(), breakable));
+        }
+
+        @Test
+        void aRimRayMeetingANearBlockSetsTheDepthAndTheNearBlockIsPicked() {
+            Predicate<BlockPos> rock = WALL.or(NEAR::equals);
+            assertEquals(Set.of(NEAR), pickFrom(eyeBelowTheNearBlockBy(0.05), rock, rock));
+        }
+
+        @Test
+        void aBlockOutsideTheTubeSetsNoDepthAndTheEyeLinesWallBlockIsPicked() {
+            Predicate<BlockPos> rock = WALL.or(NEAR::equals);
+            assertEquals(Set.of(new BlockPos(5, 1, 0)), pickFrom(eyeBelowTheNearBlockBy(0.15), rock, rock));
+        }
+
+        @Test
+        void aRimRayStoppedByAnUnbreakableBlockSetsTheDepthAndNothingBehindItIsPicked() {
+            Vec3 eye = eyeBelowTheNearBlockBy(0.05);
+            Predicate<BlockPos> solid = WALL.or(NEAR::equals);
+            assertEquals(Set.of(), pickFrom(eye, solid, WALL));
+            Vec3 stop = BoreStep.stopOf(eye, eye.add(EAST.scale(REACH)), SHIPPED, true, solid.negate(), WALL);
+            assertEquals(NEAR.getX(), stop.x, 0.01);
+        }
+
+        @Test
+        void theStopTheDrillDrawsToStandsOnTheEyeLineAtTheNearBlocksDepth() {
+            Vec3 eye = eyeBelowTheNearBlockBy(0.05);
+            Predicate<BlockPos> rock = WALL.or(NEAR::equals);
+            Vec3 stop = BoreStep.stopOf(eye, eye.add(EAST.scale(REACH)), SHIPPED, true, rock.negate(), rock);
+            assertEquals(0, stop.distanceTo(new Vec3(NEAR.getX(), eye.y, eye.z)), 0.01);
+        }
+    }
+
     @Nested
     class TheStoppingBlock {
 
