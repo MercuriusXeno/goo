@@ -83,6 +83,37 @@ class AirbornWindTest {
         }
     }
 
+    /**
+     * A front mote leaves below the camera's eased eye for the local player
+     * in first person, so a sneak moves no new mote's start until the view
+     * eases, and below any other player's own eye
+     * (decision diagnose-and-correct-eye-drawn-visuals-jumping-on-sneak).
+     */
+    @Nested
+    class EasesWithTheCamera {
+
+        private static final double STANDING_EYE = 1.62;
+        private static final double CROUCHED_EYE = 1.27;
+        private static final double EASING_CAMERA_EYE = 1.47;
+
+        private static Vec3 frontStart(boolean followsTheCamera, double entityEyeHeight) {
+            return AirbornWind.frontStart(CameraEye.eyeHeight(followsTheCamera, EASING_CAMERA_EYE, entityEyeHeight),
+                    LOOKING_EAST_AND_DOWN, 0);
+        }
+
+        @Test
+        void theLocalFirstPersonMoteLeavesBelowTheCamerasEasedEyeWhateverTheEntityEye() {
+            assertEquals(frontStart(true, STANDING_EYE), frontStart(true, CROUCHED_EYE));
+            assertEquals(EASING_CAMERA_EYE - AirbornWind.FRONT_DROP, frontStart(true, CROUCHED_EYE).y, EPSILON);
+        }
+
+        @Test
+        void anyOtherMoteLeavesBelowTheEntitysOwnEye() {
+            assertEquals(STANDING_EYE - AirbornWind.FRONT_DROP, frontStart(false, STANDING_EYE).y, EPSILON);
+            assertEquals(CROUCHED_EYE - AirbornWind.FRONT_DROP, frontStart(false, CROUCHED_EYE).y, EPSILON);
+        }
+    }
+
     @Test
     void aBodyMoteLeavesOnTheRingAboutTheBody() {
         Vec3 start = AirbornWind.bodyStart(1.1, 0.4);
