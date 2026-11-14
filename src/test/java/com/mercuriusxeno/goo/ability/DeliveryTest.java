@@ -49,25 +49,19 @@ class DeliveryTest {
     }
 
     /**
-     * Bore reaches as far as its caster's block reach, which Telekinesis
-     * raises, in place of a fixed range of its own; every reader of the reach
-     * takes it through {@link Delivery#reachingTo}
-     * (decision bore-reaches-as-far-as-your-block-reach).
+     * Bore drills only up to 3 blocks away, its own range, whatever the
+     * caster's block reach (operator ruling 2026-11-14, replacing decision
+     * bore-reaches-as-far-as-your-block-reach).
      */
     @Nested
-    class BlockReach {
+    class BoresReach {
 
         private final Delivery bore = AbilityJson.decode("rock_bore").delivery();
 
         @Test
-        void rockBoresDeliveryNamesTheCastersBlockReachAsItsReach() {
-            assertTrue(bore.reachesBlockReach());
-        }
-
-        @Test
-        void aBoreReachesTheBlockReachHandedIn() {
-            assertEquals(4.5, bore.reachingTo(4.5).range(), TOLERANCE);
-            assertEquals(12.5, bore.reachingTo(12.5).range(), TOLERANCE);
+        void aBoreReachesThreeBlocksWhateverTheBlockReach() {
+            assertEquals(3, bore.reachingTo(4.5).range(), TOLERANCE);
+            assertEquals(3, bore.reachingTo(12.5).range(), TOLERANCE);
         }
 
         @Test

@@ -50,14 +50,6 @@ public interface ChannelHost extends BlockBreakHost {
     Vec3 eye();
 
     /**
-     * The height of the channeling player's feet, which Bore's aim line runs
-     * one block above, parallel to the look.
-     *
-     * @return the feet's world Y
-     */
-    double feetY();
-
-    /**
      * Whether the channeling player's glove is in their right hand, the side
      * of the sight line their lifted blob stands on.
      * decision bore-cross-section-is-where-the-angled-drill-meets-the-look-plane

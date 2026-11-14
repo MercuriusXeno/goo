@@ -1,9 +1,0 @@
-{
-  "type": "minecraft:function",
-  "function": "goo:bore_cuts_the_one_by_two_ahead_looking_level",
-  "environment": "minecraft:default",
-  "structure": "goo:test_bay",
-  "max_ticks": 100,
-  "setup_ticks": 0,
-  "required": true
-}

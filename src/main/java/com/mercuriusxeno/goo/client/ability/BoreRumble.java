@@ -87,7 +87,7 @@ public final class BoreRumble {
      */
     private static List<BlockPos> progressingOf(ClientLevel level, LocalPlayer player, ClientAbility bore,
                                                 BoreStep step) {
-        Vec3 eye = BoreStep.aimOrigin(player.getEyePosition(), player.getY());
+        Vec3 eye = player.getEyePosition();
         // bore-reaches-as-far-as-your-block-reach
         Delivery reaching = bore.delivery().reachingTo(player.blockInteractionRange());
         ChannelAim aim = new ChannelAim(eye.add(player.getViewVector(1f).scale(reaching.range())), null,
