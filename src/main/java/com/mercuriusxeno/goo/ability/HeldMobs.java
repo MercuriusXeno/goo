@@ -42,7 +42,9 @@ public final class HeldMobs {
     public static boolean isHeldByAHold(Mob mob) {
         Frozen frozen = mob.hasData(GooAttachments.FROZEN) ? mob.getData(GooAttachments.FROZEN) : null;
         return heldByAHold(frozen, mob.hasData(GooAttachments.STUNNED), mob.hasData(GooAttachments.GRABBED),
-                mob.hasData(GooAttachments.REWINDING));
+                mob.hasData(GooAttachments.REWINDING))
+                // rallied-mob-falls-downed-instead-of-dying: a downed mob's AI is off, and it still falls
+                || mob.hasData(GooAttachments.DOWNED);
     }
 
     /**

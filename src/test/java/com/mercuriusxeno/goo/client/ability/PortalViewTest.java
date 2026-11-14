@@ -1,12 +1,12 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.outsider.OutsiderRooms;
-import com.mercuriusxeno.goo.ability.outsider.RoomEdges;
-import com.mercuriusxeno.goo.ability.outsider.RoomExtent;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
-import com.mercuriusxeno.goo.client.outsider.RoomCopies;
-import com.mercuriusxeno.goo.client.outsider.SkyResources;
+import com.mercuriusxeno.goo.ability.zone.RoomEdges;
+import com.mercuriusxeno.goo.ability.zone.RoomExtent;
+import com.mercuriusxeno.goo.ability.zone.ZoneRooms;
+import com.mercuriusxeno.goo.client.zone.RoomCopies;
+import com.mercuriusxeno.goo.client.zone.SkyResources;
 import com.mercuriusxeno.goo.network.RoomEdgesSyncPayload;
 import net.minecraft.world.level.material.FogType;
 import org.junit.jupiter.api.AfterEach;
@@ -16,7 +16,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Covers the views a frame may draw in an Outsider room: a new room at a
+ * Covers the views a frame may draw in a Zone room: a new room at a
  * 12-chunk render distance tiles more copies than a frame's views could draw,
  * while the views look into at most the room's four edges (decision
  * room-tiles-to-render-distance-held-to-the-picture), and a view of the
@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PortalViewTest {
 
     /** A new room, 9 blocks across. */
-    private static final RoomEdges.Edges NEW_ROOM = RoomEdges.around(OutsiderRooms.voidstoneOf(5), RoomExtent.LAID);
+    private static final RoomEdges.Edges NEW_ROOM = RoomEdges.around(ZoneRooms.voidstoneOf(5), RoomExtent.LAID);
     private static final int TWELVE_CHUNKS = 12;
     /** A room's four edges, each looked into toward its partner. */
     private static final int ROOM_EDGE_WAYS = 4;

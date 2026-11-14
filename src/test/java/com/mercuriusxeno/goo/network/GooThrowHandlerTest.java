@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityJson;
-import com.mercuriusxeno.goo.ability.program.MeltStep;
+import com.mercuriusxeno.goo.ability.program.MoltenStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
@@ -126,7 +126,7 @@ class GooThrowHandlerTest {
         BlockState dirt = mock(BlockState.class);
         BlockState stone = mock(BlockState.class);
         when(stone.is(meltable)).thenReturn(true);
-        List<Step> melt = List.of(new MeltStep(meltable));
+        List<Step> melt = List.of(new MoltenStep(meltable));
 
         assertEquals(List.of(true, false),
                 List.of(GooThrowHandler.refusesStruck(dirt, melt), GooThrowHandler.refusesStruck(stone, melt)));

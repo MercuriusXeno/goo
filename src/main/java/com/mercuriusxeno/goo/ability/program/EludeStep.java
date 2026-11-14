@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.ability.zone.Elude;
+import com.mercuriusxeno.goo.ability.seal.Elude;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;

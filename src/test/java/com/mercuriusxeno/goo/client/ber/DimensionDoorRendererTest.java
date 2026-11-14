@@ -35,7 +35,7 @@ class DimensionDoorRendererTest {
     private static final int FACES = 6;
     private static final int AXES = 3;
     private static final int OPAQUE_WHITE = 0xFFFFFFFF;
-    /** The doorway's lower cell, as OutsiderRooms stands it on the center voidstone. */
+    /** The doorway's lower cell, as ZoneRooms stands it on the center voidstone. */
     private static final BlockPos LOWER_CELL = new BlockPos(1_000, 64, -3_000);
 
     private record Submitted(List<RenderType> types, List<RecordingVertexConsumer.Vertex> vertices) {

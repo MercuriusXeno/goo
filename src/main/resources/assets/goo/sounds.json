@@ -147,36 +147,36 @@
       }
     ]
   },
-  "effects.outsider_wub": {
+  "effects.zone_wub": {
     "category": "players",
-    "subtitle": "subtitles.goo.outsider_wub",
+    "subtitle": "subtitles.goo.zone_wub",
     "sounds": [
       {
-        "name": "goo:effects/outsider_wub",
+        "name": "goo:effects/zone_wub",
         "stream": false
       },
       {
-        "name": "goo:effects/outsider_wub2",
+        "name": "goo:effects/zone_wub2",
         "stream": false
       }
     ]
   },
-  "effects.outsider_conjure": {
+  "effects.zone_conjure": {
     "category": "players",
-    "subtitle": "subtitles.goo.outsider_conjure",
+    "subtitle": "subtitles.goo.zone_conjure",
     "sounds": [
       {
-        "name": "goo:effects/outsider_conjure",
+        "name": "goo:effects/zone_conjure",
         "stream": false
       }
     ]
   },
-  "effects.outsider_door": {
+  "effects.zone_door": {
     "category": "players",
-    "subtitle": "subtitles.goo.outsider_door",
+    "subtitle": "subtitles.goo.zone_door",
     "sounds": [
       {
-        "name": "goo:effects/outsider_conjure",
+        "name": "goo:effects/zone_conjure",
         "stream": false
       }
     ]
@@ -186,11 +186,11 @@
     "subtitle": "subtitles.goo.hole_open",
     "sounds": [
       {
-        "name": "goo:effects/outsider_wub",
+        "name": "goo:effects/zone_wub",
         "stream": false
       },
       {
-        "name": "goo:effects/outsider_wub2",
+        "name": "goo:effects/zone_wub2",
         "stream": false
       }
     ]
@@ -200,11 +200,11 @@
     "subtitle": "subtitles.goo.hole_close",
     "sounds": [
       {
-        "name": "goo:effects/outsider_wub_reversed",
+        "name": "goo:effects/zone_wub_reversed",
         "stream": false
       },
       {
-        "name": "goo:effects/outsider_wub2_reversed",
+        "name": "goo:effects/zone_wub2_reversed",
         "stream": false
       }
     ]

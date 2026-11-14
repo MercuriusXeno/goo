@@ -63,7 +63,7 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
                           @Nullable UUID caster)
         implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost,
         SporeHost, FloorScanHost, GateHost, PowerPulseHost, MobSpawnHost, FrostHost, MeteorHost, AgingHost,
-        WormholeHost, PortalHost, IgniteHost, MeltHost, HoleHost {
+        WormholeHost, PortalHost, IgniteHost, MoltenHost, HoleHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -201,7 +201,7 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
 
     @Override
     public boolean melt(TagKey<Block> meltable) {
-        return MeltLanding.melt(level, cell, face, gooType, meltable);
+        return MoltenLanding.melt(level, cell, face, gooType, meltable);
     }
 
     @Override

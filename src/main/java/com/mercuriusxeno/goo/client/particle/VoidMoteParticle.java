@@ -15,7 +15,7 @@ import java.util.function.Supplier;
  * slowly on the velocity it was given: vanilla's glitter sprites, as the end
  * rod sheds, shrinking as it ages, its light swelling and dimming at its own
  * pace so a wall of them glints rather than glows, fading out over its long
- * life. Specks rise along each wall of an Outsider room as it gains a full
+ * life. Specks rise along each wall of a Zone room as it gains a full
  * block; the operator found round motes rising in even rows read as balls
  * on a grid.
  * full-block-growth-wubs-and-raises-void-motes

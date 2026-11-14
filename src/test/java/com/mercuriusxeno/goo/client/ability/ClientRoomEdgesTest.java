@@ -1,9 +1,9 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.outsider.OutsiderRooms;
-import com.mercuriusxeno.goo.ability.outsider.RoomEdges;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
+import com.mercuriusxeno.goo.ability.zone.RoomEdges;
+import com.mercuriusxeno.goo.ability.zone.ZoneRooms;
 import com.mercuriusxeno.goo.network.RoomEdgesSyncPayload;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -25,7 +25,7 @@ class ClientRoomEdgesTest {
 
     /** An extent no float carries exactly, so a lossy codec would move the planes. */
     private static final double PARTWAY = 2.3456789012345;
-    private static final BlockPos CENTER = OutsiderRooms.voidstoneOf(3);
+    private static final BlockPos CENTER = ZoneRooms.voidstoneOf(3);
     /** The rounding a gate's centre picks up from its box a million blocks out; the codec itself adds none. */
     private static final double PLANE_MATH = 1.0E-9;
 
