@@ -13,7 +13,7 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
 /**
- * Gametest for the server's half of typhoon Float eaten from the glove and
+ * Gametest for the server's half of typhoon Float cast from the glove and
  * held: while it stands the player jumps higher and a built-up fall is
  * cleared each tick, and ending it takes both away (decision
  * tailwind-and-airborn-merge-into-float). The flight by the keys and the

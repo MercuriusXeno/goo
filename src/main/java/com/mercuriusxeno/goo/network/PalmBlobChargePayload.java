@@ -53,6 +53,16 @@ public record PalmBlobChargePayload() implements CustomPacketPayload {
      * @param caster the caster holding a stream, a channel or a charge
      */
     public static void sendLift(ServerPlayer caster) {
-        EntityVisuals.sendToTrackers(caster, new PalmBlobLiftPayload(caster.getId(), caster.getEyePosition()));
+        EntityVisuals.sendToTrackers(caster, new PalmBlobLiftPayload(caster.getId(), caster.getEyePosition(), false));
+    }
+
+    /**
+     * Tells the players watching a caster that a durative use landed, spending the caster's lifted blob.
+     * durative-self-abilities-wash-over-the-view-in-place-of-eating
+     *
+     * @param caster the caster whose durative use landed
+     */
+    public static void sendSpent(ServerPlayer caster) {
+        EntityVisuals.sendToTrackers(caster, new PalmBlobLiftPayload(caster.getId(), caster.getEyePosition(), true));
     }
 }

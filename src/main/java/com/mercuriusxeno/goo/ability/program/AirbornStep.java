@@ -12,7 +12,7 @@ import java.util.stream.Stream;
  * Grants the host's target Float's flight and finishes: in midair jump climbs,
  * sneak descends, forward and backward fly along the look, left and right
  * strafe, falls are slowed without fall damage, jumps go higher and an elytra
- * glide is drawn faster. Eaten from the glove it stands as a held effect,
+ * glide is drawn faster. Cast from the glove it stands as a held effect,
  * paying its upkeep until ended. Float is {@code airborn air_speed=0.6 climb_speed=0.4 air_steer=0.2
  * fall_cap=0.4 jump_boost=0.5 glide_speed=1.2 glide_steer=0.05}.
  * tailwind-and-airborn-merge-into-float

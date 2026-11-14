@@ -244,11 +244,6 @@ class LiftedPalmBlobTest {
         public boolean runsWhileHeld() {
             return GloveInputGate.runsFromPress(delivery, badge);
         }
-
-        @Override
-        public boolean eatsOnPress() {
-            return false;
-        }
     }
 
     private static GloveInputGate heldThroughTicks(HeldPress actions) {
@@ -300,7 +295,7 @@ class LiftedPalmBlobTest {
         @Test
         void anotherCastersSyncedHoldLiftsTheBlobAndItSettlesAfterTheHoldsGap() {
             long last = NOW + PalmBlobHop.LIFT_TICKS;
-            PalmBlobLiftPayload held = new PalmBlobLiftPayload(SprayingClient.CASTER, SprayingClient.SENT_GLOVE);
+            PalmBlobLiftPayload held = new PalmBlobLiftPayload(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, false);
             try (SprayingClient client = SprayingClient.another(GooTypes.FROST)) {
                 for (long tick = NOW; tick <= last; tick++) {
                     client.at(tick);

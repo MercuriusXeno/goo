@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.GloveSelection;
-import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
 import com.mercuriusxeno.goo.item.GooGloveItem;
@@ -292,27 +291,9 @@ public final class GloveUseTracker {
         }
 
         @Override
-        public boolean eatsOnPress() {
-            return selectedEats(player);
-        }
-
-        @Override
         public boolean runsWhileHeld() {
             return selectedRunsWhileHeld(player);
         }
-    }
-
-    /**
-     * Whether the held glove's selection is eaten, sending on the press
-     * (decision self-brew-goos-eat-before-the-effect).
-     *
-     * @param player the local player
-     * @return true for a durative selection
-     */
-    private static boolean selectedEats(LocalPlayer player) {
-        GloveSelection selection = GloveThrowSender.heldSelection(player);
-        return selection != null && SelfEatRoute.eats(GloveThrowSender.selectedDelivery(selection.abilityId()),
-                GloveThrowSender.selectedBadge(selection.abilityId()));
     }
 
     /**

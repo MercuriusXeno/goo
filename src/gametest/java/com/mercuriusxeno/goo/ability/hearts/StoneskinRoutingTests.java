@@ -56,7 +56,6 @@ public final class StoneskinRoutingTests {
         player.setHealth(SIX_HEALTH);
         KnownRecipes.teachRequires(player, AbilityRegistry.of(player.level()).getAbility(ROCK_STONESKIN));
         SelfDeliveryTests.invoke(player, GooTypes.ROCK, ROCK_STONESKIN);
-        SelfDeliveryTests.eatThrough(player);
         HeartOverlay stoned = player.getData(GooAttachments.HEART_OVERLAY);
         int firstMissing = HeartOverlay.filledSlots(SIX_HEALTH);
 

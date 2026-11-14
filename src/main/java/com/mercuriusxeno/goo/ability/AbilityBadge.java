@@ -35,8 +35,8 @@ public enum AbilityBadge implements StringRepresentable {
     CHANNELED("channeled"),
 
     /**
-     * Acts on the thrower for as long as it is held, eaten before it takes effect.
-     * decision self-brew-goos-eat-before-the-effect
+     * Acts on the thrower for as long as it is held, from the release of its charge.
+     * decision durative-self-abilities-wash-over-the-view-in-place-of-eating
      * decision clock-badge-marks-durative-abilities
      */
     DURATIVE("durative"),

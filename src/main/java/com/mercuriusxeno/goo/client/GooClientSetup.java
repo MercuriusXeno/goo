@@ -3,9 +3,9 @@ package com.mercuriusxeno.goo.client;
 import com.google.common.reflect.TypeToken;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ISidedProxy;
+import com.mercuriusxeno.goo.ability.DurativeRoute;
 import com.mercuriusxeno.goo.ability.HeldEffectIcon;
 import com.mercuriusxeno.goo.ability.HeldEffectName;
-import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import com.mercuriusxeno.goo.ability.nether.HiveSwarm;
 import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
 import com.mercuriusxeno.goo.ability.program.Step;
@@ -161,7 +161,7 @@ public final class GooClientSetup {
      */
     private static Optional<ClientAbility> syncedDurativeAbility(ResourceKey<GooTypeDefinition> type) {
         return AbilitySyncHandler.getAbilitiesForType(type).stream()
-                .filter(ability -> SelfEatRoute.eats(ability.delivery(), ability.badge()))
+                .filter(ability -> DurativeRoute.isDurative(ability.delivery(), ability.badge()))
                 .min(Comparator.comparingInt(ClientAbility::order));
     }
 

@@ -40,17 +40,17 @@ public final class EldritchTests {
     }
 
 
-    /** Goo the players carry, in thousands: enough for the eat and its upkeep. */
+    /** Goo the players carry, in thousands: enough for the cast and its upkeep. */
     private static final int HELD_GOO = 2;
     private static final Identifier XENO_ELDRITCH = Identifier.parse("goo:xeno_eldritch");
-    private static final String SHOULD_HOLD = "Once the eat finishes the player should hold Eldritch Sight";
+    private static final String SHOULD_HOLD = "Once it lands the player should hold Eldritch Sight";
     private static final String SHOULD_TARGET_HELD = "An out-of-phase zombie should target the player holding Eldritch Sight, targeted %s";
 
     private EldritchTests() {
     }
 
     /**
-     * A survival player eats Eldritch Sight from the glove: an out-of-phase
+     * A survival player casts Eldritch Sight from the glove: an out-of-phase
      * zombie offered the player takes it for its target.
      *
      * @param helper the gametest helper
@@ -86,7 +86,6 @@ public final class EldritchTests {
     private static ServerPlayer eatenEldritch(GameTestHelper helper) {
         ServerPlayer player = targetable(helper);
         SelfDeliveryTests.invoke(player, GooTypes.XENO, XENO_ELDRITCH);
-        SelfDeliveryTests.eatThrough(player);
         player.doTick();
         return player;
     }
