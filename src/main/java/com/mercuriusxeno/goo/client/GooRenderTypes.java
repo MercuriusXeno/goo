@@ -301,89 +301,6 @@ public final class GooRenderTypes {
     public static final RenderType METEOR_ROCK_TYPE = burnoutType(METEOR_ROCK);
 
     /**
-     * Black-hole pipeline: POSITION_COLOR billboard quad with a custom
-     * vertex + fragment shader pair (nether_blackhole.vsh / .fsh). Reads the
-     * implosion progress from the vertex Color.r channel and animates swirl
-     * bands with {@code GameTime}. Depth write ON so the sphere solidly
-     * occludes whatever the nether effect has chewed out of the world.
-     */
-    public static final RenderPipeline NETHER_BLACKHOLE = RenderPipeline.builder(
-                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
-                    RenderPipelines.GLOBALS_SNIPPET)
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/nether_blackhole"))
-            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/nether_blackhole"))
-            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/nether_blackhole"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.QUADS)
-            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
-            .withDepthStencilState(DepthStencilState.DEFAULT)
-            .withCull(false)
-            .build();
-
-    /** RenderType that submits the black-hole billboard quad. */
-    public static final RenderType NETHER_BLACKHOLE_TYPE = RenderType.create(
-            "goo_nether_blackhole",
-            RenderSetup.builder(NETHER_BLACKHOLE)
-                    .setOutputTarget(OutputTarget.MAIN_TARGET)
-                    .createRenderSetup()
-    );
-
-    /**
-     * Black-hole corona pipeline: second render pass that emits
-     * the same sphere mesh at a slightly larger radius with additive
-     * LIGHTNING blend and depth-write OFF, producing an emissive halo
-     * that sits in the annular gap just outside the main sphere's
-     * silhouette. Uses {@code nether_corona.vsh / .fsh} which discards
-     * pixels inside the main silhouette based on the corona mesh's
-     * fresnel value.
-     */
-    public static final RenderPipeline NETHER_CORONA = RenderPipeline.builder(
-                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
-                    RenderPipelines.GLOBALS_SNIPPET)
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/nether_corona"))
-            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/nether_corona"))
-            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/nether_corona"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.QUADS)
-            .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
-            .withDepthStencilState(new DepthStencilState(
-                    DepthStencilState.DEFAULT.depthTest(), false))
-            .withCull(false)
-            .build();
-
-    /** RenderType that submits the corona halo pass. */
-    public static final RenderType NETHER_CORONA_TYPE = RenderType.create(
-            "goo_nether_corona",
-            RenderSetup.builder(NETHER_CORONA)
-                    .setOutputTarget(OutputTarget.MAIN_TARGET)
-                    .createRenderSetup()
-    );
-
-    /**
-     * The black hole's held ghost body: its dark core shader, translucent with
-     * depth tested and depth write off, so the ghost hides nothing behind it.
-     * held-visual-ghosts-the-landing-in-two-passes
-     */
-    public static final RenderPipeline NETHER_BLACKHOLE_HELD = shaderPairPipeline("nether_blackhole_held",
-            "nether_blackhole", BlendFunction.TRANSLUCENT, DefaultVertexFormat.POSITION_COLOR_NORMAL,
-            DepthStencilState.DEFAULT.depthTest());
-
-    /** RenderType for the black hole's held ghost body. */
-    public static final RenderType NETHER_BLACKHOLE_HELD_TYPE = burnoutType(NETHER_BLACKHOLE_HELD);
-
-    /** The black hole's held ghost body through blocks, depth ignored. */
-    public static final RenderPipeline NETHER_BLACKHOLE_THROUGH_BLOCKS = throughBlocksPipeline("nether_blackhole",
-            BlendFunction.TRANSLUCENT);
-
-    /** RenderType for the black hole's held ghost body through blocks. */
-    public static final RenderType NETHER_BLACKHOLE_THROUGH_BLOCKS_TYPE = burnoutType(NETHER_BLACKHOLE_THROUGH_BLOCKS);
-
-    /** The black hole's corona through blocks, depth ignored, for its held ghost. */
-    public static final RenderPipeline NETHER_CORONA_THROUGH_BLOCKS = throughBlocksPipeline("nether_corona",
-            BlendFunction.LIGHTNING);
-
-    /** RenderType for the black hole's corona through blocks. */
-    public static final RenderType NETHER_CORONA_THROUGH_BLOCKS_TYPE = burnoutType(NETHER_CORONA_THROUGH_BLOCKS);
-
-    /**
      * Unstable goo's burnout explosion pipeline (decision
      * elemental-explosion-per-type): the fireball sphere and its shockwave
      * ring, additive with depth write off and both faces drawn, through
@@ -446,17 +363,6 @@ public final class GooRenderTypes {
 
     /** RenderType for frost's held ghost through blocks. */
     public static final RenderType FROST_EXPLOSION_THROUGH_BLOCKS_TYPE = burnoutType(FROST_EXPLOSION_THROUGH_BLOCKS);
-
-    /**
-     * The black hole's burnout explosion pipeline: the inward rush, through
-     * {@code nether_explosion.vsh / .fsh}, blended translucent since its
-     * streaks are black and black adds nothing.
-     * black-hole-build-up-draws-black
-     */
-    public static final RenderPipeline NETHER_EXPLOSION = burnoutPipeline("nether_explosion", BlendFunction.TRANSLUCENT);
-
-    /** RenderType that draws the black hole's burnout explosion. */
-    public static final RenderType NETHER_EXPLOSION_TYPE = burnoutType(NETHER_EXPLOSION);
 
     /**
      * Metal goo's burnout explosion pipeline: the chrome urchin, drawn
@@ -680,68 +586,6 @@ public final class GooRenderTypes {
 
     /** RenderType that draws Sunbeam's scorch glow. */
     public static final RenderType SUNBEAM_SCORCH_GLOW_TYPE = burnoutType(SUNBEAM_SCORCH_GLOW);
-
-    /**
-     * Black-hole accretion-disk pipeline: third render pass that
-     * emits a flat annular ring in the world XZ plane around the sphere,
-     * inner radius pinned to the main sphere radius and outer radius at
-     * {@code DISK_OUTER_SCALE * main}. Additive LIGHTNING blend with
-     * depth write off, so the disk layers onto whatever was drawn behind
-     * it. The fragment shader decodes a per-vertex radial distance
-     * from {@code Color.r} and discards any fragment whose interpolated
-     * radial distance is below the main sphere radius (strictly "no
-     * geometry inside the sphere").
-     */
-    public static final RenderPipeline NETHER_DISK = RenderPipeline.builder(
-                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
-                    RenderPipelines.GLOBALS_SNIPPET)
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/nether_disk"))
-            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/nether_disk"))
-            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/nether_disk"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.QUADS)
-            .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
-            .withDepthStencilState(new DepthStencilState(
-                    DepthStencilState.DEFAULT.depthTest(), false))
-            .withCull(false)
-            .build();
-
-    /** RenderType that submits the accretion-disk pass. */
-    public static final RenderType NETHER_DISK_TYPE = RenderType.create(
-            "goo_nether_disk",
-            RenderSetup.builder(NETHER_DISK)
-                    .setOutputTarget(OutputTarget.MAIN_TARGET)
-                    .createRenderSetup()
-    );
-
-    /**
-     * Cube black-hole edge-glow pipeline used by the
-     * {@code CubeHoleStyle} experiment. Same shape budget as the
-     * corona - additive LIGHTNING blend, depth test on, depth write
-     * off - but drawn over a cube mesh with a fragment shader that
-     * highlights the per-face edges instead of the fresnel silhouette.
-     * Each vertex carries its intra-face UV in {@code Color.rg} so the
-     * shader can compute edge distance without any ray math.
-     */
-    public static final RenderPipeline NETHER_CUBE_EDGE = RenderPipeline.builder(
-                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
-                    RenderPipelines.GLOBALS_SNIPPET)
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/nether_cube_edge"))
-            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/nether_cube_edge"))
-            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/nether_cube_edge"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.QUADS)
-            .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
-            .withDepthStencilState(new DepthStencilState(
-                    DepthStencilState.DEFAULT.depthTest(), false))
-            .withCull(false)
-            .build();
-
-    /** RenderType that submits the cube edge-glow pass. */
-    public static final RenderType NETHER_CUBE_EDGE_TYPE = RenderType.create(
-            "goo_nether_cube_edge",
-            RenderSetup.builder(NETHER_CUBE_EDGE)
-                    .setOutputTarget(OutputTarget.MAIN_TARGET)
-                    .createRenderSetup()
-    );
 
     /**
      * Voronoi fissure pipeline: procedural crack pattern on a sphere mesh.
@@ -1792,7 +1636,6 @@ public final class GooRenderTypes {
         registerMobLayerPipelines(event);
         registerLeafPipelines(event);
         registerLinePipelines(event);
-        registerNetherPipelines(event);
         event.registerPipeline(VORONOI_FISSURE);
         event.registerPipeline(CRYSTAL_SHARD);
         event.registerPipeline(GOO_FLUID);
@@ -1847,22 +1690,6 @@ public final class GooRenderTypes {
     }
 
     /**
-     * Registers the black hole's pipelines: its body, corona, disk and
-     * cube edges, and their held and through-blocks twins.
-     *
-     * @param event the event instance
-     */
-    private static void registerNetherPipelines(RegisterRenderPipelinesEvent event) {
-        event.registerPipeline(NETHER_BLACKHOLE);
-        event.registerPipeline(NETHER_CORONA);
-        event.registerPipeline(NETHER_BLACKHOLE_HELD);
-        event.registerPipeline(NETHER_BLACKHOLE_THROUGH_BLOCKS);
-        event.registerPipeline(NETHER_CORONA_THROUGH_BLOCKS);
-        event.registerPipeline(NETHER_DISK);
-        event.registerPipeline(NETHER_CUBE_EDGE);
-    }
-
-    /**
      * Registers the pipelines that draw a mob's model again over itself: the
      * goo coat, Petrify's stone, Vines' tangle and the ailment overlays.
      *
@@ -1900,7 +1727,6 @@ public final class GooRenderTypes {
         event.registerPipeline(ROCK_EXPLOSION_THROUGH_BLOCKS);
         event.registerPipeline(FROST_EXPLOSION);
         event.registerPipeline(FROST_EXPLOSION_THROUGH_BLOCKS);
-        event.registerPipeline(NETHER_EXPLOSION);
         event.registerPipeline(METAL_EXPLOSION);
         event.registerPipeline(METAL_EXPLOSION_THROUGH_BLOCKS);
         event.registerPipeline(METAL_CHROME);

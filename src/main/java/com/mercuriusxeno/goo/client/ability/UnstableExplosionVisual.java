@@ -85,7 +85,7 @@ public final class UnstableExplosionVisual implements BurnoutVisual, HeldGhostVi
      */
     private static void emitHeld(PoseStack.Pose pose, VertexConsumer c, HeldGhost ghost, Direction face,
                                  float opacity, double nowSeconds) {
-        BurnoutGeometry.emitSphere(pose, c, ghost.domeRadius(), heldSphereColor(NetherDiscMesh.toByte(opacity)));
+        BurnoutGeometry.emitSphere(pose, c, ghost.domeRadius(), heldSphereColor(ColorBytes.toByte(opacity)));
     }
 
     /**
@@ -120,7 +120,7 @@ public final class UnstableExplosionVisual implements BurnoutVisual, HeldGhostVi
      * @return the sphere's packed color: progress in red
      */
     static int sphereColor(float progress, int alpha) {
-        return ARGB.color(alpha, NetherDiscMesh.toByte(progress), 0, 0);
+        return ARGB.color(alpha, ColorBytes.toByte(progress), 0, 0);
     }
 
     /**
@@ -130,7 +130,7 @@ public final class UnstableExplosionVisual implements BurnoutVisual, HeldGhostVi
      * @return the ring's packed color: progress in red, the ring mark in green, the radial position in blue
      */
     static int ringColor(float progress, boolean outer, int alpha) {
-        return ARGB.color(alpha, NetherDiscMesh.toByte(progress), OPAQUE, outer ? OPAQUE : 0);
+        return ARGB.color(alpha, ColorBytes.toByte(progress), OPAQUE, outer ? OPAQUE : 0);
     }
 
     /**

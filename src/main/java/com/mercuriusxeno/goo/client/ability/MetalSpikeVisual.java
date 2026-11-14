@@ -126,7 +126,7 @@ public final class MetalSpikeVisual {
             return;
         }
         float sweep = Mth.frac(state.gameTime / SWEEP_TICKS);
-        int sweepByte = NetherDiscMesh.toByte(sweep);
+        int sweepByte = ColorBytes.toByte(sweep);
         Vector3f base = MetalExplosionVisual.basePoint(state.placedFace);
         GooSubmitter.submitChrome(poseStack, nodeCollector, (pose, c) -> {
             if (state.urchinBristle > 0f) {

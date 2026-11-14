@@ -3,10 +3,7 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.ability.pulse.RedstoneBeat;
 import com.mercuriusxeno.goo.ability.pulse.RelayNetwork;
 import com.mercuriusxeno.goo.block.ability.MarkerAnchor;
-import com.mercuriusxeno.goo.block.ability.MarkerProgramState;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
-import com.mercuriusxeno.goo.entity.CompressionSphere;
-import com.mercuriusxeno.goo.entity.SphereCore;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.network.LurkerPulsePayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
@@ -41,19 +38,12 @@ import java.util.function.Consumer;
  */
 public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
-        FieldEffectHost, PhasedHost, WatchHost, HoardHost, StateWriteHost, LevelHost, ShriekHost, PowerEmitHost,
+        FieldEffectHost, WatchHost, StateWriteHost, LevelHost, ShriekHost, PowerEmitHost,
         BeatHost, RelayHost, FrostHost, GreeningHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
     /** The power a block gives at full strength. */
     private static final int FULL_POWER = 15;
-    /**
-     * The work a black hole's take spends each tick, a cell or a column of
-     * its shell walk each a unit: a radius 3 hole in one tick, a bigger one
-     * over more, so no size stalls the server in a single tick
-     * (decision black-hole-leaves-a-compression-sphere).
-     */
-    static final int BLOCKS_TAKEN_PER_TICK = 2048;
 
     @Override
     public HostKind kind() {
@@ -145,11 +135,6 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         return level.getRandom().nextDouble();
     }
 
-    @Override
-    public PhasedState phased() {
-        return be.programState().phased();
-    }
-
     /**
      * Gives full power or none (decision metronome-prism-pulses-at-the-learned-rate).
      */
@@ -197,11 +182,6 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     }
 
     @Override
-    public void pullEntitiesWithin(double radius, double speed) {
-        EntityPull.pullWithin(level, Vec3.atCenterOf(pos), radius, speed, null);
-    }
-
-    @Override
     public void liftEntitiesInColumn(double radius, double height, double speed) {
         EntityLift.liftInColumn(level, Vec3.atBottomCenterOf(pos), radius, height, speed);
     }
@@ -209,36 +189,6 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     @Override
     public void rideShaftAbove(int cap, double rise, double sink) {
         EntityLift.rideShaft(level, pos.above(), cap, rise, sink);
-    }
-
-    @Override
-    public void hoardBlocks(int radius) {
-        be.programState().beginTaking(radius);
-    }
-
-    @Override
-    public void takeBlocks() {
-        MarkerProgramState state = be.programState();
-        if (!state.taking()) {
-            return;
-        }
-        ShellWalk.Cursor next = HoardedBlocks.takeSome(level, pos, state.takeRadius(), state.takeCursor(),
-                BLOCKS_TAKEN_PER_TICK, state.hoard());
-        if (state.tookTo(next)) {
-            CompressionSphere.leave(level, Vec3.atCenterOf(pos), state.hoard(), SphereCore.BLACK);
-        }
-    }
-
-    @Override
-    public void pullItemsIntoHoard(double radius, double speed) {
-        HoardedBlocks.pullItems(level, Vec3.atCenterOf(pos), radius, speed, be.programState().hoard());
-    }
-
-    @Override
-    public void dropSphere() {
-        if (!be.programState().putOffDrop()) {
-            CompressionSphere.leave(level, Vec3.atCenterOf(pos), be.programState().hoard(), SphereCore.BLACK);
-        }
     }
 
     @Override

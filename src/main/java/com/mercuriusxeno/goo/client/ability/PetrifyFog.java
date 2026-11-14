@@ -147,9 +147,9 @@ public final class PetrifyFog {
     private static void corner(FlatQuadContext quads, Billboard billboard, int across, int upward, float ageShare,
                                float seed) {
         Vec3 at = billboard.center().add(billboard.left().scale(across)).add(billboard.up().scale(upward));
-        int color = ARGB.color(NetherDiscMesh.toByte(seed), NetherDiscMesh.toByte(ageShare),
-                NetherDiscMesh.toByte((across + 1f) * SIGNED_TO_UNIT),
-                NetherDiscMesh.toByte((upward + 1f) * SIGNED_TO_UNIT));
+        int color = ARGB.color(ColorBytes.toByte(seed), ColorBytes.toByte(ageShare),
+                ColorBytes.toByte((across + 1f) * SIGNED_TO_UNIT),
+                ColorBytes.toByte((upward + 1f) * SIGNED_TO_UNIT));
         Vec3 view = billboard.view();
         quads.vertex((float) at.x, (float) at.y, (float) at.z, color, (float) view.x, (float) view.y, (float) view.z);
     }

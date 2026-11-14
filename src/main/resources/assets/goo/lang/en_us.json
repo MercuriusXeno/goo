@@ -307,8 +307,6 @@
   "goo.ability.void.vacuum": "Vacuum",
   "goo.ability.void.vacuum.description": "Hold to clear goop and slick in front of you in a wave, giving back all the goo they hold, and to draw in the items and mobs before you.",
   "goo.ability.void.outsider.cost_mechanics": "%s void to enter. Inside, holding on costs void each second, rising as the room grows.",
-  "goo.ability.void.dark_star": "Dark Star",
-  "goo.ability.void.dark_star.description": "A dark star pulls in everything, items too, and compresses what it destroys into a dense ball.",
   "block.goo.voidstone": "Voidstone",
   "block.goo.dimension_door": "Dimension Doorway",
   "goo.ability.weird.mitosis": "Mitosis",
