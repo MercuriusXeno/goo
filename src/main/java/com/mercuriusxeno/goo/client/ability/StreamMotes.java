@@ -139,7 +139,9 @@ public final class StreamMotes {
         Particle mote = mc.particleEngine.createParticle(particle, apex.x, apex.y, apex.z, launch.x, launch.y,
                 launch.z);
         if (mote instanceof GloveMote gloveMote) {
-            gloveMote.leaveFrom(() -> CasterPoses.gloveOf(payload.casterId(), apex));
+            // every-ability-casts-from-the-lifted-palm-blob: the mote leaves the lifted blob where it stands then
+            gloveMote.leaveFrom(() -> CastOrigin.of(payload.casterId(),
+                    CasterPoses.gloveOf(payload.casterId(), payload.apex()), 0f));
             gloveMote.swingWith(new GloveSwing.Tracker(payload.casterId(), CasterPoses::poseOf));
         }
     }
