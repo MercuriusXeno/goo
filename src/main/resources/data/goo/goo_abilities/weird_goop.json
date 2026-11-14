@@ -9,11 +9,10 @@
   "delivery": {
     "kind": "stream",
     "drains_on_placement": true,
-    "range": 8,
+    "throw_speed": 0.6,
     "cone": 16,
     "ticks_per_charge": 20,
     "particle": "goo:goop_spray_drip",
-    "spray_follows_coat": true,
     "sound": { "id": "minecraft:block.honey_block.slide", "every": 10, "volume": 1.0, "pitch": 1.0, "pitch_spread": 0.1 }
   },
   "behaviors": [

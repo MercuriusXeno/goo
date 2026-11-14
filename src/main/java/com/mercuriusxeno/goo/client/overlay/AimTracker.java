@@ -79,6 +79,27 @@ public final class AimTracker {
     }
 
     /**
+     * The mob the last frame's aim holds, locked or held.
+     *
+     * @return the mob, or null when the aim holds none
+     */
+    static @Nullable Entity aimedMob() {
+        return STATE.aimedMob();
+    }
+
+    /**
+     * The mark an entity carries beside its outline this frame.
+     * active-target-indicators-carry-depth-and-animation
+     *
+     * @param entity   the entity being drawn
+     * @param gameTime the game time including the partial tick
+     * @return the mark, NONE for an entity the aim does not hold
+     */
+    static AimedMobMark markFor(Entity entity, float gameTime) {
+        return STATE.markFor(entity, gameTime);
+    }
+
+    /**
      * Whether the Grab press the last frame resolved holds a mob.
      *
      * @return true while a Grab press holds a mob

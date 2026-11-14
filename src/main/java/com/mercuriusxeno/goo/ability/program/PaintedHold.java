@@ -11,7 +11,6 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -40,10 +39,6 @@ final class PaintedHold {
      * every held stream: nine tenths.
      */
     static final float FINISHES_ALONE = 0.9f;
-    /** Rings of rays off the axis, the last on the cone's rim. */
-    private static final int RAY_RINGS = 2;
-    /** Rays around each ring. */
-    private static final int RAYS_PER_RING = 8;
     /** Points a ray is sampled at per block, fine enough to cross no cell unseen but a corner's sliver. */
     private static final int SAMPLES_PER_BLOCK = 8;
 
@@ -75,9 +70,8 @@ final class PaintedHold {
     }
 
     /**
-     * Where each of the stream's rays stops, read as Goop's and Slick's
-     * motes read their ends.
-     * goop-and-slick-spray-follows-the-coat
+     * Where each of the stream's rays stops, on its share of the cone's fan.
+     * decay-gnats-degrade-each-block-once
      *
      * @param clip        the blocks the rays meet
      * @param eye         the rays' start
@@ -97,14 +91,7 @@ final class PaintedHold {
      * @return the shares, the axis first
      */
     static List<CoatRay.ConeShare> rayShares() {
-        List<CoatRay.ConeShare> shares = new ArrayList<>();
-        shares.add(new CoatRay.ConeShare(0, 0));
-        for (int ring = 1; ring <= RAY_RINGS; ring++) {
-            for (int turn = 0; turn < RAYS_PER_RING; turn++) {
-                shares.add(new CoatRay.ConeShare((double) ring / RAY_RINGS, (double) turn / RAYS_PER_RING));
-            }
-        }
-        return shares;
+        return CoatRay.coneFan();
     }
 
     /**

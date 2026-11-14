@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:goop_lands_about_eight_blocks_ahead_on_flat_ground",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 200,
+  "setup_ticks": 0,
+  "required": true
+}
