@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:slick_a_runner_a_layer_inside_its_cell_keeps_its_line",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}
