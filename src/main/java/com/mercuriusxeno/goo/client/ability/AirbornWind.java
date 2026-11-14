@@ -21,35 +21,51 @@ import java.util.List;
 /**
  * Airborn's look: floaty motes of air, really soft wind lines, rise straight
  * up around the player's body, each turning a small, slow, gentle swirl as it
- * climbs and fading in and out. Some rise in front of the camera, one leaving
- * often enough that at least two stand in view at once, so a first-person
- * player always sees the effect. The lines ride along with the player.
+ * climbs and fading in and out. Some rise in front of the camera, anywhere
+ * across the view, one leaving often enough that at least two stand in view
+ * at once, so a first-person player always sees the effect. The lines ride
+ * along with the player.
  * airborn-steerable-levitation-and-soft-falls
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class AirbornWind {
 
-    /** Ticks a mote lives, from leaving to fading out. */
-    static final int LIFE_TICKS = 60;
+    /**
+     * Ticks a mote lives, from leaving to fading out.
+     * float-motes-ring-closer-span-the-view-and-run-twice-as-fast
+     */
+    static final int LIFE_TICKS = 30;
     /** Blocks a mote rises over its life. */
     static final double RISE = 1.6;
     /** The radius of a mote's swirl, in blocks: small. */
     static final double SWIRL_RADIUS = 0.12;
-    /** How fast a mote's swirl turns, in radians a tick: slow. */
-    static final double SWIRL_RATE = 0.08;
-    /** Ticks between motes leaving around the body. */
-    static final int BODY_EVERY = 8;
-    /** Ticks between motes leaving in front of the camera: a life holds at least two. */
-    static final int FRONT_EVERY = 20;
-    /** How far from the body's middle a body mote rises, in blocks. */
-    static final double BODY_RADIUS = 0.7;
-    /** How far ahead of the eye a front mote rises, in blocks, and how far to either side it may stray. */
+    /** Radians a mote's swirl turns over its life: less than once round, so it reads slow. */
+    private static final double SWIRL_TURN = 4.8;
+    /** How fast a mote's swirl turns, in radians a tick. */
+    static final double SWIRL_RATE = SWIRL_TURN / LIFE_TICKS;
+    /**
+     * Ticks between motes leaving around the body.
+     * float-motes-ring-closer-span-the-view-and-run-twice-as-fast
+     */
+    static final int BODY_EVERY = 4;
+    /**
+     * Ticks between motes leaving in front of the camera: a life holds at least two.
+     * float-motes-ring-closer-span-the-view-and-run-twice-as-fast
+     */
+    static final int FRONT_EVERY = 10;
+    /**
+     * How far from the body's middle a body mote rises, in blocks.
+     * float-motes-ring-closer-span-the-view-and-run-twice-as-fast
+     */
+    static final double BODY_RADIUS = 0.45;
+    /** How far ahead of the eye a front mote rises, in blocks. */
     static final double FRONT_REACH = 1.1;
-    static final double FRONT_STRAY = 0.35;
     /** How far below the eye a front mote leaves, so it rises up through the view. */
     static final double FRONT_DROP = 0.9;
+    /** The share of its life a mote's tail trails behind its head. */
+    private static final double TAIL_SHARE = 0.2;
     /** Ticks of the path a mote's tail trails behind its head. */
-    static final double TAIL_TICKS = 12;
+    static final double TAIL_TICKS = LIFE_TICKS * TAIL_SHARE;
     private static final int TAIL_SAMPLES = 12;
     /** The share of its life a mote fades in over, and out over. */
     private static final double FADE_SHARE = 0.25;
@@ -104,19 +120,54 @@ public final class AirbornWind {
 
     /**
      * Where a front mote leaves, relative to the feet: ahead of the eye along
-     * the level look, strayed to one side, below the eye so it rises up
+     * the level look, moved to one side, below the eye so it rises up
      * through the view.
      *
      * @param eyeHeight the player's eye height
      * @param look      the player's look
-     * @param stray     the share of the stray to one side, -1 to 1
+     * @param sideways  blocks to the right of dead ahead, negative to the left
      * @return the start relative to the feet
      */
-    static Vec3 frontStart(double eyeHeight, Vec3 look, double stray) {
+    static Vec3 frontStart(double eyeHeight, Vec3 look, double sideways) {
         Vec3 level = new Vec3(look.x, 0, look.z);
         Vec3 ahead = level.lengthSqr() > 0 ? level.normalize() : new Vec3(0, 0, 1);
         Vec3 side = new Vec3(-ahead.z, 0, ahead.x);
-        return ahead.scale(FRONT_REACH).add(side.scale(stray * FRONT_STRAY)).add(0, eyeHeight - FRONT_DROP, 0);
+        return ahead.scale(FRONT_REACH).add(side.scale(sideways)).add(0, eyeHeight - FRONT_DROP, 0);
+    }
+
+    /**
+     * How far to either side a front mote may leave: the half-width of the
+     * view at the front reach, so front motes rise across the whole screen.
+     * The tangent of half the horizontal field of view is the tangent of half
+     * the vertical one times the aspect.
+     * float-motes-ring-closer-span-the-view-and-run-twice-as-fast
+     *
+     * @param verticalFovDegrees the camera's vertical field of view, in degrees
+     * @param aspect             the window's width over its height
+     * @return the half-width of the view at the front reach, in blocks
+     */
+    static double frontSpread(double verticalFovDegrees, double aspect) {
+        return FRONT_REACH * Math.tan(Math.toRadians(verticalFovDegrees) * HALF) * aspect;
+    }
+
+    /**
+     * Whether a body mote leaves on a game tick.
+     *
+     * @param tick the game time
+     * @return true on every {@link #BODY_EVERY}th tick
+     */
+    static boolean bodyMoteLeavesOn(long tick) {
+        return tick % BODY_EVERY == 0;
+    }
+
+    /**
+     * Whether a front mote leaves on a game tick.
+     *
+     * @param tick the game time
+     * @return true on every {@link #FRONT_EVERY}th tick
+     */
+    static boolean frontMoteLeavesOn(long tick) {
+        return tick % FRONT_EVERY == 0;
     }
 
     /**
@@ -175,16 +226,21 @@ public final class AirbornWind {
         }
         lastSpawnTick = now;
         RandomSource random = player.getRandom();
-        if (now % BODY_EVERY == 0) {
+        if (bodyMoteLeavesOn(now)) {
             LIVE.add(new Mote(bodyStart(random.nextDouble() * TWO_PI, random.nextDouble() * player.getBbHeight() * HALF),
                     random.nextDouble() * TWO_PI, now));
         }
-        if (now % FRONT_EVERY == 0) {
+        if (frontMoteLeavesOn(now)) {
             double stray = random.nextDouble() * BOTH_SIDES - 1;
             double eyeHeight = CameraEye.eyeHeight(mc, player, mc.getDeltaTracker().getGameTimeDeltaPartialTick(false));
-            LIVE.add(new Mote(frontStart(eyeHeight, player.getLookAngle(), stray),
+            LIVE.add(new Mote(frontStart(eyeHeight, player.getLookAngle(), stray * viewSpread(mc)),
                     random.nextDouble() * TWO_PI, now));
         }
+    }
+
+    private static double viewSpread(Minecraft mc) {
+        int height = Math.max(1, mc.getWindow().getHeight());
+        return frontSpread(mc.gameRenderer.getMainCamera().getFov(), (double) mc.getWindow().getWidth() / height);
     }
 
     private static void drawMote(LineContext lines, Vec3 camera, Vec3 feet, Mote mote, double age) {
