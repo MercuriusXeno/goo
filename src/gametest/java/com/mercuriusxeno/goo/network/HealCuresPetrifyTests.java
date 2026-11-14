@@ -70,6 +70,14 @@ public final class HealCuresPetrifyTests {
     private static final String HEAL_WAKES_OLD_STATUE = "heal_wakes_an_old_statue_as_a_fresh_mob";
     private static final String HEAL_RETURNS_BOATED_VILLAGER = "heal_returns_the_villager_that_rode_a_boat";
     private static final String COPIED_STATUE_STAYS = "heal_leaves_a_copied_statue_whose_mob_lives";
+    private static final String HEAL_DRAINS_BETWEEN_PULSES = "heal_drains_the_petrify_gauge_between_pulses";
+    /** The second of the two held ticks after the first pulse that the gauge test reads. */
+    private static final int LAST_BETWEEN_TICK = 3;
+    private static final String SHOULD_SPAN_BETWEEN =
+            "Heal's pulse interval should leave held ticks 2 through %d between pulses, reads %d";
+    private static final String SHOULD_DRAIN_BETWEEN = "On held tick %d the gauge should drop from %s, reads %s";
+    private static final String SHOULD_PULSE_FIRST =
+            "Heal's pulse should harm the zombie on held tick 1 alone of the first three; on tick %d it harmed: %s";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -88,6 +96,42 @@ public final class HealCuresPetrifyTests {
         GooTestFunctions.registerTest(registrar, HEAL_RETURNS_BOATED_VILLAGER,
                 HealCuresPetrifyTests::healReturnsTheVillagerThatRodeABoat);
         GooTestFunctions.registerTest(registrar, COPIED_STATUE_STAYS, HealCuresPetrifyTests::aCopiedStatueStaysWhenItsMobLives);
+        GooTestFunctions.registerTest(registrar, HEAL_DRAINS_BETWEEN_PULSES,
+                HealCuresPetrifyTests::healDrainsTheGaugeBetweenPulses);
+    }
+
+    /**
+     * A part-petrified zombie in Heal's cone through the hold's first three
+     * ticks: the first is a pulse, harming it, and the two after it fall
+     * between pulses, leaving its health, yet on each of the three the
+     * zombie's gauge reads lower after the tick's stream than before it.
+     * diagnose-and-correct-heal-spamming-zombie-noises
+     *
+     * @param helper the gametest helper
+     */
+    public static void healDrainsTheGaugeBetweenPulses(GameTestHelper helper) {
+        Mob zombie = pennedZombie(helper, TARGET_POS);
+        petrifyPartway(helper, zombie, HALF_GAUGE);
+        ServerPlayer player = healer(helper);
+        int every = StreamDeliveryTests.healPulseOf(StreamDeliveryTests.jellyHeal(helper)).every();
+        helper.assertTrue(every > LAST_BETWEEN_TICK, String.format(SHOULD_SPAN_BETWEEN, LAST_BETWEEN_TICK, every));
+        for (int held = 1; held <= LAST_BETWEEN_TICK; held++) {
+            int tick = held;
+            helper.runAfterDelay(held, () -> {
+                float before = zombie.getData(GooAttachments.PETRIFICATION).gauge();
+                float healthBefore = zombie.getHealth();
+                GooStreamHandler.streamTick(player, healTick(player));
+                float after = zombie.getData(GooAttachments.PETRIFICATION).gauge();
+                helper.assertTrue(after < before, String.format(SHOULD_DRAIN_BETWEEN, tick, before, after));
+                // the zombie's health shows the pulse: the first tick harms it, the two after it fall between pulses
+                boolean pulsed = zombie.getHealth() < healthBefore;
+                helper.assertTrue(pulsed == (tick == 1), String.format(SHOULD_PULSE_FIRST, tick, pulsed));
+            });
+        }
+        helper.runAfterDelay(LAST_BETWEEN_TICK + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.succeed();
+        });
     }
 
     private static final BlockPos STAND_POS = new BlockPos(0, 1, 2);

@@ -32,11 +32,15 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
 import org.joml.Quaternionf;
+import org.joml.Quaternionfc;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
 import org.joml.Vector4f;
 import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -87,6 +91,11 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * palm-blob-rests-pressed-and-stands-into-the-cube: pressed against the palm, not the fingers
      */
     private static final Quaternionf STANDING_ON_THE_PALM = new Quaternionf().rotationX((float) (-Math.PI / 2));
+    private static final float QUARTER_TURN = (float) (Math.PI / 2);
+    private static final float HALF_TURN = (float) Math.PI;
+    private static final int QUARTER_TURNS_IN_A_TURN = 4;
+    /** The turns that carry a cube onto itself, which a lifted cube may take to square to the look. */
+    private static final List<Quaternionfc> CUBE_SYMMETRIES = cubeSymmetries();
     /**
      * Half-width of the shell at rest in model pixels, a flight blob's own.
      */
@@ -233,7 +242,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         BlobShape shape = palmShape(blobScale);
         Vector3f center = palmCenter(shape);
         captureGooCenter(poseStack, center.x(), center.y(), center.z());
-        submitBlob(poseStack, nodeCollector, type, center, shape);
+        submitBlob(poseStack, nodeCollector, type, center, shape, STANDING_ON_THE_PALM);
     }
 
     /**
@@ -274,13 +283,15 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * @param type          the goo type
      * @param center        the blob's center in the model, in block coords
      * @param shape         the blob's box against the palm blob's rest cube
+     * @param turn          the blob's turn in the model
      */
     private static void submitBlob(PoseStack poseStack, SubmitNodeCollector nodeCollector,
-                                   ResourceKey<GooTypeDefinition> type, Vector3fc center, BlobShape shape) {
+                                   ResourceKey<GooTypeDefinition> type, Vector3fc center, BlobShape shape,
+                                   Quaternionfc turn) {
         float gameTime = gameTime();
         poseStack.pushPose();
         poseStack.translate(center.x(), center.y(), center.z());
-        poseStack.mulPose(STANDING_ON_THE_PALM);
+        poseStack.mulPose(turn);
         nodeCollector.submitCustomGeometry(poseStack, coreType(),
                 (pose, c) -> GooFlightRenderer.emitCore(pose, c, type, gameTime, shape));
         nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
@@ -306,10 +317,75 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
     private static void submitLiftedGoo(PoseStack poseStack, SubmitNodeCollector nodeCollector,
                                         ResourceKey<GooTypeDefinition> type, LiftedPalmBlob.HandLift lift) {
         Matrix4f toHandPass = new Matrix4f(poseStack.last().pose());
+        Quaternionf turn = liftedTurn(toHandPass, lift);
         Vector3f standing = palmCenter(palmShape(REST_SCALE)).add(0f, 0f, -lift.stand() * SHELL_HW_PX / BLOCK_PIXELS);
         Vector3f palm = toHandPass.transformPosition(standing);
         Vector3f lifted = palm.lerp(lift.sourceInHand().toVector3f(), lift.share());
-        submitBlob(poseStack, nodeCollector, type, toHandPass.invert().transformPosition(lifted), lift.shape());
+        submitBlob(poseStack, nodeCollector, type, toHandPass.invert().transformPosition(lifted), lift.shape(), turn);
+    }
+
+    /**
+     * The turn a lifted blob draws in, in the glove's model: standing on the
+     * palm and turned with the glove, or, for a lift facing the look, easing
+     * as it leaves the palm onto the look's square, the glove's own turn
+     * undone. A cube looks the same a quarter turn round any axis, so of the
+     * cube's turns squared to the look it eases onto the one nearest its turn
+     * on the palm, and never spins round to the look's own.
+     * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives: facing forward with the look, not the hand
+     * operator ruling 2026-11-14: no spin as the blob leaves the palm for its charge
+     *
+     * @param toHandPass the glove's model onto the hand pass's camera-relative world axes
+     * @param lift       the local player's lift
+     * @return the turn, in the glove's model
+     */
+    static Quaternionf liftedTurn(Matrix4fc toHandPass, LiftedPalmBlob.HandLift lift) {
+        if (lift.facing() == null) {
+            return new Quaternionf(STANDING_ON_THE_PALM);
+        }
+        Quaternionf facingInTheModel = toHandPass.getUnnormalizedRotation(new Quaternionf()).conjugate()
+                .mul(lift.facing());
+        return new Quaternionf(STANDING_ON_THE_PALM).slerp(nearestSquaring(facingInTheModel, STANDING_ON_THE_PALM),
+                lift.share());
+    }
+
+    /**
+     * Of the cube's turns squared to a facing, the one nearest a turn.
+     *
+     * @param facing the facing a cube squares to
+     * @param near   the turn to stay nearest
+     * @return the facing turned by the cube's quarter-turn symmetry nearest the turn
+     */
+    static Quaternionf nearestSquaring(Quaternionfc facing, Quaternionfc near) {
+        Quaternionf nearest = new Quaternionf(facing);
+        float closest = Math.abs(nearest.dot(new Quaternionf(near)));
+        for (Quaternionfc symmetry : CUBE_SYMMETRIES) {
+            Quaternionf squared = new Quaternionf(facing).mul(symmetry);
+            float closeness = Math.abs(squared.dot(new Quaternionf(near)));
+            if (closeness > closest) {
+                closest = closeness;
+                nearest = squared;
+            }
+        }
+        return nearest;
+    }
+
+    /**
+     * The 24 turns that carry a cube onto itself: each of its six faces
+     * turned up, at each of four quarter turns about the up.
+     *
+     * @return the turns
+     */
+    private static List<Quaternionfc> cubeSymmetries() {
+        List<Quaternionf> faceUp = List.of(new Quaternionf(), new Quaternionf().rotationX(HALF_TURN),
+                new Quaternionf().rotationX(QUARTER_TURN), new Quaternionf().rotationX(-QUARTER_TURN),
+                new Quaternionf().rotationZ(QUARTER_TURN), new Quaternionf().rotationZ(-QUARTER_TURN));
+        List<Quaternionfc> symmetries = new ArrayList<>();
+        for (Quaternionf up : faceUp) {
+            for (int turns = 0; turns < QUARTER_TURNS_IN_A_TURN; turns++) {
+                symmetries.add(new Quaternionf(up).rotateY(turns * QUARTER_TURN));
+            }
+        }
+        return List.copyOf(symmetries);
     }
 
     /**
