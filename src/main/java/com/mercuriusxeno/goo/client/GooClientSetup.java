@@ -401,7 +401,8 @@ public final class GooClientSetup {
         for (EntityType<?> type : event.getEntityTypes()) {
             EntityRenderer<?, ?> renderer = event.getRenderer(type);
             if (renderer != null) {
-                MobCoatLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
+                MobCoatLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()),
+                        EncasedBodies.of(type, event.getEntityModels()));
                 AilmentOverlayLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
                 EncasementLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()),
                         EncasedBodies.of(type, event.getEntityModels()));
@@ -409,8 +410,8 @@ public final class GooClientSetup {
             }
         }
         for (PlayerModelType skin : event.getSkins()) {
-            MobCoatLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
-            MobCoatLayer.addTo(event.getMannequinRenderer(skin), MobShells.NONE);
+            MobCoatLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE, null);
+            MobCoatLayer.addTo(event.getMannequinRenderer(skin), MobShells.NONE, null);
             AilmentOverlayLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
             AilmentOverlayLayer.addTo(event.getMannequinRenderer(skin), MobShells.NONE);
             EncasementLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE, null);
