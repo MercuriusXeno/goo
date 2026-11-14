@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:released_cow_takes_a_fresh_rally",
+  "environment": "goo:rally_reload",
+  "structure": "goo:test_bay",
+  "max_ticks": 20,
+  "setup_ticks": 0,
+  "required": true
+}
