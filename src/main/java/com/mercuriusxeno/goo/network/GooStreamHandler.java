@@ -64,7 +64,8 @@ import java.util.stream.Stream;
  * (decision flatten-disc-cursor-breaks-above-the-plane). A stream whose
  * program needs the channel runs a block pass instead of striking entities:
  * its programs run on the player, aimed at the end of its reach along the
- * look (decision bore-vortex-with-a-worldspace-shake).
+ * look, Bore's reach being its caster's block reach
+ * (decisions bore-vortex-with-a-worldspace-shake, bore-reaches-as-far-as-your-block-reach).
  */
 public final class GooStreamHandler {
 
@@ -266,7 +267,8 @@ public final class GooStreamHandler {
      */
     private static void strikeCone(ServerPlayer player, Vec3 origin, AbilityDefinition ability, int held) {
         ServerLevel level = player.level();
-        Delivery delivery = ability.delivery();
+        // bore-reaches-as-far-as-your-block-reach
+        Delivery delivery = ability.delivery().reachingTo(player.blockInteractionRange());
         Vec3 apex = coneApex(player, origin);
         Vec3 axis = player.getLookAngle();
         CastOn cast = new CastOn(level, player, ability.id());
@@ -274,7 +276,7 @@ public final class GooStreamHandler {
         TickHeals heals = new TickHeals(new ArrayList<>(), new ArrayList<>());
         if (delivery.range() > 0 || delivery.throwsDrips()) {
             // reserve-hearts-sit-behind-the-bar: a stream reaching nothing runs only on its caster
-            List<LivingEntity> struck = sprayAndStrike(cast, apex, axis, ability, held);
+            List<LivingEntity> struck = sprayAndStrike(cast, apex, axis, ability, delivery, held);
             boolean heal = heals(entitySteps);
             for (LivingEntity living : struck) {
                 HEALS.runNoting(living, heals.healed(), () -> runSteps(new EntityHost(level, living, player),
@@ -284,7 +286,7 @@ public final class GooStreamHandler {
                     heals.touched().add(living.getId());
                 }
             }
-            sprayFloors(player, apex, axis, ability);
+            sprayFloors(player, apex, axis, ability, delivery);
         }
         strikeCaster(cast, ability, apex, entitySteps, heals);
     }
@@ -324,14 +326,14 @@ public final class GooStreamHandler {
      * @param cast    the tick's cast
      * @param apex    the cone's apex, the glove hand
      * @param axis    the look
-     * @param ability the stream ability
-     * @param held    the hold's tick count
+     * @param ability  the stream ability
+     * @param delivery the stream's delivery as it reaches for the caster this tick
+     * @param held     the hold's tick count
      * @return the living the entity pass strikes
      */
     private static List<LivingEntity> sprayAndStrike(CastOn cast, Vec3 apex, Vec3 axis, AbilityDefinition ability,
-                                                     int held) {
+                                                     Delivery delivery, int held) {
         ServerPlayer player = cast.player();
-        Delivery delivery = ability.delivery();
         if (delivery.throwsDrips()) {
             // goop-wobbles-a-mob-its-drip-strikes: a stream throwing drips strikes the living its drips strike, not
             // the living in its cone
@@ -498,14 +500,15 @@ public final class GooStreamHandler {
      * @param player  the streaming player
      * @param apex    the cone's apex
      * @param axis    the cone's axis
-     * @param ability the stream ability
+     * @param ability  the stream ability
+     * @param delivery the stream's delivery as it reaches for the caster this tick
      */
-    private static void sprayFloors(ServerPlayer player, Vec3 apex, Vec3 axis, AbilityDefinition ability) {
+    private static void sprayFloors(ServerPlayer player, Vec3 apex, Vec3 axis, AbilityDefinition ability,
+                                    Delivery delivery) {
         if (ability.onBlocks().isEmpty()) {
             return;
         }
         ServerLevel level = player.level();
-        Delivery delivery = ability.delivery();
         SprayPrograms.runOnFloors(level, FloorReach.struckInCone(level, player, apex, axis, delivery.range(),
                 delivery.coneDegrees(), FLOOR_RAYS_PER_TICK, level.getRandom()), apex, ability);
     }

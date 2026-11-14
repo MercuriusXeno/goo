@@ -5,7 +5,7 @@
   "order": 30,
   "cost": 1000,
   "requires": ["minecraft:stone", "minecraft:cobblestone"],
-  "delivery": { "kind": "stream", "range": 4, "cone": 15, "ticks_per_charge": 20,
+  "delivery": { "kind": "stream", "reaches_block_reach": true, "cone": 15, "ticks_per_charge": 20,
     "sound": { "id": "goo:effects.earth_rumble", "every": 40, "volume": 0.35, "pitch": 1.0, "pitch_spread": 0.0, "loop": true } },
   "behaviors": [
     {

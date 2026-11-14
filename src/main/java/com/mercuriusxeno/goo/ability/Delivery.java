@@ -35,11 +35,39 @@ import java.util.Optional;
  * @param drainsOnPlacement whether a stream pays its cost by what it lays rather than by the ticks it is held
  * @param throwSpeed     the speed a stream throws its drips at, blocks per tick, each flying its arc until it
  *                       strikes; {@link #NO_THROW_SPEED} for a stream reaching by its range
+ * @param reachesBlockReach whether a stream reaches as far as its caster's block reach in place of its range
  */
 public record Delivery(DeliveryKind kind, double blocksPerTick, double range, double coneDegrees,
                        int ticksPerCharge, boolean grannyAllowed, Optional<Identifier> particle, double transformAt,
                        Optional<StreamSound> sound, Charge charge, TravelForm form, double topSpeed,
-                       double seekRange, boolean drainsOnPlacement, double throwSpeed) {
+                       double seekRange, boolean drainsOnPlacement, double throwSpeed, boolean reachesBlockReach) {
+
+    /**
+     * A delivery reaching by its own range.
+     *
+     * @param kind              the delivery kind
+     * @param blocksPerTick     a beam's speed in blocks per tick
+     * @param range             a stream's reach in blocks
+     * @param coneDegrees       a stream's cone, apex to rim, in degrees
+     * @param ticksPerCharge    a stream's ticks of hold one cost pays for
+     * @param grannyAllowed     whether an arc may lob onto a top face
+     * @param particle          the particle a stream sprays along its cone, empty for none
+     * @param transformAt       the share of the flight by which the blob has taken its traveling form
+     * @param sound             the sound a stream makes while held, empty for none
+     * @param charge            the charge block
+     * @param form              the form the goo takes in flight
+     * @param topSpeed          the fastest an arc flies in blocks per tick
+     * @param seekRange         how far a stream reaches the living it strikes
+     * @param drainsOnPlacement whether a stream pays its cost by what it lays
+     * @param throwSpeed        the speed a stream throws its drips at
+     */
+    public Delivery(DeliveryKind kind, double blocksPerTick, double range, double coneDegrees, int ticksPerCharge,
+                    boolean grannyAllowed, Optional<Identifier> particle, double transformAt,
+                    Optional<StreamSound> sound, Charge charge, TravelForm form, double topSpeed, double seekRange,
+                    boolean drainsOnPlacement, double throwSpeed) {
+        this(kind, blocksPerTick, range, coneDegrees, ticksPerCharge, grannyAllowed, particle, transformAt, sound,
+                charge, form, topSpeed, seekRange, drainsOnPlacement, throwSpeed, false);
+    }
 
     /**
      * A delivery reaching by its range, throwing no drips.
@@ -249,7 +277,9 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
             // goop-drains-per-cubic-meter-of-slime-placed
             Codec.BOOL.optionalFieldOf("drains_on_placement", false).forGetter(Delivery::drainsOnPlacement),
             // goop-and-slick-coat-lands-where-each-drip-arc-strikes
-            Codec.DOUBLE.optionalFieldOf("throw_speed", NO_THROW_SPEED).forGetter(Delivery::throwSpeed)
+            Codec.DOUBLE.optionalFieldOf("throw_speed", NO_THROW_SPEED).forGetter(Delivery::throwSpeed),
+            // bore-reaches-as-far-as-your-block-reach
+            Codec.BOOL.optionalFieldOf("reaches_block_reach", false).forGetter(Delivery::reachesBlockReach)
     ).apply(inst, Delivery::new));
 
     /**
@@ -271,28 +301,31 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
             TravelForm.STREAM_CODEC, Delivery::form,
             WireTail.STREAM_CODEC,
             delivery -> new WireTail(delivery.topSpeed(), delivery.seekRange(), delivery.drainsOnPlacement(),
-                    delivery.throwSpeed()),
+                    delivery.throwSpeed(), delivery.reachesBlockReach()),
             (kind, blocksPerTick, range, coneDegrees, ticksPerCharge, grannyAllowed, particle, transformAt, sound,
              charge, form, tail) -> new Delivery(kind, blocksPerTick, range, coneDegrees, ticksPerCharge,
                     grannyAllowed, particle, transformAt, sound, charge, form, tail.topSpeed(), tail.seekRange(),
-                    tail.drainsOnPlacement(), tail.throwSpeed()));
+                    tail.drainsOnPlacement(), tail.throwSpeed(), tail.reachesBlockReach()));
 
     /**
      * The delivery's last fields on the wire as one, since a stream codec
      * composes at most twelve.
      *
-     * @param topSpeed         the fastest an arc flies in blocks per tick
-     * @param seekRange        how far a stream reaches the living it strikes
+     * @param topSpeed          the fastest an arc flies in blocks per tick
+     * @param seekRange         how far a stream reaches the living it strikes
      * @param drainsOnPlacement whether a stream pays its cost by what it lays
-     * @param throwSpeed       the speed a stream throws its drips at
+     * @param throwSpeed        the speed a stream throws its drips at
+     * @param reachesBlockReach whether a stream reaches as far as its caster's block reach
      */
-    private record WireTail(double topSpeed, double seekRange, boolean drainsOnPlacement, double throwSpeed) {
+    private record WireTail(double topSpeed, double seekRange, boolean drainsOnPlacement, double throwSpeed,
+                            boolean reachesBlockReach) {
 
         private static final StreamCodec<ByteBuf, WireTail> STREAM_CODEC = StreamCodec.composite(
                 ByteBufCodecs.DOUBLE, WireTail::topSpeed,
                 ByteBufCodecs.DOUBLE, WireTail::seekRange,
                 ByteBufCodecs.BOOL, WireTail::drainsOnPlacement,
                 ByteBufCodecs.DOUBLE, WireTail::throwSpeed,
+                ByteBufCodecs.BOOL, WireTail::reachesBlockReach,
                 WireTail::new);
     }
 
@@ -469,6 +502,20 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
      */
     public Delivery withCone(double newRange, double newConeDegrees) {
         return new Delivery(kind, blocksPerTick, newRange, newConeDegrees, ticksPerCharge, grannyAllowed, particle,
-                transformAt, sound, charge, form, topSpeed, seekRange, drainsOnPlacement, throwSpeed);
+                transformAt, sound, charge, form, topSpeed, seekRange, drainsOnPlacement, throwSpeed,
+                reachesBlockReach);
+    }
+
+    /**
+     * This delivery as it reaches for a caster: out to the caster's block
+     * reach for a stream reaching that far, which Telekinesis raises, and by
+     * its own range otherwise.
+     * bore-reaches-as-far-as-your-block-reach
+     *
+     * @param blockReach the caster's block reach, in blocks
+     * @return the delivery reaching that far, or this one
+     */
+    public Delivery reachingTo(double blockReach) {
+        return reachesBlockReach ? withCone(blockReach, coneDegrees) : this;
     }
 }

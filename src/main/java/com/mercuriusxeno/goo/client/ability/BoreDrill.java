@@ -178,7 +178,8 @@ public final class BoreDrill {
             return false;
         }
         lastStep = step;
-        lastReach = bore.delivery().range();
+        // bore-reaches-as-far-as-your-block-reach
+        lastReach = bore.delivery().reachingTo(player.blockInteractionRange()).range();
         return true;
     }
 

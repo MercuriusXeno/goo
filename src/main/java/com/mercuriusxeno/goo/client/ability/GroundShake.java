@@ -391,7 +391,9 @@ public final class GroundShake {
     private static Zone liveBoreZone(LocalPlayer player, BoreStep bore, ClientAbility ability,
                                      CameraEye.Sight sight) {
         Level level = player.level();
-        return boreZoneAlong(sight, bore, ability.delivery().range(), ability.delivery().coneDegrees(),
+        // bore-reaches-as-far-as-your-block-reach
+        double reach = ability.delivery().reachingTo(player.blockInteractionRange()).range();
+        return boreZoneAlong(sight, bore, reach, ability.delivery().coneDegrees(),
                 cell -> level.getBlockState(cell).isAir(),
                 cell -> level.getBlockState(cell).is(bore.breaks()));
     }

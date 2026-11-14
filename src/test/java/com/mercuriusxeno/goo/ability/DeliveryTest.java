@@ -48,6 +48,35 @@ class DeliveryTest {
         return decode(deliveryField).getOrThrow().delivery();
     }
 
+    /**
+     * Bore reaches as far as its caster's block reach, which Telekinesis
+     * raises, in place of a fixed range of its own; every reader of the reach
+     * takes it through {@link Delivery#reachingTo}
+     * (decision bore-reaches-as-far-as-your-block-reach).
+     */
+    @Nested
+    class BlockReach {
+
+        private final Delivery bore = AbilityJson.decode("rock_bore").delivery();
+
+        @Test
+        void rockBoresDeliveryNamesTheCastersBlockReachAsItsReach() {
+            assertTrue(bore.reachesBlockReach());
+        }
+
+        @Test
+        void aBoreReachesTheBlockReachHandedIn() {
+            assertEquals(4.5, bore.reachingTo(4.5).range(), TOLERANCE);
+            assertEquals(12.5, bore.reachingTo(12.5).range(), TOLERANCE);
+        }
+
+        @Test
+        void aStreamNamingItsOwnRangeKeepsItWhateverTheBlockReach() {
+            Delivery stream = deliveryOf("\"delivery\": { \"kind\": \"stream\", \"range\": 6 },");
+            assertEquals(6, stream.reachingTo(12.5).range(), TOLERANCE);
+        }
+    }
+
     @Nested
     class Codec {
 

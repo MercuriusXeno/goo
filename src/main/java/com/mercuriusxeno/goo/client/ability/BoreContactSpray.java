@@ -130,7 +130,8 @@ public final class BoreContactSpray {
         ClientAbility bore = BoreDrill.runningBore(player);
         BoreStep step = bore == null ? null : BoreDrill.stepOf(bore).orElse(null);
         if (step != null) {
-            spitAtContact(level, player, step, bore.delivery().range());
+            // bore-reaches-as-far-as-your-block-reach
+            spitAtContact(level, player, step, bore.delivery().reachingTo(player.blockInteractionRange()).range());
         }
     }
 

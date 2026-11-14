@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.program.BoreStep;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -86,8 +87,10 @@ public final class BoreRumble {
     private static List<BlockPos> progressingOf(ClientLevel level, LocalPlayer player, ClientAbility bore,
                                                 BoreStep step) {
         Vec3 eye = player.getEyePosition();
-        ChannelAim aim = new ChannelAim(eye.add(player.getViewVector(1f).scale(bore.delivery().range())), null,
-                bore.delivery().coneDegrees());
+        // bore-reaches-as-far-as-your-block-reach
+        Delivery reaching = bore.delivery().reachingTo(player.blockInteractionRange());
+        ChannelAim aim = new ChannelAim(eye.add(player.getViewVector(1f).scale(reaching.range())), null,
+                reaching.coneDegrees());
         return BoreStep.progressing(eye, step.pointRadius(), aim,
                 cell -> level.getBlockState(cell).isAir(), cell -> level.getBlockState(cell).is(step.breaks()));
     }
