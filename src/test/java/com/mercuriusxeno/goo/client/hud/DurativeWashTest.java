@@ -82,6 +82,43 @@ class DurativeWashTest {
                 "by the wash's end the hollow should reach every edge, " + emptied);
     }
 
+    /** A small step in reach, against the view's half size. */
+    private static final double NUDGE = 0.01;
+
+    /** operator ruling: "it is far too monotone, needs a gradient, a fade, something more subtle" */
+    @Test
+    void theFillsFrontFadesInRatherThanCuttingOff() {
+        double ticks = FILLED / 2;
+        double front = DurativeWash.fillScaleAt(ticks);
+        float atTheFront = DurativeWash.alphaAt(front - NUDGE, ticks);
+        float behindIt = DurativeWash.alphaAt(front * 0.2, ticks);
+
+        assertTrue(atTheFront > 0f && atTheFront < behindIt, "just inside the fill's front the tint " + atTheFront
+                + " should fade in toward " + behindIt + " behind it");
+        assertEquals(0f, DurativeWash.alphaAt(front + NUDGE, ticks), DELTA, "past the front nothing should show");
+    }
+
+    @Test
+    void theHollowsEdgeFadesOutRatherThanCuttingOff() {
+        double ticks = (FILLED + DurativeWash.WASH_TICKS) / 2;
+        double edge = DurativeWash.hollowScaleAt(ticks);
+        float atTheEdge = DurativeWash.alphaAt(edge + NUDGE, ticks);
+        float pastIt = DurativeWash.alphaAt(Math.min(1, edge + 0.3), ticks);
+
+        assertTrue(atTheEdge > 0f && atTheEdge < pastIt, "just outside the hollow the tint " + atTheEdge
+                + " should fade in toward " + pastIt);
+        assertEquals(0f, DurativeWash.alphaAt(edge * 0.5, ticks), DELTA, "inside the hollow nothing should show");
+    }
+
+    @Test
+    void theTintCrestsBrightAtTheMovingFrontAndDeepensBehindIt() {
+        double ticks = FILLED / 2;
+        double front = DurativeWash.fillScaleAt(ticks);
+
+        assertTrue(DurativeWash.crestAt(front - NUDGE, ticks) > DurativeWash.crestAt(front * 0.2, ticks),
+                "the tint should run brighter at the moving front than behind it");
+    }
+
     /** operator ruling: "Too opaque" */
     @Test
     void theWashAtItsFullestStandsLessOpaqueThanBefore() {
