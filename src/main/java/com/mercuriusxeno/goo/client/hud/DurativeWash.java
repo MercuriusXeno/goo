@@ -22,9 +22,10 @@ import org.jspecify.annotations.Nullable;
  * at the middle of the view as a rectangle the view's shape and washes past
  * every edge, then empties from the middle out, a clear rectangle opening at
  * the middle until it reaches the edges and the view is clear again. Each
- * moving front fades in softly rather than cutting off, and the tint crests
- * at the front in the goo's bright color, deepening to its wheel color
- * behind it, so the wash reads as a wave rather than a flat sheet. A first-person pass over the camera's overlays and under
+ * moving front fades in softly rather than cutting off. The fill washes in
+ * deep and dim in the goo's wheel color; as it empties, the tint crests at
+ * the emptying edge in the goo's bright color, deepening behind it, so the
+ * wash reads as a wave rather than a flat sheet. A first-person pass over the camera's overlays and under
  * the HUD. Kept to this one class so a later ruling can swap the look whole.
  * durative-self-abilities-wash-over-the-view-in-place-of-eating
  * operator ruling: "1 until it fills, and then it empties from the middle out"
@@ -189,18 +190,21 @@ public final class DurativeWash {
     }
 
     /**
-     * How near a moving front a reach stands a time into the wash, which
-     * brightens the tint there: the fill's front while it opens, and the
-     * hollow's edge once it empties.
+     * How near the emptying edge a reach stands a time into the wash, which
+     * brightens the tint there; the fill washes in deep and dim with no crest,
+     * so its first flash never overwhelms the view.
+     * operator ruling: "that first flash, it's like.. blindingly bright. it's a little overwhelming"
      *
      * @param reach      how far from the middle, against the view's half size
      * @param ticksSince ticks since the wash began
-     * @return 1 at a front, falling to 0 a crest's reach behind it
+     * @return 1 at the emptying edge, falling to 0 a crest's reach behind it, and 0 through the fill
      */
     static float crestAt(double reach, double ticksSince) {
         double hollow = hollowScaleAt(ticksSince);
-        double front = hollow > 0 ? hollow : fillScaleAt(ticksSince);
-        return (float) (1 - smooth(Math.clamp(Math.abs(reach - front) / CREST_REACH, 0.0, 1.0)));
+        if (hollow <= 0) {
+            return 0f;
+        }
+        return (float) (1 - smooth(Math.clamp(Math.abs(reach - hollow) / CREST_REACH, 0.0, 1.0)));
     }
 
     private static double smooth(double share) {
