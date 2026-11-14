@@ -9,19 +9,25 @@ import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.entity.Meteor;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
+import com.mercuriusxeno.goo.network.MeteorScorchPayload;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
@@ -46,6 +52,51 @@ public final class MeteoTests {
         GooTestFunctions.registerTest(registrar, METEO_THROWN_UNDER_A_ROOF, MeteoTests::meteoIsThrownUnderARoof);
         GooTestFunctions.registerTest(registrar, METEO_CALLS_ON_THE_RELEASE_TICK,
                 MeteoTests::meteoCallsTheMeteorOnTheReleaseTick);
+        GooTestFunctions.registerTest(registrar, METEO_RELEASE_LEAVES_NO_SPLAT, MeteoTests::meteoReleaseLeavesNoSplat);
+    }
+
+    private static final String METEO_RELEASE_LEAVES_NO_SPLAT = "meteo_release_leaves_no_splat";
+    /** Ticks past any fall Meteo names by which its meteor has landed. */
+    private static final int LANDED_BY = 60;
+    /** How far from the ground a splat or a scorch may stand and still be this test's, inside one bay. */
+    private static final double NEAR_THE_GROUND = 4;
+
+    /**
+     * Released at open ground, Meteo sends no splat at the target and calls
+     * one meteor over it; the meteor's landing still announces its scorch.
+     * decision meteo-makes-no-mark-on-release
+     *
+     * @param helper the gametest helper
+     */
+    public static void meteoReleaseLeavesNoSplat(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        AbilityDefinition meteo = AbilityRegistry.of(level).getAbility(ASTRAL_METEO);
+        helper.assertTrue(meteo != null, ABILITY_REQUIRED);
+        BlockPos ground = helper.absolutePos(GROUND);
+        level.setBlockAndUpdate(ground, Blocks.STONE.defaultBlockState());
+        openCageRoofOver(level, ground);
+        ServerPlayer player = StackKeyTests.makeThrower(helper, GooTypes.ASTRAL);
+        KnownRecipes.teachRequires(player, meteo);
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.ASTRAL, meteo.cost().in(GooValueTable.EMPTY)));
+        PayloadKindsRecorder recorder = PayloadKindsRecorder.attachTo(player,
+                Set.of(ChainBurnoutPayload.class, MeteorScorchPayload.class));
+        // a mock player tracks no chunk, so the burnout's chunk watchers would skip it without this view
+        player.setChunkTrackingView(ChunkTrackingView.of(ChunkPos.containing(ground), 1));
+        GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.ASTRAL), NO_TARGET_ENTITY,
+                ground, Direction.UP.ordinal(), false, ASTRAL_METEO.toString(), player.getEyePosition()));
+        // the view reaches a neighbouring bay's chunks, so only what lands at this test's ground counts
+        long splats = recorder.receivedOf(ChainBurnoutPayload.class).stream()
+                .filter(splat -> splat.pos().closerThan(ground, NEAR_THE_GROUND)).count();
+        int called = meteorsOver(level, ground).size();
+        helper.runAfterDelay(LANDED_BY, () -> {
+            long scorches = recorder.receivedOf(MeteorScorchPayload.class).stream()
+                    .filter(scorch -> scorch.center().closerThan(Vec3.atCenterOf(ground), NEAR_THE_GROUND)).count();
+            level.getServer().getPlayerList().remove(player);
+            helper.assertTrue(splats == 0, "The release should send no splat at the target, sent " + splats);
+            helper.assertTrue(called == 1, "One meteor should fall over the target, " + called + " fall");
+            helper.assertTrue(scorches == 1, "The meteor's landing should announce its scorch, announced " + scorches);
+            helper.succeed();
+        });
     }
 
     private static final String METEO_CALLS_ON_THE_RELEASE_TICK = "meteo_calls_the_meteor_on_the_release_tick";
