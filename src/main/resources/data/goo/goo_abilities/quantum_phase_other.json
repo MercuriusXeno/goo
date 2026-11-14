@@ -1,6 +1,6 @@
 {
   "gooType": "quantum",
-  "displayName": "goo.ability.quantum.phase_shift",
+  "displayName": "goo.ability.quantum.phase_other",
   "badge": "mob",
   "order": 0,
   "cost": 1000,

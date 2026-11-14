@@ -51,11 +51,13 @@ class InventoryRenamedAbilitiesTest {
     static Stream<Arguments> renamedAbilities() {
         return Stream.of(
                 Arguments.of("ender_seal", "Seal"),
-                Arguments.of("void_zone", "Zone"));
+                Arguments.of("void_zone", "Zone"),
+                Arguments.of("quantum_phase_self", "Phase Self"),
+                Arguments.of("quantum_phase_other", "Phase Other"));
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"ender_zone"})
+    @ValueSource(strings = {"ender_zone", "quantum_phase", "quantum_phase_shift"})
     void oldKeyShipsNoAbility(String oldId) {
         assertNull(InventoryRenamedAbilitiesTest.class.getResource(ABILITY_JSON.formatted(oldId)), oldId + " json");
         assertNull(InventoryRenamedAbilitiesTest.class.getResource(ABILITY_ICON.formatted(oldId)), oldId + " icon");
