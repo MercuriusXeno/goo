@@ -5,6 +5,7 @@
   "mixins": [
     "BlockStateGatePassageMixin",
     "ContainerShiftClickMergeMixin",
+    "EntityCellLiftMixin",
     "EntityGatePassageMixin",
     "EntityPhasePassMixin",
     "EntitySculkerSilenceMixin",

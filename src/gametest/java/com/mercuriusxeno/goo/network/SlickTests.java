@@ -296,7 +296,54 @@ public final class SlickTests {
     private static final double TURNED_DEGREES = 3;
     private static final double SHORT_SHARE = 0.95;
 
+    private static final String EMBEDDED_KEEPS_LINE = "slick_a_runner_a_layer_inside_its_cell_keeps_its_line";
+    /**
+     * The cells around the weaving run's redirect on its tick 31, rows north to south, west to east, the runner's
+     * cell at the middle: three layers, with the runner's feet at two, a layer inside it.
+     */
+    private static final int[][] EMBEDDED_CELLS = {{3, 2, 1}, {2, 3, 3}, {2, 2, 2}};
+    private static final int EMBEDDED_FEET_LAYERS = 2;
+    /** The weaving run's move into that spot: a block a tick at thirty degrees north of east. */
+    private static final double EMBEDDED_SPEED = 0.996;
+    private static final double EMBEDDED_HEADING = -30;
+    private static final String EMBEDDED_TURNED = "A runner whose cell rose a layer around its feet should move on as"
+            + " asked: asked %s, moved %s, collided %s";
+
     private SlickTests() {
+    }
+
+    /**
+     * A runner whose cell rose a layer around its feet, the way its client
+     * has it when the cell's update arrives a tick after the drip landed,
+     * moves on as asked into the cells beside: neither turned nor cut short,
+     * where vanilla slides it along them, the redirect the operator meets.
+     * operator report 2026-11-14: hitting goo redirects the runner off the track and hitches it
+     *
+     * @param helper the gametest helper
+     */
+    public static void slickARunnerALayerInsideItsCellKeepsItsLine(GameTestHelper helper) {
+        BlockPos middle = new BlockPos(4, 1, 8);
+        for (int dz = -2; dz <= 2; dz++) {
+            for (int dx = -2; dx <= 3; dx++) {
+                BlockPos cell = middle.offset(dx, 0, dz);
+                helper.setBlock(cell.below(), Blocks.STONE);
+                boolean traced = Math.abs(dx) <= 1 && Math.abs(dz) <= 1;
+                helper.setBlock(cell, slickOf(traced ? EMBEDDED_CELLS[dz + 1][dx + 1] : EMBEDDED_FEET_LAYERS));
+            }
+        }
+        ServerPlayer runner = slickStreamerAt(helper, middle);
+        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(middle));
+        runner.setPos(stand.x, stand.y + (double) EMBEDDED_FEET_LAYERS / WHOLE_BLOCK_LAYERS, stand.z);
+        runner.setOnGround(true);
+        double heading = Math.toRadians(EMBEDDED_HEADING);
+        Vec3 asked = new Vec3(EMBEDDED_SPEED * Math.cos(heading), -0.08, EMBEDDED_SPEED * Math.sin(heading));
+        Vec3 before = runner.position();
+        runner.move(MoverType.SELF, asked);
+        Vec3 moved = runner.position().subtract(before);
+        helper.getLevel().getServer().getPlayerList().remove(runner);
+        boolean asAsked = Math.abs(moved.x - asked.x) < 1e-3 && Math.abs(moved.z - asked.z) < 1e-3;
+        helper.assertTrue(asAsked, String.format(EMBEDDED_TURNED, asked, moved, runner.horizontalCollision));
+        helper.succeed();
     }
 
     /**
@@ -941,6 +988,7 @@ public final class SlickTests {
                 SlickTests::slickLaysATrackARampedRunnerRides);
         GooTestFunctions.registerTest(registrar, HELD_SPREADS_WITHOUT_STEPS, SlickTests::slickHeldAtOneSpotSpreadsWithoutSteps);
         GooTestFunctions.registerTest(registrar, KEEPS_MOMENTUM, SlickTests::slickKeepsASlidersMomentum);
+        GooTestFunctions.registerTest(registrar, EMBEDDED_KEEPS_LINE, SlickTests::slickARunnerALayerInsideItsCellKeepsItsLine);
         GooTestFunctions.registerTest(registrar, WEAVING_RUN, SlickTests::slickCarriesAWeavingRunnerThroughItsOwnMound);
         GooTestFunctions.registerTest(registrar, RUN_AT_45, SlickTests::slickCarriesARampingRunnerSprayingHalfwayDown);
         GooTestFunctions.registerTest(registrar, RUN_LEVEL, SlickTests::slickCarriesARampingRunnerSprayingLevel);
