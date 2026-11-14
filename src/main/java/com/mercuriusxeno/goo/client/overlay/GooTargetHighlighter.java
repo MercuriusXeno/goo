@@ -262,7 +262,7 @@ public final class GooTargetHighlighter {
         HeldDomeRenderer.renderSized(frame.ps(), frame.buf(), frame.camera().position(),
                 GloveThrowSender.chargeAnchor(), swelled, frame.selectedType(),
                 ClientGooTypes.highlight(frame.selectedType()), realTimeSeconds());
-        ChargeMotes.render(frame.ps(), frame.buf(), frame.camera().position(), now);
+        ChargeMotes.render(now);
     }
 
     /**
