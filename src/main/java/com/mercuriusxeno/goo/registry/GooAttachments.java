@@ -28,7 +28,7 @@ import com.mercuriusxeno.goo.ability.typhoon.Breath;
 import com.mercuriusxeno.goo.ability.typhoon.Floating;
 import com.mercuriusxeno.goo.ability.weird.Wobbled;
 import com.mercuriusxeno.goo.ability.xeno.Eldritch;
-import com.mercuriusxeno.goo.ability.zone.Shifter;
+import com.mercuriusxeno.goo.ability.zone.Elude;
 import com.mercuriusxeno.goo.ability.zone.ZoneCurse;
 import com.mercuriusxeno.goo.ability.zoo.Leader;
 import com.mercuriusxeno.goo.ability.zoo.Rallied;
@@ -300,10 +300,10 @@ public final class GooAttachments {
      * The Elude a player holds, saved with the player.
      * elude-moves-you-to-a-random-safe-spot-on-mob-or-projectile-damage
      */
-    public static final Supplier<AttachmentType<Shifter>> SHIFTER =
-            ATTACHMENT_TYPES.register("shifter",
-                    () -> AttachmentType.builder(() -> Shifter.NONE)
-                            .serialize(Shifter.CODEC)
+    public static final Supplier<AttachmentType<Elude>> ELUDE =
+            ATTACHMENT_TYPES.register("elude",
+                    () -> AttachmentType.builder(() -> Elude.NONE)
+                            .serialize(Elude.CODEC)
                             .build());
 
     /**

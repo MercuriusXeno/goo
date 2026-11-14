@@ -6,36 +6,36 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Pulser's block step, run each held tick of the stream: every JSON-named
+ * Tick's block step, run each held tick of the stream: every JSON-named
  * count of held ticks, every lever, button, door, trapdoor or fence gate in
  * the cone along the aim toggles and every repeater and redstone receiver
  * there takes one Zap pulse, for as long as right click holds, with no cap
- * on how often each toggles: {@code pulser_toggle every=4}. The pulse stands
+ * on how often each toggles: {@code tick_toggle every=4}. The pulse stands
  * fewer ticks than the period, so each toggling tick is a rising edge.
  * pulser-toggles-rapidly-while-held
  * tick-pulses-anything-a-signal-runs-while-held
  *
  * @param every the held ticks between toggles, evaluated when the step runs
  */
-public record PulserToggleStep(Expr every) implements TakesNoEntity {
+public record TickToggleStep(Expr every) implements TakesNoEntity {
 
-    private static final String NAME = "pulser_toggle";
+    private static final String NAME = "tick_toggle";
     private static final String FIELD_EVERY = "every";
 
     /**
      * Codec for the step's params.
      */
-    public static final MapCodec<PulserToggleStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            Expr.CODEC.fieldOf(FIELD_EVERY).forGetter(PulserToggleStep::every)
-    ).apply(inst, PulserToggleStep::new));
+    public static final MapCodec<TickToggleStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
+            Expr.CODEC.fieldOf(FIELD_EVERY).forGetter(TickToggleStep::every)
+    ).apply(inst, TickToggleStep::new));
 
     /**
      * The registered type.
      */
-    public static final StepType<PulserToggleStep> TYPE = new StepType<>(NAME, CODEC);
+    public static final StepType<TickToggleStep> TYPE = new StepType<>(NAME, CODEC);
 
     @Override
-    public StepType<PulserToggleStep> type() {
+    public StepType<TickToggleStep> type() {
         return TYPE;
     }
 

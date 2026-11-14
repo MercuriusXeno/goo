@@ -3,7 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.held.LuxEvents;
 import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
-import com.mercuriusxeno.goo.ability.zone.ShifterEvents;
+import com.mercuriusxeno.goo.ability.zone.EludeEvents;
 import com.mercuriusxeno.goo.ability.zone.ZoneEvents;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -110,7 +110,7 @@ class MobAilmentsTest {
             LUX_GLISTEN(LuxEvents.GAZE_EVERY, LuxEvents.GAZE_GLISTEN_TICKS),
             // a channel tick may land as late as the hold's grace allows
             GRAB_FLAIL(GrabEvents.HOLD_GRACE_TICKS, GrabEvents.FLAIL_OVERLAY_TICKS),
-            SHIFTER_SHIMMER(ShifterEvents.SHIMMER_REFRESH_TICKS, ShifterEvents.SHIMMER_TICKS),
+            ELUDE_SHIMMER(EludeEvents.SHIMMER_REFRESH_TICKS, EludeEvents.SHIMMER_TICKS),
             ZONE_SHIMMER(ZoneEvents.SHIMMER_REFRESH_TICKS, ZoneEvents.SHIMMER_TICKS);
 
             private final int periodTicks;

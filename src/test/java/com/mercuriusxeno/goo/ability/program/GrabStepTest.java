@@ -37,7 +37,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * Tests where Grab hangs a held body, its reach with and without
- * Telekinesis, and which left clicks throw through it
+ * Remote, and which left clicks throw through it
  * (decisions grab-holds-and-throws-a-physics-body, grab-reaches-telekinesis-range,
  * grab-holds-the-mob-against-the-surface-you-look-at, grab-holds-slightly-closer-in-open-space).
  */
@@ -154,34 +154,34 @@ class GrabStepTest {
     @Nested
     class Reach {
 
-        /** Telekinesis reaches unequal to GRAB's range of 8, so doubling and adding answer apart. */
-        private static final double SHORT_TELEKINESIS_REACH = 3;
-        private static final double LONG_TELEKINESIS_REACH = 5;
+        /** Remote reaches unequal to GRAB's range of 8, so doubling and adding answer apart. */
+        private static final double SHORT_REMOTE_REACH = 3;
+        private static final double LONG_REMOTE_REACH = 5;
 
         @Test
-        void withoutTelekinesisReachesItsOwnRange() {
+        void withoutRemoteReachesItsOwnRange() {
             assertEquals(8, GRAB.reachWith(null), EPSILON);
         }
 
         @Test
-        void telekinesisDoublesTheRangeWhateverReachItLays() {
-            assertEquals(16, GRAB.reachWith(laid(SHORT_TELEKINESIS_REACH)), EPSILON);
-            assertEquals(16, GRAB.reachWith(laid(LONG_TELEKINESIS_REACH)), EPSILON);
+        void remoteDoublesTheRangeWhateverReachItLays() {
+            assertEquals(16, GRAB.reachWith(laid(SHORT_REMOTE_REACH)), EPSILON);
+            assertEquals(16, GRAB.reachWith(laid(LONG_REMOTE_REACH)), EPSILON);
         }
 
         @Test
-        void shippedTelekinesisDoublesTheShippedGrabsReach() {
+        void shippedRemoteDoublesTheShippedGrabsReach() {
             GrabStep shipped = GrabStep.CODEC.codec().parse(JsonOps.INSTANCE,
                     firstBehavior("kinetic_grab.json")).getOrThrow();
-            TelekinesisStep telekinesis = TelekinesisStep.CODEC.codec().parse(JsonOps.INSTANCE,
-                    firstBehavior("kinetic_telekinesis.json")).getOrThrow();
+            RemoteStep remote = RemoteStep.CODEC.codec().parse(JsonOps.INSTANCE,
+                    firstBehavior("kinetic_remote.json")).getOrThrow();
             double alone = shipped.reachWith(null);
-            assertEquals(2 * alone, shipped.reachWith(laid(telekinesis.reach())), EPSILON);
+            assertEquals(2 * alone, shipped.reachWith(laid(remote.reach())), EPSILON);
         }
 
         @Test
         void aGrabAbilityAimsAsFarAsGrabReaches() {
-            assertEquals(16, GrabStep.reachOf(List.of(new AncientStep(), GRAB), laid(SHORT_TELEKINESIS_REACH))
+            assertEquals(16, GrabStep.reachOf(List.of(new AncientStep(), GRAB), laid(SHORT_REMOTE_REACH))
                     .orElseThrow(), EPSILON);
         }
 
@@ -199,11 +199,11 @@ class GrabStepTest {
         }
 
         @Test
-        void telekinesisTakesASentMobOutToTwiceTheRange() {
+        void remoteTakesASentMobOutToTwiceTheRange() {
             Mob sent = mock(Mob.class);
             when(sent.isAlive()).thenReturn(true);
-            assertTrue(GRAB.takesSent(sent, 15 * 15, laid(SHORT_TELEKINESIS_REACH)));
-            assertFalse(GRAB.takesSent(sent, 17 * 17, laid(SHORT_TELEKINESIS_REACH)));
+            assertTrue(GRAB.takesSent(sent, 15 * 15, laid(SHORT_REMOTE_REACH)));
+            assertFalse(GRAB.takesSent(sent, 17 * 17, laid(SHORT_REMOTE_REACH)));
             assertFalse(GRAB.takesSent(sent, 15 * 15, null));
         }
 
@@ -215,7 +215,7 @@ class GrabStepTest {
         }
 
         private static AttributeModifier laid(double reach) {
-            return new AttributeModifier(Identifier.fromNamespaceAndPath("goo", "telekinesis_entity_reach"),
+            return new AttributeModifier(Identifier.fromNamespaceAndPath("goo", "remote_entity_reach"),
                     reach, AttributeModifier.Operation.ADD_VALUE);
         }
 

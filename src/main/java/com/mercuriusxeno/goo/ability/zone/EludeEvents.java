@@ -36,7 +36,7 @@ import java.util.function.Predicate;
  * Decision elude-moves-you-to-a-random-safe-spot-on-mob-or-projectile-damage.
  */
 @EventBusSubscriber(modid = Goo.MODID)
-public final class ShifterEvents {
+public final class EludeEvents {
 
     /** Ticks between one shimmer refresh and the next. */
     public static final int SHIMMER_REFRESH_TICKS = 20;
@@ -52,7 +52,7 @@ public final class ShifterEvents {
     private static final float FULL_TURN_DEGREES = 360f;
     private static final float HALF_TURN_DEGREES = 180f;
 
-    private ShifterEvents() {
+    private EludeEvents() {
     }
 
     /**
@@ -92,7 +92,7 @@ public final class ShifterEvents {
     }
 
     private static void sendShimmer(ServerPlayer player, int ticks) {
-        EntityVisuals.sendToWatchers(player, new AilmentPayload(player.getId(), AilmentKind.SHIFTER, ticks));
+        EntityVisuals.sendToWatchers(player, new AilmentPayload(player.getId(), AilmentKind.ELUDE, ticks));
     }
 
     /**
@@ -104,7 +104,7 @@ public final class ShifterEvents {
     @SubscribeEvent
     public static void onIncomingDamage(LivingIncomingDamageEvent event) {
         if (event.getEntity() instanceof ServerPlayer player && player.level() instanceof ServerLevel level) {
-            Shifter held = standing(player);
+            Elude held = standing(player);
             if (held != null && escapes(event.getSource())) {
                 RandomSource random = player.getRandom();
                 safeSpotNear(player.blockPosition(), Mth.floor(held.distance()), random,
@@ -216,9 +216,9 @@ public final class ShifterEvents {
      * @param player the player
      * @return their Elude, or null where none stands
      */
-    public static @Nullable Shifter standing(ServerPlayer player) {
-        Shifter held = player.hasData(GooAttachments.SHIFTER)
-                ? player.getData(GooAttachments.SHIFTER) : null;
+    public static @Nullable Elude standing(ServerPlayer player) {
+        Elude held = player.hasData(GooAttachments.ELUDE)
+                ? player.getData(GooAttachments.ELUDE) : null;
         return held != null && held.standsAt(player.level().getGameTime()) ? held : null;
     }
 }

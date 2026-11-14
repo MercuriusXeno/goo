@@ -25,16 +25,16 @@ import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
- * Gametests for Kinetic's Telekinesis, held on the glove by a survival mock
+ * Gametests for Kinetic's Remote, held on the glove by a survival mock
  * player: a block and a mob standing well past vanilla's reach are out of
  * it before the hold and are broken and hit after it, through vanilla's own
  * block break and attack handlers, the kinetic held effect the one effect worn
  * (decision telekinesis-enacts-at-extended-reach).
  */
 @RegistersGameTests
-public final class TelekinesisTests {
-    private static final String TELEKINESIS_BREAKS_BEYOND_REACH = "telekinesis_breaks_beyond_reach";
-    private static final String TELEKINESIS_HITS_BEYOND_REACH = "telekinesis_hits_beyond_reach";
+public final class RemoteTests {
+    private static final String REMOTE_BREAKS_BEYOND_REACH = "remote_breaks_beyond_reach";
+    private static final String REMOTE_HITS_BEYOND_REACH = "remote_hits_beyond_reach";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -42,14 +42,14 @@ public final class TelekinesisTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, TELEKINESIS_BREAKS_BEYOND_REACH, TelekinesisTests::telekinesisBreaksBeyondReach);
-        GooTestFunctions.registerTest(registrar, TELEKINESIS_HITS_BEYOND_REACH, TelekinesisTests::telekinesisHitsBeyondReach);
+        GooTestFunctions.registerTest(registrar, REMOTE_BREAKS_BEYOND_REACH, RemoteTests::remoteBreaksBeyondReach);
+        GooTestFunctions.registerTest(registrar, REMOTE_HITS_BEYOND_REACH, RemoteTests::remoteHitsBeyondReach);
     }
 
 
-    private static final Identifier KINETIC_TELEKINESIS = Identifier.parse("goo:kinetic_telekinesis");
+    private static final Identifier KINETIC_REMOTE = Identifier.parse("goo:kinetic_remote");
     private static final BlockPos STAND_POS = new BlockPos(0, 1, 0);
-    /** Twelve blocks out: past survival's block reach and attack reach, inside them raised by Telekinesis's reach. */
+    /** Twelve blocks out: past survival's block reach and attack reach, inside them raised by Remote's reach. */
     private static final BlockPos FAR_BLOCK = new BlockPos(0, 1, 12);
     private static final BlockPos FAR_MOB = new BlockPos(1, 1, 12);
     /** The buffer vanilla's server allows past the block reach, which the handler checks with. */
@@ -62,16 +62,16 @@ public final class TelekinesisTests {
     private static final String SHOULD_STAND_IN_THE_STRUCTURE = "The far %s should stand inside this test's structure";
     private static final String SHOULD_WEAR_ONE_EFFECT = "The kinetic held effect should be the one effect worn, wears %s";
 
-    private TelekinesisTests() {
+    private RemoteTests() {
     }
 
     /**
      * A slime block past vanilla's block reach breaks through the block
-     * break handler once Telekinesis is held on the glove.
+     * break handler once Remote is held on the glove.
      *
      * @param helper the gametest helper
      */
-    public static void telekinesisBreaksBeyondReach(GameTestHelper helper) {
+    public static void remoteBreaksBeyondReach(GameTestHelper helper) {
         assertInsideTheStructure(helper, FAR_BLOCK, "block");
         ServerPlayer player = reacher(helper);
         helper.setBlock(FAR_BLOCK, Blocks.SLIME_BLOCK);
@@ -79,7 +79,7 @@ public final class TelekinesisTests {
         helper.assertFalse(player.isWithinBlockInteractionRange(far, BLOCK_BUFFER),
                 String.format(SHOULD_START_OUT_OF_REACH, "block"));
 
-        HeartOverlayTests.invoke(player, GooTypes.KINETIC, KINETIC_TELEKINESIS);
+        HeartOverlayTests.invoke(player, GooTypes.KINETIC, KINETIC_REMOTE);
         String effects = oneKineticHeldEffect(player);
         player.gameMode.handleBlockBreakAction(far, ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK,
                 Direction.SOUTH, helper.getLevel().getMaxY(), FIRST_SEQUENCE);
@@ -92,11 +92,11 @@ public final class TelekinesisTests {
 
     /**
      * A zombie past vanilla's attack reach takes the hit through the attack
-     * handler once Telekinesis is held on the glove.
+     * handler once Remote is held on the glove.
      *
      * @param helper the gametest helper
      */
-    public static void telekinesisHitsBeyondReach(GameTestHelper helper) {
+    public static void remoteHitsBeyondReach(GameTestHelper helper) {
         assertInsideTheStructure(helper, FAR_MOB, "zombie");
         ServerPlayer player = reacher(helper);
         Zombie zombie = helper.spawn(EntityType.ZOMBIE, FAR_MOB);
@@ -106,13 +106,13 @@ public final class TelekinesisTests {
         helper.assertFalse(player.isWithinAttackRange(player.getMainHandItem(), zombie.getBoundingBox(), ATTACK_BUFFER),
                 String.format(SHOULD_START_OUT_OF_REACH, "zombie"));
 
-        HeartOverlayTests.invoke(player, GooTypes.KINETIC, KINETIC_TELEKINESIS);
+        HeartOverlayTests.invoke(player, GooTypes.KINETIC, KINETIC_REMOTE);
         player.connection.handleAttack(new ServerboundAttackPacket(zombie.getId()));
 
         float healthAfter = zombie.getHealth();
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.assertTrue(healthAfter < health,
-                "A zombie past vanilla reach should take the hit under Telekinesis, health " + health + " to " + healthAfter);
+                "A zombie past vanilla reach should take the hit under Remote, health " + health + " to " + healthAfter);
         helper.succeed();
     }
 

@@ -52,12 +52,17 @@ class RekeyedAbilityKeysTest {
                 Arguments.of("rock_level", "Level"),
                 Arguments.of("rock_gouge", "Gouge"),
                 Arguments.of("metal_dart", "Dart"),
-                Arguments.of("metal_urchin", "Urchin"));
+                Arguments.of("metal_urchin", "Urchin"),
+                Arguments.of("pulse_extend", "Extend"),
+                Arguments.of("pulse_tick", "Tick"),
+                Arguments.of("kinetic_remote", "Remote"),
+                Arguments.of("ender_elude", "Elude"));
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"glow_crystal", "glow_radiant", "glow_sunbeam",
-            "rock_flatten", "rock_terrakinesis", "metal_javelin", "metal_spikes"})
+            "rock_flatten", "rock_terrakinesis", "metal_javelin", "metal_spikes",
+            "pulse_extender", "pulse_pulser", "kinetic_telekinesis", "ender_shifter"})
     void oldKeyShipsNoAbility(String oldId) {
         assertNull(RekeyedAbilityKeysTest.class.getResource(ABILITY_JSON.formatted(oldId)), oldId + " json");
         assertNull(RekeyedAbilityKeysTest.class.getResource(ABILITY_ICON.formatted(oldId)), oldId + " icon");

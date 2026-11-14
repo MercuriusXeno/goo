@@ -23,8 +23,8 @@ public enum AilmentKind {
     SCALES(0x4AEDD9, AilmentPattern.FACETS),
     /** Zone: an ender shimmer. */
     ZONE(0xB05CFF, AilmentPattern.SHIMMER),
-    /** Shifter: the zone shimmer. */
-    SHIFTER(0xB05CFF, AilmentPattern.SHIMMER),
+    /** Elude: the zone shimmer. */
+    ELUDE(0xB05CFF, AilmentPattern.SHIMMER),
     /** Hex's charm: a dark purple outline. */
     HEX(0x6A1FB0),
     /** Petrify: a stone encasement. */

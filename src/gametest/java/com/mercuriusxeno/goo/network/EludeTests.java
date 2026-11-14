@@ -21,9 +21,9 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
  * elude-moves-you-to-a-random-safe-spot-on-mob-or-projectile-damage
  */
 @RegistersGameTests
-public final class ShifterTests {
-    private static final String ELUDE_ESCAPES_A_ZOMBIE = "shifter_blinks_instead_of_damage";
-    private static final String ELUDE_LETS_A_FALL_LAND = "shifter_lets_a_fall_land";
+public final class EludeTests {
+    private static final String ELUDE_ESCAPES_A_ZOMBIE = "elude_blinks_instead_of_damage";
+    private static final String ELUDE_LETS_A_FALL_LAND = "elude_lets_a_fall_land";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -31,11 +31,11 @@ public final class ShifterTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, ELUDE_ESCAPES_A_ZOMBIE, ShifterTests::eludeEscapesAZombiesHit);
-        GooTestFunctions.registerTest(registrar, ELUDE_LETS_A_FALL_LAND, ShifterTests::eludeLetsAFallLand);
+        GooTestFunctions.registerTest(registrar, ELUDE_ESCAPES_A_ZOMBIE, EludeTests::eludeEscapesAZombiesHit);
+        GooTestFunctions.registerTest(registrar, ELUDE_LETS_A_FALL_LAND, EludeTests::eludeLetsAFallLand);
     }
 
-    private static final Identifier ENDER_SHIFTER = Identifier.parse("goo:ender_shifter");
+    private static final Identifier ENDER_ELUDE = Identifier.parse("goo:ender_elude");
     /** A hit of two hearts. */
     private static final float HIT = 4f;
     /** Where the zombie stands, beside the player. */
@@ -45,7 +45,7 @@ public final class ShifterTests {
     private static final String SHOULD_TAKE_THE_FALL = "A fall should land on a player under Elude: %.1f health, has %.1f";
     private static final String SHOULD_STAY = "A fall should move the player nowhere from %s, stands at %s";
 
-    private ShifterTests() {
+    private EludeTests() {
     }
 
     /**
@@ -55,7 +55,7 @@ public final class ShifterTests {
      * @param helper the gametest helper
      */
     public static void eludeEscapesAZombiesHit(GameTestHelper helper) {
-        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.ENDER, ENDER_SHIFTER);
+        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.ENDER, ENDER_ELUDE);
         Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
         Vec3 stood = player.position();
 
@@ -76,7 +76,7 @@ public final class ShifterTests {
      * @param helper the gametest helper
      */
     public static void eludeLetsAFallLand(GameTestHelper helper) {
-        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.ENDER, ENDER_SHIFTER);
+        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.ENDER, ENDER_ELUDE);
         Vec3 stood = player.position();
         float health = player.getHealth();
 

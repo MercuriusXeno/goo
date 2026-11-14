@@ -131,7 +131,7 @@ class AffordedCountTest {
         }
 
         @Test
-        void brewSubtractsTheStandingUpkeepAndHalvesItsOwnUnderAnExtender() {
+        void brewSubtractsTheStandingUpkeepAndHalvesItsOwnUnderAnExtend() {
             ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE, List.of(), 2);
             assertEquals("6s", count(brew, 250, StandingUpkeep.NONE));
             assertEquals("3s", count(brew, 250, new StandingUpkeep(2, false)));

@@ -13,7 +13,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * Kinetic's Telekinesis on a player: while its held effect stands, the
+ * Kinetic's Remote on a player: while its held effect stands, the
  * player's block and entity interaction ranges are raised by the step's
  * reach, so breaking, placing, attacking and interacting enact at the
  * extended distance. It lays no overlay on the player, since Kinetic is
@@ -22,18 +22,18 @@ import java.util.List;
  * telekinesis-enacts-at-extended-reach
  * kinetic-is-electric-blue-and-white
  */
-public final class Telekinesis {
+public final class Remote {
 
-    /** The entity interaction range Telekinesis raises, with its modifier's id. */
+    /** The entity interaction range Remote raises, with its modifier's id. */
     private static final Reach ENTITY_REACH = new Reach(Attributes.ENTITY_INTERACTION_RANGE,
-            Identifier.fromNamespaceAndPath(Goo.MODID, "telekinesis_entity_reach"));
-    /** The ranges Telekinesis raises, each with its modifier's id. */
+            Identifier.fromNamespaceAndPath(Goo.MODID, "remote_entity_reach"));
+    /** The ranges Remote raises, each with its modifier's id. */
     private static final List<Reach> REACHES = List.of(
             new Reach(Attributes.BLOCK_INTERACTION_RANGE,
-                    Identifier.fromNamespaceAndPath(Goo.MODID, "telekinesis_block_reach")),
+                    Identifier.fromNamespaceAndPath(Goo.MODID, "remote_block_reach")),
             ENTITY_REACH);
 
-    private Telekinesis() {
+    private Remote() {
     }
 
     private record Reach(Holder<Attribute> attribute, Identifier modifierId) {
@@ -57,11 +57,11 @@ public final class Telekinesis {
     }
 
     /**
-     * The modifier Telekinesis lays on a player's entity interaction range,
+     * The modifier Remote lays on a player's entity interaction range,
      * whose presence doubles Grab's own range (decision grab-reaches-telekinesis-range).
      *
      * @param target the player
-     * @return the modifier, or null while Telekinesis lays none
+     * @return the modifier, or null while Remote lays none
      */
     public static @Nullable AttributeModifier entityReachLaid(LivingEntity target) {
         AttributeInstance instance = target.getAttribute(ENTITY_REACH.attribute());
@@ -69,7 +69,7 @@ public final class Telekinesis {
     }
 
     /**
-     * Takes Telekinesis off a player as its held effect ends: both ranges
+     * Takes Remote off a player as its held effect ends: both ranges
      * back to their own.
      *
      * @param player the player

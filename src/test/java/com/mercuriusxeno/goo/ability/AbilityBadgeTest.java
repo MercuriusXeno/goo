@@ -124,7 +124,7 @@ class AbilityBadgeTest {
      * @param host the host ability's file name
      */
     @ParameterizedTest
-    @CsvSource({"typhoon_lift, typhoon_updraft", "pulse_relay, pulse_zap", "pulse_metronome, pulse_pulser",
+    @CsvSource({"typhoon_lift, typhoon_updraft", "pulse_relay, pulse_zap", "pulse_metronome, pulse_tick",
             "nether_hive, nether_decay", "glow_reflector, glow_laser",
             "leaf_verdant, leaf_growth", "frost_glacial, frost_cold", "ender_oculus, ender_blink",
             "blaze_heater, blaze_flames"})

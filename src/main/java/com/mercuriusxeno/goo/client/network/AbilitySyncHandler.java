@@ -12,7 +12,7 @@ import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
-import com.mercuriusxeno.goo.ability.program.ExtenderStep;
+import com.mercuriusxeno.goo.ability.program.ExtendStep;
 import com.mercuriusxeno.goo.ability.program.GougeStep;
 import com.mercuriusxeno.goo.ability.program.OutsiderStep;
 import com.mercuriusxeno.goo.ability.program.SpireStep;
@@ -707,13 +707,13 @@ public final class AbilitySyncHandler {
         }
 
         /**
-         * Whether the ability is the glove's Extender, whose own upkeep a standing Extender
+         * Whether the ability is the glove's Extend, whose own upkeep a standing Extend
          * never halves (decision extender-multiplies-the-next-self-duration).
          *
-         * @return true for an ability running the extender step
+         * @return true for an ability running the extend step
          */
         public boolean extendsOthers() {
-            return behaviors.stream().anyMatch(ExtenderStep.class::isInstance);
+            return behaviors.stream().anyMatch(ExtendStep.class::isInstance);
         }
 
         /**
