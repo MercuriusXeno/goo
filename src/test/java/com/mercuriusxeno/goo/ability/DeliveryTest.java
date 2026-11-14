@@ -329,4 +329,36 @@ class DeliveryTest {
         }
     }
 
+    /**
+     * A spray's drips leave faster by the caster's horizontal speed, so a
+     * running caster never outruns the goo they lay; a stream throwing no
+     * drips keeps a throw speed of none
+     * (decision goop-and-slick-drips-leave-at-one-exit-speed).
+     */
+    @Nested
+    class ExitSpeed {
+
+        private static final double RAMPED = 1.0;
+
+        @Test
+        void eachSprayLeavesFasterByTheCastersSpeed() {
+            for (String spray : Set.of("weird_goop", "kinetic_slick")) {
+                Delivery delivery = AbilityJson.decode(spray).delivery();
+
+                assertEquals(delivery.throwSpeed() + RAMPED, delivery.exitSpeedAt(RAMPED), 1e-9, spray);
+            }
+        }
+
+        @Test
+        void aCasterAtRestThrowsAtTheThrowSpeed() {
+            Delivery goop = AbilityJson.decode("weird_goop").delivery();
+
+            assertEquals(goop.throwSpeed(), goop.exitSpeedAt(0), 1e-9);
+        }
+
+        @Test
+        void aStreamThrowingNoDripsKeepsNoThrowSpeed() {
+            assertEquals(Delivery.NO_THROW_SPEED, Delivery.of(DeliveryKind.STREAM).exitSpeedAt(RAMPED), 1e-9);
+        }
+    }
 }

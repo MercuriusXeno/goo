@@ -386,7 +386,7 @@ public final class GooStreamHandler {
         DripFlights flights = GooServerState.of(player.level().getServer()).dripFlights();
         for (CoatRay.ConeShare share : CoatRay.scatteredShares(held, delivery.dripsPerTick())) {
             flights.launch(new DripFlights.Flight(thrower, apex, DripArc.launch(axis, delivery.coneDegrees(), share,
-                    delivery.throwSpeed())));
+                    exitSpeedOf(player, delivery))));
         }
         return strikesLiving;
     }
@@ -425,7 +425,7 @@ public final class GooStreamHandler {
         }
         ServerLevel level = player.level();
         return DripArc.flyToItsEnd(apex, DripArc.launch(axis, delivery.coneDegrees(), CoatRay.coneFan().getFirst(),
-                delivery.throwSpeed()), CoatRay.clipping(level), DripFlights.airspaceOf(level))
+                exitSpeedOf(player, delivery)), CoatRay.clipping(level), DripFlights.airspaceOf(level))
                 .position();
     }
 
@@ -714,7 +714,22 @@ public final class GooStreamHandler {
                                        boolean strikesLiving) {
         delivery.particle().ifPresent(particle -> EntityVisuals.sendToWatchers(player, new StreamMotesPayload(
                 player.getId(), apex, axis, particle, delivery.coneDegrees(), speed,
-                delivery.throwSpeed(), strikesLiving)));
+                exitSpeedOf(player, delivery), strikesLiving)));
+    }
+
+    /**
+     * The speed a stream's drips leave a caster at: the delivery's throw
+     * speed plus the horizontal speed the caster's client reports, since the
+     * server leaves a player's delta movement at rest, so a running caster
+     * never outruns the goo they lay; the drawn drips leave at the same.
+     * goop-and-slick-drips-leave-at-one-exit-speed
+     *
+     * @param player   the streaming player
+     * @param delivery the stream delivery
+     * @return the exit speed, blocks per tick
+     */
+    static double exitSpeedOf(ServerPlayer player, Delivery delivery) {
+        return delivery.exitSpeedAt(player.getKnownMovement().horizontalDistance());
     }
 
     /**

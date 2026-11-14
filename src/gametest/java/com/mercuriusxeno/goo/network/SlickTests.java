@@ -185,6 +185,11 @@ public final class SlickTests {
     private static final Vec3 SPRINT_STEP = new Vec3(0.28, -0.08, 0);
     /** Ticks the sprint lasts: from the bay's west wall to short of its east wall. */
     private static final int SPRINT_TICKS = 46;
+    private static final String RAMPED_RUNNER_RIDES_THE_TRACK = "slick_lays_a_track_a_ramped_runner_rides";
+    /** A runner the slick has ramped past a sprint, east in blocks a tick, and the small fall that keeps it grounded. */
+    private static final Vec3 RAMPED_STEP = new Vec3(1.0, -0.08, 0);
+    /** Ticks the ramped run lasts: from the bay's west wall to short of its east wall. */
+    private static final int RAMPED_TICKS = 13;
     /** The most layers a slick cell on the path may hold: a player steps up 0.6 of a block, so nine fifteenths. */
     private static final int STEP_LAYERS = 9;
     private static final String NEVER_ON_SLICK = "The sprinter should reach the slick track, stood on %s";
@@ -306,6 +311,34 @@ public final class SlickTests {
      * @param helper the gametest helper
      */
     public static void slickLaysATrackASprinterRides(GameTestHelper helper) {
+        rideTheTrack(helper, SPRINT_STEP, SPRINT_TICKS);
+    }
+
+    /**
+     * A player the slick has ramped past a sprint, running east at a whole
+     * block a tick, its top speed, while streaming Slick halfway down, stands on slick on
+     * every tick after first reaching the track: the spray's exit speed
+     * rises by the runner's speed, so the runner never outruns it.
+     * goop-and-slick-drips-leave-at-one-exit-speed
+     * slick-coats-the-ground-with-kinetic-speed
+     *
+     * @param helper the gametest helper
+     */
+    public static void slickLaysATrackARampedRunnerRides(GameTestHelper helper) {
+        rideTheTrack(helper, RAMPED_STEP, RAMPED_TICKS);
+    }
+
+    /**
+     * Runs a Slick streamer east over open stone floor at a speed, streaming
+     * Slick halfway down each tick, and succeeds where they stand on slick on
+     * every tick after first reaching the track and no path cell holds more
+     * layers than the player steps up.
+     *
+     * @param helper the gametest helper
+     * @param step   the runner's move each tick, east and a small fall that keeps them grounded
+     * @param ticks  the ticks the run lasts, short of the bay's east wall
+     */
+    private static void rideTheTrack(GameTestHelper helper, Vec3 step, int ticks) {
         int row = FAR_STREAMER_POS.getZ();
         for (int east = 0; east <= FAR_STRIP_EAST; east++) {
             for (int z = row - FLOOR_HALF_WIDTH; z <= row + FLOOR_HALF_WIDTH; z++) {
@@ -315,13 +348,13 @@ public final class SlickTests {
         ServerPlayer sprinter = slickStreamerAt(helper, FAR_STREAMER_POS);
         sprinter.setYRot(FACING_EAST);
         sprinter.setSprinting(true);
-        sprinter.setKnownMovement(new Vec3(SPRINT_STEP.x, 0, 0));
+        sprinter.setKnownMovement(new Vec3(step.x, 0, 0));
         boolean[] onTrack = {false};
         List<String> offTrack = new ArrayList<>();
-        for (int tick = 1; tick <= SPRINT_TICKS; tick++) {
+        for (int tick = 1; tick <= ticks; tick++) {
             int now = tick;
             helper.runAfterDelay(tick, () -> {
-                sprinter.move(MoverType.SELF, SPRINT_STEP);
+                sprinter.move(MoverType.SELF, step);
                 BlockState under = helper.getLevel().getBlockState(sprinter.getOnPos());
                 boolean onSlick = under.is(GooBlocks.KINETIC_SLICK.get());
                 if (onTrack[0] && !onSlick && offTrack.isEmpty()) {
@@ -333,7 +366,7 @@ public final class SlickTests {
                         SLICK.toString(), sprinter.getEyePosition(), sprinter.getEyePosition()));
             });
         }
-        helper.runAfterDelay(SPRINT_TICKS + 1, () -> {
+        helper.runAfterDelay(ticks + 1, () -> {
             BlockState lastUnder = helper.getLevel().getBlockState(sprinter.getOnPos());
             helper.getLevel().getServer().getPlayerList().remove(sprinter);
             helper.assertTrue(onTrack[0], String.format(NEVER_ON_SLICK, lastUnder));
@@ -373,6 +406,8 @@ public final class SlickTests {
         GooTestFunctions.registerTest(registrar, DRIPS_DRAIN_A_LAYER_EACH, SlickTests::slickDripsDrainALayersPriceEach);
         GooTestFunctions.registerTest(registrar, SLICK_SETTLES_SOONER, SlickTests::aFullSlickCellSettlesSooner);
         GooTestFunctions.registerTest(registrar, SPRINT_RIDES_THE_TRACK, SlickTests::slickLaysATrackASprinterRides);
+        GooTestFunctions.registerTest(registrar, RAMPED_RUNNER_RIDES_THE_TRACK,
+                SlickTests::slickLaysATrackARampedRunnerRides);
         GooTestFunctions.registerTest(registrar, HELD_SPREADS_WITHOUT_STEPS, SlickTests::slickHeldAtOneSpotSpreadsWithoutSteps);
     }
 
@@ -801,10 +836,13 @@ public final class SlickTests {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
             // operator ruling 2026-11-14: each tick scatters its own places, so the moving tick's drips are read
             // against that tick's places thrown from rest
+            // goop-and-slick-drips-leave-at-one-exit-speed: the moving tick's drips keep the at-rest headings,
+            // leaving faster by the streamer's horizontal speed alone
             Delivery delivery = slick(helper).delivery();
+            double exitSpeed = delivery.exitSpeedAt(MOVING_AND_RISING.horizontalDistance());
             List<Vec3> atRest = CoatRay.scatteredShares(2, delivery.dripsPerTick()).stream()
-                    .map(share -> DripArc.launch(streamer.getLookAngle(), delivery.coneDegrees(), share,
-                            delivery.throwSpeed())).toList();
+                    .map(share -> DripArc.launch(streamer.getLookAngle(), delivery.coneDegrees(), share, exitSpeed))
+                    .toList();
             helper.assertTrue(!atRest.isEmpty() && atRest.size() == moving.size(),
                     String.format(LAUNCHED_UNEVENLY, atRest.size(), moving.size()));
             for (int i = 0; i < atRest.size(); i++) {
