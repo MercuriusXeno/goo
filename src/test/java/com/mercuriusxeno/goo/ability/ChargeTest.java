@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Knives' shipped charge slings flecks, and only a charge naming flecks slings
- * (decision shards-sling-then-morph-to-flechettes).
+ * (decision knives-sling-then-morph-to-flechettes).
  */
 class ChargeTest {
 
