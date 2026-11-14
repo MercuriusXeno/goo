@@ -1,172 +1,85 @@
 package com.mercuriusxeno.goo.ability.zone;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.program.AilmentKind;
-import com.mercuriusxeno.goo.network.AfterimagePayload;
-import com.mercuriusxeno.goo.network.AilmentPayload;
-import com.mercuriusxeno.goo.network.EntityVisuals;
-import com.mercuriusxeno.goo.registry.GooAttachments;
-import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.Mth;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.EntityTickEvent;
-import org.jspecify.annotations.Nullable;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.level.BlockEvent;
+import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 /**
- * Runs the warp curse Zone leaves on a mob: each tick a player stands
- * within the curse's radius, the mob warps to a random spot the way chorus
- * fruit throws its eater, an afterimage left where it stood and where it
- * lands. A second Zone exiles the cursed mob from existence. The cursed
- * mob wears the zone shimmer, refreshed while the curse stands.
- * Decision zone-curses-with-ender-shimmer.
+ * Keeps Zone's rooms whole: once a second the pocket stands each
+ * room's removed center voidstone and doorway again, each player tick
+ * catches a player fallen below their room's floor, a player logging back
+ * in inside the pocket is told their room's edges, and a block placed where
+ * it does not lie wholly inside the placer's own room's extent is refused.
+ * decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform
+ * decision outsider-room-wraps-and-repeats-at-the-platform-edge
+ * decision grown-extent-is-the-one-wrap-and-build-boundary
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class ZoneEvents {
-
-    /** Rolls a warp tries before giving up for the tick, as chorus fruit does. */
-    static final int WARP_TRIES = 16;
-    /** Ticks between one shimmer refresh and the next. */
-    public static final int SHIMMER_REFRESH_TICKS = 20;
-    /** Ticks each refresh keeps the shimmer on, outlasting the refresh period. */
-    public static final int SHIMMER_TICKS = 40;
-    /** Ticks each warp's afterimage grows and fades over, the blink's own. */
-    static final int AFTERIMAGE_LIFE_TICKS = 12;
-    private static final double HALF = 0.5;
 
     private ZoneEvents() {
     }
 
     /**
-     * Warps or exiles each cursed mob a player stands near, and keeps its
-     * shimmer on.
+     * Restores the rooms' fixtures once a second.
      *
-     * @param event the entity tick event
+     * @param event the level tick event
      */
     @SubscribeEvent
-    public static void onEntityTick(EntityTickEvent.Post event) {
-        if (event.getEntity() instanceof LivingEntity mob && mob.level() instanceof ServerLevel level) {
-            ZoneCurse curse = curseOf(mob);
-            if (curse != null) {
-                runCurse(level, mob, curse);
+    public static void onLevelTick(LevelTickEvent.Post event) {
+        if (event.getLevel() instanceof ServerLevel level && level.dimension() == ZoneRooms.POCKET
+                && level.getGameTime() % ZoneRooms.RESTORE_INTERVAL == 0) {
+            ZoneRooms.restoreFixtures(level);
+        }
+    }
+
+    /**
+     * Catches a player fallen below their room's floor, and once a second
+     * holds the far side of the room edges they stand near loaded.
+     *
+     * @param event the player tick event
+     */
+    @SubscribeEvent
+    public static void onPlayerTick(PlayerTickEvent.Post event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            ZoneRooms.keepInRoom(player);
+            if (player.tickCount % FAR_SIDE_INTERVAL == 0) {
+                ZoneRooms.holdFarSideLoaded(player);
             }
         }
     }
 
-    /**
-     * Keeps a cursed mob's shimmer on and repels it from a player within its radius.
-     *
-     * @param level the mob's level
-     * @param mob   the cursed mob
-     * @param curse its curse
-     */
-    private static void runCurse(ServerLevel level, LivingEntity mob, ZoneCurse curse) {
-        if (level.getGameTime() % SHIMMER_REFRESH_TICKS == 0) {
-            EntityVisuals.sendToWatchers(mob, new AilmentPayload(mob.getId(), AilmentKind.ZONE, SHIMMER_TICKS));
-        }
-        Player near = level.getNearestPlayer(mob, curse.radius());
-        if (near != null) {
-            repel(level, mob, curse, near);
-        }
-    }
+    /** How often, in ticks, a player's far side is held loaded again, well inside a portal ticket's lapse. */
+    private static final int FAR_SIDE_INTERVAL = 20;
 
     /**
-     * Warps a cursed mob away from the player it neared.
+     * Tells a player logging back in inside the pocket their room's edges,
+     * so their client carries them across as it did before they left.
      *
-     * @param level  the mob's level
-     * @param mob    the cursed mob
-     * @param curse  its curse
-     * @param player the player it neared
+     * @param event the login event
      */
-    static void repel(ServerLevel level, LivingEntity mob, ZoneCurse curse, Player player) {
-        Vec3 stood = mob.position();
-        if (warpAway(level, mob, curse, player)) {
-            leaveAfterimage(level, mob, stood);
-            leaveAfterimage(level, mob, mob.position());
+    @SubscribeEvent
+    public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            ZoneRooms.sendEdges(player);
         }
     }
 
     /**
-     * Exiles a cursed mob from existence: its afterimage stays where it stood
-     * and the mob is gone.
+     * Refuses a block a player places in the pocket not wholly inside their own room's extent.
      *
-     * @param level the mob's level
-     * @param mob   the cursed mob
+     * @param event the block place event
      */
-    public static void exile(ServerLevel level, LivingEntity mob) {
-        leaveAfterimage(level, mob, mob.position());
-        mob.discard();
-    }
-
-    /**
-     * Throws the mob to a random spot the way chorus fruit does, refusing a
-     * roll that lands within the curse's radius of the player.
-     *
-     * @param level  the mob's level
-     * @param mob    the cursed mob
-     * @param curse  its curse
-     * @param player the player it neared
-     * @return true once the mob stands somewhere else
-     */
-    private static boolean warpAway(ServerLevel level, LivingEntity mob, ZoneCurse curse, Player player) {
-        RandomSource random = mob.getRandom();
-        for (int tryIndex = 0; tryIndex < WARP_TRIES; tryIndex++) {
-            Vec3 roll = rollSpot(level, mob.position(), curse.range(), random);
-            if (roll.distanceTo(player.position()) > curse.radius()
-                    && mob.randomTeleport(roll.x, roll.y, roll.z, true)) {
-                return true;
-            }
+    @SubscribeEvent
+    public static void onBlockPlaced(BlockEvent.EntityPlaceEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player && !ZoneRooms.mayBuildAt(player, event.getPos())) {
+            event.setCanceled(true);
         }
-        return false;
-    }
-
-    /**
-     * Rolls a warp's target: up to half the range either way on each
-     * horizontal axis and up to a quarter of it up or down, kept inside the
-     * level's height.
-     *
-     * @param level  the level
-     * @param from   where the mob stands
-     * @param range  the full width of the horizontal roll
-     * @param random the roll's source
-     * @return the spot the warp tries
-     */
-    static Vec3 rollSpot(ServerLevel level, Vec3 from, double range, RandomSource random) {
-        double y = Mth.clamp(from.y + (random.nextDouble() - HALF) * range * HALF, level.getMinY(),
-                level.getMinY() + level.getLogicalHeight() - 1);
-        return new Vec3(from.x + (random.nextDouble() - HALF) * range, y,
-                from.z + (random.nextDouble() - HALF) * range);
-    }
-
-    /**
-     * Leaves the shared blink effect at a spot: the mob's afterimage and the
-     * enderman's teleport sound.
-     * Decision afterimage-is-one-shared-effect.
-     *
-     * @param level the mob's level
-     * @param mob   the mob whose model the afterimage takes
-     * @param at    where the afterimage stands
-     */
-    private static void leaveAfterimage(ServerLevel level, LivingEntity mob, Vec3 at) {
-        EntityVisuals.sendToWatchers(mob, new AfterimagePayload(mob.getId(), at, GooTypes.ENDER, AFTERIMAGE_LIFE_TICKS));
-        level.playSound(null, at.x, at.y, at.z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.HOSTILE, 1f, 1f);
-    }
-
-    /**
-     * The curse a living entity carries, for a reader outside the tick.
-     *
-     * @param entity the entity
-     * @return its curse, or null where none stands
-     */
-    public static @Nullable ZoneCurse curseOf(LivingEntity entity) {
-        ZoneCurse curse = entity.hasData(GooAttachments.ZONE_CURSE) ? entity.getData(GooAttachments.ZONE_CURSE) : null;
-        return curse != null && curse.stands() ? curse : null;
     }
 }

@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client;
 
 import com.mercuriusxeno.goo.client.ability.RippleTarget;
-import com.mercuriusxeno.goo.client.outsider.VoidstoneRoom;
+import com.mercuriusxeno.goo.client.zone.VoidstoneRoom;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
@@ -1295,11 +1295,11 @@ public final class GooRenderTypes {
         return GOO_HOLE_VIEW_FACTORY.apply(view);
     }
 
-    /** The texel buffer each copy of an Outsider room reads its translation from. */
+    /** The texel buffer each copy of a Zone room reads its translation from. */
     public static final String ROOM_COPY_TRANSLATIONS = "RoomCopyTranslations";
 
     /**
-     * An Outsider room's solid blocks in each of its copies: the game's
+     * A Zone room's solid blocks in each of its copies: the game's
      * moving-block pipeline, one instance a copy, each moved by its own
      * translation (decision room-tiles-to-render-distance-held-to-the-picture).
      */
@@ -1309,7 +1309,7 @@ public final class GooRenderTypes {
             .withUniform(ROOM_COPY_TRANSLATIONS, UniformType.TEXEL_BUFFER, TextureFormat.RED8I)
             .build();
 
-    /** An Outsider room's cutout blocks in each of its copies, as {@link #ROOM_COPY_SOLID}. */
+    /** A Zone room's cutout blocks in each of its copies, as {@link #ROOM_COPY_SOLID}. */
     public static final RenderPipeline ROOM_COPY_CUTOUT = RenderPipeline.builder(RenderPipelines.BLOCK_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "room_copy_cutout"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "room_copy_block"))
@@ -1317,7 +1317,7 @@ public final class GooRenderTypes {
             .withShaderDefine("ALPHA_CUTOUT", CUTOUT_BLOCK_ALPHA)
             .build();
 
-    /** An Outsider room's translucent blocks in each of its copies, as {@link #ROOM_COPY_SOLID}. */
+    /** A Zone room's translucent blocks in each of its copies, as {@link #ROOM_COPY_SOLID}. */
     public static final RenderPipeline ROOM_COPY_TRANSLUCENT = RenderPipeline.builder(RenderPipelines.BLOCK_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "room_copy_translucent"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "room_copy_block"))

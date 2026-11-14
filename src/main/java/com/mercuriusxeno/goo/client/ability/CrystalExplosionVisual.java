@@ -71,7 +71,7 @@ public final class CrystalExplosionVisual implements BurnoutVisual, HeldGhostVis
     }
 
     /**
-     * Razor's ghost: the facet shell at its resting radius, whole, the shader
+     * Shatter's ghost: the facet shell at its resting radius, whole, the shader
      * reading the held opacity from the vertex color so facets stay near
      * invisible and the rainbow edges faint.
      * held-visual-ghosts-the-landing-in-two-passes

@@ -17,7 +17,7 @@ import java.util.Optional;
 
 /**
  * Draws the life mark over each rallied or charmed mob, and each mob Heal or
- * Drain touched lately or Leader senses, turned to face the camera in vanilla's heart sprites: the empty
+ * Drain touched lately or Kin senses, turned to face the camera in vanilla's heart sprites: the empty
  * heart whole, the full heart over it cropped where the life's share ends,
  * and the count right of the heart. The mark draws see-through, over any
  * block between it and the camera, so a wall or ceiling the mark floats into
@@ -155,26 +155,26 @@ final class LifeMarkBillboard {
 
     /**
      * Whether a mob draws a life mark: it is rallied or charmed, Heal or
-     * Drain touched it lately, or Leader senses it.
+     * Drain touched it lately, or Kin senses it.
      * leader-shows-life-bars-while-it-stands
      * rallied-and-charmed-mobs-always-show-their-health-bar
      *
      * @param entityId   the mob's id
      * @param tick       the game tick
      * @param touched    the mobs Heal or Drain touched
-     * @param leader     the mobs Leader senses
+     * @param kin     the mobs Kin senses
      * @param headMarked whether the mob wears the rally or the charm head mark
      * @return true for a head-marked, a touched or a sensed mob
      */
-    static boolean showsLifeMark(int entityId, long tick, TouchedMobs touched, LeaderSense leader,
+    static boolean showsLifeMark(int entityId, long tick, TouchedMobs touched, KinSense kin,
                                  boolean headMarked) {
-        return headMarked || touched.marked(entityId, tick) || leader.appearsGlowing(entityId);
+        return headMarked || touched.marked(entityId, tick) || kin.appearsGlowing(entityId);
     }
 
     /**
      * How strongly a mob's life mark draws: whole always on a rallied or
-     * charmed mob; otherwise whole while Leader senses it and stands, fading
-     * with Leader's outline after it ends, and at TouchedMobs' own fade where
+     * charmed mob; otherwise whole while Kin senses it and stands, fading
+     * with Kin's outline after it ends, and at TouchedMobs' own fade where
      * only a touch marks it, the stronger of the two answering.
      * leader-shows-life-bars-while-it-stands
      * rallied-and-charmed-mobs-always-show-their-health-bar
@@ -182,17 +182,17 @@ final class LifeMarkBillboard {
      * @param entityId   the mob's id
      * @param time       the game time including the partial tick
      * @param touched    the mobs Heal or Drain touched
-     * @param leader     the mobs Leader senses
+     * @param kin     the mobs Kin senses
      * @param headMarked whether the mob wears the rally or the charm head mark
      * @return the strength, zero to one
      */
-    static float markStrength(int entityId, float time, TouchedMobs touched, LeaderSense leader,
+    static float markStrength(int entityId, float time, TouchedMobs touched, KinSense kin,
                               boolean headMarked) {
         if (headMarked) {
             return 1f;
         }
         float touchedStrength = touched.opacity(entityId, time);
-        return leader.appearsGlowing(entityId) ? Math.max(leader.strength(time), touchedStrength) : touchedStrength;
+        return kin.appearsGlowing(entityId) ? Math.max(kin.strength(time), touchedStrength) : touchedStrength;
     }
 
     /**
@@ -260,7 +260,7 @@ final class LifeMarkBillboard {
     private static Shown shownAt(LivingEntity living, float time, Font font) {
         LifeMark mark = LifeMark.of(living.getHealth(), living.getMaxHealth());
         Optional<HeadMark> headMark = HeadMarks.headMarkOf(living);
-        float strength = markStrength(living.getId(), time, TouchedMobs.CLIENT, LeaderSense.CLIENT,
+        float strength = markStrength(living.getId(), time, TouchedMobs.CLIENT, KinSense.CLIENT,
                 headMark.isPresent());
         return new Shown(living, mark, tint(strength), Layout.of(font.width(mark.count()), headMark.isPresent()),
                 headMark);

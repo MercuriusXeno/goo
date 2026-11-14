@@ -143,7 +143,8 @@ public final class CharmEvents {
     private static CharmTargets.Candidate<Mob> candidate(Mob charmed, Mob near) {
         LivingEntity target = near.getTarget();
         return new CharmTargets.Candidate<>(near, near.isAlive(), isUnprovokedHostile(near),
-                target == null ? null : target.getUUID(), charmed.distanceToSqr(near));
+                target == null ? null : target.getUUID(), charmed.distanceToSqr(near),
+                near.hasData(GooAttachments.DOWNED));
     }
 
     /**

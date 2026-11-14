@@ -28,7 +28,7 @@ import java.util.function.BiPredicate;
  * section compiler, laid out from the section's origin as that compiler lays
  * them, each layer into its own mesh, for whatever draws a section the level
  * renderer does not: the streamed far side of a linked pair, and the copies
- * of an Outsider room.
+ * of a Zone room.
  * linked-partner-chunks-stream-to-any-viewer
  * decision room-tiles-to-render-distance-held-to-the-picture
  */

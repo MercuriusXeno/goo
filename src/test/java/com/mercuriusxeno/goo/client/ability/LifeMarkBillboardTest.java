@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.zoo.Leader;
+import com.mercuriusxeno.goo.ability.zoo.Kin;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,8 +16,8 @@ import static org.mockito.Mockito.when;
 
 /**
  * Covers which mobs draw a life mark, how strongly, and where its parts
- * stand: a rallied or charmed mob draws it whole always, a mob Leader senses
- * draws it whole with no touch while Leader stands, and a mob only Heal or
+ * stand: a rallied or charmed mob draws it whole always, a mob Kin senses
+ * draws it whole with no touch while Kin stands, and a mob only Heal or
  * Drain touched keeps TouchedMobs' fade. TouchedMobs' fade is read through
  * its own method, so no fade constant is pinned here.
  * leader-shows-life-bars-while-it-stands
@@ -38,14 +38,14 @@ class LifeMarkBillboardTest {
     private static final boolean HEAD_MARKED = true;
 
     private final TouchedMobs touched = new TouchedMobs();
-    private final LeaderSense leader = new LeaderSense();
+    private final KinSense kin = new KinSense();
 
     @BeforeEach
     void senseOneMobAndTouchAnother() {
         Mob sensed = mock(Mob.class);
         when(sensed.getId()).thenReturn(SENSED_ID);
         when(sensed.distanceToSqr(CENTER)).thenReturn(4.0);
-        leader.sense(new Leader(12, 4), List.of(sensed), CENTER, TICK);
+        kin.sense(new Kin(12, 4), List.of(sensed), CENTER, TICK);
         touched.touch(TOUCHED_ID, TICK);
     }
 
@@ -53,7 +53,7 @@ class LifeMarkBillboardTest {
     void sensedMobDrawsItsLifeMarkWholeWithoutATouch() {
         for (float later = 0; later < 200; later += 10) {
             float time = TICK + later;
-            assertEquals(1f, LifeMarkBillboard.markStrength(SENSED_ID, time, touched, leader, BARE), EPSILON,
+            assertEquals(1f, LifeMarkBillboard.markStrength(SENSED_ID, time, touched, kin, BARE), EPSILON,
                     "at " + time);
         }
     }
@@ -62,26 +62,26 @@ class LifeMarkBillboardTest {
     class HeadMarkedMob {
 
         private final TouchedMobs untouched = new TouchedMobs();
-        private final LeaderSense leaderInactive = new LeaderSense();
+        private final KinSense kinInactive = new KinSense();
 
         @Test
-        void showsItsLifeMarkWholeWithNoTouchAndNoLeader() {
+        void showsItsLifeMarkWholeWithNoTouchAndNoKin() {
             for (long later = 0; later < 2000; later += 37) {
                 long tick = TICK + later;
-                assertTrue(LifeMarkBillboard.showsLifeMark(UNMARKED_ID, tick, untouched, leaderInactive, HEAD_MARKED),
+                assertTrue(LifeMarkBillboard.showsLifeMark(UNMARKED_ID, tick, untouched, kinInactive, HEAD_MARKED),
                         "at " + tick);
-                assertEquals(1f, LifeMarkBillboard.markStrength(UNMARKED_ID, tick + 0.5f, untouched, leaderInactive,
+                assertEquals(1f, LifeMarkBillboard.markStrength(UNMARKED_ID, tick + 0.5f, untouched, kinInactive,
                         HEAD_MARKED), EPSILON, "at " + tick);
             }
         }
     }
 
     @Test
-    void touchedMobOutsideLeaderKeepsItsFade() {
+    void touchedMobOutsideKinKeepsItsFade() {
         for (float later = 0; later < 60; later += 1.5f) {
             float time = TICK + later;
             assertEquals(touched.opacity(TOUCHED_ID, time),
-                    LifeMarkBillboard.markStrength(TOUCHED_ID, time, touched, leader, BARE), EPSILON, "at " + time);
+                    LifeMarkBillboard.markStrength(TOUCHED_ID, time, touched, kin, BARE), EPSILON, "at " + time);
         }
     }
 
@@ -177,8 +177,8 @@ class LifeMarkBillboardTest {
 
     @Test
     void marksDrawForTouchedAndSensedMobsAlike() {
-        assertTrue(LifeMarkBillboard.showsLifeMark(SENSED_ID, TICK, touched, leader, BARE));
-        assertTrue(LifeMarkBillboard.showsLifeMark(TOUCHED_ID, TICK, touched, leader, BARE));
-        assertFalse(LifeMarkBillboard.showsLifeMark(UNMARKED_ID, TICK, touched, leader, BARE));
+        assertTrue(LifeMarkBillboard.showsLifeMark(SENSED_ID, TICK, touched, kin, BARE));
+        assertTrue(LifeMarkBillboard.showsLifeMark(TOUCHED_ID, TICK, touched, kin, BARE));
+        assertFalse(LifeMarkBillboard.showsLifeMark(UNMARKED_ID, TICK, touched, kin, BARE));
     }
 }

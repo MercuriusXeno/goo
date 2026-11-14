@@ -7,13 +7,13 @@ import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.FieldEffectStep;
 import com.mercuriusxeno.goo.ability.program.FloorsStep;
-import com.mercuriusxeno.goo.ability.program.OutsiderStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.ability.program.SporeStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepTypes;
 import com.mercuriusxeno.goo.ability.program.Variables;
+import com.mercuriusxeno.goo.ability.program.ZoneStep;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
 import com.mercuriusxeno.goo.data.KnownItems;
@@ -685,7 +685,7 @@ public record AbilityDefinition(
      * Refuses an ability costing nothing up front and paying no upkeep that names cost_mechanics
      * and no cost_formula: its price moves with what it does, so its petal reads the formula
      * in place of a 0. A durative ability names cost_mechanics too, and its upkeep counts its seconds;
-     * an Outsider's step prices it, its entry outside the pocket and its growth inside, both read live.
+     * a Zone's step prices it, its entry outside the pocket and its growth inside, both read live.
      * dynamic-costs-keep-the-mb-quantity
      * decision outsider-cost-text-reads-the-new-mechanics
      *
@@ -695,7 +695,7 @@ public record AbilityDefinition(
     private static DataResult<AbilityDefinition> formulatedDynamicPrice(AbilityDefinition definition) {
         boolean dynamic = definition.cost().isFree() && definition.upkeep().isFree()
                 && definition.costMechanics().isPresent()
-                && definition.behaviors().stream().noneMatch(OutsiderStep.class::isInstance);
+                && definition.behaviors().stream().noneMatch(ZoneStep.class::isInstance);
         return dynamic && definition.costFormula().isEmpty()
                 ? DataResult.error(() -> UNFORMULATED_DYNAMIC_PRICE)
                 : DataResult.success(definition);

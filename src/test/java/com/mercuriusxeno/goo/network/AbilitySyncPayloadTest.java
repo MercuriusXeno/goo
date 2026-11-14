@@ -137,7 +137,7 @@ class AbilitySyncPayloadTest {
     /**
      * The sync codec carries each shipped area to the client, the shape the glove
      * draws while right click is held (decision right-click-held-previews-release-throws),
-     * razor's derived sphere among them (decision every-instant-aoe-shows-its-indicator-while-held).
+     * Shatter's derived sphere among them (decision every-instant-aoe-shows-its-indicator-while-held).
      */
     @ParameterizedTest
     @MethodSource("shippedGloveAbilities")

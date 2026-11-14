@@ -36,7 +36,7 @@ import java.util.function.Predicate;
 import java.util.function.ToIntFunction;
 
 /**
- * The caster's side of every held sweep, Scry's, Glitter's and Magnet's, as
+ * The caster's side of every held sweep, Scry's, Glimmer's and Magnet's, as
  * a sonar return: each live pulse's front leaves the caster at the steady
  * pace as a faint skin in the casting goo type's color, every wall open to
  * air that a front hits lights through walls at the hit, holds for three

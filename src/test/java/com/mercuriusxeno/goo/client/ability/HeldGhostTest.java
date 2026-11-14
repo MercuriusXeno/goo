@@ -25,8 +25,8 @@ class HeldGhostTest {
 
     @Test
     void razorRingsOutwardToItsDome() {
-        HeldGhost ghost = ghostOf(CrystalExplosionVisual.INSTANCE, "crystal_cloud");
-        float synced = (float) AbilityJson.decode("crystal_cloud").area().size();
+        HeldGhost ghost = ghostOf(CrystalExplosionVisual.INSTANCE, "crystal_shatter");
+        float synced = (float) AbilityJson.decode("crystal_shatter").area().size();
         assertEquals(synced, ghost.domeRadius(), TOLERANCE);
         assertEquals(ghost.domeRadius(), ghost.ringRadius(), TOLERANCE);
     }

@@ -48,7 +48,7 @@ public final class PortableHoles {
     private static final float SWALLOW_PITCH = 0.6F;
     private static final double HALF = 0.5;
     /**
-     * The Outsider room's wub, reversed in its file, pitched down, so the hole closes on a falling note.
+     * The Zone room's wub, reversed in its file, pitched down, so the hole closes on a falling note.
      * decision hole-closes-with-the-outsider-wub-reversed-and-pitched-down
      */
     private static final float CLOSING_PITCH = 0.625F;

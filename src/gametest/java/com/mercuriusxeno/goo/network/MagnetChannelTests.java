@@ -23,10 +23,10 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Gametests for Metal's Magnet: Glitter's growing ore sense over the metal
+ * Gametests for Metal's Magnet: Glimmer's growing ore sense over the metal
  * ore tag, so a held Magnet spends metal goo and its front finds the iron
  * vein and the ancient debris buried around the caster, each at its
- * centroid, the same reveal Glitter sends for gems.
+ * centroid, the same reveal Glimmer sends for gems.
  * decision magnet-sphere-icons-metal-ores
  */
 @RegistersGameTests

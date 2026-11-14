@@ -36,7 +36,7 @@ public final class PlacementTests {
 
     private static final BlockPos WALL_POS = new BlockPos(1, 1, 1);
     private static final BlockPos AIR_POS = new BlockPos(1, 1, 2);
-    private static final String CRYSTAL_CLOUD = "goo:crystal_cloud";
+    private static final String CRYSTAL_SHATTER = "goo:crystal_shatter";
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
 
     private PlacementTests() {}
@@ -67,7 +67,7 @@ public final class PlacementTests {
     public static void abilityWaterlogsInWater(GameTestHelper helper) {
         helper.setBlock(WALL_POS, Blocks.STONE);
         helper.setBlock(AIR_POS, Blocks.WATER);
-        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.CRYSTAL, CRYSTAL_CLOUD);
+        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.CRYSTAL, CRYSTAL_SHATTER);
         helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), AIR_POS);
         helper.assertBlockProperty(AIR_POS, AbilityBlock.WATERLOGGED, true);
         helper.succeed();

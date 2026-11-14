@@ -34,6 +34,7 @@ import java.util.WeakHashMap;
  * the caster first, and strikes it with the rally's damage on reaching it and
  * every strike interval after; with no enemy in reach it takes the side its
  * moving caster heads toward, or follows a standing caster.
+ * It wears its share of the caster's armor, read again every refresh interval.
  * The caster's own hit ends the rally and takes its buffs off; a hit from
  * anyone else leaves it.
  * unengaged-minions-move-where-you-move
@@ -42,6 +43,7 @@ import java.util.WeakHashMap;
  * rally-is-a-mob-effect-on-one-target
  * rallied-mobs-follow-the-player-who-rallied-them
  * rallied-mobs-turn-on-a-player-who-attacks-their-rallier
+ * rally-minions-get-half-your-armor-and-a-floor
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class RallyEvents {
@@ -50,6 +52,13 @@ public final class RallyEvents {
     public static final Identifier HEALTH_MODIFIER = Identifier.fromNamespaceAndPath(Goo.MODID, "rally_health");
     /** The modifier a rally lifts movement speed with. */
     public static final Identifier SPEED_MODIFIER = Identifier.fromNamespaceAndPath(Goo.MODID, "rally_speed");
+    /** The modifier a rally lends the rallier's armor with. */
+    public static final Identifier ARMOR_MODIFIER = Identifier.fromNamespaceAndPath(Goo.MODID, "rally_armor");
+    /** The modifier a rally lends the rallier's armor toughness with. */
+    public static final Identifier TOUGHNESS_MODIFIER =
+            Identifier.fromNamespaceAndPath(Goo.MODID, "rally_armor_toughness");
+    /** Ticks between one read of the rallier's armor and the next, a second, so a gear change reaches the mob. */
+    static final int ARMOR_REFRESH_TICKS = 20;
     /** How far around its rallier a rallied mob looks for the rallier's enemies, keeping it near the rallier. */
     private static final double FOE_REACH = 8.0;
     /** Ticks between one strike and the next, three quarters of a second. */
@@ -73,16 +82,37 @@ public final class RallyEvents {
     @SubscribeEvent
     public static void onEntityTick(EntityTickEvent.Post event) {
         if (!(event.getEntity() instanceof Mob mob) || !(mob.level() instanceof ServerLevel level)
-                || !mob.hasData(GooAttachments.RALLIED)) {
+                || !mob.hasData(GooAttachments.RALLIED)
+                // rallied-mob-falls-downed-instead-of-dying: a downed mob lies still, fighting and following no one
+                || mob.hasData(GooAttachments.DOWNED)) {
             return;
         }
         // unengaged-minions-move-where-you-move: no vanilla goal walks a rallied mob, so it goes only where the
         // rally walks it; set after the mob's tick, which re-enables the flag every fifth tick
         mob.goalSelector.disableControlFlag(Goal.Flag.MOVE);
         Rallied rally = mob.getData(GooAttachments.RALLIED);
+        // rally-minions-get-half-your-armor-and-a-floor: an offline or absent rallier leaves the last armor read
         if (level.getEntity(rally.caster()) instanceof LivingEntity caster) {
+            if (mob.tickCount % ARMOR_REFRESH_TICKS == 0) {
+                wearRalliersArmor(mob, caster, rally.armor());
+            }
             act(level, mob, caster, rally);
         }
+    }
+
+    /**
+     * Lends a rallied mob its share of its rallier's armor and toughness as it stands now.
+     * rally-minions-get-half-your-armor-and-a-floor
+     *
+     * @param mob     the rallied mob
+     * @param rallier the entity that rallied it
+     * @param armor   the rally's armor share and floor
+     */
+    public static void wearRalliersArmor(Mob mob, LivingEntity rallier, RallyArmor armor) {
+        lendModifier(mob.getAttribute(Attributes.ARMOR), ARMOR_MODIFIER,
+                armor.armorFrom(rallier.getAttributeValue(Attributes.ARMOR)));
+        lendModifier(mob.getAttribute(Attributes.ARMOR_TOUGHNESS), TOUGHNESS_MODIFIER,
+                armor.toughnessFrom(rallier.getAttributeValue(Attributes.ARMOR_TOUGHNESS)));
     }
 
     /**
@@ -174,7 +204,7 @@ public final class RallyEvents {
 
     /**
      * Walks a mob toward the one it follows, re-pathing as that one moves:
-     * a rallied mob its rallier, a led mob the player holding Leader.
+     * a rallied mob its rallier, a led mob the player holding Kin.
      * rallied-mobs-follow-the-player-who-rallied-them
      * leader-leads-passive-mobs-at-a-short-distance
      *
@@ -244,6 +274,8 @@ public final class RallyEvents {
         mob.goalSelector.enableControlFlag(Goal.Flag.MOVE);
         removeModifier(mob.getAttribute(Attributes.MAX_HEALTH), HEALTH_MODIFIER);
         removeModifier(mob.getAttribute(Attributes.MOVEMENT_SPEED), SPEED_MODIFIER);
+        removeModifier(mob.getAttribute(Attributes.ARMOR), ARMOR_MODIFIER);
+        removeModifier(mob.getAttribute(Attributes.ARMOR_TOUGHNESS), TOUGHNESS_MODIFIER);
         mob.setHealth(Math.min(mob.getHealth(), mob.getMaxHealth()));
     }
 
@@ -267,6 +299,19 @@ public final class RallyEvents {
             // zoo-rally-arms-the-peaceful: permanent, so the buff saves with the rally it belongs to
             attribute.addPermanentModifier(new AttributeModifier(id, share,
                     AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
+        }
+    }
+
+    private static void lendModifier(@Nullable AttributeInstance attribute, Identifier id, double amount) {
+        if (attribute == null) {
+            return;
+        }
+        AttributeModifier standing = attribute.getModifier(id);
+        // an unchanged rallier leaves the modifier, so the refresh syncs no attribute to clients
+        if (standing == null || Double.compare(standing.amount(), amount) != 0) {
+            attribute.removeModifier(id);
+            // permanent, so the lent armor saves with the rally it belongs to
+            attribute.addPermanentModifier(new AttributeModifier(id, amount, AttributeModifier.Operation.ADD_VALUE));
         }
     }
 
@@ -311,7 +356,8 @@ public final class RallyEvents {
     private static RallyFoes.Candidate<LivingEntity> candidate(Mob rallied, LivingEntity near) {
         LivingEntity target = near instanceof Mob nearMob ? nearMob.getTarget() : null;
         return new RallyFoes.Candidate<>(near, near.getUUID(), near.isAlive(), isUnprovokedHostile(near),
-                target == null ? null : target.getUUID(), rallied.distanceToSqr(near));
+                target == null ? null : target.getUUID(), rallied.distanceToSqr(near),
+                near.hasData(GooAttachments.DOWNED));
     }
 
     /**

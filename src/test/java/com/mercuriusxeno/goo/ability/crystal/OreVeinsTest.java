@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Glitter groups touching blocks of one ore into a vein at their centroid,
+ * Glimmer groups touching blocks of one ore into a vein at their centroid,
  * and merges veins of one ore lying close together into one icon
  * (decision glitter-sphere-icons-gem-ore-groups).
  */
