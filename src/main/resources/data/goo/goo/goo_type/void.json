@@ -7,6 +7,7 @@
   "edge": "3C3050",
   "density": 1000,
   "viscosity": 1000,
+  "elasticity": 0.1,
   "temperature": 250,
   "extinguishes": false,
   "levity": 1.0,
