@@ -19,7 +19,6 @@ import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.program.TerrakinesisWindUp;
 import com.mercuriusxeno.goo.ability.pulse.Stunned;
 import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
-import com.mercuriusxeno.goo.ability.quantum.SwapBodyRef;
 import com.mercuriusxeno.goo.ability.reserve.Reserve;
 import com.mercuriusxeno.goo.ability.rewind.Rewinding;
 import com.mercuriusxeno.goo.ability.root.Rooted;
@@ -45,7 +44,6 @@ import net.neoforged.neoforge.network.payload.SyncAttachmentsPayload;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
-import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
@@ -405,16 +403,6 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> OutOfPhase.NONE)
                             .serialize(OutOfPhase.CODEC, OutOfPhase::laid)
                             .sync(GooAttachments::syncsToWatcher, OutOfPhase.STREAM_CODEC)
-                            .build());
-
-    /**
-     * The swap body a player has standing, saved with the player while one stands.
-     * swap-body-stands-until-reverted
-     */
-    public static final Supplier<AttachmentType<Optional<SwapBodyRef>>> SWAP_BODY =
-            ATTACHMENT_TYPES.register("swap_body",
-                    () -> AttachmentType.<Optional<SwapBodyRef>>builder(Optional::empty)
-                            .serialize(SwapBodyRef.CODEC.optionalFieldOf("ref"), Optional::isPresent)
                             .build());
 
     /**

@@ -74,7 +74,6 @@ class AbilityPoseTableTest {
             Map.entry("quantum_portal", ArmPose.SWUNG),
             Map.entry("quantum_phase", ArmPose.HELD_UP),
             Map.entry("quantum_phase_shift", ArmPose.SWUNG),
-            Map.entry("quantum_swap", ArmPose.HELD_OUT),
             Map.entry("rock_bore", ArmPose.HELD_OUT),
             Map.entry("rock_flatten", ArmPose.HELD_OUT),
             Map.entry("rock_petrify", ArmPose.HELD_OUT),

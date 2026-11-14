@@ -16,7 +16,6 @@ import com.mercuriusxeno.goo.client.ability.AilmentOverlayLayer;
 import com.mercuriusxeno.goo.client.ability.BeatRings;
 import com.mercuriusxeno.goo.client.ability.BlockTransforms;
 import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
-import com.mercuriusxeno.goo.client.ability.ClientSwapBody;
 import com.mercuriusxeno.goo.client.ability.EldritchSight;
 import com.mercuriusxeno.goo.client.ability.EncasedBodies;
 import com.mercuriusxeno.goo.client.ability.EncasementLayer;
@@ -74,7 +73,6 @@ import com.mercuriusxeno.goo.client.sound.FadingLoops;
 import com.mercuriusxeno.goo.client.throwing.GooFlightManager;
 import com.mercuriusxeno.goo.client.throwing.GooSizeProperty;
 import com.mercuriusxeno.goo.client.throwing.GooVolumeDecorator;
-import com.mercuriusxeno.goo.entity.SwapBody;
 import com.mercuriusxeno.goo.item.gasket.TunerAwaitState;
 import com.mercuriusxeno.goo.registry.*;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -84,9 +82,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.renderer.block.FluidModel;
 import net.minecraft.client.renderer.entity.EntityRenderer;
-import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.NoopRenderer;
-import net.minecraft.client.renderer.entity.player.AvatarRenderer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.resources.Identifier;
@@ -261,9 +257,6 @@ public final class GooClientSetup {
         event.registerEntityRenderer(GooEntities.BLOCK_HUNK.get(), BlockHunkRenderer::new);
         // orb-carries-a-swirling-nova: RollingGooRenderer draws the ball and its swirl from the level stage
         event.registerEntityRenderer(GooEntities.ROLLING_GOO.get(), NoopRenderer::new);
-        // swap-body-stands-until-reverted: a client body wears its owner's skin, drawn by the player renderer
-        ClientSwapBody.install();
-        event.registerEntityRenderer(GooEntities.SWAP_BODY.get(), swapBodyRenderer());
         // meteo-winds-up-then-drops-in-a-second-trailing-fire: the meteor shows as a burning rock
         event.registerEntityRenderer(GooEntities.METEOR.get(), MeteorRenderer::new);
         // monstrosities-harvest-under-quantum
@@ -349,16 +342,6 @@ public final class GooClientSetup {
         event.registerSpriteSet(GooParticles.VITAL_STAR.get(), VitalStarParticle.Provider::new);
         event.registerSpecial(GooParticles.SILENT_BLAST.get(),
                 (options, level, x, y, z, dx, dy, dz, random) -> null);
-    }
-
-    /**
-     * The player renderer over a swap body, which the client builds as a body wearing its owner's skin.
-     *
-     * @return the renderer provider
-     */
-    @SuppressWarnings({SUPPRESS_UNCHECKED, "rawtypes"})
-    private static EntityRendererProvider<SwapBody> swapBodyRenderer() {
-        return context -> (EntityRenderer) new AvatarRenderer<ClientSwapBody>(context, false);
     }
 
     /**
