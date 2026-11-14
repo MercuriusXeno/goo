@@ -31,7 +31,9 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
+import com.mercuriusxeno.goo.type.GooTypes;
 
 /**
  * Gametests for the mob abilities: each test spawns a mob, lands a goo of
@@ -49,6 +51,7 @@ public final class MobEffectTests {
     private static final String CHARMED_SLIME_SPARES = "charmed_slime_spares_its_charmer";
     private static final String CHARM_HOLDS_THROUGH_A_SAVE = "charm_holds_through_a_save";
     private static final String CHARM_BREAKS_ON_THE_CHARMERS_HIT = "charm_breaks_on_the_charmers_hit";
+    private static final String CHARM_DARTS_TO_THE_TAKEN_MOB = "charm_darts_to_the_taken_mob_and_charms_it";
     private static final String SEAL_WARPS_THEN_EXILES = "seal_warps_then_exiles";
     private static final String MOB_UNSTABLE = "mob_unstable_blast";
 
@@ -64,6 +67,8 @@ public final class MobEffectTests {
         GooTestFunctions.registerTest(registrar, CHARMED_SLIME_SPARES, MobEffectTests::charmedSlimeSparesItsCharmer);
         GooTestFunctions.registerTest(registrar, CHARM_HOLDS_THROUGH_A_SAVE, MobEffectTests::charmHoldsThroughASave);
         GooTestFunctions.registerTest(registrar, CHARM_BREAKS_ON_THE_CHARMERS_HIT, MobEffectTests::charmBreaksOnTheCharmersHit);
+        GooTestFunctions.registerTest(registrar, CHARM_DARTS_TO_THE_TAKEN_MOB,
+                MobEffectTests::charmDartsToTheTakenMobAndCharmsIt);
         GooTestFunctions.registerTest(registrar, SEAL_WARPS_THEN_EXILES, MobEffectTests::sealWarpsThenExiles);
         GooTestFunctions.registerTest(registrar, MOB_UNSTABLE, MobEffectTests::unstableExplode);
     }
@@ -93,7 +98,13 @@ public final class MobEffectTests {
      * chance, which falls as max health rises, stands whole with a wide margin for its tuning.
      */
     private static final double CERTAIN_CHARM_HEALTH = 10;
-    private static final String CHARM_SHOULD_RELOAD = "The reloaded zombie should hold the charm for its charmer";
+    /** The face a throw at an entity names: none. */
+    private static final int NO_FACE = -1;
+    /** Ticks past the cast by which the dart has crossed the two blocks to the zombie and landed. */
+    private static final int DART_LANDED_TICKS = 5;
+    private static final String CHARM_SHOULD_DART_NOT_TOUCH =
+            "Charm should dart to a zombie within reach, charming it only once the dart lands";
+    private static final String CHARM_SHOULD_RELOAD ="The reloaded zombie should hold the charm for its charmer";
     private static final String CHARMERS_HIT_SHOULD_BREAK = "The charmer's hit should end the charm";
     private static final String SHOULD_TAKE_DAMAGE = "Target should have taken damage";
     private static final String SHOULD_HAVE_LEVITATION = "Target should have levitation";
@@ -282,6 +293,34 @@ public final class MobEffectTests {
             helper.assertTrue(charmer.getHealth() < before, WILD_SLIME_SHOULD_HURT);
             helper.getLevel().getServer().getPlayerList().remove(charmer);
             helper.succeed();
+        });
+    }
+
+    /**
+     * Charm cast through the charm-like delivery at a zombie within reach:
+     * the blob darts to the zombie rather than touching it, so the zombie
+     * stands uncharmed on the cast's tick, and once the dart lands it holds
+     * the charm (decision charm-like-abilities-lock-the-highlighted-mob-on-right-click).
+     *
+     * @param helper the gametest helper
+     */
+    public static void charmDartsToTheTakenMobAndCharmsIt(GameTestHelper helper) {
+        Identifier charmId = Identifier.parse(ABILITY_HEX_CHARM);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.HEX, charmId);
+        AbilityDefinition charm = AbilityRegistry.of(helper.getLevel()).getAbility(charmId);
+        helper.assertTrue(charm != null, ABILITIES_REQUIRED);
+        KnownRecipes.teachRequires(caster, charm);
+        Mob zombie = charmable(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS));
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            GooThrowHandler.execute(caster, new GooThrowPayload(GooTypes.id(GooTypes.HEX), zombie.getId(),
+                    BlockPos.ZERO, NO_FACE, false, ABILITY_HEX_CHARM, caster.getEyePosition(),
+                    zombie.getBoundingBox().getCenter()));
+            helper.assertFalse(zombie.hasData(GooAttachments.CHARMED), CHARM_SHOULD_DART_NOT_TOUCH);
+            helper.runAfterDelay(DART_LANDED_TICKS, () -> {
+                helper.getLevel().getServer().getPlayerList().remove(caster);
+                helper.assertTrue(zombie.hasData(GooAttachments.CHARMED), ZOMBIE_SHOULD_BE_CHARMED);
+                helper.succeed();
+            });
         });
     }
 

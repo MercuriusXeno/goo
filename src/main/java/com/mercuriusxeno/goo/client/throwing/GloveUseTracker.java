@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
+import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
@@ -14,6 +15,8 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ClipContext;
@@ -26,6 +29,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.InputEvent;
 import org.jspecify.annotations.Nullable;
+import java.util.OptionalInt;
 
 /**
  * Client-side tracker for the glove press: resolves the use key through
@@ -39,6 +43,9 @@ import org.jspecify.annotations.Nullable;
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class GloveUseTracker {
     private static final GloveInputGate PRESS = new GloveInputGate();
+    /** The mob a charm-like cast's press took, held through the wind-up whatever the aim does. */
+    private static final CharmLikeCast CHARM_LIKE = new CharmLikeCast(GloveUseTracker::highlightedMob,
+            GloveUseTracker::mobStands);
     private static InteractionHand pressHand = InteractionHand.MAIN_HAND;
     /**
      * The face the cursor rested on when the live press began, which a
@@ -117,7 +124,67 @@ public final class GloveUseTracker {
             pressPlane = crosshairPlane(mc);
             pressPin = mc.player == null ? null : farFace(mc.player);
         }
-        PRESS.arm();
+        armPress(player);
+    }
+
+    /**
+     * Arms the press: a charm-like cast on the mob highlighted at the right
+     * click, arming nothing with none highlighted; any other selection at once.
+     * charm-like-abilities-lock-the-highlighted-mob-on-right-click
+     *
+     * @param player the local player, or null where none stands
+     */
+    private static void armPress(@Nullable LocalPlayer player) {
+        if (player != null && selectedEnvelops(player)) {
+            CHARM_LIKE.press(PRESS);
+        } else {
+            PRESS.arm();
+        }
+    }
+
+    /**
+     * Whether the held glove's selection is a charm-like cast.
+     *
+     * @param player the local player
+     * @return true for an envelop delivery
+     */
+    private static boolean selectedEnvelops(Player player) {
+        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        return selection != null && GloveThrowSender.selectedDelivery(selection.abilityId()).envelops();
+    }
+
+    /**
+     * The id of the mob the frame highlights, the aimed mob the mark ripples on.
+     *
+     * @return the id, empty where the frame highlights none
+     */
+    private static OptionalInt highlightedMob() {
+        Entity aimed = AimTracker.aimedMob();
+        return aimed == null ? OptionalInt.empty() : OptionalInt.of(aimed.getId());
+    }
+
+    /**
+     * Whether the mob of an id still stands on this client, alive and loaded.
+     *
+     * @param entityId the mob's id
+     * @return true for a living entity the level holds
+     */
+    private static boolean mobStands(int entityId) {
+        Minecraft mc = Minecraft.getInstance();
+        return mc.level != null && mc.level.getEntity(entityId) instanceof LivingEntity living && living.isAlive();
+    }
+
+    /**
+     * The mob a charm-like cast's release sends: the mob its press took, once
+     * the hold filled the wind-up.
+     * charm-like-abilities-lock-the-highlighted-mob-on-right-click
+     *
+     * @param heldTicks   the ticks the right click was held
+     * @param windUpTicks the ticks the ability's wind-up takes to fill
+     * @return the taken mob's id, empty where the release sends nothing
+     */
+    public static OptionalInt releaseTakenMob(int heldTicks, int windUpTicks) {
+        return CHARM_LIKE.release(heldTicks, windUpTicks);
     }
 
     /**
@@ -225,7 +292,12 @@ public final class GloveUseTracker {
             PRESS.cancel();
             return;
         }
-        PRESS.tick(mc.options.keyUse.isDown(), pressActions(player));
+        GloveInputGate.PressActions actions = pressActions(player);
+        PRESS.tick(mc.options.keyUse.isDown(), actions);
+        if (selectedEnvelops(player)) {
+            // charm-like-abilities-lock-the-highlighted-mob-on-right-click
+            CHARM_LIKE.tick(PRESS, actions);
+        }
         liftThePalmBlob(mc, player);
     }
 

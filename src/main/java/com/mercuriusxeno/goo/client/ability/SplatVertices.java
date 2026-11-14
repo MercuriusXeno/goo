@@ -29,6 +29,7 @@ final class SplatVertices implements VertexConsumer {
     private final VertexConsumer delegate;
     private final Matrix4fc rootInverse;
     private final Vector3fc pinnedHit;
+    private final float reachScale;
     private final float spriteU0;
     private final float spriteV0;
     private final Vector3f offset = new Vector3f();
@@ -37,14 +38,17 @@ final class SplatVertices implements VertexConsumer {
      * @param delegate    the splat render type's buffer
      * @param rootInverse the inverse of the model root's pose
      * @param pinnedHit   the hit point in the model's root space
+     * @param reachScale  how many times a splat's reach the coat covers, each offset shrunk by it so the
+     *                    shader's splat radius reaches that far; 1 for a splat
      * @param spriteU0    the fluid sprite's atlas u origin
      * @param spriteV0    the fluid sprite's atlas v origin
      */
-    SplatVertices(VertexConsumer delegate, Matrix4fc rootInverse, Vector3fc pinnedHit, float spriteU0,
-            float spriteV0) {
+    SplatVertices(VertexConsumer delegate, Matrix4fc rootInverse, Vector3fc pinnedHit, float reachScale,
+            float spriteU0, float spriteV0) {
         this.delegate = delegate;
         this.rootInverse = rootInverse;
         this.pinnedHit = pinnedHit;
+        this.reachScale = reachScale;
         this.spriteU0 = spriteU0;
         this.spriteV0 = spriteV0;
     }
@@ -89,7 +93,8 @@ final class SplatVertices implements VertexConsumer {
 
     @Override
     public VertexConsumer addVertex(float x, float y, float z) {
-        splatOffset(rootInverse, pinnedHit, x, y, z, offset);
+        // charm-like-abilities-lock-the-highlighted-mob-on-right-click: an envelop reaches the whole mob
+        splatOffset(rootInverse, pinnedHit, x, y, z, offset).div(reachScale);
         delegate.addVertex(x, y, z);
         return this;
     }

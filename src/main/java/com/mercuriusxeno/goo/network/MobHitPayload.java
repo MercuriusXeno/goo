@@ -19,9 +19,23 @@ import org.jspecify.annotations.NonNull;
  * @param gooTypeId     the goo type's short id
  * @param hitPoint      the point the aim entered the mob's box
  * @param aimDirection  the aim's unit direction, which the client carries on onto the mob's model; zero where none
+ * @param envelops      whether the goo envelops the whole mob, as a charm-like cast's dart does, rather than
+ *                      splatting around the hit point
  */
-public record MobHitPayload(int entityId, String gooTypeId, Vec3 hitPoint, Vec3 aimDirection)
+public record MobHitPayload(int entityId, String gooTypeId, Vec3 hitPoint, Vec3 aimDirection, boolean envelops)
         implements CustomPacketPayload {
+
+    /**
+     * A hit that splats goo around the point it struck.
+     *
+     * @param entityId     the struck entity's id
+     * @param gooTypeId    the goo type's short id
+     * @param hitPoint     the point the aim entered the mob's box
+     * @param aimDirection the aim's unit direction; zero where none
+     */
+    public MobHitPayload(int entityId, String gooTypeId, Vec3 hitPoint, Vec3 aimDirection) {
+        this(entityId, gooTypeId, hitPoint, aimDirection, false);
+    }
 
     /** Payload type ID for registration. */
     public static final Type<MobHitPayload> TYPE =
@@ -47,6 +61,7 @@ public record MobHitPayload(int entityId, String gooTypeId, Vec3 hitPoint, Vec3 
         buf.writeUtf(payload.gooTypeId);
         writeVec(buf, payload.hitPoint);
         writeVec(buf, payload.aimDirection);
+        buf.writeBoolean(payload.envelops);
     }
 
     /**
@@ -56,7 +71,7 @@ public record MobHitPayload(int entityId, String gooTypeId, Vec3 hitPoint, Vec3 
      * @return the decoded payload
      */
     private static MobHitPayload decode(FriendlyByteBuf buf) {
-        return new MobHitPayload(buf.readVarInt(), buf.readUtf(), readVec(buf), readVec(buf));
+        return new MobHitPayload(buf.readVarInt(), buf.readUtf(), readVec(buf), readVec(buf), buf.readBoolean());
     }
 
     private static void writeVec(FriendlyByteBuf buf, Vec3 vec) {

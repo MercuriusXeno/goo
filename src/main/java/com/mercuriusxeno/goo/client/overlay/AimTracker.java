@@ -83,7 +83,7 @@ public final class AimTracker {
      *
      * @return the mob, or null when the aim holds none
      */
-    static @Nullable Entity aimedMob() {
+    public static @Nullable Entity aimedMob() {
         return STATE.aimedMob();
     }
 

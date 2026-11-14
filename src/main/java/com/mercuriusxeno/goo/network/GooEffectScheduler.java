@@ -334,9 +334,12 @@ public final class GooEffectScheduler {
         }
         playImpactSound(pe.level, living.getX(), living.getY(), living.getZ());
         Aim aim = aimOf(pe);
-        if (splats(resolveAbility(pe.level, pe.abilityId))) {
+        AbilityDefinition ability = resolveAbility(pe.level, pe.abilityId);
+        if (splats(ability)) {
+            // charm-like-abilities-lock-the-highlighted-mob-on-right-click: a charm-like cast's dart envelops the mob
             landing.announceHit(living, new MobHitPayload(living.getId(), GooTypes.id(pe.gooType),
-                    aimedHitPoint(living.getBoundingBox(), aim), aim == null ? Vec3.ZERO : aim.direction()));
+                    aimedHitPoint(living.getBoundingBox(), aim), aim == null ? Vec3.ZERO : aim.direction(),
+                    ability != null && ability.delivery().envelops()));
         }
         landing.runProgram(pe, living);
     }

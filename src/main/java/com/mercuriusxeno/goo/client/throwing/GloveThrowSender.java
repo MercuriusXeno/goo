@@ -44,6 +44,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.BlockHitResult;
@@ -105,6 +106,10 @@ public final class GloveThrowSender {
         Delivery delivery = selectedDelivery(abilityId);
         if (HeldRoute.runsWhileHeld(delivery, selectedBadge(abilityId))) {
             return sendStreamTick(player, gooType, abilityId);
+        }
+        if (delivery.envelops()) {
+            return sendAtTakenMob(player, gooType, abilityId,
+                    GloveUseTracker.releaseTakenMob(heldTicks, delivery.chargeTicks()));
         }
         if (delivery.charges()) {
             return sendCharge(player, gooType, abilityId, heldTicks);
@@ -389,6 +394,31 @@ public final class GloveThrowSender {
             return false;
         }
         sendPayload(new GooChargePayload(GooTypes.id(gooType), abilityId, heldTicks, GloveUseTracker.scatterSeed()));
+        return true;
+    }
+
+    /**
+     * Sends a charm-like cast's release at the mob its press took, wherever
+     * the aim rests now, when the player can afford it; a release the cast
+     * answers no mob for sends nothing and spends nothing.
+     * charm-like-abilities-lock-the-highlighted-mob-on-right-click
+     *
+     * @param player    the local player
+     * @param gooType   the selected goo type
+     * @param abilityId the selected ability id string
+     * @param taken     the taken mob's id, empty where the release sends nothing
+     * @return true when the payload was sent
+     */
+    private static boolean sendAtTakenMob(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId,
+                                          OptionalInt taken) {
+        Entity mob = taken.isPresent() ? player.level().getEntity(taken.getAsInt()) : null;
+        if (mob == null || !affordsThrow(AbilitySyncHandler.findAbility(abilityId),
+                amount -> GooSourceScanner.hasEnough(player, gooType, amount),
+                reagent -> ReagentScanner.holds(player, reagent))) {
+            return false;
+        }
+        sendPayload(new GooThrowPayload(GooTypes.id(gooType), mob.getId(), BlockPos.ZERO, NO_ENTITY, false,
+                abilityId, throwOrigin(), mob.getBoundingBox().getCenter()));
         return true;
     }
 

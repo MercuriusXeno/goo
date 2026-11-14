@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
@@ -43,8 +44,15 @@ public final class MobHitHandler {
                 MobHitBurst.spawn(mc.level, payload.hitPoint(), payload.hitPoint().subtract(0, 1, 0), rgb);
                 return;
             }
-            MobCoats.CLIENT.coat(payload.entityId(), gooType, mc.level.getGameTime(),
-                    new MobCoats.Strike(payload.hitPoint(), payload.aimDirection(), SplatDrips.stanceOf(struck)));
+            if (payload.envelops()) {
+                // charm-like-abilities-lock-the-highlighted-mob-on-right-click: the dart envelops the mob whole
+                MobCoats.CLIENT.envelop(payload.entityId(), gooType, mc.level.getGameTime(),
+                        new MobCoats.Strike(struck.getBoundingBox().getCenter(), Vec3.ZERO,
+                                SplatDrips.stanceOf(struck)), struck.getBbWidth(), struck.getBbHeight());
+            } else {
+                MobCoats.CLIENT.coat(payload.entityId(), gooType, mc.level.getGameTime(),
+                        new MobCoats.Strike(payload.hitPoint(), payload.aimDirection(), SplatDrips.stanceOf(struck)));
+            }
             MobHitBurst.spawn(mc.level, payload.hitPoint(), struck.getBoundingBox().getCenter(), rgb);
         });
     }
