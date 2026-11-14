@@ -147,7 +147,7 @@ public final class AirbornWind {
         }
         long now = mc.level.getGameTime();
         if (player.getData(GooAttachments.AIRBORN).standsAt(now)) {
-            spawn(player, now);
+            spawn(mc, player, now);
         }
         LIVE.removeIf(mote -> now - mote.startTick() >= LIFE_TICKS);
         if (!LIVE.isEmpty()) {
@@ -169,7 +169,7 @@ public final class AirbornWind {
         buffers.endBatch(type);
     }
 
-    private static void spawn(LocalPlayer player, long now) {
+    private static void spawn(Minecraft mc, LocalPlayer player, long now) {
         if (now == lastSpawnTick) {
             return;
         }
@@ -181,7 +181,8 @@ public final class AirbornWind {
         }
         if (now % FRONT_EVERY == 0) {
             double stray = random.nextDouble() * BOTH_SIDES - 1;
-            LIVE.add(new Mote(frontStart(player.getEyeHeight(), player.getLookAngle(), stray),
+            double eyeHeight = CameraEye.eyeHeight(mc, player, mc.getDeltaTracker().getGameTimeDeltaPartialTick(false));
+            LIVE.add(new Mote(frontStart(eyeHeight, player.getLookAngle(), stray),
                     random.nextDouble() * TWO_PI, now));
         }
     }
