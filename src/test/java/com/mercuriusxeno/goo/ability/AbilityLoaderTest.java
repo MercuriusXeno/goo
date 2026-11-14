@@ -167,6 +167,25 @@ class AbilityLoaderTest {
         }
     }
 
+    /**
+     * The abilities each type ships after the inventory pass dropped Link, Swap, Buster and Dark Star.
+     * decision link-swap-buster-and-dark-star-leave-the-mod
+     */
+    @Nested
+    class DroppedAbilitiesLeft {
+
+        private static Set<String> shippedPathsOf(ResourceKey<GooTypeDefinition> type) {
+            return shippedById().values().stream().filter(def -> def.gooType() == type)
+                    .map(def -> def.id().getPath()).collect(Collectors.toSet());
+        }
+
+        @Test
+        void quantumShipsItsPhasesPortalsAndSwap() {
+            assertEquals(Set.of("quantum_phase", "quantum_phase_shift", "quantum_portal", "quantum_tunnel",
+                    "quantum_swap"), shippedPathsOf(GooTypes.QUANTUM));
+        }
+    }
+
     // decision lingering-abilities-place-their-own-thing
     // decision one-proving-ability-per-kind
     @Test
