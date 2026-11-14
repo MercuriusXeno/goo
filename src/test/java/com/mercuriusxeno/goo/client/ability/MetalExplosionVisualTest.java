@@ -87,7 +87,7 @@ class MetalExplosionVisualTest {
         float opacity = 0.4f;
         MetalExplosionVisual.Urchin urchin = MetalExplosionVisual.heldUrchin(Direction.UP, opacity, 0);
         assertEquals(MetalExplosionVisual.SPIKE_REACH, urchin.length(), 0f);
-        assertEquals(NetherDiscMesh.toByte(opacity), urchin.alpha());
+        assertEquals(ColorBytes.toByte(opacity), urchin.alpha());
         assertEquals(MetalExplosionVisual.bristled(Direction.UP, 0f, 1f).baseRadius(), urchin.baseRadius(), 0f);
     }
 
@@ -97,7 +97,7 @@ class MetalExplosionVisualTest {
         int half = MetalExplosionVisual.heldUrchin(Direction.UP, 1f,
                 MetalExplosionVisual.HELD_SWEEP_SECONDS / 2).progressByte();
         assertEquals(0, start);
-        assertEquals(NetherDiscMesh.toByte(0.5f), half);
+        assertEquals(ColorBytes.toByte(0.5f), half);
     }
 
     @Test

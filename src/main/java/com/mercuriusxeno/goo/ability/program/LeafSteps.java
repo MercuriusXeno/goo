@@ -24,7 +24,6 @@ public final class LeafSteps {
     private static final MapCodec<Boolean> ENABLED = Codec.BOOL.fieldOf(FIELD_ENABLED);
     private static final MapCodec<Unit> NO_PARAMS = MapCodec.unit(Unit.INSTANCE);
     private static final Set<HostCapability> TARGET = Set.of(HostCapability.TARGET);
-    private static final Set<HostCapability> HOARD = Set.of(HostCapability.HOARD);
     private static final Set<HostCapability> IGNITE_LANDING = Set.of(HostCapability.IGNITE);
     private static final float PERCENT = 100;
     private static final Predicate<Object> ANY = entity -> true;
@@ -36,29 +35,6 @@ public final class LeafSteps {
     public static final LeafStepType<Expr> WAIT = StepType.of("wait", "ticks",
             Set.of(HostCapability.TICKING), (ticks, context) -> context.stepTicks() >= ticks.evaluateInt(context))
             .takingNone();
-
-    /**
-     * Takes every breakable block within a sphere around the host anchor
-     * into the hoard the host keeps, each as its silk-touched drops; the
-     * black hole consumes its blast sphere as it leaves its expand
-     * phase: {@code consume_blocks radius=3}.
-     */
-    public static final LeafStepType<Expr> CONSUME_BLOCKS = StepType.of("consume_blocks", "radius", HOARD,
-            (radius, context) -> {
-                context.hostAs(HoardHost.class).hoardBlocks(radius.evaluateInt(context));
-                return true;
-            }).takingNone();
-
-    /**
-     * Leaves the host's hoard as one compression sphere at the anchor,
-     * emptying it; the black hole drops what it pulled in once it
-     * has contracted: {@code drop_sphere}.
-     */
-    public static final LeafStepType<Unit> DROP_SPHERE = StepType.of("drop_sphere", NO_PARAMS, HOARD,
-            (none, context) -> {
-                context.hostAs(HoardHost.class).dropSphere();
-                return true;
-            }).takingNone();
 
     /**
      * Removes the host's target from the world without a death, drops or a

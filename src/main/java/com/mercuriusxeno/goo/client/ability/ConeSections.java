@@ -148,7 +148,7 @@ final class ConeSections {
      * @return the packed color
      */
     static int sectionColor(float along, float u, float v) {
-        return ARGB.color(OPAQUE, NetherDiscMesh.toByte(along), NetherDiscMesh.toByte((u + 1f) * SIGNED_TO_UNIT),
-                NetherDiscMesh.toByte((v + 1f) * SIGNED_TO_UNIT));
+        return ARGB.color(OPAQUE, ColorBytes.toByte(along), ColorBytes.toByte((u + 1f) * SIGNED_TO_UNIT),
+                ColorBytes.toByte((v + 1f) * SIGNED_TO_UNIT));
     }
 }

@@ -191,6 +191,12 @@ class AbilityLoaderTest {
             assertEquals(Set.of("unstable_explode", "unstable_lurker"), shippedPathsOf(GooTypes.UNSTABLE));
             assertNull(new AbilityRegistry(shippedById()).durativeAbilityFor(GooTypes.UNSTABLE));
         }
+
+        @Test
+        void voidShipsEraseHoleOutsiderAndVacuum() {
+            assertEquals(Set.of("void_erase", "void_hole", "void_outsider", "void_vacuum"),
+                    shippedPathsOf(GooTypes.VOID));
+        }
     }
 
     // decision lingering-abilities-place-their-own-thing
@@ -435,7 +441,7 @@ class AbilityLoaderTest {
     @Nested
     class CostFormula {
 
-        private static final List<String> DYNAMIC_ABILITIES = List.of("ender_blink", "void_dark_star",
+        private static final List<String> DYNAMIC_ABILITIES = List.of("ender_blink",
                 "unstable_explode", "rock_spire", "rock_terrakinesis", "yore_age");
 
         @Test
