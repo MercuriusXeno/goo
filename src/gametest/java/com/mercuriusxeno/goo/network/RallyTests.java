@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Holder;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
@@ -17,6 +18,10 @@ import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.Attribute;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.animal.cow.Cow;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.item.ItemStack;
@@ -54,6 +59,70 @@ public final class RallyTests {
         GooTestFunctions.registerTest(registrar, RALLY_TAKES_ONE_OF_TWO_COWS, RallyTests::rallyTakesOneOfTwoCows);
         GooTestFunctions.registerTest(registrar, RALLY_HOLDS_PAST_THE_OLD_RALLY, RallyTests::rallyHoldsPastTheOldRally);
         GooTestFunctions.registerTest(registrar, RALLY_ENDS_ON_THE_RALLIERS_HIT, RallyTests::rallyEndsOnTheRalliersHit);
+        GooTestFunctions.registerTest(registrar, RALLY_COW_WEARS_HALF_ITS_RALLIERS_ARMOR,
+                RallyTests::rallyCowWearsHalfItsRalliersArmor);
+    }
+
+    private static final String RALLY_COW_WEARS_HALF_ITS_RALLIERS_ARMOR = "rally_cow_wears_half_its_ralliers_armor";
+    /** The modifier standing in for the caster's gear, so the test sets the caster's armor outright. */
+    private static final Identifier CASTER_GEAR = Identifier.fromNamespaceAndPath(Goo.MODID, "test_caster_gear");
+    /** A full diamond set's armor and toughness, the caster's first gear. */
+    private static final double FULL_DIAMOND_ARMOR = 20;
+    private static final double FULL_DIAMOND_TOUGHNESS = 8;
+    /** The diamond set less its chestplate, the caster's gear after the change. */
+    private static final double DIAMOND_LESS_CHEST_ARMOR = 12;
+    private static final double DIAMOND_LESS_CHEST_TOUGHNESS = 6;
+    /** Ticks past any armor refresh the rally runs, so the cow has read the caster's new gear. */
+    private static final int PAST_THE_ARMOR_REFRESH_TICKS = 50;
+    private static final double ATTRIBUTE_TOLERANCE = 1e-6;
+    private static final String ARMOR_STANDS = "The cow's %s should stand at %s, stands %s";
+
+    /**
+     * A caster in full diamond rallies a cow, which wears half the caster's
+     * armor and toughness; the caster sheds its chestplate and the cow's armor
+     * follows; the caster strikes the cow and its armor returns to a cow's own
+     * (decision rally-minions-get-half-your-armor-and-a-floor).
+     *
+     * @param helper the gametest helper
+     */
+    public static void rallyCowWearsHalfItsRalliersArmor(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
+        wear(caster, FULL_DIAMOND_ARMOR, FULL_DIAMOND_TOUGHNESS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+
+        rally(helper, cow, caster);
+
+        assertAttribute(helper, cow, Attributes.ARMOR, FULL_DIAMOND_ARMOR / 2);
+        assertAttribute(helper, cow, Attributes.ARMOR_TOUGHNESS, FULL_DIAMOND_TOUGHNESS / 2);
+        wear(caster, DIAMOND_LESS_CHEST_ARMOR, DIAMOND_LESS_CHEST_TOUGHNESS);
+        helper.runAfterDelay(PAST_THE_ARMOR_REFRESH_TICKS, () -> {
+            assertAttribute(helper, cow, Attributes.ARMOR, DIAMOND_LESS_CHEST_ARMOR / 2);
+            assertAttribute(helper, cow, Attributes.ARMOR_TOUGHNESS, DIAMOND_LESS_CHEST_TOUGHNESS / 2);
+            cow.hurtServer(helper.getLevel(), cow.damageSources().playerAttack(caster), LIGHT_HIT);
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertFalse(cow.hasData(GooAttachments.RALLIED), RALLY_SURVIVED_THE_HIT);
+            assertAttribute(helper, cow, Attributes.ARMOR, cow.getAttributeBaseValue(Attributes.ARMOR));
+            assertAttribute(helper, cow, Attributes.ARMOR_TOUGHNESS,
+                    cow.getAttributeBaseValue(Attributes.ARMOR_TOUGHNESS));
+            helper.succeed();
+        });
+    }
+
+    private static void wear(ServerPlayer caster, double armor, double toughness) {
+        lift(caster.getAttribute(Attributes.ARMOR), armor);
+        lift(caster.getAttribute(Attributes.ARMOR_TOUGHNESS), toughness);
+    }
+
+    private static void lift(AttributeInstance attribute, double amount) {
+        attribute.addOrUpdateTransientModifier(new AttributeModifier(CASTER_GEAR, amount,
+                AttributeModifier.Operation.ADD_VALUE));
+    }
+
+    private static void assertAttribute(GameTestHelper helper, Mob mob, Holder<Attribute> attribute,
+                                        double expected) {
+        double stands = mob.getAttributeValue(attribute);
+        helper.assertTrue(Math.abs(stands - expected) < ATTRIBUTE_TOLERANCE,
+                String.format(ARMOR_STANDS, attribute.getRegisteredName(), expected, stands));
     }
 
     private static final String RALLY_TAKES_ONE_OF_TWO_COWS = "rally_takes_one_of_two_cows";
