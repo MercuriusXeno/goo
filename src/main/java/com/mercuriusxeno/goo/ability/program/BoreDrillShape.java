@@ -120,19 +120,37 @@ public record BoreDrillShape(double width, double length, double angle, double p
      * @return the cells, the center's first, each once
      */
     public List<BlockPos> cellsCrossedAt(Vec3 center, Vec3 look, boolean gloveRight) {
-        Vec3 along = towardTheBlob(look, gloveRight);
-        Vec3 across = look.cross(along).normalize();
         Vec3 nudged = center.add(look.scale(NUDGE));
         Set<BlockPos> cells = new LinkedHashSet<>();
         cells.add(BlockPos.containing(nudged));
         for (int ring = 1; ring <= RINGS; ring++) {
-            double share = (double) ring / RINGS;
-            for (int turn = 0; turn < TURNS; turn++) {
-                double radians = FULL_TURN * turn / TURNS;
-                cells.add(BlockPos.containing(nudged.add(along.scale(Math.cos(radians) * longHalf() * share))
-                        .add(across.scale(Math.sin(radians) * shortHalf() * share))));
+            for (Vec3 offset : rimOffsets(look, gloveRight, TURNS, (double) ring / RINGS)) {
+                cells.add(BlockPos.containing(nudged.add(offset)));
             }
         }
         return List.copyOf(cells);
+    }
+
+    /**
+     * Points spaced evenly round the cross section's rim, or round a smaller
+     * ellipse of the same shape, as offsets from its center in the plane
+     * square to the look.
+     *
+     * @param look       the unit look
+     * @param gloveRight whether the glove is in the right hand
+     * @param count      how many points
+     * @param share      the share of the cross section's size, 1 for its rim
+     * @return the offsets
+     */
+    public List<Vec3> rimOffsets(Vec3 look, boolean gloveRight, int count, double share) {
+        Vec3 along = towardTheBlob(look, gloveRight);
+        Vec3 across = look.cross(along).normalize();
+        Vec3[] offsets = new Vec3[count];
+        for (int turn = 0; turn < count; turn++) {
+            double radians = FULL_TURN * turn / count;
+            offsets[turn] = along.scale(Math.cos(radians) * longHalf() * share)
+                    .add(across.scale(Math.sin(radians) * shortHalf() * share));
+        }
+        return List.of(offsets);
     }
 }

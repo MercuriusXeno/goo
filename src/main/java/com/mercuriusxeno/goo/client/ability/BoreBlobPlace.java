@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.program.BoreStep;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.network.KnifeRainSling;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
@@ -144,7 +145,7 @@ public final class BoreBlobPlace {
         }
         ClientAbility ability = BlobRest.selectedAbility(caster);
         double reach = ability == null ? 0 : ability.delivery().reachingTo(caster.blockInteractionRange()).range();
-        Vec3 point = BoreDrill.pointAhead(mc.level, sight, bore, reach);
+        Vec3 point = BoreDrill.pointAhead(mc.level, sight, bore, KnifeRainSling.gloveOnTheRight(caster), reach);
         return placeFor(sight.eye(), sight.look(), point, rest, bore.shape().length(), bore.shape().angle());
     }
 

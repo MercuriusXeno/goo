@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.program.BoreDrillShape;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
@@ -56,8 +57,8 @@ class BoreContactSprayTest {
         Vec3 look = new Vec3(0, 0, 1);
         Vec3 blob = eye.add(-0.4, -0.35, 0.6);
         BlockPos stone = new BlockPos(0, 65, 3);
-        Vec3 point = BoreDrill.pointOf(new CameraEye.Sight(eye, look), REACH, cell -> !cell.equals(stone),
-                stone::equals);
+        Vec3 point = BoreDrill.pointOf(new CameraEye.Sight(eye, look), REACH, BoreDrillShape.SHIPPED, true,
+                cell -> !cell.equals(stone), stone::equals);
         ConeSections.Volume drawn = BoreDrill.volume(blob, point, 0f, POINT_RADIUS);
         Vec3 contact = BoreContactSpray.contactOf(drawn);
         assertEquals(0, contact.distanceTo(drawn.apex().add(drawn.axis().scale(drawn.range()))), SLACK);

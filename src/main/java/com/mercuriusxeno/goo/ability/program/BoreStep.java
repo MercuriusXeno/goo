@@ -155,34 +155,42 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, double pointRadius,
     }
 
     /**
-     * Where the bore's point stands along an eye line: the point its pick
-     * breaks at, which the drawn drill narrows to.
+     * Where the bore's cross section lands on a breakable block it picks:
+     * its center on the eye line at the depth the tube sets, and the first
+     * block it picks.
      * decision bore-drill-point-floats-along-the-crosshair-to-the-aimed-block
      *
-     * @param eye       the eye the line runs from
-     * @param reachEnd  the end of the reach along the look
-     * @param air       whether a cell holds air
-     * @param breakable whether a cell holds a block in the tag
-     * @return the point, empty where the line meets no breakable block within the reach
+     * @param eye        the eye the tube runs from
+     * @param reachEnd   the end of the reach along the look
+     * @param shape      the drill cone
+     * @param gloveRight whether the glove is in the right hand
+     * @param air        whether a cell holds air
+     * @param breakable  whether a cell holds a block in the tag
+     * @return the landing, empty where the cross section picks no block
      */
-    public static Optional<BorePoint> pointOf(Vec3 eye, Vec3 reachEnd, Predicate<BlockPos> air,
-                                              Predicate<BlockPos> breakable) {
-        return BorePick.pointOf(eye, reachEnd, air, breakable);
+    public static Optional<BorePoint> pointOf(Vec3 eye, Vec3 reachEnd, BoreDrillShape shape, boolean gloveRight,
+                                              Predicate<BlockPos> air, Predicate<BlockPos> breakable) {
+        return BorePick.pointOf(eye, reachEnd, shape, gloveRight, air, breakable);
     }
 
     /**
-     * Where the bore's eye line stops: at its point on a breakable block, at
-     * the first solid block outside the tag, or at the end of the reach, so a
-     * drill drawn to it never runs into a block it does not break.
+     * Where the bore's cross section stands: on the eye line at the depth the
+     * tube of rays sets, a breakable block and a solid block outside the tag
+     * alike, or at the end of the reach, so a drill drawn to it never runs
+     * into a block it does not break.
+     * decision bore-tube-rays-set-the-depth-of-the-cross-section
      *
-     * @param eye       the eye the line runs from
-     * @param reachEnd  the end of the reach along the look
-     * @param air       whether a cell holds air
-     * @param breakable whether a cell holds a block in the tag
-     * @return where the line stops
+     * @param eye        the eye the tube runs from
+     * @param reachEnd   the end of the reach along the look
+     * @param shape      the drill cone whose cross section sizes the tube
+     * @param gloveRight whether the glove is in the right hand
+     * @param air        whether a cell holds air
+     * @param breakable  whether a cell holds a block in the tag
+     * @return the cross section's center
      */
-    public static Vec3 stopOf(Vec3 eye, Vec3 reachEnd, Predicate<BlockPos> air, Predicate<BlockPos> breakable) {
-        return BorePick.stopOf(eye, reachEnd, air, breakable);
+    public static Vec3 stopOf(Vec3 eye, Vec3 reachEnd, BoreDrillShape shape, boolean gloveRight,
+                              Predicate<BlockPos> air, Predicate<BlockPos> breakable) {
+        return BorePick.stopOf(eye, reachEnd, shape, gloveRight, air, breakable);
     }
 
     /**
