@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.model;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.throwing.BlobShape;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooJoinPayload;
@@ -188,8 +189,8 @@ public final class GooJoins {
         poseStack.scale(stretch(halfSpan.x, halfWidth), stretch(halfSpan.y, halfWidth),
                 stretch(halfSpan.z, halfWidth));
         GooFlightRenderer.emitCore(poseStack.last(), buffers.getBuffer(GooSubmitter.solidOnBlockAtlas()), type,
-                gameTime, 1f);
-        GooFlightRenderer.emitShell(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()), type, 1f);
+                gameTime, BlobShape.CUBE);
+        GooFlightRenderer.emitShell(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()), type, BlobShape.CUBE);
         poseStack.popPose();
     }
 
