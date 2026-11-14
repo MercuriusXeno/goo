@@ -67,6 +67,24 @@ record BorePick(List<BlockPos> blocks, List<BlockPos> tunnel) {
         return pointAt(crossed, firstMet(crossed, air, breakable), eye, reachEnd, breakable);
     }
 
+    /**
+     * Where an eye line stops: where it enters the first block past the eye's
+     * own that is not air, breakable or not, so a drill drawn to it never runs
+     * into a block it cannot break.
+     *
+     * @param eye       the eye the line runs from
+     * @param reachEnd  the end of the reach along the look
+     * @param air       whether a cell holds air
+     * @param breakable whether a cell holds a block in the tag
+     * @return where the line enters that block, or the end of the reach where it meets none
+     */
+    static Vec3 stopOf(Vec3 eye, Vec3 reachEnd, Predicate<BlockPos> air, Predicate<BlockPos> breakable) {
+        List<BlockPos> crossed = BoreStep.blocksAlong(eye, reachEnd);
+        int met = firstMet(crossed, air, breakable);
+        return met == crossed.size() ? reachEnd
+                : new AABB(crossed.get(met)).clip(eye, reachEnd).orElse(Vec3.atCenterOf(crossed.get(met)));
+    }
+
     private static Optional<BorePoint> pointAt(List<BlockPos> crossed, int met, Vec3 eye, Vec3 reachEnd,
                                                Predicate<BlockPos> breakable) {
         if (met == crossed.size() || !breakable.test(crossed.get(met))) {
