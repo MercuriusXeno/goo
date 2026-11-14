@@ -83,7 +83,7 @@ class AbilityBadgeTest {
 
     /**
      * The badges a shipped ability may wear, read from its own fields: channeled for a stream or for any delivery that charges or writes a hold's ticks
-     * per charge, durative for a self delivery paying upkeep, instant for any other self delivery,
+     * per charge, save the charm-like cast, which takes a mob and wears mob, durative for a self delivery paying upkeep, instant for any other self delivery,
      * and for a thrown ability mob where it targets entities and world elsewhere. Free and
      * prism are carried by the badge alone, since no field marks them, so a thrown ability
      * wearing either passes on its badge.
@@ -96,6 +96,8 @@ class AbilityBadgeTest {
         boolean holds = definition.delivery().charges() || delivery.has(TICKS_PER_CHARGE_FIELD);
         return switch (definition.delivery().kind()) {
             case STREAM -> EnumSet.of(AbilityBadge.CHANNELED);
+            // charm-like-abilities-lock-the-highlighted-mob-on-right-click: its wind-up charges, yet it takes a mob
+            case ENVELOP -> EnumSet.of(AbilityBadge.MOB);
             // self-effects-trickle-until-ended
             case SELF -> EnumSet.of(definition.upkeep().in(GooValueTable.EMPTY) > AbilityDefinition.NO_UPKEEP ? AbilityBadge.DURATIVE
                     : holds ? AbilityBadge.CHANNELED : AbilityBadge.SELF);

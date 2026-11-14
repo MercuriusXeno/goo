@@ -346,14 +346,27 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
     }
 
     /**
-     * Whether the throw's path is a straight line with no peak: a beam's, or
-     * a rolling goo's, which flies with no gravity, so its aim previews
-     * straight (decision orb-carries-a-swirling-nova).
+     * Whether the delivery is the charm-like cast: the press takes the
+     * highlighted mob, the release darts the blob straight to it and envelops it.
+     * charm-like-abilities-lock-the-highlighted-mob-on-right-click
      *
-     * @return true for a beam or a rolling delivery
+     * @return true for an envelop delivery
+     */
+    public boolean envelops() {
+        return kind == DeliveryKind.ENVELOP;
+    }
+
+    /**
+     * Whether the throw's path is a straight line with no peak: a beam's, a
+     * rolling goo's, which flies with no gravity, so its aim previews
+     * straight (decision orb-carries-a-swirling-nova), or the blob darting
+     * to the mob a charm-like cast took.
+     * charm-like-abilities-lock-the-highlighted-mob-on-right-click
+     *
+     * @return true for a beam, a rolling delivery or an envelop
      */
     public boolean aimsStraight() {
-        return fliesStraight() || rolls();
+        return fliesStraight() || rolls() || envelops();
     }
 
     /**
@@ -381,10 +394,12 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
     }
 
     /**
-     * The ticks a flight takes to cover a distance: a beam at its speed, an
-     * arc by the thrown type's flight time, or by its top speed where that
-     * flies it slower, so the eye follows a dart across its arc.
+     * The ticks a flight takes to cover a distance: a beam, or an envelop's
+     * darting blob, at its speed, an arc by the thrown type's flight time, or
+     * by its top speed where that flies it slower, so the eye follows a dart
+     * across its arc.
      * dart-flies-at-a-speed-you-can-follow
+     * charm-like-abilities-lock-the-highlighted-mob-on-right-click
      *
      * @param distance       world-space distance in blocks
      * @param levity         the thrown type's multiplier on the root of distance
@@ -392,7 +407,7 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
      * @return travel ticks, always at least 1
      */
     public int travelTicks(double distance, float levity, int baseFlightTime) {
-        if (fliesStraight()) {
+        if (fliesStraight() || envelops()) {
             return (int) Math.max(1, Math.ceil(distance / blocksPerTick));
         }
         int typeTicks = (int) ThrowArc.travelTicks(distance, levity, baseFlightTime);

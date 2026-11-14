@@ -32,6 +32,25 @@ public final class MobCoats {
     /** Game ticks a splat stands in all, from its hit until it has dissolved. */
     public static final int COAT_LIFE_TICKS = COAT_HOLD_TICKS + COAT_DISSOLVE_TICKS;
 
+    /**
+     * Game ticks an envelop takes to spread from the mob's middle over its
+     * whole body, a quarter second, as the darting blob bursts over it.
+     * charm-like-abilities-lock-the-highlighted-mob-on-right-click
+     */
+    public static final int ENVELOP_SPREAD_TICKS = 5;
+
+    /**
+     * The reach in blocks a splat covers whole, its noise never breaking the
+     * edge inside it: SPLAT_RADIUS less EDGE_NOISE of it, as goo_mob_coat.fsh names them.
+     */
+    static final double WHOLE_REACH_BLOCKS = 0.25 * (1 - 0.45);
+
+    /** Half of a length, the box's middle to its corner being half its diagonal. */
+    private static final double HALF = 0.5;
+
+    /** The reach scale of a splat, which covers the half block around its hit point. */
+    public static final float SPLAT_REACH = 1f;
+
     /** The client's splats. */
     public static final MobCoats CLIENT = new MobCoats();
 
@@ -46,19 +65,22 @@ public final class MobCoats {
         private final ResourceKey<GooTypeDefinition> gooType;
         private final long hitTick;
         private final Vec3 aimDirection;
+        private final float reachScale;
         private Vec3 hitPoint;
         private Vec3 hitFromFeet;
         private float bodyYawAtHit;
         private ModelRay.@Nullable PartHit pin;
 
         /**
-         * @param gooType the goo type it is splatted in
-         * @param hitTick the game tick of its hit
-         * @param strike  where and how the goo struck
+         * @param gooType    the goo type it is splatted in
+         * @param hitTick    the game tick of its hit
+         * @param strike     where and how the goo struck
+         * @param reachScale how many times a splat's reach it covers, SPLAT_REACH for a splat
          */
-        Coat(ResourceKey<GooTypeDefinition> gooType, long hitTick, Strike strike) {
+        Coat(ResourceKey<GooTypeDefinition> gooType, long hitTick, Strike strike, float reachScale) {
             this.gooType = gooType;
             this.hitTick = hitTick;
+            this.reachScale = reachScale;
             this.aimDirection = strike.aimDirection();
             this.hitPoint = strike.hitPoint();
             this.hitFromFeet = strike.hitPoint().subtract(strike.struck().feet());
@@ -91,6 +113,31 @@ public final class MobCoats {
          */
         public static float dissolveProgress(float ageTicks) {
             return Math.clamp((ageTicks - COAT_HOLD_TICKS) / COAT_DISSOLVE_TICKS, 0f, 1f);
+        }
+
+        /**
+         * How far the coat has dissolved at an age: a splat by its dissolve,
+         * an envelop besides spreading out from the mob's middle over its
+         * first ticks, so it reads as the goo bursting over the mob.
+         * charm-like-abilities-lock-the-highlighted-mob-on-right-click
+         *
+         * @param ageTicks game ticks since its hit, with the partial tick
+         * @return 0 where it stands whole, 1 where nothing of it shows
+         */
+        public float dissolveAt(float ageTicks) {
+            float kept = 1f - dissolveProgress(ageTicks);
+            float spread = envelops() ? Math.clamp(ageTicks / ENVELOP_SPREAD_TICKS, 0f, 1f) : 1f;
+            return 1f - kept * spread;
+        }
+
+        /** @return how many times a splat's reach it covers, SPLAT_REACH for a splat */
+        public float reachScale() {
+            return reachScale;
+        }
+
+        /** @return whether it envelops the whole mob rather than splatting around its hit point */
+        public boolean envelops() {
+            return reachScale > SPLAT_REACH;
         }
 
         /** @return the goo type it is splatted in */
@@ -164,9 +211,43 @@ public final class MobCoats {
      * @param strike   where and how the goo struck
      */
     public void coat(int entityId, ResourceKey<GooTypeDefinition> gooType, long hitTick, Strike strike) {
-        dropDissolved(hitTick);
+        add(entityId, new Coat(gooType, hitTick, strike, SPLAT_REACH));
+    }
+
+    /**
+     * Envelops a mob whole in the goo, the coat struck at its middle and
+     * reaching every corner of its box, beside the splats it wears.
+     * charm-like-abilities-lock-the-highlighted-mob-on-right-click
+     *
+     * @param entityId the enveloped entity's id
+     * @param gooType  the goo type it is enveloped in
+     * @param hitTick  the game tick the dart landed
+     * @param middle   the mob's middle, where the coat is struck, carrying no aim
+     * @param width    the mob's box width in blocks
+     * @param height   the mob's box height in blocks
+     */
+    public void envelop(int entityId, ResourceKey<GooTypeDefinition> gooType, long hitTick, Strike middle,
+                        double width, double height) {
+        add(entityId, new Coat(gooType, hitTick, middle, envelopReach(width, height)));
+    }
+
+    /**
+     * The reach scale that covers a mob's box whole from its middle: the
+     * half diagonal of the box over the reach a splat covers whole.
+     *
+     * @param width  the box width in blocks
+     * @param height the box height in blocks
+     * @return the scale, never below a splat's own
+     */
+    static float envelopReach(double width, double height) {
+        double halfDiagonal = Math.sqrt(width * width + width * width + height * height) * HALF;
+        return (float) Math.max(SPLAT_REACH, halfDiagonal / WHOLE_REACH_BLOCKS);
+    }
+
+    private void add(int entityId, Coat coat) {
+        dropDissolved(coat.hitTick());
         Deque<Coat> splats = coats.computeIfAbsent(entityId, id -> new ArrayDeque<>());
-        splats.addLast(new Coat(gooType, hitTick, strike));
+        splats.addLast(coat);
         while (splats.size() > MAX_SPLATS_PER_MOB) {
             splats.removeFirst();
         }

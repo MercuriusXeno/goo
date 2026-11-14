@@ -135,7 +135,8 @@ public final class SplatDrips {
         RandomGenerator random = RandomGenerator.getDefault();
         MobCoats.CLIENT.forEachStanding(tick, (entityId, coat) -> {
             Entity mob = level.getEntity(entityId);
-            if (mob == null) {
+            // an envelop is struck at the mob's middle, inside its body, where no drip would show
+            if (mob == null || coat.envelops()) {
                 return;
             }
             Vec3 hitPoint = coat.hitPointOn(stanceOf(mob));
