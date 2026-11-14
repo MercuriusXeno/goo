@@ -205,7 +205,8 @@ public final class MobCoatLayer<S extends LivingEntityRenderState, M extends Ent
         ModelRay.PartHit pin = coat.pin();
         if (pin == null) {
             Vec3 camera = Minecraft.getInstance().gameRenderer.getMainCamera().position();
-            pin = aimedModelHit(ModelRay.cubesOf(model.root()), rootPose, coat.hitPoint(), coat.aimDirection(),
+            // diagnose-and-correct-the-floating-hat-brim-box: a splat pins to no part the skin leaves bare
+            pin = aimedModelHit(EncasedBodies.drawnCubes(model), rootPose, coat.hitPoint(), coat.aimDirection(),
                     camera);
             Vector3f world = new Matrix4f(rootPose).mul(pinFrame(model.root(), pin))
                     .transformPosition(pin.partPoint(), new Vector3f());
