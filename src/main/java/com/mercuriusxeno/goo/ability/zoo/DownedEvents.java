@@ -18,12 +18,13 @@ import java.util.WeakHashMap;
 
 /**
  * Lays a rallied mob downed where an attack would kill it, carrying the
- * negative health the blow left it, holds attacks and
- * falls off it through its immunity, and kills it once its death span runs
- * out unhealed. The world's harm kills a rallied mob outright, and a mob
- * already down that dies, dies. Downed outlasts the rally: ending the rally
- * leaves the fall and its timers standing.
+ * negative health the blow left it, holds attacks and falls off it for as
+ * long as it is down, and kills it once its death span runs out unhealed.
+ * The world's harm kills a rallied mob outright, and kills a mob already
+ * down. Downed outlasts the rally: ending the rally leaves the fall and its
+ * timers standing.
  * rallied-mob-falls-downed-instead-of-dying
+ * no-attack-lands-on-a-downed-mob
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class DownedEvents {
@@ -96,16 +97,16 @@ public final class DownedEvents {
     }
 
     /**
-     * Cancels an attack or a fall on a downed mob inside its immunity.
+     * Cancels an attack or a fall on a downed mob, at any time down, so
+     * neither moves its negative health.
+     * no-attack-lands-on-a-downed-mob
      *
      * @param event the incoming damage event, before the damage lands
      */
     @SubscribeEvent
     public static void onIncomingDamage(LivingIncomingDamageEvent event) {
         if (event.getEntity() instanceof Mob mob && !mob.level().isClientSide()
-                && mob.hasData(GooAttachments.DOWNED)
-                && Downed.negates(mob.getData(GooAttachments.DOWNED).ticksDown(mob.level().getGameTime()),
-                event.getSource())) {
+                && mob.hasData(GooAttachments.DOWNED) && Downed.negates(event.getSource())) {
             event.setCanceled(true);
         }
     }

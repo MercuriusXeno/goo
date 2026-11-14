@@ -57,8 +57,8 @@ public final class DownedRaiseTests {
     private static final float STREAM_BLOW = 3.5f;
     /** A hit too light to down the raised cow again. */
     private static final float LIGHT_HIT = 0.5f;
-    /** Past the hurt frames the downing blow leaves, inside the 5 second immunity. */
-    private static final int INSIDE_THE_WINDOW_TICKS = 40;
+    /** Past the hurt frames the downing blow leaves. */
+    private static final int RAISED_AFTER_TICKS = 40;
     /** West of the downed cow, two blocks off, where the healer stands facing it. */
     private static final BlockPos HEALER_POS = new BlockPos(0, 1, 3);
     /** The yaw a player faces east, toward +x, at. */
@@ -173,7 +173,7 @@ public final class DownedRaiseTests {
     }
 
     /**
-     * A downed cow raised inside its 5 second window takes an attack's
+     * A downed cow raised 2 seconds after going down takes an attack's
      * damage, and a zombie takes it as a target.
      *
      * @param helper the gametest helper
@@ -182,7 +182,7 @@ public final class DownedRaiseTests {
         Zombie zombie = DownedTests.attacker(helper);
         Cow cow = DownedTests.ralliedCow(helper);
         DownedTests.downTo(helper, cow, zombie, HEALTH_BEFORE_THE_BLOW, BLOW_PAST_ITS_HEALTH);
-        helper.runAfterDelay(INSIDE_THE_WINDOW_TICKS, () -> {
+        helper.runAfterDelay(RAISED_AFTER_TICKS, () -> {
             cow.heal(PAST_ZERO_HEAL);
             float raised = cow.getHealth();
             cow.hurtServer(helper.getLevel(), zombie.damageSources().mobAttack(zombie), LIGHT_HIT);
