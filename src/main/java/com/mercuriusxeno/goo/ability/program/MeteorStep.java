@@ -10,7 +10,8 @@ import java.util.stream.Stream;
  * Calls a meteor down toward where the blob lands: it falls from high above,
  * from rest and gathering speed, over its fall time, and explodes with the
  * named power on the first block in its path, the cover over a covered
- * landing. Meteo is {@code meteor power=4 fall_ticks=40}.
+ * landing. Meteo is {@code meteor power=4 fall_ticks=20}, a one second fall
+ * (decision meteor-lands-one-second-after-release).
  * decision meteo-winds-up-then-drops-in-a-second-trailing-fire
  * decision meteo-crashes-through-whatever-is-above
  *

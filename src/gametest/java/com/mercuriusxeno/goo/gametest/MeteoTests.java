@@ -53,6 +53,44 @@ public final class MeteoTests {
         GooTestFunctions.registerTest(registrar, METEO_CALLS_ON_THE_RELEASE_TICK,
                 MeteoTests::meteoCallsTheMeteorOnTheReleaseTick);
         GooTestFunctions.registerTest(registrar, METEO_RELEASE_LEAVES_NO_SPLAT, MeteoTests::meteoReleaseLeavesNoSplat);
+        GooTestFunctions.registerTest(registrar, METEOR_LANDS_A_SECOND_AFTER_RELEASE,
+                MeteoTests::meteorLandsASecondAfterRelease);
+    }
+
+    private static final String METEOR_LANDS_A_SECOND_AFTER_RELEASE = "meteor_lands_a_second_after_release";
+    /** The tick before the meteor's one second fall ends, when it still flies over standing ground. */
+    private static final int STILL_FALLING = 19;
+    /** The tick after its one second fall ends, by which its crater is cut. */
+    private static final int CRATERED = 21;
+
+    /**
+     * Released at open ground, the shipped Meteo's meteor still flies over
+     * standing ground 19 ticks on and has cut its crater by 21.
+     * decision meteor-lands-one-second-after-release
+     *
+     * @param helper the gametest helper
+     */
+    public static void meteorLandsASecondAfterRelease(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        AbilityDefinition meteo = AbilityRegistry.of(level).getAbility(ASTRAL_METEO);
+        helper.assertTrue(meteo != null, ABILITY_REQUIRED);
+        BlockPos ground = helper.absolutePos(GROUND);
+        level.setBlockAndUpdate(ground, Blocks.STONE.defaultBlockState());
+        openCageRoofOver(level, ground);
+        ServerPlayer player = StackKeyTests.makeThrower(helper, GooTypes.ASTRAL);
+        KnownRecipes.teachRequires(player, meteo);
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.ASTRAL, meteo.cost().in(GooValueTable.EMPTY)));
+        GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.ASTRAL), NO_TARGET_ENTITY,
+                ground, Direction.UP.ordinal(), false, ASTRAL_METEO.toString(), player.getEyePosition()));
+        level.getServer().getPlayerList().remove(player);
+        helper.runAfterDelay(STILL_FALLING, () -> {
+            helper.assertTrue(!meteorsOver(level, ground).isEmpty(), "The meteor should still fall at tick 19");
+            helper.assertTrue(level.getBlockState(ground).is(Blocks.STONE), "The ground should stand at tick 19");
+        });
+        helper.runAfterDelay(CRATERED, () -> {
+            helper.assertTrue(level.getBlockState(ground).isAir(), String.format(SHOULD_CRATER, ground));
+            helper.succeed();
+        });
     }
 
     private static final String METEO_RELEASE_LEAVES_NO_SPLAT = "meteo_release_leaves_no_splat";
