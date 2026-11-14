@@ -2,7 +2,11 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.program.SimpleParticles;
 import com.mercuriusxeno.goo.client.particle.BlendPalette;
+import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.client.model.GloveSpecialRenderer;
+import com.mercuriusxeno.goo.client.particle.SporeParticle;
 import com.mercuriusxeno.goo.client.particle.SprayDripParticle;
+import com.mercuriusxeno.goo.network.GooStreamHandler;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mercuriusxeno.goo.network.KnifeRainSling;
@@ -15,6 +19,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.ParticleEngine;
+import net.minecraft.client.particle.SingleQuadParticle;
 import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.GameRenderer;
@@ -45,6 +50,7 @@ import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -82,7 +88,20 @@ class StreamMotesTest {
     private static final double FIRST_TICK = 2;
     private static final float PARTIAL_TICK = 0.5f;
     /** Goop's throw speed, blocks per tick. */
-    private static final double THROW_SPEED = 0.6;
+    private static final double THROW_SPEED = 0.84;
+    /** The spray's axis, south and down. */
+    private static final Vec3 SPRAY_AXIS = new Vec3(0, -0.5, 1).normalize();
+    private static final double CONE_DEGREES = 16;
+    /** How far a drawn drip's launch may stray from its share's: double rounding. */
+    private static final double SAME_LAUNCH = 1e-9;
+    /** A sprint-jumping player's average speed, about 7.1 blocks a second, in blocks a tick. */
+    private static final double SPRINT_JUMPING = 0.355;
+    /** Where the first-person glove's goo draws off the eye: ahead, out to the right and down. */
+    private static final Vec3 GLOVE_OFF_THE_EYE = new Vec3(-0.35, -0.4, 0.6);
+    /** How far behind the glove a mote may draw before it reads as left behind: a mote quad's width. */
+    private static final double BEHIND_SLACK = 0.1;
+    /** The least gap between two of a tick's drawn drips, past a drip quad's half-width. */
+    private static final double DRIP_SPACING = 0.1;
     /** How far a drip's first drawn quad may stray from half its launch out of the blob: the quad's float precision. */
     private static final double ON_THE_LAUNCH = 1e-3;
     /** How far short of the spray source the blob stands while it still eases off the palm. */
@@ -95,20 +114,19 @@ class StreamMotesTest {
     /**
      * A caster over time, in ticks from the launch.
      *
-     * @param eye    where the eye stands
-     * @param yaw    the look's yaw in degrees
-     * @param travel the travel velocity the server sent, blocks per tick
+     * @param eye where the eye stands
+     * @param yaw the look's yaw in degrees
      */
-    private record Caster(DoubleFunction<Vec3> eye, DoubleFunction<Float> yaw, Vec3 travel) {
+    private record Caster(DoubleFunction<Vec3> eye, DoubleFunction<Float> yaw) {
     }
 
     private static Caster moving(Vec3 travel) {
-        return new Caster(time -> EYE.add(travel.scale(time)), time -> 0f, travel);
+        return new Caster(time -> EYE.add(travel.scale(time)), time -> 0f);
     }
 
     /** A caster turning ten degrees a tick. */
     private static Caster turning() {
-        return new Caster(time -> EYE, time -> (float) (10 * time), Vec3.ZERO);
+        return new Caster(time -> EYE, time -> (float) (10 * time));
     }
 
     /**
@@ -159,11 +177,117 @@ class StreamMotesTest {
         assertFirstDrawnInFlightFromTheBlob(turning(), false);
     }
 
-    private static void assertFirstDrawnInFlightFromTheBlob(Caster caster, boolean local) {
+    @Test
+    void aMovingAndRisingCastersDrawnDripsLaunchAtTheirSharesLaunchAlone() {
+        Caster caster = moving(new Vec3(SPEED, 0.42, -SPEED));
+        Minecraft minecraft = clientDrawing(new ArrayList<>(), caster, true, new double[] {0});
+        whileDrawing(minecraft, new ArrayList<>(), () -> StreamMotes.handle(sprayTick(caster), runningAtOnce()));
+
+        ArgumentCaptor<Double> x = ArgumentCaptor.forClass(Double.class);
+        ArgumentCaptor<Double> y = ArgumentCaptor.forClass(Double.class);
+        ArgumentCaptor<Double> z = ArgumentCaptor.forClass(Double.class);
+        verify(minecraft.particleEngine, atLeastOnce()).createParticle(any(), anyDouble(), anyDouble(), anyDouble(),
+                x.capture(), y.capture(), z.capture());
+        List<Vec3> shareLaunches = CoatRay.coneFan().stream()
+                .map(share -> DripArc.launch(SPRAY_AXIS, CONE_DEGREES, share, THROW_SPEED)).toList();
+        for (int i = 0; i < x.getAllValues().size(); i++) {
+            Vec3 drawn = new Vec3(x.getAllValues().get(i), y.getAllValues().get(i), z.getAllValues().get(i));
+            assertTrue(shareLaunches.stream().anyMatch(launch -> launch.distanceTo(drawn) <= SAME_LAUNCH),
+                    "a drawn drip should launch at its share's launch, one of " + shareLaunches + ", launches at "
+                            + drawn);
+        }
+    }
+
+    @Test
+    void aTicksDripsStandApartSoNoTwoDrawInOnePlane() {
+        Caster caster = moving(new Vec3(0, 0, SPEED));
         double[] now = {0};
         List<SprayDripParticle> drips = new ArrayList<>();
-        List<Vec3> launches = new ArrayList<>();
-        Minecraft minecraft = clientDrawing(drips, caster, local, now);
+        Minecraft minecraft = clientDrawing(drips, caster, true, now);
+        whileDrawing(minecraft, new ArrayList<>(), () -> {
+            StreamMotes.handle(sprayTick(caster), runningAtOnce());
+            now[0] = FIRST_TICK;
+            List<Vec3> drawn = new ArrayList<>();
+            for (SprayDripParticle drip : drips) {
+                drip.tick();
+                drawn.add(drawnAt(drip, PARTIAL_TICK));
+            }
+            for (int i = 0; i < drawn.size(); i++) {
+                for (int j = i + 1; j < drawn.size(); j++) {
+                    assertTrue(drawn.get(i).distanceTo(drawn.get(j)) >= DRIP_SPACING, "two of a tick's drips should"
+                            + " stand apart, drawn at " + drawn.get(i) + " and " + drawn.get(j));
+                }
+            }
+        });
+    }
+
+    @Test
+    void aSprintJumpingCastersSporeIsNeverDrawnBehindTheGlove() {
+        Caster caster = moving(new Vec3(0, 0, SPRINT_JUMPING));
+        double[] now = {0};
+        Minecraft minecraft = clientDrawing(new ArrayList<>(), caster, true, now);
+        List<SporeParticle> spores = makingSpores(minecraft);
+        try (MockedStatic<GloveSpecialRenderer> drawnGlove = mockStatic(GloveSpecialRenderer.class)) {
+            drawnGlove.when(GloveSpecialRenderer::getLastGooCenterCamRel).thenReturn(GLOVE_OFF_THE_EYE);
+            whileDrawing(minecraft, new ArrayList<>(), () -> {
+                StreamMotes.handle(sporeTick(caster), runningAtOnce());
+                assertTrue(!spores.isEmpty(), "the stream's tick should launch spores");
+                now[0] = FIRST_DRAWN;
+                assertNoneBehindTheGlove(spores, caster.eye().apply(now[0]).add(GLOVE_OFF_THE_EYE));
+                now[0] = FIRST_TICK;
+                spores.forEach(SporeParticle::tick);
+                assertNoneBehindTheGlove(spores, caster.eye().apply(now[0]).add(GLOVE_OFF_THE_EYE));
+            });
+        }
+    }
+
+    /** Asserts no spore a frame draws stands behind the glove along the caster's run, south. */
+    private static void assertNoneBehindTheGlove(List<SporeParticle> spores, Vec3 glove) {
+        for (SporeParticle spore : spores) {
+            if (quadsDrawn(spore) > 0) {
+                Vec3 drawn = drawnAt(spore, PARTIAL_TICK);
+                assertTrue(drawn.z >= glove.z - BEHIND_SLACK, "a spore should draw from the glove at " + glove
+                        + " or ahead of it, draws at " + drawn);
+            }
+        }
+    }
+
+    /** Hands the client's particle engine Mycosis's spores to make, collecting each it makes. */
+    private static List<SporeParticle> makingSpores(Minecraft minecraft) {
+        List<SporeParticle> spores = new ArrayList<>();
+        SpriteSet sprites = mock(SpriteSet.class);
+        when(sprites.get(anyInt(), anyInt())).thenReturn(mock(TextureAtlasSprite.class));
+        SporeParticle.Provider provider = new SporeParticle.Provider(sprites);
+        when(minecraft.particleEngine.createParticle(any(), anyDouble(), anyDouble(), anyDouble(), anyDouble(),
+                anyDouble(), anyDouble())).thenAnswer(call -> {
+                    SporeParticle spore = provider.createParticle(mock(SimpleParticleType.class), minecraft.level,
+                            call.getArgument(1), call.getArgument(2), call.getArgument(3), call.getArgument(4),
+                            call.getArgument(5), call.getArgument(6), RandomSource.create(2L));
+                    spores.add(spore);
+                    return spore;
+                });
+        return spores;
+    }
+
+    /** Mycosis's tick as the server sends it, its glove a tick behind, its spores sprayed to rest three blocks off. */
+    private static StreamMotesPayload sporeTick(Caster caster) {
+        return new StreamMotesPayload(CASTER, sourceOf(caster, -1), SPRAY_AXIS,
+                Identifier.fromNamespaceAndPath("goo", "spore"), 50, GooStreamHandler.restingSpeed(3),
+                Delivery.NO_THROW_SPEED, false);
+    }
+
+    /** The stream's tick as the server sends it for a caster, its glove a tick before the tick reaches the client. */
+    private static StreamMotesPayload sprayTick(Caster caster) {
+        return new StreamMotesPayload(CASTER, sourceOf(caster, -1), SPRAY_AXIS,
+                Identifier.fromNamespaceAndPath("goo", "goop_spray_drip"), CONE_DEGREES, 0, THROW_SPEED, false);
+    }
+
+    /**
+     * Runs a body with the client's statics standing in for the game: the
+     * client drawing, Goop's drip particle resolved, open air to fly through,
+     * the right glove held, and each launch DripArc answers recorded.
+     */
+    private static void whileDrawing(Minecraft minecraft, List<Vec3> launches, Runnable body) {
         try (MockedStatic<Minecraft> mc = mockStatic(Minecraft.class);
              MockedStatic<SimpleParticles> particles = mockStatic(SimpleParticles.class);
              MockedStatic<CoatRay> rays = mockStatic(CoatRay.class, CALLS_REAL_METHODS);
@@ -174,17 +298,24 @@ class StreamMotesTest {
             gloves.when(() -> GooGloveItem.getSelectedType(any())).thenReturn(GooTypes.ZOO);
             particles.when(() -> SimpleParticles.resolve(any())).thenReturn(Optional.of(mock(SimpleParticleType.class)));
             rays.when(() -> CoatRay.clipping(any())).thenReturn((CoatRay.BlockClip) (from, to) -> Optional.empty());
-            arcs.when(() -> DripArc.launch(any(), anyDouble(), any(), anyDouble(), any())).thenAnswer(call -> {
+            arcs.when(() -> DripArc.launch(any(), anyDouble(), any(), anyDouble())).thenAnswer(call -> {
                 Vec3 launch = (Vec3) call.callRealMethod();
                 launches.add(launch);
                 return launch;
             });
             sling.when(() -> KnifeRainSling.gloveOnTheRight(any())).thenReturn(true);
+            body.run();
+        }
+    }
 
+    private static void assertFirstDrawnInFlightFromTheBlob(Caster caster, boolean local) {
+        double[] now = {0};
+        List<SprayDripParticle> drips = new ArrayList<>();
+        List<Vec3> launches = new ArrayList<>();
+        Minecraft minecraft = clientDrawing(drips, caster, local, now);
+        whileDrawing(minecraft, launches, () -> {
             // the server's echo carries the glove a tick before the stream's tick reaches this client
-            StreamMotes.handle(new StreamMotesPayload(CASTER, sourceOf(caster, -1), new Vec3(0, -0.5, 1).normalize(),
-                    Identifier.fromNamespaceAndPath("goo", "goop_spray_drip"), 16, 0, caster.travel(), THROW_SPEED, false),
-                    runningAtOnce());
+            StreamMotes.handle(sprayTick(caster), runningAtOnce());
             now[0] = FIRST_DRAWN;
 
             assertTrue(!drips.isEmpty(), "the stream's tick should launch spray drips");
@@ -199,22 +330,40 @@ class StreamMotesTest {
             for (int i = 0; i < drips.size(); i++) {
                 SprayDripParticle drip = drips.get(i);
                 drip.tick();
+                double lead = (double) i / StreamMotes.MOTES_PER_TICK;
                 Vec3 left = drawnAt(drip, 0f);
-                assertTrue(left.distanceTo(blob) <= LEFT_THE_BLOB, "a drip should leave the blob where it stands, "
-                        + blob + ", left from " + left);
-                assertDrawnOnItsLaunch(drawnAt(drip, PARTIAL_TICK), blob, launches.get(i));
+                Vec3 onItsArc = arcFrom(blob, launches.get(i), lead);
+                assertTrue(left.distanceTo(onItsArc) <= LEFT_THE_BLOB, "a drip should leave the blob where it stands, "
+                        + blob + ", " + lead + " of a tick along its arc at " + onItsArc + ", left from " + left);
+                assertDrawnOnItsLaunch(drawnAt(drip, PARTIAL_TICK), onItsArc.lerp(arcFrom(blob, launches.get(i),
+                        lead + 1), PARTIAL_TICK), launches.get(i));
             }
-        }
+        });
     }
 
     /**
-     * Asserts a drawn point stands half its launch out of the blob, as half
-     * a tick of flight carries a drip thrown from the blob at that launch.
+     * Where a drip thrown from the blob at its launch stands a time into its
+     * flight through open air, between the ticks either side.
      */
-    private static void assertDrawnOnItsLaunch(Vec3 drawn, Vec3 blob, Vec3 launch) {
-        Vec3 halfway = blob.add(launch.scale(PARTIAL_TICK));
-        assertTrue(drawn.distanceTo(halfway) <= ON_THE_LAUNCH, "a drip's first quad should stand half its launch "
-                + launch + " out of the blob " + blob + ", at " + halfway + ", drawn at " + drawn);
+    private static Vec3 arcFrom(Vec3 blob, Vec3 launch, double ticks) {
+        Vec3 at = blob;
+        Vec3 velocity = launch;
+        double flown = 0;
+        while (true) {
+            DripArc.Step step = DripArc.step(at, velocity, (from, to) -> Optional.empty(), point -> true);
+            if (ticks <= flown + 1) {
+                return at.lerp(step.position(), ticks - flown);
+            }
+            at = step.position();
+            velocity = step.velocity();
+            flown++;
+        }
+    }
+
+    /** Asserts a drawn point stands halfway along the tick of flight its drip's arc carries it through. */
+    private static void assertDrawnOnItsLaunch(Vec3 drawn, Vec3 onItsArc, Vec3 launch) {
+        assertTrue(drawn.distanceTo(onItsArc) <= ON_THE_LAUNCH, "a drip's first quad should stand half a tick"
+                + " along its arc at its launch " + launch + ", at " + onItsArc + ", drawn at " + drawn);
     }
 
     private static Minecraft clientDrawing(List<SprayDripParticle> drips, Caster caster, boolean local,
@@ -227,6 +376,7 @@ class StreamMotesTest {
         when(level.getGameTime()).thenAnswer(call -> (long) Math.floor(now[0]));
         Player player = local ? mock(LocalPlayer.class) : mock(Player.class);
         when(level.getEntity(CASTER)).thenReturn(player);
+        when(player.getId()).thenReturn(CASTER);
         ItemStack glove = mock(ItemStack.class);
         when(glove.getItem()).thenReturn(mock(GooGloveItem.class));
         when(player.getMainHandItem()).thenReturn(glove);
@@ -244,6 +394,7 @@ class StreamMotesTest {
         when(camera.getFov()).thenReturn(WORLD_FOV);
         GameRenderer renderer = mock(GameRenderer.class);
         when(renderer.getMainCamera()).thenReturn(camera);
+        SprayingClient.setRenderState(renderer);
         Options options = mock(Options.class);
         when(options.getCameraType()).thenReturn(CameraType.FIRST_PERSON);
         setField(minecraft, "gameRenderer", renderer);
@@ -290,7 +441,7 @@ class StreamMotesTest {
      * Where a frame at a partial tick draws a drip: the camera-relative quad
      * it hands the renderer, back in the world.
      */
-    private static Vec3 drawnAt(SprayDripParticle drip, float partialTick) {
+    private static Vec3 drawnAt(SingleQuadParticle drip, float partialTick) {
         QuadParticleRenderState frame = drawFrame(drip, partialTick);
         ArgumentCaptor<Float> x = ArgumentCaptor.forClass(Float.class);
         ArgumentCaptor<Float> y = ArgumentCaptor.forClass(Float.class);
@@ -302,14 +453,14 @@ class StreamMotesTest {
     }
 
     /** The quads a frame draws of a drip. */
-    private static int quadsDrawn(SprayDripParticle drip) {
+    private static int quadsDrawn(SingleQuadParticle drip) {
         QuadParticleRenderState frame = drawFrame(drip, PARTIAL_TICK);
         return (int) mockingDetails(frame).getInvocations().stream()
                 .filter(call -> call.getMethod().getName().equals("add")).count();
     }
 
     /** A frame at a partial tick that has drawn a drip, the camera at the world's origin. */
-    private static QuadParticleRenderState drawFrame(SprayDripParticle drip, float partialTick) {
+    private static QuadParticleRenderState drawFrame(SingleQuadParticle drip, float partialTick) {
         Camera camera = mock(Camera.class);
         when(camera.position()).thenReturn(Vec3.ZERO);
         when(camera.rotation()).thenReturn(new Quaternionf());

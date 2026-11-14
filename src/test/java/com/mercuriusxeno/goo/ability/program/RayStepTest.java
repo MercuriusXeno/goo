@@ -25,8 +25,8 @@ import static org.mockito.Mockito.when;
  */
 class RayStepTest {
 
-    private static final RayStep.Refraction SUNBEAM = new RayStep.Refraction(16, 1.5, 0.85);
-    private static final RayStep RAY = new RayStep(32, 10, List.of(), SUNBEAM, List.of(), List.of());
+    private static final RayStep.Refraction LASER = new RayStep.Refraction(16, 1.5, 0.85);
+    private static final RayStep RAY = new RayStep(32, 10, List.of(), LASER, List.of(), List.of());
     private static final double TOLERANCE = 1e-9;
 
     /** A sign stands an outline and no collision, so the ray passes through it. */
@@ -59,22 +59,22 @@ class RayStepTest {
 
     @Test
     void oneTargetTakesTheWholeRaisedHit() {
-        assertEquals(1.5, SUNBEAM.share(1), TOLERANCE);
+        assertEquals(1.5, LASER.share(1), TOLERANCE);
     }
 
     @Test
     void eachOfNTargetsTakesTheRaisedHitOverNToTheExponent() {
-        assertEquals(1.5 / Math.pow(3, 0.85), SUNBEAM.share(3), TOLERANCE);
+        assertEquals(1.5 / Math.pow(3, 0.85), LASER.share(3), TOLERANCE);
     }
 
     @Test
     void theSplitThinsSlowerThanAnEvenOne() {
-        assertTrue(SUNBEAM.share(3) * 3 > SUNBEAM.share(1));
-        assertTrue(SUNBEAM.share(3) > 1.5 / 3);
+        assertTrue(LASER.share(3) * 3 > LASER.share(1));
+        assertTrue(LASER.share(3) > 1.5 / 3);
     }
 
     @Test
     void noTargetTakesNothing() {
-        assertEquals(0, SUNBEAM.share(0), TOLERANCE);
+        assertEquals(0, LASER.share(0), TOLERANCE);
     }
 }

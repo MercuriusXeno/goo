@@ -674,9 +674,11 @@ public final class GooThrowHandler {
             int travelTicks) {
         Vec3 hand = ThrowArc.clampToReach(player.getEyePosition(), payload.origin(),
                 ThrowArc.HAND_REACH * player.getScale());
-        // thrown-blob-leaves-the-hand-with-a-fading-drift
+        // thrown-blob-leaves-the-hand-with-a-fading-drift: the drift is the known movement, since the server
+        // moves a player by its client's packets and leaves its delta movement at rest
+        // (decision diagnose-then-restore-razor-harm)
         GooFlightPayload flight = buildFlightPayload(hand, payload, delivery, travelTicks,
-                GooStreamHandler.travelOf(player));
+                player.getKnownMovement());
         // A listener that never negotiated the mod's channels, a gametest's mock player, gets no flight.
         EntityVisuals.sendToWatchers(player, flight);
     }

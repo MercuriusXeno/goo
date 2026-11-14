@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.ability.program.AwaitEntityStep;
 import com.mercuriusxeno.goo.ability.program.BloomStep;
-import com.mercuriusxeno.goo.ability.program.ColonizeStep;
 import com.mercuriusxeno.goo.ability.program.EntitiesStep;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.Expr;
@@ -11,6 +10,7 @@ import com.mercuriusxeno.goo.ability.program.FloorsStep;
 import com.mercuriusxeno.goo.ability.program.OutsiderStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
+import com.mercuriusxeno.goo.ability.program.SporeStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepTypes;
 import com.mercuriusxeno.goo.ability.program.Variables;
@@ -512,7 +512,7 @@ public record AbilityDefinition(
             radiusOf(AwaitEntityStep.class, AwaitEntityStep::radius),
             radiusOf(BloomStep.class, BloomStep::radius),
             // colonize-blob-grows-the-network
-            radiusOf(ColonizeStep.class, ColonizeStep::radius),
+            radiusOf(SporeStep.class, SporeStep::radius),
             radiusOf(FloorsStep.class, FloorsStep::radius));
 
     /**

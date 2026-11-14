@@ -17,14 +17,14 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Ender's goo.ability.ender.shifter entry reads Elude in en_us, its description tells the random
+ * Ender's goo.ability.ender.elude entry reads Elude in en_us, its description tells the random
  * safe-spot escape from mob and projectile hits, and no en_us value still reads Shifter.
  * decision shifter-is-renamed-elude
  */
 class EludeNameTest {
 
     private static final String EN_US = "/assets/goo/lang/en_us.json";
-    private static final String NAME_KEY = "goo.ability.ender.shifter";
+    private static final String NAME_KEY = "goo.ability.ender.elude";
     private static final String DESCRIPTION_KEY = NAME_KEY + ".description";
     private static final List<String> DESCRIPTION_WORDS = List.of("mob", "projectile", "random", "safe");
 
@@ -39,7 +39,7 @@ class EludeNameTest {
     }
 
     @Test
-    void enderShifterKeyReadsElude() {
+    void enderEludeKeyReadsElude() {
         assertEquals("Elude", lang.get(NAME_KEY).getAsString());
     }
 

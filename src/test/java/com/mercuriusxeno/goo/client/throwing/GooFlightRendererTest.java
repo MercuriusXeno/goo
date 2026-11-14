@@ -35,16 +35,16 @@ class GooFlightRendererTest {
     private static final float SHORT_THROW = 1f;
 
     @Test
-    void theJavelinsDeliveryNamesItsTransformPointEarlierThanTheDefault() {
-        Delivery javelin = AbilityJson.decode("metal_javelin").delivery();
+    void theDartsDeliveryNamesItsTransformPointEarlierThanTheDefault() {
+        Delivery dart = AbilityJson.decode("metal_dart").delivery();
 
-        assertTrue(javelin.transformAt() < Delivery.DEFAULT_TRANSFORM_AT,
-                "the javelin takes its dart form no earlier than the default " + javelin.transformAt());
+        assertTrue(dart.transformAt() < Delivery.DEFAULT_TRANSFORM_AT,
+                "the dart takes its dart form no earlier than the default " + dart.transformAt());
     }
 
     @Test
     void theMorphIsWholeAtTheTransformPointTheDeliveryNames() {
-        float transformAt = (float) AbilityJson.decode("metal_javelin").delivery().transformAt();
+        float transformAt = (float) AbilityJson.decode("metal_dart").delivery().transformAt();
 
         assertEquals(0f, GooFlightRenderer.morphFraction(0f, LONG_THROW, transformAt), 0f);
         assertEquals(0.5f, GooFlightRenderer.morphFraction(transformAt / 2, LONG_THROW, transformAt), TOLERANCE);

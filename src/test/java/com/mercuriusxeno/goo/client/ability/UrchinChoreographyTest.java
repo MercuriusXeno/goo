@@ -20,7 +20,7 @@ class UrchinChoreographyTest {
 
     @Test
     void urchinShinksOutOnLandingAndBackAsItsSpikesRetract() {
-        LingerStep linger = (LingerStep) AbilityJson.decode("metal_spikes").behaviors().getFirst();
+        LingerStep linger = (LingerStep) AbilityJson.decode("metal_urchin").behaviors().getFirst();
         List<SoundStep> shinks = linger.steps().stream().filter(SoundStep.class::isInstance)
                 .map(SoundStep.class::cast).toList();
 
@@ -33,7 +33,7 @@ class UrchinChoreographyTest {
 
     @Test
     void eachSpikeShotShinksAtTheMobAsItLandsAndAgainAsItRetracts() {
-        LingerStep linger = (LingerStep) AbilityJson.decode("metal_spikes").behaviors().getFirst();
+        LingerStep linger = (LingerStep) AbilityJson.decode("metal_urchin").behaviors().getFirst();
         FieldEffectStep trap = linger.steps().stream().filter(FieldEffectStep.class::isInstance)
                 .map(FieldEffectStep.class::cast).findFirst().orElseThrow();
         List<SoundStep> landingShinks = linger.steps().stream().filter(SoundStep.class::isInstance)

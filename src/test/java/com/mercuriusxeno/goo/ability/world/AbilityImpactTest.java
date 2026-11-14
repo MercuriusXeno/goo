@@ -44,7 +44,7 @@ class AbilityImpactTest {
     @Test
     void theMineExplodesLaterAndBlastDoesNot() {
         assertTrue(AbilityImpact.explodesLater(AbilityJson.decode("unstable_lurker")));
-        assertFalse(AbilityImpact.explodesLater(AbilityJson.decode("unstable_explode")));
+        assertFalse(AbilityImpact.explodesLater(AbilityJson.decode("unstable_blast")));
     }
 
     /**

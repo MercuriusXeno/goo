@@ -11,7 +11,7 @@ import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
-import com.mercuriusxeno.goo.ability.program.TerrakinesisStep;
+import com.mercuriusxeno.goo.ability.program.GougeStep;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -131,7 +131,7 @@ class AffordedCountTest {
         }
 
         @Test
-        void brewSubtractsTheStandingUpkeepAndHalvesItsOwnUnderAnExtender() {
+        void brewSubtractsTheStandingUpkeepAndHalvesItsOwnUnderAnExtend() {
             ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE, List.of(), 2);
             assertEquals("6s", count(brew, 250, StandingUpkeep.NONE));
             assertEquals("3s", count(brew, 250, new StandingUpkeep(2, false)));
@@ -187,7 +187,7 @@ class AffordedCountTest {
     class Dynamic {
 
         private static final List<String> DYNAMIC_ABILITIES = List.of("ender_blink",
-                "unstable_explode", "rock_spire", "yore_age");
+                "unstable_blast", "rock_spire", "yore_age");
 
         @Test
         void zeroCostPetalReadsItsFormula() {
@@ -201,14 +201,14 @@ class AffordedCountTest {
 
         // The petal reads the tunable fixed price to grab a chunk, the number alone
         @Test
-        void terrakinesisReadsItsFixedPriceToGrabAChunk() {
-            ClientAbility terrakinesis = new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "terrakinesis"),
-                    "ability.goo.terrakinesis", "", 0, List.of(),
-                    List.of(new TerrakinesisStep(12, 1.5, 2.5, 3.5, 2.5, 1000)), 0, Delivery.of(DeliveryKind.SELF),
+        void gougeReadsItsFixedPriceToGrabAChunk() {
+            ClientAbility gouge = new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "gouge"),
+                    "ability.goo.gouge", "", 0, List.of(),
+                    List.of(new GougeStep(12, 1.5, 2.5, 3.5, 2.5, 1000)), 0, Delivery.of(DeliveryKind.SELF),
                     AbilityBadge.CHANNELED, List.of(), AbilityArea.NONE, IndicatorShowing.HELD, List.of(), 0,
-                    DistancePrice.NONE, List.of(), ArmPose.HELD_OUT, "ability.goo.terrakinesis.description",
-                    Optional.of("ability.goo.terrakinesis.cost_mechanics"), Optional.of("%s"));
-            assertEquals("1K", terrakinesis.petalLabel(THOUSAND, NO_REAGENTS));
+                    DistancePrice.NONE, List.of(), ArmPose.HELD_OUT, "ability.goo.gouge.description",
+                    Optional.of("ability.goo.gouge.cost_mechanics"), Optional.of("%s"));
+            assertEquals("1K", gouge.petalLabel(THOUSAND, NO_REAGENTS));
         }
 
         @Test

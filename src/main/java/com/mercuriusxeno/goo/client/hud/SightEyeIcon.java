@@ -19,7 +19,7 @@ import java.util.List;
 
 /**
  * Sight's eye on the HUD: the shroom effect's icon draws an eye shut while no
- * fungus stands within Fungal Shift's reach of the player, and open when one
+ * fungus stands within Transmit's reach of the player, and open when one
  * does, so an open eye says a shift can start from here. The lid lifts and
  * falls through its frames over a quarter second rather than snapping.
  * sight-lengthens-shift-and-outlines-fungus

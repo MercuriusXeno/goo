@@ -19,7 +19,7 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 /**
- * The fungus block an entity's look names for Fungal Shift: the block its
+ * The fungus block an entity's look names for Transmit: the block its
  * look meets, when that is fungus, or else the fungus block whose center
  * sits nearest the look within a small angle of it, within the reach and in
  * clear sight of the eye, so a mushroom a few pixels wide at range is still
@@ -56,17 +56,17 @@ public final class FungusAim {
         Vec3 eye = entity.getEyePosition();
         Vec3 look = entity.getLookAngle().normalize();
         BlockHitResult hit = clip(level, entity, eye, eye.add(look.scale(reach)));
-        if (hit.getType() == HitResult.Type.BLOCK && level.getBlockState(hit.getBlockPos()).is(ShiftStep.FUNGUS)) {
+        if (hit.getType() == HitResult.Type.BLOCK && level.getBlockState(hit.getBlockPos()).is(TransmitStep.FUNGUS)) {
             return Optional.of(hit.getBlockPos().immutable());
         }
-        return snapCandidates(eye, look, reach, pos -> level.getBlockState(pos).is(ShiftStep.FUNGUS)).stream()
+        return snapCandidates(eye, look, reach, pos -> level.getBlockState(pos).is(TransmitStep.FUNGUS)).stream()
                 .filter(pos -> inClearSight(level, entity, eye, pos))
                 .findFirst();
     }
 
     /**
      * Whether a fungus block stands within a reach of an entity's feet, which
-     * Fungal Shift needs to start from (decision fungal-shift-blinks-to-the-aimed-fungus).
+     * Transmit needs to start from (decision fungal-shift-blinks-to-the-aimed-fungus).
      *
      * @param level  the level
      * @param entity the shifting entity
@@ -79,7 +79,7 @@ public final class FungusAim {
         BlockPos center = entity.blockPosition();
         for (BlockPos pos : BlockPos.betweenClosed(center.offset(-reach, -reach, -reach),
                 center.offset(reach, reach, reach))) {
-            if (Vec3.atCenterOf(pos).distanceTo(feet) <= near && level.getBlockState(pos).is(ShiftStep.FUNGUS)) {
+            if (Vec3.atCenterOf(pos).distanceTo(feet) <= near && level.getBlockState(pos).is(TransmitStep.FUNGUS)) {
                 return true;
             }
         }
@@ -99,7 +99,7 @@ public final class FungusAim {
      */
     private static Optional<BlockPos> seenThroughWalls(Level level, Entity entity, double reach) {
         return snapCandidates(entity.getEyePosition(), entity.getLookAngle().normalize(), reach,
-                pos -> level.getBlockState(pos).is(ShiftStep.FUNGUS)).stream()
+                pos -> level.getBlockState(pos).is(TransmitStep.FUNGUS)).stream()
                 .filter(pos -> hasRoomToStand(level, pos))
                 .findFirst();
     }

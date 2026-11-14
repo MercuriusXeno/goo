@@ -23,15 +23,15 @@ import java.util.function.Consumer;
 
 /**
  * Gametests for a harmful mob ability sparing its caster's own minions
- * through the real throw path: metal javelin thrown at a cow the caster
+ * through the real throw path: metal Dart thrown at a cow the caster
  * rallied or a husk it charmed leaves the mob whole, and the same throw at an
  * unowned cow lands (decision mob-targeted-attacks-refuse-your-minions).
  */
 @RegistersGameTests
 public final class OwnMinionTests {
-    private static final String JAVELIN_SPARES_RALLIED = "own_minion_javelin_spares_the_casters_rallied_cow";
-    private static final String JAVELIN_SPARES_CHARMED = "own_minion_javelin_spares_the_casters_charmed_mob";
-    private static final String JAVELIN_STRIKES_UNOWNED = "own_minion_javelin_strikes_an_unowned_mob";
+    private static final String DART_SPARES_RALLIED = "own_minion_dart_spares_the_casters_rallied_cow";
+    private static final String DART_SPARES_CHARMED = "own_minion_dart_spares_the_casters_charmed_mob";
+    private static final String DART_STRIKES_UNOWNED = "own_minion_dart_strikes_an_unowned_mob";
 
     private static final BlockPos MOB_POS = new BlockPos(3, 1, 3);
     /** Two blocks west of the mob, inside a player's reach of three. */
@@ -40,7 +40,7 @@ public final class OwnMinionTests {
     private static final int NO_ENTITY = -1;
     private static final int HELD_GOO = 4;
     private static final float RALLY_DAMAGE = 6f;
-    private static final String METAL_JAVELIN = "goo:metal_javelin";
+    private static final String METAL_DART = "goo:metal_dart";
     private static final String SHOULD_SPARE = "The caster's own %s should keep its health %.1f, stands at %.1f";
     private static final String SHOULD_STRIKE = "An unowned cow should lose health from %.1f, stands at %.1f";
 
@@ -53,28 +53,28 @@ public final class OwnMinionTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, JAVELIN_SPARES_RALLIED, OwnMinionTests::javelinSparesRalliedCow);
-        GooTestFunctions.registerTest(registrar, JAVELIN_SPARES_CHARMED, OwnMinionTests::javelinSparesCharmedMob);
-        GooTestFunctions.registerTest(registrar, JAVELIN_STRIKES_UNOWNED, OwnMinionTests::javelinStrikesUnownedMob);
+        GooTestFunctions.registerTest(registrar, DART_SPARES_RALLIED, OwnMinionTests::dartSparesRalliedCow);
+        GooTestFunctions.registerTest(registrar, DART_SPARES_CHARMED, OwnMinionTests::dartSparesCharmedMob);
+        GooTestFunctions.registerTest(registrar, DART_STRIKES_UNOWNED, OwnMinionTests::dartStrikesUnownedMob);
     }
 
     /**
-     * Metal javelin thrown at a cow its caster rallied leaves the cow at full health.
+     * Metal Dart thrown at a cow its caster rallied leaves the cow at full health.
      *
      * @param helper the gametest helper
      */
-    public static void javelinSparesRalliedCow(GameTestHelper helper) {
+    public static void dartSparesRalliedCow(GameTestHelper helper) {
         Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, MOB_POS);
         ServerPlayer player = thrower(helper, GooTypes.METAL);
         assertSpared(helper, player, cow, "rallied cow", () -> rally(helper, cow, player));
     }
 
     /**
-     * Metal javelin thrown at a husk its caster charmed leaves the husk at full health.
+     * Metal Dart thrown at a husk its caster charmed leaves the husk at full health.
      *
      * @param helper the gametest helper
      */
-    public static void javelinSparesCharmedMob(GameTestHelper helper) {
+    public static void dartSparesCharmedMob(GameTestHelper helper) {
         Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_POS);
         ServerPlayer player = thrower(helper, GooTypes.METAL);
         assertSpared(helper, player, husk, "charmed husk",
@@ -82,16 +82,16 @@ public final class OwnMinionTests {
     }
 
     /**
-     * Metal javelin thrown at a cow nobody rallied or charmed takes its health.
+     * Metal Dart thrown at a cow nobody rallied or charmed takes its health.
      *
      * @param helper the gametest helper
      */
-    public static void javelinStrikesUnownedMob(GameTestHelper helper) {
+    public static void dartStrikesUnownedMob(GameTestHelper helper) {
         Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, MOB_POS);
         ServerPlayer player = thrower(helper, GooTypes.METAL);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             float before = cow.getHealth();
-            GooThrowHandler.execute(player, payload(GooTypes.METAL, METAL_JAVELIN, player, cow));
+            GooThrowHandler.execute(player, payload(GooTypes.METAL, METAL_DART, player, cow));
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertTrue(cow.getHealth() < before, String.format(SHOULD_STRIKE, before, cow.getHealth()));
             helper.succeed();
@@ -99,7 +99,7 @@ public final class OwnMinionTests {
     }
 
     /**
-     * Throws metal javelin at a mob the caster makes its own in the same
+     * Throws metal Dart at a mob the caster makes its own in the same
      * tick, since a rally whose caster holds no Rally stands down on the
      * mob's next tick, and asserts the mob kept its health.
      */
@@ -108,7 +108,7 @@ public final class OwnMinionTests {
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             makeOwn.run();
             float before = mob.getHealth();
-            GooThrowHandler.execute(player, payload(GooTypes.METAL, METAL_JAVELIN, player, mob));
+            GooThrowHandler.execute(player, payload(GooTypes.METAL, METAL_DART, player, mob));
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertTrue(mob.getHealth() == before, String.format(SHOULD_SPARE, kind, before, mob.getHealth()));
             helper.succeed();

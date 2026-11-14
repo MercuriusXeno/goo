@@ -1,0 +1,14 @@
+{
+  "gooType": "pulse",
+  "displayName": "goo.ability.pulse.extend",
+  "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
+  "badge": "durative",
+  "order": 70,
+  "upkeep": 1,
+  "delivery": { "kind": "self" },
+  "behaviors": [
+    { "type": "extend" },
+    { "type": "sound", "id": "minecraft:block.comparator.click", "at": "target", "source": "players", "volume": 1, "pitch": 1.4 }
+  ],
+  "tags": ["self"]
+}

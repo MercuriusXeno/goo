@@ -7,7 +7,7 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * A plain colored latitude-longitude sphere of quads, the shell Scry's sweep
- * and Radiant's wisps draw through glow's additive shell pipeline.
+ * and Wisps' wisps draw through glow's additive shell pipeline.
  * decisions scry-sphere-reveals-faces-and-glistens-mobs, radiant-wisps-where-light-is-low
  */
 public final class ColorSphere {

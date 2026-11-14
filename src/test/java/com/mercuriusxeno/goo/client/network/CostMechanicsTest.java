@@ -180,6 +180,6 @@ class CostMechanicsTest {
 
     @Test
     void abilityNamingNoCostMechanicsHasNoText() {
-        assertTrue(clientOf(AbilityJson.decode("unstable_explode")).costMechanics(LOOKUP).isEmpty());
+        assertTrue(clientOf(AbilityJson.decode("unstable_blast")).costMechanics(LOOKUP).isEmpty());
     }
 }

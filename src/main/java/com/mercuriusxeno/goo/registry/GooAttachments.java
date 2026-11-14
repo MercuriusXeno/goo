@@ -14,9 +14,9 @@ import com.mercuriusxeno.goo.ability.kinetic.Grabbed;
 import com.mercuriusxeno.goo.ability.nether.Undead;
 import com.mercuriusxeno.goo.ability.petrify.Petrification;
 import com.mercuriusxeno.goo.ability.program.EntityCounters;
+import com.mercuriusxeno.goo.ability.program.GougeWindUp;
 import com.mercuriusxeno.goo.ability.program.Lux;
 import com.mercuriusxeno.goo.ability.program.Sight;
-import com.mercuriusxeno.goo.ability.program.TerrakinesisWindUp;
 import com.mercuriusxeno.goo.ability.pulse.Stunned;
 import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
 import com.mercuriusxeno.goo.ability.reserve.Reserve;
@@ -28,7 +28,7 @@ import com.mercuriusxeno.goo.ability.typhoon.Breath;
 import com.mercuriusxeno.goo.ability.typhoon.Floating;
 import com.mercuriusxeno.goo.ability.weird.Wobbled;
 import com.mercuriusxeno.goo.ability.xeno.Eldritch;
-import com.mercuriusxeno.goo.ability.zone.Shifter;
+import com.mercuriusxeno.goo.ability.zone.Elude;
 import com.mercuriusxeno.goo.ability.zone.ZoneCurse;
 import com.mercuriusxeno.goo.ability.zoo.Leader;
 import com.mercuriusxeno.goo.ability.zoo.Rallied;
@@ -106,15 +106,15 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The Terrakinesis wind-up the server runs for a player, synced to its
+     * The Gouge wind-up the server runs for a player, synced to its
      * owner so the client's ground shake follows every wind-up the server runs;
      * never saved, since a wind-up lives only inside a hold.
      * decision terrakinesis-shakes-the-blocks-before-the-tear
      */
-    public static final Supplier<AttachmentType<TerrakinesisWindUp>> TERRAKINESIS_WIND_UP =
-            ATTACHMENT_TYPES.register("terrakinesis_wind_up",
-                    () -> AttachmentType.builder(() -> TerrakinesisWindUp.NONE)
-                            .sync(GooAttachments::syncsToOwner, TerrakinesisWindUp.STREAM_CODEC)
+    public static final Supplier<AttachmentType<GougeWindUp>> GOUGE_WIND_UP =
+            ATTACHMENT_TYPES.register("gouge_wind_up",
+                    () -> AttachmentType.builder(() -> GougeWindUp.NONE)
+                            .sync(GooAttachments::syncsToOwner, GougeWindUp.STREAM_CODEC)
                             .build());
 
     /**
@@ -236,7 +236,7 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> Stunned.NONE).serialize(Stunned.CODEC).build());
 
     /**
-     * The fungal sight a player holds, lengthening Fungal Shift and synced to
+     * The fungal sight a player holds, lengthening Transmit and synced to
      * the owning client, which outlines fungus through walls while it stands
      * (decision sight-lengthens-shift-and-outlines-fungus).
      */
@@ -300,10 +300,10 @@ public final class GooAttachments {
      * The Elude a player holds, saved with the player.
      * elude-moves-you-to-a-random-safe-spot-on-mob-or-projectile-damage
      */
-    public static final Supplier<AttachmentType<Shifter>> SHIFTER =
-            ATTACHMENT_TYPES.register("shifter",
-                    () -> AttachmentType.builder(() -> Shifter.NONE)
-                            .serialize(Shifter.CODEC)
+    public static final Supplier<AttachmentType<Elude>> ELUDE =
+            ATTACHMENT_TYPES.register("elude",
+                    () -> AttachmentType.builder(() -> Elude.NONE)
+                            .serialize(Elude.CODEC)
                             .build());
 
     /**
@@ -385,7 +385,7 @@ public final class GooAttachments {
      * An entity's standing out of phase and when it fades, saved with the
      * entity while laid and synced to every client drawing it, which draws it
      * translucent and grey. A plain attachment any ability may lay, which
-     * Eldritch sight reads too (decision eldritch-sight-reveals-the-out-of-phase).
+     * Unveil reads too (decision eldritch-sight-reveals-the-out-of-phase).
      * phase-shares-a-plane-between-the-phased
      */
     public static final Supplier<AttachmentType<OutOfPhase>> OUT_OF_PHASE =

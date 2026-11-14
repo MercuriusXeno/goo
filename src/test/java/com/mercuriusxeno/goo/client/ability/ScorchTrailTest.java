@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Sunbeam's scorch trail takes each spot the ray burns, ages every mark on
+ * Laser's scorch trail takes each spot the ray burns, ages every mark on
  * the game clock and drops it once the fade time has passed
  * (decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades), and
  * draws a mark only where the block it burns on stands.

@@ -18,7 +18,7 @@ import net.minecraft.world.phys.Vec3;
  * faintly, so the prism reads as glow's whichever combo it holds; its beams
  * tell the beacon from the reflector (operator rulings 2026-10-09), and the
  * reflector's column folds into four sides as its combo takes. The column
- * and its halo write no depth, so a beam drawn after them, Sunbeam's ray
+ * and its halo write no depth, so a beam drawn after them, Laser's ray
  * refracting off a reflector among them, shows in front of the column.
  * decisions bulb-one-model-max-light-beacon-combo, reflector-rails-carry-the-brightest-light
  * relay-and-metronome-read-apart-at-rest

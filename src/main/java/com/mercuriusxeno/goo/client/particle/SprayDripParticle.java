@@ -21,6 +21,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
 import org.jspecify.annotations.Nullable;
+import java.util.Optional;
 
 /**
  * A Goop or Slick spray drip: the mod's blocky goo drip, the trail-drip's
@@ -42,11 +43,16 @@ import org.jspecify.annotations.Nullable;
  */
 public final class SprayDripParticle extends SingleQuadParticle {
 
+    /** Air with no block in it, which a drip's lead is reckoned through. */
+    private static final CoatRay.BlockClip OPEN_AIR = (from, to) -> Optional.empty();
+    private static final DripArc.Airspace ANYWHERE = point -> true;
+
     private final GooRenderUtil.UvRect uv;
     private final int rgb;
     private Source source;
     private DripArc.LivingNear living = DripArc.NO_LIVING;
     private boolean thrown;
+    private double lead;
     private SprayDrip drip;
 
     /**
@@ -86,11 +92,13 @@ public final class SprayDripParticle extends SingleQuadParticle {
      * @param sprayFrom where the caster's spray source stands, read when the drip is thrown
      * @param launch    the launch velocity the server's drip for its share took, blocks per tick
      * @param meets     the living the drip splats on when it meets one, as the server's drip strikes them
+     * @param lead      the share of a tick of flight the drip has flown along its arc when thrown, 0 to 1
      */
-    public void flyArcFrom(Source sprayFrom, Vec3 launch, DripArc.LivingNear meets) {
+    public void flyArcFrom(Source sprayFrom, Vec3 launch, DripArc.LivingNear meets, double lead) {
         this.source = sprayFrom;
         this.drip = new SprayDrip(rgb, launch);
         this.living = meets;
+        this.lead = lead;
     }
 
     /** Throws the drip from its source on its first tick, flies it on, and splats it at its end. */
@@ -119,13 +127,22 @@ public final class SprayDripParticle extends SingleQuadParticle {
     }
 
 
-    /** Throws the drip from its source as the last frame drew it, which the tick's start reads at partial 0. */
+    /**
+     * Throws the drip from its source as the last frame drew it, which the
+     * tick's start reads at partial 0, its lead's share of a tick along its
+     * arc: between where the arc stands at the throw and a tick on, in place
+     * and in velocity, so each tick after keeps it on the arc that share of a
+     * tick ahead.
+     */
     private void throwFromTheSource() {
         Vec3 from = source.at(0f);
-        this.setPos(from.x, from.y, from.z);
-        this.xd = drip.velocity().x;
-        this.yd = drip.velocity().y;
-        this.zd = drip.velocity().z;
+        DripArc.Step aTickOn = DripArc.step(from, drip.velocity(), OPEN_AIR, ANYWHERE);
+        Vec3 at = from.lerp(aTickOn.position(), lead);
+        Vec3 velocity = drip.velocity().lerp(aTickOn.velocity(), lead);
+        this.setPos(at.x, at.y, at.z);
+        this.xd = velocity.x;
+        this.yd = velocity.y;
+        this.zd = velocity.z;
         this.thrown = true;
     }
 

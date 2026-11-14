@@ -52,7 +52,7 @@ public record BreakPace(int breakTicks, double slowdown) {
      * group the slowdown times slower than the one before. An empty group
      * takes no rank, so the group after it gains its rate.
      *
-     * @param groupsNearestFirst the cells breaking in groups, such as Flatten's layers, the nearest group first
+     * @param groupsNearestFirst the cells breaking in groups, such as Level's layers, the nearest group first
      * @return each cell with its rate, in the groups' order
      */
     public Map<BlockPos, Double> ratesByGroup(List<List<BlockPos>> groupsNearestFirst) {

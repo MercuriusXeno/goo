@@ -47,17 +47,17 @@ class PrismComboStyleTest {
     }
 
     /**
-     * The four-sided reflector look keys off the combo Sunbeam converts a
-     * prism into, so a reflector grown by Sunbeam still folds to four sides.
+     * The four-sided reflector look keys off the combo Laser converts a
+     * prism into, so a reflector grown by Laser still folds to four sides.
      * channeled-hosts-convert-prisms-over-the-hold
      */
     @Test
-    void theReflectorLookKeysOffTheComboSunbeamConverts() {
-        AbilityDefinition sunbeam = AbilityJson.decode("glow_sunbeam");
+    void theReflectorLookKeysOffTheComboLaserConverts() {
+        AbilityDefinition laser = AbilityJson.decode("glow_laser");
 
-        assertEquals(sunbeam.id().toString(), GlowReflectorStyle.COMBO);
-        assertTrue(PrismCombos.comboSteps(sunbeam).stream().anyMatch(ReflectorStep.class::isInstance),
-                "glow_sunbeam's combo carries no reflector step");
+        assertEquals(laser.id().toString(), GlowReflectorStyle.COMBO);
+        assertTrue(PrismCombos.comboSteps(laser).stream().anyMatch(ReflectorStep.class::isInstance),
+                "glow_laser's combo carries no reflector step");
     }
 
     @Test
