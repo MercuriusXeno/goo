@@ -1,15 +1,16 @@
 package com.mercuriusxeno.goo.block.ability;
 
-import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ISidedProxy;
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.LoadedAbilityCost;
+import com.mercuriusxeno.goo.ability.program.SlickStep;
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.SlimeFlow.Side;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.item.GooStacks;
-import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.Identifier;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
@@ -37,39 +38,42 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * A world goo's layered cell, Weird's slime the goo bound to it so far: a
- * plain block holding one to fifteen layers in its block state, with no block
- * entity, drawn as height like snow layers, laid on a block's top with the
- * block under it unchanged and showing through, drips running down that
- * block's sides at the cell's open edges. Each landed drip adds a layer, and
- * a cell taller than a side neighbour pours a layer a tick into it, and off a
- * ledge downward, until level. A layer is priced at a fifteenth of the cost
- * of the ability that lays the goo; the cell stands until something destroys
- * it, then drops its goo type worth that price per layer. It is a pad too:
- * what lands on it at any height takes no fall damage and bounces, ramping
- * while jump is held.
+ * The volume cell, the one block every goo type's world goo stands on,
+ * bound to a goo type by a CellBinding: a plain block holding one to fifteen
+ * layers in its block state, with no block entity, drawn as height like snow
+ * layers, laid on a block's top with the block under it unchanged and
+ * showing through. Each landed drip adds a layer, and a cell taller than a
+ * side neighbour of its own goo pours a layer into it, and off a ledge
+ * downward, until level, waiting between pours as its goo type's viscosity
+ * sets. A layer is priced at a fifteenth of the laying ability's cost; the
+ * cell stands until something destroys it, then drops its goo type worth
+ * that price per layer. What it does to things on it is its surface's: slime
+ * breaks a fall and bounces, slick ramps a thing trying to move at any height.
+ * slime-and-slick-are-one-volume-cell-tech
+ * each-goo-type-ships-a-world-goo-on-the-volume-cell
  * coat-is-a-green-slime-film-over-the-blocks-own-texture
  * world-goo-fills-a-block-space-in-one-to-fifteen-layers
  * slime-is-a-layered-cell-that-levels-out
+ * slick-is-a-layered-cell-that-flows-thinner-and-faster-than-slime
  * breaking-slime-drops-weird-goo-worth-its-layers
+ * breaking-slick-drops-kinetic-goo-worth-its-film
  * bounce-ramps-jump-height-while-jump-is-held
+ * slick-coats-the-ground-with-kinetic-speed
  */
-public class SlimeCoatBlock extends Block {
+public class VolumeCellBlock extends Block {
 
-    /** Whether the slime drips down the north side of the block under it. */
+    /** Whether the cell drips down the north side of the block under it. */
     public static final BooleanProperty NORTH = BlockStateProperties.NORTH;
-    /** Whether the slime drips down the east side of the block under it. */
+    /** Whether the cell drips down the east side of the block under it. */
     public static final BooleanProperty EAST = BlockStateProperties.EAST;
-    /** Whether the slime drips down the south side of the block under it. */
+    /** Whether the cell drips down the south side of the block under it. */
     public static final BooleanProperty SOUTH = BlockStateProperties.SOUTH;
-    /** Whether the slime drips down the west side of the block under it. */
+    /** Whether the cell drips down the west side of the block under it. */
     public static final BooleanProperty WEST = BlockStateProperties.WEST;
     /** The most layers one cell holds: a whole block of goo. */
     public static final int MAX_LAYERS = 15;
     /** The layers the cell holds, each a fifteenth of a block of goo. */
     public static final IntegerProperty LAYERS = IntegerProperty.create("layers", 1, MAX_LAYERS);
-    /** The ability whose cost prices a whole block of Weird's slime, a fifteenth of it per layer. */
-    public static final Identifier GOOP_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "weird_goop");
 
     private static final Map<Direction, BooleanProperty> DRIPS = Map.of(Direction.NORTH, NORTH,
             Direction.EAST, EAST, Direction.SOUTH, SOUTH, Direction.WEST, WEST);
@@ -84,24 +88,46 @@ public class SlimeCoatBlock extends Block {
         }
     }
 
-    /** The goo type the cell holds and drops when broken. */
-    private final ResourceKey<GooTypeDefinition> gooType;
-    /** The ability whose cost prices a whole block of the cell's goo. */
-    private final Identifier pricedBy;
+    /** The goo type, laying ability and surface this cell is bound to. */
+    private final CellBinding binding;
 
     /**
-     * Creates a layered cell bound to a goo type.
+     * Creates a volume cell bound to a goo type's world goo.
      *
      * @param properties the block properties
-     * @param gooType    the goo type the cell holds and drops when broken
-     * @param pricedBy   the ability laying the goo, whose cost prices a whole block of it
+     * @param binding    the goo type it holds, the ability laying it and what it does to things on it
      */
-    public SlimeCoatBlock(Properties properties, ResourceKey<GooTypeDefinition> gooType, Identifier pricedBy) {
+    public VolumeCellBlock(Properties properties, CellBinding binding) {
         super(properties);
-        this.gooType = gooType;
-        this.pricedBy = pricedBy;
+        this.binding = binding;
         registerDefaultState(stateDefinition.any().setValue(NORTH, false).setValue(EAST, false)
                 .setValue(SOUTH, false).setValue(WEST, false).setValue(LAYERS, 1));
+    }
+
+    /**
+     * @return the goo type, laying ability and surface this cell is bound to
+     */
+    public CellBinding binding() {
+        return binding;
+    }
+
+    /**
+     * @return what this cell does to things on it
+     */
+    public CellSurface surface() {
+        return binding.surface();
+    }
+
+    /**
+     * Whether a block is a volume cell whose surface acts on what stands on
+     * it the way a surface asks.
+     *
+     * @param block   the block
+     * @param surface the surface asked for
+     * @return true for a volume cell bound to that surface
+     */
+    public static boolean hasSurface(Block block, CellSurface surface) {
+        return block instanceof VolumeCellBlock cell && cell.surface() == surface;
     }
 
     /**
@@ -130,7 +156,7 @@ public class SlimeCoatBlock extends Block {
     /**
      * The goo a broken cell gives back: what its layers cost, the whole mb of it.
      * breaking-slime-drops-weird-goo-worth-its-layers
-     * goop-drains-per-cubic-meter-of-slime-placed
+     * breaking-slick-drops-kinetic-goo-worth-its-film
      *
      * @param layers    the layers the cell held
      * @param blockCost the cost of a whole block of the goo
@@ -145,100 +171,93 @@ public class SlimeCoatBlock extends Block {
      * back its goo, whatever breaks the cell, Vacuum included; a cell broken
      * where its laying ability's definition does not load gives back nothing.
      * breaking-slime-drops-weird-goo-worth-its-layers
+     * breaking-slick-drops-kinetic-goo-worth-its-film
      */
     @Override
     protected @NonNull List<ItemStack> getDrops(@NonNull BlockState state, LootParams.@NonNull Builder builder) {
-        int mb = LoadedAbilityCost.of(builder.getLevel(), pricedBy)
+        int mb = LoadedAbilityCost.of(builder.getLevel(), binding.layingAbility())
                 .map(cost -> reclaimed(state.getValue(LAYERS), cost)).orElse(0);
-        return mb > 0 ? List.of(GooStacks.createForOutput(gooType, mb)) : List.of();
+        return mb > 0 ? List.of(GooStacks.createForOutput(binding.gooType(), mb)) : List.of();
     }
 
     /**
      * The layers a cell holds.
      *
      * @param state the cell's state
-     * @return its layers, 0 for anything but a layered cell
+     * @return its layers, 0 for anything but a volume cell
      */
     public static int layersOf(BlockState state) {
-        return state.getBlock() instanceof SlimeCoatBlock ? state.getValue(LAYERS) : 0;
+        return state.getBlock() instanceof VolumeCellBlock ? state.getValue(LAYERS) : 0;
     }
 
     /**
-     * What a cell becomes when one more layer lands in it: air takes a cell
-     * of one layer, a cell one layer more up to a whole block of fifteen.
+     * What a cell becomes when one more layer of a goo lands in it: air takes
+     * a cell of one layer, a cell of that goo one layer more up to a whole
+     * block of fifteen, anything else nothing.
      * drip-creates-a-volume-cell-immediately
      * drip-on-a-standing-cell-increases-it
      *
      * @param standing the cell's state
-     * @param slime    the layered block
+     * @param cell     the goo's volume cell block
      * @return the thickened state, empty where the cell can take no layer
      */
-    public static Optional<BlockState> thickened(BlockState standing, Block slime) {
+    public static Optional<BlockState> thickened(BlockState standing, Block cell) {
         if (standing.isAir()) {
-            return Optional.of(slime.defaultBlockState());
+            return Optional.of(cell.defaultBlockState());
         }
-        int layers = layersOf(standing);
+        int layers = standing.is(cell) ? standing.getValue(LAYERS) : 0;
         return layers > 0 && layers < MAX_LAYERS ? Optional.of(standing.setValue(LAYERS, layers + 1))
                 : Optional.empty();
     }
 
     /**
-     * A coat's state fitted to the cells beside it: it drips on each side
-     * where no coat continues the film.
+     * A cell's state fitted to the cells beside it: it drips on each side
+     * where no cell of its goo continues the film.
      *
-     * @param state the coat's state
+     * @param state the cell's state
      * @param level the level
-     * @param pos   the coat's cell
+     * @param pos   the cell
      * @return the state with each side's drip set
      */
-    static BlockState fittedTo(BlockState state, BlockGetter level, BlockPos pos) {
+    BlockState fittedTo(BlockState state, BlockGetter level, BlockPos pos) {
         BlockState fitted = state;
         for (Map.Entry<Direction, BooleanProperty> side : DRIPS.entrySet()) {
-            fitted = fitted.setValue(side.getValue(), dripsBeside(level.getBlockState(pos.relative(side.getKey()))));
+            BlockState beside = level.getBlockState(pos.relative(side.getKey()));
+            fitted = fitted.setValue(side.getValue(), !continuesInto(beside));
         }
         return fitted;
     }
 
     /**
-     * Whether the film drips on a side: its edge runs out there, the cell
-     * beside holding no coat.
+     * Whether a neighbour continues this cell's film: a cell of the same
+     * goo, so the two read as one film with no seam between and no drip at
+     * the side they share, as slime blocks do toward slime blocks.
+     * diagnose-and-correct-the-slick-film-seams
      *
-     * @param beside the state of the cell beside the coat
-     * @return true where the film ends on that side
+     * @param neighbour the state of the cell beside
+     * @return true where the neighbour is a cell of this goo
      */
-    static boolean dripsBeside(BlockState beside) {
-        return !(beside.getBlock() instanceof SlimeCoatBlock);
+    boolean continuesInto(BlockState neighbour) {
+        return neighbour.is(this);
     }
 
     /**
-     * Whether the coat hides its face toward a neighbour: toward another
-     * coat, so neighbouring coats read as one film with no seam between, as
-     * slime blocks do.
-     *
-     * @param neighbour the state of the cell beside the face
-     * @return true where the face is not drawn
-     */
-    static boolean hidesFaceToward(BlockState neighbour) {
-        return neighbour.getBlock() instanceof SlimeCoatBlock;
-    }
-
-    /**
-     * Hides a face toward slime standing at least as tall, so a taller cell
-     * still draws the side it shows above a lower neighbour.
+     * Hides a face toward a cell of its goo standing at least as tall, so a
+     * taller cell still draws the side it shows above a lower neighbour.
      */
     @Override
     protected boolean skipRendering(@NonNull BlockState state, @NonNull BlockState neighbour,
                                     @NonNull Direction direction) {
         boolean covered = direction.getAxis().isVertical() || layersOf(neighbour) >= layersOf(state);
-        return hidesFaceToward(neighbour) && covered || super.skipRendering(state, neighbour, direction);
+        return continuesInto(neighbour) && covered || super.skipRendering(state, neighbour, direction);
     }
 
     /**
-     * Whether a cell can hold a coat: the block under it has a sturdy top.
+     * Whether a cell can hold a world goo: the block under it has a sturdy top.
      *
      * @param level the level
      * @param pos   the cell
-     * @return true where a coat can lie
+     * @return true where a world goo can lie
      */
     public static boolean liesOn(LevelReader level, BlockPos pos) {
         BlockPos under = pos.below();
@@ -268,11 +287,12 @@ public class SlimeCoatBlock extends Block {
     }
 
     /**
-     * Refuses a placed block the cell, so building on slime sets the block
-     * over it rather than deleting the goo its layers hold; the cell stays
-     * replaceable for the coat step and the rules that read
+     * Refuses a placed block the cell, so building on a world goo sets the
+     * block over it rather than deleting the goo its layers hold; the cell
+     * stays replaceable for the landing steps and the rules that read
      * BlockState.canBeReplaced().
      * breaking-slime-drops-weird-goo-worth-its-layers
+     * breaking-slick-drops-kinetic-goo-worth-its-film
      */
     @Override
     protected boolean canBeReplaced(@NonNull BlockState state, @NonNull BlockPlaceContext context) {
@@ -285,7 +305,7 @@ public class SlimeCoatBlock extends Block {
     }
 
     /**
-     * Fits a coat laid straight into its cell, as a stream's coat is, to the
+     * Fits a cell laid straight into its block space, as a drip's is, to the
      * film beside it, and starts it flowing.
      * slime-is-a-layered-cell-that-levels-out
      */
@@ -294,13 +314,13 @@ public class SlimeCoatBlock extends Block {
                            @NonNull BlockState oldState, boolean movedByPiston) {
         super.onPlace(state, level, pos, oldState, movedByPiston);
         if (!canSurvive(state, level, pos)) {
-            // a blob landing beside a wall finds no top to coat
+            // a drip landing beside a wall finds no top to lie on
             level.removeBlock(pos, false);
             return;
         }
         BlockState fitted = fittedTo(state, level, pos);
         if (fitted != state) {
-            level.setBlock(pos, fitted, Block.UPDATE_CLIENTS);
+            level.setBlock(pos, fitted, UPDATE_CLIENTS);
         }
         level.scheduleTick(pos, this, pourTicksAt(level));
     }
@@ -320,31 +340,31 @@ public class SlimeCoatBlock extends Block {
     }
 
     /**
-     * What a side neighbour's cell can do with a poured layer.
+     * What a side neighbour's cell can do with a poured layer: a cell of this
+     * goo holds it, a cell of another goo or any other block takes none.
      *
      * @param level the level
      * @param cell  the neighbour's cell
      * @param side  the side it stands on
      * @return the side, its layers and its footing
      */
-    private static Side sideOf(LevelReader level, BlockPos cell, Direction side) {
+    private Side sideOf(LevelReader level, BlockPos cell, Direction side) {
         BlockState standing = level.getBlockState(cell);
-        if (standing.getBlock() instanceof SlimeCoatBlock) {
-            return Side.holds(side, layersOf(standing));
+        if (standing.is(this)) {
+            return Side.holds(side, standing.getValue(LAYERS));
         }
         if (!standing.isAir()) {
             return Side.blocked(side);
         }
         BlockState under = level.getBlockState(cell.below());
-        if (under.isAir() || unfilledSlime(under)) {
+        if (under.isAir() || unfilled(under)) {
             return Side.ledge(side);
         }
         return liesOn(level, cell) ? Side.holds(side, 0) : Side.blocked(side);
     }
 
-    private static boolean unfilledSlime(BlockState state) {
-        int layers = layersOf(state);
-        return layers > 0 && layers < MAX_LAYERS;
+    private boolean unfilled(BlockState state) {
+        return state.is(this) && state.getValue(LAYERS) < MAX_LAYERS;
     }
 
     /**
@@ -357,16 +377,16 @@ public class SlimeCoatBlock extends Block {
      * @return the ticks between pours
      */
     private int pourTicksAt(LevelReader level) {
-        int viscosity = level.registryAccess().get(gooType).map(type -> type.value().viscosity())
+        int viscosity = level.registryAccess().get(binding.gooType()).map(type -> type.value().viscosity())
                 .orElse(SlimeFlow.WATER_VISCOSITY);
         return SlimeFlow.pourTicks(viscosity);
     }
 
     /**
      * Moves one whole layer from a cell toward a side: into the neighbour, an
-     * open cell over a top that can hold a coat becoming a one-layer cell, or
-     * down off the ledge to the first top below it; the cell loses the layer
-     * the landing takes.
+     * open cell over a top that can hold a world goo becoming a one-layer
+     * cell, or down off the ledge to the first top below it; the cell loses
+     * the layer the landing takes.
      * spread-decreases-the-cell-it-leaves
      *
      * @param level the level
@@ -384,7 +404,7 @@ public class SlimeCoatBlock extends Block {
 
     /**
      * Pours one layer from a cell into the cell its layer lands in, where
-     * that cell is open or holds a layered cell short of a whole block.
+     * that cell is open or holds this goo short of a whole block.
      * spread-decreases-the-cell-it-leaves
      *
      * @param level   the level
@@ -394,53 +414,59 @@ public class SlimeCoatBlock extends Block {
      */
     private void pourInto(ServerLevel level, BlockPos pos, BlockState state, BlockPos landing) {
         BlockState taking = level.getBlockState(landing);
-        boolean holdsLayers = taking.isAir() || taking.getBlock() instanceof SlimeCoatBlock;
+        boolean holdsLayers = taking.isAir() || taking.is(this);
         SlimeFlow.Poured poured = SlimeFlow.poured(state.getValue(LAYERS), layersOf(taking));
         if (holdsLayers && poured.taker() <= MAX_LAYERS) {
             BlockState into = taking.isAir() ? defaultBlockState() : taking;
-            level.setBlock(landing, into.setValue(LAYERS, poured.taker()), Block.UPDATE_ALL);
-            level.setBlock(pos, state.setValue(LAYERS, poured.giver()), Block.UPDATE_ALL);
+            level.setBlock(landing, into.setValue(LAYERS, poured.taker()), UPDATE_ALL);
+            level.setBlock(pos, state.setValue(LAYERS, poured.giver()), UPDATE_ALL);
         }
     }
 
     /**
      * Where a layer falling through a ledge lands: in the first unfilled
-     * slime below it, or in the last open cell over the first sturdy top.
+     * cell of this goo below it, or in the last open cell over the first
+     * sturdy top.
      *
      * @param level the level
      * @param ledge the open cell the layer falls through
      * @return the landing cell, empty where it finds no top
      */
-    private static Optional<BlockPos> landingBelow(LevelReader level, BlockPos ledge) {
+    private Optional<BlockPos> landingBelow(LevelReader level, BlockPos ledge) {
         BlockPos open = ledge;
         BlockPos below = ledge.below();
         while (below.getY() >= level.getMinY() && level.getBlockState(below).isAir()) {
             open = below;
             below = below.below();
         }
-        if (below.getY() >= level.getMinY() && unfilledSlime(level.getBlockState(below))) {
+        if (below.getY() >= level.getMinY() && unfilled(level.getBlockState(below))) {
             return Optional.of(below);
         }
         return liesOn(level, open) ? Optional.of(open) : Optional.empty();
     }
 
     /**
-     * Breaks whatever fall lands on the coat.
+     * Breaks whatever fall lands on a bouncing cell; any other cell lets the
+     * fall harm as its ground would.
      * bounce-ramps-jump-height-while-jump-is-held
      */
     @Override
     public void fallOn(@NonNull Level level, @NonNull BlockState state, @NonNull BlockPos pos,
                        @NonNull Entity entity, double fallDistance) {
-        entity.causeFallDamage(fallDistance, 0.0F, level.damageSources().fall());
+        if (surface().bounces()) {
+            entity.causeFallDamage(fallDistance, 0.0F, level.damageSources().fall());
+        } else {
+            super.fallOn(level, state, pos, entity, fallDistance);
+        }
     }
 
     /**
-     * Bounces what lands on the coat, ramping while jump is held.
+     * Bounces what lands on a bouncing cell, ramping while jump is held.
      * bounce-ramps-jump-height-while-jump-is-held
      */
     @Override
     public void updateEntityMovementAfterFallOn(@NonNull BlockGetter level, @NonNull Entity entity) {
-        if (entity.getDeltaMovement().y < 0) {
+        if (surface().bounces() && entity.getDeltaMovement().y < 0) {
             SlimeCoatBounce.bounce(entity);
         } else {
             super.updateEntityMovementAfterFallOn(level, entity);
@@ -448,7 +474,38 @@ public class SlimeCoatBlock extends Block {
     }
 
     /**
-     * Drops the coat where its top is gone, refits its drips, and wakes the
+     * Ramps the horizontal velocity of a thing trying to move on a ramping
+     * cell, the same at any height, by the ramp the laying ability's slick
+     * step names.
+     * slick-coats-the-ground-with-kinetic-speed
+     * slick-is-a-layered-cell-that-flows-thinner-and-faster-than-slime
+     */
+    @Override
+    public void stepOn(@NonNull Level level, @NonNull BlockPos pos, @NonNull BlockState state,
+                       @NonNull Entity entity) {
+        if (surface().ramps()) {
+            SlickStep.in(layingProgram(level)).ifPresent(slick -> SlickBuild.slide(entity, slick));
+        }
+        super.stepOn(level, pos, state, entity);
+    }
+
+    /**
+     * The steps the laying ability runs, from the server's registry or the
+     * client's synced abilities, since the client moves its own player.
+     *
+     * @param level the level the cell stands in
+     * @return the steps, empty where the ability is not loaded
+     */
+    private List<Step> layingProgram(Level level) {
+        if (level.isClientSide()) {
+            return ISidedProxy.get().syncedAbilityProgram(binding.layingAbility().toString());
+        }
+        return Optional.ofNullable(AbilityRegistry.of(level).getAbility(binding.layingAbility()))
+                .map(AbilityDefinition::behaviors).orElse(List.of());
+    }
+
+    /**
+     * Drops the cell where its top is gone, refits its drips, and wakes the
      * flow, since a changed neighbour may open a pour.
      * slime-is-a-layered-cell-that-levels-out
      */
@@ -462,6 +519,6 @@ public class SlimeCoatBlock extends Block {
         }
         ticks.scheduleTick(pos, this, pourTicksAt(level));
         BooleanProperty drip = DRIPS.get(direction);
-        return drip == null ? state : state.setValue(drip, dripsBeside(neighborState));
+        return drip == null ? state : state.setValue(drip, !continuesInto(neighborState));
     }
 }

@@ -277,7 +277,7 @@
   "goo.ability.kinetic.grab": "Grab",
   "goo.ability.kinetic.grab.description": "Lifts the mob or item you look at; look down to pull it closer, left click to throw.",
   "goo.ability.kinetic.slick": "Slick",
-  "goo.ability.kinetic.slick.cost_mechanics": "Costs %s per film of slick laid.",
+  "goo.ability.kinetic.slick.cost_mechanics": "Costs %s per block of slick laid, a fifteenth of it per layer.",
   "goo.ability.kinetic.slick.description":"Held stream lays a slippery film on floors that speeds up whatever slides on it.",
   "goo.ability.kinetic.remote": "Remote",
   "goo.ability.kinetic.remote.description": "You reach blocks and entities from farther away.",

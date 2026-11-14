@@ -6,8 +6,8 @@ import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.block.CompiledStateDefinition;
 import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import org.junit.jupiter.api.Nested;
@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.reflect.ParameterizedType;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -26,41 +27,89 @@ import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * The slime coat as a layered cell: a plain block holding one to fifteen
- * layers, it stands its layers' fifteenths of a block high and draws a model
- * per layer count, a layer costs a fifteenth of Goop's cost, a broken cell
- * gives back the goo its layers cost, and neighbouring coats read as one
- * film, a coat hiding its face toward another coat as a slime block does
- * toward a slime block (decisions coat-is-a-green-slime-film-over-the-blocks-own-texture,
- * world-goo-fills-a-block-space-in-one-to-fifteen-layers, breaking-slime-drops-weird-goo-worth-its-layers).
+ * The volume cell: one plain block implementation holding one to fifteen
+ * layers, bound to slime and to slick, it stands its layers' fifteenths of a
+ * block high and draws a model per layer count, a layer costs a fifteenth of
+ * its laying ability's cost, a broken cell gives back the goo its layers
+ * cost, and neighbouring cells of one goo read as one film
+ * (decisions coat-is-a-green-slime-film-over-the-blocks-own-texture,
+ * world-goo-fills-a-block-space-in-one-to-fifteen-layers, slime-and-slick-are-one-volume-cell-tech,
+ * breaking-slime-drops-weird-goo-worth-its-layers).
  */
-class SlimeCoatBlockTest {
+class VolumeCellBlockTest {
 
     private static final String BLOCKSTATE_JSON = "/assets/goo/blockstates/slime_coat.json";
     /** The layers a whole block of slime holds, stated here so the test checks the block rather than echoing it. */
     private static final int FIFTEEN = 15;
 
+    /**
+     * A cell's film continues into a cell of its own goo alone, so slime and
+     * slick standing side by side keep their own faces and drips
+     * (decision diagnose-and-correct-the-slick-film-seams).
+     */
     @Nested
     class Faces {
 
-        @Test
-        void aCoatHidesItsFaceTowardAnotherCoat() {
-            BlockState coat = mock(BlockState.class);
-            when(coat.getBlock()).thenReturn(mock(SlimeCoatBlock.class));
+        private final VolumeCellBlock slime = mock(VolumeCellBlock.class, CALLS_REAL_METHODS);
 
-            assertTrue(SlimeCoatBlock.hidesFaceToward(coat));
+        @Test
+        void aCellContinuesIntoACellOfItsGoo() {
+            BlockState sameGoo = mock(BlockState.class);
+            when(sameGoo.is(slime)).thenReturn(true);
+
+            assertTrue(slime.continuesInto(sameGoo));
         }
 
         @Test
-        void aCoatDrawsItsFaceTowardAnythingElse() {
-            BlockState stone = mock(BlockState.class);
-            when(stone.getBlock()).thenReturn(mock(Block.class));
+        void aCellStopsAtACellOfAnotherGoo() {
+            BlockState otherGoo = mock(BlockState.class);
+            when(otherGoo.getBlock()).thenReturn(mock(VolumeCellBlock.class));
 
-            assertFalse(SlimeCoatBlock.hidesFaceToward(stone));
+            assertFalse(slime.continuesInto(otherGoo));
+        }
+    }
+
+    /**
+     * Slime and slick are one volume cell implementation, each registered in
+     * GooBlocks bound to its goo type, with no block entity
+     * (decisions slime-and-slick-are-one-volume-cell-tech, each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    @Nested
+    class OneImplementation {
+
+        @Test
+        void gooBlocksRegistersSlimeAndSlickAsTheOneVolumeCell() throws ReflectiveOperationException {
+            assertEquals(List.of(VolumeCellBlock.class, VolumeCellBlock.class),
+                    List.of(registeredBlockClass("SLIME_COAT"), registeredBlockClass("KINETIC_SLICK")));
+        }
+
+        @Test
+        void slimeIsBoundToWeirdAndSlickToKinetic() {
+            assertEquals(List.of(GooTypes.WEIRD, GooTypes.KINETIC),
+                    List.of(CellBinding.SLIME.gooType(), CellBinding.SLICK.gooType()));
+        }
+
+        @Test
+        void slimeBouncesAndSlickRamps() {
+            assertEquals(List.of(CellSurface.BOUNCE, CellSurface.RAMP),
+                    List.of(CellBinding.SLIME.surface(), CellBinding.SLICK.surface()));
+        }
+
+        /**
+         * The block class a GooBlocks field registers, read from the field's
+         * declared type without initializing GooBlocks, whose registrations
+         * need the game's registries.
+         */
+        private static Class<?> registeredBlockClass(String field) throws ReflectiveOperationException {
+            Class<?> gooBlocks = Class.forName("com.mercuriusxeno.goo.registry.GooBlocks", false,
+                    VolumeCellBlockTest.class.getClassLoader());
+            ParameterizedType deferred = (ParameterizedType) gooBlocks.getDeclaredField(field).getGenericType();
+            return (Class<?>) deferred.getActualTypeArguments()[0];
         }
     }
 
@@ -78,12 +127,12 @@ class SlimeCoatBlockTest {
             List<String> layerCounts = IntStream.rangeClosed(1, FIFTEEN).mapToObj(Integer::toString).toList();
 
             assertEquals(Map.of("north", flag, "east", flag, "south", flag, "west", flag, "layers", layerCounts),
-                    CompiledStateDefinition.of(SlimeCoatBlock.class));
+                    CompiledStateDefinition.of(VolumeCellBlock.class));
         }
 
         @Test
         void theCellHoldsNoBlockEntity() {
-            assertFalse(EntityBlock.class.isAssignableFrom(SlimeCoatBlock.class));
+            assertFalse(EntityBlock.class.isAssignableFrom(VolumeCellBlock.class));
         }
     }
 
@@ -92,17 +141,17 @@ class SlimeCoatBlockTest {
 
         @Test
         void oneLayerStandsAFifteenthHigh() {
-            assertEquals(1.0 / FIFTEEN, SlimeCoatBlock.layerBox(1).max(Direction.Axis.Y), 1e-9);
+            assertEquals(1.0 / FIFTEEN, VolumeCellBlock.layerBox(1).max(Direction.Axis.Y), 1e-9);
         }
 
         @Test
         void eightLayersStandEightFifteenthsHigh() {
-            assertEquals(8.0 / FIFTEEN, SlimeCoatBlock.layerBox(8).max(Direction.Axis.Y), 1e-9);
+            assertEquals(8.0 / FIFTEEN, VolumeCellBlock.layerBox(8).max(Direction.Axis.Y), 1e-9);
         }
 
         @Test
         void fifteenLayersStandAWholeBlockHigh() {
-            assertEquals(1.0, SlimeCoatBlock.layerBox(FIFTEEN).max(Direction.Axis.Y), 1e-9);
+            assertEquals(1.0, VolumeCellBlock.layerBox(FIFTEEN).max(Direction.Axis.Y), 1e-9);
         }
 
         @Test
@@ -138,22 +187,22 @@ class SlimeCoatBlockTest {
 
         @Test
         void aLayerCostsAFifteenthOfTheCost() {
-            assertEquals(GooFraction.of(96).dividedBy(FIFTEEN), SlimeCoatBlock.layerPrice(A_COST));
+            assertEquals(GooFraction.of(96).dividedBy(FIFTEEN), VolumeCellBlock.layerPrice(A_COST));
         }
 
         @Test
         void aRetunedCostRetunesTheLayersPrice() {
-            assertEquals(GooFraction.of(160).dividedBy(FIFTEEN), SlimeCoatBlock.layerPrice(RETUNED_COST));
+            assertEquals(GooFraction.of(160).dividedBy(FIFTEEN), VolumeCellBlock.layerPrice(RETUNED_COST));
         }
 
         @Test
         void aBrokenCellReturnsAFifteenthOfTheCostPerLayer() {
-            assertEquals(LAYERS * 96 / FIFTEEN, SlimeCoatBlock.reclaimed(LAYERS, A_COST));
+            assertEquals(LAYERS * 96 / FIFTEEN, VolumeCellBlock.reclaimed(LAYERS, A_COST));
         }
 
         @Test
         void aRetunedCostRetunesTheRefund() {
-            assertEquals(LAYERS * 160 / FIFTEEN, SlimeCoatBlock.reclaimed(LAYERS, RETUNED_COST));
+            assertEquals(LAYERS * 160 / FIFTEEN, VolumeCellBlock.reclaimed(LAYERS, RETUNED_COST));
         }
 
         /** goop-drains-per-cubic-meter-of-slime-placed: Goop's cost reads as a price per cubic meter of slime */
@@ -161,10 +210,16 @@ class SlimeCoatBlockTest {
         void goopsCostPricesACubicMeter() {
             assertEquals(Optional.of("%s/m³"), AbilityJson.decode("weird_goop").costFormula());
         }
+
+        /** slick-drains-per-film-it-lays: Slick's cost reads as a price per cubic meter of slick */
+        @Test
+        void slicksCostPricesACubicMeter() {
+            assertEquals(Optional.of("%s/m³"), AbilityJson.decode("kinetic_slick").costFormula());
+        }
     }
 
     private static JsonObject classpathJson(String path) throws IOException {
-        try (InputStream in = SlimeCoatBlockTest.class.getResourceAsStream(path)) {
+        try (InputStream in = VolumeCellBlockTest.class.getResourceAsStream(path)) {
             assertTrue(in != null, path + " is not on the classpath");
             return JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
         }

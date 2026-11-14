@@ -3,7 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.VacuumStep;
-import com.mercuriusxeno.goo.block.ability.SlimeCoatBlock;
+import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.HeardSounds;
 import com.mercuriusxeno.goo.gametest.PacketRecorder;
@@ -111,6 +111,9 @@ public final class VacuumTests {
     private static final int VACUUMED_LAYERS = 11;
     private static final String LAYERS_PRICE_WRONG = "The vacuumed slime cell should return %d mb of weird goo,"
             + " returned %d";
+    private static final String RETURNS_THE_SLICKS_PRICE = "vacuum_returns_a_slick_cells_layers_price";
+    private static final String SLICKS_PRICE_WRONG = "The vacuumed slick cell should return %d mb of kinetic goo,"
+            + " returned %d";
     /** Ticks past a release for an unfinished exposure to cool away to nothing. */
     private static final int COOL_TICKS = 60;
     private static final String SLURPS = "vacuum_slurps_once_at_each_cell_it_takes";
@@ -150,6 +153,34 @@ public final class VacuumTests {
         GooTestFunctions.registerTest(registrar, LEAVES_PLAYERS_AND_MOBS_BEHIND,
                 VacuumTests::vacuumLeavesPlayersAndMobsBehindUnmoved);
         GooTestFunctions.registerTest(registrar, RETURNS_THE_LAYERS_PRICE, VacuumTests::vacuumReturnsASlimeCellsLayersPrice);
+        GooTestFunctions.registerTest(registrar, RETURNS_THE_SLICKS_PRICE, VacuumTests::vacuumReturnsASlickCellsLayersPrice);
+    }
+
+    /**
+     * Vacuum held over one slick cell of eleven layers, beside open cells it
+     * cannot pour into, returns, lying or pulled into the inventory, the
+     * kinetic goo eleven layers cost, each a fifteenth of Slick's cost.
+     * breaking-slick-drops-kinetic-goo-worth-its-film
+     *
+     * @param helper the gametest helper
+     */
+    public static void vacuumReturnsASlickCellsLayersPrice(GameTestHelper helper) {
+        layTheFloor(helper);
+        // open cells east and west over bottom slabs, whose tops hold no slick, keep the layers in their cell
+        // and leave the line from the eye clear
+        helper.setBlock(laneCell(DECAYED - 1).below(), Blocks.STONE_SLAB);
+        helper.setBlock(laneCell(DECAYED + 1).below(), Blocks.STONE_SLAB);
+        helper.setBlock(laneCell(DECAYED), GooBlocks.KINETIC_SLICK.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, VACUUMED_LAYERS));
+        ServerPlayer vacuumer = vacuumer(helper);
+        holdVacuum(helper, vacuumer, WAVE_HOLD, held -> vacuumer.doTick());
+        helper.runAfterDelay(WAVE_HOLD + 1, () -> {
+            int returned = gooReturned(helper, vacuumer, GooTypes.KINETIC);
+            helper.getLevel().getServer().getPlayerList().remove(vacuumer);
+            int owed = ResidualPrices.slickLayersRefund(helper, VACUUMED_LAYERS);
+            helper.assertTrue(returned == owed, String.format(SLICKS_PRICE_WRONG, owed, returned));
+            helper.succeed();
+        });
     }
 
     /**
@@ -281,7 +312,7 @@ public final class VacuumTests {
         helper.runAfterDelay(WAVE_HOLD + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(vacuumer);
             BlockState behind = helper.getBlockState(laneCell(BEHIND));
-            helper.assertTrue(SlimeCoatBlock.layersOf(behind) == 1,
+            helper.assertTrue(VolumeCellBlock.layersOf(behind) == 1,
                     String.format(NOT_STANDING, "The goop behind the player", behind));
             assertStands(helper, laneCell(pastTheReach(helper)), GooBlocks.KINETIC_SLICK.get());
             assertStands(helper, laneCell(WALL_INSIDE_THE_CONE).south(), Blocks.STONE);
@@ -472,7 +503,7 @@ public final class VacuumTests {
             helper.assertTrue(atRelease > 0f && atRelease < FINISHES_ALONE,
                     String.format(NOT_PART_DECAYED, shares));
             BlockState stood = helper.getBlockState(far);
-            helper.assertTrue(SlimeCoatBlock.layersOf(stood) == LANE.get(farGoop),
+            helper.assertTrue(VolumeCellBlock.layersOf(stood) == LANE.get(farGoop),
                     String.format(NOT_WHOLE, LANE.get(farGoop), stood, exposureAt(helper, far)));
             helper.succeed();
         });
@@ -529,7 +560,7 @@ public final class VacuumTests {
     }
 
     private static BlockState slimeOf(int layers) {
-        return GooBlocks.SLIME_COAT.get().defaultBlockState().setValue(SlimeCoatBlock.LAYERS, layers);
+        return GooBlocks.SLIME_COAT.get().defaultBlockState().setValue(VolumeCellBlock.LAYERS, layers);
     }
 
     /**

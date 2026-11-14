@@ -4,10 +4,8 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.outsider.ConjuredDoors;
 import com.mercuriusxeno.goo.ability.outsider.OutsiderRooms;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
-import com.mercuriusxeno.goo.block.ability.SlickLayPace;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.HoldMarks;
-import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -15,7 +13,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
@@ -309,19 +306,5 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
     public GradualBreak gradualBreak() {
         return holdMarks().gradualBreak();
     }
-
-    @Override
-    public double channelerTravelSpeed() {
-        return player.getKnownMovement().horizontalDistance();
-    }
-
-    @Override
-    public double channelerUnadjustedSpeed() {
-        return SlickLayPace.unadjustedSpeed(player.getAttributeValue(Attributes.MOVEMENT_SPEED));
-    }
-
-    @Override
-    public boolean channelerStandsOnSlick() {
-        return level.getBlockState(player.blockPosition()).is(GooBlocks.KINETIC_SLICK.get());
-    }
 }
+

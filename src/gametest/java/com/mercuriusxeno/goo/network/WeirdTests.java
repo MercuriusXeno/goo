@@ -6,7 +6,7 @@ import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.ability.weird.Wobbled;
-import com.mercuriusxeno.goo.block.ability.SlimeCoatBlock;
+import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -191,7 +191,7 @@ public final class WeirdTests {
         }
         helper.setBlock(FLOW_CELL, slimeOf(WHOLE_BLOCK_LAYERS));
         helper.runAfterDelay(FLOW_SETTLE_TICKS, () -> {
-            List<Integer> settled = cross.stream().map(cell -> SlimeCoatBlock.layersOf(helper.getBlockState(cell)))
+            List<Integer> settled = cross.stream().map(cell -> VolumeCellBlock.layersOf(helper.getBlockState(cell)))
                     .toList();
             int middle = settled.getFirst();
             helper.assertTrue(settled.stream().allMatch(layers -> Math.abs(layers - middle) <= 1)
@@ -199,7 +199,7 @@ public final class WeirdTests {
                     String.format(NOT_SETTLED, settled));
             helper.runAfterDelay(SETTLED_WATCH_TICKS, () -> {
                 List<Integer> later = cross.stream()
-                        .map(cell -> SlimeCoatBlock.layersOf(helper.getBlockState(cell))).toList();
+                        .map(cell -> VolumeCellBlock.layersOf(helper.getBlockState(cell))).toList();
                 helper.assertTrue(later.equals(settled), String.format(STILL_POURING, settled, later));
                 helper.succeed();
             });
@@ -325,7 +325,7 @@ public final class WeirdTests {
         Vec3 slimeTop = Vec3.atBottomCenterOf(cell).add(0, (double) BROKEN_LAYERS / WHOLE_BLOCK_LAYERS, 0);
         stone.useOn(new UseOnContext(player, InteractionHand.MAIN_HAND,
                 new BlockHitResult(slimeTop, Direction.UP, cell, false)));
-        int standing = SlimeCoatBlock.layersOf(helper.getBlockState(FLOW_CELL));
+        int standing = VolumeCellBlock.layersOf(helper.getBlockState(FLOW_CELL));
         List<ItemEntity> drops = helper.getEntities(EntityType.ITEM, FLOW_CELL, 1.0);
         int weird = drops.stream().map(ItemEntity::getItem)
                 .filter(stack -> GooTypes.WEIRD.equals(GooStacks.keyOf(stack))).mapToInt(GooStacks::volumeOf).sum();
@@ -336,7 +336,7 @@ public final class WeirdTests {
     }
 
     private static BlockState slimeOf(int layers) {
-        return GooBlocks.SLIME_COAT.get().defaultBlockState().setValue(SlimeCoatBlock.LAYERS, layers);
+        return GooBlocks.SLIME_COAT.get().defaultBlockState().setValue(VolumeCellBlock.LAYERS, layers);
     }
 
     private static void stoneUnder(GameTestHelper helper, BlockPos cell) {
@@ -353,7 +353,7 @@ public final class WeirdTests {
 
     private static void assertLayers(GameTestHelper helper, BlockPos cell, int layers) {
         BlockState state = helper.getBlockState(cell);
-        Object held = state.is(GooBlocks.SLIME_COAT.get()) ? state.getValue(SlimeCoatBlock.LAYERS) : state;
+        Object held = state.is(GooBlocks.SLIME_COAT.get()) ? state.getValue(VolumeCellBlock.LAYERS) : state;
         helper.assertTrue(Integer.valueOf(layers).equals(held), String.format(LAYERS_WRONG, cell, layers, held));
     }
 
@@ -586,7 +586,7 @@ public final class WeirdTests {
      * @param cell     the cell
      */
     private static void aimDripAtTopOf(GameTestHelper helper, ServerPlayer streamer, BlockPos cell) {
-        double top = (double) SlimeCoatBlock.layersOf(helper.getBlockState(cell)) / SlimeCoatBlock.MAX_LAYERS;
+        double top = (double) VolumeCellBlock.layersOf(helper.getBlockState(cell)) / VolumeCellBlock.MAX_LAYERS;
         aimDripAt(helper, streamer, Vec3.atBottomCenterOf(helper.absolutePos(cell)).add(0, top, 0));
     }
 

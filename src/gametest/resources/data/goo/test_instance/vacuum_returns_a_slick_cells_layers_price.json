@@ -1,8 +1,8 @@
 {
   "type": "minecraft:function",
-  "function": "goo:slick_drains_its_cost_for_each_film_it_lays",
+  "function": "goo:vacuum_returns_a_slick_cells_layers_price",
   "environment": "minecraft:default",
-  "structure": "goo:test_bay",
+  "structure": "goo:light_bay",
   "max_ticks": 100,
   "setup_ticks": 0,
   "required": true

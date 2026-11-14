@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.block.ability.SlimeCoatBlock;
+import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
@@ -138,7 +138,7 @@ public final class GoopArcTests {
         LandedDrips.landOn(helper, caster, goop, DRIPPED_CELL, 2);
         assertLayers(helper, DRIPPED_CELL, 3);
         helper.setBlock(DRIPPED_CELL, GooBlocks.SLIME_COAT.get().defaultBlockState()
-                .setValue(SlimeCoatBlock.LAYERS, WHOLE_BLOCK_LAYERS));
+                .setValue(VolumeCellBlock.LAYERS, WHOLE_BLOCK_LAYERS));
         LandedDrips.landOn(helper, caster, goop, DRIPPED_CELL, 1);
         assertLayers(helper, DRIPPED_CELL, WHOLE_BLOCK_LAYERS);
         helper.getLevel().getServer().getPlayerList().remove(caster);
@@ -160,7 +160,7 @@ public final class GoopArcTests {
 
     private static void assertLayers(GameTestHelper helper, BlockPos cell, int layers) {
         BlockState state = helper.getBlockState(cell);
-        Object held = state.is(GooBlocks.SLIME_COAT.get()) ? state.getValue(SlimeCoatBlock.LAYERS) : state;
+        Object held = state.is(GooBlocks.SLIME_COAT.get()) ? state.getValue(VolumeCellBlock.LAYERS) : state;
         helper.assertTrue(Integer.valueOf(layers).equals(held), String.format(LAYERS_WRONG, layers, held));
     }
 
