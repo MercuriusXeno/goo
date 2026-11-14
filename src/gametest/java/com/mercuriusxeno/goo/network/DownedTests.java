@@ -57,6 +57,13 @@ public final class DownedTests {
     private static final String DIED_TOO_SOON = "The downed cow should be alive and downed at 200 ticks";
     private static final String OUTLIVED_THE_SPAN = "The downed cow should be dead past 300 ticks";
 
+    private static final String ZOMBIE_DROPS_THE_DOWNED_COW = "downed_zombie_drops_the_downed_cow";
+    /** Past the 5 second immunity, short of the death span. */
+    private static final int PAST_THE_IMMUNITY_TICKS = 150;
+    private static final String NOT_AIMED = "The zombie should take the standing cow as its target";
+    private static final String STILL_AIMED = "The zombie should drop the cow as its target once the cow is downed";
+    private static final String AIMED_AGAIN = "The zombie should take no hold on the downed cow past the immunity";
+
     private DownedTests() {
     }
 
@@ -77,6 +84,29 @@ public final class DownedTests {
                 helper -> cowDiesAtFifteenSeconds(helper, false));
         GooTestFunctions.registerTest(registrar, COW_DIES_AT_FIFTEEN_SECONDS_UNRALLIED,
                 helper -> cowDiesAtFifteenSeconds(helper, true));
+        GooTestFunctions.registerTest(registrar, ZOMBIE_DROPS_THE_DOWNED_COW, DownedTests::zombieDropsTheDownedCow);
+    }
+
+    /**
+     * A zombie targeting a rallied cow holds no target the tick after the
+     * cow goes down, and an explicit aim at the cow past the 5 second
+     * immunity takes no hold either
+     * (decision nothing-targets-a-downed-mob).
+     *
+     * @param helper the gametest helper
+     */
+    public static void zombieDropsTheDownedCow(GameTestHelper helper) {
+        Zombie zombie = attacker(helper);
+        Cow cow = ralliedCow(helper);
+        zombie.setTarget(cow);
+        helper.assertTrue(zombie.getTarget() == cow, NOT_AIMED);
+        strike(helper, cow, zombie);
+        helper.runAfterDelay(1, () -> helper.assertFalse(zombie.getTarget() == cow, STILL_AIMED));
+        helper.runAfterDelay(PAST_THE_IMMUNITY_TICKS, () -> {
+            zombie.setTarget(cow);
+            helper.assertFalse(zombie.getTarget() == cow, AIMED_AGAIN);
+            helper.succeed();
+        });
     }
 
     /**

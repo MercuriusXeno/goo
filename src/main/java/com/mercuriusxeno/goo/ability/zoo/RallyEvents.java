@@ -277,7 +277,8 @@ public final class RallyEvents {
     private static RallyFoes.Candidate<LivingEntity> candidate(Mob rallied, LivingEntity near) {
         LivingEntity target = near instanceof Mob nearMob ? nearMob.getTarget() : null;
         return new RallyFoes.Candidate<>(near, near.getUUID(), near.isAlive(), isUnprovokedHostile(near),
-                target == null ? null : target.getUUID(), rallied.distanceToSqr(near));
+                target == null ? null : target.getUUID(), rallied.distanceToSqr(near),
+                near.hasData(GooAttachments.DOWNED));
     }
 
     /**

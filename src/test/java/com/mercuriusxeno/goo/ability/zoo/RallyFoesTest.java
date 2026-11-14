@@ -94,6 +94,21 @@ class RallyFoesTest {
                 List.of(near("bystander", BYSTANDER, null, 1), near("struck", STRUCK, null, 4))));
     }
 
+    /** nothing-targets-a-downed-mob */
+    @Test
+    void aStandingHostileIsPickedOverANearerDownedOne() {
+        assertEquals(Optional.of("standing"), RallyFoes.pick(CASTER, null, null, null,
+                List.of(new RallyFoes.Candidate<>("downed", HOSTILE, true, true, null, 1, true),
+                        hostile("standing", new UUID(0, 9), 16))));
+    }
+
+    /** nothing-targets-a-downed-mob */
+    @Test
+    void aDownedMobAloneIsNoFoe() {
+        assertEquals(Optional.empty(), RallyFoes.pick(CASTER, null, HURTER, null,
+                List.of(new RallyFoes.Candidate<>("downed hurter", HURTER, true, true, CASTER, 1, true))));
+    }
+
     @Test
     void aBystanderIsNoFoe() {
         assertEquals(Optional.empty(), RallyFoes.pick(CASTER, null, HURTER, STRUCK,

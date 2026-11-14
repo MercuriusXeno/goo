@@ -26,9 +26,24 @@ public final class CharmTargets {
      * @param hostile     whether it is a monster hostile to players unprovoked, neither neutral nor charmed
      * @param target      the UUID of the entity it targets, or null for none
      * @param distanceSqr its squared distance from the charmed mob
+     * @param downed      whether it lies downed, which no pick takes
      * @param <T>         the mob's type
      */
-    public record Candidate<T>(T mob, boolean alive, boolean hostile, @Nullable UUID target, double distanceSqr) {
+    public record Candidate<T>(T mob, boolean alive, boolean hostile, @Nullable UUID target, double distanceSqr,
+                               boolean downed) {
+
+        /**
+         * A candidate standing, not downed.
+         *
+         * @param mob         the mob
+         * @param alive       whether it still lives
+         * @param hostile     whether it is a monster hostile to players unprovoked, neither neutral nor charmed
+         * @param target      the UUID of the entity it targets, or null for none
+         * @param distanceSqr its squared distance from the charmed mob
+         */
+        public Candidate(T mob, boolean alive, boolean hostile, @Nullable UUID target, double distanceSqr) {
+            this(mob, alive, hostile, target, distanceSqr, false);
+        }
     }
 
     /**
@@ -48,7 +63,8 @@ public final class CharmTargets {
 
     private static <T> Optional<T> nearest(List<Candidate<T>> nearby, Predicate<Candidate<T>> foe) {
         return nearby.stream()
-                .filter(candidate -> candidate.alive() && foe.test(candidate))
+                // nothing-targets-a-downed-mob
+                .filter(candidate -> candidate.alive() && !candidate.downed() && foe.test(candidate))
                 .min(Comparator.comparingDouble(Candidate::distanceSqr))
                 .map(Candidate::mob);
     }
