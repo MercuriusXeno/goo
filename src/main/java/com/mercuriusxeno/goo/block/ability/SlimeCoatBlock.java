@@ -70,8 +70,7 @@ public class SlimeCoatBlock extends Block {
     public static final IntegerProperty LAYERS = IntegerProperty.create("layers", 1, MAX_LAYERS);
     /** The ability whose cost prices a whole block of Weird's slime, a fifteenth of it per layer. */
     public static final Identifier GOOP_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "weird_goop");
-    /** Ticks between one pour and the next, as a fluid spreads. */
-    static final int FLOW_TICKS = 2;
+
     private static final Map<Direction, BooleanProperty> DRIPS = Map.of(Direction.NORTH, NORTH,
             Direction.EAST, EAST, Direction.SOUTH, SOUTH, Direction.WEST, WEST);
     private static final List<Direction> SIDES = List.of(Direction.NORTH, Direction.EAST, Direction.SOUTH,
@@ -303,13 +302,15 @@ public class SlimeCoatBlock extends Block {
         if (fitted != state) {
             level.setBlock(pos, fitted, Block.UPDATE_CLIENTS);
         }
-        level.scheduleTick(pos, this, FLOW_TICKS);
+        level.scheduleTick(pos, this, pourTicksAt(level));
     }
 
     /**
      * Pours one layer into the side the flow rule picks, which places the
-     * cell anew and so schedules the next pour, until the cell stands level.
+     * cell anew and so schedules the next pour after its goo type's
+     * viscosity's ticks, until the cell stands level.
      * slime-is-a-layered-cell-that-levels-out
+     * spread-decreases-the-cell-it-leaves
      */
     @Override
     protected void tick(@NonNull BlockState state, @NonNull ServerLevel level, @NonNull BlockPos pos,
@@ -347,8 +348,26 @@ public class SlimeCoatBlock extends Block {
     }
 
     /**
-     * Moves one layer from a cell toward a side: into the neighbour where it
-     * holds slime, or down off the ledge to the first top below it.
+     * The ticks this cell waits between pours, read from its goo type's
+     * viscosity; a cell whose goo type's definition does not load pours at
+     * water's pace.
+     * spread-decreases-the-cell-it-leaves
+     *
+     * @param level the level, whose registries hold the goo type
+     * @return the ticks between pours
+     */
+    private int pourTicksAt(LevelReader level) {
+        int viscosity = level.registryAccess().get(gooType).map(type -> type.value().viscosity())
+                .orElse(SlimeFlow.WATER_VISCOSITY);
+        return SlimeFlow.pourTicks(viscosity);
+    }
+
+    /**
+     * Moves one whole layer from a cell toward a side: into the neighbour, an
+     * open cell over a top that can hold a coat becoming a one-layer cell, or
+     * down off the ledge to the first top below it; the cell loses the layer
+     * the landing takes.
+     * spread-decreases-the-cell-it-leaves
      *
      * @param level the level
      * @param pos   the pouring cell
@@ -360,11 +379,28 @@ public class SlimeCoatBlock extends Block {
         BlockState beside = level.getBlockState(toward);
         Optional<BlockPos> landing = beside.isAir() && !liesOn(level, toward) ? landingBelow(level, toward)
                 : Optional.of(toward);
-        landing.flatMap(cell -> thickened(level.getBlockState(cell), this).map(into -> {
-            level.setBlock(cell, into, Block.UPDATE_ALL);
-            return cell;
-        })).ifPresent(cell -> level.setBlock(pos, state.setValue(LAYERS, state.getValue(LAYERS) - 1),
-                Block.UPDATE_ALL));
+        landing.ifPresent(cell -> pourInto(level, pos, state, cell));
+    }
+
+    /**
+     * Pours one layer from a cell into the cell its layer lands in, where
+     * that cell is open or holds a layered cell short of a whole block.
+     * spread-decreases-the-cell-it-leaves
+     *
+     * @param level   the level
+     * @param pos     the pouring cell
+     * @param state   the pouring cell's state
+     * @param landing the cell the layer lands in
+     */
+    private void pourInto(ServerLevel level, BlockPos pos, BlockState state, BlockPos landing) {
+        BlockState taking = level.getBlockState(landing);
+        boolean holdsLayers = taking.isAir() || taking.getBlock() instanceof SlimeCoatBlock;
+        SlimeFlow.Poured poured = SlimeFlow.poured(state.getValue(LAYERS), layersOf(taking));
+        if (holdsLayers && poured.taker() <= MAX_LAYERS) {
+            BlockState into = taking.isAir() ? defaultBlockState() : taking;
+            level.setBlock(landing, into.setValue(LAYERS, poured.taker()), Block.UPDATE_ALL);
+            level.setBlock(pos, state.setValue(LAYERS, poured.giver()), Block.UPDATE_ALL);
+        }
     }
 
     /**
@@ -424,7 +460,7 @@ public class SlimeCoatBlock extends Block {
         if (direction == Direction.DOWN && !canSurvive(state, level, pos)) {
             return Blocks.AIR.defaultBlockState();
         }
-        ticks.scheduleTick(pos, this, FLOW_TICKS);
+        ticks.scheduleTick(pos, this, pourTicksAt(level));
         BooleanProperty drip = DRIPS.get(direction);
         return drip == null ? state : state.setValue(drip, dripsBeside(neighborState));
     }
