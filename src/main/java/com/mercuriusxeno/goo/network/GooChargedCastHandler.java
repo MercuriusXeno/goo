@@ -40,7 +40,7 @@ public final class GooChargedCastHandler {
         int holdings = GooSourceScanner.aggregateAvailable(player).getOrDefault(gooType, 0);
         // goo-is-an-int-and-only-the-remainder-is-a-fraction: a fractional cost scales exactly, the size's price rounded up
         double unitCost = ability.cost().exactIn(GooValues.of(player.level())).toDouble();
-        double size = ChargeSize.affordable(ability.delivery().sizeAt(heldTicks), unitCost, holdings);
+        double size = ChargeSize.affordable(ability.delivery().stageAt(heldTicks), unitCost, holdings);
         int cost = ChargeSize.costAt(unitCost, size);
         if (!GooSourceScanner.hasEnough(player, gooType, cost)) {
             return;

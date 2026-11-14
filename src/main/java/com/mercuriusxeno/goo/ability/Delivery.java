@@ -348,14 +348,15 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
     }
 
     /**
-     * The size a hold charges the cast to: growing with the ticks held up to
-     * the cap its charge names, and no larger past it.
+     * The whole stage a hold charges the cast to: growing with the ticks held
+     * up to the cap its charge names, and no larger past it.
+     * decision blast-charges-from-two-to-seven-blocks
      *
      * @param heldTicks the ticks the use key was held
-     * @return the size in blocks
+     * @return the stage's size in blocks
      */
-    public double sizeAt(int heldTicks) {
-        return charge.sizeAt(chargeShare(heldTicks));
+    public double stageAt(int heldTicks) {
+        return charge.stageAt(heldTicks);
     }
 
     /**

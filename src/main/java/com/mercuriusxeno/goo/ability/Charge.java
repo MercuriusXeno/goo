@@ -25,13 +25,16 @@ import net.minecraft.network.codec.StreamCodec;
  * @param sweepTicks       the ticks between the sweep's first fleck and its last
  * @param fewestFlecks     the flecks a release with no charge slings
  * @param narrowestDegrees the cone a release with no charge fans across, edge to edge, in degrees
+ * @param minSize          the size a charge opens at with no hold, in blocks, never under the smallest a cast opens at
  * @param maxSize          the size a full charge reaches, in blocks, {@link #NO_SIZE} for a charge sizing nothing
  */
 public record Charge(int maxTicks, int flecks, double spreadDegrees, int sweepTicks, int fewestFlecks,
-                     double narrowestDegrees, double maxSize) {
+                     double narrowestDegrees, double minSize, double maxSize) {
 
     /** The largest size of a charge that sizes nothing. */
     public static final double NO_SIZE = 0;
+    /** Slack under a whole size a float share's rounding may leave, so 2.9999999 reads 3. */
+    private static final double WHOLE_SLACK = 1e-6;
 
     /** A delivery that does not charge. */
     public static final Charge NONE = new Charge(0, 0, 0, 0, 0, 0);
@@ -44,6 +47,8 @@ public record Charge(int maxTicks, int flecks, double spreadDegrees, int sweepTi
             Codec.INT.optionalFieldOf("sweep_ticks", 0).forGetter(Charge::sweepTicks),
             Codec.INT.optionalFieldOf("fewest_flecks", 1).forGetter(Charge::fewestFlecks),
             Codec.DOUBLE.optionalFieldOf("narrowest_degrees", 0.0).forGetter(Charge::narrowestDegrees),
+            // blast-charges-from-two-to-seven-blocks: a sizing charge names the size it opens at
+            Codec.DOUBLE.optionalFieldOf("min_size", ChargeSize.MIN_RADIUS).forGetter(Charge::minSize),
             Codec.DOUBLE.optionalFieldOf("max_size", NO_SIZE).forGetter(Charge::maxSize)
     ).apply(inst, Charge::new));
 
@@ -59,6 +64,7 @@ public record Charge(int maxTicks, int flecks, double spreadDegrees, int sweepTi
             ByteBufCodecs.VAR_INT, Charge::sweepTicks,
             ByteBufCodecs.VAR_INT, Charge::fewestFlecks,
             ByteBufCodecs.DOUBLE, Charge::narrowestDegrees,
+            ByteBufCodecs.DOUBLE, Charge::minSize,
             ByteBufCodecs.DOUBLE, Charge::maxSize,
             Charge::new);
 
@@ -74,7 +80,8 @@ public record Charge(int maxTicks, int flecks, double spreadDegrees, int sweepTi
      */
     public Charge(int maxTicks, int flecks, double spreadDegrees, int sweepTicks, int fewestFlecks,
                   double narrowestDegrees) {
-        this(maxTicks, flecks, spreadDegrees, sweepTicks, fewestFlecks, narrowestDegrees, NO_SIZE);
+        this(maxTicks, flecks, spreadDegrees, sweepTicks, fewestFlecks, narrowestDegrees, ChargeSize.MIN_RADIUS,
+                NO_SIZE);
     }
 
     /**
@@ -106,15 +113,41 @@ public record Charge(int maxTicks, int flecks, double spreadDegrees, int sweepTi
     }
 
     /**
-     * The size a release at a share of the charge casts at: the smallest a
-     * cast opens at with no charge, growing linearly to the largest size at a
-     * full charge, never past it.
+     * The size a charge has grown to at a share of a full charge: the size it
+     * opens at with no charge, growing linearly to the largest size at a full
+     * charge, never past it.
      *
      * @param share the share of a full charge the hold reached, 0 to 1
-     * @return the size in blocks
+     * @return the size in blocks, between whole stages part way through one
      */
     public double sizeAt(float share) {
-        return ChargeSize.MIN_RADIUS + (Math.max(maxSize, ChargeSize.MIN_RADIUS) - ChargeSize.MIN_RADIUS) * share;
+        double from = openingSize();
+        return from + (Math.max(maxSize, from) - from) * share;
+    }
+
+    /**
+     * The whole stage a hold has reached, the size a release casts at: the
+     * size it opens at with no hold, a block more for each share of the hold
+     * one block of growth takes, and no larger than the largest size past a
+     * full charge; Blast opens at 2 and gains a block every 20 ticks to 7.
+     * decision blast-charges-from-two-to-seven-blocks
+     * decision blast-eases-between-stages-at-a-second-each
+     *
+     * @param heldTicks the ticks the use key was held
+     * @return the stage's size in blocks
+     */
+    public double stageAt(int heldTicks) {
+        float share = maxTicks <= 0 ? 1f : Math.clamp((float) heldTicks / maxTicks, 0f, 1f);
+        return Math.floor(sizeAt(share) + WHOLE_SLACK);
+    }
+
+    /**
+     * The size the charge opens at, never under the smallest a cast opens at.
+     *
+     * @return the size in blocks
+     */
+    public double openingSize() {
+        return Math.max(minSize, ChargeSize.MIN_RADIUS);
     }
 
     /**

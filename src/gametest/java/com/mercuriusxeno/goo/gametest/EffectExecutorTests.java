@@ -494,8 +494,8 @@ public final class EffectExecutorTests {
      * @return the ticks
      */
     private static int ticksToCharge(Delivery delivery, double size) {
-        double span = delivery.charge().maxSize() - ChargeSize.MIN_RADIUS;
-        return (int) Math.round((size - ChargeSize.MIN_RADIUS) / span * delivery.chargeTicks());
+        double span = delivery.charge().maxSize() - delivery.charge().openingSize();
+        return (int) Math.round((size - delivery.charge().openingSize()) / span * delivery.chargeTicks());
     }
 
     /**

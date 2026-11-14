@@ -51,7 +51,7 @@ class BlastSizeTest {
         int fullCharge = delivery.chargeTicks();
 
         assertTrue(delivery.sizesByCharge(), "Blast's hold should size it");
-        assertTrue(delivery.sizeAt(fullCharge / 2) > delivery.sizeAt(fullCharge / 4),
+        assertTrue(delivery.stageAt(fullCharge / 2) > delivery.stageAt(fullCharge / 4),
                 "a longer hold should charge a larger blast");
     }
 
@@ -60,7 +60,7 @@ class BlastSizeTest {
     void aHoldPastTheFullChargeStopsAtTheCap(int fullCharges) {
         Delivery delivery = AbilityJson.decode("unstable_blast").delivery();
 
-        assertEquals(delivery.charge().maxSize(), delivery.sizeAt(delivery.chargeTicks() * fullCharges), TOLERANCE);
+        assertEquals(delivery.charge().maxSize(), delivery.stageAt(delivery.chargeTicks() * fullCharges), TOLERANCE);
     }
 
     @ParameterizedTest
