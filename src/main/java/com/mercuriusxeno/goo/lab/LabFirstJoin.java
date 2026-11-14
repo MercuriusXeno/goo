@@ -9,10 +9,12 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.SignBlock;
 
 /**
- * The Goo Lab save's first join: builds the lab at the origin and hands the
- * joining player the kit, once per save, so a new save opens fitted out with
- * nothing typed; {@code /goo lab build}, rebuild and kit stay for later runs.
+ * The Goo Lab save's first join: builds the lab at the origin, hands the
+ * joining player the kit and teaches them every item recipe, once per save,
+ * so a new save opens fitted out with nothing typed; {@code /goo lab build},
+ * rebuild, kit, learn and forget stay for later runs.
  * decision goo-lab-save-builds-and-kits-on-first-join
+ * decision goo-lab-save-teaches-every-recipe-on-first-join
  */
 public final class LabFirstJoin {
 
@@ -56,10 +58,12 @@ public final class LabFirstJoin {
     }
 
     /**
-     * Fits out the save where its marker reads unbuilt: builds the lab and
-     * hands the kit, then writes the marker built. A lab already standing at
-     * the origin, built by {@code /goo lab build} before the marker existed,
-     * reads as built, so its pen mobs are not spawned twice and the inventory stays.
+     * Fits out the save where its marker reads unbuilt: builds the lab, hands
+     * the kit and teaches every item recipe, then writes the marker built. A
+     * lab already standing at the origin, built by {@code /goo lab build}
+     * before the marker existed, reads as built, so its pen mobs are not
+     * spawned twice and the inventory stays; that join still teaches. A join
+     * finding the marker built teaches nothing, so a forget holds across a rejoin.
      *
      * @param level  the level to build in
      * @param origin the world position of the plan's zero offset
@@ -77,6 +81,7 @@ public final class LabFirstJoin {
             LabBuilder.build(level, origin, plan);
             LabKit.give(player, level);
         }
+        LabKit.learn(player, level);
         marker.markBuilt();
     }
 

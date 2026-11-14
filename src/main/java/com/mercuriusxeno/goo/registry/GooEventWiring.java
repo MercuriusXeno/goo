@@ -152,8 +152,10 @@ public final class GooEventWiring {
 
     /**
      * Fits out the Goo Lab save on its first join in a dev launch: the lab
-     * built and the kit handed, once per save.
+     * built, the kit handed and every recipe taught, once per save. It runs
+     * after onDatapackSync, so the known set the teaching sends lands on the client last.
      * decision goo-lab-save-builds-and-kits-on-first-join
+     * decision goo-lab-save-teaches-every-recipe-on-first-join
      *
      * @param event the login event
      */

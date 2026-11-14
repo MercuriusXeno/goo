@@ -32,10 +32,11 @@ import java.util.function.Supplier;
  * lab-iterates-the-registries and lab-kit-vat-leaves-infinity-out; operator
  * ruling 2026-10-11: one vat rather than a canister per type, which overflowed
  * the inventory at twenty-five types). The kit replaces the inventory it fills, since
- * the lab save is scratch, and teaches nothing: {@code /goo lab learn} teaches
- * every item recipe and {@code /goo lab forget} returns the player to knowing
- * nothing, each run on request, so the lab keeps unlearned items and the
- * knowledge gate still rules play outside the lab.
+ * the lab save is scratch, and teaches nothing: the Goo Lab save's first join
+ * ({@link LabFirstJoin}) teaches every item recipe, {@code /goo lab forget}
+ * returns the player to knowing nothing and {@code /goo lab learn} teaches
+ * every recipe again, each run on request, so the lab keeps unlearned items
+ * only after a forget and the knowledge gate still rules play outside the lab.
  * decision lab-kit-teaches-every-recipe
  */
 public final class LabKit {
