@@ -53,7 +53,7 @@ public final class GrowthBreeze {
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        Vec3 apex = GloveAim.handPosition(mc.gameRenderer.getMainCamera()).subtract(camera);
+        Vec3 apex = CastOrigin.ofLocal(mc).subtract(camera);
         Vec3 axis = player.getViewVector(partialTick);
         double range = growth.delivery().range();
         double tan = Math.tan(Math.toRadians(growth.delivery().coneDegrees() * HALF));

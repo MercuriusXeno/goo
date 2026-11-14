@@ -14,6 +14,7 @@ import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.ability.CameraEye;
+import com.mercuriusxeno.goo.client.ability.CastOrigin;
 import com.mercuriusxeno.goo.client.ability.ReserveVisual;
 import com.mercuriusxeno.goo.client.ability.VitalityVisual;
 import com.mercuriusxeno.goo.client.ability.WindLines;
@@ -166,8 +167,10 @@ public final class GloveThrowSender {
                     held(GooTypes.id(gooType), abilityId, origin, heldAimPoint(player, abilityId))
                             .targeting(outlinedEntityId())));
         }
-        VitalityVisual.drawFog(player, abilityId, selectedArea(abilityId), origin);
-        WindLines.blow(player, abilityId, selectedArea(abilityId), origin);
+        // every-ability-casts-from-the-lifted-palm-blob: the server's cone keeps the glove, the drawn effect leaves the blob
+        Vec3 drawnFrom = throwOrigin();
+        VitalityVisual.drawFog(player, abilityId, selectedArea(abilityId), drawnFrom);
+        WindLines.blow(player, abilityId, selectedArea(abilityId), drawnFrom);
         ReserveVisual.drawDrain(player, abilityId);
         loopStreamSound(player, abilityId);
         return true;
@@ -439,7 +442,7 @@ public final class GloveThrowSender {
      */
     private static @Nullable GooThrowPayload affordablePayload(Player player, TargetResult target,
             ResourceKey<GooTypeDefinition> gooType, String abilityId) {
-        GooThrowPayload payload = targetToPayload(target, gooType, abilityId, lineOrigin());
+        GooThrowPayload payload = targetToPayload(target, gooType, abilityId, throwOrigin());
         ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
         // click-costs-one-mb-and-nothing-under-sculker: a throw a standing ability waives needs no goo held
         boolean free = ability != null && ability.freeFor(player.getData(GooAttachments.HELD_EFFECTS)::holds);
@@ -608,6 +611,18 @@ public final class GloveThrowSender {
      */
     private static Vec3 lineOrigin() {
         return GloveAim.handPosition(Minecraft.getInstance().gameRenderer.getMainCamera());
+    }
+
+    /**
+     * Where a throw leaves: the cast origin, the lifted palm blob where it
+     * stands as right click lets go, which the server sends as the flight's
+     * start and the wave's hand.
+     * every-ability-casts-from-the-lifted-palm-blob
+     *
+     * @return the world-space start of the throw
+     */
+    static Vec3 throwOrigin() {
+        return CastOrigin.ofLocal(Minecraft.getInstance());
     }
 
     /**

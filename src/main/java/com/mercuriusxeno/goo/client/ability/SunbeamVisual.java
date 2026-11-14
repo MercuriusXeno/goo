@@ -152,7 +152,7 @@ public final class SunbeamVisual {
         DRAWN.clear();
         for (Map.Entry<Integer, Ray> entry : RAYS.entrySet()) {
             Entity caster = Objects.requireNonNull(level.getEntity(entry.getKey()));
-            Vec3 hand = GloveHand.of(mc, caster, partialTick);
+            Vec3 hand = CastOrigin.of(caster.getId(), GloveHand.of(mc, caster, partialTick), partialTick);
             DrawnEnd struck = drawnEnd(mc, caster, entry.getValue(), partialTick);
             Vec3 gathered = SunbeamRayEnd.gathersAt(hand, struck.point(), pos -> refractsAt(level, pos));
             if (!gathered.equals(struck.point())) {

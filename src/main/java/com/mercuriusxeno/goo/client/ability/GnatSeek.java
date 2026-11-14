@@ -46,7 +46,7 @@ public final class GnatSeek {
             return;
         }
         Supplier<Vec3> prey = preyOf(level, payload);
-        Vec3 glove = CasterPoses.gloveOf(payload.casterId(), payload.glove());
+        Vec3 glove = CastOrigin.of(payload.casterId(), CasterPoses.gloveOf(payload.casterId(), payload.glove()), 0f);
         RandomSource random = level.getRandom();
         for (int i = 0; i < GNATS_PER_TICK; i++) {
             Vec3 launch = GnatSteering.launch(payload.aim(), payload.sprayDegrees(), random.nextDouble(),

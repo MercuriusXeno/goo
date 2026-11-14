@@ -90,7 +90,7 @@ public final class FireStream {
         ClientAbility flames = AbilitySyncHandler.findAbility(FLAMES_ID);
         double range = flames == null ? FLAMES_RANGE : flames.delivery().range();
         double cone = flames == null ? FLAMES_CONE_DEGREES : flames.delivery().coneDegrees();
-        Vec3 hand = GloveAim.handPosition(mc.gameRenderer.getMainCamera());
+        Vec3 hand = CastOrigin.ofLocal(mc);
         Aim aim = aimAtCrosshair(player, hand, 1f, range);
         pinned = new PinnedJet(hand, aim.axis(), range, cone, aim.wall(), player.level().getGameTime());
         return true;
@@ -184,7 +184,7 @@ public final class FireStream {
         if (span == null) {
             return null;
         }
-        Vec3 hand = GloveAim.handPosition(Minecraft.getInstance().gameRenderer.getMainCamera());
+        Vec3 hand = CastOrigin.ofLocal(Minecraft.getInstance());
         Aim aim = aimAtCrosshair(player, hand, partialTick, range);
         return fieldOf(flames.delivery(), hand, aim.axis(), span, aim.wall(), camera);
     }
