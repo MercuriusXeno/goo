@@ -39,4 +39,22 @@ class EncasedBodiesTest {
         assertEquals(-BRIM_HALF_WIDTH, minZ, EPSILON);
         assertEquals(BRIM_HALF_WIDTH, maxZ, EPSILON);
     }
+
+    /**
+     * The aimed mob's ripple fills a witch's hat where the hat is drawn: no
+     * cube it fills reaches past the brim's ten-texel square, so no flat box
+     * floats beside the hat (diagnose-and-correct-the-floating-hat-brim-box).
+     */
+    @Test
+    void theRippleOverTheHatSpansTheBrim() {
+        WitchModel witch = new WitchModel(WitchModel.createBodyLayer().bakeRoot());
+
+        float widest = 0f;
+        for (ModelRay.CubeBox cube : EncasedBodies.drawnCubes(witch)) {
+            if (cube.partPath().contains("hat")) {
+                widest = Math.max(widest, Math.max(cube.max().x() - cube.min().x(), cube.max().z() - cube.min().z()));
+            }
+        }
+        assertEquals(2 * BRIM_HALF_WIDTH, widest, EPSILON);
+    }
 }

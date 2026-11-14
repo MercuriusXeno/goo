@@ -16,9 +16,11 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
 /**
- * Gametests that knowledge comes on request: {@code /goo lab learn} teaches every
- * item recipe so every loaded ability stands unlocked, {@code /goo lab forget}
- * returns the player to knowing nothing, and the kit teaches nothing.
+ * Gametests for the lab's knowledge routes: the Goo Lab save's first join
+ * teaches every item recipe (LabFirstJoinTests), so the lab keeps unlearned
+ * items only after {@code /goo lab forget} returns the player to knowing
+ * nothing; {@code /goo lab learn} teaches every recipe again so every loaded
+ * ability stands unlocked, and the kit teaches nothing.
  * decision lab-kit-teaches-every-recipe
  */
 @RegistersGameTests

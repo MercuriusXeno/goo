@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * release flings it out in place of the swing; the game has no event
  * after its model setup that reaches the arm's rotation. The glove arm is
  * then hidden for the glove arm layer to draw it cut at the glove's cuff.
- * decision shards-sling-then-morph-to-flechettes
+ * decision knives-sling-then-morph-to-flechettes
  * decision diagnose-and-correct-the-arm-through-the-glove
  */
 @Mixin(PlayerModel.class)

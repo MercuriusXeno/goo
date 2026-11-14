@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.hex;
 
 import com.mercuriusxeno.goo.ability.hex.CharmTargets.Candidate;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Optional;
@@ -64,5 +65,38 @@ class CharmTargetsTest {
         List<Candidate<String>> nearby = List.of(new Candidate<>("dead aggressor", false, true, CHARMER, NEAR));
 
         assertEquals(Optional.empty(), CharmTargets.nearestFoe(CHARMER, nearby));
+    }
+
+    /** A mob holding a charm or a rally is no foe, under either pick. diagnose-and-correct-minions-killing-each-other */
+    @Nested
+    class Minions {
+
+        @Test
+        void passesOverAMinionTargetingTheCharmerForAFartherAggressor() {
+            List<Candidate<String>> nearby = List.of(minion("minion aggressor", false, CHARMER),
+                    new Candidate<>("aggressor", true, false, CHARMER, FAR));
+
+            assertEquals(Optional.of("aggressor"), CharmTargets.nearestFoe(CHARMER, nearby));
+        }
+
+        @Test
+        void passesOverAHostileMinionForAFartherHostile() {
+            List<Candidate<String>> nearby = List.of(minion("hostile minion", true, null),
+                    new Candidate<>("hostile", true, true, null, FAR));
+
+            assertEquals(Optional.of("hostile"), CharmTargets.nearestFoe(CHARMER, nearby));
+        }
+
+        @Test
+        void findsNoFoeInMinionsAlone() {
+            List<Candidate<String>> nearby = List.of(minion("minion aggressor", false, CHARMER),
+                    minion("hostile minion", true, null));
+
+            assertEquals(Optional.empty(), CharmTargets.nearestFoe(CHARMER, nearby));
+        }
+
+        private static Candidate<String> minion(String name, boolean hostile, UUID target) {
+            return new Candidate<>(name, true, hostile, target, NEAR, false, true);
+        }
     }
 }

@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.zoo;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.Minions;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
@@ -12,32 +13,44 @@ import net.minecraft.world.entity.NeutralMob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.living.LivingChangeTargetEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.WeakHashMap;
 
 /**
- * Runs a rallied mob for its caster until the caster strikes it: it walks to
- * the caster's nearest enemy within reach of the caster, a player who attacked
- * the caster first, and strikes it with the rally's damage on reaching it and
- * every strike interval after; with no enemy in reach it follows the caster.
- * It wears its share of the caster's armor, read again every refresh interval.
- * The caster's own hit ends the rally and takes its buffs off; a hit from
- * anyone else leaves it.
+ * Runs a rallied mob for its caster until the caster strikes it or casts Rally
+ * on it again: it walks to the caster's nearest enemy within reach of the
+ * caster, a player who attacked the caster first, and strikes it with the
+ * rally's damage on reaching it and every strike interval after; with no enemy
+ * in reach it takes the side its moving caster heads toward, or follows a
+ * standing caster. It wears its share of the caster's armor, read again every
+ * refresh interval. The caster's own hit or the caster's second Rally cast,
+ * both dealing no damage, ends the rally and takes its buffs off; a hit or a
+ * cast from anyone else leaves it. It takes no charmed or rallied mob as its
+ * foe or its target.
+ * diagnose-and-correct-minions-killing-each-other
+ * unengaged-minions-move-where-you-move
  * zoo-rally-arms-the-peaceful
  * zoo-rally-holds-for-the-brew
  * rally-is-a-mob-effect-on-one-target
  * rallied-mobs-follow-the-player-who-rallied-them
  * rallied-mobs-turn-on-a-player-who-attacks-their-rallier
  * rally-minions-get-half-your-armor-and-a-floor
+ * rally-cast-on-your-rallied-mob-releases-it
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class RallyEvents {
@@ -62,6 +75,8 @@ public final class RallyEvents {
     private static final double FOLLOW_SPEED = 1.0;
     /** Ticks between one path to a moving rallier and the next. */
     private static final int REPATH_TICKS = 10;
+    /** Each unengaged minion's spot from last tick, held weakly so a mob gone from the world drops out. */
+    private static final Map<Mob, Vec3> HELD_SPOTS = new WeakHashMap<>();
 
     private RallyEvents() {
     }
@@ -79,6 +94,9 @@ public final class RallyEvents {
                 || mob.hasData(GooAttachments.DOWNED)) {
             return;
         }
+        // unengaged-minions-move-where-you-move: no vanilla goal walks a rallied mob, so it goes only where the
+        // rally walks it; set after the mob's tick, which re-enables the flag every fifth tick
+        mob.goalSelector.disableControlFlag(Goal.Flag.MOVE);
         Rallied rally = mob.getData(GooAttachments.RALLIED);
         // rally-minions-get-half-your-armor-and-a-floor: an offline or absent rallier leaves the last armor read
         if (level.getEntity(rally.caster()) instanceof LivingEntity caster) {
@@ -86,6 +104,21 @@ public final class RallyEvents {
                 wearRalliersArmor(mob, caster, rally.armor());
             }
             act(level, mob, caster, rally);
+        }
+    }
+
+    /**
+     * Turns a rallied mob away from a charmed or rallied mob it would
+     * target, onto none; the rally's next tick points it at its foe.
+     * diagnose-and-correct-minions-killing-each-other
+     *
+     * @param event the change target event
+     */
+    @SubscribeEvent
+    public static void onChangeTarget(LivingChangeTargetEvent event) {
+        if (event.getEntity() instanceof Mob mob && !mob.level().isClientSide()
+                && mob.hasData(GooAttachments.RALLIED) && Minions.isMinion(event.getNewAboutToBeSetTarget())) {
+            event.setNewAboutToBeSetTarget(null);
         }
     }
 
@@ -105,27 +138,34 @@ public final class RallyEvents {
     }
 
     /**
-     * Ends a mob's rally once damage from its rallier lands on it; damage
-     * from anyone else leaves the rally standing.
+     * Ends a mob's rally on a hit from its rallier, and cancels that hit so
+     * it deals no damage; a hit from anyone else lands and leaves the rally
+     * standing. Ending a rally isn't an attack: a cancelled hit leaves the
+     * rallier recording no struck mob, so its other rallied mobs never take
+     * the freed mob as their foe, while a second hit lands and makes it one.
      * rally-is-a-mob-effect-on-one-target
      *
-     * @param event the damage event, after the damage landed
+     * @param event the incoming damage event, before the damage lands
      */
     @SubscribeEvent
-    public static void onRalliedHurt(LivingDamageEvent.Post event) {
+    public static void onRalliedHurt(LivingIncomingDamageEvent event) {
         if (!(event.getEntity() instanceof Mob mob) || mob.level().isClientSide()
                 || !mob.hasData(GooAttachments.RALLIED)) {
             return;
         }
         Entity attacker = event.getSource().getEntity();
         if (mob.getData(GooAttachments.RALLIED).brokenBy(attacker == null ? null : attacker.getUUID())) {
+            event.setCanceled(true);
             endRally(mob);
         }
     }
 
     /**
-     * Fights the caster's foe in reach, or with none follows the caster.
+     * Fights the caster's foe in reach; with none, walks to the spot on the
+     * side the caster heads toward and holds there once the caster stops, or
+     * with no spot follows the caster.
      * rallied-mobs-follow-the-player-who-rallied-them
+     * unengaged-minions-move-where-you-move
      *
      * @param level  the mob's level
      * @param mob    the rallied mob
@@ -133,13 +173,33 @@ public final class RallyEvents {
      * @param rally  the mob's rally
      */
     private static void act(ServerLevel level, Mob mob, LivingEntity caster, Rallied rally) {
+        dropMinionTarget(mob);
         List<RallyFoes.Candidate<LivingEntity>> nearby = candidatesNear(mob, caster);
         Optional<LivingEntity> foe = RallyFoes.pick(caster.getUUID(), standingAttacker(mob, rally, nearby),
                 uuidOf(caster.getLastHurtByMob()), uuidOf(caster.getLastHurtMob()), nearby);
-        switch (RallyFollow.choose(foe.isPresent(), mob.distanceToSqr(caster))) {
+        Vec3 rallierVelocity = RallierMotion.velocityOf(caster, level.getGameTime());
+        Optional<Vec3> spot = foe.isPresent() ? Optional.empty()
+                : RallyFollow.spot(Optional.ofNullable(HELD_SPOTS.get(mob)), caster.position(), rallierVelocity,
+                        mob.getId());
+        spot.ifPresentOrElse(taken -> HELD_SPOTS.put(mob, taken), () -> HELD_SPOTS.remove(mob));
+        switch (RallyFollow.choose(foe.isPresent(), mob.position(), caster.position(), spot)) {
             case FIGHT -> fight(level, mob, foe.orElseThrow(), rally.damage());
+            case PRE_EMPT -> walkTo(mob, spot.orElseThrow());
             case FOLLOW -> follow(mob, caster);
             case HOLD -> mob.getNavigation().stop();
+        }
+    }
+
+    /**
+     * Clears a rallied mob's target where it is a charmed or rallied mob, a
+     * target held from before a charm or a rally landed on it.
+     * diagnose-and-correct-minions-killing-each-other
+     *
+     * @param mob the rallied mob
+     */
+    private static void dropMinionTarget(Mob mob) {
+        if (Minions.isMinion(mob.getTarget())) {
+            mob.setTarget(null);
         }
     }
 
@@ -198,6 +258,20 @@ public final class RallyEvents {
     }
 
     /**
+     * Walks a rallied mob to the spot on the side its moving rallier heads
+     * toward, re-pathing as the spot moves with the rallier.
+     * unengaged-minions-move-where-you-move
+     *
+     * @param mob  the rallied mob
+     * @param spot the spot it walks to
+     */
+    private static void walkTo(Mob mob, Vec3 spot) {
+        if (mob.getNavigation().isDone() || mob.tickCount % REPATH_TICKS == 0) {
+            mob.getNavigation().moveTo(spot.x, spot.y, spot.z, FOLLOW_SPEED);
+        }
+    }
+
+    /**
      * Answers whether a rallied mob in melee range strikes this tick: once a
      * full cooldown has passed since its last strike, so a mob that has not
      * struck lately strikes the tick it reaches its foe.
@@ -236,6 +310,8 @@ public final class RallyEvents {
      */
     public static void endRally(Mob mob) {
         mob.removeData(GooAttachments.RALLIED);
+        HELD_SPOTS.remove(mob);
+        mob.goalSelector.enableControlFlag(Goal.Flag.MOVE);
         removeModifier(mob.getAttribute(Attributes.MAX_HEALTH), HEALTH_MODIFIER);
         removeModifier(mob.getAttribute(Attributes.MOVEMENT_SPEED), SPEED_MODIFIER);
         removeModifier(mob.getAttribute(Attributes.ARMOR), ARMOR_MODIFIER);
@@ -245,7 +321,9 @@ public final class RallyEvents {
 
     /**
      * Lifts a mob's max health and speed by the rally's shares, each a
-     * multiple of the whole, and heals it to its new max.
+     * multiple of the whole, leaving its health where it stands: a rally
+     * heals none of it.
+     * zoo-rally-arms-the-peaceful
      *
      * @param mob         the rallied mob
      * @param healthShare the share max health grows by
@@ -254,7 +332,6 @@ public final class RallyEvents {
     public static void buff(Mob mob, double healthShare, double speedShare) {
         replaceModifier(mob.getAttribute(Attributes.MAX_HEALTH), HEALTH_MODIFIER, healthShare);
         replaceModifier(mob.getAttribute(Attributes.MOVEMENT_SPEED), SPEED_MODIFIER, speedShare);
-        mob.setHealth(mob.getMaxHealth());
     }
 
     private static void replaceModifier(@Nullable AttributeInstance attribute, Identifier id, double share) {
@@ -309,11 +386,11 @@ public final class RallyEvents {
      *
      * @param mob    the rallied mob
      * @param caster the entity that rallied it
-     * @return the candidates, the mob, the caster and every rallied mob left out
+     * @return the candidates, the mob and the caster left out
      */
     private static List<RallyFoes.Candidate<LivingEntity>> candidatesNear(Mob mob, LivingEntity caster) {
         return mob.level().getEntitiesOfClass(LivingEntity.class, caster.getBoundingBox().inflate(FOE_REACH),
-                        near -> near != mob && near != caster && !near.hasData(GooAttachments.RALLIED))
+                        near -> near != mob && near != caster)
                 .stream().map(near -> candidate(mob, near)).toList();
     }
 
@@ -321,18 +398,18 @@ public final class RallyEvents {
         LivingEntity target = near instanceof Mob nearMob ? nearMob.getTarget() : null;
         return new RallyFoes.Candidate<>(near, near.getUUID(), near.isAlive(), isUnprovokedHostile(near),
                 target == null ? null : target.getUUID(), rallied.distanceToSqr(near),
-                near.hasData(GooAttachments.DOWNED));
+                near.hasData(GooAttachments.DOWNED), Minions.isMinion(near));
     }
 
     /**
      * Whether an entity is a monster hostile to players before it aggresses:
-     * an Enemy that is neither neutral until provoked nor charmed, as Charm weighs it.
+     * an Enemy that is not neutral until provoked, as Charm weighs it.
      *
      * @param near the entity
      * @return true for a hostile monster
      */
     private static boolean isUnprovokedHostile(LivingEntity near) {
-        return near instanceof Enemy && !(near instanceof NeutralMob) && !near.hasData(GooAttachments.CHARMED);
+        return near instanceof Enemy && !(near instanceof NeutralMob);
     }
 
     private static @Nullable UUID uuidOf(@Nullable LivingEntity entity) {
