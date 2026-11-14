@@ -72,7 +72,6 @@ public final class StepTypes {
         register(LeafSteps.SET_AI.type());
         register(LeafSteps.SET_INVULNERABLE.type());
         register(LeafSteps.REWIND_HOLD.type());
-        register(LeafSteps.ENVELOP_BURST.type());
         register(RegressStep.TYPE);
         register(SpawnSlimeStep.TYPE);
         register(AncientStep.TYPE);

@@ -76,7 +76,6 @@ public final class GooNetworking {
      */
     private static void registerClientEffectPayloads(PayloadRegistrar r) {
         r.playToClient(MobHitPayload.TYPE, MobHitPayload.STREAM_CODEC);
-        r.playToClient(EnvelopBurstPayload.TYPE, EnvelopBurstPayload.STREAM_CODEC);
         r.playToClient(AilmentPayload.TYPE, AilmentPayload.STREAM_CODEC);
         registerAbilityOwnVisualPayloads(r);
         r.playToClient(BlockTransformPayload.TYPE, BlockTransformPayload.STREAM_CODEC);

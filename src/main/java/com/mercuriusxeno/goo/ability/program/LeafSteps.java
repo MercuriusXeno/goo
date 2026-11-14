@@ -3,8 +3,6 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.ability.hex.RandomEnchantment;
 import com.mercuriusxeno.goo.ability.pulse.StunEvents;
 import com.mercuriusxeno.goo.ability.rewind.RewindEvents;
-import com.mercuriusxeno.goo.network.EntityVisuals;
-import com.mercuriusxeno.goo.network.EnvelopBurstPayload;
 import com.mojang.datafixers.util.Unit;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
@@ -82,16 +80,6 @@ public final class LeafSteps {
      */
     public static final LeafStepType<Unit> REWIND_HOLD = StepType.onTarget("rewind_hold", NO_PARAMS, Mob.class, ANY,
             (mob, none, context) -> RewindEvents.hold(mob, mob.level().getGameTime()));
-
-    /**
-     * Bursts off the slime shell a charm-like cast's dart left on the host's
-     * target, on every client tracking it, as a failed attempt does; Charm's
-     * missed roll runs it beside its fizzle.
-     * charm-like-abilities-lock-the-highlighted-mob-on-right-click
-     */
-    public static final LeafStepType<Unit> ENVELOP_BURST = StepType.onTarget("envelop_burst", NO_PARAMS,
-            LivingEntity.class, ANY,
-            (target, none, context) -> EntityVisuals.sendToWatchers(target, new EnvelopBurstPayload(target.getId())));
 
     /**
      * Sets the host's target on fire for a number of seconds; blaze ignite
