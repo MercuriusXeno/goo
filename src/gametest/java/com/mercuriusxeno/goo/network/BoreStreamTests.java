@@ -17,6 +17,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -55,6 +56,7 @@ public final class BoreStreamTests {
                 BoreStreamTests::boreBreaksTheFourFloorBlocksWhereFourMeetAtASlant);
         GooTestFunctions.registerTest(registrar, BORE_CUTS_THE_ONE_BY_TWO,
                 BoreStreamTests::boreCutsTheOneByTwoAheadLookingLevel);
+        GooTestFunctions.registerTest(registrar, BORE_KEEPS_PACE, BoreStreamTests::boreKeepsPaceWithAWalkingPlayer);
     }
 
 
@@ -87,6 +89,15 @@ public final class BoreStreamTests {
     private static final String BORE_BREAKS_FOUR = "bore_breaks_the_four_blocks_where_four_meet";
     private static final String BORE_BREAKS_FOUR_AT_A_SLANT = "bore_breaks_the_four_floor_blocks_at_a_slant";
     private static final String BORE_CUTS_THE_ONE_BY_TWO = "bore_cuts_the_one_by_two_ahead_looking_level";
+    private static final String BORE_KEEPS_PACE = "bore_keeps_pace_with_a_walking_player";
+    /** A player's walking speed, blocks a tick: vanilla's 4.317 blocks a second. */
+    private static final double WALKING_SPEED = 4.317 / 20;
+    /** How long the walk test holds bore: long enough to walk about eight blocks once the first slice opens. */
+    private static final int WALK_TICKS = 45;
+    /** How many blocks of stone the walk test lays ahead of the player. */
+    private static final int WALK_BLOCKS = 10;
+    private static final String SHOULD_KEEP_PACE =
+            "Walking at walking speed the player ran into the wall on tick %d, %.2f blocks in";
     /** How far the look tips down at the floor, in degrees. */
     private static final float LOOKING_DOWN_AT_A_SLANT = 45f;
     /** How far the eye stands back from the point it aims at, along the look. */
@@ -274,6 +285,51 @@ public final class BoreStreamTests {
         helper.setBlock(EYE_ROW.east(1).below(), Blocks.AIR);
         ServerPlayer player = boringPlayer(helper);
         holdUntilTogether(helper, player, List.of(head, head.below()));
+    }
+
+    /**
+     * A mock player holds bore looking level into solid stone and, once the
+     * first slice opens, walks east at walking speed every tick: the 1 by 2
+     * ahead always breaks before the player's body reaches it, so the player
+     * walks a straight line through the stone and never runs into the wall
+     * (decision bore-vortex-with-a-worldspace-shake: keeping pace with walking).
+     *
+     * @param helper the gametest helper
+     */
+    public static void boreKeepsPaceWithAWalkingPlayer(GameTestHelper helper) {
+        for (int east = 1; east <= WALK_BLOCKS + 2; east++) {
+            for (BlockPos pos : slice(EYE_ROW.east(east))) {
+                helper.setBlock(pos, Blocks.STONE);
+                helper.setBlock(pos.below(), Blocks.STONE);
+            }
+        }
+        ServerPlayer player = boringPlayer(helper);
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.ROCK), ROCK_BORE.toString(),
+                player.getEyePosition(), player.getEyePosition());
+        boolean[] walking = {false};
+        int[] bumpedOn = {0};
+        for (int held = 1; held <= WALK_TICKS; held++) {
+            int at = held;
+            helper.runAfterDelay(held, () -> {
+                GooStreamHandler.streamTick(player, tick);
+                walking[0] |= helper.getLevel().getBlockState(helper.absolutePos(EYE_ROW.east(1))).isAir();
+                if (!walking[0] || bumpedOn[0] > 0) {
+                    return;
+                }
+                AABB next = player.getBoundingBox().move(WALKING_SPEED, 0, 0);
+                if (helper.getLevel().getBlockCollisions(player, next).iterator().hasNext()) {
+                    bumpedOn[0] = at;
+                } else {
+                    player.setPos(player.getX() + WALKING_SPEED, player.getY(), player.getZ());
+                }
+            });
+        }
+        helper.runAfterDelay(WALK_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(bumpedOn[0] == 0, String.format(SHOULD_KEEP_PACE, bumpedOn[0],
+                    player.getX() - helper.absoluteVec(Vec3.atBottomCenterOf(STAND_POS)).x));
+            helper.succeed();
+        });
     }
 
     /**

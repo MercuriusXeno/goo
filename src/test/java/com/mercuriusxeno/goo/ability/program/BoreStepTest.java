@@ -171,8 +171,8 @@ class BoreStepTest {
         private static final double SLACK = 1e-9;
         private static final double REACH = 4;
         private static final Vec3 EAST = new Vec3(1, 0, 0);
-        /** rock_bore.json's drill: 1 wide at the blob, 2 long, 15 degrees off the look, 1 past the plane. */
-        private static final BoreDrillShape SHIPPED = new BoreDrillShape(1, 2, 15, 1);
+        /** rock_bore.json's drill: 1 wide at the blob, 2 long, 22.5 degrees off the look, 1 past the plane. */
+        private static final BoreDrillShape SHIPPED = new BoreDrillShape(1, 2, 22.5, 1);
         /** An eye where four blocks meet: on the line between y 1 and 2 and between z -1 and 0. */
         private static final Vec3 AT_A_CORNER = new Vec3(0.5, 2.0, 0.0);
         /** An eye in the middle of a block's face: y 2 and z 0. */
@@ -196,7 +196,7 @@ class BoreStepTest {
                     .filter(BoreStep.class::isInstance).map(BoreStep.class::cast).findFirst().orElseThrow().shape();
             assertEquals(1, shape.width(), SLACK);
             assertEquals(2, shape.length(), SLACK);
-            assertEquals(15, shape.angle(), SLACK);
+            assertEquals(22.5, shape.angle(), SLACK);
             assertEquals(1, shape.pastLength(), SLACK);
         }
 
@@ -265,7 +265,7 @@ class BoreStepTest {
         void aShorterPastLengthNarrowsThePickAtTheSameAim() {
             Vec3 nearACorner = new Vec3(0.5, 2.15, 0.15);
             assertEquals(cornerBlocks(), pickFrom(nearACorner, SHIPPED));
-            assertEquals(Set.of(new BlockPos(1, 2, 0)), pickFrom(nearACorner, new BoreDrillShape(1, 2, 15, 0.5)));
+            assertEquals(Set.of(new BlockPos(1, 2, 0)), pickFrom(nearACorner, new BoreDrillShape(1, 2, 22.5, 0.5)));
         }
 
         /**

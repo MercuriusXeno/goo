@@ -19,15 +19,15 @@ class BoreDrillShapeTest {
     private static final Vec3 LOOK_SOUTH = new Vec3(0, 0, 1);
 
     @Test
-    void theShippedDrillsCrossSectionMeasuresPointFiveTwoByPointFive() {
-        assertEquals(0.520, 2 * BoreDrillShape.SHIPPED.longHalf(), MEASURE_SLACK);
-        assertEquals(0.501, 2 * BoreDrillShape.SHIPPED.shortHalf(), MEASURE_SLACK);
+    void theShippedDrillsCrossSectionMeasuresPointFiveFiveByPointFive() {
+        assertEquals(0.547, 2 * BoreDrillShape.SHIPPED.longHalf(), MEASURE_SLACK);
+        assertEquals(0.503, 2 * BoreDrillShape.SHIPPED.shortHalf(), MEASURE_SLACK);
     }
 
     @Test
-    void aPastLengthOfHalfABlockMeasuresPointTwoSixByPointTwoFive() {
-        BoreDrillShape shape = new BoreDrillShape(1, 2, 15, 0.5);
-        assertEquals(0.260, 2 * shape.longHalf(), MEASURE_SLACK);
+    void aPastLengthOfHalfABlockMeasuresPointTwoSevenByPointTwoFive() {
+        BoreDrillShape shape = new BoreDrillShape(1, 2, 22.5, 0.5);
+        assertEquals(0.274, 2 * shape.longHalf(), MEASURE_SLACK);
         assertEquals(0.251, 2 * shape.shortHalf(), MEASURE_SLACK);
     }
 
