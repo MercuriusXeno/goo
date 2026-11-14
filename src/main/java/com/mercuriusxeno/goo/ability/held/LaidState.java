@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.ability.held;
 
 import com.mercuriusxeno.goo.ability.program.AirbornStep;
 import com.mercuriusxeno.goo.ability.program.AncientStep;
-import com.mercuriusxeno.goo.ability.program.EldritchStep;
 import com.mercuriusxeno.goo.ability.program.EludeStep;
 import com.mercuriusxeno.goo.ability.program.ExtendStep;
 import com.mercuriusxeno.goo.ability.program.GluttonyStep;
@@ -17,6 +16,7 @@ import com.mercuriusxeno.goo.ability.program.SculkerStep;
 import com.mercuriusxeno.goo.ability.program.SightStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.UndeadStep;
+import com.mercuriusxeno.goo.ability.program.UnveilStep;
 import com.mojang.serialization.Codec;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -53,7 +53,7 @@ public enum LaidState {
     /** Remote's raised reach (decision telekinesis-enacts-at-extended-reach). */
     REMOTE,
     /** The eldritch state (decision eldritch-sight-reveals-the-out-of-phase). */
-    ELDRITCH,
+    UNVEIL,
     /** Ancient's floor of half a heart and its aged overlay (decision ancient-makes-the-player-immortal). */
     ANCIENT,
     /** Standing out of phase (decision phase-shares-a-plane-between-the-phased). */
@@ -104,7 +104,7 @@ public enum LaidState {
             Map.entry(LifetapStep.class, LIFETAP),
             Map.entry(AirbornStep.class, AIRBORN),
             Map.entry(RemoteStep.class, REMOTE),
-            Map.entry(EldritchStep.class, ELDRITCH),
+            Map.entry(UnveilStep.class, UNVEIL),
             Map.entry(AncientStep.class, ANCIENT),
             Map.entry(PhaseStep.class, PHASE),
             Map.entry(SculkerStep.class, SCULKER),

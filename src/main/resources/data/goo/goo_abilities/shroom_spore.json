@@ -1,6 +1,6 @@
 {
   "gooType": "shroom",
-  "displayName": "goo.ability.shroom.colonize",
+  "displayName": "goo.ability.shroom.spore",
   "badge": "free",
   "order": 10,
   "cost": 1000,
@@ -8,7 +8,7 @@
   "delivery": { "kind": "arc" },
   "behaviors": [
     {
-      "type": "colonize",
+      "type": "spore",
       "radius": 3,
       "otherwise": [
         {

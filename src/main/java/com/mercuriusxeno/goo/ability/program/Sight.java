@@ -8,11 +8,11 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 
 /**
- * The fungal sight a player holds: Fungal Shift reaches the factor farther
+ * The fungal sight a player holds: Transmit reaches the factor farther
  * and the player sees fungus through walls within that reach until the
  * game time it fades at (decision sight-lengthens-shift-and-outlines-fungus).
  *
- * @param factor    what Fungal Shift's range is multiplied by
+ * @param factor    what Transmit's range is multiplied by
  * @param expiresAt the game time the sight fades at; zero when none stands
  */
 public record Sight(float factor, long expiresAt) {
@@ -48,7 +48,7 @@ public record Sight(float factor, long expiresAt) {
     }
 
     /**
-     * The factor Fungal Shift's range takes at a game time: the sight's while
+     * The factor Transmit's range takes at a game time: the sight's while
      * it stands, one after.
      *
      * @param gameTime the game time

@@ -6,7 +6,7 @@ import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.ability.program.Expr;
-import com.mercuriusxeno.goo.ability.program.ShiftStep;
+import com.mercuriusxeno.goo.ability.program.TransmitStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.TeleportMode;
 import com.mercuriusxeno.goo.ability.program.TeleportStep;
@@ -18,36 +18,36 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Fungal Shift's marker shows while its press is held and for no other
+ * Transmit's marker shows while its press is held and for no other
  * ability, and its column motes climb within the column
  * (decision fungal-shift-blinks-to-the-aimed-fungus).
  */
-class ShiftTargetMarkerTest {
+class TransmitTargetMarkerTest {
 
     private static ClientAbility ability(List<Step> behaviors) {
-        return new ClientAbility(Identifier.parse("goo:shroom_fungal_shift"), "shift", "", 0, List.of(), behaviors,
+        return new ClientAbility(Identifier.parse("goo:shroom_transmit"), "transmit", "", 0, List.of(), behaviors,
                 0, Delivery.of(DeliveryKind.SELF), AbilityBadge.SELF, List.of(), AbilityArea.NONE,
                 IndicatorShowing.HELD);
     }
 
     @Test
-    void aHeldFungalShiftShowsTheMarker() {
-        ClientAbility shift = ability(List.of(new ShiftStep(Expr.literal(64))));
-        assertTrue(ShiftTargetMarker.showsMarker(shift, true));
-        assertFalse(ShiftTargetMarker.showsMarker(shift, false));
+    void aHeldTransmitShowsTheMarker() {
+        ClientAbility transmit = ability(List.of(new TransmitStep(Expr.literal(64))));
+        assertTrue(TransmitTargetMarker.showsMarker(transmit, true));
+        assertFalse(TransmitTargetMarker.showsMarker(transmit, false));
     }
 
     @Test
     void aBlinkOrNoAbilityShowsNoMarker() {
         ClientAbility blink = ability(List.of(new TeleportStep(TeleportMode.THROWER_LOOK, Expr.literal(8))));
-        assertFalse(ShiftTargetMarker.showsMarker(blink, true));
-        assertFalse(ShiftTargetMarker.showsMarker(null, true));
+        assertFalse(TransmitTargetMarker.showsMarker(blink, true));
+        assertFalse(TransmitTargetMarker.showsMarker(null, true));
     }
 
     @Test
     void columnMotesClimbWithinTheColumn() {
-        for (int i = 0; i < ShiftTargetMarker.COLUMN_MOTES; i++) {
-            double height = ShiftTargetMarker.columnMote(i, 3.7)[1];
+        for (int i = 0; i < TransmitTargetMarker.COLUMN_MOTES; i++) {
+            double height = TransmitTargetMarker.columnMote(i, 3.7)[1];
             assertTrue(height >= 0 && height < 2.2, String.valueOf(height));
         }
     }

@@ -9,30 +9,30 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * combined, goes undrawn to a plain viewer and warped to an eldritch one
  * (decision phased-things-draw-as-a-ghostly-image).
  */
-class EldritchSightTest {
+class PhasedSightTest {
 
     @Test
     void phasedMobDrawsAsAGhostToAPlainViewer() {
-        assertEquals(EldritchSight.Phase.GHOST, EldritchSight.drawOf(true, false, false));
+        assertEquals(PhasedSight.Phase.GHOST, PhasedSight.drawOf(true, false, false));
     }
 
     @Test
     void phasedMobDrawsAsAGhostToAnEldritchViewer() {
-        assertEquals(EldritchSight.Phase.GHOST, EldritchSight.drawOf(true, false, true));
+        assertEquals(PhasedSight.Phase.GHOST, PhasedSight.drawOf(true, false, true));
     }
 
     @Test
     void eldritchBeingGoesUndrawnToAPlainViewer() {
-        assertEquals(EldritchSight.Phase.UNSEEN, EldritchSight.drawOf(true, true, false));
+        assertEquals(PhasedSight.Phase.UNSEEN, PhasedSight.drawOf(true, true, false));
     }
 
     @Test
     void eldritchBeingDrawsWarpedToAnEldritchViewer() {
-        assertEquals(EldritchSight.Phase.WARPED, EldritchSight.drawOf(true, true, true));
+        assertEquals(PhasedSight.Phase.WARPED, PhasedSight.drawOf(true, true, true));
     }
 
     @Test
     void inPhaseMobDrawsAsItIs() {
-        assertEquals(EldritchSight.Phase.IN_PHASE, EldritchSight.drawOf(false, false, false));
+        assertEquals(PhasedSight.Phase.IN_PHASE, PhasedSight.drawOf(false, false, false));
     }
 }

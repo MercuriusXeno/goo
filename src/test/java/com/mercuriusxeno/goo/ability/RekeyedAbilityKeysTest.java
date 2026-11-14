@@ -56,13 +56,18 @@ class RekeyedAbilityKeysTest {
                 Arguments.of("pulse_extend", "Extend"),
                 Arguments.of("pulse_tick", "Tick"),
                 Arguments.of("kinetic_remote", "Remote"),
-                Arguments.of("ender_elude", "Elude"));
+                Arguments.of("ender_elude", "Elude"),
+                Arguments.of("shroom_spore", "Spore"),
+                Arguments.of("shroom_transmit", "Transmit"),
+                Arguments.of("unstable_blast", "Blast"),
+                Arguments.of("xeno_unveil", "Unveil"));
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"glow_crystal", "glow_radiant", "glow_sunbeam",
             "rock_flatten", "rock_terrakinesis", "metal_javelin", "metal_spikes",
-            "pulse_extender", "pulse_pulser", "kinetic_telekinesis", "ender_shifter"})
+            "pulse_extender", "pulse_pulser", "kinetic_telekinesis", "ender_shifter",
+            "shroom_colonize", "shroom_fungal_shift", "unstable_explode", "xeno_eldritch"})
     void oldKeyShipsNoAbility(String oldId) {
         assertNull(RekeyedAbilityKeysTest.class.getResource(ABILITY_JSON.formatted(oldId)), oldId + " json");
         assertNull(RekeyedAbilityKeysTest.class.getResource(ABILITY_ICON.formatted(oldId)), oldId + " icon");

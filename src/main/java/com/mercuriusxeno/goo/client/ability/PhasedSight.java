@@ -27,7 +27,7 @@ import net.neoforged.neoforge.client.event.RenderLivingEvent;
  * phased-things-draw-as-a-ghostly-image
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
-public final class EldritchSight {
+public final class PhasedSight {
 
     /** The render data saying how this frame draws the mob. */
     public static final ContextKey<Phase> PHASE =
@@ -54,7 +54,7 @@ public final class EldritchSight {
         WARPED
     }
 
-    private EldritchSight() {
+    private PhasedSight() {
     }
 
     /**

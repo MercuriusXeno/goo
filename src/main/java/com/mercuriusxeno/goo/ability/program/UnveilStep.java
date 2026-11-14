@@ -12,22 +12,22 @@ import java.util.stream.Stream;
  * state stands as a held effect until ended.
  * eldritch-sight-reveals-the-out-of-phase
  */
-public record EldritchStep() implements Step {
+public record UnveilStep() implements Step {
 
-    private static final String NAME = "eldritch";
+    private static final String NAME = "unveil";
 
     /**
      * Codec for the step, which takes no params.
      */
-    public static final MapCodec<EldritchStep> CODEC = MapCodec.unit(new EldritchStep());
+    public static final MapCodec<UnveilStep> CODEC = MapCodec.unit(new UnveilStep());
 
     /**
      * The registered type.
      */
-    public static final StepType<EldritchStep> TYPE = new StepType<>(NAME, CODEC);
+    public static final StepType<UnveilStep> TYPE = new StepType<>(NAME, CODEC);
 
     @Override
-    public StepType<EldritchStep> type() {
+    public StepType<UnveilStep> type() {
         return TYPE;
     }
 

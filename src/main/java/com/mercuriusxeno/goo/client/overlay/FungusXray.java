@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.program.ShiftStep;
 import com.mercuriusxeno.goo.ability.program.Sight;
+import com.mercuriusxeno.goo.ability.program.TransmitStep;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.fade.Afterglow;
@@ -43,7 +43,7 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Shows every fungus block within Fungal Shift's reach through walls while
+ * Shows every fungus block within Transmit's reach through walls while
  * the local player holds fungal sight: each block's own model and texture,
  * ghosted and tinted toward shroom's mauve, full bright, with an additive
  * magenta halo of its own shape swollen past it and breathing slowly, both
@@ -55,8 +55,8 @@ import java.util.List;
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class FungusXray {
 
-    private static final String FUNGAL_SHIFT = "goo:shroom_fungal_shift";
-    /** Fungal Shift's range when the player holds no synced copy of it. */
+    private static final String TRANSMIT = "goo:shroom_transmit";
+    /** Transmit's range when the player holds no synced copy of it. */
     private static final double FALLBACK_RANGE = 64;
     static final int RESCAN_TICKS = 20;
     private static final int MOST_SEEN = 512;
@@ -229,7 +229,7 @@ public final class FungusXray {
 
     private static void rescanEverySecond(Level level, LocalPlayer player, long now) {
         if (isDue(scannedAt, now)) {
-            rescan(level, player.getEyePosition(), ShiftStep.reachOf(player, shiftRange()));
+            rescan(level, player.getEyePosition(), TransmitStep.reachOf(player, transmitRange()));
             scannedAt = now;
         }
     }
@@ -246,9 +246,9 @@ public final class FungusXray {
         return lastScan == UNSCANNED || now < lastScan || now - lastScan >= RESCAN_TICKS;
     }
 
-    private static double shiftRange() {
-        ClientAbility shift = AbilitySyncHandler.findAbility(FUNGAL_SHIFT);
-        return shift == null ? FALLBACK_RANGE : ShiftStep.fungusRange(shift.behaviors()).orElse(FALLBACK_RANGE);
+    private static double transmitRange() {
+        ClientAbility transmit = AbilitySyncHandler.findAbility(TRANSMIT);
+        return transmit == null ? FALLBACK_RANGE : TransmitStep.fungusRange(transmit.behaviors()).orElse(FALLBACK_RANGE);
     }
 
     /**
@@ -280,7 +280,7 @@ public final class FungusXray {
     private static void scanChunk(ChunkAccess chunk, int lowY, int highY, Vec3 eye, double reach) {
         for (int sy = Math.max(lowY, chunk.getMinSectionY()); sy <= Math.min(highY, chunk.getMaxSectionY()); sy++) {
             LevelChunkSection section = chunk.getSection(chunk.getSectionIndexFromSectionY(sy));
-            if (section.hasOnlyAir() || !section.getStates().maybeHas(state -> state.is(ShiftStep.FUNGUS))) {
+            if (section.hasOnlyAir() || !section.getStates().maybeHas(state -> state.is(TransmitStep.FUNGUS))) {
                 continue;
             }
             int baseX = chunk.getPos().getMinBlockX();
@@ -294,7 +294,7 @@ public final class FungusXray {
         for (int x = 0; x < SECTION_SIZE; x++) {
             for (int y = 0; y < SECTION_SIZE; y++) {
                 for (int z = 0; z < SECTION_SIZE; z++) {
-                    if (section.getBlockState(x, y, z).is(ShiftStep.FUNGUS)) {
+                    if (section.getBlockState(x, y, z).is(TransmitStep.FUNGUS)) {
                         BlockPos pos = base.offset(x, y, z);
                         if (Vec3.atCenterOf(pos).distanceTo(eye) <= reach) {
                             seen.add(pos);

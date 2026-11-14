@@ -268,7 +268,7 @@ class ProgramHostLoadTest {
     @Test
     void theLandingHostProvidesItsNineteenCapabilities() {
         assertEquals(Set.of(HostCapability.PLACED_FACE, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN,
-                        HostCapability.PLACE_BLOCK, HostCapability.LINGER, HostCapability.COLONIZE,
+                        HostCapability.PLACE_BLOCK, HostCapability.LINGER, HostCapability.SPORE,
                         HostCapability.FLOOR_SCAN, HostCapability.BREAK_BLOCKS, HostCapability.END_GATE,
                         HostCapability.WORMHOLE, HostCapability.PORTAL, HostCapability.HOLE, HostCapability.METEOR,
                         HostCapability.POWER_PULSE,

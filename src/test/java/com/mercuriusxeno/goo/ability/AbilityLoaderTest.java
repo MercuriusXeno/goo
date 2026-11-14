@@ -87,7 +87,7 @@ class AbilityLoaderTest {
     /** The proving example of a world ability that stays after its blob lands. */
     private static final String LINGERING = "crystal_cloud";
     /** The ability whose program ends the tick it lands. */
-    private static final String BLAST = "unstable_explode";
+    private static final String BLAST = "unstable_blast";
 
     private static Map<Identifier, AbilityDefinition> scanShipped(List<Path> files) {
         return IdentifiedJsonScan.scan(managerListing(files), FileToIdConverter.json(DIRECTORY), JsonOps.INSTANCE,
@@ -188,7 +188,7 @@ class AbilityLoaderTest {
         /** decision goo-type-ships-without-a-durative-ability */
         @Test
         void unstableShipsBlastAndLurkerAndNoDurative() {
-            assertEquals(Set.of("unstable_explode", "unstable_lurker"), shippedPathsOf(GooTypes.UNSTABLE));
+            assertEquals(Set.of("unstable_blast", "unstable_lurker"), shippedPathsOf(GooTypes.UNSTABLE));
             assertNull(new AbilityRegistry(shippedById()).durativeAbilityFor(GooTypes.UNSTABLE));
         }
 
@@ -442,7 +442,7 @@ class AbilityLoaderTest {
     class CostFormula {
 
         private static final List<String> DYNAMIC_ABILITIES = List.of("ender_blink",
-                "unstable_explode", "rock_spire", "rock_gouge", "yore_age");
+                "unstable_blast", "rock_spire", "rock_gouge", "yore_age");
 
         @Test
         void eachDynamicAbilityCarriesItsFormula() {

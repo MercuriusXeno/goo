@@ -27,49 +27,49 @@ import java.util.stream.Stream;
  * from where it stands near another fungus, and finishes; a target standing
  * near no fungus, or aiming at no fungus within the range, is not admitted,
  * so the ability neither runs nor drains.
- * Fungal Shift is {@code shift range=64}
+ * Transmit is {@code transmit range=64}
  * (decision fungal-shift-blinks-to-the-aimed-fungus).
  *
  * @param range the reach of the aim in blocks, evaluated when the step runs
- * @param near  how near a fungus the target must stand to shift, evaluated when the step runs
+ * @param near  how near a fungus the target must stand to transmit, evaluated when the step runs
  */
-public record ShiftStep(Expr range, Expr near) implements Step {
+public record TransmitStep(Expr range, Expr near) implements Step {
 
-    /** The blocks a shift lands on: mushrooms, fungi, nylium, mycelium, shroomlight, mushroom blocks. */
+    /** The blocks Transmit lands on: mushrooms, fungi, nylium, mycelium, shroomlight, mushroom blocks. */
     public static final TagKey<Block> FUNGUS =
             TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath(Goo.MODID, "fungus"));
 
-    private static final String NAME = "shift";
+    private static final String NAME = "transmit";
     private static final String FIELD_RANGE = "range";
     private static final String FIELD_NEAR = "near";
-    /** How near a fungus the shifter must stand where the JSON names no reach. */
+    /** How near a fungus the caster must stand where the JSON names no reach. */
     private static final double DEFAULT_NEAR = 3;
     private static final double HALF = 0.5;
 
     /**
      * Codec for the step's params.
      */
-    public static final MapCodec<ShiftStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            Expr.CODEC.fieldOf(FIELD_RANGE).forGetter(ShiftStep::range),
-            Expr.CODEC.optionalFieldOf(FIELD_NEAR, Expr.literal(DEFAULT_NEAR)).forGetter(ShiftStep::near)
-    ).apply(inst, ShiftStep::new));
+    public static final MapCodec<TransmitStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
+            Expr.CODEC.fieldOf(FIELD_RANGE).forGetter(TransmitStep::range),
+            Expr.CODEC.optionalFieldOf(FIELD_NEAR, Expr.literal(DEFAULT_NEAR)).forGetter(TransmitStep::near)
+    ).apply(inst, TransmitStep::new));
 
     /**
-     * A shift at a range, from within the default reach of a fungus.
+     * A Transmit step at a range, from within the default reach of a fungus.
      *
      * @param range the reach of the aim in blocks
      */
-    public ShiftStep(Expr range) {
+    public TransmitStep(Expr range) {
         this(range, Expr.literal(DEFAULT_NEAR));
     }
 
     /**
      * The registered type.
      */
-    public static final StepType<ShiftStep> TYPE = new StepType<>(NAME, CODEC);
+    public static final StepType<TransmitStep> TYPE = new StepType<>(NAME, CODEC);
 
     @Override
-    public StepType<ShiftStep> type() {
+    public StepType<TransmitStep> type() {
         return TYPE;
     }
 
@@ -95,10 +95,10 @@ public record ShiftStep(Expr range, Expr near) implements Step {
     }
 
     /**
-     * How far an entity's shift reaches: the range, times the factor of the
+     * How far an entity's transmit reaches: the range, times the factor of the
      * fungal sight it holds (decision sight-lengthens-shift-and-outlines-fungus).
      *
-     * @param entity the shifting entity
+     * @param entity the transmitting entity
      * @param range  the step's range
      * @return the reach in blocks
      */
@@ -107,7 +107,7 @@ public record ShiftStep(Expr range, Expr near) implements Step {
     }
 
     /**
-     * Where an entity stands after shifting onto the fungus block it aims at
+     * Where an entity stands after transmitting onto the fungus block it aims at
      * within the reach, as {@link FungusAim} names it: on top of the block's
      * collision, or in its cell for a fungus with none, such as a mushroom.
      *
@@ -136,32 +136,32 @@ public record ShiftStep(Expr range, Expr near) implements Step {
     }
 
     /**
-     * How near a fungus the first shift step in a program needs its shifter,
+     * How near a fungus the first transmit step in a program needs its caster,
      * where that reach reads no variable, which the client's marker checks with.
      *
      * @param behaviors the program
-     * @return the reach, or empty when the program shifts from no fixed reach
+     * @return the reach, or empty when the program transmits from no fixed reach
      */
     public static OptionalDouble fungusNear(List<Step> behaviors) {
         for (Step step : behaviors) {
-            if (step instanceof ShiftStep shift && shift.near().variables().isEmpty()) {
-                return OptionalDouble.of(shift.near().evaluate(Variables.NONE));
+            if (step instanceof TransmitStep transmit && transmit.near().variables().isEmpty()) {
+                return OptionalDouble.of(transmit.near().evaluate(Variables.NONE));
             }
         }
         return OptionalDouble.empty();
     }
 
     /**
-     * The range of the first shift step in a program whose range reads no
+     * The range of the first transmit step in a program whose range reads no
      * variable, which the client's marker aims with.
      *
      * @param behaviors the program
-     * @return the range, or empty when the program shifts at no fixed range
+     * @return the range, or empty when the program transmits at no fixed range
      */
     public static OptionalDouble fungusRange(List<Step> behaviors) {
         for (Step step : behaviors) {
-            if (step instanceof ShiftStep shift && shift.range().variables().isEmpty()) {
-                return OptionalDouble.of(shift.range().evaluate(Variables.NONE));
+            if (step instanceof TransmitStep transmit && transmit.range().variables().isEmpty()) {
+                return OptionalDouble.of(transmit.range().evaluate(Variables.NONE));
             }
         }
         return OptionalDouble.empty();

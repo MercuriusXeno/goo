@@ -84,7 +84,7 @@ class AbilityDefinitionTest {
     @Test
     void blastRequiresGunpowder() {
         assertEquals(List.of(Identifier.withDefaultNamespace("gunpowder")),
-                AbilityJson.decode("unstable_explode").requires());
+                AbilityJson.decode("unstable_blast").requires());
     }
 
     // decision razor-keeps-its-look-gated-on-glass

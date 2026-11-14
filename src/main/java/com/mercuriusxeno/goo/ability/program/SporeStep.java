@@ -11,16 +11,16 @@ import java.util.stream.Stream;
 /**
  * Grows the shroom network the host's blob landed on, and where it landed
  * on none runs the {@code otherwise} steps on the same host instead, then
- * finishes. Colonize grows a cluster it hits and buds and spores the ground
- * where it hits none: {@code colonize radius=3 otherwise=[...]}
+ * finishes. Spore grows a cluster it hits and buds and spores the ground
+ * where it hits none: {@code spore radius=3 otherwise=[...]}
  * (decision colonize-blob-grows-the-network).
  *
  * @param radius    the spread's reach in blocks, evaluated when the step runs
  * @param otherwise the steps run where the blob landed on no network
  */
-public record ColonizeStep(Expr radius, List<Step> otherwise) implements Step {
+public record SporeStep(Expr radius, List<Step> otherwise) implements Step {
 
-    private static final String NAME = "colonize";
+    private static final String NAME = "spore";
     private static final String FIELD_RADIUS = "radius";
     private static final String FIELD_OTHERWISE = "otherwise";
 
@@ -28,25 +28,25 @@ public record ColonizeStep(Expr radius, List<Step> otherwise) implements Step {
      * Codec for the step's params. The list codec is read lazily because
      * {@link StepTypes} registers this type while building it.
      */
-    public static final MapCodec<ColonizeStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            Expr.CODEC.fieldOf(FIELD_RADIUS).forGetter(ColonizeStep::radius),
+    public static final MapCodec<SporeStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
+            Expr.CODEC.fieldOf(FIELD_RADIUS).forGetter(SporeStep::radius),
             Codec.lazyInitialized(() -> StepTypes.LIST_CODEC).optionalFieldOf(FIELD_OTHERWISE, List.of())
-                    .forGetter(ColonizeStep::otherwise)
-    ).apply(inst, ColonizeStep::new));
+                    .forGetter(SporeStep::otherwise)
+    ).apply(inst, SporeStep::new));
 
     /**
      * The registered type.
      */
-    public static final StepType<ColonizeStep> TYPE = new StepType<>(NAME, CODEC);
+    public static final StepType<SporeStep> TYPE = new StepType<>(NAME, CODEC);
 
     @Override
-    public StepType<ColonizeStep> type() {
+    public StepType<SporeStep> type() {
         return TYPE;
     }
 
     @Override
     public boolean tick(StepContext context) {
-        if (!context.hostAs(ColonizeHost.class).colonize(radius.evaluateInt(context))) {
+        if (!context.hostAs(SporeHost.class).spore(radius.evaluateInt(context))) {
             new ProgramBehavior(otherwise).tick(context.host());
         }
         return true;
@@ -59,7 +59,7 @@ public record ColonizeStep(Expr radius, List<Step> otherwise) implements Step {
 
     @Override
     public Set<HostCapability> requires() {
-        Set<HostCapability> needs = new HashSet<>(Set.of(HostCapability.COLONIZE));
+        Set<HostCapability> needs = new HashSet<>(Set.of(HostCapability.SPORE));
         otherwise.forEach(child -> needs.addAll(child.requires()));
         return needs;
     }
