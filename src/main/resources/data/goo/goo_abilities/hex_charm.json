@@ -5,7 +5,7 @@
   "order": 0,
   "cost": 1000,
   "requires": ["minecraft:honey_bottle", "minecraft:cake", "minecraft:cookie"],
-  "delivery": { "kind": "arc" },
+  "delivery": { "kind": "envelop" },
   "behaviors": [
     {
       "type": "target",
@@ -16,6 +16,10 @@
           "when": "chance(pow(20 / max_health, 1.5))",
           "then": [
             { "type": "charm" }
+          ],
+          "otherwise": [
+            { "type": "particles", "id": "minecraft:smoke", "at": "target", "count": 12, "spread": 0.3, "speed": 0.02, "lift": 0.5 },
+            { "type": "sound", "id": "minecraft:block.fire.extinguish", "at": "target", "source": "players", "volume": 0.6, "pitch": 1.0 }
           ]
         }
       ]
