@@ -9,10 +9,12 @@ import com.mercuriusxeno.goo.ability.DragSize;
 import com.mercuriusxeno.goo.ability.DurativeRoute;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
+import com.mercuriusxeno.goo.ability.RallyRelease;
 import com.mercuriusxeno.goo.ability.SpireGrowth;
 import com.mercuriusxeno.goo.ability.StreamSound;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
+import com.mercuriusxeno.goo.ability.zoo.Rallied;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.ability.CameraEye;
 import com.mercuriusxeno.goo.client.ability.CastOrigin;
@@ -54,6 +56,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
+import java.util.UUID;
 import java.util.function.IntPredicate;
 import java.util.function.Predicate;
 
@@ -494,13 +497,49 @@ public final class GloveThrowSender {
         GooThrowPayload payload = targetToPayload(target, gooType, abilityId, throwOrigin());
         ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
         // click-costs-one-mb-and-nothing-under-sculker: a throw a standing ability waives needs no goo held
-        boolean free = ability != null && ability.freeFor(player.getData(GooAttachments.HELD_EFFECTS)::holds);
-        if (payload == null || refusesStruck(player, payload, ability) || !affordsThrow(ability,
-                amount -> free || GooSourceScanner.hasEnough(player, gooType, amount),
-                reagent -> ReagentScanner.holds(player, reagent))) {
+        boolean waived = ability != null && ability.freeFor(player.getData(GooAttachments.HELD_EFFECTS)::holds);
+        if (payload == null || refusesStruck(player, payload, ability)
+                || !affordsAimedThrow(ability, waived, player.getUUID(), targetRally(player, payload),
+                        amount -> GooSourceScanner.hasEnough(player, gooType, amount),
+                        reagent -> ReagentScanner.holds(player, reagent))) {
             return null;
         }
         return payload;
+    }
+
+    /**
+     * The rally the throw's target holds, as synced to this client.
+     *
+     * @param player  the local player
+     * @param payload the throw the aim would send
+     * @return the target's rally, {@link Rallied#NONE} for a block target or an unrallied entity
+     */
+    private static Rallied targetRally(Player player, GooThrowPayload payload) {
+        Entity target = payload.targetEntityId() < 0 ? null : player.level().getEntity(payload.targetEntityId());
+        return target != null && target.hasData(GooAttachments.RALLIED)
+                ? target.getData(GooAttachments.RALLIED) : Rallied.NONE;
+    }
+
+    /**
+     * Whether the player can send an aimed throw: one a standing ability
+     * waives, or a Rally cast releasing the player's own rallied mob, needs no
+     * goo held; any other is priced as {@link #affordsThrow} prices it.
+     * click-costs-one-mb-and-nothing-under-sculker
+     * rally-release-cast-costs-nothing
+     *
+     * @param ability      the selected ability's synced copy, or null when none synced
+     * @param waived       whether a standing ability waives the throw's cost
+     * @param caster       the local player's UUID
+     * @param targetRally  the rally the aimed entity holds, {@link Rallied#NONE} for none
+     * @param holdsAtLeast whether the player holds at least an mB amount of the type
+     * @param holdsItem    whether the player holds one of an item
+     * @return true when the throw may be sent
+     */
+    static boolean affordsAimedThrow(@Nullable ClientAbility ability, boolean waived, UUID caster,
+            Rallied targetRally, IntPredicate holdsAtLeast, Predicate<Identifier> holdsItem) {
+        boolean free = waived || ability != null && RallyRelease.releasesOwnRally(ability.behaviors(), caster,
+                targetRally);
+        return affordsThrow(ability, amount -> free || holdsAtLeast.test(amount), holdsItem);
     }
 
     /**
