@@ -15,9 +15,7 @@ import net.minecraft.world.entity.animal.cow.Cow;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,7 +37,6 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 public final class BoreStreamTests {
     private static final String BORE_CUTS_A_TUNNEL = "bore_cuts_a_tunnel";
     private static final String BORE_STRIKES_A_MOB = "bore_strikes_a_mob_in_the_tunnel";
-    private static final String BORE_REACHES_UNDER_TELEKINESIS = "bore_reaches_the_block_reach_telekinesis_raises";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -49,14 +46,9 @@ public final class BoreStreamTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, BORE_CUTS_A_TUNNEL, BoreStreamTests::boreCutsATunnel);
         GooTestFunctions.registerTest(registrar, BORE_STRIKES_A_MOB, BoreStreamTests::boreStrikesAMobInTheTunnel);
-        GooTestFunctions.registerTest(registrar, BORE_REACHES_UNDER_TELEKINESIS,
-                BoreStreamTests::boreReachesTheBlockReachTelekinesisRaises);
         GooTestFunctions.registerTest(registrar, BORE_BREAKS_FOUR, BoreStreamTests::boreBreaksTheFourBlocksWhereFourMeet);
         GooTestFunctions.registerTest(registrar, BORE_BREAKS_FOUR_AT_A_SLANT,
                 BoreStreamTests::boreBreaksTheFourFloorBlocksWhereFourMeetAtASlant);
-        GooTestFunctions.registerTest(registrar, BORE_CUTS_THE_ONE_BY_TWO,
-                BoreStreamTests::boreCutsTheOneByTwoAheadLookingLevel);
-        GooTestFunctions.registerTest(registrar, BORE_KEEPS_PACE, BoreStreamTests::boreKeepsPaceWithAWalkingPlayer);
     }
 
 
@@ -76,28 +68,14 @@ public final class BoreStreamTests {
     private static final String ABILITY_REQUIRED = "Ability registry must hold rock_bore";
     private static final BlockPos TUNNEL_COW = EYE_ROW.east(2).below();
     private static final String SHOULD_HIT_AS_THE_PLAYER = "The first tick should hit the cow as the player, last hit by %s";
-    private static final Identifier KINETIC_REMOTE = Identifier.parse("goo:kinetic_remote");
-    /** Six blocks out on the eye row: past a survival player's block reach, inside it raised by Telekinesis. */
-    private static final BlockPos PAST_THE_REACH = EYE_ROW.east(6);
     /** A hold long enough to break a block the bore reaches. */
     private static final int REACH_HOLD_TICKS = 20;
-    private static final String SHOULD_START_PAST_THE_REACH = "The stone should stand past the survival block reach";
     /** How far the eye line passes from the corner where four blocks meet, on both axes. */
     private static final double NEAR_THE_CORNER = 0.05;
     private static final String SHOULD_BREAK_FOUR_TOGETHER =
             "The four blocks where four meet should break on one tick, broke on ticks %s (0 stood)";
     private static final String BORE_BREAKS_FOUR = "bore_breaks_the_four_blocks_where_four_meet";
     private static final String BORE_BREAKS_FOUR_AT_A_SLANT = "bore_breaks_the_four_floor_blocks_at_a_slant";
-    private static final String BORE_CUTS_THE_ONE_BY_TWO = "bore_cuts_the_one_by_two_ahead_looking_level";
-    private static final String BORE_KEEPS_PACE = "bore_keeps_pace_with_a_walking_player";
-    /** A player's walking speed, blocks a tick: vanilla's 4.317 blocks a second. */
-    private static final double WALKING_SPEED = 4.317 / 20;
-    /** How long the walk test holds bore: long enough to walk about eight blocks once the first slice opens. */
-    private static final int WALK_TICKS = 45;
-    /** How many blocks of stone the walk test lays ahead of the player. */
-    private static final int WALK_BLOCKS = 10;
-    private static final String SHOULD_KEEP_PACE =
-            "Walking at walking speed the player ran into the wall on tick %d, %.2f blocks in";
     /** How far the look tips down at the floor, in degrees. */
     private static final float LOOKING_DOWN_AT_A_SLANT = 45f;
     /** How far the eye stands back from the point it aims at, along the look. */
@@ -192,40 +170,6 @@ public final class BoreStreamTests {
     }
 
     /**
-     * A survival player streams bore east at a lone block of stone past
-     * their block reach: through a hold it stands, and once Telekinesis
-     * raises their block reach a second hold breaks it
-     * (decisions bore-reaches-as-far-as-your-block-reach, telekinesis-enacts-at-extended-reach).
-     *
-     * @param helper the gametest helper
-     */
-    public static void boreReachesTheBlockReachTelekinesisRaises(GameTestHelper helper) {
-        helper.setBlock(PAST_THE_REACH, Blocks.STONE);
-        ServerPlayer player = boringPlayer(helper);
-        // the mock player helper makes a creative player, whose reach runs longer
-        player.setGameMode(GameType.SURVIVAL);
-        player.getInventory().add(GooStacks.createForOutput(GooTypes.KINETIC, HELD_GOO * GooStacks.THOUSAND));
-        helper.assertFalse(player.isWithinBlockInteractionRange(helper.absolutePos(PAST_THE_REACH), 0),
-                SHOULD_START_PAST_THE_REACH);
-        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.ROCK), ROCK_BORE.toString(),
-                player.getEyePosition(), player.getEyePosition());
-        int raisedAt = REACH_HOLD_TICKS + 1;
-        for (int held = 1; held <= REACH_HOLD_TICKS; held++) {
-            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
-            helper.runAfterDelay(raisedAt + held, () -> GooStreamHandler.streamTick(player, tick));
-        }
-        helper.runAfterDelay(raisedAt, () -> {
-            helper.assertBlockPresent(Blocks.STONE, PAST_THE_REACH);
-            HeartOverlayTests.invoke(player, GooTypes.KINETIC, KINETIC_REMOTE);
-        });
-        helper.runAfterDelay(raisedAt + REACH_HOLD_TICKS + 1, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertBlockPresent(Blocks.AIR, PAST_THE_REACH);
-            helper.succeed();
-        });
-    }
-
-    /**
      * A mock player facing east, the eye line 0.05 from the corner where four
      * stone blocks meet on both axes, streams bore: the four blocks break
      * together, on the same tick (decision bore-breaks-what-the-drill-cross-section-intersects).
@@ -266,87 +210,19 @@ public final class BoreStreamTests {
     }
 
     /**
-     * A mock player standing in a 1 by 2 tunnel looks level at its end:
-     * Bore's aim line runs from the player's feet Y + 1, parallel to the
-     * sight line, so both blocks of the 1 by 2 ahead break on one tick and
-     * the player can walk on.
+     * Holds bore from an eye looking east at a point near where four blocks
+     * meet and succeeds once all four break on one tick.
      *
      * @param helper the gametest helper
-     */
-    public static void boreCutsTheOneByTwoAheadLookingLevel(GameTestHelper helper) {
-        BlockPos head = EYE_ROW.east(2);
-        for (int east = 1; east <= 3; east++) {
-            for (BlockPos pos : slice(EYE_ROW.east(east))) {
-                helper.setBlock(pos, Blocks.STONE);
-                helper.setBlock(pos.below(), Blocks.STONE);
-            }
-        }
-        helper.setBlock(EYE_ROW.east(1), Blocks.AIR);
-        helper.setBlock(EYE_ROW.east(1).below(), Blocks.AIR);
-        ServerPlayer player = boringPlayer(helper);
-        holdUntilTogether(helper, player, List.of(head, head.below()));
-    }
-
-    /**
-     * A mock player holds bore looking level into solid stone and, once the
-     * first slice opens, walks east at walking speed every tick: the 1 by 2
-     * ahead always breaks before the player's body reaches it, so the player
-     * walks a straight line through the stone and never runs into the wall
-     * (decision bore-vortex-with-a-worldspace-shake: keeping pace with walking).
-     *
-     * @param helper the gametest helper
-     */
-    public static void boreKeepsPaceWithAWalkingPlayer(GameTestHelper helper) {
-        for (int east = 1; east <= WALK_BLOCKS + 2; east++) {
-            for (BlockPos pos : slice(EYE_ROW.east(east))) {
-                helper.setBlock(pos, Blocks.STONE);
-                helper.setBlock(pos.below(), Blocks.STONE);
-            }
-        }
-        ServerPlayer player = boringPlayer(helper);
-        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.ROCK), ROCK_BORE.toString(),
-                player.getEyePosition(), player.getEyePosition());
-        boolean[] walking = {false};
-        int[] bumpedOn = {0};
-        for (int held = 1; held <= WALK_TICKS; held++) {
-            int at = held;
-            helper.runAfterDelay(held, () -> {
-                GooStreamHandler.streamTick(player, tick);
-                walking[0] |= helper.getLevel().getBlockState(helper.absolutePos(EYE_ROW.east(1))).isAir();
-                if (!walking[0] || bumpedOn[0] > 0) {
-                    return;
-                }
-                AABB next = player.getBoundingBox().move(WALKING_SPEED, 0, 0);
-                if (helper.getLevel().getBlockCollisions(player, next).iterator().hasNext()) {
-                    bumpedOn[0] = at;
-                } else {
-                    player.setPos(player.getX() + WALKING_SPEED, player.getY(), player.getZ());
-                }
-            });
-        }
-        helper.runAfterDelay(WALK_TICKS + 1, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(bumpedOn[0] == 0, String.format(SHOULD_KEEP_PACE, bumpedOn[0],
-                    player.getX() - helper.absoluteVec(Vec3.atBottomCenterOf(STAND_POS)).x));
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Holds bore from an aim line looking east at a point near where four
-     * blocks meet and succeeds once all four break on one tick.
-     *
-     * @param helper the gametest helper
-     * @param aimed  the point the aim line meets, absolute
+     * @param aimed  the point the crosshair meets, absolute
      * @param pitch  how far the look tips down, in degrees
      * @param four   the four blocks where four meet, relative
      */
     private static void holdAtACorner(GameTestHelper helper, Vec3 aimed, float pitch, List<BlockPos> four) {
         ServerPlayer player = boringPlayer(helper);
         player.setXRot(pitch);
-        // the aim line runs from the feet Y + 1, parallel to the look
-        Vec3 origin = aimed.subtract(player.getLookAngle().scale(AIM_DISTANCE));
-        player.setPos(origin.x, origin.y - 1, origin.z);
+        Vec3 eye = aimed.subtract(player.getLookAngle().scale(AIM_DISTANCE));
+        player.setPos(eye.x, eye.y - player.getEyeHeight(), eye.z);
         holdUntilTogether(helper, player, four);
     }
 

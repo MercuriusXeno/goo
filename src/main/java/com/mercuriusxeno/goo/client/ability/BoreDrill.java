@@ -188,8 +188,7 @@ public final class BoreDrill {
         }
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         ConeSections.Volume full = volume(CastOrigin.ofLocal(mc).subtract(camera),
-                pointAhead(mc.level, aimLineOf(CameraEye.of(mc, player, partialTick),
-                        player.getPosition(partialTick).y), lastStep,
+                pointAhead(mc.level, CameraEye.of(mc, player, partialTick), lastStep,
                         KnifeRainSling.gloveOnTheRight(player), lastReach).subtract(camera),
                 lastStep.shape(), player.getViewYRot(partialTick));
         double poured = held ? emergedShare(GloveUseTracker.channelTicks() + partialTick) : 1;
@@ -222,32 +221,21 @@ public final class BoreDrill {
     }
 
     /**
-     * Where the drill's point stands in a level along Bore's aim line, the
-     * line {@link #aimLineOf} runs from the feet Y + 1 parallel to the sight.
-     * The ground shake runs Bore's zone along the same line, so it shakes the
-     * blocks at the point.
+     * Where the drill's point stands in a level along the crosshair's sight,
+     * {@link CameraEye#of}'s, the camera itself in first person. The ground
+     * shake runs Bore's zone along the same sight, so it shakes the blocks at
+     * the point.
+     * decision diagnose-and-correct-eye-aimed-visuals-jumping-on-sneak
      *
      * @param level      the client level
-     * @param aimLine    Bore's aim line
+     * @param sight      the crosshair's sight
      * @param bore       the bore, whose tag names what it breaks and whose drill sizes the tube
      * @param gloveRight whether the glove is in the right hand
      * @param reach      the bore's reach
      * @return the point, in world space
      */
-    static Vec3 pointAhead(Level level, CameraEye.Sight aimLine, BoreStep bore, boolean gloveRight, double reach) {
-        return pointOf(aimLine, reach, bore.shape(), gloveRight, airIn(level), breakableIn(level, bore));
-    }
-
-    /**
-     * Bore's aim line for a sight: from one block above the caster's feet,
-     * under the eye, parallel to the sight line, as the server aims.
-     *
-     * @param sight the caster's sight, {@link CameraEye#of}'s
-     * @param feetY the height of the caster's feet
-     * @return the aim line, as a sight
-     */
-    static CameraEye.Sight aimLineOf(CameraEye.Sight sight, double feetY) {
-        return new CameraEye.Sight(BoreStep.aimOrigin(sight.eye(), feetY), sight.look());
+    static Vec3 pointAhead(Level level, CameraEye.Sight sight, BoreStep bore, boolean gloveRight, double reach) {
+        return pointOf(sight, reach, bore.shape(), gloveRight, airIn(level), breakableIn(level, bore));
     }
 
     /**

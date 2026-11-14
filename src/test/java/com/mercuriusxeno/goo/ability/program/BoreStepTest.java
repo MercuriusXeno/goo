@@ -68,8 +68,6 @@ class BoreStepTest {
         when(host.kind()).thenReturn(HostKind.PLAYER);
         when(host.channelAim()).thenReturn(Optional.of(new ChannelAim(REACH_END, null, coneDegrees)));
         when(host.eye()).thenReturn(EYE);
-        // a standing player's feet, 1.62 under the eye: Bore's aim line runs one block above them, at y 2
-        when(host.feetY()).thenReturn(EYE.y - 1.62);
         when(host.gradualBreak()).thenReturn(gradualBreak);
         when(host.blockIn(any(), any())).thenAnswer(call -> standing.test(call.getArgument(0)));
         when(host.airAt(any())).thenAnswer(call -> {
@@ -269,21 +267,39 @@ class BoreStepTest {
         }
 
         /**
-         * A bore aimed along the look out to the reach its delivery takes for
-         * a block reach picks a block inside that reach and leaves one past it
-         * (decision bore-reaches-as-far-as-your-block-reach).
+         * Bore drills only up to 3 blocks away, whatever the caster's block
+         * reach: a block whose face stands 2.5 out is picked, one 3.5 out is
+         * not (operator ruling 2026-11-14).
          */
         @Test
-        void aBorePicksABlockInsideTheBlockReachAndLeavesOnePastIt() {
+        void aBoreDrillsUpToThreeBlocksAwayAndNoFarther() {
             Delivery delivery = AbilityJson.decode("rock_bore").delivery();
-            for (double blockReach : new double[] {4.5, 6}) {
-                BlockPos inside = new BlockPos((int) Math.floor(AT_A_MIDDLE.x + blockReach) - 1, 2, 0);
-                BlockPos past = inside.east(2);
+            for (double blockReach : new double[] {4.5, 12.5}) {
                 ChannelAim aim = new ChannelAim(AT_A_MIDDLE.add(EAST.scale(delivery.reachingTo(blockReach).range())),
                         null, CONE_DEGREES);
-                assertEquals(List.of(inside), pickOfLone(inside, aim), "inside a reach of " + blockReach);
-                assertEquals(List.of(), pickOfLone(past, aim), "past a reach of " + blockReach);
+                assertEquals(List.of(new BlockPos(3, 2, 0)), pickOfLone(new BlockPos(3, 2, 0), aim),
+                        "2.5 out with a block reach of " + blockReach);
+                assertEquals(List.of(), pickOfLone(new BlockPos(4, 2, 0), aim),
+                        "3.5 out with a block reach of " + blockReach);
             }
+        }
+
+        /**
+         * A held tick centers the cut on the crosshair: aimed level at the
+         * middle of a wall's upper block, it picks that block alone, never the
+         * one under it (operator ruling 2026-11-14).
+         */
+        @Test
+        void aHeldTickCentersTheCutOnTheCrosshair() {
+            Predicate<BlockPos> wall = pos -> pos.getX() == 1 && (pos.getY() == 1 || pos.getY() == 2) && pos.getZ() == 0;
+            ChannelHost host = hostWith(wall, Set.of());
+            GradualBreak gradualBreak = mock(GradualBreak.class);
+            when(host.gradualBreak()).thenReturn(gradualBreak);
+            run(host, new BoreStep(BREAKABLE, PACE));
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<Map<BlockPos, Double>> rates = ArgumentCaptor.forClass(Map.class);
+            verify(gradualBreak).progress(rates.capture(), any(), eq(true));
+            assertEquals(Set.of(FIRST_ON_LINE), rates.getValue().keySet());
         }
 
         /** The pick from a face's middle along an aim, with one breakable block standing alone in the air. */
