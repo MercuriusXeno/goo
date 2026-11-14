@@ -296,6 +296,19 @@ public final class LiftedPalmBlob {
     }
 
     /**
+     * Where the lifted blob stands in its beat at a moment, the one clock a
+     * charging Blast's spheroid beats on too.
+     * decision blast-charge-pulls-green-motes-into-the-shell-and-the-blob
+     *
+     * @param time the game time in ticks, with the frame's partial tick
+     * @return the beat's phase, 0 to 1
+     */
+    static double beatPhase(double time) {
+        double beats = time / BEAT_TICKS;
+        return beats - Math.floor(beats);
+    }
+
+    /**
      * The lifted blob's size at the source: beating between its least and
      * greatest size, both above the palm blob's rest size, once a beat.
      *
@@ -303,7 +316,7 @@ public final class LiftedPalmBlob {
      * @return the size against the palm blob's rest size
      */
     static float liftedSizeAt(double time) {
-        double swell = HALF - HALF * Math.cos(FULL_TURN * time / BEAT_TICKS);
+        double swell = HALF - HALF * Math.cos(FULL_TURN * beatPhase(time));
         return (float) (LIFTED_LEAST + (LIFTED_GREATEST - LIFTED_LEAST) * swell);
     }
 

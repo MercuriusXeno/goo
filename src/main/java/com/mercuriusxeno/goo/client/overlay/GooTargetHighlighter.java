@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.block.ability.FaceSupport;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
+import com.mercuriusxeno.goo.client.ability.ChargeMotes;
 import com.mercuriusxeno.goo.client.ability.HeldColumnRenderer;
 import com.mercuriusxeno.goo.client.ability.HeldDomeRenderer;
 import com.mercuriusxeno.goo.client.ability.PortalView;
@@ -248,16 +249,20 @@ public final class GooTargetHighlighter {
      * @param frame what the frame draws with
      */
     private static void renderSizedDome(HighlightFrame frame) {
+        float partialTick = frame.mc().getDeltaTracker().getGameTimeDeltaPartialTick(false);
         // blast-eases-between-stages-at-a-second-each: the spheroid eases while the cast keeps its whole stage
-        OptionalDouble size = GloveThrowSender.drawnChargeRadius(frame.mc().player,
-                frame.mc().getDeltaTracker().getGameTimeDeltaPartialTick(false));
-        if (size.isEmpty()) {
+        OptionalDouble size = GloveThrowSender.drawnChargeRadius(frame.mc().player, partialTick);
+        if (size.isEmpty() || frame.mc().level == null) {
             return;
         }
+        double now = frame.mc().level.getGameTime() + partialTick;
+        // blast-charge-pulls-green-motes-into-the-shell-and-the-blob: the spheroid swells on the palm blob's beat
+        float swelled = (float) (size.getAsDouble() * ChargeMotes.spheroidSwell(now));
         // blast-roots-to-the-spot-the-cast-began: the spheroid draws where the charge began, not where the aim is
         HeldDomeRenderer.renderSized(frame.ps(), frame.buf(), frame.camera().position(),
-                GloveThrowSender.chargeAnchor(), (float) size.getAsDouble(), frame.selectedType(),
+                GloveThrowSender.chargeAnchor(), swelled, frame.selectedType(),
                 ClientGooTypes.highlight(frame.selectedType()), realTimeSeconds());
+        ChargeMotes.render(frame.ps(), frame.buf(), frame.camera().position(), now);
     }
 
     /**

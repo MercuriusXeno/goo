@@ -208,6 +208,8 @@ public final class GloveUseTracker {
         liftThePalmBlob(mc, player);
         // blast-charge-wubs-higher-at-each-stage: a sized charge wubs as it reaches each stage
         GloveThrowSender.wubTheCharge(player);
+        // blast-charge-pulls-green-motes-into-the-shell-and-the-blob: the charge draws motes in as it grows
+        GloveThrowSender.pullTheChargeMotes(player);
     }
 
     /**
