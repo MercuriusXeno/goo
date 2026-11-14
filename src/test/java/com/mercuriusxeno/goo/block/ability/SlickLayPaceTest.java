@@ -1,63 +1,48 @@
 package com.mercuriusxeno.goo.block.ability;
 
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Slick lays faster by a channeler's horizontal speed over their unadjusted
- * movement speed while they stand on slick, and never slower than the JSON's
- * ticks.
- * slick-resolves-faster-by-speed-over-unadjusted-speed
+ * Slick throws its base drips a tick at rest and more by the caster's speed
+ * over their walk, never fewer, a tick's share of a drip landing on a seeded
+ * draw so a hold averages the scaled rate
+ * (decision slick-resolves-faster-by-speed-over-unadjusted-speed).
  */
 class SlickLayPaceTest {
 
-    private static final double EXACT = 1e-9;
-    /** A default player's movement speed attribute, walking. */
+    /** A player's base movement speed attribute. */
     private static final double WALKING_ATTRIBUTE = 0.1;
-    /** A default player's movement speed attribute, sprinting: the walk's plus three tenths. */
-    private static final double SPRINTING_ATTRIBUTE = 0.13;
-    private static final double UNADJUSTED = SlickLayPace.unadjustedSpeed(WALKING_ATTRIBUTE);
+    private static final double WALK = SlickLayPace.unadjustedSpeed(WALKING_ATTRIBUTE);
+    private static final int BASE_DRIPS = 2;
+    /** Ticks of a long hold, enough to read the scaled rate's average. */
+    private static final int LONG_HOLD = 4000;
 
-    @Nested
-    class OnSlickTheSpeedSetsThePace {
-
-        @Test
-        void twiceTheUnadjustedSpeedLaysTwiceAsFast() {
-            assertEquals(2, SlickLayPace.factor(2 * UNADJUSTED, UNADJUSTED, true), EXACT);
-        }
+    @Test
+    void aWalkingAttributeWalksAPlayerAtVanillasSettledSpeed() {
+        assertEquals(0.2159, WALK, 1e-4);
     }
 
-    @Nested
-    class TheFactorNeverFallsBelowOne {
-
-        @Test
-        void aChannelerOffSlickLaysAtTheJsonsTicksHoweverFast() {
-            assertEquals(1, SlickLayPace.factor(3 * UNADJUSTED, UNADJUSTED, false), EXACT);
-        }
-
-        @Test
-        void aChannelerAtRestOnSlickLaysAtTheJsonsTicks() {
-            assertEquals(1, SlickLayPace.factor(0, UNADJUSTED, true), EXACT);
-        }
-
-        @Test
-        void aChannelerSlowerThanTheirUnadjustedSpeedLaysAtTheJsonsTicks() {
-            assertEquals(1, SlickLayPace.factor(UNADJUSTED / 2, UNADJUSTED, true), EXACT);
-        }
+    @Test
+    void aCasterAtRestThrowsTheBaseDrips() {
+        assertEquals(BASE_DRIPS, SlickLayPace.dripsThisTick(BASE_DRIPS, SlickLayPace.factor(0, WALK), 1));
     }
 
-    @Nested
-    class TheUnadjustedSpeedIsTheGroundWalk {
+    @Test
+    void aCasterAtTheRampsTopSpeedThrowsAboutNineDripsATick() {
+        assertEquals(9.26, averageDrips(SlickLayPace.factor(1.0, WALK)), 0.1);
+    }
 
-        @Test
-        void aWalkingPlayerWalksTheGroundAtVanillasWalkSpeed() {
-            assertEquals(0.2159, SlickLayPace.unadjustedSpeed(WALKING_ATTRIBUTE), 1e-4);
-        }
+    @Test
+    void aSprintingCasterThrowsAboutTwoAndAHalfDripsATick() {
+        assertEquals(2.6, averageDrips(SlickLayPace.factor(0.28, WALK)), 0.1);
+    }
 
-        @Test
-        void aSprintingPlayerWalksTheGroundAtVanillasSprintSpeed() {
-            assertEquals(0.2806, SlickLayPace.unadjustedSpeed(SPRINTING_ATTRIBUTE), 1e-4);
+    private static double averageDrips(double factor) {
+        long total = 0;
+        for (int held = 1; held <= LONG_HOLD; held++) {
+            total += SlickLayPace.dripsThisTick(BASE_DRIPS, factor, held);
         }
+        return (double) total / LONG_HOLD;
     }
 }

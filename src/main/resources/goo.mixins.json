@@ -5,9 +5,11 @@
   "mixins": [
     "BlockStateGatePassageMixin",
     "ContainerShiftClickMergeMixin",
+    "EntityCellLiftMixin",
     "EntityGatePassageMixin",
     "EntityPhasePassMixin",
     "EntitySculkerSilenceMixin",
+    "EntitySlickMomentumMixin",
     "EntitySlickUnderfootMixin",
     "EntitySlimeCoatUnderfootMixin",
     "FoodDataLifetapMixin",
@@ -17,6 +19,7 @@
     "LivingEntityHeldFallsMixin",
     "LivingEntityPneumaBreathMixin",
     "LivingEntitySculkerSilenceMixin",
+    "LivingEntitySlickMomentumMixin",
     "LivingEntityUndeadMixin",
     "MinecraftServerGooStateMixin",
     "PlayerSculkerMixin",
@@ -24,6 +27,7 @@
     "PlayerGluttonyEatMixin",
     "GooQuickCraftMixin",
     "ReloadableServerResourcesGooMixin",
+    "ServerGamePacketListenerRisenCellMixin",
     "ServerLevelSculkerHearingMixin",
     "WitchHeldDrinksNoPotionMixin",
     "WorldDimensionsGooStableMixin"

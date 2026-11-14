@@ -8,6 +8,7 @@ import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.phys.Vec3;
 import java.util.Collections;
 import java.util.Map;
+import java.util.OptionalLong;
 import java.util.WeakHashMap;
 
 /**
@@ -130,6 +131,17 @@ public final class SlickBuild {
         slider.slide(SlickRamp.slid(slider.velocity(), stoodOnSlickBefore(before, now), trying, tried, slick));
         builds.put(slider.identity(),
                 trying ? new Build(tried + 1, now, now) : new Build(tried, lastTriedAt(before), now));
+    }
+
+    /**
+     * The game time an entity last stood on slick, on its own side.
+     *
+     * @param entity the entity
+     * @return the game time, empty where it never stood on slick or its build is forgotten
+     */
+    static OptionalLong lastOnSlickAt(Entity entity) {
+        Build build = (entity.level().isClientSide() ? CLIENT_BUILDS : SERVER_BUILDS).get(entity);
+        return build == null ? OptionalLong.empty() : OptionalLong.of(build.lastOnSlickAt());
     }
 
     /**
