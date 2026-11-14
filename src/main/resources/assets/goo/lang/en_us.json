@@ -2,7 +2,6 @@
   "itemGroup.goo": "Goo",
   "entity.goo.compression_sphere": "Compression Sphere",
   "entity.goo.forming_goo_blob": "Forming Goo",
-  "entity.goo.swap_body": "Swap Body",
   "entity.goo.eldritch_monstrosity": "Eldritch Monstrosity",
   "entity.goo.block_hunk": "Hunk of Blocks",
 
@@ -185,8 +184,6 @@
   "goo.ability.quantum.tunnel.description": "Opens a wormhole from the struck wall to the opening beyond, up to 32 blocks, for thirty seconds.",
   "goo.ability.quantum.portal": "Portal",
   "goo.ability.quantum.portal.description": "Opens a portal that links with your last unpaired one; sneak right click two portals to relink.",
-  "goo.ability.quantum.swap": "Swap",
-  "goo.ability.quantum.swap.description": "Blinks you where you aim, leaving a swap body behind; cast again to trade places with it.",
   "goo.ability.frost.nova": "Nova",
   "goo.ability.frost.nova.description": "Hold to charge a frost nova that freezes and damages nearby mobs.",
   "goo.ability.frost.cold": "Cold",
