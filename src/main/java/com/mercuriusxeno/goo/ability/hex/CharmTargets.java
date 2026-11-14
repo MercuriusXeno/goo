@@ -10,8 +10,10 @@ import java.util.function.Predicate;
 /**
  * Whom a charmed mob fights: the nearest living mob targeting its charmer,
  * else the nearest living monster hostile to players before it aggresses,
- * neutral mobs spared until one targets the charmer.
+ * neutral mobs spared until one targets the charmer, and every charmed or
+ * rallied mob spared whoever charmed or rallied it.
  * charm-glisten-and-icon-over-the-head
+ * diagnose-and-correct-minions-killing-each-other
  */
 public final class CharmTargets {
 
@@ -23,26 +25,42 @@ public final class CharmTargets {
      *
      * @param mob         the mob
      * @param alive       whether it still lives
-     * @param hostile     whether it is a monster hostile to players unprovoked, neither neutral nor charmed
+     * @param hostile     whether it is a monster hostile to players unprovoked, not neutral
      * @param target      the UUID of the entity it targets, or null for none
      * @param distanceSqr its squared distance from the charmed mob
      * @param downed      whether it lies downed, which no pick takes
+     * @param minion      whether it holds a charm or a rally, which no pick takes
      * @param <T>         the mob's type
      */
     public record Candidate<T>(T mob, boolean alive, boolean hostile, @Nullable UUID target, double distanceSqr,
-                               boolean downed) {
+                               boolean downed, boolean minion) {
 
         /**
-         * A candidate standing, not downed.
+         * A candidate no one charmed or rallied.
          *
          * @param mob         the mob
          * @param alive       whether it still lives
-         * @param hostile     whether it is a monster hostile to players unprovoked, neither neutral nor charmed
+         * @param hostile     whether it is a monster hostile to players unprovoked, not neutral
+         * @param target      the UUID of the entity it targets, or null for none
+         * @param distanceSqr its squared distance from the charmed mob
+         * @param downed      whether it lies downed, which no pick takes
+         */
+        public Candidate(T mob, boolean alive, boolean hostile, @Nullable UUID target, double distanceSqr,
+                         boolean downed) {
+            this(mob, alive, hostile, target, distanceSqr, downed, false);
+        }
+
+        /**
+         * A candidate standing, not downed, that no one charmed or rallied.
+         *
+         * @param mob         the mob
+         * @param alive       whether it still lives
+         * @param hostile     whether it is a monster hostile to players unprovoked, not neutral
          * @param target      the UUID of the entity it targets, or null for none
          * @param distanceSqr its squared distance from the charmed mob
          */
         public Candidate(T mob, boolean alive, boolean hostile, @Nullable UUID target, double distanceSqr) {
-            this(mob, alive, hostile, target, distanceSqr, false);
+            this(mob, alive, hostile, target, distanceSqr, false, false);
         }
     }
 
@@ -64,7 +82,9 @@ public final class CharmTargets {
     private static <T> Optional<T> nearest(List<Candidate<T>> nearby, Predicate<Candidate<T>> foe) {
         return nearby.stream()
                 // nothing-targets-a-downed-mob
-                .filter(candidate -> candidate.alive() && !candidate.downed() && foe.test(candidate))
+                // diagnose-and-correct-minions-killing-each-other
+                .filter(candidate -> candidate.alive() && !candidate.downed() && !candidate.minion()
+                        && foe.test(candidate))
                 .min(Comparator.comparingDouble(Candidate::distanceSqr))
                 .map(Candidate::mob);
     }
