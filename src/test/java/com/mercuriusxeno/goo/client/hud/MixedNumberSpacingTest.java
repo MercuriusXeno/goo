@@ -35,27 +35,21 @@ class MixedNumberSpacingTest {
     }
 
     @Nested
-    class FractionHugsTheDivisorLine {
+    class FractionSitsEvenlyAroundTheDivisorLine {
 
         @Test
-        void numeratorInkEndsOnePixelLeftOfTheLinesInkOverItsRows() {
-            for (MixedNumber number : new MixedNumber[] {TWENTY_ONE_AND_A_THIRD,
-                    GooFormat.mixedParts(GooFraction.of(25, 2)), GooFormat.mixedParts(GooFraction.of(5, 7))}) {
-                MixedNumberSpacing.Laid laid = MixedNumberSpacing.lay(number, StatedGlyphs.VANILLA);
-                float lineInkLeft = pieceOf(laid, MixedNumber.FRACTION_SLASH).x()
-                        + StatedGlyphs.SLASH.leftOver(StatedGlyphs.RAISED);
-                assertEquals(1f, lineInkLeft - inkRightOf(laid, number.numerator()), EPSILON, number.text());
-            }
-        }
-
-        @Test
-        void denominatorInkStartsOnePixelRightOfTheLinesInkOverItsRows() {
-            for (MixedNumber number : new MixedNumber[] {TWENTY_ONE_AND_A_THIRD,
-                    GooFormat.mixedParts(GooFraction.of(25, 2)), GooFormat.mixedParts(GooFraction.of(5, 7))}) {
-                MixedNumberSpacing.Laid laid = MixedNumberSpacing.lay(number, StatedGlyphs.VANILLA);
-                float lineInkRight = pieceOf(laid, MixedNumber.FRACTION_SLASH).x()
-                        + StatedGlyphs.SLASH.rightOver(StatedGlyphs.LOWERED);
-                assertEquals(1f, inkLeftOf(laid, number.denominator()) - lineInkRight, EPSILON, number.text());
+        void numeratorAndDenominatorEachStandOnePixelFromTheLinesNearestInk() {
+            for (int denominator = 2; denominator <= 12; denominator++) {
+                for (int numerator = 1; numerator < denominator; numerator++) {
+                    MixedNumber number = GooFormat.mixedParts(GooFraction.of(21L * denominator + numerator,
+                            denominator));
+                    MixedNumberSpacing.Laid laid = MixedNumberSpacing.lay(number, StatedGlyphs.VANILLA);
+                    float divisorX = pieceOf(laid, MixedNumber.FRACTION_SLASH).x();
+                    assertEquals(1f, StatedGlyphs.numeratorGap(number.numerator(),
+                            pieceOf(laid, number.numerator()).x(), divisorX), EPSILON, "numerator of " + number.text());
+                    assertEquals(1f, StatedGlyphs.denominatorGap(number.denominator(), divisorX,
+                            pieceOf(laid, number.denominator()).x()), EPSILON, "denominator of " + number.text());
+                }
             }
         }
     }
