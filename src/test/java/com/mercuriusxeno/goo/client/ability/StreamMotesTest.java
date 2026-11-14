@@ -89,6 +89,8 @@ class StreamMotesTest {
     private static final double CONE_DEGREES = 16;
     /** How far a drawn drip's launch may stray from its share's: double rounding. */
     private static final double SAME_LAUNCH = 1e-9;
+    /** The least gap between two of a tick's drawn drips, past a drip quad's half-width. */
+    private static final double DRIP_SPACING = 0.1;
     /** How far a drip's first drawn quad may stray from half its launch out of the blob: the quad's float precision. */
     private static final double ON_THE_LAUNCH = 1e-3;
     /** How far short of the spray source the blob stands while it still eases off the palm. */
@@ -185,6 +187,29 @@ class StreamMotesTest {
         }
     }
 
+    @Test
+    void aTicksDripsStandApartSoNoTwoDrawInOnePlane() {
+        Caster caster = moving(new Vec3(0, 0, SPEED));
+        double[] now = {0};
+        List<SprayDripParticle> drips = new ArrayList<>();
+        Minecraft minecraft = clientDrawing(drips, caster, true, now);
+        whileDrawing(minecraft, new ArrayList<>(), () -> {
+            StreamMotes.handle(sprayTick(caster), runningAtOnce());
+            now[0] = FIRST_TICK;
+            List<Vec3> drawn = new ArrayList<>();
+            for (SprayDripParticle drip : drips) {
+                drip.tick();
+                drawn.add(drawnAt(drip, PARTIAL_TICK));
+            }
+            for (int i = 0; i < drawn.size(); i++) {
+                for (int j = i + 1; j < drawn.size(); j++) {
+                    assertTrue(drawn.get(i).distanceTo(drawn.get(j)) >= DRIP_SPACING, "two of a tick's drips should"
+                            + " stand apart, drawn at " + drawn.get(i) + " and " + drawn.get(j));
+                }
+            }
+        });
+    }
+
     /** The stream's tick as the server sends it for a caster, its glove a tick before the tick reaches the client. */
     private static StreamMotesPayload sprayTick(Caster caster) {
         return new StreamMotesPayload(CASTER, sourceOf(caster, -1), SPRAY_AXIS,
@@ -239,24 +264,40 @@ class StreamMotesTest {
             for (int i = 0; i < drips.size(); i++) {
                 SprayDripParticle drip = drips.get(i);
                 drip.tick();
+                double lead = (double) i / StreamMotes.MOTES_PER_TICK;
                 Vec3 left = drawnAt(drip, 0f);
-                assertTrue(left.distanceTo(blob) <= LEFT_THE_BLOB, "a drip should leave the blob where it stands, "
-                        + blob + ", left from " + left);
-                assertDrawnOnItsLaunch(drawnAt(drip, PARTIAL_TICK), blob, launches.get(i));
+                Vec3 onItsArc = arcFrom(blob, launches.get(i), lead);
+                assertTrue(left.distanceTo(onItsArc) <= LEFT_THE_BLOB, "a drip should leave the blob where it stands, "
+                        + blob + ", " + lead + " of a tick along its arc at " + onItsArc + ", left from " + left);
+                assertDrawnOnItsLaunch(drawnAt(drip, PARTIAL_TICK), onItsArc.lerp(arcFrom(blob, launches.get(i),
+                        lead + 1), PARTIAL_TICK), launches.get(i));
             }
         });
     }
 
     /**
-     * Asserts a drawn point stands halfway along the first tick a drip
-     * thrown from the blob at its launch flies through open air.
+     * Where a drip thrown from the blob at its launch stands a time into its
+     * flight through open air, between the ticks either side.
      */
-    private static void assertDrawnOnItsLaunch(Vec3 drawn, Vec3 blob, Vec3 launch) {
-        Vec3 firstTick = DripArc.step(blob, launch, (from, to) -> Optional.empty(), point -> true).position();
-        Vec3 halfway = blob.add(firstTick.subtract(blob).scale(PARTIAL_TICK));
-        assertTrue(drawn.distanceTo(halfway) <= ON_THE_LAUNCH, "a drip's first quad should stand halfway along its"
-                + " first tick from the blob " + blob + " at its launch " + launch + ", at " + halfway + ", drawn at "
-                + drawn);
+    private static Vec3 arcFrom(Vec3 blob, Vec3 launch, double ticks) {
+        Vec3 at = blob;
+        Vec3 velocity = launch;
+        double flown = 0;
+        while (true) {
+            DripArc.Step step = DripArc.step(at, velocity, (from, to) -> Optional.empty(), point -> true);
+            if (ticks <= flown + 1) {
+                return at.lerp(step.position(), ticks - flown);
+            }
+            at = step.position();
+            velocity = step.velocity();
+            flown++;
+        }
+    }
+
+    /** Asserts a drawn point stands halfway along the tick of flight its drip's arc carries it through. */
+    private static void assertDrawnOnItsLaunch(Vec3 drawn, Vec3 onItsArc, Vec3 launch) {
+        assertTrue(drawn.distanceTo(onItsArc) <= ON_THE_LAUNCH, "a drip's first quad should stand half a tick"
+                + " along its arc at its launch " + launch + ", at " + onItsArc + ", drawn at " + drawn);
     }
 
     private static Minecraft clientDrawing(List<SprayDripParticle> drips, Caster caster, boolean local,
@@ -286,6 +327,7 @@ class StreamMotesTest {
         when(camera.getFov()).thenReturn(WORLD_FOV);
         GameRenderer renderer = mock(GameRenderer.class);
         when(renderer.getMainCamera()).thenReturn(camera);
+        SprayingClient.setRenderState(renderer);
         Options options = mock(Options.class);
         when(options.getCameraType()).thenReturn(CameraType.FIRST_PERSON);
         setField(minecraft, "gameRenderer", renderer);

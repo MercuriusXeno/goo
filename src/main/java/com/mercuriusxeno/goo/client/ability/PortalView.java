@@ -13,7 +13,6 @@ import com.mojang.blaze3d.buffers.Std140Builder;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -435,12 +434,7 @@ public final class PortalView {
      * @param camera the portal camera's state, its projection bobbed in place
      */
     private static void bobAsTheFrameDoes(Minecraft mc, CameraRenderState camera) {
-        PoseStack bob = new PoseStack();
-        mc.gameRenderer.bobHurt(camera, bob);
-        if (mc.gameRenderer.gameRenderState.optionsRenderState.bobView) {
-            mc.gameRenderer.bobView(camera, bob);
-        }
-        camera.projectionMatrix.mul(bob.last().pose());
+        camera.projectionMatrix.mul(HandPassView.viewBobOf(mc, camera));
     }
 
     /**

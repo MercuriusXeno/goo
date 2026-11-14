@@ -16,6 +16,8 @@ import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -35,7 +37,7 @@ import java.util.List;
 public final class StreamMotes {
 
     /** Motes launched each tick of the stream. */
-    private static final int MOTES_PER_TICK = 6;
+    static final int MOTES_PER_TICK = 6;
 
     private StreamMotes() {
     }
@@ -57,20 +59,38 @@ public final class StreamMotes {
             return;
         }
         RandomSource random = mc.level.getRandom();
-        List<CoatRay.ConeShare> fan = CoatRay.coneFan();
-        boolean threwDrips = false;
-        for (int i = 0; i < MOTES_PER_TICK; i++) {
-            if (payload.throwSpeed() > Delivery.NO_THROW_SPEED) {
-                // goop-and-slick-coat-lands-where-each-drip-arc-strikes: each drawn drip flies one of the server's arcs
-                threwDrips |= throwOnItsArc(mc, payload, particle, fan.get(random.nextInt(fan.size())));
-            } else {
+        if (payload.throwSpeed() <= Delivery.NO_THROW_SPEED) {
+            for (int i = 0; i < MOTES_PER_TICK; i++) {
                 launchMote(mc, payload, particle, new CoatRay.ConeShare(random.nextDouble(), random.nextDouble()));
             }
+            return;
+        }
+        boolean threwDrips = false;
+        List<CoatRay.ConeShare> shares = distinctShares(random);
+        for (int i = 0; i < MOTES_PER_TICK; i++) {
+            // goop-and-slick-coat-lands-where-each-drip-arc-strikes: each drawn drip flies one of the server's arcs
+            // operator ruling 2026-11-13: a tick's drips stand apart, each a share of a tick further along its arc
+            threwDrips |= throwOnItsArc(mc, payload, particle, shares.get(i), (double) i / MOTES_PER_TICK);
         }
         if (threwDrips) {
             // palm-blob-lifts-as-the-spray-source: a tick throwing drips keeps the caster's spray running
             LiftedPalmBlob.sprayed(payload.casterId(), payload.apex(), mc.level.getGameTime());
         }
+    }
+
+    /**
+     * A tick's drips' places in the cone's fan, no two the same, so no two
+     * fly one arc.
+     *
+     * @param random the source the places are drawn from
+     * @return one share of the fan for each of the tick's drips
+     */
+    static List<CoatRay.ConeShare> distinctShares(RandomSource random) {
+        List<CoatRay.ConeShare> fan = new ArrayList<>(CoatRay.coneFan());
+        for (int i = 0; i < MOTES_PER_TICK; i++) {
+            Collections.swap(fan, i, i + random.nextInt(fan.size() - i));
+        }
+        return fan.subList(0, MOTES_PER_TICK);
     }
 
     /**
@@ -83,10 +103,11 @@ public final class StreamMotes {
      * @param payload  the stream's tick
      * @param particle the drip's particle
      * @param share    the drip's place in the cone's fan
+     * @param lead     the share of a tick of flight the drip has flown when thrown
      * @return true where the mote is a spray drip thrown on its arc
      */
     private static boolean throwOnItsArc(Minecraft mc, StreamMotesPayload payload, SimpleParticleType particle,
-                                         CoatRay.ConeShare share) {
+                                         CoatRay.ConeShare share, double lead) {
         Vec3 apex = payload.apex();
         Vec3 launch = DripArc.launch(payload.axis(), payload.coneDegrees(), share, payload.throwSpeed());
         Particle mote = mc.particleEngine.createParticle(particle, apex.x, apex.y, apex.z, launch.x, launch.y,
@@ -96,7 +117,7 @@ public final class StreamMotes {
             // goop-wobbles-a-mob-its-drip-strikes: a drawn drip splats on a mob it meets, as the server's strikes it
             drip.flyArcFrom(partialTick -> LiftedPalmBlob.dripLeavesFrom(payload.casterId(), apex, partialTick),
                     launch, payload.strikesLiving() ? DripFlights.livingNear(mc.level, payload.casterId())
-                            : DripArc.NO_LIVING);
+                            : DripArc.NO_LIVING, lead);
             return true;
         }
         return false;
