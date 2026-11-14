@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.model;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.ability.ChargeMotes;
 import com.mercuriusxeno.goo.client.ability.GloveGlow;
 import com.mercuriusxeno.goo.client.ability.KnivesCharge;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
@@ -321,7 +322,30 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         Vector3f standing = palmCenter(palmShape(REST_SCALE)).add(0f, 0f, -lift.stand() * SHELL_HW_PX / BLOCK_PIXELS);
         Vector3f palm = toHandPass.transformPosition(standing);
         Vector3f lifted = palm.lerp(lift.sourceInHand().toVector3f(), lift.share());
-        submitBlob(poseStack, nodeCollector, type, toHandPass.invert().transformPosition(lifted), lift.shape(), turn);
+        submitBlob(poseStack, nodeCollector, type, new Matrix4f(toHandPass).invert().transformPosition(lifted),
+                lift.shape(), turn);
+        submitBlobWisps(poseStack, nodeCollector, lifted);
+    }
+
+    /**
+     * Submits the wisps a Blast charge draws in to the local first-person
+     * blob, beside it in the hand's pass, so they depth test against it rather
+     * than landing behind it as the level's would.
+     * decision blast-charge-pulls-green-motes-into-the-shell-and-the-blob
+     *
+     * @param poseStack     the pose stack, its output the hand pass's camera-relative world axes
+     * @param nodeCollector the render node collector
+     * @param blob          the blob's center in the hand pass's camera-relative world axes
+     */
+    private static void submitBlobWisps(PoseStack poseStack, SubmitNodeCollector nodeCollector, Vector3fc blob) {
+        for (ChargeMotes.HandWisp wisp : ChargeMotes.blobWispsInTheHandPass(gameTime())) {
+            poseStack.pushPose();
+            poseStack.last().pose().translation(blob.x() + (float) wisp.offset().x, blob.y() + (float) wisp.offset().y,
+                    blob.z() + (float) wisp.offset().z);
+            nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.GLOW_SHELL_TYPE,
+                    (pose, c) -> ChargeMotes.emitWisp(pose, c, wisp.haloHalf(), wisp.share()));
+            poseStack.popPose();
+        }
     }
 
     /**

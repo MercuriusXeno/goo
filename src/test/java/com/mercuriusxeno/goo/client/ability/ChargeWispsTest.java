@@ -1,7 +1,10 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
+import com.mercuriusxeno.goo.client.TargetResult;
 import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
@@ -55,6 +58,23 @@ class ChargeWispsTest {
     @Test
     void aBlobWispIsACoreInsideAGreenHalo() {
         assertAHaloAroundACore(ChargeMotes.BLOB_HALO_HALF);
+    }
+
+    /**
+     * The local first-person palm blob draws in the hand's pass, after the
+     * level, so wisps the level draws around it land behind it whatever their
+     * depth; while it does, the level draws none of the blob's wisps.
+     */
+    @Test
+    void theLevelDrawsNoBlobWispWhileTheBlobDrawsInTheHandPass() {
+        ChargeMotes.clear();
+        ChargeMotes.tick(BEGAN, new TargetResult.BlockTarget(BlockPos.containing(ROOTED), Direction.UP, false,
+                ROOTED, null), 2, BLOB, RandomSource.create(5L));
+        long blobWispsInTheLevel = ChargeMotes.levelWisps(false).stream().filter(ChargeMotes.Mote::atTheBlob).count();
+        long shellWispsInTheLevel = ChargeMotes.levelWisps(false).stream().filter(mote -> !mote.atTheBlob()).count();
+        ChargeMotes.clear();
+        assertEquals(0, blobWispsInTheLevel, "blob wisps drawn in the level: " + blobWispsInTheLevel);
+        assertTrue(shellWispsInTheLevel > 0, "the shell's wisps should still draw in the level");
     }
 
     @Test

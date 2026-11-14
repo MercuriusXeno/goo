@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.ber.WispRenderer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.Minecraft;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
@@ -59,8 +60,9 @@ public final class ChargeMotes {
      * @param lifeTicks the ticks it takes to arrive
      * @param rgb       its color
      * @param haloHalf  its wisp's halo half-size, in blocks
+     * @param atTheBlob whether the palm blob absorbs it, rather than the shell
      */
-    public record Mote(Vec3 from, Vec3 to, long born, int lifeTicks, int rgb, float haloHalf) {
+    public record Mote(Vec3 from, Vec3 to, long born, int lifeTicks, int rgb, float haloHalf, boolean atTheBlob) {
 
         /**
          * Its alpha share at an age: nothing as it spawns, full once faded in,
@@ -114,19 +116,19 @@ public final class ChargeMotes {
         for (int i = 0; i < SHELL_MOTES_PER_TICK; i++) {
             Vec3 heading = randomUnit(random);
             spawned.add(new Mote(rooted.add(heading.scale(shellRadius + SHELL_GATHER)),
-                    rooted.add(heading.scale(shellRadius)), gameTime, LIFE_TICKS, UNSTABLE_GREEN, SHELL_HALO_HALF));
+                    rooted.add(heading.scale(shellRadius)), gameTime, LIFE_TICKS, UNSTABLE_GREEN, SHELL_HALO_HALF, false));
         }
         for (int i = 0; i < BLOB_MOTES_PER_TICK; i++) {
             spawned.add(new Mote(blob.add(randomUnit(random).scale(BLOB_GATHER)), blob, gameTime, LIFE_TICKS,
-                    UNSTABLE_GREEN, BLOB_HALO_HALF));
+                    UNSTABLE_GREEN, BLOB_HALO_HALF, true));
         }
         return spawned;
     }
 
     /** A shell wisp's halo half-size, in blocks: the wisps around the blast zone draw larger. */
     static final float SHELL_HALO_HALF = 0.13f;
-    /** A blob wisp's halo half-size, in blocks. */
-    static final float BLOB_HALO_HALF = 0.06f;
+    /** A blob wisp's halo half-size, in blocks: small around the held blob. */
+    static final float BLOB_HALO_HALF = 0.03f;
     /** A wisp's core half-size against its halo's, as a radiant wisp's core stands to its halo. */
     static final float CORE_SHARE = 0.4f;
     /** The paler green a wisp's core burns, as a radiant wisp's core is paler than its halo. */
@@ -144,7 +146,7 @@ public final class ChargeMotes {
      * @param haloHalf the wisp's halo half-size, in blocks
      * @param share    the wisp's alpha share, 0 to 1
      */
-    static void emitWisp(PoseStack.Pose pose, VertexConsumer consumer, float haloHalf, float share) {
+    public static void emitWisp(PoseStack.Pose pose, VertexConsumer consumer, float haloHalf, float share) {
         WispRenderer.emitCube(pose, consumer, haloHalf, ARGB.color(Math.round(HALO_ALPHA * share), UNSTABLE_GREEN));
         WispRenderer.emitCube(pose, consumer, haloHalf * CORE_SHARE,
                 ARGB.color(Math.round(CORE_ALPHA * share), PALE_GREEN));
@@ -196,6 +198,44 @@ public final class ChargeMotes {
         centerOf(anchor).ifPresent(center -> LIVE.addAll(spawn(gameTime, center, shellRadius, blob, random)));
     }
 
+    /**
+     * The live motes the level's pass draws.
+     *
+     * @param blobDrawsInTheLevel whether the palm blob draws in the level's pass
+     * @return the motes
+     */
+    static List<Mote> levelWisps(boolean blobDrawsInTheLevel) {
+        return LIVE.stream().filter(mote -> blobDrawsInTheLevel || !mote.atTheBlob()).toList();
+    }
+
+    /**
+     * A blob wisp as the hand's pass draws it beside the local first-person
+     * palm blob, so the two depth test against each other.
+     *
+     * @param offset   where the wisp stands from the blob, in blocks along the world's axes
+     * @param haloHalf its halo half-size, in blocks
+     * @param share    its alpha share, 0 to 1
+     */
+    public record HandWisp(Vec3 offset, float haloHalf, float share) {
+    }
+
+    /**
+     * The blob's live wisps for the hand's pass to draw about the blob, which
+     * draws there in first person after the level, so wisps the level drew
+     * would land behind it whatever their depth.
+     * decision blast-charge-pulls-green-motes-into-the-shell-and-the-blob
+     *
+     * @param now the game time, partial ticks included
+     * @return the wisps, each placed from the blob
+     */
+    public static List<HandWisp> blobWispsInTheHandPass(double now) {
+        return LIVE.stream().filter(Mote::atTheBlob).map(mote -> {
+            double age = now - mote.born();
+            return new HandWisp(mote.placeAt(age).subtract(mote.to()), mote.haloHalf(),
+                    Mth.clamp(mote.alphaAt(age), 0f, 1f));
+        }).toList();
+    }
+
     /** Lets every live mote go, as the charge releases or cancels. */
     public static void clear() {
         LIVE.clear();
@@ -207,7 +247,9 @@ public final class ChargeMotes {
      * @param now the game time, partial ticks included
      */
     public static void render(double now) {
-        for (Mote mote : LIVE) {
+        Minecraft mc = Minecraft.getInstance();
+        boolean blobDrawsInTheLevel = mc.player == null || LiftedPalmBlob.drawsInTheLevel(mc.player.getId());
+        for (Mote mote : levelWisps(blobDrawsInTheLevel)) {
             double age = now - mote.born();
             float share = Mth.clamp(mote.alphaAt(age), 0f, 1f);
             // blast-charge-pulls-green-motes-into-the-shell-and-the-blob: wisps draw after the translucent blocks
