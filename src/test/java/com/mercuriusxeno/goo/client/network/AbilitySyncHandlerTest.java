@@ -91,12 +91,12 @@ class AbilitySyncHandlerTest {
 
         /** slick-drains-per-film-it-lays */
         @Test
-        void slicksPetalReadsItsCostPerFilm() {
+        void slicksPetalReadsItsCostPerCubicMeter() {
             AbilityDefinition slick = AbilityJson.decode("kinetic_slick");
-            String perFilm = GooFormat.formatMixed(slick.cost().exactIn(GooValueTable.EMPTY)) + "/film";
+            String perCubicMeter = GooFormat.formatMixed(slick.cost().exactIn(GooValueTable.EMPTY)) + "/m³";
 
             for (AbilitySyncPayload.Entry entry : roundTrip(slick)) {
-                assertEquals(perFilm, ClientAbility.fromEntry(entry).petalLabel(PLENTY, 0));
+                assertEquals(perCubicMeter, ClientAbility.fromEntry(entry).petalLabel(PLENTY, 0));
             }
         }
     }

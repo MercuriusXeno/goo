@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:slick_lays_no_film_the_streamer_cannot_pay_for",
+  "function": "goo:slick_fills_to_fifteen_and_ramps_the_same_at_any_height",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 100,
+  "max_ticks": 160,
   "setup_ticks": 0,
   "required": true
 }

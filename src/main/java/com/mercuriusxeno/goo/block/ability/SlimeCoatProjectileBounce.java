@@ -29,7 +29,8 @@ public final class SlimeCoatProjectileBounce {
         Projectile projectile = event.getProjectile();
         if (event.getRayTraceResult() instanceof BlockHitResult hit && hit.getDirection() == Direction.UP
                 && projectile.getDeltaMovement().y < 0
-                && projectile.level().getBlockState(hit.getBlockPos()).getBlock() instanceof SlimeCoatBlock) {
+                && VolumeCellBlock.hasSurface(projectile.level().getBlockState(hit.getBlockPos()).getBlock(),
+                CellSurface.BOUNCE)) {
             event.setCanceled(true);
             SlimeCoatBounce.bounce(projectile);
         }
