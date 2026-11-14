@@ -21,22 +21,25 @@ import java.util.stream.Stream;
  * breakable blocks at its point, where the eye line meets the first
  * breakable block within the stream's reach, whatever the stream's cone:
  * that block and every breakable block within the JSON's point radius of the
- * point, never wider than a block ({@link BorePick}). Each block picked
- * progresses toward broken each tick through the hold's gradual break at the
- * pace its JSON names, and once they break the point lands on the block
- * behind, so the tunnel goes one block deep at a time. A solid block outside
+ * point, never wider than a block, never every block the drill touches
+ * ({@link BorePick}). Each block picked progresses toward broken each tick
+ * through the hold's gradual break at the pace its JSON names, and the block
+ * behind each at half speed, its JSON slowdown of 2, out of view; once the
+ * pick breaks the point lands on the block behind, already cracking, so the
+ * tunnel goes one block deep at a time and moves smoothly. A solid block outside
  * the tag on the eye line stops the bore there. Each tick the strike steps
  * run on every living entity whose body overlaps the cells the eye line
  * crosses out to the point and that every where filter keeps, so a mob in
  * the tunnel takes Bore's damage and one behind the stopping block takes
  * none (decision bore-vortex-with-a-worldspace-shake).
  * decision bore-breaks-the-block-at-the-point-and-its-surroundings
+ * decision bore-block-behind-progresses-at-half-speed
  * decision bore-breaks-what-is-in-the-vortex
  * decision bore-drills-the-eye-line-with-steady-progress
  * decision bore-and-flatten-json-carry-two-pace-values
  *
  * @param breaks      the block tag naming the blocks bore may break
- * @param pace        how fast the picked blocks progress toward broken
+ * @param pace        how fast the picked blocks progress toward broken, and how many times slower the blocks behind
  * @param pointRadius how far round the point the pick reaches, in blocks; 0 picks the aimed block alone
  * @param where       the filters an entity in the tunnel must pass to be struck
  * @param strike      the steps run on each struck entity; empty strikes nothing
@@ -106,7 +109,7 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, double pointRadius,
         Predicate<BlockPos> breakable = pos -> host.blockIn(pos, breaks);
         host.channelAim().ifPresent(aim -> {
             BorePick pick = BorePick.of(host.eye(), pointRadius, aim, host::airAt, breakable);
-            host.gradualBreak().progress(pace.ratesByGroup(List.of(pick.blocks())), host, true);
+            host.gradualBreak().progress(pace.ratesByGroup(List.of(pick.blocks(), pick.behind())), host, true);
             strikeIn(host, pick.tunnel());
         });
         return true;
