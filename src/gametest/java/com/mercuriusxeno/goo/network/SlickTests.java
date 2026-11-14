@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.block.ability.SlickLayPace;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
@@ -26,6 +27,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -257,7 +259,200 @@ public final class SlickTests {
     private static final String SNAPPED_BACK = "A runner's move into a slick cell that rose a layer the client has not"
             + " seen should stand: landed at %.3f east, %.3f asked";
 
+    private static final String RUN_AT_45 = "slick_carries_a_ramping_runner_spraying_halfway_down";
+    private static final String RUN_LEVEL = "slick_carries_a_ramping_runner_spraying_level";
+    private static final String RUN_ACROSS = "slick_carries_a_ramping_runner_across_the_grid";
+    /** The across-the-grid run's heading, south of east: a diagonal over the cells. */
+    private static final float ACROSS_THE_GRID = 35f;
+    /** The run's floor stands high over the light bay, above every other test's ground and falling drips. */
+    private static final int RUN_FLOOR_Y = 120;
+    /** The run's floor runs this far east, past where a runner at a block a tick ends. */
+    private static final int RUN_FLOOR_EAST = 72;
+    /** The run's row in the bay, and how far the floor runs either side of it. */
+    private static final int RUN_ROW = 8;
+    private static final int RUN_HALF_WIDTH = 6;
+    /** The runner's speed at the start, a sprint, and the share the slick's ramp grows it by each tick, to its top. */
+    private static final double RUN_START_SPEED = 0.28;
+    private static final double RUN_RAMP = 1.05;
+    private static final double RUN_TOP_SPEED = 1.0;
+    /** Ticks the run lasts. */
+    private static final int RUN_TICKS = 60;
+    /** A runner's move cut short by more than this share of it has stalled. */
+    private static final double STALL_SHARE = 0.95;
+    /** A runner thrown more than this far off its line has been redirected. */
+    private static final double OFF_LINE = 0.05;
+    /** The most violations a failing run reports. */
+    private static final int REPORTED = 6;
+    /** How far past its start a level runner is judged from: past the ground only the spray's near edge reached. */
+    private static final double LEVEL_START_UP = 12;
+
     private SlickTests() {
+    }
+
+    /**
+     * A runner holding forward on open stone floor, its speed climbing from
+     * a sprint to the slick's top speed of a block a tick as the ramp grows
+     * it, streaming Slick halfway down ahead of it each tick: on every tick
+     * after first reaching the track it stands on slick, its move goes
+     * through whole, it stays on its line, and no path cell stands more than
+     * a step over the cell behind it.
+     * operator report 2026-11-14: the track hitches, redirects off goo pillars, and leaves bare ground
+     *
+     * @param helper the gametest helper
+     */
+    public static void slickCarriesARampingRunnerSprayingHalfwayDown(GameTestHelper helper) {
+        runAndSpray(helper, HALFWAY_DOWN, 0);
+    }
+
+    /**
+     * The same run across the block grid, heading south-east, spraying halfway down.
+     * operator report 2026-11-14: the track hitches, redirects off goo pillars, and leaves bare ground
+     *
+     * @param helper the gametest helper
+     */
+    public static void slickCarriesARampingRunnerAcrossTheGrid(GameTestHelper helper) {
+        runAndSpray(helper, HALFWAY_DOWN, ACROSS_THE_GRID);
+    }
+
+    /**
+     * The same run with Slick streamed level ahead of the runner, judged from twelve blocks past its start.
+     * operator report 2026-11-14: the track hitches, redirects off goo pillars, and leaves bare ground
+     *
+     * @param helper the gametest helper
+     */
+    public static void slickCarriesARampingRunnerSprayingLevel(GameTestHelper helper) {
+        // a level spray lands from about five blocks out, so the ground just past where it starts takes only the
+        // spray's near edge; the run is judged once the runner is past that, on ground the whole spray crossed
+        runAndSpray(helper, 0f, 0, LEVEL_START_UP);
+    }
+
+    private static double fromOrigin(ServerPlayer runner, Vec3 origin, double east, double south) {
+        Vec3 along = runner.position().subtract(origin);
+        return along.x * east + along.z * south;
+    }
+
+    /**
+     * Runs a ramping Slick streamer east over a long open floor high over the
+     * bay, spraying at a pitch, and succeeds where every tick after first
+     * reaching the track stands on slick, moves whole, keeps its line and
+     * meets no path cell over a step taller than the one behind.
+     *
+     * @param helper  the gametest helper
+     * @param pitch   the spray's pitch, down from level
+     * @param heading the run's heading south of east, in degrees
+     */
+    private static void runAndSpray(GameTestHelper helper, float pitch, float heading) {
+        runAndSpray(helper, pitch, heading, 0);
+    }
+
+    /**
+     * Runs and sprays as above, judging the run once the runner is a distance past its start.
+     *
+     * @param helper     the gametest helper
+     * @param pitch      the spray's pitch, down from level
+     * @param heading    the run's heading south of east, in degrees
+     * @param judgedFrom how far along its heading the runner is when the run is first judged, in blocks
+     */
+    private static void runAndSpray(GameTestHelper helper, float pitch, float heading, double judgedFrom) {
+        double south = Math.sin(Math.toRadians(heading));
+        double east = Math.cos(Math.toRadians(heading));
+        int reachSouth = (int) Math.ceil(RUN_FLOOR_EAST * south);
+        for (int x = 0; x <= RUN_FLOOR_EAST; x++) {
+            for (int z = RUN_ROW - RUN_HALF_WIDTH; z <= RUN_ROW + RUN_HALF_WIDTH + reachSouth; z++) {
+                helper.setBlock(new BlockPos(x, RUN_FLOOR_Y, z), Blocks.STONE);
+            }
+        }
+        BlockPos stand = new BlockPos(1, RUN_FLOOR_Y + 1, RUN_ROW);
+        ServerPlayer runner = slickStreamerAt(helper, stand);
+        runner.setYRot(FACING_EAST + heading);
+        runner.setXRot(pitch);
+        runner.setSprinting(true);
+        Vec3 origin = runner.position();
+        double westEdge = helper.absolutePos(new BlockPos(0, 0, 0)).getX();
+        double[] speed = {RUN_START_SPEED};
+        boolean[] onTrack = {false};
+        List<String> violations = new ArrayList<>();
+        for (int tick = 1; tick <= RUN_TICKS; tick++) {
+            int now = tick;
+            helper.runAfterDelay(tick, () -> {
+                runner.setXRot(pitch);
+                runner.setKnownMovement(new Vec3(speed[0] * east, 0, speed[0] * south));
+                Vec3 before = runner.position();
+                runner.move(MoverType.SELF, new Vec3(speed[0] * east, -0.08, speed[0] * south));
+                Vec3 moved = runner.position().subtract(before);
+                double advanced = moved.x * east + moved.z * south;
+                Vec3 fromOrigin = runner.position().subtract(origin);
+                double offLine = fromOrigin.z * east - fromOrigin.x * south;
+                BlockState under = helper.getLevel().getBlockState(runner.getOnPos());
+                boolean onSlick = under.is(GooBlocks.KINETIC_SLICK.get());
+                boolean pastTheStart = fromOrigin(runner, origin, east, south) >= judgedFrom;
+                if (onTrack[0] && pastTheStart && violations.size() < REPORTED) {
+                    String where = String.format("tick %d at %.2f east speed %.2f", now, runner.getX() - westEdge,
+                            speed[0]);
+                    if (!onSlick) {
+                        violations.add(where + ": off slick, on " + under + " " + rowLayers(helper, runner));
+                    }
+                    if (advanced < speed[0] * STALL_SHARE) {
+                        violations.add(where + String.format(": stalled, moved %.3f", advanced) + " "
+                                + rowLayers(helper, runner));
+                    }
+                    if (Math.abs(offLine) > OFF_LINE) {
+                        violations.add(where + String.format(": thrown %.3f off its line", offLine)
+                                + " " + rowLayers(helper, runner));
+                    }
+                }
+                onTrack[0] |= onSlick;
+                if (onSlick) {
+                    speed[0] = Math.min(RUN_TOP_SPEED, speed[0] * RUN_RAMP);
+                }
+                GooStreamHandler.streamTick(runner, GooStreamPayload.unplaned(GooTypes.id(GooTypes.KINETIC),
+                        SLICK.toString(), runner.getEyePosition(), runner.getEyePosition()));
+            });
+        }
+        helper.runAfterDelay(RUN_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(runner);
+            int tallest = 0;
+            String tallestAt = "none";
+            for (int x = 1; x <= RUN_FLOOR_EAST; x++) {
+                for (int z = RUN_ROW - RUN_HALF_WIDTH + 1; z <= RUN_ROW + RUN_HALF_WIDTH + reachSouth; z++) {
+                    int here = VolumeCellBlock.layersOf(helper.getBlockState(new BlockPos(x, RUN_FLOOR_Y + 1, z)));
+                    int behind = Math.min(VolumeCellBlock.layersOf(helper.getBlockState(
+                            new BlockPos(x - 1, RUN_FLOOR_Y + 1, z))), VolumeCellBlock.layersOf(
+                            helper.getBlockState(new BlockPos(x, RUN_FLOOR_Y + 1, z - 1))));
+                    if (here - behind > tallest) {
+                        tallest = here - behind;
+                        tallestAt = x + " east " + z + " south";
+                    }
+                }
+            }
+            helper.assertTrue(onTrack[0], "The runner should reach the slick track");
+            helper.assertTrue(violations.isEmpty(), "The run should carry the runner: " + String.join("; ",
+                    violations));
+            helper.assertTrue(tallest <= STEP_LAYERS, String.format("No path cell should stand more than %d layers"
+                    + " over a cell beside it, one stands %d over at %s", STEP_LAYERS, tallest, tallestAt));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * The layers of the runner's row and the rows beside it, a cell behind to three ahead.
+     *
+     * @param helper the gametest helper
+     * @param runner the runner
+     * @return the rows, north to south, west to east
+     */
+    private static String rowLayers(GameTestHelper helper, ServerPlayer runner) {
+        BlockPos feet = BlockPos.containing(runner.getX(), runner.getY() - 0.01, runner.getZ());
+        List<String> rows = new ArrayList<>();
+        for (int dz = -1; dz <= 1; dz++) {
+            StringBuilder row = new StringBuilder();
+            for (int dx = -1; dx <= 3; dx++) {
+                row.append(VolumeCellBlock.layersOf(helper.getLevel().getBlockState(feet.offset(dx, 0, dz))))
+                        .append(dx == 0 && dz == 0 ? "* " : " ");
+            }
+            rows.add(row.toString().trim());
+        }
+        return "[" + String.join(" | ", rows) + "]";
     }
 
     /**
@@ -658,6 +853,9 @@ public final class SlickTests {
                 SlickTests::slickLaysATrackARampedRunnerRides);
         GooTestFunctions.registerTest(registrar, HELD_SPREADS_WITHOUT_STEPS, SlickTests::slickHeldAtOneSpotSpreadsWithoutSteps);
         GooTestFunctions.registerTest(registrar, KEEPS_MOMENTUM, SlickTests::slickKeepsASlidersMomentum);
+        GooTestFunctions.registerTest(registrar, RUN_AT_45, SlickTests::slickCarriesARampingRunnerSprayingHalfwayDown);
+        GooTestFunctions.registerTest(registrar, RUN_LEVEL, SlickTests::slickCarriesARampingRunnerSprayingLevel);
+        GooTestFunctions.registerTest(registrar, RUN_ACROSS, SlickTests::slickCarriesARampingRunnerAcrossTheGrid);
         GooTestFunctions.registerTest(registrar, RISEN_CELL_NO_SNAP, SlickTests::slickRisenAheadOfARunnerDoesNotSnapThemBack);
         GooTestFunctions.registerTest(registrar, SPRAYED_AHEAD_KEEPS_MOMENTUM,
                 SlickTests::slickSprayedAheadKeepsASlidersMomentum);
@@ -1093,7 +1291,11 @@ public final class SlickTests {
             // leaving faster by the streamer's horizontal speed alone
             Delivery delivery = slick(helper).delivery();
             double exitSpeed = delivery.exitSpeedAt(MOVING_AND_RISING.horizontalDistance());
-            List<Vec3> atRest = CoatRay.scatteredShares(2, delivery.dripsPerTick()).stream()
+            // slick-resolves-faster-by-speed-over-unadjusted-speed: the moving tick throws its drips by its speed
+            int drips = SlickLayPace.dripsThisTick(delivery.dripsPerTick(), SlickLayPace.factor(
+                    MOVING_AND_RISING.horizontalDistance(), SlickLayPace.unadjustedSpeed(
+                    streamer.getAttributeBaseValue(Attributes.MOVEMENT_SPEED))), 2);
+            List<Vec3> atRest = CoatRay.scatteredShares(2, drips).stream()
                     .map(share -> DripArc.launch(streamer.getLookAngle(), delivery.coneDegrees(), share, exitSpeed))
                     .toList();
             helper.assertTrue(!atRest.isEmpty() && atRest.size() == moving.size(),

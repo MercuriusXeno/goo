@@ -25,6 +25,7 @@ import com.mercuriusxeno.goo.ability.program.SoundPlays;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepHost;
 import com.mercuriusxeno.goo.ability.spray.SprayPrograms;
+import com.mercuriusxeno.goo.block.ability.SlickLayPace;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
@@ -42,6 +43,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
@@ -384,7 +386,7 @@ public final class GooStreamHandler {
                 player.getId(), ability, landing, strikesLiving);
         Delivery delivery = ability.delivery();
         DripFlights flights = GooServerState.of(player.level().getServer()).dripFlights();
-        for (CoatRay.ConeShare share : CoatRay.scatteredShares(held, delivery.dripsPerTick())) {
+        for (CoatRay.ConeShare share : CoatRay.scatteredShares(held, dripsThisTick(player, delivery, landing, held))) {
             flights.launch(new DripFlights.Flight(thrower, apex, DripArc.launch(axis, delivery.coneDegrees(), share,
                     exitSpeedOf(player, delivery))));
         }
@@ -715,6 +717,28 @@ public final class GooStreamHandler {
         delivery.particle().ifPresent(particle -> EntityVisuals.sendToWatchers(player, new StreamMotesPayload(
                 player.getId(), apex, axis, particle, delivery.coneDegrees(), speed,
                 exitSpeedOf(player, delivery), strikesLiving)));
+    }
+
+    /**
+     * The drips a stream throws this tick: its delivery's drips a tick, or,
+     * for a landing whose drips come faster with speed, that many times the
+     * caster's horizontal speed over their base walking speed, never fewer,
+     * so it lays the same goo per block the caster covers.
+     * slick-resolves-faster-by-speed-over-unadjusted-speed
+     *
+     * @param player   the streaming player
+     * @param delivery the stream delivery
+     * @param landing  what the stream's drips lay, empty where they lay nothing
+     * @param held     the hold's tick count
+     * @return the tick's drips
+     */
+    static int dripsThisTick(ServerPlayer player, Delivery delivery, Optional<DripLanding> landing, int held) {
+        if (landing.filter(DripLanding::throwsFasterBySpeed).isEmpty()) {
+            return delivery.dripsPerTick();
+        }
+        double walk = SlickLayPace.unadjustedSpeed(player.getAttributeBaseValue(Attributes.MOVEMENT_SPEED));
+        double factor = SlickLayPace.factor(player.getKnownMovement().horizontalDistance(), walk);
+        return SlickLayPace.dripsThisTick(delivery.dripsPerTick(), factor, held);
     }
 
     /**

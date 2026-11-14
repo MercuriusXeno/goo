@@ -99,6 +99,15 @@ public record SlickStep(double startRamp, double strongestRamp, int buildTicks, 
         CellLanding.feed(host, cell, GooBlocks.KINETIC_SLICK.get());
     }
 
+    /**
+     * Slick throws its drips faster by its caster's speed over their walk.
+     * slick-resolves-faster-by-speed-over-unadjusted-speed
+     */
+    @Override
+    public boolean throwsFasterBySpeed() {
+        return true;
+    }
+
     @Override
     public Stream<Expr> expressions() {
         return Stream.empty();
