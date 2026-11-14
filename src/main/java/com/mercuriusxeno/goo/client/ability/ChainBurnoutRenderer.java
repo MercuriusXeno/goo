@@ -10,7 +10,9 @@ import java.util.List;
 
 /**
  * Draws every live burnout explosion through the visual its goo type names,
- * after translucent blocks so the additive layers blend over the world
+ * after the translucent features so the additive layers blend over the world
+ * and over a prism's crystal, a translucent feature writing depth that would
+ * otherwise draw over an explosion standing in front of it
  * (decision elemental-explosion-per-type).
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -25,7 +27,7 @@ public final class ChainBurnoutRenderer {
      * @param event the level render stage event
      */
     @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void onAfterTranslucentFeatures(RenderLevelStageEvent.AfterTranslucentFeatures event) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
             return;
