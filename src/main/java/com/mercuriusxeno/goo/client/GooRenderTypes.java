@@ -82,27 +82,6 @@ public final class GooRenderTypes {
     );
 
     /**
-     * The additive glow lines passing every depth test, for a mark that must
-     * never sink into the face it sits on, such as the aim reticule.
-     */
-    public static final RenderPipeline LINES_ADDITIVE_GLOW_THROUGH_BLOCKS =
-            RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)
-                    .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE,
-                            "pipeline/lines_additive_glow" + THROUGH_BLOCKS_SUFFIX))
-                    .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
-                    .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
-                    .build();
-
-    /** RenderType that draws additive glow lines through blocks. */
-    public static final RenderType LINES_GLOW_THROUGH_BLOCKS = RenderType.create(
-            "goo_lines_additive_glow" + THROUGH_BLOCKS_SUFFIX,
-            RenderSetup.builder(LINES_ADDITIVE_GLOW_THROUGH_BLOCKS)
-                    .setLayeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING)
-                    .setOutputTarget(OutputTarget.ITEM_ENTITY_TARGET)
-                    .createRenderSetup()
-    );
-
-    /**
      * Sight's fungus x-ray (decision sight-lengthens-shift-and-outlines-fungus):
      * a block's own baked quads through vanilla's translucent entity shader,
      * passing every depth test and writing no depth, so fungus shows through walls.
@@ -1795,7 +1774,6 @@ public final class GooRenderTypes {
      */
     private static void registerLinePipelines(RegisterRenderPipelinesEvent event) {
         event.registerPipeline(LINES_ADDITIVE_GLOW);
-        event.registerPipeline(LINES_ADDITIVE_GLOW_THROUGH_BLOCKS);
         event.registerPipeline(FUNGUS_XRAY);
         event.registerPipeline(CLICK_WAVE_THROUGH_BLOCKS);
         event.registerPipeline(SCULKER_GLASS);

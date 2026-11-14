@@ -1,28 +1,48 @@
 package com.mercuriusxeno.goo.client.model;
 
+import com.mercuriusxeno.goo.client.ClientGooTypes;
+import com.mercuriusxeno.goo.client.GooRenderUtil;
+import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mercuriusxeno.goo.client.ability.HandPassView;
 import com.mercuriusxeno.goo.client.ability.KnivesCharge;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
+import com.mercuriusxeno.goo.client.ability.PalmBlobHop;
 import com.mercuriusxeno.goo.client.ability.SprayingClient;
 import com.mercuriusxeno.goo.client.outsider.RoomBodyCopyRenderer;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.type.GooTypes;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.geometry.QuadCollection;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedStatic;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.StreamSupport;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -51,12 +71,16 @@ class GloveSpecialRendererTest {
      * reads ended a tick past the stream's gap, and the blob settles over its ease.
      */
     private static final long SETTLED = SPRAYED + LiftedPalmBlob.STREAM_GAP_TICKS + 1
-            + (long) Math.ceil(LiftedPalmBlob.EASE_TICKS);
+            + PalmBlobHop.SETTLE_TICKS;
     /** Where a far copy of the player stands from the camera, a room width or more away. */
     private static final double COPY_AWAY = 30;
     /** Where the first-person glove's goo sits before the eye. */
     private static final double HAND_AHEAD = 0.5;
     private static final double WITHIN = 1e-5;
+    /** A glove model's pixels to a block. */
+    private static final float PIXELS = 16f;
+    /** A tenth of a model pixel, in blocks: the least gap that keeps two faces from sharing a plane. */
+    private static final float SIDE_CLEARANCE = 0.1f / PIXELS;
 
     @Test
     void theBodySubmitsOnTheCutoutBlockAtlasType() {
@@ -168,7 +192,7 @@ class GloveSpecialRendererTest {
     void aLiftAtTheEasesEndDrawsTheCoreInTheHandsPassWhereTheSprayingSourceShows() {
         try (SprayingClient client = SprayingClient.local(GooTypes.ZOO);
              MockedStatic<GloveBodyModels> models = bodiless()) {
-            long eased = SPRAYED + LiftedPalmBlob.EASE_TICKS;
+            long eased = SPRAYED + PalmBlobHop.LIFT_TICKS;
             client.at(eased);
             for (long tick = SPRAYED; tick <= eased; tick++) {
                 LiftedPalmBlob.sprayed(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, tick);
@@ -180,6 +204,152 @@ class GloveSpecialRendererTest {
                     SprayingClient.WORLD_FOV);
             assertEquals(0, lifted.distanceTo(shown), WITHIN, "the eased blob should draw where the spray source "
                     + "shows, " + shown + ", drawn at " + lifted);
+        }
+    }
+
+    /**
+     * The palm blob the glove draws, first person, in another player's hand
+     * and in the inventory slot alike, lies pressed on the palm: thin along
+     * the palm's normal and spread across it, its face toward the palm just
+     * clear of the palm's face and its edge against the fingers, never inside
+     * the hand, at rest and at Knives' full charge, which swells it evenly
+     * (decision palm-blob-rests-pressed-and-stands-into-the-cube).
+     */
+    @Nested
+    class PressedOnThePalm {
+
+        @ParameterizedTest
+        @ValueSource(floats = {0f, 1f})
+        void theShellLiesOnThePalmsFaceWithItsEdgeAgainstTheFingers(float chargeShare) throws IOException {
+            Box shell = shellDrawnAt(KnivesCharge.palmScaleAt(chargeShare));
+            float palmFace = elementOfTheGloveBody("body").min().z();
+
+            assertEquals(GloveSpecialRenderer.PALM_FLOOR_PX / PIXELS, shell.min().y(), WITHIN,
+                    "the shell's edge should lie against the fingers");
+            assertEquals(palmFace - GloveSpecialRenderer.PALM_CLEARANCE_PX / PIXELS, shell.max().z(), WITHIN,
+                    "the shell's face toward the palm should rest just clear of the palm's face " + palmFace);
+        }
+
+        /**
+         * operator ruling 2026-11-13: the blob was drawn into the hand and clipped through it settling back
+         */
+        @ParameterizedTest
+        @ValueSource(floats = {0f, 1f})
+        void theShellOverlapsNoPartOfTheGlove(float chargeShare) throws IOException {
+            Box shell = shellDrawnAt(KnivesCharge.palmScaleAt(chargeShare));
+            for (String part : List.of("body", "cuff", "finger_plate")) {
+                Box glove = elementOfTheGloveBody(part);
+
+                assertFalse(shell.overlaps(glove), "the shell " + shell + " should stand clear of the glove's "
+                        + part + " " + glove);
+            }
+        }
+
+        @Test
+        void theRestingShellIsSpreadAcrossThePalmAndThinOffIt() {
+            Vector3f rest = shellDrawnAt(KnivesCharge.palmScaleAt(0f)).size();
+
+            assertEquals(rest.x(), rest.y(), WITHIN, "the pressed shell should run as far along the palm as across it");
+            assertTrue(rest.x() > rest.z(), "the pressed shell " + rest + " should be wider than it is thick off the "
+                    + "palm");
+        }
+
+        /**
+         * A shell side on the hand's side fights it for the same pixels, so
+         * the resting shell stands inside the hand's sides, clear of them.
+         * operator ruling 2026-11-13: the pressed blob's sides sat flush with the gauntlet's and z-fought,
+         * and the operator chose the sides stand just inside the hand
+         */
+        @Test
+        void theRestingShellsSidesStandInsideTheHandsSides() throws IOException {
+            Box shell = shellDrawnAt(KnivesCharge.palmScaleAt(0f));
+            Box hand = elementOfTheGloveBody("body");
+
+            assertTrue(shell.min().x() > hand.min().x() + SIDE_CLEARANCE, "the shell's side " + shell.min().x()
+                    + " should stand inside the hand's side " + hand.min().x());
+            assertTrue(shell.max().x() < hand.max().x() - SIDE_CLEARANCE, "the shell's side " + shell.max().x()
+                    + " should stand inside the hand's side " + hand.max().x());
+        }
+
+        /** A named element of the glove body's model, in block units. */
+        private static Box elementOfTheGloveBody(String name) throws IOException {
+            try (InputStream model = GloveSpecialRendererTest.class.getResourceAsStream(
+                    "/assets/goo/models/item/glove_body.json")) {
+                JsonObject element = StreamSupport.stream(JsonParser.parseReader(new InputStreamReader(
+                                Objects.requireNonNull(model), StandardCharsets.UTF_8)).getAsJsonObject()
+                                .getAsJsonArray("elements").spliterator(), false)
+                        .map(JsonElement::getAsJsonObject)
+                        .filter(candidate -> name.equals(candidate.get("name").getAsString()))
+                        .findFirst().orElseThrow();
+                return new Box(cornerOf(element.getAsJsonArray("from")), cornerOf(element.getAsJsonArray("to")));
+            }
+        }
+
+        private static Vector3f cornerOf(JsonArray pixels) {
+            return new Vector3f(pixels.get(0).getAsFloat(), pixels.get(1).getAsFloat(), pixels.get(2).getAsFloat())
+                    .div(PIXELS);
+        }
+
+        @Test
+        void knivesFullChargeSwellsThePressedShellEvenly() {
+            Vector3f rest = shellDrawnAt(KnivesCharge.palmScaleAt(0f)).size();
+            Vector3f fullest = shellDrawnAt(KnivesCharge.palmScaleAt(1f)).size();
+
+            float full = KnivesCharge.palmScaleAt(1f);
+            assertEquals(full * rest.x(), fullest.x(), WITHIN, "the full charge's width");
+            assertEquals(full * rest.z(), fullest.z(), WITHIN, "the full charge's depth");
+            assertEquals(full * rest.y(), fullest.y(), WITHIN, "the full charge's height");
+        }
+
+        /**
+         * The box the glove's palm shell spans in the glove's model, in block
+         * units, drawn through the one palm draw every view of the glove takes.
+         */
+        private static Box shellDrawnAt(float blobScale) {
+            try (SprayingClient client = SprayingClient.another(GooTypes.ZOO);
+                 MockedStatic<GloveBodyModels> models = bodiless();
+                 MockedStatic<GooRenderUtil> util = mockStatic(GooRenderUtil.class, CALLS_REAL_METHODS);
+                 MockedStatic<ClientGooTypes> colors = mockStatic(ClientGooTypes.class)) {
+                util.when(() -> GooRenderUtil.lookupFluidSprite(any())).thenReturn(mock(TextureAtlasSprite.class));
+                RecordingVertexConsumer shell = new RecordingVertexConsumer();
+                SubmitNodeCollector collector = mock(SubmitNodeCollector.class);
+                doAnswer(call -> {
+                    if (GooSubmitter.renderType().equals(call.getArgument(1))) {
+                        call.<SubmitNodeCollector.CustomGeometryRenderer>getArgument(2)
+                                .render(call.<PoseStack>getArgument(0).last(), shell);
+                    }
+                    return null;
+                }).when(collector).submitCustomGeometry(any(), any(), any());
+
+                new GloveSpecialRenderer().submit(new GloveSpecialRenderer.GloveData(null, GooTypes.ZOO, 0f,
+                        blobScale, false, false), new PoseStack(), collector, 0, 0, false, 0);
+
+                return Box.of(shell.vertices());
+            }
+        }
+    }
+
+    /** The corners of the box a set of vertices spans. */
+    private record Box(Vector3f min, Vector3f max) {
+
+        static Box of(List<RecordingVertexConsumer.Vertex> vertices) {
+            Vector3f min = new Vector3f(Float.MAX_VALUE);
+            Vector3f max = new Vector3f(-Float.MAX_VALUE);
+            for (RecordingVertexConsumer.Vertex vertex : vertices) {
+                Vector3f at = new Vector3f(vertex.x(), vertex.y(), vertex.z());
+                min.min(at);
+                max.max(at);
+            }
+            return new Box(min, max);
+        }
+
+        Vector3f size() {
+            return new Vector3f(max).sub(min);
+        }
+
+        boolean overlaps(Box other) {
+            return min.x() < other.max().x() && max.x() > other.min().x() && min.y() < other.max().y()
+                    && max.y() > other.min().y() && min.z() < other.max().z() && max.z() > other.min().z();
         }
     }
 

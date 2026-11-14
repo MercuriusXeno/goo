@@ -281,15 +281,55 @@ public final class AfterimageRenderer {
     private static void drawRipple(Minecraft mc, PoseStack poseStack, CameraRenderState camera,
             Afterimages.Afterimage<EntityRenderState> afterimage, float gameTime, RenderTarget main,
             RenderTarget ripple) {
-        List<Afterimages.Pulse> pulses = afterimage.pulses(gameTime);
-        BodyPoseCapture body = captureBody(mc.getEntityRenderDispatcher(), afterimage.snapshot(),
-                afterimage.position(), camera, poseStack);
-        if (pulses.isEmpty() || body == null || body.rootPose() == null) {
+        drawBody(mc, poseStack, camera, afterimage, afterimage.pulses(gameTime), main, ripple);
+    }
+
+    /**
+     * Draws one body's silhouettes as the caller times them, over the level:
+     * the aimed mob's mark ripples through here at its own pace and strength
+     * (decision active-target-indicators-carry-depth-and-animation).
+     *
+     * @param event    the level render stage event
+     * @param snapshot the body's render state this frame
+     * @param position the world point it stands at
+     * @param rgb      the color its perimeter paints in
+     * @param pulses   the silhouettes standing this frame
+     */
+    public static void drawPulses(RenderLevelStageEvent.AfterLevel event, EntityRenderState snapshot, Vec3 position,
+            int rgb, List<Afterimages.Pulse> pulses) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || pulses.isEmpty()) {
+            return;
+        }
+        Afterimages.Afterimage<EntityRenderState> body = new Afterimages.Afterimage<>(snapshot, position, rgb, 0L, 1);
+        inRippleFrame(event, frame -> drawBody(mc, new PoseStack(), frame.camera(), body, pulses, frame.main(),
+                frame.ripple()));
+    }
+
+    /**
+     * Draws a body's standing silhouettes where its entity draws through a
+     * living renderer: clears the mask channels, fills them, and paints the
+     * perimeter over the frame.
+     *
+     * @param mc        the client
+     * @param poseStack a pose stack at the camera's position, its axes the world's
+     * @param camera    the frame's camera
+     * @param body      the body, where it stands and its color
+     * @param pulses    the silhouettes standing this frame
+     * @param main      the main render target
+     * @param ripple    the ripple buffer
+     */
+    private static void drawBody(Minecraft mc, PoseStack poseStack, CameraRenderState camera,
+            Afterimages.Afterimage<EntityRenderState> body, List<Afterimages.Pulse> pulses, RenderTarget main,
+            RenderTarget ripple) {
+        BodyPoseCapture pose = captureBody(mc.getEntityRenderDispatcher(), body.snapshot(), body.position(), camera,
+                poseStack);
+        if (pulses.isEmpty() || pose == null || pose.rootPose() == null) {
             return;
         }
         RenderSystem.getDevice().createCommandEncoder().clearColorTexture(ripple.getColorTexture(), 0);
-        fillMasks(mc.renderBuffers().bufferSource(), body, pulses);
-        paintPerimeter(main, ripple, afterimage.rgb());
+        fillMasks(mc.renderBuffers().bufferSource(), pose, pulses);
+        paintPerimeter(main, ripple, body.rgb());
     }
 
     /**

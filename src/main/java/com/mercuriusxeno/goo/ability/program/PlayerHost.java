@@ -93,6 +93,20 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
     }
 
     /**
+     * The host a stream's drip lands through once it strikes, whether or not
+     * its caster still holds the stream, carrying the price what it lays pays.
+     * goop-and-slick-coat-lands-where-each-drip-arc-strikes
+     *
+     * @param level  the level the drip struck in
+     * @param caster the player who threw the drip
+     * @param price  what each placement pays
+     * @return the host carrying the price and no aim
+     */
+    public static PlayerHost landing(ServerLevel level, ServerPlayer caster, PlacementPrice price) {
+        return new PlayerHost(level, caster, Optional.empty(), NO_CHARGE, price);
+    }
+
+    /**
      * The host of a charged ability's release, carrying the share of a full
      * charge its hold reached (decision nova-ring-grows-with-the-hold).
      *
