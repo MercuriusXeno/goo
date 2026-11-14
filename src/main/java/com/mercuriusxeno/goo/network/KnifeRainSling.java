@@ -35,7 +35,7 @@ import java.util.List;
  * its own slice of the cone with scattered pitch and speed, and each arcs
  * under gravity until it sticks in a block, strikes a mob, or is spent. A
  * knife striking a mob runs the ability's program on it when it arrives.
- * decision shards-sling-then-morph-to-flechettes
+ * decision knives-sling-then-morph-to-flechettes
  */
 public final class KnifeRainSling {
 

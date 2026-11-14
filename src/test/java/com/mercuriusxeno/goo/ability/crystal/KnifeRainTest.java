@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Knives' glass knives scatter knife to knife across the cone, stream out
- * across the sweep, and arc under gravity (decision shards-sling-then-morph-to-flechettes).
+ * across the sweep, and arc under gravity (decision knives-sling-then-morph-to-flechettes).
  */
 class KnifeRainTest {
 

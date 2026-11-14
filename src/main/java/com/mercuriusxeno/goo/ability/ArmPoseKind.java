@@ -9,7 +9,7 @@ import net.minecraft.network.codec.StreamCodec;
  * {@link ArmPose} an ability names holds the arm in one frame while the use
  * key is held and plays another on release. Client and server share one
  * build, so the synced order changes with it.
- * decision shards-sling-then-morph-to-flechettes
+ * decision knives-sling-then-morph-to-flechettes
  * decision ability-json-names-its-arm-pose
  */
 public enum ArmPoseKind {

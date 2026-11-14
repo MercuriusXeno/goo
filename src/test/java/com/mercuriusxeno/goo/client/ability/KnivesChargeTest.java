@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Knives' charge: a chime at each step as the charge grows, capped at the
  * steps it chimes, a goo blob in a remote hand and the glove's palm blob
- * swelling with the charge (decisions shards-sling-then-morph-to-flechettes,
+ * swelling with the charge (decisions knives-sling-then-morph-to-flechettes,
  * charge-swells-the-palm-blob).
  */
 class KnivesChargeTest {

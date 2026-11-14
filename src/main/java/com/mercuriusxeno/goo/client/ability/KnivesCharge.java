@@ -33,7 +33,7 @@ import org.jspecify.annotations.Nullable;
  * the charge grows, a chime climbing in pitch at each step of the charge and a
  * ring of resonance once it is full. The glove press poses the arm, so the
  * players watching see it wound up with the goo in the hand.
- * decision shards-sling-then-morph-to-flechettes
+ * decision knives-sling-then-morph-to-flechettes
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class KnivesCharge {
