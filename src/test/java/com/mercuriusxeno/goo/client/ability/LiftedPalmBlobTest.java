@@ -756,7 +756,7 @@ class LiftedPalmBlobTest {
                 assertTrue(LiftedPalmBlob.standsOff(SprayingClient.CASTER, SWEPT), "the lift should stand at the "
                         + "sweep's last tick");
                 Vec3 place = LiftedPalmBlob.blobOf(SprayingClient.CASTER, 0f).orElseThrow().place();
-                Vec3 floating = floatPointAcross(KnivesCharge.acrossOf(SprayingClient.CASTER, partWayDown));
+                Vec3 floating = floatPointAcross(AbilityPoses.posedAt(SprayingClient.CASTER).from());
                 Vec3 palm = KnivesCharge.handAt((Player)
                         Minecraft.getInstance().level.getEntity(SprayingClient.CASTER), true,
                         KnivesCharge.acrossOf(SprayingClient.CASTER, partWayDown), 0f);

@@ -9,11 +9,12 @@ import java.util.List;
 
 /**
  * The flight of Knives' glass knives, shared by the server that strikes
- * with them and the client that draws them: each knife leaves the hand at
- * its own tick, aimed into its own slice of the cone with a scatter of
- * yaw, pitch and speed, and arcs under gravity, so the cloud rains into an
- * area rather than flying out as a line.
+ * with them and the client that draws them: each knife leaves the blob
+ * floating ahead of the hand at its own tick, aimed into its own slice of
+ * the cone with a scatter of yaw, pitch and speed, and arcs under gravity,
+ * so the cloud rains into an area rather than flying out as a line.
  * decision knives-sling-then-morph-to-flechettes
+ * decision knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
  */
 public final class KnifeRain {
 
@@ -45,6 +46,11 @@ public final class KnifeRain {
      */
     private static final double FLOAT_AHEAD = 0.15;
     private static final double FLOAT_ABOVE = 0.2;
+    /** Ticks the wind-up takes to ease the hand across the chest: Knives' full charge. */
+    public static final float WIND_UP_TICKS = 30f;
+    /** The smoothstep's terms: three times the square less twice the cube. */
+    private static final float SMOOTH_SQUARE = 3f;
+    private static final float SMOOTH_CUBE = 2f;
     /** Degrees from the look to the thrower's right, around the vertical. */
     private static final float RIGHT_OF_LOOK = 90f;
     private static final double HALF = 0.5;
@@ -117,23 +123,9 @@ public final class KnifeRain {
     }
 
     /**
-     * The glove hand's point, where the knives leave from: the one point the
-     * server launches each knife from and the client roots the fan at.
-     * knives-aims-a-spread-fan-not-a-blob-line
-     *
-     * @param eye        the thrower's eye
-     * @param yaw        the thrower's yaw, in degrees
-     * @param look       the thrower's look, a unit vector
-     * @param gloveRight whether the glove is in the right hand
-     * @return the point
-     */
-    public static Vec3 handPoint(Vec3 eye, float yaw, Vec3 look, boolean gloveRight) {
-        return handPoint(eye, yaw, look, gloveRight, 0f);
-    }
-
-    /**
      * The glove hand's point as the wind-up eases it across the chest: from
-     * the glove side toward the other side as the charge is held.
+     * the glove side toward the other side as the charge is held. The blob
+     * the knives leave from floats ahead of and above it.
      *
      * @param eye        the thrower's eye
      * @param yaw        the thrower's yaw, in degrees
@@ -164,6 +156,39 @@ public final class KnifeRain {
      */
     public static Vec3 floatPoint(Vec3 eye, float yaw, Vec3 look, boolean gloveRight, float across) {
         return handPoint(eye, yaw, look, gloveRight, across).add(look.scale(FLOAT_AHEAD)).add(0, FLOAT_ABOVE, 0);
+    }
+
+    /**
+     * How far a charge held some ticks has eased the glove hand across the
+     * chest: slow at both ends, at its furthest once the wind-up is done.
+     * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
+     *
+     * @param heldTicks the ticks the use key has been held
+     * @return the share across, 0 at the glove side to 1 at its furthest
+     */
+    public static float windUpAcross(double heldTicks) {
+        float share = (float) Math.clamp(heldTicks / WIND_UP_TICKS, 0.0, 1.0);
+        return share * share * (SMOOTH_SQUARE - SMOOTH_CUBE * share);
+    }
+
+    /**
+     * Where Knives' knives leave from, the blob floating ahead of the hand:
+     * the float point at the hand's reach across the chest when the charge
+     * was let go, the one point the server launches each knife from and the
+     * client roots each aim line at. Read at a knife's own launch tick, it
+     * follows the look through the backhand.
+     * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
+     * knives-aims-a-spread-fan-not-a-blob-line
+     *
+     * @param eye        the thrower's eye
+     * @param yaw        the thrower's yaw, in degrees
+     * @param look       the thrower's look, a unit vector
+     * @param gloveRight whether the glove is in the right hand
+     * @param heldTicks  the ticks the charge was held
+     * @return the point
+     */
+    public static Vec3 leavesFrom(Vec3 eye, float yaw, Vec3 look, boolean gloveRight, int heldTicks) {
+        return floatPoint(eye, yaw, look, gloveRight, windUpAcross(heldTicks));
     }
 
     /**

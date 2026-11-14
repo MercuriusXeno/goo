@@ -75,8 +75,8 @@ class KnifeRainTest {
         Vec3 eye = new Vec3(4, 70, -3);
         Vec3 lookSouth = new Vec3(0, 0, 1);
 
-        Vec3 right = KnifeRain.handPoint(eye, SOUTH, lookSouth, true).subtract(eye);
-        Vec3 left = KnifeRain.handPoint(eye, SOUTH, lookSouth, false).subtract(eye);
+        Vec3 right = KnifeRain.handPoint(eye, SOUTH, lookSouth, true, 0f).subtract(eye);
+        Vec3 left = KnifeRain.handPoint(eye, SOUTH, lookSouth, false, 0f).subtract(eye);
 
         assertEquals(0, new Vec3(-0.35, -0.3, 0.4).distanceTo(right), 1e-6, "facing south, the right hand is west");
         assertEquals(0, new Vec3(0.35, -0.3, 0.4).distanceTo(left), 1e-6, "a left glove mirrors the right");
@@ -116,6 +116,20 @@ class KnifeRainTest {
                     + handTravel);
             assertEquals(0, handTravel.distanceTo(blobTravel), 1e-9, "the blob should travel " + handTravel
                     + " with the hand, travelled " + blobTravel);
+        }
+
+        @Test
+        void aLongerHoldEasesTheHandFurtherAcrossUntilTheWindUpIsDone() {
+            assertEquals(0f, KnifeRain.windUpAcross(0), 1e-6f, "a fresh press should leave the hand at the glove side");
+            assertTrue(KnifeRain.windUpAcross(10) < KnifeRain.windUpAcross(20), "a longer hold should reach further");
+            assertEquals(1f, KnifeRain.windUpAcross(KnifeRain.WIND_UP_TICKS), 1e-6f, "the wind-up should be done");
+            assertEquals(1f, KnifeRain.windUpAcross(KnifeRain.WIND_UP_TICKS * 2), 1e-6f, "and reach no further");
+        }
+
+        @Test
+        void theKnivesLeaveTheFloatPointAtTheHandsReachForTheTicksHeld() {
+            assertEquals(0, KnifeRain.floatPoint(eye, yaw, look, true, KnifeRain.windUpAcross(18))
+                    .distanceTo(KnifeRain.leavesFrom(eye, yaw, look, true, 18)), 1e-9);
         }
     }
 
