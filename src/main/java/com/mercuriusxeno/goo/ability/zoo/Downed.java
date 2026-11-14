@@ -13,7 +13,7 @@ import net.minecraft.world.damagesource.DamageSource;
  * A rallied mob fallen downed instead of dying: the game time it went down,
  * whether its AI was off before the fall, so a raise puts the AI back as it
  * stood, and the negative health its killing blow left it, which heals count
- * up from until it passes 0. For its first stretch down it shrugs off attacks
+ * up from until it passes 0. For as long as it is down it shrugs off attacks
  * and falls; past its death span it dies. Saved with the mob and synced to
  * every client drawing it, which lays it on its side.
  * rallied-mob-falls-downed-instead-of-dying
@@ -28,8 +28,6 @@ public record Downed(long downedAt, boolean wasNoAi, float negativeHealth) {
     /** No fall: the mob stands. */
     public static final Downed NONE = new Downed(0L, false, 0f);
 
-    /** Ticks a downed mob shrugs off attacks and falls for, 5 seconds. */
-    public static final int IMMUNE_TICKS = 100;
     /** Ticks after going down that a mob still downed dies, 15 seconds. */
     public static final int DEATH_TICKS = 300;
 
@@ -119,16 +117,16 @@ public record Downed(long downedAt, boolean wasNoAi, float negativeHealth) {
     }
 
     /**
-     * Whether a downed mob shrugs off a hit: an attack or a fall inside its
-     * immunity, since the blow's knockback or a blast taking out the floor
-     * often throws it; any hit after the immunity, and the world's other
-     * harm throughout, lands.
+     * Whether a downed mob shrugs off a hit: an attack or a fall, at any
+     * time down, a fall since the blow's knockback or a blast taking out the
+     * floor often throws it; the world's other harm lands.
+     * no-attack-lands-on-a-downed-mob
+     * rallied-mob-falls-downed-instead-of-dying
      *
-     * @param ticksDown the ticks the mob has lain downed
-     * @param source    the hit's source
+     * @param source the hit's source
      * @return true where the hit is negated
      */
-    public static boolean negates(long ticksDown, DamageSource source) {
-        return ticksDown < IMMUNE_TICKS && (isAttack(source) || source.is(DamageTypeTags.IS_FALL));
+    public static boolean negates(DamageSource source) {
+        return isAttack(source) || source.is(DamageTypeTags.IS_FALL);
     }
 }

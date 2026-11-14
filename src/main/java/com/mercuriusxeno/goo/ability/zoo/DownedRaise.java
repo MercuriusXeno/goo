@@ -13,7 +13,7 @@ import net.neoforged.neoforge.event.entity.living.LivingHealEvent;
  * any other heal counting it up, and raises it once the count passes 0:
  * the fall comes off it, its AI comes back as it stood before the fall, and
  * it hops up off the ground, a short rise rather than the sideways fall run
- * backward. Once up its immunity and death span are gone and it can be
+ * backward. Once up its immunity to attacks and its death span are gone and it can be
  * targeted again; a rally it still holds stays, so its next lethal blow
  * downs it again.
  * healed-downed-mob-hops-back-up
