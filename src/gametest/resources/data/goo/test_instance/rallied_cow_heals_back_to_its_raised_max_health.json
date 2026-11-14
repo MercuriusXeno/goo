@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:rallied_cow_heals_back_to_its_raised_max_health",
+  "environment": "goo:rally_reload",
+  "structure": "goo:test_bay",
+  "max_ticks": 400,
+  "setup_ticks": 0,
+  "required": true
+}
