@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -47,7 +48,13 @@ public final class BlastChargeTests {
                 BlastChargeTests::chargedBlastBreaksOutToItsSize);
         GooTestFunctions.registerTest(registrar, UNCHARGED_BLAST_BREAKS_OUT_TO_TWO,
                 BlastChargeTests::unchargedBlastBreaksOutToTwo);
+        GooTestFunctions.registerTest(registrar, ROOTED_BLAST_EXPLODES_WHERE_THE_CHARGE_BEGAN,
+                BlastChargeTests::rootedBlastExplodesWhereTheChargeBegan);
     }
+
+    private static final String ROOTED_BLAST_EXPLODES_WHERE_THE_CHARGE_BEGAN =
+            "rooted_blast_explodes_where_the_charge_began";
+    private static final double HALF_BLOCK = 0.5;
 
     private static final Identifier BLAST = Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_blast");
     private static final int FLOOR_SPAN = 16;
@@ -109,15 +116,41 @@ public final class BlastChargeTests {
         helper.succeed();
     }
 
+    /** A stone block, relative, the caster looks at while the charge stays rooted elsewhere. */
+    private static final BlockPos LOOKED_AT = new BlockPos(2, FLOOR_TOP, 4);
+
+    /**
+     * A caster looking at one block releases a charge rooted at another: the
+     * blast breaks the stone around the rooted spot and leaves the looked-at
+     * block standing.
+     * decision blast-roots-to-the-spot-the-cast-began
+     *
+     * @param helper the gametest helper
+     */
+    public static void rootedBlastExplodesWhereTheChargeBegan(GameTestHelper helper) {
+        castBlast(helper, 0, player -> player.lookAt(EntityAnchorArgument.Anchor.EYES,
+                helper.absoluteVec(Vec3.atCenterOf(LOOKED_AT).add(0, HALF_BLOCK, 0))));
+        helper.assertTrue(helper.getBlockState(AIMED.east(INSIDE_THE_FIRST_STAGE)).isAir(),
+                "The blast should break the stone around the rooted spot");
+        helper.assertTrue(helper.getBlockState(LOOKED_AT).is(Blocks.STONE),
+                "The block the caster looks at should stand");
+        helper.succeed();
+    }
+
+    private static void castBlast(GameTestHelper helper, int heldTicks) {
+        castBlast(helper, heldTicks, player -> { });
+    }
+
     /**
      * Releases Blast held for some ticks at the aimed stone, from a caster
      * standing clear with ample unstable.
      *
      * @param helper    the gametest helper
      * @param heldTicks the ticks the charge was held
+     * @param posed     what the caster does before the release, such as looking elsewhere
      */
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    private static void castBlast(GameTestHelper helper, int heldTicks) {
+    private static void castBlast(GameTestHelper helper, int heldTicks, Consumer<ServerPlayer> posed) {
         AbilityDefinition blast = AbilityRegistry.of(helper.getLevel()).getAbility(BLAST);
         helper.assertTrue(blast != null, ABILITY_REQUIRED);
         layFloor(helper);
@@ -129,6 +162,7 @@ public final class BlastChargeTests {
         player.getInventory().add(GooStacks.createForOutput(GooTypes.UNSTABLE, AMPLE_UNSTABLE));
         player.getInventory().add(new ItemStack(Items.GUNPOWDER));
         KnownRecipes.teachRequires(player, blast);
+        posed.accept(player);
         GooThrowPayload aimed = new GooThrowPayload(GooTypes.id(GooTypes.UNSTABLE), -1, helper.absolutePos(AIMED),
                 Direction.UP.ordinal(), false, BLAST.toString(), player.getEyePosition(),
                 helper.absoluteVec(AIMED_POINT));

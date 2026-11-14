@@ -406,18 +406,64 @@ public final class GloveThrowSender {
         }
         sendPayload(new GooChargePayload(GooTypes.id(gooType), abilityId, heldTicks, GloveUseTracker.scatterSeed(),
                 aimed));
+        unrootTheCharge();
         return true;
     }
 
     /**
-     * The target the crosshair aims as a release lets go.
+     * The target a charge's release sends, built from the spot the charge
+     * anchors at.
+     *
+     * @param anchored  the spot the charge anchors at
+     * @param typeId    the goo type registry id
+     * @param abilityId the selected ability id string
+     * @param origin    the cast origin
+     * @return the target, empty where the anchor aims at nothing
+     */
+    static Optional<GooThrowPayload> chargeTarget(TargetResult anchored, String typeId, String abilityId,
+                                                  Vec3 origin) {
+        return anchored instanceof TargetResult.None ? Optional.empty()
+                : Optional.of(buildPayload(anchored, typeId, abilityId, origin));
+    }
+
+    /**
+     * The target a sized charge's release sends: the spot the charge rooted
+     * at as it began, whatever the crosshair rests on now.
+     * decision blast-roots-to-the-spot-the-cast-began
      *
      * @param gooType   the selected goo type
      * @param abilityId the selected ability id string
-     * @return the target, empty where the crosshair aims at nothing
+     * @return the target, empty where the charge rooted nowhere and the crosshair aims at nothing
      */
     private static Optional<GooThrowPayload> aimedTarget(ResourceKey<GooTypeDefinition> gooType, String abilityId) {
-        return Optional.ofNullable(targetToPayload(AimTracker.currentTarget(), gooType, abilityId, throwOrigin()));
+        return chargeTarget(chargeAnchor(), GooTypes.id(gooType), abilityId, throwOrigin());
+    }
+
+    /** The spot the live sized charge rooted at. */
+    private static final ChargeRoot CHARGE_ROOT = new ChargeRoot();
+
+    /**
+     * Roots the local player's sized charge at the crosshair's target as it begins.
+     * decision blast-roots-to-the-spot-the-cast-began
+     */
+    static void rootTheCharge() {
+        CHARGE_ROOT.clear();
+        CHARGE_ROOT.holdAt(AimTracker.currentTarget());
+    }
+
+    /** Lets the next sized charge root afresh, as a cancel or a release leaves it. */
+    static void unrootTheCharge() {
+        CHARGE_ROOT.clear();
+    }
+
+    /**
+     * Where the live sized charge anchors its spheroid this frame.
+     * decision blast-roots-to-the-spot-the-cast-began
+     *
+     * @return the rooted spot, or the crosshair's target where the charge rooted nowhere
+     */
+    public static TargetResult chargeAnchor() {
+        return CHARGE_ROOT.anchor(AimTracker.currentTarget());
     }
 
     /**

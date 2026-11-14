@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:rooted_blast_explodes_where_the_charge_began",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 40,
+  "setup_ticks": 0,
+  "required": true
+}
