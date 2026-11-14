@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:self_sight_eats_before_the_sight",
+  "function": "goo:self_sight_holds_the_sight",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
   "max_ticks": 60,

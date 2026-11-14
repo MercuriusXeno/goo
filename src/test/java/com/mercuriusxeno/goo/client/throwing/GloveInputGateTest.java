@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.client.throwing;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
-import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -18,8 +17,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * once and plays the pose's release only on a sent payload, swinging nothing
  * (decisions right-click-held-previews-release-throws, use-key-throw-swings-no-more), and a stream
  * runs from the press for as long as the key is held (decision stream-delivery-held-cone),
- * and a durative eat sends on the press while the key is still down
- * (decision self-brew-goos-eat-before-the-effect).
+ * and a durative press charges and sends once on release
+ * (decision durative-self-abilities-wash-over-the-view-in-place-of-eating).
  */
 class GloveInputGateTest {
 
@@ -29,7 +28,6 @@ class GloveInputGateTest {
     private static final class RecordingActions implements GloveInputGate.PressActions {
         private final boolean payloadSent;
         private final boolean stream;
-        private final boolean eats;
         private int throwsSent;
         private int poseHolds;
         private int poseReleases;
@@ -38,13 +36,8 @@ class GloveInputGateTest {
         private int lastHeldTicks = -1;
 
         RecordingActions(boolean payloadSent, boolean stream) {
-            this(payloadSent, stream, false);
-        }
-
-        RecordingActions(boolean payloadSent, boolean stream, boolean eats) {
             this.payloadSent = payloadSent;
             this.stream = stream;
-            this.eats = eats;
         }
 
         @Override
@@ -79,10 +72,6 @@ class GloveInputGateTest {
             return stream;
         }
 
-        @Override
-        public boolean eatsOnPress() {
-            return eats;
-        }
     }
 
     private static RecordingActions thrown() {
@@ -294,72 +283,48 @@ class GloveInputGateTest {
     }
 
     /**
-     * A durative press starts the eat while the use key is still down, since
-     * vanilla releases a used item the tick the key comes up, which would cancel
-     * an eat started on release (decision self-brew-goos-eat-before-the-effect).
+     * A durative press charges the lifted blob while right click is held and
+     * sends its use once, on release, with no eat
+     * (decision durative-self-abilities-wash-over-the-view-in-place-of-eating).
      */
     @Nested
-    class AnEat {
+    class ADurativeCharge {
 
-        private RecordingActions eaten() {
-            return new RecordingActions(true, false, SelfEatRoute.eats(Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE));
+        private RecordingActions durative() {
+            return new RecordingActions(true, GloveInputGate.runsFromPress(Delivery.of(DeliveryKind.SELF),
+                    AbilityBadge.DURATIVE));
         }
 
         @Test
-        void thePressSendsWhileTheKeyIsStillDown() {
+        void heldTicksSendNothingAndTheReleaseSendsOnce() {
             GloveInputGate gate = new GloveInputGate();
-            RecordingActions actions = eaten();
-
-            gate.arm();
-            gate.tick(true, actions);
-
-            assertEquals(1, actions.throwsSent);
-        }
-
-        @Test
-        void holdingTheKeySendsOncePosesNothingAndPreviewsNothing() {
-            GloveInputGate gate = new GloveInputGate();
-            RecordingActions actions = eaten();
+            RecordingActions actions = durative();
 
             gate.arm();
             for (int tick = 0; tick < LONG_HOLD_TICKS; tick++) {
                 gate.tick(true, actions);
             }
 
-            assertEquals(1, actions.throwsSent);
-            assertEquals(0, actions.poseHolds);
-            assertEquals(0, actions.poseReleases);
-            assertEquals(0, actions.holds);
-            assertFalse(gate.isPreviewing());
-            assertTrue(gate.isArmed());
-        }
+            assertEquals(0, actions.throwsSent, "a durative charge held should send nothing");
+            assertTrue(gate.isPreviewing(), "a durative charge held should preview, lifting the blob");
 
-        @Test
-        void releaseEndsThePressAndTheNextPressSendsAgain() {
-            GloveInputGate gate = new GloveInputGate();
-            RecordingActions actions = eaten();
-
-            gate.arm();
-            gate.tick(true, actions);
             gate.tick(false, actions);
-            gate.arm();
-            gate.tick(true, actions);
 
-            assertEquals(2, actions.throwsSent);
+            assertEquals(1, actions.throwsSent, "the release should send the use once");
+            assertFalse(gate.isArmed());
         }
     }
 
     /**
-     * A brew eats from the press while the use key is down, since vanilla
-     * releases any item use the tick the use key is up, and an eat started
-     * on release would end the tick it began (decision self-brew-goos-eat-before-the-effect).
+     * A stream or a channel runs from the press; a durative ability, a self
+     * ability on command and an arc each charge and fire on release.
      */
     @Nested
     class WhatRunsFromThePress {
 
         @Test
-        void aBrewOnASelfDeliveryRunsFromThePress() {
-            assertTrue(GloveInputGate.runsFromPress(Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE));
+        void aDurativeOnASelfDeliveryFiresOnRelease() {
+            assertFalse(GloveInputGate.runsFromPress(Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE));
         }
 
         @Test

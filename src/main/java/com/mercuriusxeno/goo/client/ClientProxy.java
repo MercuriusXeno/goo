@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client;
 
 import com.mercuriusxeno.goo.ISidedProxy;
-import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.client.ability.HunkCrumbles;
 import com.mercuriusxeno.goo.client.knownitems.KnownItemsOverlay;
@@ -44,12 +43,6 @@ public final class ClientProxy implements ISidedProxy {
     @Override
     public void keepLoopAlive(Object key, Identifier sound, SoundSource source, float volume, Vec3 at) {
         FadingLoops.keepAlive(key, sound, source, volume, 1f, at);
-    }
-
-    @Override
-    public boolean syncedAbilityEats(String abilityId) {
-        ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
-        return ability != null && SelfEatRoute.eats(ability.delivery(), ability.badge());
     }
 
     @Override

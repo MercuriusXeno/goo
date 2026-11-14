@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.DragSize;
+import com.mercuriusxeno.goo.ability.DurativeRoute;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.SpireGrowth;
@@ -15,9 +16,11 @@ import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.ability.CameraEye;
 import com.mercuriusxeno.goo.client.ability.CastOrigin;
+import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
 import com.mercuriusxeno.goo.client.ability.ReserveVisual;
 import com.mercuriusxeno.goo.client.ability.VitalityVisual;
 import com.mercuriusxeno.goo.client.ability.WindLines;
+import com.mercuriusxeno.goo.client.hud.DurativeWash;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
@@ -31,6 +34,7 @@ import com.mercuriusxeno.goo.network.GooDragCastPayload;
 import com.mercuriusxeno.goo.network.GooStreamPayload;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
+import com.mercuriusxeno.goo.network.KnifeRainSling;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -410,7 +414,25 @@ public final class GloveThrowSender {
         }
         sendPayload(new GooThrowPayload(GooTypes.id(gooType), NO_ENTITY, player.blockPosition(), NO_ENTITY,
                 false, abilityId, lineOrigin(), player.position()));
+        if (ability != null && DurativeRoute.isDurative(ability.delivery(), ability.badge())
+                && !player.getData(GooAttachments.HELD_EFFECTS).holds(ability.id())) {
+            washOverTheView(player, gooType);
+        }
         return true;
+    }
+
+    /**
+     * Spends the local player's lifted blob over the view as a durative use
+     * lands: the blob swells and vanishes, washing the view in its goo.
+     * durative-self-abilities-wash-over-the-view-in-place-of-eating
+     *
+     * @param player  the local player
+     * @param gooType the durative ability's goo type
+     */
+    private static void washOverTheView(Player player, ResourceKey<GooTypeDefinition> gooType) {
+        long now = player.level().getGameTime();
+        LiftedPalmBlob.spend(player.getId(), now);
+        DurativeWash.wash(gooType, now, KnifeRainSling.gloveOnTheRight(player));
     }
 
     /**

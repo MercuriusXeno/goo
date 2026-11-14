@@ -78,7 +78,7 @@ public final class AbilityLoader
     static void refuseASecondDurative(Map<Identifier, AbilityDefinition> abilities) {
         Map<ResourceKey<GooTypeDefinition>, Identifier> durativeOf = new HashMap<>();
         abilities.values().stream()
-                .filter(def -> SelfEatRoute.eats(def.delivery(), def.badge()))
+                .filter(def -> DurativeRoute.isDurative(def.delivery(), def.badge()))
                 .sorted(Comparator.comparing(AbilityDefinition::id))
                 .forEach(def -> {
                     Identifier first = durativeOf.putIfAbsent(def.gooType(), def.id());

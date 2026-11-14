@@ -51,7 +51,6 @@ public final class GluttonyTests {
     private static final int BEEF_NUTRITION = 8;
     /** More ticks than any food takes to eat. */
     private static final int EAT_LIMIT = 100;
-    private static final String SHOULD_EAT = "Invoking Gluttony should start the player eating the glove";
     private static final String SHOULD_OVERHEAL = "A heal of %.1f on a full bar should bank %.1f absorption, banked %.2f";
     private static final String SHOULD_START_EATING = "The player should start eating the food it holds";
     private static final String SHOULD_FINISH_EATING = "The meal should finish within %d ticks";
@@ -67,9 +66,6 @@ public final class GluttonyTests {
         ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.JELLY);
         player.setGameMode(GameType.SURVIVAL);
         SelfDeliveryTests.invoke(player, GooTypes.JELLY, JELLY_GLUTTONY);
-        // self-brew-goos-eat-before-the-effect: Gluttony starts the eat the client plays
-        helper.assertTrue(player.isUsingItem(), SHOULD_EAT);
-        SelfDeliveryTests.eatThrough(player);
         GooSourceScanner.deplete(player, GooTypes.JELLY,
                 GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.JELLY, 0) - upkeep);
         return player;

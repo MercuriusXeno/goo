@@ -37,7 +37,7 @@ public final class LeaderTests {
     private static final int HELD_BY = CLOSED_BY + 40;
     /** The distance closer than which the cow stands on the player rather than short of it. */
     private static final double ON_THE_PLAYER = 1.5;
-    private static final String LEADER_NOT_HELD = "The player should hold Leader once the eat finishes";
+    private static final String LEADER_NOT_HELD = "The player should hold Leader once it lands";
     private static final String COW_FAR = "The cow should close on the Leader from %.2f off by tick %d, stands %.2f off";
     private static final String COW_ON_THE_PLAYER = "The cow should stop short of the Leader, stands %.2f off at tick %d";
     private static final String COW_TARGETS = "A led cow should hold no attack target, holds %s";
@@ -55,7 +55,7 @@ public final class LeaderTests {
     }
 
     /**
-     * A player eats Leader from the glove beside a free-willed cow ten blocks
+     * A player casts Leader from the glove beside a free-willed cow ten blocks
      * off: the cow walks to the player, stops short of it and holds there,
      * targeting nothing.
      * leader-leads-passive-mobs-at-a-short-distance
