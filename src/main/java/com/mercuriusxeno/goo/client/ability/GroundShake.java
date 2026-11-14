@@ -35,7 +35,6 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
@@ -50,7 +49,6 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
 import java.util.OptionalInt;
 import java.util.Set;
@@ -218,6 +216,64 @@ public final class GroundShake {
     }
 
     /**
+     * Where a bore shakes the ground along a sight: the vortex runs from the
+     * sight's eye out along its look to the reach, so handed the main
+     * camera's sight the shake stays under the drill, which draws from it too.
+     * decision diagnose-and-correct-eye-aimed-visuals-jumping-on-sneak
+     *
+     * @param sight       the eye and look the bore runs along, {@link CameraEye#of}'s
+     * @param bore        the bore, whose vortex radii the zone takes
+     * @param range       the stream's reach along the look
+     * @param coneDegrees the stream's cone
+     * @param air         whether a cell holds air
+     * @param breakable   whether a cell holds a block the bore breaks
+     * @return the zone
+     */
+    static Zone boreZoneAlong(CameraEye.Sight sight, BoreStep bore, double range, double coneDegrees,
+                              Predicate<BlockPos> air, Predicate<BlockPos> breakable) {
+        ChannelAim aim = new ChannelAim(sight.eye().add(sight.look().scale(range)), null, coneDegrees);
+        return boreZone(sight.eye(), bore.vortexNearRadius(), bore.vortexFarRadius(), aim, air, breakable);
+    }
+
+    /**
+     * Where a winding-up Gouge shakes the ground along a sight: the cells it
+     * would tear free about the block the sight's ray strikes.
+     * decision diagnose-and-correct-eye-aimed-visuals-jumping-on-sneak
+     *
+     * @param sight    the eye and look the ray runs along, {@link CameraEye#of}'s
+     * @param gouge    the Gouge, whose range and radius the zone takes
+     * @param blocks   the clip the ray is traced against
+     * @param liftable whether a cell holds a block the hunk lifts
+     * @return the zone, or null where the ray strikes nothing the hunk lifts
+     */
+    static @Nullable Zone gougeZoneAlong(CameraEye.Sight sight, GougeStep gouge, CameraEye.ViewClip blocks,
+                                         Predicate<BlockPos> liftable) {
+        BlockHitResult hit = blocks.clip(sight.eye(), sight.eye().add(sight.look().scale(gouge.range())));
+        if (hit.getType() == HitResult.Type.MISS || !liftable.test(hit.getBlockPos())) {
+            return null;
+        }
+        return cellsZone(GougeStep.hunkCells(hit.getBlockPos(), gouge.radius(), liftable));
+    }
+
+    /**
+     * Where a Level shakes the ground under the cursor its disc rests on: the
+     * swath in line with the block the cursor's point rests on, read along
+     * the line from the eye, the way the disc reads it.
+     * decision diagnose-and-correct-eye-aimed-visuals-jumping-on-sneak
+     *
+     * @param eye         the eye the cursor's ray leaves from, {@link CameraEye#of}'s
+     * @param cursorPoint the drawn cursor's world point
+     * @param plane       the face the hold began on
+     * @param breakable   whether a cell holds a block the Level breaks, in reach
+     * @return the zone
+     */
+    static Zone flattenZoneUnder(Vec3 eye, Vec3 cursorPoint, ChannelAim.FacePlane plane,
+                                 Predicate<BlockPos> breakable) {
+        ChannelAim aim = new ChannelAim(cursorPoint, plane);
+        return levelZone(aim, aim.aimedBlock(eye), breakable);
+    }
+
+    /**
      * A block's offset from its cell at a moment: a sum of two sines on each
      * axis, out of step with its neighbors, scaled by the zone's strength
      * there; zero outside the zone.
@@ -305,16 +361,17 @@ public final class GroundShake {
         if (!shakes(ability, GloveUseTracker.runsHeld(player), shakeTicks(player, gouge))) {
             return null;
         }
-        Vec3 eye = player.getEyePosition(partialTick);
+        // decision diagnose-and-correct-eye-aimed-visuals-jumping-on-sneak
+        CameraEye.Sight sight = CameraEye.of(Minecraft.getInstance(), player, partialTick);
         if (gouge != null) {
-            return gougeZone(player, gouge, eye, partialTick);
+            return liveGougeZone(player, gouge, sight);
         }
         BoreStep bore = stepOf(ability, BoreStep.class);
         if (bore != null) {
-            return liveBoreZone(player, bore, ability, eye, partialTick);
+            return liveBoreZone(player, bore, ability, sight);
         }
         LevelStep levelStep = stepOf(ability, LevelStep.class);
-        return levelStep == null ? null : liveLevelZone(player, levelStep, eye);
+        return levelStep == null ? null : liveLevelZone(player, levelStep, sight.eye(), partialTick);
     }
 
     private static <T extends Step> @Nullable T stepOf(ClientAbility ability, Class<T> kind) {
@@ -327,19 +384,16 @@ public final class GroundShake {
      * bores by.
      * decision bore-breaks-what-is-in-the-vortex
      *
-     * @param player      the local player
-     * @param bore        the selected bore
-     * @param ability     the selected ability, whose delivery holds the reach
-     * @param eye         the player's eye this frame
-     * @param partialTick the frame's partial tick
+     * @param player  the local player
+     * @param bore    the selected bore
+     * @param ability the selected ability, whose delivery holds the reach
+     * @param sight   the sight the drill draws from this frame
      * @return the zone
      */
-    private static Zone liveBoreZone(LocalPlayer player, BoreStep bore, ClientAbility ability, Vec3 eye,
-                                     float partialTick) {
+    private static Zone liveBoreZone(LocalPlayer player, BoreStep bore, ClientAbility ability,
+                                     CameraEye.Sight sight) {
         Level level = player.level();
-        ChannelAim aim = new ChannelAim(eye.add(player.getViewVector(partialTick).scale(ability.delivery().range())),
-                null, ability.delivery().coneDegrees());
-        return boreZone(eye, bore.vortexNearRadius(), bore.vortexFarRadius(), aim,
+        return boreZoneAlong(sight, bore, ability.delivery().range(), ability.delivery().coneDegrees(),
                 cell -> level.getBlockState(cell).isAir(),
                 cell -> level.getBlockState(cell).is(bore.breaks()));
     }
@@ -348,44 +402,36 @@ public final class GroundShake {
      * The swath blocks the local player's Level is progressing, read off
      * the client's level under the cursor the disc rests on.
      *
-     * @param player  the local player
-     * @param levelStep the selected Level
-     * @param eye     the player's eye this frame
+     * @param player      the local player
+     * @param levelStep   the selected Level
+     * @param eye         the eye the drawn cursor's ray leaves from this frame
+     * @param partialTick the frame's partial tick
      * @return the zone, or null where the hold began on no face
      */
-    private static @Nullable Zone liveLevelZone(LocalPlayer player, LevelStep levelStep, Vec3 eye) {
+    private static @Nullable Zone liveLevelZone(LocalPlayer player, LevelStep levelStep, Vec3 eye,
+                                                float partialTick) {
         ChannelAim.FacePlane plane = GloveUseTracker.pressPlane();
         if (plane == null) {
             return null;
         }
         Level level = player.level();
-        ChannelAim aim = new ChannelAim(GloveThrowSender.cursorPoint(player), plane);
-        return levelZone(aim, aim.aimedBlock(eye), cell -> level.getBlockState(cell).is(levelStep.breaks())
-                && player.isWithinBlockInteractionRange(cell, PlayerHost.REACH_SLACK));
+        return flattenZoneUnder(eye, GloveThrowSender.drawnCursorPoint(player, partialTick), plane,
+                cell -> level.getBlockState(cell).is(levelStep.breaks())
+                        && player.isWithinBlockInteractionRange(cell, PlayerHost.REACH_SLACK));
     }
 
     /**
-     * The cells a winding-up Gouge would tear free: the block the look
+     * The cells a winding-up Gouge would tear free: the block the sight
      * strikes and its joined neighbors, by the rule the server lifts by.
      *
-     * @param player       the local player
-     * @param gouge the selected Gouge
-     * @param eye          the player's eye this frame
-     * @param partialTick  the frame's partial tick
-     * @return the zone, or null where the look strikes nothing the hunk lifts
+     * @param player the local player
+     * @param gouge  the selected Gouge
+     * @param sight  the sight the ray runs along this frame
+     * @return the zone, or null where the sight strikes nothing the hunk lifts
      */
-    private static @Nullable Zone gougeZone(LocalPlayer player, GougeStep gouge, Vec3 eye,
-                                                   float partialTick) {
+    private static @Nullable Zone liveGougeZone(LocalPlayer player, GougeStep gouge, CameraEye.Sight sight) {
         ClientLevel level = (ClientLevel) player.level();
-        Vec3 reach = eye.add(player.getViewVector(partialTick).scale(gouge.range()));
-        BlockHitResult hit = level.clip(new ClipContext(eye, reach, ClipContext.Block.OUTLINE,
-                ClipContext.Fluid.NONE, player));
-        Predicate<BlockPos> liftable = cell -> liftable(level, cell);
-        if (hit.getType() == HitResult.Type.MISS || !liftable.test(hit.getBlockPos())) {
-            return null;
-        }
-        return cellsZone(new HashSet<>(GougeStep.hunkCells(hit.getBlockPos(), gouge.radius(),
-                liftable)));
+        return gougeZoneAlong(sight, gouge, CameraEye.blocksSeenBy(player), cell -> liftable(level, cell));
     }
 
     private static boolean liftable(ClientLevel level, BlockPos cell) {
