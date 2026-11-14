@@ -282,7 +282,7 @@
   "goo.ability.kinetic.remote": "Remote",
   "goo.ability.kinetic.remote.description": "You reach blocks and entities from farther away.",
   "goo.ability.typhoon.shulk": "Shulk",
-  "goo.ability.typhoon.shulk.description": "Makes the struck mob levitate.",
+  "goo.ability.typhoon.shulk.description": "Spews a shulker bullet at a mob, levitating it on the hit.",
   "goo.ability.typhoon.float": "Float",
   "goo.ability.typhoon.float.description": "You fly along your look and strafe keys, fall slowly without damage, and jump higher.",
   "goo.ability.typhoon.pneuma": "Pneuma",
