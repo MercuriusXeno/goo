@@ -5,8 +5,8 @@ import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.ability.CrystalCloudVisual;
 import com.mercuriusxeno.goo.client.ability.LurkerPulses;
 import com.mercuriusxeno.goo.client.ability.MarkerOrbVisual;
-import com.mercuriusxeno.goo.client.ability.MetalSpikeVisual;
 import com.mercuriusxeno.goo.client.ability.UpdraftWind;
+import com.mercuriusxeno.goo.client.ability.UrchinVisual;
 import com.mercuriusxeno.goo.client.ability.VineTrapVisual;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -31,7 +31,7 @@ import org.jspecify.annotations.Nullable;
  * <p>Active visualizers:
  * <ul>
  *   <li>{@link MarkerOrbVisual} - the slime-like orb while the program runs</li>
- *   <li>{@link MetalSpikeVisual} - Urchin's bristle and the spike each shot shoots</li>
+ *   <li>{@link UrchinVisual} - Urchin's bristle and the spike each shot shoots</li>
  *   <li>{@link CrystalCloudVisual} - the shard cloud a crystal marker stands</li>
  *   <li>{@link VineTrapVisual} - the Vines trap's knot and tendrils on the ground</li>
  * </ul>
@@ -102,7 +102,7 @@ public class AbilityBlockRenderer
         extractTargetAndFace(be, state);
         state.abilityId = be.getAbilityId();
         state.lurkerGlow = LurkerPulses.CLIENT.glowAt(be.getBlockPos(), state.gameTime);
-        MetalSpikeVisual.extract(be, state);
+        UrchinVisual.extract(be, state);
         CrystalCloudVisual.extract(be, state);
         VineTrapVisual.extract(be, state);
         // updraft-blob-stands-a-column-of-wind
@@ -122,6 +122,6 @@ public class AbilityBlockRenderer
         if (state.crystalActive) {
             CrystalCloudVisual.submit(state, poseStack, nodeCollector);
         }
-        MetalSpikeVisual.submit(state, poseStack, nodeCollector);
+        UrchinVisual.submit(state, poseStack, nodeCollector);
     }
 }

@@ -178,12 +178,12 @@ class HeldEffectsTest {
         }
 
         @Test
-        void anExtenderHalvesTheOthersAndPaysItsOwn() {
+        void anExtendHalvesTheOthersAndPaysItsOwn() {
             HeldEffects.Held first = new HeldEffects.Held(KINDLE, GooTypes.BLAZE, 1, Set.of(), STARTED);
             HeldEffects.Held second = new HeldEffects.Held(GLUTTONY, GooTypes.BLAZE, 2, Set.of(), STARTED);
-            HeldEffects.Held extender = new HeldEffects.Held(Identifier.fromNamespaceAndPath("goo", "pulse_extender"),
-                    GooTypes.PULSE, 1, Set.of(LaidState.EXTENDER), STARTED);
-            HeldEffects held = holding(first, second, extender);
+            HeldEffects.Held extend = new HeldEffects.Held(Identifier.fromNamespaceAndPath("goo", "pulse_extend"),
+                    GooTypes.PULSE, 1, Set.of(LaidState.EXTEND), STARTED);
+            HeldEffects held = holding(first, second, extend);
 
             assertEquals(Map.of(GooTypes.BLAZE, 1.5, GooTypes.PULSE, 1.0), held.upkeepPerTick());
             assertTrue(held.extended());
@@ -246,21 +246,21 @@ class HeldEffectsTest {
         assertEquals(Set.of(LaidState.LEADER), LaidState.laidBy(List.of(new LeaderStep(12, 4))));
     }
 
-    /** The Extender held beside other effects (decision extender-multiplies-the-next-self-duration). */
+    /** The Extend held beside other effects (decision extender-multiplies-the-next-self-duration). */
     @Nested
-    class Extender {
+    class Extend {
 
-        private static final Identifier EXTENDER = Identifier.fromNamespaceAndPath("goo", "pulse_extender");
+        private static final Identifier EXTEND = Identifier.fromNamespaceAndPath("goo", "pulse_extend");
         private static final int TICKS = 20;
         private static final int PLENTY = 1000;
 
-        private HeldEffects.Held gloveExtender() {
-            return new HeldEffects.Held(EXTENDER, GooTypes.PULSE, UPKEEP, Set.of(LaidState.EXTENDER), STARTED);
+        private HeldEffects.Held gloveExtend() {
+            return new HeldEffects.Held(EXTEND, GooTypes.PULSE, UPKEEP, Set.of(LaidState.EXTEND), STARTED);
         }
 
         @Test
-        void extenderBesideKindlePaysPulseEveryTickAndCoversEveryOtherBlazeTick() {
-            HeldEffects held = holding(gloveExtender(), hearts(KINDLE, GooTypes.BLAZE));
+        void extendBesideKindlePaysPulseEveryTickAndCoversEveryOtherBlazeTick() {
+            HeldEffects held = holding(gloveExtend(), hearts(KINDLE, GooTypes.BLAZE));
             int pulse = 0;
             int blaze = 0;
             for (long now = STARTED + 1; now <= STARTED + TICKS; now++) {
@@ -274,19 +274,19 @@ class HeldEffectsTest {
         }
 
         @Test
-        void pulseRunningDryEndsTheExtenderAloneAndTheOthersPayEveryTick() {
-            HeldEffects.Ticked ticked = holding(gloveExtender(), hearts(KINDLE, GooTypes.BLAZE))
+        void pulseRunningDryEndsTheExtendAloneAndTheOthersPayEveryTick() {
+            HeldEffects.Ticked ticked = holding(gloveExtend(), hearts(KINDLE, GooTypes.BLAZE))
                     .tick(type -> type == GooTypes.PULSE ? 0 : PLENTY, STARTED + 2);
-            assertEquals(List.of(gloveExtender()), ticked.ended());
+            assertEquals(List.of(gloveExtend()), ticked.ended());
             assertEquals(UPKEEP, ticked.drawn().get(GooTypes.BLAZE));
         }
 
         @Test
-        void aGloveExtenderDoublesEachOtherEffectsTimeLeftUntilItEnds() {
-            HeldEffects held = holding(gloveExtender(), hearts(KINDLE, GooTypes.BLAZE));
+        void aGloveExtendDoublesEachOtherEffectsTimeLeftUntilItEnds() {
+            HeldEffects held = holding(gloveExtend(), hearts(KINDLE, GooTypes.BLAZE));
             assertEquals(2 * PLENTY / UPKEEP, held.ticksLeft(type -> PLENTY).get(GooTypes.BLAZE));
             assertEquals(PLENTY / UPKEEP, held.ticksLeft(type -> PLENTY).get(GooTypes.PULSE));
-            HeldEffects ended = held.end(EXTENDER).after();
+            HeldEffects ended = held.end(EXTEND).after();
             assertEquals(PLENTY / UPKEEP, ended.ticksLeft(type -> PLENTY).get(GooTypes.BLAZE));
         }
     }

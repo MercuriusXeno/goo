@@ -23,7 +23,7 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
 /**
- * Gametest for glow's Reflector, the combo a full Sunbeam hold converts a
+ * Gametest for glow's Reflector, the combo a full Laser hold converts a
  * prism into, standing on two prisms along the bay's floor; the line between
  * the two fills with light rail that lights its cells and burns a zombie
  * standing in it, and a block set across the line breaks the link, and
@@ -46,8 +46,8 @@ public final class ReflectorTests {
 
     private static final BlockPos LOW_PRISM = new BlockPos(0, 1, 0);
     private static final BlockPos FAR_PRISM = new BlockPos(5, 1, 0);
-    /** Sunbeam, whose on_prism reaction is the reflector (decision channeled-hosts-convert-prisms-over-the-hold). */
-    private static final String REFLECTOR = "goo:glow_sunbeam";
+    /** Laser, whose on_prism reaction is the reflector (decision channeled-hosts-convert-prisms-over-the-hold). */
+    private static final String REFLECTOR = "goo:glow_laser";
     private static final String NOT_A_REFLECTOR = "The prism should take the reflector combo";
     private static final int FLOOR_Y = 1;
 
@@ -105,12 +105,12 @@ public final class ReflectorTests {
     }
 
     /**
-     * Converts a prism into a reflector as a full Sunbeam hold does, its
-     * combo Sunbeam's on_prism reaction.
+     * Converts a prism into a reflector as a full Laser hold does, its
+     * combo Laser's on_prism reaction.
      */
     private static void landReflector(GameTestHelper helper, BlockPos prism) {
-        AbilityDefinition sunbeam = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(REFLECTOR));
-        helper.assertTrue(sunbeam != null && helper.getBlockEntity(prism, PrismBlockEntity.class)
-                .runCombo(GooTypes.GLOW, REFLECTOR, PrismCombos.comboSteps(sunbeam)), NOT_A_REFLECTOR);
+        AbilityDefinition laser = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(REFLECTOR));
+        helper.assertTrue(laser != null && helper.getBlockEntity(prism, PrismBlockEntity.class)
+                .runCombo(GooTypes.GLOW, REFLECTOR, PrismCombos.comboSteps(laser)), NOT_A_REFLECTOR);
     }
 }

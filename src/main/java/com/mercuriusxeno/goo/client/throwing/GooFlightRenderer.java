@@ -689,7 +689,7 @@ public final class GooFlightRenderer {
 
     /**
      * Renders a goo flight that morphs into its delivery's travel form in
-     * flight, the metal javelin's dart or a crystal knife's flechette. The
+     * flight, the metal Dart's dart or a crystal knife's flechette. The
      * goo shrinks as the form grows, fully morphed at the share of the flight
      * the ability's delivery names (decisions
      * traveling-form-transforms-in-flight, dart-transform-point-is-ability-data,

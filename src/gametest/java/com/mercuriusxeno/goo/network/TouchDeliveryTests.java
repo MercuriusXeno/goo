@@ -22,7 +22,7 @@ import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
- * Gametests for the touch: a glove use with metal javelin, a mob ability,
+ * Gametests for the touch: a glove use with metal Dart, a mob ability,
  * lands at once on a mob within the player's entity interaction range and
  * throws a flight at one beyond it, through the real throw path
  * (decision mob-ability-touches-at-reach). They sit in the scheduler's
@@ -31,8 +31,8 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
  */
 @RegistersGameTests
 public final class TouchDeliveryTests {
-    private static final String MOB_METAL_TOUCH = "mob_metal_javelin_touch";
-    private static final String MOB_METAL_THROW_BEYOND_REACH = "mob_metal_javelin_beyond_reach";
+    private static final String MOB_METAL_TOUCH = "mob_metal_dart_touch";
+    private static final String MOB_METAL_THROW_BEYOND_REACH = "mob_metal_dart_beyond_reach";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -40,8 +40,8 @@ public final class TouchDeliveryTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, MOB_METAL_TOUCH, TouchDeliveryTests::javelinTouchesWithinReach);
-        GooTestFunctions.registerTest(registrar, MOB_METAL_THROW_BEYOND_REACH, TouchDeliveryTests::javelinThrowsBeyondReach);
+        GooTestFunctions.registerTest(registrar, MOB_METAL_TOUCH, TouchDeliveryTests::dartTouchesWithinReach);
+        GooTestFunctions.registerTest(registrar, MOB_METAL_THROW_BEYOND_REACH, TouchDeliveryTests::dartThrowsBeyondReach);
     }
 
 
@@ -54,8 +54,8 @@ public final class TouchDeliveryTests {
     private static final int SETTLE_TICKS = 1;
     private static final int NO_ENTITY = -1;
     private static final int HELD_GOO = 4;
-    private static final Identifier METAL_JAVELIN = Identifier.parse("goo:metal_javelin");
-    private static final String ABILITY_REQUIRED = "Ability registry must hold metal_javelin";
+    private static final Identifier METAL_DART = Identifier.parse("goo:metal_dart");
+    private static final String ABILITY_REQUIRED = "Ability registry must hold metal_dart";
     private static final String SHOULD_TAKE_DAMAGE = "Husk should lose health the tick it is touched, lost %.1f";
     private static final String SHOULD_DRAIN_COST = "A touch should drain metal goo, drained %d mB";
     private static final String SHOULD_SCHEDULE_FLIGHT = "A throw beyond reach should schedule one flight, scheduled %d";
@@ -65,19 +65,19 @@ public final class TouchDeliveryTests {
     }
 
     /**
-     * A mock player uses metal javelin on a husk two blocks ahead: the husk
+     * A mock player uses metal Dart on a husk two blocks ahead: the husk
      * loses health and the player metal goo in that tick.
      *
      * @param helper the gametest helper
      */
-    public static void javelinTouchesWithinReach(GameTestHelper helper) {
-        javelin(helper);
+    public static void dartTouchesWithinReach(GameTestHelper helper) {
+        dart(helper);
         Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, NEAR_MOB_POS);
         ServerPlayer player = thrower(helper, NEAR_PLAYER_POS);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             float healthBefore = husk.getHealth();
             int heldBefore = metalHeld(player);
-            GooThrowHandler.execute(player, javelinPayload(player, husk));
+            GooThrowHandler.execute(player, dartPayload(player, husk));
             float lost = healthBefore - husk.getHealth();
             int drained = heldBefore - metalHeld(player);
             helper.getLevel().getServer().getPlayerList().remove(player);
@@ -88,20 +88,20 @@ public final class TouchDeliveryTests {
     }
 
     /**
-     * A mock player uses metal javelin on a husk eight blocks ahead: one
+     * A mock player uses metal Dart on a husk eight blocks ahead: one
      * flight is scheduled, and the husk loses health once the flight arrives.
      *
      * @param helper the gametest helper
      */
-    public static void javelinThrowsBeyondReach(GameTestHelper helper) {
-        javelin(helper);
+    public static void dartThrowsBeyondReach(GameTestHelper helper) {
+        dart(helper);
         Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, FAR_MOB_POS);
         ServerPlayer player = thrower(helper, FAR_PLAYER_POS);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             float healthBefore = husk.getHealth();
             GooEffectScheduler effects = GooServerState.of(helper.getLevel().getServer()).gooEffects();
             int pendingBefore = effects.pendingCount();
-            GooThrowHandler.execute(player, javelinPayload(player, husk));
+            GooThrowHandler.execute(player, dartPayload(player, husk));
             int scheduled = effects.pendingCount() - pendingBefore;
             helper.assertTrue(scheduled == 1, String.format(SHOULD_SCHEDULE_FLIGHT, scheduled));
             helper.succeedWhen(() -> {
@@ -112,15 +112,15 @@ public final class TouchDeliveryTests {
         });
     }
 
-    private static AbilityDefinition javelin(GameTestHelper helper) {
-        AbilityDefinition javelin = AbilityRegistry.of(helper.getLevel()).getAbility(METAL_JAVELIN);
-        helper.assertTrue(javelin != null, ABILITY_REQUIRED);
-        return javelin;
+    private static AbilityDefinition dart(GameTestHelper helper) {
+        AbilityDefinition dart = AbilityRegistry.of(helper.getLevel()).getAbility(METAL_DART);
+        helper.assertTrue(dart != null, ABILITY_REQUIRED);
+        return dart;
     }
 
-    private static GooThrowPayload javelinPayload(ServerPlayer player, Mob target) {
+    private static GooThrowPayload dartPayload(ServerPlayer player, Mob target) {
         return new GooThrowPayload(GooTypes.id(GooTypes.METAL), target.getId(), BlockPos.ZERO, NO_ENTITY, false,
-                METAL_JAVELIN.toString(), player.getEyePosition());
+                METAL_DART.toString(), player.getEyePosition());
     }
 
     private static int metalHeld(ServerPlayer player) {

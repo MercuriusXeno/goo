@@ -11,7 +11,7 @@ import java.util.List;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 /**
- * Radiant's flood: from the holder's eye cell outward through connected
+ * Wisps' flood: from the holder's eye cell outward through connected
  * open air, nearest cells first, a wisp in each dark cell the holder sees
  * and that no wisp this flood placed already lights. Its edge grows a set
  * number of blocks each tick it walks, and each tick walks up to a budget
@@ -88,7 +88,7 @@ public final class WispFlood {
      * grown and reckoning the wisps this one placed, so a holder walking
      * keeps lighting the dark air around them rather than waiting on a
      * fresh edge to grow past the cells already lit.
-     * operator UAT 2026-10-10: Radiant placed nothing while the holder walked, and caught up only once they stopped
+     * operator UAT 2026-10-10: Wisps placed nothing while the holder walked, and caught up only once they stopped
      *
      * @param eyes the holder's eye cell now
      * @return the flood from there

@@ -1,0 +1,14 @@
+{
+  "gooType": "xeno",
+  "displayName": "goo.ability.xeno.unveil",
+  "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
+  "badge": "durative",
+  "order": 30,
+  "upkeep": 1,
+  "delivery": { "kind": "self" },
+  "behaviors": [
+    { "type": "unveil" },
+    { "type": "sound", "id": "minecraft:ambient.soul_sand_valley.mood", "at": "target", "source": "players", "volume": 0.8, "pitch": 0.6 }
+  ],
+  "tags": ["self"]
+}

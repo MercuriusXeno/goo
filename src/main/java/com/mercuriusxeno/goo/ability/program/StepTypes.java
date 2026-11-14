@@ -98,18 +98,18 @@ public final class StepTypes {
         register(GhostTrailStep.TYPE);
         register(HeartOverlayStep.TYPE);
         register(SporeHostStep.TYPE);
-        register(ColonizeStep.TYPE);
+        register(SporeStep.TYPE);
         register(FloorsStep.TYPE);
-        register(ShiftStep.TYPE);
+        register(TransmitStep.TYPE);
         register(SightStep.TYPE);
         register(LuxStep.TYPE);
-        register(EldritchStep.TYPE);
+        register(UnveilStep.TYPE);
         register(WispsStep.TYPE);
         register(ReflectorStep.TYPE);
         register(ScryStep.TYPE);
         register(RayStep.TYPE);
         register(UndeadStep.TYPE);
-        register(FlattenStep.TYPE);
+        register(LevelStep.TYPE);
         register(BoreStep.TYPE);
         register(SpireStep.TYPE);
         register(PetrifyStep.TYPE);
@@ -125,15 +125,15 @@ public final class StepTypes {
         register(LeafSteps.AGE.type());
         register(MetronomeStep.TYPE);
         register(RelayStep.TYPE);
-        register(ExtenderStep.TYPE);
+        register(ExtendStep.TYPE);
         register(LeafSteps.STUN.type());
         register(SignalWaveStep.TYPE);
-        register(PulserToggleStep.TYPE);
+        register(TickToggleStep.TYPE);
         register(GluttonyStep.TYPE);
         register(ReserveDrainStep.TYPE);
         register(FeedStep.TYPE);
         register(ZoneStep.TYPE);
-        register(ShifterStep.TYPE);
+        register(EludeStep.TYPE);
         register(ShriekStep.TYPE);
         register(SculkerStep.TYPE);
         register(LeaderStep.TYPE);
@@ -169,8 +169,8 @@ public final class StepTypes {
         register(UpdraftStep.TYPE);
         register(LiftStep.TYPE);
         register(GrabStep.TYPE);
-        register(TerrakinesisStep.TYPE);
-        register(TelekinesisStep.TYPE);
+        register(GougeStep.TYPE);
+        register(RemoteStep.TYPE);
     }
 
     private StepTypes() {

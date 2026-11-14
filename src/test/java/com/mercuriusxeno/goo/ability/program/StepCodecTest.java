@@ -109,8 +109,8 @@ class StepCodecTest {
             Map.entry("regress", new RegressStep(20)),
             Map.entry("ancient", new AncientStep()),
             Map.entry("grab", new GrabStep(8, 3, 1.5, 1, 10)),
-            Map.entry("terrakinesis", new TerrakinesisStep(6, 1.5, 2.5, 3.5, 1.5, 1000)),
-            Map.entry("telekinesis", new TelekinesisStep(8)),
+            Map.entry("gouge", new GougeStep(6, 1.5, 2.5, 3.5, 1.5, 1000)),
+            Map.entry("remote", new RemoteStep(8)),
             Map.entry("set_baby", LeafSteps.SET_BABY.step(true)),
             Map.entry("ailment_overlay", new AilmentOverlayStep(AilmentKind.HEX,
                     Expr.parse("20 * 60 / pow(health, 0.4)").getOrThrow())),
@@ -119,12 +119,12 @@ class StepCodecTest {
             Map.entry("heart_overlay", new HeartOverlayStep(HeartKind.KINDLE)),
             Map.entry("spore_host", new SporeHostStep(Identifier.parse("goo:shroom_mycosis"), Expr.literal(3),
                     Expr.literal(600))),
-            Map.entry("colonize", new ColonizeStep(Expr.literal(3), List.of(LeafSteps.DISCARD.step(Unit.INSTANCE)))),
+            Map.entry("spore", new SporeStep(Expr.literal(3), List.of(LeafSteps.DISCARD.step(Unit.INSTANCE)))),
             Map.entry("floors", new FloorsStep(Expr.literal(2), List.of())),
-            Map.entry("shift", new ShiftStep(Expr.literal(16))),
+            Map.entry("transmit", new TransmitStep(Expr.literal(16))),
             Map.entry("sight", new SightStep(Expr.literal(3))),
             Map.entry("lux", new LuxStep()),
-            Map.entry("eldritch", new EldritchStep()),
+            Map.entry("unveil", new UnveilStep()),
             Map.entry("wisps", new WispsStep(64, 4000, 1200, 0, true, 0.8, 0.25)),
             Map.entry("reflector", new ReflectorStep(20)),
             Map.entry("ray", new RayStep(32, 10, List.of(EntityFilter.LIVING), new RayStep.Refraction(16, 1.5, 0.85),
@@ -134,8 +134,8 @@ class StepCodecTest {
             Map.entry("scry", new ScryStep(GooTypes.ASTRAL, 96, List.of(EntityFilter.LIVING),
                     List.of(new AilmentOverlayStep(AilmentKind.ASTRAL, Expr.literal(200))))),
             Map.entry("undead", new UndeadStep(Expr.literal(1))),
-            Map.entry("flatten", new FlattenStep(TagKey.create(Registries.BLOCK,
-                    Identifier.fromNamespaceAndPath("goo", "flatten_breakable")), new BreakPace(5, 1.5))),
+            Map.entry("level", new LevelStep(TagKey.create(Registries.BLOCK,
+                    Identifier.fromNamespaceAndPath("goo", "level_breakable")), new BreakPace(5, 1.5))),
             Map.entry("bore", new BoreStep(TagKey.create(Registries.BLOCK,
                     Identifier.fromNamespaceAndPath("goo", "bore_breakable")), new BreakPace(5, 1.5))),
             Map.entry("spire", new SpireStep()),
@@ -153,16 +153,16 @@ class StepCodecTest {
             Map.entry("age", LeafSteps.AGE.step(Unit.INSTANCE)),
             Map.entry("metronome", new MetronomeStep()),
             Map.entry("relay", new RelayStep()),
-            Map.entry("extender", new ExtenderStep()),
+            Map.entry("extend", new ExtendStep()),
             Map.entry("stun", LeafSteps.STUN.step(Expr.literal(60))),
             Map.entry("signal_wave", new SignalWaveStep(Expr.literal(8), Expr.literal(40))),
-            Map.entry("pulser_toggle", new PulserToggleStep(Expr.literal(4))),
+            Map.entry("tick_toggle", new TickToggleStep(Expr.literal(4))),
             Map.entry("gluttony", new GluttonyStep(Expr.literal(20), Expr.literal(20))),
             Map.entry("reserve_drain", new ReserveDrainStep(Expr.literal(0.05), Expr.literal(0.5), Expr.literal(10),
                     Expr.literal(0.5))),
             Map.entry("feed", new FeedStep(Expr.literal(12), Expr.literal(100))),
             Map.entry("zone", new ZoneStep(Expr.literal(6), Expr.literal(32))),
-            Map.entry("shifter", new ShifterStep(Expr.literal(8))),
+            Map.entry("elude", new EludeStep(Expr.literal(8))),
             Map.entry("shriek", new ShriekStep(Expr.literal(16), Expr.literal(600))),
             Map.entry("sculker", new SculkerStep()),
             Map.entry("vibrate", new VibrateStep(Identifier.withDefaultNamespace("block_activate"))),
@@ -279,7 +279,7 @@ class StepCodecTest {
     }
 
     @Test
-    void javelinStepsDecode() {
+    void dartStepsDecode() {
         Step step = decode("{\"type\": \"damage\", \"amount\": 8.0, \"source\": \"magic\"}").getOrThrow();
         DamageStep damage = assertInstanceOf(DamageStep.class, step);
         assertEquals(8.0, damage.amount().evaluate(Variables.NONE));
@@ -340,11 +340,11 @@ class StepCodecTest {
     }
 
     @Test
-    void rockFlattensFlattenStepCarriesBothPaceValues() {
+    void rockLevelStepCarriesBothPaceValues() {
         // decision bore-and-flatten-json-carry-two-pace-values
-        FlattenStep flatten = AbilityJson.decode("rock_flatten").behaviors().stream()
-                .filter(FlattenStep.class::isInstance).map(FlattenStep.class::cast).findFirst().orElseThrow();
-        assertNotNull(flatten.pace());
+        LevelStep levelStep = AbilityJson.decode("rock_level").behaviors().stream()
+                .filter(LevelStep.class::isInstance).map(LevelStep.class::cast).findFirst().orElseThrow();
+        assertNotNull(levelStep.pace());
     }
 
     @Test

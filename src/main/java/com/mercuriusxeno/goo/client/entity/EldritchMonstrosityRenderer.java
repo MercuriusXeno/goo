@@ -10,7 +10,7 @@ import net.minecraft.resources.Identifier;
 
 /**
  * Draws an Eldritch Monstrosity as a drowned-hued humanoid, scaled up; it
- * stands out of phase, so EldritchSight hides it from a plain viewer and
+ * stands out of phase, so PhasedSight hides it from a plain viewer and
  * warps it for an eldritch one. It casts no shadow, which would betray it
  * to the plain.
  * monstrosities-harvest-under-quantum

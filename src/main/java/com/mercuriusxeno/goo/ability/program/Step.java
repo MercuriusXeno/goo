@@ -99,7 +99,7 @@ public interface Step {
 
     /**
      * Answers whether the step can act on its host now; a self ability runs
-     * and drains only when every step admits, so Fungal Shift aimed at no
+     * and drains only when every step admits, so Transmit aimed at no
      * fungus costs nothing (decision fungal-shift-blinks-to-the-aimed-fungus).
      *
      * @param context the host and variable scope the step would run in

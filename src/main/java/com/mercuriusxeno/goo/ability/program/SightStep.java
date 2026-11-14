@@ -8,13 +8,13 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Grants the host's target fungal sight and finishes: Fungal Shift reaches
+ * Grants the host's target fungal sight and finishes: Transmit reaches
  * the factor farther and fungus shows through walls while it stands. Cast
  * from the glove it stands as a held effect, paying its upkeep until ended.
  * Sight is {@code sight factor=3} (decisions sight-lengthens-shift-and-outlines-fungus
  * and self-effects-trickle-until-ended).
  *
- * @param factor what Fungal Shift's range is multiplied by, evaluated when the step runs
+ * @param factor what Transmit's range is multiplied by, evaluated when the step runs
  */
 public record SightStep(Expr factor) implements Step {
 

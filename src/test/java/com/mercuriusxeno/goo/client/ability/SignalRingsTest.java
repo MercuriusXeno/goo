@@ -91,7 +91,7 @@ class SignalRingsTest {
             }
         }
 
-        /** Pulser's rings are squares whose sides stand at the cone's radius, upright to the aim. */
+        /** Tick's rings are squares whose sides stand at the cone's radius, upright to the aim. */
         @Test
         void aSquareRingsSidesStandAtTheRadiusUpright() {
             Vec3 center = new Vec3(3, 1, 0);

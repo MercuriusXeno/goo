@@ -53,7 +53,7 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
 
     /** Blocks past the interaction range a channel still breaks at, vanilla's own slack for a block break. */
     public static final double REACH_SLACK = 1.0;
-    /** Log: how many devices a Pulser tick found to toggle among its cone's cells. */
+    /** Log: how many devices a Tick pulse found to toggle among its cone's cells. */
     private static final String LOG_TOGGLES = "Tick toggles {} devices and pulses {} receivers among {} cells";
 
     /**
