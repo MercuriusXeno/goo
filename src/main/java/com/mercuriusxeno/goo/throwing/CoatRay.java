@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.throwing;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
@@ -32,6 +33,8 @@ public final class CoatRay {
     private static final int SHARES_PER_RING = 8;
     /** The shares the fan holds: the axis, then each ring's. */
     public static final int FAN_SHARES = 1 + FAN_RINGS * SHARES_PER_RING;
+    /** Spreads one hold tick's scatter seed from the next, so neighbouring ticks draw unrelated places. */
+    private static final long SCATTER_SEED_STRIDE = 0x9E3779B97F4A7C15L;
 
     private CoatRay() {
     }
@@ -107,25 +110,24 @@ public final class CoatRay {
     }
 
     /**
-     * The shares of the fan a stream throwing some drips a tick throws on a
-     * tick of its hold: each tick takes up the fan where the last left off,
-     * the axis first on the hold's first tick, so a hold sprays the whole
-     * cone however few drips a tick it throws.
-     * goop-drains-per-cubic-meter-of-slime-placed: Goop's pace is how many drips land a tick, each a layer
+     * The places in the cone a stream's drips are thrown along on a tick of
+     * its hold: each drip at its own place, its tilt off the axis and its
+     * turn about it drawn evenly, so a hold scatters its goo over every cell
+     * the cone covers, thicker near the aim line, rather than stacking it on
+     * a fixed fan's few spots. The draw is seeded by the hold's tick, so a
+     * tick throws the same drips wherever the thrower moves.
+     * operator ruling 2026-11-14: the spray scatters each drip and thins, so slick spreads a track, not walls
+     * goop-drains-per-cubic-meter-of-slime-placed: the spray's pace is how many drips land a tick, each a layer
      *
      * @param held         the hold's tick count, 1 on its first tick
      * @param dripsPerTick the drips the stream throws a tick
-     * @return the tick's shares, the whole fan where the stream throws at least as many drips as it holds
+     * @return the tick's places in the cone, one a drip
      */
-    public static List<ConeShare> sharesThrownOn(int held, int dripsPerTick) {
-        List<ConeShare> fan = coneFan();
-        if (dripsPerTick >= fan.size()) {
-            return fan;
-        }
-        int first = Math.floorMod((long) (held - 1) * dripsPerTick, fan.size());
+    public static List<ConeShare> scatteredShares(int held, int dripsPerTick) {
+        RandomSource draw = RandomSource.create(held * SCATTER_SEED_STRIDE);
         List<ConeShare> thrown = new ArrayList<>(dripsPerTick);
         for (int drip = 0; drip < dripsPerTick; drip++) {
-            thrown.add(fan.get((first + drip) % fan.size()));
+            thrown.add(new ConeShare(draw.nextDouble(), draw.nextDouble()));
         }
         return thrown;
     }
