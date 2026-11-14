@@ -120,7 +120,7 @@
   "goo.badge.prism": "Prism",
 
   "goo.ability.yore.rewind": "Rewind",
-  "goo.ability.yore.rewind.description": "Rewinds a mob, freezing it while held, then turning it into a baby or its spawn egg.",
+  "goo.ability.yore.rewind.description": "Takes a mob back one step a cast: an adult into its baby, and a baby, or a mob with no baby, into its spawn egg.",
   "goo.ability.yore.expire": "Expire",
   "goo.ability.yore.expire.description": "Kills the struck mob outright, bosses excepted.",
   "goo.ability.yore.ancient": "Ancient",
@@ -282,7 +282,7 @@
   "goo.ability.kinetic.remote": "Remote",
   "goo.ability.kinetic.remote.description": "You reach blocks and entities from farther away.",
   "goo.ability.typhoon.shulk": "Shulk",
-  "goo.ability.typhoon.shulk.description": "Makes the struck mob levitate.",
+  "goo.ability.typhoon.shulk.description": "Spews a shulker bullet at a mob, levitating it on the hit.",
   "goo.ability.typhoon.float": "Float",
   "goo.ability.typhoon.float.description": "You fly along your look and strafe keys, fall slowly without damage, and jump higher.",
   "goo.ability.typhoon.pneuma": "Pneuma",
