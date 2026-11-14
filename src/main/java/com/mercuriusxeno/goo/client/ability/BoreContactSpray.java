@@ -125,7 +125,7 @@ public final class BoreContactSpray {
      */
     private static void spitAtContact(ClientLevel level, LocalPlayer player, BoreStep step, double reach) {
         Minecraft mc = Minecraft.getInstance();
-        CameraEye.Sight sight = CameraEye.of(mc, player, 1f);
+        CameraEye.Sight sight = BoreDrill.aimLineOf(CameraEye.of(mc, player, 1f), player.getY());
         boolean gloveRight = KnifeRainSling.gloveOnTheRight(player);
         Optional<BorePoint> landing = BoreDrill.landingAhead(level, sight, step, gloveRight, reach);
         if (landing.isEmpty()) {

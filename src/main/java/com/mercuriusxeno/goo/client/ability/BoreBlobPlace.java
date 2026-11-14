@@ -150,7 +150,8 @@ public final class BoreBlobPlace {
         }
         ClientAbility ability = BlobRest.selectedAbility(caster);
         double reach = ability == null ? 0 : ability.delivery().reachingTo(caster.blockInteractionRange()).range();
-        Vec3 point = BoreDrill.pointAhead(mc.level, sight, bore, KnifeRainSling.gloveOnTheRight(caster), reach);
+        Vec3 point = BoreDrill.pointAhead(mc.level, BoreDrill.aimLineOf(sight, caster.getY()), bore,
+                KnifeRainSling.gloveOnTheRight(caster), reach);
         return placeFor(sight.eye(), sight.look(), point, rest, bore.shape());
     }
 

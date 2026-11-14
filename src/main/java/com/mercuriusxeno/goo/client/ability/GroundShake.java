@@ -396,7 +396,8 @@ public final class GroundShake {
         Level level = player.level();
         // bore-reaches-as-far-as-your-block-reach
         double reach = ability.delivery().reachingTo(player.blockInteractionRange()).range();
-        return boreZoneAlong(sight, bore, KnifeRainSling.gloveOnTheRight(player), reach,
+        return boreZoneAlong(BoreDrill.aimLineOf(sight, player.getY()), bore, KnifeRainSling.gloveOnTheRight(player),
+                reach,
                 cell -> level.getBlockState(cell).isAir(),
                 cell -> level.getBlockState(cell).is(bore.breaks()));
     }
