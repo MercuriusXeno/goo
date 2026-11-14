@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.ArmPoseKind;
+import com.mercuriusxeno.goo.ability.crystal.KnifeRain;
 import com.mercuriusxeno.goo.network.ArmPosePayload;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
@@ -41,7 +42,7 @@ import java.util.Map;
 public final class AbilityPoses {
 
     /** Ticks the wind-up takes to ease the hand across the chest: Knives' full charge. */
-    static final float WIND_UP_TICKS = 30f;
+    static final float WIND_UP_TICKS = KnifeRain.WIND_UP_TICKS;
     /** Ticks the fling takes to sweep the arm out. */
     static final float FLING_OUT_TICKS = 3f;
     /** Ticks the arm holds flung out. */

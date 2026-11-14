@@ -73,6 +73,23 @@ class KnivesChargeTest {
         }
 
         @Test
+        void throughTheBackhandTheBlobHoldsTheReachTheWindUpGotToWhileTheHandSweepsOut() {
+            AbilityPoses.Posed backhand = new AbilityPoses.Posed(ArmPoseKind.FLING, 0, true, 0.8f);
+
+            for (int age = 0; age <= KNIVES.sweepTicks(); age++) {
+                assertEquals(0.8f, KnivesCharge.floatReachAt(backhand, age), TOLERANCE, "at tick " + age);
+            }
+            assertTrue(AbilityPoses.acrossAt(backhand, KNIVES.sweepTicks()) < 0.8f, "the hand itself sweeps out");
+        }
+
+        @Test
+        void throughTheWindUpTheBlobTravelsWithTheHand() {
+            AbilityPoses.Posed windUp = new AbilityPoses.Posed(ArmPoseKind.WIND_UP, 0, true, 0f);
+
+            assertEquals(AbilityPoses.acrossAt(windUp, 12), KnivesCharge.floatReachAt(windUp, 12), TOLERANCE);
+        }
+
+        @Test
         void aWindUpLetGoFloatsTheBlobNoLonger() {
             assertFalse(KnivesCharge.floatsAt(new AbilityPoses.Posed(ArmPoseKind.WIND_UP, 0, true, 0.5f, true), 1,
                     KNIVES.sweepTicks()));
