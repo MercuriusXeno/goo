@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
@@ -102,7 +103,8 @@ public final class SlimeShellLayer<S extends LivingEntityRenderState, M extends 
         }
         EntityModel<? super S> model = (EntityModel<? super S>) MobCoatLayer.surface(shell.shown(state), body,
                 getParentModel());
-        int rgb = GooSubmitter.fluidTint(worn.gooType()) & RGB_MASK;
+        // the goo's own color: a fluid tint answers white over a goo whose fluid texture carries its color
+        int rgb = ClientGooTypes.color(worn.gooType()) & RGB_MASK;
         submitNodeCollector.order(SHELL_ORDER).submitCustomGeometry(poseStack, GooSubmitter.translucentOn(WHITE),
                 (pose, buffer) -> {
                     PoseStack modelPose = new PoseStack();
