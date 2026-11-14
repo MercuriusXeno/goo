@@ -75,7 +75,7 @@ public final class GooStreamHandler {
      * Launch speed per block of the stream's range: a mote slowing by a tenth
      * each tick carries ten times its launch speed, so it reaches the cone's end.
      */
-    private static final double LAUNCH_SPEED_PER_BLOCK = 0.1;
+    public static final double LAUNCH_SPEED_PER_BLOCK = 0.1;
     /** Below this squared gap the crosshair sits on the hand and the look aims instead. */
     private static final double MIN_AIM_LENGTH_SQUARED = 1e-6;
     /** Rays the spray casts each tick to find the floors it lands on. */
@@ -335,7 +335,7 @@ public final class GooStreamHandler {
             // the living in its cone
             runBlockPass(cast, apex, axis, delivery, ability, held, true);
             boolean strikesLiving = throwDrips(player, apex, axis, ability);
-            sprayParticles(player, apex, axis, delivery, 0, travelOf(player), strikesLiving);
+            sprayParticles(player, apex, axis, delivery, 0, strikesLiving);
             return List.of();
         }
         // decay-gnats-degrade-each-block-once: what the stream strikes follows the look; only its motes
@@ -348,18 +348,19 @@ public final class GooStreamHandler {
             return SwarmStrike.reached(player, apex, struck, held);
         }
         sprayParticles(player, apex, aim, delivery,
-                crosshairSpeed(delivery.range(), apex.distanceTo(crosshair.getLocation())), travelOf(player));
+                crosshairSpeed(delivery.range(), apex.distanceTo(crosshair.getLocation())));
         return struck;
     }
 
     /**
      * Throws a stream's drips into flight from the cone's apex, one along
-     * each share of the cone's fan at the delivery's throw speed, carrying
-     * the caster's travel; each lands what the program's landing step lays
+     * each share of the cone's fan at the delivery's throw speed alone;
+     * each lands what the program's landing step lays
      * where its arc strikes, during the hold or after it, and a drip of a
      * program striking the living ends on the first living thing it meets.
      * goop-and-slick-coat-lands-where-each-drip-arc-strikes
      * goop-wobbles-a-mob-its-drip-strikes
+     * goop-and-slick-drips-add-none-of-the-players-movement
      *
      * @param player  the spraying player
      * @param apex    the cone's apex
@@ -376,11 +377,10 @@ public final class GooStreamHandler {
         DripFlights.Thrower thrower = new DripFlights.Thrower(player.level().dimension(), player.getUUID(),
                 player.getId(), ability, landing, strikesLiving);
         Delivery delivery = ability.delivery();
-        Vec3 travel = travelOf(player);
         DripFlights flights = GooServerState.of(player.level().getServer()).dripFlights();
         for (CoatRay.ConeShare share : CoatRay.coneFan()) {
             flights.launch(new DripFlights.Flight(thrower, apex, DripArc.launch(axis, delivery.coneDegrees(), share,
-                    delivery.throwSpeed(), travel)));
+                    delivery.throwSpeed())));
         }
         return strikesLiving;
     }
@@ -419,7 +419,7 @@ public final class GooStreamHandler {
         }
         ServerLevel level = player.level();
         return DripArc.flyToItsEnd(apex, DripArc.launch(axis, delivery.coneDegrees(), CoatRay.coneFan().getFirst(),
-                delivery.throwSpeed(), travelOf(player)), CoatRay.clipping(level), DripFlights.airspaceOf(level))
+                delivery.throwSpeed()), CoatRay.clipping(level), DripFlights.airspaceOf(level))
                 .position();
     }
 
@@ -687,11 +687,9 @@ public final class GooStreamHandler {
      * @param axis     the cone's axis
      * @param delivery the stream delivery
      * @param speed    each mote's launch speed along its heading, blocks per tick
-     * @param travel   the spraying player's travel velocity, blocks per tick
      */
-    static void sprayParticles(ServerPlayer player, Vec3 apex, Vec3 axis, Delivery delivery, double speed,
-                               Vec3 travel) {
-        sprayParticles(player, apex, axis, delivery, speed, travel, false);
+    static void sprayParticles(ServerPlayer player, Vec3 apex, Vec3 axis, Delivery delivery, double speed) {
+        sprayParticles(player, apex, axis, delivery, speed, false);
     }
 
     /**
@@ -704,13 +702,12 @@ public final class GooStreamHandler {
      * @param axis          the cone's axis
      * @param delivery      the stream delivery
      * @param speed         each mote's launch speed along its heading, blocks per tick
-     * @param travel        the spraying player's travel velocity, blocks per tick
      * @param strikesLiving whether the stream's drips end on the living they meet
      */
     private static void sprayParticles(ServerPlayer player, Vec3 apex, Vec3 axis, Delivery delivery, double speed,
-                                       Vec3 travel, boolean strikesLiving) {
+                                       boolean strikesLiving) {
         delivery.particle().ifPresent(particle -> EntityVisuals.sendToWatchers(player, new StreamMotesPayload(
-                player.getId(), apex, axis, particle, delivery.coneDegrees(), speed, travel,
+                player.getId(), apex, axis, particle, delivery.coneDegrees(), speed,
                 delivery.throwSpeed(), strikesLiving)));
     }
 
@@ -721,7 +718,7 @@ public final class GooStreamHandler {
      * @param reach how far the mote flies, in blocks
      * @return the launch speed, blocks per tick
      */
-    static double restingSpeed(double reach) {
+    public static double restingSpeed(double reach) {
         return reach * LAUNCH_SPEED_PER_BLOCK;
     }
 
@@ -740,7 +737,7 @@ public final class GooStreamHandler {
 
     /**
      * One mote's launch velocity for its share of the cone: its heading
-     * inside the cone at the payload's speed, carrying the caster's travel.
+     * inside the cone at the payload's speed.
      *
      * @param motes the tick's motes
      * @param share the mote's place in the cone
@@ -748,34 +745,19 @@ public final class GooStreamHandler {
      */
     public static Vec3 moteLaunch(StreamMotesPayload motes, CoatRay.ConeShare share) {
         return moteLaunch(StreamCone.launchDirection(motes.axis(), motes.coneDegrees(), share.tilt(), share.turn()),
-                motes.speed(), motes.travel());
+                motes.speed());
     }
 
     /**
      * A glove mote's launch velocity: its heading inside the cone at its
-     * launch speed, plus the travel velocity of the player spraying it, so
-     * the spray moves with a walking, sprinting, falling or flying player.
+     * launch speed alone, however the player spraying it moves.
      * glove-stream-motes-carry-the-players-travel-velocity
      *
      * @param heading the mote's unit heading inside the cone
      * @param speed   the mote's launch speed, blocks per tick
-     * @param travel  the spraying player's travel velocity, blocks per tick
      * @return the launch velocity, blocks per tick
      */
-    public static Vec3 moteLaunch(Vec3 heading, double speed, Vec3 travel) {
-        return heading.scale(speed).add(travel);
-    }
-
-
-    /**
-     * The spraying player's travel velocity: the known movement, since the
-     * server moves a player by its client's packets and leaves its delta
-     * movement at rest (decision diagnose-then-restore-razor-harm).
-     *
-     * @param player the spraying player
-     * @return the travel velocity, blocks per tick
-     */
-    static Vec3 travelOf(ServerPlayer player) {
-        return player.getKnownMovement();
+    public static Vec3 moteLaunch(Vec3 heading, double speed) {
+        return heading.scale(speed);
     }
 }

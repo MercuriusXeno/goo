@@ -7,19 +7,23 @@ import java.util.Optional;
 
 /**
  * One Goop or Slick spray drip's flight: a drip holds a position and a
- * velocity, and each tick it moves by its velocity while gravity bends the
- * velocity, ending on the first block face its tick's segment meets. It has
+ * velocity, and each tick gravity and drag bend the velocity as they bend a
+ * thrown projectile's and the drip moves by it, ending on the first block
+ * face its tick's segment meets. It has
  * no range: it flies until it strikes, however far that is, and ends
  * unstruck only where it leaves the airspace the world holds, past the
  * build height or into chunks not loaded. The server's drips and the drawn
  * drips step through this one arc.
  * goop-and-slick-coat-lands-where-each-drip-arc-strikes
  * goop-and-slick-throw-keeps-todays-level-reach
+ * drips-fly-under-thrown-projectile-gravity-and-drag
  */
 public final class DripArc {
 
-    /** The pull gravity puts on a drip's velocity each tick, blocks per tick per tick. */
-    public static final double GRAVITY = 0.02;
+    /** The pull gravity puts on a drip's velocity each tick, a thrown projectile's, blocks per tick per tick. */
+    public static final double GRAVITY = 0.03;
+    /** The share of a drip's velocity air keeps each tick, a thrown projectile's inertia out of water. */
+    public static final double DRAG = 0.99F;
     private static final Vec3 PULL = new Vec3(0, -GRAVITY, 0);
     /** The living near a drip that strikes no living thing: none. */
     public static final LivingNear NO_LIVING = (from, to) -> List.of();
@@ -86,18 +90,17 @@ public final class DripArc {
 
     /**
      * A drip's launch velocity for its share of the cone: its heading inside
-     * the cone at the throw speed, plus the caster's travel.
+     * the cone at the throw speed, wherever and however the caster moves.
+     * goop-and-slick-drips-add-none-of-the-players-movement
      *
      * @param axis        the cone's axis
      * @param coneDegrees the cone, apex to rim, in degrees
      * @param share       the drip's place in the cone
      * @param throwSpeed  the delivery's throw speed, blocks per tick
-     * @param travel      the caster's travel velocity, blocks per tick
      * @return the launch velocity, blocks per tick
      */
-    public static Vec3 launch(Vec3 axis, double coneDegrees, CoatRay.ConeShare share, double throwSpeed,
-                              Vec3 travel) {
-        return StreamCone.launchDirection(axis, coneDegrees, share.tilt(), share.turn()).scale(throwSpeed).add(travel);
+    public static Vec3 launch(Vec3 axis, double coneDegrees, CoatRay.ConeShare share, double throwSpeed) {
+        return StreamCone.launchDirection(axis, coneDegrees, share.tilt(), share.turn()).scale(throwSpeed);
     }
 
     /**
@@ -114,19 +117,23 @@ public final class DripArc {
     }
 
     /**
-     * One tick of a drip's flight that may end on a living thing: of the
-     * living boxes and the blocks the tick's segment meets, the nearest ends it.
+     * One tick of a drip's flight that may end on a living thing: gravity
+     * pulls the velocity, air drags it, and the drip moves by what is left,
+     * the order vanilla's ThrowableProjectile ticks in; of the living boxes
+     * and the blocks the tick's segment meets, the nearest ends it.
      * goop-wobbles-a-mob-its-drip-strikes
+     * drips-fly-under-thrown-projectile-gravity-and-drag
      *
      * @param position where the drip stands
-     * @param velocity its velocity, blocks per tick
+     * @param launched its velocity before the tick, blocks per tick
      * @param clip     the blocks its segment may meet
      * @param living   the living its segment may meet
      * @param airspace where it may fly
      * @return where the tick leaves it
      */
-    public static Step step(Vec3 position, Vec3 velocity, CoatRay.BlockClip clip, LivingNear living,
+    public static Step step(Vec3 position, Vec3 launched, CoatRay.BlockClip clip, LivingNear living,
                             Airspace airspace) {
+        Vec3 velocity = launched.add(PULL).scale(DRAG);
         Vec3 next = position.add(velocity);
         // the airspace is read before the clip, so no segment reaches into a chunk the world holds unloaded
         if (!airspace.holds(next)) {
@@ -140,7 +147,7 @@ public final class DripArc {
             return onTheLiving.get();
         }
         return strike.map(struck -> new Step(struck.point(), velocity, strike, Optional.empty(), false))
-                .orElseGet(() -> new Step(next, velocity.add(PULL), Optional.empty(), Optional.empty(), false));
+                .orElseGet(() -> new Step(next, velocity, Optional.empty(), Optional.empty(), false));
     }
 
     /**

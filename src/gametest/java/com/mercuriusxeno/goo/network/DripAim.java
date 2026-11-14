@@ -32,9 +32,8 @@ final class DripAim {
      * @param streamer   the streaming player
      * @param target     the point, in world space
      * @param throwSpeed the stream's throw speed, blocks per tick
-     * @param travel     the streamer's travel velocity, which the drip carries, blocks per tick
      */
-    static void at(ServerPlayer streamer, Vec3 target, double throwSpeed, Vec3 travel) {
+    static void at(ServerPlayer streamer, Vec3 target, double throwSpeed) {
         streamer.lookAt(EntityAnchorArgument.Anchor.EYES, target);
         Vec3 eye = streamer.getEyePosition();
         double reach = target.subtract(eye).horizontalDistance();
@@ -42,7 +41,7 @@ final class DripAim {
         float down = STEEPEST_DOWN;
         for (int halving = 0; halving < AIM_HALVINGS; halving++) {
             float pitch = (up + down) / 2;
-            Vec3 launch = Vec3.directionFromRotation(pitch, streamer.getYRot()).scale(throwSpeed).add(travel);
+            Vec3 launch = Vec3.directionFromRotation(pitch, streamer.getYRot()).scale(throwSpeed);
             if (heightAt(eye, launch, reach) > target.y) {
                 up = pitch;
             } else {

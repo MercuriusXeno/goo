@@ -7,14 +7,13 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * One Goop or Slick spray drip's flight: it flies the arc the server's drip
- * flies, from its launch under the same gravity, and splats where its own
+ * flies, from its launch under the same gravity and drag, and splats where its own
  * segment meets a block; only its color is rolled.
  * goop-and-slick-spray-throws-goo-drips-that-splat
  * goop-and-slick-coat-lands-where-each-drip-arc-strikes
- * glove-stream-motes-carry-the-players-travel-velocity
  *
  * @param rgb      the drip's color
- * @param velocity the drip's velocity at launch, blocks per tick, the caster's travel carried in it
+ * @param velocity the drip's velocity at launch, blocks per tick
  */
 public record SprayDrip(int rgb, Vec3 velocity) {
 
