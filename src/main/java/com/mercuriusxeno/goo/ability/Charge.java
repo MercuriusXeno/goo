@@ -13,7 +13,7 @@ import net.minecraft.network.codec.StreamCodec;
  * leave the hand. A release with no charge slings the fewest flecks across
  * the narrowest cone, and both ramp linearly to the full charge's.
  * decision nova-ring-grows-with-the-hold
- * decision shards-sling-then-morph-to-flechettes
+ * decision knives-sling-then-morph-to-flechettes
  * decision knives-cone-five-to-forty-five-and-three-to-twenty-seven-knives
  *
  * @param maxTicks         the ticks of hold a full charge takes, 0 for a delivery that does not charge
