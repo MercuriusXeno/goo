@@ -16,11 +16,11 @@ import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
 import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlock;
 import com.mercuriusxeno.goo.block.gate.EndGateBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlock;
-import com.mercuriusxeno.goo.block.outsider.DimensionDoorBlock;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlock;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
 import com.mercuriusxeno.goo.block.statue.StatueBlock;
 import com.mercuriusxeno.goo.block.vat.VatBlock;
+import com.mercuriusxeno.goo.block.zone.DimensionDoorBlock;
 import com.mercuriusxeno.goo.fluid.GooFluidBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -227,7 +227,7 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.ofFullCopy(Blocks.END_PORTAL).noLootTable());
 
     /**
-     * Voidstone: the unbreakable block at the center of each Outsider room,
+     * Voidstone: the unbreakable block at the center of each Zone room,
      * the one block there nothing can take away (decision
      * outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform).
      */
@@ -236,7 +236,7 @@ public class GooBlocks {
                     .noLootTable().pushReaction(PushReaction.BLOCK).lightLevel(state -> VOIDSTONE_GLOW));
 
     /**
-     * The dimension door standing in each Outsider room, which leads back
+     * The dimension door standing in each Zone room, which leads back
      * where the player came in from (decision
      * outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform).
      */

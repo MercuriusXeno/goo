@@ -53,13 +53,13 @@ class AbilitySplatTest {
     }
 
     /**
-     * Razor's cloud lingers through a field effect and never explodes, so its
+     * Shatter's cloud lingers through a field effect and never explodes, so its
      * burnout, the prism dome, plays at the splat.
      * decision diagnose-then-restore-the-razor-dome
      */
     @Test
     void aLingeringCloudThatNeverExplodesAnnouncesItsBurnoutBeforeItsProgramRuns() {
-        RecordingSplat splat = new RecordingSplat(AbilityImpact.explodesLater(AbilityJson.decode("crystal_cloud")));
+        RecordingSplat splat = new RecordingSplat(AbilityImpact.explodesLater(AbilityJson.decode("crystal_shatter")));
         AbilitySplat.resolve(splat);
         assertEquals(List.of(ANNOUNCE, RUN), splat.calls());
     }
@@ -85,7 +85,7 @@ class AbilitySplatTest {
 
     @Test
     void anotherCrystalLandingStillTurnsIntoNoPrism() {
-        assertFalse(AbilityImpact.turnsIntoAPrism(AbilityJson.decode("crystal_cloud")));
+        assertFalse(AbilityImpact.turnsIntoAPrism(AbilityJson.decode("crystal_shatter")));
     }
 
     @Test

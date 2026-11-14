@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.network;
 
-import com.mercuriusxeno.goo.ability.program.OutsiderStep;
+import com.mercuriusxeno.goo.ability.program.ZoneStep;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.item.GooFormat;
 import java.util.Optional;
@@ -50,7 +50,7 @@ public record AffordedCount(long count, boolean timed) {
 
     /**
      * Reckons what the holdings afford of an ability beside the upkeep already standing on its
-     * type and the Outsider room the player stands in: in the room, Outsider counts the seconds
+     * type and the Zone room the player stands in: in the room, Zone counts the seconds
      * the holdings sustain its growth, the price rising as the room widens.
      * time-counts-net-standing-upkeep
      * decision outsider-panel-reads-the-seconds-the-void-affords
@@ -59,28 +59,28 @@ public record AffordedCount(long count, boolean timed) {
      * @param holdings    the mB the player holds of the ability's type across the inventory
      * @param reagentSets the whole sets of the ability's consumed items the inventory holds
      * @param standing    the upkeep already standing on the ability's type
-     * @param roomExtent  the extent of the Outsider room the player stands in, empty outside the pocket
+     * @param roomExtent  the extent of the Zone room the player stands in, empty outside the pocket
      * @return the count, empty for a dynamically priced ability
      */
     public static Optional<AffordedCount> reckon(ClientAbility ability, int holdings, int reagentSets,
                                                  StandingUpkeep standing, OptionalDouble roomExtent) {
-        return ability.outsider().map(step -> outsiderCount(step, holdings, standing, roomExtent))
+        return ability.zone().map(step -> zoneCount(step, holdings, standing, roomExtent))
                 .or(() -> fixedPriceCount(ability, holdings, reagentSets, standing));
     }
 
     /**
-     * What the holdings afford of Outsider: in its room, the ticks they sustain the room's growth;
+     * What the holdings afford of Zone: in its room, the ticks they sustain the room's growth;
      * outside the pocket, the trips in, each priced at the entry as a one-shot.
      * decision outsider-panel-reads-the-seconds-the-void-affords
      * decision outsider-reads-its-entry-as-uses-outside-the-pocket
      *
-     * @param step       the ability's Outsider step
+     * @param step       the ability's Zone step
      * @param holdings   the void the player holds (mB)
      * @param standing   the upkeep already standing on void
-     * @param roomExtent the extent of the Outsider room the player stands in, empty outside the pocket
+     * @param roomExtent the extent of the Zone room the player stands in, empty outside the pocket
      * @return the count
      */
-    private static AffordedCount outsiderCount(OutsiderStep step, int holdings, StandingUpkeep standing,
+    private static AffordedCount zoneCount(ZoneStep step, int holdings, StandingUpkeep standing,
                                                OptionalDouble roomExtent) {
         if (roomExtent.isPresent()) {
             return new AffordedCount(step.growthTicksAfforded(roomExtent.getAsDouble(), holdings, standing.perTick()),

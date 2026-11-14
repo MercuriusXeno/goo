@@ -65,7 +65,7 @@ import java.util.Optional;
  * samples that target at its own screen point, so looking into one portal
  * shows the other side as though it were right there. A partner beyond what
  * the client holds draws no view, and the portal keeps its idle face. The
- * edges of the Outsider room the player stands in draw no view: the room's
+ * edges of the Zone room the player stands in draw no view: the room's
  * copies tile out past them, drawn by RoomCopyRenderer.
  * portals-link-by-looking-through-portal-vision
  * decision room-tiles-to-render-distance-held-to-the-picture

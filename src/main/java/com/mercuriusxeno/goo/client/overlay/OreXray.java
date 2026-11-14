@@ -18,7 +18,7 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import java.util.List;
 
 /**
- * Shows the gem ore Glitter revealed through walls: each ore block drawn as
+ * Shows the gem ore Glimmer revealed through walls: each ore block drawn as
  * itself, its own texture, a little translucent and fully lit, with a soft
  * crystal glow about it, fading in as the front reaches it and away at its
  * life's end, through the pipelines Sight shows fungus by.

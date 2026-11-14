@@ -4,17 +4,15 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityArea;
-import com.mercuriusxeno.goo.ability.AbilityJson;
-import com.mercuriusxeno.goo.ability.outsider.RoomExtent;
-import com.mercuriusxeno.goo.ability.outsider.SustainedGrowth;
-import com.mercuriusxeno.goo.item.GooFormat;
-import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
+import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.ArmPose;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
+import com.mercuriusxeno.goo.ability.zone.RoomExtent;
+import com.mercuriusxeno.goo.ability.zone.SustainedGrowth;
 import com.mercuriusxeno.goo.client.hud.CrosshairFuelPanel.AbilityIcon;
 import com.mercuriusxeno.goo.client.hud.CrosshairFuelPanel.AbilityName;
 import com.mercuriusxeno.goo.client.hud.CrosshairFuelPanel.Count;
@@ -24,6 +22,8 @@ import com.mercuriusxeno.goo.client.hud.CrosshairFuelPanel.TypeIcon;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.AffordedCount;
 import com.mercuriusxeno.goo.client.network.StandingUpkeep;
+import com.mercuriusxeno.goo.item.GooFormat;
+import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Nested;
@@ -134,18 +134,18 @@ class CrosshairFuelPanelTest {
     }
 
     /**
-     * In the pocket, Outsider's row reads the seconds the void affords the room's growth
+     * In the pocket, Zone's row reads the seconds the void affords the room's growth
      * (decision outsider-panel-reads-the-seconds-the-void-affords).
      */
     @Nested
-    class OutsiderRow {
+    class ZoneRow {
 
         private static final int HOLDING = 1500;
         private static final String NOT_READ = "unread";
 
-        private final ClientAbility outsider = ClientAbility.fromEntry(AbilitySyncPayload.gloveEntries(GooTypes.VOID,
-                List.of(AbilityJson.decode("void_outsider"))).getFirst());
-        private final JsonObject step = JsonParser.parseString(AbilityJson.read("void_outsider")).getAsJsonObject()
+        private final ClientAbility zone = ClientAbility.fromEntry(AbilitySyncPayload.gloveEntries(GooTypes.VOID,
+                List.of(AbilityJson.decode("void_zone"))).getFirst());
+        private final JsonObject step = JsonParser.parseString(AbilityJson.read("void_zone")).getAsJsonObject()
                 .getAsJsonArray("behaviors").get(0).getAsJsonObject();
 
         @Test
@@ -153,10 +153,10 @@ class CrosshairFuelPanelTest {
             long ticks = SustainedGrowth.ticksAfforded(RoomExtent.LAID, HOLDING, 0,
                     step.get("cell_cost").getAsInt(), step.get("distance_cost").getAsInt(),
                     step.get("ring_ticks").getAsInt());
-            List<FuelCell> expected = List.of(new TypeIcon(GooTypes.VOID), new AbilityName(outsider.displayName()),
-                    new AbilityIcon(outsider.iconTexture()), new Count(GooFormat.formatDuration(ticks)));
+            List<FuelCell> expected = List.of(new TypeIcon(GooTypes.VOID), new AbilityName(zone.displayName()),
+                    new AbilityIcon(zone.iconTexture()), new Count(GooFormat.formatDuration(ticks)));
 
-            assertEquals(expected, CrosshairFuelPanel.rowCells(GooTypes.VOID, outsider, HOLDING, Integer.MAX_VALUE,
+            assertEquals(expected, CrosshairFuelPanel.rowCells(GooTypes.VOID, zone, HOLDING, Integer.MAX_VALUE,
                     StandingUpkeep.NONE, OptionalDouble.of(RoomExtent.LAID), NOT_READ));
         }
 

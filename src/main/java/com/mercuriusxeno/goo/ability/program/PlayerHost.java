@@ -1,9 +1,9 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.outsider.ConjuredDoors;
-import com.mercuriusxeno.goo.ability.outsider.OutsiderRooms;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
+import com.mercuriusxeno.goo.ability.zone.ConjuredDoors;
+import com.mercuriusxeno.goo.ability.zone.ZoneRooms;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.HoldMarks;
 import com.mercuriusxeno.goo.registry.GooServerState;
@@ -40,7 +40,7 @@ import java.util.function.Consumer;
  */
 public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<ChannelAim> channelAim, float charge,
                          PlacementPrice placementPrice)
-        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, FrostHost, OutsiderHost {
+        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, FrostHost, ZoneHost {
 
     /** The share of the player's height Nova emanates from. */
     private static final double HALF_HEIGHT = 0.5;
@@ -262,14 +262,14 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
 
     @Override
     public boolean standsInPocket() {
-        return level.dimension() == OutsiderRooms.POCKET;
+        return level.dimension() == ZoneRooms.POCKET;
     }
 
-    /** Carries the player into their Outsider room (decision
+    /** Carries the player into their Zone room (decision
      * outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform). */
     @Override
     public void showCharge(int held, int charge) {
-        OutsiderRooms.showCharge(player, held, charge);
+        ZoneRooms.showCharge(player, held, charge);
     }
 
     /** Conjures the door before the player (decision
@@ -281,19 +281,19 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
 
     @Override
     public void enterPocket(int cost) {
-        if (GooSourceScanner.hasEnough(player, GooTypes.VOID, cost) && OutsiderRooms.enter(player)) {
+        if (GooSourceScanner.hasEnough(player, GooTypes.VOID, cost) && ZoneRooms.enter(player)) {
             GooSourceScanner.deplete(player, GooTypes.VOID, cost);
         }
     }
 
-    /** Grows the player's Outsider room on all sides at once (decision
+    /** Grows the player's Zone room on all sides at once (decision
      * outsider-room-grows-fractionally-on-all-sides-at-once). */
     @Override
     public void feedPlatform(int ringTicks, int base, int perDistance) {
-        int feed = OutsiderRooms.feedOf(player, ringTicks, base, perDistance);
+        int feed = ZoneRooms.feedOf(player, ringTicks, base, perDistance);
         if (GooSourceScanner.hasEnough(player, GooTypes.VOID, feed)) {
             GooSourceScanner.deplete(player, GooTypes.VOID, feed);
-            OutsiderRooms.feedPlatform(player, feed, base, perDistance);
+            ZoneRooms.feedPlatform(player, feed, base, perDistance);
         }
     }
 

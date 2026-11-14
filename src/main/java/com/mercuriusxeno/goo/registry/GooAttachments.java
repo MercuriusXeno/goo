@@ -22,16 +22,16 @@ import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
 import com.mercuriusxeno.goo.ability.reserve.Reserve;
 import com.mercuriusxeno.goo.ability.rewind.Rewinding;
 import com.mercuriusxeno.goo.ability.root.Rooted;
+import com.mercuriusxeno.goo.ability.seal.Elude;
+import com.mercuriusxeno.goo.ability.seal.SealCurse;
 import com.mercuriusxeno.goo.ability.spray.Spored;
 import com.mercuriusxeno.goo.ability.typhoon.Airborn;
 import com.mercuriusxeno.goo.ability.typhoon.Breath;
 import com.mercuriusxeno.goo.ability.typhoon.Floating;
 import com.mercuriusxeno.goo.ability.weird.Wobbled;
 import com.mercuriusxeno.goo.ability.xeno.Eldritch;
-import com.mercuriusxeno.goo.ability.zone.Elude;
-import com.mercuriusxeno.goo.ability.zone.ZoneCurse;
 import com.mercuriusxeno.goo.ability.zoo.Downed;
-import com.mercuriusxeno.goo.ability.zoo.Leader;
+import com.mercuriusxeno.goo.ability.zoo.Kin;
 import com.mercuriusxeno.goo.ability.zoo.Rallied;
 import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.data.KnownItems;
@@ -287,14 +287,14 @@ public final class GooAttachments {
             ATTACHMENT_TYPES.register("grab_hold", () -> AttachmentType.builder(() -> GrabHold.NONE).build());
 
     /**
-     * The warp curse Zone leaves on a mob, saved with the mob while
+     * The warp curse Seal leaves on a mob, saved with the mob while
      * it stands.
      * zone-curses-with-ender-shimmer
      */
-    public static final Supplier<AttachmentType<ZoneCurse>> ZONE_CURSE =
-            ATTACHMENT_TYPES.register("zone_curse",
-                    () -> AttachmentType.builder(() -> ZoneCurse.NONE)
-                            .serialize(ZoneCurse.CODEC, ZoneCurse::stands)
+    public static final Supplier<AttachmentType<SealCurse>> SEAL_CURSE =
+            ATTACHMENT_TYPES.register("seal_curse",
+                    () -> AttachmentType.builder(() -> SealCurse.NONE)
+                            .serialize(SealCurse.CODEC, SealCurse::stands)
                             .build());
 
     /**
@@ -449,15 +449,15 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The Leader a player holds, saved while it stands and synced to the
+     * The Kin a player holds, saved while it stands and synced to the
      * owning client, which outlines the mobs it senses.
      * leader-is-zoos-brew-ability
      */
-    public static final Supplier<AttachmentType<Leader>> LEADER =
-            ATTACHMENT_TYPES.register("leader",
-                    () -> AttachmentType.builder(() -> Leader.NONE)
-                            .serialize(Leader.CODEC, Leader::stands)
-                            .sync(GooAttachments::syncsToOwner, Leader.STREAM_CODEC)
+    public static final Supplier<AttachmentType<Kin>> KIN =
+            ATTACHMENT_TYPES.register("kin",
+                    () -> AttachmentType.builder(() -> Kin.NONE)
+                            .serialize(Kin.CODEC, Kin::stands)
+                            .sync(GooAttachments::syncsToOwner, Kin.STREAM_CODEC)
                             .build());
 
     /**

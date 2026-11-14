@@ -20,7 +20,7 @@ import net.minecraft.world.entity.Entity;
  * Draws a pseudo-item entity as a camera-facing textured disc, bobbing and
  * spinning like a dropped item and lit some levels above its surroundings,
  * so it reads round from every side: the compression sphere a black hole
- * leaves, and the feed Jelly's Feed lays. Each entity names its own texture,
+ * leaves, and the nectar Jelly's Nectar lays. Each entity names its own texture,
  * so one renderer draws a compression sphere's black or green core.
  * large-blast-gathers-its-mined-drops-into-a-green-cored-sphere
  *

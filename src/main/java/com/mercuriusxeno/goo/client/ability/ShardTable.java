@@ -4,7 +4,7 @@ import org.joml.Vector3f;
 import java.util.Random;
 
 /**
- * One crystal cloud's shard layout, drawn from a seed: where each shard sits
+ * One Shatter cloud's shard layout, drawn from a seed: where each shard sits
  * in the unit sphere, how it lies, its shape and size, and how it spins
  * (decision cloud-seed-per-client-ephemeral).
  */

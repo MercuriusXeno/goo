@@ -25,7 +25,7 @@ import java.util.stream.Stream;
  * target is the entity the goo hit, so the metal Dart is one
  * {@code damage amount=8 source=magic} step. The metal trap's impale is
  * {@code damage amount=6 source=stalagmite knockback=false}, pinning the
- * target where the spike caught it; the crystal cloud's shred is
+ * target where the spike caught it; the Shatter cloud's shred is
  * {@code damage amount=1 source=cactus invulnerable_ticks=1}, leaving the
  * target open to the next shred a tick later, beside a crit particles
  * step that shows each shred land. The step clears the

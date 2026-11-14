@@ -123,7 +123,7 @@ public final class GloveRadialScreen extends Screen {
     }
 
     /**
-     * The extent of the Outsider room the local player stands in, which Outsider's petal reads its rate and
+     * The extent of the Zone room the local player stands in, which Zone's petal reads its rate and
      * time from.
      * decision outsider-petal-reads-rate-and-time-in-the-room
      *
