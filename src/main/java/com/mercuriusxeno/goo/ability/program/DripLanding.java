@@ -32,6 +32,17 @@ public interface DripLanding {
     void feed(ChannelHost host, BlockPos cell);
 
     /**
+     * Whether the stream throws its drips faster the faster its caster
+     * moves, laying the same goo per block they cover.
+     * slick-resolves-faster-by-speed-over-unadjusted-speed
+     *
+     * @return true for a landing whose drips come faster with speed
+     */
+    default boolean throwsFasterBySpeed() {
+        return false;
+    }
+
+    /**
      * The step a program's drips land through, the first where it carries several.
      *
      * @param program the ability's steps
