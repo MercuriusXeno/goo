@@ -391,7 +391,7 @@ public final class LiftedPalmBlob {
         Vec3 source = SpraySource.of(mc.player.getId(), lift.sentGlove(), partial).subtract(camera.position());
         PalmBlobHop.Pose pose = lift.poseAt(now);
         return Optional.of(new HandLift(pose.share(), HandPassView.toHandPass(source, camera.rotation(),
-                camera.getFov()), drawnShapeAt(pose, now), pose.stand()));
+                camera.getFov(), HandPassView.frameBob(mc)), drawnShapeAt(pose, now), pose.stand()));
     }
 
     /**
@@ -421,7 +421,8 @@ public final class LiftedPalmBlob {
         Vec3 drawn = GloveSpecialRenderer.getLastGooCenterCamRel();
         if (caster == mc.player && mc.options.getCameraType().isFirstPerson() && drawn != null) {
             Camera camera = mc.gameRenderer.getMainCamera();
-            return camera.position().add(HandPassView.fromHandPass(drawn, camera.rotation(), camera.getFov()));
+            return camera.position().add(HandPassView.fromHandPass(drawn, camera.rotation(), camera.getFov(),
+                    HandPassView.frameBob(mc)));
         }
         return KnivesCharge.handAt(caster, KnifeRainSling.gloveOnTheRight(caster), 0f, partialTick);
     }

@@ -25,14 +25,13 @@ import org.jspecify.annotations.NonNull;
  * @param particle    the stream's particle id
  * @param coneDegrees the cone the motes fan across, apex to rim, in degrees
  * @param speed       each mote's launch speed along its heading, blocks per tick, for motes off the arc
- * @param travel      the caster's travel velocity, blocks per tick, which each mote launches with
  * @param throwSpeed  the speed the stream throws its drips at along the cone's fan, each flying the arc the
  *                    server's drip flies; {@link com.mercuriusxeno.goo.ability.Delivery#NO_THROW_SPEED} for motes
  *                    off the arc
  * @param strikesLiving whether a drawn drip ends on a living thing it meets, as the server's drip does
  */
 public record StreamMotesPayload(int casterId, Vec3 apex, Vec3 axis, Identifier particle, double coneDegrees,
-                                 double speed, Vec3 travel, double throwSpeed, boolean strikesLiving)
+                                 double speed, double throwSpeed, boolean strikesLiving)
         implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
@@ -47,7 +46,6 @@ public record StreamMotesPayload(int casterId, Vec3 apex, Vec3 axis, Identifier 
             Identifier.STREAM_CODEC, StreamMotesPayload::particle,
             ByteBufCodecs.DOUBLE, StreamMotesPayload::coneDegrees,
             ByteBufCodecs.DOUBLE, StreamMotesPayload::speed,
-            Vec3.STREAM_CODEC, StreamMotesPayload::travel,
             ByteBufCodecs.DOUBLE, StreamMotesPayload::throwSpeed,
             ByteBufCodecs.BOOL, StreamMotesPayload::strikesLiving,
             StreamMotesPayload::new);
