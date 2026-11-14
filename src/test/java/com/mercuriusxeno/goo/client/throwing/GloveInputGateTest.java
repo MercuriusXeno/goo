@@ -343,6 +343,62 @@ class GloveInputGateTest {
         }
     }
 
+    /**
+     * The attack key cancels a charge: nothing is sent at the cancel or at the
+     * later release, and the use key's repeats while still held arm nothing; a
+     * channeled press stays armed through it
+     * (decision abilities-not-channeled-charge-and-cancel-on-left-click).
+     */
+    @Nested
+    class TheAttackKeyCancelsACharge {
+
+        @Test
+        void aCancelledChargeSendsNothingAtTheCancelOrTheRelease() {
+            GloveInputGate gate = new GloveInputGate();
+            RecordingActions actions = thrown();
+            gate.arm();
+            for (int tick = 0; tick < LONG_HOLD_TICKS; tick++) {
+                gate.tick(true, actions);
+            }
+
+            assertTrue(gate.cancelCharge(actions), "a charge standing should cancel");
+            gate.arm();
+            gate.tick(true, actions);
+            gate.tick(false, actions);
+
+            assertEquals(0, actions.throwsSent, "the cancel and the release should send nothing");
+            assertFalse(gate.isArmed(), "the cancelled press should stay disarmed");
+            assertEquals(1, actions.poseDrops, "the cancel should let the arm down");
+        }
+
+        @Test
+        void thePressAfterTheReleaseChargesAgain() {
+            GloveInputGate gate = new GloveInputGate();
+            RecordingActions actions = thrown();
+            gate.arm();
+            gate.tick(true, actions);
+            gate.cancelCharge(actions);
+            gate.tick(false, actions);
+
+            gate.arm();
+            gate.tick(true, actions);
+            gate.tick(false, actions);
+
+            assertEquals(1, actions.throwsSent, "a fresh press after the release should throw");
+        }
+
+        @Test
+        void aChanneledPressStaysArmedThroughTheAttackKey() {
+            GloveInputGate gate = new GloveInputGate();
+            RecordingActions actions = new RecordingActions(true, true);
+            gate.arm();
+            gate.tick(true, actions);
+
+            assertFalse(gate.cancelCharge(actions), "a channel should not cancel");
+            assertTrue(gate.isArmed(), "a channel should stay armed");
+        }
+    }
+
     @Test
     void anUnarmedGateIgnoresTheKey() {
         GloveInputGate gate = new GloveInputGate();
