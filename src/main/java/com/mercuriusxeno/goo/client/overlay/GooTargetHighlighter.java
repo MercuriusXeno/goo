@@ -251,7 +251,9 @@ public final class GooTargetHighlighter {
      * @param frame  what the frame draws with
      */
     private static void renderSizedDome(TargetResult target, HighlightFrame frame) {
-        OptionalDouble size = GloveThrowSender.chargedSize(frame.mc().player);
+        // blast-eases-between-stages-at-a-second-each: the spheroid eases while the cast keeps its whole stage
+        OptionalDouble size = GloveThrowSender.drawnChargeRadius(frame.mc().player,
+                frame.mc().getDeltaTracker().getGameTimeDeltaPartialTick(false));
         if (size.isEmpty()) {
             return;
         }
