@@ -222,6 +222,11 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
     }
 
     @Override
+    public double feetY() {
+        return player.getY();
+    }
+
+    @Override
     public boolean gloveOnTheRight() {
         return KnifeRainSling.gloveOnTheRight(player);
     }

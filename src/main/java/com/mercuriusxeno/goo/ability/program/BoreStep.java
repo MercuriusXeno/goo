@@ -108,7 +108,10 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, BoreDrillShape shap
         ChannelHost host = context.hostAs(ChannelHost.class);
         Predicate<BlockPos> breakable = pos -> host.blockIn(pos, breaks);
         host.channelAim().ifPresent(aim -> {
-            BorePick pick = BorePick.of(host.eye(), shape, host.gloveOnTheRight(), aim, host::airAt, breakable);
+            Vec3 origin = aimOrigin(host.eye(), host.feetY());
+            ChannelAim parallel = new ChannelAim(aim.aimPoint().add(origin.subtract(host.eye())), null,
+                    aim.coneDegrees());
+            BorePick pick = BorePick.of(origin, shape, host.gloveOnTheRight(), parallel, host::airAt, breakable);
             host.gradualBreak().progress(pace.ratesByGroup(List.of(pick.blocks())), host, true);
             strikeIn(host, pick.tunnel());
         });
@@ -133,6 +136,20 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, BoreDrillShape shap
     public static List<BlockPos> progressing(Vec3 eye, BoreDrillShape shape, boolean gloveRight, ChannelAim aim,
                                              Predicate<BlockPos> air, Predicate<BlockPos> breakable) {
         return BorePick.of(eye, shape, gloveRight, aim, air, breakable).blocks();
+    }
+
+    /**
+     * Where Bore's aim line starts: one block above the caster's feet, under
+     * the eye, so the line runs parallel to the sight line at the seam of the
+     * two blocks a standing body fills, and looking level cuts the 1 by 2 the
+     * caster walks into.
+     *
+     * @param eye   the caster's eye
+     * @param feetY the height of the caster's feet
+     * @return the aim line's start
+     */
+    public static Vec3 aimOrigin(Vec3 eye, double feetY) {
+        return new Vec3(eye.x, feetY + 1, eye.z);
     }
 
     /**

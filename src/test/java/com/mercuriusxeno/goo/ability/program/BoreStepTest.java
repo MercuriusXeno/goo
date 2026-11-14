@@ -68,6 +68,8 @@ class BoreStepTest {
         when(host.kind()).thenReturn(HostKind.PLAYER);
         when(host.channelAim()).thenReturn(Optional.of(new ChannelAim(REACH_END, null, coneDegrees)));
         when(host.eye()).thenReturn(EYE);
+        // a standing player's feet, 1.62 under the eye: Bore's aim line runs one block above them, at y 2
+        when(host.feetY()).thenReturn(EYE.y - 1.62);
         when(host.gradualBreak()).thenReturn(gradualBreak);
         when(host.blockIn(any(), any())).thenAnswer(call -> standing.test(call.getArgument(0)));
         when(host.airAt(any())).thenAnswer(call -> {

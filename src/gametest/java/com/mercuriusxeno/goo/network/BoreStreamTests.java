@@ -53,6 +53,8 @@ public final class BoreStreamTests {
         GooTestFunctions.registerTest(registrar, BORE_BREAKS_FOUR, BoreStreamTests::boreBreaksTheFourBlocksWhereFourMeet);
         GooTestFunctions.registerTest(registrar, BORE_BREAKS_FOUR_AT_A_SLANT,
                 BoreStreamTests::boreBreaksTheFourFloorBlocksWhereFourMeetAtASlant);
+        GooTestFunctions.registerTest(registrar, BORE_CUTS_THE_ONE_BY_TWO,
+                BoreStreamTests::boreCutsTheOneByTwoAheadLookingLevel);
     }
 
 
@@ -84,6 +86,7 @@ public final class BoreStreamTests {
             "The four blocks where four meet should break on one tick, broke on ticks %s (0 stood)";
     private static final String BORE_BREAKS_FOUR = "bore_breaks_the_four_blocks_where_four_meet";
     private static final String BORE_BREAKS_FOUR_AT_A_SLANT = "bore_breaks_the_four_floor_blocks_at_a_slant";
+    private static final String BORE_CUTS_THE_ONE_BY_TWO = "bore_cuts_the_one_by_two_ahead_looking_level";
     /** How far the look tips down at the floor, in degrees. */
     private static final float LOOKING_DOWN_AT_A_SLANT = 45f;
     /** How far the eye stands back from the point it aims at, along the look. */
@@ -252,19 +255,53 @@ public final class BoreStreamTests {
     }
 
     /**
-     * Holds bore from an eye looking east at a point near where four blocks
-     * meet and succeeds once all four break on one tick.
+     * A mock player standing in a 1 by 2 tunnel looks level at its end:
+     * Bore's aim line runs from the player's feet Y + 1, parallel to the
+     * sight line, so both blocks of the 1 by 2 ahead break on one tick and
+     * the player can walk on.
      *
      * @param helper the gametest helper
-     * @param aimed  the point the eye line meets, absolute
+     */
+    public static void boreCutsTheOneByTwoAheadLookingLevel(GameTestHelper helper) {
+        BlockPos head = EYE_ROW.east(2);
+        for (int east = 1; east <= 3; east++) {
+            for (BlockPos pos : slice(EYE_ROW.east(east))) {
+                helper.setBlock(pos, Blocks.STONE);
+                helper.setBlock(pos.below(), Blocks.STONE);
+            }
+        }
+        helper.setBlock(EYE_ROW.east(1), Blocks.AIR);
+        helper.setBlock(EYE_ROW.east(1).below(), Blocks.AIR);
+        ServerPlayer player = boringPlayer(helper);
+        holdUntilTogether(helper, player, List.of(head, head.below()));
+    }
+
+    /**
+     * Holds bore from an aim line looking east at a point near where four
+     * blocks meet and succeeds once all four break on one tick.
+     *
+     * @param helper the gametest helper
+     * @param aimed  the point the aim line meets, absolute
      * @param pitch  how far the look tips down, in degrees
      * @param four   the four blocks where four meet, relative
      */
     private static void holdAtACorner(GameTestHelper helper, Vec3 aimed, float pitch, List<BlockPos> four) {
         ServerPlayer player = boringPlayer(helper);
         player.setXRot(pitch);
-        Vec3 eye = aimed.subtract(player.getLookAngle().scale(AIM_DISTANCE));
-        player.setPos(eye.x, eye.y - player.getEyeHeight(), eye.z);
+        // the aim line runs from the feet Y + 1, parallel to the look
+        Vec3 origin = aimed.subtract(player.getLookAngle().scale(AIM_DISTANCE));
+        player.setPos(origin.x, origin.y - 1, origin.z);
+        holdUntilTogether(helper, player, four);
+    }
+
+    /**
+     * Holds bore and succeeds once every block named breaks, all on one tick.
+     *
+     * @param helper the gametest helper
+     * @param player the borer, placed and turned
+     * @param four   the blocks that break together, relative
+     */
+    private static void holdUntilTogether(GameTestHelper helper, ServerPlayer player, List<BlockPos> four) {
         GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.ROCK), ROCK_BORE.toString(),
                 player.getEyePosition(), player.getEyePosition());
         int[] brokeOn = new int[four.size()];
