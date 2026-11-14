@@ -34,7 +34,15 @@ public enum DeliveryKind {
      * charge held on the lifted palm blob until then; no goo leaves the hand.
      * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
      */
-    SPONTANEOUS;
+    SPONTANEOUS,
+    /**
+     * The charm-like cast: the right click takes the mob highlighted at the
+     * press and keeps it whatever the aim does after, and the release, however
+     * brief the hold, darts the blob straight to that mob at the delivery's
+     * speed, enveloping it as the program runs.
+     * decision charm-like-abilities-lock-the-highlighted-mob-on-right-click
+     */
+    ENVELOP;
 
     private static final String WHAT = "delivery kind";
 
