@@ -208,7 +208,137 @@ public final class SlickTests {
     private static final String STEPPED = "Slick held at one spot should stand no cell more than %d layers over a side"
             + " cell, stood %d on tick %d, the floor rows %s";
 
+    private static final String KEEPS_MOMENTUM = "slick_keeps_a_sliders_momentum_across_bare_stone";
+    /** The slide's push east, the slick ramp's top speed, in blocks a tick. */
+    private static final double SLIDE_PUSH = 1.0;
+    /** Layers each slick cell of the momentum lane holds, so a drop off it leaves the ground. */
+    private static final int LANE_LAYERS = 3;
+    /** Where along the momentum lane the bare stone slabs stand. */
+    private static final int SLAB_EAST = 3;
+    private static final int SECOND_SLAB_EAST = 5;
+    /** The lane's last slick cell. */
+    private static final int LANE_END_EAST = 10;
+    /** The slide is read until the slider passes this far east, past the hole and onto slick again. */
+    private static final double READ_UNTIL_EAST = 7.5;
+    /** Ticks the pig stands on its slick cell before the push. */
+    private static final int SETTLE_TICKS = 5;
+    /** The most ticks the slide is read for. */
+    private static final int SLIDE_READ_TICKS = 20;
+    /**
+     * The least share of its speed a slider may keep from one tick to the next: slick's own friction keeps
+     * 0.98 of it times air's 0.91, under 0.9, so 0.8 allows that and catches stone's 0.6 or a dead stop.
+     */
+    private static final double KEPT_SHARE = 0.8;
+    private static final String LOST_MOMENTUM = "A slider over slick should keep at least %.2f of its speed each"
+            + " tick, kept %.3f on tick %d at %.2f east, speeds %s";
+
+    private static final String STEPS_UP_IN_THE_AIR = "slick_steps_a_falling_slider_up_onto_a_raised_cell";
+    /** The raised cell the falling slider meets, three layers over stone, past a carpeted dip it cannot pour into. */
+    private static final BlockPos RAISED_CELL = new BlockPos(3, 1, 8);
+    /** How far under the raised cell's top the falling slider's feet hang, inside a step's height. */
+    private static final double UNDER_THE_TOP = 0.1;
+    /** The falling slider's move into the raised cell's side: east, and down short of the carpet under it. */
+    private static final Vec3 INTO_THE_SIDE = new Vec3(0.5, -0.02, 0);
+    private static final String STOPPED_AT_THE_SIDE = "A slider off slick meeting a raised slick cell's side in the air"
+            + " should rise onto it with its move kept: moved %.3f of %.3f east, feet %.3f over the cell's top,"
+            + " collided %s";
+
     private SlickTests() {
+    }
+
+    /**
+     * A player who stood on slick, dropping off a raised slick cell, meets
+     * the side of the next raised slick cell in the air with their feet
+     * inside a step of its top: they rise onto it and keep their move east,
+     * where vanilla steps a thing up only from the ground and stops them dead.
+     * operator ruling 2026-11-14: conserve the momentum over raised slick cells and short bare gaps
+     *
+     * @param helper the gametest helper
+     */
+    public static void slickStepsAFallingSliderUpOntoARaisedCell(GameTestHelper helper) {
+        BlockPos left = RAISED_CELL.west(2);
+        BlockPos dip = RAISED_CELL.west();
+        for (BlockPos cell : List.of(left, dip, RAISED_CELL)) {
+            helper.setBlock(cell.below(), Blocks.STONE);
+            helper.setBlock(cell.north(), Blocks.STONE);
+            helper.setBlock(cell.south(), Blocks.STONE);
+        }
+        helper.setBlock(left.west(), Blocks.STONE);
+        helper.setBlock(RAISED_CELL.east(), Blocks.STONE);
+        // a carpet fills the dip, so neither raised cell pours into it, and stands under the falling slider's feet
+        helper.setBlock(dip, Blocks.WHITE_CARPET);
+        helper.setBlock(left, slickOf(LANE_LAYERS));
+        helper.setBlock(RAISED_CELL, slickOf(LANE_LAYERS));
+        double cellTop = helper.absolutePos(RAISED_CELL).getY() + (double) LANE_LAYERS / WHOLE_BLOCK_LAYERS;
+        ServerPlayer slider = slickStreamerAt(helper, left);
+        slider.setPos(slider.getX(), cellTop, slider.getZ());
+        helper.runAfterDelay(1, () -> {
+            // the slider stands on the left raised cell a tick, so slick remembers it; vanilla steps a thing on
+            // the block under it in its tick's block effects, so the test steps it on as that pass does
+            BlockPos leftAt = helper.absolutePos(left);
+            helper.getLevel().getBlockState(leftAt).getBlock().stepOn(helper.getLevel(), leftAt,
+                    helper.getLevel().getBlockState(leftAt), slider);
+            double dipEast = helper.absolutePos(dip).getX() + 0.3;
+            slider.setPos(dipEast, cellTop - UNDER_THE_TOP, slider.getZ());
+            slider.setOnGround(false);
+            double before = slider.getX();
+            slider.move(MoverType.SELF, INTO_THE_SIDE);
+            double moved = slider.getX() - before;
+            helper.getLevel().getServer().getPlayerList().remove(slider);
+            helper.assertTrue(moved >= INTO_THE_SIDE.x - 1e-6 && slider.getY() >= cellTop - 1e-6,
+                    String.format(STOPPED_AT_THE_SIDE, moved, INTO_THE_SIDE.x, slider.getY() - cellTop,
+                            slider.horizontalCollision));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A pig pushed east at a block a tick along a lane of three-layer slick
+     * cells, the lane broken by two bare stone slabs, keeps its momentum: no
+     * tick takes more of its speed than slick's own friction, the slabs'
+     * stone included, since a thing off slick for under half a second keeps
+     * slick's friction.
+     * operator ruling 2026-11-14: conserve the momentum over raised slick cells and short bare gaps
+     *
+     * @param helper the gametest helper
+     */
+    public static void slickKeepsASlidersMomentum(GameTestHelper helper) {
+        int row = FAR_STREAMER_POS.getZ();
+        for (int east = 0; east <= LANE_END_EAST + 1; east++) {
+            BlockPos cell = new BlockPos(east, 1, row);
+            helper.setBlock(cell.below(), Blocks.STONE);
+            helper.setBlock(cell.north(), Blocks.STONE);
+            helper.setBlock(cell.south(), Blocks.STONE);
+            if (east == SLAB_EAST || east == SECOND_SLAB_EAST) {
+                helper.setBlock(cell, Blocks.STONE_SLAB);
+            } else if (east >= 1 && east <= LANE_END_EAST) {
+                helper.setBlock(cell, slickOf(LANE_LAYERS));
+            } else {
+                helper.setBlock(cell, Blocks.AIR);
+            }
+        }
+        Mob pig = helper.spawnWithNoFreeWill(EntityType.PIG, new BlockPos(1, 1, row));
+        Vec3 start = Vec3.atBottomCenterOf(helper.absolutePos(new BlockPos(1, 1, row)));
+        pig.setPos(start.x, start.y + (double) LANE_LAYERS / WHOLE_BLOCK_LAYERS, start.z);
+        double westEdge = helper.absolutePos(new BlockPos(0, 1, row)).getX();
+        List<Double> speeds = new ArrayList<>();
+        // the pig settles onto its slick cell first, so it has stood on slick when the push comes
+        helper.runAfterDelay(SETTLE_TICKS, () -> pig.setDeltaMovement(SLIDE_PUSH, 0, 0));
+        for (int tick = SETTLE_TICKS + 1; tick <= SETTLE_TICKS + SLIDE_READ_TICKS; tick++) {
+            helper.runAfterDelay(tick, () -> speeds.add(pig.getDeltaMovement().horizontalDistance()));
+        }
+        helper.runAfterDelay(SETTLE_TICKS + SLIDE_READ_TICKS + 1, () -> {
+            // read while the slide still carries a quarter of its push, past which friction has rightly spent it
+            for (int i = 1; i < speeds.size() && speeds.get(i - 1) >= SLIDE_PUSH / 4; i++) {
+                double kept = speeds.get(i) / speeds.get(i - 1);
+                helper.assertTrue(kept >= KEPT_SHARE,
+                        String.format(LOST_MOMENTUM, KEPT_SHARE, kept, i + 2, pig.getX() - westEdge, speeds));
+            }
+            helper.assertTrue(pig.getX() - westEdge >= READ_UNTIL_EAST, String.format(LOST_MOMENTUM, KEPT_SHARE,
+                    0.0, SLIDE_READ_TICKS, pig.getX() - westEdge, speeds));
+            pig.discard();
+            helper.succeed();
+        });
     }
 
     /**
@@ -409,6 +539,8 @@ public final class SlickTests {
         GooTestFunctions.registerTest(registrar, RAMPED_RUNNER_RIDES_THE_TRACK,
                 SlickTests::slickLaysATrackARampedRunnerRides);
         GooTestFunctions.registerTest(registrar, HELD_SPREADS_WITHOUT_STEPS, SlickTests::slickHeldAtOneSpotSpreadsWithoutSteps);
+        GooTestFunctions.registerTest(registrar, KEEPS_MOMENTUM, SlickTests::slickKeepsASlidersMomentum);
+        GooTestFunctions.registerTest(registrar, STEPS_UP_IN_THE_AIR, SlickTests::slickStepsAFallingSliderUpOntoARaisedCell);
     }
 
     /**
