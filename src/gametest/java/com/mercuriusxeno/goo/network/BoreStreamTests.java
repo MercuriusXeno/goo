@@ -19,6 +19,7 @@ import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
@@ -49,6 +50,9 @@ public final class BoreStreamTests {
         GooTestFunctions.registerTest(registrar, BORE_STRIKES_A_MOB, BoreStreamTests::boreStrikesAMobInTheTunnel);
         GooTestFunctions.registerTest(registrar, BORE_REACHES_UNDER_TELEKINESIS,
                 BoreStreamTests::boreReachesTheBlockReachTelekinesisRaises);
+        GooTestFunctions.registerTest(registrar, BORE_BREAKS_FOUR, BoreStreamTests::boreBreaksTheFourBlocksWhereFourMeet);
+        GooTestFunctions.registerTest(registrar, BORE_BREAKS_FOUR_AT_A_SLANT,
+                BoreStreamTests::boreBreaksTheFourFloorBlocksWhereFourMeetAtASlant);
     }
 
 
@@ -74,6 +78,16 @@ public final class BoreStreamTests {
     /** A hold long enough to break a block the bore reaches. */
     private static final int REACH_HOLD_TICKS = 20;
     private static final String SHOULD_START_PAST_THE_REACH = "The stone should stand past the survival block reach";
+    /** How far the eye line passes from the corner where four blocks meet, on both axes. */
+    private static final double NEAR_THE_CORNER = 0.05;
+    private static final String SHOULD_BREAK_FOUR_TOGETHER =
+            "The four blocks where four meet should break on one tick, broke on ticks %s (0 stood)";
+    private static final String BORE_BREAKS_FOUR = "bore_breaks_the_four_blocks_where_four_meet";
+    private static final String BORE_BREAKS_FOUR_AT_A_SLANT = "bore_breaks_the_four_floor_blocks_at_a_slant";
+    /** How far the look tips down at the floor, in degrees. */
+    private static final float LOOKING_DOWN_AT_A_SLANT = 45f;
+    /** How far the eye stands back from the point it aims at, along the look. */
+    private static final double AIM_DISTANCE = 1.5;
 
     private BoreStreamTests() {
     }
@@ -193,6 +207,82 @@ public final class BoreStreamTests {
         helper.runAfterDelay(raisedAt + REACH_HOLD_TICKS + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertBlockPresent(Blocks.AIR, PAST_THE_REACH);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A mock player facing east, the eye line 0.05 from the corner where four
+     * stone blocks meet on both axes, streams bore: the four blocks break
+     * together, on the same tick (decision bore-breaks-what-the-drill-cross-section-intersects).
+     *
+     * @param helper the gametest helper
+     */
+    public static void boreBreaksTheFourBlocksWhereFourMeet(GameTestHelper helper) {
+        BlockPos wall = EYE_ROW.east(2);
+        for (int east = 2; east <= 3; east++) {
+            for (BlockPos pos : slice(EYE_ROW.east(east))) {
+                helper.setBlock(pos, Blocks.STONE);
+                helper.setBlock(pos.above(), Blocks.STONE);
+            }
+        }
+        Vec3 corner = Vec3.atLowerCornerOf(helper.absolutePos(wall.above()));
+        holdAtACorner(helper, new Vec3(corner.x, corner.y - NEAR_THE_CORNER, corner.z + NEAR_THE_CORNER), 0f,
+                List.of(wall, wall.above(), wall.north(), wall.above().north()));
+    }
+
+    /**
+     * A mock player looking 45 degrees down at a stone floor, the eye line
+     * 0.05 from the corner where four floor blocks meet on both axes, streams
+     * bore: the four blocks break together, on the same tick, not the row in
+     * front of them (decision bore-breaks-what-the-drill-cross-section-intersects).
+     *
+     * @param helper the gametest helper
+     */
+    public static void boreBreaksTheFourFloorBlocksWhereFourMeetAtASlant(GameTestHelper helper) {
+        BlockPos floor = STAND_POS.east(3);
+        for (int east = 1; east <= 5; east++) {
+            for (int across = -2; across <= 1; across++) {
+                helper.setBlock(STAND_POS.east(east).offset(0, 0, across), Blocks.STONE);
+            }
+        }
+        Vec3 corner = Vec3.atLowerCornerOf(helper.absolutePos(floor.above()));
+        holdAtACorner(helper, new Vec3(corner.x + NEAR_THE_CORNER, corner.y, corner.z + NEAR_THE_CORNER),
+                LOOKING_DOWN_AT_A_SLANT, List.of(floor, floor.west(), floor.north(), floor.west().north()));
+    }
+
+    /**
+     * Holds bore from an eye looking east at a point near where four blocks
+     * meet and succeeds once all four break on one tick.
+     *
+     * @param helper the gametest helper
+     * @param aimed  the point the eye line meets, absolute
+     * @param pitch  how far the look tips down, in degrees
+     * @param four   the four blocks where four meet, relative
+     */
+    private static void holdAtACorner(GameTestHelper helper, Vec3 aimed, float pitch, List<BlockPos> four) {
+        ServerPlayer player = boringPlayer(helper);
+        player.setXRot(pitch);
+        Vec3 eye = aimed.subtract(player.getLookAngle().scale(AIM_DISTANCE));
+        player.setPos(eye.x, eye.y - player.getEyeHeight(), eye.z);
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.ROCK), ROCK_BORE.toString(),
+                player.getEyePosition(), player.getEyePosition());
+        int[] brokeOn = new int[four.size()];
+        for (int held = 1; held <= REACH_HOLD_TICKS; held++) {
+            int at = held;
+            helper.runAfterDelay(held, () -> {
+                GooStreamHandler.streamTick(player, tick);
+                for (int block = 0; block < four.size(); block++) {
+                    if (brokeOn[block] == 0 && helper.getBlockState(four.get(block)).isAir()) {
+                        brokeOn[block] = at;
+                    }
+                }
+            });
+        }
+        helper.runAfterDelay(REACH_HOLD_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(Arrays.stream(brokeOn).allMatch(on -> on > 0 && on == brokeOn[0]),
+                    String.format(SHOULD_BREAK_FOUR_TOGETHER, Arrays.toString(brokeOn)));
             helper.succeed();
         });
     }

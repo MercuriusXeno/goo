@@ -2,11 +2,12 @@ package com.mercuriusxeno.goo.ability.program;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import java.util.OptionalDouble;
 import java.util.function.Predicate;
 
 /**
@@ -40,15 +41,29 @@ record BorePick(List<BlockPos> blocks, List<BlockPos> behind, List<BlockPos> tun
     static final int RIM_RAYS = 8;
     /** How far past the cross section's plane, along the look, its cell is read. */
     private static final double NUDGE = 1e-4;
+    /** A block's box at the origin, which a clip carries to the block it is handed. */
+    private static final AABB UNIT_CELL = new AABB(0, 0, 0, 1, 1, 1);
+    /** How far in front of the crosshair block's face a rim ray's block must stand to set the depth. */
+    private static final double IN_FRONT = 1e-3;
 
     /**
      * Where the cross section stands: on the eye line at the depth the tube
-     * sets.
+     * sets, on the face the ray that set it met.
      *
      * @param center  the cross section's center, on the eye line
+     * @param face    the unit outward normal of the face the depth's ray met
      * @param stopped whether a ray met a block, so the cross section stands on it; false at the end of reach
      */
-    private record Section(Vec3 center, boolean stopped) {
+    private record Section(Vec3 center, Vec3 face, boolean stopped) {
+    }
+
+    /**
+     * Where a ray meets a block, and the face it meets.
+     *
+     * @param at   the point on the block's outside the ray meets
+     * @param face the unit outward normal of that face
+     */
+    private record Hit(Vec3 at, Vec3 face) {
     }
 
     /**
@@ -71,7 +86,7 @@ record BorePick(List<BlockPos> blocks, List<BlockPos> behind, List<BlockPos> tun
             return new BorePick(List.of(), List.of(), List.copyOf(line.subList(1, line.size())));
         }
         BlockPos eyeCell = line.getFirst();
-        List<BlockPos> blocks = shape.cellsCrossedAt(section.center(), look, gloveRight).stream()
+        List<BlockPos> blocks = shape.cellsCrossedAt(section.center(), look, section.face(), gloveRight).stream()
                 .filter(cell -> !cell.equals(eyeCell) && breakable.test(cell)).toList();
         // the strike reaches the block the eye line enters where Bore breaks it, and stops short of one it cannot
         int tunnelEnd = blocks.contains(line.getLast()) ? line.size() : line.size() - 1;
@@ -110,8 +125,12 @@ record BorePick(List<BlockPos> blocks, List<BlockPos> behind, List<BlockPos> tun
     }
 
     /**
-     * Where the cross section stands: the eye line's point at the depth of
-     * the nearest block any of the tube's rays meets, or the end of reach.
+     * Where the cross section stands: where the eye line meets the crosshair's
+     * block, unless a rim ray of the tube meets a block standing in front of
+     * that block's face, which then sets the depth; or the end of reach where
+     * no ray meets a block. A rim ray meeting the same face the crosshair
+     * meets, as a slanted floor or wall gives, sets nothing, so the cross
+     * section stays on the crosshair.
      *
      * @param eye        the eye the tube runs from
      * @param reachEnd   the end of the reach along the look
@@ -124,35 +143,50 @@ record BorePick(List<BlockPos> blocks, List<BlockPos> behind, List<BlockPos> tun
     private static Section sectionOf(Vec3 eye, Vec3 reachEnd, BoreDrillShape shape, boolean gloveRight,
                                      Predicate<BlockPos> air, Predicate<BlockPos> breakable) {
         Vec3 look = reachEnd.subtract(eye).normalize();
-        List<Vec3> starts = new ArrayList<>(List.of(Vec3.ZERO));
-        starts.addAll(shape.rimOffsets(look, gloveRight, RIM_RAYS, 1));
-        OptionalDouble nearest = starts.stream()
-                .map(offset -> depthOf(eye.add(offset), reachEnd.add(offset), look, air, breakable))
-                .filter(OptionalDouble::isPresent).mapToDouble(OptionalDouble::getAsDouble).min();
-        return nearest.isPresent() ? new Section(eye.add(look.scale(nearest.getAsDouble())), true)
-                : new Section(reachEnd, false);
+        Optional<Hit> crosshair = hitOf(eye, reachEnd, air, breakable);
+        List<Hit> hits = new ArrayList<>();
+        crosshair.ifPresent(hits::add);
+        for (Vec3 offset : shape.rimOffsets(look, gloveRight, RIM_RAYS, 1)) {
+            hitOf(eye.add(offset), reachEnd.add(offset), air, breakable)
+                    .filter(hit -> crosshair.isEmpty() || standsInFront(hit, crosshair.get()))
+                    .ifPresent(hits::add);
+        }
+        return hits.stream().min(Comparator.comparingDouble(hit -> hit.at().subtract(eye).dot(look)))
+                .map(hit -> new Section(eye.add(look.scale(hit.at().subtract(eye).dot(look))), hit.face(), true))
+                .orElse(new Section(reachEnd, look.reverse(), false));
     }
 
     /**
-     * How far along the look a ray runs before it meets a block that is not
-     * air, past the cell it starts in.
+     * Whether a rim ray's block stands in front of the face the crosshair meets.
+     *
+     * @param rim       where the rim ray meets its block
+     * @param crosshair where the eye line meets the crosshair's block
+     * @return true for a block standing out from that face toward the eye
+     */
+    private static boolean standsInFront(Hit rim, Hit crosshair) {
+        return rim.at().subtract(crosshair.at()).dot(crosshair.face()) > IN_FRONT;
+    }
+
+    /**
+     * Where a ray meets the first block that is not air, past the cell it
+     * starts in, and the face it meets.
      *
      * @param start     the ray's start
      * @param end       the ray's end
-     * @param look      the unit look
      * @param air       whether a cell holds air
      * @param breakable whether a cell holds a block in the tag
-     * @return the depth, empty where the ray meets nothing
+     * @return the hit, empty where the ray meets nothing
      */
-    private static OptionalDouble depthOf(Vec3 start, Vec3 end, Vec3 look, Predicate<BlockPos> air,
-                                          Predicate<BlockPos> breakable) {
+    private static Optional<Hit> hitOf(Vec3 start, Vec3 end, Predicate<BlockPos> air, Predicate<BlockPos> breakable) {
         List<BlockPos> crossed = BoreStep.blocksAlong(start, end);
         int met = firstMet(crossed, air, breakable);
         if (met == crossed.size()) {
-            return OptionalDouble.empty();
+            return Optional.empty();
         }
-        Vec3 hit = new AABB(crossed.get(met)).clip(start, end).orElse(Vec3.atCenterOf(crossed.get(met)));
-        return OptionalDouble.of(hit.subtract(start).dot(look));
+        BlockPos block = crossed.get(met);
+        BlockHitResult hit = AABB.clip(List.of(UNIT_CELL), start, end, block);
+        return hit == null ? Optional.of(new Hit(Vec3.atCenterOf(block), end.subtract(start).normalize().reverse()))
+                : Optional.of(new Hit(hit.getLocation(), Vec3.atLowerCornerOf(hit.getDirection().getUnitVec3i())));
     }
 
     /**

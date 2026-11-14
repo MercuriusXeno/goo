@@ -34,8 +34,10 @@ public record BoreDrillShape(double width, double length, double angle, double p
     private static final double WIDEST = 1;
     /** The steepest the drill is held off the sight line, short of square to it. */
     private static final double STEEPEST_ANGLE = 80;
-    /** How far past the plane, along the look, each sample is read, so a section flush on a face counts it. */
+    /** How far into the face each sample is read, so a section flush on a face counts the block behind it. */
     private static final double NUDGE = 1e-4;
+    /** The least slant of the look onto the face that the section is carried onto it at, short of grazing it. */
+    private static final double GRAZING = 0.1;
     /** Rings and turns the ellipse is sampled at, fine against a block's edge. */
     private static final int RINGS = 6;
     private static final int TURNS = 64;
@@ -110,22 +112,28 @@ public record BoreDrillShape(double width, double length, double angle, double p
     }
 
     /**
-     * Every cell the cross section intersects, centered at a point on the
-     * plane square to the look; a section lying flush on a face counts the
+     * Every cell the cross section intersects where it lies on the face the
+     * crosshair meets: the ellipse, centered on the crosshair, carried along
+     * the look onto that face's plane, so aimed at a slant it still covers the
+     * blocks round the crosshair; a section lying flush on a face counts the
      * block behind it.
      *
-     * @param center     the cross section's center, on the eye line
+     * @param center     the cross section's center, on the eye line and on the face's plane
      * @param look       the unit look
+     * @param face       the unit outward normal of the face the crosshair meets
      * @param gloveRight whether the glove is in the right hand
      * @return the cells, the center's first, each once
      */
-    public List<BlockPos> cellsCrossedAt(Vec3 center, Vec3 look, boolean gloveRight) {
-        Vec3 nudged = center.add(look.scale(NUDGE));
+    public List<BlockPos> cellsCrossedAt(Vec3 center, Vec3 look, Vec3 face, boolean gloveRight) {
+        Vec3 into = face.scale(-NUDGE);
+        double slant = look.dot(face);
         Set<BlockPos> cells = new LinkedHashSet<>();
-        cells.add(BlockPos.containing(nudged));
+        cells.add(BlockPos.containing(center.add(into)));
         for (int ring = 1; ring <= RINGS; ring++) {
             for (Vec3 offset : rimOffsets(look, gloveRight, TURNS, (double) ring / RINGS)) {
-                cells.add(BlockPos.containing(nudged.add(offset)));
+                Vec3 onTheFace = Math.abs(slant) < GRAZING ? offset
+                        : offset.add(look.scale(-offset.dot(face) / slant));
+                cells.add(BlockPos.containing(center.add(onTheFace).add(into)));
             }
         }
         return List.copyOf(cells);

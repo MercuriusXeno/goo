@@ -311,6 +311,27 @@ class BoreStepTest {
             assertEquals(cornerBlocks(), pickFrom(new Vec3(0.5, 2.05, 0.05), SHIPPED));
         }
 
+        /**
+         * Aimed 0.05 from where four floor blocks meet on both axes, Bore
+         * picks those four at any slant, not the row in front of them
+         * (decision bore-breaks-what-the-drill-cross-section-intersects).
+         */
+        @Test
+        void aimingAtAFloorsFourBlockCornerAtASlantPicksTheFour() {
+            Predicate<BlockPos> floor = pos -> pos.getY() <= 63;
+            Vec3 nearTheCorner = new Vec3(0.05, 64.0, 3.05);
+            Set<BlockPos> four = Set.of(new BlockPos(-1, 63, 2), new BlockPos(-1, 63, 3), new BlockPos(0, 63, 2),
+                    new BlockPos(0, 63, 3));
+            for (double pitch : new double[] {90, 60, 45, 30, 20}) {
+                double radians = Math.toRadians(pitch);
+                Vec3 look = new Vec3(0, -Math.sin(radians), Math.cos(radians));
+                Vec3 eye = nearTheCorner.subtract(look.scale(2.5));
+                ChannelAim aim = new ChannelAim(eye.add(look.scale(4.5)), null, CONE_DEGREES);
+                assertEquals(four, Set.copyOf(BoreStep.progressing(eye, SHIPPED, true, aim, floor.negate(), floor)),
+                        "looking " + pitch + " degrees down");
+            }
+        }
+
         @Test
         void aimingAQuarterFromACornerOnBothAxesPicksOne() {
             assertEquals(Set.of(new BlockPos(1, 2, 0)), pickFrom(new Vec3(0.5, 2.25, 0.25), SHIPPED));
