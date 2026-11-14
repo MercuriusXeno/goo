@@ -17,7 +17,10 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.animal.cow.Cow;
@@ -49,6 +52,7 @@ public final class MobEffectTests {
     private static final String CHARMED_SLIME_SPARES = "charmed_slime_spares_its_charmer";
     private static final String CHARM_HOLDS_THROUGH_A_SAVE = "charm_holds_through_a_save";
     private static final String CHARM_BREAKS_ON_THE_CHARMERS_HIT = "charm_breaks_on_the_charmers_hit";
+    private static final String CHARMED_ZOMBIE_SPARES_A_CHARMED_ZOMBIE = "charmed_zombie_spares_a_charmed_zombie";
     private static final String SEAL_WARPS_THEN_EXILES = "seal_warps_then_exiles";
     private static final String MOB_UNSTABLE = "mob_unstable_blast";
 
@@ -64,6 +68,8 @@ public final class MobEffectTests {
         GooTestFunctions.registerTest(registrar, CHARMED_SLIME_SPARES, MobEffectTests::charmedSlimeSparesItsCharmer);
         GooTestFunctions.registerTest(registrar, CHARM_HOLDS_THROUGH_A_SAVE, MobEffectTests::charmHoldsThroughASave);
         GooTestFunctions.registerTest(registrar, CHARM_BREAKS_ON_THE_CHARMERS_HIT, MobEffectTests::charmBreaksOnTheCharmersHit);
+        GooTestFunctions.registerTest(registrar, CHARMED_ZOMBIE_SPARES_A_CHARMED_ZOMBIE,
+                MobEffectTests::charmedZombieSparesACharmedZombie);
         GooTestFunctions.registerTest(registrar, SEAL_WARPS_THEN_EXILES, MobEffectTests::sealWarpsThenExiles);
         GooTestFunctions.registerTest(registrar, MOB_UNSTABLE, MobEffectTests::unstableExplode);
     }
@@ -95,6 +101,10 @@ public final class MobEffectTests {
     private static final double CERTAIN_CHARM_HEALTH = 10;
     private static final String CHARM_SHOULD_RELOAD = "The reloaded zombie should hold the charm for its charmer";
     private static final String CHARMERS_HIT_SHOULD_BREAK = "The charmer's hit should end the charm";
+    /** Ticks a charmed zombie set on a charmed zombie is watched, past two of a zombie's melee swings. */
+    private static final int MINION_WATCH_TICKS = 40;
+    private static final String MINION_KEPT_AS_TARGET = "The charmed zombie should drop the charmed zombie it was set on";
+    private static final String MINION_HURT = "The charmed zombie set upon should stand unhurt, reads %s of %s, last hit %s";
     private static final String SHOULD_TAKE_DAMAGE = "Target should have taken damage";
     private static final String SHOULD_HAVE_LEVITATION = "Target should have levitation";
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
@@ -283,6 +293,48 @@ public final class MobEffectTests {
             helper.getLevel().getServer().getPlayerList().remove(charmer);
             helper.succeed();
         });
+    }
+
+    /**
+     * Two free-willed zombies charmed by one charmer, the first set on the
+     * second: 40 ticks on, the first targets the second no longer and the
+     * second stands at its max health
+     * (decision diagnose-and-correct-minions-killing-each-other).
+     *
+     * @param helper the gametest helper
+     */
+    public static void charmedZombieSparesACharmedZombie(GameTestHelper helper) {
+        ServerPlayer charmer = SurvivalPlayers.placeIn(helper);
+        Mob striker = sunproof(charmable(helper.spawn(EntityType.ZOMBIE, SPAWN_POS)));
+        Mob struck = sunproof(charmable(helper.spawn(EntityType.ZOMBIE, BYSTANDER_POS)));
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            strike(helper, striker, ABILITY_HEX_CHARM, charmer);
+            strike(helper, struck, ABILITY_HEX_CHARM, charmer);
+            helper.assertTrue(striker.hasData(GooAttachments.CHARMED) && struck.hasData(GooAttachments.CHARMED),
+                    ZOMBIE_SHOULD_BE_CHARMED);
+            striker.setTarget(struck);
+            helper.runAfterDelay(MINION_WATCH_TICKS, () -> {
+                helper.getLevel().getServer().getPlayerList().remove(charmer);
+                helper.assertTrue(striker.getTarget() != struck, MINION_KEPT_AS_TARGET);
+                helper.assertTrue(struck.getHealth() == struck.getMaxHealth(),
+                        String.format(MINION_HURT, struck.getHealth(), struck.getMaxHealth(),
+                                struck.getLastDamageSource() == null ? "none"
+                                        : struck.getLastDamageSource().getMsgId()));
+                helper.succeed();
+            });
+        });
+    }
+
+    /**
+     * Crowns a zombie with a leather helmet, since the bay stands open to the
+     * sky and a bare-headed zombie's sunburn would pass for a hit.
+     *
+     * @param zombie the zombie
+     * @return the zombie, helmeted
+     */
+    private static Mob sunproof(Mob zombie) {
+        zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
+        return zombie;
     }
 
     /**

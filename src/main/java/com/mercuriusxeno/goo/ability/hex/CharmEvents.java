@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.hex;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.Minions;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -21,12 +22,14 @@ import java.util.UUID;
 /**
  * Runs a charmed mob for its charmer until the charmer hurts it: it fights the
  * nearest mob targeting the charmer, else the nearest monster hostile to
- * players before that monster aggresses; any target it would take that is a
- * player turns to that foe, or to none; with no foe in reach it follows the
- * charmer, and no hit of its lands on a player. A hit from anyone but the
+ * players before that monster aggresses, sparing every charmed or rallied
+ * mob; any target it would take or holds that is a player or a charmed or
+ * rallied mob turns to that foe, or to none; with no foe in reach it follows
+ * the charmer, and no hit of its lands on a player. A hit from anyone but the
  * charmer leaves the charm standing.
  * charm-glisten-and-icon-over-the-head
  * charm-holds-until-struck
+ * diagnose-and-correct-minions-killing-each-other
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class CharmEvents {
@@ -45,14 +48,15 @@ public final class CharmEvents {
     }
 
     /**
-     * Turns a charmed mob away from a player it would target, onto its
-     * nearest foe, or onto none.
+     * Turns a charmed mob away from a player or a minion it would target,
+     * onto its nearest foe, or onto none.
+     * diagnose-and-correct-minions-killing-each-other
      *
      * @param event the change target event
      */
     @SubscribeEvent
     public static void onChangeTarget(LivingChangeTargetEvent event) {
-        if (!(event.getEntity() instanceof Mob mob) || !(event.getNewAboutToBeSetTarget() instanceof Player)) {
+        if (!(event.getEntity() instanceof Mob mob) || isFoe(event.getNewAboutToBeSetTarget())) {
             return;
         }
         standingCharm(mob).ifPresent(charm ->
@@ -122,6 +126,18 @@ public final class CharmEvents {
         return !hasFoe(mob.getTarget()) && mob.tickCount % LOOK_INTERVAL_TICKS == 0;
     }
 
+    /**
+     * Whether a target a charmed mob would take may stand: none, or one that
+     * is neither a player nor a minion.
+     * diagnose-and-correct-minions-killing-each-other
+     *
+     * @param target the target about to be set, or null for none
+     * @return true for a target the charm leaves standing
+     */
+    private static boolean isFoe(@Nullable LivingEntity target) {
+        return !(target instanceof Player) && !Minions.isMinion(target);
+    }
+
     private static void turnOrFollow(Mob mob, Charmed charm) {
         Optional<Mob> foe = nearestFoe(mob, charm);
         mob.setTarget(foe.orElse(null));
@@ -131,7 +147,7 @@ public final class CharmEvents {
     }
 
     private static boolean hasFoe(@Nullable LivingEntity target) {
-        return target != null && target.isAlive() && !(target instanceof Player);
+        return target != null && target.isAlive() && isFoe(target);
     }
 
     private static Optional<Mob> nearestFoe(Mob mob, Charmed charm) {
@@ -144,18 +160,18 @@ public final class CharmEvents {
         LivingEntity target = near.getTarget();
         return new CharmTargets.Candidate<>(near, near.isAlive(), isUnprovokedHostile(near),
                 target == null ? null : target.getUUID(), charmed.distanceToSqr(near),
-                near.hasData(GooAttachments.DOWNED));
+                near.hasData(GooAttachments.DOWNED), Minions.isMinion(near));
     }
 
     /**
      * Whether a mob is a monster hostile to players before it aggresses:
-     * an Enemy that is neither neutral until provoked nor charmed itself.
+     * an Enemy that is not neutral until provoked.
      *
      * @param mob the mob
      * @return true for a foe the charmed mob may strike first
      */
     private static boolean isUnprovokedHostile(Mob mob) {
-        return mob instanceof Enemy && !(mob instanceof NeutralMob) && !mob.hasData(GooAttachments.CHARMED);
+        return mob instanceof Enemy && !(mob instanceof NeutralMob);
     }
 
     private static void followCharmer(Mob mob, Charmed charm) {

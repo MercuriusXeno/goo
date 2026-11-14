@@ -96,6 +96,115 @@ public final class RallyTests {
                 RallyTests::rallyReleaseThrowNeedsNoZooGooHeld);
         GooTestFunctions.registerTest(registrar, RALLY_THROW_AT_ANOTHER_MOB_PAYS_ITS_COST,
                 RallyTests::rallyThrowAtAnotherMobPaysItsCost);
+        GooTestFunctions.registerTest(registrar, CHARMED_ZOMBIE_SPARES_A_RALLIED_COW,
+                RallyTests::charmedZombieSparesARalliedCow);
+        GooTestFunctions.registerTest(registrar, RALLIED_COW_SPARES_A_ZOMBIE_CHARMED_AFTER_IT_STRUCK,
+                RallyTests::ralliedCowSparesAZombieCharmedAfterItStruck);
+    }
+
+    private static final String CHARMED_ZOMBIE_SPARES_A_RALLIED_COW = "charmed_zombie_spares_a_rallied_cow";
+    private static final String RALLIED_COW_SPARES_A_ZOMBIE_CHARMED_AFTER_IT_STRUCK =
+            "rallied_cow_spares_a_zombie_charmed_after_it_struck";
+    private static final Identifier HEX_CHARM = Identifier.fromNamespaceAndPath(Goo.MODID, "hex_charm");
+    /**
+     * The max health a charmed zombie stands at: half a zombie's twenty, low enough that the charm's chance,
+     * which falls as max health rises, stands whole.
+     */
+    private static final double CERTAIN_CHARM_HEALTH = 10;
+    /** Ticks a minion set on a minion is watched, past two of a zombie's melee swings and two of a rally's strikes. */
+    private static final int MINION_WATCH_TICKS = 40;
+    private static final String NOT_CHARMED = "The zombie should hold the charm";
+    private static final String ZOMBIE_KEPT_THE_COW = "The charmed zombie should drop the rallied cow it was set on";
+    private static final String COW_HURT = "The rallied cow should stand at the %s it read when set upon, reads %s, last hit %s";
+    private static final String COW_KEPT_THE_ZOMBIE = "The rallied cow should take no charmed zombie as its foe";
+    private static final String ZOMBIE_HURT =
+            "The charmed zombie should stand at the %s it read when charmed, reads %s, last hit %s";
+
+    /**
+     * A free-willed zombie charmed by the rallier of a cow, set on that
+     * rallied cow: 40 ticks on, the zombie targets the cow no longer and the
+     * cow's health reads what it read when the zombie was set on it
+     * (decision diagnose-and-correct-minions-killing-each-other).
+     *
+     * @param helper the gametest helper
+     */
+    public static void charmedZombieSparesARalliedCow(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
+        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        rally(helper, cow, caster);
+        Zombie zombie = charmable(helper.spawn(EntityType.ZOMBIE, ZOMBIE_POS));
+        charm(helper, zombie, caster);
+        zombie.setTarget(cow);
+        float before = cow.getHealth();
+        helper.runAfterDelay(MINION_WATCH_TICKS, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(zombie.getTarget() != cow, ZOMBIE_KEPT_THE_COW);
+            helper.assertTrue(cow.getHealth() == before, String.format(COW_HURT, before, cow.getHealth(),
+                    lastHitOf(cow)));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A zombie strikes the rallier of a cow and the rallier strikes it back,
+     * so it is both the mob that last hurt the rallier and the one the
+     * rallier last struck, and then the rallier charms it: 40 ticks on, the
+     * rallied cow targets the zombie no longer and the zombie's health reads
+     * what it read when the charm landed
+     * (decision diagnose-and-correct-minions-killing-each-other).
+     *
+     * @param helper the gametest helper
+     */
+    public static void ralliedCowSparesAZombieCharmedAfterItStruck(GameTestHelper helper) {
+        ServerPlayer caster = survivalRallier(helper);
+        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        rally(helper, cow, caster);
+        Zombie zombie = charmable(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS));
+        caster.hurtServer(helper.getLevel(), zombie.damageSources().mobAttack(zombie), ZOMBIE_HIT);
+        caster.attack(zombie);
+        charm(helper, zombie, caster);
+        helper.assertTrue(zombie.hasData(GooAttachments.CHARMED), NOT_CHARMED);
+        float charmed = zombie.getHealth();
+        helper.runAfterDelay(MINION_WATCH_TICKS, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(cow.getTarget() != zombie, COW_KEPT_THE_ZOMBIE);
+            helper.assertTrue(zombie.getHealth() == charmed, String.format(ZOMBIE_HURT, charmed, zombie.getHealth(),
+                    lastHitOf(zombie)));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Stands a zombie at a max health its charm's chance stands whole at,
+     * helmeted against the open sky's sunburn, which would pass for a hit.
+     *
+     * @param zombie the zombie
+     * @return the zombie, at full health
+     */
+    private static Zombie charmable(Zombie zombie) {
+        zombie.getAttribute(Attributes.MAX_HEALTH).setBaseValue(CERTAIN_CHARM_HEALTH);
+        zombie.setHealth(zombie.getMaxHealth());
+        zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
+        return zombie;
+    }
+
+    /**
+     * Lands one Hex Charm goo on a mob as the charmer's throw, through the
+     * scheduler a thrown goo's impact runs.
+     *
+     * @param helper  the gametest helper
+     * @param mob     the mob struck
+     * @param charmer the throwing player
+     */
+    private static void charm(GameTestHelper helper, Mob mob, ServerPlayer charmer) {
+        AbilityDefinition ability = AbilityRegistry.of(helper.getLevel()).getAbility(HEX_CHARM);
+        helper.assertTrue(ability != null, ABILITIES_REQUIRED);
+        GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), charmer, ability.gooType(),
+                mob.getId(), mob.blockPosition(), Direction.UP, HEX_CHARM.toString()));
+    }
+
+    private static String lastHitOf(Mob mob) {
+        return mob.getLastDamageSource() == null ? "none" : mob.getLastDamageSource().getMsgId();
     }
 
     private static final String RALLIED_COW_HEALS_BACK_TO_ITS_RAISED_MAX_HEALTH =
