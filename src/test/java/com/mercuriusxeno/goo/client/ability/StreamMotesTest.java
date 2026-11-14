@@ -110,6 +110,10 @@ class StreamMotesTest {
     private static final double LEFT_THE_BLOB = 1e-4;
 
     private static final float WORLD_FOV = 70f;
+    /** A falling player's speed, blocks a tick, well under terminal velocity. */
+    private static final double FALLING = 0.4;
+    /** Ticks the blob has stood lifted before the stream's tick, past its hop and ease. */
+    private static final double LIFTED_FOR = 20;
 
     /**
      * A caster over time, in ticks from the launch.
@@ -237,6 +241,37 @@ class StreamMotesTest {
                 now[0] = FIRST_TICK;
                 spores.forEach(SporeParticle::tick);
                 assertNoneBehindTheGlove(spores, caster.eye().apply(now[0]).add(GLOVE_OFF_THE_EYE));
+            });
+        }
+    }
+
+    /**
+     * operator ruling: "the source of the particles hops up above the source blob, looking wrong", Mycosis while jumping
+     * every-ability-casts-from-the-lifted-palm-blob: a spore leaves the lifted blob where it stands on its first tick
+     */
+    @Test
+    void aFallingCastersSporeLeavesTheLiftedBlobWhereItStandsOnItsFirstTick() {
+        Caster caster = moving(new Vec3(0, -FALLING, 0));
+        double[] now = {-LIFTED_FOR};
+        Minecraft minecraft = clientDrawing(new ArrayList<>(), caster, true, now);
+        List<SporeParticle> spores = makingSpores(minecraft);
+        try (MockedStatic<GloveSpecialRenderer> drawnGlove = mockStatic(GloveSpecialRenderer.class)) {
+            drawnGlove.when(GloveSpecialRenderer::getLastGooCenterCamRel).thenReturn(GLOVE_OFF_THE_EYE);
+            whileDrawing(minecraft, new ArrayList<>(), () -> {
+                for (long tick = (long) -LIFTED_FOR; tick <= 0; tick++) {
+                    now[0] = tick;
+                    LiftedPalmBlob.held(CASTER, sourceOf(caster, tick), tick);
+                }
+                StreamMotes.handle(sporeTick(caster), runningAtOnce());
+                assertTrue(!spores.isEmpty(), "the stream's tick should launch spores");
+                now[0] = FIRST_TICK;
+                spores.forEach(SporeParticle::tick);
+                Vec3 blob = LiftedPalmBlob.placeOf(CASTER, 0f).orElseThrow();
+                for (SporeParticle spore : spores) {
+                    Vec3 left = drawnAt(spore, 0f);
+                    assertTrue(left.distanceTo(blob) <= LEFT_THE_BLOB, "a spore should leave the lifted blob at "
+                            + blob + " on its first tick, left from " + left);
+                }
             });
         }
     }

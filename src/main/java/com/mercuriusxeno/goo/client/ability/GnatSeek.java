@@ -55,7 +55,9 @@ public final class GnatSeek {
                     launch.y, launch.z) instanceof GnatParticle gnat) {
                 Vec3 rest = pointIn(payload.targetMin(), payload.targetMax(), random);
                 gnat.seek(prey != null ? prey : () -> rest);
-                gnat.leaveFrom(() -> CasterPoses.gloveOf(payload.casterId(), payload.glove()));
+                // every-ability-casts-from-the-lifted-palm-blob: the gnat leaves the lifted blob where it stands then
+                gnat.leaveFrom(() -> CastOrigin.of(payload.casterId(), CasterPoses.gloveOf(payload.casterId(),
+                        payload.glove()), 0f));
                 // glove-stream-motes-swing-with-the-glove-at-launch
                 gnat.swingWith(new GloveSwing.Tracker(payload.casterId(), CasterPoses::poseOf));
             }
