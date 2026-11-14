@@ -40,13 +40,13 @@ public final class DownedTests {
     private static final BlockPos PLAIN_COW_POS = new BlockPos(2, 1, 1);
     private static final BlockPos ZOMBIE_POS = new BlockPos(4, 1, 1);
     /** Far past any cow's health, so the blow is lethal whatever a rally lifted it to. */
-    private static final float LETHAL = 100f;
+    static final float LETHAL = 100f;
     /** Past the 10 ticks of hurt frames the downing blow leaves, still inside the 5 second immunity. */
     private static final int INSIDE_THE_WINDOW_TICKS = 40;
     /** Past the immunity, short of the death span. */
     private static final int STILL_DOWN_TICKS = 200;
     /** Past the 15 second death span. */
-    private static final int PAST_THE_DEATH_TICKS = Downed.DEATH_TICKS + 10;
+    static final int PAST_THE_DEATH_TICKS = Downed.DEATH_TICKS + 10;
 
     private static final String RALLIED_COW_DIED = "The rallied cow should live through the lethal attack";
     private static final String NOT_DOWNED = "The rallied cow should hold DOWNED after the lethal attack";
@@ -204,7 +204,7 @@ public final class DownedTests {
      * @param helper the gametest helper
      * @return the rallied cow
      */
-    private static Cow ralliedCow(GameTestHelper helper) {
+    static Cow ralliedCow(GameTestHelper helper) {
         Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
         cow.setData(GooAttachments.RALLIED, new Rallied(UUID.randomUUID(), 1f));
         return cow;
@@ -216,14 +216,14 @@ public final class DownedTests {
      * @param helper the gametest helper
      * @return the zombie
      */
-    private static Zombie attacker(GameTestHelper helper) {
+    static Zombie attacker(GameTestHelper helper) {
         Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
         zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
         zombie.setNoAi(true);
         return zombie;
     }
 
-    private static void strike(GameTestHelper helper, Cow cow, Zombie zombie) {
+    static void strike(GameTestHelper helper, Cow cow, Zombie zombie) {
         cow.hurtServer(helper.getLevel(), zombie.damageSources().mobAttack(zombie), LETHAL);
     }
 }
