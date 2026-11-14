@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.item.GooFormat;
+import com.mercuriusxeno.goo.item.MixedNumber;
 import net.minecraft.resources.Identifier;
 
 /**
@@ -16,9 +17,9 @@ import net.minecraft.resources.Identifier;
  *
  * @param sprite the sprite drawn whole in the heart's slot: the empty heart, or the skull
  * @param fill   the share of the heart the life fills, zero to one, and zero on a downed mob
- * @param count  the life in hearts, drawn right of the sprite
+ * @param count  the life in hearts, drawn right of the sprite by the mixed number spacing rule
  */
-public record LifeMark(Identifier sprite, float fill, String count) {
+public record LifeMark(Identifier sprite, float fill, MixedNumber count) {
 
     /** Vanilla's empty heart, read as a whole texture as InWorldHud reads the effect background. */
     public static final Identifier HEART =
@@ -42,13 +43,14 @@ public record LifeMark(Identifier sprite, float fill, String count) {
     public static LifeMark of(float health, float maxHealth) {
         float fill = maxHealth > 0f ? Math.clamp(health / maxHealth, 0f, 1f) : 0f;
         int halves = Math.clamp((int) Math.ceil(health), 0, (int) Math.ceil(maxHealth));
-        return new LifeMark(HEART, fill, GooFormat.formatMixed(GooFraction.of(halves, HALVES_PER_HEART)));
+        return new LifeMark(HEART, fill, GooFormat.mixedParts(GooFraction.of(halves, HALVES_PER_HEART)));
     }
 
     /**
      * The mark a downed mob draws: the skull with no fill, and its negative
      * health in hearts as a negative mixed number, rounded away from zero to
-     * the half heart so a mob below zero never reads as zero.
+     * the half heart so a mob below zero never reads as zero; the minus sign
+     * leads the whole, or stands in its place under one heart.
      * downed-mob-shows-a-skull-and-its-negative-health
      *
      * @param negativeHealth the health below zero it holds, in half hearts
@@ -56,7 +58,11 @@ public record LifeMark(Identifier sprite, float fill, String count) {
      */
     public static LifeMark downed(float negativeHealth) {
         int halvesBelowZero = Math.max(0, (int) Math.ceil(-negativeHealth));
-        String hearts = GooFormat.formatMixed(GooFraction.of(halvesBelowZero, HALVES_PER_HEART));
-        return new LifeMark(SKULL, 0f, halvesBelowZero == 0 ? hearts : MINUS + hearts);
+        MixedNumber hearts = GooFormat.mixedParts(GooFraction.of(halvesBelowZero, HALVES_PER_HEART));
+        if (halvesBelowZero == 0) {
+            return new LifeMark(SKULL, 0f, hearts);
+        }
+        return new LifeMark(SKULL, 0f, new MixedNumber(MINUS + hearts.whole(), hearts.numerator(),
+                hearts.denominator()));
     }
 }
