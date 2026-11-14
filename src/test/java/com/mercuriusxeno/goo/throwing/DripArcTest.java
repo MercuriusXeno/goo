@@ -1,10 +1,16 @@
 package com.mercuriusxeno.goo.throwing;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -18,6 +24,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class DripArcTest {
 
     private static final double TOLERANCE = 1e-9;
+    /** Vanilla ThrowableProjectile's default gravity, blocks per tick per tick. */
+    private static final double THROWN_GRAVITY = 0.03;
+    /** Vanilla ThrowableProjectile's inertia out of water, a float in its source. */
+    private static final double THROWN_AIR_INERTIA = 0.99F;
+    /** A standing player's eye height over the floor they stand on. */
+    private static final double STANDING_EYE_HEIGHT = 1.62;
+    /** How far ahead a level shot lands, in blocks. */
+    private static final double LEVEL_REACH = 8;
+    private static final double HALF_A_BLOCK = 0.5;
     /** Below this the fake world holds no airspace, as below a level's build height. */
     private static final double WORLD_FLOOR = -64;
     private static final DripArc.Airspace INSIDE_THE_WORLD = point -> point.y >= WORLD_FLOOR;
@@ -67,7 +82,7 @@ class DripArcTest {
     void aDripWhoseArcMeetsALedgeStrikesTheLedge() {
         Vec3 launch = new Vec3(0, 20, 0.5);
 
-        Optional<CoatRay.BlockStrike> strike = DripArc.flyToItsEnd(launch, new Vec3(0.3, 0, 0), LEDGE_OVER_FLOOR,
+        Optional<CoatRay.BlockStrike> strike = DripArc.flyToItsEnd(launch, new Vec3(0.45, 0, 0), LEDGE_OVER_FLOOR,
                 INSIDE_THE_WORLD).strike();
 
         assertTrue(strike.isPresent(), "the drip should strike something");
@@ -109,24 +124,62 @@ class DripArcTest {
     }
 
     @Test
-    void eachTickMovesTheDripByItsVelocityAndGravityBendsIt() {
+    void aTickOfFlightPullsAndDragsTheVelocityAsAThrownProjectileDoes() {
         Vec3 velocity = new Vec3(0.4, 0.1, -0.2);
 
         DripArc.Step step = DripArc.step(Vec3.ZERO, velocity, (from, to) -> Optional.empty(), INSIDE_THE_WORLD);
 
-        assertEquals(velocity, step.position(), "the drip should move by its velocity");
-        assertEquals(velocity.y - DripArc.GRAVITY, step.velocity().y, TOLERANCE, "gravity should bend the velocity");
-        assertEquals(velocity.x, step.velocity().x, TOLERANCE, "gravity should leave the heading's level part");
+        // ThrowableProjectile.tick: applyGravity at 0.03, then applyInertia at 0.99F in air, then the move
+        Vec3 thrown = new Vec3(velocity.x, velocity.y - THROWN_GRAVITY, velocity.z).scale(THROWN_AIR_INERTIA);
+        assertVec(thrown, step.velocity(), "the velocity should bend and drag as a thrown projectile's");
+        assertVec(thrown, step.position(), "the drip should move by the velocity the tick bent and dragged");
     }
 
     @Test
-    void anAxisDripLaunchesAlongTheAxisAtTheThrowSpeedCarryingTheTravel() {
+    void goopAndSlickShareOneThrowSpeedThatLandsALevelShotAboutEightBlocksAhead() throws IOException {
+        double goop = shippedThrowSpeed("weird_goop");
+        double slick = shippedThrowSpeed("kinetic_slick");
+        assertEquals(goop, slick, "Goop and Slick should throw at one speed");
+        Vec3 eye = new Vec3(0, STANDING_EYE_HEIGHT, 0.5);
+
+        Optional<CoatRay.BlockStrike> strike = DripArc.flyToItsEnd(eye,
+                DripArc.launch(new Vec3(1, 0, 0), 16, new CoatRay.ConeShare(0, 0), goop), FLOOR,
+                INSIDE_THE_WORLD).strike();
+
+        assertTrue(strike.isPresent(), "a level shot should strike the floor");
+        double ahead = strike.get().point().x;
+        assertTrue(ahead >= LEVEL_REACH - HALF_A_BLOCK && ahead <= LEVEL_REACH + HALF_A_BLOCK,
+                "a level shot at " + goop + " should land 7.5 to 8.5 blocks ahead, lands " + ahead + " ahead");
+    }
+
+    /**
+     * The throw speed a shipped ability file sets.
+     *
+     * @param ability the ability's file name under goo_abilities
+     * @return its delivery's throw speed, blocks per tick
+     */
+    private static double shippedThrowSpeed(String ability) throws IOException {
+        try (InputStream in = DripArcTest.class.getResourceAsStream("/data/goo/goo_abilities/" + ability + ".json")) {
+            assertTrue(in != null, "the mod should ship " + ability + ".json");
+            JsonObject file = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8))
+                    .getAsJsonObject();
+            return file.getAsJsonObject("delivery").get("throw_speed").getAsDouble();
+        }
+    }
+
+    private static void assertVec(Vec3 expected, Vec3 actual, String message) {
+        assertEquals(expected.x, actual.x, TOLERANCE, message + ": x");
+        assertEquals(expected.y, actual.y, TOLERANCE, message + ": y");
+        assertEquals(expected.z, actual.z, TOLERANCE, message + ": z");
+    }
+
+    @Test
+    void aDripLaunchesAlongItsShareOfTheConeAtTheThrowSpeedAlone() {
         Vec3 axis = new Vec3(0, -0.5, 1);
-        Vec3 travel = new Vec3(0.2, 0, -0.1);
 
-        Vec3 launch = DripArc.launch(axis, 16, new CoatRay.ConeShare(0, 0), 0.6, travel);
+        Vec3 launch = DripArc.launch(axis, 16, new CoatRay.ConeShare(0.7, 0.3), 0.6);
 
-        Vec3 expected = axis.normalize().scale(0.6).add(travel);
+        Vec3 expected = StreamCone.launchDirection(axis, 16, 0.7, 0.3).scale(0.6);
         assertEquals(expected.x, launch.x, TOLERANCE, "x");
         assertEquals(expected.y, launch.y, TOLERANCE, "y");
         assertEquals(expected.z, launch.z, TOLERANCE, "z");
