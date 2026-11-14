@@ -1,7 +1,10 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.model.monster.witch.WitchModel;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -168,4 +171,29 @@ class MobCoatLayerTest {
         assertTrue(holds(vertex, "Position\\s*\\+\\s*normalize\\(Normal\\)\\s*\\*"),
                 "the splat sits on the skin and fights it for depth");
     }
+
+    /**
+     * A coat on a witch, Charm's envelop among them, covers her hat where
+     * the hat is drawn: the surface it paints holds no box past the brim's
+     * ten-texel square (diagnose-and-correct-the-floating-hat-brim-box).
+     */
+    @Test
+    void aCoatOverAWitchsHatSpansTheBrim() {
+        WitchModel parent = new WitchModel(WitchModel.createBodyLayer().bakeRoot());
+        WitchModel body = EncasedBodies.withBareRimHidden(new WitchModel(WitchModel.createBodyLayer().bakeRoot()));
+        WitchModel coated = (WitchModel) MobCoatLayer.surface(null, body, parent);
+        RecordingVertexConsumer drawn = new RecordingVertexConsumer();
+
+        coated.getHead().getChild("hat").render(new PoseStack(), drawn, 0, 0);
+
+        float widest = 0f;
+        for (RecordingVertexConsumer.Vertex vertex : drawn.vertices()) {
+            widest = Math.max(widest, Math.max(Math.abs(vertex.x()), Math.abs(vertex.z())));
+        }
+        assertEquals(BRIM_HALF_WIDTH, widest, EPSILON);
+    }
+
+    private static final float EPSILON = 1e-4f;
+    /** WitchModel's brim: a ten-texel square from five texels either side of the head's middle, in blocks. */
+    private static final float BRIM_HALF_WIDTH = 5f / 16f;
 }

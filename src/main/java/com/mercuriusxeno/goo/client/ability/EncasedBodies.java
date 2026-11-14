@@ -1,11 +1,13 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import net.minecraft.client.model.EntityModel;
+import net.minecraft.client.model.Model;
 import net.minecraft.client.model.geom.EntityModelSet;
 import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.model.monster.witch.WitchModel;
 import net.minecraft.world.entity.EntityType;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 
 /**
  * The body an encasement draws over a mob whose model holds a part its skin
@@ -51,5 +53,22 @@ public final class EncasedBodies {
     static WitchModel withBareRimHidden(WitchModel witch) {
         witch.getHead().getChild(HAT).getChild(HAT_RIM).visible = false;
         return witch;
+    }
+
+    /**
+     * The cubes of a model its skin draws, for a fill laid over the posed
+     * model, the aimed mob's ripple among them: every cube but a part the
+     * skin leaves bare, which would fill as a box no one sees on the mob.
+     *
+     * @param model the model the mob's renderer draws, posed
+     * @return its cubes, a witch's bare hat rim left out
+     */
+    static List<ModelRay.CubeBox> drawnCubes(Model<?> model) {
+        List<ModelRay.CubeBox> cubes = ModelRay.cubesOf(model.root());
+        if (!(model instanceof WitchModel)) {
+            return cubes;
+        }
+        // diagnose-and-correct-the-floating-hat-brim-box
+        return cubes.stream().filter(cube -> !cube.partPath().endsWith(HAT_RIM)).toList();
     }
 }

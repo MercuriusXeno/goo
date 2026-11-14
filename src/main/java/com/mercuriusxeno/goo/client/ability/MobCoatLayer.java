@@ -24,6 +24,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
@@ -57,14 +58,18 @@ public final class MobCoatLayer<S extends LivingEntityRenderState, M extends Ent
 
     /** The outer shell the mob shows over its body, which the splat sits on while it shows. */
     private final MobShells.Shell shell;
+    /** The body the coat draws, or null to draw the renderer's own model. */
+    private final @Nullable EntityModel<?> body;
 
     /**
      * @param parent the living entity renderer the layer draws over
      * @param shell  the outer shell the mob wears, or MobShells.NONE
+     * @param body   the body the coat draws, from EncasedBodies, or null for the renderer's own model
      */
-    public MobCoatLayer(RenderLayerParent<S, M> parent, MobShells.Shell shell) {
+    public MobCoatLayer(RenderLayerParent<S, M> parent, MobShells.Shell shell, @Nullable EntityModel<?> body) {
         super(parent);
         this.shell = shell;
+        this.body = body;
     }
 
     /**
@@ -73,11 +78,12 @@ public final class MobCoatLayer<S extends LivingEntityRenderState, M extends Ent
      *
      * @param renderer the renderer
      * @param shell    the outer shell its mob wears, or MobShells.NONE
+     * @param body     the body the coat draws, from EncasedBodies, or null for the renderer's own model
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public static void addTo(EntityRenderer<?, ?> renderer, MobShells.Shell shell) {
+    public static void addTo(EntityRenderer<?, ?> renderer, MobShells.Shell shell, @Nullable EntityModel<?> body) {
         if (renderer instanceof LivingEntityRenderer living) {
-            living.addLayer(new MobCoatLayer<>(living, shell));
+            living.addLayer(new MobCoatLayer<>(living, shell, body));
         }
     }
 
@@ -90,8 +96,26 @@ public final class MobCoatLayer<S extends LivingEntityRenderState, M extends Ent
      */
     @SuppressWarnings("unchecked")
     private EntityModel<? super S> surfaceOf(S state) {
-        EntityModel<?> shown = shell.shown(state);
-        return shown == null ? getParentModel() : (EntityModel<? super S>) shown;
+        return (EntityModel<? super S>) surface(shell.shown(state), body, getParentModel());
+    }
+
+    /**
+     * The model a coat sits on: the shell the mob shows over its body, else
+     * the body its skin draws, a witch's with her bare hat rim hidden, else
+     * the renderer's own model.
+     * diagnose-and-correct-the-floating-hat-brim-box
+     *
+     * @param shown  the shell the mob shows this frame, or null
+     * @param body   the body the coat draws, from EncasedBodies, or null for the renderer's own model
+     * @param parent the renderer's own model
+     * @return the model to cast against and paint
+     */
+    static EntityModel<?> surface(@Nullable EntityModel<?> shown, @Nullable EntityModel<?> body,
+                                  EntityModel<?> parent) {
+        if (shown != null) {
+            return shown;
+        }
+        return body != null ? body : parent;
     }
 
     /**
@@ -206,7 +230,8 @@ public final class MobCoatLayer<S extends LivingEntityRenderState, M extends Ent
         ModelRay.PartHit pin = coat.pin();
         if (pin == null) {
             Vec3 camera = Minecraft.getInstance().gameRenderer.getMainCamera().position();
-            pin = aimedModelHit(ModelRay.cubesOf(model.root()), rootPose, coat.hitPoint(), coat.aimDirection(),
+            // diagnose-and-correct-the-floating-hat-brim-box: a splat pins to no part the skin leaves bare
+            pin = aimedModelHit(EncasedBodies.drawnCubes(model), rootPose, coat.hitPoint(), coat.aimDirection(),
                     camera);
             Vector3f world = new Matrix4f(rootPose).mul(pinFrame(model.root(), pin))
                     .transformPosition(pin.partPoint(), new Vector3f());
@@ -256,7 +281,8 @@ public final class MobCoatLayer<S extends LivingEntityRenderState, M extends Ent
                     model.setupAnim(state);
                     Matrix4f cameraToPin = new Matrix4f(pose.pose()).mul(pinFrame(model.root(), pin)).invert();
                     model.renderToBuffer(modelPose,
-                            new SplatVertices(buffer, cameraToPin, pin.partPoint(), fluid.getU0(), fluid.getV0()),
+                            new SplatVertices(buffer, cameraToPin, pin.partPoint(),
+                                    fluid.getU0(), fluid.getV0()),
                             lightCoords, OverlayTexture.NO_OVERLAY, tint);
                 });
     }
