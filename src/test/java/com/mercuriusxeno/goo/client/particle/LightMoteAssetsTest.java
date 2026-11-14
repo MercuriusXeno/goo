@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
- * The light mote Sunbeam's beam sheds ships a particle definition whose every
+ * The light mote Laser's beam sheds ships a particle definition whose every
  * texture resolves to a sprite under assets/goo/textures/particle
  * (decision sunbeam-sheds-motes-rising-from-the-beam).
  */

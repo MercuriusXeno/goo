@@ -8,7 +8,7 @@ import net.minecraft.util.RandomSource;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A mote of glow's warm yellow-white light that rises slowly out of Sunbeam's
+ * A mote of glow's warm yellow-white light that rises slowly out of Laser's
  * beam on the velocity it was given and fades out over its life.
  * sunbeam-sheds-motes-rising-from-the-beam
  */

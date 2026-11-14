@@ -20,7 +20,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * The local caster's sunbeam ray, drawn frame by frame against a wall while
+ * The local caster's laser ray, drawn frame by frame against a wall while
  * the server's rays arrive once a tick a round trip late, holds still under
  * a steady look and moves by a bounded step under a turning one
  * (decision diagnose-and-correct-the-sunbeam-jitter); a ray striking a
@@ -29,7 +29,7 @@ import static org.mockito.Mockito.when;
  * is a block holding a prism ends in that prism
  * (decision reflector-rail-blooms-out-inside-the-prism).
  */
-class SunbeamRayEndTest {
+class LaserRayEndTest {
 
     private static final double RANGE = 32;
     private static final double WALL_Z = 20;
@@ -43,7 +43,7 @@ class SunbeamRayEndTest {
     private static final double STILL = 1e-9;
 
     /** A wall across the look at {@link #WALL_Z}, stopping any line that reaches it. */
-    private static final SunbeamRayEnd.SightLine WALL = (from, reach) -> {
+    private static final LaserRayEnd.SightLine WALL = (from, reach) -> {
         if (reach.z < WALL_Z) {
             return reach;
         }
@@ -66,8 +66,8 @@ class SunbeamRayEndTest {
         for (int frame = 0; frame < FRAMES; frame++) {
             int sampledTick = Math.max(0, frame / FRAMES_PER_TICK - ROUND_TRIP_TICKS);
             Vec3 serverEnd = wallPointAtYaw(sampledTick * FRAMES_PER_TICK * turnPerFrame);
-            SunbeamRayEnd.OwnAim own = new SunbeamRayEnd.OwnAim(EYE, wallPointAtYaw(frame * turnPerFrame));
-            ends.add(SunbeamRayEnd.drawnEnd(serverEnd, own, RANGE, WALL));
+            LaserRayEnd.OwnAim own = new LaserRayEnd.OwnAim(EYE, wallPointAtYaw(frame * turnPerFrame));
+            ends.add(LaserRayEnd.drawnEnd(serverEnd, own, RANGE, WALL));
         }
         return ends;
     }
@@ -83,14 +83,14 @@ class SunbeamRayEndTest {
 
         private static final Vec3 LOOK = new Vec3(0, -0.3, 1).normalize();
 
-        private static SunbeamRayEnd.OwnAim ownAimFrom(double eyeHeight) {
-            return SunbeamRayEnd.ownAim(new CameraEye.Sight(new Vec3(0, 64 + eyeHeight, 0), LOOK), false, null);
+        private static LaserRayEnd.OwnAim ownAimFrom(double eyeHeight) {
+            return LaserRayEnd.ownAim(new CameraEye.Sight(new Vec3(0, 64 + eyeHeight, 0), LOOK), false, null);
         }
 
         @Test
         void theOwnAimsOriginAndAimedPointMoveWithTheSightsHeight() {
-            SunbeamRayEnd.OwnAim standing = ownAimFrom(1.62);
-            SunbeamRayEnd.OwnAim easing = ownAimFrom(1.47);
+            LaserRayEnd.OwnAim standing = ownAimFrom(1.62);
+            LaserRayEnd.OwnAim easing = ownAimFrom(1.47);
 
             assertAll(() -> assertEquals(0.15, standing.eye().y - easing.eye().y, 1e-9),
                     () -> assertEquals(0.15, standing.aimPoint().y - easing.aimPoint().y, 1e-9));
@@ -100,7 +100,7 @@ class SunbeamRayEndTest {
         @ValueSource(doubles = {1.62, 1.47, 1.395})
         void anEasingOriginMovesTheDrawnEndByTheSameEasedAmount(double eyeHeight) {
             Vec3 origin = new Vec3(0, 64 + eyeHeight, 0);
-            Vec3 drawn = SunbeamRayEnd.drawnEnd(Vec3.ZERO, ownAimFrom(eyeHeight), RANGE, FlatWall::stop);
+            Vec3 drawn = LaserRayEnd.drawnEnd(Vec3.ZERO, ownAimFrom(eyeHeight), RANGE, FlatWall::stop);
 
             assertEquals(FlatWall.metAlong(origin, LOOK).y, drawn.y, 1e-6);
         }
@@ -112,13 +112,13 @@ class SunbeamRayEndTest {
     @Test
     void aRayStrikingARefractingPrismGathersAtItsMiddle() {
         Vec3 struck = new Vec3(0.5, 64.5, WALL_Z + 0.25);
-        assertEquals(Vec3.atCenterOf(PRISM), SunbeamRayEnd.gathersAt(EYE.add(0.5, 0.5, 0), struck, PRISM::equals));
+        assertEquals(Vec3.atCenterOf(PRISM), LaserRayEnd.gathersAt(EYE.add(0.5, 0.5, 0), struck, PRISM::equals));
     }
 
     @Test
     void aRayStrikingAnythingElseGathersWhereItStruck() {
         Vec3 struck = new Vec3(0.5, 64.5, WALL_Z);
-        assertEquals(struck, SunbeamRayEnd.gathersAt(EYE.add(0.5, 0.5, 0), struck, pos -> false));
+        assertEquals(struck, LaserRayEnd.gathersAt(EYE.add(0.5, 0.5, 0), struck, pos -> false));
     }
 
     @Nested
@@ -134,12 +134,12 @@ class SunbeamRayEndTest {
         @Test
         void aBlockHitOnAPrismEndsInAPrism() {
             PrismBlockEntity prism = mock(PrismBlockEntity.class);
-            assertTrue(SunbeamRayEnd.endsInPrism(blockHit, pos -> PRISM.equals(pos) ? prism : null));
+            assertTrue(LaserRayEnd.endsInPrism(blockHit, pos -> PRISM.equals(pos) ? prism : null));
         }
 
         @Test
         void aBlockHitOnAnyOtherBlockEndsNowhereSpecial() {
-            assertFalse(SunbeamRayEnd.endsInPrism(blockHit, pos -> null));
+            assertFalse(LaserRayEnd.endsInPrism(blockHit, pos -> null));
         }
 
         @Test
@@ -147,14 +147,14 @@ class SunbeamRayEndTest {
             EntityHitResult entityHit = mock(EntityHitResult.class);
             when(entityHit.getType()).thenReturn(HitResult.Type.ENTITY);
             PrismBlockEntity prism = mock(PrismBlockEntity.class);
-            assertFalse(SunbeamRayEnd.endsInPrism(entityHit, pos -> prism));
+            assertFalse(LaserRayEnd.endsInPrism(entityHit, pos -> prism));
         }
 
         @Test
         void aMissEndsNowhereSpecial() {
             when(blockHit.getType()).thenReturn(HitResult.Type.MISS);
             PrismBlockEntity prism = mock(PrismBlockEntity.class);
-            assertFalse(SunbeamRayEnd.endsInPrism(blockHit, pos -> prism));
+            assertFalse(LaserRayEnd.endsInPrism(blockHit, pos -> prism));
         }
     }
 

@@ -11,7 +11,7 @@ import org.joml.Vector3f;
 import java.util.List;
 
 /**
- * Glow's beam of light, shared by Bulb's prism beacon, Reflector's rails and Sunbeam's ray: a
+ * Glow's beam of light, shared by Bulb's prism beacon, Reflector's rails and Laser's ray: a
  * thin near-white core inside wider, fainter glow-yellow shells, each a
  * square tube blended additively so the layers stack into a bloom and stay
  * see-through.

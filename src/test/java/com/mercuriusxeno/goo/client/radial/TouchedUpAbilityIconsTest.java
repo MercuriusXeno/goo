@@ -41,7 +41,7 @@ class TouchedUpAbilityIconsTest {
         private static final float VALUE_FLOOR = 0.5f;
 
         @ParameterizedTest
-        @ValueSource(strings = {"glow_lux", "glow_sunbeam", "glow_radiant", "glow_crystal"})
+        @ValueSource(strings = {"glow_lux", "glow_laser", "glow_wisps", "glow_bulb"})
         void everyOpaqueTexelIsYellow(String ability) throws IOException {
             BufferedImage icon = read(ability);
             for (int y = 0; y < icon.getHeight(); y++) {

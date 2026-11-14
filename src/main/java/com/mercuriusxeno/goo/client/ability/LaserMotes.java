@@ -6,13 +6,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Where and how the light motes a Sunbeam ray sheds each client tick leave
+ * Where and how the light motes a Laser ray sheds each client tick leave
  * it: at random points along each drawn segment, inside the beam, rising
  * slowly with a little sideways drift. The rate runs per block of beam and
  * stays low, since the end_rod sparks these replace were too many.
  * decision sunbeam-sheds-motes-rising-from-the-beam
  */
-final class SunbeamMotes {
+final class LaserMotes {
 
     /** Motes shed per block of beam each client tick, on average. */
     static final double MOTES_PER_BLOCK = 0.08;
@@ -28,7 +28,7 @@ final class SunbeamMotes {
     /** An axis closer to vertical than this takes east as its reference for the cross-section. */
     private static final double NEARLY_VERTICAL = 0.99;
 
-    private SunbeamMotes() {
+    private LaserMotes() {
     }
 
     /**

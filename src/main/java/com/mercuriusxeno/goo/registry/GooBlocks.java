@@ -85,7 +85,7 @@ public class GooBlocks {
      * Glow crystal: permanent light source a glow ability block places.
      */
     /**
-     * A wisp of light Radiant leaves in dark air: lit, replaceable, without
+     * A wisp of light Wisps leaves in dark air: lit, replaceable, without
      * shape or collision, fading on its own (decision radiant-wisps-where-light-is-low).
      */
     public static final DeferredBlock<WispBlock> WISP = BLOCKS.registerBlock(

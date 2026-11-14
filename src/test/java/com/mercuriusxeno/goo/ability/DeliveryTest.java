@@ -109,7 +109,7 @@ class DeliveryTest {
             assertTrue(knives.slingsAFan());
             assertFalse(knives.aimsALine());
             assertTrue(AbilityJson.decode("frost_orb").delivery().aimsALine());
-            assertTrue(AbilityJson.decode("glow_crystal").delivery().aimsALine());
+            assertTrue(AbilityJson.decode("glow_bulb").delivery().aimsALine());
         }
 
         // traveling-form-transforms-in-flight
@@ -274,7 +274,7 @@ class DeliveryTest {
         // bulb-beam-lands-in-a-few-ticks
         @Test
         void bulbBeamLandsAFullRangeCastWithinTheTickBudget() {
-            Delivery bulb = AbilityJson.decode("glow_crystal").delivery();
+            Delivery bulb = AbilityJson.decode("glow_bulb").delivery();
             assertTrue(bulb.travelTicks(GooThrowHandler.MAX_RANGE, LEVITY, BASE_FLIGHT_TIME)
                     <= BULB_FULL_RANGE_TICK_BUDGET);
         }
@@ -299,9 +299,9 @@ class DeliveryTest {
         }
 
         @Test
-        void bulbBeamsAndSunbeamChannelsOnSelf() {
-            assertEquals(DeliveryKind.BEAM, AbilityJson.decode("glow_crystal").delivery().kind());
-            assertEquals(DeliveryKind.SELF, AbilityJson.decode("glow_sunbeam").delivery().kind());
+        void bulbBeamsAndLaserChannelsOnSelf() {
+            assertEquals(DeliveryKind.BEAM, AbilityJson.decode("glow_bulb").delivery().kind());
+            assertEquals(DeliveryKind.SELF, AbilityJson.decode("glow_laser").delivery().kind());
         }
     }
 

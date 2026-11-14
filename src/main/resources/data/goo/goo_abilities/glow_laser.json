@@ -1,6 +1,6 @@
 {
   "gooType": "glow",
-  "displayName": "goo.ability.glow.sunbeam",
+  "displayName": "goo.ability.glow.laser",
   "badge": "channeled",
   "order": 10,
   "cost": 200,

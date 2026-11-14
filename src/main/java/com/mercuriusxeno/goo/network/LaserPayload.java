@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Server-to-client payload: a caster's Sunbeam ray this tick of the hold,
+ * Server-to-client payload: a caster's Laser ray this tick of the hold,
  * from the caster to where it struck, and on to each mob a prism it struck
  * refracted it toward, sent to every client tracking the caster.
  * decision sunbeam-splits-at-the-prism-with-a-glisten
@@ -22,23 +22,23 @@ import java.util.List;
  * @param range     how far the ray reaches, which the caster's own client casts its drawn ray to
  *                  (decision diagnose-and-correct-the-sunbeam-jitter)
  */
-public record SunbeamPayload(int casterId, Vec3 end, List<Vec3> refracted, double range)
+public record LaserPayload(int casterId, Vec3 end, List<Vec3> refracted, double range)
         implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
-    public static final Type<SunbeamPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath(Goo.MODID, "sunbeam"));
+    public static final Type<LaserPayload> TYPE =
+            new Type<>(Identifier.fromNamespaceAndPath(Goo.MODID, "laser"));
 
     /** Stream codec for encoding/decoding. */
-    public static final StreamCodec<FriendlyByteBuf, SunbeamPayload> STREAM_CODEC =
-            StreamCodec.of(SunbeamPayload::encode, SunbeamPayload::decode);
+    public static final StreamCodec<FriendlyByteBuf, LaserPayload> STREAM_CODEC =
+            StreamCodec.of(LaserPayload::encode, LaserPayload::decode);
 
     @Override
     public @NonNull Type<? extends CustomPacketPayload> type() {
         return TYPE;
     }
 
-    private static void encode(FriendlyByteBuf buf, SunbeamPayload payload) {
+    private static void encode(FriendlyByteBuf buf, LaserPayload payload) {
         buf.writeVarInt(payload.casterId);
         writePoint(buf, payload.end);
         buf.writeVarInt(payload.refracted.size());
@@ -46,7 +46,7 @@ public record SunbeamPayload(int casterId, Vec3 end, List<Vec3> refracted, doubl
         buf.writeDouble(payload.range);
     }
 
-    private static SunbeamPayload decode(FriendlyByteBuf buf) {
+    private static LaserPayload decode(FriendlyByteBuf buf) {
         int casterId = buf.readVarInt();
         Vec3 end = readPoint(buf);
         int count = buf.readVarInt();
@@ -54,7 +54,7 @@ public record SunbeamPayload(int casterId, Vec3 end, List<Vec3> refracted, doubl
         for (int i = 0; i < count; i++) {
             refracted.add(readPoint(buf));
         }
-        return new SunbeamPayload(casterId, end, refracted, buf.readDouble());
+        return new LaserPayload(casterId, end, refracted, buf.readDouble());
     }
 
     private static void writePoint(FriendlyByteBuf buf, Vec3 point) {

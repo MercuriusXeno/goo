@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * Sunbeam's scorch as this client sees it: each frame a ray strikes a block,
+ * Laser's scorch as this client sees it: each frame a ray strikes a block,
  * the spot burns into its caster's {@link ScorchTrail}, and every mark still
  * showing draws as a quad flush on the face it burnt, white-hot where the
  * ray strikes now, cooling through orange to a dark burn mark behind it and
@@ -31,7 +31,7 @@ import java.util.function.Consumer;
  * decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
-public final class SunbeamScorch {
+public final class LaserScorch {
 
     /** Half a mark's quad across, in blocks; wider than the spacing, so the marks of a rake overlap into one streak. */
     private static final float MARK_HALF_WIDTH = 0.28f;
@@ -45,7 +45,7 @@ public final class SunbeamScorch {
 
     private static final Map<Integer, ScorchTrail> TRAILS = new HashMap<>();
 
-    private SunbeamScorch() {
+    private LaserScorch() {
     }
 
     /**
@@ -65,7 +65,7 @@ public final class SunbeamScorch {
     /**
      * Draws every mark still showing right after the solid blocks it marks,
      * dropping the faded ones first: ahead of every block entity's beam and
-     * the Sunbeam ray, so a beam passing in front of a mark lies over it
+     * the Laser ray, so a beam passing in front of a mark lies over it
      * rather than under its char (operator UAT 2026-11-10).
      *
      * @param event the level render stage event
@@ -104,10 +104,10 @@ public final class SunbeamScorch {
      * @param drawMarks emits every mark into the consumer it is handed
      */
     static void drawInTwoPasses(MultiBufferSource.BufferSource buffers, Consumer<VertexConsumer> drawMarks) {
-        drawMarks.accept(buffers.getBuffer(GooRenderTypes.SUNBEAM_SCORCH_TYPE));
-        buffers.endBatch(GooRenderTypes.SUNBEAM_SCORCH_TYPE);
-        drawMarks.accept(buffers.getBuffer(GooRenderTypes.SUNBEAM_SCORCH_GLOW_TYPE));
-        buffers.endBatch(GooRenderTypes.SUNBEAM_SCORCH_GLOW_TYPE);
+        drawMarks.accept(buffers.getBuffer(GooRenderTypes.LASER_SCORCH_TYPE));
+        buffers.endBatch(GooRenderTypes.LASER_SCORCH_TYPE);
+        drawMarks.accept(buffers.getBuffer(GooRenderTypes.LASER_SCORCH_GLOW_TYPE));
+        buffers.endBatch(GooRenderTypes.LASER_SCORCH_GLOW_TYPE);
     }
 
     /**

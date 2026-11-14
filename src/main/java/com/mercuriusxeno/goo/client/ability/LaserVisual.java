@@ -8,7 +8,7 @@ import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
-import com.mercuriusxeno.goo.network.SunbeamPayload;
+import com.mercuriusxeno.goo.network.LaserPayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -39,15 +39,15 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Sunbeam's ray as every client tracking the caster sees it: glow's beam of
+ * Laser's ray as every client tracking the caster sees it: glow's beam of
  * light ({@link GlowBeamMesh}) from just below the caster's eye to where the
  * ray struck, and on from a prism it struck to each mob the prism refracted
  * it toward. A ray shows while its caster holds it and for a tick after the
  * last one the server sent. A ray a prism refracts runs into the prism's
  * middle and its refracted beams leave from there, out of a soft core of
  * light ({@link GlowCore}). Each client tick the segments last drawn shed
- * light motes rising out of the beam ({@link SunbeamMotes}) and scattering
- * off each surface it struck ({@link SunbeamStrike}).
+ * light motes rising out of the beam ({@link LaserMotes}) and scattering
+ * off each surface it struck ({@link LaserStrike}).
  * decision sunbeam-splits-at-the-prism-with-a-glisten
  * decision diagnose-and-correct-the-sunbeam-prism-depth
  * decision reflector-rail-blooms-out-inside-the-prism
@@ -56,7 +56,7 @@ import java.util.Objects;
  * decision sunbeam-motes-scatter-away-from-struck-surfaces
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
-public final class SunbeamVisual {
+public final class LaserVisual {
 
     /** Ticks a ray keeps showing after the last one arrived. */
     static final int LINGER_TICKS = 2;
@@ -81,7 +81,7 @@ public final class SunbeamVisual {
      */
     private static final Map<Integer, DrawnRay> DRAWN = new HashMap<>();
 
-    private SunbeamVisual() {
+    private LaserVisual() {
     }
 
     /**
@@ -90,7 +90,7 @@ public final class SunbeamVisual {
      * @param payload the ray payload
      * @param context the network context
      */
-    public static void onPayload(SunbeamPayload payload, IPayloadContext context) {
+    public static void onPayload(LaserPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.level != null) {
@@ -99,7 +99,7 @@ public final class SunbeamVisual {
                         mc.level.getGameTime()));
                 Entity caster = mc.level.getEntity(payload.casterId());
                 if (starting && caster != null) {
-                    mc.getSoundManager().play(new SunbeamHum(caster));
+                    mc.getSoundManager().play(new LaserHum(caster));
                 }
             }
         });
@@ -154,7 +154,7 @@ public final class SunbeamVisual {
             Entity caster = Objects.requireNonNull(level.getEntity(entry.getKey()));
             Vec3 hand = GloveHand.of(mc, caster, partialTick);
             DrawnEnd struck = drawnEnd(mc, caster, entry.getValue(), partialTick);
-            Vec3 gathered = SunbeamRayEnd.gathersAt(hand, struck.point(), pos -> refractsAt(level, pos));
+            Vec3 gathered = LaserRayEnd.gathersAt(hand, struck.point(), pos -> refractsAt(level, pos));
             if (!gathered.equals(struck.point())) {
                 cores.add(gathered.subtract(camera));
             }
@@ -175,11 +175,11 @@ public final class SunbeamVisual {
      * @param ray      the ray
      * @return each segment
      */
-    private static List<SunbeamMotes.Segment> segmentsOf(Vec3 hand, Vec3 gathered, Ray ray) {
-        List<SunbeamMotes.Segment> segments = new ArrayList<>();
-        segments.add(new SunbeamMotes.Segment(hand, gathered));
+    private static List<LaserMotes.Segment> segmentsOf(Vec3 hand, Vec3 gathered, Ray ray) {
+        List<LaserMotes.Segment> segments = new ArrayList<>();
+        segments.add(new LaserMotes.Segment(hand, gathered));
         for (Vec3 refracted : ray.refracted()) {
-            segments.add(new SunbeamMotes.Segment(gathered, refracted));
+            segments.add(new LaserMotes.Segment(gathered, refracted));
         }
         return segments;
     }
@@ -210,18 +210,18 @@ public final class SunbeamVisual {
      */
     private static void shedAndScatter(ClientLevel level, int casterId, DrawnRay drawn) {
         RandomSource random = level.getRandom();
-        spawnMotes(level, SunbeamMotes.shedAlong(drawn.segments(), DRAWN_RADIUS, random));
+        spawnMotes(level, LaserMotes.shedAlong(drawn.segments(), DRAWN_RADIUS, random));
         Entity caster = level.getEntity(casterId);
         if (caster == null) {
             return;
         }
-        for (SunbeamStrike.Surface surface : surfacesStruck(caster, drawn)) {
-            spawnMotes(level, SunbeamStrike.scatterOff(surface, random));
+        for (LaserStrike.Surface surface : surfacesStruck(caster, drawn)) {
+            spawnMotes(level, LaserStrike.scatterOff(surface, random));
         }
     }
 
-    private static void spawnMotes(ClientLevel level, List<SunbeamMotes.Mote> motes) {
-        for (SunbeamMotes.Mote mote : motes) {
+    private static void spawnMotes(ClientLevel level, List<LaserMotes.Mote> motes) {
+        for (LaserMotes.Mote mote : motes) {
             level.addParticle(GooParticles.LIGHT_MOTE.get(), mote.at().x, mote.at().y, mote.at().z,
                     mote.velocity().x, mote.velocity().y, mote.velocity().z);
         }
@@ -236,16 +236,16 @@ public final class SunbeamVisual {
      * @param drawn  the ray as the last frame drew it
      * @return each struck surface
      */
-    private static List<SunbeamStrike.Surface> surfacesStruck(Entity caster, DrawnRay drawn) {
-        List<SunbeamStrike.Surface> surfaces = new ArrayList<>();
-        List<SunbeamMotes.Segment> segments = drawn.segments();
-        SunbeamMotes.Segment main = segments.getFirst();
+    private static List<LaserStrike.Surface> surfacesStruck(Entity caster, DrawnRay drawn) {
+        List<LaserStrike.Surface> surfaces = new ArrayList<>();
+        List<LaserMotes.Segment> segments = drawn.segments();
+        LaserMotes.Segment main = segments.getFirst();
         if (!drawn.gathersInPrism()) {
-            surfaces.addAll(SunbeamStrike.surfacesStruck(probeTheEnd(caster, main), main.from()));
+            surfaces.addAll(LaserStrike.surfacesStruck(probeTheEnd(caster, main), main.from()));
         }
-        for (SunbeamMotes.Segment refracted : segments.subList(1, segments.size())) {
-            surfaces.addAll(SunbeamStrike.surfacesStruck(
-                    SunbeamStrike.refractedEndProbes(refracted.from(), refracted.to(), DRAWN_RADIUS),
+        for (LaserMotes.Segment refracted : segments.subList(1, segments.size())) {
+            surfaces.addAll(LaserStrike.surfacesStruck(
+                    LaserStrike.refractedEndProbes(refracted.from(), refracted.to(), DRAWN_RADIUS),
                     refracted.from()));
         }
         return surfaces;
@@ -259,7 +259,7 @@ public final class SunbeamVisual {
      * @param segment the segment whose end is probed
      * @return each probe that struck a block face or a mob
      */
-    private static List<SunbeamStrike.Probe> probeTheEnd(Entity caster, SunbeamMotes.Segment segment) {
+    private static List<LaserStrike.Probe> probeTheEnd(Entity caster, LaserMotes.Segment segment) {
         Vec3 along = segment.to().subtract(segment.from());
         if (along.length() < SHORTEST_SEGMENT) {
             return List.of();
@@ -267,14 +267,14 @@ public final class SunbeamVisual {
         Vec3 axis = along.normalize();
         Vec3 before = segment.to().subtract(axis.scale(PROBE_BEFORE_THE_END));
         Vec3 past = segment.to().add(axis.scale(PROBE_PAST_THE_END));
-        List<SunbeamStrike.Probe> probes = new ArrayList<>();
-        for (Vec3 offset : SunbeamStrike.probeOffsets(axis, DRAWN_RADIUS)) {
+        List<LaserStrike.Probe> probes = new ArrayList<>();
+        for (Vec3 offset : LaserStrike.probeOffsets(axis, DRAWN_RADIUS)) {
             HitResult hit = RayStep.castFrom(caster.level(), caster, before.add(offset), past.add(offset),
                     living -> true);
             if (hit instanceof BlockHitResult block && hit.getType() == HitResult.Type.BLOCK) {
-                probes.add(SunbeamStrike.Probe.onBlock(hit.getLocation(), block.getDirection()));
+                probes.add(LaserStrike.Probe.onBlock(hit.getLocation(), block.getDirection()));
             } else if (hit.getType() == HitResult.Type.ENTITY) {
-                probes.add(SunbeamStrike.Probe.onMob(hit.getLocation()));
+                probes.add(LaserStrike.Probe.onMob(hit.getLocation()));
             }
         }
         return probes;
@@ -340,17 +340,17 @@ public final class SunbeamVisual {
         Level level = caster.level();
         if (caster != mc.player || !(caster instanceof Player player)) {
             HitResult struck = burnWhereTheServerStruck(caster, ray, partialTick, now);
-            return new DrawnEnd(ray.end(), SunbeamRayEnd.endsInPrism(struck, level::getBlockEntity));
+            return new DrawnEnd(ray.end(), LaserRayEnd.endsInPrism(struck, level::getBlockEntity));
         }
         HitResult[] cast = new HitResult[1];
-        Vec3 end = SunbeamRayEnd.drawnEnd(ray.end(), ownAim(player, partialTick), ray.range(), (eye, reach) -> {
+        Vec3 end = LaserRayEnd.drawnEnd(ray.end(), ownAim(player, partialTick), ray.range(), (eye, reach) -> {
             HitResult hit = RayStep.castFrom(level, caster, eye, reach, living -> true);
             // sunbeam-leaves-a-glowing-scorch-that-trails-and-fades
-            SunbeamScorch.burn(caster.getId(), hit, now);
+            LaserScorch.burn(caster.getId(), hit, now);
             cast[0] = hit;
             return hit.getLocation();
         });
-        return new DrawnEnd(end, SunbeamRayEnd.endsInPrism(cast[0], level::getBlockEntity));
+        return new DrawnEnd(end, LaserRayEnd.endsInPrism(cast[0], level::getBlockEntity));
     }
 
     /**
@@ -374,7 +374,7 @@ public final class SunbeamVisual {
         }
         Vec3 pastTheEnd = ray.end().add(toEnd.normalize().scale(PROBE_PAST_THE_END));
         HitResult hit = RayStep.castFrom(caster.level(), caster, eye, pastTheEnd, living -> true);
-        SunbeamScorch.burn(caster.getId(), hit, now);
+        LaserScorch.burn(caster.getId(), hit, now);
         return hit;
     }
 
@@ -387,11 +387,11 @@ public final class SunbeamVisual {
      * @param partialTick the frame's partial tick
      * @return the aim
      */
-    private static SunbeamRayEnd.OwnAim ownAim(Player player, float partialTick) {
+    private static LaserRayEnd.OwnAim ownAim(Player player, float partialTick) {
         Vec3 lockedMob = AimTracker.currentTarget() instanceof TargetResult.EntityTarget locked
                 ? locked.entity().getPosition(partialTick).add(0, locked.entity().getBbHeight() * HALF, 0) : null;
         boolean locksOn = GloveThrowSender.locksOn(GloveAim.selectedAbilityId(player));
-        return SunbeamRayEnd.ownAim(CameraEye.of(Minecraft.getInstance(), player, partialTick), locksOn, lockedMob);
+        return LaserRayEnd.ownAim(CameraEye.of(Minecraft.getInstance(), player, partialTick), locksOn, lockedMob);
     }
 
     /**
@@ -473,7 +473,7 @@ public final class SunbeamVisual {
      * @param segments       the hand to where it gathers, then on to each refracted end, world space
      * @param gathersInPrism whether the main ray runs into a refracting prism's core
      */
-    record DrawnRay(List<SunbeamMotes.Segment> segments, boolean gathersInPrism) {
+    record DrawnRay(List<LaserMotes.Segment> segments, boolean gathersInPrism) {
     }
 
     /**

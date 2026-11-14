@@ -45,8 +45,8 @@ class ShortAbilityNamesTest {
 
     static Stream<Arguments> renamedKeys() {
         return Stream.of(
-                Arguments.of("goo.ability.glow.sunbeam", "Laser"),
-                Arguments.of("goo.ability.glow.radiant", "Wisps"),
+                Arguments.of("goo.ability.glow.laser", "Laser"),
+                Arguments.of("goo.ability.glow.wisps", "Wisps"),
                 Arguments.of("goo.ability.xeno.eldritch", "Unveil"),
                 Arguments.of("goo.ability.jelly.heal", "Heal"),
                 Arguments.of("goo.ability.pulse.extender", "Extend"),

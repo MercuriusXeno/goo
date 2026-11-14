@@ -31,7 +31,7 @@ public enum AilmentKind {
     PETRIFY(0x8C8A86, AilmentPattern.STONE),
     /** Frozen: frost. */
     FROZEN(0xC4ECFF, AilmentPattern.FROST),
-    /** Glow's mark: Sunbeam and Lux outline a mob in glow yellow. */
+    /** Glow's mark: Laser and Lux outline a mob in glow yellow. */
     GLOW(0xFFE628),
     /**
      * Astral's mark: Scry's sweep outlines a mob in the astral type's color.

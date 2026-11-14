@@ -3,8 +3,8 @@
 #moj_import <minecraft:projection.glsl>
 #moj_import <minecraft:dynamictransforms.glsl>
 
-// Sunbeam's scorch (decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades).
-// SunbeamScorch packs the vertex color: red is the mark's heat, 1 just burnt
+// Laser's scorch (decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades).
+// LaserScorch packs the vertex color: red is the mark's heat, 1 just burnt
 // and 0 faded, green its seed. The normal's x and y carry the corner's place
 // across the quad, -1 to 1.
 

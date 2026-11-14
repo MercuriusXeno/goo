@@ -12,14 +12,14 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Where a Sunbeam beam strikes and how its light motes scatter off it. Nine
+ * Where a Laser beam strikes and how its light motes scatter off it. Nine
  * probes run parallel to the beam across its drawn square cross-section, the
  * middle, edge middles and corners, so a beam splitting a block's corner strikes each
  * face it touches; each struck surface scatters a few slow motes from the
  * points its own probes struck, mostly along its outward normal.
  * decision sunbeam-motes-scatter-away-from-struck-surfaces
  */
-final class SunbeamStrike {
+final class LaserStrike {
 
     /** Motes each struck surface scatters per client tick, on average. */
     static final double MOTES_PER_SURFACE = 0.6;
@@ -33,7 +33,7 @@ final class SunbeamStrike {
     private static final double SHORTEST_NORMAL = 1.0e-6;
     private static final double TWO_PI = 2 * Math.PI;
 
-    private SunbeamStrike() {
+    private LaserStrike() {
     }
 
     /**
@@ -113,11 +113,11 @@ final class SunbeamStrike {
      * @param random  the random source
      * @return each mote's spawn point and velocity
      */
-    static List<SunbeamMotes.Mote> scatterOff(Surface surface, RandomSource random) {
-        int count = SunbeamMotes.countFor(MOTES_PER_SURFACE, random);
-        List<SunbeamMotes.Mote> motes = new ArrayList<>(count);
+    static List<LaserMotes.Mote> scatterOff(Surface surface, RandomSource random) {
+        int count = LaserMotes.countFor(MOTES_PER_SURFACE, random);
+        List<LaserMotes.Mote> motes = new ArrayList<>(count);
         Vec3 normal = surface.normal();
-        Vec3 across = SunbeamMotes.across(normal);
+        Vec3 across = LaserMotes.across(normal);
         Vec3 acrossToo = normal.cross(across);
         for (int mote = 0; mote < count; mote++) {
             Vec3 at = surface.points().get(random.nextInt(surface.points().size()));
@@ -126,7 +126,7 @@ final class SunbeamStrike {
             double heading = random.nextDouble() * TWO_PI;
             Vec3 velocity = normal.scale(leave).add(across.scale(Math.cos(heading) * slide))
                     .add(acrossToo.scale(Math.sin(heading) * slide));
-            motes.add(new SunbeamMotes.Mote(at, velocity));
+            motes.add(new LaserMotes.Mote(at, velocity));
         }
         return motes;
     }

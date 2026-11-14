@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.function.Predicate;
 
 /**
- * One caster's sunbeam scorch: a mark dropped each time the struck spot moves
+ * One caster's laser scorch: a mark dropped each time the struck spot moves
  * a spacing along a face, the gap a fast rake leaves bridged with marks
  * whose ages run between its ends, so the trail cools from the impact
  * backward; the mark under a beam held still is burnt afresh. Client-only
