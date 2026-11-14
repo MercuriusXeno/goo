@@ -18,24 +18,20 @@ import java.util.function.Predicate;
  * ellipse's rim, parallel to the look out to the reach, each stopping at the
  * first block that is not air, the nearest stop setting the depth. The rays
  * pick nothing: aiming at a face's middle picks one block, near an edge two
- * and near a corner four, never every block the drill touches. The block
- * behind each picked block progresses at half speed out of view, so once the
- * pick breaks the next tick's cross section lands on blocks already cracking
- * and moves deeper smoothly while the hold runs.
+ * and near a corner four, never every block the drill touches; no block
+ * behind them progresses.
  * decision bore-breaks-what-the-drill-cross-section-intersects
  * decision bore-tube-rays-set-the-depth-of-the-cross-section
  * decision bore-breaks-the-block-at-the-point-and-its-surroundings
- * decision bore-block-behind-progresses-at-half-speed
  * decision bore-breaks-what-is-in-the-vortex
  * decision bore-drill-point-floats-along-the-crosshair-to-the-aimed-block
  *
  * @param blocks the breakable blocks the cross section intersects, the one on the eye line first; empty where
  *               no ray meets a block
- * @param behind the breakable block behind each picked block, where the eye line runs on past the cross section
  * @param tunnel every cell the eye line crosses from the eye out to the cross section, air among them, where
  *               Bore strikes what stands
  */
-record BorePick(List<BlockPos> blocks, List<BlockPos> behind, List<BlockPos> tunnel) {
+record BorePick(List<BlockPos> blocks, List<BlockPos> tunnel) {
 
     /** The rays round the cross section's rim, beside the eye line. */
     static final int RIM_RAYS = 8;
@@ -83,45 +79,17 @@ record BorePick(List<BlockPos> blocks, List<BlockPos> behind, List<BlockPos> tun
         Section section = sectionOf(eye, aim.aimPoint(), shape, gloveRight, air, breakable);
         List<BlockPos> line = BoreStep.blocksAlong(eye, section.center().add(look.scale(NUDGE)));
         if (!section.stopped()) {
-            return new BorePick(List.of(), List.of(), List.copyOf(line.subList(1, line.size())));
+            return new BorePick(List.of(), List.copyOf(line.subList(1, line.size())));
         }
         BlockPos eyeCell = line.getFirst();
+        BlockPos outward = BlockPos.containing(section.face());
+        // a block whose face toward the crosshair's side is buried, as a tunnel's floor or ceiling is, never breaks
         List<BlockPos> blocks = shape.cellsCrossedAt(section.center(), look, section.face(), gloveRight).stream()
-                .filter(cell -> !cell.equals(eyeCell) && breakable.test(cell)).toList();
+                .filter(cell -> !cell.equals(eyeCell) && breakable.test(cell) && air.test(cell.offset(outward)))
+                .toList();
         // the strike reaches the block the eye line enters where Bore breaks it, and stops short of one it cannot
         int tunnelEnd = blocks.contains(line.getLast()) ? line.size() : line.size() - 1;
-        return new BorePick(blocks, behindEach(blocks, onwardFrom(eye, aim.aimPoint(), line.getLast()), breakable),
-                List.copyOf(line.subList(1, Math.max(1, tunnelEnd))));
-    }
-
-    /**
-     * The offset from a cell on the eye line to the next cell the line enters past it.
-     *
-     * @param eye      the eye the line runs from
-     * @param reachEnd the end of the reach along the look
-     * @param cell     the cell
-     * @return the offset, empty where the line ends there or misses the cell
-     */
-    private static Optional<BlockPos> onwardFrom(Vec3 eye, Vec3 reachEnd, BlockPos cell) {
-        List<BlockPos> crossed = BoreStep.blocksAlong(eye, reachEnd);
-        int at = crossed.indexOf(cell);
-        return at < 0 || at + 1 >= crossed.size() ? Optional.empty()
-                : Optional.of(crossed.get(at + 1).subtract(cell));
-    }
-
-    /**
-     * The breakable block behind each picked block: the cell at the offset
-     * the eye line runs on by past the cross section.
-     *
-     * @param blocks    the picked blocks
-     * @param onward    the offset from the cross section's cell to the next cell on the eye line
-     * @param breakable whether a cell holds a block in the tag
-     * @return the blocks behind, none of them picked
-     */
-    private static List<BlockPos> behindEach(List<BlockPos> blocks, Optional<BlockPos> onward,
-                                             Predicate<BlockPos> breakable) {
-        return onward.map(step -> blocks.stream().map(block -> block.offset(step)).distinct()
-                .filter(cell -> !blocks.contains(cell) && breakable.test(cell)).toList()).orElse(List.of());
+        return new BorePick(blocks, List.copyOf(line.subList(1, Math.max(1, tunnelEnd))));
     }
 
     /**
@@ -164,7 +132,8 @@ record BorePick(List<BlockPos> blocks, List<BlockPos> behind, List<BlockPos> tun
      * @return true for a block standing out from that face toward the eye
      */
     private static boolean standsInFront(Hit rim, Hit crosshair) {
-        return rim.at().subtract(crosshair.at()).dot(crosshair.face()) > IN_FRONT;
+        // a tunnel's floor, ceiling or side the rim grazes faces across the crosshair's face and sets nothing
+        return rim.face().equals(crosshair.face()) && rim.at().subtract(crosshair.at()).dot(crosshair.face()) > IN_FRONT;
     }
 
     /**
