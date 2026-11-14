@@ -381,6 +381,18 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
     }
 
     /**
+     * Whether the ability lands its program at the aimed target as one
+     * strike: an arc thrown there, or a spontaneous cast made there, which
+     * previews the area it will strike alike.
+     * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
+     *
+     * @return true for an arc or a spontaneous cast
+     */
+    public boolean strikesTheAim() {
+        return kind == DeliveryKind.ARC || kind == DeliveryKind.SPONTANEOUS;
+    }
+
+    /**
      * The ticks a flight takes to cover a distance: a beam at its speed, an
      * arc by the thrown type's flight time, or by its top speed where that
      * flies it slower, so the eye follows a dart across its arc.

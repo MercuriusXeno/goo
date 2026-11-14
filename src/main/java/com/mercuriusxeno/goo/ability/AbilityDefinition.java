@@ -757,7 +757,7 @@ public record AbilityDefinition(
     }
 
     private static boolean isInstantAreaThrow(Delivery delivery, AbilityBadge badge) {
-        return delivery.kind() == DeliveryKind.ARC && (badge == AbilityBadge.WORLD || badge == AbilityBadge.FREE);
+        return delivery.strikesTheAim() && (badge == AbilityBadge.WORLD || badge == AbilityBadge.FREE);
     }
 
     private static double widestRadius(List<Step> behaviors) {
