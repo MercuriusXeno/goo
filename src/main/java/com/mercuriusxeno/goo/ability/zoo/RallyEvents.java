@@ -14,6 +14,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
@@ -28,9 +29,11 @@ import java.util.UUID;
  * Runs a rallied mob for its caster until the caster strikes it: it walks to
  * the caster's nearest enemy within reach of the caster, a player who attacked
  * the caster first, and strikes it with the rally's damage on reaching it and
- * every strike interval after; with no enemy in reach it follows the caster.
+ * every strike interval after; with no enemy in reach it takes the side its
+ * moving caster heads toward, or follows a standing caster.
  * The caster's own hit ends the rally and takes its buffs off; a hit from
  * anyone else leaves it.
+ * unengaged-minions-move-where-you-move
  * zoo-rally-arms-the-peaceful
  * zoo-rally-holds-for-the-brew
  * rally-is-a-mob-effect-on-one-target
@@ -94,8 +97,10 @@ public final class RallyEvents {
     }
 
     /**
-     * Fights the caster's foe in reach, or with none follows the caster.
+     * Fights the caster's foe in reach; with none, takes the side the moving
+     * caster heads toward, or follows the standing caster.
      * rallied-mobs-follow-the-player-who-rallied-them
+     * unengaged-minions-move-where-you-move
      *
      * @param level  the mob's level
      * @param mob    the rallied mob
@@ -106,8 +111,11 @@ public final class RallyEvents {
         List<RallyFoes.Candidate<LivingEntity>> nearby = candidatesNear(mob, caster);
         Optional<LivingEntity> foe = RallyFoes.pick(caster.getUUID(), standingAttacker(mob, rally, nearby),
                 uuidOf(caster.getLastHurtByMob()), uuidOf(caster.getLastHurtMob()), nearby);
-        switch (RallyFollow.choose(foe.isPresent(), mob.distanceToSqr(caster))) {
+        Vec3 rallierVelocity = RallierMotion.velocityOf(caster, level.getGameTime());
+        switch (RallyFollow.choose(foe.isPresent(), mob.distanceToSqr(caster), rallierVelocity)) {
             case FIGHT -> fight(level, mob, foe.orElseThrow(), rally.damage());
+            case PRE_EMPT -> RallyFollow.destination(caster.position(), rallierVelocity, mob.getId())
+                    .ifPresent(spot -> walkTo(mob, spot));
             case FOLLOW -> follow(mob, caster);
             case HOLD -> mob.getNavigation().stop();
         }
@@ -164,6 +172,20 @@ public final class RallyEvents {
     static void follow(Mob mob, LivingEntity followed) {
         if (mob.getNavigation().isDone() || mob.tickCount % REPATH_TICKS == 0) {
             mob.getNavigation().moveTo(followed, FOLLOW_SPEED);
+        }
+    }
+
+    /**
+     * Walks a rallied mob to the spot on the side its moving rallier heads
+     * toward, re-pathing as the spot moves with the rallier.
+     * unengaged-minions-move-where-you-move
+     *
+     * @param mob  the rallied mob
+     * @param spot the spot it walks to
+     */
+    private static void walkTo(Mob mob, Vec3 spot) {
+        if (mob.getNavigation().isDone() || mob.tickCount % REPATH_TICKS == 0) {
+            mob.getNavigation().moveTo(spot.x, spot.y, spot.z, FOLLOW_SPEED);
         }
     }
 
