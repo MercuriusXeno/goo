@@ -64,6 +64,10 @@ public final class RallyTests {
         GooTestFunctions.registerTest(registrar, RALLY_TAKES_ONE_OF_TWO_COWS, RallyTests::rallyTakesOneOfTwoCows);
         GooTestFunctions.registerTest(registrar, RALLY_HOLDS_PAST_THE_OLD_RALLY, RallyTests::rallyHoldsPastTheOldRally);
         GooTestFunctions.registerTest(registrar, RALLY_ENDS_ON_THE_RALLIERS_HIT, RallyTests::rallyEndsOnTheRalliersHit);
+        GooTestFunctions.registerTest(registrar, RALLIERS_PUNCH_LEAVES_THE_COW_ALIVE,
+                RallyTests::ralliersPunchLeavesTheCowAlive);
+        GooTestFunctions.registerTest(registrar, SECOND_PUNCH_MAKES_THE_FREED_COW_A_FOE,
+                RallyTests::secondPunchMakesTheFreedCowAFoe);
         GooTestFunctions.registerTest(registrar, RALLY_COW_WEARS_HALF_ITS_RALLIERS_ARMOR,
                 RallyTests::rallyCowWearsHalfItsRalliersArmor);
         GooTestFunctions.registerTest(registrar, RALLY_AGAIN_RELEASES_THE_COW, RallyTests::rallyAgainReleasesTheCow);
@@ -527,6 +531,98 @@ public final class RallyTests {
             helper.assertTrue(cow.hasData(GooAttachments.RALLIED), RALLY_LAPSED);
             helper.succeed();
         });
+    }
+
+    private static final String RALLIERS_PUNCH_LEAVES_THE_COW_ALIVE = "rally_ralliers_punch_leaves_the_cow_alive";
+    private static final String SECOND_PUNCH_MAKES_THE_FREED_COW_A_FOE =
+            "rally_second_punch_makes_the_freed_cow_a_foe";
+    /** Ticks for both cows to settle under their rallies before the punch. */
+    private static final int SETTLED_TICKS = 40;
+    /** Ticks the punched cow is watched after the punch, past the other cow's strike interval. */
+    private static final int WATCHED_TICKS = 20;
+    /** Ticks for the other rallied cow to reach and strike the freed cow. */
+    private static final int STRIKE_WINDOW_TICKS = 40;
+    private static final String PUNCH_HURT =
+            "The rallier's rally-ending punch should leave the cow alive at %s, unhurt, %s: alive %s, health %s, "
+                    + "last damage %s, last attacker %s";
+    private static final String PUNCH_KEPT_THE_RALLY = "The rallier's punch should end the cow's rally";
+    private static final String SECOND_PUNCH_MISSED = "The second punch should lower the freed cow's %s health, reads %s";
+    private static final String FREED_COW_SPARED = "The other rallied cow should strike the freed cow after the second punch";
+
+    /**
+     * The rallier punches one of its two rallied cows, at full rallied
+     * health: the rally ends, the punch deals no damage, and the freed cow
+     * stands alive at a cow's own 10 health, unstruck by the other rallied
+     * cow, on the punch's tick and 20 ticks after.
+     * rally-is-a-mob-effect-on-one-target
+     *
+     * @param helper the gametest helper
+     */
+    public static void ralliersPunchLeavesTheCowAlive(GameTestHelper helper) {
+        ServerPlayer caster = survivalRallier(helper);
+        Cow cow = helper.spawn(EntityType.COW, COW_POS);
+        Cow other = helper.spawn(EntityType.COW, BESIDE_COW_POS);
+        rally(helper, cow, caster);
+        rally(helper, other, caster);
+        helper.runAfterDelay(SETTLED_TICKS, () -> {
+            caster.attack(cow);
+            helper.assertFalse(cow.hasData(GooAttachments.RALLIED), PUNCH_KEPT_THE_RALLY);
+            assertUnhurt(helper, cow, "on the punch's tick");
+        });
+        helper.runAfterDelay(SETTLED_TICKS + WATCHED_TICKS, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            assertUnhurt(helper, cow, WATCHED_TICKS + " ticks after");
+            helper.succeed();
+        });
+    }
+
+    /**
+     * The rallier punches one of its two rallied cows twice: the first
+     * punch frees it unhurt, the second lands its damage, and the other
+     * rallied cow then strikes the freed cow as it would any mob its
+     * rallier struck.
+     * rally-is-a-mob-effect-on-one-target
+     *
+     * @param helper the gametest helper
+     */
+    public static void secondPunchMakesTheFreedCowAFoe(GameTestHelper helper) {
+        ServerPlayer caster = survivalRallier(helper);
+        Cow cow = helper.spawn(EntityType.COW, COW_POS);
+        Cow other = helper.spawn(EntityType.COW, BESIDE_COW_POS);
+        rally(helper, cow, caster);
+        rally(helper, other, caster);
+        helper.runAfterDelay(SETTLED_TICKS, () -> {
+            caster.attack(cow);
+            float freed = cow.getHealth();
+            caster.resetAttackStrengthTicker();
+            caster.attack(cow);
+            helper.assertTrue(cow.getHealth() < freed, String.format(SECOND_PUNCH_MISSED, freed, cow.getHealth()));
+        });
+        helper.runAfterDelay(SETTLED_TICKS + STRIKE_WINDOW_TICKS, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(cow.getLastHurtByMob() == other, FREED_COW_SPARED);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A survival player holding zoo goo, whom hits land on and who lands hits.
+     *
+     * @param helper the gametest helper
+     * @return the player
+     */
+    private static ServerPlayer survivalRallier(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
+        caster.setGameMode(GameType.SURVIVAL);
+        caster.connection.markClientLoaded();
+        return caster;
+    }
+
+    private static void assertUnhurt(GameTestHelper helper, Cow cow, String when) {
+        helper.assertTrue(cow.isAlive() && cow.getHealth() == COW_MAX_HEALTH && cow.getLastDamageSource() == null,
+                String.format(PUNCH_HURT, COW_MAX_HEALTH, when, cow.isAlive(), cow.getHealth(),
+                        cow.getLastDamageSource() == null ? "none" : cow.getLastDamageSource().getMsgId(),
+                        cow.getLastHurtByMob()));
     }
 
     /**

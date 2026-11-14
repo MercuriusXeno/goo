@@ -17,6 +17,7 @@ import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
@@ -30,9 +31,9 @@ import java.util.UUID;
  * caster, a player who attacked the caster first, and strikes it with the
  * rally's damage on reaching it and every strike interval after; with no enemy
  * in reach it follows the caster. It wears its share of the caster's armor,
- * read again every refresh interval. The caster's own hit, or the caster's
- * second Rally cast, which deals no damage, ends the rally and takes its buffs
- * off; a hit or a cast from anyone else leaves it.
+ * read again every refresh interval. The caster's own hit or the caster's
+ * second Rally cast, both dealing no damage, ends the rally and takes its
+ * buffs off; a hit or a cast from anyone else leaves it.
  * zoo-rally-arms-the-peaceful
  * zoo-rally-holds-for-the-brew
  * rally-is-a-mob-effect-on-one-target
@@ -107,20 +108,24 @@ public final class RallyEvents {
     }
 
     /**
-     * Ends a mob's rally once damage from its rallier lands on it; damage
-     * from anyone else leaves the rally standing.
+     * Ends a mob's rally on a hit from its rallier, and cancels that hit so
+     * it deals no damage; a hit from anyone else lands and leaves the rally
+     * standing. Ending a rally isn't an attack: a cancelled hit leaves the
+     * rallier recording no struck mob, so its other rallied mobs never take
+     * the freed mob as their foe, while a second hit lands and makes it one.
      * rally-is-a-mob-effect-on-one-target
      *
-     * @param event the damage event, after the damage landed
+     * @param event the incoming damage event, before the damage lands
      */
     @SubscribeEvent
-    public static void onRalliedHurt(LivingDamageEvent.Post event) {
+    public static void onRalliedHurt(LivingIncomingDamageEvent event) {
         if (!(event.getEntity() instanceof Mob mob) || mob.level().isClientSide()
                 || !mob.hasData(GooAttachments.RALLIED)) {
             return;
         }
         Entity attacker = event.getSource().getEntity();
         if (mob.getData(GooAttachments.RALLIED).brokenBy(attacker == null ? null : attacker.getUUID())) {
+            event.setCanceled(true);
             endRally(mob);
         }
     }
