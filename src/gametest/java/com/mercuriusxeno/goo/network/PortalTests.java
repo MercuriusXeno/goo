@@ -22,10 +22,10 @@ import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.pig.Pig;
+import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.projectile.arrow.Arrow;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -33,9 +33,14 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -931,22 +936,27 @@ public final class PortalTests {
                 Direction.UP.ordinal(), false, WEIRD_MITOSIS.toString(), player.getEyePosition(),
                 landing).through(near.gate(), near.gate().center()));
         long thrownAt = helper.getTick();
-        // A slime hops about once alive, so the test reads where it first stands, its birth.
-        Vec3[] bornAt = {null};
+        AABB watched = new AABB(floor).inflate(SLIME_FAR * 2);
+        // Other tests' slimes stand within the watched box too: those standing at the throw are skipped, and of
+        // the slimes born after it, the one born nearest the landing is this throw's.
+        Set<UUID> standingAtTheThrow = new HashSet<>();
+        level.getEntitiesOfClass(Slime.class, watched).forEach(slime -> standingAtTheThrow.add(slime.getUUID()));
+        // A slime hops about once alive, so the test reads where each first stands, its birth.
+        Map<Slime, Vec3> bornAt = new HashMap<>();
         helper.onEachTick(() -> {
-            if (bornAt[0] == null) {
-                level.getEntitiesOfClass(net.minecraft.world.entity.monster.Slime.class,
-                        new net.minecraft.world.phys.AABB(floor).inflate(SLIME_FAR * 2)).stream().findFirst()
-                        .ifPresent(slime -> bornAt[0] = slime.position());
-            }
+            level.getEntitiesOfClass(Slime.class, watched).stream()
+                    .filter(slime -> !standingAtTheThrow.contains(slime.getUUID()))
+                    .forEach(slime -> bornAt.putIfAbsent(slime, slime.position()));
             if (helper.getTick() - thrownAt >= WATCHED_TICKS) {
-                level.getEntitiesOfClass(net.minecraft.world.entity.monster.Slime.class,
-                        new net.minecraft.world.phys.AABB(floor).inflate(SLIME_FAR * 2)).forEach(Entity::discard);
+                Optional<Map.Entry<Slime, Vec3>> thrown = bornAt.entrySet().stream()
+                        .min(Comparator.comparingDouble(born -> born.getValue().distanceTo(landing)));
+                thrown.ifPresent(born -> born.getKey().discard());
                 level.getServer().getPlayerList().remove(player);
                 level.setChunkForced(floorChunk.x(), floorChunk.z(), false);
-                helper.assertTrue(bornAt[0] != null, "A slime should be born past the partner");
-                helper.assertTrue(bornAt[0].distanceTo(landing) <= IN_PLACE, "A slime born through a pair should "
-                        + "be born where it landed, " + landing + ", was born at " + bornAt[0]);
+                helper.assertTrue(thrown.isPresent(), "A slime should be born past the partner");
+                Vec3 birth = thrown.map(Map.Entry::getValue).orElseThrow();
+                helper.assertTrue(birth.distanceTo(landing) <= IN_PLACE, "A slime born through a pair should "
+                        + "be born where it landed, " + landing + ", was born at " + birth);
                 helper.succeed();
             }
         });
