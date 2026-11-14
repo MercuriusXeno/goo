@@ -37,7 +37,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * The metal_spikes and crystal_cloud programs, decoded from their JSON,
+ * The metal_urchin and crystal_cloud programs, decoded from their JSON,
  * compose the field-effect-with-controller sub-chain. Each strike body's
  * damage acts on the entity itself, which no unit test can build, so the
  * body here swaps its damage for a probe sound at the target and each
@@ -56,7 +56,7 @@ import static org.mockito.Mockito.when;
  */
 class FieldEffectStepTest {
 
-    private static final String METAL_SPIKES = "/data/goo/goo_abilities/metal_spikes.json";
+    private static final String METAL_URCHIN = "/data/goo/goo_abilities/metal_urchin.json";
     private static final String CRYSTAL_CLOUD = "/data/goo/goo_abilities/crystal_cloud.json";
     private static final int WALKER_ID = 7;
     private static final int OTHER_WALKER_ID = 9;
@@ -101,7 +101,7 @@ class FieldEffectStepTest {
 
     /** The shipped metal field, whose timings the tests below run on rather than copy. */
     private static FieldEffectStep metalField() {
-        return fieldEffectOf(program(METAL_SPIKES));
+        return fieldEffectOf(program(METAL_URCHIN));
     }
 
     private static int strikeTick() {
@@ -121,7 +121,7 @@ class FieldEffectStepTest {
     }
 
     private static List<Step> metalProgram() throws IOException {
-        return withProbedStrikes(program(METAL_SPIKES));
+        return withProbedStrikes(program(METAL_URCHIN));
     }
 
     /**
@@ -297,7 +297,7 @@ class FieldEffectStepTest {
     @Test
     void theMetalFieldStrikesWhatIsLivingAliveNoItemAndNotSneaking() {
         assertEquals(List.of(EntityFilter.LIVING, EntityFilter.ALIVE, EntityFilter.NOT_ITEM, EntityFilter.NOT_SNEAKING),
-                fieldEffectOf(program(METAL_SPIKES)).where());
+                fieldEffectOf(program(METAL_URCHIN)).where());
     }
 
     @Test
@@ -384,7 +384,7 @@ class FieldEffectStepTest {
 
     @Test
     void aFieldEffectStandsAgainstBreaking() {
-        assertTrue(fieldEffectOf(program(METAL_SPIKES)).standsAgainstBreaking());
+        assertTrue(fieldEffectOf(program(METAL_URCHIN)).standsAgainstBreaking());
     }
 
     @Test

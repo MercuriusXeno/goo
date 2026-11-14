@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:gouge_hunk_drops_what_its_blocks_mine",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 120,
+  "setup_ticks": 0,
+  "required": true
+}

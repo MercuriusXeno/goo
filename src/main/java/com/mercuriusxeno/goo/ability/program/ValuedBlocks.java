@@ -13,7 +13,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * The goo a standing block is worth to the abilities that weigh it: its
  * item's goo value, what the crucible would melt it into, which a
- * Terrakinesis lift reads to pick the blocks it can tear free.
+ * Gouge lift reads to pick the blocks it can tear free.
  * decision rock-grabs-hunks-of-rock-goo-blocks-as-a-huckable-entity
  */
 public final class ValuedBlocks {

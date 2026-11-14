@@ -33,8 +33,8 @@ class HeldGhostTest {
 
     @Test
     void urchinRingsOutwardToItsDome() {
-        HeldGhost ghost = ghostOf(MetalExplosionVisual.INSTANCE, "metal_spikes");
-        assertEquals((float) AbilityJson.decode("metal_spikes").area().size(), ghost.domeRadius(), TOLERANCE);
+        HeldGhost ghost = ghostOf(MetalExplosionVisual.INSTANCE, "metal_urchin");
+        assertEquals((float) AbilityJson.decode("metal_urchin").area().size(), ghost.domeRadius(), TOLERANCE);
         assertEquals(ghost.domeRadius(), ghost.ringRadius(), TOLERANCE);
     }
 

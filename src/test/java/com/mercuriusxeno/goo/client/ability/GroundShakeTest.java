@@ -8,9 +8,9 @@ import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.ability.program.BoreStep;
 import com.mercuriusxeno.goo.ability.program.BreakPace;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
-import com.mercuriusxeno.goo.ability.program.FlattenStep;
+import com.mercuriusxeno.goo.ability.program.LevelStep;
 import com.mercuriusxeno.goo.ability.program.Step;
-import com.mercuriusxeno.goo.ability.program.TerrakinesisStep;
+import com.mercuriusxeno.goo.ability.program.GougeStep;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import net.minecraft.client.renderer.state.level.BlockBreakingRenderState;
 import net.minecraft.core.BlockPos;
@@ -34,12 +34,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 /**
- * The ground shake jitters exactly the blocks a bore or a flatten hands its
+ * The ground shake jitters exactly the blocks a Bore or a Level hands its
  * gradual break, gently, and leaves the rest still (decision
  * only-the-blocks-about-to-break-shake-briefly-and-gently), a held bore and a
- * held flatten each play it (decisions
+ * held Level each play it (decisions
  * bore-shakes-the-blocks-around-the-tunnel-and-never-the-camera,
- * flatten-plays-bores-ground-shake), and a winding-up Terrakinesis shakes the
+ * flatten-plays-bores-ground-shake), and a winding-up Gouge shakes the
  * cells it would lift (decision terrakinesis-shakes-the-blocks-before-the-tear).
  */
 class GroundShakeTest {
@@ -61,7 +61,7 @@ class GroundShakeTest {
     private static final double PREVIOUS_AMPLITUDE = 0.04;
     /** A hold long past any wind-up. */
     private static final int HELD_LONG = 100;
-    private static final TerrakinesisStep TERRAKINESIS = new TerrakinesisStep(6, 1.5, 2.5, 3.5, 1.5, 1000);
+    private static final GougeStep GOUGE = new GougeStep(6, 1.5, 2.5, 3.5, 1.5, 1000);
 
     private static ClientAbility ability(Step behavior) {
         return new ClientAbility(Identifier.parse("goo:rock_test"), "test", "", 0, List.of(), List.of(behavior), 0,
@@ -139,7 +139,7 @@ class GroundShakeTest {
     }
 
     @Nested
-    class FlattenZone {
+    class LevelZone {
 
         private final ChannelAim.FacePlane floor = new ChannelAim.FacePlane(new BlockPos(0, 63, 0), Direction.UP);
         /** The swath's first layer standing on the floor, every other layer air, and the floor itself. */
@@ -148,11 +148,11 @@ class GroundShakeTest {
                 new BlockPos(-1, 64, 1), new BlockPos(-1, 64, 0), new BlockPos(0, 64, 0), new BlockPos(0, 63, 0));
         private final ChannelAim aim = new ChannelAim(Vec3.ZERO, floor);
         private final BlockPos aimed = new BlockPos(0, 63, 0);
-        private final GroundShake.Zone zone = GroundShake.flattenZone(aim, aimed, ground::contains);
+        private final GroundShake.Zone zone = GroundShake.levelZone(aim, aimed, ground::contains);
 
         @Test
-        void theShakenBlocksAreTheBlocksFlattenHandsTheGradualBreak() {
-            assertEquals(Set.copyOf(FlattenStep.progressing(aim, aimed, ground::contains)), shakenIn(zone));
+        void theShakenBlocksAreTheBlocksLevelHandsTheGradualBreak() {
+            assertEquals(Set.copyOf(LevelStep.progressing(aim, aimed, ground::contains)), shakenIn(zone));
         }
 
         @Test
@@ -182,7 +182,7 @@ class GroundShakeTest {
     }
 
     @Test
-    void flattensDustDiscFloatsAboveEveryShakenFaceSoNoSeamShowsItThrough() {
+    void levelsDustDiscFloatsAboveEveryShakenFaceSoNoSeamShowsItThrough() {
         // The disc is translucent tan; a shaken face rising through it leaves it showing only at the seams.
         assertTrue(RockExplosionVisual.cursorHeightAboveFace() > GroundShake.highestFaceRise(),
                 "disc " + RockExplosionVisual.cursorHeightAboveFace() + " above the face, faces rise "
@@ -194,43 +194,43 @@ class GroundShakeTest {
 
         /** decision bore-shows-a-big-drill-from-the-glove: Bore's particles come from its vortex's contact alone */
         @Test
-        void aBoreShedsNoCrumbsWhileAFlattenStillDoes() {
+        void aBoreShedsNoCrumbsWhileALevelStillDoes() {
             assertFalse(GroundShake.shedsCrumbs(ability(new BoreStep(BREAKABLE, PACE))));
-            assertTrue(GroundShake.shedsCrumbs(ability(new FlattenStep(BREAKABLE, PACE))));
+            assertTrue(GroundShake.shedsCrumbs(ability(new LevelStep(BREAKABLE, PACE))));
         }
 
         @Test
-        void aHeldBoreAndAHeldFlattenEachShakeTheGround() {
+        void aHeldBoreAndAHeldLevelEachShakeTheGround() {
             assertTrue(GroundShake.shakes(ability(new BoreStep(BREAKABLE, PACE)), true, HELD_LONG));
-            assertTrue(GroundShake.shakes(ability(new FlattenStep(BREAKABLE, PACE)), true, HELD_LONG));
+            assertTrue(GroundShake.shakes(ability(new LevelStep(BREAKABLE, PACE)), true, HELD_LONG));
         }
 
         @Test
         void neitherShakesUnheldAndOtherAbilitiesNever() {
             assertFalse(GroundShake.shakes(ability(new BoreStep(BREAKABLE, PACE)), false, HELD_LONG));
-            assertFalse(GroundShake.shakes(ability(new FlattenStep(BREAKABLE, PACE)), false, HELD_LONG));
+            assertFalse(GroundShake.shakes(ability(new LevelStep(BREAKABLE, PACE)), false, HELD_LONG));
             assertFalse(GroundShake.shakes(ability(mock(Step.class)), true, HELD_LONG));
             assertFalse(GroundShake.shakes(null, true, HELD_LONG));
         }
 
         @Test
-        void terrakinesisShakesWhileItWindsUpAndStopsOnceTheHunkIsHeldOrTheHoldEnds() {
-            ClientAbility terrakinesis = ability(TERRAKINESIS);
-            assertTrue(GroundShake.shakes(terrakinesis, true, 1));
-            assertTrue(GroundShake.shakes(terrakinesis, true, TerrakinesisStep.WINDUP_TICKS - 1));
-            assertFalse(GroundShake.shakes(terrakinesis, true, TerrakinesisStep.WINDUP_TICKS));
-            assertFalse(GroundShake.shakes(terrakinesis, false, 1));
+        void gougeShakesWhileItWindsUpAndStopsOnceTheHunkIsHeldOrTheHoldEnds() {
+            ClientAbility gouge = ability(GOUGE);
+            assertTrue(GroundShake.shakes(gouge, true, 1));
+            assertTrue(GroundShake.shakes(gouge, true, GougeStep.WINDUP_TICKS - 1));
+            assertFalse(GroundShake.shakes(gouge, true, GougeStep.WINDUP_TICKS));
+            assertFalse(GroundShake.shakes(gouge, false, 1));
         }
 
         @Test
-        void terrakinesisShakesNothingWithNoWindUpRunning() {
+        void gougeShakesNothingWithNoWindUpRunning() {
             // The server publishes no wind-up while a hunk is held or a throw cools down: tick zero.
-            assertFalse(GroundShake.shakes(ability(TERRAKINESIS), true, 0));
+            assertFalse(GroundShake.shakes(ability(GOUGE), true, 0));
         }
     }
 
     @Nested
-    class TerrakinesisZone {
+    class GougeZone {
 
         @Test
         void theZoneShakesEveryCellTheHunkWouldLiftAndNoneBeside() {

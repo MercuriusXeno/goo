@@ -3,10 +3,10 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.BoreStep;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
-import com.mercuriusxeno.goo.ability.program.FlattenStep;
+import com.mercuriusxeno.goo.ability.program.GougeStep;
+import com.mercuriusxeno.goo.ability.program.LevelStep;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.Step;
-import com.mercuriusxeno.goo.ability.program.TerrakinesisStep;
 import com.mercuriusxeno.goo.client.ClientGooValues;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -57,7 +57,7 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 /**
- * The ground shake bore and flatten play while they run: each block the
+ * The ground shake Bore and Level play while they run: each block the
  * ability is progressing toward broken is drawn again over itself, for as
  * long as it gains progress, swollen a hair and jittered gently in world
  * space by a sum of fast sines, so the cracking blocks tremble and shed chips
@@ -66,7 +66,7 @@ import java.util.function.Predicate;
  * decision flatten-plays-bores-ground-shake
  * decision only-the-blocks-about-to-break-shake-briefly-and-gently
  *
- * A winding-up Terrakinesis shakes exactly the cells it is about to tear
+ * A winding-up Gouge shakes exactly the cells it is about to tear
  * free, read on the client from the same rule the server lifts by.
  * decision terrakinesis-shakes-the-blocks-before-the-tear
  */
@@ -107,8 +107,8 @@ public final class GroundShake {
     }
 
     /**
-     * Whether an ability's shaking blocks shed crumbs: a flatten's and a
-     * Terrakinesis's do; a bore's do not, since its particles spit only from
+     * Whether an ability's shaking blocks shed crumbs: a Level's and a
+     * Gouge's do; a bore's do not, since its particles spit only from
      * where its vortex meets the block.
      * decision bore-shows-a-big-drill-from-the-glove
      *
@@ -173,7 +173,7 @@ public final class GroundShake {
     }
 
     /**
-     * Where a winding-up Terrakinesis shakes the ground: the cells it would lift.
+     * Where a winding-up Gouge shakes the ground: the cells it would lift.
      *
      * @param cells the cells the hunk would lift
      * @return the zone
@@ -203,18 +203,18 @@ public final class GroundShake {
     }
 
     /**
-     * Where a flatten shakes the ground: every swath block it is
+     * Where a Level shakes the ground: every swath block it is
      * progressing, the pick its tick hands the gradual break, so the shaking
      * blocks are the cracking blocks.
      * decision only-the-blocks-about-to-break-shake-briefly-and-gently
      *
      * @param aim       the hold's aim, holding the face the hold began on
      * @param aimed     the block the cursor rests on
-     * @param breakable whether a cell holds a block the flatten breaks, in reach
+     * @param breakable whether a cell holds a block the Level breaks, in reach
      * @return the zone
      */
-    static Zone flattenZone(ChannelAim aim, BlockPos aimed, Predicate<BlockPos> breakable) {
-        return cellsZone(FlattenStep.progressing(aim, aimed, breakable));
+    static Zone levelZone(ChannelAim aim, BlockPos aimed, Predicate<BlockPos> breakable) {
+        return cellsZone(LevelStep.progressing(aim, aimed, breakable));
     }
 
     /**
@@ -253,12 +253,12 @@ public final class GroundShake {
 
     /**
      * Whether an ability shakes the ground while right click holds it: a bore
-     * or a flatten the whole hold, a Terrakinesis only while the wind-up the
+     * or a Level the whole hold, a Gouge only while the wind-up the
      * server runs is under way, until the hunk tears free.
      *
      * @param ability   the selected ability's synced copy, or null when none
      * @param useHeld   whether right click holds a live press
-     * @param heldTicks the ticks the press has held, or for a Terrakinesis the
+     * @param heldTicks the ticks the press has held, or for a Gouge the
      *                  server's wind-up tick, 0 while none runs
      * @return true while the ground shakes
      */
@@ -267,28 +267,28 @@ public final class GroundShake {
     }
 
     private static boolean stepShakes(Step step, int heldTicks) {
-        if (step instanceof TerrakinesisStep) {
-            return heldTicks > 0 && TerrakinesisStep.windsUp(heldTicks);
+        if (step instanceof GougeStep) {
+            return heldTicks > 0 && GougeStep.windsUp(heldTicks);
         }
-        return step instanceof BoreStep || step instanceof FlattenStep;
+        return step instanceof BoreStep || step instanceof LevelStep;
     }
 
-    private static @Nullable TerrakinesisStep terrakinesisOf(@Nullable ClientAbility ability) {
-        return ability == null ? null : stepOf(ability, TerrakinesisStep.class);
+    private static @Nullable GougeStep gougeOf(@Nullable ClientAbility ability) {
+        return ability == null ? null : stepOf(ability, GougeStep.class);
     }
 
     /**
-     * The ticks the shake runs by: a Terrakinesis by the wind-up the server
+     * The ticks the shake runs by: a Gouge by the wind-up the server
      * runs, which restarts within a hold after a miss or a throw, every other
      * ability by the press.
      *
      * @param player       the local player
-     * @param terrakinesis the selected Terrakinesis, or null
+     * @param gouge the selected Gouge, or null
      * @return the tick count
      */
-    private static int shakeTicks(LocalPlayer player, @Nullable TerrakinesisStep terrakinesis) {
-        return terrakinesis == null ? GloveUseTracker.channelTicks()
-                : player.getData(GooAttachments.TERRAKINESIS_WIND_UP).tickAt(player.level().getGameTime());
+    private static int shakeTicks(LocalPlayer player, @Nullable GougeStep gouge) {
+        return gouge == null ? GloveUseTracker.channelTicks()
+                : player.getData(GooAttachments.GOUGE_WIND_UP).tickAt(player.level().getGameTime());
     }
 
     /**
@@ -296,25 +296,25 @@ public final class GroundShake {
      *
      * @param player      the local player
      * @param partialTick the frame's partial tick
-     * @return the zone, or null while no bore or flatten runs
+     * @return the zone, or null while no Bore or Level runs
      */
     private static @Nullable Zone runningZone(LocalPlayer player, float partialTick) {
         String abilityId = GloveAim.selectedAbilityId(player);
         ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
-        TerrakinesisStep terrakinesis = terrakinesisOf(ability);
-        if (!shakes(ability, GloveUseTracker.runsHeld(player), shakeTicks(player, terrakinesis))) {
+        GougeStep gouge = gougeOf(ability);
+        if (!shakes(ability, GloveUseTracker.runsHeld(player), shakeTicks(player, gouge))) {
             return null;
         }
         Vec3 eye = player.getEyePosition(partialTick);
-        if (terrakinesis != null) {
-            return terrakinesisZone(player, terrakinesis, eye, partialTick);
+        if (gouge != null) {
+            return gougeZone(player, gouge, eye, partialTick);
         }
         BoreStep bore = stepOf(ability, BoreStep.class);
         if (bore != null) {
             return liveBoreZone(player, bore, ability, eye, partialTick);
         }
-        FlattenStep flatten = stepOf(ability, FlattenStep.class);
-        return flatten == null ? null : liveFlattenZone(player, flatten, eye);
+        LevelStep levelStep = stepOf(ability, LevelStep.class);
+        return levelStep == null ? null : liveLevelZone(player, levelStep, eye);
     }
 
     private static <T extends Step> @Nullable T stepOf(ClientAbility ability, Class<T> kind) {
@@ -345,46 +345,46 @@ public final class GroundShake {
     }
 
     /**
-     * The swath blocks the local player's flatten is progressing, read off
+     * The swath blocks the local player's Level is progressing, read off
      * the client's level under the cursor the disc rests on.
      *
      * @param player  the local player
-     * @param flatten the selected flatten
+     * @param levelStep the selected Level
      * @param eye     the player's eye this frame
      * @return the zone, or null where the hold began on no face
      */
-    private static @Nullable Zone liveFlattenZone(LocalPlayer player, FlattenStep flatten, Vec3 eye) {
+    private static @Nullable Zone liveLevelZone(LocalPlayer player, LevelStep levelStep, Vec3 eye) {
         ChannelAim.FacePlane plane = GloveUseTracker.pressPlane();
         if (plane == null) {
             return null;
         }
         Level level = player.level();
         ChannelAim aim = new ChannelAim(GloveThrowSender.cursorPoint(player), plane);
-        return flattenZone(aim, aim.aimedBlock(eye), cell -> level.getBlockState(cell).is(flatten.breaks())
+        return levelZone(aim, aim.aimedBlock(eye), cell -> level.getBlockState(cell).is(levelStep.breaks())
                 && player.isWithinBlockInteractionRange(cell, PlayerHost.REACH_SLACK));
     }
 
     /**
-     * The cells a winding-up Terrakinesis would tear free: the block the look
+     * The cells a winding-up Gouge would tear free: the block the look
      * strikes and its joined neighbors, by the rule the server lifts by.
      *
      * @param player       the local player
-     * @param terrakinesis the selected Terrakinesis
+     * @param gouge the selected Gouge
      * @param eye          the player's eye this frame
      * @param partialTick  the frame's partial tick
      * @return the zone, or null where the look strikes nothing the hunk lifts
      */
-    private static @Nullable Zone terrakinesisZone(LocalPlayer player, TerrakinesisStep terrakinesis, Vec3 eye,
+    private static @Nullable Zone gougeZone(LocalPlayer player, GougeStep gouge, Vec3 eye,
                                                    float partialTick) {
         ClientLevel level = (ClientLevel) player.level();
-        Vec3 reach = eye.add(player.getViewVector(partialTick).scale(terrakinesis.range()));
+        Vec3 reach = eye.add(player.getViewVector(partialTick).scale(gouge.range()));
         BlockHitResult hit = level.clip(new ClipContext(eye, reach, ClipContext.Block.OUTLINE,
                 ClipContext.Fluid.NONE, player));
         Predicate<BlockPos> liftable = cell -> liftable(level, cell);
         if (hit.getType() == HitResult.Type.MISS || !liftable.test(hit.getBlockPos())) {
             return null;
         }
-        return cellsZone(new HashSet<>(TerrakinesisStep.hunkCells(hit.getBlockPos(), terrakinesis.radius(),
+        return cellsZone(new HashSet<>(GougeStep.hunkCells(hit.getBlockPos(), gouge.radius(),
                 liftable)));
     }
 
@@ -393,12 +393,12 @@ public final class GroundShake {
         Item item = state.getBlock().asItem();
         GooValue value = item == Items.AIR ? null
                 : ClientGooValues.current().lookup(BuiltInRegistries.ITEM.getKey(item));
-        return TerrakinesisStep.liftableState(state, state.getDestroySpeed(level, cell), value);
+        return GougeStep.liftableState(state, state.getDestroySpeed(level, cell), value);
     }
 
     /**
      * Redraws the shaking blocks after the translucent blocks while a bore or
-     * a flatten runs.
+     * a Level runs.
      *
      * @param event the level render stage event
      */

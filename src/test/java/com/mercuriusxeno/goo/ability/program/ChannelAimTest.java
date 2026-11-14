@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Flatten's swath lies out from the face the hold began on, ground or wall,
+ * Level's swath lies out from the face the hold began on, ground or wall,
  * never behind it: the 3x3 in line with the aimed block, 3 layers out, the
  * outermost first; and the aimed block is the one behind the face the cursor
  * rests on (decision flatten-disc-cursor-breaks-above-the-plane).

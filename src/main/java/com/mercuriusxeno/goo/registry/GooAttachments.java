@@ -14,9 +14,9 @@ import com.mercuriusxeno.goo.ability.kinetic.Grabbed;
 import com.mercuriusxeno.goo.ability.nether.Undead;
 import com.mercuriusxeno.goo.ability.petrify.Petrification;
 import com.mercuriusxeno.goo.ability.program.EntityCounters;
+import com.mercuriusxeno.goo.ability.program.GougeWindUp;
 import com.mercuriusxeno.goo.ability.program.Lux;
 import com.mercuriusxeno.goo.ability.program.Sight;
-import com.mercuriusxeno.goo.ability.program.TerrakinesisWindUp;
 import com.mercuriusxeno.goo.ability.pulse.Stunned;
 import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
 import com.mercuriusxeno.goo.ability.reserve.Reserve;
@@ -106,15 +106,15 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The Terrakinesis wind-up the server runs for a player, synced to its
+     * The Gouge wind-up the server runs for a player, synced to its
      * owner so the client's ground shake follows every wind-up the server runs;
      * never saved, since a wind-up lives only inside a hold.
      * decision terrakinesis-shakes-the-blocks-before-the-tear
      */
-    public static final Supplier<AttachmentType<TerrakinesisWindUp>> TERRAKINESIS_WIND_UP =
-            ATTACHMENT_TYPES.register("terrakinesis_wind_up",
-                    () -> AttachmentType.builder(() -> TerrakinesisWindUp.NONE)
-                            .sync(GooAttachments::syncsToOwner, TerrakinesisWindUp.STREAM_CODEC)
+    public static final Supplier<AttachmentType<GougeWindUp>> GOUGE_WIND_UP =
+            ATTACHMENT_TYPES.register("gouge_wind_up",
+                    () -> AttachmentType.builder(() -> GougeWindUp.NONE)
+                            .sync(GooAttachments::syncsToOwner, GougeWindUp.STREAM_CODEC)
                             .build());
 
     /**

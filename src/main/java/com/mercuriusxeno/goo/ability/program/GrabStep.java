@@ -470,7 +470,7 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
 
     /**
      * Whether a left click throws through Grab rather than punching: a glove
-     * press stands and the selected ability holds a grab, or Terrakinesis's
+     * press stands and the selected ability holds a grab, or Gouge's
      * hunk (decision rock-grabs-hunks-of-rock-goo-blocks-as-a-huckable-entity).
      *
      * @param pressArmed whether right click holds a live glove press
@@ -479,7 +479,7 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
      */
     public static boolean throwsOnAttack(boolean pressArmed, List<Step> behaviors) {
         return pressArmed && behaviors.stream()
-                .anyMatch(step -> step instanceof GrabStep || step instanceof TerrakinesisStep);
+                .anyMatch(step -> step instanceof GrabStep || step instanceof GougeStep);
     }
 
     @Override

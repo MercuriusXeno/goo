@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.ability.kinetic;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
-import com.mercuriusxeno.goo.ability.program.TerrakinesisHolds;
+import com.mercuriusxeno.goo.ability.program.GougeHolds;
 import com.mercuriusxeno.goo.ability.pulse.StunEvents;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.entity.BlockHunk;
@@ -230,9 +230,9 @@ public final class GrabEvents {
                 GrabHold.spentUntil(player.level().getGameTime() + HOLD_GRACE_TICKS));
         release(held);
         if (held instanceof BlockHunk hunk) {
-            // A thrown Terrakinesis chunk breaks where it strikes, and holds off the next grab while it flies.
+            // A thrown Gouge chunk breaks where it strikes, and holds off the next grab while it flies.
             hunk.markThrown();
-            TerrakinesisHolds.threw(player.getUUID(), player.level().getGameTime());
+            GougeHolds.threw(player.getUUID(), player.level().getGameTime());
         }
         held.setDeltaMovement(player.getLookAngle().scale(speed));
         held.hurtMarked = true;
