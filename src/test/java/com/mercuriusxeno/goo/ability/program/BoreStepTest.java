@@ -133,103 +133,6 @@ class BoreStepTest {
 
     }
 
-    /**
-     * The block behind whatever block Bore is damaging progresses at half
-     * speed, out of view, so the point moves deeper smoothly
-     * (decisions bore-block-behind-progresses-at-half-speed,
-     * bore-breaks-the-block-at-the-point-and-its-surroundings).
-     */
-    @Nested
-    class TheBlockBehind {
-
-        private static final BreakPace SHIPPED = shippedBore().pace();
-        private static final double SLACK = 1e-9;
-
-        private static BoreStep shippedBore() {
-            return AbilityJson.decode("rock_bore").behaviors().stream().filter(BoreStep.class::isInstance)
-                    .map(BoreStep.class::cast).findFirst().orElseThrow();
-        }
-
-        /** The share of a break each block gains over held ticks, read off what the hold hands a mocked break. */
-        @SuppressWarnings("unchecked")
-        private static Map<BlockPos, Double> progressAfter(ChannelHost host, BoreStep bore, int ticks) {
-            GradualBreak gradualBreak = mock(GradualBreak.class);
-            when(host.gradualBreak()).thenReturn(gradualBreak);
-            Map<BlockPos, Double> progress = new HashMap<>();
-            doAnswer(call -> {
-                Map<BlockPos, Double> rates = call.getArgument(0);
-                rates.forEach((pos, rate) -> progress.merge(pos, rate, Double::sum));
-                return null;
-            }).when(gradualBreak).progress(any(), any(), anyBoolean());
-            for (int held = 0; held < ticks; held++) {
-                run(host, bore);
-            }
-            return progress;
-        }
-
-        @Test
-        void theBlockBehindGainsHalfTheAimedBlocksProgressEveryTickBeforeItBreaks() {
-            ChannelHost host = hostWith(Set.of(FIRST_ON_LINE, SECOND_ON_LINE)::contains, Set.of());
-            BoreStep bore = new BoreStep(BREAKABLE, SHIPPED);
-            for (int ticks = 1; ticks < SHIPPED.breakTicks(); ticks++) {
-                Map<BlockPos, Double> progress = progressAfter(host, bore, 1);
-                assertEquals(progress.get(FIRST_ON_LINE) / 2, progress.getOrDefault(SECOND_ON_LINE, 0.0), SLACK,
-                        "on tick " + ticks);
-            }
-        }
-
-        @Test
-        void theBlockBehindEachBlockOfAnEdgePickGainsHalfTheRate() {
-            Vec3 atAnEdge = new Vec3(0.5, 2.0, 0.5);
-            Predicate<BlockPos> rock = pos -> pos.getX() >= 1 && pos.getX() <= 2 && pos.getZ() == 0
-                    && (pos.getY() == 1 || pos.getY() == 2);
-            ChannelHost host = hostWith(rock, Set.of());
-            when(host.eye()).thenReturn(atAnEdge);
-            when(host.channelAim()).thenReturn(Optional.of(
-                    new ChannelAim(atAnEdge.add(4, 0, 0), null, CONE_DEGREES)));
-            Map<BlockPos, Double> progress = progressAfter(host, new BoreStep(BREAKABLE, SHIPPED, List.of(),
-                    List.of()), 1);
-            double aimedRate = 1.0 / SHIPPED.breakTicks();
-            assertEquals(aimedRate, progress.get(new BlockPos(1, 1, 0)), SLACK);
-            assertEquals(aimedRate, progress.get(new BlockPos(1, 2, 0)), SLACK);
-            assertEquals(aimedRate / 2, progress.getOrDefault(new BlockPos(2, 1, 0), 0.0), SLACK);
-            assertEquals(aimedRate / 2, progress.getOrDefault(new BlockPos(2, 2, 0), 0.0), SLACK);
-        }
-
-        @Test
-        void theBlockBehindKeepsItsProgressAndBreaksSoonerOnceItIsAimedAt() {
-            Map<BlockPos, Integer> stages = new HashMap<>();
-            ChannelHost host = hostWith(Set.of(FIRST_ON_LINE, SECOND_ON_LINE)::contains, Set.of());
-            doAnswer(call -> stages.put(call.getArgument(0), call.getArgument(1))).when(host)
-                    .crackBlock(any(), anyInt());
-            BoreStep bore = new BoreStep(BREAKABLE, SHIPPED);
-            int firstBroke = 0;
-            int secondBroke = 0;
-            int previous = GradualBreak.CLEARED;
-            for (int held = 1; held <= HELD_TICKS && secondBroke == 0; held++) {
-                run(host, bore);
-                if (firstBroke == 0 && !host.blockIn(FIRST_ON_LINE, BREAKABLE)) {
-                    firstBroke = held;
-                }
-                if (!host.blockIn(SECOND_ON_LINE, BREAKABLE)) {
-                    secondBroke = held;
-                } else {
-                    int stage = stages.getOrDefault(SECOND_ON_LINE, GradualBreak.CLEARED);
-                    assertTrue(stage >= previous, "the block behind fell to stage " + stage + " on tick " + held);
-                    previous = stage;
-                }
-            }
-            assertTrue(firstBroke > 0 && secondBroke > firstBroke, "broke on " + firstBroke + " and " + secondBroke);
-            assertTrue(secondBroke - firstBroke < SHIPPED.breakTicks(), "the block behind took "
-                    + (secondBroke - firstBroke) + " ticks once aimed at, not fewer than " + SHIPPED.breakTicks());
-        }
-
-        @Test
-        void rockBoresJsonSetsTheBlockBehindToHalfSpeed() {
-            assertEquals(2, SHIPPED.slowdown(), SLACK);
-        }
-    }
-
     @Nested
     class TheEyeLine {
 
@@ -329,6 +232,25 @@ class BoreStepTest {
                 ChannelAim aim = new ChannelAim(eye.add(look.scale(4.5)), null, CONE_DEGREES);
                 assertEquals(four, Set.copyOf(BoreStep.progressing(eye, SHIPPED, true, aim, floor.negate(), floor)),
                         "looking " + pitch + " degrees down");
+            }
+        }
+
+        /**
+         * In a 1 by 2 tunnel, aimed at the wall near its foot or its head,
+         * Bore breaks the wall's block and never the tunnel's floor or ceiling.
+         */
+        @Test
+        void inATunnelAimedNearTheWallsFootOrHeadNeitherTheFloorNorTheCeilingBreaks() {
+            Predicate<BlockPos> tunnel = pos -> pos.getX() < 3 && pos.getZ() == 0
+                    && (pos.getY() == 1 || pos.getY() == 2);
+            Predicate<BlockPos> stone = tunnel.negate();
+            Vec3 eye = new Vec3(0.5, 2.62, 0.5);
+            for (double height : new double[] {1.05, 1.15, 2.85, 2.95}) {
+                Vec3 look = new Vec3(3, height, 0.5).subtract(eye).normalize();
+                ChannelAim aim = new ChannelAim(eye.add(look.scale(4.5)), null, CONE_DEGREES);
+                BlockPos wall = new BlockPos(3, height < 2 ? 1 : 2, 0);
+                assertEquals(Set.of(wall), Set.copyOf(BoreStep.progressing(eye, SHIPPED, true, aim, tunnel, stone)),
+                        "aimed at the wall " + height + " up");
             }
         }
 

@@ -109,7 +109,7 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, BoreDrillShape shap
         Predicate<BlockPos> breakable = pos -> host.blockIn(pos, breaks);
         host.channelAim().ifPresent(aim -> {
             BorePick pick = BorePick.of(host.eye(), shape, host.gloveOnTheRight(), aim, host::airAt, breakable);
-            host.gradualBreak().progress(pace.ratesByGroup(List.of(pick.blocks(), pick.behind())), host, true);
+            host.gradualBreak().progress(pace.ratesByGroup(List.of(pick.blocks())), host, true);
             strikeIn(host, pick.tunnel());
         });
         return true;
