@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.ability.AbilityBadge;
+import com.mercuriusxeno.goo.ability.AbilityJson;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -24,6 +25,15 @@ class AimIndicatorTest {
     @Test
     void anUnsyncedAbilityDrawsNothing() {
         assertEquals(AimIndicator.NONE, AimIndicator.of(null, false));
+    }
+
+    /**
+     * Prism, cast at the face directed, keeps the block outline with its face
+     * rings while aiming (decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob).
+     */
+    @Test
+    void prismDrawsTheBlockOutline() {
+        assertEquals(AimIndicator.BLOCK_OUTLINE, AimIndicator.of(AbilityJson.decode("crystal_prism").badge(), false));
     }
 
     /** Grab, a channeled badge, outlines the mob its press holds (decision grab-hides-the-reticle-once-a-mob-is-held). */
