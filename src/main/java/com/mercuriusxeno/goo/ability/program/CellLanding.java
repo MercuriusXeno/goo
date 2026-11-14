@@ -108,7 +108,10 @@ final class CellLanding {
      * @param cell the goo's volume cell block
      */
     static void feed(ChannelHost host, BlockPos pos, VolumeCellBlock cell) {
-        VolumeCellBlock.thickened(host.stateAt(pos), cell)
+        BlockState standing = host.stateAt(pos);
+        VolumeCellBlock.thickened(standing, cell)
+                .filter(into -> !VolumeCellBlock.wouldRiseAroundFeet(host.level(), pos,
+                        VolumeCellBlock.layersOf(standing), into.getValue(VolumeCellBlock.LAYERS)))
                 .filter(into -> host.placementPrice().pay(VolumeCellBlock.MAX_LAYERS))
                 .ifPresent(into -> {
                     host.transformBlock(pos, into);

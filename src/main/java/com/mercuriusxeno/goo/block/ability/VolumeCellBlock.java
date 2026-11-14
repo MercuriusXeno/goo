@@ -14,6 +14,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
@@ -28,11 +29,13 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -211,6 +214,29 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
+     * Whether raising a cell to a height would lift its top over the feet of
+     * a living thing standing in it: the cell would rise around them, leaving
+     * their feet inside it, and their next move off it collides with the
+     * cells beside rather than stepping up, turning and slowing them.
+     * operator report 2026-11-14: hitting goo redirects the runner off the track and hitches it
+     *
+     * @param level  the level
+     * @param pos    the cell
+     * @param from   the layers it holds, 0 for an open cell
+     * @param to     the layers it would hold
+     * @return true where a living thing's feet stand inside the risen layers
+     */
+    public static boolean wouldRiseAroundFeet(LevelReader level, BlockPos pos, int from, int to) {
+        if (to <= from || !(level instanceof Level world)) {
+            return false;
+        }
+        AABB risen = new AABB(pos.getX(), pos.getY() + (double) from / MAX_LAYERS, pos.getZ(),
+                pos.getX() + 1, pos.getY() + (double) to / MAX_LAYERS, pos.getZ() + 1);
+        return !world.getEntitiesOfClass(LivingEntity.class, risen,
+                living -> living.isAlive() && !living.isSpectator() && living.getY() < risen.maxY).isEmpty();
+    }
+
+    /**
      * A cell's state fitted to the cells beside it: it drips on each side
      * where no cell of its goo continues the film.
      *
@@ -360,7 +386,12 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
-     * Pours one layer into the side the flow rule picks.
+     * Pours one layer into the side the flow rule picks; a side whose pour
+     * cannot land, one that would rise around a living thing's feet among
+     * them, stands blocked and the rule picks again among the rest, so one
+     * refused side never stops the cell spreading and stacking it into a
+     * pillar.
+     * operator report 2026-11-14: hitting goo redirects the runner off the track and hitches it
      *
      * @param level the level
      * @param pos   the pouring cell
@@ -368,10 +399,20 @@ public class VolumeCellBlock extends Block {
      * @return true where the cell gave a layer
      */
     private boolean pourOnce(ServerLevel level, BlockPos pos, BlockState state) {
-        List<Side> sides = SIDES.stream().map(side -> sideOf(level, pos.relative(side), side)).toList();
-        Optional<Direction> toward = SlimeFlow.pour(state.getValue(LAYERS), sides);
-        toward.ifPresent(side -> pourToward(level, pos, state, side));
-        return toward.isPresent() && level.getBlockState(pos) != state;
+        List<Side> sides = new ArrayList<>(SIDES.stream().map(side -> sideOf(level, pos.relative(side), side))
+                .toList());
+        for (int tried = 0; tried < SIDES.size(); tried++) {
+            Optional<Direction> toward = SlimeFlow.pour(state.getValue(LAYERS), sides);
+            if (toward.isEmpty()) {
+                return false;
+            }
+            pourToward(level, pos, state, toward.get());
+            if (level.getBlockState(pos) != state) {
+                return true;
+            }
+            sides.replaceAll(side -> side.direction() == toward.get() ? Side.blocked(side.direction()) : side);
+        }
+        return false;
     }
 
     /**
@@ -451,7 +492,8 @@ public class VolumeCellBlock extends Block {
         BlockState taking = level.getBlockState(landing);
         boolean holdsLayers = taking.isAir() || taking.is(this);
         SlimeFlow.Poured poured = SlimeFlow.poured(state.getValue(LAYERS), layersOf(taking));
-        if (holdsLayers && poured.taker() <= MAX_LAYERS) {
+        if (holdsLayers && poured.taker() <= MAX_LAYERS
+                && !wouldRiseAroundFeet(level, landing, layersOf(taking), poured.taker())) {
             BlockState into = taking.isAir() ? defaultBlockState() : taking;
             level.setBlock(landing, into.setValue(LAYERS, poured.taker()), UPDATE_ALL);
             level.setBlock(pos, state.setValue(LAYERS, poured.giver()), UPDATE_ALL);

@@ -207,8 +207,11 @@ public final class SlickTests {
     private static final float HALFWAY_DOWN = 45f;
     /** Ticks Slick is held at one spot. */
     private static final int HELD_AT_ONE_SPOT = 60;
-    /** The most layers a coated cell may stand over a side cell: two fifteenths, a step nothing trips on. */
-    private static final int SMOOTH_STEP = 2;
+    /**
+     * The most layers a coated cell may stand over a side cell: three fifteenths, a third of a step, which the
+     * layers the streamer's own bare cell refuses can stand at for a pour's wait before the spread carries them on.
+     */
+    private static final int SMOOTH_STEP = 3;
     private static final String STEPPED = "Slick held at one spot should stand no cell more than %d layers over a side"
             + " cell, stood %d on tick %d, the floor rows %s";
 
@@ -286,7 +289,89 @@ public final class SlickTests {
     /** How far past its start a level runner is judged from: past the ground only the spray's near edge reached. */
     private static final double LEVEL_START_UP = 12;
 
+    private static final String WEAVING_RUN = "slick_carries_a_weaving_runner_through_its_own_mound";
+    /** The weaving run's legs: ticks each lasts, its heading south of east in degrees, and whether the runner moves. */
+    private static final int[][] WEAVE_LEGS = {{15, 0, 1}, {15, 30, 1}, {15, -30, 1}, {25, 0, 0}, {30, 0, 1}};
+    /** The most a move may turn off the heading asked, in degrees, or fall short of it, as a share, and stand. */
+    private static final double TURNED_DEGREES = 3;
+    private static final double SHORT_SHARE = 0.95;
+
     private SlickTests() {
+    }
+
+    /**
+     * A runner holding forward on open stone floor, its speed climbing from a
+     * sprint toward a block a tick on slick, streams Slick halfway down ahead
+     * of it as it weaves thirty degrees either side, stops on one spot and
+     * sprays until a mound builds, then runs on through the mound: on every
+     * moving tick after first reaching the track, the move that goes through
+     * is the move asked, neither turned by a collision nor cut short.
+     * operator report 2026-11-14: hitting goo redirects the runner off the track and hitches it
+     *
+     * @param helper the gametest helper
+     */
+    public static void slickCarriesAWeavingRunnerThroughItsOwnMound(GameTestHelper helper) {
+        int reach = 60;
+        for (int x = 0; x <= reach; x++) {
+            for (int z = RUN_ROW - 20; z <= RUN_ROW + 20; z++) {
+                helper.setBlock(new BlockPos(x, RUN_FLOOR_Y, z), Blocks.STONE);
+            }
+        }
+        ServerPlayer runner = slickStreamerAt(helper, new BlockPos(1, RUN_FLOOR_Y + 1, RUN_ROW));
+        runner.setSprinting(true);
+        double[] speed = {RUN_START_SPEED};
+        boolean[] onTrack = {false};
+        List<String> violations = new ArrayList<>();
+        int tick = 0;
+        for (int[] leg : WEAVE_LEGS) {
+            for (int inLeg = 0; inLeg < leg[0]; inLeg++) {
+                tick++;
+                int now = tick;
+                float heading = leg[1];
+                boolean moves = leg[2] == 1;
+                helper.runAfterDelay(tick, () -> {
+                    double south = Math.sin(Math.toRadians(heading));
+                    double east = Math.cos(Math.toRadians(heading));
+                    runner.setYRot(FACING_EAST + heading);
+                    runner.setXRot(HALFWAY_DOWN);
+                    double going = moves ? speed[0] : 0;
+                    runner.setKnownMovement(new Vec3(going * east, 0, going * south));
+                    Vec3 asked = new Vec3(going * east, -0.08, going * south);
+                    Vec3 before = runner.position();
+                    runner.move(MoverType.SELF, asked);
+                    Vec3 moved = runner.position().subtract(before);
+                    boolean onSlick = helper.getLevel().getBlockState(runner.getOnPos())
+                            .is(GooBlocks.KINETIC_SLICK.get());
+                    if (moves && onTrack[0] && violations.size() < REPORTED) {
+                        double askedLength = asked.horizontalDistance();
+                        double movedLength = moved.horizontalDistance();
+                        double turned = movedLength == 0 ? 180 : Math.toDegrees(Math.acos(Math.clamp(
+                                (moved.x * asked.x + moved.z * asked.z) / (movedLength * askedLength), -1, 1)));
+                        if (turned > TURNED_DEGREES || movedLength < askedLength * SHORT_SHARE) {
+                            violations.add(String.format("tick %d heading %.0f asked %.3f moved %.3f turned %.1f"
+                                            + " collided %s onGround %s yInBlock %.3f %s", now, heading, askedLength,
+                                    movedLength, turned, runner.horizontalCollision, runner.onGround(),
+                                    runner.getY() - Math.floor(runner.getY()), rowLayers(helper, runner)));
+                        }
+                    }
+                    onTrack[0] |= onSlick;
+                    if (moves && onSlick) {
+                        speed[0] = Math.min(RUN_TOP_SPEED, speed[0] * RUN_RAMP);
+                    } else if (!moves) {
+                        speed[0] = RUN_START_SPEED;
+                    }
+                    GooStreamHandler.streamTick(runner, GooStreamPayload.unplaned(GooTypes.id(GooTypes.KINETIC),
+                            SLICK.toString(), runner.getEyePosition(), runner.getEyePosition()));
+                });
+            }
+        }
+        helper.runAfterDelay(tick + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(runner);
+            helper.assertTrue(onTrack[0], "The runner should reach the slick track");
+            helper.assertTrue(violations.isEmpty(), "Every move should go through as asked: "
+                    + String.join("; ", violations));
+            helper.succeed();
+        });
     }
 
     /**
@@ -657,7 +742,8 @@ public final class SlickTests {
     /**
      * Slick held at one spot on open stone floor, aimed halfway down, coats
      * the floor without steps: on every tick of the hold no slick cell stands
-     * more than two layers over a side cell of the floor.
+     * more than two layers over a side cell of the floor, the streamer's own
+     * cell aside, which takes no layer around their feet.
      * spread-decreases-the-cell-it-leaves
      * slick-is-a-layered-cell-that-flows-thinner-and-faster-than-slime
      *
@@ -712,7 +798,9 @@ public final class SlickTests {
                 int layers = VolumeCellBlock.layersOf(helper.getBlockState(cell));
                 for (Direction side : Direction.Plane.HORIZONTAL) {
                     BlockPos beside = cell.relative(side);
-                    if (beside.getX() >= 0 && beside.getX() <= FAR_STRIP_EAST
+                    // the cell the streamer stands in takes no layer around their feet, by design
+                    if (!beside.equals(FAR_STREAMER_POS) && !cell.equals(FAR_STREAMER_POS)
+                            && beside.getX() >= 0 && beside.getX() <= FAR_STRIP_EAST
                             && Math.abs(beside.getZ() - row) <= FLOOR_HALF_WIDTH) {
                         steepest = Math.max(steepest,
                                 layers - VolumeCellBlock.layersOf(helper.getBlockState(beside)));
@@ -853,6 +941,7 @@ public final class SlickTests {
                 SlickTests::slickLaysATrackARampedRunnerRides);
         GooTestFunctions.registerTest(registrar, HELD_SPREADS_WITHOUT_STEPS, SlickTests::slickHeldAtOneSpotSpreadsWithoutSteps);
         GooTestFunctions.registerTest(registrar, KEEPS_MOMENTUM, SlickTests::slickKeepsASlidersMomentum);
+        GooTestFunctions.registerTest(registrar, WEAVING_RUN, SlickTests::slickCarriesAWeavingRunnerThroughItsOwnMound);
         GooTestFunctions.registerTest(registrar, RUN_AT_45, SlickTests::slickCarriesARampingRunnerSprayingHalfwayDown);
         GooTestFunctions.registerTest(registrar, RUN_LEVEL, SlickTests::slickCarriesARampingRunnerSprayingLevel);
         GooTestFunctions.registerTest(registrar, RUN_ACROSS, SlickTests::slickCarriesARampingRunnerAcrossTheGrid);
