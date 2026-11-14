@@ -65,7 +65,9 @@ public final class RallyEvents {
     @SubscribeEvent
     public static void onEntityTick(EntityTickEvent.Post event) {
         if (!(event.getEntity() instanceof Mob mob) || !(mob.level() instanceof ServerLevel level)
-                || !mob.hasData(GooAttachments.RALLIED)) {
+                || !mob.hasData(GooAttachments.RALLIED)
+                // rallied-mob-falls-downed-instead-of-dying: a downed mob lies still, fighting and following no one
+                || mob.hasData(GooAttachments.DOWNED)) {
             return;
         }
         Rallied rally = mob.getData(GooAttachments.RALLIED);

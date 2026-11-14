@@ -1,0 +1,199 @@
+package com.mercuriusxeno.goo.network;
+
+import com.mercuriusxeno.goo.ability.zoo.Downed;
+import com.mercuriusxeno.goo.ability.zoo.Rallied;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
+import com.mercuriusxeno.goo.registry.GooAttachments;
+import net.minecraft.core.BlockPos;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.animal.cow.Cow;
+import net.minecraft.world.entity.monster.zombie.Zombie;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Blocks;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.UUID;
+import java.util.function.Consumer;
+
+/**
+ * Gametests for a rallied mob falling downed instead of dying: a lethal
+ * attack downs it where a plain mob dies, the world's harm kills it
+ * outright, attacks bounce off it for 5 seconds and lava does not, and it
+ * dies 15 seconds after going down, its rally standing or not
+ * (decision rallied-mob-falls-downed-instead-of-dying).
+ */
+@RegistersGameTests
+public final class DownedTests {
+
+    private static final String LETHAL_ATTACK_DOWNS_A_RALLIED_COW = "downed_lethal_attack_downs_a_rallied_cow";
+    private static final String HIT_IN_THE_WINDOW_LEAVES_IT_ALIVE = "downed_hit_in_the_window_leaves_it_alive";
+    private static final String LAVA_KILLS_A_DOWNED_COW = "downed_lava_kills_a_downed_cow";
+    private static final String LAVA_KILLS_A_RALLIED_COW_OUTRIGHT = "downed_lava_kills_a_rallied_cow_outright";
+    private static final String COW_DIES_AT_FIFTEEN_SECONDS = "downed_cow_dies_at_fifteen_seconds";
+    private static final String COW_DIES_AT_FIFTEEN_SECONDS_UNRALLIED =
+            "downed_cow_dies_at_fifteen_seconds_unrallied";
+
+    private static final BlockPos COW_POS = new BlockPos(2, 1, 3);
+    private static final BlockPos PLAIN_COW_POS = new BlockPos(2, 1, 1);
+    private static final BlockPos ZOMBIE_POS = new BlockPos(4, 1, 1);
+    /** Far past any cow's health, so the blow is lethal whatever a rally lifted it to. */
+    private static final float LETHAL = 100f;
+    /** Past the 10 ticks of hurt frames the downing blow leaves, still inside the 5 second immunity. */
+    private static final int INSIDE_THE_WINDOW_TICKS = 40;
+    /** Past the immunity, short of the death span. */
+    private static final int STILL_DOWN_TICKS = 200;
+    /** Past the 15 second death span. */
+    private static final int PAST_THE_DEATH_TICKS = Downed.DEATH_TICKS + 10;
+
+    private static final String RALLIED_COW_DIED = "The rallied cow should live through the lethal attack";
+    private static final String NOT_DOWNED = "The rallied cow should hold DOWNED after the lethal attack";
+    private static final String PLAIN_COW_LIVED = "The unrallied cow should die to the lethal attack";
+    private static final String WINDOW_HIT_KILLED = "A hit inside the 5 second window should leave the cow alive";
+    private static final String LAVA_SPARED = "Lava should kill the cow";
+    private static final String DOWNED_BY_LAVA = "Lava should kill the rallied cow without downing it";
+    private static final String DIED_TOO_SOON = "The downed cow should be alive and downed at 200 ticks";
+    private static final String OUTLIVED_THE_SPAN = "The downed cow should be dead past 300 ticks";
+
+    private DownedTests() {
+    }
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, LETHAL_ATTACK_DOWNS_A_RALLIED_COW,
+                DownedTests::lethalAttackDownsARalliedCow);
+        GooTestFunctions.registerTest(registrar, HIT_IN_THE_WINDOW_LEAVES_IT_ALIVE,
+                DownedTests::hitInTheWindowLeavesItAlive);
+        GooTestFunctions.registerTest(registrar, LAVA_KILLS_A_DOWNED_COW, DownedTests::lavaKillsADownedCow);
+        GooTestFunctions.registerTest(registrar, LAVA_KILLS_A_RALLIED_COW_OUTRIGHT,
+                DownedTests::lavaKillsARalliedCowOutright);
+        GooTestFunctions.registerTest(registrar, COW_DIES_AT_FIFTEEN_SECONDS,
+                helper -> cowDiesAtFifteenSeconds(helper, false));
+        GooTestFunctions.registerTest(registrar, COW_DIES_AT_FIFTEEN_SECONDS_UNRALLIED,
+                helper -> cowDiesAtFifteenSeconds(helper, true));
+    }
+
+    /**
+     * A lethal zombie attack downs a rallied cow, alive and holding DOWNED,
+     * and kills a plain cow.
+     *
+     * @param helper the gametest helper
+     */
+    public static void lethalAttackDownsARalliedCow(GameTestHelper helper) {
+        Zombie zombie = attacker(helper);
+        Cow rallied = ralliedCow(helper);
+        Cow plain = helper.spawnWithNoFreeWill(EntityType.COW, PLAIN_COW_POS);
+
+        strike(helper, rallied, zombie);
+        strike(helper, plain, zombie);
+
+        helper.assertTrue(rallied.isAlive(), RALLIED_COW_DIED);
+        helper.assertTrue(rallied.hasData(GooAttachments.DOWNED), NOT_DOWNED);
+        helper.assertFalse(plain.isAlive(), PLAIN_COW_LIVED);
+        helper.succeed();
+    }
+
+    /**
+     * A downed cow struck lethally again inside its 5 second window, past
+     * the hurt frames of the blow that downed it, stays alive.
+     *
+     * @param helper the gametest helper
+     */
+    public static void hitInTheWindowLeavesItAlive(GameTestHelper helper) {
+        Zombie zombie = attacker(helper);
+        Cow cow = ralliedCow(helper);
+        strike(helper, cow, zombie);
+        helper.runAfterDelay(INSIDE_THE_WINDOW_TICKS, () -> {
+            strike(helper, cow, zombie);
+            helper.assertTrue(cow.isAlive(), WINDOW_HIT_KILLED);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A downed cow dropped in lava inside its 5 second window dies.
+     *
+     * @param helper the gametest helper
+     */
+    public static void lavaKillsADownedCow(GameTestHelper helper) {
+        Zombie zombie = attacker(helper);
+        Cow cow = ralliedCow(helper);
+        strike(helper, cow, zombie);
+        helper.assertTrue(cow.hasData(GooAttachments.DOWNED), NOT_DOWNED);
+        helper.setBlock(COW_POS, Blocks.LAVA);
+        helper.succeedWhen(() -> helper.assertFalse(cow.isAlive(), LAVA_SPARED));
+    }
+
+    /**
+     * Lethal lava damage on a rallied cow, never downed, kills it and lays no DOWNED.
+     *
+     * @param helper the gametest helper
+     */
+    public static void lavaKillsARalliedCowOutright(GameTestHelper helper) {
+        Cow cow = ralliedCow(helper);
+        cow.hurtServer(helper.getLevel(), cow.damageSources().lava(), LETHAL);
+        helper.assertFalse(cow.isAlive(), LAVA_SPARED);
+        helper.assertFalse(cow.hasData(GooAttachments.DOWNED), DOWNED_BY_LAVA);
+        helper.succeed();
+    }
+
+    /**
+     * A downed cow left unhealed is alive and downed at 200 ticks and dead
+     * past 300; with its rally taken off right after it went down, the same.
+     *
+     * @param helper        the gametest helper
+     * @param removeTheRally whether the rally is taken off right after the cow goes down
+     */
+    public static void cowDiesAtFifteenSeconds(GameTestHelper helper, boolean removeTheRally) {
+        Zombie zombie = attacker(helper);
+        Cow cow = ralliedCow(helper);
+        strike(helper, cow, zombie);
+        if (removeTheRally) {
+            cow.removeData(GooAttachments.RALLIED);
+        }
+        helper.runAfterDelay(STILL_DOWN_TICKS, () -> {
+            helper.assertTrue(cow.isAlive(), DIED_TOO_SOON);
+            helper.assertTrue(cow.hasData(GooAttachments.DOWNED), DIED_TOO_SOON);
+        });
+        helper.runAfterDelay(PAST_THE_DEATH_TICKS, () -> {
+            helper.assertFalse(cow.isAlive(), OUTLIVED_THE_SPAN);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A cow holding a rally for a caster absent from the level, so the
+     * rally's own tick leaves it be.
+     *
+     * @param helper the gametest helper
+     * @return the rallied cow
+     */
+    private static Cow ralliedCow(GameTestHelper helper) {
+        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        cow.setData(GooAttachments.RALLIED, new Rallied(UUID.randomUUID(), 1f));
+        return cow;
+    }
+
+    /**
+     * A still zombie to deal the attacks, its helmet keeping the open bay's sun off it.
+     *
+     * @param helper the gametest helper
+     * @return the zombie
+     */
+    private static Zombie attacker(GameTestHelper helper) {
+        Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
+        zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
+        zombie.setNoAi(true);
+        return zombie;
+    }
+
+    private static void strike(GameTestHelper helper, Cow cow, Zombie zombie) {
+        cow.hurtServer(helper.getLevel(), zombie.damageSources().mobAttack(zombie), LETHAL);
+    }
+}
