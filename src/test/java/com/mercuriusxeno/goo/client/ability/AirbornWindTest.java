@@ -29,6 +29,7 @@ class AirbornWindTest {
         void aMoteRisesItsWholeRiseInThirtyTicksAndNoHigher() {
             double start = AirbornWind.motePoint(MOTE, 0).y;
 
+            assertEquals(0.8, AirbornWind.motePoint(MOTE, 15).y - start, EPSILON);
             for (int age = 30; age <= 90; age++) {
                 assertEquals(1.6, AirbornWind.motePoint(MOTE, age).y - start, EPSILON);
             }
@@ -147,11 +148,15 @@ class AirbornWindTest {
 
     /** float-motes-ring-closer-span-the-view-and-run-twice-as-fast */
     @Test
-    void overFortyTicksTenBodyMotesAndFourFrontMotesLeave() {
-        long body = LongStream.range(1000, 1040).filter(AirbornWind::bodyMoteLeavesOn).count();
-        long front = LongStream.range(1000, 1040).filter(AirbornWind::frontMoteLeavesOn).count();
+    void aBodyMoteLeavesEveryFourTicksAndAFrontMoteEveryTen() {
+        assertEveryGapIs(4, LongStream.range(1000, 1040).filter(AirbornWind::bodyMoteLeavesOn).toArray());
+        assertEveryGapIs(10, LongStream.range(1000, 1040).filter(AirbornWind::frontMoteLeavesOn).toArray());
+    }
 
-        assertEquals(10, body);
-        assertEquals(4, front);
+    private static void assertEveryGapIs(long gap, long[] leavingTicks) {
+        assertTrue(leavingTicks.length >= 2);
+        for (int index = 1; index < leavingTicks.length; index++) {
+            assertEquals(gap, leavingTicks[index] - leavingTicks[index - 1]);
+        }
     }
 }
