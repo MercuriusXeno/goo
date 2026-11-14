@@ -101,7 +101,7 @@ class AbilityPoseTableTest {
             Map.entry("yore_age", ArmPose.SWUNG),
             Map.entry("yore_ancient", ArmPose.HELD_UP),
             Map.entry("yore_expire", ArmPose.SWUNG),
-            Map.entry("yore_rewind", ArmPose.HELD_OUT),
+            Map.entry("yore_rewind", ArmPose.SWUNG),
             Map.entry("zoo_allure", ArmPose.SWUNG),
             Map.entry("zoo_kin", ArmPose.HELD_UP),
             Map.entry("zoo_rally", ArmPose.SWUNG),

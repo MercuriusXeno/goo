@@ -120,7 +120,7 @@
   "goo.badge.prism": "Prism",
 
   "goo.ability.yore.rewind": "Rewind",
-  "goo.ability.yore.rewind.description": "Rewinds a mob, freezing it while held, then turning it into a baby or its spawn egg.",
+  "goo.ability.yore.rewind.description": "Takes a mob back one step a cast: an adult into its baby, and a baby, or a mob with no baby, into its spawn egg.",
   "goo.ability.yore.expire": "Expire",
   "goo.ability.yore.expire.description": "Kills the struck mob outright, bosses excepted.",
   "goo.ability.yore.ancient": "Ancient",
