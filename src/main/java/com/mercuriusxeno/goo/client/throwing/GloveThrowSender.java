@@ -16,7 +16,6 @@ import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.ability.CameraEye;
 import com.mercuriusxeno.goo.client.ability.CastOrigin;
-import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
 import com.mercuriusxeno.goo.client.ability.ReserveVisual;
 import com.mercuriusxeno.goo.client.ability.VitalityVisual;
 import com.mercuriusxeno.goo.client.ability.WindLines;
@@ -421,17 +420,16 @@ public final class GloveThrowSender {
     }
 
     /**
-     * Spends the local player's lifted blob over the view as a durative use
-     * lands: the blob swells and vanishes, washing the view in its goo.
+     * Washes the local player's view in its goo as a durative use lands; the
+     * lifted blob settles onto the palm as every cast's does.
      * durative-self-abilities-wash-over-the-view-in-place-of-eating
+     * operator ruling: the cuboid vanishing as the wash flows "doesn't look good at all", so it settles
      *
      * @param player  the local player
      * @param gooType the durative ability's goo type
      */
     private static void washOverTheView(Player player, ResourceKey<GooTypeDefinition> gooType) {
-        long now = player.level().getGameTime();
-        LiftedPalmBlob.spend(player.getId(), now);
-        DurativeWash.wash(gooType, now);
+        DurativeWash.wash(gooType, player.level().getGameTime());
     }
 
     /**

@@ -74,15 +74,6 @@ public final class LiftedPalmBlob {
      * half a flying blob's width.
      */
     static final float FLIGHT_SIZE_OF_PALM_REST = 0.5f;
-    /** The ticks a spent blob swells over before it vanishes. */
-    static final int SPEND_TICKS = 6;
-    /** How far a spent blob swells before it vanishes, against its lifted size. */
-    static final float SPENT_GREATEST = 2.5f;
-    /** A lift no durative use has spent. */
-    static final long NOT_SPENT = Long.MIN_VALUE;
-    /** The smoothstep's terms: three times the square less twice the cube. */
-    private static final double SMOOTH_SQUARE = 3;
-    private static final double SMOOTH_CUBE = 2;
     private static final double FULL_TURN = Math.PI * 2;
     private static final double HALF = 0.5;
 
@@ -97,20 +88,16 @@ public final class LiftedPalmBlob {
      * palm it hops, rises to the source and stands there while the spray
      * runs, and once the spray ends it settles back onto the palm. A spray
      * begun again while the blob is off the palm turns it round from the pose
-     * it had reached, with no hop. A durative use landing spends the blob:
-     * it holds the pose it had reached, swells and vanishes, with no settle.
+     * it had reached, with no hop.
      * every-lift-begins-with-a-hop
-     * durative-self-abilities-wash-over-the-view-in-place-of-eating
      *
      * @param began          the game time the spray began
      * @param from           the pose the blob stood in as the spray began
      * @param hops           whether the lift began on the palm, so it hops
      * @param lastStreamTick the game time of the caster's last stream tick that threw drips
      * @param sentGlove      the glove the server sent with that tick
-     * @param spentAt        the game time a durative use spent the blob, {@link #NOT_SPENT} for none
      */
-    record Lift(long began, PalmBlobHop.Pose from, boolean hops, long lastStreamTick, Vec3 sentGlove,
-                long spentAt) {
+    record Lift(long began, PalmBlobHop.Pose from, boolean hops, long lastStreamTick, Vec3 sentGlove) {
 
         /**
          * A lift from the palm as a spray begins.
@@ -120,7 +107,7 @@ public final class LiftedPalmBlob {
          * @return the lift
          */
         static Lift beginning(long gameTime, Vec3 sentGlove) {
-            return new Lift(gameTime, PalmBlobHop.Pose.ON_THE_PALM, true, gameTime, sentGlove, NOT_SPENT);
+            return new Lift(gameTime, PalmBlobHop.Pose.ON_THE_PALM, true, gameTime, sentGlove);
         }
 
         /**
@@ -135,45 +122,13 @@ public final class LiftedPalmBlob {
          * @return the lift
          */
         Lift sprayedAt(long gameTime, Vec3 sentGlove) {
-            if (spent()) {
-                return standsAt(gameTime) ? this : beginning(gameTime, sentGlove);
-            }
             if (runningAt(lastStreamTick, gameTime)) {
-                return new Lift(began, from, hops, gameTime, sentGlove, NOT_SPENT);
+                return new Lift(began, from, hops, gameTime, sentGlove);
             }
             if (standsAt(gameTime)) {
-                return new Lift(gameTime, poseAt(gameTime), false, gameTime, sentGlove, NOT_SPENT);
+                return new Lift(gameTime, poseAt(gameTime), false, gameTime, sentGlove);
             }
             return beginning(gameTime, sentGlove);
-        }
-
-        /**
-         * The lift once a durative use spends the blob: it swells from the
-         * pose it reached and vanishes.
-         *
-         * @param gameTime the game time the use landed
-         * @return the lift
-         */
-        Lift spendAt(long gameTime) {
-            return spent() ? this : new Lift(began, from, hops, lastStreamTick, sentGlove, gameTime);
-        }
-
-        private boolean spent() {
-            return spentAt != NOT_SPENT;
-        }
-
-        /**
-         * How far a spent blob has swelled at a time, against its lifted size.
-         *
-         * @param now the game time, with the frame's partial tick
-         * @return 1 for a blob not spent, rising to {@link #SPENT_GREATEST} as it vanishes
-         */
-        float swellAt(double now) {
-            if (!spent()) {
-                return 1f;
-            }
-            double share = Math.clamp((now - spentAt) / SPEND_TICKS, 0.0, 1.0);
-            return (float) (1 + (SPENT_GREATEST - 1) * share * share * (SMOOTH_SQUARE - SMOOTH_CUBE * share));
         }
 
         /** @return the game time the spray reads ended, a tick past the stream's gap */
@@ -188,10 +143,9 @@ public final class LiftedPalmBlob {
          * @return the pose
          */
         PalmBlobHop.Pose poseAt(double now) {
-            double at = spent() ? Math.min(now, spentAt) : now;
             double ended = endedAt();
-            PalmBlobHop.Pose reached = runningPoseAt(Math.min(at, ended) - began);
-            return at < ended ? reached : PalmBlobHop.settlePoseAt(reached, at - ended);
+            PalmBlobHop.Pose reached = runningPoseAt(Math.min(now, ended) - began);
+            return now < ended ? reached : PalmBlobHop.settlePoseAt(reached, now - ended);
         }
 
         private PalmBlobHop.Pose runningPoseAt(double ticks) {
@@ -216,8 +170,7 @@ public final class LiftedPalmBlob {
          * @return true while the palm draws no blob
          */
         boolean standsAt(double now) {
-            double gone = spent() ? spentAt + (double) SPEND_TICKS : endedAt() + PalmBlobHop.SETTLE_TICKS;
-            return now >= began && now < gone;
+            return now >= began && now < endedAt() + PalmBlobHop.SETTLE_TICKS;
         }
     }
 
@@ -266,22 +219,7 @@ public final class LiftedPalmBlob {
      * @param gameTime the level's game time the tick reached this client
      */
     public static void liftArrived(PalmBlobLiftPayload payload, long gameTime) {
-        if (payload.spent()) {
-            spend(payload.casterId(), gameTime);
-        } else {
-            held(payload.casterId(), payload.glove(), gameTime);
-        }
-    }
-
-    /**
-     * Spends a caster's lifted blob as a durative use lands: it swells and vanishes.
-     * durative-self-abilities-wash-over-the-view-in-place-of-eating
-     *
-     * @param casterId the caster's entity id
-     * @param gameTime the level's game time the use landed on this client
-     */
-    public static void spend(int casterId, long gameTime) {
-        LIFTS.computeIfPresent(casterId, (id, lift) -> lift.spendAt(gameTime));
+        held(payload.casterId(), payload.glove(), gameTime);
     }
 
     /**
@@ -409,7 +347,7 @@ public final class LiftedPalmBlob {
         // centered-abilities-float-the-blob-below-the-crosshair: a centered ability rests on the center line
         Vec3 source = BlobRest.of(casterId, lift.sentGlove(), partialTick);
         return Optional.of(new Standing(caster, placeAt(pose, palmOf(mc, caster, partialTick),
-                upOf(caster, partialTick), source), pose, now, swellOf(lift, caster, now)));
+                upOf(caster, partialTick), source), pose, now, swellOf(caster, now)));
     }
 
     /**
@@ -439,16 +377,14 @@ public final class LiftedPalmBlob {
     }
 
     /**
-     * How far a caster's lifted blob swells: as a durative use spends it, and
-     * as Knives' charge grows.
+     * How far a caster's lifted blob swells: as Knives' charge grows.
      *
-     * @param lift   the caster's lift
      * @param caster the caster
      * @param now    the game time, with the frame's partial tick
      * @return the swell against the blob's lifted size
      */
-    private static float swellOf(Lift lift, Player caster, double now) {
-        return lift.swellAt(now) * KnivesCharge.liftedSwellOf(caster, now);
+    private static float swellOf(Player caster, double now) {
+        return KnivesCharge.liftedSwellOf(caster, now);
     }
 
     /**
@@ -538,7 +474,7 @@ public final class LiftedPalmBlob {
         Vec3 source = BlobRest.of(mc.player.getId(), lift.sentGlove(), partial).subtract(camera.position());
         PalmBlobHop.Pose pose = lift.poseAt(now);
         return Optional.of(new HandLift(pose.share(), HandPassView.toHandPass(source, camera.rotation(),
-                camera.getFov()), drawnShapeAt(pose, now).scaled(swellOf(lift, mc.player, now)),
+                camera.getFov()), drawnShapeAt(pose, now).scaled(swellOf(mc.player, now)),
                 pose.stand()));
     }
 
