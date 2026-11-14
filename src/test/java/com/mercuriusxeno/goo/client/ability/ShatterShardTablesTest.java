@@ -13,13 +13,13 @@ import static org.junit.jupiter.api.Assertions.assertSame;
  * stands, and draws a new one once it stops rendering
  * (decision cloud-seed-per-client-ephemeral).
  */
-class CloudShardTablesTest {
+class ShatterShardTablesTest {
 
     private static final BlockPos MARKER = new BlockPos(10, 64, 10);
     private static final BlockPos NEIGHBOR = new BlockPos(11, 64, 10);
 
     private final AtomicLong nextSeed = new AtomicLong();
-    private final CloudShardTables tables = new CloudShardTables(nextSeed::incrementAndGet);
+    private final ShatterShardTables tables = new ShatterShardTables(nextSeed::incrementAndGet);
 
     @Test
     void everyFrameOfOneCloudReadsTheTableItsFirstFrameDrew() {

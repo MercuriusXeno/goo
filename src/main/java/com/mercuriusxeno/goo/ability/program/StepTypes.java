@@ -79,7 +79,7 @@ public final class StepTypes {
         register(LeafSteps.IGNITE.type());
         register(LeafSteps.LIGHT_FIRE.type());
         register(LeafSteps.DETONATE_EXPLOSIVE.type());
-        register(MeltStep.TYPE);
+        register(MoltenStep.TYPE);
         register(EntitiesStep.TYPE);
         register(ParticlesStep.TYPE);
         register(SoundStep.TYPE);

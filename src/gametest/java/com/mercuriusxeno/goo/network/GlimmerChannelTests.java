@@ -23,8 +23,8 @@ import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
- * Gametests for Crystal's Glitter: a caster holding no lapis channels
- * Glitter, since it takes no item cost (operator ruling 2026-10-10), and
+ * Gametests for Crystal's Glimmer: a caster holding no lapis channels
+ * Glimmer, since it takes no item cost (operator ruling 2026-10-10), and
  * its pulse, easing out from where the caster stands, finds the gem ore
  * veins buried around the caster as it reaches them, each at its centroid
  * with the blocks it shows through walls.
@@ -32,8 +32,8 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
  * decision glitter-sphere-icons-gem-ore-groups
  */
 @RegistersGameTests
-public final class GlitterChannelTests {
-    private static final String GLITTER_REVEALS_DIAMOND_AND_LAPIS = "glitter_reveals_diamond_and_lapis";
+public final class GlimmerChannelTests {
+    private static final String GLIMMER_REVEALS_DIAMOND_AND_LAPIS = "glimmer_reveals_diamond_and_lapis";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -41,11 +41,11 @@ public final class GlitterChannelTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, GLITTER_REVEALS_DIAMOND_AND_LAPIS, GlitterChannelTests::glitterRevealsDiamondAndLapis);
+        GooTestFunctions.registerTest(registrar, GLIMMER_REVEALS_DIAMOND_AND_LAPIS, GlimmerChannelTests::glimmerRevealsDiamondAndLapis);
     }
 
 
-    private static final Identifier CRYSTAL_GLITTER = Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_glitter");
+    private static final Identifier CRYSTAL_GLIMMER = Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_glimmer");
     private static final Identifier DIAMOND_ORE = Identifier.withDefaultNamespace("diamond_ore");
     private static final Identifier LAPIS_ORE = Identifier.withDefaultNamespace("lapis_ore");
     private static final BlockPos STAND_POS = new BlockPos(1, 1, 3);
@@ -57,32 +57,32 @@ public final class GlitterChannelTests {
     private static final int HOLD_TICKS = 3;
     /** Pulse ticks whose front reaches past every buried ore. */
     private static final int REACHING_HOLD = 5;
-    private static final String ABILITY_REQUIRED = "Ability registry must hold crystal_glitter";
+    private static final String ABILITY_REQUIRED = "Ability registry must hold crystal_glimmer";
     private static final String SHOULD_SPEND = "A hold should spend crystal goo, %d of %d left";
-    private static final String NO_SENSE = "crystal_glitter should name a detect_ore step";
+    private static final String NO_SENSE = "crystal_glimmer should name a detect_ore step";
     private static final String SHOULD_FIND = "The ping should find a vein of %s, found %s";
 
-    private GlitterChannelTests() {
+    private GlimmerChannelTests() {
     }
 
     /**
-     * A mock player holds Glitter for three ticks over a floor with a two block
+     * A mock player holds Glimmer for three ticks over a floor with a two block
      * diamond vein and a lapis ore buried in it: the hold spends goo, and its
      * ping names a diamond vein and a lapis vein.
      *
      * @param helper the gametest helper
      */
-    public static void glitterRevealsDiamondAndLapis(GameTestHelper helper) {
+    public static void glimmerRevealsDiamondAndLapis(GameTestHelper helper) {
         helper.setBlock(DIAMOND_A, Blocks.DIAMOND_ORE);
         helper.setBlock(DIAMOND_B, Blocks.DIAMOND_ORE);
         helper.setBlock(LAPIS, Blocks.LAPIS_ORE);
-        AbilityDefinition glitter = AbilityRegistry.of(helper.getLevel()).getAbility(CRYSTAL_GLITTER);
-        helper.assertTrue(glitter != null, ABILITY_REQUIRED);
+        AbilityDefinition glimmer = AbilityRegistry.of(helper.getLevel()).getAbility(CRYSTAL_GLIMMER);
+        helper.assertTrue(glimmer != null, ABILITY_REQUIRED);
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.CRYSTAL);
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STAND_POS));
         caster.setPos(stand.x, stand.y, stand.z);
-        KnownRecipes.teachRequires(caster, glitter);
-        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.CRYSTAL), CRYSTAL_GLITTER.toString(),
+        KnownRecipes.teachRequires(caster, glimmer);
+        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.CRYSTAL), CRYSTAL_GLIMMER.toString(),
                 caster.getEyePosition(), caster.getEyePosition(), helper.absolutePos(STAND_POS.below()),
                 Direction.UP.get3DDataValue());
         int gooBefore = GooSourceScanner.aggregateAvailable(caster).getOrDefault(GooTypes.CRYSTAL, 0);
@@ -93,7 +93,7 @@ public final class GlitterChannelTests {
             int gooAfter = GooSourceScanner.aggregateAvailable(caster).getOrDefault(GooTypes.CRYSTAL, 0);
             helper.assertTrue(gooAfter < gooBefore,
                     String.format(SHOULD_SPEND, gooAfter, gooBefore));
-            DetectOreStep sense = glitter.behaviors().stream().filter(DetectOreStep.class::isInstance)
+            DetectOreStep sense = glimmer.behaviors().stream().filter(DetectOreStep.class::isInstance)
                     .map(DetectOreStep.class::cast).findFirst().orElse(null);
             helper.assertTrue(sense != null, NO_SENSE);
             List<OreVeins.Vein> veins = veinsHeld(helper, sense, caster.position(), REACHING_HOLD);

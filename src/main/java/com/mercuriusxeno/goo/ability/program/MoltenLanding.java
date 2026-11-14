@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.network.BlockVisuals;
-import com.mercuriusxeno.goo.network.MeltAbsorbPayload;
+import com.mercuriusxeno.goo.network.MoltenAbsorbPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -14,14 +14,14 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 
 /**
- * Melt's landing: the struck stone becomes a lava source, the watchers draw
+ * Molten's landing: the struck stone becomes a lava source, the watchers draw
  * the stone mingling into the lava and the blob sinking into it, and the
  * lava bucket's pour sounds.
  * melt-blob-absorbs-into-lava
  */
-final class MeltLanding {
+final class MoltenLanding {
 
-    private MeltLanding() {
+    private MoltenLanding() {
     }
 
     /**
@@ -41,7 +41,7 @@ final class MeltLanding {
             return false;
         }
         BlockBreakHost.transform(level, struck, Blocks.LAVA.defaultBlockState());
-        BlockVisuals.sendToWatchers(level, struck, new MeltAbsorbPayload(gooType, struck, face));
+        BlockVisuals.sendToWatchers(level, struck, new MoltenAbsorbPayload(gooType, struck, face));
         level.playSound(null, struck, SoundEvents.BUCKET_EMPTY_LAVA, SoundSource.BLOCKS, 1f, 1f);
         return true;
     }

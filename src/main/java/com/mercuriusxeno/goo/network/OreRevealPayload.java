@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Server-to-caster payload: the ore veins a held sweep's front, Glitter's
+ * Server-to-caster payload: the ore veins a held sweep's front, Glimmer's
  * or Magnet's, first reached on one tick, each shown through walls from now
  * for its life.
  * decision held-sweeps-share-one-fast-shell-visual

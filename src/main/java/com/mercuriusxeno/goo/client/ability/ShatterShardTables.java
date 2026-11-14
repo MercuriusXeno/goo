@@ -8,12 +8,12 @@ import java.util.function.LongSupplier;
 import java.util.function.Predicate;
 
 /**
- * The shard layout of every crystal cloud this client draws, one per marker,
+ * The shard layout of every Shatter cloud this client draws, one per marker,
  * each drawn from a seed the client picks the first time it sees that cloud
  * and held in client memory only, so a cloud dropped and seen again draws a
  * new layout (decision cloud-seed-per-client-ephemeral).
  */
-final class CloudShardTables {
+final class ShatterShardTables {
 
     private final Map<BlockPos, ShardTable> tablesByMarker = new HashMap<>();
     private final LongSupplier seeds;
@@ -21,7 +21,7 @@ final class CloudShardTables {
     /**
      * Tables seeded from a fresh random source.
      */
-    CloudShardTables() {
+    ShatterShardTables() {
         this(new Random()::nextLong);
     }
 
@@ -30,7 +30,7 @@ final class CloudShardTables {
      *
      * @param seeds answers the seed of each new cloud
      */
-    CloudShardTables(LongSupplier seeds) {
+    ShatterShardTables(LongSupplier seeds) {
         this.seeds = seeds;
     }
 

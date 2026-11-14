@@ -85,7 +85,7 @@ class AbilityLoaderTest {
     /** The one brew that starts silent (decision rally-drops-its-sound-and-gets-its-sprite). */
     private static final Identifier SILENT_BREW = Identifier.fromNamespaceAndPath(Goo.MODID, "zoo_rally");
     /** The proving example of a world ability that stays after its blob lands. */
-    private static final String LINGERING = "crystal_cloud";
+    private static final String LINGERING = "crystal_shatter";
     /** The ability whose program ends the tick it lands. */
     private static final String BLAST = "unstable_blast";
 
@@ -234,15 +234,15 @@ class AbilityLoaderTest {
     }
 
     /**
-     * Crystal's Prism and Glitter take no item cost (operator ruling
+     * Crystal's Prism and Glimmer take no item cost (operator ruling
      * 2026-10-10), and an ability naming no reagent consumes nothing
      * (decisions ability-json-names-its-reagent, glitter-sphere-icons-gem-ore-groups).
      */
     @Test
-    void prismAndGlitterConsumeNothing() {
+    void prismAndGlimmerConsumeNothing() {
         Map<Identifier, AbilityDefinition> scanned = shippedById();
 
-        for (String path : List.of("crystal_prism", "crystal_glitter", "crystal_cloud")) {
+        for (String path : List.of("crystal_prism", "crystal_glimmer", "crystal_shatter")) {
             assertEquals(List.of(), scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, path)).consumes(), path);
         }
     }

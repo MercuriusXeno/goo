@@ -145,7 +145,7 @@ public record FlamesStep(Expr damage, int every, int burnSeconds, int cookTicks,
     /**
      * The mark each heating block's exposure carries to the clients: a
      * melting block carries the melt mark, so it shows nothing while it heats
-     * and is eaten away once it melts, as Blaze Melt eats stone; any other is
+     * and is eaten away once it melts, as Blaze's Molten eats stone; any other is
      * untinted, cooking as it always has.
      * decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold
      *

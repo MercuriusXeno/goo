@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:glitter_reveals_diamond_and_lapis",
+  "function": "goo:fx_landed_crystal_shatter_live",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 60,
+  "max_ticks": 20,
   "setup_ticks": 0,
   "required": true
 }

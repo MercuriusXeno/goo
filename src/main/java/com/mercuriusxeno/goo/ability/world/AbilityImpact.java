@@ -9,7 +9,7 @@ import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.LandingHost;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
-import com.mercuriusxeno.goo.ability.program.MeltStep;
+import com.mercuriusxeno.goo.ability.program.MoltenStep;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
@@ -203,7 +203,7 @@ public final class AbilityImpact {
     /**
      * Whether an ability's program stands its own block that explodes after
      * the splat, so its burnout plays when that block explodes rather than as
-     * the blob lands. A lingering program that never explodes, Razor's cloud,
+     * the blob lands. A lingering program that never explodes, Shatter's cloud,
      * plays its burnout at the landing.
      * decision elemental-explosion-per-type
      * decision diagnose-then-restore-the-razor-dome
@@ -239,7 +239,7 @@ public final class AbilityImpact {
      * @return true when a top-level step melts the struck block
      */
     static boolean sinksIntoTheMelt(AbilityDefinition ability) {
-        return ability.behaviors().stream().anyMatch(MeltStep.class::isInstance);
+        return ability.behaviors().stream().anyMatch(MoltenStep.class::isInstance);
     }
 
     /**

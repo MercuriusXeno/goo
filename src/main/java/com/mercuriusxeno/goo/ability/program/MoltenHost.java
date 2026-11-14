@@ -5,10 +5,10 @@ import net.minecraft.world.level.block.Block;
 
 /**
  * A landing that can melt the block it struck into lava (capability
- * {@link HostCapability#MELT}).
+ * {@link HostCapability#MOLTEN}).
  * melt-blob-absorbs-into-lava
  */
-public interface MeltHost extends StepHost {
+public interface MoltenHost extends StepHost {
 
     /**
      * Melts the struck block into a lava source where the tag names it, the

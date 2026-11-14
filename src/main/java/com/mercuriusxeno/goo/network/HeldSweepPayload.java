@@ -13,7 +13,7 @@ import org.jspecify.annotations.NonNull;
 
 /**
  * Server-to-caster payload: one live pulse of a held sweep, Scry's,
- * Glitter's or Magnet's, on one tick, sent to the caster alone, whose client
+ * Glimmer's or Magnet's, on one tick, sent to the caster alone, whose client
  * draws that pulse's front from its origin and lights the walls it hits, in
  * the colors of the goo type it names, and outlines the mobs it crosses
  * where the sweep paints mobs; a tick with two fronts out sends two.

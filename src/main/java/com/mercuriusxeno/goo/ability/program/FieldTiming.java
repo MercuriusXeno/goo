@@ -5,7 +5,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 /**
  * How long a field effect takes to expand after the splat and to contract
- * once its budget is spent; the crystal cloud grows and shrinks over ten
+ * once its budget is spent; the Shatter cloud grows and shrinks over ten
  * ticks each, the metal trap does neither. Read inline from the
  * {@code field_effect} step's own fields.
  *
