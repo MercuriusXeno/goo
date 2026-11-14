@@ -39,7 +39,7 @@ public final class BlockLandingTests {
     private static final BlockPos FACE_POS = WALL_POS.south();
     /** Marks a pending effect aimed at a block rather than an entity. */
     private static final int NO_ENTITY = -1;
-    private static final String CRYSTAL_CLOUD = "goo:crystal_cloud";
+    private static final String CRYSTAL_SHATTER = "goo:crystal_shatter";
     private static final String MARKER_WRONG_ABILITY = "The landed marker does not carry the thrown ability";
 
     private BlockLandingTests() {
@@ -64,9 +64,9 @@ public final class BlockLandingTests {
      * @param helper the gametest helper
      */
     public static void abilityLandsItsMarker(GameTestHelper helper) {
-        landOnWall(helper, CRYSTAL_CLOUD);
+        landOnWall(helper, CRYSTAL_SHATTER);
         AbilityBlockEntity marker = helper.getBlockEntity(FACE_POS, AbilityBlockEntity.class);
-        helper.assertTrue(CRYSTAL_CLOUD.equals(marker.getAbilityId()), MARKER_WRONG_ABILITY);
+        helper.assertTrue(CRYSTAL_SHATTER.equals(marker.getAbilityId()), MARKER_WRONG_ABILITY);
         helper.succeed();
     }
 }

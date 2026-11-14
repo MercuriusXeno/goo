@@ -3,7 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.hex.CharmEvents;
-import com.mercuriusxeno.goo.ability.zone.ZoneEvents;
+import com.mercuriusxeno.goo.ability.seal.SealEvents;
 import com.mercuriusxeno.goo.gametest.SurvivalPlayers;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -49,7 +49,7 @@ public final class MobEffectTests {
     private static final String CHARMED_SLIME_SPARES = "charmed_slime_spares_its_charmer";
     private static final String CHARM_HOLDS_THROUGH_A_SAVE = "charm_holds_through_a_save";
     private static final String CHARM_BREAKS_ON_THE_CHARMERS_HIT = "charm_breaks_on_the_charmers_hit";
-    private static final String ZONE_WARPS_THEN_EXILES = "zone_warps_then_exiles";
+    private static final String SEAL_WARPS_THEN_EXILES = "seal_warps_then_exiles";
     private static final String MOB_UNSTABLE = "mob_unstable_blast";
 
     /**
@@ -64,7 +64,7 @@ public final class MobEffectTests {
         GooTestFunctions.registerTest(registrar, CHARMED_SLIME_SPARES, MobEffectTests::charmedSlimeSparesItsCharmer);
         GooTestFunctions.registerTest(registrar, CHARM_HOLDS_THROUGH_A_SAVE, MobEffectTests::charmHoldsThroughASave);
         GooTestFunctions.registerTest(registrar, CHARM_BREAKS_ON_THE_CHARMERS_HIT, MobEffectTests::charmBreaksOnTheCharmersHit);
-        GooTestFunctions.registerTest(registrar, ZONE_WARPS_THEN_EXILES, MobEffectTests::zoneWarpsThenExiles);
+        GooTestFunctions.registerTest(registrar, SEAL_WARPS_THEN_EXILES, MobEffectTests::sealWarpsThenExiles);
         GooTestFunctions.registerTest(registrar, MOB_UNSTABLE, MobEffectTests::unstableExplode);
     }
 
@@ -106,12 +106,12 @@ public final class MobEffectTests {
     private static final String ABILITY_UNSTABLE_BLAST = "goo:test_blast";
     private static final String ABILITY_HEX_CHARM = "goo:hex_charm";
     private static final String ABILITY_ZOO_ALLURE = "goo:zoo_allure";
-    private static final String ABILITY_ENDER_ZONE = "goo:ender_zone";
-    /** Well above Zone's radius, so the player sets nothing off until the test walks it in. */
+    private static final String ABILITY_ENDER_SEAL = "goo:ender_seal";
+    /** Well above Seal's radius, so the player sets nothing off until the test walks it in. */
     private static final double PLAYER_OUT_OF_REACH_ABOVE = 20.0;
-    private static final String SHOULD_BE_CURSED = "The zombie should carry the curse after the first Zone";
+    private static final String SHOULD_BE_CURSED = "The zombie should carry the curse after the first Seal";
     private static final String SHOULD_WARP = "The cursed zombie should warp away from the player standing on it";
-    private static final String SHOULD_BE_EXILED = "A second Zone should exile the cursed zombie";
+    private static final String SHOULD_BE_EXILED = "A second Seal should exile the cursed zombie";
     private static final String SHOULD_BE_IN_LOVE = "A cow struck by Allure should be in love";
     /** Beside the cow, inside test_blast.json's blast of power 3. */
     private static final BlockPos BLAST_DIRT_POS = SPAWN_POS.south();
@@ -299,29 +299,29 @@ public final class MobEffectTests {
     }
 
     /**
-     * Zone's first hit curses a zombie: a player walked onto it sets off a
-     * warp away, and a second Zone hit exiles it from existence
+     * Seal's first hit curses a zombie: a player walked onto it sets off a
+     * warp away, and a second Seal hit exiles it from existence
      * (decision zone-curses-with-ender-shimmer).
      *
      * @param helper the gametest helper
      */
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    public static void zoneWarpsThenExiles(GameTestHelper helper) {
+    public static void sealWarpsThenExiles(GameTestHelper helper) {
         Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         player.setPos(zombie.getX(), zombie.getY() + PLAYER_OUT_OF_REACH_ABOVE, zombie.getZ());
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, zombie, ABILITY_ENDER_ZONE);
-            helper.assertTrue(ZoneEvents.curseOf(zombie) != null, SHOULD_BE_CURSED);
+            strike(helper, zombie, ABILITY_ENDER_SEAL);
+            helper.assertTrue(SealEvents.curseOf(zombie) != null, SHOULD_BE_CURSED);
             Vec3 home = zombie.position();
             player.setPos(home);
             // The assertion runs each tick until the warp lands, then brings the zombie home, where the
-            // test's chunks keep it ticking, and lands the second Zone on it.
+            // test's chunks keep it ticking, and lands the second Seal on it.
             helper.succeedWhen(() -> {
                 helper.assertFalse(zombie.position().equals(home), SHOULD_WARP);
                 player.setPos(home.add(0, PLAYER_OUT_OF_REACH_ABOVE, 0));
                 zombie.teleportTo(home.x, home.y, home.z);
-                strike(helper, zombie, ABILITY_ENDER_ZONE);
+                strike(helper, zombie, ABILITY_ENDER_SEAL);
                 helper.assertTrue(zombie.isRemoved(), SHOULD_BE_EXILED);
             });
         });

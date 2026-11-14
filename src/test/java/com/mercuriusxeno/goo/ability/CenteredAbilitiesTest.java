@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * The shipped abilities whose lifted blob floats to the center line: Click,
- * Orb, Drain, Reap, Zap, Bore, Glimmer (shipped as Glitter) and Magnet, and
+ * Orb, Drain, Reap, Zap, Bore, Glimmer and Magnet, and
  * no other.
  * centered-abilities-float-the-blob-below-the-crosshair
  */
@@ -20,6 +20,6 @@ class CenteredAbilitiesTest {
                 .map(ability -> ability.id().getPath()).collect(Collectors.toSet());
 
         assertEquals(Set.of("deep_click", "frost_orb", "hex_drain", "leaf_reap", "pulse_zap", "rock_bore",
-                "crystal_glitter", "metal_magnet"), centered);
+                "crystal_glimmer", "metal_magnet"), centered);
     }
 }

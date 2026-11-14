@@ -16,7 +16,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Tests the /goo command tree's dev gate: lab, orphans and outsider register
+ * Tests the /goo command tree's dev gate: lab, orphans and zone register
  * only when the gate is open, and the everyday subcommands register either way.
  */
 class GooCommandTest {
@@ -25,7 +25,7 @@ class GooCommandTest {
     private static final String ORPHANS = "orphans";
     private static final String LOOKUP = "lookup";
     private static final String INVENTORY = "inventory";
-    private static final String OUTSIDER = "outsider";
+    private static final String ZONE = "zone";
     /** The subcommands a production launch registers. */
     private static final Set<String> EVERYDAY = Set.of(LOOKUP, "types", "reload", "regen", "audit", INVENTORY,
             "workbench", "scaffold", "init");
@@ -42,14 +42,14 @@ class GooCommandTest {
     }
 
     /**
-     * An open gate stands reset under outsider, which only an operator runs
+     * An open gate stands reset under zone, which only an operator runs
      * (decision reset-command-registers-in-a-dev-launch-only-and-needs-op).
      */
     @Test
-    void openGateOutsiderHoldsAnOperatorReset() {
-        CommandNode<CommandSourceStack> outsider = GooCommand.commandTree(true).build().getChild(OUTSIDER);
-        assertNotNull(outsider);
-        CommandNode<CommandSourceStack> reset = outsider.getChild("reset");
+    void openGateZoneHoldsAnOperatorReset() {
+        CommandNode<CommandSourceStack> zone = GooCommand.commandTree(true).build().getChild(ZONE);
+        assertNotNull(zone);
+        CommandNode<CommandSourceStack> reset = zone.getChild("reset");
         assertNotNull(reset);
         assertTrue(reset.canUse(sourceWith(PermissionSet.ALL_PERMISSIONS)));
         assertFalse(reset.canUse(sourceWith(PermissionSet.NO_PERMISSIONS)));

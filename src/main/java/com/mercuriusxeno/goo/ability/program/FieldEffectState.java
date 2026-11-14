@@ -13,7 +13,7 @@ import java.util.List;
  * definition, so the host keeps this run state for it (capability
  * {@link HostCapability#FIELD_EFFECT}); the marker keeps it on its block
  * entity, which saves it and syncs it to the client, where the metal spike
- * visual reads the strikes and the crystal cloud visual reads the radius
+ * visual reads the strikes and the Shatter cloud visual reads the radius
  * fraction and the charge density. The step's params stay on the step,
  * which the client reads from the synced ability definition (decision
  * capability-interfaces-derive-host-kind).

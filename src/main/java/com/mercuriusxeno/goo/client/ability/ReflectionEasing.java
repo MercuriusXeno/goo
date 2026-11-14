@@ -4,7 +4,7 @@ import net.minecraft.util.ARGB;
 import java.util.Arrays;
 
 /**
- * The reflected color every face of one crystal cloud shows, each easing
+ * The reflected color every face of one Shatter cloud shows, each easing
  * toward the color its own ray samples a fixed fraction per client tick,
  * so a face whose ray crosses from a dark block to the sky fades across
  * several ticks rather than stepping in one frame.

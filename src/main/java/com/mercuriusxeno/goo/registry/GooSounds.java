@@ -68,21 +68,21 @@ public final class GooSounds {
         SOUND_EVENTS.register("effects.portal_hum",
             () -> SoundEvent.createVariableRangeEvent(GooSoundIds.PORTAL_HUM));
 
-    /** An Outsider room gaining a full block (decision full-block-growth-wubs-and-raises-void-motes). */
-    public static final DeferredHolder<SoundEvent, SoundEvent> OUTSIDER_WUB =
-        SOUND_EVENTS.register("effects.outsider_wub",
-            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.OUTSIDER_WUB));
+    /** A Zone room gaining a full block (decision full-block-growth-wubs-and-raises-void-motes). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> ZONE_WUB =
+        SOUND_EVENTS.register("effects.zone_wub",
+            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.ZONE_WUB));
 
     /** A door conjured toward the pocket (decision
      * channeling-to-the-pocket-conjures-a-door-that-envelops-the-player). */
-    public static final DeferredHolder<SoundEvent, SoundEvent> OUTSIDER_CONJURE =
-        SOUND_EVENTS.register("effects.outsider_conjure",
-            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.OUTSIDER_CONJURE));
+    public static final DeferredHolder<SoundEvent, SoundEvent> ZONE_CONJURE =
+        SOUND_EVENTS.register("effects.zone_conjure",
+            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.ZONE_CONJURE));
 
     /** The door carrying a player into the pocket (decision door-carries-its-own-sound-through-the-change). */
-    public static final DeferredHolder<SoundEvent, SoundEvent> OUTSIDER_DOOR =
-        SOUND_EVENTS.register("effects.outsider_door",
-            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.OUTSIDER_DOOR));
+    public static final DeferredHolder<SoundEvent, SoundEvent> ZONE_DOOR =
+        SOUND_EVENTS.register("effects.zone_door",
+            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.ZONE_DOOR));
 
     /** Void's hole opening (decision hole-opens-with-the-outsider-wub-pitched-up). */
     public static final DeferredHolder<SoundEvent, SoundEvent> HOLE_OPEN =

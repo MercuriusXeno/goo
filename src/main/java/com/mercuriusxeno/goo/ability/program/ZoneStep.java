@@ -1,37 +1,53 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.ability.zone.ZoneCurse;
-import com.mercuriusxeno.goo.ability.zone.ZoneEvents;
-import com.mercuriusxeno.goo.registry.GooAttachments;
+import com.mercuriusxeno.goo.ability.zone.RoomExtent;
+import com.mercuriusxeno.goo.ability.zone.SustainedGrowth;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.LivingEntity;
 import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Casts Zone on the host's target and finishes: the first Zone curses it with
- * a warp curse, so it warps away each time it comes within the radius of a
- * player; a Zone on a target already cursed exiles it from existence.
- * Zone is {@code zone radius=6 range=32}.
- * Decision zone-curses-with-ender-shimmer.
+ * Void's Zone, run each held tick of the channel: outside the pocket each
+ * held tick stands the door the hold conjures before the player, growing with
+ * the charge and moving into them over its last ticks, and the tick the hold
+ * reaches its charge carries them into their room for the way in's cost; each
+ * held tick inside feeds void into the room, whose extent grows on all sides
+ * at once, each ring costing a base plus a step for each block of Manhattan
+ * distance from the center for every cell it holds, the feed spreading each
+ * ring's cost over the ring time. Void's Zone is
+ * {@code zone charge=20 enter=6 ring_ticks=20 cell_cost=10 distance_cost=1},
+ * a ring a second, so the room grows one block a second on every side.
+ * decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform
+ * decision channeling-to-the-pocket-conjures-a-door-that-envelops-the-player
+ * decision outsider-room-grows-one-block-a-second-on-every-side
  *
- * @param radius how near a player the target may come before it warps, evaluated when the step runs
- * @param range  the full width of a warp's random roll, evaluated when the step runs
+ * @param charge   the held ticks the channel asks before it carries the caster in
+ * @param enter    the void the way in costs (mB)
+ * @param ringTicks    the ticks the hold takes to grow each ring
+ * @param cellCost     the void a cell costs at the center (mB)
+ * @param distanceCost the void each block of Manhattan distance from the center adds to a cell (mB)
  */
-public record ZoneStep(Expr radius, Expr range) implements Step {
+public record ZoneStep(Expr charge, Expr enter, Expr ringTicks, Expr cellCost, Expr distanceCost)
+        implements Step {
 
     private static final String NAME = "zone";
-    private static final String FIELD_RADIUS = "radius";
-    private static final String FIELD_RANGE = "range";
+    private static final String FIELD_CHARGE = "charge";
+    private static final String FIELD_ENTER = "enter";
+    private static final String FIELD_RING_TICKS = "ring_ticks";
+    private static final String FIELD_CELL_COST = "cell_cost";
+    private static final String FIELD_DISTANCE_COST = "distance_cost";
+    private static final int TICKS_PER_SECOND = 20;
 
     /**
      * Codec for the step's params.
      */
     public static final MapCodec<ZoneStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            Expr.CODEC.fieldOf(FIELD_RADIUS).forGetter(ZoneStep::radius),
-            Expr.CODEC.fieldOf(FIELD_RANGE).forGetter(ZoneStep::range)
+            Expr.CODEC.fieldOf(FIELD_CHARGE).forGetter(ZoneStep::charge),
+            Expr.CODEC.fieldOf(FIELD_ENTER).forGetter(ZoneStep::enter),
+            Expr.CODEC.fieldOf(FIELD_RING_TICKS).forGetter(ZoneStep::ringTicks),
+            Expr.CODEC.fieldOf(FIELD_CELL_COST).forGetter(ZoneStep::cellCost),
+            Expr.CODEC.fieldOf(FIELD_DISTANCE_COST).forGetter(ZoneStep::distanceCost)
     ).apply(inst, ZoneStep::new));
 
     /**
@@ -46,23 +62,86 @@ public record ZoneStep(Expr radius, Expr range) implements Step {
 
     @Override
     public boolean tick(StepContext context) {
-        LivingEntity target = context.hostAs(TargetHost.class).target();
-        if (ZoneEvents.curseOf(target) != null && target.level() instanceof ServerLevel level) {
-            ZoneEvents.exile(level, target);
+        ZoneHost host = context.hostAs(ZoneHost.class);
+        if (host.standsInPocket()) {
+            host.feedPlatform(ringTicks.evaluateInt(context), cellCost.evaluateInt(context),
+                    distanceCost.evaluateInt(context));
         } else {
-            target.setData(GooAttachments.ZONE_CURSE, new ZoneCurse(radius.evaluateFloat(context),
-                    range.evaluateFloat(context)));
+            channelToward(host, context);
         }
         return true;
     }
 
+    /**
+     * One held tick toward the pocket: the door conjured so far stands, the
+     * charge shows, and the tick the hold reaches the charge carries the
+     * player in.
+     * decision channeling-to-the-pocket-conjures-a-door-that-envelops-the-player
+     *
+     * @param host    the channeling player's host
+     * @param context the step's context
+     */
+    private void channelToward(ZoneHost host, StepContext context) {
+        int held = host.channelAim().map(ChannelAim::held).orElse(0);
+        int charged = charge.evaluateInt(context);
+        if (held <= 0 || held > charged) {
+            return;
+        }
+        host.conjureDoor(held, charged);
+        if (held == charged) {
+            host.enterPocket(enter.evaluateInt(context));
+        } else {
+            host.showCharge(held, charged);
+        }
+    }
+
+    /**
+     * The void the way in costs, which outside the pocket prices the
+     * channel as a one-shot.
+     * decision outsider-reads-its-entry-as-uses-outside-the-pocket
+     *
+     * @return the entry (mB)
+     */
+    public int entryCost() {
+        return enter.evaluateInt(Variables.NONE);
+    }
+
+    /**
+     * The ticks a void holding sustains the room's growth from an extent at
+     * this step's own prices, beside the void upkeep already standing.
+     * decision outsider-panel-reads-the-seconds-the-void-affords
+     *
+     * @param extent          the room's extent
+     * @param holding         the void held (mB)
+     * @param standingPerTick the void upkeep already standing each tick (mB)
+     * @return the ticks paid
+     */
+    public long growthTicksAfforded(double extent, int holding, double standingPerTick) {
+        return SustainedGrowth.ticksAfforded(extent, holding, standingPerTick, cellCost.evaluateInt(Variables.NONE),
+                distanceCost.evaluateInt(Variables.NONE), ringTicks.evaluateInt(Variables.NONE));
+    }
+
+    /**
+     * The void a second of the hold feeds the room at an extent: the price of
+     * the ring it grows through, scaled from the ring time to a second.
+     * decision outsider-petal-reads-rate-and-time-in-the-room
+     *
+     * @param extent the room's extent
+     * @return the void a second (mB)
+     */
+    public long growthPricePerSecond(double extent) {
+        long ringPrice = RoomExtent.priceOfRingGrowing(extent, cellCost.evaluateInt(Variables.NONE),
+                distanceCost.evaluateInt(Variables.NONE));
+        return ringPrice * TICKS_PER_SECOND / ringTicks.evaluateInt(Variables.NONE);
+    }
+
     @Override
     public Stream<Expr> expressions() {
-        return Stream.of(radius, range);
+        return Stream.of(charge, enter, ringTicks, cellCost, distanceCost);
     }
 
     @Override
     public Set<HostCapability> requires() {
-        return Set.of(HostCapability.TARGET);
+        return Set.of(HostCapability.ZONE);
     }
 }

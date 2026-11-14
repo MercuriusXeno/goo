@@ -127,25 +127,25 @@ class CostMechanicsTest {
     }
 
     /**
-     * Outsider's text names the void to enter, filled from its step's enter param, and a cost a
+     * Zone's text names the void to enter, filled from its step's enter param, and a cost a
      * second rising as the room grows, never a cost per block or per cell
      * (decision outsider-cost-text-reads-the-new-mechanics).
      */
     @Test
-    void outsiderTextNamesItsEntryAndACostASecond() throws IOException {
-        String format = shippedLang().get(OUTSIDER_MECHANICS).getAsString();
-        CostMechanicsLookup shipped = new CostMechanicsLookup(key -> OUTSIDER_MECHANICS.equals(key) ? format : key,
+    void zoneTextNamesItsEntryAndACostASecond() throws IOException {
+        String format = shippedLang().get(ZONE_MECHANICS).getAsString();
+        CostMechanicsLookup shipped = new CostMechanicsLookup(key -> ZONE_MECHANICS.equals(key) ? format : key,
                 () -> VALUES);
-        String json = AbilityJson.read("void_outsider");
+        String json = AbilityJson.read("void_zone");
         String retuned = json.replaceFirst("\"enter\"\\s*:\\s*\\d+", "\"enter\": 9");
 
-        assertTrue(clientOf(AbilityJson.decodeText("void_outsider", retuned)).costMechanics(shipped).orElseThrow()
+        assertTrue(clientOf(AbilityJson.decodeText("void_zone", retuned)).costMechanics(shipped).orElseThrow()
                 .startsWith("9 "), format);
         assertTrue(format.contains("second"), format);
         assertFalse(format.contains("block") || format.contains("cell"), format);
     }
 
-    private static final String OUTSIDER_MECHANICS = "goo.ability.void.outsider.cost_mechanics";
+    private static final String ZONE_MECHANICS = "goo.ability.void.zone.cost_mechanics";
 
     private static JsonObject shippedLang() throws IOException {
         try (InputStream in = CostMechanicsTest.class.getResourceAsStream("/assets/goo/lang/en_us.json")) {
@@ -175,7 +175,7 @@ class CostMechanicsTest {
     // decision ability-json-names-its-reagent
     @Test
     void eraseConsumesNoItem() {
-        assertTrue(AbilityJson.decode("void_erase").consumes().isEmpty());
+        assertTrue(AbilityJson.decode("void_cancel").consumes().isEmpty());
     }
 
     @Test

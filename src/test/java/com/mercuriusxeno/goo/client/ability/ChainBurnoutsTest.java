@@ -64,7 +64,7 @@ class ChainBurnoutsTest {
         assertSame(FrostExplosionVisual.INSTANCE, BurnoutVisuals.forType(GooTypes.FROST));
     }
 
-    /** anti-moves-from-nether-to-void: Void's Hole and Erase draw no explosion, and Nether keeps none. */
+    /** anti-moves-from-nether-to-void: Void's Hole and Cancel draw no explosion, and Nether keeps none. */
     @Test
     void voidAndNetherResolveTheUndesignedBurnout() {
         assertInstanceOf(BurnoutVisual.UndesignedBurnout.class, BurnoutVisuals.forType(GooTypes.VOID));

@@ -17,7 +17,7 @@ import java.util.Set;
 import java.util.function.Function;
 
 /**
- * Groups the gem ore blocks Glitter's sphere found into veins: blocks of one
+ * Groups the gem ore blocks Glimmer's sphere found into veins: blocks of one
  * ore touching at a face, an edge or a corner form one vein, revealed
  * together as the front reaches its centroid.
  * decision glitter-sphere-icons-gem-ore-groups
