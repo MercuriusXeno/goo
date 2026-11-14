@@ -44,6 +44,37 @@ public final class MeteoTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, METEO_STRIKES, MeteoTests::meteoStrikesUnderClearSky);
         GooTestFunctions.registerTest(registrar, METEO_THROWN_UNDER_A_ROOF, MeteoTests::meteoIsThrownUnderARoof);
+        GooTestFunctions.registerTest(registrar, METEO_CALLS_ON_THE_RELEASE_TICK,
+                MeteoTests::meteoCallsTheMeteorOnTheReleaseTick);
+    }
+
+    private static final String METEO_CALLS_ON_THE_RELEASE_TICK = "meteo_calls_the_meteor_on_the_release_tick";
+
+    /**
+     * Released at open ground, Meteo calls one meteor over it the same tick
+     * and no goo was thrown to get it there.
+     * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
+     *
+     * @param helper the gametest helper
+     */
+    public static void meteoCallsTheMeteorOnTheReleaseTick(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        AbilityDefinition meteo = AbilityRegistry.of(level).getAbility(ASTRAL_METEO);
+        helper.assertTrue(meteo != null, ABILITY_REQUIRED);
+        BlockPos ground = helper.absolutePos(GROUND);
+        level.setBlockAndUpdate(ground, Blocks.STONE.defaultBlockState());
+        openCageRoofOver(level, ground);
+        ServerPlayer player = StackKeyTests.makeThrower(helper, GooTypes.ASTRAL);
+        KnownRecipes.teachRequires(player, meteo);
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.ASTRAL, meteo.cost().in(GooValueTable.EMPTY)));
+        GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.ASTRAL), NO_TARGET_ENTITY,
+                ground, Direction.UP.ordinal(), false, ASTRAL_METEO.toString(), player.getEyePosition()));
+        int called = meteorsOver(level, ground).size();
+        int thrown = ThrownGoo.countAround(helper);
+        level.getServer().getPlayerList().remove(player);
+        helper.assertTrue(called == 1, "One meteor should fall over the ground the release tick, " + called + " fall");
+        helper.assertTrue(thrown == 0, "No goo should be thrown, " + thrown + " thrown goo stand");
+        helper.succeed();
     }
 
 

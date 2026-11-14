@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.FieldEffectStep;
 import com.mercuriusxeno.goo.ability.program.FloorsStep;
+import com.mercuriusxeno.goo.ability.program.MeteorStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.ability.program.SporeStep;
@@ -752,8 +753,24 @@ public record AbilityDefinition(
         }
         double reach = firstExplosion(behaviors)
                 .map(step -> step.reachAt(Variables.NONE))
+                .or(() -> meteorReach(behaviors))
                 .orElseGet(() -> widestRadius(behaviors));
         return reach > 0 ? new AbilityArea(AbilityArea.Shape.SPHERE, reach, 0) : area;
+    }
+
+    /**
+     * The blast reach of the first meteor a program calls, the zone Meteo
+     * shows at the aimed target while it charges.
+     * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
+     *
+     * @param behaviors the ability's program
+     * @return the reach, empty for a program calling no meteor of a fixed power
+     */
+    private static Optional<Double> meteorReach(List<Step> behaviors) {
+        return behaviors.stream().flatMap(AbilityDefinition::withDescendants)
+                .filter(MeteorStep.class::isInstance).map(MeteorStep.class::cast)
+                .filter(step -> step.power().variables().isEmpty()).findFirst()
+                .map(step -> step.reachAt(Variables.NONE));
     }
 
     private static boolean isInstantAreaThrow(Delivery delivery, AbilityBadge badge) {
