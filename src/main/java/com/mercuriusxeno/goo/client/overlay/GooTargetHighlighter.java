@@ -114,7 +114,29 @@ public final class GooTargetHighlighter {
         if (drawsMarks(false, null, target.passage())) {
             renderIndicator(target, indicatorFor(target, abilityId), frame);
         }
-        renderHeldDome(target, abilityId, frame);
+    }
+
+    /**
+     * Draws the selected ability's held ghost once the translucent features
+     * have drawn, so a prism's crystal, a translucent feature writing depth,
+     * draws under the ghost standing in front of it rather than over it.
+     *
+     * @param event the event instance
+     */
+    @SubscribeEvent
+    public static void onAfterTranslucentFeatures(RenderLevelStageEvent.AfterTranslucentFeatures event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (PortalView.drawing() || mc.player == null || mc.level == null
+                || !mc.options.getCameraType().isFirstPerson()) {
+            return;
+        }
+        ResourceKey<GooTypeDefinition> selectedType = GloveAim.selectedGooType(mc.player);
+        if (selectedType == null) {
+            return;
+        }
+        renderHeldDome(AimTracker.currentTarget(), GloveAim.selectedAbilityId(mc.player),
+                new HighlightFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
+                        mc.gameRenderer.getMainCamera(), mc, selectedType));
     }
 
     /**
