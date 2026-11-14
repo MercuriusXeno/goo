@@ -32,7 +32,7 @@ import java.util.Optional;
  * its programs run on the invoking player the tick it is invoked. A durative
  * ability, one wearing the durative badge, arrives once its charge is let
  * go: its programs run and the effect is held, paying its upkeep each tick
- * after, and the players watching see the caster's lifted blob spent.
+ * after.
  * Invoking a held effect again ends it.
  * decision self-delivery-runs-on-player
  * decision self-effects-trickle-until-ended
@@ -64,9 +64,8 @@ public final class GooSelfHandler {
         boolean held = HeldEffectsEvents.holds(player, ability.id());
         if (DurativeRoute.endsHeld(ability.delivery(), ability.badge(), held)) {
             HeldEffectsEvents.end(player, ability.id());
-        } else if (DurativeRoute.isDurative(ability.delivery(), ability.badge()) && hold(player, gooType, ability)) {
-            // durative-self-abilities-wash-over-the-view-in-place-of-eating: the watchers see the blob spent
-            PalmBlobChargePayload.sendSpent(player);
+        } else if (DurativeRoute.isDurative(ability.delivery(), ability.badge())) {
+            hold(player, gooType, ability);
         } else if (invoke(new PlayerHost(player.level(), player), gooType, ability) && !playsItsOwnSound(ability)) {
             GooEffectScheduler.playThrowSound(player, ability.delivery());
         }

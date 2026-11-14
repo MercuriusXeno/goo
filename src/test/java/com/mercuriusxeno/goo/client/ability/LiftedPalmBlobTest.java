@@ -295,7 +295,7 @@ class LiftedPalmBlobTest {
         @Test
         void anotherCastersSyncedHoldLiftsTheBlobAndItSettlesAfterTheHoldsGap() {
             long last = NOW + PalmBlobHop.LIFT_TICKS;
-            PalmBlobLiftPayload held = new PalmBlobLiftPayload(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, false);
+            PalmBlobLiftPayload held = new PalmBlobLiftPayload(SprayingClient.CASTER, SprayingClient.SENT_GLOVE);
             try (SprayingClient client = SprayingClient.another(GooTypes.FROST)) {
                 for (long tick = NOW; tick <= last; tick++) {
                     client.at(tick);
