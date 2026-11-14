@@ -7,11 +7,13 @@ import com.mojang.datafixers.util.Unit;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.player.Player;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 /**
  * The leaf steps whose frame {@link LeafStep} carries, each its body and
@@ -109,16 +111,25 @@ public final class LeafSteps {
             }).takingNone();
 
     /**
-     * Heals the host's target by an amount of health points; vitality
-     * streams {@code heal amount=0.1} over each living thing in its cone
-     * and its caster every tick it is held. An undead target, the caster
-     * among them, is harmed by the amount instead.
+     * Heals the host's target by an amount of health points in pulses:
+     * Heal streams {@code heal amount every} over each living thing in its
+     * cone and its caster every tick it is held, and each target takes the
+     * amount on the first tick the heal reaches it and once each
+     * {@code every} ticks after. An undead target, the caster among them,
+     * is harmed by the amount instead.
      * vitality-waves-regenerate-and-court
      * heal-harms-an-undead-target
+     * diagnose-and-correct-heal-spamming-zombie-noises
      */
-    public static final LeafStepType<Expr> HEAL = TargetEffectStep.of("heal", "amount",
-            (target, amount, context) -> UndeadInversion.heal(target, amount.evaluateFloat(context),
-                    context.hostAs(TargetHost.class).thrower()));
+    public static final LeafStepType<HealPulse> HEAL = new LeafStepType<>("heal", HealPulse.CODEC,
+            pulse -> Stream.of(pulse.amount()), TARGET, (pulse, context) -> {
+                TargetHost host = context.hostAs(TargetHost.class);
+                LivingEntity target = host.target();
+                if (pulse.dueOn(target, target.level().getGameTime())) {
+                    UndeadInversion.heal(target, pulse.amount().evaluateFloat(context), host.thrower());
+                }
+                return true;
+            });
 
     /**
      * Puts the host's target in love on a percent roll when it is an animal
