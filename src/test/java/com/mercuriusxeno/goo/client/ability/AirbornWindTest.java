@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.stream.LongStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -17,16 +18,20 @@ class AirbornWindTest {
     private static final double EYE_HEIGHT = 1.62;
     private static final Vec3 LOOKING_EAST_AND_DOWN = new Vec3(0.8, -0.6, 0);
     private static final AirbornWind.Mote MOTE = new AirbornWind.Mote(new Vec3(0.5, 0.3, -0.2), 0.7, 0L);
+    private static final double VERTICAL_FOV = 70;
+    private static final double WIDE_ASPECT = 16.0 / 9;
 
     @Nested
     class Rise {
 
+        /** float-motes-ring-closer-span-the-view-and-run-twice-as-fast */
         @Test
-        void aMoteRisesTheWholeRiseOverItsLife() {
+        void aMoteRisesItsWholeRiseInThirtyTicksAndNoHigher() {
             double start = AirbornWind.motePoint(MOTE, 0).y;
-            double end = AirbornWind.motePoint(MOTE, AirbornWind.LIFE_TICKS).y;
 
-            assertEquals(AirbornWind.RISE, end - start, EPSILON);
+            for (int age = 30; age <= 90; age++) {
+                assertEquals(1.6, AirbornWind.motePoint(MOTE, age).y - start, EPSILON);
+            }
         }
 
         @Test
@@ -63,11 +68,28 @@ class AirbornWindTest {
             assertEquals(EYE_HEIGHT - AirbornWind.FRONT_DROP, start.y, EPSILON);
         }
 
+        /** float-motes-ring-closer-span-the-view-and-run-twice-as-fast */
         @Test
-        void aFrontMoteStraysToTheSideWithinItsStray() {
-            Vec3 start = AirbornWind.frontStart(EYE_HEIGHT, LOOKING_EAST_AND_DOWN, 1);
+        void aFullStrayToEachSidePutsAFrontMoteOnThatSidesViewEdge() {
+            double horizontalFov = 2 * Math.atan(Math.tan(Math.toRadians(VERTICAL_FOV) / 2) * WIDE_ASPECT);
+            double viewEdge = AirbornWind.FRONT_REACH * Math.tan(horizontalFov / 2);
+            double spread = AirbornWind.frontSpread(VERTICAL_FOV, WIDE_ASPECT);
 
-            assertEquals(AirbornWind.FRONT_STRAY, Math.abs(start.z), EPSILON);
+            Vec3 right = AirbornWind.frontStart(EYE_HEIGHT, LOOKING_EAST_AND_DOWN, spread);
+            Vec3 left = AirbornWind.frontStart(EYE_HEIGHT, LOOKING_EAST_AND_DOWN, -spread);
+
+            assertEquals(AirbornWind.FRONT_REACH, right.x, EPSILON);
+            assertEquals(viewEdge, right.z, EPSILON);
+            assertEquals(AirbornWind.FRONT_REACH, left.x, EPSILON);
+            assertEquals(-viewEdge, left.z, EPSILON);
+        }
+
+        @Test
+        void aWiderFieldOfViewOrAspectWidensTheFrontSpread() {
+            double spread = AirbornWind.frontSpread(VERTICAL_FOV, WIDE_ASPECT);
+
+            assertTrue(AirbornWind.frontSpread(VERTICAL_FOV + 20, WIDE_ASPECT) > spread);
+            assertTrue(AirbornWind.frontSpread(VERTICAL_FOV, WIDE_ASPECT + 0.5) > spread);
         }
 
         @Test
@@ -114,11 +136,22 @@ class AirbornWindTest {
         }
     }
 
+    /** float-motes-ring-closer-span-the-view-and-run-twice-as-fast */
     @Test
     void aBodyMoteLeavesOnTheRingAboutTheBody() {
         Vec3 start = AirbornWind.bodyStart(1.1, 0.4);
 
-        assertEquals(AirbornWind.BODY_RADIUS, Math.hypot(start.x, start.z), EPSILON);
+        assertEquals(0.45, Math.hypot(start.x, start.z), EPSILON);
         assertEquals(0.4, start.y, EPSILON);
+    }
+
+    /** float-motes-ring-closer-span-the-view-and-run-twice-as-fast */
+    @Test
+    void overFortyTicksTenBodyMotesAndFourFrontMotesLeave() {
+        long body = LongStream.range(1000, 1040).filter(AirbornWind::bodyMoteLeavesOn).count();
+        long front = LongStream.range(1000, 1040).filter(AirbornWind::frontMoteLeavesOn).count();
+
+        assertEquals(10, body);
+        assertEquals(4, front);
     }
 }
