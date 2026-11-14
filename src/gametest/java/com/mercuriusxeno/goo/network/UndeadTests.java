@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.HealPulse;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -15,7 +16,11 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -36,6 +41,9 @@ public final class UndeadTests {
     private static final String UNDEAD_HARMING_HEALS = "undead_harming_heals";
     private static final String UNDEAD_ENDS_WHEN_DRY = "undead_ends_when_nether_runs_dry";
     private static final String UNDEAD_HEAL_SPARES_CASTER = "undead_heal_spares_its_caster";
+    private static final String HEAL_PULSES_ITS_HARM = "heal_pulses_its_harm_on_a_zombie";
+    private static final String SHOULD_HURT_PER_PULSE =
+            "The healed zombie should be hurt %d times over %d held ticks, once per pulse, was hurt %d";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -47,6 +55,36 @@ public final class UndeadTests {
         GooTestFunctions.registerTest(registrar, UNDEAD_HARMING_HEALS, UndeadTests::undeadHarmingHeals);
         GooTestFunctions.registerTest(registrar, UNDEAD_ENDS_WHEN_DRY, UndeadTests::undeadEndsWhenNetherRunsDry);
         GooTestFunctions.registerTest(registrar, UNDEAD_HEAL_SPARES_CASTER, UndeadTests::undeadHealSparesItsCaster);
+        GooTestFunctions.registerTest(registrar, HEAL_PULSES_ITS_HARM, UndeadTests::healPulsesItsHarmOnAZombie);
+    }
+
+    /**
+     * A mock player holds jelly heal on a zombie four blocks ahead for three
+     * pulse intervals: the zombie is hurt once per interval, never on the
+     * ticks between, and each hurt takes the pulse amount from its health.
+     * diagnose-and-correct-heal-spamming-zombie-noises
+     *
+     * @param helper the gametest helper
+     */
+    public static void healPulsesItsHarmOnAZombie(GameTestHelper helper) {
+        AbilityDefinition heal = StreamDeliveryTests.jellyHeal(helper);
+        HealPulse pulse = StreamDeliveryTests.healPulseOf(heal);
+        float amount = StreamDeliveryTests.amountOf(pulse);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, StreamDeliveryTests.ZOMBIE_POS);
+        // the helmet keeps the noon sun off the zombie, so only the stream harms it
+        zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
+        ServerPlayer player = StreamDeliveryTests.streamer(helper, GooTypes.JELLY);
+        KnownRecipes.teachRequires(player, heal);
+        int holdTicks = StreamDeliveryTests.HELD_PULSES * pulse.every();
+        StreamDeliveryTests.holdHealTracing(helper, player, holdTicks, zombie, health -> {
+            int hurts = 0;
+            for (int held = 1; held < health.length; held++) {
+                hurts += health[held] < health[held - 1] ? 1 : 0;
+            }
+            helper.assertTrue(hurts == StreamDeliveryTests.HELD_PULSES,
+                    String.format(SHOULD_HURT_PER_PULSE, StreamDeliveryTests.HELD_PULSES, holdTicks, hurts));
+            StreamDeliveryTests.assertPulsedHealth(helper, health, pulse.every(), -amount);
+        });
     }
 
 

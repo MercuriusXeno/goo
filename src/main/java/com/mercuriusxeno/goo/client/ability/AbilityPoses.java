@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.ArmPoseKind;
+import com.mercuriusxeno.goo.ability.crystal.KnifeRain;
 import com.mercuriusxeno.goo.network.ArmPosePayload;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
@@ -33,7 +34,7 @@ import java.util.Map;
  * swing, which is no pose of this class. Every pose moves the first-person
  * hand too: the wind-up across the chest, the fling out to the glove side,
  * held out forward toward the crosshair, and held up lifted a little.
- * decision shards-sling-then-morph-to-flechettes
+ * decision knives-sling-then-morph-to-flechettes
  * decision ability-json-names-its-arm-pose
  * decision use-key-throw-swings-no-more
  */
@@ -41,13 +42,13 @@ import java.util.Map;
 public final class AbilityPoses {
 
     /** Ticks the wind-up takes to ease the hand across the chest: Knives' full charge. */
-    static final float WIND_UP_TICKS = 30f;
+    static final float WIND_UP_TICKS = KnifeRain.WIND_UP_TICKS;
     /** Ticks the fling takes to sweep the arm out. */
-    static final float FLING_OUT_TICKS = 3f;
+    static final float FLING_OUT_TICKS = KnifeRain.BACKHAND_OUT_TICKS;
     /** Ticks the arm holds flung out. */
-    static final float FLING_HOLD_TICKS = 3f;
+    static final float FLING_HOLD_TICKS = KnifeRain.BACKHAND_HOLD_TICKS;
     /** Ticks the arm takes to fall back to vanilla's pose after the fling. */
-    static final float FLING_RETURN_TICKS = 5f;
+    static final float FLING_RETURN_TICKS = KnifeRain.BACKHAND_RETURN_TICKS;
     /** The arm eased across the chest, the hand at chest height before the body: raised a little and turned in. */
     static final Angles WOUND = new Angles(-1.05f, -0.55f);
     /** The arm flung out to the glove side, a little above level. */
@@ -424,6 +425,27 @@ public final class AbilityPoses {
             case HOLD_UP -> RAISED_HAND;
         };
         return furthest.scaled(heldAt(posed, age).weight());
+    }
+
+    /**
+     * How far a pose has eased the glove hand across the chest an age into
+     * it: the wind-up's ease, then the backhand sweeping the hand from
+     * wherever the wind-up got to out past the glove side and back.
+     * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives: the floating blob moves with the hand
+     *
+     * @param posed the pose, or null for none
+     * @param age   ticks since it began
+     * @return the share across, 0 at the glove side to 1 at the wind-up's furthest, negative flung out past it
+     */
+    static float acrossAt(Posed posed, double age) {
+        if (posed == null) {
+            return 0f;
+        }
+        return switch (posed.kind()) {
+            case WIND_UP -> heldAt(posed, age).weight();
+            case FLING -> KnifeRain.backhandAcross(posed.from(), age);
+            default -> 0f;
+        };
     }
 
     private static HumanoidArm gloveArm(Posed posed) {
