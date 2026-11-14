@@ -17,21 +17,23 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
- * Rock bore's step, run each held tick of the stream: it drills the
- * breakable blocks at its point, where the eye line meets the first
- * breakable block within the stream's reach, whatever the stream's cone:
- * that block and every breakable block within the JSON's point radius of the
- * point, never wider than a block, never every block the drill touches
- * ({@link BorePick}). Each block picked progresses toward broken each tick
- * through the hold's gradual break at the pace its JSON names, and the block
- * behind each at half speed, its JSON slowdown of 2, out of view; once the
- * pick breaks the point lands on the block behind, already cracking, so the
- * tunnel goes one block deep at a time and moves smoothly. A solid block outside
- * the tag on the eye line stops the bore there. Each tick the strike steps
- * run on every living entity whose body overlaps the cells the eye line
- * crosses out to the point and that every where filter keeps, so a mob in
- * the tunnel takes Bore's damage and one behind the stopping block takes
- * none (decision bore-vortex-with-a-worldspace-shake).
+ * Rock bore's step, run each held tick of the stream: it drills whatever its
+ * drill's cross section intersects, the ellipse its drill cone, set once in
+ * the JSON ({@link BoreDrillShape}), cuts in the plane square to the look,
+ * centered where the eye line meets the first breakable block within the
+ * stream's reach, whatever the stream's cone, never wider than a block, never
+ * every block the drill touches ({@link BorePick}). Each block picked
+ * progresses toward broken each tick through the hold's gradual break at the
+ * pace its JSON names, and the block behind each at half speed, its JSON
+ * slowdown of 2, out of view; once the pick breaks the cross section lands on
+ * the blocks behind, already cracking, so the tunnel goes one block deep at a
+ * time and moves smoothly. A solid block outside the tag on the eye line stops
+ * the bore there. Each tick the strike steps run on every living entity whose
+ * body overlaps the cells the eye line crosses out to the cross section and
+ * that every where filter keeps, so a mob in the tunnel takes Bore's damage
+ * and one behind the stopping block takes none (decision bore-vortex-with-a-worldspace-shake).
+ * decision bore-breaks-what-the-drill-cross-section-intersects
+ * decision bore-drill-dimensions-drive-the-visuals-and-the-break
  * decision bore-breaks-the-block-at-the-point-and-its-surroundings
  * decision bore-block-behind-progresses-at-half-speed
  * decision bore-breaks-what-is-in-the-vortex
@@ -40,28 +42,19 @@ import java.util.stream.Stream;
  *
  * @param breaks      the block tag naming the blocks bore may break
  * @param pace        how fast the picked blocks progress toward broken, and how many times slower the blocks behind
- * @param pointRadius how far round the point the pick reaches, in blocks; 0 picks the aimed block alone
- * @param drillLength how long the drawn drill runs from the blob to its point, in blocks
- * @param drillAngle  how far off the sight line the drawn drill is held, in degrees
+ * @param pointRadius the drawn drill's radius at its point, in blocks; the break reads the shape instead
+ * @param shape       the drill cone, set once: its width, length, angle and length past the crosshair's plane
  * @param where       the filters an entity in the tunnel must pass to be struck
  * @param strike      the steps run on each struck entity; empty strikes nothing
  */
-public record BoreStep(TagKey<Block> breaks, BreakPace pace, double pointRadius, double drillLength,
-                       double drillAngle, List<EntityFilter> where, List<Step> strike) implements Step {
+public record BoreStep(TagKey<Block> breaks, BreakPace pace, double pointRadius, BoreDrillShape shape,
+                       List<EntityFilter> where, List<Step> strike) implements Step {
 
     private static final String NAME = "bore";
     private static final String FIELD_BREAKS = "breaks";
     private static final String FIELD_WHERE = "where";
     private static final String FIELD_STRIKE = "strike";
     private static final String FIELD_POINT_RADIUS = "point_radius";
-    private static final String FIELD_DRILL_LENGTH = "drill_length";
-    private static final String FIELD_DRILL_ANGLE = "drill_angle";
-    /** The drill's length where the JSON names none, in blocks. */
-    public static final double DEFAULT_DRILL_LENGTH = 2;
-    /** The drill's angle off the sight line where the JSON names none, in degrees. */
-    public static final double DEFAULT_DRILL_ANGLE = 22.5;
-    /** The steepest the drill is held off the sight line, short of square to it. */
-    private static final double STEEPEST_ANGLE = 80;
     /** The widest the point's radius runs: half a block, so the point is never wider than a block. */
     private static final double WIDEST_RADIUS = 0.5;
     /** The distance between samples along the look, fine enough to visit every block it crosses. */
@@ -76,11 +69,8 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, double pointRadius,
             BreakPace.CODEC.forGetter(BoreStep::pace),
             Codec.doubleRange(0, WIDEST_RADIUS).optionalFieldOf(FIELD_POINT_RADIUS, 0.0)
                     .forGetter(BoreStep::pointRadius),
-            // bore-drill-is-two-blocks-held-at-an-angle-off-the-sight-line
-            Codec.doubleRange(0, Double.MAX_VALUE).optionalFieldOf(FIELD_DRILL_LENGTH, DEFAULT_DRILL_LENGTH)
-                    .forGetter(BoreStep::drillLength),
-            Codec.doubleRange(0, STEEPEST_ANGLE).optionalFieldOf(FIELD_DRILL_ANGLE, DEFAULT_DRILL_ANGLE)
-                    .forGetter(BoreStep::drillAngle),
+            // bore-drill-dimensions-drive-the-visuals-and-the-break
+            BoreDrillShape.CODEC.forGetter(BoreStep::shape),
             EntityFilter.CODEC.listOf().optionalFieldOf(FIELD_WHERE, List.of()).forGetter(BoreStep::where),
             Codec.lazyInitialized(() -> StepTypes.LIST_CODEC).optionalFieldOf(FIELD_STRIKE, List.of())
                     .forGetter(BoreStep::strike)
@@ -102,21 +92,21 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, double pointRadius,
     }
 
     /**
-     * A bore whose drill takes the default length and angle.
+     * A bore whose drill takes rock_bore.json's shape.
      *
      * @param breaks      the block tag naming the blocks bore may break
      * @param pace        how fast the picked blocks progress toward broken
-     * @param pointRadius how far round the point the pick reaches, in blocks
+     * @param pointRadius the drawn drill's radius at its point, in blocks
      * @param where       the filters an entity in the tunnel must pass to be struck
      * @param strike      the steps run on each struck entity
      */
     public BoreStep(TagKey<Block> breaks, BreakPace pace, double pointRadius, List<EntityFilter> where,
                     List<Step> strike) {
-        this(breaks, pace, pointRadius, DEFAULT_DRILL_LENGTH, DEFAULT_DRILL_ANGLE, where, strike);
+        this(breaks, pace, pointRadius, BoreDrillShape.SHIPPED, where, strike);
     }
 
     /**
-     * A bore picking the aimed block alone, striking what its where filters keep.
+     * A bore with rock_bore.json's drill, striking what its where filters keep.
      *
      * @param breaks the block tag naming the blocks bore may break
      * @param pace   how fast the picked blocks progress toward broken
@@ -137,7 +127,7 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, double pointRadius,
         ChannelHost host = context.hostAs(ChannelHost.class);
         Predicate<BlockPos> breakable = pos -> host.blockIn(pos, breaks);
         host.channelAim().ifPresent(aim -> {
-            BorePick pick = BorePick.of(host.eye(), pointRadius, aim, host::airAt, breakable);
+            BorePick pick = BorePick.of(host.eye(), shape, host.gloveOnTheRight(), aim, host::airAt, breakable);
             host.gradualBreak().progress(pace.ratesByGroup(List.of(pick.blocks(), pick.behind())), host, true);
             strikeIn(host, pick.tunnel());
         });
@@ -149,18 +139,19 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, double pointRadius,
      * tick hands the gradual break, so a client shakes exactly the blocks the
      * server is cracking.
      * decision only-the-blocks-about-to-break-shake-briefly-and-gently
-     * decision bore-breaks-the-block-at-the-point-and-its-surroundings
+     * decision bore-breaks-what-the-drill-cross-section-intersects
      *
-     * @param eye         the eye the line runs from
-     * @param pointRadius how far round the point the pick reaches; 0 picks the aimed block alone
-     * @param aim         the stream's aim: its reach along the look
-     * @param air         whether a cell holds air
-     * @param breakable   whether a cell holds a block in the tag
-     * @return the blocks at the point, the aimed block first
+     * @param eye        the eye the line runs from
+     * @param shape      the drill cone whose cross section the pick reads
+     * @param gloveRight whether the glove is in the right hand, the side the cross section's long axis lies
+     * @param aim        the stream's aim: its reach along the look
+     * @param air        whether a cell holds air
+     * @param breakable  whether a cell holds a block in the tag
+     * @return the blocks the cross section intersects, the aimed block first
      */
-    public static List<BlockPos> progressing(Vec3 eye, double pointRadius, ChannelAim aim,
+    public static List<BlockPos> progressing(Vec3 eye, BoreDrillShape shape, boolean gloveRight, ChannelAim aim,
                                              Predicate<BlockPos> air, Predicate<BlockPos> breakable) {
-        return BorePick.of(eye, pointRadius, aim, air, breakable).blocks();
+        return BorePick.of(eye, shape, gloveRight, aim, air, breakable).blocks();
     }
 
     /**

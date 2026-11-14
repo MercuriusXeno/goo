@@ -1,9 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.Delivery;
-import com.mojang.serialization.JsonOps;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
@@ -21,7 +19,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -254,80 +251,76 @@ class BoreStepTest {
     }
 
     /**
-     * Bore breaks the block at its point and its surroundings: the point is
-     * where the eye line meets the first breakable block, and the pick is
-     * that block and every breakable block within the point's radius of it,
-     * so aiming at a face's middle picks one, at an edge two and at a corner
-     * four, with no block behind them (decisions
+     * Bore breaks whatever its drill's cross section intersects: the ellipse
+     * where the drill, held at its angle off the look, crosses the plane
+     * square to the look, centered on the eye line where it meets the first
+     * block, so aiming at a face's middle picks one, near an edge two and
+     * near a corner four (decisions bore-breaks-what-the-drill-cross-section-intersects,
+     * bore-cross-section-is-where-the-angled-drill-meets-the-look-plane,
+     * bore-drill-dimensions-drive-the-visuals-and-the-break,
      * bore-breaks-the-block-at-the-point-and-its-surroundings, bore-breaks-what-is-in-the-vortex).
      */
     @Nested
-    class ThePoint {
+    class TheCrossSection {
 
-        /** rock_bore.json's point radius. */
-        private static final double POINT_RADIUS = 0.1;
         private static final double SLACK = 1e-9;
         private static final double REACH = 4;
         private static final Vec3 EAST = new Vec3(1, 0, 0);
+        /** rock_bore.json's drill: 0.7 wide at the blob, 2 long, 22.5 degrees off the look, 0.5 past the plane. */
+        private static final BoreDrillShape SHIPPED = new BoreDrillShape(0.7, 2, 22.5, 0.5);
         /** An eye where four blocks meet: on the line between y 1 and 2 and between z -1 and 0. */
         private static final Vec3 AT_A_CORNER = new Vec3(0.5, 2.0, 0.0);
-        /** An eye on the edge between two blocks: between y 1 and 2, in the middle of z 0. */
-        private static final Vec3 AT_AN_EDGE = new Vec3(0.5, 2.0, 0.5);
         /** An eye in the middle of a block's face: y 2 and z 0. */
         private static final Vec3 AT_A_MIDDLE = new Vec3(0.5, 2.5, 0.5);
+        /** Every block east of x 1, a wall square to an eye looking east. */
         private static final Predicate<BlockPos> EVERYTHING = pos -> pos.getX() >= 1;
 
-        private static Set<BlockPos> pickFrom(Vec3 eye, double pointRadius) {
+        private static Set<BlockPos> pickFrom(Vec3 eye, BoreDrillShape shape) {
             ChannelAim aim = new ChannelAim(eye.add(EAST.scale(REACH)), null, CONE_DEGREES);
-            return Set.copyOf(BoreStep.progressing(eye, pointRadius, aim, EVERYTHING.negate(), EVERYTHING));
+            return Set.copyOf(BoreStep.progressing(eye, shape, true, aim, EVERYTHING.negate(), EVERYTHING));
+        }
+
+        private static Set<BlockPos> cornerBlocks() {
+            return Set.of(new BlockPos(1, 1, -1), new BlockPos(1, 1, 0), new BlockPos(1, 2, -1),
+                    new BlockPos(1, 2, 0));
         }
 
         @Test
-        void rockBoresJsonCarriesThePointRadius() {
-            BoreStep bore = AbilityJson.decode("rock_bore").behaviors().stream()
-                    .filter(BoreStep.class::isInstance).map(BoreStep.class::cast).findFirst().orElseThrow();
-            assertEquals(POINT_RADIUS, bore.pointRadius(), SLACK);
-        }
-
-        /** decision bore-drill-is-two-blocks-held-at-an-angle-off-the-sight-line */
-        @Test
-        void rockBoresJsonCarriesTheDrillsLengthAndAngle() {
-            BoreStep bore = AbilityJson.decode("rock_bore").behaviors().stream()
-                    .filter(BoreStep.class::isInstance).map(BoreStep.class::cast).findFirst().orElseThrow();
-            assertEquals(2, bore.drillLength(), SLACK);
-            assertEquals(22.5, bore.drillAngle(), SLACK);
+        void rockBoresJsonCarriesTheDrillsFourDimensions() {
+            BoreDrillShape shape = AbilityJson.decode("rock_bore").behaviors().stream()
+                    .filter(BoreStep.class::isInstance).map(BoreStep.class::cast).findFirst().orElseThrow().shape();
+            assertEquals(0.7, shape.width(), SLACK);
+            assertEquals(2, shape.length(), SLACK);
+            assertEquals(22.5, shape.angle(), SLACK);
+            assertEquals(0.5, shape.pastLength(), SLACK);
         }
 
         @Test
-        void theCodecReadsThePointRadiusTheJsonNames() {
-            String json = "{\"breaks\": \"goo:bore_breakable\", \"break_ticks\": 5, \"slowdown\": 1.5,"
-                    + " \"point_radius\": 0.2}";
-            BoreStep bore = BoreStep.CODEC.codec().parse(JsonOps.INSTANCE, JsonParser.parseString(json))
-                    .getOrThrow();
-            assertEquals(0.2, bore.pointRadius(), SLACK);
+        void aimingAtAFacesMiddlePicksThatOneBlock() {
+            assertEquals(Set.of(new BlockPos(1, 2, 0)), pickFrom(AT_A_MIDDLE, SHIPPED));
         }
 
         @Test
-        void aimingAtABlocksMiddlePicksThatOneBlock() {
-            assertEquals(Set.of(new BlockPos(1, 2, 0)), pickFrom(AT_A_MIDDLE, POINT_RADIUS));
+        void aimingPointOhFiveFromAnEdgePicksTheTwo() {
+            assertEquals(Set.of(new BlockPos(1, 1, 0), new BlockPos(1, 2, 0)),
+                    pickFrom(new Vec3(0.5, 2.05, 0.5), SHIPPED));
         }
 
         @Test
-        void aimingAtTheEdgeBetweenTwoBlocksPicksTheTwo() {
-            assertEquals(Set.of(new BlockPos(1, 1, 0), new BlockPos(1, 2, 0)), pickFrom(AT_AN_EDGE, POINT_RADIUS));
+        void aimingPointOhFiveFromACornerOnBothAxesPicksTheFour() {
+            assertEquals(cornerBlocks(), pickFrom(new Vec3(0.5, 2.05, 0.05), SHIPPED));
         }
 
         @Test
-        void aimingWhereFourBlocksMeetPicksTheFour() {
-            assertEquals(Set.of(new BlockPos(1, 1, -1), new BlockPos(1, 1, 0), new BlockPos(1, 2, -1),
-                    new BlockPos(1, 2, 0)), pickFrom(AT_A_CORNER, POINT_RADIUS));
+        void aimingPointOneFiveFromACornerOnBothAxesPicksOne() {
+            assertEquals(Set.of(new BlockPos(1, 2, 0)), pickFrom(new Vec3(0.5, 2.15, 0.15), SHIPPED));
         }
 
         @Test
-        void aWiderPointPicksABlockTheNarrowerLeavesOut() {
-            Vec3 nearTheTop = new Vec3(0.5, 2.6, 0.5);
-            assertFalse(pickFrom(nearTheTop, POINT_RADIUS).contains(new BlockPos(1, 3, 0)));
-            assertTrue(pickFrom(nearTheTop, 0.5).contains(new BlockPos(1, 3, 0)));
+        void aLongerPastLengthWidensThePickAtTheSameAim() {
+            Vec3 nearACorner = new Vec3(0.5, 2.11, 0.11);
+            assertEquals(cornerBlocks(), pickFrom(nearACorner, new BoreDrillShape(0.7, 2, 22.5, 1)));
+            assertEquals(Set.of(new BlockPos(1, 2, 0)), pickFrom(nearACorner, SHIPPED));
         }
 
         /**
@@ -350,7 +343,7 @@ class BoreStepTest {
 
         /** The pick from a face's middle along an aim, with one breakable block standing alone in the air. */
         private static List<BlockPos> pickOfLone(BlockPos lone, ChannelAim aim) {
-            return BoreStep.progressing(AT_A_MIDDLE, POINT_RADIUS, aim, cell -> !cell.equals(lone), lone::equals);
+            return BoreStep.progressing(AT_A_MIDDLE, SHIPPED, true, aim, cell -> !cell.equals(lone), lone::equals);
         }
 
         @Test
@@ -362,7 +355,7 @@ class BoreStepTest {
                     new ChannelAim(AT_A_CORNER.add(EAST.scale(REACH)), null, CONE_DEGREES)));
             GradualBreak gradualBreak = mock(GradualBreak.class);
             when(host.gradualBreak()).thenReturn(gradualBreak);
-            run(host, new BoreStep(BREAKABLE, PACE, POINT_RADIUS, List.of(), List.of()));
+            run(host, new BoreStep(BREAKABLE, PACE));
 
             ArgumentCaptor<Map<BlockPos, Double>> rates = ArgumentCaptor.forClass(Map.class);
             verify(gradualBreak).progress(rates.capture(), any(), eq(true));

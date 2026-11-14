@@ -50,6 +50,17 @@ public interface ChannelHost extends BlockBreakHost {
     Vec3 eye();
 
     /**
+     * Whether the channeling player's glove is in their right hand, the side
+     * of the sight line their lifted blob stands on.
+     * decision bore-cross-section-is-where-the-angled-drill-meets-the-look-plane
+     *
+     * @return true for a glove in the right hand
+     */
+    default boolean gloveOnTheRight() {
+        return true;
+    }
+
+    /**
      * Whether the channeling player can reach a block to break it.
      *
      * @param pos the block

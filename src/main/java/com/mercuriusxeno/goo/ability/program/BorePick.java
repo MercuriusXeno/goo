@@ -9,38 +9,41 @@ import java.util.Optional;
 import java.util.function.Predicate;
 
 /**
- * What a held Bore breaks this tick: the block at its point and its
- * surroundings. The point is where the eye line meets the first breakable
- * block within the reach, short of the first solid block outside the tag,
- * and the pick is that block and every breakable block within the point's
- * radius of the point, so aiming at a face's middle picks one block, at an
- * edge two and at a corner four, never every block the drill touches. The
- * block behind each picked block progresses at half speed out of view, so
- * once the pick breaks the next tick's point lands on a block already
- * cracking and the point moves deeper smoothly while the hold runs.
+ * What a held Bore breaks this tick: whatever its drill's cross section
+ * intersects. The cross section is the ellipse the drill cone cuts in the
+ * plane square to the look ({@link BoreDrillShape}), centered on the eye line
+ * where it meets the first breakable block within the reach, short of the
+ * first solid block outside the tag, so aiming at a face's middle picks one
+ * block, near an edge two and near a corner four, never every block the
+ * drill touches. The block behind each picked block progresses at half speed
+ * out of view, so once the pick breaks the next tick's cross section lands on
+ * blocks already cracking and moves deeper smoothly while the hold runs.
+ * decision bore-breaks-what-the-drill-cross-section-intersects
  * decision bore-breaks-the-block-at-the-point-and-its-surroundings
  * decision bore-block-behind-progresses-at-half-speed
  * decision bore-breaks-what-is-in-the-vortex
  * decision bore-drill-point-floats-along-the-crosshair-to-the-aimed-block
  *
- * @param blocks the breakable blocks at the point, the aimed block first; empty where the eye line meets none
+ * @param blocks the breakable blocks the cross section intersects, the aimed block first; empty where the eye
+ *               line meets none
  * @param behind the breakable block behind each picked block, where the eye line runs on past the aimed one
- * @param tunnel every cell the eye line crosses from the eye out to the point, air among them, where Bore
- *               strikes what stands
+ * @param tunnel every cell the eye line crosses from the eye out to the cross section, air among them, where
+ *               Bore strikes what stands
  */
 record BorePick(List<BlockPos> blocks, List<BlockPos> behind, List<BlockPos> tunnel) {
 
     /**
      * Picks what a bore breaks this tick.
      *
-     * @param eye         the eye the line runs from
-     * @param pointRadius how far round the point the pick reaches; 0 picks the aimed block alone
-     * @param aim         the stream's aim: its reach along the look
-     * @param air         whether a cell holds air
-     * @param breakable   whether a cell holds a block in the tag
+     * @param eye        the eye the line runs from
+     * @param shape      the drill cone whose cross section the pick reads
+     * @param gloveRight whether the glove is in the right hand, the side the cross section's long axis lies
+     * @param aim        the stream's aim: its reach along the look
+     * @param air        whether a cell holds air
+     * @param breakable  whether a cell holds a block in the tag
      * @return the pick
      */
-    static BorePick of(Vec3 eye, double pointRadius, ChannelAim aim, Predicate<BlockPos> air,
+    static BorePick of(Vec3 eye, BoreDrillShape shape, boolean gloveRight, ChannelAim aim, Predicate<BlockPos> air,
                        Predicate<BlockPos> breakable) {
         List<BlockPos> crossed = BoreStep.blocksAlong(eye, aim.aimPoint());
         int met = firstMet(crossed, air, breakable);
@@ -51,10 +54,12 @@ record BorePick(List<BlockPos> blocks, List<BlockPos> behind, List<BlockPos> tun
         BlockPos aimed = point.get().block();
         Predicate<BlockPos> surrounding = cell -> !cell.equals(aimed) && !cell.equals(crossed.getFirst())
                 && breakable.test(cell);
-        List<BlockPos> blocks = blocksAt(point.get().at(), pointRadius, aimed, surrounding);
+        Vec3 look = aim.aimPoint().subtract(eye).normalize();
+        List<BlockPos> blocks = new ArrayList<>(List.of(aimed));
+        shape.cellsCrossedAt(point.get().at(), look, gloveRight).stream().filter(surrounding).forEach(blocks::add);
         List<BlockPos> behind = met + 1 < crossed.size()
                 ? behindEach(blocks, crossed.get(met + 1).subtract(aimed), breakable) : List.of();
-        return new BorePick(blocks, behind, List.copyOf(crossed.subList(1, met + 1)));
+        return new BorePick(List.copyOf(blocks), behind, List.copyOf(crossed.subList(1, met + 1)));
     }
 
     /**
@@ -114,26 +119,6 @@ record BorePick(List<BlockPos> blocks, List<BlockPos> behind, List<BlockPos> tun
     }
 
     /**
-     * The aimed block and every block round it the point reaches.
-     *
-     * @param point       the point
-     * @param pointRadius how far round the point the pick reaches
-     * @param aimed       the block the point lands on
-     * @param surrounding whether a cell other than the aimed block may join the pick
-     * @return the blocks, the aimed block first
-     */
-    private static List<BlockPos> blocksAt(Vec3 point, double pointRadius, BlockPos aimed,
-                                           Predicate<BlockPos> surrounding) {
-        List<BlockPos> blocks = new ArrayList<>(List.of(aimed));
-        for (BlockPos cell : cellsAround(point, pointRadius)) {
-            if (surrounding.test(cell) && reaches(point, pointRadius, cell)) {
-                blocks.add(cell.immutable());
-            }
-        }
-        return List.copyOf(blocks);
-    }
-
-    /**
      * Where the eye line first meets a block past the eye's own: a breakable
      * block, which it aims at, or a solid block outside the tag, which stops it.
      *
@@ -149,31 +134,5 @@ record BorePick(List<BlockPos> blocks, List<BlockPos> behind, List<BlockPos> tun
             }
         }
         return crossed.size();
-    }
-
-    /**
-     * Every cell a ball about the point could touch.
-     *
-     * @param point  the ball's middle
-     * @param radius the ball's radius
-     * @return the cells
-     */
-    private static Iterable<BlockPos> cellsAround(Vec3 point, double radius) {
-        return BlockPos.betweenClosed(BlockPos.containing(point.subtract(radius, radius, radius)),
-                BlockPos.containing(point.add(radius, radius, radius)));
-    }
-
-    /**
-     * Whether a cell lies within the point's radius of the point: nearer than
-     * the radius at its nearest, so a ball whose edge only meets a face misses
-     * the block.
-     *
-     * @param point  the point
-     * @param radius the point's radius
-     * @param cell   the cell
-     * @return true for a cell the point reaches
-     */
-    private static boolean reaches(Vec3 point, double radius, BlockPos cell) {
-        return new AABB(cell).distanceToSqr(point) < radius * radius;
     }
 }

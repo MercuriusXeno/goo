@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
+import com.mercuriusxeno.goo.ability.program.BoreDrillShape;
 import com.mercuriusxeno.goo.ability.program.BoreStep;
 import com.mercuriusxeno.goo.ability.program.BreakPace;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
@@ -105,11 +106,13 @@ class GroundShakeTest {
                 new BlockPos(7, 64, 0), new BlockPos(2, 62, 0));
         private final ChannelAim aim = new ChannelAim(EYE.add(LOOK_EAST.scale(BORE_RANGE)), null, BORE_CONE_DEGREES);
         private final Predicate<BlockPos> air = cell -> !stone.contains(cell);
-        private final GroundShake.Zone zone = GroundShake.boreZone(EYE, 0, aim, air, stone::contains);
+        private final GroundShake.Zone zone = GroundShake.boreZone(EYE, BoreDrillShape.SHIPPED, true, aim, air,
+                stone::contains);
 
         @Test
         void theShakenBlocksAreTheBlocksTheBoreHandsTheGradualBreak() {
-            assertEquals(Set.copyOf(BoreStep.progressing(EYE, 0, aim, air, stone::contains)), shakenIn(zone));
+            assertEquals(Set.copyOf(BoreStep.progressing(EYE, BoreDrillShape.SHIPPED, true, aim, air,
+                    stone::contains)), shakenIn(zone));
         }
 
         /** decision bore-breaks-the-block-at-the-point-and-its-surroundings */
@@ -118,9 +121,11 @@ class GroundShakeTest {
             Vec3 corner = new Vec3(0.5, 64.0, 0.0);
             ChannelAim cornerAim = new ChannelAim(corner.add(LOOK_EAST.scale(BORE_RANGE)), null, BORE_CONE_DEGREES);
             Predicate<BlockPos> rock = cell -> cell.getX() >= 1 && cell.getX() <= 7;
-            GroundShake.Zone pointZone = GroundShake.boreZone(corner, POINT_RADIUS, cornerAim, rock.negate(), rock);
+            GroundShake.Zone pointZone = GroundShake.boreZone(corner, BoreDrillShape.SHIPPED, true, cornerAim,
+                    rock.negate(), rock);
             Set<BlockPos> shaken = shakenIn(pointZone);
-            assertEquals(Set.copyOf(BoreStep.progressing(corner, POINT_RADIUS, cornerAim, rock.negate(), rock)),
+            assertEquals(Set.copyOf(BoreStep.progressing(corner, BoreDrillShape.SHIPPED, true, cornerAim,
+                    rock.negate(), rock)),
                     shaken);
             assertTrue(shaken.contains(new BlockPos(1, 63, -1)), "the point's block beside the line stays still");
         }
@@ -297,9 +302,9 @@ class GroundShakeTest {
             BoreStep bore = new BoreStep(BREAKABLE, PACE);
 
             GroundShake.Zone standing = GroundShake.boreZoneAlong(sightAt(STANDING_EYE_Y, LOOK_EAST), bore,
-                    BORE_RANGE, BORE_CONE_DEGREES, rock.negate(), rock);
+                    true, BORE_RANGE, rock.negate(), rock);
             GroundShake.Zone sunk = GroundShake.boreZoneAlong(sightAt(64.9, LOOK_EAST), bore,
-                    BORE_RANGE, BORE_CONE_DEGREES, rock.negate(), rock);
+                    true, BORE_RANGE, rock.negate(), rock);
 
             assertEquals(Set.of(65), heightsIn(standing));
             assertEquals(Set.of(64), heightsIn(sunk));
@@ -357,8 +362,8 @@ class GroundShakeTest {
             Predicate<BlockPos> rock = cell -> cell.getX() >= 1 && cell.getX() <= 7;
 
             GroundShake.Zone zone = GroundShake.boreZoneAlong(drawnFrom,
-                    new BoreStep(BREAKABLE, PACE, POINT_RADIUS, List.of(), List.of()), BORE_RANGE,
-                    BORE_CONE_DEGREES, rock.negate(), rock);
+                    new BoreStep(BREAKABLE, PACE, POINT_RADIUS, List.of(), List.of()), true, BORE_RANGE,
+                    rock.negate(), rock);
 
             Vec3 point = BoreDrill.pointOf(drawnFrom, BORE_RANGE, rock.negate(), rock);
             assertEquals(new Vec3(1, 65.47, 0.5), point);

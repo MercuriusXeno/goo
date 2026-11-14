@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.program.BoreDrillShape;
 import com.mercuriusxeno.goo.ability.program.BoreStep;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import net.minecraft.core.BlockPos;
@@ -128,7 +129,8 @@ class BoreDrillTest {
             Predicate<BlockPos> air = solid.negate();
             Vec3 point = BoreDrill.pointOf(sight, REACH, air, breakable);
             ChannelAim aim = new ChannelAim(sight.eye().add(sight.look().scale(REACH)), null, 0);
-            Set<BlockPos> picked = Set.copyOf(BoreStep.progressing(sight.eye(), POINT_RADIUS, aim, air, breakable));
+            Set<BlockPos> picked = Set.copyOf(BoreStep.progressing(sight.eye(), BoreDrillShape.SHIPPED, true, aim, air,
+                    breakable));
             Set<BlockPos> entered = cellsEntered(BoreDrill.volume(blob, point, YAW, POINT_RADIUS));
             return entered.stream().filter(solid).filter(cell -> !picked.contains(cell)).collect(Collectors.toSet());
         }
