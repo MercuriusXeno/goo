@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.mixin;
 
-import com.mercuriusxeno.goo.block.ability.KineticSlickBlock;
+import com.mercuriusxeno.goo.block.ability.CellSurface;
+import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import org.spongepowered.asm.mixin.Mixin;
@@ -10,7 +11,7 @@ import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 /**
  * An entity standing on Kinetic's slick stands on the slick. Vanilla reads
  * the block a step, a landing and the ground's friction act through below the
- * feet, deeper than the sixteenth-thin film, so it would hand them to the
+ * feet, deeper than a thin slick cell's top, so it would hand them to the
  * block under the slick; the slick holding the entity up takes them instead,
  * so its friction and its ramp reach what moves on it.
  * slick-coats-the-ground-with-kinetic-speed
@@ -28,7 +29,8 @@ public abstract class EntitySlickUnderfootMixin {
     private BlockPos goo$standsOnTheSlick(BlockPos onPos) {
         Entity self = (Entity) (Object) this;
         return self.mainSupportingBlockPos
-                .filter(supporting -> self.level().getBlockState(supporting).getBlock() instanceof KineticSlickBlock)
+                .filter(supporting -> VolumeCellBlock.hasSurface(self.level().getBlockState(supporting).getBlock(),
+                        CellSurface.RAMP))
                 .orElse(onPos);
     }
 }

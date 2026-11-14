@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:slick_carries_a_ramping_runner_across_the_grid",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 120,
+  "setup_ticks": 0,
+  "required": true
+}
