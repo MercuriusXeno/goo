@@ -68,7 +68,7 @@ public final class StreamMotes {
         }
         if (threwDrips) {
             // palm-blob-lifts-as-the-spray-source: a tick throwing drips keeps the caster's spray running
-            LiftedPalmBlob.sprayed(payload.casterId(), payload.apex(), mc.level.getGameTime());
+            LiftedPalmBlob.held(payload.casterId(), payload.apex(), mc.level.getGameTime());
         }
     }
 

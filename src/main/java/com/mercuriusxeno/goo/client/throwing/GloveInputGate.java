@@ -130,6 +130,16 @@ public final class GloveInputGate {
     }
 
     /**
+     * Whether the held press runs a stream or a channel: from its first tick
+     * until the use key comes up.
+     *
+     * @return true while a stream or a channel runs from the press
+     */
+    public boolean isStreaming() {
+        return streaming;
+    }
+
+    /**
      * Ticks the live press has held its preview, which a charged ability's
      * charge reads (decision nova-ring-grows-with-the-hold).
      *
