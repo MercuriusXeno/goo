@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:prism_forms_on_the_release_tick",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

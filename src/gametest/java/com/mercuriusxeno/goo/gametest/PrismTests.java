@@ -34,6 +34,33 @@ public final class PrismTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, PRISM_GROWS_ON_THE_FACE, PrismTests::prismGrowsOnTheFace);
+        GooTestFunctions.registerTest(registrar, PRISM_FORMS_ON_THE_RELEASE_TICK, PrismTests::prismFormsOnTheReleaseTick);
+    }
+
+    private static final String PRISM_FORMS_ON_THE_RELEASE_TICK = "prism_forms_on_the_release_tick";
+
+    /**
+     * Released at a floor's top face, the prism stands on that face the same
+     * tick and no goo was thrown to get it there.
+     * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
+     *
+     * @param helper the gametest helper
+     */
+    public static void prismFormsOnTheReleaseTick(GameTestHelper helper) {
+        AbilityDefinition prism = AbilityRegistry.of(helper.getLevel()).getAbility(CRYSTAL_PRISM);
+        helper.assertTrue(prism != null, ABILITY_REQUIRED);
+        helper.setBlock(FLOOR_POS, Blocks.STONE);
+        ServerPlayer player = StackKeyTests.makeThrower(helper, GooTypes.CRYSTAL);
+        KnownRecipes.teachRequires(player, prism);
+        GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.CRYSTAL), NO_TARGET_ENTITY,
+                helper.absolutePos(FLOOR_POS), Direction.UP.ordinal(), false, CRYSTAL_PRISM.toString(),
+                player.getEyePosition()));
+        boolean formed = helper.getBlockState(FLOOR_POS.above()).is(GooBlocks.PRISM.get());
+        int thrown = ThrownGoo.countAround(helper);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(formed, "The prism should stand on the floor's top face the release tick");
+        helper.assertTrue(thrown == 0, "No goo should be thrown, " + thrown + " thrown goo stand");
+        helper.succeed();
     }
 
 
