@@ -12,7 +12,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * The rally a peaceful mob holds until its rallier strikes it: the caster it
+ * The rally a peaceful mob holds until its rallier strikes it or casts Rally
+ * on it again: the caster it
  * fights for, the damage each of its strikes deals, and the player who
  * attacked the caster, whom the mob fights first, and the armor it wears
  * from the caster. Saved with the mob and synced to every client drawing it.
@@ -74,6 +75,18 @@ public record Rallied(UUID caster, float damage, Optional<UUID> attacker, RallyA
      */
     public boolean brokenBy(@Nullable UUID attacker) {
         return caster.equals(attacker);
+    }
+
+    /**
+     * Whether a Rally cast by a caller releases this rally: only its rallier's
+     * does, and a mob holding no rally has none to release.
+     * rally-cast-on-your-rallied-mob-releases-it
+     *
+     * @param caller the caster whose Rally reaches the mob
+     * @return true when the caller is the rally's rallier
+     */
+    public boolean releasedBy(UUID caller) {
+        return !NONE.equals(this) && caster.equals(caller);
     }
 
     /**
