@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.model;
 
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.throwing.BlobShape;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -107,14 +108,14 @@ public class GooItemEntityRenderer extends ItemEntityRenderer {
      */
     private static void submitCuboid(ResourceKey<GooTypeDefinition> type, float size, PoseStack poseStack,
                                      SubmitNodeCollector nodeCollector) {
-        float scale = GooCuboidSize.sizeInLevel(size);
+        BlobShape shape = BlobShape.CUBE.scaled(GooCuboidSize.sizeInLevel(size));
         float gameTime = GloveSpecialRenderer.gameTime();
         poseStack.pushPose();
         poseStack.translate(0, GooCuboidSize.restingCenterHeight(size), 0);
         nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.solidOnBlockAtlas(),
-                (pose, c) -> GooFlightRenderer.emitCore(pose, c, type, gameTime, scale));
+                (pose, c) -> GooFlightRenderer.emitCore(pose, c, type, gameTime, shape));
         nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
-                (pose, c) -> GooFlightRenderer.emitShell(pose, c, type, scale));
+                (pose, c) -> GooFlightRenderer.emitShell(pose, c, type, shape));
         poseStack.popPose();
     }
 

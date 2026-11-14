@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.model;
 
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.throwing.BlobShape;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -52,8 +53,8 @@ class GooCuboidSpecialRendererTest {
             PoseStack.Pose pose = new PoseStack().last();
             VertexConsumer consumer = mock(VertexConsumer.class);
             geometry.getAllValues().forEach(drawn -> drawn.render(pose, consumer));
-            flight.verify(() -> GooFlightRenderer.emitCore(any(), any(), eq(GooTypes.ZOO), anyFloat(), anyFloat()));
-            flight.verify(() -> GooFlightRenderer.emitShell(any(), any(), eq(GooTypes.ZOO), anyFloat()));
+            flight.verify(() -> GooFlightRenderer.emitCore(any(), any(), eq(GooTypes.ZOO), anyFloat(), any()));
+            flight.verify(() -> GooFlightRenderer.emitShell(any(), any(), eq(GooTypes.ZOO), any()));
         }
     }
 
@@ -74,7 +75,7 @@ class GooCuboidSpecialRendererTest {
             PoseStack.Pose pose = new PoseStack().last();
             VertexConsumer consumer = mock(VertexConsumer.class);
             geometry.getAllValues().forEach(drawn -> drawn.render(pose, consumer));
-            float size = GooCuboidSize.sizeOf(volume);
+            BlobShape size = BlobShape.CUBE.scaled(GooCuboidSize.sizeOf(volume));
             flight.verify(() -> GooFlightRenderer.emitCore(any(), any(), any(), anyFloat(), eq(size)));
             flight.verify(() -> GooFlightRenderer.emitShell(any(), any(), any(), eq(size)));
         }
