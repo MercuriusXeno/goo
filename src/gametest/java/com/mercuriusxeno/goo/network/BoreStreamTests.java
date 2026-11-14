@@ -16,6 +16,7 @@ import net.minecraft.world.entity.animal.cow.Cow;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
@@ -37,6 +38,7 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 public final class BoreStreamTests {
     private static final String BORE_CUTS_A_TUNNEL = "bore_cuts_a_tunnel";
     private static final String BORE_STRIKES_A_MOB = "bore_strikes_a_mob_in_the_tunnel";
+    private static final String BORE_REACHES_UNDER_TELEKINESIS = "bore_reaches_the_block_reach_telekinesis_raises";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -46,6 +48,8 @@ public final class BoreStreamTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, BORE_CUTS_A_TUNNEL, BoreStreamTests::boreCutsATunnel);
         GooTestFunctions.registerTest(registrar, BORE_STRIKES_A_MOB, BoreStreamTests::boreStrikesAMobInTheTunnel);
+        GooTestFunctions.registerTest(registrar, BORE_REACHES_UNDER_TELEKINESIS,
+                BoreStreamTests::boreReachesTheBlockReachTelekinesisRaises);
     }
 
 
@@ -65,6 +69,12 @@ public final class BoreStreamTests {
     private static final String ABILITY_REQUIRED = "Ability registry must hold rock_bore";
     private static final BlockPos TUNNEL_COW = EYE_ROW.east(2).below();
     private static final String SHOULD_HIT_AS_THE_PLAYER = "The first tick should hit the cow as the player, last hit by %s";
+    private static final Identifier KINETIC_REMOTE = Identifier.parse("goo:kinetic_remote");
+    /** Six blocks out on the eye row: past a survival player's block reach, inside it raised by Telekinesis. */
+    private static final BlockPos PAST_THE_REACH = EYE_ROW.east(6);
+    /** A hold long enough to break a block the bore reaches. */
+    private static final int REACH_HOLD_TICKS = 20;
+    private static final String SHOULD_START_PAST_THE_REACH = "The stone should stand past the survival block reach";
 
     private BoreStreamTests() {
     }
@@ -85,7 +95,9 @@ public final class BoreStreamTests {
     public static void boreCutsATunnel(GameTestHelper helper) {
         AbilityDefinition bore = AbilityRegistry.of(helper.getLevel()).getAbility(ROCK_BORE);
         helper.assertTrue(bore != null, ABILITY_REQUIRED);
-        int reach = (int) Math.floor(bore.delivery().range());
+        ServerPlayer player = borer(helper);
+        KnownRecipes.teachRequires(player, bore);
+        int reach = (int) Math.floor(bore.delivery().reachingTo(player.blockInteractionRange()).range());
         int breakTicks = bore.behaviors().stream().filter(BoreStep.class::isInstance).map(BoreStep.class::cast)
                 .findFirst().orElseThrow().pace().breakTicks();
         for (int east = 1; east <= reach + 1; east++) {
@@ -93,8 +105,6 @@ public final class BoreStreamTests {
                 helper.setBlock(pos, Blocks.STONE);
             }
         }
-        ServerPlayer player = borer(helper);
-        KnownRecipes.teachRequires(player, bore);
         GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.ROCK), ROCK_BORE.toString(),
                 player.getEyePosition(), player.getEyePosition());
         int[] brokeOn = new int[reach + 1];
@@ -153,6 +163,40 @@ public final class BoreStreamTests {
             helper.getLevel().getServer().getPlayerList().remove(player);
             boolean asPlayer = cow.getLastDamageSource() != null && cow.getLastDamageSource().getEntity() == player;
             helper.assertTrue(asPlayer, String.format(SHOULD_HIT_AS_THE_PLAYER, cow.getLastDamageSource()));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A survival player streams bore east at a lone block of stone past
+     * their block reach: through a hold it stands, and once Telekinesis
+     * raises their block reach a second hold breaks it
+     * (decisions bore-reaches-as-far-as-your-block-reach, telekinesis-enacts-at-extended-reach).
+     *
+     * @param helper the gametest helper
+     */
+    public static void boreReachesTheBlockReachTelekinesisRaises(GameTestHelper helper) {
+        helper.setBlock(PAST_THE_REACH, Blocks.STONE);
+        ServerPlayer player = boringPlayer(helper);
+        // the mock player helper makes a creative player, whose reach runs longer
+        player.setGameMode(GameType.SURVIVAL);
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.KINETIC, HELD_GOO * GooStacks.THOUSAND));
+        helper.assertFalse(player.isWithinBlockInteractionRange(helper.absolutePos(PAST_THE_REACH), 0),
+                SHOULD_START_PAST_THE_REACH);
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.ROCK), ROCK_BORE.toString(),
+                player.getEyePosition(), player.getEyePosition());
+        int raisedAt = REACH_HOLD_TICKS + 1;
+        for (int held = 1; held <= REACH_HOLD_TICKS; held++) {
+            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
+            helper.runAfterDelay(raisedAt + held, () -> GooStreamHandler.streamTick(player, tick));
+        }
+        helper.runAfterDelay(raisedAt, () -> {
+            helper.assertBlockPresent(Blocks.STONE, PAST_THE_REACH);
+            HeartOverlayTests.invoke(player, GooTypes.KINETIC, KINETIC_REMOTE);
+        });
+        helper.runAfterDelay(raisedAt + REACH_HOLD_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertBlockPresent(Blocks.AIR, PAST_THE_REACH);
             helper.succeed();
         });
     }

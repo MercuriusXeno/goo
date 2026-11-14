@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.ability.Delivery;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -248,6 +249,29 @@ class BoreStepTest {
             Vec3 nearTheTop = new Vec3(0.5, 2.6, 0.5);
             assertFalse(pickFrom(nearTheTop, POINT_RADIUS).contains(new BlockPos(1, 3, 0)));
             assertTrue(pickFrom(nearTheTop, 0.5).contains(new BlockPos(1, 3, 0)));
+        }
+
+        /**
+         * A bore aimed along the look out to the reach its delivery takes for
+         * a block reach picks a block inside that reach and leaves one past it
+         * (decision bore-reaches-as-far-as-your-block-reach).
+         */
+        @Test
+        void aBorePicksABlockInsideTheBlockReachAndLeavesOnePastIt() {
+            Delivery delivery = AbilityJson.decode("rock_bore").delivery();
+            for (double blockReach : new double[] {4.5, 6}) {
+                BlockPos inside = new BlockPos((int) Math.floor(AT_A_MIDDLE.x + blockReach) - 1, 2, 0);
+                BlockPos past = inside.east(2);
+                ChannelAim aim = new ChannelAim(AT_A_MIDDLE.add(EAST.scale(delivery.reachingTo(blockReach).range())),
+                        null, CONE_DEGREES);
+                assertEquals(List.of(inside), pickOfLone(inside, aim), "inside a reach of " + blockReach);
+                assertEquals(List.of(), pickOfLone(past, aim), "past a reach of " + blockReach);
+            }
+        }
+
+        /** The pick from a face's middle along an aim, with one breakable block standing alone in the air. */
+        private static List<BlockPos> pickOfLone(BlockPos lone, ChannelAim aim) {
+            return BoreStep.progressing(AT_A_MIDDLE, POINT_RADIUS, aim, cell -> !cell.equals(lone), lone::equals);
         }
 
         @Test
