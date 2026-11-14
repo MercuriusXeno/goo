@@ -35,7 +35,9 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
+import com.mercuriusxeno.goo.type.GooTypes;
 
 /**
  * Gametests for the mob abilities: each test spawns a mob, lands a goo of
@@ -58,6 +60,7 @@ public final class MobEffectTests {
             "charmed_zombies_hit_lands_nothing_on_a_charmed_zombie";
     private static final String CHARMED_SKELETONS_ARROW_LANDS_NOTHING_ON_A_CHARMED_ZOMBIE =
             "charmed_skeletons_arrow_lands_nothing_on_a_charmed_zombie";
+    private static final String CHARM_DARTS_TO_THE_TAKEN_MOB = "charm_darts_to_the_taken_mob_and_charms_it";
     private static final String SEAL_WARPS_THEN_EXILES = "seal_warps_then_exiles";
     private static final String MOB_UNSTABLE = "mob_unstable_blast";
 
@@ -79,6 +82,8 @@ public final class MobEffectTests {
                 MobEffectTests::charmedZombiesHitLandsNothingOnACharmedZombie);
         GooTestFunctions.registerTest(registrar, CHARMED_SKELETONS_ARROW_LANDS_NOTHING_ON_A_CHARMED_ZOMBIE,
                 MobEffectTests::charmedSkeletonsArrowLandsNothingOnACharmedZombie);
+        GooTestFunctions.registerTest(registrar, CHARM_DARTS_TO_THE_TAKEN_MOB,
+                MobEffectTests::charmDartsToTheTakenMobAndCharmsIt);
         GooTestFunctions.registerTest(registrar, SEAL_WARPS_THEN_EXILES, MobEffectTests::sealWarpsThenExiles);
         GooTestFunctions.registerTest(registrar, MOB_UNSTABLE, MobEffectTests::unstableExplode);
     }
@@ -108,7 +113,13 @@ public final class MobEffectTests {
      * chance, which falls as max health rises, stands whole with a wide margin for its tuning.
      */
     private static final double CERTAIN_CHARM_HEALTH = 10;
-    private static final String CHARM_SHOULD_RELOAD = "The reloaded zombie should hold the charm for its charmer";
+    /** The face a throw at an entity names: none. */
+    private static final int NO_FACE = -1;
+    /** Ticks past the cast by which the dart has crossed the two blocks to the zombie and landed. */
+    private static final int DART_LANDED_TICKS = 5;
+    private static final String CHARM_SHOULD_DART_NOT_TOUCH =
+            "Charm should dart to a zombie within reach, charming it only once the dart lands";
+    private static final String CHARM_SHOULD_RELOAD ="The reloaded zombie should hold the charm for its charmer";
     private static final String CHARMERS_HIT_SHOULD_BREAK = "The charmer's hit should end the charm";
     /** Ticks a charmed zombie set on a charmed zombie is watched, past two of a zombie's melee swings. */
     private static final int MINION_WATCH_TICKS = 40;
@@ -120,8 +131,9 @@ public final class MobEffectTests {
     private static final String SHOULD_TAKE_DAMAGE = "Target should have taken damage";
     private static final String SHOULD_HAVE_LEVITATION = "Target should have levitation";
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
-    private static final String ABILITY_TYPHOON_SHULK = "goo:typhoon_shulk";
-    private static final String LEVITATION_SHOULD_HIDE_PARTICLES = "Shulk's levitation should show no particles";
+    /** The gametests' own ability carrying the float step, which no shipped ability carries. */
+    private static final String ABILITY_TEST_FLOAT = "goo:test_float";
+    private static final String LEVITATION_SHOULD_HIDE_PARTICLES = "The float's levitation should show no particles";
     private static final String FLOAT_SHOULD_END_WITH_LEVITATION = "The zombie's float should end when its levitation does";
     private static final String FLOAT_SHOULD_CLEAR_WITH_LEVITATION = "Removing the levitation should clear the float";
     /** The gametests' own thrown blast, today's Blast before it was drag-sized, struck at a mob. */
@@ -195,7 +207,7 @@ public final class MobEffectTests {
     public static void floatLevitatesAZombie(GameTestHelper helper) {
         Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, zombie, ABILITY_TYPHOON_SHULK);
+            strike(helper, zombie, ABILITY_TEST_FLOAT);
             MobEffectInstance levitation = zombie.getEffect(MobEffects.LEVITATION);
             helper.assertTrue(levitation != null, SHOULD_HAVE_LEVITATION);
             helper.assertFalse(levitation.isVisible(), LEVITATION_SHOULD_HIDE_PARTICLES);
@@ -330,6 +342,34 @@ public final class MobEffectTests {
                 helper.assertTrue(striker.getTarget() != struck, MINION_KEPT_AS_TARGET);
                 helper.assertTrue(struck.getHealth() == struck.getMaxHealth(),
                         String.format(MINION_HURT, struck.getHealth(), struck.getMaxHealth(), lastHitOf(struck)));
+                helper.succeed();
+            });
+        });
+    }
+
+    /**
+     * Charm cast through the charm-like delivery at a zombie within reach:
+     * the blob darts to the zombie rather than touching it, so the zombie
+     * stands uncharmed on the cast's tick, and once the dart lands it holds
+     * the charm (decision charm-like-abilities-lock-the-highlighted-mob-on-right-click).
+     *
+     * @param helper the gametest helper
+     */
+    public static void charmDartsToTheTakenMobAndCharmsIt(GameTestHelper helper) {
+        Identifier charmId = Identifier.parse(ABILITY_HEX_CHARM);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.HEX, charmId);
+        AbilityDefinition charm = AbilityRegistry.of(helper.getLevel()).getAbility(charmId);
+        helper.assertTrue(charm != null, ABILITIES_REQUIRED);
+        KnownRecipes.teachRequires(caster, charm);
+        Mob zombie = charmable(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS));
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            GooThrowHandler.execute(caster, new GooThrowPayload(GooTypes.id(GooTypes.HEX), zombie.getId(),
+                    BlockPos.ZERO, NO_FACE, false, ABILITY_HEX_CHARM, caster.getEyePosition(),
+                    zombie.getBoundingBox().getCenter()));
+            helper.assertFalse(zombie.hasData(GooAttachments.CHARMED), CHARM_SHOULD_DART_NOT_TOUCH);
+            helper.runAfterDelay(DART_LANDED_TICKS, () -> {
+                helper.getLevel().getServer().getPlayerList().remove(caster);
+                helper.assertTrue(zombie.hasData(GooAttachments.CHARMED), ZOMBIE_SHOULD_BE_CHARMED);
                 helper.succeed();
             });
         });

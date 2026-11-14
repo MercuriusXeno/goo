@@ -27,7 +27,15 @@ public enum DeliveryKind {
      * reaches it; no goo leaves the hand.
      * decision click-is-a-hit-scan-drawn-as-a-delayed-wave
      */
-    SCAN;
+    SCAN,
+    /**
+     * The charm-like cast: the right click takes the mob highlighted at the
+     * press and keeps it whatever the aim does after, and the release, however
+     * brief the hold, darts the blob straight to that mob at the delivery's
+     * speed, enveloping it as the program runs.
+     * decision charm-like-abilities-lock-the-highlighted-mob-on-right-click
+     */
+    ENVELOP;
 
     private static final String WHAT = "delivery kind";
 
