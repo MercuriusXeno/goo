@@ -1,83 +1,91 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.program.BoreDrillShape;
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.api.Test;
+import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Where Bore's vortex makes contact with a breakable block, particles of the
- * block spit out of the face it meets, across the vortex's width there
- * (decision bore-shows-a-big-drill-from-the-glove).
+ * Where Bore's drill makes contact with a breakable block, particles of the
+ * block spit out across the drill's cross section at the crosshair's plane,
+ * the ellipse the break picks with, flying back toward the holder and out
+ * from their place on its rim
+ * (decisions bore-shows-a-big-drill-from-the-glove, bore-drill-dimensions-drive-the-visuals-and-the-break).
  */
 class BoreContactSprayTest {
 
-    /** A survival player's block reach, and rock_bore.json's point radius. */
-    private static final double REACH = 4.5;
-    private static final double POINT_RADIUS = 0.1;
     private static final double SLACK = 1e-9;
+    private static final Vec3 LOOK_SOUTH = new Vec3(0, 0, 1);
 
-    /** The spew flies back from the drill's point toward the holder, never back into the block. */
+    private static double widest(List<Vec3> spread) {
+        return spread.stream().mapToDouble(Vec3::length).max().orElseThrow();
+    }
+
+    private static double narrowest(List<Vec3> spread) {
+        return spread.stream().mapToDouble(Vec3::length).min().orElseThrow();
+    }
+
+    /** The spew flies back from the drill's contact toward the holder, never back into the block. */
     @ParameterizedTest
     @EnumSource(Direction.class)
     void theSpewFliesBackTowardTheHolder(Direction backward) {
         Vec3 towardHolder = Vec3.atLowerCornerOf(backward.getUnitVec3i());
-        for (double around : new double[] {0, 0.25, 0.5, 0.75}) {
-            Vec3 velocity = BoreContactSpray.spewVelocity(towardHolder, around, 1);
+        Vec3 square = Math.abs(towardHolder.y) > 0.5 ? new Vec3(1, 0, 0) : new Vec3(0, 1, 0);
+        for (Vec3 outward : List.of(square, square.reverse(), towardHolder.cross(square))) {
+            Vec3 velocity = BoreContactSpray.spewVelocity(towardHolder, outward, 1);
             assertTrue(velocity.dot(towardHolder) > 0, "a spew toward " + backward + " runs " + velocity);
         }
     }
 
-    /** The spew fans out in a ring round the drill's axis: opposite points of the ring fly opposite ways. */
+    /** The spew fans out round the axis: particles from opposite sides of the rim fly opposite ways. */
     @Test
-    void theSpewFansOutInARingRoundTheAxis() {
+    void theSpewFansOutRoundTheAxis() {
         Vec3 towardHolder = new Vec3(0, 0, -1);
-        Vec3 one = BoreContactSpray.spewVelocity(towardHolder, 0, 1);
-        Vec3 opposite = BoreContactSpray.spewVelocity(towardHolder, 0.5, 1);
+        Vec3 one = BoreContactSpray.spewVelocity(towardHolder, new Vec3(1, 0, 0), 1);
+        Vec3 opposite = BoreContactSpray.spewVelocity(towardHolder, new Vec3(-1, 0, 0), 1);
         Vec3 sideOne = one.subtract(towardHolder.scale(one.dot(towardHolder)));
         Vec3 sideOpposite = opposite.subtract(towardHolder.scale(opposite.dot(towardHolder)));
-        assertTrue(sideOne.length() > 0, "the spew flies straight back with no ring");
-        assertTrue(sideOne.dot(sideOpposite) < 0, "opposite points of the ring fly the same way");
+        assertTrue(sideOne.length() > 0, "the spew flies straight back with no fan");
+        assertTrue(sideOne.dot(sideOpposite) < 0, "opposite sides of the rim fly the same way");
     }
 
-    /**
-     * The spit comes from the drill's point, its far end, where the sight
-     * meets the breakable block, though the drill is drawn from a blob off
-     * the line of sight
-     * (decision bore-drill-point-floats-along-the-crosshair-to-the-aimed-block).
-     */
+    /** decision bore-drill-dimensions-drive-the-visuals-and-the-break */
     @Test
-    void theContactIsTheFarEndOfADrillDrawnFromABlobOffTheLineOfSight() {
-        Vec3 eye = new Vec3(0.5, 65.5, 0.5);
-        Vec3 look = new Vec3(0, 0, 1);
-        Vec3 blob = eye.add(-0.4, -0.35, 0.6);
-        BlockPos stone = new BlockPos(0, 65, 3);
-        Vec3 point = BoreDrill.pointOf(new CameraEye.Sight(eye, look), REACH, BoreDrillShape.SHIPPED, true,
-                cell -> !cell.equals(stone), stone::equals);
-        ConeSections.Volume drawn = BoreDrill.volume(blob, point, 0f, POINT_RADIUS);
-        Vec3 contact = BoreContactSpray.contactOf(drawn);
-        assertEquals(0, contact.distanceTo(drawn.apex().add(drawn.axis().scale(drawn.range()))), SLACK);
-        assertEquals(0, contact.distanceTo(new Vec3(0.5, 65.5, 3)), 1e-6);
+    void theSpreadIsTheCrossSectionTheBreakPicksWith() {
+        BoreDrillShape shipped = BoreDrillShape.SHIPPED;
+        List<Vec3> spread = BoreContactSpray.spreadOf(shipped, LOOK_SOUTH, true);
+        assertEquals(shipped.longHalf(), widest(spread), SLACK);
+        assertEquals(shipped.shortHalf(), narrowest(spread), SLACK);
+        for (Vec3 offset : spread) {
+            assertEquals(0, offset.dot(LOOK_SOUTH), SLACK);
+        }
     }
 
-    /** Each particle starts on the cone's outside, round its axis at its radius there, and flies out from its place. */
     @Test
-    void theSpewStartsRoundTheOutsideOfTheCone() {
-        Vec3 contact = new Vec3(0.5, 65.0, 3.0);
+    void aLongerPastLengthWidensTheSpread() {
+        List<Vec3> shipped = BoreContactSpray.spreadOf(BoreDrillShape.SHIPPED, LOOK_SOUTH, true);
+        BoreDrillShape longer = new BoreDrillShape(0.7, 2, 22.5, 1);
+        List<Vec3> wider = BoreContactSpray.spreadOf(longer, LOOK_SOUTH, true);
+        assertEquals(longer.longHalf(), widest(wider), SLACK);
+        assertTrue(widest(wider) > widest(shipped), "the spread reaches " + widest(wider));
+    }
+
+    /** Each particle starts on the ellipse's rim, a little back toward the holder, and flies out from its place. */
+    @Test
+    void theSpewStartsOnTheRimAndFliesOutFromIt() {
+        Vec3 center = new Vec3(0.5, 65.0, 3.0);
         Vec3 towardHolder = new Vec3(0, 0, -1);
-        double radius = 0.2;
-        for (double around : new double[] {0, 0.25, 0.5, 0.75}) {
-            Vec3 start = BoreContactSpray.spewOrigin(contact, towardHolder, around, radius);
-            Vec3 offset = start.subtract(contact);
-            Vec3 fromAxis = offset.subtract(towardHolder.scale(offset.dot(towardHolder)));
-            assertEquals(radius, fromAxis.length(), 1e-6, "a particle at " + around + " starts off the cone's outside");
-            Vec3 velocity = BoreContactSpray.spewVelocity(towardHolder, around, 1);
-            assertTrue(velocity.dot(fromAxis) > 0, "a particle at " + around + " flies inward, not out from its place");
+        for (Vec3 offset : BoreContactSpray.spreadOf(BoreDrillShape.SHIPPED, towardHolder.reverse(), true)) {
+            Vec3 start = BoreContactSpray.spewOrigin(center, towardHolder, offset);
+            Vec3 fromAxis = start.subtract(center).subtract(towardHolder.scale(start.subtract(center).dot(towardHolder)));
+            assertEquals(0, fromAxis.distanceTo(offset), 1e-6);
+            Vec3 velocity = BoreContactSpray.spewVelocity(towardHolder, offset, 1);
+            assertTrue(velocity.dot(fromAxis) > 0, "a particle at " + offset + " flies inward, not out from its place");
         }
     }
 

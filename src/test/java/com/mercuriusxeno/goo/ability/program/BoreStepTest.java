@@ -187,7 +187,7 @@ class BoreStepTest {
             when(host.eye()).thenReturn(atAnEdge);
             when(host.channelAim()).thenReturn(Optional.of(
                     new ChannelAim(atAnEdge.add(4, 0, 0), null, CONE_DEGREES)));
-            Map<BlockPos, Double> progress = progressAfter(host, new BoreStep(BREAKABLE, SHIPPED, 0.1, List.of(),
+            Map<BlockPos, Double> progress = progressAfter(host, new BoreStep(BREAKABLE, SHIPPED, List.of(),
                     List.of()), 1);
             double aimedRate = 1.0 / SHIPPED.breakTicks();
             assertEquals(aimedRate, progress.get(new BlockPos(1, 1, 0)), SLACK);
