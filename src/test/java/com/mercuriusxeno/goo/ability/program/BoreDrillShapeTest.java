@@ -19,17 +19,16 @@ class BoreDrillShapeTest {
     private static final Vec3 LOOK_SOUTH = new Vec3(0, 0, 1);
 
     @Test
-    void theShippedDrillsCrossSectionMeasuresPointOneNineByPointOneSevenFive() {
-        BoreDrillShape shape = new BoreDrillShape(0.7, 2, 22.5, 0.5);
-        assertEquals(0.190, 2 * shape.longHalf(), MEASURE_SLACK);
-        assertEquals(0.175, 2 * shape.shortHalf(), MEASURE_SLACK);
+    void theShippedDrillsCrossSectionMeasuresPointThreeSixByPointThreeFive() {
+        assertEquals(0.363, 2 * BoreDrillShape.SHIPPED.longHalf(), MEASURE_SLACK);
+        assertEquals(0.350, 2 * BoreDrillShape.SHIPPED.shortHalf(), MEASURE_SLACK);
     }
 
     @Test
-    void aPastLengthOfOneMeasuresPointThreeEightByPointThreeFive() {
-        BoreDrillShape shape = new BoreDrillShape(0.7, 2, 22.5, 1);
-        assertEquals(0.381, 2 * shape.longHalf(), MEASURE_SLACK);
-        assertEquals(0.351, 2 * shape.shortHalf(), MEASURE_SLACK);
+    void aPastLengthOfHalfABlockMeasuresPointOneEightByPointOneSevenFive() {
+        BoreDrillShape shape = new BoreDrillShape(0.7, 2, 15, 0.5);
+        assertEquals(0.182, 2 * shape.longHalf(), MEASURE_SLACK);
+        assertEquals(0.175, 2 * shape.shortHalf(), MEASURE_SLACK);
     }
 
     @Test

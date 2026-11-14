@@ -301,7 +301,7 @@ class GroundShakeTest {
 
             GroundShake.Zone standing = GroundShake.boreZoneAlong(sightAt(STANDING_EYE_Y, LOOK_EAST), bore,
                     true, BORE_RANGE, rock.negate(), rock);
-            GroundShake.Zone sunk = GroundShake.boreZoneAlong(sightAt(64.9, LOOK_EAST), bore,
+            GroundShake.Zone sunk = GroundShake.boreZoneAlong(sightAt(64.5, LOOK_EAST), bore,
                     true, BORE_RANGE, rock.negate(), rock);
 
             assertEquals(Set.of(65), heightsIn(standing));
