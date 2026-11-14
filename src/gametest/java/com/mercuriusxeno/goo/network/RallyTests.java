@@ -68,6 +68,7 @@ public final class RallyTests {
                 RallyTests::ralliersPunchLeavesTheCowAlive);
         GooTestFunctions.registerTest(registrar, SECOND_PUNCH_MAKES_THE_FREED_COW_A_FOE,
                 RallyTests::secondPunchMakesTheFreedCowAFoe);
+        GooTestFunctions.registerTest(registrar, RALLY_KEEPS_A_HURT_COWS_HEALTH, RallyTests::rallyKeepsAHurtCowsHealth);
         GooTestFunctions.registerTest(registrar, RALLY_COW_WEARS_HALF_ITS_RALLIERS_ARMOR,
                 RallyTests::rallyCowWearsHalfItsRalliersArmor);
         GooTestFunctions.registerTest(registrar, RALLY_AGAIN_RELEASES_THE_COW, RallyTests::rallyAgainReleasesTheCow);
@@ -603,6 +604,31 @@ public final class RallyTests {
             helper.assertTrue(cow.getLastHurtByMob() == other, FREED_COW_SPARED);
             helper.succeed();
         });
+    }
+
+    private static final String RALLY_KEEPS_A_HURT_COWS_HEALTH = "rally_keeps_a_hurt_cows_health";
+    /** A hurt cow's health, well short of a cow's 10. */
+    private static final float HURT_HEALTH = 4f;
+    private static final String RALLY_HEALED =
+            "Rally should keep the hurt cow at %s health while its max rises past %s: health %s of %s";
+
+    /**
+     * A cow at 4 health takes a rally: its max health rises and its health
+     * stays at 4, the rally healing none of it.
+     * zoo-rally-arms-the-peaceful
+     *
+     * @param helper the gametest helper
+     */
+    public static void rallyKeepsAHurtCowsHealth(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
+        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        cow.setHealth(HURT_HEALTH);
+        rally(helper, cow, caster);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        helper.assertTrue(cow.hasData(GooAttachments.RALLIED), COW_NOT_RALLIED);
+        helper.assertTrue(cow.getHealth() == HURT_HEALTH && cow.getMaxHealth() > COW_MAX_HEALTH,
+                String.format(RALLY_HEALED, HURT_HEALTH, COW_MAX_HEALTH, cow.getHealth(), cow.getMaxHealth()));
+        helper.succeed();
     }
 
     /**
