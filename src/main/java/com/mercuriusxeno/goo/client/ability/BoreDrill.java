@@ -23,19 +23,22 @@ import java.util.function.Predicate;
 
 /**
  * Bore's drill: while right click holds a bore stream, a vortex of earth
- * magic extends from the lifted blob by the glove, in whichever hand holds
- * it, to its point, which floats along the crosshair to the aimed block: the
- * point Bore breaks at, where the sight meets the first breakable block
- * within reach, or the end of reach where it meets none. It starts at the
- * blob with a wide mouth and narrows to the point, never wider than a block,
- * as wide at its point as what Bore breaks, so it renders from the size of
- * the break, and follows the point deeper as blocks break. It is clipped by
- * the blocks it meets, and {@link BoreContactSpray} spits their particles at
- * its point. {@link BoreDrillPass} marches it as Drain's vortex is marched: a
- * churning, sparse, patchy swirl of earthy dust in rock's tones, its cone
- * defined by a rifled shell, ragged.
+ * magic extends from Bore's blob, which lifts by the glove and eases forward
+ * to hold the drill 2 blocks long at its angle off the sight line
+ * ({@link BoreBlobPlace}), to its point, which floats along the crosshair to
+ * the aimed block: where the sight meets the first breakable block within
+ * reach, the face of a solid block outside the tag, or the end of reach. It
+ * starts at the blob with a wide mouth and narrows to the point, never wider
+ * than a block, as wide at its point as what Bore breaks, and follows the
+ * point deeper as blocks break. The drill and the break each read the aim,
+ * so where Bore breaks matches where the drill draws because the two are in
+ * sync. It is clipped by the blocks it meets, and {@link BoreContactSpray}
+ * spits their particles at its point. {@link BoreDrillPass} marches it as
+ * Drain's vortex is marched: a churning, sparse, patchy swirl of earthy dust
+ * in rock's tones, its cone defined by a rifled shell, ragged.
  * decision bore-shows-a-big-drill-from-the-glove
  * decision bore-blob-lifts-by-the-glove-and-the-drill-extends-from-that-hand
+ * decision bore-drill-is-two-blocks-held-at-an-angle-off-the-sight-line
  * decision bore-drill-point-floats-along-the-crosshair-to-the-aimed-block
  * decision bore-breaks-what-is-in-the-vortex
  * decision bore-vortex-with-a-worldspace-shake

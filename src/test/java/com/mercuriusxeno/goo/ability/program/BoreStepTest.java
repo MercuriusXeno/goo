@@ -289,6 +289,15 @@ class BoreStepTest {
             assertEquals(POINT_RADIUS, bore.pointRadius(), SLACK);
         }
 
+        /** decision bore-drill-is-two-blocks-held-at-an-angle-off-the-sight-line */
+        @Test
+        void rockBoresJsonCarriesTheDrillsLengthAndAngle() {
+            BoreStep bore = AbilityJson.decode("rock_bore").behaviors().stream()
+                    .filter(BoreStep.class::isInstance).map(BoreStep.class::cast).findFirst().orElseThrow();
+            assertEquals(2, bore.drillLength(), SLACK);
+            assertEquals(22.5, bore.drillAngle(), SLACK);
+        }
+
         @Test
         void theCodecReadsThePointRadiusTheJsonNames() {
             String json = "{\"breaks\": \"goo:bore_breakable\", \"break_ticks\": 5, \"slowdown\": 1.5,"

@@ -348,7 +348,8 @@ public final class LiftedPalmBlob {
 
     /**
      * Where a lift's blob rises to: the float point ahead of the hand for
-     * Knives' charge, and the rest point the selected ability names otherwise.
+     * Knives' charge, the place Bore's blob eases to from its rest while a
+     * bore runs, and the rest point the selected ability names otherwise.
      *
      * @param casterId    the caster's entity id
      * @param lift        the caster's lift
@@ -361,7 +362,8 @@ public final class LiftedPalmBlob {
         return lift.floats() ? BlobRest.floatingOf(casterId, lift.sentGlove(), partialTick,
                 KnivesCharge.acrossOf(casterId, now))
                 // centered-abilities-float-the-blob-below-the-crosshair: a centered ability rests on the center line
-                : BlobRest.of(casterId, lift.sentGlove(), partialTick);
+                // bore-blob-eases-to-place-the-drill-at-the-crosshair: Bore's blob eases forward from that rest
+                : BoreBlobPlace.of(casterId, BlobRest.of(casterId, lift.sentGlove(), partialTick), partialTick, now);
     }
 
     /**
