@@ -196,7 +196,8 @@ class StepCodecTest {
             Map.entry("fuse_books", new FuseBooksStep(Optional.of(new SoundCue(
                     Identifier.withDefaultNamespace("block.fire.extinguish"), SoundKind.PLAYERS, 0.4f, 1.6f)))),
             Map.entry("leader", new LeaderStep(12, 4)),
-            Map.entry("rally", new RallyStep(Expr.literal(6), Expr.literal(1.5), Expr.literal(0.5))),
+            Map.entry("rally", new RallyStep(Expr.literal(6), Expr.literal(1.5), Expr.literal(0.5),
+                    Expr.literal(0.5), Expr.literal(4))),
             Map.entry("transmute_slime", new SlimeTransmuteStep(GooTypes.ZOO, true, 20,
                     List.of(new AilmentOverlayStep(AilmentKind.HEX, Expr.literal(60))))),
             Map.entry("lifetap", new LifetapStep(Expr.literal(0.3))),
