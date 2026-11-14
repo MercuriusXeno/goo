@@ -13,16 +13,20 @@ import com.mercuriusxeno.goo.data.GooReactionLoader;
 import com.mercuriusxeno.goo.data.GooReactionSource;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.gasket.ChoralGasketItem;
+import com.mercuriusxeno.goo.lab.LabFirstJoin;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.network.GooValueSync;
 import com.mercuriusxeno.goo.network.PlayerKnowledge;
+import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.AddServerReloadListenersEvent;
 import net.neoforged.neoforge.event.OnDatapackSyncEvent;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
@@ -144,6 +148,21 @@ public final class GooEventWiring {
                     PlayerKnowledge.sendToPlayer(player);
                     PortalChoice.sync(player);
                 });
+    }
+
+    /**
+     * Fits out the Goo Lab save on its first join in a dev launch: the lab
+     * built and the kit handed, once per save.
+     * decision goo-lab-save-builds-and-kits-on-first-join
+     *
+     * @param event the login event
+     */
+    @SubscribeEvent
+    public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player && LabFirstJoin.fitsOut(FMLEnvironment.isProduction(),
+                player.level().getServer().getWorldData().getLevelName())) {
+            LabFirstJoin.fitOutOnLogin(player);
+        }
     }
 
     /**
