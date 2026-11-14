@@ -52,8 +52,11 @@ public final class GoopArcTests {
     private static final String LAYERS_WRONG = "The dripped cell should hold %d layers of slime, holds %s";
     /** The zombie stands on the perched floor this far east of the perch, well past eight blocks from the eye. */
     private static final int ZOMBIE_EAST = 6;
-    /** Ticks Goop is held on the zombie, a few drips' worth. */
-    private static final int WOBBLE_HOLD_TICKS = 10;
+    /**
+     * Ticks Goop is held on the zombie: its one drip a tick scatters over the cone, so enough drips for one
+     * to strike a mob thirteen blocks off.
+     */
+    private static final int WOBBLE_HOLD_TICKS = 40;
     private static final String NOT_WOBBLED = "A zombie %.1f blocks from the streamer, struck by Goop's drips,"
             + " should hold the wobble";
     private static final String NOT_FAR = "The zombie should stand past eight blocks from the eye, stands %.1f off";

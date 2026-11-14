@@ -384,7 +384,7 @@ public final class GooStreamHandler {
                 player.getId(), ability, landing, strikesLiving);
         Delivery delivery = ability.delivery();
         DripFlights flights = GooServerState.of(player.level().getServer()).dripFlights();
-        for (CoatRay.ConeShare share : CoatRay.sharesThrownOn(held, delivery.dripsPerTick())) {
+        for (CoatRay.ConeShare share : CoatRay.scatteredShares(held, delivery.dripsPerTick())) {
             flights.launch(new DripFlights.Flight(thrower, apex, DripArc.launch(axis, delivery.coneDegrees(), share,
                     delivery.throwSpeed())));
         }

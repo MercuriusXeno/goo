@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
@@ -12,6 +13,7 @@ import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.CoatRay;
+import com.mercuriusxeno.goo.throwing.DripArc;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -21,6 +23,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -173,8 +176,77 @@ public final class SlickTests {
             + " on tick %d, slime on tick %d";
     private static final String NEVER_SETTLED = "Both crosses should stand still the last %d watched ticks: slick"
             + " last changed on tick %d, slime on tick %d";
+    private static final String SPRINT_RIDES_THE_TRACK = "slick_lays_a_track_a_sprinter_rides";
+    /** A sprinting player's speed east, in blocks a tick, and the small fall each tick that keeps it grounded. */
+    private static final Vec3 SPRINT_STEP = new Vec3(0.28, -0.08, 0);
+    /** How far ahead of the sprinter's feet the stream is aimed, in blocks, at the floor's top. */
+    private static final double AIM_AHEAD = 3.5;
+    /** Ticks the sprint lasts: from the bay's west wall to short of its east wall. */
+    private static final int SPRINT_TICKS = 46;
+    /** The most layers a slick cell on the path may hold: a player steps up 0.6 of a block, so nine fifteenths. */
+    private static final int STEP_LAYERS = 9;
+    private static final String NEVER_ON_SLICK = "The sprinter should reach the slick track, stood on %s";
+    private static final String OFF_THE_TRACK = "The sprinter should stand on slick every tick after first reaching it,"
+            + " stood on %s at x %.2f on tick %d";
+    private static final String TRACK_TOO_TALL = "No slick cell on the path should hold more than %d layers, the path"
+            + " holds %s";
 
     private SlickTests() {
+    }
+
+    /**
+     * A player sprinting east over open stone floor, streaming Slick aimed a
+     * few blocks ahead of their feet each tick, stands on slick on every tick
+     * after first reaching the track, and no slick cell on the path holds
+     * more layers than the player steps up.
+     * slick-is-a-layered-cell-that-flows-thinner-and-faster-than-slime
+     * slick-coats-the-ground-with-kinetic-speed
+     *
+     * @param helper the gametest helper
+     */
+    public static void slickLaysATrackASprinterRides(GameTestHelper helper) {
+        int row = FAR_STREAMER_POS.getZ();
+        for (int east = 0; east <= FAR_STRIP_EAST; east++) {
+            for (int z = row - FLOOR_HALF_WIDTH; z <= row + FLOOR_HALF_WIDTH; z++) {
+                helper.setBlock(new BlockPos(east, FAR_STREAMER_POS.getY() - 1, z), Blocks.STONE);
+            }
+        }
+        ServerPlayer sprinter = slickStreamerAt(helper, FAR_STREAMER_POS);
+        sprinter.setYRot(FACING_EAST);
+        sprinter.setSprinting(true);
+        sprinter.setKnownMovement(new Vec3(SPRINT_STEP.x, 0, 0));
+        double floorTop = helper.absolutePos(FAR_STREAMER_POS).getY();
+        boolean[] onTrack = {false};
+        List<String> offTrack = new ArrayList<>();
+        for (int tick = 1; tick <= SPRINT_TICKS; tick++) {
+            int now = tick;
+            helper.runAfterDelay(tick, () -> {
+                sprinter.move(MoverType.SELF, SPRINT_STEP);
+                BlockState under = helper.getLevel().getBlockState(sprinter.getOnPos());
+                boolean onSlick = under.is(GooBlocks.KINETIC_SLICK.get());
+                if (onTrack[0] && !onSlick && offTrack.isEmpty()) {
+                    offTrack.add(String.format(OFF_THE_TRACK, under, sprinter.getX(), now));
+                }
+                onTrack[0] |= onSlick;
+                DripAim.at(sprinter, new Vec3(sprinter.getX() + AIM_AHEAD, floorTop, sprinter.getZ()),
+                        slick(helper).delivery().throwSpeed());
+                GooStreamHandler.streamTick(sprinter, GooStreamPayload.unplaned(GooTypes.id(GooTypes.KINETIC),
+                        SLICK.toString(), sprinter.getEyePosition(), sprinter.getEyePosition()));
+            });
+        }
+        helper.runAfterDelay(SPRINT_TICKS + 1, () -> {
+            BlockState lastUnder = helper.getLevel().getBlockState(sprinter.getOnPos());
+            helper.getLevel().getServer().getPlayerList().remove(sprinter);
+            helper.assertTrue(onTrack[0], String.format(NEVER_ON_SLICK, lastUnder));
+            helper.assertTrue(offTrack.isEmpty(), String.join("; ", offTrack));
+            List<Integer> path = new ArrayList<>();
+            for (int east = 0; east <= FAR_STRIP_EAST; east++) {
+                path.add(VolumeCellBlock.layersOf(helper.getBlockState(FAR_STREAMER_POS.east(east))));
+            }
+            helper.assertTrue(path.stream().allMatch(layers -> layers <= STEP_LAYERS),
+                    String.format(TRACK_TOO_TALL, STEP_LAYERS, path));
+            helper.succeed();
+        });
     }
 
     /**
@@ -201,6 +273,7 @@ public final class SlickTests {
                 SlickTests::slickFillsToFifteenAndRampsTheSameAtAnyHeight);
         GooTestFunctions.registerTest(registrar, DRIPS_DRAIN_A_LAYER_EACH, SlickTests::slickDripsDrainALayersPriceEach);
         GooTestFunctions.registerTest(registrar, SLICK_SETTLES_SOONER, SlickTests::aFullSlickCellSettlesSooner);
+        GooTestFunctions.registerTest(registrar, SPRINT_RIDES_THE_TRACK, SlickTests::slickLaysATrackASprinterRides);
     }
 
     /**
@@ -617,12 +690,17 @@ public final class SlickTests {
         ServerPlayer streamer = slickStreamer(helper);
         GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.KINETIC), SLICK.toString(),
                 streamer.getEyePosition(), streamer.getEyePosition());
-        List<Vec3> atRest = new ArrayList<>();
-        helper.runAfterDelay(1, () -> atRest.addAll(launchedThisTick(helper, streamer, tick)));
+        helper.runAfterDelay(1, () -> launchedThisTick(helper, streamer, tick));
         helper.runAfterDelay(2, () -> {
             streamer.setKnownMovement(MOVING_AND_RISING);
             List<Vec3> moving = launchedThisTick(helper, streamer, tick);
             helper.getLevel().getServer().getPlayerList().remove(streamer);
+            // operator ruling 2026-11-14: each tick scatters its own places, so the moving tick's drips are read
+            // against that tick's places thrown from rest
+            Delivery delivery = slick(helper).delivery();
+            List<Vec3> atRest = CoatRay.scatteredShares(2, delivery.dripsPerTick()).stream()
+                    .map(share -> DripArc.launch(streamer.getLookAngle(), delivery.coneDegrees(), share,
+                            delivery.throwSpeed())).toList();
             helper.assertTrue(!atRest.isEmpty() && atRest.size() == moving.size(),
                     String.format(LAUNCHED_UNEVENLY, atRest.size(), moving.size()));
             for (int i = 0; i < atRest.size(); i++) {
