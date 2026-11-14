@@ -26,7 +26,7 @@ public final class PulsePrismStyle implements PrismComboStyle {
      * The id of the ability whose on_prism reaction is the metronome combo.
      * channeled-hosts-convert-prisms-over-the-hold
      */
-    public static final String METRONOME_COMBO = "goo:pulse_pulser";
+    public static final String METRONOME_COMBO = "goo:pulse_tick";
     /**
      * The id of the ability whose on_prism reaction is the relay combo.
      * thrown-hosts-absorb-their-prism-combos

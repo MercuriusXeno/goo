@@ -114,7 +114,7 @@ public record AffordedCount(long count, boolean timed) {
 
     /**
      * The ticks the holdings pay for the ability's own rate and the standing upkeep together:
-     * a durative ability's upkeep, halved under a standing Extender unless it is the Extender, or a stream's
+     * a durative ability's upkeep, halved under a standing Extend unless it is the Extend, or a stream's
      * or channel's cost each ticksPerCharge, scaled through by ticksPerCharge so 1000 over
      * 1000 a 60 ticks reads 60 rather than a hair under.
      *

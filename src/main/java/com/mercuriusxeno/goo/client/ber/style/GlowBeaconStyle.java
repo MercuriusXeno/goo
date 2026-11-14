@@ -20,7 +20,7 @@ import net.minecraft.util.Mth;
 public final class GlowBeaconStyle implements PrismComboStyle {
 
     /** The id of the ability whose on_prism reaction is the beacon: Bulb. */
-    public static final String COMBO = "goo:glow_crystal";
+    public static final String COMBO = "goo:glow_bulb";
     /** How far the beam reaches out of the prism, in blocks: a vanilla beacon's reach. */
     static final int BEAM_REACH = BeaconRenderer.MAX_RENDER_Y;
     private static final float HALF = 0.5f;

@@ -4,7 +4,7 @@ import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.OwnMinions;
-import com.mercuriusxeno.goo.ability.held.Telekinesis;
+import com.mercuriusxeno.goo.ability.held.Remote;
 import com.mercuriusxeno.goo.ability.program.GrabStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.client.model.GloveSpecialRenderer;
@@ -59,7 +59,7 @@ public final class GloveAim {
     public static double aimRange(Player player, double throwRange) {
         ClientAbility ability = selectedAbility(player);
         return ability == null ? throwRange
-                : GrabStep.reachOf(ability.behaviors(), Telekinesis.entityReachLaid(player)).orElse(throwRange);
+                : GrabStep.reachOf(ability.behaviors(), Remote.entityReachLaid(player)).orElse(throwRange);
     }
 
     /**

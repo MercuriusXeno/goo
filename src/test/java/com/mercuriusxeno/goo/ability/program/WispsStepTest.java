@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * a holder's flood starts over when none is under way, when the hold begins
  * and when the eyes move on from its origin; a flood started over as the
  * holder walks keeps its reach and the wisps already placed, so it goes on
- * lighting fresh dark air while the holder moves; Radiant's file names the
+ * lighting fresh dark air while the holder moves; Wisps' file names the
  * density its flood scatters wisps at.
  * decisions radiant-wisps-where-light-is-low, radiant-drip-places-a-wisp
  * decision radiant-scatters-wisps-at-random-among-the-dark
@@ -27,12 +27,12 @@ class WispsStepTest {
     private static final BlockPos EYES = new BlockPos(10, 64, -5);
     private static final int THRESHOLD = 8;
     private static final int LATER_TICK = 40;
-    private static final WispsStep RADIANT = new WispsStep(64, 4000, 1200, 0, true, 0.8, WispFlood.EVERY_DARK_CELL);
+    private static final WispsStep WISPS = new WispsStep(64, 4000, 1200, 0, true, 0.8, WispFlood.EVERY_DARK_CELL);
     private static final int TICK_BUDGET = 4000;
     private static final int TICKS_BEFORE_THE_MOVE = 10;
     private static final int STEPS_WALKED = WispsStep.RESTART_STEPS + 1;
     private static final RandomSource ROLL = RandomSource.create(0L);
-    private static final String RADIANT_FILE = "glow_radiant";
+    private static final String WISPS_FILE = "glow_wisps";
 
     @Test
     void aCellIsDarkOnlyUnderTheThreshold() {
@@ -66,13 +66,13 @@ class WispsStepTest {
     @Test
     void aFloodStartedOverAsTheHolderWalksPlacesWispsOnItsFirstTick() {
         OpenDark world = new OpenDark();
-        WispFlood under = RADIANT.floodFor(null, EYES, ChannelAim.FIRST_TICK, WispFlood.LIT_STEPS);
+        WispFlood under = WISPS.floodFor(null, EYES, ChannelAim.FIRST_TICK, WispFlood.LIT_STEPS);
         for (int tick = 0; tick < TICKS_BEFORE_THE_MOVE; tick++) {
             under.walk(TICK_BUDGET, world, ROLL);
         }
         int before = world.placed.size();
         BlockPos walkedTo = EYES.east(STEPS_WALKED);
-        WispFlood moved = RADIANT.floodFor(under, walkedTo, LATER_TICK, WispFlood.LIT_STEPS);
+        WispFlood moved = WISPS.floodFor(under, walkedTo, LATER_TICK, WispFlood.LIT_STEPS);
         assertEquals(under.edge(), moved.edge(), 1e-9, "The flood should keep its reach as the holder walks");
         assertTrue(moved.walk(TICK_BUDGET, world, ROLL) > 0, "The first tick after the move should place wisps");
         for (BlockPos fresh : world.placed.subList(before, world.placed.size())) {
@@ -85,19 +85,19 @@ class WispsStepTest {
 
     @Test
     void aFloodStartsFromTheEyesWhenTheHoldBegins() {
-        WispFlood under = RADIANT.floodFor(null, EYES, ChannelAim.FIRST_TICK, WispFlood.LIT_STEPS);
+        WispFlood under = WISPS.floodFor(null, EYES, ChannelAim.FIRST_TICK, WispFlood.LIT_STEPS);
         under.walk(TICK_BUDGET, new OpenDark(), ROLL);
-        WispFlood fresh = RADIANT.floodFor(under, EYES, ChannelAim.FIRST_TICK, WispFlood.LIT_STEPS);
+        WispFlood fresh = WISPS.floodFor(under, EYES, ChannelAim.FIRST_TICK, WispFlood.LIT_STEPS);
         assertEquals(0, fresh.edge(), 1e-9);
         assertTrue(fresh.placed().isEmpty());
     }
 
     @Test
-    void radiantsFileNamesTheDensityItsFloodScattersAt() {
-        JsonObject named = JsonParser.parseString(AbilityJson.read(RADIANT_FILE)).getAsJsonObject()
+    void wispsFileNamesTheDensityItsFloodScattersAt() {
+        JsonObject named = JsonParser.parseString(AbilityJson.read(WISPS_FILE)).getAsJsonObject()
                 .getAsJsonArray("behaviors").get(0).getAsJsonObject();
-        assertTrue(named.has("density"), "glow_radiant.json should name its wisps' density");
-        WispsStep decoded = (WispsStep) AbilityJson.decode(RADIANT_FILE).behaviors().getFirst();
+        assertTrue(named.has("density"), "glow_wisps.json should name its wisps' density");
+        WispsStep decoded = (WispsStep) AbilityJson.decode(WISPS_FILE).behaviors().getFirst();
         assertEquals(named.get("density").getAsDouble(), decoded.density(), 1e-9);
     }
 

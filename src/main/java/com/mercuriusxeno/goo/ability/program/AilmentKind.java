@@ -23,15 +23,15 @@ public enum AilmentKind {
     SCALES(0x4AEDD9, AilmentPattern.FACETS),
     /** Zone: an ender shimmer. */
     ZONE(0xB05CFF, AilmentPattern.SHIMMER),
-    /** Shifter: the zone shimmer. */
-    SHIFTER(0xB05CFF, AilmentPattern.SHIMMER),
+    /** Elude: the zone shimmer. */
+    ELUDE(0xB05CFF, AilmentPattern.SHIMMER),
     /** Hex's charm: a dark purple outline. */
     HEX(0x6A1FB0),
     /** Petrify: a stone encasement. */
     PETRIFY(0x8C8A86, AilmentPattern.STONE),
     /** Frozen: frost. */
     FROZEN(0xC4ECFF, AilmentPattern.FROST),
-    /** Glow's mark: Sunbeam and Lux outline a mob in glow yellow. */
+    /** Glow's mark: Laser and Lux outline a mob in glow yellow. */
     GLOW(0xFFE628),
     /**
      * Astral's mark: Scry's sweep outlines a mob in the astral type's color.

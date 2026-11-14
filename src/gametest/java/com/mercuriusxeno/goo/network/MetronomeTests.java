@@ -47,8 +47,8 @@ public final class MetronomeTests {
 
     /** Marks a pending effect aimed at a block rather than an entity. */
     private static final int NO_ENTITY = -1;
-    /** Pulser, whose on_prism reaction is the metronome (decision channeled-hosts-convert-prisms-over-the-hold). */
-    private static final String METRONOME = "goo:pulse_pulser";
+    /** Tick, whose on_prism reaction is the metronome (decision channeled-hosts-convert-prisms-over-the-hold). */
+    private static final String METRONOME = "goo:pulse_tick";
     private static final String ZAP = "goo:pulse_zap";
     private static final BlockPos PRISM = new BlockPos(2, 1, 2);
     private static final BlockPos LEVER = PRISM.west();
@@ -116,15 +116,15 @@ public final class MetronomeTests {
     }
 
     /**
-     * Converts the prism into a metronome as a full Pulser hold does, its
-     * combo the Pulser's on_prism reaction.
+     * Converts the prism into a metronome as a full Tick hold does, its
+     * combo the Tick's on_prism reaction.
      *
      * @param helper the gametest helper
      */
     private static void standMetronome(GameTestHelper helper) {
-        AbilityDefinition pulser = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(METRONOME));
-        helper.assertTrue(pulser != null && helper.getBlockEntity(PRISM, PrismBlockEntity.class)
-                .runCombo(GooTypes.PULSE, METRONOME, PrismCombos.comboSteps(pulser)), COMBO_TOOK);
+        AbilityDefinition tickAbility = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(METRONOME));
+        helper.assertTrue(tickAbility != null && helper.getBlockEntity(PRISM, PrismBlockEntity.class)
+                .runCombo(GooTypes.PULSE, METRONOME, PrismCombos.comboSteps(tickAbility)), COMBO_TOOK);
     }
 
     private static List<Integer> watchLamp(GameTestHelper helper, int from, int to) {

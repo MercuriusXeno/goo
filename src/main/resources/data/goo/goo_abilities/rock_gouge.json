@@ -1,0 +1,16 @@
+{
+  "gooType": "rock",
+  "displayName": "goo.ability.rock.gouge",
+  "cost_mechanics": "goo.ability.rock.gouge.cost_mechanics",
+  "badge": "channeled",
+  "order": 45,
+  "cost": 0,
+  "cost_formula": "%s",
+  "requires": ["minecraft:cobblestone", "minecraft:gravel"],
+  "delivery": { "kind": "self", "ticks_per_charge": 20 },
+  "behaviors": [
+    { "type": "gouge", "range": 12, "radius": 1.5, "near": 2.5, "far": 3.5, "throw_speed": 2.5, "cost": 1000 }
+  ],
+  "tags": ["self"],
+  "pose": "held_out"
+}

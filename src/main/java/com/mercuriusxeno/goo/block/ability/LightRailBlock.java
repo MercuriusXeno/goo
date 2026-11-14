@@ -21,7 +21,7 @@ import org.jspecify.annotations.NonNull;
  * One cell of the light rail between two linked reflector prisms: replaceable
  * so it counts as air for placement, shapeless and without collision, lit at
  * the level its network carries, and burning the undead that cross it with
- * a Sunbeam's radiant hit. The prisms' renderer draws the beam; the rail
+ * a Laser's radiant hit. The prisms' renderer draws the beam; the rail
  * itself draws nothing.
  * decision reflector-rails-carry-the-brightest-light
  */
@@ -31,7 +31,7 @@ public class LightRailBlock extends Block {
     public static final int BRIGHTEST = 15;
     /** The light the rail carries, its network's brightest. */
     public static final IntegerProperty LEVEL = IntegerProperty.create("level", 1, BRIGHTEST);
-    /** A Sunbeam's direct hit on the undead: 4 doubled (decision sunbeam-splits-at-the-prism-with-a-glisten). */
+    /** A Laser's direct hit on the undead: 4 doubled (decision sunbeam-splits-at-the-prism-with-a-glisten). */
     public static final float RADIANT_DAMAGE = 8f;
     /** Seconds an undead crossing a rail burns. */
     private static final int BURN_SECONDS = 1;
@@ -73,7 +73,7 @@ public class LightRailBlock extends Block {
     }
 
     /**
-     * Burns an undead crossing the rail with a Sunbeam's radiant hit, at most
+     * Burns an undead crossing the rail with a Laser's radiant hit, at most
      * once per its own hurt immunity.
      *
      * @param state   the rail's state

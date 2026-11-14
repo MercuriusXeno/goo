@@ -50,7 +50,7 @@ public final class MobEffectTests {
     private static final String CHARM_HOLDS_THROUGH_A_SAVE = "charm_holds_through_a_save";
     private static final String CHARM_BREAKS_ON_THE_CHARMERS_HIT = "charm_breaks_on_the_charmers_hit";
     private static final String ZONE_WARPS_THEN_EXILES = "zone_warps_then_exiles";
-    private static final String MOB_UNSTABLE = "mob_unstable_explode";
+    private static final String MOB_UNSTABLE = "mob_unstable_blast";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -103,7 +103,7 @@ public final class MobEffectTests {
     private static final String FLOAT_SHOULD_END_WITH_LEVITATION = "The zombie's float should end when its levitation does";
     private static final String FLOAT_SHOULD_CLEAR_WITH_LEVITATION = "Removing the levitation should clear the float";
     /** The gametests' own thrown blast, today's Blast before it was drag-sized, struck at a mob. */
-    private static final String ABILITY_UNSTABLE_EXPLODE = "goo:test_blast";
+    private static final String ABILITY_UNSTABLE_BLAST = "goo:test_blast";
     private static final String ABILITY_HEX_CHARM = "goo:hex_charm";
     private static final String ABILITY_ZOO_ALLURE = "goo:zoo_allure";
     private static final String ABILITY_ENDER_ZONE = "goo:ender_zone";
@@ -338,7 +338,7 @@ public final class MobEffectTests {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
         float before = mob.getHealth();
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_UNSTABLE_EXPLODE);
+            strike(helper, mob, ABILITY_UNSTABLE_BLAST);
             helper.assertTrue(mob.getHealth() < before, SHOULD_TAKE_DAMAGE);
             helper.assertBlockNotPresent(Blocks.DIRT, BLAST_DIRT_POS);
             helper.succeed();

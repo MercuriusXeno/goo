@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Draws a struck Terrakinesis hunk coming apart: each block, on its turn
+ * Draws a struck Gouge hunk coming apart: each block, on its turn
  * (HunkShatter), breaks into chunks of its own faces (BlockBreakup) that
  * crumble off its outside one by one in random order, each bursting into the
  * block's break particles as it goes, with the block's own break sound, so the

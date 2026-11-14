@@ -22,7 +22,7 @@ public record ReflectorStep(int every) implements Step {
 
     private static final String NAME = "reflector";
     private static final String FIELD_EVERY = "every";
-    /** Glow-yellow, the reflector's column: the color a bare prism warms toward as Sunbeam charges it. */
+    /** Glow-yellow, the reflector's column: the color a bare prism warms toward as Laser charges it. */
     static final int GLOW_YELLOW = 0xFFE628;
 
     /**
@@ -66,7 +66,7 @@ public record ReflectorStep(int every) implements Step {
     }
 
     /**
-     * prism-conversion-creeps-over-the-hold: a bare prism Sunbeam charges warms
+     * prism-conversion-creeps-over-the-hold: a bare prism Laser charges warms
      * toward the glow-yellow its reflector column wears.
      */
     @Override

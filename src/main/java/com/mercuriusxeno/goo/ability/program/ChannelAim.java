@@ -155,7 +155,7 @@ public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDe
     }
 
     /**
-     * Flatten's swath where the cursor is, in breaking order: the 3x3 in line
+     * Level's swath where the cursor is, in breaking order: the 3x3 in line
      * with the aimed block, from the layer touching the face out to 3 layers,
      * the outermost first, all on the side the face looks out to
      * (decision flatten-disc-cursor-breaks-above-the-plane).
@@ -168,7 +168,7 @@ public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDe
     }
 
     /**
-     * Flatten's swath where the cursor is, layer by layer: each layer's 3x3
+     * Level's swath where the cursor is, layer by layer: each layer's 3x3
      * ring in, from the layer 3 out from the face in to the layer touching it
      * (decision flatten-progresses-its-whole-swath-outermost-fastest).
      *
@@ -188,7 +188,7 @@ public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDe
 
     /**
      * A 3x3 slice square to an axis, ring in: the eight around the middle in
-     * turn, then the middle; Flatten lays each layer of its swath with it
+     * turn, then the middle; Level lays each layer of its swath with it
      * (decision flatten-disc-cursor-breaks-above-the-plane).
      *
      * @param middle the slice's middle

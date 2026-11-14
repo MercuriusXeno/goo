@@ -32,13 +32,13 @@ class BlastSizeTest {
     private static final float STONE = 6.0F;
 
     private static ExplodeStep blast() {
-        return AbilityJson.decode("unstable_explode").behaviors().stream()
+        return AbilityJson.decode("unstable_blast").behaviors().stream()
                 .filter(ExplodeStep.class::isInstance).map(ExplodeStep.class::cast).findFirst().orElseThrow();
     }
 
     @Test
     void blastIsDragSizedAndNeverThrownAtAnEntity() {
-        AbilityDefinition blast = AbilityJson.decode("unstable_explode");
+        AbilityDefinition blast = AbilityJson.decode("unstable_blast");
 
         assertTrue(blast.hasTag(AbilityTags.DRAG_SIZED));
         assertFalse(blast.hasTag(AbilityTags.ENTITY));

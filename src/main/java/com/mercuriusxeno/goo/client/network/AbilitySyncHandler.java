@@ -12,11 +12,11 @@ import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
-import com.mercuriusxeno.goo.ability.program.ExtenderStep;
+import com.mercuriusxeno.goo.ability.program.ExtendStep;
+import com.mercuriusxeno.goo.ability.program.GougeStep;
 import com.mercuriusxeno.goo.ability.program.OutsiderStep;
 import com.mercuriusxeno.goo.ability.program.SpireStep;
 import com.mercuriusxeno.goo.ability.program.Step;
-import com.mercuriusxeno.goo.ability.program.TerrakinesisStep;
 import com.mercuriusxeno.goo.client.ClientGooValues;
 import com.mercuriusxeno.goo.client.throwing.BlinkAim;
 import com.mercuriusxeno.goo.data.KnownItems;
@@ -620,7 +620,7 @@ public final class AbilitySyncHandler {
          * The short formula the petal and the panel read, its number filled
          * from the ability's own numbers so it stays true when one is tuned: a
          * Spire's cost, its price per block grown, live from the connection's
-         * goo values, a Terrakinesis's its fixed price a tear.
+         * goo values, a Gouge's its fixed price a tear.
          * dynamic-costs-keep-the-mb-quantity
          * spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
          *
@@ -634,7 +634,7 @@ public final class AbilitySyncHandler {
             if (pricedByWhatItLays()) {
                 return List.of(GooFormat.formatMixed(costPrice.exactIn(ClientGooValues::current)));
             }
-            return terrakinesis().map(step -> List.of(GooFormat.formatAmount(step.cost()))).orElse(List.of());
+            return gouge().map(step -> List.of(GooFormat.formatAmount(step.cost()))).orElse(List.of());
         }
 
         /**
@@ -671,8 +671,8 @@ public final class AbilitySyncHandler {
                     .findFirst();
         }
 
-        private Optional<TerrakinesisStep> terrakinesis() {
-            return behaviors.stream().filter(TerrakinesisStep.class::isInstance).map(TerrakinesisStep.class::cast)
+        private Optional<GougeStep> gouge() {
+            return behaviors.stream().filter(GougeStep.class::isInstance).map(GougeStep.class::cast)
                     .findFirst();
         }
 
@@ -707,13 +707,13 @@ public final class AbilitySyncHandler {
         }
 
         /**
-         * Whether the ability is the glove's Extender, whose own upkeep a standing Extender
+         * Whether the ability is the glove's Extend, whose own upkeep a standing Extend
          * never halves (decision extender-multiplies-the-next-self-duration).
          *
-         * @return true for an ability running the extender step
+         * @return true for an ability running the extend step
          */
         public boolean extendsOthers() {
-            return behaviors.stream().anyMatch(ExtenderStep.class::isInstance);
+            return behaviors.stream().anyMatch(ExtendStep.class::isInstance);
         }
 
         /**
@@ -864,16 +864,16 @@ public final class AbilitySyncHandler {
         }
 
         /**
-         * The price a step names for itself: Terrakinesis its fixed price a tear,
+         * The price a step names for itself: Gouge its fixed price a tear,
          * Outsider its entry; any other none.
          * decision outsider-cost-text-reads-the-new-mechanics
          *
          * @return the arguments, formatted
          */
         private List<String> stepPriceArguments() {
-            Optional<TerrakinesisStep> terrakinesis = terrakinesis();
-            if (terrakinesis.isPresent()) {
-                return List.of(GooFormat.formatAmount(terrakinesis.get().cost()));
+            Optional<GougeStep> gouge = gouge();
+            if (gouge.isPresent()) {
+                return List.of(GooFormat.formatAmount(gouge.get().cost()));
             }
             return outsider().map(step -> List.of(GooFormat.formatAmount(step.entryCost()))).orElse(List.of());
         }

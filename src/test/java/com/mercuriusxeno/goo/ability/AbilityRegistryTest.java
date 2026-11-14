@@ -120,12 +120,12 @@ class AbilityRegistryTest {
         }
     }
 
-    /** xeno-blob-mutates-the-struck: Mutate is removed, so xeno's fan holds Eldritch Sight alone. */
+    /** xeno-blob-mutates-the-struck: Mutate is removed, so xeno's fan holds Unveil alone. */
     @Test
-    void shippedXenoFanHoldsEldritchSightWithoutMutate() {
+    void shippedXenoFanHoldsUnveilWithoutMutate() {
         AbilityRegistry registry = registryOf(AbilityJson.files().stream().map(AbilityJson::decode));
 
-        assertEquals(List.of(AbilityJson.idOf("xeno_eldritch.json")),
+        assertEquals(List.of(AbilityJson.idOf("xeno_unveil.json")),
                 registry.getAbilitiesForType(GooTypes.XENO).stream().map(AbilityDefinition::id).toList());
     }
 

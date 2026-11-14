@@ -16,7 +16,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Fungal Shift's aim snaps to a fungus block within three degrees of the
+ * Transmit's aim snaps to a fungus block within three degrees of the
  * look and within the reach, nearest the look first, and to nothing wider
  * or farther (decision fungal-shift-blinks-to-the-aimed-fungus).
  */
@@ -55,16 +55,16 @@ class FungusAimTest {
     void aFungusWithinTheNearReachOfTheFeetCountsAndOnePastItDoesNot() {
         BlockPos twoEast = new BlockPos(2, 0, 0);
         BlockState mushroom = mock(BlockState.class);
-        when(mushroom.is(ShiftStep.FUNGUS)).thenReturn(true);
+        when(mushroom.is(TransmitStep.FUNGUS)).thenReturn(true);
         BlockState air = mock(BlockState.class);
         Level level = mock(Level.class);
         when(level.getBlockState(any(BlockPos.class))).thenAnswer(call ->
                 call.<BlockPos>getArgument(0).equals(twoEast) ? mushroom : air);
-        Entity shifter = mock(Entity.class);
-        when(shifter.position()).thenReturn(new Vec3(0.5, 0, 0.5));
-        when(shifter.blockPosition()).thenReturn(BlockPos.ZERO);
+        Entity caster = mock(Entity.class);
+        when(caster.position()).thenReturn(new Vec3(0.5, 0, 0.5));
+        when(caster.blockPosition()).thenReturn(BlockPos.ZERO);
 
-        assertEquals(List.of(true, false), List.of(FungusAim.standsNearFungus(level, shifter, 3),
-                FungusAim.standsNearFungus(level, shifter, 1)));
+        assertEquals(List.of(true, false), List.of(FungusAim.standsNearFungus(level, caster, 3),
+                FungusAim.standsNearFungus(level, caster, 1)));
     }
 }

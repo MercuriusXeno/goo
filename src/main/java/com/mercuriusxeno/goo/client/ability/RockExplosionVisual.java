@@ -24,7 +24,7 @@ import java.util.List;
  * vertex color carries progress in red and the disc-local position in green
  * and blue, since a core pipeline takes no per-draw uniforms.
  *
- * The same disc is Flatten's cursor while its hold runs, looping the dust's
+ * The same disc is Level's cursor while its hold runs, looping the dust's
  * early drift so it never thins out
  * (decision flatten-disc-cursor-breaks-above-the-plane).
  *
@@ -54,7 +54,7 @@ public final class RockExplosionVisual implements BurnoutVisual, HeldGhostVisual
     /** How far past the highest shaken face the cursor floats, so no shaken block pokes through it. */
     private static final double CURSOR_CLEARANCE = 0.01;
     /**
-     * How far Flatten's cursor sits from the cell's center along the face's
+     * How far Level's cursor sits from the cell's center along the face's
      * step: above every face the ground shake raises, so the translucent dust
      * lies over the shaking ground whole instead of showing through its seams
      * (decision flatten-plays-bores-ground-shake).
@@ -62,7 +62,7 @@ public final class RockExplosionVisual implements BurnoutVisual, HeldGhostVisual
     private static final float CURSOR_LIFT =
             (float) (GroundShake.highestFaceRise() + CURSOR_CLEARANCE) - CELL_HALF;
     private static final int DISC_SEGMENTS = 48;
-    /** The cursor disc's radius in blocks, a circle over Flatten's 3x3 area. */
+    /** The cursor disc's radius in blocks, a circle over Level's 3x3 area. */
     static final float CURSOR_RADIUS = 1.5f;
     /** The share of the explosion the cursor loops over, short of where the dust starts thinning. */
     static final float CURSOR_SPAN = 0.4f;
@@ -101,7 +101,7 @@ public final class RockExplosionVisual implements BurnoutVisual, HeldGhostVisual
     }
 
     /**
-     * Draws the dust disc as Flatten's cursor on the face the cursor rests on.
+     * Draws the dust disc as Level's cursor on the face the cursor rests on.
      *
      * @param frame the frame being drawn
      * @param cell  the cell in front of the aimed face
@@ -112,7 +112,7 @@ public final class RockExplosionVisual implements BurnoutVisual, HeldGhostVisual
     }
 
     /**
-     * How far above the aimed face Flatten's cursor disc floats.
+     * How far above the aimed face Level's cursor disc floats.
      *
      * @return the height in blocks
      */

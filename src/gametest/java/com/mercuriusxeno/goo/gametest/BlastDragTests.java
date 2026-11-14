@@ -41,7 +41,7 @@ public final class BlastDragTests {
     }
 
 
-    private static final Identifier BLAST = Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_explode");
+    private static final Identifier BLAST = Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_blast");
     private static final int FLOOR_SPAN = 16;
     private static final int FLOOR_TOP = 2;
     private static final int BAY_HEIGHT = 5;
@@ -55,7 +55,7 @@ public final class BlastDragTests {
     private static final double REFERENCE_RADIUS = DragSize.REFERENCE_RADIUS;
     /** Unstable enough for the reference cast. */
     private static final int AMPLE_UNSTABLE = 10000;
-    private static final String ABILITY_REQUIRED = "Ability registry must hold unstable_explode";
+    private static final String ABILITY_REQUIRED = "Ability registry must hold unstable_blast";
     private static final String PIN_STANDS = "The drag cast should break the pinned block";
 
     private BlastDragTests() {
