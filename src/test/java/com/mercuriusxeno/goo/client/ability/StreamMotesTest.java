@@ -2,7 +2,11 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.program.SimpleParticles;
 import com.mercuriusxeno.goo.client.particle.BlendPalette;
+import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.client.model.GloveSpecialRenderer;
+import com.mercuriusxeno.goo.client.particle.SporeParticle;
 import com.mercuriusxeno.goo.client.particle.SprayDripParticle;
+import com.mercuriusxeno.goo.network.GooStreamHandler;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mercuriusxeno.goo.network.KnifeRainSling;
@@ -15,6 +19,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.ParticleEngine;
+import net.minecraft.client.particle.SingleQuadParticle;
 import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.GameRenderer;
@@ -89,6 +94,12 @@ class StreamMotesTest {
     private static final double CONE_DEGREES = 16;
     /** How far a drawn drip's launch may stray from its share's: double rounding. */
     private static final double SAME_LAUNCH = 1e-9;
+    /** A sprint-jumping player's average speed, about 7.1 blocks a second, in blocks a tick. */
+    private static final double SPRINT_JUMPING = 0.355;
+    /** Where the first-person glove's goo draws off the eye: ahead, out to the right and down. */
+    private static final Vec3 GLOVE_OFF_THE_EYE = new Vec3(-0.35, -0.4, 0.6);
+    /** How far behind the glove a mote may draw before it reads as left behind: a mote quad's width. */
+    private static final double BEHIND_SLACK = 0.1;
     /** The least gap between two of a tick's drawn drips, past a drip quad's half-width. */
     private static final double DRIP_SPACING = 0.1;
     /** How far a drip's first drawn quad may stray from half its launch out of the blob: the quad's float precision. */
@@ -210,6 +221,61 @@ class StreamMotesTest {
         });
     }
 
+    @Test
+    void aSprintJumpingCastersSporeIsNeverDrawnBehindTheGlove() {
+        Caster caster = moving(new Vec3(0, 0, SPRINT_JUMPING));
+        double[] now = {0};
+        Minecraft minecraft = clientDrawing(new ArrayList<>(), caster, true, now);
+        List<SporeParticle> spores = makingSpores(minecraft);
+        try (MockedStatic<GloveSpecialRenderer> drawnGlove = mockStatic(GloveSpecialRenderer.class)) {
+            drawnGlove.when(GloveSpecialRenderer::getLastGooCenterCamRel).thenReturn(GLOVE_OFF_THE_EYE);
+            whileDrawing(minecraft, new ArrayList<>(), () -> {
+                StreamMotes.handle(sporeTick(caster), runningAtOnce());
+                assertTrue(!spores.isEmpty(), "the stream's tick should launch spores");
+                now[0] = FIRST_DRAWN;
+                assertNoneBehindTheGlove(spores, caster.eye().apply(now[0]).add(GLOVE_OFF_THE_EYE));
+                now[0] = FIRST_TICK;
+                spores.forEach(SporeParticle::tick);
+                assertNoneBehindTheGlove(spores, caster.eye().apply(now[0]).add(GLOVE_OFF_THE_EYE));
+            });
+        }
+    }
+
+    /** Asserts no spore a frame draws stands behind the glove along the caster's run, south. */
+    private static void assertNoneBehindTheGlove(List<SporeParticle> spores, Vec3 glove) {
+        for (SporeParticle spore : spores) {
+            if (quadsDrawn(spore) > 0) {
+                Vec3 drawn = drawnAt(spore, PARTIAL_TICK);
+                assertTrue(drawn.z >= glove.z - BEHIND_SLACK, "a spore should draw from the glove at " + glove
+                        + " or ahead of it, draws at " + drawn);
+            }
+        }
+    }
+
+    /** Hands the client's particle engine Mycosis's spores to make, collecting each it makes. */
+    private static List<SporeParticle> makingSpores(Minecraft minecraft) {
+        List<SporeParticle> spores = new ArrayList<>();
+        SpriteSet sprites = mock(SpriteSet.class);
+        when(sprites.get(anyInt(), anyInt())).thenReturn(mock(TextureAtlasSprite.class));
+        SporeParticle.Provider provider = new SporeParticle.Provider(sprites);
+        when(minecraft.particleEngine.createParticle(any(), anyDouble(), anyDouble(), anyDouble(), anyDouble(),
+                anyDouble(), anyDouble())).thenAnswer(call -> {
+                    SporeParticle spore = provider.createParticle(mock(SimpleParticleType.class), minecraft.level,
+                            call.getArgument(1), call.getArgument(2), call.getArgument(3), call.getArgument(4),
+                            call.getArgument(5), call.getArgument(6), RandomSource.create(2L));
+                    spores.add(spore);
+                    return spore;
+                });
+        return spores;
+    }
+
+    /** Mycosis's tick as the server sends it, its glove a tick behind, its spores sprayed to rest three blocks off. */
+    private static StreamMotesPayload sporeTick(Caster caster) {
+        return new StreamMotesPayload(CASTER, sourceOf(caster, -1), SPRAY_AXIS,
+                Identifier.fromNamespaceAndPath("goo", "spore"), 50, GooStreamHandler.restingSpeed(3),
+                Delivery.NO_THROW_SPEED, false);
+    }
+
     /** The stream's tick as the server sends it for a caster, its glove a tick before the tick reaches the client. */
     private static StreamMotesPayload sprayTick(Caster caster) {
         return new StreamMotesPayload(CASTER, sourceOf(caster, -1), SPRAY_AXIS,
@@ -310,6 +376,7 @@ class StreamMotesTest {
         when(level.getGameTime()).thenAnswer(call -> (long) Math.floor(now[0]));
         Player player = local ? mock(LocalPlayer.class) : mock(Player.class);
         when(level.getEntity(CASTER)).thenReturn(player);
+        when(player.getId()).thenReturn(CASTER);
         ItemStack glove = mock(ItemStack.class);
         when(glove.getItem()).thenReturn(mock(GooGloveItem.class));
         when(player.getMainHandItem()).thenReturn(glove);
@@ -374,7 +441,7 @@ class StreamMotesTest {
      * Where a frame at a partial tick draws a drip: the camera-relative quad
      * it hands the renderer, back in the world.
      */
-    private static Vec3 drawnAt(SprayDripParticle drip, float partialTick) {
+    private static Vec3 drawnAt(SingleQuadParticle drip, float partialTick) {
         QuadParticleRenderState frame = drawFrame(drip, partialTick);
         ArgumentCaptor<Float> x = ArgumentCaptor.forClass(Float.class);
         ArgumentCaptor<Float> y = ArgumentCaptor.forClass(Float.class);
@@ -386,14 +453,14 @@ class StreamMotesTest {
     }
 
     /** The quads a frame draws of a drip. */
-    private static int quadsDrawn(SprayDripParticle drip) {
+    private static int quadsDrawn(SingleQuadParticle drip) {
         QuadParticleRenderState frame = drawFrame(drip, PARTIAL_TICK);
         return (int) mockingDetails(frame).getInvocations().stream()
                 .filter(call -> call.getMethod().getName().equals("add")).count();
     }
 
     /** A frame at a partial tick that has drawn a drip, the camera at the world's origin. */
-    private static QuadParticleRenderState drawFrame(SprayDripParticle drip, float partialTick) {
+    private static QuadParticleRenderState drawFrame(SingleQuadParticle drip, float partialTick) {
         Camera camera = mock(Camera.class);
         when(camera.position()).thenReturn(Vec3.ZERO);
         when(camera.rotation()).thenReturn(new Quaternionf());

@@ -69,9 +69,13 @@ public final class SporeParticle extends GloveMote {
         this.alpha = START_ALPHA;
     }
 
-    /** Swings the mote with the glove over its opening ticks, then drifts and fades it out over its life. */
+    /**
+     * Leaves the glove where it stands on the first tick, swings with the
+     * glove over its opening ticks, then drifts and fades out over its life.
+     */
     @Override
     public void tick() {
+        leaveTheGlove();
         swingWithTheGlove();
         super.tick();
         this.alpha = START_ALPHA * (1f - (float) this.age / this.lifetime);
