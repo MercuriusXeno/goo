@@ -1,6 +1,6 @@
 {
   "gooType": "ender",
-  "displayName": "goo.ability.ender.shifter",
+  "displayName": "goo.ability.ender.elude",
   "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
   "badge": "durative",
   "order": 20,
@@ -8,8 +8,8 @@
   "requires": ["minecraft:chorus_fruit"],
   "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "shifter", "distance": 8 },
-    { "type": "ailment_overlay", "kind": "shifter", "duration": 40 },
+    { "type": "elude", "distance": 8 },
+    { "type": "ailment_overlay", "kind": "elude", "duration": 40 },
     { "type": "afterimage", "goo": "ender" },
     { "type": "sound", "id": "minecraft:entity.enderman.teleport", "at": "target", "source": "players", "volume": 1, "pitch": 0.8 }
   ],

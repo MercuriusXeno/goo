@@ -29,15 +29,15 @@ import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
- * Gametest for Pulser: a hold aimed at a lever flips it again and again for
+ * Gametest for Tick: a hold aimed at a lever flips it again and again for
  * as long as the hold runs, and one aimed at a plexer, a reactor or dust
  * powers it on and off again and again.
  * pulser-toggles-rapidly-while-held
  * tick-pulses-anything-a-signal-runs-while-held
  */
 @RegistersGameTests
-public final class PulserTests {
-    private static final String PULSER_FLIPS_REPEATEDLY = "pulser_flips_repeatedly";
+public final class TickTests {
+    private static final String TICK_FLIPS_REPEATEDLY = "tick_flips_repeatedly";
     private static final String TICK_ON_A_PLEXER_CRAFTS_REPEATEDLY = "tick_on_a_plexer_crafts_repeatedly";
     private static final String TICK_ON_A_REACTOR_TRIGGERS_IT_REPEATEDLY = "tick_on_a_reactor_triggers_it_repeatedly";
     private static final String TICK_PULSES_DUST_REPEATEDLY = "tick_pulses_dust_repeatedly";
@@ -48,15 +48,15 @@ public final class PulserTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, PULSER_FLIPS_REPEATEDLY, PulserTests::pulserFlipsRepeatedly);
-        GooTestFunctions.registerTest(registrar, TICK_ON_A_PLEXER_CRAFTS_REPEATEDLY, PulserTests::tickOnAPlexerCraftsRepeatedly);
+        GooTestFunctions.registerTest(registrar, TICK_FLIPS_REPEATEDLY, TickTests::tickFlipsRepeatedly);
+        GooTestFunctions.registerTest(registrar, TICK_ON_A_PLEXER_CRAFTS_REPEATEDLY, TickTests::tickOnAPlexerCraftsRepeatedly);
         GooTestFunctions.registerTest(registrar, TICK_ON_A_REACTOR_TRIGGERS_IT_REPEATEDLY,
-                PulserTests::tickOnAReactorTriggersItRepeatedly);
-        GooTestFunctions.registerTest(registrar, TICK_PULSES_DUST_REPEATEDLY, PulserTests::tickPulsesDustRepeatedly);
+                TickTests::tickOnAReactorTriggersItRepeatedly);
+        GooTestFunctions.registerTest(registrar, TICK_PULSES_DUST_REPEATEDLY, TickTests::tickPulsesDustRepeatedly);
     }
 
 
-    private static final Identifier PULSER = Identifier.parse("goo:pulse_pulser");
+    private static final Identifier TICK = Identifier.parse("goo:pulse_tick");
     private static final BlockPos STAND_POS = new BlockPos(1, 1, 3);
     /** Three blocks ahead of the player, a lever on a stone post at eye height. */
     private static final BlockPos LEVER = STAND_POS.east(3).above();
@@ -66,7 +66,7 @@ public final class PulserTests {
     private static final int HOLD_TICKS = 40;
     /** More than one flip: the lever flips again, not once, whatever the toggle's cadence. */
     private static final int REPEATED_FLIPS = 2;
-    private static final String ABILITY_REQUIRED = "Ability registry must hold pulse_pulser";
+    private static final String ABILITY_REQUIRED = "Ability registry must hold pulse_tick";
     private static final String FLIPS_SEVERAL = "The lever should flip again and again in the hold, flipped %d times";
     /** The fed plexer's goo pays for this many stones, more than a hold could craft. */
     private static final int PLEXER_CRAFTS = 16;
@@ -76,27 +76,27 @@ public final class PulserTests {
     private static final String TRIGGERS_SEVERAL = "A Tick hold on a reactor should change TRIGGERED several times, changed %d";
     private static final String DUST_SEVERAL = "A Tick hold on dust should power and unpower it several times, changed %d";
 
-    private PulserTests() {
+    private TickTests() {
     }
 
     /**
-     * A mock player holds Pulser at a lever for forty ticks: the lever flips
+     * A mock player holds Tick at a lever for forty ticks: the lever flips
      * again and again.
      *
      * @param helper the gametest helper
      */
-    public static void pulserFlipsRepeatedly(GameTestHelper helper) {
+    public static void tickFlipsRepeatedly(GameTestHelper helper) {
         holdAtTheLever(helper, held -> 1);
     }
 
     private static void holdAtTheLever(GameTestHelper helper, IntUnaryOperator streamTicksAt) {
-        ServerPlayer player = pulserAt(helper, LEVER);
-        watchFlips(helper, player, GooStreamPayload.unplaned(GooTypes.id(GooTypes.PULSE), PULSER.toString(),
+        ServerPlayer player = tickAt(helper, LEVER);
+        watchFlips(helper, player, GooStreamPayload.unplaned(GooTypes.id(GooTypes.PULSE), TICK.toString(),
                 player.getEyePosition(), player.getEyePosition()), LEVER, streamTicksAt);
     }
 
     /**
-     * A mock player holds Pulser at a fed plexer for forty ticks: the plexer
+     * A mock player holds Tick at a fed plexer for forty ticks: the plexer
      * crafts more than one stone in the hold.
      *
      * @param helper the gametest helper
@@ -114,7 +114,7 @@ public final class PulserTests {
     }
 
     /**
-     * A mock player holds Pulser at a reactor for forty ticks: the reactor's
+     * A mock player holds Tick at a reactor for forty ticks: the reactor's
      * TRIGGERED state turns on and off several times.
      *
      * @param helper the gametest helper
@@ -126,7 +126,7 @@ public final class PulserTests {
     }
 
     /**
-     * A mock player holds Pulser at dust on a stone post for forty ticks: the
+     * A mock player holds Tick at dust on a stone post for forty ticks: the
      * dust powers and unpowers several times.
      *
      * @param helper the gametest helper
@@ -138,11 +138,11 @@ public final class PulserTests {
     }
 
     private static ServerPlayer holdAt(GameTestHelper helper) {
-        AbilityDefinition pulser = AbilityRegistry.of(helper.getLevel()).getAbility(PULSER);
-        helper.assertTrue(pulser != null, ABILITY_REQUIRED);
-        ServerPlayer player = pulser(helper);
-        KnownRecipes.teachRequires(player, pulser);
-        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.PULSE), PULSER.toString(),
+        AbilityDefinition tickAbility = AbilityRegistry.of(helper.getLevel()).getAbility(TICK);
+        helper.assertTrue(tickAbility != null, ABILITY_REQUIRED);
+        ServerPlayer player = tickHolder(helper);
+        KnownRecipes.teachRequires(player, tickAbility);
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.PULSE), TICK.toString(),
                 player.getEyePosition(), player.getEyePosition());
         for (int held = 1; held <= HOLD_TICKS; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
@@ -170,13 +170,13 @@ public final class PulserTests {
         });
     }
 
-    private static ServerPlayer pulserAt(GameTestHelper helper, BlockPos lever) {
-        AbilityDefinition pulser = AbilityRegistry.of(helper.getLevel()).getAbility(PULSER);
-        helper.assertTrue(pulser != null, ABILITY_REQUIRED);
+    private static ServerPlayer tickAt(GameTestHelper helper, BlockPos lever) {
+        AbilityDefinition tickAbility = AbilityRegistry.of(helper.getLevel()).getAbility(TICK);
+        helper.assertTrue(tickAbility != null, ABILITY_REQUIRED);
         helper.setBlock(lever.below(), Blocks.STONE);
         helper.setBlock(lever, Blocks.LEVER.defaultBlockState().setValue(LeverBlock.FACE, AttachFace.FLOOR));
-        ServerPlayer player = pulser(helper);
-        KnownRecipes.teachRequires(player, pulser);
+        ServerPlayer player = tickHolder(helper);
+        KnownRecipes.teachRequires(player, tickAbility);
         return player;
     }
 
@@ -209,7 +209,7 @@ public final class PulserTests {
     }
 
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    private static ServerPlayer pulser(GameTestHelper helper) {
+    private static ServerPlayer tickHolder(GameTestHelper helper) {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STAND_POS));
         player.setPos(stand.x, stand.y, stand.z);

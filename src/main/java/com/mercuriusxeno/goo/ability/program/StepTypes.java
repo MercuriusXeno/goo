@@ -125,15 +125,15 @@ public final class StepTypes {
         register(LeafSteps.AGE.type());
         register(MetronomeStep.TYPE);
         register(RelayStep.TYPE);
-        register(ExtenderStep.TYPE);
+        register(ExtendStep.TYPE);
         register(LeafSteps.STUN.type());
         register(SignalWaveStep.TYPE);
-        register(PulserToggleStep.TYPE);
+        register(TickToggleStep.TYPE);
         register(GluttonyStep.TYPE);
         register(ReserveDrainStep.TYPE);
         register(FeedStep.TYPE);
         register(ZoneStep.TYPE);
-        register(ShifterStep.TYPE);
+        register(EludeStep.TYPE);
         register(ShriekStep.TYPE);
         register(SculkerStep.TYPE);
         register(LeaderStep.TYPE);
@@ -170,7 +170,7 @@ public final class StepTypes {
         register(LiftStep.TYPE);
         register(GrabStep.TYPE);
         register(GougeStep.TYPE);
-        register(TelekinesisStep.TYPE);
+        register(RemoteStep.TYPE);
     }
 
     private StepTypes() {

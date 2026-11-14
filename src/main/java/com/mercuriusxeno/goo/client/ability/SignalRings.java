@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.program.PulserToggleStep;
 import com.mercuriusxeno.goo.ability.program.SignalWaveStep;
+import com.mercuriusxeno.goo.ability.program.TickToggleStep;
 import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
@@ -30,7 +30,7 @@ import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * Pulser's ray and Zap's Signal wave. While right click holds Pulser,
+ * Tick's ray and Zap's Signal wave. While right click holds Tick,
  * concentric red square rings facing the aim leave the glove hand one after
  * another and travel out to the stream's range, each expanding as it flies
  * and fading as it expands, like a cartoon space ray sized to the stream's
@@ -106,7 +106,7 @@ public final class SignalRings {
     }
 
     /**
-     * Draws the rings after the translucent blocks while Pulser runs or a
+     * Draws the rings after the translucent blocks while Tick runs or a
      * Zap's wave flies.
      *
      * @param event the level render stage event
@@ -281,7 +281,7 @@ public final class SignalRings {
      * The pulse stream the local player's glove runs now.
      *
      * @param player the local player
-     * @return the selected ability while right click holds it and it is Pulser, otherwise null
+     * @return the selected ability while right click holds it and it is Tick, otherwise null
      */
     static @Nullable ClientAbility runningSignal(LocalPlayer player) {
         String abilityId = GloveAim.selectedAbilityId(player);
@@ -302,14 +302,14 @@ public final class SignalRings {
     }
 
     /**
-     * The shape a pulse stream's rings draw in: Pulser's squares, as its icon
+     * The shape a pulse stream's rings draw in: Tick's squares, as its icon
      * draws them (decision pulser-toggles-rapidly-while-held).
      *
      * @param ability the selected ability's synced copy
      * @return the shape, or null for an ability that draws no stream rings
      */
     static @Nullable RingShape shapeOf(ClientAbility ability) {
-        return ability.behaviors().stream().anyMatch(PulserToggleStep.class::isInstance) ? RingShape.SQUARE : null;
+        return ability.behaviors().stream().anyMatch(TickToggleStep.class::isInstance) ? RingShape.SQUARE : null;
     }
 
     /**
@@ -319,7 +319,7 @@ public final class SignalRings {
     enum RingShape {
         /** Zap's Signal wave's round rings. */
         CIRCLE(24, 1, 0),
-        /** Pulser's square rings, upright to the aim. */
+        /** Tick's square rings, upright to the aim. */
         SQUARE(4, Math.sqrt(2), 0.125);
 
         private final int segments;

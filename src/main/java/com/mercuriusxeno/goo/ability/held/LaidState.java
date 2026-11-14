@@ -3,7 +3,8 @@ package com.mercuriusxeno.goo.ability.held;
 import com.mercuriusxeno.goo.ability.program.AirbornStep;
 import com.mercuriusxeno.goo.ability.program.AncientStep;
 import com.mercuriusxeno.goo.ability.program.EldritchStep;
-import com.mercuriusxeno.goo.ability.program.ExtenderStep;
+import com.mercuriusxeno.goo.ability.program.EludeStep;
+import com.mercuriusxeno.goo.ability.program.ExtendStep;
 import com.mercuriusxeno.goo.ability.program.GluttonyStep;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
 import com.mercuriusxeno.goo.ability.program.LeaderStep;
@@ -11,11 +12,10 @@ import com.mercuriusxeno.goo.ability.program.LifetapStep;
 import com.mercuriusxeno.goo.ability.program.LowerCaseEnumCodec;
 import com.mercuriusxeno.goo.ability.program.LuxStep;
 import com.mercuriusxeno.goo.ability.program.PhaseStep;
+import com.mercuriusxeno.goo.ability.program.RemoteStep;
 import com.mercuriusxeno.goo.ability.program.SculkerStep;
-import com.mercuriusxeno.goo.ability.program.ShifterStep;
 import com.mercuriusxeno.goo.ability.program.SightStep;
 import com.mercuriusxeno.goo.ability.program.Step;
-import com.mercuriusxeno.goo.ability.program.TelekinesisStep;
 import com.mercuriusxeno.goo.ability.program.UndeadStep;
 import com.mojang.serialization.Codec;
 import io.netty.buffer.ByteBuf;
@@ -43,15 +43,15 @@ public enum LaidState {
     /** Counting as undead (decision undead-nether-hearts-burn-in-sunlight). */
     UNDEAD,
     /** Elude (decision elude-moves-you-to-a-random-safe-spot-on-mob-or-projectile-damage). */
-    SHIFTER,
-    /** The Extender's mark, laid by an extender step (decision extender-multiplies-the-next-self-duration). */
-    EXTENDER,
+    ELUDE,
+    /** The Extend's mark, laid by an extend step (decision extender-multiplies-the-next-self-duration). */
+    EXTEND,
     /** A lifetap (decision lifetap-trades-regen-for-leech). */
     LIFETAP,
     /** Float's flight (decision tailwind-and-airborn-merge-into-float). */
     AIRBORN,
-    /** Telekinesis's raised reach (decision telekinesis-enacts-at-extended-reach). */
-    TELEKINESIS,
+    /** Remote's raised reach (decision telekinesis-enacts-at-extended-reach). */
+    REMOTE,
     /** The eldritch state (decision eldritch-sight-reveals-the-out-of-phase). */
     ELDRITCH,
     /** Ancient's floor of half a heart and its aged overlay (decision ancient-makes-the-player-immortal). */
@@ -99,11 +99,11 @@ public enum LaidState {
             Map.entry(SightStep.class, SIGHT),
             Map.entry(LuxStep.class, LUX),
             Map.entry(UndeadStep.class, UNDEAD),
-            Map.entry(ShifterStep.class, SHIFTER),
-            Map.entry(ExtenderStep.class, EXTENDER),
+            Map.entry(EludeStep.class, ELUDE),
+            Map.entry(ExtendStep.class, EXTEND),
             Map.entry(LifetapStep.class, LIFETAP),
             Map.entry(AirbornStep.class, AIRBORN),
-            Map.entry(TelekinesisStep.class, TELEKINESIS),
+            Map.entry(RemoteStep.class, REMOTE),
             Map.entry(EldritchStep.class, ELDRITCH),
             Map.entry(AncientStep.class, ANCIENT),
             Map.entry(PhaseStep.class, PHASE),

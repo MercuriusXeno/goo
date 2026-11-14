@@ -47,7 +47,7 @@ public record HeldEffects(List<Held> held) {
 
     /** A player holding no effect. */
     public static final HeldEffects NONE = new HeldEffects(List.of());
-    /** An extender covers the other effects' upkeep on one tick of every this many. */
+    /** An Extend covers the other effects' upkeep on one tick of every this many. */
     private static final int COVERED_EVERY = 2;
 
     private static final String FIELD_HELD = "held";
@@ -167,14 +167,14 @@ public record HeldEffects(List<Held> held) {
         }
 
         /**
-         * Answers whether the effect is the Extender, whose paid upkeep covers
+         * Answers whether the effect is the Extend, whose paid upkeep covers
          * alternate ticks of every other held effect's
          * (decision extender-multiplies-the-next-self-duration).
          *
-         * @return true for the extender
+         * @return true for the Extend
          */
         public boolean extendsOthers() {
-            return lays.contains(LaidState.EXTENDER);
+            return lays.contains(LaidState.EXTEND);
         }
 
         private static Set<LaidState> laidSet(Collection<LaidState> laid) {
@@ -286,7 +286,7 @@ public record HeldEffects(List<Held> held) {
      * Advances the effects one tick: each effect started before now pays its
      * upkeep from what its goo type holds, effects sharing a type drawing in
      * the order they started, and an effect the inventory cannot pay ends. An
-     * extender pays first, and on the ticks its payment covers, every other
+     * Extend pays first, and on the ticks its payment covers, every other
      * effect stands without paying
      * (decision extender-multiplies-the-next-self-duration).
      *
@@ -312,12 +312,12 @@ public record HeldEffects(List<Held> held) {
             return new Ticked(this, List.of(), Map.of(), remainders);
         }
         TickPurse purse = new TickPurse(available, new HashMap<>(), new RemainderLedger(remainders), now);
-        Set<Held> paidExtenders = payExtenders(purse);
-        boolean covered = paidExtenders.stream().anyMatch(extender -> creditsThisTick(extender, now));
+        Set<Held> paidExtends = payExtends(purse);
+        boolean covered = paidExtends.stream().anyMatch(extend -> creditsThisTick(extend, now));
         List<Held> kept = new ArrayList<>();
         List<Held> ended = new ArrayList<>();
         for (Held standing : held) {
-            boolean stood = standing.extendsOthers() ? paidExtenders.contains(standing)
+            boolean stood = standing.extendsOthers() ? paidExtends.contains(standing)
                     : standsBeside(standing, covered, purse);
             (stood ? kept : ended).add(standing);
         }
@@ -327,12 +327,12 @@ public record HeldEffects(List<Held> held) {
 
 
     /**
-     * Answers whether an effect other than an extender stands through a
-     * tick: an effect stands unpaid on a tick an extender covers, and
+     * Answers whether an effect other than an Extend stands through a
+     * tick: an effect stands unpaid on a tick an Extend covers, and
      * pays as usual otherwise.
      *
      * @param standing the effect
-     * @param covered  whether an extender's payment covers this tick
+     * @param covered  whether an Extend's payment covers this tick
      * @param purse    what the tick pays from
      * @return true when the effect stands after the tick
      */
@@ -341,12 +341,12 @@ public record HeldEffects(List<Held> held) {
     }
 
     /**
-     * Draws each extender's upkeep ahead of the other effects'.
+     * Draws each Extend's upkeep ahead of the other effects'.
      *
      * @param purse what the tick pays from
-     * @return the extenders standing through the tick
+     * @return the Extends standing through the tick
      */
-    private Set<Held> payExtenders(TickPurse purse) {
+    private Set<Held> payExtends(TickPurse purse) {
         Set<Held> paid = new HashSet<>();
         for (Held standing : held) {
             if (standing.extendsOthers() && stands(standing, purse)) {
@@ -357,17 +357,17 @@ public record HeldEffects(List<Held> held) {
     }
 
     /**
-     * Answers whether a standing extender's payment this tick covers the
+     * Answers whether a standing Extend's payment this tick covers the
      * other effects' upkeep: every second tick it pays, so each other
      * effect pays its own goo on alternate ticks
      * (decision extender-multiplies-the-next-self-duration).
      *
-     * @param extender the extender, standing through the tick
+     * @param extend the Extend, standing through the tick
      * @param now      the game time
-     * @return true on a tick the extender's payment covers
+     * @return true on a tick the Extend's payment covers
      */
-    static boolean creditsThisTick(Held extender, long now) {
-        long since = now - extender.startedAt();
+    static boolean creditsThisTick(Held extend, long now) {
+        long since = now - extend.startedAt();
         return since > 0 && since % COVERED_EVERY == 0;
     }
 
@@ -408,7 +408,7 @@ public record HeldEffects(List<Held> held) {
     /**
      * How long each goo type's holdings keep its effects paid: the mB the
      * inventory holds of the type over the upkeep its effects draw a tick,
-     * which the effect list shows as the time left. While an extender stands,
+     * which the effect list shows as the time left. While an Extend stands,
      * every other effect pays on alternate ticks alone, so its upkeep counts
      * half and its time shows doubled
      * (decision extender-multiplies-the-next-self-duration).
@@ -425,7 +425,7 @@ public record HeldEffects(List<Held> held) {
 
     /**
      * The mB a tick each goo type's effects draw, the rate ticksLeft divides by: while an
-     * extender stands every other effect's upkeep counts half
+     * Extend stands every other effect's upkeep counts half
      * (decision extender-multiplies-the-next-self-duration).
      * time-counts-net-standing-upkeep
      *
@@ -445,7 +445,7 @@ public record HeldEffects(List<Held> held) {
     }
 
     /**
-     * Whether an extender stands, halving every other effect's upkeep.
+     * Whether an Extend stands, halving every other effect's upkeep.
      *
      * @return true while one stands
      */
@@ -454,7 +454,7 @@ public record HeldEffects(List<Held> held) {
     }
 
     /**
-     * The share of its upkeep an effect pays while an extender stands.
+     * The share of its upkeep an effect pays while an Extend stands.
      *
      * @return the divisor an extended upkeep counts under
      */

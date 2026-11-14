@@ -14,8 +14,8 @@ import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
 import com.mercuriusxeno.goo.ability.typhoon.Airborn;
 import com.mercuriusxeno.goo.ability.xeno.EldritchEvents;
-import com.mercuriusxeno.goo.ability.zone.Shifter;
-import com.mercuriusxeno.goo.ability.zone.ShifterEvents;
+import com.mercuriusxeno.goo.ability.zone.Elude;
+import com.mercuriusxeno.goo.ability.zone.EludeEvents;
 import com.mercuriusxeno.goo.ability.zoo.Leader;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooRemainders;
@@ -280,7 +280,7 @@ public final class HeldEffectsEvents {
 
     /**
      * Clears the states an ended effect laid on the player's senses and
-     * draws: its sight, its shifter, its Lux and its lifetap.
+     * draws: its sight, its Elude, its Lux and its lifetap.
      *
      * @param player the player
      * @param lays   the states the ended effect laid
@@ -294,16 +294,16 @@ public final class HeldEffectsEvents {
     }
 
     /**
-     * Clears the player state an ability's own step laid: shifter and Lux, then the rest.
+     * Clears the player state an ability's own step laid: Elude and Lux, then the rest.
      *
      * @param player the player
      * @param lays   the state the effect laid
      */
     private static void clearAbilityState(ServerPlayer player, Set<LaidState> lays) {
-        if (lays.contains(LaidState.SHIFTER)) {
+        if (lays.contains(LaidState.ELUDE)) {
             // elude-moves-you-to-a-random-safe-spot-on-mob-or-projectile-damage: Elude ends with its held effect
-            player.setData(GooAttachments.SHIFTER, Shifter.NONE);
-            ShifterEvents.clearShimmer(player);
+            player.setData(GooAttachments.ELUDE, Elude.NONE);
+            EludeEvents.clearShimmer(player);
         }
         if (lays.contains(LaidState.LUX)) {
             // lux-night-vision-without-particles: Lux and the night vision it kept up end with its held effect
@@ -314,7 +314,7 @@ public final class HeldEffectsEvents {
 
     /**
      * Clears the player state an ability's own step laid on the player's
-     * draws, reach and senses: a lifetap, Telekinesis's reach, the eldritch state, the dive.
+     * draws, reach and senses: a lifetap, Remote's reach, the eldritch state, the dive.
      *
      * @param player the player
      * @param lays   the state the effect laid
@@ -328,9 +328,9 @@ public final class HeldEffectsEvents {
             // phase-shares-a-plane-between-the-phased: the player steps back into phase with its held effect
             player.setData(GooAttachments.OUT_OF_PHASE, OutOfPhase.NONE);
         }
-        if (lays.contains(LaidState.TELEKINESIS)) {
+        if (lays.contains(LaidState.REMOTE)) {
             // telekinesis-enacts-at-extended-reach: the reach returns to its own with the held effect
-            Telekinesis.clear(player);
+            Remote.clear(player);
         }
         if (lays.contains(LaidState.ELDRITCH)) {
             // eldritch-sight-reveals-the-out-of-phase: the eldritch state ends with its held effect

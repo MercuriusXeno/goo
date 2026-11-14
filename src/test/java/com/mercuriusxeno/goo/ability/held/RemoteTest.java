@@ -13,12 +13,12 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import org.junit.jupiter.api.Test;
 
-/** Telekinesis lays its reach as an ADD_VALUE modifier on the player's block and entity interaction ranges. */
-class TelekinesisTest {
+/** Remote lays its reach as an ADD_VALUE modifier on the player's block and entity interaction ranges. */
+class RemoteTest {
 
     private static final double REACH = 8;
-    private static final Identifier BLOCK_REACH = Identifier.fromNamespaceAndPath(Goo.MODID, "telekinesis_block_reach");
-    private static final Identifier ENTITY_REACH = Identifier.fromNamespaceAndPath(Goo.MODID, "telekinesis_entity_reach");
+    private static final Identifier BLOCK_REACH = Identifier.fromNamespaceAndPath(Goo.MODID, "remote_block_reach");
+    private static final Identifier ENTITY_REACH = Identifier.fromNamespaceAndPath(Goo.MODID, "remote_entity_reach");
 
     private final AttributeInstance blockRange = new AttributeInstance(Attributes.BLOCK_INTERACTION_RANGE, range -> { });
     private final AttributeInstance entityRange = new AttributeInstance(Attributes.ENTITY_INTERACTION_RANGE, range -> { });
@@ -27,7 +27,7 @@ class TelekinesisTest {
         LivingEntity player = mock(LivingEntity.class);
         when(player.getAttribute(Attributes.BLOCK_INTERACTION_RANGE)).thenReturn(blockRange);
         when(player.getAttribute(Attributes.ENTITY_INTERACTION_RANGE)).thenReturn(entityRange);
-        Telekinesis.lay(player, REACH);
+        Remote.lay(player, REACH);
     }
 
     // decision telekinesis-enacts-at-extended-reach

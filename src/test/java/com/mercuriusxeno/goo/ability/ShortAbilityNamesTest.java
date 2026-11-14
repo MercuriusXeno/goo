@@ -49,10 +49,10 @@ class ShortAbilityNamesTest {
                 Arguments.of("goo.ability.glow.wisps", "Wisps"),
                 Arguments.of("goo.ability.xeno.eldritch", "Unveil"),
                 Arguments.of("goo.ability.jelly.heal", "Heal"),
-                Arguments.of("goo.ability.pulse.extender", "Extend"),
-                Arguments.of("goo.ability.pulse.pulser", "Tick"),
+                Arguments.of("goo.ability.pulse.extend", "Extend"),
+                Arguments.of("goo.ability.pulse.tick", "Tick"),
                 Arguments.of("goo.ability.quantum.phase_shift", "Shift"),
-                Arguments.of("goo.ability.kinetic.telekinesis", "Remote"),
+                Arguments.of("goo.ability.kinetic.remote", "Remote"),
                 Arguments.of("goo.ability.rock.gouge", "Gouge"),
                 Arguments.of("goo.ability.rock.level", "Level"),
                 Arguments.of("goo.ability.shroom.fungal_shift", "Transmit"));

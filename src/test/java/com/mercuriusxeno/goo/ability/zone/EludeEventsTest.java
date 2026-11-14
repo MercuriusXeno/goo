@@ -45,7 +45,7 @@ import java.util.stream.Stream;
  * shimmer clears the tick its held effect ends, so its fade starts at the end (decision
  * brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends).
  */
-class ShifterEventsTest {
+class EludeEventsTest {
 
     private static final int PLAYER_ID = 7;
     private static final int REFRESH_TICKS = 20;
@@ -82,35 +82,35 @@ class ShifterEventsTest {
         @Test
         void aMobsHit() {
             Mob zombie = mock(Mob.class);
-            assertTrue(ShifterEvents.escapes(hit(DamageTypes.MOB_ATTACK, zombie, zombie)));
+            assertTrue(EludeEvents.escapes(hit(DamageTypes.MOB_ATTACK, zombie, zombie)));
         }
 
         @Test
         void aMobsArrow() {
-            assertTrue(ShifterEvents.escapes(hit(DamageTypes.ARROW, mock(Mob.class), mock(Projectile.class))));
+            assertTrue(EludeEvents.escapes(hit(DamageTypes.ARROW, mock(Mob.class), mock(Projectile.class))));
         }
 
         @Test
         void anArrowNobodyShot() {
-            assertTrue(ShifterEvents.escapes(hit(DamageTypes.ARROW, null, mock(Projectile.class))));
+            assertTrue(EludeEvents.escapes(hit(DamageTypes.ARROW, null, mock(Projectile.class))));
         }
 
         @Test
         void aPlayersArrow() {
-            assertTrue(ShifterEvents.escapes(hit(DamageTypes.ARROW, mock(ServerPlayer.class),
+            assertTrue(EludeEvents.escapes(hit(DamageTypes.ARROW, mock(ServerPlayer.class),
                     mock(Projectile.class))));
         }
 
         @Test
         void notAPlayersFist() {
             ServerPlayer hitter = mock(ServerPlayer.class);
-            assertFalse(ShifterEvents.escapes(hit(DamageTypes.PLAYER_ATTACK, hitter, hitter)));
+            assertFalse(EludeEvents.escapes(hit(DamageTypes.PLAYER_ATTACK, hitter, hitter)));
         }
 
         @ParameterizedTest
         @MethodSource("environmentalKinds")
         void notTheWorldsHarm(ResourceKey<DamageType> kind) {
-            assertFalse(ShifterEvents.escapes(hit(kind, null, null)), kind::toString);
+            assertFalse(EludeEvents.escapes(hit(kind, null, null)), kind::toString);
         }
     }
 
@@ -124,11 +124,11 @@ class ShifterEventsTest {
         @Test
         void everySpotLiesWithinTheRadiusOnASafeColumn() {
             LongStream.range(0, 64).forEach(seed -> {
-                BlockPos spot = ShifterEvents.safeSpotNear(STOOD, RADIUS, RandomSource.create(seed),
+                BlockPos spot = EludeEvents.safeSpotNear(STOOD, RADIUS, RandomSource.create(seed),
                         SafeSpot::onTheFloor).orElseThrow();
                 assertTrue(onTheFloor(spot), spot::toString);
                 assertTrue(spot.distSqr(STOOD) <= RADIUS * RADIUS, spot::toString);
-                assertTrue(spot.distSqr(STOOD) >= ShifterEvents.MIN_ESCAPE * ShifterEvents.MIN_ESCAPE,
+                assertTrue(spot.distSqr(STOOD) >= EludeEvents.MIN_ESCAPE * EludeEvents.MIN_ESCAPE,
                         spot::toString);
             });
         }
@@ -136,7 +136,7 @@ class ShifterEventsTest {
         @Test
         void theSeededSpotIsNotTheLookDirectionPoint() {
             BlockPos lookPoint = STOOD.south(RADIUS);
-            BlockPos spot = ShifterEvents.safeSpotNear(STOOD, RADIUS, RandomSource.create(SEED),
+            BlockPos spot = EludeEvents.safeSpotNear(STOOD, RADIUS, RandomSource.create(SEED),
                     SafeSpot::onTheFloor).orElseThrow();
             assertNotEquals(lookPoint, spot);
         }
@@ -144,7 +144,7 @@ class ShifterEventsTest {
         @Test
         void seedsLandDifferentSpots() {
             Set<BlockPos> spots = new HashSet<>();
-            LongStream.range(0, 16).forEach(seed -> ShifterEvents.safeSpotNear(STOOD, RADIUS,
+            LongStream.range(0, 16).forEach(seed -> EludeEvents.safeSpotNear(STOOD, RADIUS,
                     RandomSource.create(seed), SafeSpot::onTheFloor).ifPresent(spots::add));
             assertTrue(spots.size() > 1, spots::toString);
         }
@@ -152,11 +152,11 @@ class ShifterEventsTest {
         @Test
         void noSafeSpotGivesUpAfterItsTries() {
             AtomicInteger tried = new AtomicInteger();
-            Optional<BlockPos> spot = ShifterEvents.safeSpotNear(STOOD, RADIUS, RandomSource.create(SEED),
+            Optional<BlockPos> spot = EludeEvents.safeSpotNear(STOOD, RADIUS, RandomSource.create(SEED),
                     candidate -> tried.incrementAndGet() < 0);
             assertEquals(Optional.empty(), spot);
             int columnHeights = 2 * RADIUS + 1;
-            assertTrue(tried.get() <= ShifterEvents.ESCAPE_TRIES * columnHeights, () -> "tried " + tried.get());
+            assertTrue(tried.get() <= EludeEvents.ESCAPE_TRIES * columnHeights, () -> "tried " + tried.get());
         }
     }
 
@@ -168,25 +168,25 @@ class ShifterEventsTest {
         @Test
         void theHeadingIsTheSeededDrawAcrossAFullTurn() {
             float expected = RandomSource.create(SEED).nextFloat() * 360f - 180f;
-            assertEquals(expected, ShifterEvents.randomHeading(RandomSource.create(SEED)));
+            assertEquals(expected, EludeEvents.randomHeading(RandomSource.create(SEED)));
         }
 
         @Test
         void aQuarterDrawFacesWest() {
             RandomSource random = mock(RandomSource.class);
             when(random.nextFloat()).thenReturn(0.25f);
-            assertEquals(-90f, ShifterEvents.randomHeading(random));
+            assertEquals(-90f, EludeEvents.randomHeading(random));
         }
 
         @Test
         void theBlinkTurnsThePlayerToTheHeadingRatherThanTheLook() {
             ServerLevel level = mock(ServerLevel.class);
             Vec3 feet = new Vec3(3.5, 64, -2.5);
-            float heading = ShifterEvents.randomHeading(RandomSource.create(SEED));
+            float heading = EludeEvents.randomHeading(RandomSource.create(SEED));
             when(player.position()).thenReturn(Vec3.atBottomCenterOf(STOOD));
             when(player.getYRot()).thenReturn(LOOK_YAW);
             try (MockedStatic<EntityVisuals> visuals = mockStatic(EntityVisuals.class)) {
-                ShifterEvents.blinkTo(level, player, feet, heading);
+                EludeEvents.blinkTo(level, player, feet, heading);
             }
             verify(player).teleportTo(level, feet.x, feet.y, feet.z, Set.of(), heading, 0f, true);
             assertNotEquals(LOOK_YAW, heading);
@@ -194,27 +194,27 @@ class ShifterEventsTest {
     }
 
     @Test
-    void endingTheShifterSendsTheShimmerClear() {
+    void endingTheEludeSendsTheShimmerClear() {
         try (MockedStatic<EntityVisuals> visuals = mockStatic(EntityVisuals.class)) {
-            ShifterEvents.clearShimmer(player);
+            EludeEvents.clearShimmer(player);
 
             visuals.verify(() -> EntityVisuals.sendToWatchers(player,
-                    new AilmentPayload(PLAYER_ID, AilmentKind.SHIFTER, 0)));
+                    new AilmentPayload(PLAYER_ID, AilmentKind.ELUDE, 0)));
         }
     }
 
     @Test
     void aRefreshTickSendsTheShimmerForItsFortyTicks() {
         try (MockedStatic<EntityVisuals> visuals = mockStatic(EntityVisuals.class)) {
-            ShifterEvents.keepShimmer(player, ShifterEvents.SHIMMER_REFRESH_TICKS);
+            EludeEvents.keepShimmer(player, EludeEvents.SHIMMER_REFRESH_TICKS);
 
             visuals.verify(() -> EntityVisuals.sendToWatchers(player,
-                    new AilmentPayload(PLAYER_ID, AilmentKind.SHIFTER, SHIMMER_TICKS)));
+                    new AilmentPayload(PLAYER_ID, AilmentKind.ELUDE, SHIMMER_TICKS)));
         }
     }
 
     @Test
     void theShimmerRefreshesEveryTwentyTicks() {
-        assertEquals(REFRESH_TICKS, ShifterEvents.SHIMMER_REFRESH_TICKS);
+        assertEquals(REFRESH_TICKS, EludeEvents.SHIMMER_REFRESH_TICKS);
     }
 }

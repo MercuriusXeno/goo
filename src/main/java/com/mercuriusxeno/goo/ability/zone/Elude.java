@@ -13,10 +13,10 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
  * @param distance  the radius each escape lands within
  * @param expiresAt the game time it fades at; zero when none stands
  */
-public record Shifter(float distance, long expiresAt) {
+public record Elude(float distance, long expiresAt) {
 
     /** No Elude. */
-    public static final Shifter NONE = new Shifter(0f, 0L);
+    public static final Elude NONE = new Elude(0f, 0L);
     /** The fade time of Elude held until its held effect ends. */
     public static final long NEVER_EXPIRES = Long.MAX_VALUE;
 
@@ -24,10 +24,10 @@ public record Shifter(float distance, long expiresAt) {
     private static final String FIELD_EXPIRES_AT = "expires_at";
 
     /** Saves the Elude with the player. */
-    public static final MapCodec<Shifter> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            Codec.FLOAT.fieldOf(FIELD_DISTANCE).forGetter(Shifter::distance),
-            Codec.LONG.fieldOf(FIELD_EXPIRES_AT).forGetter(Shifter::expiresAt)
-    ).apply(inst, Shifter::new));
+    public static final MapCodec<Elude> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
+            Codec.FLOAT.fieldOf(FIELD_DISTANCE).forGetter(Elude::distance),
+            Codec.LONG.fieldOf(FIELD_EXPIRES_AT).forGetter(Elude::expiresAt)
+    ).apply(inst, Elude::new));
 
     /**
      * Whether Elude stands at a game time.
@@ -46,7 +46,7 @@ public record Shifter(float distance, long expiresAt) {
      * @param castDistance the cast's escape radius
      * @return the Elude after the cast
      */
-    public Shifter hold(float castDistance) {
-        return new Shifter(castDistance, NEVER_EXPIRES);
+    public Elude hold(float castDistance) {
+        return new Elude(castDistance, NEVER_EXPIRES);
     }
 }

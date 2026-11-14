@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:telekinesis_hits_beyond_reach",
+  "function": "goo:tick_stream_converts_a_prism",
   "environment": "minecraft:default",
-  "structure": "goo:light_bay",
-  "max_ticks": 60,
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
   "setup_ticks": 0,
   "required": true
 }
