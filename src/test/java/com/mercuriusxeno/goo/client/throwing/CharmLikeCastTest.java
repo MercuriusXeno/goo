@@ -15,17 +15,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Covers the charm-like cast's press driven through the glove's input gate:
  * the right click takes the mob highlighted at the press and the release
- * sends that mob whatever the aim does after, once the wind-up is full, while
- * an early release, a left click, a press with no mob highlighted and a taken
- * mob that dies send nothing (decision
+ * sends that mob whatever the aim does after, however briefly right click was
+ * held, while a left click, a press with no mob highlighted and a taken mob
+ * that dies send nothing (decision
  * charm-like-abilities-lock-the-highlighted-mob-on-right-click).
  */
 class CharmLikeCastTest {
 
-    private static final int WIND_UP_TICKS = 20;
+    private static final int LONG_HOLD_TICKS = 20;
     private static final int TAKEN_MOB = 7;
     private static final int OTHER_MOB = 9;
-    private static final int PART_OF_THE_WIND_UP = 5;
+    private static final int SHORT_HOLD_TICKS = 5;
 
     /** The mob the frame highlights, moved by each test as the aim would move. */
     private OptionalInt highlighted = OptionalInt.of(TAKEN_MOB);
@@ -40,7 +40,7 @@ class CharmLikeCastTest {
 
         @Override
         public boolean sendThrow(int heldTicks) {
-            OptionalInt mob = cast.release(heldTicks, WIND_UP_TICKS);
+            OptionalInt mob = cast.release();
             mob.ifPresent(sent::add);
             return mob.isPresent();
         }
@@ -89,11 +89,11 @@ class CharmLikeCastTest {
         void holdsWhileTheAimMovesToAnotherMobToNoMobAndBehindAWall() {
             assertTrue(cast.press(gate));
             highlighted = OptionalInt.of(OTHER_MOB);
-            hold(PART_OF_THE_WIND_UP);
+            hold(SHORT_HOLD_TICKS);
             highlighted = OptionalInt.empty();
-            hold(PART_OF_THE_WIND_UP);
+            hold(SHORT_HOLD_TICKS);
             // a wall between the player and the taken mob: the frame highlights nothing, the mob still stands
-            hold(WIND_UP_TICKS);
+            hold(LONG_HOLD_TICKS);
             release();
             assertEquals(List.of(TAKEN_MOB), sent);
         }
@@ -103,27 +103,27 @@ class CharmLikeCastTest {
     class TheRelease {
 
         @Test
-        void aFullWindUpSendsTheTakenMobOnce() {
+        void aLongHoldSendsTheTakenMobOnce() {
             cast.press(gate);
-            hold(WIND_UP_TICKS);
+            hold(LONG_HOLD_TICKS);
             release();
             assertEquals(List.of(TAKEN_MOB), sent);
         }
 
         @Test
-        void aReleaseBeforeTheWindUpFillsSendsNothing() {
+        void aClickReleasedOnItsFirstTickSendsTheTakenMob() {
             cast.press(gate);
-            hold(WIND_UP_TICKS - 1);
+            hold(1);
             release();
-            assertTrue(sent.isEmpty());
+            assertEquals(List.of(TAKEN_MOB), sent);
         }
 
         @Test
         void aLeftClickSendsNothingAtTheCancelOrTheRelease() {
             cast.press(gate);
-            hold(PART_OF_THE_WIND_UP);
+            hold(SHORT_HOLD_TICKS);
             gate.cancelCharge(actions);
-            hold(WIND_UP_TICKS);
+            hold(LONG_HOLD_TICKS);
             release();
             assertTrue(sent.isEmpty());
         }
@@ -133,7 +133,7 @@ class CharmLikeCastTest {
             highlighted = OptionalInt.empty();
             assertFalse(cast.press(gate));
             assertFalse(gate.isArmed());
-            hold(WIND_UP_TICKS);
+            hold(LONG_HOLD_TICKS);
             release();
             assertTrue(sent.isEmpty());
         }
@@ -141,9 +141,9 @@ class CharmLikeCastTest {
         @Test
         void aTakenMobThatDiesCancelsTheCast() {
             cast.press(gate);
-            hold(PART_OF_THE_WIND_UP);
+            hold(SHORT_HOLD_TICKS);
             standing.remove(TAKEN_MOB);
-            hold(WIND_UP_TICKS);
+            hold(LONG_HOLD_TICKS);
             assertFalse(gate.isArmed());
             release();
             assertTrue(sent.isEmpty());

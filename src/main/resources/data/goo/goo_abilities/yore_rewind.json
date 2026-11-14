@@ -5,7 +5,7 @@
   "order": 20,
   "cost": 4000,
   "requires": ["minecraft:clock"],
-  "delivery": { "kind": "envelop", "charge": { "max_ticks": 20 } },
+  "delivery": { "kind": "envelop" },
   "behaviors": [
     {
       "type": "target",

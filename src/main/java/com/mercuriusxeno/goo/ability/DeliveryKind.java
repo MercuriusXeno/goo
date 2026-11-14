@@ -30,9 +30,9 @@ public enum DeliveryKind {
     SCAN,
     /**
      * The charm-like cast: the right click takes the mob highlighted at the
-     * press and keeps it through the wind-up the delivery's charge names,
-     * whatever the aim does after, and the release darts the blob straight
-     * to that mob at the delivery's speed, enveloping it as the program runs.
+     * press and keeps it whatever the aim does after, and the release, however
+     * brief the hold, darts the blob straight to that mob at the delivery's
+     * speed, enveloping it as the program runs.
      * decision charm-like-abilities-lock-the-highlighted-mob-on-right-click
      */
     ENVELOP;

@@ -96,7 +96,7 @@ class AbilityBadgeTest {
         boolean holds = definition.delivery().charges() || delivery.has(TICKS_PER_CHARGE_FIELD);
         return switch (definition.delivery().kind()) {
             case STREAM -> EnumSet.of(AbilityBadge.CHANNELED);
-            // charm-like-abilities-lock-the-highlighted-mob-on-right-click: its wind-up charges, yet it takes a mob
+            // charm-like-abilities-lock-the-highlighted-mob-on-right-click: a charm-like cast takes a mob
             case ENVELOP -> EnumSet.of(AbilityBadge.MOB);
             // self-effects-trickle-until-ended
             case SELF -> EnumSet.of(definition.upkeep().in(GooValueTable.EMPTY) > AbilityDefinition.NO_UPKEEP ? AbilityBadge.DURATIVE
