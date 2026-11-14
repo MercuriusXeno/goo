@@ -24,13 +24,23 @@ public interface DripLanding {
     Optional<BlockPos> cellFed(ChannelHost host, CoatRay.BlockStrike strike);
 
     /**
-     * Feeds a cell one strike's share of its coat, laying the coat, paid
-     * for, once full.
+     * Feeds a cell what one strike lays, paid for as it lands.
      *
      * @param host the caster's host
      * @param cell the cell a strike fed
      */
     void feed(ChannelHost host, BlockPos cell);
+
+    /**
+     * Whether the stream throws its drips faster the faster its caster
+     * moves, laying the same goo per block they cover.
+     * slick-resolves-faster-by-speed-over-unadjusted-speed
+     *
+     * @return true for a landing whose drips come faster with speed
+     */
+    default boolean throwsFasterBySpeed() {
+        return false;
+    }
 
     /**
      * The step a program's drips land through, the first where it carries several.

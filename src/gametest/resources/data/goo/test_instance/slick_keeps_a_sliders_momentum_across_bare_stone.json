@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:slick_keeps_a_sliders_momentum_across_bare_stone",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}
