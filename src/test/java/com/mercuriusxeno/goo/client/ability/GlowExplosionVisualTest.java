@@ -7,8 +7,11 @@ import java.util.List;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -26,6 +29,8 @@ class GlowExplosionVisualTest {
     private static final float BLOCK_CENTER = 0.5f;
     /** How far out along each axis a whole sphere reaches, as a share of its radius. */
     private static final float WHOLE_SPHERE_SHARE = 0.9f;
+    /** Half of a byte's full alpha. */
+    private static final int HALF_ALPHA = 0x80;
 
     @Test
     void domeRisesToItsReachFastThenSlow() {
@@ -71,6 +76,25 @@ class GlowExplosionVisualTest {
         assertTrue(vertices.stream().anyMatch(v -> v.x() < BLOCK_CENTER - reach), "nothing west of the cell");
         assertTrue(vertices.stream().anyMatch(v -> v.z() > BLOCK_CENTER + reach), "nothing south of the cell");
         assertTrue(vertices.stream().anyMatch(v -> v.z() < BLOCK_CENTER - reach), "nothing north of the cell");
+    }
+
+    /**
+     * Bulb's landing dome renders at half of full opacity at every point of
+     * its 20 ticks, as the operator's try asks
+     * (decision bulb-spheroid-draws-at-half-opacity).
+     */
+    @ParameterizedTest
+    @ValueSource(floats = {0f, 0.3f, 1f})
+    void domeRendersAtHalfOpacity(float progress) {
+        RecordingVertexConsumer consumer = new RecordingVertexConsumer();
+        MultiBufferSource.BufferSource buffers = mock(MultiBufferSource.BufferSource.class);
+        when(buffers.getBuffer(any())).thenReturn(consumer);
+        float gameTime = START + progress * GlowExplosionVisual.DURATION_TICKS;
+
+        GlowExplosionVisual.INSTANCE.render(burnout(), new BurnoutFrame(new PoseStack(), buffers, Vec3.ZERO, gameTime));
+
+        assertTrue(consumer.vertices().stream().allMatch(v -> Math.abs(ARGB.alpha(v.color()) - HALF_ALPHA) <= 1),
+                "the dome should render at alpha " + HALF_ALPHA);
     }
 
     @Test
