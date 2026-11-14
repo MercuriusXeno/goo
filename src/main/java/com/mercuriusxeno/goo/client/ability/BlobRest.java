@@ -12,6 +12,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
@@ -117,10 +118,20 @@ public final class BlobRest {
      * @return true for a centered selection, false with none or no synced copy
      */
     private static boolean selectsCentered(Player caster) {
+        ClientAbility ability = selectedAbility(caster);
+        return ability != null && ability.hasTag(AbilityTags.CENTERED);
+    }
+
+    /**
+     * The synced copy of the ability a caster's glove selects.
+     *
+     * @param caster the caster
+     * @return the ability, or null with no glove, no selection or no synced copy
+     */
+    static @Nullable ClientAbility selectedAbility(Player caster) {
         ItemStack main = caster.getMainHandItem();
         ItemStack glove = main.getItem() instanceof GooGloveItem ? main : caster.getOffhandItem();
         GloveSelection selection = glove.getItem() instanceof GooGloveItem ? GooGloveItem.getSelection(glove) : null;
-        ClientAbility ability = selection == null ? null : AbilitySyncHandler.findAbility(selection.abilityId());
-        return ability != null && ability.hasTag(AbilityTags.CENTERED);
+        return selection == null ? null : AbilitySyncHandler.findAbility(selection.abilityId());
     }
 }

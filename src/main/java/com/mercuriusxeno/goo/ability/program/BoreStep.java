@@ -41,17 +41,27 @@ import java.util.stream.Stream;
  * @param breaks      the block tag naming the blocks bore may break
  * @param pace        how fast the picked blocks progress toward broken, and how many times slower the blocks behind
  * @param pointRadius how far round the point the pick reaches, in blocks; 0 picks the aimed block alone
+ * @param drillLength how long the drawn drill runs from the blob to its point, in blocks
+ * @param drillAngle  how far off the sight line the drawn drill is held, in degrees
  * @param where       the filters an entity in the tunnel must pass to be struck
  * @param strike      the steps run on each struck entity; empty strikes nothing
  */
-public record BoreStep(TagKey<Block> breaks, BreakPace pace, double pointRadius,
-                       List<EntityFilter> where, List<Step> strike) implements Step {
+public record BoreStep(TagKey<Block> breaks, BreakPace pace, double pointRadius, double drillLength,
+                       double drillAngle, List<EntityFilter> where, List<Step> strike) implements Step {
 
     private static final String NAME = "bore";
     private static final String FIELD_BREAKS = "breaks";
     private static final String FIELD_WHERE = "where";
     private static final String FIELD_STRIKE = "strike";
     private static final String FIELD_POINT_RADIUS = "point_radius";
+    private static final String FIELD_DRILL_LENGTH = "drill_length";
+    private static final String FIELD_DRILL_ANGLE = "drill_angle";
+    /** The drill's length where the JSON names none, in blocks. */
+    public static final double DEFAULT_DRILL_LENGTH = 2;
+    /** The drill's angle off the sight line where the JSON names none, in degrees. */
+    public static final double DEFAULT_DRILL_ANGLE = 22.5;
+    /** The steepest the drill is held off the sight line, short of square to it. */
+    private static final double STEEPEST_ANGLE = 80;
     /** The widest the point's radius runs: half a block, so the point is never wider than a block. */
     private static final double WIDEST_RADIUS = 0.5;
     /** The distance between samples along the look, fine enough to visit every block it crosses. */
@@ -66,6 +76,11 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, double pointRadius,
             BreakPace.CODEC.forGetter(BoreStep::pace),
             Codec.doubleRange(0, WIDEST_RADIUS).optionalFieldOf(FIELD_POINT_RADIUS, 0.0)
                     .forGetter(BoreStep::pointRadius),
+            // bore-drill-is-two-blocks-held-at-an-angle-off-the-sight-line
+            Codec.doubleRange(0, Double.MAX_VALUE).optionalFieldOf(FIELD_DRILL_LENGTH, DEFAULT_DRILL_LENGTH)
+                    .forGetter(BoreStep::drillLength),
+            Codec.doubleRange(0, STEEPEST_ANGLE).optionalFieldOf(FIELD_DRILL_ANGLE, DEFAULT_DRILL_ANGLE)
+                    .forGetter(BoreStep::drillAngle),
             EntityFilter.CODEC.listOf().optionalFieldOf(FIELD_WHERE, List.of()).forGetter(BoreStep::where),
             Codec.lazyInitialized(() -> StepTypes.LIST_CODEC).optionalFieldOf(FIELD_STRIKE, List.of())
                     .forGetter(BoreStep::strike)
@@ -84,6 +99,20 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, double pointRadius,
      */
     public BoreStep(TagKey<Block> breaks, BreakPace pace) {
         this(breaks, pace, 0, List.of(), List.of());
+    }
+
+    /**
+     * A bore whose drill takes the default length and angle.
+     *
+     * @param breaks      the block tag naming the blocks bore may break
+     * @param pace        how fast the picked blocks progress toward broken
+     * @param pointRadius how far round the point the pick reaches, in blocks
+     * @param where       the filters an entity in the tunnel must pass to be struck
+     * @param strike      the steps run on each struck entity
+     */
+    public BoreStep(TagKey<Block> breaks, BreakPace pace, double pointRadius, List<EntityFilter> where,
+                    List<Step> strike) {
+        this(breaks, pace, pointRadius, DEFAULT_DRILL_LENGTH, DEFAULT_DRILL_ANGLE, where, strike);
     }
 
     /**

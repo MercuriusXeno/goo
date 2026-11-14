@@ -14,8 +14,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Bore's drawn drill extends from the lifted blob by the glove, in whichever
- * hand holds it, to its point: where the sight meets the first breakable
+ * Bore's drawn drill extends from Bore's blob, wherever it has eased to, to
+ * its point: where the sight meets the first breakable
  * block within reach, or the end of reach where it meets none. It narrows
  * from a wide mouth at the blob to the point radius Bore breaks with, never
  * wider than a block
@@ -36,9 +36,8 @@ class BoreDrillTest {
     private static final CameraEye.Sight SIGHT = new CameraEye.Sight(EYE, LOOK);
     /** Yaw 0 looks along +Z. */
     private static final float YAW = 0f;
-    /** Where the lifted blob stands by a glove in the right hand, and by one in the left: right is -X facing +Z. */
+    /** Where the lifted blob rests by a glove in the right hand: right is -X facing +Z. */
     private static final Vec3 RIGHT_HAND_BLOB = EYE.add(-0.4, -0.35, 0.6);
-    private static final Vec3 LEFT_HAND_BLOB = EYE.add(0.4, -0.35, 0.6);
     private static final int SAMPLES = 64;
     private static final Predicate<BlockPos> NOTHING = cell -> false;
 
@@ -46,19 +45,23 @@ class BoreDrillTest {
         return volume.apex().add(volume.axis().scale(volume.range()));
     }
 
+    /**
+     * The drill extends from the blob wherever it has eased to: its mouth at
+     * the blob's place and its far end at the point
+     * (decisions bore-blob-lifts-by-the-glove-and-the-drill-extends-from-that-hand,
+     * bore-blob-eases-to-place-the-drill-at-the-crosshair).
+     */
     @Nested
     class TheMouth {
 
         @Test
-        void itStandsAtTheBlobByAGloveInTheRightHand() {
+        void itStandsAtTheBlobsEasedPlaceAndItsFarEndAtThePoint() {
             Vec3 point = BoreDrill.pointOf(SIGHT, REACH, NOTHING.negate(), NOTHING);
-            assertEquals(RIGHT_HAND_BLOB, BoreDrill.volume(RIGHT_HAND_BLOB, point, YAW, POINT_RADIUS).apex());
-        }
-
-        @Test
-        void itStandsAtTheBlobByAGloveInTheLeftHand() {
-            Vec3 point = BoreDrill.pointOf(SIGHT, REACH, NOTHING.negate(), NOTHING);
-            assertEquals(LEFT_HAND_BLOB, BoreDrill.volume(LEFT_HAND_BLOB, point, YAW, POINT_RADIUS).apex());
+            Vec3 eased = BoreBlobPlace.placeFor(EYE, LOOK, point, RIGHT_HAND_BLOB, 2, 22.5);
+            ConeSections.Volume drill = BoreDrill.volume(eased, point, YAW, POINT_RADIUS);
+            assertTrue(eased.distanceTo(RIGHT_HAND_BLOB) > 0.5, "the place stands at the glove's rest");
+            assertEquals(eased, drill.apex());
+            assertEquals(0, farEndOf(drill).distanceTo(point), 1e-6);
         }
     }
 
