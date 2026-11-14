@@ -11,9 +11,8 @@ public enum HostKind {
     /**
      * The ability block block: a placed face, a tick driver, the
      * world around the block, the block position itself to write, the
-     * field-effect state a trap keeps while its budget lasts, the phase
-     * cursor of a phased step, and the goo a black hole consumes until it
-     * pops.
+     * field-effect state a trap keeps while its budget lasts, and the size
+     * a drag-sized cast was dragged to.
      */
     MARKER("marker block", MarkerHost.class, Set.of(HostVariables.SIZE)),
     /**

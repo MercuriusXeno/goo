@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.item;
 
+import com.mercuriusxeno.goo.network.EntityVisuals;
+import com.mercuriusxeno.goo.network.GooJoinPayload;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -420,7 +422,24 @@ public class GooItem extends Item implements IGooItemInteraction, GooCarrierItem
         if (result.discardIds().isEmpty()) {
             return;
         }
+        // decision combining-flecks-join-into-one-cuboid: tracking clients draw the absorb as cuboids joining
+        EntityVisuals.sendToWatchers(self, GooJoinPayload.of(self.getId(), self.position(), result, placed(touching)));
         applyAbsorb(self, selfStack, touching, result);
+    }
+
+    /**
+     * Projects item entities to absorb candidates beside where each stands.
+     *
+     * @param entities nearby same-type goo entities
+     * @return placed candidates in the same order
+     */
+    private static List<GooJoinPayload.Placed> placed(List<ItemEntity> entities) {
+        List<GooAbsorb.Candidate> candidates = toCandidates(entities);
+        List<GooJoinPayload.Placed> out = new ArrayList<>(entities.size());
+        for (int i = 0; i < entities.size(); i++) {
+            out.add(new GooJoinPayload.Placed(candidates.get(i), entities.get(i).position()));
+        }
+        return out;
     }
 
     /**

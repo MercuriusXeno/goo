@@ -49,7 +49,6 @@ public final class StepTypes {
         register(LeafSteps.WAIT.type());
         register(AwaitEntityStep.TYPE);
         register(WatchStep.TYPE);
-        register(BusterStep.TYPE);
         register(ExplodeStep.TYPE);
         register(DamageStep.TYPE);
         register(PotionStep.TYPE);
@@ -90,10 +89,6 @@ public final class StepTypes {
         register(SetStateStep.TYPE);
         register(FieldEffectStep.TYPE);
         register(LingerStep.TYPE);
-        register(PhasedStep.TYPE);
-        register(PullStep.TYPE);
-        register(LeafSteps.CONSUME_BLOCKS.type());
-        register(LeafSteps.DROP_SPHERE.type());
         register(CounterStep.TYPE);
         register(BranchStep.TYPE);
         register(LeafSteps.DISCARD.type());
@@ -161,8 +156,6 @@ public final class StepTypes {
         register(CharmStep.TYPE);
         register(PhaseStep.TYPE);
         register(PortalStep.TYPE);
-        register(QuantumSwapStep.TYPE);
-        register(QuantumLinkStep.TYPE);
         register(LeafSteps.ENCHANT_BOOK.type());
         register(FuseBooksStep.TYPE);
         register(SlimeTransmuteStep.TYPE);

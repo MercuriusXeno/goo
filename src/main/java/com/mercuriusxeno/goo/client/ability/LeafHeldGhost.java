@@ -51,7 +51,7 @@ public final class LeafHeldGhost implements HeldGhostVisual {
      */
     private static void emitHeld(PoseStack.Pose pose, VertexConsumer c, HeldGhost ghost, Direction face,
                                  float opacity, double nowSeconds) {
-        BurnoutGeometry.emitSphere(pose, c, ghost.domeRadius(), sphereColor(NetherDiscMesh.toByte(opacity)));
+        BurnoutGeometry.emitSphere(pose, c, ghost.domeRadius(), sphereColor(ColorBytes.toByte(opacity)));
     }
 
     /**
