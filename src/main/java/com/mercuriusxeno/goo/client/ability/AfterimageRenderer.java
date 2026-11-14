@@ -367,7 +367,8 @@ public final class AfterimageRenderer {
      */
     private static void fillMasks(MultiBufferSource.BufferSource buffers, BodyPoseCapture body,
             List<Afterimages.Pulse> pulses) {
-        List<ModelRay.CubeBox> cubes = ModelRay.cubesOf(body.body().root());
+        // diagnose-and-correct-the-floating-hat-brim-box: a part the skin leaves bare fills no box
+        List<ModelRay.CubeBox> cubes = EncasedBodies.drawnCubes(body.body());
         for (int channel = 0; channel < Math.min(CHANNELS, pulses.size()); channel++) {
             Afterimages.Pulse pulse = pulses.get(channel);
             RenderType mask = GooRenderTypes.GOO_RIPPLE_MASK_TYPES.get(channel);
