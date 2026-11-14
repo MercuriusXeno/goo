@@ -56,7 +56,7 @@ class BoreBlobPlaceTest {
             assertEquals(1, place.distanceTo(point), SLACK);
             assertEquals(1, point.distanceTo(tip), SLACK);
             assertEquals(1, tip.subtract(point).normalize().dot(point.subtract(place).normalize()), SLACK);
-            assertEquals(15, degreesOffTheLook(place, point), SLACK);
+            assertEquals(22.5, degreesOffTheLook(place, point), SLACK);
             assertTrue(offTheSight(place).dot(offTheSight(rest)) > 0, "the place stands off the rest's side");
             assertTrue(offTheSight(place).dot(UP) < 0, "the place stands no lower than the look");
         }
@@ -89,7 +89,7 @@ class BoreBlobPlaceTest {
         assertEquals(rest.subtract(EYE).dot(LOOK), place.subtract(EYE).dot(LOOK), SLACK);
         assertTrue(place.distanceTo(point) < 1, "the drill runs " + place.distanceTo(point) + " back");
         assertEquals(1, point.distanceTo(tip), SLACK);
-        assertEquals(15, degreesOffTheLook(place, tip), SLACK);
+        assertEquals(22.5, degreesOffTheLook(place, tip), SLACK);
     }
 
     @Nested
