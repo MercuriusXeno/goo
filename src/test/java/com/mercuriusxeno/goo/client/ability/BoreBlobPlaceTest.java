@@ -53,21 +53,21 @@ class BoreBlobPlaceTest {
             Vec3 rest = restFor(gloveRight);
             Vec3 place = BoreBlobPlace.placeFor(EYE, LOOK, point, rest, SHIPPED);
             Vec3 tip = BoreDrill.tipOf(place, point, SHIPPED);
-            assertEquals(1.5, place.distanceTo(point), SLACK);
-            assertEquals(0.5, point.distanceTo(tip), SLACK);
+            assertEquals(1, place.distanceTo(point), SLACK);
+            assertEquals(1, point.distanceTo(tip), SLACK);
             assertEquals(1, tip.subtract(point).normalize().dot(point.subtract(place).normalize()), SLACK);
-            assertEquals(22.5, degreesOffTheLook(place, point), SLACK);
+            assertEquals(15, degreesOffTheLook(place, point), SLACK);
             assertTrue(offTheSight(place).dot(offTheSight(rest)) > 0, "the place stands off the rest's side");
             assertTrue(offTheSight(place).dot(UP) < 0, "the place stands no lower than the look");
         }
 
         @Test
-        void theBlobStandsOneAndAHalfBackAndTheTipHalfABlockPastForAGloveInTheRightHand() {
+        void theBlobStandsOneBackAndTheTipOnePastForAGloveInTheRightHand() {
             assertHeldOnTheCrosshair(true);
         }
 
         @Test
-        void theBlobStandsOneAndAHalfBackAndTheTipHalfABlockPastForAGloveInTheLeftHand() {
+        void theBlobStandsOneBackAndTheTipOnePastForAGloveInTheLeftHand() {
             assertHeldOnTheCrosshair(false);
         }
 
@@ -87,9 +87,9 @@ class BoreBlobPlaceTest {
         Vec3 place = BoreBlobPlace.placeFor(EYE, LOOK, point, rest, SHIPPED);
         Vec3 tip = BoreDrill.tipOf(place, point, SHIPPED);
         assertEquals(rest.subtract(EYE).dot(LOOK), place.subtract(EYE).dot(LOOK), SLACK);
-        assertTrue(place.distanceTo(point) < 1.5, "the drill runs " + place.distanceTo(point) + " back");
-        assertEquals(0.5, point.distanceTo(tip), SLACK);
-        assertEquals(22.5, degreesOffTheLook(place, tip), SLACK);
+        assertTrue(place.distanceTo(point) < 1, "the drill runs " + place.distanceTo(point) + " back");
+        assertEquals(1, point.distanceTo(tip), SLACK);
+        assertEquals(15, degreesOffTheLook(place, tip), SLACK);
     }
 
     @Nested

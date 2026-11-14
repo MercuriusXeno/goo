@@ -29,7 +29,7 @@ import java.util.Set;
 public record BoreDrillShape(double width, double length, double angle, double pastLength) {
 
     /** rock_bore.json's drill, which a bore naming none takes. */
-    public static final BoreDrillShape SHIPPED = new BoreDrillShape(0.7, 2, 22.5, 0.5);
+    public static final BoreDrillShape SHIPPED = new BoreDrillShape(0.7, 2, 15, 1);
     /** The widest the drill runs: a block, so it is never wider than a block. */
     private static final double WIDEST = 1;
     /** The steepest the drill is held off the sight line, short of square to it. */

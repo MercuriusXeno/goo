@@ -67,12 +67,12 @@ class BoreContactSprayTest {
     }
 
     @Test
-    void aLongerPastLengthWidensTheSpread() {
+    void aShorterPastLengthNarrowsTheSpread() {
         List<Vec3> shipped = BoreContactSpray.spreadOf(BoreDrillShape.SHIPPED, LOOK_SOUTH, true);
-        BoreDrillShape longer = new BoreDrillShape(0.7, 2, 22.5, 1);
-        List<Vec3> wider = BoreContactSpray.spreadOf(longer, LOOK_SOUTH, true);
-        assertEquals(longer.longHalf(), widest(wider), SLACK);
-        assertTrue(widest(wider) > widest(shipped), "the spread reaches " + widest(wider));
+        BoreDrillShape shorter = new BoreDrillShape(0.7, 2, 15, 0.5);
+        List<Vec3> narrower = BoreContactSpray.spreadOf(shorter, LOOK_SOUTH, true);
+        assertEquals(shorter.longHalf(), widest(narrower), SLACK);
+        assertTrue(widest(narrower) < widest(shipped), "the spread reaches " + widest(narrower));
     }
 
     /** Each particle starts on the ellipse's rim, a little back toward the holder, and flies out from its place. */
