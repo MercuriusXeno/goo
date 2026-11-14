@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Floats a life mark over the head of every rallied or charmed mob in sight,
+ * Floats a life mark over the head of every rallied, charmed or downed mob in sight,
  * and every mob Heal or Drain touched lately or Kin senses: the charmed
  * heart or the rally fist leading the row on a marked mob, then its health
  * bar, for as long as the mark holds.
@@ -25,6 +25,7 @@ import java.util.Optional;
  * rally-and-charm-icons-sit-left-of-the-heart
  * rallied-and-charmed-mobs-always-show-their-health-bar
  * leader-shows-life-bars-while-it-stands
+ * downed-mob-shows-a-skull-and-its-negative-health
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class HeadMarks {
@@ -53,7 +54,7 @@ public final class HeadMarks {
         for (Entity entity : level.entitiesForRendering()) {
             if (entity instanceof LivingEntity living && !living.isInvisible()
                     && LifeMarkBillboard.showsLifeMark(living.getId(), tick, TouchedMobs.CLIENT, KinSense.CLIENT,
-                    headMarkOf(living).isPresent())) {
+                    headMarkOf(living).isPresent(), living.hasData(GooAttachments.DOWNED))) {
                 marked.add(living);
             }
         }
