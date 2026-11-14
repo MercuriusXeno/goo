@@ -33,9 +33,12 @@ class RallyShippedAssetsTest {
     private static final int CHANNEL = 0xFF;
     private static final double HALF = 0.5;
 
-    /** rally-is-a-mob-effect-on-one-target: a thrown mob ability at a flat cost, never a held area. */
+    /**
+     * rally-is-a-mob-effect-on-one-target: a mob ability at a flat cost, never a held area, cast at the one mob
+     * its press took (charm-like-abilities-lock-the-highlighted-mob-on-right-click).
+     */
     @Test
-    void rallyShipsAsAMobAbilityThrownAtOneTarget() {
+    void rallyShipsAsAMobAbilityCastAtOneTarget() {
         JsonObject rally = JsonParser.parseString(AbilityJson.read("zoo_rally")).getAsJsonObject();
 
         List<String> types = StreamSupport.stream(rally.getAsJsonArray("behaviors").spliterator(), false)
@@ -43,7 +46,7 @@ class RallyShippedAssetsTest {
                 .toList();
 
         assertEquals("mob", rally.get("badge").getAsString());
-        assertEquals("arc", rally.getAsJsonObject("delivery").get("kind").getAsString());
+        assertEquals("envelop", rally.getAsJsonObject("delivery").get("kind").getAsString());
         assertTrue(rally.get("cost").getAsInt() > 0, "cost " + rally.get("cost"));
         assertFalse(rally.has("upkeep"), "upkeep " + rally.get("upkeep"));
         assertEquals(List.of("target"), types);

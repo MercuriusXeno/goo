@@ -568,13 +568,16 @@ class AbilityLoaderTest {
             }
         }
 
-        /** decision rally-is-a-mob-effect-on-one-target */
+        /**
+         * decision rally-is-a-mob-effect-on-one-target
+         * decision charm-like-abilities-lock-the-highlighted-mob-on-right-click
+         */
         @Test
-        void shippedZooRallyThrowsAtOneMobForAFlatCost() {
+        void shippedZooRallyCastsAtOneMobForAFlatCost() {
             AbilityDefinition rally = AbilityJson.decode("zoo_rally");
 
             assertEquals(AbilityBadge.MOB, rally.badge());
-            assertEquals(DeliveryKind.ARC, rally.delivery().kind());
+            assertEquals(DeliveryKind.ENVELOP, rally.delivery().kind());
             assertTrue(rally.cost().in(GooValueTable.EMPTY) > 0, "cost " + rally.cost().in(GooValueTable.EMPTY));
             assertEquals(0, rally.upkeep().in(GooValueTable.EMPTY));
         }

@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:rally_darts_to_the_taken_mob_and_rallies_it",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 40,
+  "setup_ticks": 0,
+  "required": true
+}
