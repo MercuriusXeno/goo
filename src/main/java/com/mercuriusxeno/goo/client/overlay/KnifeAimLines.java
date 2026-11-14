@@ -63,7 +63,7 @@ final class KnifeAimLines {
      */
     static List<List<Vec3>> linesOf(Press press, Charge charge, Strike strike) {
         Vec3 root = KnifeRain.leavesFrom(press.eye(), press.yaw(), Vec3.directionFromRotation(press.pitch(),
-                press.yaw()), press.gloveRight(), press.heldTicks());
+                press.yaw()), press.gloveRight(), press.heldTicks(), 0);
         return velocitiesAt(press.yaw(), press.pitch(), charge, press.share(), press.seed()).stream()
                 .map(velocity -> flight(root, velocity, strike)).toList();
     }

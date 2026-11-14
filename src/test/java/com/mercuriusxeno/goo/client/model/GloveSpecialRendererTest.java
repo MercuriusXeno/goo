@@ -222,6 +222,10 @@ class GloveSpecialRendererTest {
         /** The hand turned as the wind-up begins and as it reaches its furthest across the chest. */
         private static final Quaternionf AT_THE_START = new Quaternionf().rotationXYZ(1.2f, 0.4f, -0.3f);
         private static final Quaternionf AT_THE_FURTHEST = new Quaternionf().rotationXYZ(0.9f, -0.5f, 0.35f);
+        /** A hand turned so the palm's own frame stands half a turn from the look's. */
+        private static final Quaternionf FACING_BACK = new Quaternionf().rotationY((float) Math.PI);
+        /** The furthest any turn stands from the nearest quarter-turn squaring of a cube: about 62.8 degrees. */
+        private static final double LEAST_SQUARING_TURN_DEGREES = 62.9;
 
         @ParameterizedTest
         @ValueSource(booleans = {true, false})
@@ -251,10 +255,36 @@ class GloveSpecialRendererTest {
                 for (Quaternionf handTurn : List.of(AT_THE_START, AT_THE_FURTHEST)) {
                     Quaternionf drawn = coreTurnDrawnAt(lifted, handTurn);
 
-                    assertNear(new Vector3f(0, 0, 1).rotate(facing), new Vector3f(0, 0, 1).rotate(drawn), "front");
-                    assertNear(new Vector3f(0, 1, 0).rotate(facing), new Vector3f(0, 1, 0).rotate(drawn), "top");
+                    for (Vector3f axis : List.of(new Vector3f(1, 0, 0), new Vector3f(0, 1, 0), new Vector3f(0, 0, 1))) {
+                        assertSquaredToTheLook(facing, new Vector3f(axis).rotate(drawn));
+                    }
                 }
             }
+        }
+
+        /** No spin: off the palm the blob turns no further than the least turn squaring a cube to the look. */
+        @Test
+        void risingOffThePalmTheBlobTurnsOnlyTheLeastWayOntoTheLook() {
+            GloveSpecialRenderer.GloveData lifted = new GloveSpecialRenderer.GloveData(null, GooTypes.CRYSTAL,
+                    0f, 1f, true, true);
+            List<Double> turns = new ArrayList<>();
+            for (Quaternionf handTurn : List.of(AT_THE_START, AT_THE_FURTHEST, FACING_BACK)) {
+                Quaternionf onThePalm;
+                Quaternionf risen;
+                try (SprayingClient client = SprayingClient.local(GooTypes.CRYSTAL);
+                     KnivesCharging knives = KnivesCharging.heldTo(0f);
+                     MockedStatic<GloveBodyModels> models = bodiless()) {
+                    knives.windUp(client, SPRAYED, SPRAYED);
+                    onThePalm = coreTurnDrawnAt(lifted, handTurn);
+                    knives.holdThrough(client, SPRAYED + 1, SPRAYED + PalmBlobHop.LIFT_TICKS);
+                    risen = coreTurnDrawnAt(lifted, handTurn);
+                }
+
+                double turned = Math.toDegrees(onThePalm.difference(risen, new Quaternionf()).angle());
+                turns.add(Math.min(turned, 360 - turned));
+            }
+            assertTrue(turns.stream().allMatch(turned -> turned <= LEAST_SQUARING_TURN_DEGREES), "rising off the "
+                    + "palm the blob should turn no further than the least squaring turn, turned " + turns + " degrees");
         }
 
         @Test
@@ -276,9 +306,13 @@ class GloveSpecialRendererTest {
             }
         }
 
-        private static void assertNear(Vector3f expected, Vector3f actual, String axis) {
-            assertTrue(expected.distance(actual) < 1e-4f, "the blob's " + axis + " should lie along " + expected
-                    + ", lay along " + actual);
+        /** Asserts an axis of the blob lies along one of the look's own axes, either way. */
+        private static void assertSquaredToTheLook(Quaternionf facing, Vector3f axis) {
+            float along = 0f;
+            for (Vector3f lookAxis : List.of(new Vector3f(1, 0, 0), new Vector3f(0, 1, 0), new Vector3f(0, 0, 1))) {
+                along = Math.max(along, Math.abs(lookAxis.rotate(facing).dot(axis)));
+            }
+            assertEquals(1f, along, 1e-4f, "the blob's axis " + axis + " should lie along one of the look's axes");
         }
     }
 

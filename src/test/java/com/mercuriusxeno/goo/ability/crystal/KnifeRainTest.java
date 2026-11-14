@@ -127,9 +127,26 @@ class KnifeRainTest {
         }
 
         @Test
+        void throughTheBackhandTheHandSweepsOutPastTheGloveSideHoldsThereAndComesBackSmoothly() {
+            float out = KnifeRain.BACKHAND_OUT_TICKS;
+            float held = out + KnifeRain.BACKHAND_HOLD_TICKS;
+            float back = held + KnifeRain.BACKHAND_RETURN_TICKS;
+
+            assertEquals(0.8f, KnifeRain.backhandAcross(0.8f, 0), 1e-6f, "the backhand starts where the wind-up got to");
+            assertTrue(KnifeRain.backhandAcross(0.8f, out) < 0f, "flung, the hand stands out past the glove side");
+            assertEquals(KnifeRain.backhandAcross(0.8f, out), KnifeRain.backhandAcross(0.8f, held), 1e-6f,
+                    "the hand holds flung");
+            assertEquals(0f, KnifeRain.backhandAcross(0.8f, back), 1e-6f, "the hand comes back to the glove side");
+            for (double ticks = 0; ticks < back; ticks += 0.25) {
+                float step = KnifeRain.backhandAcross(0.8f, ticks + 0.25) - KnifeRain.backhandAcross(0.8f, ticks);
+                assertTrue(Math.abs(step) < 0.3f, "the hand should move smoothly, stepped " + step + " at " + ticks);
+            }
+        }
+
+        @Test
         void theKnivesLeaveTheFloatPointAtTheHandsReachForTheTicksHeld() {
             assertEquals(0, KnifeRain.floatPoint(eye, yaw, look, true, KnifeRain.windUpAcross(18))
-                    .distanceTo(KnifeRain.leavesFrom(eye, yaw, look, true, 18)), 1e-9);
+                    .distanceTo(KnifeRain.leavesFrom(eye, yaw, look, true, 18, 0)), 1e-9);
         }
     }
 

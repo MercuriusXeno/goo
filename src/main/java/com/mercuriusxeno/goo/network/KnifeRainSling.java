@@ -83,8 +83,9 @@ public final class KnifeRainSling {
         FleckLaunches launches = GooServerState.of(player.level().getServer()).fleckLaunches();
         for (int index = 0; index < count; index++) {
             Vec3 velocity = velocities.get(index);
-            launches.enqueue(now + launchTicks[index],
-                    () -> launch(player, new Release(gooType, ability, gloveRight, heldTicks), velocity));
+            int sinceRelease = launchTicks[index];
+            launches.enqueue(now + sinceRelease,
+                    () -> launch(player, new Release(gooType, ability, gloveRight, heldTicks), velocity, sinceRelease));
         }
     }
 
@@ -146,17 +147,18 @@ public final class KnifeRainSling {
      * ability on the mob when it arrives, aimed from where the knife left.
      * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
      *
-     * @param player   the releasing player
-     * @param release  the release the knife belongs to
-     * @param velocity the knife's velocity leaving the blob
+     * @param player       the releasing player
+     * @param release      the release the knife belongs to
+     * @param velocity     the knife's velocity leaving the blob
+     * @param sinceRelease the ticks since the release this knife leaves at
      */
-    static void launch(ServerPlayer player, Release release, Vec3 velocity) {
+    static void launch(ServerPlayer player, Release release, Vec3 velocity, int sinceRelease) {
         if (player.isRemoved()) {
             return;
         }
         ServerLevel level = player.level();
         Vec3 start = KnifeRain.leavesFrom(player.getEyePosition(), player.getYRot(), player.getViewVector(1f),
-                release.gloveRight(), release.heldTicks());
+                release.gloveRight(), release.heldTicks(), sinceRelease);
         Flight flight = fly(player, start, velocity);
         EntityVisuals.sendToWatchers(player, new GlassKnifePayload(start, velocity, flight.ticks(), flight.end(),
                 flight.ending().ordinal()));

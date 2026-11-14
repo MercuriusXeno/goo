@@ -101,10 +101,9 @@ public final class LiftedPalmBlob {
      * @param lastStreamTick the game time of the caster's last stream tick that threw drips
      * @param sentGlove      the glove the server sent with that tick
      * @param floats         whether Knives' charge holds it, floating it ahead of the hand at its rest size
-     * @param across         how far across the chest the floating blob stands, as its last held tick set it
      */
     record Lift(long began, PalmBlobHop.Pose from, boolean hops, long lastStreamTick, Vec3 sentGlove,
-                boolean floats, float across) {
+                boolean floats) {
 
         /**
          * A lift from the palm as a spray begins.
@@ -114,20 +113,18 @@ public final class LiftedPalmBlob {
          * @return the lift
          */
         static Lift beginning(long gameTime, Vec3 sentGlove) {
-            return new Lift(gameTime, PalmBlobHop.Pose.ON_THE_PALM, true, gameTime, sentGlove, false, 0f);
+            return new Lift(gameTime, PalmBlobHop.Pose.ON_THE_PALM, true, gameTime, sentGlove, false);
         }
 
         /**
          * This lift held by Knives' charge, which floats the blob ahead of the
-         * hand until it settles home, where the hand's reach across the chest
-         * sets; once the holds stop it settles from where the last one left it.
+         * hand, following the hand, until it settles home.
          * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
          *
-         * @param reach how far across the chest the blob floats, 0 to 1
          * @return the lift, floating
          */
-        Lift floating(float reach) {
-            return new Lift(began, from, hops, lastStreamTick, sentGlove, true, reach);
+        Lift floating() {
+            return new Lift(began, from, hops, lastStreamTick, sentGlove, true);
         }
 
         /**
@@ -143,10 +140,10 @@ public final class LiftedPalmBlob {
          */
         Lift sprayedAt(long gameTime, Vec3 sentGlove) {
             if (runningAt(lastStreamTick, gameTime)) {
-                return new Lift(began, from, hops, gameTime, sentGlove, floats, across);
+                return new Lift(began, from, hops, gameTime, sentGlove, floats);
             }
             if (standsAt(gameTime)) {
-                return new Lift(gameTime, poseAt(gameTime), false, gameTime, sentGlove, floats, across);
+                return new Lift(gameTime, poseAt(gameTime), false, gameTime, sentGlove, floats);
             }
             return beginning(gameTime, sentGlove);
         }
@@ -228,12 +225,11 @@ public final class LiftedPalmBlob {
      * @param sentGlove   the glove the tick came with
      * @param chargeBegan the game time the caster's wind-up began
      * @param gameTime    the level's game time now
-     * @param across      how far across the chest the blob floats this tick, 0 to 1
      */
-    public static void floated(int casterId, Vec3 sentGlove, long chargeBegan, long gameTime, float across) {
+    public static void floated(int casterId, Vec3 sentGlove, long chargeBegan, long gameTime) {
         LIFTS.compute(casterId, (id, lift) -> (standsOffThePalm(lift, gameTime) ? lift
                 : Lift.beginning(Math.min(chargeBegan, gameTime), sentGlove))
-                .sprayedAt(gameTime, sentGlove).floating(across));
+                .sprayedAt(gameTime, sentGlove).floating());
     }
 
     /**
@@ -357,11 +353,13 @@ public final class LiftedPalmBlob {
      * @param casterId    the caster's entity id
      * @param lift        the caster's lift
      * @param partialTick the frame's partial tick
+     * @param now         the game time, with the frame's partial tick
      * @return the source, in the world
      */
-    private static Vec3 sourceOf(int casterId, Lift lift, float partialTick) {
-        // knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
-        return lift.floats() ? BlobRest.floatingOf(casterId, lift.sentGlove(), partialTick, lift.across())
+    private static Vec3 sourceOf(int casterId, Lift lift, float partialTick, double now) {
+        // knives-blob-floats-ahead-of-the-hand-and-spews-the-knives: the blob follows the hand, backhand and all
+        return lift.floats() ? BlobRest.floatingOf(casterId, lift.sentGlove(), partialTick,
+                KnivesCharge.acrossOf(casterId, now))
                 // centered-abilities-float-the-blob-below-the-crosshair: a centered ability rests on the center line
                 : BlobRest.of(casterId, lift.sentGlove(), partialTick);
     }
@@ -427,7 +425,7 @@ public final class LiftedPalmBlob {
         PalmBlobHop.Pose pose = lift.poseAt(now);
         Vec3 palm = palmOf(mc, caster, partialTick, KnivesCharge.acrossOf(casterId, now));
         return Optional.of(new Standing(caster, placeAt(pose, palm, upOf(caster, partialTick),
-                sourceOf(casterId, lift, partialTick)), drawnShapeAt(lift, pose, now), swellOf(caster, now)));
+                sourceOf(casterId, lift, partialTick, now)), drawnShapeAt(lift, pose, now), swellOf(caster, now)));
     }
 
     /**
@@ -552,7 +550,7 @@ public final class LiftedPalmBlob {
             return Optional.empty();
         }
         Camera camera = mc.gameRenderer.getMainCamera();
-        Vec3 source = sourceOf(mc.player.getId(), lift, partial).subtract(camera.position());
+        Vec3 source = sourceOf(mc.player.getId(), lift, partial, now).subtract(camera.position());
         PalmBlobHop.Pose pose = lift.poseAt(now);
         // knives-blob-floats-ahead-of-the-hand-and-spews-the-knives: facing forward with the look, not the hand
         Quaternionf facing = lift.floats() ? facingTheLook(camera.xRot(), camera.yRot()) : null;

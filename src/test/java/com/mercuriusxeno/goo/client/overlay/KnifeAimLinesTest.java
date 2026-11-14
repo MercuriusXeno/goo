@@ -96,18 +96,19 @@ class KnifeAimLinesTest {
         }
 
         @Test
-        void eachKnifeTheServerSlingsFromThePressSeedLeavesAlongItsLine() {
+        void eachLineRunsAlongItsKnifesVelocityAndTheFirstKnifeLeavesTheLinesRoot() {
             List<List<Vec3>> lines = KnifeAimLines.linesOf(press, KNIVES, OPEN_AIR);
-            Vec3 serverStart = KnifeRain.leavesFrom(EYE, YAW, look, true, HELD);
+            Vec3 firstKnifeStart = KnifeRain.leavesFrom(EYE, YAW, look, true, HELD, 0);
             List<Vec3> serverVelocities = KnifeRain.releaseVelocities(YAW, PITCH, KNIVES, 0.6f,
                     RandomSource.create(SEED));
 
             for (int index = 0; index < lines.size(); index++) {
                 List<Vec3> line = lines.get(index);
-                assertEquals(0, serverStart.distanceTo(line.get(0)), TOLERANCE, "knife " + index + "'s start");
                 assertEquals(0, serverVelocities.get(index).distanceTo(line.get(1).subtract(line.get(0))),
-                        TOLERANCE, "knife " + index + "'s direction");
+                        TOLERANCE, "line " + index + "'s direction");
             }
+            assertEquals(0, firstKnifeStart.distanceTo(lines.getFirst().getFirst()), TOLERANCE,
+                    "a knife leaving at the release's first tick should start at the lines' root");
         }
     }
 

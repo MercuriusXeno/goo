@@ -746,6 +746,27 @@ class LiftedPalmBlobTest {
         }
 
         @Test
+        void throughTheBackhandTheBlobTravelsWithTheHandOutPastTheGloveSide() {
+            try (SprayingClient client = SprayingClient.another(GooTypes.CRYSTAL);
+                 KnivesCharging knives = KnivesCharging.heldTo(1f)) {
+                knives.windUp(client, NOW, RELEASED - 1);
+                knives.release(client, RELEASED, RELEASED);
+                Vec3 atTheRelease = LiftedPalmBlob.blobOf(SprayingClient.CASTER, 0f).orElseThrow().place();
+                long flung = RELEASED + (long) KnifeRain.BACKHAND_OUT_TICKS;
+                knives.holdThrough(client, RELEASED + 1, flung);
+
+                Vec3 outThere = LiftedPalmBlob.blobOf(SprayingClient.CASTER, 0f).orElseThrow().place();
+
+                float from = AbilityPoses.posedAt(SprayingClient.CASTER).from();
+                assertTrue(atTheRelease.distanceTo(outThere) > 0.1, "the blob should travel out with the hand, from "
+                        + atTheRelease + " to " + outThere);
+                assertNear(floatPointAcross(KnifeRain.backhandAcross(from, KnifeRain.BACKHAND_OUT_TICKS)), outThere);
+                assertTrue(KnifeRain.backhandAcross(from, KnifeRain.BACKHAND_OUT_TICKS) < 0f, "flung, the hand "
+                        + "should stand out past the glove side");
+            }
+        }
+
+        @Test
         void afterTheReleaseTheBlobStaysUpThroughTheSweepThenSettlesFromTheFloatPointToThePalm() {
             try (SprayingClient client = SprayingClient.another(GooTypes.CRYSTAL);
                  KnivesCharging knives = KnivesCharging.heldTo(1f)) {
@@ -756,7 +777,7 @@ class LiftedPalmBlobTest {
                 assertTrue(LiftedPalmBlob.standsOff(SprayingClient.CASTER, SWEPT), "the lift should stand at the "
                         + "sweep's last tick");
                 Vec3 place = LiftedPalmBlob.blobOf(SprayingClient.CASTER, 0f).orElseThrow().place();
-                Vec3 floating = floatPointAcross(AbilityPoses.posedAt(SprayingClient.CASTER).from());
+                Vec3 floating = floatPointAcross(KnivesCharge.acrossOf(SprayingClient.CASTER, partWayDown));
                 Vec3 palm = KnivesCharge.handAt((Player)
                         Minecraft.getInstance().level.getEntity(SprayingClient.CASTER), true,
                         KnivesCharge.acrossOf(SprayingClient.CASTER, partWayDown), 0f);

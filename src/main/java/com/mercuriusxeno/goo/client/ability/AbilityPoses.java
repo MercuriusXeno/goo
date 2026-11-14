@@ -44,11 +44,11 @@ public final class AbilityPoses {
     /** Ticks the wind-up takes to ease the hand across the chest: Knives' full charge. */
     static final float WIND_UP_TICKS = KnifeRain.WIND_UP_TICKS;
     /** Ticks the fling takes to sweep the arm out. */
-    static final float FLING_OUT_TICKS = 3f;
+    static final float FLING_OUT_TICKS = KnifeRain.BACKHAND_OUT_TICKS;
     /** Ticks the arm holds flung out. */
-    static final float FLING_HOLD_TICKS = 3f;
+    static final float FLING_HOLD_TICKS = KnifeRain.BACKHAND_HOLD_TICKS;
     /** Ticks the arm takes to fall back to vanilla's pose after the fling. */
-    static final float FLING_RETURN_TICKS = 5f;
+    static final float FLING_RETURN_TICKS = KnifeRain.BACKHAND_RETURN_TICKS;
     /** The arm eased across the chest, the hand at chest height before the body: raised a little and turned in. */
     static final Angles WOUND = new Angles(-1.05f, -0.55f);
     /** The arm flung out to the glove side, a little above level. */
@@ -429,13 +429,13 @@ public final class AbilityPoses {
 
     /**
      * How far a pose has eased the glove hand across the chest an age into
-     * it: the wind-up's ease, then the backhand sweeping the hand back out
-     * to the glove side from wherever the wind-up got to.
+     * it: the wind-up's ease, then the backhand sweeping the hand from
+     * wherever the wind-up got to out past the glove side and back.
      * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives: the floating blob moves with the hand
      *
      * @param posed the pose, or null for none
      * @param age   ticks since it began
-     * @return the share across, 0 at the glove side to 1 at the wind-up's furthest
+     * @return the share across, 0 at the glove side to 1 at the wind-up's furthest, negative flung out past it
      */
     static float acrossAt(Posed posed, double age) {
         if (posed == null) {
@@ -443,7 +443,7 @@ public final class AbilityPoses {
         }
         return switch (posed.kind()) {
             case WIND_UP -> heldAt(posed, age).weight();
-            case FLING -> posed.from() * (1f - outShare(age));
+            case FLING -> KnifeRain.backhandAcross(posed.from(), age);
             default -> 0f;
         };
     }
