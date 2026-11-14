@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.zoo.Leader;
+import com.mercuriusxeno.goo.ability.zoo.Kin;
 import com.mercuriusxeno.goo.client.fade.Afterglow;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.client.Minecraft;
@@ -19,28 +19,28 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * The mobs Leader senses on its holder's client: every mob inside Leader's
+ * The mobs Kin senses on its holder's client: every mob inside Kin's
  * radius, hostile and passive alike, gathered each client tick from the
  * entities the level renders. A sensed mob appears glowing, so it is outlined
- * through walls, and the outline's strength stands whole while Leader stands.
+ * through walls, and the outline's strength stands whole while Kin stands.
  * leader-outlines-every-mob-through-walls
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
-public final class LeaderSense {
+public final class KinSense {
 
     /** The local player's sensed set, read by the outline stamp and the glowing mixin. */
-    public static final LeaderSense CLIENT = new LeaderSense();
+    public static final KinSense CLIENT = new KinSense();
 
     private final Set<Integer> sensed = new HashSet<>();
-    private final Afterglow<Leader> glow = new Afterglow<>();
-    private @Nullable Leader standing;
+    private final Afterglow<Kin> glow = new Afterglow<>();
+    private @Nullable Kin standing;
 
     /**
-     * Whether Leader senses an entity: a mob inside the radius.
+     * Whether Kin senses an entity: a mob inside the radius.
      *
      * @param entity the entity
-     * @param center the Leader holder's position
-     * @param radius Leader's radius
+     * @param center the Kin holder's position
+     * @param radius Kin's radius
      * @return true for a mob within the radius of the center
      */
     static boolean senses(Entity entity, Vec3 center, double radius) {
@@ -48,18 +48,18 @@ public final class LeaderSense {
     }
 
     /**
-     * Gathers the mobs Leader senses this tick. While Leader stands the set
-     * is gathered afresh; once it ends the last set stands where Leader left
+     * Gathers the mobs Kin senses this tick. While Kin stands the set
+     * is gathered afresh; once it ends the last set stands where Kin left
      * it until the fade is spent.
      * brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends
      *
-     * @param leader   the holder's Leader, NONE once it ended
+     * @param kin   the holder's Kin, NONE once it ended
      * @param entities the entities the level renders
      * @param center   the holder's position
      * @param time     the game time
      */
-    void sense(Leader leader, Iterable<? extends Entity> entities, Vec3 center, float time) {
-        standing = leader.stands() ? leader : null;
+    void sense(Kin kin, Iterable<? extends Entity> entities, Vec3 center, float time) {
+        standing = kin.stands() ? kin : null;
         float strength = strength(time);
         if (standing == null) {
             if (strength <= 0f) {
@@ -69,7 +69,7 @@ public final class LeaderSense {
         }
         sensed.clear();
         for (Entity entity : entities) {
-            if (senses(entity, center, leader.radius())) {
+            if (senses(entity, center, kin.radius())) {
                 sensed.add(entity.getId());
             }
         }
@@ -80,14 +80,14 @@ public final class LeaderSense {
      * brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends
      *
      * @param time the game time, partial tick included
-     * @return one while Leader stands, falling to zero over the second after it ends
+     * @return one while Kin stands, falling to zero over the second after it ends
      */
     public float strength(float time) {
         return glow.read(standing, time).map(Afterglow.Glow::strength).orElse(0f);
     }
 
     /**
-     * Whether a mob appears glowing because Leader senses it.
+     * Whether a mob appears glowing because Kin senses it.
      *
      * @param entityId the mob's id
      * @return true while the mob stands in the sensed set
@@ -97,7 +97,7 @@ public final class LeaderSense {
     }
 
     /**
-     * The ids of the mobs Leader senses.
+     * The ids of the mobs Kin senses.
      *
      * @return the sensed set, unmodifiable
      */
@@ -115,10 +115,10 @@ public final class LeaderSense {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null) {
-            CLIENT.sense(Leader.NONE, Set.of(), Vec3.ZERO, 0f);
+            CLIENT.sense(Kin.NONE, Set.of(), Vec3.ZERO, 0f);
             return;
         }
-        CLIENT.sense(player.getData(GooAttachments.LEADER), mc.level.entitiesForRendering(), player.position(),
+        CLIENT.sense(player.getData(GooAttachments.KIN), mc.level.entitiesForRendering(), player.position(),
                 mc.level.getGameTime());
     }
 }

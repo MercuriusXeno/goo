@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.ability.feed;
+package com.mercuriusxeno.goo.ability.nectar;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;

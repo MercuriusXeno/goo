@@ -85,7 +85,7 @@ class AfterimagesTest {
 
         /**
          * Inward, a silhouette starts grown out and faint, then closes onto the
-         * body on an ease-in as it brightens: void's Erase implodes
+         * body on an ease-in as it brightens: void's Cancel implodes
          * (decision void-blob-deletes-the-struck-mob).
          */
         @Test

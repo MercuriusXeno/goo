@@ -16,7 +16,7 @@ import com.mercuriusxeno.goo.ability.seal.Elude;
 import com.mercuriusxeno.goo.ability.seal.EludeEvents;
 import com.mercuriusxeno.goo.ability.typhoon.Airborn;
 import com.mercuriusxeno.goo.ability.xeno.EldritchEvents;
-import com.mercuriusxeno.goo.ability.zoo.Leader;
+import com.mercuriusxeno.goo.ability.zoo.Kin;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.data.GooValues;
@@ -262,7 +262,7 @@ public final class HeldEffectsEvents {
 
     /**
      * Clears the state an ended effect laid on how the player moves and on
-     * the mobs around it: its flight and its Leader.
+     * the mobs around it: its flight and its Kin.
      *
      * @param player the player
      * @param lays   the states the ended effect laid
@@ -272,9 +272,9 @@ public final class HeldEffectsEvents {
             // tailwind-and-airborn-merge-into-float: Float's flight ends with its held effect
             player.setData(GooAttachments.AIRBORN, Airborn.NONE);
         }
-        if (lays.contains(LaidState.LEADER)) {
-            // leader-is-zoos-brew-ability: Leader stops sensing and leading with its held effect
-            player.setData(GooAttachments.LEADER, Leader.NONE);
+        if (lays.contains(LaidState.KIN)) {
+            // leader-is-zoos-brew-ability: Kin stops sensing and leading with its held effect
+            player.setData(GooAttachments.KIN, Kin.NONE);
         }
     }
 

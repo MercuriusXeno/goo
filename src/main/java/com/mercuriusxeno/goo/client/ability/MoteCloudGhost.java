@@ -22,7 +22,7 @@ import java.util.SplittableRandom;
  * fuzzy outer shell, its own slow wander and wobble, its own size and
  * twinkle, with rings born at the aim point travelling outward to the same
  * reach. Shroom's cloud is mauve spores about Spore's reach; Jelly's is amber
- * crumbs about the reach Feed's laid feed draws mobs from.
+ * crumbs about the reach Nectar's laid nectar draws mobs from.
  * held-visual-ghosts-the-landing-in-two-passes
  * colonize-blob-grows-the-network
  * feed-blob-feeds-and-draws-mobs

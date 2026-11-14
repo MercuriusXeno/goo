@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.ability.feed;
+package com.mercuriusxeno.goo.ability.nectar;
 
 import net.minecraft.core.particles.ItemParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
@@ -11,7 +11,7 @@ import net.minecraft.world.item.Items;
 import org.jspecify.annotations.Nullable;
 
 /**
- * What Jelly's Feed does to an animal it reaches: it counts as the animal's
+ * What Jelly's Nectar does to an animal it reaches: it counts as the animal's
  * food, setting an adult ready to breed in love the normal way and growing a
  * baby one stage, to an adult; crumbs scatter and a heart rises either way.
  * A slime it reaches grows one size step instead.
@@ -37,8 +37,8 @@ public final class Feeding {
      * falls in love.
      *
      * @param animal the animal fed
-     * @param feeder the player whose feed it is, credited with the breeding, or null
-     * @return true when the feed did either
+     * @param feeder the player whose nectar it is, credited with the breeding, or null
+     * @return true when the nectar did either
      */
     public static boolean feed(Animal animal, @Nullable Player feeder) {
         if (animal.isBaby()) {
@@ -57,7 +57,7 @@ public final class Feeding {
      * the largest natural size.
      * slimes-grow-on-jelly-feed
      *
-     * @param size the slime's size before the feed
+     * @param size the slime's size before the nectar
      * @return its size after
      */
     static int grownSlimeSize(int size) {

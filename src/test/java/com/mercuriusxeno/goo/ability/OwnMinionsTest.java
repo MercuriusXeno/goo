@@ -64,7 +64,7 @@ class OwnMinionsTest {
     class ShippedHarmfulTags {
 
         @ParameterizedTest
-        @ValueSource(strings = {"metal_dart", "yore_expire", "void_erase", "ender_seal", "leaf_bio",
+        @ValueSource(strings = {"metal_dart", "yore_expire", "void_cancel", "ender_seal", "leaf_bio",
                 "leaf_vines", "typhoon_shulk", "zoo_spawn"})
         void aHarmfulMobAbilityCarriesTheTag(String name) {
             assertTrue(AbilityJson.decode(name).hasTag(AbilityTags.HARMFUL), name + " should carry the harmful tag");

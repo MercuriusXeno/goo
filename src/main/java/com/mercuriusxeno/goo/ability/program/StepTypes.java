@@ -131,12 +131,12 @@ public final class StepTypes {
         register(TickToggleStep.TYPE);
         register(GluttonyStep.TYPE);
         register(ReserveDrainStep.TYPE);
-        register(FeedStep.TYPE);
+        register(NectarStep.TYPE);
         register(SealStep.TYPE);
         register(EludeStep.TYPE);
         register(ShriekStep.TYPE);
         register(SculkerStep.TYPE);
-        register(LeaderStep.TYPE);
+        register(KinStep.TYPE);
         register(VibrateStep.TYPE);
         register(ScanVisualStep.TYPE);
         register(EndStep.TYPE);

@@ -193,8 +193,8 @@ class AbilityLoaderTest {
         }
 
         @Test
-        void voidShipsEraseHoleZoneAndVacuum() {
-            assertEquals(Set.of("void_erase", "void_hole", "void_zone", "void_vacuum"),
+        void voidShipsCancelHoleZoneAndVacuum() {
+            assertEquals(Set.of("void_cancel", "void_hole", "void_zone", "void_vacuum"),
                     shippedPathsOf(GooTypes.VOID));
         }
     }
@@ -582,7 +582,7 @@ class AbilityLoaderTest {
         /** decision leader-is-zoos-brew-ability */
         @Test
         void shippedZooLeaderHoldsOnAnUpkeep() {
-            AbilityDefinition leader = AbilityJson.decode("zoo_leader");
+            AbilityDefinition leader = AbilityJson.decode("zoo_kin");
 
             assertEquals(GooTypes.ZOO, leader.gooType());
             assertEquals(AbilityBadge.DURATIVE, leader.badge());
