@@ -94,6 +94,14 @@ public final class DripFlights {
     }
 
     /**
+     * @param caster the caster
+     * @return the drips the caster has in flight, in the order thrown
+     */
+    List<Flight> flyingFrom(UUID caster) {
+        return flights.stream().filter(flight -> flight.thrower().caster().equals(caster)).toList();
+    }
+
+    /**
      * @return true while any drip flies
      */
     public boolean hasPending() {
