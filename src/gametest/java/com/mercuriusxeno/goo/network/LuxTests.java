@@ -21,7 +21,7 @@ import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
- * Gametests for glow's Lux as a held effect through the glove: eaten, it
+ * Gametests for glow's Lux as a held effect through the glove: cast, it
  * stands and keeps night vision up without particles; invoked again, it
  * ends and takes the night vision with it; and its gaze picks the living
  * mob under the crosshair within 32 blocks in clear line (decisions
@@ -44,7 +44,7 @@ public final class LuxTests {
 
 
     private static final Identifier GLOW_LUX = Identifier.parse("goo:glow_lux");
-    private static final String SHOULD_HOLD = "Once the eat finishes the player should hold Lux";
+    private static final String SHOULD_HOLD = "Once it lands the player should hold Lux";
     private static final String SHOULD_SEE_IN_THE_DARK = "Lux should grant its endless night vision with no particles or card, granted %s";
     private static final String SHOULD_PICK = "Lux's gaze should pick the zombie in clear line within reach, picked %s";
     /** The player stands this far over the bay's top, looking straight up into open sky. */
@@ -57,7 +57,7 @@ public final class LuxTests {
     }
 
     /**
-     * A survival player eats Lux from the glove and the player ticks once:
+     * A survival player casts Lux from the glove and the player ticks once:
      * Lux is held and stands, and night vision stands without particles.
      *
      * @param helper the gametest helper

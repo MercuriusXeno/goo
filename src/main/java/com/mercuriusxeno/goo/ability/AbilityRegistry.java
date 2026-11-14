@@ -100,7 +100,7 @@ public final class AbilityRegistry {
      */
     public @Nullable AbilityDefinition durativeAbilityFor(ResourceKey<GooTypeDefinition> type) {
         return getAbilitiesForType(type).stream()
-                .filter(def -> SelfEatRoute.eats(def.delivery(), def.badge()))
+                .filter(def -> DurativeRoute.isDurative(def.delivery(), def.badge()))
                 .min(Comparator.comparingInt(AbilityDefinition::order))
                 .orElse(null);
     }

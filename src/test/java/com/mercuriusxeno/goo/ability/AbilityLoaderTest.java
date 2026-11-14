@@ -160,7 +160,7 @@ class AbilityLoaderTest {
             AbilityDefinition flight = AbilityJson.decode("typhoon_float");
 
             assertEquals("goo.ability.typhoon.float", flight.displayName());
-            assertTrue(SelfEatRoute.eats(flight.delivery(), flight.badge()), "typhoon_float is not a durative");
+            assertTrue(DurativeRoute.isDurative(flight.delivery(), flight.badge()), "typhoon_float is not a durative");
             assertTrue(flight.behaviors().stream().anyMatch(AirbornStep.class::isInstance), "no airborn step");
             assertTrue(LaidState.laidBy(flight.behaviors()).contains(LaidState.AIRBORN),
                     "Float lays no flight to end with its held effect");
@@ -257,7 +257,7 @@ class AbilityLoaderTest {
         Map<Identifier, AbilityDefinition> scanned = shippedById();
 
         for (AbilityDefinition ability : scanned.values()) {
-            if (SelfEatRoute.eats(ability.delivery(), ability.badge())) {
+            if (DurativeRoute.isDurative(ability.delivery(), ability.badge())) {
                 assertEquals(0, ability.cost().in(GooValueTable.EMPTY), ability.id().toString());
                 assertTrue(ability.upkeep().in(GooValueTable.EMPTY) >= 1, ability.id().toString());
             } else {
@@ -343,7 +343,7 @@ class AbilityLoaderTest {
     /** Every shipped durative ability (decision tests-read-the-inventory-from-loaded-json). */
     static Stream<AbilityDefinition> shippedBrews() {
         return AbilityJson.files().stream().map(AbilityJson::decode)
-                .filter(ability -> SelfEatRoute.eats(ability.delivery(), ability.badge()));
+                .filter(ability -> DurativeRoute.isDurative(ability.delivery(), ability.badge()));
     }
 
     /**
@@ -562,7 +562,7 @@ class AbilityLoaderTest {
 
             for (ResourceKey<GooTypeDefinition> type : carriers) {
                 long brews = shipped.values().stream()
-                        .filter(def -> def.gooType() == type && SelfEatRoute.eats(def.delivery(), def.badge()))
+                        .filter(def -> def.gooType() == type && DurativeRoute.isDurative(def.delivery(), def.badge()))
                         .count();
                 assertEquals(1, brews, type.identifier().toString());
             }
@@ -588,7 +588,7 @@ class AbilityLoaderTest {
             assertEquals(AbilityBadge.DURATIVE, leader.badge());
             assertEquals(DeliveryKind.SELF, leader.delivery().kind());
             assertTrue(leader.upkeep().in(GooValueTable.EMPTY) > 0, "upkeep " + leader.upkeep().in(GooValueTable.EMPTY));
-            assertTrue(SelfEatRoute.eats(leader.delivery(), leader.badge()));
+            assertTrue(DurativeRoute.isDurative(leader.delivery(), leader.badge()));
         }
     }
 

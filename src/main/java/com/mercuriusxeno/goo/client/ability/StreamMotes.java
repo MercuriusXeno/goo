@@ -74,7 +74,7 @@ public final class StreamMotes {
         }
         if (threwDrips) {
             // palm-blob-lifts-as-the-spray-source: a tick throwing drips keeps the caster's spray running
-            LiftedPalmBlob.sprayed(payload.casterId(), payload.apex(), mc.level.getGameTime());
+            LiftedPalmBlob.held(payload.casterId(), payload.apex(), mc.level.getGameTime());
         }
     }
 
@@ -133,12 +133,15 @@ public final class StreamMotes {
      */
     private static void launchMote(Minecraft mc, StreamMotesPayload payload, SimpleParticleType particle,
                                    CoatRay.ConeShare share) {
-        Vec3 apex = payload.apex();
+        // every-ability-casts-from-the-lifted-palm-blob: Rewind's and Mycosis' motes leave the lifted blob
+        Vec3 apex = CastOrigin.of(payload.casterId(), payload.apex(), 0f);
         Vec3 launch = GooStreamHandler.moteLaunch(payload, share);
         Particle mote = mc.particleEngine.createParticle(particle, apex.x, apex.y, apex.z, launch.x, launch.y,
                 launch.z);
         if (mote instanceof GloveMote gloveMote) {
-            gloveMote.leaveFrom(() -> CasterPoses.gloveOf(payload.casterId(), apex));
+            // every-ability-casts-from-the-lifted-palm-blob: the mote leaves the lifted blob where it stands then
+            gloveMote.leaveFrom(() -> CastOrigin.of(payload.casterId(),
+                    CasterPoses.gloveOf(payload.casterId(), payload.apex()), 0f));
             gloveMote.swingWith(new GloveSwing.Tracker(payload.casterId(), CasterPoses::poseOf));
         }
     }

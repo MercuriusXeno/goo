@@ -139,7 +139,7 @@ public final class UndeadTests {
     }
 
     /**
-     * A player eats Undead holding nether for exactly three ticks of upkeep:
+     * A player casts Undead holding nether for exactly three ticks of upkeep:
      * Undead stands through the third tick, and on the fourth the held effect
      * ends, the nether hearts clear and the player is undead no longer.
      *
@@ -190,7 +190,7 @@ public final class UndeadTests {
     }
 
     /**
-     * A survival player who has eaten Undead through the glove, standing at a cell.
+     * A survival player who has cast Undead through the glove, standing at a cell.
      *
      * @param helper the gametest helper
      * @param pos    the cell, relative
@@ -203,7 +203,7 @@ public final class UndeadTests {
         player.setPos(stand.x, stand.y, stand.z);
         // a fed player regenerates, which would heal the sun's burn back before the test reads it
         player.getFoodData().setFoodLevel(UNFED_FOOD);
-        // the eat runs where the mock player spawns, under open sky, where the sun may already have burned it
+        // the cast runs where the mock player spawns, under open sky, where the sun may already have burned it
         player.setHealth(player.getMaxHealth());
         return player;
     }

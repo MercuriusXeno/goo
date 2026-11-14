@@ -121,6 +121,8 @@ public final class GooStreamHandler {
             return;
         }
         runHeldTick(player, payload, gooType, ability, held);
+        // every-ability-casts-from-the-lifted-palm-blob: each held tick the server runs keeps the blob lifted
+        PalmBlobChargePayload.sendLift(player);
         // mycosis-spore-stream-buds-and-poisons
         ability.delivery().sound().filter(sound -> sound.playsOn(held))
                 .ifPresent(sound -> playStreamSound(player, sound));

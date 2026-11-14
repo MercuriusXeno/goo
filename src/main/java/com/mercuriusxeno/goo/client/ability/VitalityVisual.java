@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.particle.VitalMoteParticle;
-import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.client.Minecraft;
@@ -224,19 +223,21 @@ public final class VitalityVisual {
     }
 
     /**
-     * Where the caster's glove stands: the local player's glove as drawn this
-     * frame, or the glove hand another caster's stream left from.
+     * Where the caster's cast leaves: the lifted palm blob where it stands,
+     * else the local player's glove as drawn this frame, or the glove hand
+     * another caster's stream left from.
+     * every-ability-casts-from-the-lifted-palm-blob
      *
      * @param mc      the client
      * @param payload the healed tick
-     * @return where the glove stands, read each time it is asked
+     * @return where the cast leaves, read each time it is asked
      */
     private static Supplier<Vec3> gloveOf(Minecraft mc, StreamHealedPayload payload) {
         Entity caster = mc.player;
         if (caster != null && caster.getId() == payload.casterId()) {
-            return () -> GloveAim.handPosition(mc.gameRenderer.getMainCamera());
+            return () -> CastOrigin.ofLocal(mc);
         }
-        return payload::glove;
+        return () -> CastOrigin.of(payload.casterId(), payload.glove(), 0f);
     }
 
     private static Vec3 pointIn(AABB box, RandomSource random) {

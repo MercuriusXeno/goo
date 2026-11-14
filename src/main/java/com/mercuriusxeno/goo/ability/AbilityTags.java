@@ -70,6 +70,13 @@ public final class AbilityTags {
      */
     public static final String HARMFUL = "harmful";
 
+    /**
+     * An ability whose lifted palm blob floats from the hand to the center
+     * line, settling below the crosshair, rather than to the steady point by
+     * the glove (decision centered-abilities-float-the-blob-below-the-crosshair).
+     */
+    public static final String CENTERED = "centered";
+
     private AbilityTags() {
     }
 }

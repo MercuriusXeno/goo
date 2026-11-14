@@ -27,14 +27,48 @@ import org.jspecify.annotations.Nullable;
  * its swing never cleared, so vanilla swings the arm and lands the melee hit
  * in the same press; every other attack-key press stays vanilla. While a
  * glove press holds a Grab, the press throws the held entity instead and
- * lands no punch.
+ * lands no punch, and while a charge stands it cancels the charge, landing
+ * no punch and no touch.
  * decision attack-key-touches-plus-punches
  * decision grab-holds-and-throws-a-physics-body
+ * decision abilities-not-channeled-charge-and-cancel-on-left-click
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class GloveAttackTracker {
 
     private GloveAttackTracker() {
+    }
+
+    /** What an attack-key press does with the glove. */
+    enum AttackOutcome {
+        /** Throws the entity a channeled Grab holds, landing no punch. */
+        THROW_GRAB,
+        /** Cancels a charge standing, sending nothing and landing no punch. */
+        CANCEL_CHARGE,
+        /** Sends the touch the use key sends, beside vanilla's punch. */
+        TOUCH,
+        /** Leaves the press to vanilla. */
+        VANILLA
+    }
+
+    /**
+     * What an attack-key press does: a channeled Grab throws its held mob, a
+     * charge standing cancels, a press that touches touches, and any other
+     * stays vanilla.
+     *
+     * @param charging   whether a charge stands, a press that is not channeled previewing
+     * @param grabThrows whether a channeled Grab holds a mob to throw
+     * @param touches    whether the press touches what it aims at
+     * @return the outcome
+     */
+    static AttackOutcome outcomeOf(boolean charging, boolean grabThrows, boolean touches) {
+        if (grabThrows) {
+            return AttackOutcome.THROW_GRAB;
+        }
+        if (charging) {
+            return AttackOutcome.CANCEL_CHARGE;
+        }
+        return touches ? AttackOutcome.TOUCH : AttackOutcome.VANILLA;
     }
 
     /**
@@ -48,15 +82,26 @@ public final class GloveAttackTracker {
         if (!event.isAttack() || player == null) {
             return;
         }
-        ClientAbility selected = selectedAbility(player.getItemInHand(event.getHand()));
-        if (selected != null && GrabStep.throwsOnAttack(GloveUseTracker.showsArea(), selected.behaviors())) {
-            // grab-holds-and-throws-a-physics-body: the click throws the held entity instead of punching it
-            event.setCanceled(true);
-            GloveThrowSender.sendPayload(GrabThrowPayload.INSTANCE);
-            return;
-        }
-        if (GooTouchHandler.attackTouches(pressOf(player, player.getItemInHand(event.getHand())))) {
-            GloveThrowSender.sendThrow(player, 0);
+        ItemStack pressingHand = player.getItemInHand(event.getHand());
+        ClientAbility selected = selectedAbility(pressingHand);
+        boolean grabThrows = selected != null
+                && GrabStep.throwsOnAttack(GloveUseTracker.showsArea(), selected.behaviors());
+        switch (outcomeOf(GloveUseTracker.charging(), grabThrows,
+                GooTouchHandler.attackTouches(pressOf(player, pressingHand)))) {
+            case THROW_GRAB -> {
+                // grab-holds-and-throws-a-physics-body: the click throws the held entity instead of punching it
+                event.setCanceled(true);
+                GloveThrowSender.sendPayload(GrabThrowPayload.INSTANCE);
+            }
+            case CANCEL_CHARGE -> {
+                event.setCanceled(true);
+                event.setSwingHand(false);
+                GloveUseTracker.cancelCharge(player);
+            }
+            case TOUCH -> GloveThrowSender.sendThrow(player, 0);
+            case VANILLA -> {
+                // the press stays vanilla's
+            }
         }
     }
 

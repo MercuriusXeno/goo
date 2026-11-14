@@ -7,7 +7,6 @@ import com.mercuriusxeno.goo.ability.program.WindStep;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.particle.VoidMoteParticle;
-import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.particle.Particle;
@@ -166,7 +165,25 @@ public final class WindLines {
      */
     record Line(Vec3 origin, Vec3 axis, Vec3 outward, Vec3 across, double straight, Sway sway, double winding,
                 float gray, boolean snowflakes, long startTick, boolean carried, boolean inward,
-                WindStep.LineColors colors, boolean voidMotes) {
+                WindStep.LineColors colors, boolean voidMotes, boolean followsTheBlob) {
+
+        Line(Vec3 origin, Vec3 axis, Vec3 outward, Vec3 across, double straight, Sway sway, double winding,
+             float gray, boolean snowflakes, long startTick, boolean carried, boolean inward,
+             WindStep.LineColors colors, boolean voidMotes) {
+            this(origin, axis, outward, across, straight, sway, winding, gray, snowflakes, startTick, carried, inward,
+                    colors, voidMotes, false);
+        }
+
+        /**
+         * This line marked as blown from the lifted palm blob, so its start
+         * follows the blob where it stands through its first tick.
+         *
+         * @return the marked line
+         */
+        Line followingTheBlob() {
+            return new Line(origin, axis, outward, across, straight, sway, winding, gray, snowflakes, startTick,
+                    carried, inward, colors, voidMotes, true);
+        }
 
         /**
          * A line in the wind's white and pale gray, carrying no void motes.
@@ -406,7 +423,7 @@ public final class WindLines {
             Gust gust = wind.tailwind()
                     .map(tailwind -> tailwindGust(tailwind, player.getEyeHeight(), player.getLookAngle()))
                     .orElseGet(() -> new Gust(apex, player.getLookAngle(), area.size(), area.angle(), false));
-            CLIENT.add(player.level().getRandom(), gust, wind, player.level().getGameTime());
+            CLIENT.add(player.level().getRandom(), gust, wind, player.level().getGameTime(), !gust.carried());
             CLIENT.pitchesWithSpeed = gust.carried();
             CLIENT.windPitch = wind.pitch();
             CLIENT.keepWindBlowing(player);
@@ -564,6 +581,10 @@ public final class WindLines {
     }
 
     private void add(RandomSource random, Gust gust, WindStep wind, long now) {
+        add(random, gust, wind, now, false);
+    }
+
+    private void add(RandomSource random, Gust gust, WindStep wind, long now, boolean fromTheBlob) {
         if (!blowsOn(now)) {
             return;
         }
@@ -577,8 +598,9 @@ public final class WindLines {
         Vec3 across = look.cross(outward).normalize();
         double straight = runOf(range, wind.inward(), random.nextDouble());
         double winding = random.nextBoolean() ? CLOCKWISE : COUNTERCLOCKWISE;
-        live.add(new Line(apex, axis, outward, across, straight, sway(random, axis), winding, random.nextFloat(),
-                wind.snowflakes(), now, gust.carried(), wind.inward(), wind.colors(), wind.voidMotes()));
+        Line line = new Line(apex, axis, outward, across, straight, sway(random, axis), winding, random.nextFloat(),
+                wind.snowflakes(), now, gust.carried(), wind.inward(), wind.colors(), wind.voidMotes());
+        live.add(fromTheBlob ? line.followingTheBlob() : line);
     }
 
     /**
@@ -703,11 +725,13 @@ public final class WindLines {
         double gameTime = now + partialTick;
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         Vec3 rider = mc.player == null ? Vec3.ZERO : mc.player.getPosition(partialTick);
+        Vec3 blob = CastOrigin.ofLocal(mc);
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         RenderType type = RenderTypes.linesTranslucent();
         LineContext lines = new LineContext(event.getPoseStack().last(), buffers.getBuffer(type));
         for (Line line : CLIENT.live) {
-            drawLine(lines, camera, line, gameTime - line.startTick(), anchorOf(line, rider));
+            double age = gameTime - line.startTick();
+            drawLine(lines, camera, line, age, anchorOf(line, rider).add(followShift(line, age, blob)));
         }
         buffers.endBatch(type);
         CLIENT.dropAlongLines(mc, now, mc.player == null ? Vec3.ZERO : mc.player.position());
@@ -722,6 +746,26 @@ public final class WindLines {
      * @param rider the local player's position
      * @return the anchor its path points add to
      */
+    /**
+     * How far a line blown from the lifted blob shifts off where it was blown:
+     * at its start it stands at the blob where the blob stands now, easing to
+     * where it was blown over its first tick, after which it flies free, so a
+     * moving caster's lines leave the blob rather than the point it was blown at.
+     * every-ability-casts-from-the-lifted-palm-blob
+     * operator ruling: "the cold spray from the blob has the same problem that the decay and mycosis sprays had"
+     *
+     * @param line    the line
+     * @param age     ticks since it was blown
+     * @param blobNow where the caster's lifted blob stands this frame
+     * @return the shift to add to its path, none for a line not from the blob or past its first tick
+     */
+    static Vec3 followShift(Line line, double age, Vec3 blobNow) {
+        if (!line.followsTheBlob() || age >= 1) {
+            return Vec3.ZERO;
+        }
+        return blobNow.subtract(line.origin()).scale(1 - Math.max(0, age));
+    }
+
     static Vec3 anchorOf(Line line, Vec3 rider) {
         return line.carried() ? rider : Vec3.ZERO;
     }
@@ -777,7 +821,7 @@ public final class WindLines {
         }
         if (mote instanceof VoidMoteParticle homing) {
             // the operator saw motes land where the hand had been: each homes on the hand where it is now
-            homing.homeTo(() -> GloveAim.handPosition(mc.gameRenderer.getMainCamera()));
+            homing.homeTo(() -> CastOrigin.ofLocal(mc));
         }
     }
 }
