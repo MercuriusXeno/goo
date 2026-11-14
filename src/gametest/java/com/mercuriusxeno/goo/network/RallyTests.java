@@ -67,6 +67,12 @@ public final class RallyTests {
         GooTestFunctions.registerTest(registrar, RALLY_TAKES_ONE_OF_TWO_COWS, RallyTests::rallyTakesOneOfTwoCows);
         GooTestFunctions.registerTest(registrar, RALLY_HOLDS_PAST_THE_OLD_RALLY, RallyTests::rallyHoldsPastTheOldRally);
         GooTestFunctions.registerTest(registrar, RALLY_ENDS_ON_THE_RALLIERS_HIT, RallyTests::rallyEndsOnTheRalliersHit);
+        GooTestFunctions.registerTest(registrar, RALLY_COW_TAKES_THE_SIDE_ITS_RALLIER_WALKS_TOWARD,
+                RallyTests::rallyCowTakesTheSideItsRallierWalksToward);
+        GooTestFunctions.registerTest(registrar, RALLY_COW_KEEPS_WALKING_ONCE_ITS_RALLIER_STOPS,
+                RallyTests::rallyCowKeepsWalkingOnceItsRallierStops);
+        GooTestFunctions.registerTest(registrar, RALLY_COW_IGNORES_THE_WHEAT_IT_WOULD_FOLLOW,
+                RallyTests::rallyCowIgnoresTheWheatItWouldFollow);
         GooTestFunctions.registerTest(registrar, RALLY_COW_WEARS_HALF_ITS_RALLIERS_ARMOR,
                 RallyTests::rallyCowWearsHalfItsRalliersArmor);
         GooTestFunctions.registerTest(registrar, RALLIED_COW_HEALS_BACK_TO_ITS_RAISED_MAX_HEALTH,
@@ -395,6 +401,86 @@ public final class RallyTests {
         helper.succeed();
     }
 
+    private static final String RALLY_COW_KEEPS_WALKING_ONCE_ITS_RALLIER_STOPS =
+            "rally_cow_keeps_walking_once_its_rallier_stops";
+    /** The short step's start, near the bay's north-west corner so its spot lands inside the bay. */
+    private static final Vec3 STEP_START = new Vec3(1.0, 1.0, 1.0);
+    /** The short step's end, half a block on along the diagonal. */
+    private static final Vec3 STEP_END = new Vec3(1.5, 1.0, 1.5);
+    /** The cow's start, a block and a half behind the step's end, too far to get ahead while the rallier moves. */
+    private static final BlockPos BEHIND_THE_STEP_POS = new BlockPos(0, 1, 0);
+    /** The step's pace, so the rallier moves for a handful of ticks before it stops. */
+    private static final double STEP_PACE = 0.1;
+    /** How far past the stopped rallier the cow must stand, short of its nearest spot less the arrival distance. */
+    private static final double PAST_THE_STOP = 0.5;
+    private static final String COW_STOPPED_SHORT =
+            "The rallied cow should walk on %s blocks past its stopped rallier, stands %s past it";
+
+    private static final String RALLY_COW_IGNORES_THE_WHEAT_IT_WOULD_FOLLOW =
+            "rally_cow_ignores_the_wheat_it_would_follow";
+    /** The free-willed cow's block, within the near distance of the rallier but past where wheat stops a cow. */
+    private static final BlockPos FREE_COW_POS = new BlockPos(1, 1, 0);
+    /** Where the still rallier stands holding wheat, nearly the near distance south of the cow. */
+    private static final Vec3 WHEAT_STAND = new Vec3(1.5, 1.0, 4.3);
+    /** Ticks for the wheat and the cow's stroll to have walked a free cow well over a block. */
+    private static final int TEMPTED_TICKS = 80;
+    /** How far the rallied cow may drift and still count as standing where it was. */
+    private static final double STOOD_STILL = 0.5;
+    private static final String COW_WANDERED = "The rallied cow should stand where it was, moved %s blocks";
+
+    /**
+     * A mock rallier steps half a block and stops beside a rallied cow that
+     * starts behind it, and the cow walks on past the stopped rallier to the
+     * spot on the side it headed toward
+     * (decision unengaged-minions-move-where-you-move).
+     *
+     * @param helper the gametest helper
+     */
+    public static void rallyCowKeepsWalkingOnceItsRallierStops(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
+        Vec3 start = helper.absoluteVec(STEP_START);
+        Vec3 end = helper.absoluteVec(STEP_END);
+        Vec3 heading = end.subtract(start).normalize();
+        double length = end.distanceTo(start);
+        caster.setPos(start);
+        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, BEHIND_THE_STEP_POS);
+        rally(helper, cow, caster);
+        int[] walked = new int[1];
+        helper.onEachTick(() -> caster.setPos(start.add(heading.scale(Math.min(length, STEP_PACE * walked[0]++)))));
+        helper.succeedWhen(() -> {
+            double past = cow.position().subtract(end).dot(heading);
+            helper.assertTrue(STEP_PACE * walked[0] > length && past > PAST_THE_STOP,
+                    String.format(COW_STOPPED_SHORT, PAST_THE_STOP, past));
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+        });
+    }
+
+    /**
+     * A cow rallied with its own free will stands beside its still rallier,
+     * who holds the wheat a cow follows, and stays where it was: no vanilla
+     * goal walks a rallied mob, neither the wheat's tempt nor a stroll
+     * (decision unengaged-minions-move-where-you-move). It and the other
+     * movement tests batch alone in rally_movement_alone: a neighbouring
+     * test's zombie within the rallier's foe reach is a foe the cow rightly
+     * walks off to fight.
+     *
+     * @param helper the gametest helper
+     */
+    public static void rallyCowIgnoresTheWheatItWouldFollow(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
+        caster.setPos(helper.absoluteVec(WHEAT_STAND));
+        caster.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(Items.WHEAT));
+        Cow cow = helper.spawn(EntityType.COW, FREE_COW_POS);
+        rally(helper, cow, caster);
+        Vec3 stood = cow.position();
+        helper.runAfterDelay(TEMPTED_TICKS, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            double moved = cow.position().subtract(stood).horizontalDistance();
+            helper.assertTrue(moved < STOOD_STILL, String.format(COW_WANDERED, moved));
+            helper.succeed();
+        });
+    }
+
     private static final String RALLY_COW_WEARS_HALF_ITS_RALLIERS_ARMOR = "rally_cow_wears_half_its_ralliers_armor";
     /** The modifier standing in for the caster's gear, so the test sets the caster's armor outright. */
     private static final Identifier CASTER_GEAR = Identifier.fromNamespaceAndPath(Goo.MODID, "test_caster_gear");
@@ -437,6 +523,53 @@ public final class RallyTests {
             assertAttribute(helper, cow, Attributes.ARMOR_TOUGHNESS,
                     cow.getAttributeBaseValue(Attributes.ARMOR_TOUGHNESS));
             helper.succeed();
+        });
+    }
+
+    private static final String RALLY_COW_TAKES_THE_SIDE_ITS_RALLIER_WALKS_TOWARD =
+            "rally_cow_takes_the_side_its_rallier_walks_toward";
+    /** Where the walking rallier starts, at the bay's west edge. */
+    private static final Vec3 WALK_START = new Vec3(0.5, 1.0, 1.5);
+    /** Where the walking rallier ends, at the bay's east edge. */
+    private static final Vec3 WALK_END = new Vec3(5.5, 1.0, 1.5);
+    /** The rallied cow's start, two blocks to the side of the rallier's start. */
+    private static final BlockPos BESIDE_THE_WALK_POS = new BlockPos(0, 1, 3);
+    /**
+     * The rallier's pace in blocks a tick: above the standing speed, and slow
+     * enough that the cow has most of the walk to get ahead inside the bay.
+     */
+    private static final double RALLIER_PACE = 0.04;
+    /** How far along the walk past the rallier the cow must stand to count as ahead of it. */
+    private static final double AHEAD_MARGIN = 1.0;
+    private static final String COW_NOT_AHEAD =
+            "The rallied cow should stand %s blocks past its walking rallier, stands %s past it";
+
+    /**
+     * A mock rallier walks steadily east beside a rallied cow with no foe
+     * near, and the cow walks out ahead of it along the walk, to the side the
+     * rallier heads toward
+     * (decision unengaged-minions-move-where-you-move).
+     *
+     * @param helper the gametest helper
+     */
+    public static void rallyCowTakesTheSideItsRallierWalksToward(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
+        Vec3 start = helper.absoluteVec(WALK_START);
+        Vec3 end = helper.absoluteVec(WALK_END);
+        // the bay may stand rotated, so the walk's world heading is read from its world ends
+        Vec3 heading = end.subtract(start).normalize();
+        caster.setPos(start);
+        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, BESIDE_THE_WALK_POS);
+        rally(helper, cow, caster);
+        int[] walked = new int[1];
+        helper.onEachTick(() -> {
+            Vec3 step = start.add(heading.scale(RALLIER_PACE * walked[0]++));
+            caster.setPos(step.distanceTo(start) < end.distanceTo(start) ? step : end);
+        });
+        helper.succeedWhen(() -> {
+            double ahead = cow.position().subtract(caster.position()).dot(heading);
+            helper.assertTrue(ahead > AHEAD_MARGIN, String.format(COW_NOT_AHEAD, AHEAD_MARGIN, ahead));
+            helper.getLevel().getServer().getPlayerList().remove(caster);
         });
     }
 
