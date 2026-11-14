@@ -1,0 +1,12 @@
+{
+  "gooType": "typhoon",
+  "displayName": "goo.ability.typhoon.test_float",
+  "badge": "mob",
+  "order": 90,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "float", "duration": 100, "amplifier": 1 }
+  ],
+  "tags": ["entity", "harmful"]
+}

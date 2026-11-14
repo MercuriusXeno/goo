@@ -16,6 +16,7 @@ import com.mercuriusxeno.goo.ability.program.TargetGatedStep;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.GateRay;
+import com.mercuriusxeno.goo.ability.typhoon.ShulkerSpew;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.entity.RollingGoo;
@@ -349,7 +350,7 @@ public final class GooThrowHandler {
             // click-is-a-hit-scan-drawn-as-a-delayed-wave
             GooScanHandler.scan(player, payload, gooType, ability);
         } else if (ability.delivery().envelops()) {
-            dartAtTakenMob(player, payload, gooType);
+            castAtTakenMob(player, payload, gooType, ability.delivery());
         } else {
             throwFromTheHand(player, payload, gooType, ability);
         }
@@ -378,21 +379,52 @@ public final class GooThrowHandler {
     }
 
     /**
-     * Darts a charm-like cast's blob at the mob its press took, near or far,
-     * never touching it at reach; a release naming no living mob the server
-     * holds is refused whole, unpaid.
+     * Sends a charm-like cast's release at the mob its press took, near or
+     * far, never touching it at reach: the blob darts to it, or spews a
+     * shulker bullet at it; a release naming no living mob the server holds
+     * is refused whole, unpaid.
+     * charm-like-abilities-lock-the-highlighted-mob-on-right-click
+     *
+     * @param player   the casting player
+     * @param payload  the release, naming the taken mob
+     * @param gooType  the validated goo type
+     * @param delivery the cast ability's delivery
+     */
+    private static void castAtTakenMob(ServerPlayer player, GooThrowPayload payload,
+                                       ResourceKey<GooTypeDefinition> gooType, Delivery delivery) {
+        Entity taken = payload.targetEntityId() < 0 ? null : player.level().getEntity(payload.targetEntityId());
+        if (!takesMob(taken)) {
+            return;
+        }
+        if (delivery.spewsAShulkerBullet()) {
+            spewShulkerBullet(player, payload, gooType, taken);
+        } else {
+            throwFlight(player, payload, gooType);
+        }
+    }
+
+    /**
+     * Spews a shulker bullet from the held blob at the taken mob, once the
+     * range and the goo in the player's inventory check out, paying as a
+     * throw pays.
      * charm-like-abilities-lock-the-highlighted-mob-on-right-click
      *
      * @param player  the casting player
-     * @param payload the release, naming the taken mob
+     * @param payload the release, its origin the held blob
      * @param gooType the validated goo type
+     * @param taken   the mob the press took
      */
-    private static void dartAtTakenMob(ServerPlayer player, GooThrowPayload payload,
-                                       ResourceKey<GooTypeDefinition> gooType) {
-        Entity taken = payload.targetEntityId() < 0 ? null : player.level().getEntity(payload.targetEntityId());
-        if (takesMob(taken)) {
-            throwFlight(player, payload, gooType);
+    private static void spewShulkerBullet(ServerPlayer player, GooThrowPayload payload,
+                                          ResourceKey<GooTypeDefinition> gooType, Entity taken) {
+        if (!validateRange(player, payload)) { return; }
+        GooFraction cost = resolveThrowCost(player, payload, gooType);
+        if (!validateSupply(player, gooType, cost)) { return; }
+        if (!AbilityCharges.charge(player, gooType, cost) && Goo.LOGGER.isWarnEnabled()) {
+            Goo.LOGGER.warn(LOG_PARTIAL_DEPLETE, cost, GooTypes.id(gooType));
         }
+        consumeReagents(player, payload.abilityId(), gooType);
+        ShulkerSpew.spew(player, taken, ThrowArc.clampToReach(player.getEyePosition(), payload.origin(),
+                ThrowArc.HAND_REACH * player.getScale()));
     }
 
     /**
