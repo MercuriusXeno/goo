@@ -319,12 +319,36 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
                                         ResourceKey<GooTypeDefinition> type, LiftedPalmBlob.HandLift lift) {
         Matrix4f toHandPass = new Matrix4f(poseStack.last().pose());
         Quaternionf turn = liftedTurn(toHandPass, lift);
+        LiftedPlace place = liftedPlace(toHandPass, lift);
+        submitBlob(poseStack, nodeCollector, type, place.inModel(), lift.shape(), turn);
+        submitBlobWisps(poseStack, nodeCollector, place.inHand());
+    }
+
+    /**
+     * Where the lifted blob stands: in the glove's model, where it submits,
+     * and in the hand pass's camera-relative world axes, where its wisps gather.
+     *
+     * @param inModel the blob's center in the glove's model, in block coords
+     * @param inHand  the blob's center in the hand pass's camera-relative world axes
+     */
+    record LiftedPlace(Vector3fc inModel, Vector3fc inHand) {
+    }
+
+    /**
+     * Where the local first-person blob stands as it lifts: from the palm
+     * blob's own center, standing up off the palm, toward the spray source as
+     * the hand's pass shows it.
+     *
+     * @param toHandPass the glove's model onto the hand pass's camera-relative world axes
+     * @param lift       the local player's lift
+     * @return the blob's place in the model and in the hand pass
+     */
+    static LiftedPlace liftedPlace(Matrix4fc toHandPass, LiftedPalmBlob.HandLift lift) {
         Vector3f standing = palmCenter(palmShape(REST_SCALE)).add(0f, 0f, -lift.stand() * SHELL_HW_PX / BLOCK_PIXELS);
-        Vector3f palm = toHandPass.transformPosition(standing);
+        Vector3f palm = toHandPass.transformPosition(standing, new Vector3f());
         Vector3f lifted = palm.lerp(lift.sourceInHand().toVector3f(), lift.share());
-        submitBlob(poseStack, nodeCollector, type, new Matrix4f(toHandPass).invert().transformPosition(lifted),
-                lift.shape(), turn);
-        submitBlobWisps(poseStack, nodeCollector, lifted);
+        // the model point takes its own vector: transformPosition rewrites its argument, and the wisps need the hand's
+        return new LiftedPlace(new Matrix4f(toHandPass).invert().transformPosition(lifted, new Vector3f()), lifted);
     }
 
     /**
