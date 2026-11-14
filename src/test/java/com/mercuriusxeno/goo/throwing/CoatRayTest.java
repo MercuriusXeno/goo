@@ -10,8 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * A stream's drips scatter: each tick throws as many drips as its pace names,
  * each at its own place in the cone, the same places for the same tick of a
- * hold and others the next, spread over the whole cone and thicker near the
- * aim line, so the goo spreads rather than stacking on a fixed fan's spots
+ * hold and others the next, spread evenly over the whole cone's area, so the
+ * goo spreads rather than stacking on a fixed fan's spots or on the aim line
  * (operator ruling 2026-11-14; decision goop-drains-per-cubic-meter-of-slime-placed, the spray's pace).
  */
 class CoatRayTest {
@@ -36,19 +36,20 @@ class CoatRayTest {
     }
 
     /**
-     * A tilt drawn evenly puts half the drips inside half the cone's radius,
-     * a quarter of its area, so the goo lies thicker near the aim line, and
-     * every drip stays inside the cone.
+     * Drips spread evenly over the cone's area: a quarter of them land
+     * inside half the cone's radius, a quarter of its area, so no cell near
+     * the aim line takes more than its share, and every drip stays inside the
+     * cone (operator ruling 2026-11-14: stop hitting the same block).
      */
     @Test
-    void aHoldsDripsLieThickerNearTheAimLineAndInsideTheCone() {
+    void aHoldsDripsSpreadEvenlyOverTheConesArea() {
         List<CoatRay.ConeShare> thrown = new ArrayList<>();
         for (int held = 1; held <= LONG_HOLD; held++) {
             thrown.addAll(CoatRay.scatteredShares(held, DRIPS_A_TICK));
         }
         double nearTheAxis = thrown.stream().filter(share -> share.tilt() < 0.5).count() / (double) thrown.size();
 
-        assertTrue(nearTheAxis > 0.4, "half the drips should land inside half the cone's radius, " + nearTheAxis);
+        assertTrue(Math.abs(nearTheAxis - 0.25) < 0.03, "a quarter of the drips should land inside half the cone's radius, " + nearTheAxis);
         assertTrue(thrown.stream().allMatch(share -> share.tilt() >= 0 && share.tilt() < 1),
                 "every drip should stay inside the cone");
     }

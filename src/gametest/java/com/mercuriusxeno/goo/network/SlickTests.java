@@ -111,6 +111,10 @@ public final class SlickTests {
     private static final BlockPos FAR_STREAMER_POS = new BlockPos(0, 1, 8);
     /** The light bay is sixteen blocks across, so the strip runs from the streamer to its east wall. */
     private static final int FAR_STRIP_EAST = 15;
+    /** Ticks the level shot is held: one drip a tick spreads over a wide cone, so a long hold reaches every row. */
+    private static final int REACH_HOLD_TICKS = 100;
+    /** The rows either side of the streamer's that the level shot's reach is read in, inside the cone. */
+    private static final int REACH_ROWS = 2;
     /** The nearest and farthest the level shot's film may stand ahead of the streamer, in cells. */
     private static final int NEAREST_AHEAD = 7;
     private static final int FARTHEST_AHEAD = 9;
@@ -179,8 +183,6 @@ public final class SlickTests {
     private static final String SPRINT_RIDES_THE_TRACK = "slick_lays_a_track_a_sprinter_rides";
     /** A sprinting player's speed east, in blocks a tick, and the small fall each tick that keeps it grounded. */
     private static final Vec3 SPRINT_STEP = new Vec3(0.28, -0.08, 0);
-    /** How far ahead of the sprinter's feet the stream is aimed, in blocks, at the floor's top. */
-    private static final double AIM_AHEAD = 3.5;
     /** Ticks the sprint lasts: from the bay's west wall to short of its east wall. */
     private static final int SPRINT_TICKS = 46;
     /** The most layers a slick cell on the path may hold: a player steps up 0.6 of a block, so nine fifteenths. */
@@ -191,12 +193,111 @@ public final class SlickTests {
     private static final String TRACK_TOO_TALL = "No slick cell on the path should hold more than %d layers, the path"
             + " holds %s";
 
+    private static final String HELD_SPREADS_WITHOUT_STEPS = "slick_held_at_one_spot_spreads_without_steps";
+    /** Pitched halfway down, the aim the operator held Slick at. */
+    private static final float HALFWAY_DOWN = 45f;
+    /** Ticks Slick is held at one spot. */
+    private static final int HELD_AT_ONE_SPOT = 60;
+    /** The most layers a coated cell may stand over a side cell: two fifteenths, a step nothing trips on. */
+    private static final int SMOOTH_STEP = 2;
+    private static final String STEPPED = "Slick held at one spot should stand no cell more than %d layers over a side"
+            + " cell, stood %d on tick %d, the floor rows %s";
+
     private SlickTests() {
     }
 
     /**
-     * A player sprinting east over open stone floor, streaming Slick aimed a
-     * few blocks ahead of their feet each tick, stands on slick on every tick
+     * Slick held at one spot on open stone floor, aimed halfway down, coats
+     * the floor without steps: on every tick of the hold no slick cell stands
+     * more than two layers over a side cell of the floor.
+     * spread-decreases-the-cell-it-leaves
+     * slick-is-a-layered-cell-that-flows-thinner-and-faster-than-slime
+     *
+     * @param helper the gametest helper
+     */
+    public static void slickHeldAtOneSpotSpreadsWithoutSteps(GameTestHelper helper) {
+        int row = FAR_STREAMER_POS.getZ();
+        for (int east = 0; east <= FAR_STRIP_EAST; east++) {
+            for (int z = row - FLOOR_HALF_WIDTH; z <= row + FLOOR_HALF_WIDTH; z++) {
+                helper.setBlock(new BlockPos(east, FAR_STREAMER_POS.getY() - 1, z), Blocks.STONE);
+            }
+        }
+        ServerPlayer streamer = slickStreamerAt(helper, FAR_STREAMER_POS);
+        streamer.setYRot(FACING_EAST);
+        streamer.setXRot(HALFWAY_DOWN);
+        int[] worst = {0, 0};
+        String[] worstFloor = {""};
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.KINETIC), SLICK.toString(),
+                streamer.getEyePosition(), streamer.getEyePosition());
+        for (int held = 1; held <= HELD_AT_ONE_SPOT; held++) {
+            int now = held;
+            helper.runAfterDelay(held, () -> {
+                GooStreamHandler.streamTick(streamer, tick);
+                int step = steepestStep(helper, row);
+                if (step > worst[0]) {
+                    worst[0] = step;
+                    worst[1] = now;
+                    worstFloor[0] = floorLayers(helper, row);
+                }
+            });
+        }
+        helper.runAfterDelay(HELD_AT_ONE_SPOT + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
+            helper.assertTrue(worst[0] <= SMOOTH_STEP, String.format(STEPPED, SMOOTH_STEP, worst[0], worst[1],
+                    worstFloor[0]));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * The most layers any slick cell over the floor stands above a side cell over the floor.
+     *
+     * @param helper the gametest helper
+     * @param row    the row the floor centers on
+     * @return the steepest step, in layers
+     */
+    private static int steepestStep(GameTestHelper helper, int row) {
+        int steepest = 0;
+        for (int east = 0; east <= FAR_STRIP_EAST; east++) {
+            for (int z = row - FLOOR_HALF_WIDTH; z <= row + FLOOR_HALF_WIDTH; z++) {
+                BlockPos cell = new BlockPos(east, FAR_STREAMER_POS.getY(), z);
+                int layers = VolumeCellBlock.layersOf(helper.getBlockState(cell));
+                for (Direction side : Direction.Plane.HORIZONTAL) {
+                    BlockPos beside = cell.relative(side);
+                    if (beside.getX() >= 0 && beside.getX() <= FAR_STRIP_EAST
+                            && Math.abs(beside.getZ() - row) <= FLOOR_HALF_WIDTH) {
+                        steepest = Math.max(steepest,
+                                layers - VolumeCellBlock.layersOf(helper.getBlockState(beside)));
+                    }
+                }
+            }
+        }
+        return steepest;
+    }
+
+    /**
+     * The floor's coated rows, west to east, the layers each cell holds.
+     *
+     * @param helper the gametest helper
+     * @param row    the row the floor centers on
+     * @return the rows near the streamer, for a failure's message
+     */
+    private static String floorLayers(GameTestHelper helper, int row) {
+        List<String> rows = new ArrayList<>();
+        for (int z = row - 2; z <= row + 2; z++) {
+            StringBuilder line = new StringBuilder();
+            for (int east = 0; east <= 6; east++) {
+                line.append(VolumeCellBlock.layersOf(helper.getBlockState(new BlockPos(east, FAR_STREAMER_POS.getY(), z))))
+                        .append(' ');
+            }
+            rows.add(line.toString().trim());
+        }
+        return String.join(" | ", rows);
+    }
+
+    /**
+     * A player sprinting east over open stone floor, streaming Slick aimed
+     * halfway down, the aim the operator sprints with, stands on slick on every tick
      * after first reaching the track, and no slick cell on the path holds
      * more layers than the player steps up.
      * slick-is-a-layered-cell-that-flows-thinner-and-faster-than-slime
@@ -215,7 +316,6 @@ public final class SlickTests {
         sprinter.setYRot(FACING_EAST);
         sprinter.setSprinting(true);
         sprinter.setKnownMovement(new Vec3(SPRINT_STEP.x, 0, 0));
-        double floorTop = helper.absolutePos(FAR_STREAMER_POS).getY();
         boolean[] onTrack = {false};
         List<String> offTrack = new ArrayList<>();
         for (int tick = 1; tick <= SPRINT_TICKS; tick++) {
@@ -228,8 +328,7 @@ public final class SlickTests {
                     offTrack.add(String.format(OFF_THE_TRACK, under, sprinter.getX(), now));
                 }
                 onTrack[0] |= onSlick;
-                DripAim.at(sprinter, new Vec3(sprinter.getX() + AIM_AHEAD, floorTop, sprinter.getZ()),
-                        slick(helper).delivery().throwSpeed());
+                sprinter.setXRot(HALFWAY_DOWN);
                 GooStreamHandler.streamTick(sprinter, GooStreamPayload.unplaned(GooTypes.id(GooTypes.KINETIC),
                         SLICK.toString(), sprinter.getEyePosition(), sprinter.getEyePosition()));
             });
@@ -274,6 +373,7 @@ public final class SlickTests {
         GooTestFunctions.registerTest(registrar, DRIPS_DRAIN_A_LAYER_EACH, SlickTests::slickDripsDrainALayersPriceEach);
         GooTestFunctions.registerTest(registrar, SLICK_SETTLES_SOONER, SlickTests::aFullSlickCellSettlesSooner);
         GooTestFunctions.registerTest(registrar, SPRINT_RIDES_THE_TRACK, SlickTests::slickLaysATrackASprinterRides);
+        GooTestFunctions.registerTest(registrar, HELD_SPREADS_WITHOUT_STEPS, SlickTests::slickHeldAtOneSpotSpreadsWithoutSteps);
     }
 
     /**
@@ -341,15 +441,16 @@ public final class SlickTests {
         layFullLane(helper, fullStart);
         ServerPlayer caster = slickStreamerAt(helper, STREAMER_POS);
         BlockPos filled = fullStart.above();
+        // the rest of the lane stands full first, so the filled cell has no lower side to spread into
+        for (int east = 1; east <= STRIP_EAST - STRIP_WEST; east++) {
+            helper.setBlock(filled.east(east), slickOf(WHOLE_BLOCK_LAYERS));
+        }
         LandedDrips.landOn(helper, caster, slick(helper), filled, 1);
         assertHeight(helper, filled, 1);
         LandedDrips.landOn(helper, caster, slick(helper), filled, WHOLE_BLOCK_LAYERS - 1);
         assertLayers(helper, filled, WHOLE_BLOCK_LAYERS);
         assertHeight(helper, filled, WHOLE_BLOCK_LAYERS);
         helper.getLevel().getServer().getPlayerList().remove(caster);
-        for (int east = 1; east <= STRIP_EAST - STRIP_WEST; east++) {
-            helper.setBlock(filled.east(east), slickOf(WHOLE_BLOCK_LAYERS));
-        }
         laySlickStrip(helper);
         layLane(helper, thinStart, null);
         Walker onThin = walkTheLane(helper, thinStart, GooBlocks.KINETIC_SLICK.get());
@@ -584,14 +685,17 @@ public final class SlickTests {
         ServerPlayer streamer = slickStreamerAt(helper, FAR_STREAMER_POS);
         streamer.setYRot(FACING_EAST);
         streamer.setXRot(0);
-        int hold = SPRAY_HOLD_TICKS;
+        int hold = REACH_HOLD_TICKS;
         holdSlickFor(helper, streamer, hold);
         helper.runAfterDelay(hold + FALL_TICKS, () -> {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
             List<Integer> filmed = new ArrayList<>();
             for (int east = 0; east <= FAR_STRIP_EAST; east++) {
-                if (helper.getBlockState(FAR_STREAMER_POS.east(east)).is(GooBlocks.KINETIC_SLICK.get())) {
-                    filmed.add(east);
+                for (int off = -REACH_ROWS; off <= REACH_ROWS; off++) {
+                    if (helper.getBlockState(FAR_STREAMER_POS.east(east).south(off))
+                            .is(GooBlocks.KINETIC_SLICK.get()) && !filmed.contains(east)) {
+                        filmed.add(east);
+                    }
                 }
             }
             helper.assertTrue(filmed.stream().anyMatch(east -> east >= NEAREST_AHEAD && east <= FARTHEST_AHEAD),

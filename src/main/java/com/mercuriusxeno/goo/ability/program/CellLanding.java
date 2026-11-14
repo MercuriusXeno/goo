@@ -94,10 +94,12 @@ final class CellLanding {
 
     /**
      * Lands the drip's layer in its cell once the player pays the layer's
-     * price, a fifteenth of the laying ability's cost; a layer the player
-     * cannot pay for does not land.
+     * price, a fifteenth of the laying ability's cost, and spreads the cell
+     * at once into its side cells; a layer the player cannot pay for does
+     * not land.
      * drip-creates-a-volume-cell-immediately
      * drip-on-a-standing-cell-increases-it
+     * spread-decreases-the-cell-it-leaves
      * goop-drains-per-cubic-meter-of-slime-placed
      * slick-drains-per-film-it-lays
      *
@@ -105,9 +107,12 @@ final class CellLanding {
      * @param pos  the cell a strike fed
      * @param cell the goo's volume cell block
      */
-    static void feed(ChannelHost host, BlockPos pos, Block cell) {
+    static void feed(ChannelHost host, BlockPos pos, VolumeCellBlock cell) {
         VolumeCellBlock.thickened(host.stateAt(pos), cell)
                 .filter(into -> host.placementPrice().pay(VolumeCellBlock.MAX_LAYERS))
-                .ifPresent(into -> host.transformBlock(pos, into));
+                .ifPresent(into -> {
+                    host.transformBlock(pos, into);
+                    cell.spreadAtOnce(host.level(), pos);
+                });
     }
 }
