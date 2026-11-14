@@ -12,6 +12,7 @@ import com.mercuriusxeno.goo.ability.program.LevelStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.GougeStep;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import net.minecraft.client.renderer.state.level.BlockBreakingRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -20,6 +21,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -27,6 +29,7 @@ import java.util.List;
 import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -243,6 +246,121 @@ class GroundShakeTest {
             for (BlockPos beside : List.of(struck.west(), struck.above(), struck.north(), struck.east().east())) {
                 assertEquals(0, widestSwing(beside, zone), STILL, beside + " moves");
             }
+        }
+    }
+
+    /**
+     * Each zone resolves along the ray its caller hands it, so the local
+     * player's shake, handed the main camera's ray, eases with the view on
+     * sneak, and Bore's shakes from the eye its drill draws from
+     * (decision diagnose-and-correct-eye-aimed-visuals-jumping-on-sneak).
+     */
+    @Nested
+    class AimsFromTheRayHanded {
+
+        /** The feet stand at 64: a standing eye 1.62 above them, a crouched one 1.27. */
+        private static final double STANDING_EYE_Y = 65.62;
+        private static final double CROUCHED_EYE_Y = 65.27;
+        private static final double MARCH = 1e-3;
+        private static final double BLOCK_REACH = 4.5;
+        private static final Vec3 LOOK_EAST_AND_DOWN = new Vec3(1, -1, 0).normalize();
+
+        private static CameraEye.Sight sightAt(double eyeY, Vec3 look) {
+            return new CameraEye.Sight(new Vec3(0.5, eyeY, 0.5), look);
+        }
+
+        /**
+         * A clip against the cells a predicate holds solid, marched along the line.
+         *
+         * @param solid whether a cell stops the line
+         * @return the clip
+         */
+        private static CameraEye.ViewClip clipAgainst(Predicate<BlockPos> solid) {
+            return (from, to) -> {
+                Vec3 line = to.subtract(from);
+                for (double along = 0; along <= 1; along += MARCH / line.length()) {
+                    Vec3 point = from.add(line.scale(along));
+                    BlockPos cell = BlockPos.containing(point);
+                    if (solid.test(cell)) {
+                        return new BlockHitResult(point, Direction.UP, cell, false);
+                    }
+                }
+                return BlockHitResult.miss(to, Direction.UP, BlockPos.containing(to));
+            };
+        }
+
+        private static Set<Integer> heightsIn(GroundShake.Zone zone) {
+            return shakenIn(zone).stream().map(BlockPos::getY).collect(Collectors.toSet());
+        }
+
+        @Test
+        void theBoreZoneRunsAlongTheRayFromTheOriginHanded() {
+            Predicate<BlockPos> rock = cell -> cell.getX() >= 1 && cell.getX() <= 7;
+            BoreStep bore = new BoreStep(BREAKABLE, PACE);
+
+            GroundShake.Zone standing = GroundShake.boreZoneAlong(sightAt(STANDING_EYE_Y, LOOK_EAST), bore,
+                    BORE_RANGE, BORE_CONE_DEGREES, rock.negate(), rock);
+            GroundShake.Zone sunk = GroundShake.boreZoneAlong(sightAt(64.9, LOOK_EAST), bore,
+                    BORE_RANGE, BORE_CONE_DEGREES, rock.negate(), rock);
+
+            assertEquals(Set.of(65), heightsIn(standing));
+            assertEquals(Set.of(64), heightsIn(sunk));
+        }
+
+        @Test
+        void theGougeZoneTearsTheCellsWhereTheRayFromTheOriginHandedStrikes() {
+            Predicate<BlockPos> wall = cell -> cell.getX() >= 3;
+            CameraEye.ViewClip blocks = clipAgainst(wall);
+
+            GroundShake.Zone standing = GroundShake.gougeZoneAlong(sightAt(STANDING_EYE_Y, LOOK_EAST), GOUGE,
+                    blocks, wall);
+            GroundShake.Zone sunk = GroundShake.gougeZoneAlong(sightAt(64.9, LOOK_EAST), GOUGE, blocks, wall);
+
+            assertEquals(Set.copyOf(GougeStep.hunkCells(new BlockPos(3, 65, 0), GOUGE.radius(), wall)),
+                    shakenIn(standing));
+            assertEquals(Set.copyOf(GougeStep.hunkCells(new BlockPos(3, 64, 0), GOUGE.radius(), wall)),
+                    shakenIn(sunk));
+        }
+
+        @Test
+        void theFlattenZoneLiesUnderTheCursorTheRayFromTheOriginHandedStrikes() {
+            ChannelAim.FacePlane floor = new ChannelAim.FacePlane(new BlockPos(0, 63, 0), Direction.UP);
+            Predicate<BlockPos> onTheFloor = cell -> cell.getY() == 64;
+            CameraEye.ViewClip blocks = clipAgainst(cell -> cell.getY() < 64);
+
+            GroundShake.Zone standing = flattenZoneFrom(sightAt(STANDING_EYE_Y, LOOK_EAST_AND_DOWN), floor, blocks,
+                    onTheFloor);
+            GroundShake.Zone crouched = flattenZoneFrom(sightAt(CROUCHED_EYE_Y, LOOK_EAST_AND_DOWN), floor, blocks,
+                    onTheFloor);
+
+            assertTrue(shakenIn(standing).contains(new BlockPos(3, 64, 0)));
+            assertFalse(shakenIn(standing).contains(new BlockPos(0, 64, 0)));
+            assertTrue(shakenIn(crouched).contains(new BlockPos(0, 64, 0)));
+            assertFalse(shakenIn(crouched).contains(new BlockPos(3, 64, 0)));
+        }
+
+        private static GroundShake.Zone flattenZoneFrom(CameraEye.Sight sight, ChannelAim.FacePlane plane,
+                                                        CameraEye.ViewClip blocks, Predicate<BlockPos> breakable) {
+            Vec3 cursor = GloveThrowSender.cursorPoints(true, sight, sight, null, BLOCK_REACH, blocks).drawn();
+            return GroundShake.flattenZoneUnder(sight.eye(), cursor, plane, breakable);
+        }
+
+        @Test
+        void theBoreZoneRunsFromTheEyeTheDrillDrawsFrom() {
+            Vec3 camera = new Vec3(0.5, 65.47, 0.5);
+            CameraEye.Sight drawnFrom = CameraEye.chosen(true, new CameraEye.Sight(camera, LOOK_EAST),
+                    sightAt(CROUCHED_EYE_Y, LOOK_EAST));
+            Predicate<BlockPos> rock = cell -> cell.getX() >= 1 && cell.getX() <= 7;
+            Vec3 drillEye = BoreDrill.vortexEye(drawnFrom, camera).add(camera);
+            ChannelAim drillAim = new ChannelAim(drillEye.add(LOOK_EAST.scale(BORE_RANGE)), null, BORE_CONE_DEGREES);
+
+            GroundShake.Zone zone = GroundShake.boreZoneAlong(drawnFrom,
+                    new BoreStep(BREAKABLE, PACE, VORTEX_NEAR, VORTEX_FAR, List.of(), List.of()), BORE_RANGE,
+                    BORE_CONE_DEGREES, rock.negate(), rock);
+
+            assertEquals(camera, drillEye);
+            assertEquals(Set.copyOf(BoreStep.progressing(drillEye, VORTEX_NEAR, VORTEX_FAR, drillAim, rock.negate(),
+                    rock)), shakenIn(zone));
         }
     }
 

@@ -14,17 +14,19 @@ import java.util.UUID;
 /**
  * The rally a peaceful mob holds until its rallier strikes it: the caster it
  * fights for, the damage each of its strikes deals, and the player who
- * attacked the caster, whom the mob fights first. Saved with the mob and
- * synced to every client drawing it.
+ * attacked the caster, whom the mob fights first, and the armor it wears
+ * from the caster. Saved with the mob and synced to every client drawing it.
  * zoo-rally-arms-the-peaceful
  * rally-is-a-mob-effect-on-one-target
  * rallied-mobs-turn-on-a-player-who-attacks-their-rallier
+ * rally-minions-get-half-your-armor-and-a-floor
  *
  * @param caster   the entity the mob fights for
  * @param damage   the damage one strike deals
  * @param attacker the player who attacked the caster, empty for none
+ * @param armor    the armor the mob wears from the caster
  */
-public record Rallied(UUID caster, float damage, Optional<UUID> attacker) {
+public record Rallied(UUID caster, float damage, Optional<UUID> attacker, RallyArmor armor) {
 
     /** No rally: the mob fights for no one. */
     public static final Rallied NONE = new Rallied(new UUID(0L, 0L), 0f);
@@ -32,12 +34,14 @@ public record Rallied(UUID caster, float damage, Optional<UUID> attacker) {
     private static final String FIELD_CASTER = "caster";
     private static final String FIELD_DAMAGE = "damage";
     private static final String FIELD_ATTACKER = "attacker";
+    private static final String FIELD_ARMOR = "armor";
 
     /** Saves the rally with the mob; a save's older expires_at field is ignored on load. */
     public static final MapCodec<Rallied> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             UUIDUtil.CODEC.fieldOf(FIELD_CASTER).forGetter(Rallied::caster),
             Codec.FLOAT.fieldOf(FIELD_DAMAGE).forGetter(Rallied::damage),
-            UUIDUtil.CODEC.optionalFieldOf(FIELD_ATTACKER).forGetter(Rallied::attacker)
+            UUIDUtil.CODEC.optionalFieldOf(FIELD_ATTACKER).forGetter(Rallied::attacker),
+            RallyArmor.CODEC.optionalFieldOf(FIELD_ARMOR, RallyArmor.NONE).forGetter(Rallied::armor)
     ).apply(inst, Rallied::new));
 
     /**
@@ -48,16 +52,17 @@ public record Rallied(UUID caster, float damage, Optional<UUID> attacker) {
             UUIDUtil.STREAM_CODEC, Rallied::caster,
             ByteBufCodecs.FLOAT, Rallied::damage,
             ByteBufCodecs.optional(UUIDUtil.STREAM_CODEC), Rallied::attacker,
+            RallyArmor.STREAM_CODEC, Rallied::armor,
             Rallied::new);
 
     /**
-     * A rally recording no attacker.
+     * A rally recording no attacker and lending no armor.
      *
      * @param caster the entity the mob fights for
      * @param damage the damage one strike deals
      */
     public Rallied(UUID caster, float damage) {
-        this(caster, damage, Optional.empty());
+        this(caster, damage, Optional.empty(), RallyArmor.NONE);
     }
 
     /**
@@ -79,7 +84,7 @@ public record Rallied(UUID caster, float damage, Optional<UUID> attacker) {
      * @return the rally recording the attacker
      */
     public Rallied withAttacker(UUID player) {
-        return new Rallied(caster, damage, Optional.of(player));
+        return new Rallied(caster, damage, Optional.of(player), armor);
     }
 
     /**
@@ -89,7 +94,7 @@ public record Rallied(UUID caster, float damage, Optional<UUID> attacker) {
      * @return the rally recording no attacker
      */
     public Rallied withoutAttacker() {
-        return new Rallied(caster, damage);
+        return new Rallied(caster, damage, Optional.empty(), armor);
     }
 
     /**
