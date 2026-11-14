@@ -18,9 +18,9 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * The wash a durative self ability lays over the local player's view in
- * place of eating: as the use lands, the lifted blob expands from where it
- * stands by the glove until it covers the viewport, washes the view in the
- * goo type's colors, and fades. A first-person pass over the camera's
+ * place of eating: as the use lands, the lifted cuboid blob expands as a
+ * rectangle from where it stands by the glove until it covers the viewport,
+ * washes the view in the goo type's colors, and fades. A first-person pass over the camera's
  * overlays and under the HUD. Kept to this one class so a later ruling can
  * swap the look whole.
  * durative-self-abilities-wash-over-the-view-in-place-of-eating
@@ -32,20 +32,22 @@ public final class DurativeWash {
     static final int WASH_TICKS = 24;
     /** The share of the wash the blob takes to expand over the view; the rest is its fade. */
     static final double SWELL_SHARE = 0.3;
-    /** How opaque the wash stands at its fullest, so the world still shows through. */
-    static final float FULLEST_ALPHA = 0.7f;
-    /** How opaque the brighter core inside the blob's rim stands against the rim. */
-    private static final float CORE_ALPHA = 0.55f;
-    /** The core's radius against the rim's. */
-    private static final double CORE_RADIUS = 0.85;
+    /**
+     * How opaque the tinted face and its brighter core each stand at their
+     * fullest, about 0.44 stacked, so the world shows through.
+     * operator ruling: "Too opaque"
+     */
+    static final float FACE_ALPHA = 0.3f;
+    static final float CORE_ALPHA = 0.2f;
+    /** The core's size against the face's. */
+    private static final double CORE_SHARE = 0.85;
     /** Where the blob stands on the screen as the wash begins, by the glove: across and down. */
     private static final double BLOB_ACROSS = 0.62;
     private static final double BLOB_DOWN = 0.62;
-    /** The blob's radius as the wash begins, against the screen's shorter side. */
-    private static final double BLOB_RADIUS = 0.04;
+    /** The blob's half width as the wash begins, against the screen's shorter side. */
+    private static final double BLOB_HALF = 0.04;
     private static final int OPAQUE = 255;
-    /** A row's middle, half a pixel down it. */
-    private static final double ROW_MIDDLE = 0.5;
+    private static final double HALF = 0.5;
     private static final double SMOOTH_SQUARE = 3;
     private static final double SMOOTH_CUBE = 2;
     private static final Identifier LAYER_ID = Identifier.fromNamespaceAndPath(Goo.MODID, "durative_wash");
@@ -59,7 +61,7 @@ public final class DurativeWash {
     /**
      * A wash playing.
      *
-     * @param rim    the blob's rim color, the goo type's wheel
+     * @param rim    the blob's face color, the goo type's wheel
      * @param core   the blob's core color, the goo type's bright
      * @param began  the game time it began
      * @param right  whether the glove is in the right hand
@@ -100,7 +102,7 @@ public final class DurativeWash {
 
     /**
      * How far the blob has expanded a time into the wash: from its own size
-     * to past the screen's corners once it covers the view.
+     * to the screen's edges once it covers the view.
      *
      * @param ticksSince ticks since the wash began
      * @return the share of the way from the blob's size to covering the view, 0 to 1
@@ -111,6 +113,63 @@ public final class DurativeWash {
 
     private static double smooth(double share) {
         return share * share * (SMOOTH_SQUARE - SMOOTH_CUBE * share);
+    }
+
+    /**
+     * A rectangle on the screen, the cuboid blob's face as it washes over the view.
+     *
+     * @param left   its left edge
+     * @param top    its top edge
+     * @param right  its right edge
+     * @param bottom its bottom edge
+     */
+    record Box(double left, double top, double right, double bottom) {
+
+        /**
+         * This box shrunk toward its own middle.
+         *
+         * @param share the share of its size kept, 0 to 1
+         * @return the shrunk box
+         */
+        Box shrunk(double share) {
+            double across = (right - left) * (1 - share) * HALF;
+            double down = (bottom - top) * (1 - share) * HALF;
+            return new Box(left + across, top + down, right - across, bottom - down);
+        }
+    }
+
+    /**
+     * The wash's rectangle as the blob expands: the cuboid's square at the
+     * blob's size where it stands by the glove, each edge easing out until
+     * the rectangle covers the viewport.
+     * operator ruling: "It's coming out of a cuboid so the circular flare makes no sense"
+     *
+     * @param expanded   the share expanded, 0 to 1
+     * @param width      the screen's width
+     * @param height     the screen's height
+     * @param gloveRight whether the glove is in the right hand
+     * @return the rectangle in screen pixels
+     */
+    static Box boxAt(double expanded, int width, int height, boolean gloveRight) {
+        double middleAcross = width * (gloveRight ? BLOB_ACROSS : 1 - BLOB_ACROSS);
+        double middleDown = height * BLOB_DOWN;
+        double half = Math.min(width, height) * BLOB_HALF;
+        return new Box(lerp(expanded, middleAcross - half, 0), lerp(expanded, middleDown - half, 0),
+                lerp(expanded, middleAcross + half, width), lerp(expanded, middleDown + half, height));
+    }
+
+    private static double lerp(double share, double from, double to) {
+        return from + (to - from) * share;
+    }
+
+    /**
+     * How opaque the wash stands at its fullest, its tinted face and its
+     * brighter core stacked.
+     *
+     * @return the stacked opacity, 0 to 1
+     */
+    static float peakOpacity() {
+        return 1 - (1 - FACE_ALPHA) * (1 - CORE_ALPHA);
     }
 
     /**
@@ -148,7 +207,7 @@ public final class DurativeWash {
     }
 
     /**
-     * Draws a wash a time into it: the blob's rim and its brighter core.
+     * Draws a wash a time into it: the blob's tinted face and its brighter core.
      *
      * @param graphics the GUI graphics
      * @param shown    the wash
@@ -156,61 +215,14 @@ public final class DurativeWash {
      */
     private static void draw(GuiGraphicsExtractor graphics, Washing shown, double since) {
         float strength = strengthAt(since);
-        int width = graphics.guiWidth();
-        int height = graphics.guiHeight();
-        double across = shown.right() ? BLOB_ACROSS : 1 - BLOB_ACROSS;
-        Disc rim = new Disc(width * across, height * BLOB_DOWN,
-                radiusAt(expandedAt(since), width, height, across));
-        int alpha = Math.round(FULLEST_ALPHA * strength * OPAQUE);
-        fillDisc(graphics, rim, ARGB.color(alpha, shown.rim()));
-        fillDisc(graphics, new Disc(rim.x(), rim.y(), rim.radius() * CORE_RADIUS),
-                ARGB.color(Math.round(alpha * CORE_ALPHA), shown.core()));
+        Box face = boxAt(expandedAt(since), graphics.guiWidth(), graphics.guiHeight(), shown.right());
+        fillBox(graphics, face, ARGB.color(Math.round(FACE_ALPHA * strength * OPAQUE), shown.rim()));
+        fillBox(graphics, face.shrunk(CORE_SHARE), ARGB.color(Math.round(CORE_ALPHA * strength * OPAQUE),
+                shown.core()));
     }
 
-    /**
-     * The blob's radius on the screen: its own size as the wash begins, out
-     * to the farthest corner from where it stands once it covers the view.
-     *
-     * @param expanded the share expanded, 0 to 1
-     * @param width    the screen's width
-     * @param height   the screen's height
-     * @param across   the share across the screen the blob stands at
-     * @return the radius in screen pixels
-     */
-    private static double radiusAt(double expanded, int width, int height, double across) {
-        double start = Math.min(width, height) * BLOB_RADIUS;
-        double corner = Math.hypot(width * Math.max(across, 1 - across), height * BLOB_DOWN);
-        return start + (corner - start) * expanded;
-    }
-
-    /**
-     * A disc on the screen.
-     *
-     * @param x      its middle across
-     * @param y      its middle down
-     * @param radius its radius
-     */
-    private record Disc(double x, double y, double radius) {
-    }
-
-    /**
-     * Fills a disc row by row, clipped to the screen.
-     *
-     * @param graphics the GUI graphics
-     * @param disc     the disc
-     * @param color    its ARGB color
-     */
-    private static void fillDisc(GuiGraphicsExtractor graphics, Disc disc, int color) {
-        int top = Math.max(0, (int) Math.floor(disc.y() - disc.radius()));
-        int bottom = Math.min(graphics.guiHeight(), (int) Math.ceil(disc.y() + disc.radius()));
-        for (int row = top; row < bottom; row++) {
-            double offset = row + ROW_MIDDLE - disc.y();
-            double half = Math.sqrt(Math.max(0, disc.radius() * disc.radius() - offset * offset));
-            int left = Math.max(0, (int) Math.round(disc.x() - half));
-            int right = Math.min(graphics.guiWidth(), (int) Math.round(disc.x() + half));
-            if (right > left) {
-                graphics.fill(left, row, right, row + 1, color);
-            }
-        }
+    private static void fillBox(GuiGraphicsExtractor graphics, Box box, int color) {
+        graphics.fill((int) Math.round(box.left()), (int) Math.round(box.top()), (int) Math.round(box.right()),
+                (int) Math.round(box.bottom()), color);
     }
 }
