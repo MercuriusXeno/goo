@@ -30,6 +30,7 @@ import com.mercuriusxeno.goo.ability.typhoon.Breath;
 import com.mercuriusxeno.goo.ability.typhoon.Floating;
 import com.mercuriusxeno.goo.ability.weird.Wobbled;
 import com.mercuriusxeno.goo.ability.xeno.Eldritch;
+import com.mercuriusxeno.goo.ability.zoo.Downed;
 import com.mercuriusxeno.goo.ability.zoo.Kin;
 import com.mercuriusxeno.goo.ability.zoo.Rallied;
 import com.mercuriusxeno.goo.data.GooRemainders;
@@ -332,6 +333,20 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> Rallied.NONE)
                             .serialize(Rallied.CODEC)
                             .sync(GooAttachments::syncsToWatcher, Rallied.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The fall a rallied mob takes instead of dying, the game time it went
+     * down, saved with the mob so its timers survive a reload and synced to
+     * every client drawing it, which lays it on its side. A rally ending
+     * leaves it standing.
+     * rallied-mob-falls-downed-instead-of-dying
+     */
+    public static final Supplier<AttachmentType<Downed>> DOWNED =
+            ATTACHMENT_TYPES.register("downed",
+                    () -> AttachmentType.builder(() -> Downed.NONE)
+                            .serialize(Downed.CODEC)
+                            .sync(GooAttachments::syncsToWatcher, Downed.STREAM_CODEC)
                             .build());
 
     /**
