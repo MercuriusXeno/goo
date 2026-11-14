@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.ability;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
@@ -36,7 +35,6 @@ class DeliveryTest {
     private static final double TEN_BLOCKS = 10;
     private static final float LEVITY = 0.7f;
     private static final int BASE_FLIGHT_TIME = 3;
-    private static final int BULB_FULL_RANGE_TICK_BUDGET = 4;
     private static final String TOP_SPEED = "top_speed";
 
     private static DataResult<AbilityDefinition> decode(String deliveryField) {
@@ -109,7 +107,7 @@ class DeliveryTest {
             assertTrue(knives.slingsAFan());
             assertFalse(knives.aimsALine());
             assertTrue(AbilityJson.decode("frost_orb").delivery().aimsALine());
-            assertTrue(AbilityJson.decode("glow_bulb").delivery().aimsALine());
+            assertTrue(AbilityJson.decode("pulse_zap").delivery().aimsALine());
         }
 
         // traveling-form-transforms-in-flight
@@ -268,18 +266,6 @@ class DeliveryTest {
         }
 
         /**
-         * A bulb cast at the throw's full range lands within a handful of
-         * ticks, so placing a bulb feels like pointing, not waiting.
-         */
-        // bulb-beam-lands-in-a-few-ticks
-        @Test
-        void bulbBeamLandsAFullRangeCastWithinTheTickBudget() {
-            Delivery bulb = AbilityJson.decode("glow_bulb").delivery();
-            assertTrue(bulb.travelTicks(GooThrowHandler.MAX_RANGE, LEVITY, BASE_FLIGHT_TIME)
-                    <= BULB_FULL_RANGE_TICK_BUDGET);
-        }
-
-        /**
          * A dart thrown at a mob ten blocks off, Metal's levity and base
          * flight time, stays in the air at least the ticks the top speed
          * metal_dart.json names takes to cover the distance, so the eye
@@ -298,9 +284,15 @@ class DeliveryTest {
                     + topSpeed + " blocks a tick takes " + fewestTicks);
         }
 
+        /**
+         * Bulb casts at the aimed place the release tick, so placing a bulb
+         * feels like pointing, not waiting; Zap still beams
+         * (decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob).
+         */
         @Test
-        void bulbBeamsAndLaserChannelsOnSelf() {
-            assertEquals(DeliveryKind.BEAM, AbilityJson.decode("glow_bulb").delivery().kind());
+        void bulbCastsSpontaneouslyZapBeamsAndLaserChannelsOnSelf() {
+            assertEquals(DeliveryKind.SPONTANEOUS, AbilityJson.decode("glow_bulb").delivery().kind());
+            assertEquals(DeliveryKind.BEAM, AbilityJson.decode("pulse_zap").delivery().kind());
             assertEquals(DeliveryKind.SELF, AbilityJson.decode("glow_laser").delivery().kind());
         }
     }

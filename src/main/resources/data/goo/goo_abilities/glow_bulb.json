@@ -5,9 +5,10 @@
   "order": 0,
   "cost": 1000,
   "requires": ["minecraft:glowstone"],
-  "delivery": { "kind": "beam", "blocks_per_tick": 16 },
+  "delivery": { "kind": "spontaneous" },
   "area": { "shape": "line" },
   "behaviors": [
+    { "type": "scan_visual", "visual": "light_dart" },
     {
       "type": "place_block",
       "block": "goo:glow_crystal",
@@ -18,5 +19,6 @@
     { "type": "set_state", "state": { "lit": "true" } },
     { "type": "sound", "id": "minecraft:block.beacon.activate", "at": "host", "source": "blocks", "volume": 1, "pitch": 1.2 }
   ],
-  "tags": ["place_block", "instant"]
+  "tags": ["place_block", "instant"],
+  "pose": "held_out"
 }

@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.ability.OwnMinions;
 import com.mercuriusxeno.goo.ability.aging.Aging;
 import com.mercuriusxeno.goo.ability.aging.AgingTable;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
+import com.mercuriusxeno.goo.ability.program.ScanVisualStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.TargetGatedStep;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
@@ -355,7 +356,7 @@ public final class GooThrowHandler {
             // click-is-a-hit-scan-drawn-as-a-delayed-wave
             GooScanHandler.scan(player, payload, gooType, ability);
         } else if (ability.delivery().kind() == DeliveryKind.SPONTANEOUS) {
-            castAtTarget(player, payload, gooType);
+            castAtTarget(player, payload, gooType, ability);
         } else if (touchesTarget(player, payload, ability)) {
             GooTouchHandler.touch(player, payload, gooType);
         } else if (ability.delivery().rolls()) {
@@ -483,21 +484,27 @@ public final class GooThrowHandler {
     /**
      * Makes a spontaneous cast at the aimed target the release names, once
      * the range and the goo check out: it pays as a throw does and its
-     * program runs there this tick, with no flight and nothing thrown.
+     * program runs there this tick, with no flight and nothing thrown; a
+     * program naming a visual darts it from the palm blob to the place.
      * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
      *
      * @param player  the casting player
-     * @param payload the release: the aimed block, face and point
+     * @param payload the release: the cast origin and the aimed block, face and point
      * @param gooType the validated goo type
+     * @param ability the cast ability
      */
     private static void castAtTarget(ServerPlayer player, GooThrowPayload payload,
-            ResourceKey<GooTypeDefinition> gooType) {
+            ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability) {
         if (!validateRange(player, payload)) { return; }
         GooFraction cost = resolveThrowCost(player, payload, gooType);
         if (refuses(player, payload, cost) || !validateSupply(player, gooType, cost)) { return; }
         AbilityCharges.charge(player, gooType, cost);
         consumeReagents(player, payload.abilityId(), gooType);
         GooEffectScheduler.castNow(player, payload, gooType);
+        Vec3 castOrigin = ThrowArc.clampToReach(player.getEyePosition(), payload.origin(),
+                ThrowArc.HAND_REACH * player.getScale());
+        ScanVisualStep.in(ability.behaviors()).ifPresent(visual -> EntityVisuals.sendToWatchers(player,
+                CastDart.wave(castOrigin, payload.targetPoint(), visual)));
     }
 
     /** Validates glove is held, logging rejection if not.

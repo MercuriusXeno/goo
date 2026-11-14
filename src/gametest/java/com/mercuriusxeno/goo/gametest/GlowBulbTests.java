@@ -1,16 +1,22 @@
 package com.mercuriusxeno.goo.gametest;
 
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
+import com.mercuriusxeno.goo.network.GooThrowHandler;
+import com.mercuriusxeno.goo.network.GooThrowPayload;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Blocks;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
@@ -34,6 +40,32 @@ public final class GlowBulbTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, BULB_IS_ONE_SIZE_LIGHT_15, GlowBulbTests::bulbIsOneSizeLight15);
         GooTestFunctions.registerTest(registrar, BULB_ON_PRISM_BEACONS, GlowBulbTests::bulbOnPrismBeacons);
+        GooTestFunctions.registerTest(registrar, BULB_FORMS_AT_THE_AIMED_PLACE, GlowBulbTests::bulbFormsAtTheAimedPlace);
+    }
+
+    private static final String BULB_FORMS_AT_THE_AIMED_PLACE = "bulb_forms_at_the_aimed_place";
+
+    /**
+     * Released at a floor's top face, Bulb's crystal stands on that face the
+     * same tick and no goo was thrown to get it there.
+     * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
+     *
+     * @param helper the gametest helper
+     */
+    public static void bulbFormsAtTheAimedPlace(GameTestHelper helper) {
+        AbilityDefinition bulb = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(BULB));
+        helper.assertTrue(bulb != null, "Ability registry must hold " + BULB);
+        helper.setBlock(FLOOR_POS, Blocks.STONE);
+        ServerPlayer player = StackKeyTests.makeThrower(helper, GooTypes.GLOW);
+        KnownRecipes.teachRequires(player, bulb);
+        GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.GLOW), NO_ENTITY,
+                helper.absolutePos(FLOOR_POS), Direction.UP.ordinal(), false, BULB, player.getEyePosition()));
+        boolean formed = helper.getBlockState(LANDED_POS).is(GooBlocks.GLOW_CRYSTAL.get());
+        int thrown = ThrownGoo.countAround(helper);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(formed, "Bulb's crystal should stand on the floor's top face the release tick");
+        helper.assertTrue(thrown == 0, "No goo should be thrown, " + thrown + " thrown goo stand");
+        helper.succeed();
     }
 
 
