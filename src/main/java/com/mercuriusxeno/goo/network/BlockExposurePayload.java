@@ -26,7 +26,7 @@ public record BlockExposurePayload(BlockPos pos, int toward, float share, int ti
     /**
      * The mark of a block melting away: the client draws nothing while it
      * heats, and on its step eats the old block away through the noise over
-     * what it melted into, as Blaze Melt eats stone into lava.
+     * what it melted into, as Blaze's Molten eats stone into lava.
      * decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold
      */
     public static final int MELTS_AWAY = -2;

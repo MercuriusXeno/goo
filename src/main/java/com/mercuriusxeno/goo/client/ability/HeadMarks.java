@@ -16,7 +16,7 @@ import java.util.Optional;
 
 /**
  * Floats a life mark over the head of every rallied or charmed mob in sight,
- * and every mob Heal or Drain touched lately or Leader senses: the charmed
+ * and every mob Heal or Drain touched lately or Kin senses: the charmed
  * heart or the rally fist leading the row on a marked mob, then its health
  * bar, for as long as the mark holds.
  * charm-glisten-and-icon-over-the-head
@@ -52,7 +52,7 @@ public final class HeadMarks {
         List<LivingEntity> marked = new ArrayList<>();
         for (Entity entity : level.entitiesForRendering()) {
             if (entity instanceof LivingEntity living && !living.isInvisible()
-                    && LifeMarkBillboard.showsLifeMark(living.getId(), tick, TouchedMobs.CLIENT, LeaderSense.CLIENT,
+                    && LifeMarkBillboard.showsLifeMark(living.getId(), tick, TouchedMobs.CLIENT, KinSense.CLIENT,
                     headMarkOf(living).isPresent())) {
                 marked.add(living);
             }

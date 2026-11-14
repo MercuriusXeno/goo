@@ -270,7 +270,7 @@ public final class GooThrowHandler {
     /**
      * Whether a step of the ability refuses the block a throw strikes, so the
      * throw is dropped unpaid; the client sends none at such a block, so this
-     * meets only a throw sent past it. Melt strikes only meltable stone.
+     * meets only a throw sent past it. Molten strikes only meltable stone.
      * melt-blob-absorbs-into-lava
      *
      * @param level   the level thrown in

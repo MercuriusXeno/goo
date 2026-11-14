@@ -1,4 +1,4 @@
-// The copies of an Outsider room (decision room-tiles-to-render-distance-held-to-the-picture): each instance of
+// The copies of a Zone room (decision room-tiles-to-render-distance-held-to-the-picture): each instance of
 // the room's mesh is one copy, moved by its own translation. RoomCopyDraws writes each copy's east then south as a
 // fixed point of sixteen bits whole and sixteen fraction, little end first, one byte a texel.
 

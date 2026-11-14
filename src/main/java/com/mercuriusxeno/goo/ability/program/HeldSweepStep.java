@@ -5,7 +5,7 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.ResourceKey;
 
 /**
- * A held step that sweeps: Scry, Glitter and Magnet each send overlapping
+ * A held step that sweeps: Scry, Glimmer and Magnet each send overlapping
  * pulses at the one shared pace, one payload for each live pulse each tick,
  * which the caster's client draws through the one held-sweep visual.
  * decision held-sweeps-share-one-fast-shell-visual

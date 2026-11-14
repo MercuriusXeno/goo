@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.ability.quantum;
 
-import com.mercuriusxeno.goo.ability.outsider.RoomEdges;
+import com.mercuriusxeno.goo.ability.zone.RoomEdges;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;

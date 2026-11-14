@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Razor's shards appear in layers ahead of the prism dome: a shard is
+ * Shatter's shards appear in layers ahead of the prism dome: a shard is
  * undrawn until the dome reaches nine tenths of its resting distance, born
  * there fully transparent, drifts the last tenth to rest fading in as the
  * dome passes, and sits at rest at full alpha once the dome has passed. Its
@@ -84,16 +84,16 @@ class ShardLayeringTest {
         float grownDome = ShardLayering.domeRadius(GROWN_TICKS, REACH);
         int restingEarly = 0;
         for (int shard = 0; shard < ShardTable.MAX_SLIVERS; shard++) {
-            ShardLayering.ShardReveal early = CrystalCloudVisual.revealOf(SHARDS, shard, REACH, earlyDome);
-            ShardLayering.ShardReveal grown = CrystalCloudVisual.revealOf(SHARDS, shard, REACH, grownDome);
+            ShardLayering.ShardReveal early = CrystalShatterVisual.revealOf(SHARDS, shard, REACH, earlyDome);
+            ShardLayering.ShardReveal grown = CrystalShatterVisual.revealOf(SHARDS, shard, REACH, grownDome);
             Vector3f seeded = SHARDS.center(shard).mul(REACH).add(0.5f, 0.5f, 0.5f);
-            Vector3f atGrown = CrystalCloudVisual.shardCenter(SHARDS, shard, grown);
+            Vector3f atGrown = CrystalShatterVisual.shardCenter(SHARDS, shard, grown);
 
             assertTrue(grown.drawn() && grown.alpha() == 1f, "shard " + shard + " is not at rest once the dome grew");
             assertTrue(seeded.distance(atGrown) < TOLERANCE, "shard " + shard + " rests off its seed");
             if (early.drawn() && early.alpha() == 1f) {
                 restingEarly++;
-                assertTrue(atGrown.distance(CrystalCloudVisual.shardCenter(SHARDS, shard, early)) < TOLERANCE,
+                assertTrue(atGrown.distance(CrystalShatterVisual.shardCenter(SHARDS, shard, early)) < TOLERANCE,
                         "shard " + shard + " moved between the two expands");
             }
         }

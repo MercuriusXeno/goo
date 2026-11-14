@@ -48,7 +48,7 @@ public enum EntityFilter {
      */
     NOT_SNEAKING,
     /**
-     * Keeps entities moving horizontally above rest; the crystal cloud
+     * Keeps entities moving horizontally above rest; the Shatter cloud
      * shreds only what moves through it.
      */
     MOVING,

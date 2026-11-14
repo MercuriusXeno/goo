@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.ability.quantum;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
-import com.mercuriusxeno.goo.ability.outsider.RoomEdges;
+import com.mercuriusxeno.goo.ability.zone.RoomEdges;
 import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.network.GateCarriedPayload;
 import com.mercuriusxeno.goo.registry.GooSounds;
@@ -40,7 +40,7 @@ import java.util.stream.Stream;
  * the partner, at the matching point, with its momentum and its view turned
  * through the pair, as the portal gun does. Read on both sides:
  * the server's gates from the saved links and open holes, the client's from
- * what the server told it. An Outsider room's edges are gates too, each
+ * what the server told it. A Zone room's edges are gates too, each
  * carrying a body across to the opposite edge.
  * portals-link-by-looking-through-portal-vision
  * hole-closes-the-space-to-an-opening-ahead
@@ -354,7 +354,7 @@ public final class GatePassage {
     }
 
     /**
-     * The gates the server holds linked now, portals, holes and Outsider
+     * The gates the server holds linked now, portals, holes and Zone
      * rooms' edges alike.
      *
      * @param server the server

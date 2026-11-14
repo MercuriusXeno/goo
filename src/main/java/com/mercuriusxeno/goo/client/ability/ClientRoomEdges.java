@@ -1,9 +1,9 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.outsider.OutsiderRooms;
-import com.mercuriusxeno.goo.ability.outsider.RoomEdges;
-import com.mercuriusxeno.goo.ability.outsider.RoomExtent;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
+import com.mercuriusxeno.goo.ability.zone.RoomEdges;
+import com.mercuriusxeno.goo.ability.zone.RoomExtent;
+import com.mercuriusxeno.goo.ability.zone.ZoneRooms;
 import com.mercuriusxeno.goo.network.RoomEdgesSyncPayload;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
@@ -13,7 +13,7 @@ import java.util.Optional;
 import java.util.OptionalDouble;
 
 /**
- * The edges of the Outsider room the local player stands in, as the server
+ * The edges of the Zone room the local player stands in, as the server
  * last told them, each pair carrying the player to the opposite side, and
  * the boundary they stand on, which the voidstone's stars read.
  * outsider-room-wraps-and-repeats-at-the-platform-edge
@@ -64,7 +64,7 @@ public final class ClientRoomEdges {
     }
 
     /**
-     * The extent of the Outsider room the local player stands in, as the
+     * The extent of the Zone room the local player stands in, as the
      * server last sent it: present only in the pocket with a room's edges held.
      * decision outsider-panel-reads-the-seconds-the-void-affords
      *
@@ -72,7 +72,7 @@ public final class ClientRoomEdges {
      * @return the room's extent, empty outside the pocket
      */
     public static OptionalDouble extentWhereStanding(ResourceKey<Level> dimension) {
-        return dimension == OutsiderRooms.POCKET
+        return dimension == ZoneRooms.POCKET
                 ? bounds.map(room -> OptionalDouble.of(room.extent())).orElse(OptionalDouble.empty())
                 : OptionalDouble.empty();
     }

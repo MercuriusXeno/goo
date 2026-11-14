@@ -61,7 +61,7 @@ public class AbilityBlockRenderState extends BlockEntityRenderState {
     /** True when a crystal shard cloud behavior is active. */
     public boolean crystalActive;
 
-    /** Charge density [0-1] for crystal cloud visual scaling. */
+    /** Charge density [0-1] for Shatter cloud visual scaling. */
     public float crystalDensity;
 
     /** Slow cycling phase [0-1] for crystal crack drift animation. */

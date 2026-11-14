@@ -91,7 +91,7 @@ class AbilityDefinitionTest {
     @Test
     void razorRequiresGlassAndSand() {
         assertEquals(List.of(Identifier.withDefaultNamespace("glass"), Identifier.withDefaultNamespace("sand")),
-                AbilityJson.decode("crystal_cloud").requires());
+                AbilityJson.decode("crystal_shatter").requires());
     }
 
     /**
@@ -333,21 +333,21 @@ class AbilityDefinitionTest {
 
         @Test
         void mobThrowOverAFieldStepDrawsNoArea() {
-            List<Step> field = AbilityJson.decode("crystal_cloud").behaviors();
+            List<Step> field = AbilityJson.decode("crystal_shatter").behaviors();
             assertEquals(AbilityArea.NONE,
                     AbilityDefinition.heldArea(AbilityArea.NONE, Delivery.ARC, AbilityBadge.MOB, field));
         }
 
         @Test
         void beamOverAFieldStepDrawsNoArea() {
-            List<Step> field = AbilityJson.decode("crystal_cloud").behaviors();
+            List<Step> field = AbilityJson.decode("crystal_shatter").behaviors();
             assertEquals(AbilityArea.NONE,
                     AbilityDefinition.heldArea(AbilityArea.NONE, Delivery.BEAM, AbilityBadge.WORLD, field));
         }
 
         @Test
         void freeThrowOverAFieldStepDrawsItsSphere() {
-            List<Step> field = AbilityJson.decode("crystal_cloud").behaviors();
+            List<Step> field = AbilityJson.decode("crystal_shatter").behaviors();
             assertEquals(AbilityArea.Shape.SPHERE,
                     AbilityDefinition.heldArea(AbilityArea.NONE, Delivery.ARC, AbilityBadge.FREE, field).shape());
         }

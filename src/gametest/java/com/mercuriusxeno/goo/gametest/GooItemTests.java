@@ -327,7 +327,7 @@ public final class GooItemTests {
     private static final BlockPos PLAYER_POS = new BlockPos(2, 1, 5);
     private static final Direction THROW_FACE = Direction.SOUTH;
     private static final int NO_TARGET_ENTITY = -1;
-    private static final String CRYSTAL_CLOUD = "goo:crystal_cloud";
+    private static final String CRYSTAL_SHATTER = "goo:crystal_shatter";
     private static final String METAL_URCHIN = "goo:metal_urchin";
     private static final String REMOVAL = "removal";
     /**
@@ -394,7 +394,7 @@ public final class GooItemTests {
         player.setPos(stand.getX(), stand.getY(), stand.getZ());
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(thrower));
         AbilityRegistry abilities = AbilityRegistry.of(helper.getLevel());
-        AbilityDefinition cloud = abilities.getAbility(Identifier.parse(CRYSTAL_CLOUD));
+        AbilityDefinition cloud = abilities.getAbility(Identifier.parse(CRYSTAL_SHATTER));
         AbilityDefinition spikes = abilities.getAbility(Identifier.parse(METAL_URCHIN));
         ItemStack crystal = GooStacks.createForOutput(GooTypes.CRYSTAL, cloud.cost().in(GooValueTable.EMPTY));
         ItemStack metal = GooStacks.createForOutput(GooTypes.METAL, spikes.cost().in(GooValueTable.EMPTY));
@@ -403,7 +403,7 @@ public final class GooItemTests {
         KnownRecipes.teachRequires(player, cloud);
         KnownRecipes.teachRequires(player, spikes);
 
-        GooThrowHandler.execute(player, throwAt(helper, GooTypes.CRYSTAL, CRYSTAL_CLOUD, CRYSTAL_WALL));
+        GooThrowHandler.execute(player, throwAt(helper, GooTypes.CRYSTAL, CRYSTAL_SHATTER, CRYSTAL_WALL));
         GooThrowHandler.execute(player, throwAt(helper, GooTypes.METAL, METAL_URCHIN, METAL_WALL));
         helper.assertTrue(crystal.isEmpty(), GOO_NOT_SPENT + GooTypes.id(GooTypes.CRYSTAL));
         helper.assertTrue(metal.isEmpty(), GOO_NOT_SPENT + GooTypes.id(GooTypes.METAL));
