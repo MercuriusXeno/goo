@@ -15,10 +15,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class BoreContactSprayTest {
 
-    /** rock_bore.json's reach and vortex radii. */
+    /** rock_bore.json's reach and point radius. */
     private static final double REACH = 4;
-    private static final double NEAR = 0.35;
-    private static final double FAR = 0.1;
+    private static final double POINT_RADIUS = 0.1;
     private static final double SLACK = 1e-9;
 
     /** The spew flies back from the drill's point toward the holder, never back into the block. */
@@ -49,8 +48,8 @@ class BoreContactSprayTest {
     void theContactIsTracedAlongTheDrawnVortexNotTheLineOfSight() {
         Vec3 eye = new Vec3(0.5, 65.62, 0.5);
         Vec3 look = new Vec3(0, 0, 1);
-        ConeSections.Volume drawn = BoreDrill.volume(eye, look, 0f, REACH, NEAR, FAR);
-        Vec3[] line = BoreContactSpray.contactLine(eye, look, 0f, REACH, NEAR, FAR);
+        ConeSections.Volume drawn = BoreDrill.volume(eye, look, 0f, REACH, POINT_RADIUS);
+        Vec3[] line = BoreContactSpray.contactLine(eye, look, 0f, REACH, POINT_RADIUS);
         assertEquals(0, line[0].distanceTo(drawn.apex()), SLACK);
         assertEquals(0, line[1].distanceTo(drawn.apex().add(drawn.axis().scale(drawn.range()))), SLACK);
         assertTrue(line[0].y < eye.y, "the trace starts on the line of sight, not where the vortex is held");

@@ -22,8 +22,9 @@ import java.util.Optional;
  * magic is held out in front of the player, starting a little below their
  * line of sight with a wide mouth so they look down along it and see its
  * shape, and meeting their line of sight at the bore's reach, narrowing
- * toward a point, never wider than a block. At each depth it is as
- * wide as the vortex the bore breaks there, clipped by the blocks it meets,
+ * toward a point, never wider than a block. At its far end it is as wide as
+ * the point the bore breaks at, the drill drawn from the size of the break,
+ * clipped by the blocks it meets,
  * where {@link BoreContactSpray} spits their particles. {@link BoreDrillPass} marches it
  * as Drain's vortex is marched: a churning, sparse, patchy swirl of earthy
  * dust in rock's tones, its cone defined by a rifled shell, ragged.
@@ -42,6 +43,8 @@ public final class BoreDrill {
     static final double HELD_AHEAD = 1.0;
     /** How far below the line of sight, in blocks, the held vortex starts. */
     static final double HELD_BELOW = 0.35;
+    /** The drill's radius at its wide mouth, in blocks, under the half block that keeps it narrower than a block. */
+    static final double MOUTH_RADIUS = 0.35;
     private static final Vec3 WORLD_UP = new Vec3(0, 1, 0);
     private static final Vec3 WORLD_SOUTH = new Vec3(0, 0, 1);
     private static final double NEARLY_UPRIGHT = 0.999;
@@ -78,27 +81,24 @@ public final class BoreDrill {
     /**
      * The vortex at its full length, held out in front: from a point ahead
      * of the eye and a little below the line of sight to the bore's reach on
-     * the line of sight, as wide at each end as the vortex the bore breaks
-     * is at that depth, between the bore step's near and far radii.
+     * the line of sight, narrowing from its wide mouth to the point radius
+     * the bore breaks with, so its far end is as wide as what Bore breaks.
      * decision bore-shows-a-big-drill-from-the-glove
      * decision bore-breaks-what-is-in-the-vortex
      *
-     * @param eye        the eye, camera relative
-     * @param look       the look's unit vector
-     * @param yaw        the look's yaw in degrees
-     * @param reach      the bore's reach from the eye
-     * @param nearRadius the broken vortex's radius at the eye, the bore step's JSON number
-     * @param farRadius  the broken vortex's radius at the reach, the bore step's JSON number
+     * @param eye         the eye, camera relative
+     * @param look        the look's unit vector
+     * @param yaw         the look's yaw in degrees
+     * @param reach       the bore's reach from the eye
+     * @param pointRadius the radius of the point the bore breaks at, the bore step's JSON number
      * @return the vortex, its apex where it is held
      */
-    static ConeSections.Volume volume(Vec3 eye, Vec3 look, float yaw, double reach, double nearRadius,
-                                      double farRadius) {
+    static ConeSections.Volume volume(Vec3 eye, Vec3 look, float yaw, double reach, double pointRadius) {
         Vec3 held = eye.add(look.scale(HELD_AHEAD)).add(below(look).scale(HELD_BELOW));
         Vec3 toFar = eye.add(look.scale(reach)).subtract(held);
         double length = toFar.length();
-        double heldRadius = nearRadius + (farRadius - nearRadius) * Math.clamp(HELD_AHEAD / reach, 0, 1);
         return new ConeSections.Volume(held, toFar.normalize(), yaw, 0, length, RINGS,
-                distance -> heldRadius + (farRadius - heldRadius) * Math.clamp(distance / length, 0, 1));
+                distance -> MOUTH_RADIUS + (pointRadius - MOUTH_RADIUS) * Math.clamp(distance / length, 0, 1));
     }
 
     /**
@@ -159,7 +159,7 @@ public final class BoreDrill {
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         ConeSections.Volume full = volume(vortexEye(CameraEye.of(mc, player, partialTick), camera),
                 player.getViewVector(partialTick), player.getViewYRot(partialTick), lastReach,
-                lastStep.vortexNearRadius(), lastStep.vortexFarRadius());
+                lastStep.pointRadius());
         double poured = held ? emergedShare(GloveUseTracker.channelTicks() + partialTick) : 1;
         BoreDrillPass.draw(emerged(full, poured), presence, event.getModelViewMatrix());
     }

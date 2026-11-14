@@ -12,6 +12,7 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -30,11 +33,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Bore's step drills the breakable blocks its eye line crosses, whatever the
- * stream's cone, each over several ticks at its JSON's pace, the nearest
- * fastest, and a solid block outside its tag on the eye line stops the line
- * there (decisions bore-drills-the-eye-line-with-steady-progress,
- * bore-breaks-a-15-degree-cone, bore-and-flatten-json-carry-two-pace-values).
+ * Bore's step drills the breakable blocks at its point, where the eye line
+ * meets the first breakable block, and the point moves deeper as they break,
+ * each over several ticks at its JSON's pace; a solid block outside its tag
+ * on the eye line stops the bore there (decisions
+ * bore-breaks-the-block-at-the-point-and-its-surroundings,
+ * bore-drills-the-eye-line-with-steady-progress, bore-breaks-what-is-in-the-vortex).
  */
 class BoreStepTest {
 
@@ -119,16 +123,6 @@ class BoreStepTest {
         }
 
         @Test
-        void doublingTheSlowdownDelaysTheSecondBlocksBreak() {
-            int paced = breakTickOf(SECOND_ON_LINE, PACE);
-            int slower = breakTickOf(SECOND_ON_LINE, new BreakPace(PACE.breakTicks(), 2 * PACE.slowdown()));
-
-            assertTrue(paced > PACE.breakTicks(), "the second block broke by tick " + paced);
-            assertTrue(slower > paced, "doubling the slowdown broke the second block on tick " + slower
-                    + ", not after tick " + paced);
-        }
-
-        @Test
         void eachNearerBlockBreaksBeforeTheBlockBehindIt() {
             int last = 0;
             for (int east = 1; east <= 4; east++) {
@@ -136,6 +130,35 @@ class BoreStepTest {
                 assertTrue(tick > last, "x " + east + " broke on tick " + tick + ", not after tick " + last);
                 last = tick;
             }
+        }
+
+        /** decision bore-breaks-the-block-at-the-point-and-its-surroundings: the point moves deeper as blocks break */
+        @Test
+        void theBlockBehindGainsProgressOnlyFromTheTickTheAimedBlockBreaks() {
+            Map<BlockPos, Integer> stages = new HashMap<>();
+            ChannelHost host = hostWith(Set.of(FIRST_ON_LINE, SECOND_ON_LINE)::contains, Set.of());
+            doAnswer(call -> stages.put(call.getArgument(0), call.getArgument(1))).when(host)
+                    .crackBlock(any(), anyInt());
+            BoreStep bore = new BoreStep(BREAKABLE, PACE);
+            int previous = GradualBreak.CLEARED;
+            int risingTicks = 0;
+
+            for (int held = 1; held <= HELD_TICKS && host.blockIn(SECOND_ON_LINE, BREAKABLE); held++) {
+                boolean aimedStood = host.blockIn(FIRST_ON_LINE, BREAKABLE);
+                run(host, bore);
+                int stage = stages.getOrDefault(SECOND_ON_LINE, GradualBreak.CLEARED);
+                if (aimedStood) {
+                    assertEquals(GradualBreak.CLEARED, stage, "the block behind gained progress on tick " + held
+                            + " while the aimed block stood");
+                } else if (host.blockIn(SECOND_ON_LINE, BREAKABLE)) {
+                    assertTrue(stage > previous, "the block behind held stage " + stage + " on tick " + held);
+                    risingTicks++;
+                }
+                previous = stage;
+            }
+
+            assertTrue(risingTicks > 0, "the block behind never gained progress once the aimed block broke");
+            assertFalse(host.blockIn(SECOND_ON_LINE, BREAKABLE), "the block behind never broke");
         }
     }
 
@@ -160,18 +183,18 @@ class BoreStepTest {
     }
 
     /**
-     * Bore also breaks what is in its vortex: a cone along the eye line from
-     * the eye to the reach, from the JSON's wide near radius to its narrower
-     * far radius, never wider than a block, so aiming where four blocks meet
-     * drills four, at the edge between two drills two, and at a block's
-     * middle drills one (decision bore-breaks-what-is-in-the-vortex).
+     * Bore breaks the block at its point and its surroundings: the point is
+     * where the eye line meets the first breakable block, and the pick is
+     * that block and every breakable block within the point's radius of it,
+     * so aiming at a face's middle picks one, at an edge two and at a corner
+     * four, with no block behind them (decisions
+     * bore-breaks-the-block-at-the-point-and-its-surroundings, bore-breaks-what-is-in-the-vortex).
      */
     @Nested
-    class TheVortex {
+    class ThePoint {
 
-        /** rock_bore.json's vortex radii at its near and far ends. */
-        private static final double NEAR = 0.35;
-        private static final double FAR = 0.1;
+        /** rock_bore.json's point radius. */
+        private static final double POINT_RADIUS = 0.1;
         private static final double SLACK = 1e-9;
         private static final double REACH = 4;
         private static final Vec3 EAST = new Vec3(1, 0, 0);
@@ -181,86 +204,67 @@ class BoreStepTest {
         private static final Vec3 AT_AN_EDGE = new Vec3(0.5, 2.0, 0.5);
         /** An eye in the middle of a block's face: y 2 and z 0. */
         private static final Vec3 AT_A_MIDDLE = new Vec3(0.5, 2.5, 0.5);
-        /** Below and beside the eye line's first block, which the vortex reaches from an eye at a corner. */
-        private static final BlockPos BESIDE_THE_LINE = new BlockPos(1, 1, -1);
         private static final Predicate<BlockPos> EVERYTHING = pos -> pos.getX() >= 1;
 
-        private static Set<BlockPos> pickFrom(Vec3 eye, double near, double far) {
+        private static Set<BlockPos> pickFrom(Vec3 eye, double pointRadius) {
             ChannelAim aim = new ChannelAim(eye.add(EAST.scale(REACH)), null, CONE_DEGREES);
-            return Set.copyOf(BoreStep.progressing(eye, near, far, aim, EVERYTHING.negate(), EVERYTHING));
-        }
-
-        private static Set<BlockPos> atDepth(Set<BlockPos> pick, int east) {
-            return pick.stream().filter(pos -> pos.getX() == east).collect(java.util.stream.Collectors.toSet());
+            return Set.copyOf(BoreStep.progressing(eye, pointRadius, aim, EVERYTHING.negate(), EVERYTHING));
         }
 
         @Test
-        void rockBoresJsonCarriesTheVortexsNearAndFarRadii() {
+        void rockBoresJsonCarriesThePointRadius() {
             BoreStep bore = AbilityJson.decode("rock_bore").behaviors().stream()
                     .filter(BoreStep.class::isInstance).map(BoreStep.class::cast).findFirst().orElseThrow();
-            assertEquals(NEAR, bore.vortexNearRadius(), SLACK);
-            assertEquals(FAR, bore.vortexFarRadius(), SLACK);
+            assertEquals(POINT_RADIUS, bore.pointRadius(), SLACK);
         }
 
         @Test
-        void theCodecReadsTheRadiiTheJsonNames() {
+        void theCodecReadsThePointRadiusTheJsonNames() {
             String json = "{\"breaks\": \"goo:bore_breakable\", \"break_ticks\": 5, \"slowdown\": 1.5,"
-                    + " \"vortex_near_radius\": 0.2, \"vortex_far_radius\": 0.4}";
+                    + " \"point_radius\": 0.2}";
             BoreStep bore = BoreStep.CODEC.codec().parse(JsonOps.INSTANCE, JsonParser.parseString(json))
                     .getOrThrow();
-            assertEquals(0.2, bore.vortexNearRadius(), SLACK);
-            assertEquals(0.4, bore.vortexFarRadius(), SLACK);
+            assertEquals(0.2, bore.pointRadius(), SLACK);
         }
 
         @Test
-        void aimingWhereFourBlocksMeetDrillsFourAtEveryDepth() {
-            Set<BlockPos> pick = pickFrom(AT_A_CORNER, NEAR, FAR);
-            for (int east = 1; east <= 4; east++) {
-                assertEquals(Set.of(new BlockPos(east, 1, -1), new BlockPos(east, 1, 0), new BlockPos(east, 2, -1),
-                        new BlockPos(east, 2, 0)), atDepth(pick, east), "at x " + east);
-            }
+        void aimingAtABlocksMiddlePicksThatOneBlock() {
+            assertEquals(Set.of(new BlockPos(1, 2, 0)), pickFrom(AT_A_MIDDLE, POINT_RADIUS));
         }
 
         @Test
-        void aimingAtTheEdgeBetweenTwoBlocksDrillsTwoAtEveryDepth() {
-            Set<BlockPos> pick = pickFrom(AT_AN_EDGE, NEAR, FAR);
-            for (int east = 1; east <= 4; east++) {
-                assertEquals(Set.of(new BlockPos(east, 1, 0), new BlockPos(east, 2, 0)), atDepth(pick, east),
-                        "at x " + east);
-            }
+        void aimingAtTheEdgeBetweenTwoBlocksPicksTheTwo() {
+            assertEquals(Set.of(new BlockPos(1, 1, 0), new BlockPos(1, 2, 0)), pickFrom(AT_AN_EDGE, POINT_RADIUS));
         }
 
         @Test
-        void aimingAtABlocksMiddleDrillsOneAtEveryDepth() {
-            Set<BlockPos> pick = pickFrom(AT_A_MIDDLE, NEAR, FAR);
-            for (int east = 1; east <= 4; east++) {
-                assertEquals(Set.of(new BlockPos(east, 2, 0)), atDepth(pick, east), "at x " + east);
-            }
+        void aimingWhereFourBlocksMeetPicksTheFour() {
+            assertEquals(Set.of(new BlockPos(1, 1, -1), new BlockPos(1, 1, 0), new BlockPos(1, 2, -1),
+                    new BlockPos(1, 2, 0)), pickFrom(AT_A_CORNER, POINT_RADIUS));
         }
 
         @Test
-        void aWiderFarEndPicksABlockTheNarrowerLeavesOut() {
-            assertFalse(pickFrom(AT_A_MIDDLE, NEAR, FAR).contains(new BlockPos(4, 3, 0)));
-            assertTrue(pickFrom(AT_A_MIDDLE, NEAR, 0.6).contains(new BlockPos(4, 3, 0)));
+        void aWiderPointPicksABlockTheNarrowerLeavesOut() {
+            Vec3 nearTheTop = new Vec3(0.5, 2.6, 0.5);
+            assertFalse(pickFrom(nearTheTop, POINT_RADIUS).contains(new BlockPos(1, 3, 0)));
+            assertTrue(pickFrom(nearTheTop, 0.5).contains(new BlockPos(1, 3, 0)));
         }
 
         @Test
         @SuppressWarnings("unchecked")
-        void aHeldTickHandsTheVortexsBlockToTheGradualBreakTheNearerFaster() {
-            ChannelHost host = hostWith(EYE_ROW.or(BESIDE_THE_LINE::equals), Set.of());
+        void aHeldTickHandsEveryBlockAtTheCornerToTheGradualBreakAtThePaceTheJsonNames() {
+            ChannelHost host = hostWith(EVERYTHING, Set.of());
             when(host.eye()).thenReturn(AT_A_CORNER);
             when(host.channelAim()).thenReturn(Optional.of(
                     new ChannelAim(AT_A_CORNER.add(EAST.scale(REACH)), null, CONE_DEGREES)));
             GradualBreak gradualBreak = mock(GradualBreak.class);
             when(host.gradualBreak()).thenReturn(gradualBreak);
-            run(host, new BoreStep(BREAKABLE, PACE, NEAR, FAR, List.of(), List.of()));
+            run(host, new BoreStep(BREAKABLE, PACE, POINT_RADIUS, List.of(), List.of()));
 
             ArgumentCaptor<Map<BlockPos, Double>> rates = ArgumentCaptor.forClass(Map.class);
-            verify(gradualBreak).progress(rates.capture(), any(), org.mockito.ArgumentMatchers.eq(true));
-            assertTrue(rates.getValue().getOrDefault(BESIDE_THE_LINE, 0.0) > 0,
-                    "the vortex's block gains no progress");
-            assertTrue(rates.getValue().get(FIRST_ON_LINE) > rates.getValue().get(new BlockPos(4, 2, 0)),
-                    "the nearer block gains no quicker than the farther");
+            verify(gradualBreak).progress(rates.capture(), any(), eq(true));
+            assertEquals(Set.of(1.0 / PACE.breakTicks()), Set.copyOf(rates.getValue().values()));
+            assertEquals(4, rates.getValue().size());
         }
     }
 
@@ -283,6 +287,18 @@ class BoreStepTest {
             ArgumentCaptor<List<BlockPos>> struck = ArgumentCaptor.forClass(List.class);
             verify(host, times(HELD_TICKS)).forEachLivingIn(struck.capture(), any(), any());
             assertEquals(Set.of(FIRST_ON_LINE), Set.copyOf(struck.getValue()));
+        }
+
+        @Test
+        @SuppressWarnings("unchecked")
+        void theStrikeRunsAlongTheEyeLineFromTheEyeOutToThePoint() {
+            BlockPos aimed = new BlockPos(3, 2, 0);
+            ChannelHost host = hostWith(aimed::equals, Set.of());
+            run(host, new BoreStep(BREAKABLE, PACE, List.of(), List.of(mock(Step.class))));
+
+            ArgumentCaptor<List<BlockPos>> struck = ArgumentCaptor.forClass(List.class);
+            verify(host).forEachLivingIn(struck.capture(), any(), any());
+            assertEquals(Set.of(new BlockPos(1, 2, 0), new BlockPos(2, 2, 0), aimed), Set.copyOf(struck.getValue()));
         }
     }
 }

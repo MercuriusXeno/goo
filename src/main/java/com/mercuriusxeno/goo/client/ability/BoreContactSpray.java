@@ -104,13 +104,12 @@ public final class BoreContactSpray {
      * @param eye   the eye the vortex is drawn from, in world space
      * @param look  the look's unit vector
      * @param yaw   the look's yaw in degrees
-     * @param reach the bore's reach
-     * @param near  the vortex's radius at the eye
-     * @param far   the vortex's radius at the reach
+     * @param reach       the bore's reach
+     * @param pointRadius the radius of the point the bore breaks at
      * @return the line's start and end, in world space
      */
-    static Vec3[] contactLine(Vec3 eye, Vec3 look, float yaw, double reach, double near, double far) {
-        ConeSections.Volume drawn = BoreDrill.volume(eye, look, yaw, reach, near, far);
+    static Vec3[] contactLine(Vec3 eye, Vec3 look, float yaw, double reach, double pointRadius) {
+        ConeSections.Volume drawn = BoreDrill.volume(eye, look, yaw, reach, pointRadius);
         return new Vec3[] {drawn.apex(), drawn.apex().add(drawn.axis().scale(drawn.range()))};
     }
 
@@ -149,9 +148,8 @@ public final class BoreContactSpray {
         Vec3 eye = mc.options.getCameraType().isFirstPerson() ? mc.gameRenderer.getMainCamera().position()
                 : player.getEyePosition();
         ConeSections.Volume drawn = BoreDrill.volume(eye, player.getViewVector(1f), player.getYRot(), reach,
-                step.vortexNearRadius(), step.vortexFarRadius());
-        Vec3[] line = contactLine(eye, player.getViewVector(1f), player.getYRot(), reach, step.vortexNearRadius(),
-                step.vortexFarRadius());
+                step.pointRadius());
+        Vec3[] line = contactLine(eye, player.getViewVector(1f), player.getYRot(), reach, step.pointRadius());
         BlockHitResult hit = level.clip(new ClipContext(line[0], line[1], ClipContext.Block.OUTLINE,
                 ClipContext.Fluid.NONE, player));
         BlockState state = level.getBlockState(hit.getBlockPos());
