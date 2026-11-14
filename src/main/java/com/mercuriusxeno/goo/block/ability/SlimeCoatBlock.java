@@ -5,10 +5,11 @@ import com.mercuriusxeno.goo.ability.LoadedAbilityCost;
 import com.mercuriusxeno.goo.block.ability.SlimeFlow.Side;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.item.GooStacks;
-import com.mercuriusxeno.goo.type.GooTypes;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
@@ -36,15 +37,19 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Weird's slime: a cell holding one to eight coat layers of glossy green
- * slime, drawn as height like snow layers, laid on a block's top with the
+ * A world goo's layered cell, Weird's slime the goo bound to it so far: a
+ * plain block holding one to fifteen layers in its block state, with no block
+ * entity, drawn as height like snow layers, laid on a block's top with the
  * block under it unchanged and showing through, drips running down that
- * block's sides at the slime's open edges. Each deposit adds a layer, and a
- * cell taller than a side neighbour pours a layer a tick into it, and off a
- * ledge downward, until level. It stands until something destroys it, then
- * drops the weird goo its layers cost. It is a pad too: what lands on it at
- * any height takes no fall damage and bounces, ramping while jump is held.
+ * block's sides at the cell's open edges. Each landed drip adds a layer, and
+ * a cell taller than a side neighbour pours a layer a tick into it, and off a
+ * ledge downward, until level. A layer is priced at a fifteenth of the cost
+ * of the ability that lays the goo; the cell stands until something destroys
+ * it, then drops its goo type worth that price per layer. It is a pad too:
+ * what lands on it at any height takes no fall damage and bounces, ramping
+ * while jump is held.
  * coat-is-a-green-slime-film-over-the-blocks-own-texture
+ * world-goo-fills-a-block-space-in-one-to-fifteen-layers
  * slime-is-a-layered-cell-that-levels-out
  * breaking-slime-drops-weird-goo-worth-its-layers
  * bounce-ramps-jump-height-while-jump-is-held
@@ -59,11 +64,11 @@ public class SlimeCoatBlock extends Block {
     public static final BooleanProperty SOUTH = BlockStateProperties.SOUTH;
     /** Whether the slime drips down the west side of the block under it. */
     public static final BooleanProperty WEST = BlockStateProperties.WEST;
-    /** The coat layers the cell holds, each an eighth of a block of slime. */
-    public static final IntegerProperty LAYERS = BlockStateProperties.LAYERS;
-    /** The most coat layers one cell holds: a whole block of slime. */
-    public static final int MAX_LAYERS = 8;
-    /** The ability whose cost prices a whole block of slime, an eighth of it per layer. */
+    /** The most layers one cell holds: a whole block of goo. */
+    public static final int MAX_LAYERS = 15;
+    /** The layers the cell holds, each a fifteenth of a block of goo. */
+    public static final IntegerProperty LAYERS = IntegerProperty.create("layers", 1, MAX_LAYERS);
+    /** The ability whose cost prices a whole block of Weird's slime, a fifteenth of it per layer. */
     public static final Identifier GOOP_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "weird_goop");
     /** Ticks between one pour and the next, as a fluid spreads. */
     static final int FLOW_TICKS = 2;
@@ -80,22 +85,31 @@ public class SlimeCoatBlock extends Block {
         }
     }
 
+    /** The goo type the cell holds and drops when broken. */
+    private final ResourceKey<GooTypeDefinition> gooType;
+    /** The ability whose cost prices a whole block of the cell's goo. */
+    private final Identifier pricedBy;
+
     /**
-     * Creates the slime coat block.
+     * Creates a layered cell bound to a goo type.
      *
      * @param properties the block properties
+     * @param gooType    the goo type the cell holds and drops when broken
+     * @param pricedBy   the ability laying the goo, whose cost prices a whole block of it
      */
-    public SlimeCoatBlock(Properties properties) {
+    public SlimeCoatBlock(Properties properties, ResourceKey<GooTypeDefinition> gooType, Identifier pricedBy) {
         super(properties);
+        this.gooType = gooType;
+        this.pricedBy = pricedBy;
         registerDefaultState(stateDefinition.any().setValue(NORTH, false).setValue(EAST, false)
                 .setValue(SOUTH, false).setValue(WEST, false).setValue(LAYERS, 1));
     }
 
     /**
-     * The box a cell of slime fills: a full block across, its layers'
-     * eighths of a block high.
+     * The box a cell fills: a full block across, its layers' fifteenths of a
+     * block high.
      *
-     * @param layers the coat layers the cell holds
+     * @param layers the layers the cell holds
      * @return the box
      */
     static VoxelShape layerBox(int layers) {
@@ -103,48 +117,61 @@ public class SlimeCoatBlock extends Block {
     }
 
     /**
-     * The weird goo a broken cell gives back: what its layers cost, an
-     * eighth of Goop's cost each, the whole mb of it.
-     * breaking-slime-drops-weird-goo-worth-its-layers
-     * goop-drains-per-cubic-meter-of-slime-placed
+     * One layer's price: a fifteenth of the cost of a whole block of goo,
+     * whatever that cost is tuned to.
+     * world-goo-fills-a-block-space-in-one-to-fifteen-layers
      *
-     * @param layers   the coat layers the cell held
-     * @param goopCost Goop's cost, the price of a whole block of slime
-     * @return the goo in mb
+     * @param blockCost the cost of a whole block of the goo, its laying ability's cost
+     * @return the exact price in mb
      */
-    static int reclaimed(int layers, GooFraction goopCost) {
-        return goopCost.times(layers).dividedBy(MAX_LAYERS).floor();
+    public static GooFraction layerPrice(GooFraction blockCost) {
+        return blockCost.dividedBy(MAX_LAYERS);
     }
 
     /**
-     * Gives back the weird goo the cell's layers cost, as the glow crystal
-     * gives back its goo, whatever breaks the cell; a cell broken where no
-     * Goop definition loads gives back nothing.
+     * The goo a broken cell gives back: what its layers cost, the whole mb of it.
+     * breaking-slime-drops-weird-goo-worth-its-layers
+     * goop-drains-per-cubic-meter-of-slime-placed
+     *
+     * @param layers    the layers the cell held
+     * @param blockCost the cost of a whole block of the goo
+     * @return the goo in mb
+     */
+    static int reclaimed(int layers, GooFraction blockCost) {
+        return layerPrice(blockCost).times(layers).floor();
+    }
+
+    /**
+     * Gives back the goo the cell's layers cost, as the glow crystal gives
+     * back its goo, whatever breaks the cell, Vacuum included; a cell broken
+     * where its laying ability's definition does not load gives back nothing.
      * breaking-slime-drops-weird-goo-worth-its-layers
      */
     @Override
     protected @NonNull List<ItemStack> getDrops(@NonNull BlockState state, LootParams.@NonNull Builder builder) {
-        int mb = LoadedAbilityCost.of(builder.getLevel(), GOOP_ABILITY)
+        int mb = LoadedAbilityCost.of(builder.getLevel(), pricedBy)
                 .map(cost -> reclaimed(state.getValue(LAYERS), cost)).orElse(0);
-        return mb > 0 ? List.of(GooStacks.createForOutput(GooTypes.WEIRD, mb)) : List.of();
+        return mb > 0 ? List.of(GooStacks.createForOutput(gooType, mb)) : List.of();
     }
 
     /**
-     * The coat layers a cell holds.
+     * The layers a cell holds.
      *
      * @param state the cell's state
-     * @return its layers, 0 for anything but slime
+     * @return its layers, 0 for anything but a layered cell
      */
     public static int layersOf(BlockState state) {
         return state.getBlock() instanceof SlimeCoatBlock ? state.getValue(LAYERS) : 0;
     }
 
     /**
-     * What a cell becomes when one more coat layer lands in it: air takes a
-     * layer of slime, slime one layer more up to a whole block.
+     * What a cell becomes when one more layer lands in it: air takes a cell
+     * of one layer, a cell one layer more up to a whole block of fifteen.
+     * drip-creates-a-volume-cell-immediately
+     * drip-on-a-standing-cell-increases-it
      *
      * @param standing the cell's state
-     * @param slime    the slime block
+     * @param slime    the layered block
      * @return the thickened state, empty where the cell can take no layer
      */
     public static Optional<BlockState> thickened(BlockState standing, Block slime) {

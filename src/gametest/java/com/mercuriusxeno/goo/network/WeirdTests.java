@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.program.CoatStep;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
@@ -12,6 +11,7 @@ import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -68,40 +68,18 @@ public final class WeirdTests {
     private static final BlockPos ZOMBIE_POS = new BlockPos(4, 1, 2);
     private static final int GOOP_HOLD_TICKS = 10;
     private static final String GOOP_LAYS_A_COAT = "goop_lays_a_slime_coat_over_the_block";
-    private static final String GOOP_LAYERS_WHILE_HELD = "goop_layers_a_reached_cell_again_while_held";
-    private static final String GOOP_STOPS_AT_WHOLE = "goop_stops_a_reached_cell_at_a_whole_block";
-    private static final String GOOP_LEFT_CELL_STOPS = "goop_lays_no_layer_on_a_cell_the_aim_left";
-    private static final String GOOP_DRAINS_PER_LAYER = "goop_drains_a_layers_price_for_each_layer_it_lays";
     private static final String GOOP_LAYING_NOTHING_DRAINS_NOTHING = "goop_laying_no_layer_drains_no_goo";
-    private static final String GOOP_UNPAID_LAYER_STAYS_OUT = "goop_lays_no_layer_the_streamer_cannot_pay_for";
     /** Pitched straight up, at the slab over the streamer's head. */
     private static final float STRAIGHT_UP = -90f;
     /** Blocks over the streamer's stand to the slab over its head, close enough that the whole cone meets it. */
     private static final int OVERHEAD = 3;
     private static final String DRAINED_WRONG = "The hold should drain %s mb of weird goo, drained %d";
-    private static final String GOOP_PAST_NINE_TENTHS_FINISHES = "goop_past_nine_tenths_finishes_after_release";
     /** Three blocks east of the streamer, at its height, on a block the test lays. */
     private static final BlockPos COATED_POS = STREAMER_POS.east(3);
-    /** Ticks past a coat's worth, so a coat has surely landed. */
-    private static final int COAT_SLACK_TICKS = 5;
+    /** A hold one drip a tick sprays the whole fan in, a few ticks over, so every share of the cone has flown. */
+    private static final int SPRAY_HOLD_TICKS = CoatRay.FAN_SHARES + 5;
     /** Ticks a hold's last drips take to fall onto a cell three blocks off, with room to spare. */
     private static final int DRIP_FLIGHT_TICKS = 10;
-
-    /** Coats a hold lays on one cell in the layering test. */
-    private static final int THREE_COATS = 3;
-    /** Coats the turned-to cell takes in the two cell hold. */
-    private static final int TWO_COATS = 2;
-    /**
-     * A hold some coats long and two slacks over, so its last layer has surely
-     * landed and the next stands far short of finishing alone.
-     */
-    private static final int HOLD_SLACK_TICKS = 2 * COAT_SLACK_TICKS;
-    /** Yaw turned off east toward a walled cell one block north or south of the axis, three blocks out. */
-    private static final float OFF_THE_AXIS = 18.4f;
-    /** The walled cell the two cell hold sprays first, north of the axis. */
-    private static final BlockPos FIRST_SPRAYED = COATED_POS.above().north();
-    /** The walled cell the two cell hold turns to, south of the axis, outside the first's cone. */
-    private static final BlockPos TURNED_TO = COATED_POS.above().south();
     private static final String LAVA_LEFT = "Goop's stream should leave magma where the lava stood at ";
     private static final String PAD_BREAKS_THE_FALL = "weird_pad_breaks_the_fall";
     private static final String BOUNCES_ITEM_AND_ARROW = "slime_bounces_an_item_and_an_arrow";
@@ -131,22 +109,27 @@ public final class WeirdTests {
     private static final String NOT_KNOCKED = "A softened zombie's hit should knock the player back";
     private static final String SLIME_LEVELS_OUT = "slime_levels_out_beside_an_open_top";
     private static final String SLIME_POURS_OFF_A_LEDGE = "slime_pours_off_a_ledge";
-    private static final String GOOP_ADDS_A_LAYER = "goop_adds_a_layer_to_standing_slime";
     /** Ticks the flow is given to settle, far past the handful of pours each test needs. */
     private static final int FLOW_SETTLE_TICKS = 40;
-    private static final int FULL_CELL = 8;
-    private static final int HALF_CELL = 4;
+    /** The layers the levelling cell starts at, even so it settles into two equal halves. */
+    private static final int EIGHT_LAYERS = 8;
+    private static final int FOUR_LAYERS = 4;
+    /** The layers a whole block of slime holds. */
+    private static final int WHOLE_BLOCK_LAYERS = 15;
     /** The slime cell the flow tests fill, on a stone top in the bay's floor row. */
     private static final BlockPos FLOW_CELL = new BlockPos(2, 1, 2);
     /** The ledge cell's slime, on a stone pillar one block over the floor row. */
     private static final BlockPos LEDGE_CELL = FLOW_CELL.above();
     /** Where the ledge's layers land: the floor row's cell east of the pillar. */
     private static final BlockPos BELOW_THE_LEDGE = FLOW_CELL.east();
-    /** Pitched down at the slime coat over the stone three blocks east, so the axis ray ends on it. */
-    private static final float AT_THE_SLIME = 9.4f;
     private static final String LAYERS_WRONG = "Slime at %s should hold %d layers, holds %s";
     private static final String BREAKING_SLIME_DROPS = "breaking_slime_drops_its_goo";
-    private static final int BROKEN_LAYERS = 3;
+    /** Past the eight layers a cell held before a cell held fifteen. */
+    private static final int BROKEN_LAYERS = 11;
+    private static final String DRIPS_DRAIN_A_LAYER_EACH =
+            "goop_drips_drain_a_layers_price_each_and_unpaid_drips_lay_nothing";
+    /** The drips the drain test lands, over two ticks. */
+    private static final int COUNTED_DRIPS = 4;
     private static final String RECLAIM_WRONG = "A broken slime cell should drop %d mb of weird goo, dropped %d in %s";
     private static final String PLACING_KEEPS_GOO = "placing_a_block_keeps_the_slimes_goo";
     private static final String PLACED_OVER_SLIME = "A block placed against a slime cell should leave it at %d layers"
@@ -163,17 +146,8 @@ public final class WeirdTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, GOOP_COOLS_LAVA, WeirdTests::goopCoolsLavaToMagma);
         GooTestFunctions.registerTest(registrar, GOOP_LAYS_A_COAT, WeirdTests::goopLaysASlimeCoatOverTheBlock);
-        GooTestFunctions.registerTest(registrar, GOOP_LAYERS_WHILE_HELD, WeirdTests::goopLayersAReachedCellAgainWhileHeld);
-        GooTestFunctions.registerTest(registrar, GOOP_STOPS_AT_WHOLE, WeirdTests::goopStopsAReachedCellAtAWholeBlock);
-        GooTestFunctions.registerTest(registrar, GOOP_LEFT_CELL_STOPS, WeirdTests::goopLaysNoLayerOnACellTheAimLeft);
-        GooTestFunctions.registerTest(registrar, GOOP_DRAINS_PER_LAYER,
-                WeirdTests::goopDrainsALayersPriceForEachLayerItLays);
         GooTestFunctions.registerTest(registrar, GOOP_LAYING_NOTHING_DRAINS_NOTHING,
                 WeirdTests::goopLayingNoLayerDrainsNoGoo);
-        GooTestFunctions.registerTest(registrar, GOOP_UNPAID_LAYER_STAYS_OUT,
-                WeirdTests::goopLaysNoLayerTheStreamerCannotPayFor);
-        GooTestFunctions.registerTest(registrar, GOOP_PAST_NINE_TENTHS_FINISHES,
-                WeirdTests::goopPastNineTenthsFinishesAfterRelease);
         GooTestFunctions.registerTest(registrar, PAD_BREAKS_THE_FALL, WeirdTests::weirdPadBreaksTheFall);
         GooTestFunctions.registerTest(registrar, BOUNCES_ITEM_AND_ARROW, WeirdTests::slimeBouncesAnItemAndAnArrow);
         GooTestFunctions.registerTest(registrar, HELD_JUMPS_RAMP, WeirdTests::heldJumpsRampToTheCeiling);
@@ -183,7 +157,40 @@ public final class WeirdTests {
         GooTestFunctions.registerTest(registrar, PLACING_KEEPS_GOO, WeirdTests::placingABlockKeepsTheSlimesGoo);
         GooTestFunctions.registerTest(registrar, SLIME_LEVELS_OUT, WeirdTests::slimeLevelsOutBesideAnOpenTop);
         GooTestFunctions.registerTest(registrar, SLIME_POURS_OFF_A_LEDGE, WeirdTests::slimePoursOffALedge);
-        GooTestFunctions.registerTest(registrar, GOOP_ADDS_A_LAYER, WeirdTests::goopAddsALayerToStandingSlime);
+        GooTestFunctions.registerTest(registrar, DRIPS_DRAIN_A_LAYER_EACH, WeirdTests::goopDripsDrainALayersPriceEach);
+    }
+
+    /**
+     * A counted run of Goop drips landed on a walled cell drains the caster
+     * one layer's price for each layer placed, a fifteenth of Goop's cost;
+     * once the caster holds no weird goo, a landed drip leaves the cell as it
+     * stood.
+     * goop-drains-per-cubic-meter-of-slime-placed
+     * drip-on-a-standing-cell-increases-it
+     *
+     * @param helper the gametest helper
+     */
+    public static void goopDripsDrainALayersPriceEach(GameTestHelper helper) {
+        stoneUnder(helper, FLOW_CELL);
+        wallSidesBut(helper, FLOW_CELL, null);
+        ServerPlayer caster = goopStreamerAt(helper, 0);
+        AbilityDefinition goop = goop(helper);
+        int before = weirdHeld(caster);
+        LandedDrips.landOn(helper, caster, goop, FLOW_CELL, 1);
+        LandedDrips.landOn(helper, caster, goop, FLOW_CELL, COUNTED_DRIPS - 1);
+        assertLayers(helper, FLOW_CELL, COUNTED_DRIPS);
+        assertDrained(helper, ResidualPrices.layerPrice(helper).times(COUNTED_DRIPS), before - weirdHeld(caster));
+        GooSourceScanner.deplete(caster, GooTypes.WEIRD, weirdHeld(caster));
+        LandedDrips.landOn(helper, caster, goop, FLOW_CELL, 1);
+        assertLayers(helper, FLOW_CELL, COUNTED_DRIPS);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        helper.succeed();
+    }
+
+    private static AbilityDefinition goop(GameTestHelper helper) {
+        AbilityDefinition goop = AbilityRegistry.of(helper.getLevel()).getAbility(GOOP);
+        helper.assertTrue(goop != null, ABILITY_REQUIRED);
+        return goop;
     }
 
     /**
@@ -200,10 +207,10 @@ public final class WeirdTests {
         wallSidesBut(helper, FLOW_CELL, Direction.EAST);
         wallSidesBut(helper, open, Direction.WEST);
         helper.setBlock(open, Blocks.AIR);
-        helper.setBlock(FLOW_CELL, slimeOf(FULL_CELL));
+        helper.setBlock(FLOW_CELL, slimeOf(EIGHT_LAYERS));
         helper.runAfterDelay(FLOW_SETTLE_TICKS, () -> {
-            assertLayers(helper, FLOW_CELL, HALF_CELL);
-            assertLayers(helper, open, HALF_CELL);
+            assertLayers(helper, FLOW_CELL, FOUR_LAYERS);
+            assertLayers(helper, open, FOUR_LAYERS);
             helper.succeed();
         });
     }
@@ -223,44 +230,18 @@ public final class WeirdTests {
         stoneUnder(helper, BELOW_THE_LEDGE);
         wallSidesBut(helper, BELOW_THE_LEDGE, Direction.WEST);
         helper.setBlock(BELOW_THE_LEDGE, Blocks.AIR);
-        helper.setBlock(LEDGE_CELL, slimeOf(HALF_CELL));
+        helper.setBlock(LEDGE_CELL, slimeOf(FOUR_LAYERS));
         helper.runAfterDelay(FLOW_SETTLE_TICKS, () -> {
             assertLayers(helper, LEDGE_CELL, 1);
-            assertLayers(helper, BELOW_THE_LEDGE, HALF_CELL - 1);
+            assertLayers(helper, BELOW_THE_LEDGE, FOUR_LAYERS - 1);
             helper.succeed();
         });
     }
 
     /**
-     * Goop's stream held over a cell already holding one layer of slime, its
-     * side neighbours holding a layer each so nothing pours, leaves that cell
-     * at two layers.
-     * slime-is-a-layered-cell-that-levels-out
-     *
-     * @param helper the gametest helper
-     */
-    public static void goopAddsALayerToStandingSlime(GameTestHelper helper) {
-        ServerPlayer streamer = goopStreamerOverStone(helper);
-        streamer.setXRot(AT_THE_SLIME);
-        BlockPos slimed = COATED_POS.above();
-        helper.setBlock(slimed, slimeOf(1));
-        for (Direction side : Direction.Plane.HORIZONTAL) {
-            helper.setBlock(COATED_POS.relative(side), Blocks.STONE);
-            helper.setBlock(slimed.relative(side), slimeOf(1));
-        }
-        int hold = coatTicks(helper) + COAT_SLACK_TICKS;
-        holdGoopFor(helper, streamer, hold);
-        helper.runAfterDelay(hold + 1, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(streamer);
-            assertLayers(helper, slimed, 2);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * A slime cell of three layers, walled in so nothing pours, broken in a
-     * live world leaves a weird goo item in its cell worth three layers'
-     * price, read from the loaded Goop definition.
+     * A slime cell of eleven layers, walled in so nothing pours, broken in a
+     * live world leaves a weird goo item in its cell worth eleven layers'
+     * price, each a fifteenth of the loaded Goop definition's cost.
      * breaking-slime-drops-weird-goo-worth-its-layers
      *
      * @param helper the gametest helper
@@ -280,9 +261,9 @@ public final class WeirdTests {
     }
 
     /**
-     * A survival player uses a stone block item against a three layer slime
+     * A survival player uses a stone block item against an eleven layer slime
      * cell, walled in so nothing pours: the cell keeps all its weird goo,
-     * standing at three layers or dropping what they cost.
+     * standing at eleven layers or dropping what they cost.
      * breaking-slime-drops-weird-goo-worth-its-layers
      *
      * @param helper the gametest helper
@@ -295,7 +276,7 @@ public final class WeirdTests {
         ItemStack stone = new ItemStack(Items.STONE);
         player.setItemInHand(InteractionHand.MAIN_HAND, stone);
         BlockPos cell = helper.absolutePos(FLOW_CELL);
-        Vec3 slimeTop = Vec3.atBottomCenterOf(cell).add(0, (double) BROKEN_LAYERS / FULL_CELL, 0);
+        Vec3 slimeTop = Vec3.atBottomCenterOf(cell).add(0, (double) BROKEN_LAYERS / WHOLE_BLOCK_LAYERS, 0);
         stone.useOn(new UseOnContext(player, InteractionHand.MAIN_HAND,
                 new BlockHitResult(slimeTop, Direction.UP, cell, false)));
         int standing = SlimeCoatBlock.layersOf(helper.getBlockState(FLOW_CELL));
@@ -478,14 +459,14 @@ public final class WeirdTests {
     }
 
     /**
-     * Goop's stream held on a stone block past one coat's worth lays a slime
-     * coat on the stone's top and leaves the stone standing as stone.
+     * Goop's stream held on a stone block while it sprays its whole fan lays
+     * a slime coat on the stone's top and leaves the stone standing as stone.
      *
      * @param helper the gametest helper
      */
     public static void goopLaysASlimeCoatOverTheBlock(GameTestHelper helper) {
         ServerPlayer streamer = goopStreamerOverStone(helper);
-        int hold = coatTicks(helper) + COAT_SLACK_TICKS;
+        int hold = SPRAY_HOLD_TICKS;
         holdGoopFor(helper, streamer, hold);
         // goop-and-slick-coat-lands-where-each-drip-arc-strikes: the hold's last drips land after it ends
         helper.runAfterDelay(hold + DRIP_FLIGHT_TICKS, () -> {
@@ -497,119 +478,9 @@ public final class WeirdTests {
     }
 
     /**
-     * Goop's stream held, with no release, on an open cell over stone, walled
-     * so it cannot pour, for three coats' worth: the cell holds three layers.
-     * goop-layers-a-reached-cell-again-while-held
-     *
-     * @param helper the gametest helper
-     */
-    public static void goopLayersAReachedCellAgainWhileHeld(GameTestHelper helper) {
-        ServerPlayer streamer = goopStreamerOverStone(helper);
-        streamer.setXRot(AT_THE_SLIME);
-        BlockPos sprayed = COATED_POS.above();
-        wallInFacingWest(helper, sprayed);
-        int held = coatTicks(helper) * THREE_COATS + HOLD_SLACK_TICKS;
-        holdGoopFor(helper, streamer, held);
-        helper.runAfterDelay(held + 1, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(streamer);
-            assertLayers(helper, sprayed, THREE_COATS);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Goop's stream held for three coats' worth on a walled cell two layers
-     * short of a whole block: the cell stops at a whole block.
-     * goop-layers-a-reached-cell-again-while-held
-     *
-     * @param helper the gametest helper
-     */
-    public static void goopStopsAReachedCellAtAWholeBlock(GameTestHelper helper) {
-        ServerPlayer streamer = goopStreamerOverStone(helper);
-        // stood a block up, so the drips fall onto the slime's top rather than rising into its side
-        helper.setBlock(STREAMER_POS, Blocks.STONE);
-        streamer.setPos(streamer.getX(), streamer.getY() + 1, streamer.getZ());
-        BlockPos sprayed = COATED_POS.above();
-        wallInFacingWest(helper, sprayed);
-        helper.setBlock(sprayed, slimeOf(SlimeCoatBlock.MAX_LAYERS - 2));
-        int held = coatTicks(helper) * THREE_COATS + HOLD_SLACK_TICKS;
-        GooStreamPayload tick = goopTick(streamer);
-        for (int at = 1; at <= held; at++) {
-            helper.runAfterDelay(at, () -> {
-                // a drip striking the slime's side lays nothing, so the aim follows the slime's top as it thickens
-                aimDripAtTopOf(helper, streamer, sprayed);
-                GooStreamHandler.streamTick(streamer, tick);
-            });
-        }
-        helper.runAfterDelay(held + 1, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(streamer);
-            assertLayers(helper, sprayed, SlimeCoatBlock.MAX_LAYERS);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * One Goop hold sprays a walled cell north of the axis until its first
-     * layer lands, then turns to a walled cell south of the axis, outside
-     * the first's cone, for two coats: the first cell keeps one layer and
-     * the second takes two.
-     * goop-layers-a-reached-cell-again-while-held
-     *
-     * @param helper the gametest helper
-     */
-    public static void goopLaysNoLayerOnACellTheAimLeft(GameTestHelper helper) {
-        for (BlockPos cell : List.of(FIRST_SPRAYED, TURNED_TO)) {
-            helper.setBlock(cell.below(), Blocks.STONE);
-            wallInFacingWest(helper, cell);
-        }
-        ServerPlayer streamer = goopStreamerAt(helper, AT_THE_SLIME);
-        streamer.setYRot(FACING_EAST - OFF_THE_AXIS);
-        GooStreamPayload tick = goopTick(streamer);
-        int held = coatTicks(helper) * THREE_COATS + HOLD_SLACK_TICKS;
-        for (int at = 1; at <= held; at++) {
-            helper.runAfterDelay(at, () -> {
-                // turn the tick after the first cell's layer lands, before the stream reaches it again
-                if (SlimeCoatBlock.layersOf(helper.getBlockState(FIRST_SPRAYED)) > 0) {
-                    streamer.setYRot(FACING_EAST + OFF_THE_AXIS);
-                }
-                GooStreamHandler.streamTick(streamer, tick);
-            });
-        }
-        helper.runAfterDelay(held + 1, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(streamer);
-            assertLayers(helper, FIRST_SPRAYED, 1);
-            assertLayers(helper, TURNED_TO, TWO_COATS);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * A Goop hold laying three layers on a walled cell drains three layers'
-     * price, each an eighth of Goop's cost, and nothing for the ticks held.
-     * goop-drains-per-cubic-meter-of-slime-placed
-     *
-     * @param helper the gametest helper
-     */
-    public static void goopDrainsALayersPriceForEachLayerItLays(GameTestHelper helper) {
-        ServerPlayer streamer = goopStreamerOverStone(helper);
-        streamer.setXRot(AT_THE_SLIME);
-        BlockPos sprayed = COATED_POS.above();
-        wallInFacingWest(helper, sprayed);
-        int before = weirdHeld(streamer);
-        int held = coatTicks(helper) * THREE_COATS + HOLD_SLACK_TICKS;
-        holdGoopFor(helper, streamer, held);
-        helper.runAfterDelay(held + 1, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(streamer);
-            assertLayers(helper, sprayed, THREE_COATS);
-            assertDrained(helper, ResidualPrices.layerPrice(helper).times(THREE_COATS), before - weirdHeld(streamer));
-            helper.succeed();
-        });
-    }
-
-    /**
      * A Goop hold aimed straight up at a bottom slab over the streamer's
      * head, whose top holds no coat, so no cell the stream reaches can take
-     * one, lasting three coats, drains no weird goo.
+     * one, lasting three sprays of the whole fan, drains no weird goo.
      * goop-drains-per-cubic-meter-of-slime-placed
      *
      * @param helper the gametest helper
@@ -618,37 +489,11 @@ public final class WeirdTests {
         helper.setBlock(STREAMER_POS.above(OVERHEAD), Blocks.STONE_SLAB);
         ServerPlayer streamer = goopStreamerAt(helper, STRAIGHT_UP);
         int before = weirdHeld(streamer);
-        int held = coatTicks(helper) * THREE_COATS + HOLD_SLACK_TICKS;
+        int held = SPRAY_HOLD_TICKS * 3;
         holdGoopFor(helper, streamer, held);
         helper.runAfterDelay(held + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
             assertDrained(helper, GooFraction.ZERO, before - weirdHeld(streamer));
-            helper.succeed();
-        });
-    }
-
-    /**
-     * A streamer holding one layer's price of weird goo, what a broken layer
-     * gives back, holds Goop on a walled cell for three coats: one layer
-     * lands and the goo runs out.
-     * goop-drains-per-cubic-meter-of-slime-placed
-     *
-     * @param helper the gametest helper
-     */
-    public static void goopLaysNoLayerTheStreamerCannotPayFor(GameTestHelper helper) {
-        ServerPlayer streamer = goopStreamerOverStone(helper);
-        streamer.setXRot(AT_THE_SLIME);
-        BlockPos sprayed = COATED_POS.above();
-        wallInFacingWest(helper, sprayed);
-        GooSourceScanner.deplete(streamer, GooTypes.WEIRD,
-                weirdHeld(streamer) - ResidualPrices.layerPrice(helper).ceiling());
-        int held = coatTicks(helper) * THREE_COATS + HOLD_SLACK_TICKS;
-        holdGoopFor(helper, streamer, held);
-        helper.runAfterDelay(held + 1, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(streamer);
-            assertLayers(helper, sprayed, 1);
-            helper.assertTrue(weirdHeld(streamer) == 0, "The streamer should hold no weird goo, holds "
-                    + weirdHeld(streamer));
             helper.succeed();
         });
     }
@@ -669,53 +514,6 @@ public final class WeirdTests {
         helper.assertTrue(drained == price.ceiling(), String.format(DRAINED_WRONG, price, drained));
     }
 
-    /**
-     * Walls a cell in so its slime cannot pour: bottom slabs on its north,
-     * south and east, which hold no coat on their tops, and its west
-     * neighbour left open for the stream over a bottom slab, so that cell
-     * can hold no layer either.
-     *
-     * @param helper the gametest helper
-     * @param cell   the cell
-     */
-    private static void wallInFacingWest(GameTestHelper helper, BlockPos cell) {
-        for (Direction side : List.of(Direction.NORTH, Direction.SOUTH, Direction.EAST)) {
-            helper.setBlock(cell.relative(side), Blocks.STONE_SLAB);
-        }
-        helper.setBlock(cell.west(), Blocks.AIR);
-        helper.setBlock(cell.west().below(), Blocks.STONE_SLAB);
-    }
-
-    /**
-     * Goop's stream held on a stone block past nine tenths of a coat and
-     * released: the coat finishes on its own.
-     *
-     * @param helper the gametest helper
-     */
-    public static void goopPastNineTenthsFinishesAfterRelease(GameTestHelper helper) {
-        ServerPlayer streamer = goopStreamerOverStone(helper);
-        int coat = coatTicks(helper);
-        int pastNineTenths = coat - 1;
-        holdGoopFor(helper, streamer, pastNineTenths);
-        helper.runAfterDelay(pastNineTenths + coat, () -> {
-            // goop-and-slick-coat-lands-where-each-drip-arc-strikes: the streamer stays to pay for the drips still
-            // falling at release
-            helper.getLevel().getServer().getPlayerList().remove(streamer);
-            helper.assertBlockPresent(GooBlocks.SLIME_COAT.get(), COATED_POS.above());
-            helper.succeed();
-        });
-    }
-
-    /**
-     * @param helper the gametest helper
-     * @return the held ticks the live Goop's coat step takes to coat a block
-     */
-    private static int coatTicks(GameTestHelper helper) {
-        AbilityDefinition goop = AbilityRegistry.of(helper.getLevel()).getAbility(GOOP);
-        helper.assertTrue(goop != null, ABILITY_REQUIRED);
-        return goop.behaviors().stream().filter(CoatStep.class::isInstance).map(CoatStep.class::cast)
-                .findFirst().orElseThrow().ticks();
-    }
 
     /**
      * Lays stone on bedrock three blocks east of the streamer and stands a

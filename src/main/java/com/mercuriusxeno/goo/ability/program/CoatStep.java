@@ -3,9 +3,7 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.block.ability.SlimeCoatBlock;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.throwing.CoatRay;
-import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
-import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.state.BlockState;
@@ -14,36 +12,32 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Weird Goop's block step: the coat lands where each of the stream's drips
- * strikes. A drip striking a block's top feeds the open cell over it, where
- * that top can hold a coat, and a drip striking slime short of a whole block
- * feeds that slime; a drip striking a side feeds nothing. Each strike builds
- * its cell one share of the JSON's ticks toward a layer, so a cell drips
- * strike every tick coats in those ticks, and a cell drips keep striking
- * takes another layer each time they pass, until it is a whole block of
- * slime. A cell past nine tenths of its layer finishes alone. A drip still in
- * flight when the hold ends lands its share when it strikes, and each layer
- * pays its price as it lands. The block under the coat is left as it stood.
+ * Weird Goop's block step: the slime lands where each of the stream's drips
+ * strikes, one layer for each drip, in the tick it strikes. A drip striking
+ * a block's top stands a one-layer cell in the open cell over it, where that
+ * top can hold a coat, and a drip striking a cell short of fifteen layers
+ * adds a layer to it; a full cell, or a drip striking a side, takes nothing.
+ * Each layer pays a fifteenth of Goop's cost as it lands, and a layer the
+ * player cannot pay for does not land. A drip still in flight when the hold
+ * ends lands its layer when it strikes. The block under the slime is left as
+ * it stood.
  * goop-and-slick-coat-lands-where-each-drip-arc-strikes
  * coat-is-a-green-slime-film-over-the-blocks-own-texture
+ * drip-creates-a-volume-cell-immediately
+ * drip-on-a-standing-cell-increases-it
  * goop-drains-per-cubic-meter-of-slime-placed
- * slime-is-a-layered-cell-that-levels-out
  * goop-layers-a-reached-cell-again-while-held
+ * world-goo-fills-a-block-space-in-one-to-fifteen-layers
  * bounce-leaves-the-mod-and-goop-stands-alone
- *
- * @param ticks the ticks of strikes a cell takes to coat
  */
-public record CoatStep(int ticks) implements TakesNoEntity, DripLanding {
+public record CoatStep() implements TakesNoEntity, DripLanding {
 
     private static final String NAME = "coat";
-    private static final String FIELD_TICKS = "ticks";
 
     /**
-     * Codec for the step's params.
+     * Codec for the step, which takes no params.
      */
-    public static final MapCodec<CoatStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            Codec.intRange(1, Integer.MAX_VALUE).fieldOf(FIELD_TICKS).forGetter(CoatStep::ticks)
-    ).apply(inst, CoatStep::new));
+    public static final MapCodec<CoatStep> CODEC = MapCodec.unit(CoatStep::new);
 
     /**
      * The registered type.
@@ -56,7 +50,7 @@ public record CoatStep(int ticks) implements TakesNoEntity, DripLanding {
     }
 
     /**
-     * Runs nothing on the hold's tick: the stream's drips lay the coat as they strike.
+     * Runs nothing on the hold's tick: the stream's drips lay the slime as they strike.
      *
      * @param context the step's context
      * @return true, the step never fails
@@ -123,45 +117,23 @@ public record CoatStep(int ticks) implements TakesNoEntity, DripLanding {
         return cells.takesACoat(over) ? Optional.of(over) : Optional.empty();
     }
 
+    /**
+     * Lands the drip's layer in its cell once the player pays the layer's
+     * price, a fifteenth of Goop's cost; a layer the player cannot pay for
+     * does not land.
+     * drip-creates-a-volume-cell-immediately
+     * drip-on-a-standing-cell-increases-it
+     * goop-drains-per-cubic-meter-of-slime-placed
+     */
     @Override
     public void feed(ChannelHost host, BlockPos cell) {
-        if (host.finishingAlone(cell)) {
-            return;
-        }
-        coatOver(host.stateAt(cell)).ifPresent(into -> {
-            PlacementPrice price = host.placementPrice();
-            float share = 1f / ticks;
-            // the coat mingles in wearing its own green
-            float built = host.exposeBlock(cell, into, share);
-            if (built >= 1f) {
-                layPaidFor(host, price, cell, into);
-            } else if (built > PaintedHold.FINISHES_ALONE) {
-                host.finishBlockAlone(cell, share, () -> layPaidFor(host, price, cell, into));
-            }
-        });
+        coatOver(host.stateAt(cell)).filter(into -> host.placementPrice().pay(SlimeCoatBlock.MAX_LAYERS))
+                .ifPresent(into -> host.transformBlock(cell, into));
     }
 
     /**
-     * Lands a layer once the player pays its price, an eighth of a cubic
-     * meter of slime, a strike's or a layer finishing alone alike; a layer
-     * the player cannot pay for does not land.
-     * goop-drains-per-cubic-meter-of-slime-placed
-     *
-     * @param host  the channel host
-     * @param price what the layer pays as it lands
-     * @param pos   the cell
-     * @param into  the cell's state with the layer laid
-     */
-    private static void layPaidFor(ChannelHost host, PlacementPrice price, BlockPos pos, BlockState into) {
-        if (price.pay(SlimeCoatBlock.MAX_LAYERS)) {
-            host.transformBlock(pos, into);
-        }
-    }
-
-    /**
-     * What a fed cell becomes: an open cell takes a coat of one layer, a
-     * slime cell one layer more, anything else nothing.
-     * slime-is-a-layered-cell-that-levels-out
+     * What a fed cell becomes: an open cell a cell of one layer, a slime
+     * cell one layer more, anything else nothing.
      *
      * @param standing the state the cell holds
      * @return the thickened state, empty where the cell takes no layer

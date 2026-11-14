@@ -106,6 +106,11 @@ public final class VacuumTests {
     /** The goop cell the decay test lays, six blocks out, far enough to decay its whole decay. */
     private static final int DECAYED = 6;
     private static final int DECAYED_LAYERS = 3;
+    private static final String RETURNS_THE_LAYERS_PRICE = "vacuum_returns_a_slime_cells_layers_price";
+    /** Past the eight layers a cell held before a cell held fifteen. */
+    private static final int VACUUMED_LAYERS = 11;
+    private static final String LAYERS_PRICE_WRONG = "The vacuumed slime cell should return %d mb of weird goo,"
+            + " returned %d";
     /** Ticks past a release for an unfinished exposure to cool away to nothing. */
     private static final int COOL_TICKS = 60;
     private static final String SLURPS = "vacuum_slurps_once_at_each_cell_it_takes";
@@ -144,6 +149,34 @@ public final class VacuumTests {
         GooTestFunctions.registerTest(registrar, DRAGS_A_MOB, VacuumTests::vacuumDragsAMobToABlockInFront);
         GooTestFunctions.registerTest(registrar, LEAVES_PLAYERS_AND_MOBS_BEHIND,
                 VacuumTests::vacuumLeavesPlayersAndMobsBehindUnmoved);
+        GooTestFunctions.registerTest(registrar, RETURNS_THE_LAYERS_PRICE, VacuumTests::vacuumReturnsASlimeCellsLayersPrice);
+    }
+
+    /**
+     * Vacuum held over one slime cell of eleven layers, beside open cells it
+     * cannot pour into, returns, lying or
+     * pulled into the inventory, the weird goo eleven layers cost, each a
+     * fifteenth of Goop's cost.
+     * breaking-slime-drops-weird-goo-worth-its-layers
+     *
+     * @param helper the gametest helper
+     */
+    public static void vacuumReturnsASlimeCellsLayersPrice(GameTestHelper helper) {
+        layTheFloor(helper);
+        // open cells east and west over bottom slabs, whose tops hold no slime, keep the layers in their cell
+        // and leave the line from the eye clear
+        helper.setBlock(laneCell(DECAYED - 1).below(), Blocks.STONE_SLAB);
+        helper.setBlock(laneCell(DECAYED + 1).below(), Blocks.STONE_SLAB);
+        helper.setBlock(laneCell(DECAYED), slimeOf(VACUUMED_LAYERS));
+        ServerPlayer vacuumer = vacuumer(helper);
+        holdVacuum(helper, vacuumer, WAVE_HOLD, held -> vacuumer.doTick());
+        helper.runAfterDelay(WAVE_HOLD + 1, () -> {
+            int returned = gooReturned(helper, vacuumer, GooTypes.WEIRD);
+            helper.getLevel().getServer().getPlayerList().remove(vacuumer);
+            int owed = ResidualPrices.layersRefund(helper, VACUUMED_LAYERS);
+            helper.assertTrue(returned == owed, String.format(LAYERS_PRICE_WRONG, owed, returned));
+            helper.succeed();
+        });
     }
 
     private static Map<Integer, Integer> laneOfResiduals() {
@@ -578,12 +611,26 @@ public final class VacuumTests {
      */
     private static void assertDropped(GameTestHelper helper, ServerPlayer player, ResourceKey<GooTypeDefinition> type) {
         List<ItemEntity> drops = helper.getEntities(EntityType.ITEM);
-        int dropped = drops.stream().map(ItemEntity::getItem).filter(stack -> type.equals(GooStacks.keyOf(stack)))
-                .mapToInt(GooStacks::volumeOf).sum() + GooSourceScanner.aggregateAvailable(player).getOrDefault(type, 0);
+        int dropped = gooReturned(helper, player, type);
         helper.assertTrue(dropped > 0,
                 String.format(GOO_OWED, type.identifier().getPath(), dropped, drops.stream()
                         .map(drop -> GooStacks.volumeOf(drop.getItem())).toList()
                         + " lying, inventory " + GooSourceScanner.aggregateAvailable(player)));
+    }
+
+    /**
+     * The goo of a type standing as item entities in the test or in the
+     * player's inventory, where the pull lands what it reaches.
+     *
+     * @param helper the gametest helper
+     * @param player the vacuuming player
+     * @param type   the goo type
+     * @return the mb of it
+     */
+    private static int gooReturned(GameTestHelper helper, ServerPlayer player, ResourceKey<GooTypeDefinition> type) {
+        return helper.getEntities(EntityType.ITEM).stream().map(ItemEntity::getItem)
+                .filter(stack -> type.equals(GooStacks.keyOf(stack))).mapToInt(GooStacks::volumeOf).sum()
+                + GooSourceScanner.aggregateAvailable(player).getOrDefault(type, 0);
     }
 
     private static void assertStands(GameTestHelper helper, BlockPos cell, Block stood) {

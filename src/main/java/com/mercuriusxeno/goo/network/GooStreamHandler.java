@@ -336,7 +336,7 @@ public final class GooStreamHandler {
             // goop-wobbles-a-mob-its-drip-strikes: a stream throwing drips strikes the living its drips strike, not
             // the living in its cone
             runBlockPass(cast, apex, axis, delivery, ability, held, true);
-            boolean strikesLiving = throwDrips(player, apex, axis, ability);
+            boolean strikesLiving = throwDrips(player, apex, axis, ability, held);
             sprayParticles(player, apex, axis, delivery, 0, strikesLiving);
             return List.of();
         }
@@ -355,12 +355,14 @@ public final class GooStreamHandler {
     }
 
     /**
-     * Throws a stream's drips into flight from the cone's apex, one along
-     * each share of the cone's fan at the delivery's throw speed alone;
-     * each lands what the program's landing step lays
-     * where its arc strikes, during the hold or after it, and a drip of a
-     * program striking the living ends on the first living thing it meets.
+     * Throws a stream's drips into flight from the cone's apex, as many as
+     * the delivery throws a tick, each along its share of the cone's fan at
+     * the delivery's throw speed alone; each lands what the program's
+     * landing step lays where its arc strikes, during the hold or after it,
+     * and a drip of a program striking the living ends on the first living
+     * thing it meets.
      * goop-and-slick-coat-lands-where-each-drip-arc-strikes
+     * goop-drains-per-cubic-meter-of-slime-placed: the spray's pace is how many drips land a tick, each a layer
      * goop-wobbles-a-mob-its-drip-strikes
      * goop-and-slick-drips-add-none-of-the-players-movement
      *
@@ -368,9 +370,11 @@ public final class GooStreamHandler {
      * @param apex    the cone's apex
      * @param axis    the cone's axis
      * @param ability the stream ability
+     * @param held    the hold's tick count, which picks the tick's shares of the fan
      * @return true where the drips strike the living they meet
      */
-    private static boolean throwDrips(ServerPlayer player, Vec3 apex, Vec3 axis, AbilityDefinition ability) {
+    private static boolean throwDrips(ServerPlayer player, Vec3 apex, Vec3 axis, AbilityDefinition ability,
+                                      int held) {
         Optional<DripLanding> landing = DripLanding.in(channelSteps(ability.behaviors(), true));
         boolean strikesLiving = !channelSteps(ability.behaviors(), false).isEmpty();
         if (landing.isEmpty() && !strikesLiving) {
@@ -380,7 +384,7 @@ public final class GooStreamHandler {
                 player.getId(), ability, landing, strikesLiving);
         Delivery delivery = ability.delivery();
         DripFlights flights = GooServerState.of(player.level().getServer()).dripFlights();
-        for (CoatRay.ConeShare share : CoatRay.coneFan()) {
+        for (CoatRay.ConeShare share : CoatRay.sharesThrownOn(held, delivery.dripsPerTick())) {
             flights.launch(new DripFlights.Flight(thrower, apex, DripArc.launch(axis, delivery.coneDegrees(), share,
                     delivery.throwSpeed())));
         }

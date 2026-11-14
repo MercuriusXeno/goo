@@ -4,9 +4,11 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.block.CompiledStateDefinition;
 import com.mercuriusxeno.goo.data.GooFraction;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -14,9 +16,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -24,16 +30,19 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * The slime coat as a layered cell: it stands its layers' eighths of a block
- * high and draws a model per layer count, a broken cell gives back the goo
- * its layers cost, and neighbouring coats read as one film, a coat hiding
- * its face toward another coat as a slime block does toward a slime block
- * (decisions coat-is-a-green-slime-film-over-the-blocks-own-texture,
- * slime-is-a-layered-cell-that-levels-out, breaking-slime-drops-weird-goo-worth-its-layers).
+ * The slime coat as a layered cell: a plain block holding one to fifteen
+ * layers, it stands its layers' fifteenths of a block high and draws a model
+ * per layer count, a layer costs a fifteenth of Goop's cost, a broken cell
+ * gives back the goo its layers cost, and neighbouring coats read as one
+ * film, a coat hiding its face toward another coat as a slime block does
+ * toward a slime block (decisions coat-is-a-green-slime-film-over-the-blocks-own-texture,
+ * world-goo-fills-a-block-space-in-one-to-fifteen-layers, breaking-slime-drops-weird-goo-worth-its-layers).
  */
 class SlimeCoatBlockTest {
 
     private static final String BLOCKSTATE_JSON = "/assets/goo/blockstates/slime_coat.json";
+    /** The layers a whole block of slime holds, stated here so the test checks the block rather than echoing it. */
+    private static final int FIFTEEN = 15;
 
     @Nested
     class Faces {
@@ -55,22 +64,45 @@ class SlimeCoatBlockTest {
         }
     }
 
+    /**
+     * The cell is a plain block whose whole state is its block state: one to
+     * fifteen layers and a drip flag per side, with no block entity
+     * (decision world-goo-fills-a-block-space-in-one-to-fifteen-layers).
+     */
+    @Nested
+    class PlainBlockState {
+
+        @Test
+        void theStateHoldsFifteenLayerCountsAndASideFlagEach() {
+            List<String> flag = List.of("true", "false");
+            List<String> layerCounts = IntStream.rangeClosed(1, FIFTEEN).mapToObj(Integer::toString).toList();
+
+            assertEquals(Map.of("north", flag, "east", flag, "south", flag, "west", flag, "layers", layerCounts),
+                    CompiledStateDefinition.of(SlimeCoatBlock.class));
+        }
+
+        @Test
+        void theCellHoldsNoBlockEntity() {
+            assertFalse(EntityBlock.class.isAssignableFrom(SlimeCoatBlock.class));
+        }
+    }
+
     @Nested
     class Layers {
 
         @Test
-        void oneLayerStandsAnEighthHigh() {
-            assertEquals(1.0 / 8, SlimeCoatBlock.layerBox(1).max(Direction.Axis.Y), 1e-9);
+        void oneLayerStandsAFifteenthHigh() {
+            assertEquals(1.0 / FIFTEEN, SlimeCoatBlock.layerBox(1).max(Direction.Axis.Y), 1e-9);
         }
 
         @Test
-        void fourLayersStandHalfABlockHigh() {
-            assertEquals(0.5, SlimeCoatBlock.layerBox(4).max(Direction.Axis.Y), 1e-9);
+        void eightLayersStandEightFifteenthsHigh() {
+            assertEquals(8.0 / FIFTEEN, SlimeCoatBlock.layerBox(8).max(Direction.Axis.Y), 1e-9);
         }
 
         @Test
-        void eightLayersStandAWholeBlockHigh() {
-            assertEquals(1.0, SlimeCoatBlock.layerBox(8).max(Direction.Axis.Y), 1e-9);
+        void fifteenLayersStandAWholeBlockHigh() {
+            assertEquals(1.0, SlimeCoatBlock.layerBox(FIFTEEN).max(Direction.Axis.Y), 1e-9);
         }
 
         @Test
@@ -83,7 +115,7 @@ class SlimeCoatBlockTest {
                 }
             }
 
-            assertEquals(Set.of(1, 2, 3, 4, 5, 6, 7, 8), drawn);
+            assertEquals(IntStream.rangeClosed(1, FIFTEEN).boxed().collect(Collectors.toSet()), drawn);
         }
 
         private static JsonObject blockstateJson() throws IOException {
@@ -92,9 +124,10 @@ class SlimeCoatBlockTest {
     }
 
     /**
-     * A broken cell gives back, per layer, an eighth of Goop's cost, the
-     * price the stream charged it, whatever the workbench sets that cost to
-     * (decision breaking-slime-drops-weird-goo-worth-its-layers).
+     * A layer costs a fifteenth of Goop's cost whatever the workbench sets
+     * that cost to, and a broken cell gives back that price per layer
+     * (decisions world-goo-fills-a-block-space-in-one-to-fifteen-layers,
+     * breaking-slime-drops-weird-goo-worth-its-layers).
      */
     @Nested
     class Reclaim {
@@ -104,13 +137,23 @@ class SlimeCoatBlockTest {
         private static final GooFraction RETUNED_COST = GooFraction.of(160);
 
         @Test
-        void aBrokenCellReturnsAnEighthOfTheCostPerLayer() {
-            assertEquals(LAYERS * 96 / SlimeCoatBlock.MAX_LAYERS, SlimeCoatBlock.reclaimed(LAYERS, A_COST));
+        void aLayerCostsAFifteenthOfTheCost() {
+            assertEquals(GooFraction.of(96).dividedBy(FIFTEEN), SlimeCoatBlock.layerPrice(A_COST));
+        }
+
+        @Test
+        void aRetunedCostRetunesTheLayersPrice() {
+            assertEquals(GooFraction.of(160).dividedBy(FIFTEEN), SlimeCoatBlock.layerPrice(RETUNED_COST));
+        }
+
+        @Test
+        void aBrokenCellReturnsAFifteenthOfTheCostPerLayer() {
+            assertEquals(LAYERS * 96 / FIFTEEN, SlimeCoatBlock.reclaimed(LAYERS, A_COST));
         }
 
         @Test
         void aRetunedCostRetunesTheRefund() {
-            assertEquals(LAYERS * 160 / SlimeCoatBlock.MAX_LAYERS, SlimeCoatBlock.reclaimed(LAYERS, RETUNED_COST));
+            assertEquals(LAYERS * 160 / FIFTEEN, SlimeCoatBlock.reclaimed(LAYERS, RETUNED_COST));
         }
 
         /** goop-drains-per-cubic-meter-of-slime-placed: Goop's cost reads as a price per cubic meter of slime */

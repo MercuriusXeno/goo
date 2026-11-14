@@ -22,6 +22,7 @@ import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
 import com.mercuriusxeno.goo.block.statue.StatueBlock;
 import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.fluid.GooFluidBlock;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.IronBarsBlock;
@@ -155,13 +156,14 @@ public class GooBlocks {
                     .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
     /**
      * Slime coat: the layered green slime Weird's Goop lays on a
-     * block's top, standing until destroyed and then dropping the weird goo
-     * its layers cost through SlimeCoatBlock.getDrops, no loot table
-     * (decisions coat-is-a-green-slime-film-over-the-blocks-own-texture,
+     * block's top, one to fifteen layers, standing until destroyed and then
+     * dropping the weird goo its layers cost through SlimeCoatBlock.getDrops,
+     * no loot table (decisions coat-is-a-green-slime-film-over-the-blocks-own-texture,
+     * world-goo-fills-a-block-space-in-one-to-fifteen-layers,
      * breaking-slime-drops-weird-goo-worth-its-layers).
      */
     public static final DeferredBlock<SlimeCoatBlock> SLIME_COAT = BLOCKS.registerBlock(
-            "slime_coat", SlimeCoatBlock::new,
+            "slime_coat", properties -> new SlimeCoatBlock(properties, GooTypes.WEIRD, SlimeCoatBlock.GOOP_ABILITY),
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.GRASS)
                     .sound(SoundType.SLIME_BLOCK)

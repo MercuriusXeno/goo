@@ -296,7 +296,7 @@
   "goo.ability.unstable.lurker": "Lurker",
   "goo.ability.unstable.lurker.description": "A proximity mine that pulses as creatures near, then explodes.",
   "goo.ability.weird.goop": "Goop",
-  "goo.ability.weird.goop.cost_mechanics": "Costs %s per block of slime laid, an eighth of it per layer.",
+  "goo.ability.weird.goop.cost_mechanics": "Costs %s per block of slime laid, a fifteenth of it per layer.",
   "goo.ability.weird.goop.description":"Held slime makes floors bouncy, cools source lava to magma, and leaves struck mobs dealing only knockback.",
   "goo.ability.void.erase": "Erase",
   "goo.ability.void.erase.description": "Removes the struck mob from the world, with no reward.",
