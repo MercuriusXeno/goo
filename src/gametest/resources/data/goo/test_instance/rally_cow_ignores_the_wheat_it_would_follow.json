@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:rally_cow_ignores_the_wheat_it_would_follow",
+  "environment": "goo:rally_movement_alone",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

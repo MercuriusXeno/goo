@@ -12,8 +12,10 @@ import net.minecraft.world.entity.NeutralMob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
@@ -22,18 +24,22 @@ import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.WeakHashMap;
 
 /**
  * Runs a rallied mob for its caster until the caster strikes it or casts Rally
  * on it again: it walks to the caster's nearest enemy within reach of the
  * caster, a player who attacked the caster first, and strikes it with the
  * rally's damage on reaching it and every strike interval after; with no enemy
- * in reach it follows the caster. It wears its share of the caster's armor,
- * read again every refresh interval. The caster's own hit or the caster's
- * second Rally cast, both dealing no damage, ends the rally and takes its
- * buffs off; a hit or a cast from anyone else leaves it.
+ * in reach it takes the side its moving caster heads toward, or follows a
+ * standing caster. It wears its share of the caster's armor, read again every
+ * refresh interval. The caster's own hit or the caster's second Rally cast,
+ * both dealing no damage, ends the rally and takes its buffs off; a hit or a
+ * cast from anyone else leaves it.
+ * unengaged-minions-move-where-you-move
  * zoo-rally-arms-the-peaceful
  * zoo-rally-holds-for-the-brew
  * rally-is-a-mob-effect-on-one-target
@@ -65,6 +71,8 @@ public final class RallyEvents {
     private static final double FOLLOW_SPEED = 1.0;
     /** Ticks between one path to a moving rallier and the next. */
     private static final int REPATH_TICKS = 10;
+    /** Each unengaged minion's spot from last tick, held weakly so a mob gone from the world drops out. */
+    private static final Map<Mob, Vec3> HELD_SPOTS = new WeakHashMap<>();
 
     private RallyEvents() {
     }
@@ -82,6 +90,9 @@ public final class RallyEvents {
                 || mob.hasData(GooAttachments.DOWNED)) {
             return;
         }
+        // unengaged-minions-move-where-you-move: no vanilla goal walks a rallied mob, so it goes only where the
+        // rally walks it; set after the mob's tick, which re-enables the flag every fifth tick
+        mob.goalSelector.disableControlFlag(Goal.Flag.MOVE);
         Rallied rally = mob.getData(GooAttachments.RALLIED);
         // rally-minions-get-half-your-armor-and-a-floor: an offline or absent rallier leaves the last armor read
         if (level.getEntity(rally.caster()) instanceof LivingEntity caster) {
@@ -131,8 +142,11 @@ public final class RallyEvents {
     }
 
     /**
-     * Fights the caster's foe in reach, or with none follows the caster.
+     * Fights the caster's foe in reach; with none, walks to the spot on the
+     * side the caster heads toward and holds there once the caster stops, or
+     * with no spot follows the caster.
      * rallied-mobs-follow-the-player-who-rallied-them
+     * unengaged-minions-move-where-you-move
      *
      * @param level  the mob's level
      * @param mob    the rallied mob
@@ -143,8 +157,14 @@ public final class RallyEvents {
         List<RallyFoes.Candidate<LivingEntity>> nearby = candidatesNear(mob, caster);
         Optional<LivingEntity> foe = RallyFoes.pick(caster.getUUID(), standingAttacker(mob, rally, nearby),
                 uuidOf(caster.getLastHurtByMob()), uuidOf(caster.getLastHurtMob()), nearby);
-        switch (RallyFollow.choose(foe.isPresent(), mob.distanceToSqr(caster))) {
+        Vec3 rallierVelocity = RallierMotion.velocityOf(caster, level.getGameTime());
+        Optional<Vec3> spot = foe.isPresent() ? Optional.empty()
+                : RallyFollow.spot(Optional.ofNullable(HELD_SPOTS.get(mob)), caster.position(), rallierVelocity,
+                        mob.getId());
+        spot.ifPresentOrElse(taken -> HELD_SPOTS.put(mob, taken), () -> HELD_SPOTS.remove(mob));
+        switch (RallyFollow.choose(foe.isPresent(), mob.position(), caster.position(), spot)) {
             case FIGHT -> fight(level, mob, foe.orElseThrow(), rally.damage());
+            case PRE_EMPT -> walkTo(mob, spot.orElseThrow());
             case FOLLOW -> follow(mob, caster);
             case HOLD -> mob.getNavigation().stop();
         }
@@ -205,6 +225,20 @@ public final class RallyEvents {
     }
 
     /**
+     * Walks a rallied mob to the spot on the side its moving rallier heads
+     * toward, re-pathing as the spot moves with the rallier.
+     * unengaged-minions-move-where-you-move
+     *
+     * @param mob  the rallied mob
+     * @param spot the spot it walks to
+     */
+    private static void walkTo(Mob mob, Vec3 spot) {
+        if (mob.getNavigation().isDone() || mob.tickCount % REPATH_TICKS == 0) {
+            mob.getNavigation().moveTo(spot.x, spot.y, spot.z, FOLLOW_SPEED);
+        }
+    }
+
+    /**
      * Answers whether a rallied mob in melee range strikes this tick: once a
      * full cooldown has passed since its last strike, so a mob that has not
      * struck lately strikes the tick it reaches its foe.
@@ -243,6 +277,8 @@ public final class RallyEvents {
      */
     public static void endRally(Mob mob) {
         mob.removeData(GooAttachments.RALLIED);
+        HELD_SPOTS.remove(mob);
+        mob.goalSelector.enableControlFlag(Goal.Flag.MOVE);
         removeModifier(mob.getAttribute(Attributes.MAX_HEALTH), HEALTH_MODIFIER);
         removeModifier(mob.getAttribute(Attributes.MOVEMENT_SPEED), SPEED_MODIFIER);
         removeModifier(mob.getAttribute(Attributes.ARMOR), ARMOR_MODIFIER);

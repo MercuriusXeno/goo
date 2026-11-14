@@ -19,8 +19,8 @@ public final class GooFormat {
     private static final String SUPERSCRIPT_DIGITS = "⁰¹²³⁴⁵⁶⁷⁸⁹";
     /** Subscript digits 0 through 9, for a fraction's denominator. */
     private static final String SUBSCRIPT_DIGITS = "₀₁₂₃₄₅₆₇₈₉";
-    /** The fraction slash that sits between the small numerator and denominator. */
-    private static final String FRACTION_SLASH = "⁄";
+    /** A mixed number's part it does not draw: a whole number's fraction, a fraction's zero whole. */
+    private static final String NO_PART = "";
     /** Separator between a container's total and its capacity. */
     private static final String OF_CAPACITY = " / ";
 
@@ -78,14 +78,25 @@ public final class GooFormat {
      * @return the display string
      */
     public static String formatMixed(GooFraction amount) {
+        return mixedParts(amount).text();
+    }
+
+    /**
+     * Splits an exact amount into the parts of its mixed number, each written
+     * as formatMixed writes it, so a draw can space the parts apart.
+     * mixed-number-gaps-its-whole-and-tightens-its-fraction
+     *
+     * @param amount the exact amount, never negative
+     * @return the whole, the superscript numerator and the subscript denominator
+     */
+    public static MixedNumber mixedParts(GooFraction amount) {
         int whole = amount.floor();
         GooFraction part = amount.minus(GooFraction.of(whole));
         if (part.isZero()) {
-            return formatAmount(whole);
+            return new MixedNumber(formatAmount(whole), NO_PART, NO_PART);
         }
-        String fraction = toDigits(part.numerator(), SUPERSCRIPT_DIGITS) + FRACTION_SLASH
-                + toDigits(part.denominator(), SUBSCRIPT_DIGITS);
-        return whole == 0 ? fraction : formatAmount(whole) + fraction;
+        return new MixedNumber(whole == 0 ? NO_PART : formatAmount(whole),
+                toDigits(part.numerator(), SUPERSCRIPT_DIGITS), toDigits(part.denominator(), SUBSCRIPT_DIGITS));
     }
 
     /**

@@ -46,7 +46,7 @@ class LifeMarkTest {
         void smallMaxDrawsTheSameOneHeartMark() {
             LifeMark mark = LifeMark.of(7f, 10f);
             assertEquals(0.7f, mark.fill(), EPSILON);
-            assertEquals("3¹⁄₂", mark.count());
+            assertEquals("3¹⁄₂", mark.count().text());
         }
     }
 
@@ -55,22 +55,22 @@ class LifeMarkTest {
 
         @Test
         void donkeyReadsTwelveAndAHalf() {
-            assertEquals("12¹⁄₂", LifeMark.of(25f, 25f).count());
+            assertEquals("12¹⁄₂", LifeMark.of(25f, 25f).count().text());
         }
 
         @Test
         void wholeHeartsReadWhole() {
-            assertEquals("10", LifeMark.of(20f, 20f).count());
+            assertEquals("10", LifeMark.of(20f, 20f).count().text());
         }
 
         @Test
         void oddHealthReadsAHalf() {
-            assertEquals("6¹⁄₂", LifeMark.of(13f, 20f).count());
+            assertEquals("6¹⁄₂", LifeMark.of(13f, 20f).count().text());
         }
 
         @Test
         void slimLifeRoundsUpToHalfAHeart() {
-            assertEquals("¹⁄₂", LifeMark.of(0.4f, 20f).count());
+            assertEquals("¹⁄₂", LifeMark.of(0.4f, 20f).count().text());
         }
     }
 
@@ -92,12 +92,12 @@ class LifeMarkTest {
 
         @Test
         void threeHalfHeartsBelowZeroReadMinusOneAndAHalf() {
-            assertEquals("-1¹⁄₂", LifeMark.downed(-3f).count());
+            assertEquals("-1¹⁄₂", LifeMark.downed(-3f).count().text());
         }
 
         @Test
         void twoHalfHeartsBelowZeroReadMinusOne() {
-            assertEquals("-1", LifeMark.downed(-2f).count());
+            assertEquals("-1", LifeMark.downed(-2f).count().text());
         }
 
         @Test
