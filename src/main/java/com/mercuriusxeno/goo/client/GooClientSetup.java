@@ -16,6 +16,7 @@ import com.mercuriusxeno.goo.client.ability.AilmentOverlayLayer;
 import com.mercuriusxeno.goo.client.ability.BeatRings;
 import com.mercuriusxeno.goo.client.ability.BlockTransforms;
 import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
+import com.mercuriusxeno.goo.client.ability.DownedPose;
 import com.mercuriusxeno.goo.client.ability.EncasedBodies;
 import com.mercuriusxeno.goo.client.ability.EncasementLayer;
 import com.mercuriusxeno.goo.client.ability.ExitTiltLook;
@@ -374,6 +375,7 @@ public final class GooClientSetup {
                 EncasementLayer::stampPetrify,
                 EncasementLayer::stampFrozen,
                 FrozenPoses::stampFrozenPose,
+                DownedPose::stampDownedPose,
                 GrabFlail::stampFlail,
                 VineTangleLayer::stampTangle,
                 TransformationRenderer::stampTransformation,
