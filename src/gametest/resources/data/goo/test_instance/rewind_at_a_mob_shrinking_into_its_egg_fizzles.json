@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:rewind_at_a_mob_shrinking_into_its_egg_fizzles",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 40,
+  "setup_ticks": 0,
+  "required": true
+}

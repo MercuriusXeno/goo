@@ -1,9 +1,11 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.aging.Aging;
 import com.mercuriusxeno.goo.ability.rewind.RewindEvents;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
@@ -14,7 +16,8 @@ import java.util.stream.Stream;
  * Rewinds the host's target one stage, its model shrinking over the JSON's
  * ticks: an adult that has a baby form becomes a baby, and a baby, or a mob
  * with no baby form, shrinks into its spawn egg. A mob already shrinking
- * into its egg, or a target that is no mob, is left alone.
+ * into its egg fizzles, smoke and a hiss, so the failed attempt shows; a
+ * target that is no mob is left alone.
  * rewind-shrinks-adult-to-baby-to-egg
  *
  * @param ticks the game ticks each shrink takes
@@ -44,7 +47,14 @@ public record RegressStep(int ticks) implements Step {
     @Override
     public boolean tick(StepContext context) {
         LivingEntity target = context.hostAs(TargetHost.class).target();
-        if (!takesEntity(target) || RewindEvents.vanishing((Mob) target)) {
+        if (!takesEntity(target)) {
+            return true;
+        }
+        if (RewindEvents.vanishing((Mob) target)) {
+            // charm-like-abilities-lock-the-highlighted-mob-on-right-click: a failed attempt fizzles, never silent
+            if (target.level() instanceof ServerLevel level) {
+                Aging.fizzle(level, target.blockPosition());
+            }
             return true;
         }
         Mob mob = (Mob) target;

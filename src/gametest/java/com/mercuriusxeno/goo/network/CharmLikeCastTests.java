@@ -4,7 +4,9 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.OwnMinions;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.HeardSounds;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
+import com.mercuriusxeno.goo.gametest.PacketRecorder;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -19,7 +21,9 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.animal.cow.Cow;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.projectile.ShulkerBullet;
 import net.minecraft.world.item.Items;
@@ -47,6 +51,12 @@ public final class CharmLikeCastTests {
     private static final String RALLY_DARTS = "rally_darts_to_the_taken_mob_and_rallies_it";
     private static final String SHULK_SPEWS = "shulk_spews_a_shulker_bullet_at_the_taken_mob";
     private static final String REWIND_STEPS = "rewind_steps_a_cow_back_once_per_cast";
+    private static final String REWIND_FIZZLES = "rewind_at_a_mob_shrinking_into_its_egg_fizzles";
+    /** Ticks past the first cast by which its dart has landed and the calf is shrinking into its egg. */
+    private static final int SHRINKING_TICKS = 5;
+    private static final Identifier FIZZLE_SOUND = Identifier.withDefaultNamespace("block.fire.extinguish");
+    private static final String SHOULD_FIZZLE =
+            "A Rewind landing on a calf already shrinking into its egg should hiss once; hissed %d times";
     private static final Identifier REWIND = Identifier.parse("goo:yore_rewind");
     /** Goo enough for both casts whatever Rewind's price, held beside the invoker's own. */
     private static final int REWIND_GOO = 20;
@@ -92,6 +102,7 @@ public final class CharmLikeCastTests {
         GooTestFunctions.registerTest(registrar, RALLY_DARTS, CharmLikeCastTests::rallyDartsAndRallies);
         GooTestFunctions.registerTest(registrar, SHULK_SPEWS, CharmLikeCastTests::shulkSpewsAShulkerBulletAtTheTakenMob);
         GooTestFunctions.registerTest(registrar, REWIND_STEPS, CharmLikeCastTests::rewindStepsACowBackOncePerCast);
+        GooTestFunctions.registerTest(registrar, REWIND_FIZZLES, CharmLikeCastTests::rewindAtAMobShrinkingIntoItsEggFizzles);
     }
 
     /**
@@ -169,6 +180,33 @@ public final class CharmLikeCastTests {
                     new AABB(stood, stood).inflate(EGG_SEARCH_BLOCKS), item -> item.getItem().is(Items.COW_SPAWN_EGG));
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.assertTrue(cow.isRemoved() && eggs.size() == 1, String.format(COW_SHOULD_BE_AN_EGG, eggs.size()));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Rewind cast at a calf already shrinking into its egg fails visibly: the
+     * second cast lands while the first still shrinks it, and fizzles at the
+     * calf, smoke and the extinguishing hiss, as Charm's missed roll does
+     * (operator: "the attempt needs a fanfare, and a failure").
+     *
+     * @param helper the gametest helper
+     */
+    public static void rewindAtAMobShrinkingIntoItsEggFizzles(GameTestHelper helper) {
+        Cow calf = helper.spawnWithNoFreeWill(EntityType.COW, MOB_POS);
+        calf.setAge(AgeableMob.BABY_START_AGE);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.YORE, REWIND);
+        caster.getInventory().add(GooStacks.createForOutput(GooTypes.YORE, REWIND_GOO * GooStacks.THOUSAND));
+        AbilityDefinition rewind = AbilityRegistry.of(helper.getLevel()).getAbility(REWIND);
+        helper.assertTrue(rewind != null, ABILITY_REQUIRED);
+        KnownRecipes.teachRequires(caster, rewind);
+        PacketRecorder heard = PacketRecorder.attachTo(caster);
+        helper.runAfterDelay(SETTLE_TICKS, () -> castAt(caster, GooTypes.YORE, REWIND, calf));
+        helper.runAfterDelay(SETTLE_TICKS + SHRINKING_TICKS, () -> castAt(caster, GooTypes.YORE, REWIND, calf));
+        helper.runAfterDelay(SETTLE_TICKS + SHRINKING_TICKS + DART_LANDED_TICKS, () -> {
+            int hisses = HeardSounds.of(heard, FIZZLE_SOUND).size();
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(hisses == 1, String.format(SHOULD_FIZZLE, hisses));
             helper.succeed();
         });
     }
