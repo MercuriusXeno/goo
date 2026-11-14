@@ -34,7 +34,7 @@ import java.util.List;
  * found: one stuck in a block stands there a moment, then shatters; one
  * striking a mob, or spent in the air, shatters at once, with a tinkle of
  * glass, cracking into splinters that tumble down and melt away.
- * decision shards-sling-then-morph-to-flechettes
+ * decision knives-sling-then-morph-to-flechettes
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class GlassKnives {

@@ -11,7 +11,7 @@ import java.util.List;
  * out from where it broke, tumbling as they drop, shrinking and fading
  * away over about a second, so the knife melts into glass rather than
  * vanishing.
- * decision shards-sling-then-morph-to-flechettes
+ * decision knives-sling-then-morph-to-flechettes
  */
 public final class GlassSlivers {
 

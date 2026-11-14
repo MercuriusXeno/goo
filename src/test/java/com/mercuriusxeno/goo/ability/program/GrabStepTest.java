@@ -257,14 +257,14 @@ class GrabStepTest {
 
         @Test
         void aStepWithNoRuleOfItsOwnTakesALivingEntity() {
-            Step heal = LeafSteps.HEAL.step(Expr.literal(1));
+            Step heal = LeafSteps.HEAL.step(new HealPulse(Expr.literal(1), 4));
             assertTrue(heal.takesEntity(alive(Player.class)));
             assertFalse(heal.takesEntity(alive(ItemEntity.class)));
         }
 
         @Test
         void anAbilityTakesWhatAnyOfItsStepsTakes() {
-            Step heal = LeafSteps.HEAL.step(Expr.literal(1));
+            Step heal = LeafSteps.HEAL.step(new HealPulse(Expr.literal(1), 4));
             assertTrue(Step.takenByAny(List.of(GRAB, heal), alive(Player.class)));
         }
 

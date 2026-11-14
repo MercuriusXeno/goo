@@ -11,7 +11,7 @@ import org.jspecify.annotations.NonNull;
 
 /**
  * Server-to-client payload: the pose a player's glove arm takes now, for
- * every client drawing that player (decisions shards-sling-then-morph-to-flechettes,
+ * every client drawing that player (decisions knives-sling-then-morph-to-flechettes,
  * ability-json-names-its-arm-pose).
  *
  * @param entityId   the posed player's entity id

@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.OwnMinions;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.GrabStep;
+import com.mercuriusxeno.goo.ability.program.HealPulse;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.Step;
 import net.minecraft.world.entity.Entity;
@@ -60,7 +61,7 @@ class AimAssistResolverTest {
         private static final double AWAY = 10;
         /** Off the look by more than the shared cone, inside Grab's. */
         private static final double PAST_THE_SHARED_CONE = AimAssistResolver.AIM_ASSIST_DEGREES + 3;
-        private final List<Step> heal = List.of(LeafSteps.HEAL.step(Expr.literal(1)));
+        private final List<Step> heal = List.of(LeafSteps.HEAL.step(new HealPulse(Expr.literal(1), 4)));
 
         @Test
         void grabPicksAMobTheSharedConeMisses() {
@@ -110,7 +111,7 @@ class AimAssistResolverTest {
     class Candidates {
 
         private final List<Step> grab = List.of(new GrabStep(16, 3, 1.5, 1, 10));
-        private final List<Step> heal = List.of(LeafSteps.HEAL.step(Expr.literal(1)));
+        private final List<Step> heal = List.of(LeafSteps.HEAL.step(new HealPulse(Expr.literal(1), 4)));
 
         @Test
         void withGrabSelectedAnItemEntityIsACandidate() {
