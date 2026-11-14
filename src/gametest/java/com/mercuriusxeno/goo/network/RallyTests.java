@@ -129,7 +129,10 @@ public final class RallyTests {
      * A cow rallied with its own free will stands beside its still rallier,
      * who holds the wheat a cow follows, and stays where it was: no vanilla
      * goal walks a rallied mob, neither the wheat's tempt nor a stroll
-     * (decision unengaged-minions-move-where-you-move).
+     * (decision unengaged-minions-move-where-you-move). It and the other
+     * movement tests batch alone in rally_movement_alone: a neighbouring
+     * test's zombie within the rallier's foe reach is a foe the cow rightly
+     * walks off to fight.
      *
      * @param helper the gametest helper
      */

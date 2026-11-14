@@ -54,14 +54,6 @@ public final class RallyFollow {
     /**
      * Chooses a rallied mob's move.
      *
-     * @param foeInReach           whether a foe of the rallier stands in the mob's reach
-     * @param distanceSqrToRallier the squared distance from the mob to its rallier
-     * @param rallierVelocity      the rallier's smoothed velocity, in blocks a tick
-     * @return the move
-     */
-    /**
-     * Chooses a rallied mob's move.
-     *
      * @param foeInReach      whether a foe of the rallier stands in the mob's reach
      * @param mobPosition     the mob's position
      * @param rallierPosition the rallier's position

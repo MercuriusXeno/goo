@@ -1,7 +1,7 @@
 {
   "type": "minecraft:function",
   "function": "goo:rally_cow_takes_the_side_its_rallier_walks_toward",
-  "environment": "goo:rally_reload",
+  "environment": "goo:rally_movement_alone",
   "structure": "goo:test_bay",
   "max_ticks": 160,
   "setup_ticks": 0,
