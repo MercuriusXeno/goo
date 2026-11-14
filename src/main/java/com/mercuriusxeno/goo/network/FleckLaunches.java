@@ -9,7 +9,7 @@ import java.util.List;
  * own tick, so a sweep's flecks leave one after another. Each server holds
  * one, so a sweep still leaving ends with the server
  * (decision type-package-and-per-server-holders).
- * decision shards-sling-then-morph-to-flechettes
+ * decision knives-sling-then-morph-to-flechettes
  */
 public final class FleckLaunches {
 

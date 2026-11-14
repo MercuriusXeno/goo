@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Knives aims one faint line per knife the current charge slings, each
- * leaving the drawn glove hand and following its knife's flight across the
+ * leaving the blob floating ahead of the hand and following its knife's flight across the
  * cone until it would strike, the same lines every frame of a press and a
  * new scatter each press, the one the server slings the knives from
  * (decision knives-aims-a-spread-fan-not-a-blob-line).
@@ -64,6 +64,51 @@ class KnifeAimLinesTest {
                 assertTrue(Math.abs(yaw) <= 22.5 + 1e-6, "every line flies inside the cone, flew " + yaw);
             }
             assertTrue(rightmost - leftmost > 40, "the lines reach across the cone, spanned " + (rightmost - leftmost));
+        }
+    }
+
+    /**
+     * The lines root at the blob floating ahead of the hand, the point the
+     * server launches each knife from, so each knife's first position lies on
+     * its line (decision knives-blob-floats-ahead-of-the-hand-and-spews-the-knives).
+     */
+    @Nested
+    class RootAtTheFloatingBlob {
+
+        private static final Vec3 EYE = new Vec3(3, 65.62, -2);
+        private static final float YAW = 20f;
+        private static final float PITCH = 30f;
+        private static final int HELD = 18;
+        private final KnifeAimLines.Press press = new KnifeAimLines.Press(EYE, YAW, PITCH, true, HELD, 0.6f, SEED);
+        private final Vec3 look = Vec3.directionFromRotation(PITCH, YAW);
+
+        @Test
+        void everyLineLeavesTheFloatPointForTheEyeLookAndGloveSide() {
+            Vec3 floating = KnifeRain.floatPoint(EYE, YAW, look, true, KnifeRain.windUpAcross(HELD));
+
+            List<List<Vec3>> lines = KnifeAimLines.linesOf(press, KNIVES, OPEN_AIR);
+
+            assertEquals(KNIVES.fleckCount(0.6f), lines.size());
+            for (List<Vec3> line : lines) {
+                assertEquals(0, floating.distanceTo(line.getFirst()), TOLERANCE, "every line should root at the "
+                        + "floating blob " + floating + ", rooted at " + line.getFirst());
+            }
+        }
+
+        @Test
+        void eachLineRunsAlongItsKnifesVelocityAndTheFirstKnifeLeavesTheLinesRoot() {
+            List<List<Vec3>> lines = KnifeAimLines.linesOf(press, KNIVES, OPEN_AIR);
+            Vec3 firstKnifeStart = KnifeRain.leavesFrom(EYE, YAW, look, true, HELD, 0);
+            List<Vec3> serverVelocities = KnifeRain.releaseVelocities(YAW, PITCH, KNIVES, 0.6f,
+                    RandomSource.create(SEED));
+
+            for (int index = 0; index < lines.size(); index++) {
+                List<Vec3> line = lines.get(index);
+                assertEquals(0, serverVelocities.get(index).distanceTo(line.get(1).subtract(line.get(0))),
+                        TOLERANCE, "line " + index + "'s direction");
+            }
+            assertEquals(0, firstKnifeStart.distanceTo(lines.getFirst().getFirst()), TOLERANCE,
+                    "a knife leaving at the release's first tick should start at the lines' root");
         }
     }
 

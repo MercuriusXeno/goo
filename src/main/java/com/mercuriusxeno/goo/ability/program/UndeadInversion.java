@@ -111,9 +111,11 @@ public final class UndeadInversion {
 
     /**
      * Harms an undead target by a heal's amount, landing every time it is
-     * called: a heal streamed each tick harms each tick, so the hurt passes
-     * the target's damage immunity and leaves that immunity as it found it,
-     * and it keeps the target's motion, since a heal shoves nothing.
+     * called: the hurt passes the target's damage immunity and leaves that
+     * immunity as it found it, so no i-frames stand after it, and it keeps
+     * the target's motion, since a heal shoves nothing. The heal step's
+     * pulse paces the calls, so the hurt and its sound land once a pulse.
+     * diagnose-and-correct-heal-spamming-zombie-noises
      *
      * @param target the undead entity
      * @param amount the health the heal would have restored

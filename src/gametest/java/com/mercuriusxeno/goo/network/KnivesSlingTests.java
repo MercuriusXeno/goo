@@ -30,7 +30,7 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
  * Gametests for Crystal's Knives: a full charge let go rains glass knives
  * over an area ahead, striking mobs spread across it, and no knife strikes
  * before it has left the hand and flown.
- * decision shards-sling-then-morph-to-flechettes
+ * decision knives-sling-then-morph-to-flechettes
  */
 @RegistersGameTests
 public final class KnivesSlingTests {

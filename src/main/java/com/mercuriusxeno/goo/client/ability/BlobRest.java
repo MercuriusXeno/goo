@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.ability.crystal.KnifeRain;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.item.GooGloveItem;
@@ -11,6 +12,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
+import java.util.Optional;
 
 /**
  * Where a caster's lifted palm blob rests, chosen by the selected ability's
@@ -62,18 +64,50 @@ public final class BlobRest {
      * @return the rest point
      */
     public static Vec3 of(int casterId, Vec3 sentGlove, float partialTick) {
+        return viewOf(casterId, partialTick).map(view -> inView(view.eye(), view.xRot(), view.yRot(),
+                KnifeRainSling.gloveOnTheRight(view.caster()), selectsCentered(view.caster()))).orElse(sentGlove);
+    }
+
+    /**
+     * Where a caster's blob floats through Knives' charge this frame: ahead
+     * of and above the glove hand, in the same view the rest point reads.
+     * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
+     *
+     * @param casterId    the caster's entity id
+     * @param sentGlove   the glove the held tick came with
+     * @param partialTick the frame's partial tick
+     * @param across      how far the caster's hand has eased across the chest, 0 to 1
+     * @return the float point
+     */
+    public static Vec3 floatingOf(int casterId, Vec3 sentGlove, float partialTick, float across) {
+        return viewOf(casterId, partialTick).map(view -> KnifeRain.floatPoint(view.eye(), view.yRot(),
+                Vec3.directionFromRotation(view.xRot(), view.yRot()), KnifeRainSling.gloveOnTheRight(view.caster()),
+                across)).orElse(sentGlove);
+    }
+
+    /**
+     * A caster's view this frame: the camera's for the local player in first
+     * person, the caster's own otherwise.
+     *
+     * @param caster the caster
+     * @param eye    the view's eye
+     * @param xRot   the view's pitch in degrees
+     * @param yRot   the view's yaw in degrees
+     */
+    private record View(Player caster, Vec3 eye, float xRot, float yRot) {
+    }
+
+    private static Optional<View> viewOf(int casterId, float partialTick) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || !(mc.level.getEntity(casterId) instanceof Player caster)) {
-            return sentGlove;
+            return Optional.empty();
         }
-        boolean gloveRight = KnifeRainSling.gloveOnTheRight(caster);
-        boolean centered = selectsCentered(caster);
         if (caster == mc.player && mc.options.getCameraType().isFirstPerson()) {
             Camera camera = mc.gameRenderer.getMainCamera();
-            return inView(camera.position(), camera.xRot(), camera.yRot(), gloveRight, centered);
+            return Optional.of(new View(caster, camera.position(), camera.xRot(), camera.yRot()));
         }
-        return inView(caster.getEyePosition(partialTick), caster.getViewXRot(partialTick),
-                caster.getViewYRot(partialTick), gloveRight, centered);
+        return Optional.of(new View(caster, caster.getEyePosition(partialTick), caster.getViewXRot(partialTick),
+                caster.getViewYRot(partialTick)));
     }
 
     /**
