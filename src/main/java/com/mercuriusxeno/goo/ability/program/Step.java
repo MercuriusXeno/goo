@@ -177,8 +177,11 @@ public interface Step {
 
     /**
      * Whether a container filtering its selection takes an entity: one
-     * every filter keeps and a child step takes.
+     * every filter keeps and a child step takes. A container running no
+     * child names only what it takes, as Shulk's does for the mob its
+     * shulker bullet homes on, so it takes what its filters keep.
      * decision steps-declare-the-entities-they-take
+     * decision charm-like-abilities-lock-the-highlighted-mob-on-right-click
      *
      * @param where  the container's filters
      * @param steps  the children run on what the filters keep
@@ -186,6 +189,7 @@ public interface Step {
      * @return true where the container acts on it
      */
     static boolean takenThrough(List<EntityFilter> where, List<Step> steps, Entity entity) {
-        return EntityScan.passes(entity, Set.copyOf(where), null) && takenByAny(steps, entity);
+        return EntityScan.passes(entity, Set.copyOf(where), null)
+                && (steps.isEmpty() ? entity instanceof LivingEntity : takenByAny(steps, entity));
     }
 }

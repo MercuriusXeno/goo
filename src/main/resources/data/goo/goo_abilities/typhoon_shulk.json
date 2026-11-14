@@ -5,7 +5,9 @@
   "order": 0,
   "cost": 1000,
   "requires": ["minecraft:shulker_shell"],
-  "delivery": { "kind": "envelop", "charge": { "max_ticks": 20 }, "spews": "shulker_bullet" },
-  "behaviors": [],
+  "delivery": { "kind": "envelop", "spews": "shulker_bullet" },
+  "behaviors": [
+    { "type": "target", "where": ["living"], "steps": [] }
+  ],
   "tags": ["entity", "harmful"]
 }
