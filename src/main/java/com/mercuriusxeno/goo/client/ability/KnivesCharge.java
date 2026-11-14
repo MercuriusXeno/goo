@@ -170,8 +170,7 @@ public final class KnivesCharge {
         Charge charge = chargeOf(player);
         double age = now - posed.since();
         if (floatsAt(posed, age, charge == null ? 0 : charge.sweepTicks())) {
-            LiftedPalmBlob.floated(player.getId(), player.getEyePosition(), (long) posed.since(), now,
-                    floatReachAt(posed, age));
+            LiftedPalmBlob.floated(player.getId(), player.getEyePosition(), (long) posed.since(), now);
         }
     }
 
@@ -187,21 +186,6 @@ public final class KnivesCharge {
      */
     static boolean floatsAt(AbilityPoses.Posed posed, double age, int sweepTicks) {
         return posed.holding(ArmPoseKind.WIND_UP) || posed.kind() == ArmPoseKind.FLING && age <= sweepTicks;
-    }
-
-    /**
-     * How far across the chest the floating blob stands an age into a pose:
-     * with the hand as the wind-up eases it across, then where the wind-up
-     * got to through the backhand, the reach the server launches every knife
-     * from, while the hand itself sweeps back out.
-     * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
-     *
-     * @param posed the pose
-     * @param age   ticks since it began
-     * @return the share across, 0 at the glove side to 1 at the wind-up's furthest
-     */
-    static float floatReachAt(AbilityPoses.Posed posed, double age) {
-        return posed.kind() == ArmPoseKind.FLING ? posed.from() : AbilityPoses.acrossAt(posed, age);
     }
 
     /**

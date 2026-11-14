@@ -48,6 +48,16 @@ public final class KnifeRain {
     private static final double FLOAT_ABOVE = 0.2;
     /** Ticks the wind-up takes to ease the hand across the chest: Knives' full charge. */
     public static final float WIND_UP_TICKS = 30f;
+    /** Ticks the backhand takes to sweep the hand out, holds it flung, and takes to bring it back. */
+    public static final float BACKHAND_OUT_TICKS = 3f;
+    public static final float BACKHAND_HOLD_TICKS = 3f;
+    public static final float BACKHAND_RETURN_TICKS = 5f;
+    /**
+     * Where the flung hand stands across the chest: out past the glove side,
+     * about seven tenths as far as the wind-up carries it in, as the
+     * first-person fling sets the hand out against the wind-up.
+     */
+    private static final float FLUNG_ACROSS = -0.7f;
     /** The smoothstep's terms: three times the square less twice the cube. */
     private static final float SMOOTH_SQUARE = 3f;
     private static final float SMOOTH_CUBE = 2f;
@@ -167,28 +177,61 @@ public final class KnifeRain {
      * @return the share across, 0 at the glove side to 1 at its furthest
      */
     public static float windUpAcross(double heldTicks) {
-        float share = (float) Math.clamp(heldTicks / WIND_UP_TICKS, 0.0, 1.0);
-        return share * share * (SMOOTH_SQUARE - SMOOTH_CUBE * share);
+        return smooth(heldTicks / WIND_UP_TICKS);
+    }
+
+    /**
+     * How far across the chest the glove hand stands a number of ticks into
+     * the backhand: sweeping out from where the wind-up got to, past the
+     * glove side to where the arm flings, holding there, then coming back to
+     * the glove side, as the arm's fling plays it.
+     * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives: the blob follows the hand through the backhand
+     *
+     * @param from         how far across the wind-up had eased the hand at the release, 0 to 1
+     * @param sinceRelease the ticks since the release
+     * @return the share across, negative out past the glove side
+     */
+    public static float backhandAcross(float from, double sinceRelease) {
+        if (sinceRelease < BACKHAND_OUT_TICKS) {
+            float out = smooth(sinceRelease / BACKHAND_OUT_TICKS);
+            return from + (FLUNG_ACROSS - from) * out;
+        }
+        double returning = sinceRelease - BACKHAND_OUT_TICKS - BACKHAND_HOLD_TICKS;
+        return FLUNG_ACROSS * (1f - smooth(returning / BACKHAND_RETURN_TICKS));
+    }
+
+    /**
+     * An ease's progress, slow at both ends.
+     *
+     * @param share the share of the ease's ticks gone, clamped to 0 to 1
+     * @return the eased share
+     */
+    private static float smooth(double share) {
+        float clamped = (float) Math.clamp(share, 0.0, 1.0);
+        return clamped * clamped * (SMOOTH_SQUARE - SMOOTH_CUBE * clamped);
     }
 
     /**
      * Where Knives' knives leave from, the blob floating ahead of the hand:
-     * the float point at the hand's reach across the chest when the charge
-     * was let go, the one point the server launches each knife from and the
-     * client roots each aim line at. Read at a knife's own launch tick, it
-     * follows the look through the backhand.
+     * the float point at the hand's place across the chest that many ticks
+     * into the backhand, from wherever the held charge's wind-up got to. The
+     * server launches each knife from it at that knife's own launch tick, so
+     * the blob spews them along the hand's path; the client roots each aim
+     * line at it before the release.
      * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
      * knives-aims-a-spread-fan-not-a-blob-line
      *
-     * @param eye        the thrower's eye
-     * @param yaw        the thrower's yaw, in degrees
-     * @param look       the thrower's look, a unit vector
-     * @param gloveRight whether the glove is in the right hand
-     * @param heldTicks  the ticks the charge was held
+     * @param eye          the thrower's eye
+     * @param yaw          the thrower's yaw, in degrees
+     * @param look         the thrower's look, a unit vector
+     * @param gloveRight   whether the glove is in the right hand
+     * @param heldTicks    the ticks the charge was held
+     * @param sinceRelease the ticks since the release, 0 before it
      * @return the point
      */
-    public static Vec3 leavesFrom(Vec3 eye, float yaw, Vec3 look, boolean gloveRight, int heldTicks) {
-        return floatPoint(eye, yaw, look, gloveRight, windUpAcross(heldTicks));
+    public static Vec3 leavesFrom(Vec3 eye, float yaw, Vec3 look, boolean gloveRight, int heldTicks,
+                                  double sinceRelease) {
+        return floatPoint(eye, yaw, look, gloveRight, backhandAcross(windUpAcross(heldTicks), sinceRelease));
     }
 
     /**

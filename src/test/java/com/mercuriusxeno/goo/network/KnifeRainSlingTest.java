@@ -33,8 +33,9 @@ import static org.mockito.Mockito.when;
 
 /**
  * Each knife of a released Knives charge leaves the blob floating ahead of
- * the hand as the player's eye and look stand at that knife's own launch
- * tick, so the knives follow the look through the backhand: the payload the
+ * the hand where it stands at that knife's own launch tick, the eye, the look
+ * and the hand's place in the backhand all read then, so the knives spew along
+ * the hand's path through the backhand: the payload the
  * watchers draw it from and a struck mob's aim both start there
  * (decisions knives-blob-floats-ahead-of-the-hand-and-spews-the-knives,
  * knives-sling-then-morph-to-flechettes).
@@ -46,6 +47,17 @@ class KnifeRainSlingTest {
     private static final int HELD = 18;
     private static final Vec3 VELOCITY = new Vec3(0.1, 0.2, 0.95);
     private static final double WITHIN = 1e-9;
+
+    @Test
+    void knivesLeavingAtDifferentTicksOfTheBackhandLeaveFromDifferentPointsAcrossTheChest() {
+        Vec3 look = Vec3.directionFromRotation(10f, 20f);
+
+        Vec3 first = KnifeRain.leavesFrom(EYE, 20f, look, true, HELD, 0);
+        Vec3 flung = KnifeRain.leavesFrom(EYE, 20f, look, true, HELD, KnifeRain.BACKHAND_OUT_TICKS);
+
+        assertTrue(first.distanceTo(flung) > 0.1, "the blob should travel with the hand through the backhand, from "
+                + first + " to " + flung);
+    }
 
     @Test
     void eachKnifeLeavesTheFloatPointAsTheLookStandsAtItsLaunchAndAStruckMobsAimStartsThere() {
@@ -73,12 +85,15 @@ class KnifeRainSlingTest {
                     .thenReturn(huskHit);
             states.when(() -> GooServerState.of(server)).thenReturn(state);
 
-            for (float[] look : new float[][] {{20f, 10f}, {-35f, 40f}}) {
+            int[] sinceRelease = {0, (int) KnifeRain.BACKHAND_OUT_TICKS};
+            float[][] looks = {{20f, 10f}, {-35f, 40f}};
+            for (int knife = 0; knife < 2; knife++) {
+                float[] look = looks[knife];
                 when(player.getYRot()).thenReturn(look[0]);
                 when(player.getViewVector(1f)).thenReturn(Vec3.directionFromRotation(look[1], look[0]));
                 expected.add(KnifeRain.leavesFrom(EYE, look[0], Vec3.directionFromRotation(look[1], look[0]), true,
-                        HELD));
-                KnifeRainSling.launch(player, release, VELOCITY);
+                        HELD, sinceRelease[knife]));
+                KnifeRainSling.launch(player, release, VELOCITY, sinceRelease[knife]);
             }
 
             ArgumentCaptor<GlassKnifePayload> sent = ArgumentCaptor.forClass(GlassKnifePayload.class);
