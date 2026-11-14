@@ -13,19 +13,21 @@ import net.minecraft.world.phys.HitResult;
  */
 public final class SwarmMotes {
 
-    /** How hard its target pulls a gnat each tick, blocks per tick per tick. */
-    public static final double PULL = 0.12;
+    /**
+     * A gnat's speed, blocks per tick: past twice a sprint-jumping player's,
+     * so the swarm leaves its caster behind; it leaves the glove at it, the
+     * pull and the drag settle on it, and the bite waits on it.
+     * glove-stream-motes-carry-the-players-travel-velocity
+     */
+    public static final double GNAT_SPEED = 0.75;
     /**
      * The share of its velocity a gnat keeps each tick. With the pull, it
      * turns a gnat fanned 45 degrees down off the aim onto a floor block
      * before it strikes the floor more than a block short.
      */
-    public static final double DRAG = 0.72;
-    /**
-     * A gnat's speed, blocks per tick: the steady speed the pull and the drag
-     * settle on, which it leaves the glove at and the bite waits on.
-     */
-    public static final double GNAT_SPEED = PULL * DRAG / (1 - DRAG);
+    public static final double DRAG = 0.5;
+    /** How hard its target pulls a gnat each tick, blocks per tick per tick: what settles it on its speed. */
+    public static final double PULL = GNAT_SPEED * (1 - DRAG) / DRAG;
     /** How far off the struck face the gnats converge, so they settle on it rather than inside the block. */
     public static final double FACE_LIFT = 0.05;
 
