@@ -8,6 +8,7 @@
   "free_while": "goo:deep_sculker",
   "requires": ["minecraft:sculk_sensor"],
   "delivery": { "kind": "scan", "range": 32, "blocks_per_tick": 2 },
+  "tags": ["centered"],
   "behaviors": [
     { "type": "scan_visual", "visual": "sound_wave", "trail": "goo:ability.click_trail" },
     { "type": "vibrate", "event": "minecraft:projectile_land" },
