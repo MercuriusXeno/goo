@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.zoo.Kin;
+import com.mercuriusxeno.goo.client.hud.MixedNumberSpacing;
+import com.mercuriusxeno.goo.client.hud.StatedGlyphs;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.BeforeEach;
@@ -122,6 +124,14 @@ class LifeMarkBillboardTest {
             LifeMarkBillboard.Layout layout = LifeMarkBillboard.Layout.of(NARROW_COUNT, BARE);
             assertTrue(layout.countLeft() > layout.heartLeft() + layout.heartWidth());
             assertEquals(layout.right(), layout.countLeft() + NARROW_COUNT * layout.countScale(), EPSILON);
+        }
+
+        @Test
+        void rowSizesToTheSpacingRulesWidthForAMixedCount() {
+            MixedNumberSpacing.Laid count = MixedNumberSpacing.lay(LifeMark.of(25f, 25f).count(),
+                    StatedGlyphs.VANILLA);
+            LifeMarkBillboard.Layout layout = LifeMarkBillboard.Layout.of(count, BARE);
+            assertEquals(count.width() * layout.countScale(), layout.right() - layout.countLeft(), EPSILON);
         }
 
         @Test

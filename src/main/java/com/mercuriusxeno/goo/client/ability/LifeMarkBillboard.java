@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.hud.InWorldHud;
+import com.mercuriusxeno.goo.client.hud.MixedNumberSpacing;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
@@ -85,6 +86,18 @@ final class LifeMarkBillboard {
         private static final float DIGIT_HEIGHT = 7f;
 
         /**
+         * The layout of a mark whose count the mixed number spacing rule laid out.
+         * mixed-number-gaps-its-whole-and-tightens-its-fraction
+         *
+         * @param count    the count as the spacing rule laid it
+         * @param withIcon whether the row leads with the rally or charm icon
+         * @return the parts' places
+         */
+        static Layout of(MixedNumberSpacing.Laid count, boolean withIcon) {
+            return of(count.width(), withIcon);
+        }
+
+        /**
          * The layout of a mark whose count is as wide as given.
          *
          * @param countFontWidth the count's width in font pixels
@@ -147,10 +160,12 @@ final class LifeMarkBillboard {
      * @param living the mob
      * @param mark   what its life draws
      * @param color  the white tint, its alpha the mark's fade
+     * @param count    the count's parts as the spacing rule laid them
      * @param layout   where the mark's parts stand over the head
      * @param headMark the rally or charm icon leading the row, empty on a bare mob
      */
-    private record Shown(LivingEntity living, LifeMark mark, int color, Layout layout, Optional<HeadMark> headMark) {
+    private record Shown(LivingEntity living, LifeMark mark, int color, MixedNumberSpacing.Laid count, Layout layout,
+                         Optional<HeadMark> headMark) {
     }
 
     /**
@@ -229,7 +244,9 @@ final class LifeMarkBillboard {
         poseStack.pushPose();
         poseStack.translate(layout.countLeft(), layout.countTop(), 0f);
         poseStack.scale(layout.countScale(), layout.countScale(), layout.countScale());
-        InWorldHud.drawTextSeeThrough(font, buffers, poseStack, mark.mark().count(), 0f, 0f, mark.color());
+        for (MixedNumberSpacing.Piece piece : mark.count().pieces()) {
+            InWorldHud.drawTextSeeThrough(font, buffers, poseStack, piece.text(), piece.x(), 0f, mark.color());
+        }
         poseStack.popPose();
     }
 
@@ -262,8 +279,8 @@ final class LifeMarkBillboard {
         Optional<HeadMark> headMark = HeadMarks.headMarkOf(living);
         float strength = markStrength(living.getId(), time, TouchedMobs.CLIENT, KinSense.CLIENT,
                 headMark.isPresent());
-        return new Shown(living, mark, tint(strength), Layout.of(font.width(mark.count()), headMark.isPresent()),
-                headMark);
+        MixedNumberSpacing.Laid count = MixedNumberSpacing.lay(mark.count(), font);
+        return new Shown(living, mark, tint(strength), count, Layout.of(count, headMark.isPresent()), headMark);
     }
 
     private static int tint(float opacity) {
