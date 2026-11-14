@@ -71,6 +71,38 @@ class WindLinesTest {
     }
 
     /**
+     * A tailwind gust leaves the camera's eased eye for the local player in
+     * first person, so a sneak moves no new line's start until the view eases,
+     * and any other player's leaves its own eye
+     * (decision diagnose-and-correct-eye-drawn-visuals-jumping-on-sneak).
+     */
+    @Nested
+    class EasesWithTheCamera {
+
+        private static final double STANDING_EYE = 1.62;
+        private static final double CROUCHED_EYE = 1.27;
+        private static final double EASING_CAMERA_EYE = 1.47;
+        private static final WindStep.Tailwind TAILWIND = new WindStep.Tailwind(6, 30);
+
+        private static Vec3 gustOrigin(boolean followsTheCamera, double entityEyeHeight) {
+            return WindLines.tailwindGust(TAILWIND,
+                    CameraEye.eyeHeight(followsTheCamera, EASING_CAMERA_EYE, entityEyeHeight), EAST).origin();
+        }
+
+        @Test
+        void theLocalFirstPersonGustLeavesTheCamerasEasedEyeWhateverTheEntityEye() {
+            assertEquals(gustOrigin(true, STANDING_EYE), gustOrigin(true, CROUCHED_EYE));
+            assertEquals(EASING_CAMERA_EYE, gustOrigin(true, CROUCHED_EYE).y, EPSILON);
+        }
+
+        @Test
+        void anyOtherGustLeavesTheEntitysOwnEye() {
+            assertEquals(STANDING_EYE, gustOrigin(false, STANDING_EYE).y, EPSILON);
+            assertEquals(CROUCHED_EYE, gustOrigin(false, CROUCHED_EYE).y, EPSILON);
+        }
+    }
+
+    /**
      * operator ruling: "the cold spray from the blob has the same problem that the decay and mycosis sprays had"
      * every-ability-casts-from-the-lifted-palm-blob: a line blown from the lifted blob leaves it where it stands
      */
