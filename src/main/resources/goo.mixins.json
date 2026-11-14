@@ -26,6 +26,7 @@
     "PlayerGluttonyEatMixin",
     "GooQuickCraftMixin",
     "ReloadableServerResourcesGooMixin",
+    "ServerGamePacketListenerRisenCellMixin",
     "ServerLevelSculkerHearingMixin",
     "WitchHeldDrinksNoPotionMixin",
     "WorldDimensionsGooStableMixin"
