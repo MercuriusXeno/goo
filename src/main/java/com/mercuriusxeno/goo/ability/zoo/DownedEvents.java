@@ -97,7 +97,8 @@ public final class DownedEvents {
     /**
      * Lays a mob downed at half a heart: the fall recorded with the game
      * time, its target, path and hunting memories dropped, and its AI held
-     * off, so it lies still until raised or dead.
+     * off, so it lies still until raised or dead; every mob holding it lets go.
+     * nothing-targets-a-downed-mob
      *
      * @param mob the mob going down
      */
@@ -106,5 +107,8 @@ public final class DownedEvents {
         mob.setData(GooAttachments.DOWNED, new Downed(mob.level().getGameTime(), mob.isNoAi()));
         StunEvents.forget(mob);
         mob.setNoAi(true);
+        if (mob.level() instanceof ServerLevel level) {
+            DownedTargets.dropHoldsOn(level, mob);
+        }
     }
 }
