@@ -6,7 +6,7 @@
   "cost": 3000,
   "delivery": { "kind": "spontaneous" },
   "behaviors": [
-    { "type": "meteor", "power": 4.0, "fall_ticks": 40 }
+    { "type": "meteor", "power": 4.0, "fall_ticks": 20 }
   ],
   "tags": ["explosive", "delayed"]
 }
