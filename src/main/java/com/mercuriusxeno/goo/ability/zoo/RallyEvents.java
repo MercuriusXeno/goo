@@ -252,7 +252,9 @@ public final class RallyEvents {
 
     /**
      * Lifts a mob's max health and speed by the rally's shares, each a
-     * multiple of the whole, and heals it to its new max.
+     * multiple of the whole, leaving its health where it stands: a rally
+     * heals none of it.
+     * zoo-rally-arms-the-peaceful
      *
      * @param mob         the rallied mob
      * @param healthShare the share max health grows by
@@ -261,7 +263,6 @@ public final class RallyEvents {
     public static void buff(Mob mob, double healthShare, double speedShare) {
         replaceModifier(mob.getAttribute(Attributes.MAX_HEALTH), HEALTH_MODIFIER, healthShare);
         replaceModifier(mob.getAttribute(Attributes.MOVEMENT_SPEED), SPEED_MODIFIER, speedShare);
-        mob.setHealth(mob.getMaxHealth());
     }
 
     private static void replaceModifier(@Nullable AttributeInstance attribute, Identifier id, double share) {
