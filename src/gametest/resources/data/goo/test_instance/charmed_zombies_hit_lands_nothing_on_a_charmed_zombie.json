@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:charmed_zombies_hit_lands_nothing_on_a_charmed_zombie",
+  "environment": "goo:charmed_zombies_alone",
+  "structure": "goo:test_bay",
+  "max_ticks": 40,
+  "setup_ticks": 0,
+  "required": true
+}

@@ -100,6 +100,44 @@ public final class RallyTests {
                 RallyTests::charmedZombieSparesARalliedCow);
         GooTestFunctions.registerTest(registrar, RALLIED_COW_SPARES_A_ZOMBIE_CHARMED_AFTER_IT_STRUCK,
                 RallyTests::ralliedCowSparesAZombieCharmedAfterItStruck);
+        GooTestFunctions.registerTest(registrar, CHARMED_ZOMBIE_AND_RALLIED_COW_LAND_NO_HIT_ON_EACH_OTHER,
+                RallyTests::charmedZombieAndRalliedCowLandNoHitOnEachOther);
+    }
+
+    private static final String CHARMED_ZOMBIE_AND_RALLIED_COW_LAND_NO_HIT_ON_EACH_OTHER =
+            "charmed_zombie_and_rallied_cow_land_no_hit_on_each_other";
+    private static final String HIT_LANDED = "%s should stand at the %s it read before the hit, reads %s, last hit %s";
+    private static final String MINIONS_FREED = "The cow should still hold its rally and the zombie its charm";
+
+    /**
+     * A charmed zombie strikes a rallied cow with its own melee attack, and
+     * the cow strikes the zombie with the rally's own attack: each stands at
+     * the health it read before the hit, the cow still rallied and the zombie
+     * still charmed
+     * (decision diagnose-and-correct-minions-killing-each-other).
+     *
+     * @param helper the gametest helper
+     */
+    public static void charmedZombieAndRalliedCowLandNoHitOnEachOther(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
+        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        rally(helper, cow, caster);
+        Zombie zombie = charmable(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS));
+        charm(helper, zombie, caster);
+        float cowBefore = cow.getHealth();
+        float zombieBefore = zombie.getHealth();
+
+        zombie.doHurtTarget(helper.getLevel(), cow);
+        zombie.hurtServer(helper.getLevel(), cow.damageSources().mobAttack(cow), cow.getData(GooAttachments.RALLIED)
+                .damage());
+
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        helper.assertTrue(cow.getHealth() == cowBefore,
+                String.format(HIT_LANDED, "The rallied cow", cowBefore, cow.getHealth(), lastHitOf(cow)));
+        helper.assertTrue(zombie.getHealth() == zombieBefore,
+                String.format(HIT_LANDED, "The charmed zombie", zombieBefore, zombie.getHealth(), lastHitOf(zombie)));
+        helper.assertTrue(cow.hasData(GooAttachments.RALLIED) && zombie.hasData(GooAttachments.CHARMED), MINIONS_FREED);
+        helper.succeed();
     }
 
     private static final String CHARMED_ZOMBIE_SPARES_A_RALLIED_COW = "charmed_zombie_spares_a_rallied_cow";
