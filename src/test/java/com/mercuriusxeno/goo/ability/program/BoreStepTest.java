@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -133,33 +134,102 @@ class BoreStepTest {
             }
         }
 
-        /** decision bore-breaks-the-block-at-the-point-and-its-surroundings: the point moves deeper as blocks break */
+    }
+
+    /**
+     * The block behind whatever block Bore is damaging progresses at half
+     * speed, out of view, so the point moves deeper smoothly
+     * (decisions bore-block-behind-progresses-at-half-speed,
+     * bore-breaks-the-block-at-the-point-and-its-surroundings).
+     */
+    @Nested
+    class TheBlockBehind {
+
+        private static final BreakPace SHIPPED = shippedBore().pace();
+        private static final double SLACK = 1e-9;
+
+        private static BoreStep shippedBore() {
+            return AbilityJson.decode("rock_bore").behaviors().stream().filter(BoreStep.class::isInstance)
+                    .map(BoreStep.class::cast).findFirst().orElseThrow();
+        }
+
+        /** The share of a break each block gains over held ticks, read off what the hold hands a mocked break. */
+        @SuppressWarnings("unchecked")
+        private static Map<BlockPos, Double> progressAfter(ChannelHost host, BoreStep bore, int ticks) {
+            GradualBreak gradualBreak = mock(GradualBreak.class);
+            when(host.gradualBreak()).thenReturn(gradualBreak);
+            Map<BlockPos, Double> progress = new HashMap<>();
+            doAnswer(call -> {
+                Map<BlockPos, Double> rates = call.getArgument(0);
+                rates.forEach((pos, rate) -> progress.merge(pos, rate, Double::sum));
+                return null;
+            }).when(gradualBreak).progress(any(), any(), anyBoolean());
+            for (int held = 0; held < ticks; held++) {
+                run(host, bore);
+            }
+            return progress;
+        }
+
         @Test
-        void theBlockBehindGainsProgressOnlyFromTheTickTheAimedBlockBreaks() {
+        void theBlockBehindGainsHalfTheAimedBlocksProgressEveryTickBeforeItBreaks() {
+            ChannelHost host = hostWith(Set.of(FIRST_ON_LINE, SECOND_ON_LINE)::contains, Set.of());
+            BoreStep bore = new BoreStep(BREAKABLE, SHIPPED);
+            for (int ticks = 1; ticks < SHIPPED.breakTicks(); ticks++) {
+                Map<BlockPos, Double> progress = progressAfter(host, bore, 1);
+                assertEquals(progress.get(FIRST_ON_LINE) / 2, progress.getOrDefault(SECOND_ON_LINE, 0.0), SLACK,
+                        "on tick " + ticks);
+            }
+        }
+
+        @Test
+        void theBlockBehindEachBlockOfAnEdgePickGainsHalfTheRate() {
+            Vec3 atAnEdge = new Vec3(0.5, 2.0, 0.5);
+            Predicate<BlockPos> rock = pos -> pos.getX() >= 1 && pos.getX() <= 2 && pos.getZ() == 0
+                    && (pos.getY() == 1 || pos.getY() == 2);
+            ChannelHost host = hostWith(rock, Set.of());
+            when(host.eye()).thenReturn(atAnEdge);
+            when(host.channelAim()).thenReturn(Optional.of(
+                    new ChannelAim(atAnEdge.add(4, 0, 0), null, CONE_DEGREES)));
+            Map<BlockPos, Double> progress = progressAfter(host, new BoreStep(BREAKABLE, SHIPPED, 0.1, List.of(),
+                    List.of()), 1);
+            double aimedRate = 1.0 / SHIPPED.breakTicks();
+            assertEquals(aimedRate, progress.get(new BlockPos(1, 1, 0)), SLACK);
+            assertEquals(aimedRate, progress.get(new BlockPos(1, 2, 0)), SLACK);
+            assertEquals(aimedRate / 2, progress.getOrDefault(new BlockPos(2, 1, 0), 0.0), SLACK);
+            assertEquals(aimedRate / 2, progress.getOrDefault(new BlockPos(2, 2, 0), 0.0), SLACK);
+        }
+
+        @Test
+        void theBlockBehindKeepsItsProgressAndBreaksSoonerOnceItIsAimedAt() {
             Map<BlockPos, Integer> stages = new HashMap<>();
             ChannelHost host = hostWith(Set.of(FIRST_ON_LINE, SECOND_ON_LINE)::contains, Set.of());
             doAnswer(call -> stages.put(call.getArgument(0), call.getArgument(1))).when(host)
                     .crackBlock(any(), anyInt());
-            BoreStep bore = new BoreStep(BREAKABLE, PACE);
+            BoreStep bore = new BoreStep(BREAKABLE, SHIPPED);
+            int firstBroke = 0;
+            int secondBroke = 0;
             int previous = GradualBreak.CLEARED;
-            int risingTicks = 0;
-
-            for (int held = 1; held <= HELD_TICKS && host.blockIn(SECOND_ON_LINE, BREAKABLE); held++) {
-                boolean aimedStood = host.blockIn(FIRST_ON_LINE, BREAKABLE);
+            for (int held = 1; held <= HELD_TICKS && secondBroke == 0; held++) {
                 run(host, bore);
-                int stage = stages.getOrDefault(SECOND_ON_LINE, GradualBreak.CLEARED);
-                if (aimedStood) {
-                    assertEquals(GradualBreak.CLEARED, stage, "the block behind gained progress on tick " + held
-                            + " while the aimed block stood");
-                } else if (host.blockIn(SECOND_ON_LINE, BREAKABLE)) {
-                    assertTrue(stage > previous, "the block behind held stage " + stage + " on tick " + held);
-                    risingTicks++;
+                if (firstBroke == 0 && !host.blockIn(FIRST_ON_LINE, BREAKABLE)) {
+                    firstBroke = held;
                 }
-                previous = stage;
+                if (!host.blockIn(SECOND_ON_LINE, BREAKABLE)) {
+                    secondBroke = held;
+                } else {
+                    int stage = stages.getOrDefault(SECOND_ON_LINE, GradualBreak.CLEARED);
+                    assertTrue(stage >= previous, "the block behind fell to stage " + stage + " on tick " + held);
+                    previous = stage;
+                }
             }
+            assertTrue(firstBroke > 0 && secondBroke > firstBroke, "broke on " + firstBroke + " and " + secondBroke);
+            assertTrue(secondBroke - firstBroke < SHIPPED.breakTicks(), "the block behind took "
+                    + (secondBroke - firstBroke) + " ticks once aimed at, not fewer than " + SHIPPED.breakTicks());
+        }
 
-            assertTrue(risingTicks > 0, "the block behind never gained progress once the aimed block broke");
-            assertFalse(host.blockIn(SECOND_ON_LINE, BREAKABLE), "the block behind never broke");
+        @Test
+        void rockBoresJsonSetsTheBlockBehindToHalfSpeed() {
+            assertEquals(2, SHIPPED.slowdown(), SLACK);
         }
     }
 
@@ -287,8 +357,10 @@ class BoreStepTest {
 
             ArgumentCaptor<Map<BlockPos, Double>> rates = ArgumentCaptor.forClass(Map.class);
             verify(gradualBreak).progress(rates.capture(), any(), eq(true));
-            assertEquals(Set.of(1.0 / PACE.breakTicks()), Set.copyOf(rates.getValue().values()));
-            assertEquals(4, rates.getValue().size());
+            for (BlockPos picked : List.of(new BlockPos(1, 1, -1), new BlockPos(1, 1, 0), new BlockPos(1, 2, -1),
+                    new BlockPos(1, 2, 0))) {
+                assertEquals(1.0 / PACE.breakTicks(), rates.getValue().get(picked), SLACK, "at " + picked);
+            }
         }
     }
 

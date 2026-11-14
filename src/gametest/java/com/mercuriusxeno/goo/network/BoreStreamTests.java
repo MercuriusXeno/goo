@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.program.BoreStep;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -60,7 +59,7 @@ public final class BoreStreamTests {
     /** The longest hold the tunnel test streams while it polls, inside its timeout. */
     private static final int MOST_HOLD_TICKS = 90;
     private static final String SHOULD_BREAK_AFTER_THE_NEARER =
-            "The block %d east broke on tick %d, not %d ticks after the nearer block's break on tick %d";
+            "The block %d east broke on tick %d, not after the nearer block's break on tick %d";
     private static final String SHOULD_STAND_BEHIND = "The block %d east had broken by the tick the block %d east broke";
     /** The yaw a player faces east, toward +x, at. */
     private static final float FACING_EAST = -90f;
@@ -82,8 +81,8 @@ public final class BoreStreamTests {
     /**
      * A mock player facing east streams bore into a block of stone, aimed at
      * the middle of a block's face: the block behind each block on the line
-     * stands while the nearer one breaks and takes the whole of the bore's
-     * break ticks after it, so the tunnel goes one block deep at a time, and
+     * stands while the nearer one breaks and breaks after it, so the tunnel
+     * goes one block deep at a time, and
      * the hold runs until a one-block tunnel runs along the eye line to the
      * whole blocks inside the stream's reach, read live from the ability, and
      * cobblestone has dropped
@@ -98,8 +97,6 @@ public final class BoreStreamTests {
         ServerPlayer player = borer(helper);
         KnownRecipes.teachRequires(player, bore);
         int reach = (int) Math.floor(bore.delivery().reachingTo(player.blockInteractionRange()).range());
-        int breakTicks = bore.behaviors().stream().filter(BoreStep.class::isInstance).map(BoreStep.class::cast)
-                .findFirst().orElseThrow().pace().breakTicks();
         for (int east = 1; east <= reach + 1; east++) {
             for (BlockPos pos : slice(EYE_ROW.east(east))) {
                 helper.setBlock(pos, Blocks.STONE);
@@ -127,9 +124,8 @@ public final class BoreStreamTests {
                 helper.assertTrue(behindStood[east], String.format(SHOULD_STAND_BEHIND, east + 1, east));
             }
             for (int east = 2; east <= reach; east++) {
-                helper.assertTrue(brokeOn[east] - brokeOn[east - 1] >= breakTicks,
-                        String.format(SHOULD_BREAK_AFTER_THE_NEARER, east, brokeOn[east], breakTicks,
-                                brokeOn[east - 1]));
+                helper.assertTrue(brokeOn[east] > brokeOn[east - 1],
+                        String.format(SHOULD_BREAK_AFTER_THE_NEARER, east, brokeOn[east], brokeOn[east - 1]));
             }
             helper.assertItemEntityPresent(Items.COBBLESTONE, EYE_ROW.east(2), ITEM_SEARCH_RADIUS);
             helper.getLevel().getServer().getPlayerList().remove(player);
