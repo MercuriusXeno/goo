@@ -30,6 +30,8 @@ public final class CoatRay {
     private static final int FAN_RINGS = 2;
     /** Shares around each ring. */
     private static final int SHARES_PER_RING = 8;
+    /** The shares the fan holds: the axis, then each ring's. */
+    public static final int FAN_SHARES = 1 + FAN_RINGS * SHARES_PER_RING;
 
     private CoatRay() {
     }
@@ -102,6 +104,30 @@ public final class CoatRay {
             }
         }
         return shares;
+    }
+
+    /**
+     * The shares of the fan a stream throwing some drips a tick throws on a
+     * tick of its hold: each tick takes up the fan where the last left off,
+     * the axis first on the hold's first tick, so a hold sprays the whole
+     * cone however few drips a tick it throws.
+     * goop-drains-per-cubic-meter-of-slime-placed: Goop's pace is how many drips land a tick, each a layer
+     *
+     * @param held         the hold's tick count, 1 on its first tick
+     * @param dripsPerTick the drips the stream throws a tick
+     * @return the tick's shares, the whole fan where the stream throws at least as many drips as it holds
+     */
+    public static List<ConeShare> sharesThrownOn(int held, int dripsPerTick) {
+        List<ConeShare> fan = coneFan();
+        if (dripsPerTick >= fan.size()) {
+            return fan;
+        }
+        int first = Math.floorMod((long) (held - 1) * dripsPerTick, fan.size());
+        List<ConeShare> thrown = new ArrayList<>(dripsPerTick);
+        for (int drip = 0; drip < dripsPerTick; drip++) {
+            thrown.add(fan.get((first + drip) % fan.size()));
+        }
+        return thrown;
     }
 
     /**

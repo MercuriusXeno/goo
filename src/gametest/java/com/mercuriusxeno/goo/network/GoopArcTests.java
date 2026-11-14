@@ -2,20 +2,23 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.program.CoatStep;
+import com.mercuriusxeno.goo.block.ability.SlimeCoatBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.ArrayList;
@@ -40,6 +43,13 @@ public final class GoopArcTests {
     private static final String GOOP_COATS_BELOW_A_PERCH = "goop_coats_the_floor_below_a_high_perch";
     private static final String GOOP_LANDS_AFTER_RELEASE = "goop_lands_its_coat_after_the_hold_ends";
     private static final String GOOP_WOBBLES_A_FAR_MOB = "goop_wobbles_a_mob_its_drip_strikes_past_eight_blocks";
+    private static final String DRIP_STANDS_A_CELL = "goop_drip_stands_a_one_layer_cell_in_the_tick_it_strikes";
+    private static final String DRIPS_ADD_A_LAYER_EACH = "goop_drips_add_a_layer_each_up_to_fifteen";
+    /** The cell the landed drips strike, walled in stone on a stone floor so nothing pours. */
+    private static final BlockPos DRIPPED_CELL = new BlockPos(4, 1, 4);
+    /** The layers a whole block of slime holds. */
+    private static final int WHOLE_BLOCK_LAYERS = 15;
+    private static final String LAYERS_WRONG = "The dripped cell should hold %d layers of slime, holds %s";
     /** The zombie stands on the perched floor this far east of the perch, well past eight blocks from the eye. */
     private static final int ZOMBIE_EAST = 6;
     /** Ticks Goop is held on the zombie, a few drips' worth. */
@@ -67,8 +77,8 @@ public final class GoopArcTests {
     private static final int LOW_PERCH = 11;
     /** How far the high perch stands over the floor's top: its drips fall longer than the hold lasts. */
     private static final int HIGH_PERCH = 30;
-    /** Ticks past a coat's worth, so a coat has surely built. */
-    private static final int COAT_SLACK_TICKS = 5;
+    /** A hold one drip a tick sprays the whole fan in, a few ticks over, so every share of the cone has flown. */
+    private static final int SPRAY_HOLD_TICKS = CoatRay.FAN_SHARES + 5;
     /** Ticks given the last drips of a hold to fall onto the floor, past the longest fall these tests make. */
     private static final int FALL_TICKS = 60;
     private static final String NO_COAT_AHEAD = "A level Goop shot should coat a floor cell 7 to 9 blocks ahead,"
@@ -91,6 +101,67 @@ public final class GoopArcTests {
         GooTestFunctions.registerTest(registrar, GOOP_COATS_BELOW_A_PERCH, GoopArcTests::goopCoatsTheFloorBelowAPerch);
         GooTestFunctions.registerTest(registrar, GOOP_LANDS_AFTER_RELEASE, GoopArcTests::goopLandsItsCoatAfterRelease);
         GooTestFunctions.registerTest(registrar, GOOP_WOBBLES_A_FAR_MOB, GoopArcTests::goopWobblesAFarMobItsDripStrikes);
+        GooTestFunctions.registerTest(registrar, DRIP_STANDS_A_CELL, GoopArcTests::goopDripStandsAOneLayerCell);
+        GooTestFunctions.registerTest(registrar, DRIPS_ADD_A_LAYER_EACH, GoopArcTests::goopDripsAddALayerEach);
+    }
+
+    /**
+     * One Goop drip striking a bare stone floor stands a slime cell of one
+     * layer over it in the tick it strikes.
+     * drip-creates-a-volume-cell-immediately
+     *
+     * @param helper the gametest helper
+     */
+    public static void goopDripStandsAOneLayerCell(GameTestHelper helper) {
+        wallInOnStone(helper, DRIPPED_CELL);
+        ServerPlayer caster = goopStreamerAt(helper, LEVEL_STREAMER_POS, LEVEL);
+        LandedDrips.landOn(helper, caster, goop(helper), DRIPPED_CELL, 1);
+        assertLayers(helper, DRIPPED_CELL, 1);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        helper.succeed();
+    }
+
+    /**
+     * Goop drips striking a standing slime cell add a layer each: two in one
+     * tick raise a one-layer cell to three, and a cell of fifteen layers, a
+     * whole block, takes no more.
+     * drip-on-a-standing-cell-increases-it
+     * world-goo-fills-a-block-space-in-one-to-fifteen-layers
+     *
+     * @param helper the gametest helper
+     */
+    public static void goopDripsAddALayerEach(GameTestHelper helper) {
+        wallInOnStone(helper, DRIPPED_CELL);
+        ServerPlayer caster = goopStreamerAt(helper, LEVEL_STREAMER_POS, LEVEL);
+        AbilityDefinition goop = goop(helper);
+        LandedDrips.landOn(helper, caster, goop, DRIPPED_CELL, 1);
+        LandedDrips.landOn(helper, caster, goop, DRIPPED_CELL, 2);
+        assertLayers(helper, DRIPPED_CELL, 3);
+        helper.setBlock(DRIPPED_CELL, GooBlocks.SLIME_COAT.get().defaultBlockState()
+                .setValue(SlimeCoatBlock.LAYERS, WHOLE_BLOCK_LAYERS));
+        LandedDrips.landOn(helper, caster, goop, DRIPPED_CELL, 1);
+        assertLayers(helper, DRIPPED_CELL, WHOLE_BLOCK_LAYERS);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        helper.succeed();
+    }
+
+    /**
+     * Lays a stone floor under a cell and stone on its four sides, so slime in it cannot pour.
+     *
+     * @param helper the gametest helper
+     * @param cell   the cell
+     */
+    private static void wallInOnStone(GameTestHelper helper, BlockPos cell) {
+        helper.setBlock(cell.below(), Blocks.STONE);
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            helper.setBlock(cell.relative(side), Blocks.STONE);
+        }
+    }
+
+    private static void assertLayers(GameTestHelper helper, BlockPos cell, int layers) {
+        BlockState state = helper.getBlockState(cell);
+        Object held = state.is(GooBlocks.SLIME_COAT.get()) ? state.getValue(SlimeCoatBlock.LAYERS) : state;
+        helper.assertTrue(Integer.valueOf(layers).equals(held), String.format(LAYERS_WRONG, layers, held));
     }
 
     /**
@@ -105,7 +176,7 @@ public final class GoopArcTests {
         BlockPos floor = LEVEL_STREAMER_POS.below();
         layFloor(helper, floor.getY(), floor.getZ());
         ServerPlayer streamer = goopStreamerAt(helper, LEVEL_STREAMER_POS, LEVEL);
-        int hold = coatTicks(helper) + COAT_SLACK_TICKS;
+        int hold = SPRAY_HOLD_TICKS;
         holdGoopFor(helper, streamer, hold);
         helper.runAfterDelay(hold + FALL_TICKS, () -> {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
@@ -128,7 +199,7 @@ public final class GoopArcTests {
     public static void goopCoatsTheFloorBelowAPerch(GameTestHelper helper) {
         layFloor(helper, PERCHED_FLOOR_Y, LEVEL_STREAMER_POS.getZ());
         ServerPlayer streamer = perchedStreamer(helper, LOW_PERCH);
-        int hold = coatTicks(helper) + COAT_SLACK_TICKS;
+        int hold = SPRAY_HOLD_TICKS;
         holdGoopFor(helper, streamer, hold);
         helper.runAfterDelay(hold + FALL_TICKS, () -> {
             helper.getLevel().getServer().getPlayerList().remove(streamer);
@@ -150,7 +221,7 @@ public final class GoopArcTests {
     public static void goopLandsItsCoatAfterRelease(GameTestHelper helper) {
         layFloor(helper, PERCHED_FLOOR_Y, LEVEL_STREAMER_POS.getZ());
         ServerPlayer streamer = perchedStreamer(helper, HIGH_PERCH);
-        int hold = coatTicks(helper) + COAT_SLACK_TICKS;
+        int hold = SPRAY_HOLD_TICKS;
         holdGoopFor(helper, streamer, hold);
         helper.runAfterDelay(hold + 1, () -> {
             List<BlockPos> coated = coatedOver(helper, PERCHED_FLOOR_Y, LEVEL_STREAMER_POS.getZ());
@@ -273,14 +344,6 @@ public final class GoopArcTests {
         }
     }
 
-    /**
-     * @param helper the gametest helper
-     * @return the held ticks the live Goop's coat step takes to coat a cell
-     */
-    private static int coatTicks(GameTestHelper helper) {
-        return goop(helper).behaviors().stream().filter(CoatStep.class::isInstance).map(CoatStep.class::cast)
-                .findFirst().orElseThrow().ticks();
-    }
 
     private static AbilityDefinition goop(GameTestHelper helper) {
         AbilityDefinition goop = AbilityRegistry.of(helper.getLevel()).getAbility(GOOP);

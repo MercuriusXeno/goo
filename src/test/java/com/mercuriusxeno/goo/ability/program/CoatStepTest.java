@@ -12,24 +12,18 @@ import org.junit.jupiter.api.Test;
 import java.util.Optional;
 import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The coat step reads the ticks of a stream's hold, which needs the channel,
- * and refuses a step naming none (decision bounce-leaves-the-mod-and-goop-stands-alone);
+ * The coat step decodes with no params and needs the channel
+ * (decisions bounce-leaves-the-mod-and-goop-stands-alone, drip-creates-a-volume-cell-immediately);
  * a drip's strike feeds the cell over a struck top or the slime it struck,
  * and a struck side feeds nothing (decision goop-and-slick-coat-lands-where-each-drip-arc-strikes).
  */
 class CoatStepTest {
 
     @Test
-    void ticksDecodeAndNeedTheChannel() {
-        assertEquals(Set.of(HostCapability.CHANNEL), decoded("{\"ticks\": 20}").getOrThrow().requires());
-    }
-
-    @Test
-    void noTicksRefuse() {
-        assertTrue(decoded("{}").isError(), "a coat step naming no ticks should refuse");
+    void aStepNamingNoParamsDecodesAndNeedsTheChannel() {
+        assertEquals(Set.of(HostCapability.CHANNEL), decoded("{}").getOrThrow().requires());
     }
 
     private static DataResult<CoatStep> decoded(String json) {

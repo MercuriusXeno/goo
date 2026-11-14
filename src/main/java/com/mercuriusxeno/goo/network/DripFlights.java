@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.ability.program.DripLanding;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mercuriusxeno.goo.throwing.DripArc;
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
@@ -18,10 +17,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -30,12 +27,12 @@ import java.util.UUID;
  * where it strikes; the flights outlive the hold that threw them, so a drip
  * still in flight after release lands its coat when it strikes and its
  * caster pays for it then. A drip is plain state, never an entity, and one
- * leaving the build height or the loaded chunks ends unstruck. Each cell
- * takes one strike's share from one caster a tick, however many of their
- * drips strike it, so a cell drips strike every tick builds at one pace.
- * A drip that meets a living thing before a block ends there, striking it,
- * where its ability strikes the living.
+ * leaving the build height or the loaded chunks ends unstruck. Every drip
+ * that strikes lands what it lays, so two drips striking one cell in a tick
+ * lay twice. A drip that meets a living thing before a block ends there,
+ * striking it, where its ability strikes the living.
  * goop-and-slick-coat-lands-where-each-drip-arc-strikes
+ * drip-on-a-standing-cell-increases-it
  * goop-wobbles-a-mob-its-drip-strikes
  */
 public final class DripFlights {
@@ -75,16 +72,6 @@ public final class DripFlights {
     }
 
     /**
-     * A cell one caster's drips fed this tick.
-     *
-     * @param caster    the caster
-     * @param dimension the cell's level
-     * @param cell      the cell
-     */
-    private record Fed(UUID caster, ResourceKey<Level> dimension, BlockPos cell) {
-    }
-
-    /**
      * Throws a drip into flight.
      *
      * @param flight the drip at its launch
@@ -115,7 +102,6 @@ public final class DripFlights {
      * @param server the ticking server
      */
     public void tick(MinecraftServer server) {
-        Set<Fed> fed = new HashSet<>();
         List<Flight> flying = new ArrayList<>(flights.size());
         for (Flight flight : List.copyOf(flights)) {
             Thrower thrower = flight.thrower();
@@ -129,7 +115,7 @@ public final class DripFlights {
             if (!step.ended()) {
                 flying.add(flight.after(step));
             }
-            step.strike().ifPresent(strike -> land(server, level, thrower, strike, fed));
+            step.strike().ifPresent(strike -> land(server, level, thrower, strike));
             step.living().ifPresent(struck -> strike(server, level, thrower, struck));
         }
         flights.clear();
@@ -144,10 +130,8 @@ public final class DripFlights {
      * @param level   the drip's level
      * @param thrower who threw the drip
      * @param strike  where it struck
-     * @param fed     the cells each caster's drips fed this tick, which this landing joins
      */
-    private static void land(MinecraftServer server, ServerLevel level, Thrower thrower, CoatRay.BlockStrike strike,
-                             Set<Fed> fed) {
+    private static void land(MinecraftServer server, ServerLevel level, Thrower thrower, CoatRay.BlockStrike strike) {
         ServerPlayer caster = server.getPlayerList().getPlayer(thrower.caster());
         if (caster == null || thrower.landing().isEmpty()) {
             return;
@@ -155,9 +139,7 @@ public final class DripFlights {
         DripLanding landing = thrower.landing().get();
         ChannelHost host = PlayerHost.landing(level, caster, GooStreamHandler.placementPrice(caster,
                 thrower.ability()));
-        landing.cellFed(host, strike)
-                .filter(cell -> fed.add(new Fed(thrower.caster(), thrower.dimension(), cell.immutable())))
-                .ifPresent(cell -> landing.feed(host, cell));
+        landing.cellFed(host, strike).ifPresent(cell -> landing.feed(host, cell));
     }
 
     /**

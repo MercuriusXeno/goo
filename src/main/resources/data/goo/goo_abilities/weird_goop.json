@@ -10,6 +10,7 @@
     "kind": "stream",
     "drains_on_placement": true,
     "throw_speed": 0.84,
+    "drips_per_tick": 1,
     "cone": 16,
     "ticks_per_charge": 20,
     "particle": "goo:goop_spray_drip",
@@ -17,7 +18,7 @@
   },
   "behaviors": [
     { "type": "cool_lava" },
-    { "type": "coat", "ticks": 20 },
+    { "type": "coat" },
     {
       "type": "target",
       "where": ["mob"],

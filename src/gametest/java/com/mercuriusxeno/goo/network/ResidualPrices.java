@@ -19,18 +19,21 @@ import net.minecraft.resources.Identifier;
 final class ResidualPrices {
 
     private static final String ABILITY_REQUIRED = "Ability registry must hold %s";
+    /** The layers a whole block of slime holds, stated here so a test checks the block rather than echoing it. */
+    private static final int LAYERS_PER_BLOCK = 15;
 
     private ResidualPrices() {
     }
 
     /**
-     * One slime layer's price: Goop's cost over the layers a whole block holds.
+     * One slime layer's price: Goop's cost, a cubic meter's, over the fifteen layers a whole block holds.
+     * world-goo-fills-a-block-space-in-one-to-fifteen-layers
      *
      * @param helper the gametest helper
      * @return the exact price in mb
      */
     static GooFraction layerPrice(GameTestHelper helper) {
-        return costOf(helper, SlimeCoatBlock.GOOP_ABILITY).dividedBy(SlimeCoatBlock.MAX_LAYERS);
+        return costOf(helper, SlimeCoatBlock.GOOP_ABILITY).dividedBy(LAYERS_PER_BLOCK);
     }
 
     /**

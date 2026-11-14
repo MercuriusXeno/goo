@@ -14,7 +14,7 @@
       ],
       "to": [
         16,
-        6,
+        3.2,
         16
       ],
       "faces": {
@@ -32,7 +32,7 @@
             0,
             0,
             16,
-            6
+            3.2
           ],
           "texture": "#film",
           "cullface": "north"
@@ -42,7 +42,7 @@
             0,
             0,
             16,
-            6
+            3.2
           ],
           "texture": "#film",
           "cullface": "south"
@@ -52,7 +52,7 @@
             0,
             0,
             16,
-            6
+            3.2
           ],
           "texture": "#film",
           "cullface": "west"
@@ -62,7 +62,7 @@
             0,
             0,
             16,
-            6
+            3.2
           ],
           "texture": "#film",
           "cullface": "east"
