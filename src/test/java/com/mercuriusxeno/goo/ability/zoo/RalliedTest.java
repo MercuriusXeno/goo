@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Covers whom a mob follows when a rally reaches it, the attacker a second
- * rally keeps, and whose hit ends the rally.
+ * rally keeps, whose hit ends the rally, and whose cast releases it.
  */
 class RalliedTest {
 
@@ -69,6 +69,27 @@ class RalliedTest {
         @Test
         void damageWithNoAttackerLeavesTheRally() {
             assertFalse(new Rallied(FIRST, DAMAGE).brokenBy(null));
+        }
+    }
+
+    /** rally-cast-on-your-rallied-mob-releases-it */
+    @Nested
+    class ReleasedBy {
+
+        @Test
+        void theRalliersCastReleasesTheRally() {
+            assertTrue(new Rallied(FIRST, DAMAGE).releasedBy(FIRST));
+        }
+
+        @Test
+        void anotherCastersCastLeavesTheRally() {
+            assertFalse(new Rallied(FIRST, DAMAGE).releasedBy(SECOND));
+        }
+
+        @Test
+        void aMobHoldingNoRallyHasNoRallyToRelease() {
+            // NONE's own caster UUID asked, so only the no-rally rule answers false
+            assertFalse(Rallied.NONE.releasedBy(Rallied.NONE.caster()));
         }
     }
 }

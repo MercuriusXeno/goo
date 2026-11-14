@@ -11,7 +11,7 @@ import org.jspecify.annotations.NonNull;
 /**
  * Server-to-client payload: one of Knives' glass knives left the hand, for
  * every client watching to fly along the same arc to where it ends
- * (decision shards-sling-then-morph-to-flechettes).
+ * (decision knives-sling-then-morph-to-flechettes).
  *
  * @param start    where it left the hand
  * @param velocity its velocity leaving the hand, in blocks a tick

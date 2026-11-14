@@ -693,7 +693,7 @@ public final class GooFlightRenderer {
      * goo shrinks as the form grows, fully morphed at the share of the flight
      * the ability's delivery names (decisions
      * traveling-form-transforms-in-flight, dart-transform-point-is-ability-data,
-     * shards-sling-then-morph-to-flechettes).
+     * knives-sling-then-morph-to-flechettes).
      *
      * @param ctx    the per-frame render context
      * @param flight the morphing flight

@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * A splinter of a shattered knife flies out, falls, tumbles, and shrinks and
- * fades to nothing over its life (decision shards-sling-then-morph-to-flechettes).
+ * fades to nothing over its life (decision knives-sling-then-morph-to-flechettes).
  */
 class GlassSliversTest {
 
