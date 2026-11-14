@@ -14,9 +14,8 @@ import net.neoforged.neoforge.event.entity.living.LivingChangeTargetEvent;
 import java.util.Optional;
 
 /**
- * Keeps every mob off a downed mob for as long as it lies downed, through
- * its immunity and after: the moment it goes down each mob holding it as a
- * target, an anger or an attack memory lets it go, and no mob takes it as a
+ * Keeps every mob off a downed mob for as long as it lies downed: the
+ * moment it goes down each mob holding it as a target, an anger or an attack memory lets it go, and no mob takes it as a
  * target again until it stands or dies.
  * nothing-targets-a-downed-mob
  */
