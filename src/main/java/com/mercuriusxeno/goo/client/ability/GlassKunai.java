@@ -8,7 +8,7 @@ import org.joml.Vector3f;
  * One of Knives' glass knives as faces: a kunai of clear glass, its blade a
  * flat leaf drawn to a point and its grip a slim darker rod behind it, laid
  * along its heading and rolled about it.
- * decision shards-sling-then-morph-to-flechettes
+ * decision knives-sling-then-morph-to-flechettes
  */
 public final class GlassKunai {
 

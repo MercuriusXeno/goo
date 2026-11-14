@@ -31,13 +31,30 @@ public final class RallyFoes {
      * @param target      the UUID of the entity it targets, or null for none
      * @param distanceSqr its squared distance from the rallied mob
      * @param downed      whether it lies downed, which no pick takes
+     * @param minion      whether it holds a charm or a rally, which no pick takes
      * @param <T>         the mob's type
      */
     public record Candidate<T>(T mob, UUID id, boolean alive, boolean hostile, @Nullable UUID target,
-                               double distanceSqr, boolean downed) {
+                               double distanceSqr, boolean downed, boolean minion) {
 
         /**
-         * A candidate standing, not downed.
+         * A candidate no one charmed or rallied.
+         *
+         * @param mob         the mob
+         * @param id          its UUID
+         * @param alive       whether it still lives
+         * @param hostile     whether it is a monster hostile to players before it aggresses
+         * @param target      the UUID of the entity it targets, or null for none
+         * @param distanceSqr its squared distance from the rallied mob
+         * @param downed      whether it lies downed, which no pick takes
+         */
+        public Candidate(T mob, UUID id, boolean alive, boolean hostile, @Nullable UUID target,
+                         double distanceSqr, boolean downed) {
+            this(mob, id, alive, hostile, target, distanceSqr, downed, false);
+        }
+
+        /**
+         * A candidate standing, not downed, that no one charmed or rallied.
          *
          * @param mob         the mob
          * @param id          its UUID
@@ -48,7 +65,7 @@ public final class RallyFoes {
          */
         public Candidate(T mob, UUID id, boolean alive, boolean hostile, @Nullable UUID target,
                          double distanceSqr) {
-            this(mob, id, alive, hostile, target, distanceSqr, false);
+            this(mob, id, alive, hostile, target, distanceSqr, false, false);
         }
     }
 
@@ -90,7 +107,9 @@ public final class RallyFoes {
     private static <T> Optional<T> nearest(List<Candidate<T>> nearby, Predicate<Candidate<T>> foe) {
         return nearby.stream()
                 // nothing-targets-a-downed-mob
-                .filter(candidate -> candidate.alive() && !candidate.downed() && foe.test(candidate))
+                // diagnose-and-correct-minions-killing-each-other
+                .filter(candidate -> candidate.alive() && !candidate.downed() && !candidate.minion()
+                        && foe.test(candidate))
                 .min(Comparator.comparingDouble(Candidate::distanceSqr))
                 .map(Candidate::mob);
     }
