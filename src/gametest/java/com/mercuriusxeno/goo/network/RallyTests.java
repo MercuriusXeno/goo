@@ -25,6 +25,7 @@ import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.TagValueOutput;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
@@ -54,6 +55,55 @@ public final class RallyTests {
         GooTestFunctions.registerTest(registrar, RALLY_TAKES_ONE_OF_TWO_COWS, RallyTests::rallyTakesOneOfTwoCows);
         GooTestFunctions.registerTest(registrar, RALLY_HOLDS_PAST_THE_OLD_RALLY, RallyTests::rallyHoldsPastTheOldRally);
         GooTestFunctions.registerTest(registrar, RALLY_ENDS_ON_THE_RALLIERS_HIT, RallyTests::rallyEndsOnTheRalliersHit);
+        GooTestFunctions.registerTest(registrar, RALLY_COW_TAKES_THE_SIDE_ITS_RALLIER_WALKS_TOWARD,
+                RallyTests::rallyCowTakesTheSideItsRallierWalksToward);
+    }
+
+    private static final String RALLY_COW_TAKES_THE_SIDE_ITS_RALLIER_WALKS_TOWARD =
+            "rally_cow_takes_the_side_its_rallier_walks_toward";
+    /** Where the walking rallier starts, at the bay's west edge. */
+    private static final Vec3 WALK_START = new Vec3(0.5, 1.0, 1.5);
+    /** Where the walking rallier ends, at the bay's east edge. */
+    private static final Vec3 WALK_END = new Vec3(5.5, 1.0, 1.5);
+    /** The rallied cow's start, two blocks to the side of the rallier's start. */
+    private static final BlockPos BESIDE_THE_WALK_POS = new BlockPos(0, 1, 3);
+    /**
+     * The rallier's pace in blocks a tick: above the standing speed, and slow
+     * enough that the cow has most of the walk to get ahead inside the bay.
+     */
+    private static final double RALLIER_PACE = 0.04;
+    /** How far along the walk past the rallier the cow must stand to count as ahead of it. */
+    private static final double AHEAD_MARGIN = 1.0;
+    private static final String COW_NOT_AHEAD =
+            "The rallied cow should stand %s blocks past its walking rallier, stands %s past it";
+
+    /**
+     * A mock rallier walks steadily east beside a rallied cow with no foe
+     * near, and the cow walks out ahead of it along the walk, to the side the
+     * rallier heads toward
+     * (decision unengaged-minions-move-where-you-move).
+     *
+     * @param helper the gametest helper
+     */
+    public static void rallyCowTakesTheSideItsRallierWalksToward(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
+        Vec3 start = helper.absoluteVec(WALK_START);
+        Vec3 end = helper.absoluteVec(WALK_END);
+        // the bay may stand rotated, so the walk's world heading is read from its world ends
+        Vec3 heading = end.subtract(start).normalize();
+        caster.setPos(start);
+        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, BESIDE_THE_WALK_POS);
+        rally(helper, cow, caster);
+        int[] walked = new int[1];
+        helper.onEachTick(() -> {
+            Vec3 step = start.add(heading.scale(RALLIER_PACE * walked[0]++));
+            caster.setPos(step.distanceTo(start) < end.distanceTo(start) ? step : end);
+        });
+        helper.succeedWhen(() -> {
+            double ahead = cow.position().subtract(caster.position()).dot(heading);
+            helper.assertTrue(ahead > AHEAD_MARGIN, String.format(COW_NOT_AHEAD, AHEAD_MARGIN, ahead));
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+        });
     }
 
     private static final String RALLY_TAKES_ONE_OF_TWO_COWS = "rally_takes_one_of_two_cows";
