@@ -7,13 +7,9 @@ import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
-import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
-import com.mercuriusxeno.goo.type.GooTypes;
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
@@ -24,25 +20,25 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Knives' charge, seen and heard while right click holds it: the glove
- * hand eases left across the chest with the goo in its palm swelling as
- * the charge grows, a chime climbing in pitch at each step of the charge and a
- * ring of resonance once it is full. The glove press poses the arm, so the
- * players watching see it wound up with the goo in the hand.
- * decision shards-sling-then-morph-to-flechettes
+ * Knives' charge, seen and heard while right click holds it: the glove's
+ * blob hops off the palm as the charge begins and floats ahead of and above
+ * the hand as it eases left across the chest, swelling as the charge grows,
+ * with a chime climbing in pitch at each step of the charge and a ring of
+ * resonance once it is full. The blob stays up through the backhand's sweep
+ * as the knives leave it, then settles back onto the palm. The glove press
+ * poses the arm, so the players watching see it wound up with the blob afloat.
+ * decision knives-sling-then-morph-to-flechettes
+ * decision knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
+ * decision charge-swells-the-palm-blob
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class KnivesCharge {
 
     /** The steps a charge chimes at, however many flecks the release throws. */
     static final int MOST_SHOWN = 9;
-    /** The hand's blob against a flying blob's size, as the charge begins and once it is full. */
-    static final float BLOB_SMALLEST = 0.25f;
-    static final float BLOB_FULLEST = 0.8f;
     /** A remote player's blob fills over this many ticks, the charge it cannot read. */
     private static final float REMOTE_FULL_TICKS = 30f;
     /** The hand's place in the world: chest height, ahead of the body, eased across from the glove side. */
@@ -84,17 +80,6 @@ public final class KnivesCharge {
     }
 
     /**
-     * The hand's blob at a share of a full charge: small as the charge
-     * begins, swelling to its fullest at full charge.
-     *
-     * @param share the share of a full charge, 0 to 1
-     * @return its size against a flying blob's
-     */
-    static float blobScaleAt(float share) {
-        return BLOB_SMALLEST + (BLOB_FULLEST - BLOB_SMALLEST) * Math.clamp(share, 0f, 1f);
-    }
-
-    /**
      * The glove's palm blob at a share of a full charge: its rest size as
      * the charge begins, swelling to its fullest at full charge.
      * decision charge-swells-the-palm-blob
@@ -132,15 +117,14 @@ public final class KnivesCharge {
             return 0f;
         }
         AbilityPoses.Posed posed = AbilityPoses.posedAt(player.getId());
-        Charge charge = localCharge(player);
+        Charge charge = chargeOf(player);
         return palmShareOf(charge, posed != null && posed.holding(ArmPoseKind.WIND_UP),
-                charge == null ? 0f
-                        : GloveThrowSender.selectedDelivery(selectedAbility(player))
-                        .chargeShare(GloveUseTracker.heldTicks()));
+                charge == null ? 0f : localChargeShare(player));
     }
 
     /**
-     * Client tick: chimes each step of the local hold in.
+     * Client tick: holds every Knives charge's blob afloat and chimes each
+     * step of the local hold in.
      *
      * @param event the client tick event
      */
@@ -152,13 +136,68 @@ public final class KnivesCharge {
             shownLocally = 0;
             return;
         }
-        Charge charge = localCharge(player);
+        holdTheFloatingBlobs(mc.level.getGameTime());
+        Charge charge = chargeOf(player);
         boolean holding = charge != null && GloveUseTracker.heldTicks() > 0;
         if (!holding) {
             shownLocally = 0;
             return;
         }
         chime(mc.level, player, charge, GloveThrowSender.selectedDelivery(selectedAbility(player)));
+    }
+
+    /**
+     * Holds the blob of every player whose Knives charge stands afloat this
+     * tick, from the wind-up's first tick through the backhand's sweep.
+     * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
+     *
+     * @param now the level's game time
+     */
+    static void holdTheFloatingBlobs(long now) {
+        ClientLevel level = Minecraft.getInstance().level;
+        if (level == null) {
+            return;
+        }
+        for (Player player : level.players()) {
+            AbilityPoses.Posed posed = AbilityPoses.posedAt(player.getId());
+            if (posed != null) {
+                holdTheFloatingBlob(player, posed, now);
+            }
+        }
+    }
+
+    private static void holdTheFloatingBlob(Player player, AbilityPoses.Posed posed, long now) {
+        Charge charge = chargeOf(player);
+        double age = now - posed.since();
+        if (floatsAt(posed, age, charge == null ? 0 : charge.sweepTicks())) {
+            LiftedPalmBlob.floated(player.getId(), player.getEyePosition(), (long) posed.since(), now);
+        }
+    }
+
+    /**
+     * Whether a pose holds the blob afloat an age into it: through the wind-up,
+     * and through the backhand until its sweep has launched the last knife.
+     * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
+     *
+     * @param posed      the pose
+     * @param age        ticks since it began
+     * @param sweepTicks the ticks the release launches its knives over
+     * @return true while the blob floats
+     */
+    static boolean floatsAt(AbilityPoses.Posed posed, double age, int sweepTicks) {
+        return posed.holding(ArmPoseKind.WIND_UP) || posed.kind() == ArmPoseKind.FLING && age <= sweepTicks;
+    }
+
+    /**
+     * How far a caster's hand has eased across the chest now.
+     *
+     * @param casterId the caster's entity id
+     * @param now      the game time, with the frame's partial tick
+     * @return the share across, 0 at the glove side to 1 at the wind-up's furthest
+     */
+    static float acrossOf(int casterId, double now) {
+        AbilityPoses.Posed posed = AbilityPoses.posedAt(casterId);
+        return posed == null ? 0f : AbilityPoses.acrossAt(posed, now - posed.since());
     }
 
     private static void chime(ClientLevel level, LocalPlayer player, Charge charge, Delivery delivery) {
@@ -175,18 +214,18 @@ public final class KnivesCharge {
         }
     }
 
-    private static @Nullable String selectedAbility(LocalPlayer player) {
+    private static @Nullable String selectedAbility(Player player) {
         GloveSelection selection = GloveThrowSender.heldSelection(player);
         return selection == null ? null : selection.abilityId();
     }
 
     /**
-     * The charge block of the local player's slinging selection.
+     * The charge block of a player's slinging selection.
      *
-     * @param player the local player
+     * @param player the player
      * @return the charge, or null where the selection does not sling
      */
-    private static @Nullable Charge localCharge(LocalPlayer player) {
+    private static @Nullable Charge chargeOf(Player player) {
         GloveSelection selection = GloveThrowSender.heldSelection(player);
         if (selection == null) {
             return null;
@@ -195,46 +234,16 @@ public final class KnivesCharge {
         return charge.slings() ? charge : null;
     }
 
-    /**
-     * Draws the goo swelling in the hand of every player whose arm is wound
-     * up, but the local player's in first person, whose glove's palm blob
-     * swells instead, and any player's whose palm blob stands lifted, which
-     * swells where it stands.
-     *
-     * @param event the level render stage event
-     */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || mc.player == null) {
-            return;
-        }
-        float partial = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        double now = mc.level.getGameTime() + partial;
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        boolean firstPerson = mc.options.getCameraType().isFirstPerson();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        PoseStack pose = event.getPoseStack();
-        for (Player player : mc.level.players()) {
-            AbilityPoses.Posed posed = AbilityPoses.posedAt(player.getId());
-            // charge-swells-the-palm-blob: the palm blob is the one blob the glove ever shows
-            if (woundInTheWorld(posed, firstPerson && player == mc.player)
-                    && !LiftedPalmBlob.standsOff(player.getId(), now)) {
-                drawWorldBlob(pose, buffers, new WoundHand(player, mc.player, posed), now, partial, camera);
-            }
-        }
-        buffers.endBatch();
-    }
-
-    private static boolean woundInTheWorld(AbilityPoses.Posed posed, boolean ownFirstPerson) {
-        return posed != null && posed.holding(ArmPoseKind.WIND_UP) && !ownFirstPerson;
+    private static float localChargeShare(Player local) {
+        return GloveThrowSender.selectedDelivery(selectedAbility(local)).chargeShare(GloveUseTracker.heldTicks());
     }
 
     /**
-     * How far a caster's charge swells the lifted palm blob: by the share of
-     * the charge it holds while its arm is wound up, and not at all otherwise.
+     * How far a caster's charge swells the floating blob: by the share of the
+     * charge it holds while its arm is wound up, spending back to rest size
+     * over the backhand's sweep as the knives leave it, and not at all otherwise.
      * decision charge-swells-the-palm-blob
-     * every-ability-casts-from-the-lifted-palm-blob: Knives' charge swells the blob lifted off the palm
+     * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives: the blob spews the knives as the backhand lands
      *
      * @param caster the caster
      * @param now    the game time, with the frame's partial tick
@@ -243,37 +252,36 @@ public final class KnivesCharge {
     public static float liftedSwellOf(Player caster, double now) {
         AbilityPoses.Posed posed = AbilityPoses.posedAt(caster.getId());
         LocalPlayer local = Minecraft.getInstance().player;
-        if (posed == null || local == null || !posed.holding(ArmPoseKind.WIND_UP)) {
+        if (posed == null || local == null) {
             return PALM_REST;
         }
-        return palmScaleAt(shareFor(caster, local, now - posed.since()));
+        double age = now - posed.since();
+        if (posed.holding(ArmPoseKind.WIND_UP)) {
+            return palmScaleAt(shareFor(caster, local, age));
+        }
+        return posed.kind() == ArmPoseKind.FLING ? spentSwellOf(caster, posed, age) : PALM_REST;
     }
 
     /**
-     * A wound-up player's hand to draw the goo in.
+     * How far the floating blob still swells an age into the backhand: from
+     * where the wind-up got to, back to rest size by the sweep's last knife.
      *
-     * @param player the player
-     * @param local  the local player
-     * @param posed  the player's wind-up
+     * @param caster the caster
+     * @param fling  the caster's backhand
+     * @param age    ticks since the release
+     * @return the swell against the blob's size
      */
-    private record WoundHand(Player player, LocalPlayer local, AbilityPoses.Posed posed) {
-    }
-
-    private static void drawWorldBlob(PoseStack pose, MultiBufferSource buffers, WoundHand wound, double now,
-                                      float partial, Vec3 camera) {
-        double age = now - wound.posed().since();
-        float eased = AbilityPoses.heldAt(ArmPoseKind.WIND_UP, age, 0f).weight();
-        Vec3 hand = handAt(wound.player(), wound.posed().gloveRight(), eased, partial);
-        pose.pushPose();
-        pose.translate(hand.x - camera.x, hand.y - camera.y, hand.z - camera.z);
-        GooFlightRenderer.renderBlob(pose, buffers, GooTypes.CRYSTAL, (float) now,
-                blobScaleAt(shareFor(wound.player(), wound.local(), age)));
-        pose.popPose();
+    private static float spentSwellOf(Player caster, AbilityPoses.Posed fling, double age) {
+        Charge charge = chargeOf(caster);
+        if (charge == null || charge.sweepTicks() <= 0) {
+            return PALM_REST;
+        }
+        return palmScaleAt(fling.from() * (1f - Math.min(1f, (float) age / charge.sweepTicks())));
     }
 
     /**
-     * Where a wound-up player's glove hand is: before the chest, eased from
-     * the glove side across toward the other.
+     * Where a player's glove hand is: before the chest, eased from the glove
+     * side across toward the other.
      *
      * @param player     the player
      * @param gloveRight whether the glove is in the right hand
@@ -290,19 +298,17 @@ public final class KnivesCharge {
     }
 
     /**
-     * The share of a full charge a player's hand shows: the local player's
+     * The share of a full charge a player's blob shows: the local player's
      * from the charge it holds, another's from how long its arm has been wound up.
      *
-     * @param player the player whose hand it is
+     * @param player the player whose blob it is
      * @param local  the local player
      * @param age    ticks the player's arm has been wound up
      * @return the share, 0 to 1
      */
     private static float shareFor(Player player, LocalPlayer local, double age) {
         if (player == local) {
-            String ability = selectedAbility(local);
-            return localCharge(local) == null ? 0f
-                    : GloveThrowSender.selectedDelivery(ability).chargeShare(GloveUseTracker.heldTicks());
+            return chargeOf(local) == null ? 0f : localChargeShare(local);
         }
         return Math.min(1f, (float) age / REMOTE_FULL_TICKS);
     }

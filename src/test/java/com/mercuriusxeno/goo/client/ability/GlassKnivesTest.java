@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * A glass knife on the client flies the server's arc tick by tick to the
  * end the server found, point first along its path, its kunai laid square
- * to its heading (decision shards-sling-then-morph-to-flechettes).
+ * to its heading (decision knives-sling-then-morph-to-flechettes).
  */
 class GlassKnivesTest {
 
