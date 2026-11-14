@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.zoo;
 
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Optional;
@@ -107,6 +108,49 @@ class RallyFoesTest {
     void aDownedMobAloneIsNoFoe() {
         assertEquals(Optional.empty(), RallyFoes.pick(CASTER, null, HURTER, null,
                 List.of(new RallyFoes.Candidate<>("downed hurter", HURTER, true, true, CASTER, 1, true))));
+    }
+
+    /** A mob holding a charm or a rally is no foe, under any pick. diagnose-and-correct-minions-killing-each-other */
+    @Nested
+    class Minions {
+
+        private static final double NEAR = 1;
+        private static final double FAR = 16;
+
+        @Test
+        void passesOverAMinionThatHurtTheCasterForAFartherHostile() {
+            assertEquals(Optional.of("hostile"), RallyFoes.pick(CASTER, null, HURTER, null,
+                    List.of(minion("minion hurter", HURTER, null), hostile("hostile", HOSTILE, FAR))));
+        }
+
+        @Test
+        void passesOverAMinionTargetingTheCasterForAFartherHostile() {
+            assertEquals(Optional.of("hostile"), RallyFoes.pick(CASTER, null, null, null,
+                    List.of(minion("minion stalker", STALKER, CASTER), hostile("hostile", HOSTILE, FAR))));
+        }
+
+        @Test
+        void passesOverAMinionTheCasterStruckForAFartherHostile() {
+            assertEquals(Optional.of("hostile"), RallyFoes.pick(CASTER, null, null, STRUCK,
+                    List.of(minion("minion struck", STRUCK, null), hostile("hostile", HOSTILE, FAR))));
+        }
+
+        @Test
+        void passesOverAHostileMinionForAFartherHostile() {
+            assertEquals(Optional.of("hostile"), RallyFoes.pick(CASTER, null, null, null,
+                    List.of(new RallyFoes.Candidate<>("hostile minion", BYSTANDER, true, true, null, NEAR, false,
+                            true), hostile("hostile", HOSTILE, FAR))));
+        }
+
+        @Test
+        void findsNoFoeInAMinionAlone() {
+            assertEquals(Optional.empty(), RallyFoes.pick(CASTER, null, HURTER, HURTER,
+                    List.of(new RallyFoes.Candidate<>("minion", HURTER, true, true, CASTER, NEAR, false, true))));
+        }
+
+        private static RallyFoes.Candidate<String> minion(String name, UUID id, UUID target) {
+            return new RallyFoes.Candidate<>(name, id, true, false, target, NEAR, false, true);
+        }
     }
 
     @Test
