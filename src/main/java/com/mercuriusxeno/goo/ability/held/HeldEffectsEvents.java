@@ -13,7 +13,6 @@ import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
 import com.mercuriusxeno.goo.ability.typhoon.Airborn;
-import com.mercuriusxeno.goo.ability.unstable.BusterEvents;
 import com.mercuriusxeno.goo.ability.xeno.EldritchEvents;
 import com.mercuriusxeno.goo.ability.zone.Shifter;
 import com.mercuriusxeno.goo.ability.zone.ShifterEvents;
@@ -249,7 +248,7 @@ public final class HeldEffectsEvents {
 
     /**
      * Clears the overlays an ended effect laid on the player's model: its
-     * ancient overlay and Buster's green.
+     * ancient overlay.
      *
      * @param player the player
      * @param lays   the states the ended effect laid
@@ -258,10 +257,6 @@ public final class HeldEffectsEvents {
         if (lays.contains(LaidState.ANCIENT)) {
             // ancient-makes-the-player-immortal: the aged overlay ends with the held effect
             Ancient.clear(player);
-        }
-        if (lays.contains(LaidState.BUSTER)) {
-            // buster-makes-tools-and-attacks-aoe: the blasts and the green overlay end with the held effect
-            BusterEvents.clear(player);
         }
     }
 

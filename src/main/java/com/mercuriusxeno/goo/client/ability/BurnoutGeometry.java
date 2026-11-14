@@ -8,6 +8,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.BiConsumer;
 
 /**
@@ -20,6 +22,19 @@ final class BurnoutGeometry {
     /** Offset to the block center from the block's corner. */
     static final float BLOCK_CENTER = 0.5f;
     private static final double TWO_PI = 2 * Math.PI;
+    /** Latitude bands on the unit sphere mesh, poles excluded. */
+    private static final int SPHERE_LAT_SEGMENTS = 32;
+    /** Longitude segments around the unit sphere mesh. */
+    private static final int SPHERE_LON_SEGMENTS = 64;
+    /** Vertices per quad, matching {@code VertexFormat.Mode.QUADS}. */
+    private static final int VERTICES_PER_QUAD = 4;
+    /** Latitude offset subtracted from {@code lat / latSegments} to center phi on zero. */
+    private static final double LATITUDE_HALF_OFFSET = 0.5;
+    /**
+     * The unit sphere mesh, every four entries one quad, each vertex also its
+     * outward normal.
+     */
+    private static final List<Vector3f> SPHERE_MESH = List.copyOf(buildSphereMesh());
 
     /**
      * Colors one annulus vertex from where it sits on the ring.
@@ -108,7 +123,7 @@ final class BurnoutGeometry {
     static void emitSphere(PoseStack.Pose pose, VertexConsumer c, float radius, SphereColor color) {
         // burnouts-are-whole-spheres: every sphere stands about the block center, never lifted to a face
         FlatQuadContext sphere = new FlatQuadContext(pose, c);
-        for (Vector3f v : NetherSphereVisual.unitSphereMesh()) {
+        for (Vector3f v : SPHERE_MESH) {
             sphere.vertex(BLOCK_CENTER + v.x() * radius, BLOCK_CENTER + v.y() * radius,
                     BLOCK_CENTER + v.z() * radius, color.at(v), v.x(), v.y(), v.z());
         }
@@ -221,5 +236,41 @@ final class BurnoutGeometry {
     static float easeOutCubic(float t) {
         float inverse = 1f - t;
         return 1f - inverse * inverse * inverse;
+    }
+
+    /**
+     * Builds a UV sphere mesh as a list of unit vectors, every four
+     * consecutive entries one quad.
+     *
+     * @return the unit sphere vertex list
+     */
+    private static List<Vector3f> buildSphereMesh() {
+        List<Vector3f> out = new ArrayList<>(SPHERE_LAT_SEGMENTS * SPHERE_LON_SEGMENTS * VERTICES_PER_QUAD);
+        for (int lat = 0; lat < SPHERE_LAT_SEGMENTS; lat++) {
+            double phi0 = Math.PI * ((double) lat / SPHERE_LAT_SEGMENTS - LATITUDE_HALF_OFFSET);
+            double phi1 = Math.PI * ((double) (lat + 1) / SPHERE_LAT_SEGMENTS - LATITUDE_HALF_OFFSET);
+            for (int lon = 0; lon < SPHERE_LON_SEGMENTS; lon++) {
+                double theta0 = TWO_PI * lon / SPHERE_LON_SEGMENTS;
+                double theta1 = TWO_PI * (lon + 1) / SPHERE_LON_SEGMENTS;
+                out.add(sphereVertex(phi0, theta0));
+                out.add(sphereVertex(phi1, theta0));
+                out.add(sphereVertex(phi1, theta1));
+                out.add(sphereVertex(phi0, theta1));
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Builds one unit-sphere vertex at spherical coordinates (phi, theta).
+     *
+     * @param phi   latitude in radians, {@code [-PI/2, PI/2]}
+     * @param theta longitude in radians, {@code [0, 2*PI]}
+     * @return the unit-sphere vertex
+     */
+    private static Vector3f sphereVertex(double phi, double theta) {
+        double cosPhi = Math.cos(phi);
+        return new Vector3f((float) (cosPhi * Math.cos(theta)), (float) Math.sin(phi),
+                (float) (cosPhi * Math.sin(theta)));
     }
 }

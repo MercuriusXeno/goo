@@ -86,7 +86,7 @@ public final class CrystalExplosionVisual implements BurnoutVisual, HeldGhostVis
     private void emitHeld(PoseStack.Pose pose, VertexConsumer c, HeldGhost ghost, Direction face, float opacity,
                          double nowSeconds) {
         BurnoutGeometry.emitSphere(pose, c, shellRadius(RESTING_PROGRESS, ghost.domeRadius()),
-                shellColor(RESTING_PROGRESS, NetherDiscMesh.toByte(opacity)));
+                shellColor(RESTING_PROGRESS, ColorBytes.toByte(opacity)));
     }
 
     /**
@@ -99,7 +99,7 @@ public final class CrystalExplosionVisual implements BurnoutVisual, HeldGhostVis
      * @return the packed ARGB color
      */
     static int shellColor(float progress, int alpha) {
-        return ARGB.color(alpha, NetherDiscMesh.toByte(progress), 0, NetherDiscMesh.toByte(shattered(progress)));
+        return ARGB.color(alpha, ColorBytes.toByte(progress), 0, ColorBytes.toByte(shattered(progress)));
     }
 
     /**

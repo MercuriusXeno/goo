@@ -1,13 +1,14 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.ability.program.AwaitEntityStep;
+import com.mercuriusxeno.goo.ability.program.EntitiesStep;
 import com.mercuriusxeno.goo.ability.program.EntityFilter;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
 import com.mercuriusxeno.goo.ability.program.ExplosionMode;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
-import com.mercuriusxeno.goo.ability.program.PullStep;
+import com.mercuriusxeno.goo.ability.program.SelectionShape;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.TargetStep;
 import com.mercuriusxeno.goo.data.GooBaseValuesPreview;
@@ -297,8 +298,9 @@ class AbilityDefinitionTest {
 
         @Test
         void fieldThrowDrawsASphereAtItsWidestRadius() {
-            List<Step> radii = List.of(new PullStep(Expr.literal(NARROW_RADIUS), Expr.literal(0)),
-                    new PullStep(Expr.literal(WIDE_RADIUS), Expr.literal(0)));
+            List<Step> radii = List.of(
+                    new EntitiesStep(SelectionShape.SPHERE, Expr.literal(NARROW_RADIUS), List.of(), List.of()),
+                    new EntitiesStep(SelectionShape.SPHERE, Expr.literal(WIDE_RADIUS), List.of(), List.of()));
             assertEquals(new AbilityArea(AbilityArea.Shape.SPHERE, WIDE_RADIUS, 0),
                     AbilityDefinition.heldArea(AbilityArea.NONE, Delivery.ARC, AbilityBadge.WORLD, radii));
         }

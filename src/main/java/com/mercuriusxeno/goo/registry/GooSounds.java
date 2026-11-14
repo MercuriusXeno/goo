@@ -17,12 +17,6 @@ public final class GooSounds {
     public static final DeferredRegister<SoundEvent> SOUND_EVENTS =
         DeferredRegister.create(Registries.SOUND_EVENT, Goo.MODID);
 
-    /** The black hole's sphere expand / destroy / contract "boom". */
-    public static final DeferredHolder<SoundEvent, SoundEvent> BLACK_HOLE =
-        SOUND_EVENTS.register("effects.black_hole",
-            () -> SoundEvent.createVariableRangeEvent(
-                Identifier.fromNamespaceAndPath(Goo.MODID, "effects.black_hole")));
-
     /** Glow goo throw: laser beam fire sound. */
     public static final DeferredHolder<SoundEvent, SoundEvent> GLOW_THROW =
         SOUND_EVENTS.register("effects.glow_throw",

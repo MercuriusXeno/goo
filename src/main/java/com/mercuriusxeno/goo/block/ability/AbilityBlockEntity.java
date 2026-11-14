@@ -4,8 +4,6 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.*;
 import com.mercuriusxeno.goo.ability.program.FieldEffectState;
 import com.mercuriusxeno.goo.ability.program.HostKind;
-import com.mercuriusxeno.goo.ability.program.MarkerHost;
-import com.mercuriusxeno.goo.ability.program.PhasedState;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
@@ -59,9 +57,7 @@ public class AbilityBlockEntity extends GooSyncedBlockEntity implements MarkerAn
     private Direction placedFace = Direction.UP;
     /**
      * State the running program keeps through the marker host: the field
-     * effect read back by the spike visual, the phase cursor read back by the
-     * black-hole visual, and the goo a black hole consumed, dropped when it
-     * pops or when the marker is broken first.
+     * effect read back by the spike visual.
      */
     private final MarkerProgramState programState = new MarkerProgramState();
     /**
@@ -104,10 +100,7 @@ public class AbilityBlockEntity extends GooSyncedBlockEntity implements MarkerAn
         if (be.running()) {
             be.behavior.serverTick(server, pos, be);
         }
-        // black-hole-leaves-a-compression-sphere: a hole takes its sphere a budget a tick, core outward,
-        // and stands until the last block is in
-        new MarkerHost(server, pos, be).takeBlocks();
-        if (!be.running() && !be.programState.taking()) {
+        if (!be.running()) {
             level.removeBlock(pos, false);
             return;
         }
@@ -179,17 +172,6 @@ public class AbilityBlockEntity extends GooSyncedBlockEntity implements MarkerAn
      */
     public FieldEffectState getFieldEffect() {
         return programState.fieldEffect();
-    }
-
-    /**
-     * Returns the phase cursor a running phased step keeps on this marker;
-     * the phased step mutates it through the marker host each tick, and
-     * the active behavior's tick marks and syncs the entity afterwards.
-     *
-     * @return the live phased state
-     */
-    public PhasedState getPhased() {
-        return programState.phased();
     }
 
     @Override

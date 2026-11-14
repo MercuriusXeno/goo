@@ -17,8 +17,9 @@ public final class BurnoutVisuals {
 
     /**
      * Every goo type a chain ability carries. Blaze carries none: Ignite's
-     * fire is its landing's whole visual (idea ignite-plays-no-burnout). Void
-     * carries the black hole and Nether none (decision anti-moves-from-nether-to-void).
+     * fire is its landing's whole visual (idea ignite-plays-no-burnout). Void's
+     * Hole and Erase draw no explosion, and Nether carries none
+     * (decision anti-moves-from-nether-to-void).
      */
     public static final List<ResourceKey<GooTypeDefinition>> CHAIN_TYPES = List.of(
             GooTypes.ROCK, GooTypes.FROST, GooTypes.VOID,
@@ -29,7 +30,6 @@ public final class BurnoutVisuals {
             GooTypes.UNSTABLE, UnstableExplosionVisual.INSTANCE,
             GooTypes.ROCK, RockExplosionVisual.INSTANCE,
             GooTypes.FROST, FrostExplosionVisual.INSTANCE,
-            GooTypes.VOID, NetherExplosionVisual.INSTANCE,
             GooTypes.METAL, MetalExplosionVisual.INSTANCE,
             GooTypes.CRYSTAL, CrystalExplosionVisual.INSTANCE,
             GooTypes.GLOW, GlowExplosionVisual.INSTANCE);

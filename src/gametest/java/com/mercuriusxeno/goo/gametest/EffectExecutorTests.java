@@ -10,7 +10,6 @@ import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.entity.CompressedHoard;
 import com.mercuriusxeno.goo.entity.CompressionSphere;
 import com.mercuriusxeno.goo.entity.SphereCore;
-import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooDragCastHandler;
 import com.mercuriusxeno.goo.network.GooDragCastPayload;
@@ -35,7 +34,6 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -60,11 +58,9 @@ import net.neoforged.neoforge.registries.RegisterEvent;
  */
 @RegistersGameTests
 public final class EffectExecutorTests {
-    private static final String FX_BLACK_HOLE_HOLDS_ITS_PLACE = "fx_black_hole_holds_its_place";
     private static final String FX_PROGRAM_MINE = "fx_program_proximity_mine";
     private static final String FX_PROGRAM_METAL_SPIKES = "fx_program_metal_spikes";
     private static final String FX_PROGRAM_CRYSTAL_CLOUD = "fx_program_crystal_cloud";
-    private static final String BLACK_HOLE_LEAVES_A_SPHERE = "black_hole_leaves_a_sphere";
     private static final String COMPRESSION_SPHERE_SPILLS_ON_TOUCH = "compression_sphere_spills_on_touch";
     private static final String LARGE_BLAST_LEAVES_A_GREEN_SPHERE = "large_blast_leaves_a_green_sphere";
     private static final String SMALL_BLAST_POPS_ITS_DROPS = "small_blast_pops_its_drops";
@@ -83,11 +79,9 @@ public final class EffectExecutorTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, FX_BLACK_HOLE_HOLDS_ITS_PLACE, EffectExecutorTests::blackHoleHoldsItsPlace);
         GooTestFunctions.registerTest(registrar, FX_PROGRAM_MINE, EffectExecutorTests::programProximityMine);
         GooTestFunctions.registerTest(registrar, FX_PROGRAM_METAL_SPIKES, EffectExecutorTests::programMetalSpikes);
         GooTestFunctions.registerTest(registrar, FX_PROGRAM_CRYSTAL_CLOUD, EffectExecutorTests::programCrystalCloud);
-        GooTestFunctions.registerTest(registrar, BLACK_HOLE_LEAVES_A_SPHERE, EffectExecutorTests::blackHoleLeavesASphere);
         GooTestFunctions.registerTest(registrar, COMPRESSION_SPHERE_SPILLS_ON_TOUCH, EffectExecutorTests::compressionSphereSpillsOnTouch);
         GooTestFunctions.registerTest(registrar, LARGE_BLAST_LEAVES_A_GREEN_SPHERE, EffectExecutorTests::largeBlastLeavesAGreenSphere);
         GooTestFunctions.registerTest(registrar, SMALL_BLAST_POPS_ITS_DROPS, EffectExecutorTests::smallBlastPopsItsDrops);
@@ -128,7 +122,7 @@ public final class EffectExecutorTests {
     private static final String ABILITY_METAL_SPIKES = "goo:metal_spikes";
     private static final String SPIKE_MISSED = "The metal trap left the walking pig unhurt";
     private static final String ABILITY_CRYSTAL_CLOUD = "goo:crystal_cloud";
-    /** Where the black hole's diamond lies: two blocks west, inside its sphere. */
+    /** Where a diamond lies: two blocks west of the marker. */
     private static final BlockPos DIAMOND_POS = MARKER_POS.west(2);
     /** Horizontal speed the moving pig is shuffled at, reversed every tick so it stays put. */
     private static final double SHUFFLE_SPEED = 0.2;
@@ -138,15 +132,9 @@ public final class EffectExecutorTests {
     private static final String CLOUD_MISSED_WALKER = "The crystal cloud left the walking survival player unhurt";
     /** Blocks a walking player covers in a tick, near vanilla's walking speed. */
     private static final double WALK_STEP = 0.2;
-    private static final String ABILITY_BLACK_HOLE = "goo:void_dark_star";
-    /** The size a black hole is dragged to, the reference radius its cost buys. */
-    private static final double HOLE_SIZE = 3;
-    /** Blocks south of the marker the caster stands, well past the hole's pull. */
+    /** Blocks south of the marker the caster stands, well clear of the blast. */
     private static final int CASTER_DISTANCE = 12;
-    /** The void goo the caster holds, more than the reference cost. */
-    private static final int CASTER_GOO = 5000;
     private static final double HALF_BLOCK = 0.5;
-    private static final String HOLE_CHARGED_NOTHING = "The dragged hole should charge some void, charged %d";
     /** The barrier floor spans the one-stack sphere's footprint around the marker, three blocks each way. */
     private static final int BARRIER_FLOOR_MIN = 0;
     private static final int BARRIER_FLOOR_MAX = 6;
@@ -158,16 +146,9 @@ public final class EffectExecutorTests {
      * never reaches into a neighbouring test's bay.
      */
     private static final double LEFTOVER_CLEAR_MARGIN = 2;
-    private static final String HOLE_LEFT_STONE = "The black hole left the stone it faced standing";
-    private static final String HOLE_SPARED_ZOMBIE = "The black hole left the zombie inside it alive";
-    private static final String HOLE_MOVED = "The black hole left the cell it landed in while it ran";
-    private static final String HOLE_LEFT_SPHERES = "The black hole left %d compression spheres, not one";
-    private static final String HOLE_HELD_NO_STONE = "The sphere holds no stone for the wall it took: ";
-    private static final String HOLE_HELD_NO_DIAMOND = "The sphere holds no diamond for the item it pulled in: ";
     private static final int SPILLED_STONE = 70;
     private static final String SPHERE_STAYED_SHUT = "The touched sphere is still standing";
     private static final String SPHERE_SPILLED_WRONG = "The touched sphere spilled other than 70 stone and a diamond: ";
-    private static final String HOLE_SPHERE_NOT_BLACK = "The black hole's sphere should draw the black core, draws %s";
     private static final String ABILITY_BLAST_DRAGGED = "goo:unstable_explode";
     /** The smallest and largest whole radius searched for the one Blast's own expression first gathers at. */
     private static final int SMALLEST_BLAST_SIZE = 1;
@@ -185,7 +166,6 @@ public final class EffectExecutorTests {
     private static final String BLAST_LEFT_LOOSE_COBBLESTONE = "Cobblestone lies loose in the gathering Blast's crater: ";
     private static final String SMALL_BLAST_LEFT_A_SPHERE = "The Blast under the gathering radius left a compression sphere";
     private static final String SMALL_BLAST_POPPED_NOTHING = "No cobblestone lies in the crater of the Blast under the gathering radius: ";
-    private static final String HOLE_LEFT_NO_SPHERE = "The black hole should leave a compression sphere once it pops";
     private static final String SPHERE_RELOAD_LOST = "The saved compression sphere did not load back as one";
     private static final String RELOADED_SPHERE_NOT_GREEN = "The reloaded green sphere draws %s";
 
@@ -205,23 +185,6 @@ public final class EffectExecutorTests {
     private static final BlockPos CRYSTAL_POS = new BlockPos(3, 2, 3);
 
     private EffectExecutorTests() {}
-
-    /**
-     * Void: a black hole that consumes the wall holding it up stays in the
-     * cell it landed in until its phases end, rather than falling mid-animation.
-     *
-     * @param helper the gametest helper
-     */
-    public static void blackHoleHoldsItsPlace(GameTestHelper helper) {
-        discardLeftoverEntities(helper);
-        fillWall(helper, Blocks.STONE);
-        placeMarkerWithAbility(helper, GooTypes.VOID, ABILITY_BLACK_HOLE, HOLE_SIZE);
-        helper.startSequence()
-                .thenWaitUntil(() -> helper.assertTrue(helper.getBlockState(MARKER_POS.north()).isAir(), HOLE_LEFT_STONE))
-                .thenExecute(() -> helper.assertTrue(helper.getBlockState(MARKER_POS).is(GooBlocks.ABILITY_BLOCK.get()),
-                        HOLE_MOVED))
-                .thenSucceed();
-    }
 
     // --- Glow crystal program (task glow-crystal-program) ---
 
@@ -319,26 +282,11 @@ public final class EffectExecutorTests {
      * @param abilityId the ability identifier string
      */
     private static void placeMarkerWithAbility(GameTestHelper helper, ResourceKey<GooTypeDefinition> type, String abilityId) {
-        placeMarkerWithAbility(helper, type, abilityId, 0);
-    }
-
-    /**
-     * Places an ability block initialized through an ability at the size a
-     * drag would cast it at, facing north into the wall region
-     * (decision black-hole-leaves-a-compression-sphere).
-     *
-     * @param helper    the gametest helper
-     * @param type      the goo type
-     * @param abilityId the ability identifier string
-     * @param size      the cast's size in blocks
-     */
-    private static void placeMarkerWithAbility(GameTestHelper helper, ResourceKey<GooTypeDefinition> type,
-                                               String abilityId, double size) {
         helper.setBlock(MARKER_POS.north(), Blocks.STONE);
         AbilityDefinition ability = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(abilityId));
         helper.assertTrue(ability != null, ABILITIES_REQUIRED);
         AbilityImpact.land(helper.getLevel(), helper.absolutePos(MARKER_POS.north()), type, Direction.SOUTH, ability,
-                null, size);
+                null, 0);
     }
 
     // --- Step programs (decision ability-params-in-datapack) ---
@@ -401,43 +349,6 @@ public final class EffectExecutorTests {
                 helper.getTick() % SHUFFLE_PERIOD == 0 ? SHUFFLE_SPEED : -SHUFFLE_SPEED,
                 pig.getDeltaMovement().y(), 0));
         return pig;
-    }
-
-    /**
-     * The black hole as a phased program: one stack, landed facing a
-     * stone wall on a barrier floor it cannot take, with a zombie standing
-     * and a diamond lying inside its sphere. The tick it takes the stone it
-     * has killed the zombie, and once it pops it has removed its marker and
-     * left one compression sphere holding the stone and the diamond
-     * (decision black-hole-leaves-a-compression-sphere).
-     *
-     * @param helper the gametest helper
-     */
-    public static void blackHoleLeavesASphere(GameTestHelper helper) {
-        discardLeftoverEntities(helper);
-        fillWall(helper, Blocks.STONE);
-        layBarrierFloor(helper);
-        Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, MINE_TARGET_POS);
-        helper.spawnItem(Items.DIAMOND, Vec3.atBottomCenterOf(DIAMOND_POS));
-        helper.startSequence()
-                .thenExecuteAfter(SHORT_WAIT, () -> castDraggedHole(helper))
-                .thenWaitUntil(() -> helper.assertTrue(helper.getBlockState(MARKER_POS.north()).isAir(), HOLE_LEFT_STONE))
-                .thenExecute(() -> helper.assertFalse(zombie.isAlive(), HOLE_SPARED_ZOMBIE))
-                .thenWaitUntil(() -> {
-                    helper.assertBlockNotPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
-                    helper.assertFalse(spheresAroundMarker(helper).isEmpty(), HOLE_LEFT_NO_SPHERE);
-                })
-                .thenExecute(() -> {
-                    List<CompressionSphere> spheres = spheresAroundMarker(helper);
-                    helper.assertTrue(spheres.size() == 1, String.format(HOLE_LEFT_SPHERES, spheres.size()));
-                    List<ItemStack> held = spheres.getFirst().hoard().stacks();
-                    helper.assertTrue(held.stream().anyMatch(stack -> stack.is(Items.STONE)), HOLE_HELD_NO_STONE + held);
-                    helper.assertTrue(held.stream().anyMatch(stack -> stack.is(Items.DIAMOND)),
-                            HOLE_HELD_NO_DIAMOND + held);
-                    SphereCore core = spheres.getFirst().core();
-                    helper.assertTrue(core == SphereCore.BLACK, String.format(HOLE_SPHERE_NOT_BLACK, core));
-                })
-                .thenSucceed();
     }
 
     /**
@@ -570,36 +481,6 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * Casts the black hole the way a drag's release does: a survival player
-     * holding a glove and void goo, standing well clear of the hole, pins
-     * the stone's south face and drags the hole to its reference size; the
-     * cast charges some void and stands the hole in the cell the pin faces
-     * (decision black-hole-leaves-a-compression-sphere).
-     *
-     * @param helper the gametest helper
-     */
-    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    private static void castDraggedHole(GameTestHelper helper) {
-        helper.setBlock(MARKER_POS.north(), Blocks.STONE);
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        Vec3 stand = helper.absoluteVec(Vec3.atBottomCenterOf(MARKER_POS.south(CASTER_DISTANCE)));
-        player.setPos(stand.x, stand.y, stand.z);
-        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
-        player.getInventory().add(GooStacks.createForOutput(GooTypes.VOID, CASTER_GOO));
-        AbilityDefinition hole = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(ABILITY_BLACK_HOLE));
-        helper.assertTrue(hole != null, ABILITIES_REQUIRED);
-        KnownRecipes.teachRequires(player, hole);
-        BlockPos pin = helper.absolutePos(MARKER_POS.north());
-        GooDragCastHandler.cast(player, new GooDragCastPayload(GooTypes.id(GooTypes.VOID), ABILITY_BLACK_HOLE,
-                pin, Direction.SOUTH.get3DDataValue(), Vec3.atCenterOf(pin).relative(Direction.SOUTH, HALF_BLOCK),
-                HOLE_SIZE));
-        int spent = CASTER_GOO - GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.VOID, 0);
-        helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(spent > 0, String.format(HOLE_CHARGED_NOTHING, spent));
-        helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
-    }
-
-    /**
      * A compression sphere a player touches pops open: it is gone, and every
      * stack it held lies there as an item entity
      * (decision black-hole-leaves-a-compression-sphere).
@@ -666,8 +547,8 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * Lays barrier under the marker's whole sphere, the floor a black hole
-     * cannot consume.
+     * Lays barrier under the marker's whole sphere, a floor no blast can
+     * break.
      *
      * @param helper the gametest helper
      */
