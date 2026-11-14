@@ -499,6 +499,21 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
     }
 
     /**
+     * The speed a stream's drips leave at, thrown by a caster moving at a
+     * horizontal speed: the throw speed plus that speed, along the aim, so a
+     * running caster's spray lands ahead of them as far as it would at rest;
+     * a stream throwing no drips keeps its throw speed of none.
+     * goop-and-slick-drips-leave-at-one-exit-speed
+     * goop-and-slick-drips-add-none-of-the-players-movement: the speed grows, the heading stays the aim's
+     *
+     * @param casterHorizontalSpeed the caster's horizontal speed, blocks per tick
+     * @return the drips' exit speed, blocks per tick
+     */
+    public double exitSpeedAt(double casterHorizontalSpeed) {
+        return throwsDrips() ? throwSpeed + casterHorizontalSpeed : throwSpeed;
+    }
+
+    /**
      * This delivery with a stream's cone reshaped, every other param kept.
      *
      * @param newRange       the stream's reach in blocks
