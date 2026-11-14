@@ -4,7 +4,7 @@
   "badge": "mob",
   "order": 0,
   "cost": 1000,
-  "delivery": { "kind": "arc" },
+  "delivery": { "kind": "envelop", "charge": { "max_ticks": 20 } },
   "behaviors": [
     {
       "type": "target",
