@@ -4,8 +4,11 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.zoo.RallyEvents;
+import com.mercuriusxeno.goo.data.GooValues;
+import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.registry.GooAttachments;
+import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -14,6 +17,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.ProblemReporter;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
@@ -68,6 +72,106 @@ public final class RallyTests {
                 RallyTests::rallyByASecondPlayerKeepsTheFirst);
         GooTestFunctions.registerTest(registrar, RELEASED_COW_TAKES_A_FRESH_RALLY,
                 RallyTests::releasedCowTakesAFreshRally);
+        GooTestFunctions.registerTest(registrar, RALLY_RELEASE_THROW_DRAINS_NO_ZOO_GOO,
+                RallyTests::rallyReleaseThrowDrainsNoZooGoo);
+        GooTestFunctions.registerTest(registrar, RALLY_RELEASE_THROW_NEEDS_NO_ZOO_GOO_HELD,
+                RallyTests::rallyReleaseThrowNeedsNoZooGooHeld);
+        GooTestFunctions.registerTest(registrar, RALLY_THROW_AT_ANOTHER_MOB_PAYS_ITS_COST,
+                RallyTests::rallyThrowAtAnotherMobPaysItsCost);
+    }
+
+    private static final String RALLY_RELEASE_THROW_DRAINS_NO_ZOO_GOO = "rally_release_throw_drains_no_zoo_goo";
+    private static final String RALLY_RELEASE_THROW_NEEDS_NO_ZOO_GOO_HELD =
+            "rally_release_throw_needs_no_zoo_goo_held";
+    private static final String RALLY_THROW_AT_ANOTHER_MOB_PAYS_ITS_COST = "rally_throw_at_another_mob_pays_its_cost";
+    private static final int NO_FACE = -1;
+    private static final String RELEASE_DRAINED = "The release throw should drain no zoo goo: held %s, then %s";
+    private static final String THROW_UNPAID = "A Rally throw at %s should drain Rally's cost %s: held %s, then %s";
+
+    /**
+     * The rallier throws Rally at its rallied cow through the throw handler:
+     * the rallier's zoo goo stands as it stood, and the cow's rally ends
+     * (decision rally-release-cast-costs-nothing).
+     *
+     * @param helper the gametest helper
+     */
+    public static void rallyReleaseThrowDrainsNoZooGoo(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
+        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        rally(helper, cow, caster);
+        int before = zooHeld(caster);
+
+        GooThrowHandler.execute(caster, rallyThrow(caster, cow));
+
+        int after = zooHeld(caster);
+        helper.assertTrue(after == before, String.format(RELEASE_DRAINED, before, after));
+        helper.succeedWhen(() -> {
+            helper.assertFalse(cow.hasData(GooAttachments.RALLIED), RELEASE_LEFT_THE_RALLY);
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+        });
+    }
+
+    /**
+     * A rallier holding no zoo goo throws Rally at its rallied cow through
+     * the throw handler, and the cow's rally ends
+     * (decision rally-release-cast-costs-nothing).
+     *
+     * @param helper the gametest helper
+     */
+    public static void rallyReleaseThrowNeedsNoZooGooHeld(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
+        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        rally(helper, cow, caster);
+        caster.getInventory().clearContent();
+        caster.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
+
+        GooThrowHandler.execute(caster, rallyThrow(caster, cow));
+
+        helper.succeedWhen(() -> {
+            helper.assertFalse(cow.hasData(GooAttachments.RALLIED), RELEASE_LEFT_THE_RALLY);
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+        });
+    }
+
+    /**
+     * A Rally throw at an unrallied cow, and one at a cow another player
+     * rallied, each drain Rally's cost from the thrower
+     * (decision rally-release-cast-costs-nothing).
+     *
+     * @param helper the gametest helper
+     */
+    public static void rallyThrowAtAnotherMobPaysItsCost(GameTestHelper helper) {
+        ServerPlayer thrower = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
+        ServerPlayer otherRallier = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
+        Cow unrallied = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        Cow othersCow = helper.spawnWithNoFreeWill(EntityType.COW, BESIDE_COW_POS);
+        rally(helper, othersCow, otherRallier);
+        AbilityDefinition ability = AbilityRegistry.of(helper.getLevel()).getAbility(ZOO_RALLY);
+        helper.assertTrue(ability != null, ABILITIES_REQUIRED);
+        int cost = ability.cost().exactIn(GooValues.of(helper.getLevel())).floor();
+
+        assertThrowPays(helper, thrower, unrallied, "an unrallied cow", cost);
+        assertThrowPays(helper, thrower, othersCow, "a cow another player rallied", cost);
+
+        helper.getLevel().getServer().getPlayerList().remove(thrower);
+        helper.getLevel().getServer().getPlayerList().remove(otherRallier);
+        helper.succeed();
+    }
+
+    private static void assertThrowPays(GameTestHelper helper, ServerPlayer thrower, Mob mob, String kind, int cost) {
+        int before = zooHeld(thrower);
+        GooThrowHandler.execute(thrower, rallyThrow(thrower, mob));
+        int after = zooHeld(thrower);
+        helper.assertTrue(before - after == cost, String.format(THROW_UNPAID, kind, cost, before, after));
+    }
+
+    private static GooThrowPayload rallyThrow(ServerPlayer thrower, Mob target) {
+        return new GooThrowPayload(GooTypes.id(GooTypes.ZOO), target.getId(), target.blockPosition(), NO_FACE, false,
+                ZOO_RALLY.toString(), thrower.getEyePosition());
+    }
+
+    private static int zooHeld(ServerPlayer player) {
+        return GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.ZOO, 0);
     }
 
     private static final String RALLY_AGAIN_RELEASES_THE_COW = "rally_again_releases_the_cow";
