@@ -13,7 +13,6 @@ import com.mercuriusxeno.goo.ability.program.CharmStep;
 import com.mercuriusxeno.goo.ability.program.CoatStep;
 import com.mercuriusxeno.goo.ability.program.CoolLavaStep;
 import com.mercuriusxeno.goo.ability.program.EntityFilter;
-import com.mercuriusxeno.goo.ability.program.FloatStep;
 import com.mercuriusxeno.goo.ability.program.GhostTrailStep;
 import com.mercuriusxeno.goo.ability.program.GluttonyStep;
 import com.mercuriusxeno.goo.ability.program.HostKind;
@@ -146,13 +145,14 @@ class AbilityLoaderTest {
             assertEquals(TYPHOON_ABILITIES, typhoon);
         }
 
+        /** decision charm-like-abilities-lock-the-highlighted-mob-on-right-click */
         @Test
-        void shulkLevitatesTheStruckMob() {
+        void shulkSpewsAShulkerBulletAtTheTakenMob() {
             AbilityDefinition shulk = AbilityJson.decode("typhoon_shulk");
 
             assertEquals("goo.ability.typhoon.shulk", shulk.displayName());
             assertEquals(AbilityBadge.MOB, shulk.badge());
-            assertTrue(shulk.behaviors().stream().anyMatch(FloatStep.class::isInstance), "no float step");
+            assertTrue(shulk.delivery().spewsAShulkerBullet(), "spews " + shulk.delivery().spew());
         }
 
         @Test

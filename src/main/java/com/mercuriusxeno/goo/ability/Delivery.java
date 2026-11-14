@@ -35,11 +35,39 @@ import java.util.Optional;
  * @param drainsOnPlacement whether a stream pays its cost by what it lays rather than by the ticks it is held
  * @param throwSpeed     the speed a stream throws its drips at, blocks per tick, each flying its arc until it
  *                       strikes; {@link #NO_THROW_SPEED} for a stream reaching by its range
+ * @param spew           what a charm-like cast's release sends at the mob its press took, the blob for any other
  */
 public record Delivery(DeliveryKind kind, double blocksPerTick, double range, double coneDegrees,
                        int ticksPerCharge, boolean grannyAllowed, Optional<Identifier> particle, double transformAt,
                        Optional<StreamSound> sound, Charge charge, TravelForm form, double topSpeed,
-                       double seekRange, boolean drainsOnPlacement, double throwSpeed) {
+                       double seekRange, boolean drainsOnPlacement, double throwSpeed, Spew spew) {
+
+    /**
+     * A delivery whose release sends the blob itself.
+     *
+     * @param kind              the delivery kind
+     * @param blocksPerTick     a beam's speed in blocks per tick
+     * @param range             a stream's reach in blocks
+     * @param coneDegrees       a stream's cone, apex to rim, in degrees
+     * @param ticksPerCharge    a stream's ticks of hold one cost pays for
+     * @param grannyAllowed     whether an arc may lob onto a top face
+     * @param particle          the particle a stream sprays along its cone, empty for none
+     * @param transformAt       the share of the flight by which the blob has taken its traveling form
+     * @param sound             the sound a stream makes while held, empty for none
+     * @param charge            the charge block
+     * @param form              the form the goo takes in flight
+     * @param topSpeed          the fastest an arc flies in blocks per tick
+     * @param seekRange         how far a stream reaches the living it strikes
+     * @param drainsOnPlacement whether a stream pays its cost by what it lays
+     * @param throwSpeed        the speed a stream throws its drips at
+     */
+    public Delivery(DeliveryKind kind, double blocksPerTick, double range, double coneDegrees, int ticksPerCharge,
+                    boolean grannyAllowed, Optional<Identifier> particle, double transformAt,
+                    Optional<StreamSound> sound, Charge charge, TravelForm form, double topSpeed, double seekRange,
+                    boolean drainsOnPlacement, double throwSpeed) {
+        this(kind, blocksPerTick, range, coneDegrees, ticksPerCharge, grannyAllowed, particle, transformAt, sound,
+                charge, form, topSpeed, seekRange, drainsOnPlacement, throwSpeed, Spew.BLOB);
+    }
 
     /**
      * A delivery reaching by its range, throwing no drips.
@@ -249,7 +277,9 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
             // goop-drains-per-cubic-meter-of-slime-placed
             Codec.BOOL.optionalFieldOf("drains_on_placement", false).forGetter(Delivery::drainsOnPlacement),
             // goop-and-slick-coat-lands-where-each-drip-arc-strikes
-            Codec.DOUBLE.optionalFieldOf("throw_speed", NO_THROW_SPEED).forGetter(Delivery::throwSpeed)
+            Codec.DOUBLE.optionalFieldOf("throw_speed", NO_THROW_SPEED).forGetter(Delivery::throwSpeed),
+            // charm-like-abilities-lock-the-highlighted-mob-on-right-click
+            Spew.CODEC.optionalFieldOf("spews", Spew.BLOB).forGetter(Delivery::spew)
     ).apply(inst, Delivery::new));
 
     /**
@@ -271,11 +301,11 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
             TravelForm.STREAM_CODEC, Delivery::form,
             WireTail.STREAM_CODEC,
             delivery -> new WireTail(delivery.topSpeed(), delivery.seekRange(), delivery.drainsOnPlacement(),
-                    delivery.throwSpeed()),
+                    delivery.throwSpeed(), delivery.spew()),
             (kind, blocksPerTick, range, coneDegrees, ticksPerCharge, grannyAllowed, particle, transformAt, sound,
              charge, form, tail) -> new Delivery(kind, blocksPerTick, range, coneDegrees, ticksPerCharge,
                     grannyAllowed, particle, transformAt, sound, charge, form, tail.topSpeed(), tail.seekRange(),
-                    tail.drainsOnPlacement(), tail.throwSpeed()));
+                    tail.drainsOnPlacement(), tail.throwSpeed(), tail.spew()));
 
     /**
      * The delivery's last fields on the wire as one, since a stream codec
@@ -285,14 +315,17 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
      * @param seekRange        how far a stream reaches the living it strikes
      * @param drainsOnPlacement whether a stream pays its cost by what it lays
      * @param throwSpeed       the speed a stream throws its drips at
+     * @param spew             what a charm-like cast's release sends
      */
-    private record WireTail(double topSpeed, double seekRange, boolean drainsOnPlacement, double throwSpeed) {
+    private record WireTail(double topSpeed, double seekRange, boolean drainsOnPlacement, double throwSpeed,
+                            Spew spew) {
 
         private static final StreamCodec<ByteBuf, WireTail> STREAM_CODEC = StreamCodec.composite(
                 ByteBufCodecs.DOUBLE, WireTail::topSpeed,
                 ByteBufCodecs.DOUBLE, WireTail::seekRange,
                 ByteBufCodecs.BOOL, WireTail::drainsOnPlacement,
                 ByteBufCodecs.DOUBLE, WireTail::throwSpeed,
+                Spew.STREAM_CODEC, WireTail::spew,
                 WireTail::new);
     }
 
@@ -484,6 +517,17 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
      */
     public Delivery withCone(double newRange, double newConeDegrees) {
         return new Delivery(kind, blocksPerTick, newRange, newConeDegrees, ticksPerCharge, grannyAllowed, particle,
-                transformAt, sound, charge, form, topSpeed, seekRange, drainsOnPlacement, throwSpeed);
+                transformAt, sound, charge, form, topSpeed, seekRange, drainsOnPlacement, throwSpeed, spew);
+    }
+
+    /**
+     * Whether a charm-like cast's release spews a shulker bullet from the
+     * held blob in place of the blob darting out.
+     * charm-like-abilities-lock-the-highlighted-mob-on-right-click
+     *
+     * @return true for an envelop naming the shulker bullet
+     */
+    public boolean spewsAShulkerBullet() {
+        return envelops() && spew == Spew.SHULKER_BULLET;
     }
 }

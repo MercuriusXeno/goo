@@ -109,8 +109,9 @@ public final class MobEffectTests {
     private static final String SHOULD_TAKE_DAMAGE = "Target should have taken damage";
     private static final String SHOULD_HAVE_LEVITATION = "Target should have levitation";
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
-    private static final String ABILITY_TYPHOON_SHULK = "goo:typhoon_shulk";
-    private static final String LEVITATION_SHOULD_HIDE_PARTICLES = "Shulk's levitation should show no particles";
+    /** The gametests' own ability carrying the float step, which no shipped ability carries. */
+    private static final String ABILITY_TEST_FLOAT = "goo:test_float";
+    private static final String LEVITATION_SHOULD_HIDE_PARTICLES = "The float's levitation should show no particles";
     private static final String FLOAT_SHOULD_END_WITH_LEVITATION = "The zombie's float should end when its levitation does";
     private static final String FLOAT_SHOULD_CLEAR_WITH_LEVITATION = "Removing the levitation should clear the float";
     /** The gametests' own thrown blast, today's Blast before it was drag-sized, struck at a mob. */
@@ -184,7 +185,7 @@ public final class MobEffectTests {
     public static void floatLevitatesAZombie(GameTestHelper helper) {
         Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, zombie, ABILITY_TYPHOON_SHULK);
+            strike(helper, zombie, ABILITY_TEST_FLOAT);
             MobEffectInstance levitation = zombie.getEffect(MobEffects.LEVITATION);
             helper.assertTrue(levitation != null, SHOULD_HAVE_LEVITATION);
             helper.assertFalse(levitation.isVisible(), LEVITATION_SHOULD_HIDE_PARTICLES);
