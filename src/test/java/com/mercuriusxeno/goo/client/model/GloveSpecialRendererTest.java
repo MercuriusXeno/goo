@@ -122,7 +122,7 @@ class GloveSpecialRendererTest {
              MockedStatic<GloveUseTracker> tracker = mockStatic(GloveUseTracker.class)) {
             tracker.when(GloveUseTracker::isSelectedTypeAvailable).thenReturn(true);
             client.at(SPRAYED);
-            LiftedPalmBlob.sprayed(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, SPRAYED);
+            LiftedPalmBlob.held(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, SPRAYED);
 
             GloveSpecialRenderer.GloveData data = new GloveSpecialRenderer().extractArgument(client.glove());
 
@@ -136,7 +136,7 @@ class GloveSpecialRendererTest {
              MockedStatic<GloveUseTracker> tracker = mockStatic(GloveUseTracker.class)) {
             tracker.when(GloveUseTracker::isSelectedTypeAvailable).thenReturn(true);
             client.at(SETTLED - 1);
-            LiftedPalmBlob.sprayed(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, SPRAYED);
+            LiftedPalmBlob.held(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, SPRAYED);
 
             GloveSpecialRenderer.GloveData data = new GloveSpecialRenderer().extractArgument(client.glove());
 
@@ -150,7 +150,7 @@ class GloveSpecialRendererTest {
              MockedStatic<GloveUseTracker> tracker = mockStatic(GloveUseTracker.class)) {
             tracker.when(GloveUseTracker::isSelectedTypeAvailable).thenReturn(true);
             client.at(SETTLED);
-            LiftedPalmBlob.sprayed(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, SPRAYED);
+            LiftedPalmBlob.held(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, SPRAYED);
 
             GloveSpecialRenderer.GloveData data = new GloveSpecialRenderer().extractArgument(client.glove());
 
@@ -178,7 +178,7 @@ class GloveSpecialRendererTest {
         try (SprayingClient client = SprayingClient.local(GooTypes.ZOO);
              MockedStatic<GloveBodyModels> models = bodiless()) {
             client.at(SPRAYED);
-            LiftedPalmBlob.sprayed(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, SPRAYED);
+            LiftedPalmBlob.held(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, SPRAYED);
 
             Vec3 lifted = coreDrawnAt(new GloveSpecialRenderer.GloveData(null, GooTypes.ZOO, 0f, 1f, true, true));
             Vec3 resting = coreDrawnAt(new GloveSpecialRenderer.GloveData(null, GooTypes.ZOO, 0f, 1f, false, true));
@@ -195,7 +195,7 @@ class GloveSpecialRendererTest {
             long eased = SPRAYED + PalmBlobHop.LIFT_TICKS;
             client.at(eased);
             for (long tick = SPRAYED; tick <= eased; tick++) {
-                LiftedPalmBlob.sprayed(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, tick);
+                LiftedPalmBlob.held(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, tick);
             }
 
             Vec3 lifted = coreDrawnAt(new GloveSpecialRenderer.GloveData(null, GooTypes.ZOO, 0f, 1f, true, true));

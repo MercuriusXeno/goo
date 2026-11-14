@@ -3,9 +3,11 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.model.GloveSpecialRenderer;
 import com.mercuriusxeno.goo.client.throwing.BlobShape;
+import com.mercuriusxeno.goo.client.throwing.GloveInputGate;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.network.KnifeRainSling;
+import com.mercuriusxeno.goo.network.PalmBlobLiftPayload;
 import com.mercuriusxeno.goo.network.StreamHolds;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -21,6 +23,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
@@ -29,20 +32,22 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * The palm blob lifted off the glove to a channel's source: as a caster's
- * Goop or Slick spray begins, the blob hops off the palm to the spray
- * source, shrinking from the pancake spread over the palm into a smaller
- * cube as it goes, and stands there in the goo type the glove has selected,
- * beating between two sizes below the pancake's while the spray runs. Once
- * the stream's ticks stop for longer than the stream's gap it comes back
- * down and smears across the palm into the pancake. The
- * glove's palm draws none while the blob is off it, so the caster shows one
- * blob, and each spray drip leaves the blob where it stands. The local
- * first-person player's blob draws in the hand's pass, over the glove and
- * turned with it; every other caster's draws in the level, turned with that
- * caster's look. Kept apart from the spray so a later channel can lift the
- * blob the same way.
+ * The palm blob lifted off the glove while its caster holds any ability: as
+ * a stream or a channel runs, or a release ability charges with right click
+ * held, the blob hops off the palm to the steady source by the glove,
+ * shrinking from the pancake spread over the palm into a smaller cube as it
+ * goes, and stands there in the goo type the glove has selected, beating
+ * between two sizes below the pancake's while the cast is held. Once the
+ * held ticks stop for longer than a stream's gap it comes back down and
+ * smears across the palm into the pancake. The glove's palm draws none
+ * while the blob is off it, so the caster shows one blob, and each Goop or
+ * Slick drip leaves the blob where it stands. The local player's lift reads
+ * the glove press; another caster's reads the held ticks the server passes
+ * on. The local first-person player's blob draws in the hand's pass, over
+ * the glove and turned with it; every other caster's draws in the level,
+ * turned with that caster's look.
  * palm-blob-lifts-as-the-spray-source
+ * every-ability-casts-from-the-lifted-palm-blob
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class LiftedPalmBlob {
@@ -178,15 +183,56 @@ public final class LiftedPalmBlob {
     }
 
     /**
-     * Marks a caster's spray running at a stream tick that threw drips.
+     * Marks a caster's cast held at a tick: a spray's stream tick that threw
+     * drips, a tick the local press held a cast, or one the server passed on
+     * for another caster.
      *
      * @param casterId  the caster's entity id
-     * @param sentGlove the glove the server sent with the stream's tick
+     * @param sentGlove the glove the tick came with
      * @param gameTime  the level's game time the tick reached this client
      */
-    public static void sprayed(int casterId, Vec3 sentGlove, long gameTime) {
+    public static void held(int casterId, Vec3 sentGlove, long gameTime) {
         LIFTS.compute(casterId, (id, lift) -> lift == null ? Lift.beginning(gameTime, sentGlove)
                 : lift.sprayedAt(gameTime, sentGlove));
+    }
+
+    /**
+     * Whether a glove press lifts the palm blob: while a stream or a channel
+     * runs from it, and while a release ability charges with the use key held.
+     * every-ability-casts-from-the-lifted-palm-blob
+     *
+     * @param press the glove press
+     * @return true while the press holds a cast
+     */
+    public static boolean pressLifts(GloveInputGate press) {
+        return press.isArmed() && (press.isStreaming() || press.isPreviewing());
+    }
+
+    /**
+     * Marks another caster's cast held at a tick the server passed on: a
+     * stream or channel it ran, or a charge the caster's client held.
+     * every-ability-casts-from-the-lifted-palm-blob
+     *
+     * @param payload  the held tick
+     * @param gameTime the level's game time the tick reached this client
+     */
+    public static void liftArrived(PalmBlobLiftPayload payload, long gameTime) {
+        held(payload.casterId(), payload.glove(), gameTime);
+    }
+
+    /**
+     * Handles a held tick the server sent for a caster, on the client thread.
+     *
+     * @param payload the held tick
+     * @param context the network context
+     */
+    public static void onPayload(PalmBlobLiftPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.level != null) {
+                liftArrived(payload, mc.level.getGameTime());
+            }
+        });
     }
 
     /**
@@ -353,7 +399,19 @@ public final class LiftedPalmBlob {
     static Optional<Blob> blobOf(int casterId, float partialTick) {
         return standingOf(casterId, partialTick).flatMap(standing -> Optional.ofNullable(
                 GooGloveItem.getSelectedType(gloveOf(standing.caster())))
-                .map(type -> new Blob(standing.place(), type, drawnShapeAt(standing.pose(), standing.now()))));
+                .map(type -> new Blob(standing.place(), type, drawnShapeAt(standing.pose(), standing.now())
+                        .scaled(KnivesCharge.liftedSwellOf(standing.caster(), standing.now())))));
+    }
+
+    /**
+     * Whether a caster's blob stands off the palm at a time.
+     *
+     * @param casterId the caster's entity id
+     * @param now      the game time, with the frame's partial tick
+     * @return true from the lift's start until the settle brings the blob home
+     */
+    public static boolean standsOff(int casterId, double now) {
+        return standsOffThePalm(LIFTS.get(casterId), now);
     }
 
     /**
@@ -391,7 +449,8 @@ public final class LiftedPalmBlob {
         Vec3 source = SpraySource.of(mc.player.getId(), lift.sentGlove(), partial).subtract(camera.position());
         PalmBlobHop.Pose pose = lift.poseAt(now);
         return Optional.of(new HandLift(pose.share(), HandPassView.toHandPass(source, camera.rotation(),
-                camera.getFov()), drawnShapeAt(pose, now), pose.stand()));
+                camera.getFov()), drawnShapeAt(pose, now).scaled(KnivesCharge.liftedSwellOf(mc.player, now)),
+                pose.stand()));
     }
 
     /**
@@ -444,7 +503,7 @@ public final class LiftedPalmBlob {
                 LIFTS.get(player.getId()), now));
     }
 
-    private static boolean standsOffThePalm(@Nullable Lift lift, long now) {
+    private static boolean standsOffThePalm(@Nullable Lift lift, double now) {
         return lift != null && lift.standsAt(now);
     }
 

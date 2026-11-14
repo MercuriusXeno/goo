@@ -1,6 +1,11 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.AbilityBadge;
+import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.client.throwing.BlobShape;
+import com.mercuriusxeno.goo.client.throwing.GloveInputGate;
+import com.mercuriusxeno.goo.network.PalmBlobLiftPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.ResourceKey;
@@ -26,8 +31,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * shrinks to rest size, and a spray pressed again while it settles turns it
  * round from where it stands. The blob rests pressed on the palm and stands
  * into the cube at one volume, the same shape in both passes, and every lift
- * from the palm begins with a hop.
+ * from the palm begins with a hop. Any held press lifts the blob, a stream,
+ * a channel or a charge, and another caster's held ticks lift theirs.
  * palm-blob-lifts-as-the-spray-source
+ * every-ability-casts-from-the-lifted-palm-blob
  * palm-blob-rests-pressed-and-stands-into-the-cube
  * every-lift-begins-with-a-hop
  */
@@ -79,7 +86,7 @@ class LiftedPalmBlobTest {
 
     private static void sprayEveryTickThroughTheEase() {
         for (long tick = NOW; tick <= EASED; tick++) {
-            LiftedPalmBlob.sprayed(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, tick);
+            LiftedPalmBlob.held(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, tick);
         }
     }
 
@@ -173,7 +180,7 @@ class LiftedPalmBlobTest {
         void aStreamTickNowRunsTheSprayAndDrawsTheLiftedBlob() {
             try (SprayingClient client = SprayingClient.another(GooTypes.ZOO)) {
                 client.at(NOW);
-                LiftedPalmBlob.sprayed(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, NOW);
+                LiftedPalmBlob.held(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, NOW);
 
                 assertTrue(LiftedPalmBlob.running(SprayingClient.CASTER, NOW), "the spray should read running");
                 assertTrue(LiftedPalmBlob.blobOf(SprayingClient.CASTER, PARTIAL_TICK).isPresent(),
@@ -186,7 +193,7 @@ class LiftedPalmBlobTest {
             try (SprayingClient client = SprayingClient.another(GooTypes.ZOO)) {
                 long ended = (long) Math.ceil(settledAt(NOW));
                 client.at(ended);
-                LiftedPalmBlob.sprayed(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, NOW);
+                LiftedPalmBlob.held(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, NOW);
 
                 assertFalse(LiftedPalmBlob.running(SprayingClient.CASTER, ended), "the spray should read ended");
                 assertEquals(Optional.empty(), LiftedPalmBlob.blobOf(SprayingClient.CASTER, 0f),
@@ -198,6 +205,115 @@ class LiftedPalmBlobTest {
         void aStreamTickWithinTheStreamsGapKeepsTheSprayRunning() {
             assertTrue(LiftedPalmBlob.runningAt(NOW, NOW + LiftedPalmBlob.STREAM_GAP_TICKS),
                     "a stream tick landing late within the gap should keep the spray running");
+        }
+    }
+
+    /**
+     * A press the gate drives: a stream, a channel run on the player, or a
+     * release ability that previews while held, each answering the held route
+     * of the delivery and badge it was handed.
+     */
+    private record HeldPress(Delivery delivery, AbilityBadge badge) implements GloveInputGate.PressActions {
+
+        @Override
+        public boolean sendThrow(int heldTicks) {
+            return true;
+        }
+
+        @Override
+        public void holdPose() {
+            // the lift reads the press, not the arm
+        }
+
+        @Override
+        public void releasePose() {
+            // the lift reads the press, not the arm
+        }
+
+        @Override
+        public void dropPose() {
+            // the lift reads the press, not the arm
+        }
+
+        @Override
+        public void hold() {
+            // the lift reads the press, not the stream's sends
+        }
+
+        @Override
+        public boolean runsWhileHeld() {
+            return GloveInputGate.runsFromPress(delivery, badge);
+        }
+
+        @Override
+        public boolean eatsOnPress() {
+            return false;
+        }
+    }
+
+    private static GloveInputGate heldThroughTicks(HeldPress actions) {
+        GloveInputGate press = new GloveInputGate();
+        press.arm();
+        for (int tick = 0; tick < PalmBlobHop.LIFT_TICKS; tick++) {
+            press.tick(true, actions);
+        }
+        return press;
+    }
+
+    @Nested
+    class LiftsWhileAnyAbilityIsHeld {
+
+        @Test
+        void aStreamingPressLiftsTheBlob() {
+            assertTrue(LiftedPalmBlob.pressLifts(heldThroughTicks(new HeldPress(Delivery.of(DeliveryKind.STREAM),
+                    AbilityBadge.CHANNELED))), "a stream held should lift the blob");
+        }
+
+        @Test
+        void aChanneledSelfPressLiftsTheBlob() {
+            assertTrue(LiftedPalmBlob.pressLifts(heldThroughTicks(new HeldPress(Delivery.of(DeliveryKind.SELF),
+                    AbilityBadge.CHANNELED))), "a channel run on the player should lift the blob");
+        }
+
+        @Test
+        void aPreviewingPressLiftsTheBlob() {
+            GloveInputGate press = heldThroughTicks(new HeldPress(Delivery.ARC, AbilityBadge.SELF));
+
+            assertTrue(press.isPreviewing(), "a release ability held should preview");
+            assertTrue(LiftedPalmBlob.pressLifts(press), "a release ability charging should lift the blob");
+        }
+
+        @Test
+        void noPressLeavesTheBlobOnThePalm() {
+            assertFalse(LiftedPalmBlob.pressLifts(new GloveInputGate()), "with no press the blob should rest");
+        }
+
+        @Test
+        void aPressLetGoLeavesTheBlobOnThePalm() {
+            HeldPress stream = new HeldPress(Delivery.of(DeliveryKind.STREAM), AbilityBadge.CHANNELED);
+            GloveInputGate press = heldThroughTicks(stream);
+            press.tick(false, stream);
+
+            assertFalse(LiftedPalmBlob.pressLifts(press), "a press let go should let the blob settle");
+        }
+
+        @Test
+        void anotherCastersSyncedHoldLiftsTheBlobAndItSettlesAfterTheHoldsGap() {
+            long last = NOW + PalmBlobHop.LIFT_TICKS;
+            PalmBlobLiftPayload held = new PalmBlobLiftPayload(SprayingClient.CASTER, SprayingClient.SENT_GLOVE);
+            try (SprayingClient client = SprayingClient.another(GooTypes.FROST)) {
+                for (long tick = NOW; tick <= last; tick++) {
+                    client.at(tick);
+                    LiftedPalmBlob.liftArrived(held, tick);
+
+                    assertTrue(LiftedPalmBlob.blobOf(SprayingClient.CASTER, 0f).isPresent(),
+                            "during the hold the caster's blob should stand off the palm, at tick " + tick);
+                }
+                client.at((long) Math.ceil(settledAt(last)));
+
+                assertEquals(Optional.empty(), LiftedPalmBlob.blobOf(SprayingClient.CASTER, 0f),
+                        "past the hold's gap and the settle the blob should rest on the palm");
+            }
         }
     }
 
@@ -332,7 +448,7 @@ class LiftedPalmBlobTest {
         private static void sprayThrough(SprayingClient client, long now, long lastStreamTick) {
             client.at(now);
             for (long tick = NOW; tick <= lastStreamTick; tick++) {
-                LiftedPalmBlob.sprayed(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, tick);
+                LiftedPalmBlob.held(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, tick);
             }
         }
     }
@@ -449,7 +565,7 @@ class LiftedPalmBlobTest {
                 LiftedPalmBlob.Blob blob = null;
                 for (long tick = NOW; tick <= EASED; tick++) {
                     client.at(tick);
-                    LiftedPalmBlob.sprayed(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, tick);
+                    LiftedPalmBlob.held(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, tick);
                     blob = LiftedPalmBlob.blobOf(SprayingClient.CASTER, 0f).orElseThrow();
                     palm = palm == null ? blob.place() : palm;
                     if (tick >= NOW + PalmBlobHop.HOP_TICKS) {
@@ -474,12 +590,12 @@ class LiftedPalmBlobTest {
             long pressedAgain = (long) partWayDown(EASED);
             try (SprayingClient client = SprayingClient.another(GooTypes.ZOO)) {
                 for (long tick = NOW; tick <= EASED; tick++) {
-                    LiftedPalmBlob.sprayed(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, tick);
+                    LiftedPalmBlob.held(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, tick);
                 }
                 client.at(pressedAgain);
                 LiftedPalmBlob.Blob reached = LiftedPalmBlob.blobOf(SprayingClient.CASTER, 0f).orElseThrow();
 
-                LiftedPalmBlob.sprayed(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, pressedAgain);
+                LiftedPalmBlob.held(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, pressedAgain);
                 LiftedPalmBlob.Blob turned = LiftedPalmBlob.blobOf(SprayingClient.CASTER, 0f).orElseThrow();
 
                 assertNear(reached.place(), turned.place());

@@ -198,7 +198,8 @@ public final class KnivesCharge {
     /**
      * Draws the goo swelling in the hand of every player whose arm is wound
      * up, but the local player's in first person, whose glove's palm blob
-     * swells instead.
+     * swells instead, and any player's whose palm blob stands lifted, which
+     * swells where it stands.
      *
      * @param event the level render stage event
      */
@@ -216,7 +217,9 @@ public final class KnivesCharge {
         PoseStack pose = event.getPoseStack();
         for (Player player : mc.level.players()) {
             AbilityPoses.Posed posed = AbilityPoses.posedAt(player.getId());
-            if (woundInTheWorld(posed, firstPerson && player == mc.player)) {
+            // charge-swells-the-palm-blob: the palm blob is the one blob the glove ever shows
+            if (woundInTheWorld(posed, firstPerson && player == mc.player)
+                    && !LiftedPalmBlob.standsOff(player.getId(), now)) {
                 drawWorldBlob(pose, buffers, new WoundHand(player, mc.player, posed), now, partial, camera);
             }
         }
@@ -225,6 +228,25 @@ public final class KnivesCharge {
 
     private static boolean woundInTheWorld(AbilityPoses.Posed posed, boolean ownFirstPerson) {
         return posed != null && posed.holding(ArmPoseKind.WIND_UP) && !ownFirstPerson;
+    }
+
+    /**
+     * How far a caster's charge swells the lifted palm blob: by the share of
+     * the charge it holds while its arm is wound up, and not at all otherwise.
+     * decision charge-swells-the-palm-blob
+     * every-ability-casts-from-the-lifted-palm-blob: Knives' charge swells the blob lifted off the palm
+     *
+     * @param caster the caster
+     * @param now    the game time, with the frame's partial tick
+     * @return the swell against the blob's size, the palm's rest size with no wind-up
+     */
+    public static float liftedSwellOf(Player caster, double now) {
+        AbilityPoses.Posed posed = AbilityPoses.posedAt(caster.getId());
+        LocalPlayer local = Minecraft.getInstance().player;
+        if (posed == null || local == null || !posed.holding(ArmPoseKind.WIND_UP)) {
+            return PALM_REST;
+        }
+        return palmScaleAt(shareFor(caster, local, now - posed.since()));
     }
 
     /**
