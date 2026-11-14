@@ -2,14 +2,16 @@ package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.GloveSelection;
-import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
+import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
+import com.mercuriusxeno.goo.network.PalmBlobChargePayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
@@ -175,7 +177,7 @@ public final class GloveUseTracker {
      */
     @SubscribeEvent
     public static void onUseKeyInteraction(InputEvent.InteractionKeyMappingTriggered event) {
-        cancelUseKey(event, PRESS.isArmed());
+        cancelUseKey(event, PRESS.holdsTheUseKey());
     }
 
     /**
@@ -224,6 +226,26 @@ public final class GloveUseTracker {
             return;
         }
         PRESS.tick(mc.options.keyUse.isDown(), pressActions(player));
+        liftThePalmBlob(mc, player);
+    }
+
+    /**
+     * Keeps the local player's palm blob lifted for a tick the press holds a
+     * cast, and tells the server of a tick a charge holds, which sends
+     * nothing else until it lets go, so the players watching see the lift.
+     * every-ability-casts-from-the-lifted-palm-blob
+     *
+     * @param mc     the client
+     * @param player the local player
+     */
+    private static void liftThePalmBlob(Minecraft mc, LocalPlayer player) {
+        if (mc.level == null || !selectedTypeAvailable || !LiftedPalmBlob.pressLifts(PRESS)) {
+            return;
+        }
+        LiftedPalmBlob.held(player.getId(), player.getEyePosition(), mc.level.getGameTime());
+        if (PRESS.isPreviewing()) {
+            player.connection.send(new ServerboundCustomPayloadPacket(PalmBlobChargePayload.INSTANCE));
+        }
     }
 
     /**
@@ -269,27 +291,9 @@ public final class GloveUseTracker {
         }
 
         @Override
-        public boolean eatsOnPress() {
-            return selectedEats(player);
-        }
-
-        @Override
         public boolean runsWhileHeld() {
             return selectedRunsWhileHeld(player);
         }
-    }
-
-    /**
-     * Whether the held glove's selection is eaten, sending on the press
-     * (decision self-brew-goos-eat-before-the-effect).
-     *
-     * @param player the local player
-     * @return true for a durative selection
-     */
-    private static boolean selectedEats(LocalPlayer player) {
-        GloveSelection selection = GloveThrowSender.heldSelection(player);
-        return selection != null && SelfEatRoute.eats(GloveThrowSender.selectedDelivery(selection.abilityId()),
-                GloveThrowSender.selectedBadge(selection.abilityId()));
     }
 
     /**
@@ -335,6 +339,27 @@ public final class GloveUseTracker {
      */
     static boolean heldVisualRuns(boolean armed, boolean gooLeft) {
         return armed && gooLeft;
+    }
+
+    /**
+     * Whether a charge stands: a press that is not channeled previews with
+     * the use key held.
+     * abilities-not-channeled-charge-and-cancel-on-left-click
+     *
+     * @return true while a charge stands
+     */
+    public static boolean charging() {
+        return PRESS.isPreviewing();
+    }
+
+    /**
+     * Cancels the local player's charge standing, sending nothing.
+     * abilities-not-channeled-charge-and-cancel-on-left-click
+     *
+     * @param player the local player
+     */
+    public static void cancelCharge(LocalPlayer player) {
+        PRESS.cancelCharge(pressActions(player));
     }
 
     /**

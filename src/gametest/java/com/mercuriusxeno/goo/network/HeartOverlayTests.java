@@ -231,9 +231,9 @@ public final class HeartOverlayTests {
     }
 
     /**
-     * Invokes a heart brew the way the glove does and eats it through, so the
+     * Invokes a heart brew the way the glove does, so the
      * hearts stand when the call returns (decision
-     * self-brew-goos-eat-before-the-effect).
+     * durative-self-abilities-wash-over-the-view-in-place-of-eating).
      *
      * @param player  the invoking player
      * @param gooType the brew's goo type
@@ -242,7 +242,6 @@ public final class HeartOverlayTests {
     static void invoke(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, Identifier ability) {
         KnownRecipes.teachRequires(player, AbilityRegistry.of(player.level()).getAbility(ability));
         SelfDeliveryTests.invoke(player, gooType, ability);
-        SelfDeliveryTests.eatThrough(player);
     }
 
     /**

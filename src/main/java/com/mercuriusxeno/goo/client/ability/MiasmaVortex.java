@@ -65,7 +65,7 @@ public final class MiasmaVortex {
             return;
         }
         Camera camera = mc.gameRenderer.getMainCamera();
-        Vec3 hand = GloveAim.handPosition(camera).subtract(camera.position());
+        Vec3 hand = CastOrigin.ofLocal(mc).subtract(camera.position());
         VortexCone vortex = VortexCone.along(hand, player.getViewVector(partialTick), drawn.delivery().range(),
                 drawn.delivery().coneDegrees());
         MiasmaVortexPass.draw(vortex, lastColors, shown, event.getModelViewMatrix());

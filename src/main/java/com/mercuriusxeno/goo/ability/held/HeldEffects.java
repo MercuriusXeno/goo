@@ -33,7 +33,7 @@ import java.util.function.Predicate;
 import java.util.function.ToIntFunction;
 
 /**
- * The durative effects a player holds. An effect stands from the eat that
+ * The durative effects a player holds. An effect stands from the cast that
  * started it until the player invokes it again or the inventory can no longer
  * pay its upkeep, with no timer. A heart-changing effect starting ends every
  * other heart-changing effect, its upkeep stopping with it. Times are absolute

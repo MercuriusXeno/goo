@@ -70,6 +70,50 @@ class WindLinesTest {
         }
     }
 
+    /**
+     * operator ruling: "the cold spray from the blob has the same problem that the decay and mycosis sprays had"
+     * every-ability-casts-from-the-lifted-palm-blob: a line blown from the lifted blob leaves it where it stands
+     */
+    @Nested
+    class LeavesTheBlobWhereItStands {
+
+        private final Vec3 blownFrom = new Vec3(2, 65, 3);
+        /** Where the blob stands a frame later, the caster having run on half a block. */
+        private final Vec3 blobNow = new Vec3(2.5, 65, 3);
+
+        private WindLines.Line blown() {
+            return new WindLines.Line(blownFrom, EAST, SOUTH, EAST.cross(SOUTH), STRAIGHT, WindLines.Sway.NONE, 1, 0f,
+                    true, 0L, false);
+        }
+
+        @Test
+        void aFreshLineFromTheBlobStartsAtTheBlobWhereItStandsNow() {
+            WindLines.Line line = blown().followingTheBlob();
+
+            assertEquals(blobNow, blownFrom.add(WindLines.followShift(line, 0, blobNow)),
+                    "a line just blown should start at the blob where it stands now");
+        }
+
+        @Test
+        void partWayThroughItsFirstTickTheLineEasesFromTheBlobToWhereItWasBlown() {
+            WindLines.Line line = blown().followingTheBlob();
+            Vec3 start = blownFrom.add(WindLines.followShift(line, 0.5, blobNow));
+
+            assertTrue(start.x > blownFrom.x && start.x < blobNow.x, "half a tick on the line's start " + start
+                    + " should stand between where it was blown and the blob");
+        }
+
+        @Test
+        void aTickOnTheLineFliesFreeWhereItWasBlown() {
+            assertEquals(Vec3.ZERO, WindLines.followShift(blown().followingTheBlob(), 1, blobNow));
+        }
+
+        @Test
+        void aLineNotFromTheBlobStaysWhereItWasBlown() {
+            assertEquals(Vec3.ZERO, WindLines.followShift(blown(), 0, blobNow));
+        }
+    }
+
     /** A line blown straight along the look, twisting out south first. */
     private static WindLines.Line line(WindLines.Sway sway) {
         return line(sway, false);

@@ -78,7 +78,7 @@ public final class PetrifyFog {
         }
         range = petrify.delivery().range();
         halfAngle = Math.toRadians(petrify.delivery().coneDegrees() * HALF);
-        Vec3 glove = GloveAim.handPosition(mc.gameRenderer.getMainCamera());
+        Vec3 glove = CastOrigin.ofLocal(mc);
         RandomSource random = level.getRandom();
         for (int puff = 0; puff < PUFFS_PER_TICK; puff++) {
             PUFFS.add(PetrifyPuffs.pour(glove, player.getViewVector(1f), halfAngle,

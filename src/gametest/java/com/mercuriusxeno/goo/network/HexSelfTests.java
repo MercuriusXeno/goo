@@ -84,7 +84,7 @@ public final class HexSelfTests {
 
     private static final Identifier HEX_LIFETAP = Identifier.parse("goo:hex_lifetap");
     private static final String LIFETAP_REQUIRED = "The hex lifetap ability should be loaded";
-    private static final String SHOULD_HOLD_LIFETAP = "The finished eat should hold a lifetap";
+    private static final String SHOULD_HOLD_LIFETAP = "The landed Lifetap should hold a lifetap";
     private static final String SHOULD_NOT_REGEN = "A lifetapped player at full hunger should not regenerate, health %.2f to %.2f";
     private static final String SHOULD_LEECH = "A hit dealing %.2f should heal the lifetapped player, healed %.2f";
     /** A player's health low enough that food would regenerate it. */
@@ -214,7 +214,7 @@ public final class HexSelfTests {
     }
 
     /**
-     * A survival player at full hunger eats Lifetap from the glove: over
+     * A survival player at full hunger casts Lifetap from the glove: over
      * the watch food never regenerates their health, and a hit on a zombie
      * heals them
      * (decision lifetap-trades-regen-for-leech).
@@ -229,7 +229,6 @@ public final class HexSelfTests {
         player.getInventory().add(GooStacks.createForOutput(GooTypes.HEX, HELD_HEX));
         KnownRecipes.teachRequires(player, lifetap);
         SelfDeliveryTests.invoke(player, GooTypes.HEX, HEX_LIFETAP);
-        SelfDeliveryTests.eatThrough(player);
         helper.assertTrue(player.getData(GooAttachments.LIFETAP).standsAt(player.level().getGameTime()),
                 SHOULD_HOLD_LIFETAP);
         player.getFoodData().eat(20, 20f);

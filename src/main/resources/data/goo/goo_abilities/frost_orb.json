@@ -42,5 +42,5 @@
     { "type": "freeze_blocks", "radius": 6, "lasting": false },
     { "type": "sound", "id": "minecraft:block.glass.break", "at": "host", "source": "players", "volume": 1, "pitch": 0.8 }
   ],
-  "tags": ["no_splat"]
+  "tags": ["no_splat", "centered"]
 }

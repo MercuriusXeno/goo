@@ -39,7 +39,7 @@ import java.util.Set;
 
 /**
  * Holds a player's durative effects on the server: starts one when the
- * glove's eat finishes, ends one when the player invokes it again, and each
+ * glove's cast lands, ends one when the player invokes it again, and each
  * tick draws every effect's upkeep from the inventory, ending one the
  * inventory can no longer pay. Ending an effect clears the state its program
  * laid, and its goo type's held mob effect with it. While an effect stands,

@@ -133,7 +133,7 @@ public final class SignalRings {
 
     private static Ray streamRay(Minecraft mc, LocalPlayer player, ClientAbility signal) {
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        return new Ray(GloveAim.handPosition(mc.gameRenderer.getMainCamera()), player.getViewVector(partialTick),
+        return new Ray(CastOrigin.ofLocal(mc), player.getViewVector(partialTick),
                 signal.delivery().range(), signal.delivery().coneDegrees(), shapeOf(signal));
     }
 

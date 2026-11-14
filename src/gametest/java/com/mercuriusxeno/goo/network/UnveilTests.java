@@ -40,23 +40,23 @@ public final class UnveilTests {
     }
 
 
-    /** Goo the players carry, in thousands: enough for the eat and its upkeep. */
+    /** Goo the players carry, in thousands: enough for the cast and its upkeep. */
     private static final int HELD_GOO = 2;
     private static final Identifier XENO_UNVEIL = Identifier.parse("goo:xeno_unveil");
-    private static final String SHOULD_HOLD = "Once the eat finishes the player should hold Unveil";
+    private static final String SHOULD_HOLD = "Once it lands the player should hold Unveil";
     private static final String SHOULD_TARGET_HELD = "An out-of-phase zombie should target the player holding Unveil, targeted %s";
 
     private UnveilTests() {
     }
 
     /**
-     * A survival player eats Unveil from the glove: an out-of-phase
+     * A survival player casts Unveil from the glove: an out-of-phase
      * zombie offered the player takes it for its target.
      *
      * @param helper the gametest helper
      */
     public static void unveiledPlayerIsSeen(GameTestHelper helper) {
-        ServerPlayer holder = eatenUnveil(helper);
+        ServerPlayer holder = castUnveil(helper);
         boolean held = holder.getData(GooAttachments.HELD_EFFECTS).holds(XENO_UNVEIL);
         Zombie zombie = outOfPhaseZombie(helper);
 
@@ -80,13 +80,12 @@ public final class UnveilTests {
     }
 
     /**
-     * A targetable player who invoked Unveil from the glove and ate
-     * it through, ticked once so the held effect stands.
+     * A targetable player who cast Unveil from the glove, ticked once so
+     * the held effect stands.
      */
-    private static ServerPlayer eatenUnveil(GameTestHelper helper) {
+    private static ServerPlayer castUnveil(GameTestHelper helper) {
         ServerPlayer player = targetable(helper);
         SelfDeliveryTests.invoke(player, GooTypes.XENO, XENO_UNVEIL);
-        SelfDeliveryTests.eatThrough(player);
         player.doTick();
         return player;
     }

@@ -175,13 +175,13 @@ public final class GooThrowHandler {
      * the goo in the player's inventory are checked, the goo is depleted,
      * the flight is broadcast and the effect scheduled for arrival. A mob
      * ability aimed at an entity within reach touches it at once instead,
-     * and a self ability runs on the player: on command, or after the eat
-     * for a durative ability. A throw naming no ability the player may
+     * and a self ability runs on the player: on command, or held from the release
+     * of a durative charge. A throw naming no ability the player may
      * use, or consuming an item the player lacks, is refused whole, draining nothing,
      * and so is one whose ability refuses the block it strikes.
      * decision mob-ability-touches-at-reach
      * decision self-delivery-runs-on-player
-     * decision self-brew-goos-eat-before-the-effect
+     * decision durative-self-abilities-wash-over-the-view-in-place-of-eating
      * decision ability-hidden-until-recipes-known
      * decision ability-json-names-its-reagent
      *
