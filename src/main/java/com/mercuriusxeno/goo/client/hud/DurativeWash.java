@@ -30,8 +30,11 @@ import org.jspecify.annotations.Nullable;
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class DurativeWash {
 
-    /** The ticks a wash takes from its opening in the middle to the view clear again. */
-    static final int WASH_TICKS = 24;
+    /**
+     * The ticks a wash takes from its opening in the middle to the view clear again, half a second.
+     * operator ruling: "that needs to be significantly faster"
+     */
+    static final int WASH_TICKS = 10;
     /** The share of the wash the fill takes to wash past the edges; the rest is its emptying. */
     static final double SWELL_SHARE = 0.3;
     /**
