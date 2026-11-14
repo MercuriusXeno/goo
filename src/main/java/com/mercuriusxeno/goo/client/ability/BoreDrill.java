@@ -26,21 +26,23 @@ import java.util.function.Predicate;
 /**
  * Bore's drill: while right click holds a bore stream, a vortex of earth
  * magic extends from Bore's blob, which lifts by the glove and eases forward
- * to hold the drill 2 blocks long at its angle off the sight line
- * ({@link BoreBlobPlace}), to its point, which floats along the crosshair to
- * the aimed block: where the sight meets the first breakable block within
- * reach, the face of a solid block outside the tag, or the end of reach. It
- * starts at the blob with a wide mouth and narrows to the point, never wider
- * than a block, as wide at its point as what Bore breaks, and follows the
- * point deeper as blocks break. The drill and the break each read the aim,
- * so where Bore breaks matches where the drill draws because the two are in
- * sync. It is clipped by the blocks it meets, and {@link BoreContactSpray}
- * spits their particles at its point. {@link BoreDrillPass} marches it as
+ * to hold the drill at its angle off the sight line ({@link BoreBlobPlace}),
+ * through its cross section, which floats along the crosshair to the aimed
+ * block at the depth the tube of rays sets, to its tip just past it in the
+ * block. It is the cone the break reads ({@link BoreDrillShape}), set once
+ * in the JSON: as wide at the blob as its width, tapering to a true point,
+ * never wider than a block, so where it crosses the crosshair's plane it is
+ * the ellipse Bore breaks with, and it follows the cross section deeper as
+ * blocks break. The drill and the break each read the aim and the drill's
+ * dimensions, so the two are in sync. It is clipped by the blocks it meets,
+ * and {@link BoreContactSpray} spits their particles across its cross section. {@link BoreDrillPass} marches it as
  * Drain's vortex is marched: a churning, sparse, patchy swirl of earthy dust
  * in rock's tones, its cone defined by a rifled shell, ragged.
  * decision bore-shows-a-big-drill-from-the-glove
  * decision bore-blob-lifts-by-the-glove-and-the-drill-extends-from-that-hand
  * decision bore-drill-is-two-blocks-held-at-an-angle-off-the-sight-line
+ * decision bore-drill-dimensions-drive-the-visuals-and-the-break
+ * decision bore-cross-section-is-where-the-angled-drill-meets-the-look-plane
  * decision bore-drill-point-floats-along-the-crosshair-to-the-aimed-block
  * decision bore-breaks-what-is-in-the-vortex
  * decision bore-vortex-with-a-worldspace-shake
@@ -52,8 +54,6 @@ public final class BoreDrill {
     private static final int RINGS = 1;
     /** How many ticks the vortex takes to pour out to its full length. */
     static final double EMERGE_TICKS = 5;
-    /** The drill's radius at its wide mouth, in blocks, under the half block that keeps it narrower than a block. */
-    static final double MOUTH_RADIUS = 0.35;
     /** Ticks the vortex takes to build up to full once the bore starts. */
     static final double FADE_IN_TICKS = 6;
     /** Ticks the vortex takes to disperse once the bore ends. */
@@ -85,23 +85,40 @@ public final class BoreDrill {
     }
 
     /**
-     * The drill at its full length: from its mouth at the lifted blob to its
-     * point, narrowing from its wide mouth to the point radius the bore
-     * breaks with, so its point is as wide as what Bore breaks.
+     * The drill: the cone the break reads, from its mouth at the blob through
+     * the cross section's center on the crosshair's plane to its tip, the
+     * shape's past length beyond, tapering to a true point at the shape's
+     * slope, so its section on the plane is the ellipse Bore breaks with and a
+     * drill shortened for a near block keeps that section.
+     * decision bore-drill-dimensions-drive-the-visuals-and-the-break
+     * decision bore-cross-section-is-where-the-angled-drill-meets-the-look-plane
      * decision bore-blob-lifts-by-the-glove-and-the-drill-extends-from-that-hand
-     * decision bore-breaks-what-is-in-the-vortex
      *
-     * @param mouth       the lifted blob's place, where the drill starts
-     * @param point       the drill's point, {@link #pointOf}'s, in the same space as the mouth
-     * @param yaw         the look's yaw in degrees
-     * @param pointRadius the radius of the point the bore breaks at, the bore step's JSON number
+     * @param mouth the blob's place, where the drill starts
+     * @param point the cross section's center, {@link #pointOf}'s, in the same space as the mouth
+     * @param shape the drill cone, the bore step's
+     * @param yaw   the look's yaw in degrees
      * @return the drill, its apex at the mouth
      */
-    static ConeSections.Volume volume(Vec3 mouth, Vec3 point, float yaw, double pointRadius) {
-        Vec3 toPoint = point.subtract(mouth);
-        double length = toPoint.length();
-        return new ConeSections.Volume(mouth, toPoint.normalize(), yaw, 0, length, RINGS,
-                distance -> MOUTH_RADIUS + (pointRadius - MOUTH_RADIUS) * Math.clamp(distance / length, 0, 1));
+    static ConeSections.Volume volume(Vec3 mouth, Vec3 point, BoreDrillShape shape, float yaw) {
+        Vec3 toTip = tipOf(mouth, point, shape).subtract(mouth);
+        double length = toTip.length();
+        return new ConeSections.Volume(mouth, toTip.normalize(), yaw, 0, length, RINGS,
+                distance -> shape.taper() * Math.max(0, length - distance));
+    }
+
+    /**
+     * Where the drill's tip stands: the shape's past length beyond the cross
+     * section's center, on the line from the blob through it, inside the block.
+     * decision bore-cross-section-is-where-the-angled-drill-meets-the-look-plane
+     *
+     * @param mouth the blob's place
+     * @param point the cross section's center
+     * @param shape the drill cone
+     * @return the tip
+     */
+    static Vec3 tipOf(Vec3 mouth, Vec3 point, BoreDrillShape shape) {
+        return point.add(point.subtract(mouth).normalize().scale(shape.pastLength()));
     }
 
     /**
@@ -173,7 +190,7 @@ public final class BoreDrill {
         ConeSections.Volume full = volume(CastOrigin.ofLocal(mc).subtract(camera),
                 pointAhead(mc.level, CameraEye.of(mc, player, partialTick), lastStep,
                         KnifeRainSling.gloveOnTheRight(player), lastReach).subtract(camera),
-                player.getViewYRot(partialTick), lastStep.pointRadius());
+                lastStep.shape(), player.getViewYRot(partialTick));
         double poured = held ? emergedShare(GloveUseTracker.channelTicks() + partialTick) : 1;
         BoreDrillPass.draw(emerged(full, poured), presence, event.getModelViewMatrix());
     }

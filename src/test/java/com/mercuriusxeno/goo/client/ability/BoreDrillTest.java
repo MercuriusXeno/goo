@@ -1,34 +1,30 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.program.BoreDrillShape;
-import com.mercuriusxeno.goo.ability.program.BoreStep;
-import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Bore's drawn drill extends from Bore's blob, wherever it has eased to, to
- * its point: where the sight meets the first breakable
- * block within reach, or the end of reach where it meets none. It narrows
- * from a wide mouth at the blob to the point radius Bore breaks with, never
- * wider than a block
- * (decisions bore-blob-lifts-by-the-glove-and-the-drill-extends-from-that-hand,
+ * Bore's drawn drill is the cone the break reads: it extends from Bore's
+ * blob, wherever it has eased to, past the cross section's center on the
+ * crosshair's plane to its tip, the past length beyond; as wide at the blob
+ * as the step's width and tapering to a true point, so its section on the
+ * plane is the ellipse the break picks with
+ * (decisions bore-drill-dimensions-drive-the-visuals-and-the-break,
+ * bore-cross-section-is-where-the-angled-drill-meets-the-look-plane,
+ * bore-blob-lifts-by-the-glove-and-the-drill-extends-from-that-hand,
  * bore-drill-point-floats-along-the-crosshair-to-the-aimed-block, bore-shows-a-big-drill-from-the-glove).
  */
 class BoreDrillTest {
 
     /** A survival player's block reach. */
     private static final double REACH = 4.5;
-    /** rock_bore.json's point radius. */
-    private static final double POINT_RADIUS = 0.1;
+    private static final BoreDrillShape SHIPPED = BoreDrillShape.SHIPPED;
     private static final double SLACK = 1e-9;
     private static final double HALF_A_BLOCK = 0.5;
     /** An eye in the middle of a block's face height, looking along +Z, level. */
@@ -38,7 +34,7 @@ class BoreDrillTest {
     /** Yaw 0 looks along +Z. */
     private static final float YAW = 0f;
     /** Where the lifted blob rests by a glove in the right hand: right is -X facing +Z. */
-    private static final Vec3 RIGHT_HAND_BLOB = EYE.add(-0.4, -0.35, 0.6);
+    private static final Vec3 RIGHT_HAND_REST = SpraySource.inView(EYE, 0f, YAW, true);
     private static final int SAMPLES = 64;
     private static final Predicate<BlockPos> NOTHING = cell -> false;
 
@@ -46,101 +42,59 @@ class BoreDrillTest {
         return volume.apex().add(volume.axis().scale(volume.range()));
     }
 
+    /** The drill held on a depth point as the blob eases it: from the blob's place to its tip. */
+    private static ConeSections.Volume heldOn(Vec3 point, BoreDrillShape shape) {
+        Vec3 place = BoreBlobPlace.placeFor(EYE, LOOK, point, RIGHT_HAND_REST, shape);
+        return BoreDrill.volume(place, point, shape, YAW);
+    }
+
+    /** The drill's radius where its axis crosses the crosshair's plane, at the depth point. */
+    private static double radiusAtThePlane(ConeSections.Volume drill, Vec3 point) {
+        return drill.radiusAt().applyAsDouble(point.distanceTo(drill.apex()));
+    }
+
     /**
      * The drill extends from the blob wherever it has eased to: its mouth at
-     * the blob's place and its far end at the point
-     * (decisions bore-blob-lifts-by-the-glove-and-the-drill-extends-from-that-hand,
+     * the blob's place and its far end at the tip, the past length beyond the
+     * depth point (decisions bore-blob-lifts-by-the-glove-and-the-drill-extends-from-that-hand,
      * bore-blob-eases-to-place-the-drill-at-the-crosshair).
      */
     @Nested
     class TheMouth {
 
         @Test
-        void itStandsAtTheBlobsEasedPlaceAndItsFarEndAtThePoint() {
-            Vec3 point = BoreDrill.pointOf(SIGHT, REACH, BoreDrillShape.SHIPPED, true, NOTHING.negate(), NOTHING);
-            Vec3 eased = BoreBlobPlace.placeFor(EYE, LOOK, point, RIGHT_HAND_BLOB, 2, 22.5);
-            ConeSections.Volume drill = BoreDrill.volume(eased, point, YAW, POINT_RADIUS);
-            assertTrue(eased.distanceTo(RIGHT_HAND_BLOB) > 0.5, "the place stands at the glove's rest");
+        void itStandsAtTheBlobsEasedPlaceAndItsFarEndAtTheTipPastThePoint() {
+            Vec3 point = BoreDrill.pointOf(SIGHT, REACH, SHIPPED, true, NOTHING.negate(), NOTHING);
+            Vec3 eased = BoreBlobPlace.placeFor(EYE, LOOK, point, RIGHT_HAND_REST, SHIPPED);
+            ConeSections.Volume drill = BoreDrill.volume(eased, point, SHIPPED, YAW);
+            assertTrue(eased.distanceTo(RIGHT_HAND_REST) > 0.5, "the place stands at the glove's rest");
             assertEquals(eased, drill.apex());
-            assertEquals(0, farEndOf(drill).distanceTo(point), 1e-6);
+            assertEquals(0, farEndOf(drill).distanceTo(point.add(drill.axis().scale(SHIPPED.pastLength()))), 1e-6);
         }
     }
 
+    /** The point seam answers the cross section's center on the sight line, which the drill passes through. */
     @Nested
     class ThePoint {
 
         @Test
         void itStandsWhereTheSightMeetsABreakableBlockTwoBlocksOut() {
             BlockPos stone = BlockPos.containing(EYE.add(LOOK.scale(2.5)));
-            Vec3 point = BoreDrill.pointOf(SIGHT, REACH, BoreDrillShape.SHIPPED, true, cell -> !cell.equals(stone),
-                    stone::equals);
-            ConeSections.Volume drill = BoreDrill.volume(RIGHT_HAND_BLOB, point, YAW, POINT_RADIUS);
-            assertEquals(0, farEndOf(drill).distanceTo(new Vec3(EYE.x, EYE.y, stone.getZ())), 1e-6);
+            Vec3 point = BoreDrill.pointOf(SIGHT, REACH, SHIPPED, true, cell -> !cell.equals(stone), stone::equals);
+            assertEquals(0, point.distanceTo(new Vec3(EYE.x, EYE.y, stone.getZ())), 1e-6);
         }
 
         @Test
         void itStandsAtTheFaceOfASolidBlockOutsideTheTagTwoBlocksOut() {
             BlockPos bedrock = BlockPos.containing(EYE.add(LOOK.scale(2.5)));
-            Vec3 point = BoreDrill.pointOf(SIGHT, REACH, BoreDrillShape.SHIPPED, true, cell -> !cell.equals(bedrock),
-                    NOTHING);
-            ConeSections.Volume drill = BoreDrill.volume(RIGHT_HAND_BLOB, point, YAW, POINT_RADIUS);
-            assertEquals(0, farEndOf(drill).distanceTo(new Vec3(EYE.x, EYE.y, bedrock.getZ())), 1e-6);
+            Vec3 point = BoreDrill.pointOf(SIGHT, REACH, SHIPPED, true, cell -> !cell.equals(bedrock), NOTHING);
+            assertEquals(0, point.distanceTo(new Vec3(EYE.x, EYE.y, bedrock.getZ())), 1e-6);
         }
 
         @Test
-        void itStandsAtTheEndOfReachWhereTheSightMeetsNoBreakableBlock() {
-            Vec3 point = BoreDrill.pointOf(SIGHT, REACH, BoreDrillShape.SHIPPED, true, NOTHING.negate(), NOTHING);
-            ConeSections.Volume drill = BoreDrill.volume(RIGHT_HAND_BLOB, point, YAW, POINT_RADIUS);
-            assertEquals(0, farEndOf(drill).distanceTo(EYE.add(LOOK.scale(REACH))), 1e-6);
-        }
-    }
-
-    /**
-     * The drill never passes into a block Bore is not drilling: every solid
-     * block its drawn body overlaps is one the bore's pick holds
-     * (decisions bore-drill-point-floats-along-the-crosshair-to-the-aimed-block,
-     * bore-breaks-what-is-in-the-vortex).
-     */
-    @Nested
-    class TheBlocksItEnters {
-
-        private static final int AROUND = 16;
-
-        /** Every cell the drawn drill's body overlaps, sampled along it and round its rim. */
-        private static Set<BlockPos> cellsEntered(ConeSections.Volume drill) {
-            Set<BlockPos> cells = new HashSet<>();
-            Vec3 side = Math.abs(drill.axis().y) > 0.99 ? new Vec3(1, 0, 0) : new Vec3(0, 1, 0);
-            Vec3 across = drill.axis().cross(side).normalize();
-            Vec3 lift = drill.axis().cross(across).normalize();
-            for (int sample = 0; sample < SAMPLES; sample++) {
-                double distance = drill.range() * sample / SAMPLES;
-                double radius = drill.radiusAt().applyAsDouble(distance) * 0.95;
-                Vec3 middle = drill.apex().add(drill.axis().scale(distance));
-                cells.add(BlockPos.containing(middle));
-                for (int turn = 0; turn < AROUND; turn++) {
-                    double angle = 2 * Math.PI * turn / AROUND;
-                    cells.add(BlockPos.containing(middle.add(across.scale(Math.cos(angle) * radius))
-                            .add(lift.scale(Math.sin(angle) * radius))));
-                }
-            }
-            return cells;
-        }
-
-        private static Set<BlockPos> undrilledEntered(Vec3 blob, CameraEye.Sight sight, Predicate<BlockPos> solid,
-                                                      Predicate<BlockPos> breakable) {
-            Predicate<BlockPos> air = solid.negate();
-            Vec3 point = BoreDrill.pointOf(sight, REACH, BoreDrillShape.SHIPPED, true, air, breakable);
-            ChannelAim aim = new ChannelAim(sight.eye().add(sight.look().scale(REACH)), null, 0);
-            Set<BlockPos> picked = Set.copyOf(BoreStep.progressing(sight.eye(), BoreDrillShape.SHIPPED, true, aim, air,
-                    breakable));
-            Set<BlockPos> entered = cellsEntered(BoreDrill.volume(blob, point, YAW, POINT_RADIUS));
-            return entered.stream().filter(solid).filter(cell -> !picked.contains(cell)).collect(Collectors.toSet());
-        }
-
-        @Test
-        void itStopsAtASolidBlockItCannotBreak() {
-            BlockPos bedrock = BlockPos.containing(EYE.add(LOOK.scale(2.5)));
-            assertEquals(Set.of(), undrilledEntered(RIGHT_HAND_BLOB, SIGHT, bedrock::equals, NOTHING));
+        void itStandsAtTheEndOfReachWhereTheSightMeetsNoBlock() {
+            Vec3 point = BoreDrill.pointOf(SIGHT, REACH, SHIPPED, true, NOTHING.negate(), NOTHING);
+            assertEquals(0, point.distanceTo(EYE.add(LOOK.scale(REACH))), 1e-6);
         }
     }
 
@@ -161,14 +115,28 @@ class BoreDrillTest {
         }
     }
 
+    /**
+     * The drill is as wide at the blob as the step's width, narrows to a true
+     * point at its tip, and where it crosses the crosshair's plane its section
+     * is the ellipse the break picks with
+     * (decision bore-drill-dimensions-drive-the-visuals-and-the-break).
+     */
     @Nested
     class Radius {
 
-        @Test
-        void itNarrowsFromItsMouthAtTheBlobToThePointRadiusAndIsNeverWiderThanABlock() {
-            Vec3 point = BoreDrill.pointOf(SIGHT, REACH, BoreDrillShape.SHIPPED, true, NOTHING.negate(), NOTHING);
-            ConeSections.Volume drill = BoreDrill.volume(RIGHT_HAND_BLOB, point, YAW, POINT_RADIUS);
-            assertEquals(POINT_RADIUS, drill.radiusAt().applyAsDouble(drill.range()), SLACK);
+        /**
+         * The cone's square section where its axis crosses the plane, taper times past length, against the
+         * slanted ellipse's short half, that over the root of one less the squared taper and tangent: under
+         * one percent apart for any drill never wider than a block held under 45 degrees.
+         */
+        private static final double SECTION_SHARE = 0.01;
+
+        private void assertTheConeTheBreakReads(BoreDrillShape shape) {
+            Vec3 point = EYE.add(LOOK.scale(4));
+            ConeSections.Volume drill = heldOn(point, shape);
+            assertEquals(shape.width() / 2, drill.radiusAt().applyAsDouble(0), 1e-6);
+            assertEquals(0, drill.radiusAt().applyAsDouble(drill.range()), 1e-6);
+            assertEquals(shape.shortHalf(), radiusAtThePlane(drill, point), shape.shortHalf() * SECTION_SHARE);
             double previous = Double.MAX_VALUE;
             for (int sample = 0; sample <= SAMPLES; sample++) {
                 double distance = drill.range() * sample / SAMPLES;
@@ -177,7 +145,25 @@ class BoreDrillTest {
                 assertTrue(radius <= HALF_A_BLOCK, "the drill is " + 2 * radius + " wide at " + distance);
                 previous = radius;
             }
-            assertTrue(drill.radiusAt().applyAsDouble(0) > POINT_RADIUS, "the drill's mouth is no wider than its point");
+        }
+
+        @Test
+        void theShippedDrillIsTheConeTheBreakReads() {
+            assertTheConeTheBreakReads(SHIPPED);
+        }
+
+        @Test
+        void aWiderDrillReachingFartherPastIsTheConeItsBreakReads() {
+            assertTheConeTheBreakReads(new BoreDrillShape(1, 2, 22.5, 1));
+        }
+
+        @Test
+        void aNearDrillShortensFromTheBlobAndKeepsItsSectionOnThePlane() {
+            Vec3 near = EYE.add(LOOK.scale(1.2));
+            Vec3 far = EYE.add(LOOK.scale(4));
+            ConeSections.Volume nearDrill = heldOn(near, SHIPPED);
+            assertTrue(nearDrill.range() < SHIPPED.length(), "the near drill runs " + nearDrill.range() + " long");
+            assertEquals(radiusAtThePlane(heldOn(far, SHIPPED), far), radiusAtThePlane(nearDrill, near), 1e-6);
         }
     }
 }

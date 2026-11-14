@@ -57,8 +57,6 @@ class GroundShakeTest {
     private static final Vec3 LOOK_EAST = new Vec3(1, 0, 0);
     private static final double BORE_RANGE = 8;
     private static final double BORE_CONE_DEGREES = 15;
-    /** rock_bore.json's point radius. */
-    private static final double POINT_RADIUS = 0.1;
     private static final BreakPace PACE = new BreakPace(5, 1.5);
     /** The jitter's amplitude before this change, read from GroundShake.AMPLITUDE at 128a57da7. */
     private static final double PREVIOUS_AMPLITUDE = 0.04;
@@ -362,7 +360,7 @@ class GroundShakeTest {
             Predicate<BlockPos> rock = cell -> cell.getX() >= 1 && cell.getX() <= 7;
 
             GroundShake.Zone zone = GroundShake.boreZoneAlong(drawnFrom,
-                    new BoreStep(BREAKABLE, PACE, POINT_RADIUS, List.of(), List.of()), true, BORE_RANGE,
+                    new BoreStep(BREAKABLE, PACE, List.of(), List.of()), true, BORE_RANGE,
                     rock.negate(), rock);
 
             Vec3 point = BoreDrill.pointOf(drawnFrom, BORE_RANGE, BoreDrillShape.SHIPPED, true, rock.negate(), rock);

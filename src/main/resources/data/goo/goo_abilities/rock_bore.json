@@ -9,7 +9,7 @@
     "sound": { "id": "goo:effects.earth_rumble", "every": 40, "volume": 0.35, "pitch": 1.0, "pitch_spread": 0.0, "loop": true } },
   "behaviors": [
     {
-      "type": "bore", "breaks": "goo:bore_breakable", "break_ticks": 5, "slowdown": 2, "point_radius": 0.1, "drill_width": 0.7, "drill_length": 2, "drill_angle": 22.5, "past_length": 0.5,
+      "type": "bore", "breaks": "goo:bore_breakable", "break_ticks": 5, "slowdown": 2, "drill_width": 0.7, "drill_length": 2, "drill_angle": 22.5, "past_length": 0.5,
       "where": ["vulnerable"],
       "strike": [
         { "type": "damage", "amount": 2, "source": "attack", "knockback": false, "invulnerable_ticks": 10 }

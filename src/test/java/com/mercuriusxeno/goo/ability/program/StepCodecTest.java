@@ -137,7 +137,7 @@ class StepCodecTest {
             Map.entry("level", new LevelStep(TagKey.create(Registries.BLOCK,
                     Identifier.fromNamespaceAndPath("goo", "level_breakable")), new BreakPace(5, 1.5))),
             Map.entry("bore", new BoreStep(TagKey.create(Registries.BLOCK,
-                    Identifier.fromNamespaceAndPath("goo", "bore_breakable")), new BreakPace(5, 1.5), 0.1, List.of(),
+                    Identifier.fromNamespaceAndPath("goo", "bore_breakable")), new BreakPace(5, 1.5), new BoreDrillShape(0.6, 3, 10, 1), List.of(),
                     List.of())),
             Map.entry("spire", new SpireStep()),
             Map.entry("petrify", new PetrifyStep(Expr.literal(2))),

@@ -42,21 +42,18 @@ import java.util.stream.Stream;
  *
  * @param breaks      the block tag naming the blocks bore may break
  * @param pace        how fast the picked blocks progress toward broken, and how many times slower the blocks behind
- * @param pointRadius the drawn drill's radius at its point, in blocks; the break reads the shape instead
- * @param shape       the drill cone, set once: its width, length, angle and length past the crosshair's plane
+ * @param shape       the drill cone, set once: its width, length, angle and length past the crosshair's plane;
+ *                    the drawn drill and the break both read it
  * @param where       the filters an entity in the tunnel must pass to be struck
  * @param strike      the steps run on each struck entity; empty strikes nothing
  */
-public record BoreStep(TagKey<Block> breaks, BreakPace pace, double pointRadius, BoreDrillShape shape,
-                       List<EntityFilter> where, List<Step> strike) implements Step {
+public record BoreStep(TagKey<Block> breaks, BreakPace pace, BoreDrillShape shape, List<EntityFilter> where,
+                       List<Step> strike) implements Step {
 
     private static final String NAME = "bore";
     private static final String FIELD_BREAKS = "breaks";
     private static final String FIELD_WHERE = "where";
     private static final String FIELD_STRIKE = "strike";
-    private static final String FIELD_POINT_RADIUS = "point_radius";
-    /** The widest the point's radius runs: half a block, so the point is never wider than a block. */
-    private static final double WIDEST_RADIUS = 0.5;
     /** The distance between samples along the look, fine enough to visit every block it crosses. */
     private static final double SAMPLE_STEP = 0.05;
 
@@ -67,8 +64,6 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, double pointRadius,
     public static final MapCodec<BoreStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             TagKey.codec(Registries.BLOCK).fieldOf(FIELD_BREAKS).forGetter(BoreStep::breaks),
             BreakPace.CODEC.forGetter(BoreStep::pace),
-            Codec.doubleRange(0, WIDEST_RADIUS).optionalFieldOf(FIELD_POINT_RADIUS, 0.0)
-                    .forGetter(BoreStep::pointRadius),
             // bore-drill-dimensions-drive-the-visuals-and-the-break
             BoreDrillShape.CODEC.forGetter(BoreStep::shape),
             EntityFilter.CODEC.listOf().optionalFieldOf(FIELD_WHERE, List.of()).forGetter(BoreStep::where),
@@ -88,21 +83,7 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, double pointRadius,
      * @param pace   how fast the picked blocks progress toward broken
      */
     public BoreStep(TagKey<Block> breaks, BreakPace pace) {
-        this(breaks, pace, 0, List.of(), List.of());
-    }
-
-    /**
-     * A bore whose drill takes rock_bore.json's shape.
-     *
-     * @param breaks      the block tag naming the blocks bore may break
-     * @param pace        how fast the picked blocks progress toward broken
-     * @param pointRadius the drawn drill's radius at its point, in blocks
-     * @param where       the filters an entity in the tunnel must pass to be struck
-     * @param strike      the steps run on each struck entity
-     */
-    public BoreStep(TagKey<Block> breaks, BreakPace pace, double pointRadius, List<EntityFilter> where,
-                    List<Step> strike) {
-        this(breaks, pace, pointRadius, BoreDrillShape.SHIPPED, where, strike);
+        this(breaks, pace, List.of(), List.of());
     }
 
     /**
@@ -114,7 +95,7 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, double pointRadius,
      * @param strike the steps run on each struck entity
      */
     public BoreStep(TagKey<Block> breaks, BreakPace pace, List<EntityFilter> where, List<Step> strike) {
-        this(breaks, pace, 0, where, strike);
+        this(breaks, pace, BoreDrillShape.SHIPPED, where, strike);
     }
 
     @Override

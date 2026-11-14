@@ -64,7 +64,7 @@ public record BoreDrillShape(double width, double length, double angle, double p
      *
      * @return the taper
      */
-    double taper() {
+    public double taper() {
         return width * HALF / length;
     }
 

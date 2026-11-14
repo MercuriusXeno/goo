@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.program.BoreDrillShape;
 import com.mercuriusxeno.goo.ability.program.BoreStep;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.network.KnifeRainSling;
@@ -12,12 +13,13 @@ import java.util.Map;
 
 /**
  * Where Bore's blob stands while a bore runs: it lifts by the glove and eases
- * forward from there to hold the drill on the crosshair, the drill's length
- * back from its point on a line the drill's angle off the sight line, toward
- * the glove's side and below the crosshair, where the lifted rest lies off
- * the sight line. For a point nearer than that the blob stands no nearer the
- * eye than its rest: the drill shortens and its angle holds, so the blob
- * slides in toward the sight line. The place is eased in the view's frame,
+ * forward from there to hold the drill's cross section on the crosshair, the
+ * drill's length less its past length back from the cross section's center
+ * on a line the drill's angle off the sight line, toward the glove's side and
+ * below the crosshair, where the lifted rest lies off the sight line. For a
+ * point nearer than that the blob stands no nearer the eye than its rest:
+ * the drill shortens from the blob's end and its angle, tip and section on
+ * the plane hold, so the blob slides in toward the sight line. The place is eased in the view's frame,
  * so the blob turns with the view at once and only a point moving deeper or
  * nearer eases it, never snapping it.
  * decision bore-drill-is-two-blocks-held-at-an-angle-off-the-sight-line
@@ -51,22 +53,25 @@ public final class BoreBlobPlace {
     }
 
     /**
-     * The place the blob is bound for: the drill's length back from its point
-     * on a line its angle off the look, turned toward the rest's side of the
-     * sight line; or, where that stands nearer the eye along the look than
-     * the rest, as far along the look as the rest, at the same angle.
+     * The place the blob is bound for: the drill's length less its past
+     * length back from the cross section's center, on a line the drill's
+     * angle off the look, turned toward the rest's side of the sight line, so
+     * the drill's tip runs its past length beyond the center; or, where that
+     * stands nearer the eye along the look than the rest, as far along the
+     * look as the rest, at the same angle, the drill shortening from the
+     * blob's end.
+     * decision bore-cross-section-is-where-the-angled-drill-meets-the-look-plane
      *
-     * @param eye          the eye the sight runs from
-     * @param look         the unit look
-     * @param point        the drill's point, on the sight line
-     * @param rest         the blob's lifted rest by the glove
-     * @param length       the drill's length, in blocks
-     * @param angleDegrees the drill's angle off the sight line, in degrees
+     * @param eye   the eye the sight runs from
+     * @param look  the unit look
+     * @param point the cross section's center, on the sight line at the depth the tube sets
+     * @param rest  the blob's lifted rest by the glove
+     * @param shape the drill cone
      * @return the place
      */
-    static Vec3 placeFor(Vec3 eye, Vec3 look, Vec3 point, Vec3 rest, double length, double angleDegrees) {
-        double angle = Math.toRadians(angleDegrees);
-        double back = length * Math.cos(angle);
+    static Vec3 placeFor(Vec3 eye, Vec3 look, Vec3 point, Vec3 rest, BoreDrillShape shape) {
+        double angle = Math.toRadians(shape.angle());
+        double back = (shape.length() - shape.pastLength()) * Math.cos(angle);
         double restAlong = rest.subtract(eye).dot(look);
         double pointAlong = point.subtract(eye).dot(look);
         if (pointAlong - back < restAlong) {
@@ -146,7 +151,7 @@ public final class BoreBlobPlace {
         ClientAbility ability = BlobRest.selectedAbility(caster);
         double reach = ability == null ? 0 : ability.delivery().reachingTo(caster.blockInteractionRange()).range();
         Vec3 point = BoreDrill.pointAhead(mc.level, sight, bore, KnifeRainSling.gloveOnTheRight(caster), reach);
-        return placeFor(sight.eye(), sight.look(), point, rest, bore.shape().length(), bore.shape().angle());
+        return placeFor(sight.eye(), sight.look(), point, rest, bore.shape());
     }
 
     /**

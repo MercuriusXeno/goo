@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.program.BoreDrillShape;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -8,19 +9,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Bore's blob eases from its lifted rest by the glove to the place that holds
- * the drill on the crosshair: the drill's length back from its point, on a
- * line its angle off the sight line, toward the rest's side and below the
- * crosshair; for a near point it stands no nearer the eye than the rest, the
- * drill shortening and its angle holding
+ * the drill's cross section on the crosshair at the depth point: the drill's
+ * length less its past length back from that point, on a line its angle off
+ * the sight line, toward the rest's side and below the crosshair, with the
+ * drill's tip its past length beyond the point; for a near point it stands no
+ * nearer the eye than the rest, the drill shortening from the blob's end
  * (decisions bore-drill-is-two-blocks-held-at-an-angle-off-the-sight-line,
  * bore-blob-eases-to-place-the-drill-at-the-crosshair,
- * bore-drill-shortens-for-a-near-block-and-holds-its-angle).
+ * bore-drill-shortens-for-a-near-block-and-holds-its-angle,
+ * bore-cross-section-is-where-the-angled-drill-meets-the-look-plane).
  */
 class BoreBlobPlaceTest {
 
     private static final double SLACK = 1e-6;
-    private static final double LENGTH = 2;
-    private static final double ANGLE = 22.5;
+    private static final BoreDrillShape SHIPPED = BoreDrillShape.SHIPPED;
     private static final Vec3 EYE = new Vec3(3.5, 70.62, -8.5);
     /** A level view looking along +Z: yaw 0. */
     private static final float PITCH = 0f;
@@ -32,8 +34,8 @@ class BoreBlobPlaceTest {
         return SpraySource.inView(EYE, PITCH, YAW, gloveRight);
     }
 
-    private static double degreesOffTheLook(Vec3 place, Vec3 point) {
-        return Math.toDegrees(Math.acos(point.subtract(place).normalize().dot(LOOK)));
+    private static double degreesOffTheLook(Vec3 from, Vec3 to) {
+        return Math.toDegrees(Math.acos(to.subtract(from).normalize().dot(LOOK)));
     }
 
     /** The place's offset from the sight line, square to the look. */
@@ -49,39 +51,45 @@ class BoreBlobPlaceTest {
 
         private void assertHeldOnTheCrosshair(boolean gloveRight) {
             Vec3 rest = restFor(gloveRight);
-            Vec3 place = BoreBlobPlace.placeFor(EYE, LOOK, point, rest, LENGTH, ANGLE);
-            assertEquals(LENGTH, place.distanceTo(point), SLACK);
-            assertEquals(ANGLE, degreesOffTheLook(place, point), SLACK);
+            Vec3 place = BoreBlobPlace.placeFor(EYE, LOOK, point, rest, SHIPPED);
+            Vec3 tip = BoreDrill.tipOf(place, point, SHIPPED);
+            assertEquals(1.5, place.distanceTo(point), SLACK);
+            assertEquals(0.5, point.distanceTo(tip), SLACK);
+            assertEquals(1, tip.subtract(point).normalize().dot(point.subtract(place).normalize()), SLACK);
+            assertEquals(22.5, degreesOffTheLook(place, point), SLACK);
             assertTrue(offTheSight(place).dot(offTheSight(rest)) > 0, "the place stands off the rest's side");
             assertTrue(offTheSight(place).dot(UP) < 0, "the place stands no lower than the look");
         }
 
         @Test
-        void itStandsTheDrillsLengthBackAtItsAngleForAGloveInTheRightHand() {
+        void theBlobStandsOneAndAHalfBackAndTheTipHalfABlockPastForAGloveInTheRightHand() {
             assertHeldOnTheCrosshair(true);
         }
 
         @Test
-        void itStandsTheDrillsLengthBackAtItsAngleForAGloveInTheLeftHand() {
+        void theBlobStandsOneAndAHalfBackAndTheTipHalfABlockPastForAGloveInTheLeftHand() {
             assertHeldOnTheCrosshair(false);
         }
 
         @Test
-        void itFollowsWhateverLengthAndAngleTheStepCarries() {
-            Vec3 place = BoreBlobPlace.placeFor(EYE, LOOK, point.add(LOOK.scale(2)), restFor(true), 3, 10);
-            assertEquals(3, place.distanceTo(point.add(LOOK.scale(2))), SLACK);
-            assertEquals(10, degreesOffTheLook(place, point.add(LOOK.scale(2))), SLACK);
+        void itFollowsWhateverDrillTheStepCarries() {
+            Vec3 farther = point.add(LOOK.scale(2));
+            Vec3 place = BoreBlobPlace.placeFor(EYE, LOOK, farther, restFor(true), new BoreDrillShape(0.7, 3, 10, 1));
+            assertEquals(2, place.distanceTo(farther), SLACK);
+            assertEquals(10, degreesOffTheLook(place, farther), SLACK);
         }
     }
 
     @Test
-    void forANearPointItStandsAsFarAlongTheLookAsTheRestAndTheDrillShortensAtItsAngle() {
+    void forANearPointTheBlobStandsAsFarAlongTheLookAsTheRestAndTheTipAndAngleHold() {
         Vec3 rest = restFor(true);
         Vec3 point = EYE.add(LOOK.scale(1.2));
-        Vec3 place = BoreBlobPlace.placeFor(EYE, LOOK, point, rest, LENGTH, ANGLE);
+        Vec3 place = BoreBlobPlace.placeFor(EYE, LOOK, point, rest, SHIPPED);
+        Vec3 tip = BoreDrill.tipOf(place, point, SHIPPED);
         assertEquals(rest.subtract(EYE).dot(LOOK), place.subtract(EYE).dot(LOOK), SLACK);
-        assertTrue(place.distanceTo(point) < LENGTH, "the drill runs " + place.distanceTo(point) + " long");
-        assertEquals(ANGLE, degreesOffTheLook(place, point), SLACK);
+        assertTrue(place.distanceTo(point) < 1.5, "the drill runs " + place.distanceTo(point) + " back");
+        assertEquals(0.5, point.distanceTo(tip), SLACK);
+        assertEquals(22.5, degreesOffTheLook(place, tip), SLACK);
     }
 
     @Nested
