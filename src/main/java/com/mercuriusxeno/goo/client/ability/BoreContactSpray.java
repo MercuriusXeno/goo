@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.program.BorePoint;
 import com.mercuriusxeno.goo.ability.program.BoreStep;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import net.minecraft.client.Minecraft;
@@ -9,25 +10,22 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import java.util.Optional;
 
 /**
- * Where Bore's drawn vortex makes contact with a breakable block, particles of
- * the block spew from round the outside of its cone there each tick the bore
- * runs, each flying back toward the holder's face and out from its place on
- * the ring,
- * so the vortex reads as tearing into the block while the block clips it.
- * The contact is traced along the drawn vortex's own axis, from where it is
- * held below the line of sight.
+ * Where Bore's drawn drill makes contact with a breakable block, at its
+ * point, particles of the block spew from round the outside of its cone
+ * there each tick the bore runs, each flying back toward the blob it extends
+ * from and out from its place on the ring, so the drill reads as tearing into
+ * the block while the block clips it.
  * decision bore-shows-a-big-drill-from-the-glove
+ * decision bore-drill-point-floats-along-the-crosshair-to-the-aimed-block
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class BoreContactSpray {
@@ -98,19 +96,15 @@ public final class BoreContactSpray {
     }
 
     /**
-     * The line the contact is traced along: the drawn vortex's axis, from
-     * where it is held to its far end.
+     * Where the drill makes contact: its point, the drawn drill's far end,
+     * wherever the blob it extends from stands.
+     * decision bore-drill-point-floats-along-the-crosshair-to-the-aimed-block
      *
-     * @param eye   the eye the vortex is drawn from, in world space
-     * @param look  the look's unit vector
-     * @param yaw   the look's yaw in degrees
-     * @param reach       the bore's reach
-     * @param pointRadius the radius of the point the bore breaks at
-     * @return the line's start and end, in world space
+     * @param drawn the drawn drill
+     * @return the contact, in the drill's space
      */
-    static Vec3[] contactLine(Vec3 eye, Vec3 look, float yaw, double reach, double pointRadius) {
-        ConeSections.Volume drawn = BoreDrill.volume(eye, look, yaw, reach, pointRadius);
-        return new Vec3[] {drawn.apex(), drawn.apex().add(drawn.axis().scale(drawn.range()))};
+    static Vec3 contactOf(ConeSections.Volume drawn) {
+        return drawn.apex().add(drawn.axis().scale(drawn.range()));
     }
 
     /**
@@ -136,8 +130,8 @@ public final class BoreContactSpray {
     }
 
     /**
-     * Spews particles where the drawn vortex meets a block within reach,
-     * where that block is one the bore breaks.
+     * Spews particles at the drill's point where it lands on a block the
+     * bore breaks within reach.
      *
      * @param level  the client level
      * @param player the local player
@@ -146,19 +140,14 @@ public final class BoreContactSpray {
      */
     private static void spitAtContact(ClientLevel level, LocalPlayer player, BoreStep step, double reach) {
         Minecraft mc = Minecraft.getInstance();
-        Vec3 eye = mc.options.getCameraType().isFirstPerson() ? mc.gameRenderer.getMainCamera().position()
-                : player.getEyePosition();
-        ConeSections.Volume drawn = BoreDrill.volume(eye, player.getViewVector(1f), player.getYRot(), reach,
-                step.pointRadius());
-        Vec3[] line = contactLine(eye, player.getViewVector(1f), player.getYRot(), reach, step.pointRadius());
-        BlockHitResult hit = level.clip(new ClipContext(line[0], line[1], ClipContext.Block.OUTLINE,
-                ClipContext.Fluid.NONE, player));
-        BlockState state = level.getBlockState(hit.getBlockPos());
-        if (hit.getType() == HitResult.Type.MISS || !state.is(step.breaks())) {
+        Optional<BorePoint> landing = BoreDrill.landingAhead(level, CameraEye.of(mc, player, 1f), step, reach);
+        if (landing.isEmpty()) {
             return;
         }
-        double radius = drawn.radiusAt().applyAsDouble(hit.getLocation().distanceTo(drawn.apex()));
-        spew(level, state, hit.getLocation(), drawn.axis().reverse(), radius);
+        ConeSections.Volume drawn = BoreDrill.volume(CastOrigin.ofLocal(mc), landing.get().at(), player.getYRot(),
+                step.pointRadius());
+        spew(level, level.getBlockState(landing.get().block()), contactOf(drawn), drawn.axis().reverse(),
+                drawn.radiusAt().applyAsDouble(drawn.range()));
     }
 
     private static void spew(ClientLevel level, BlockState state, Vec3 contact, Vec3 towardHolder, double radius) {

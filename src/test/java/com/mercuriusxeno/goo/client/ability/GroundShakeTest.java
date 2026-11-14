@@ -343,22 +343,26 @@ class GroundShakeTest {
             return GroundShake.flattenZoneUnder(sight.eye(), cursor, plane, breakable);
         }
 
+        /**
+         * The shake runs along the camera's sight, which the drill's point
+         * lies on wherever the blob it extends from stands, so the shaken
+         * block is the one the drill's point lands on
+         * (decision bore-drill-point-floats-along-the-crosshair-to-the-aimed-block).
+         */
         @Test
-        void theBoreZoneRunsFromTheEyeTheDrillDrawsFrom() {
+        void theBoreZoneShakesTheBlockTheDrillsPointLandsOn() {
             Vec3 camera = new Vec3(0.5, 65.47, 0.5);
             CameraEye.Sight drawnFrom = CameraEye.chosen(true, new CameraEye.Sight(camera, LOOK_EAST),
                     sightAt(CROUCHED_EYE_Y, LOOK_EAST));
             Predicate<BlockPos> rock = cell -> cell.getX() >= 1 && cell.getX() <= 7;
-            Vec3 drillEye = BoreDrill.vortexEye(drawnFrom, camera).add(camera);
-            ChannelAim drillAim = new ChannelAim(drillEye.add(LOOK_EAST.scale(BORE_RANGE)), null, BORE_CONE_DEGREES);
 
             GroundShake.Zone zone = GroundShake.boreZoneAlong(drawnFrom,
                     new BoreStep(BREAKABLE, PACE, POINT_RADIUS, List.of(), List.of()), BORE_RANGE,
                     BORE_CONE_DEGREES, rock.negate(), rock);
 
-            assertEquals(camera, drillEye);
-            assertEquals(Set.copyOf(BoreStep.progressing(drillEye, POINT_RADIUS, drillAim, rock.negate(), rock)),
-                    shakenIn(zone));
+            Vec3 point = BoreDrill.pointOf(drawnFrom, BORE_RANGE, rock.negate(), rock);
+            assertEquals(new Vec3(1, 65.47, 0.5), point);
+            assertEquals(Set.of(new BlockPos(1, 65, 0)), shakenIn(zone));
         }
     }
 

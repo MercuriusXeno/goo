@@ -5,6 +5,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 /**
@@ -40,15 +41,39 @@ record BorePick(List<BlockPos> blocks, List<BlockPos> tunnel) {
                        Predicate<BlockPos> breakable) {
         List<BlockPos> crossed = BoreStep.blocksAlong(eye, aim.aimPoint());
         int met = firstMet(crossed, air, breakable);
-        if (met == crossed.size() || !breakable.test(crossed.get(met))) {
+        Optional<BorePoint> point = pointAt(crossed, met, eye, aim.aimPoint(), breakable);
+        if (point.isEmpty()) {
             return new BorePick(List.of(), List.copyOf(crossed.subList(1, met)));
         }
-        BlockPos aimed = crossed.get(met);
-        Vec3 point = new AABB(aimed).clip(eye, aim.aimPoint()).orElse(Vec3.atCenterOf(aimed));
+        BlockPos aimed = point.get().block();
         Predicate<BlockPos> surrounding = cell -> !cell.equals(aimed) && !cell.equals(crossed.getFirst())
                 && breakable.test(cell);
-        return new BorePick(blocksAt(point, pointRadius, aimed, surrounding),
+        return new BorePick(blocksAt(point.get().at(), pointRadius, aimed, surrounding),
                 List.copyOf(crossed.subList(1, met + 1)));
+    }
+
+    /**
+     * Where a bore's point stands along an eye line.
+     *
+     * @param eye       the eye the line runs from
+     * @param reachEnd  the end of the reach along the look
+     * @param air       whether a cell holds air
+     * @param breakable whether a cell holds a block in the tag
+     * @return the point, empty where the line meets no breakable block within the reach
+     */
+    static Optional<BorePoint> pointOf(Vec3 eye, Vec3 reachEnd, Predicate<BlockPos> air,
+                                       Predicate<BlockPos> breakable) {
+        List<BlockPos> crossed = BoreStep.blocksAlong(eye, reachEnd);
+        return pointAt(crossed, firstMet(crossed, air, breakable), eye, reachEnd, breakable);
+    }
+
+    private static Optional<BorePoint> pointAt(List<BlockPos> crossed, int met, Vec3 eye, Vec3 reachEnd,
+                                               Predicate<BlockPos> breakable) {
+        if (met == crossed.size() || !breakable.test(crossed.get(met))) {
+            return Optional.empty();
+        }
+        BlockPos aimed = crossed.get(met);
+        return Optional.of(new BorePoint(aimed, new AABB(aimed).clip(eye, reachEnd).orElse(Vec3.atCenterOf(aimed))));
     }
 
     /**

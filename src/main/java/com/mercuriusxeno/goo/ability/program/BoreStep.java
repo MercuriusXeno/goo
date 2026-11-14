@@ -11,6 +11,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -128,6 +129,22 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, double pointRadius,
     public static List<BlockPos> progressing(Vec3 eye, double pointRadius, ChannelAim aim,
                                              Predicate<BlockPos> air, Predicate<BlockPos> breakable) {
         return BorePick.of(eye, pointRadius, aim, air, breakable).blocks();
+    }
+
+    /**
+     * Where the bore's point stands along an eye line: the point its pick
+     * breaks at, which the drawn drill narrows to.
+     * decision bore-drill-point-floats-along-the-crosshair-to-the-aimed-block
+     *
+     * @param eye       the eye the line runs from
+     * @param reachEnd  the end of the reach along the look
+     * @param air       whether a cell holds air
+     * @param breakable whether a cell holds a block in the tag
+     * @return the point, empty where the line meets no breakable block within the reach
+     */
+    public static Optional<BorePoint> pointOf(Vec3 eye, Vec3 reachEnd, Predicate<BlockPos> air,
+                                              Predicate<BlockPos> breakable) {
+        return BorePick.pointOf(eye, reachEnd, air, breakable);
     }
 
     /**
