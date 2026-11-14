@@ -33,7 +33,12 @@ public final class GlowExplosionVisual implements BurnoutVisual {
     static final float DOME_REACH = 1.25f;
     /** The share of the explosion at which the bloom breathes brightest. */
     static final float BREATH_PEAK = 0.3f;
-    private static final int OPAQUE = 0xFF;
+    /**
+     * The dome's opacity as a byte: half of full, the operator's try at a
+     * fainter dome beside Bulb's light motes.
+     * decision bulb-spheroid-draws-at-half-opacity
+     */
+    private static final int HALF_OPAQUE = 0x80;
 
     private GlowExplosionVisual() {
     }
@@ -52,7 +57,7 @@ public final class GlowExplosionVisual implements BurnoutVisual {
     public void render(ChainBurnouts.Burnout burnout, BurnoutFrame frame) {
         float progress = burnout.progress(frame.gameTime());
         float radius = domeRadius(progress);
-        int color = domeColor(progress, OPAQUE);
+        int color = domeColor(progress, HALF_OPAQUE);
         BurnoutGeometry.drawAtMarker(frame, burnout.pos(), GooRenderTypes.GLOW_EXPLOSION_TYPE, (pose, c) ->
                 BurnoutGeometry.emitSphere(pose, c, radius, color));
     }
