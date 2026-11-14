@@ -20,6 +20,7 @@ import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.ability.CameraEye;
 import com.mercuriusxeno.goo.client.ability.CastOrigin;
 import com.mercuriusxeno.goo.client.ability.ChargeEase;
+import com.mercuriusxeno.goo.client.ability.ChargeMotes;
 import com.mercuriusxeno.goo.client.ability.ReserveVisual;
 import com.mercuriusxeno.goo.client.ability.VitalityVisual;
 import com.mercuriusxeno.goo.client.ability.WindLines;
@@ -457,6 +458,25 @@ public final class GloveThrowSender {
     static void unrootTheCharge() {
         CHARGE_ROOT.clear();
         CHARGE_WUBS.reset();
+        ChargeMotes.clear();
+    }
+
+    /**
+     * Carries the live sized charge's motes a tick on, drawing them in to the
+     * rooted spheroid's shell and to the palm blob, and lets them go once no
+     * sized charge stands.
+     * decision blast-charge-pulls-green-motes-into-the-shell-and-the-blob
+     *
+     * @param player the local player
+     */
+    static void pullTheChargeMotes(Player player) {
+        OptionalDouble radius = drawnChargeRadius(player, 0f);
+        if (radius.isEmpty()) {
+            ChargeMotes.clear();
+            return;
+        }
+        ChargeMotes.tick(player.level().getGameTime(), chargeAnchor(), radius.getAsDouble(), throwOrigin(),
+                player.getRandom());
     }
 
     /** The stages the live sized charge has sounded. */
