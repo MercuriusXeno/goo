@@ -13,7 +13,7 @@ import java.util.List;
  * its own tick, aimed into its own slice of the cone with a scatter of
  * yaw, pitch and speed, and arcs under gravity, so the cloud rains into an
  * area rather than flying out as a line.
- * decision shards-sling-then-morph-to-flechettes
+ * decision knives-sling-then-morph-to-flechettes
  */
 public final class KnifeRain {
 

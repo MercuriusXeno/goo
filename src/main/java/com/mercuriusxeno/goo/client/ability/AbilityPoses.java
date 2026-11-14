@@ -33,7 +33,7 @@ import java.util.Map;
  * swing, which is no pose of this class. Every pose moves the first-person
  * hand too: the wind-up across the chest, the fling out to the glove side,
  * held out forward toward the crosshair, and held up lifted a little.
- * decision shards-sling-then-morph-to-flechettes
+ * decision knives-sling-then-morph-to-flechettes
  * decision ability-json-names-its-arm-pose
  * decision use-key-throw-swings-no-more
  */
