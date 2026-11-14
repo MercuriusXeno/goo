@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.ability.program.BranchStep;
+import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.ParticlesStep;
 import com.mercuriusxeno.goo.ability.program.SoundStep;
 import com.mercuriusxeno.goo.ability.program.Step;
@@ -53,6 +54,8 @@ class CharmLikeAbilitiesTest {
                 .map(step -> ((SoundStep) step).sound()).toList());
         assertEquals(List.of(FIZZLE_SMOKE), missed.stream().filter(ParticlesStep.class::isInstance)
                 .map(step -> ((ParticlesStep) step).particle()).toList());
+        assertEquals(1, missed.stream().filter(step -> step.type() == LeafSteps.ENVELOP_BURST.type()).count(),
+                "the missed roll bursts the slime shell off the mob");
     }
 
     private static final Identifier FIZZLE_SOUND = Identifier.withDefaultNamespace("block.fire.extinguish");

@@ -19,6 +19,7 @@ import com.mercuriusxeno.goo.client.ability.PartnerView;
 import com.mercuriusxeno.goo.client.ability.ReapSlashBlades;
 import com.mercuriusxeno.goo.client.ability.ReapSwells;
 import com.mercuriusxeno.goo.client.ability.ScanVisuals;
+import com.mercuriusxeno.goo.client.ability.SlimeShells;
 import com.mercuriusxeno.goo.client.ability.StreamMotes;
 import com.mercuriusxeno.goo.client.ability.Tomes;
 import com.mercuriusxeno.goo.client.ability.VitalityVisual;
@@ -34,6 +35,7 @@ import com.mercuriusxeno.goo.network.BlockExposurePayload;
 import com.mercuriusxeno.goo.network.BlockTransformPayload;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.network.ConjuredDoorPayload;
+import com.mercuriusxeno.goo.network.EnvelopBurstPayload;
 import com.mercuriusxeno.goo.network.GateCarriedPayload;
 import com.mercuriusxeno.goo.network.GhostTrailPayload;
 import com.mercuriusxeno.goo.network.GlassKnifePayload;
@@ -137,6 +139,7 @@ public final class GooClientNetworking {
      */
     private static void registerEffectHandlers(RegisterClientPayloadHandlersEvent event) {
         event.register(MobHitPayload.TYPE, MobHitHandler::handle);
+        event.register(EnvelopBurstPayload.TYPE, SlimeShells::onBurst);
         event.register(AilmentPayload.TYPE, AilmentHandler::handle);
         registerAbilityOwnVisualHandlers(event);
         event.register(BlockTransformPayload.TYPE, BlockTransformHandler::handle);

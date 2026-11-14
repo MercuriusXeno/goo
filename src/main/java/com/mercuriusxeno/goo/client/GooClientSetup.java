@@ -39,6 +39,8 @@ import com.mercuriusxeno.goo.client.ability.PrismFormingSounds;
 import com.mercuriusxeno.goo.client.ability.RallyOutline;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
 import com.mercuriusxeno.goo.client.ability.SignalRings;
+import com.mercuriusxeno.goo.client.ability.SlimeShellLayer;
+import com.mercuriusxeno.goo.client.ability.SlimeShells;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ability.UpdraftWind;
@@ -371,6 +373,7 @@ public final class GooClientSetup {
                 AilmentOverlayLayer::stampAilments,
                 AimTracker::modifyEntityRenderState,
                 MobCoatLayer::stampCoat,
+                SlimeShellLayer::stampShell,
                 PhaseLook::stampPhase,
                 EncasementLayer::stampPetrify,
                 EncasementLayer::stampFrozen,
@@ -404,6 +407,8 @@ public final class GooClientSetup {
                 MobCoatLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()),
                         EncasedBodies.of(type, event.getEntityModels()));
                 AilmentOverlayLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
+                SlimeShellLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()),
+                        EncasedBodies.of(type, event.getEntityModels()));
                 EncasementLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()),
                         EncasedBodies.of(type, event.getEntityModels()));
                 VineTangleLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
@@ -541,6 +546,7 @@ public final class GooClientSetup {
         PrismBeats.clear();
         ChainBurnouts.CLIENT.clear();
         MobCoats.CLIENT.clear();
+        SlimeShells.CLIENT.clear();
         MobAilments.CLIENT.clear();
         FrozenPoses.CLIENT.clear();
         NovaRings.CLIENT.clear();

@@ -106,6 +106,7 @@ class StepCodecTest {
                     List.of(LeafSteps.SET_AI.step(false)))),
             Map.entry("discard", LeafSteps.DISCARD.step(Unit.INSTANCE)),
             Map.entry("rewind_hold", LeafSteps.REWIND_HOLD.step(Unit.INSTANCE)),
+            Map.entry("envelop_burst", LeafSteps.ENVELOP_BURST.step(Unit.INSTANCE)),
             Map.entry("regress", new RegressStep(20)),
             Map.entry("ancient", new AncientStep()),
             Map.entry("grab", new GrabStep(8, 3, 1.5, 1, 10)),
