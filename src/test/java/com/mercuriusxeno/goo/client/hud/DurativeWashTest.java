@@ -111,12 +111,26 @@ class DurativeWashTest {
     }
 
     @Test
-    void theTintCrestsBrightAtTheMovingFrontAndDeepensBehindIt() {
-        double ticks = FILLED / 2;
-        double front = DurativeWash.fillScaleAt(ticks);
+    void theTintCrestsBrightAtTheEmptyingEdgeAndDeepensBehindIt() {
+        double ticks = (FILLED + DurativeWash.WASH_TICKS) / 2;
+        double edge = DurativeWash.hollowScaleAt(ticks);
 
-        assertTrue(DurativeWash.crestAt(front - NUDGE, ticks) > DurativeWash.crestAt(front * 0.2, ticks),
-                "the tint should run brighter at the moving front than behind it");
+        assertTrue(DurativeWash.crestAt(edge + NUDGE, ticks) > DurativeWash.crestAt(Math.min(1, edge + 0.5), ticks),
+                "the tint should run brighter at the emptying edge than behind it");
+    }
+
+    /** operator ruling: "that first flash, it's like.. blindingly bright. it's a little overwhelming" */
+    @Test
+    void theFillWashesInDeepAndDimWithNoBrightCrest() {
+        float dim = DurativeWash.TINT_ALPHA * DurativeWash.CREST_FLOOR;
+        for (int sample = 1; sample < SAMPLES; sample++) {
+            double ticks = FILLED * sample / SAMPLES;
+            for (double reach = 0; reach <= 1; reach += 0.1) {
+                assertEquals(0f, DurativeWash.crestAt(reach, ticks), DELTA, "the fill should carry no bright crest");
+                assertTrue(DurativeWash.alphaAt(reach, ticks) <= dim + DELTA, "the fill's tint "
+                        + DurativeWash.alphaAt(reach, ticks) + " should stay at or below " + dim);
+            }
+        }
     }
 
     /** operator ruling: "Too opaque" */
