@@ -132,7 +132,7 @@ public final class StepTypes {
         register(GluttonyStep.TYPE);
         register(ReserveDrainStep.TYPE);
         register(FeedStep.TYPE);
-        register(ZoneStep.TYPE);
+        register(SealStep.TYPE);
         register(EludeStep.TYPE);
         register(ShriekStep.TYPE);
         register(SculkerStep.TYPE);
@@ -141,7 +141,7 @@ public final class StepTypes {
         register(ScanVisualStep.TYPE);
         register(EndStep.TYPE);
         register(HoleOpenStep.TYPE);
-        register(OutsiderStep.TYPE);
+        register(ZoneStep.TYPE);
         register(MeteorStep.TYPE);
         register(WormholeStep.TYPE);
         register(RootStep.TYPE);

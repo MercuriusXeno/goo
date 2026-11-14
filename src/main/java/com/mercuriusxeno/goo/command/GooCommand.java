@@ -304,7 +304,7 @@ public final class GooCommand {
 
     /**
      * Builds the /goo command tree. The world-editing dev subcommands, lab,
-     * orphans and outsider, join it only when the dev gate is open (decisions gametest-and-tools-source-sets
+     * orphans and zone, join it only when the dev gate is open (decisions gametest-and-tools-source-sets
      * and reset-command-registers-in-a-dev-launch-only-and-needs-op).
      *
      * @param devGateOpen whether the dev subcommands register
@@ -324,7 +324,7 @@ public final class GooCommand {
         if (devGateOpen) {
             root.then(LabCommand.children(Commands.literal(LabCommand.CMD_LAB).requires(GooCommand::requiresOp)))
                     .then(orphansSubcommand())
-                    .then(OutsiderCommand.subcommand(GooCommand::requiresOp));
+                    .then(ZoneCommand.subcommand(GooCommand::requiresOp));
         }
         return root;
     }

@@ -22,14 +22,14 @@ import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
 import com.mercuriusxeno.goo.ability.reserve.Reserve;
 import com.mercuriusxeno.goo.ability.rewind.Rewinding;
 import com.mercuriusxeno.goo.ability.root.Rooted;
+import com.mercuriusxeno.goo.ability.seal.Elude;
+import com.mercuriusxeno.goo.ability.seal.SealCurse;
 import com.mercuriusxeno.goo.ability.spray.Spored;
 import com.mercuriusxeno.goo.ability.typhoon.Airborn;
 import com.mercuriusxeno.goo.ability.typhoon.Breath;
 import com.mercuriusxeno.goo.ability.typhoon.Floating;
 import com.mercuriusxeno.goo.ability.weird.Wobbled;
 import com.mercuriusxeno.goo.ability.xeno.Eldritch;
-import com.mercuriusxeno.goo.ability.zone.Elude;
-import com.mercuriusxeno.goo.ability.zone.ZoneCurse;
 import com.mercuriusxeno.goo.ability.zoo.Leader;
 import com.mercuriusxeno.goo.ability.zoo.Rallied;
 import com.mercuriusxeno.goo.data.GooRemainders;
@@ -286,14 +286,14 @@ public final class GooAttachments {
             ATTACHMENT_TYPES.register("grab_hold", () -> AttachmentType.builder(() -> GrabHold.NONE).build());
 
     /**
-     * The warp curse Zone leaves on a mob, saved with the mob while
+     * The warp curse Seal leaves on a mob, saved with the mob while
      * it stands.
      * zone-curses-with-ender-shimmer
      */
-    public static final Supplier<AttachmentType<ZoneCurse>> ZONE_CURSE =
-            ATTACHMENT_TYPES.register("zone_curse",
-                    () -> AttachmentType.builder(() -> ZoneCurse.NONE)
-                            .serialize(ZoneCurse.CODEC, ZoneCurse::stands)
+    public static final Supplier<AttachmentType<SealCurse>> SEAL_CURSE =
+            ATTACHMENT_TYPES.register("seal_curse",
+                    () -> AttachmentType.builder(() -> SealCurse.NONE)
+                            .serialize(SealCurse.CODEC, SealCurse::stands)
                             .build());
 
     /**

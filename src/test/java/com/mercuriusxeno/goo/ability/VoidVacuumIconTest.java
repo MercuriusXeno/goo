@@ -26,7 +26,7 @@ class VoidVacuumIconTest {
 
     private static final String ICONS = "/assets/goo/textures/goo/ability/";
     private static final String VACUUM = "void_vacuum.png";
-    /** Void's palette, read off void_erase.png, void_hole.png and void_outsider.png. */
+    /** Void's palette, read off void_erase.png, void_hole.png and void_zone.png. */
     private static final Set<Integer> VOID_PALETTE = Set.of(0x000000, 0x0E0818, 0x1A0E28, 0x22123A, 0x2A1846,
             0x4A2C78, 0x7A52B0, 0xB48CE8);
     private static final int RGB = 0xFFFFFF;
