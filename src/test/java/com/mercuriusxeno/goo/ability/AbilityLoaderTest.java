@@ -184,6 +184,13 @@ class AbilityLoaderTest {
             assertEquals(Set.of("quantum_phase", "quantum_phase_shift", "quantum_portal", "quantum_tunnel"),
                     shippedPathsOf(GooTypes.QUANTUM));
         }
+
+        /** decision goo-type-ships-without-a-durative-ability */
+        @Test
+        void unstableShipsBlastAndLurkerAndNoDurative() {
+            assertEquals(Set.of("unstable_explode", "unstable_lurker"), shippedPathsOf(GooTypes.UNSTABLE));
+            assertNull(new AbilityRegistry(shippedById()).durativeAbilityFor(GooTypes.UNSTABLE));
+        }
     }
 
     // decision lingering-abilities-place-their-own-thing
