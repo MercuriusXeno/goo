@@ -343,7 +343,7 @@ public final class GloveThrowSender {
             return OptionalDouble.empty();
         }
         int holdings = GooSourceScanner.aggregateAvailable(player).getOrDefault(selection.getGooType(), 0);
-        return OptionalDouble.of(ChargeSize.affordable(ability.delivery().sizeAt(GloveUseTracker.heldTicks()),
+        return OptionalDouble.of(ChargeSize.affordable(ability.delivery().stageAt(GloveUseTracker.heldTicks()),
                 ability.cost(), holdings));
     }
 

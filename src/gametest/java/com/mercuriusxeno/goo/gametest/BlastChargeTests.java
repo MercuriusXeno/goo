@@ -45,6 +45,8 @@ public final class BlastChargeTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, CHARGED_BLAST_BREAKS_OUT_TO_ITS_SIZE,
                 BlastChargeTests::chargedBlastBreaksOutToItsSize);
+        GooTestFunctions.registerTest(registrar, UNCHARGED_BLAST_BREAKS_OUT_TO_TWO,
+                BlastChargeTests::unchargedBlastBreaksOutToTwo);
     }
 
     private static final Identifier BLAST = Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_blast");
@@ -57,27 +59,65 @@ public final class BlastChargeTests {
     private static final Vec3 AIMED_POINT = new Vec3(8.5, FLOOR_TOP + 1.0, 8.5);
     /** Where the caster stands, on the floor near the bay's edge, past the blast's reach. */
     private static final BlockPos STAND = new BlockPos(8, FLOOR_TOP + 1, 1);
-    /** A hold far past any full charge. */
-    private static final int HELD_PAST_THE_CHARGE = 1000;
-    /** How far out along the floor a capped charge breaks the stone, inside its size. */
-    private static final int INSIDE_THE_CAP = 4;
-    /** How far out along the floor the stone stands, past its size. */
+    /** The hold a full charge takes, from 2 blocks to 7 at a second a stage. */
+    private static final int FULL_CHARGE = 100;
+    /** How far out along the floor a full charge breaks the stone, inside its 7 blocks. */
+    private static final int INSIDE_THE_CAP = 6;
+    /** How far out along the floor the stone stands, past its 7 blocks. */
     private static final int PAST_THE_CAP = 7;
+    /** How far out along the floor a release with no hold breaks the stone, inside its 2 blocks. */
+    private static final int INSIDE_THE_FIRST_STAGE = 1;
+    /** How far out along the floor the stone stands, past its 2 blocks. */
+    private static final int PAST_THE_FIRST_STAGE = 2;
     /** Unstable enough for a capped cast. */
     private static final int AMPLE_UNSTABLE = 100_000;
     private static final String ABILITY_REQUIRED = "Ability registry must hold unstable_blast";
+    private static final String UNCHARGED_BLAST_BREAKS_OUT_TO_TWO = "uncharged_blast_breaks_out_to_two";
 
     private BlastChargeTests() {
     }
 
     /**
-     * A release held past the full charge breaks the floor's top stone four
+     * A release held its full 100 ticks breaks the floor's top stone six
      * blocks out from the aim the release tick, and leaves it standing seven out.
+     * decision blast-charges-from-two-to-seven-blocks
      *
      * @param helper the gametest helper
      */
-    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
     public static void chargedBlastBreaksOutToItsSize(GameTestHelper helper) {
+        castBlast(helper, FULL_CHARGE);
+        assertBrokenOutTo(helper, INSIDE_THE_CAP, PAST_THE_CAP);
+    }
+
+    /**
+     * A release with no hold breaks the stone one block out from the aim,
+     * its 2 block opening stage, and leaves it standing two out.
+     * decision blast-charges-from-two-to-seven-blocks
+     *
+     * @param helper the gametest helper
+     */
+    public static void unchargedBlastBreaksOutToTwo(GameTestHelper helper) {
+        castBlast(helper, 0);
+        assertBrokenOutTo(helper, INSIDE_THE_FIRST_STAGE, PAST_THE_FIRST_STAGE);
+    }
+
+    private static void assertBrokenOutTo(GameTestHelper helper, int inside, int past) {
+        helper.assertTrue(helper.getBlockState(AIMED.east(inside)).isAir(),
+                "The blast should break the stone " + inside + " blocks out");
+        helper.assertTrue(helper.getBlockState(AIMED.east(past)).is(Blocks.STONE),
+                "The blast should leave the stone " + past + " blocks out");
+        helper.succeed();
+    }
+
+    /**
+     * Releases Blast held for some ticks at the aimed stone, from a caster
+     * standing clear with ample unstable.
+     *
+     * @param helper    the gametest helper
+     * @param heldTicks the ticks the charge was held
+     */
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    private static void castBlast(GameTestHelper helper, int heldTicks) {
         AbilityDefinition blast = AbilityRegistry.of(helper.getLevel()).getAbility(BLAST);
         helper.assertTrue(blast != null, ABILITY_REQUIRED);
         layFloor(helper);
@@ -93,13 +133,8 @@ public final class BlastChargeTests {
                 Direction.UP.ordinal(), false, BLAST.toString(), player.getEyePosition(),
                 helper.absoluteVec(AIMED_POINT));
         GooThrowHandler.releaseCharge(player, new GooChargePayload(GooTypes.id(GooTypes.UNSTABLE), BLAST.toString(),
-                HELD_PAST_THE_CHARGE, 0L, Optional.of(aimed)));
+                heldTicks, 0L, Optional.of(aimed)));
         helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(helper.getBlockState(AIMED.east(INSIDE_THE_CAP)).isAir(),
-                "A capped charge should break the stone " + INSIDE_THE_CAP + " blocks out");
-        helper.assertTrue(helper.getBlockState(AIMED.east(PAST_THE_CAP)).is(Blocks.STONE),
-                "A capped charge should leave the stone " + PAST_THE_CAP + " blocks out");
-        helper.succeed();
     }
 
     private static void layFloor(GameTestHelper helper) {
