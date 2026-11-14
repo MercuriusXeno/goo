@@ -43,8 +43,10 @@ public final class MobHitHandler {
                 MobHitBurst.spawn(mc.level, payload.hitPoint(), payload.hitPoint().subtract(0, 1, 0), rgb);
                 return;
             }
-            MobCoats.CLIENT.coat(payload.entityId(), gooType, mc.level.getGameTime(),
-                    new MobCoats.Strike(payload.hitPoint(), payload.aimDirection(), SplatDrips.stanceOf(struck)));
+            if (!payload.envelops()) {
+                MobCoats.CLIENT.coat(payload.entityId(), gooType, mc.level.getGameTime(),
+                        new MobCoats.Strike(payload.hitPoint(), payload.aimDirection(), SplatDrips.stanceOf(struck)));
+            }
             MobHitBurst.spawn(mc.level, payload.hitPoint(), struck.getBoundingBox().getCenter(), rgb);
         });
     }

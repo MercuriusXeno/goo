@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.overlay;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
+import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.OwnMinions;
 import com.mercuriusxeno.goo.ability.program.Expr;
@@ -127,6 +128,17 @@ class AimAssistResolverTest {
             assertFalse(AimAssistResolver.isCandidate(pickable(Player.class), grab));
             assertFalse(AimAssistResolver.isCandidate(boss, grab));
             assertFalse(AimAssistResolver.isCandidate(rider, grab));
+        }
+
+        /**
+         * Shulk's release spews a shulker bullet and runs no program on the
+         * mob, yet its press takes the mob the aim highlights
+         * (decision charm-like-abilities-lock-the-highlighted-mob-on-right-click).
+         */
+        @Test
+        void withShulkSelectedALivingMobIsACandidate() {
+            assertTrue(AimAssistResolver.isCandidate(pickable(Mob.class),
+                    AbilityJson.decode("typhoon_shulk").behaviors()));
         }
 
         @Test
