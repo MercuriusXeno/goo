@@ -384,8 +384,18 @@ public final class LiftedPalmBlob {
      * @return where the drip leaves
      */
     public static Vec3 dripLeavesFrom(int casterId, Vec3 sentGlove, float partialTick) {
-        return standingOf(casterId, partialTick).map(Standing::place)
-                .orElseGet(() -> SpraySource.of(casterId, sentGlove, partialTick));
+        return placeOf(casterId, partialTick).orElseGet(() -> SpraySource.of(casterId, sentGlove, partialTick));
+    }
+
+    /**
+     * Where a caster's blob stands off the palm this frame.
+     *
+     * @param casterId    the caster's entity id
+     * @param partialTick the frame's partial tick
+     * @return the blob's place, empty while it rests on the palm
+     */
+    public static Optional<Vec3> placeOf(int casterId, float partialTick) {
+        return standingOf(casterId, partialTick).map(Standing::place);
     }
 
     /**

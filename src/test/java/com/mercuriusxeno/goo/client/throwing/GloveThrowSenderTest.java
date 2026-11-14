@@ -8,6 +8,12 @@ import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.client.ability.CameraEye;
+import com.mercuriusxeno.goo.client.ability.CastOrigin;
+import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
+import com.mercuriusxeno.goo.client.ability.PalmBlobHop;
+import com.mercuriusxeno.goo.client.ability.SprayingClient;
+import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.BlockHitResult;
@@ -41,6 +47,33 @@ class GloveThrowSenderTest {
 
     private static boolean affordsWithHoldings(ClientAbility ability, int holdings) {
         return GloveThrowSender.affordsThrow(ability, amount -> holdings >= amount, item -> true);
+    }
+
+    /**
+     * A throw carries the cast origin as the start the server sends for the
+     * flight, the beam and Zap's bolt, and as the glove hand Click's wave
+     * leaves: the lifted palm blob where it stands as right click lets go.
+     * every-ability-casts-from-the-lifted-palm-blob
+     */
+    @Nested
+    class ThrowsLeaveTheLiftedBlob {
+
+        private static final long RELEASED = 412L;
+
+        @Test
+        void aThrowLetGoWhileTheBlobStandsLiftedStartsAtTheCastOrigin() {
+            try (SprayingClient client = SprayingClient.local(GooTypes.ZOO)) {
+                client.at(RELEASED);
+                for (long tick = RELEASED - PalmBlobHop.LIFT_TICKS; tick < RELEASED; tick++) {
+                    LiftedPalmBlob.held(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, tick);
+                }
+
+                Vec3 blob = LiftedPalmBlob.placeOf(SprayingClient.CASTER, 0f).orElseThrow();
+
+                assertEquals(blob, GloveThrowSender.throwOrigin());
+                assertEquals(CastOrigin.ofLocal(Minecraft.getInstance()), GloveThrowSender.throwOrigin());
+            }
+        }
     }
 
     /**
