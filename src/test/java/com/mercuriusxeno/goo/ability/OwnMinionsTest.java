@@ -71,7 +71,7 @@ class OwnMinionsTest {
         }
 
         @ParameterizedTest
-        @ValueSource(strings = {"hex_charm", "zoo_allure", "zoo_shape", "quantum_link", "quantum_phase_shift",
+        @ValueSource(strings = {"hex_charm", "zoo_allure", "zoo_shape", "quantum_phase_shift",
                 "zoo_rally"})
         void anUntaggedAbilityStaysUntagged(String name) {
             assertFalse(AbilityJson.decode(name).hasTag(AbilityTags.HARMFUL), name + " should carry no harmful tag");

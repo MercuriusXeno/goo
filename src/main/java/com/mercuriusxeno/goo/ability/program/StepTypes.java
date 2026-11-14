@@ -162,7 +162,6 @@ public final class StepTypes {
         register(PhaseStep.TYPE);
         register(PortalStep.TYPE);
         register(QuantumSwapStep.TYPE);
-        register(QuantumLinkStep.TYPE);
         register(LeafSteps.ENCHANT_BOOK.type());
         register(FuseBooksStep.TYPE);
         register(SlimeTransmuteStep.TYPE);
