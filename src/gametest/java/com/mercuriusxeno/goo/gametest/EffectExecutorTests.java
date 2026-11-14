@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.ChargeSize;
+import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
@@ -11,8 +13,9 @@ import com.mercuriusxeno.goo.entity.CompressedHoard;
 import com.mercuriusxeno.goo.entity.CompressionSphere;
 import com.mercuriusxeno.goo.entity.SphereCore;
 import com.mercuriusxeno.goo.item.GooStacks;
-import com.mercuriusxeno.goo.network.GooDragCastHandler;
-import com.mercuriusxeno.goo.network.GooDragCastPayload;
+import com.mercuriusxeno.goo.network.GooChargePayload;
+import com.mercuriusxeno.goo.network.GooThrowHandler;
+import com.mercuriusxeno.goo.network.GooThrowPayload;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.registry.GooBlocks;
@@ -45,6 +48,7 @@ import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.function.Consumer;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -111,7 +115,7 @@ public final class EffectExecutorTests {
     private static final int WALL_Y_MAX = 3;
     private static final int WALL_Z_MAX = 2;
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
-    /** The gametests' own thrown blast, today's Blast before it was drag-sized, for the landing machinery. */
+    /** The gametests' own thrown blast, today's Blast before it was charge-sized, for the landing machinery. */
     private static final String ABILITY_BLAST = "goo:test_blast";
     private static final String ABILITY_LURKER = "goo:unstable_lurker";
     private static final String ABILITY_GLOW_BULB = "goo:glow_bulb";
@@ -149,11 +153,11 @@ public final class EffectExecutorTests {
     private static final int SPILLED_STONE = 70;
     private static final String SPHERE_STAYED_SHUT = "The touched sphere is still standing";
     private static final String SPHERE_SPILLED_WRONG = "The touched sphere spilled other than 70 stone and a diamond: ";
-    private static final String ABILITY_BLAST_DRAGGED = "goo:unstable_blast";
+    private static final String ABILITY_BLAST_CHARGED = "goo:unstable_blast";
     /** The smallest and largest whole radius searched for the one Blast's own expression first gathers at. */
     private static final int SMALLEST_BLAST_SIZE = 1;
     private static final int LARGEST_BLAST_SIZE = 6;
-    /** How far under the gathering radius the popping Blast is dragged. */
+    /** How far under the gathering radius the popping Blast is charged. */
     private static final double POPPING_UNDER_GATHERING = 1;
     private static final String BLAST_SIZE_VARIABLE = "size";
     private static final String NO_GATHERING_SIZE = "Blast's own expression should gather at some radius up to %d";
@@ -352,7 +356,7 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * A Blast dragged to the smallest whole radius its own expression gathers
+     * A Blast charged to the smallest whole radius its own expression gathers
      * at, against a stone wall on a barrier floor,
      * with a diamond lying inside its radius, gathers the cobblestone it mined
      * into one green-cored compression sphere at its origin, and leaves the
@@ -367,7 +371,7 @@ public final class EffectExecutorTests {
         layBarrierFloor(helper);
         helper.spawnItem(Items.DIAMOND, Vec3.atBottomCenterOf(DIAMOND_POS));
         double gathering = gatheringBlastSize(helper);
-        helper.runAfterDelay(SHORT_WAIT, () -> castDraggedBlast(helper, gathering));
+        helper.runAfterDelay(SHORT_WAIT, () -> castChargedBlast(helper, gathering));
         helper.runAfterDelay(SHORT_WAIT + SHORT_WAIT, () -> {
             List<CompressionSphere> spheres = spheresAroundMarker(helper);
             helper.assertTrue(spheres.size() == 1, String.format(BLAST_LEFT_SPHERES, spheres.size()));
@@ -385,7 +389,7 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * A Blast dragged a block under the gathering radius against the same stone wall pops its drops
+     * A Blast charged a block under the gathering radius against the same stone wall pops its drops
      * in place: cobblestone lies loose in the crater and no compression
      * sphere stands (decision large-blast-gathers-its-mined-drops-into-a-green-cored-sphere).
      *
@@ -396,7 +400,7 @@ public final class EffectExecutorTests {
         fillWall(helper, Blocks.STONE);
         layBarrierFloor(helper);
         double popping = gatheringBlastSize(helper) - POPPING_UNDER_GATHERING;
-        helper.runAfterDelay(SHORT_WAIT, () -> castDraggedBlast(helper, popping));
+        helper.runAfterDelay(SHORT_WAIT, () -> castChargedBlast(helper, popping));
         helper.runAfterDelay(SHORT_WAIT + SHORT_WAIT, () -> {
             helper.assertTrue(spheresAroundMarker(helper).isEmpty(), SMALL_BLAST_LEFT_A_SPHERE);
             List<ItemStack> loose = itemsAroundMarker(helper).stream().map(ItemEntity::getItem).toList();
@@ -440,7 +444,7 @@ public final class EffectExecutorTests {
      * @return the gathering radius
      */
     private static double gatheringBlastSize(GameTestHelper helper) {
-        AbilityDefinition blast = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(ABILITY_BLAST_DRAGGED));
+        AbilityDefinition blast = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(ABILITY_BLAST_CHARGED));
         helper.assertTrue(blast != null, ABILITIES_REQUIRED);
         ExplodeStep explode = blast.behaviors().stream().filter(ExplodeStep.class::isInstance)
                 .map(ExplodeStep.class::cast).findFirst().orElseThrow();
@@ -455,29 +459,43 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * Casts Blast the way a drag's release does: a survival player holding a
-     * glove and unstable goo, standing well clear, pins the stone's south face
-     * and drags the Blast to a radius, which explodes at once at the pin.
+     * Casts Blast the way a charge's release does: a survival player holding a
+     * glove and unstable goo, standing well clear, holds Blast to a size and
+     * lets go aimed at the stone's south face, which explodes there at once.
      *
      * @param helper the gametest helper
-     * @param size   the radius dragged
+     * @param size   the whole size the hold charges to
      */
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    private static void castDraggedBlast(GameTestHelper helper, double size) {
+    private static void castChargedBlast(GameTestHelper helper, double size) {
         helper.setBlock(MARKER_POS.north(), Blocks.STONE);
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         Vec3 stand = helper.absoluteVec(Vec3.atBottomCenterOf(MARKER_POS.south(CASTER_DISTANCE)));
         player.setPos(stand.x, stand.y, stand.z);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
         player.getInventory().add(GooStacks.createForOutput(GooTypes.UNSTABLE, CASTER_UNSTABLE));
-        AbilityDefinition blast = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(ABILITY_BLAST_DRAGGED));
+        AbilityDefinition blast = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(ABILITY_BLAST_CHARGED));
         helper.assertTrue(blast != null, ABILITIES_REQUIRED);
         KnownRecipes.teachRequires(player, blast);
-        BlockPos pin = helper.absolutePos(MARKER_POS.north());
-        GooDragCastHandler.cast(player, new GooDragCastPayload(GooTypes.id(GooTypes.UNSTABLE), ABILITY_BLAST_DRAGGED,
-                pin, Direction.SOUTH.get3DDataValue(), Vec3.atCenterOf(pin).relative(Direction.SOUTH, HALF_BLOCK),
-                size));
+        BlockPos aimed = helper.absolutePos(MARKER_POS.north());
+        GooThrowPayload target = new GooThrowPayload(GooTypes.id(GooTypes.UNSTABLE), -1, aimed,
+                Direction.SOUTH.ordinal(), false, ABILITY_BLAST_CHARGED, player.getEyePosition(),
+                Vec3.atCenterOf(aimed).relative(Direction.SOUTH, HALF_BLOCK));
+        GooThrowHandler.releaseCharge(player, new GooChargePayload(GooTypes.id(GooTypes.UNSTABLE),
+                ABILITY_BLAST_CHARGED, ticksToCharge(blast.delivery(), size), 0L, Optional.of(target)));
         helper.getLevel().getServer().getPlayerList().remove(player);
+    }
+
+    /**
+     * The ticks a hold takes to charge a sized delivery to a size.
+     *
+     * @param delivery the sized delivery
+     * @param size     the size, within its charge's span
+     * @return the ticks
+     */
+    private static int ticksToCharge(Delivery delivery, double size) {
+        double span = delivery.charge().maxSize() - ChargeSize.MIN_RADIUS;
+        return (int) Math.round((size - ChargeSize.MIN_RADIUS) / span * delivery.chargeTicks());
     }
 
     /**

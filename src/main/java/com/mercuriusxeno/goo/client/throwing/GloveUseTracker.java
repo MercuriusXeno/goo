@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
-import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.PalmBlobChargePayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.Minecraft;
@@ -14,12 +13,9 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -46,8 +42,6 @@ public final class GloveUseTracker {
      * (decision flatten-disc-cursor-breaks-above-the-plane).
      */
     private static ChannelAim.@Nullable FacePlane pressPlane;
-    /** The block face the live press began on, which a sized ability opens at. */
-    private static @Nullable BlockHitResult pressPin;
 
     /** How often (in ticks) to re-check whether the selected goo type is in inventory. */
     private static final int AVAILABILITY_CHECK_INTERVAL = 10;
@@ -113,39 +107,9 @@ public final class GloveUseTracker {
         }
         if (!PRESS.isArmed()) {
             pressHand = hand;
-            Minecraft mc = Minecraft.getInstance();
-            pressPlane = crosshairPlane(mc);
-            pressPin = mc.player == null ? null : farFace(mc.player);
+            pressPlane = crosshairPlane(Minecraft.getInstance());
         }
         PRESS.arm();
-    }
-
-    /**
-     * The block face the player's look meets within the throw range, farther
-     * than the block reach the crosshair's own hit stops at, so a sized
-     * ability pins an epicenter across the room as a throw aims there
-     * (decision black-hole-leaves-a-compression-sphere).
-     *
-     * @param player the local player
-     * @return the face, or null where the look meets none within range
-     */
-    private static @Nullable BlockHitResult farFace(Player player) {
-        Vec3 eye = player.getEyePosition();
-        Vec3 end = eye.add(player.getViewVector(1f).scale(GooThrowHandler.MAX_RANGE));
-        BlockHitResult hit = player.level().clip(new ClipContext(eye, end, ClipContext.Block.OUTLINE,
-                ClipContext.Fluid.NONE, player));
-        return hit.getType() == HitResult.Type.BLOCK ? hit : null;
-    }
-
-    /**
-     * Where the live press pinned a world ability sized at will: the block
-     * face and point the cursor rested on at the press
-     * (decision black-hole-leaves-a-compression-sphere).
-     *
-     * @return the pin, or null when no press is live or it rested on no block
-     */
-    public static @Nullable BlockHitResult pressPin() {
-        return PRESS.isArmed() ? pressPin : null;
     }
 
     /**

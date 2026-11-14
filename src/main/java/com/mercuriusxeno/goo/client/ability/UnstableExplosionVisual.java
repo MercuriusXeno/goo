@@ -157,9 +157,9 @@ public final class UnstableExplosionVisual implements BurnoutVisual, HeldGhostVi
 
     /**
      * The blast radius: the max reach of the ability's explode step's power,
-     * read off the synced ability at the size the cast was dragged to, so the
+     * read off the synced ability at the size the cast was charged to, so the
      * burnout fills the sphere the explosion cuts at most
-     * (decisions preview-sphere-is-max-reach, blast-is-drag-sized-like-the-black-hole).
+     * (decisions preview-sphere-is-max-reach, spontaneous-abilities-cast-at-the-target-with-no-thrown-blob).
      *
      * @param burnout the burnout
      * @return the blast radius in blocks
@@ -172,7 +172,7 @@ public final class UnstableExplosionVisual implements BurnoutVisual, HeldGhostVi
 
     /**
      * @param step the explode step
-     * @param size the size the cast was dragged to, zero for a throw
+     * @param size the size the cast was charged to, zero for a throw
      * @return the max reach of the step's power at that size, in blocks
      */
     static float blastReach(ExplodeStep step, double size) {

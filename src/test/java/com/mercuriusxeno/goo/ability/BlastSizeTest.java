@@ -19,8 +19,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Blast is drag-sized: its JSON wears the drag_sized tag, its explode step
- * reaches the radius dragged (decision blast-is-drag-sized-like-the-black-hole),
+ * Blast is held to charge: its size grows with the hold up to the cap its
+ * charge names, its explode step reaches that size
+ * (decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob),
  * and its power digs through stone out to that radius, so the blast fills
  * the ring it draws (decision blast-fills-its-drawn-radius).
  */
@@ -37,12 +38,29 @@ class BlastSizeTest {
     }
 
     @Test
-    void blastIsDragSizedAndNeverThrownAtAnEntity() {
+    void blastIsNeverThrownAtAnEntity() {
         AbilityDefinition blast = AbilityJson.decode("unstable_blast");
 
-        assertTrue(blast.hasTag(AbilityTags.DRAG_SIZED));
         assertFalse(blast.hasTag(AbilityTags.ENTITY));
-        assertEquals(AbilityArea.NONE, blast.area(), "the drag draws the ghost, not a resting area");
+        assertEquals(AbilityArea.NONE, blast.area(), "the charge draws the ghost, not a resting area");
+    }
+
+    @Test
+    void aLongerHoldChargesALargerBlast() {
+        Delivery delivery = AbilityJson.decode("unstable_blast").delivery();
+        int fullCharge = delivery.chargeTicks();
+
+        assertTrue(delivery.sizesByCharge(), "Blast's hold should size it");
+        assertTrue(delivery.sizeAt(fullCharge / 2) > delivery.sizeAt(fullCharge / 4),
+                "a longer hold should charge a larger blast");
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {1, 2, 10})
+    void aHoldPastTheFullChargeStopsAtTheCap(int fullCharges) {
+        Delivery delivery = AbilityJson.decode("unstable_blast").delivery();
+
+        assertEquals(delivery.charge().maxSize(), delivery.sizeAt(delivery.chargeTicks() * fullCharges), TOLERANCE);
     }
 
     @ParameterizedTest
