@@ -7,7 +7,7 @@
   "delivery": { "kind": "stream", "range": 6, "cone": 50, "ticks_per_charge": 20 },
   "area": { "shape": "cone", "size": 6.0, "angle": 50.0 },
   "behaviors": [
-    { "type": "heal", "amount": 0.1 },
+    { "type": "heal", "amount": 2, "every": 10 },
     { "type": "drain_petrify", "amount": 2.5 },
     { "type": "wake_statue" }
   ],
