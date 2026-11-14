@@ -38,44 +38,6 @@ class MobCoatsTest {
         return coats.coatsOf(MOB, tick).stream().map(MobCoats.Coat::hitPoint).toList();
     }
 
-    /** A charm-like cast's dart envelops the mob whole (decision charm-like-abilities-lock-the-highlighted-mob-on-right-click). */
-    @Nested
-    class Envelop {
-
-        private static final double ZOMBIE_WIDTH = 0.6;
-        private static final double ZOMBIE_HEIGHT = 1.95;
-
-        private MobCoats.Coat envelopedZombie() {
-            MobCoats coats = new MobCoats();
-            coats.envelop(MOB, GooTypes.HEX, HIT_TICK, new MobCoats.Strike(FIRST_HIT, NO_AIM, STOOD), ZOMBIE_WIDTH,
-                    ZOMBIE_HEIGHT);
-            return coats.coatsOf(MOB, HIT_TICK).getFirst();
-        }
-
-        @Test
-        void reachesEveryCornerOfTheBoxFromItsMiddle() {
-            float scale = envelopedZombie().reachScale();
-            double cornerFromMiddle = Math.sqrt(2 * ZOMBIE_WIDTH * ZOMBIE_WIDTH + ZOMBIE_HEIGHT * ZOMBIE_HEIGHT) / 2;
-            assertEquals(cornerFromMiddle, scale * MobCoats.WHOLE_REACH_BLOCKS, EPSILON);
-        }
-
-        @Test
-        void spreadsOverTheMobThenHoldsAndDissolvesAsASplatDoes() {
-            MobCoats.Coat coat = envelopedZombie();
-            assertEquals(1f, coat.dissolveAt(0f));
-            assertEquals(0.5f, coat.dissolveAt(MobCoats.ENVELOP_SPREAD_TICKS / 2f), EPSILON);
-            assertEquals(0f, coat.dissolveAt(COAT_HOLD_TICKS));
-            assertEquals(1f, coat.dissolveAt(COAT_LIFE_TICKS));
-        }
-
-        @Test
-        void aSplatStandsWholeFromItsHit() {
-            MobCoats.Coat splat = struckAt(HIT_TICK, FIRST_HIT).coatsOf(MOB, HIT_TICK).getFirst();
-            assertEquals(MobCoats.SPLAT_REACH, splat.reachScale());
-            assertEquals(0f, splat.dissolveAt(0f));
-        }
-    }
-
     @Nested
     class Life {
 

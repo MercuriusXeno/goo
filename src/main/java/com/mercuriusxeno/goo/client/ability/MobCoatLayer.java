@@ -138,7 +138,8 @@ public final class MobCoatLayer<S extends LivingEntityRenderState, M extends Ent
         long tick = entity.level().getGameTime();
         float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
         state.setRenderData(SPLATS, MobCoats.CLIENT.coatsOf(entity.getId(), tick).stream()
-                .map(coat -> new StampedSplat(coat, coat.dissolveAt(tick - coat.hitTick() + partialTick)))
+                .map(coat -> new StampedSplat(coat,
+                        MobCoats.Coat.dissolveProgress(tick - coat.hitTick() + partialTick)))
                 .toList());
     }
 
@@ -280,7 +281,7 @@ public final class MobCoatLayer<S extends LivingEntityRenderState, M extends Ent
                     model.setupAnim(state);
                     Matrix4f cameraToPin = new Matrix4f(pose.pose()).mul(pinFrame(model.root(), pin)).invert();
                     model.renderToBuffer(modelPose,
-                            new SplatVertices(buffer, cameraToPin, pin.partPoint(), coat.reachScale(),
+                            new SplatVertices(buffer, cameraToPin, pin.partPoint(),
                                     fluid.getU0(), fluid.getV0()),
                             lightCoords, OverlayTexture.NO_OVERLAY, tint);
                 });

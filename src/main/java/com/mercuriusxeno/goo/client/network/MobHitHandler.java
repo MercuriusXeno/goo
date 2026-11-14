@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.network;
 
 import com.mercuriusxeno.goo.client.ability.MobCoats;
 import com.mercuriusxeno.goo.client.ability.MobHitBurst;
+import com.mercuriusxeno.goo.client.ability.SlimeShells;
 import com.mercuriusxeno.goo.client.ability.SplatDrips;
 import com.mercuriusxeno.goo.network.MobHitPayload;
 import com.mercuriusxeno.goo.type.GooColors;
@@ -10,7 +11,6 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
@@ -45,10 +45,8 @@ public final class MobHitHandler {
                 return;
             }
             if (payload.envelops()) {
-                // charm-like-abilities-lock-the-highlighted-mob-on-right-click: the dart envelops the mob whole
-                MobCoats.CLIENT.envelop(payload.entityId(), gooType, mc.level.getGameTime(),
-                        new MobCoats.Strike(struck.getBoundingBox().getCenter(), Vec3.ZERO,
-                                SplatDrips.stanceOf(struck)), struck.getBbWidth(), struck.getBbHeight());
+                // charm-like-abilities-lock-the-highlighted-mob-on-right-click: the dart wraps the mob in a slime shell
+                SlimeShells.CLIENT.envelop(payload.entityId(), gooType, mc.level.getGameTime());
             } else {
                 MobCoats.CLIENT.coat(payload.entityId(), gooType, mc.level.getGameTime(),
                         new MobCoats.Strike(payload.hitPoint(), payload.aimDirection(), SplatDrips.stanceOf(struck)));
