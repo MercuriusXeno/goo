@@ -19,6 +19,7 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
@@ -35,8 +36,8 @@ import java.util.WeakHashMap;
  * rally's damage on reaching it and every strike interval after; with no enemy
  * in reach it takes the side its moving caster heads toward, or follows a
  * standing caster. It wears its share of the caster's armor, read again every
- * refresh interval. The caster's own hit, or the caster's second Rally cast,
- * which deals no damage, ends the rally and takes its buffs off; a hit or a
+ * refresh interval. The caster's own hit or the caster's second Rally cast,
+ * both dealing no damage, ends the rally and takes its buffs off; a hit or a
  * cast from anyone else leaves it.
  * unengaged-minions-move-where-you-move
  * zoo-rally-arms-the-peaceful
@@ -118,20 +119,24 @@ public final class RallyEvents {
     }
 
     /**
-     * Ends a mob's rally once damage from its rallier lands on it; damage
-     * from anyone else leaves the rally standing.
+     * Ends a mob's rally on a hit from its rallier, and cancels that hit so
+     * it deals no damage; a hit from anyone else lands and leaves the rally
+     * standing. Ending a rally isn't an attack: a cancelled hit leaves the
+     * rallier recording no struck mob, so its other rallied mobs never take
+     * the freed mob as their foe, while a second hit lands and makes it one.
      * rally-is-a-mob-effect-on-one-target
      *
-     * @param event the damage event, after the damage landed
+     * @param event the incoming damage event, before the damage lands
      */
     @SubscribeEvent
-    public static void onRalliedHurt(LivingDamageEvent.Post event) {
+    public static void onRalliedHurt(LivingIncomingDamageEvent event) {
         if (!(event.getEntity() instanceof Mob mob) || mob.level().isClientSide()
                 || !mob.hasData(GooAttachments.RALLIED)) {
             return;
         }
         Entity attacker = event.getSource().getEntity();
         if (mob.getData(GooAttachments.RALLIED).brokenBy(attacker == null ? null : attacker.getUUID())) {
+            event.setCanceled(true);
             endRally(mob);
         }
     }
@@ -283,7 +288,9 @@ public final class RallyEvents {
 
     /**
      * Lifts a mob's max health and speed by the rally's shares, each a
-     * multiple of the whole, and heals it to its new max.
+     * multiple of the whole, leaving its health where it stands: a rally
+     * heals none of it.
+     * zoo-rally-arms-the-peaceful
      *
      * @param mob         the rallied mob
      * @param healthShare the share max health grows by
@@ -292,7 +299,6 @@ public final class RallyEvents {
     public static void buff(Mob mob, double healthShare, double speedShare) {
         replaceModifier(mob.getAttribute(Attributes.MAX_HEALTH), HEALTH_MODIFIER, healthShare);
         replaceModifier(mob.getAttribute(Attributes.MOVEMENT_SPEED), SPEED_MODIFIER, speedShare);
-        mob.setHealth(mob.getMaxHealth());
     }
 
     private static void replaceModifier(@Nullable AttributeInstance attribute, Identifier id, double share) {
