@@ -442,7 +442,7 @@ class AbilityLoaderTest {
     class CostFormula {
 
         private static final List<String> DYNAMIC_ABILITIES = List.of("ender_blink",
-                "unstable_explode", "rock_spire", "rock_terrakinesis", "yore_age");
+                "unstable_explode", "rock_spire", "rock_gouge", "yore_age");
 
         @Test
         void eachDynamicAbilityCarriesItsFormula() {
@@ -464,11 +464,11 @@ class AbilityLoaderTest {
 
         @Test
         void zeroCostAbilityNamingCostMechanicsAndNoFormulaFailsNamingTheField() {
-            String json = AbilityJson.read("rock_terrakinesis")
+            String json = AbilityJson.read("rock_gouge")
                     .replaceAll("\\s*\"cost_formula\"\\s*:\\s*\"[^\"]*\",?", "");
 
             IllegalStateException refusal = assertThrows(IllegalStateException.class,
-                    () -> AbilityJson.decodeText("rock_terrakinesis", json));
+                    () -> AbilityJson.decodeText("rock_gouge", json));
 
             assertTrue(refusal.getMessage().contains("cost_formula"), refusal.getMessage());
         }
@@ -482,39 +482,39 @@ class AbilityLoaderTest {
     @Nested
     class CostMechanics {
 
-        private static final String TERRAKINESIS = "rock_terrakinesis";
-        private static final String TERRAKINESIS_KEY = "goo.ability.rock.terrakinesis.cost_mechanics";
-        private static final String NAMED_KEY = "\"cost_mechanics\": \"" + TERRAKINESIS_KEY + "\",";
+        private static final String GOUGE = "rock_gouge";
+        private static final String GOUGE_KEY = "goo.ability.rock.gouge.cost_mechanics";
+        private static final String NAMED_KEY = "\"cost_mechanics\": \"" + GOUGE_KEY + "\",";
 
-        private static String terrakinesisNamingNoCostMechanics() {
-            return AbilityJson.read(TERRAKINESIS).replaceAll("\\s*\"cost_mechanics\"\\s*:\\s*\"[^\"]*\",?", "");
+        private static String gougeNamingNoCostMechanics() {
+            return AbilityJson.read(GOUGE).replaceAll("\\s*\"cost_mechanics\"\\s*:\\s*\"[^\"]*\",?", "");
         }
 
         @Test
         void zeroCostAbilityNamingNoCostMechanicsFailsNamingTheField() {
-            String json = terrakinesisNamingNoCostMechanics();
+            String json = gougeNamingNoCostMechanics();
 
             IllegalStateException refusal = assertThrows(IllegalStateException.class,
-                    () -> AbilityJson.decodeText(TERRAKINESIS, json));
+                    () -> AbilityJson.decodeText(GOUGE, json));
 
             assertTrue(refusal.getMessage().contains("cost_mechanics"), refusal.getMessage());
         }
 
         @Test
         void absentCostNamingNoCostMechanicsFailsNamingTheField() {
-            String json = terrakinesisNamingNoCostMechanics().replaceAll("\"cost\"\\s*:\\s*0,", "");
+            String json = gougeNamingNoCostMechanics().replaceAll("\"cost\"\\s*:\\s*0,", "");
 
             IllegalStateException refusal = assertThrows(IllegalStateException.class,
-                    () -> AbilityJson.decodeText(TERRAKINESIS, json));
+                    () -> AbilityJson.decodeText(GOUGE, json));
 
             assertTrue(refusal.getMessage().contains("cost_mechanics"), refusal.getMessage());
         }
 
         @Test
         void zeroCostAbilityNamingCostMechanicsLoadsWithThatKey() {
-            String json = terrakinesisNamingNoCostMechanics().replaceFirst("\\{", "{ " + NAMED_KEY);
+            String json = gougeNamingNoCostMechanics().replaceFirst("\\{", "{ " + NAMED_KEY);
 
-            assertEquals(Optional.of(TERRAKINESIS_KEY), AbilityJson.decodeText(TERRAKINESIS, json).costMechanics());
+            assertEquals(Optional.of(GOUGE_KEY), AbilityJson.decodeText(GOUGE, json).costMechanics());
         }
 
         @Test

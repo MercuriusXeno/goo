@@ -53,8 +53,8 @@ class ShortAbilityNamesTest {
                 Arguments.of("goo.ability.pulse.pulser", "Tick"),
                 Arguments.of("goo.ability.quantum.phase_shift", "Shift"),
                 Arguments.of("goo.ability.kinetic.telekinesis", "Remote"),
-                Arguments.of("goo.ability.rock.terrakinesis", "Gouge"),
-                Arguments.of("goo.ability.rock.flatten", "Level"),
+                Arguments.of("goo.ability.rock.gouge", "Gouge"),
+                Arguments.of("goo.ability.rock.level", "Level"),
                 Arguments.of("goo.ability.shroom.fungal_shift", "Transmit"));
     }
 

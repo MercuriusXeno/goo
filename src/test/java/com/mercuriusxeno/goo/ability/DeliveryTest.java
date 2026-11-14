@@ -114,8 +114,8 @@ class DeliveryTest {
 
         // traveling-form-transforms-in-flight
         @Test
-        void javelinMorphsToADartAndAPlainArcStaysABlob() {
-            assertEquals(TravelForm.DART, AbilityJson.decode("metal_javelin").delivery().form());
+        void dartMorphsToADartAndAPlainArcStaysABlob() {
+            assertEquals(TravelForm.DART, AbilityJson.decode("metal_dart").delivery().form());
             assertEquals(TravelForm.BLOB, deliveryOf("\"delivery\": { \"kind\": \"arc\" },").form());
         }
 
@@ -282,17 +282,17 @@ class DeliveryTest {
         /**
          * A dart thrown at a mob ten blocks off, Metal's levity and base
          * flight time, stays in the air at least the ticks the top speed
-         * metal_javelin.json names takes to cover the distance, so the eye
+         * metal_dart.json names takes to cover the distance, so the eye
          * follows it (decision dart-flies-at-a-speed-you-can-follow).
          */
         @Test
         void dartFliesNoFasterThanTheSpeedItsJsonNames() {
-            JsonObject delivery = JsonParser.parseString(AbilityJson.read("metal_javelin")).getAsJsonObject()
+            JsonObject delivery = JsonParser.parseString(AbilityJson.read("metal_dart")).getAsJsonObject()
                     .getAsJsonObject("delivery");
-            assertTrue(delivery.has(TOP_SPEED), "metal_javelin.json names no " + TOP_SPEED);
+            assertTrue(delivery.has(TOP_SPEED), "metal_dart.json names no " + TOP_SPEED);
             double topSpeed = delivery.get(TOP_SPEED).getAsDouble();
             int fewestTicks = (int) Math.ceil(TEN_BLOCKS / topSpeed);
-            int flight = AbilityJson.decode("metal_javelin").delivery().travelTicks(TEN_BLOCKS, LEVITY,
+            int flight = AbilityJson.decode("metal_dart").delivery().travelTicks(TEN_BLOCKS, LEVITY,
                     BASE_FLIGHT_TIME);
             assertTrue(flight >= fewestTicks, "a ten-block dart flew " + flight + " ticks where "
                     + topSpeed + " blocks a tick takes " + fewestTicks);

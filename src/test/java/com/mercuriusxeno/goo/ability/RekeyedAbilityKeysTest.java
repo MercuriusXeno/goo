@@ -48,11 +48,16 @@ class RekeyedAbilityKeysTest {
         return Stream.of(
                 Arguments.of("glow_bulb", "Bulb"),
                 Arguments.of("glow_wisps", "Wisps"),
-                Arguments.of("glow_laser", "Laser"));
+                Arguments.of("glow_laser", "Laser"),
+                Arguments.of("rock_level", "Level"),
+                Arguments.of("rock_gouge", "Gouge"),
+                Arguments.of("metal_dart", "Dart"),
+                Arguments.of("metal_urchin", "Urchin"));
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"glow_crystal", "glow_radiant", "glow_sunbeam"})
+    @ValueSource(strings = {"glow_crystal", "glow_radiant", "glow_sunbeam",
+            "rock_flatten", "rock_terrakinesis", "metal_javelin", "metal_spikes"})
     void oldKeyShipsNoAbility(String oldId) {
         assertNull(RekeyedAbilityKeysTest.class.getResource(ABILITY_JSON.formatted(oldId)), oldId + " json");
         assertNull(RekeyedAbilityKeysTest.class.getResource(ABILITY_ICON.formatted(oldId)), oldId + " icon");

@@ -1,0 +1,12 @@
+{
+  "gooType": "metal",
+  "displayName": "goo.ability.metal.dart",
+  "badge": "mob",
+  "order": 10,
+  "cost": 1000,
+  "delivery": { "kind": "arc", "transform_at": 0.25, "form": "dart", "top_speed": 1.2 },
+  "behaviors": [
+    { "type": "damage", "amount": 8.0, "source": "magic" }
+  ],
+  "tags": ["entity", "harmful"]
+}

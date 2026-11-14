@@ -109,7 +109,7 @@ class StepCodecTest {
             Map.entry("regress", new RegressStep(20)),
             Map.entry("ancient", new AncientStep()),
             Map.entry("grab", new GrabStep(8, 3, 1.5, 1, 10)),
-            Map.entry("terrakinesis", new TerrakinesisStep(6, 1.5, 2.5, 3.5, 1.5, 1000)),
+            Map.entry("gouge", new GougeStep(6, 1.5, 2.5, 3.5, 1.5, 1000)),
             Map.entry("telekinesis", new TelekinesisStep(8)),
             Map.entry("set_baby", LeafSteps.SET_BABY.step(true)),
             Map.entry("ailment_overlay", new AilmentOverlayStep(AilmentKind.HEX,
@@ -134,8 +134,8 @@ class StepCodecTest {
             Map.entry("scry", new ScryStep(GooTypes.ASTRAL, 96, List.of(EntityFilter.LIVING),
                     List.of(new AilmentOverlayStep(AilmentKind.ASTRAL, Expr.literal(200))))),
             Map.entry("undead", new UndeadStep(Expr.literal(1))),
-            Map.entry("flatten", new FlattenStep(TagKey.create(Registries.BLOCK,
-                    Identifier.fromNamespaceAndPath("goo", "flatten_breakable")), new BreakPace(5, 1.5))),
+            Map.entry("level", new LevelStep(TagKey.create(Registries.BLOCK,
+                    Identifier.fromNamespaceAndPath("goo", "level_breakable")), new BreakPace(5, 1.5))),
             Map.entry("bore", new BoreStep(TagKey.create(Registries.BLOCK,
                     Identifier.fromNamespaceAndPath("goo", "bore_breakable")), new BreakPace(5, 1.5))),
             Map.entry("spire", new SpireStep()),
@@ -279,7 +279,7 @@ class StepCodecTest {
     }
 
     @Test
-    void javelinStepsDecode() {
+    void dartStepsDecode() {
         Step step = decode("{\"type\": \"damage\", \"amount\": 8.0, \"source\": \"magic\"}").getOrThrow();
         DamageStep damage = assertInstanceOf(DamageStep.class, step);
         assertEquals(8.0, damage.amount().evaluate(Variables.NONE));
@@ -340,11 +340,11 @@ class StepCodecTest {
     }
 
     @Test
-    void rockFlattensFlattenStepCarriesBothPaceValues() {
+    void rockLevelStepCarriesBothPaceValues() {
         // decision bore-and-flatten-json-carry-two-pace-values
-        FlattenStep flatten = AbilityJson.decode("rock_flatten").behaviors().stream()
-                .filter(FlattenStep.class::isInstance).map(FlattenStep.class::cast).findFirst().orElseThrow();
-        assertNotNull(flatten.pace());
+        LevelStep levelStep = AbilityJson.decode("rock_level").behaviors().stream()
+                .filter(LevelStep.class::isInstance).map(LevelStep.class::cast).findFirst().orElseThrow();
+        assertNotNull(levelStep.pace());
     }
 
     @Test

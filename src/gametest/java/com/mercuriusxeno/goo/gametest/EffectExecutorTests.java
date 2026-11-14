@@ -59,7 +59,7 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 @RegistersGameTests
 public final class EffectExecutorTests {
     private static final String FX_PROGRAM_MINE = "fx_program_proximity_mine";
-    private static final String FX_PROGRAM_METAL_SPIKES = "fx_program_metal_spikes";
+    private static final String FX_PROGRAM_METAL_URCHIN = "fx_program_metal_urchin";
     private static final String FX_PROGRAM_CRYSTAL_CLOUD = "fx_program_crystal_cloud";
     private static final String COMPRESSION_SPHERE_SPILLS_ON_TOUCH = "compression_sphere_spills_on_touch";
     private static final String LARGE_BLAST_LEAVES_A_GREEN_SPHERE = "large_blast_leaves_a_green_sphere";
@@ -80,7 +80,7 @@ public final class EffectExecutorTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, FX_PROGRAM_MINE, EffectExecutorTests::programProximityMine);
-        GooTestFunctions.registerTest(registrar, FX_PROGRAM_METAL_SPIKES, EffectExecutorTests::programMetalSpikes);
+        GooTestFunctions.registerTest(registrar, FX_PROGRAM_METAL_URCHIN, EffectExecutorTests::programMetalUrchin);
         GooTestFunctions.registerTest(registrar, FX_PROGRAM_CRYSTAL_CLOUD, EffectExecutorTests::programCrystalCloud);
         GooTestFunctions.registerTest(registrar, COMPRESSION_SPHERE_SPILLS_ON_TOUCH, EffectExecutorTests::compressionSphereSpillsOnTouch);
         GooTestFunctions.registerTest(registrar, LARGE_BLAST_LEAVES_A_GREEN_SPHERE, EffectExecutorTests::largeBlastLeavesAGreenSphere);
@@ -119,7 +119,7 @@ public final class EffectExecutorTests {
     private static final int MINE_IDLE_TICKS = 5;
     /** Where the mine's target spawns: two blocks from the marker, inside its radius. */
     private static final BlockPos MINE_TARGET_POS = MARKER_POS.east(2);
-    private static final String ABILITY_METAL_SPIKES = "goo:metal_spikes";
+    private static final String ABILITY_METAL_URCHIN = "goo:metal_urchin";
     private static final String SPIKE_MISSED = "The metal trap left the walking pig unhurt";
     private static final String ABILITY_CRYSTAL_CLOUD = "goo:crystal_cloud";
     /** Where a diamond lies: two blocks west of the marker. */
@@ -201,7 +201,7 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * A metal_spikes marker whose support breaks while its program runs
+     * A metal_urchin marker whose support breaks while its program runs
      * falls to the floor below and lands carrying its ability id and its
      * running program (decisions no-throw-without-ability,
      * splat-runs-the-program-no-fuse).
@@ -211,14 +211,14 @@ public final class EffectExecutorTests {
     public static void fallenMarkerKeepsAbility(GameTestHelper helper) {
         helper.setBlock(FALL_FLOOR_POS, Blocks.STONE);
         helper.setBlock(FALL_SUPPORT_POS, Blocks.STONE);
-        AbilityDefinition spikes = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(ABILITY_METAL_SPIKES));
+        AbilityDefinition spikes = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(ABILITY_METAL_URCHIN));
         helper.assertTrue(spikes != null, ABILITIES_REQUIRED);
         AbilityImpact.land(helper.getLevel(), helper.absolutePos(FALL_SUPPORT_POS), GooTypes.METAL, Direction.UP, spikes);
         helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), FALL_START_POS);
         helper.setBlock(FALL_SUPPORT_POS, Blocks.AIR);
         helper.runAfterDelay(FALL_LANDED_TICKS, () -> {
             AbilityBlockEntity landed = helper.getBlockEntity(FALL_LANDING_POS, AbilityBlockEntity.class);
-            helper.assertTrue(ABILITY_METAL_SPIKES.equals(landed.getAbilityId()), FALL_ABILITY_LOST);
+            helper.assertTrue(ABILITY_METAL_URCHIN.equals(landed.getAbilityId()), FALL_ABILITY_LOST);
             helper.assertTrue(landed.getBehavior() != null && landed.getBehavior().isActive(), FALL_PROGRAM_LOST);
             helper.succeed();
         });
@@ -242,13 +242,13 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * A metal_spikes goo landing on a glow crystal leaves it as it stood
+     * A metal_urchin goo landing on a glow crystal leaves it as it stood
      * and places its own marker on the crystal's face.
      *
      * @param helper the gametest helper
      */
     public static void otherAbilityMarksCrystal(GameTestHelper helper) {
-        landOnCrystal(helper, GooTypes.METAL, ABILITY_METAL_SPIKES);
+        landOnCrystal(helper, GooTypes.METAL, ABILITY_METAL_URCHIN);
         helper.assertBlockPresent(GooBlocks.GLOW_CRYSTAL.get(), CRYSTAL_POS);
         helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), CRYSTAL_POS.above());
         helper.succeed();
@@ -569,7 +569,7 @@ public final class EffectExecutorTests {
     private static AbilityBlockEntity placeMetalTrap(GameTestHelper helper) {
         discardLeftoverEntities(helper);
         helper.setBlock(MINE_TARGET_POS.below(), Blocks.STONE);
-        placeMarkerWithAbility(helper, GooTypes.METAL, ABILITY_METAL_SPIKES);
+        placeMarkerWithAbility(helper, GooTypes.METAL, ABILITY_METAL_URCHIN);
         return helper.getBlockEntity(MARKER_POS, AbilityBlockEntity.class);
     }
 
@@ -579,7 +579,7 @@ public final class EffectExecutorTests {
      *
      * @param helper the gametest helper
      */
-    public static void programMetalSpikes(GameTestHelper helper) {
+    public static void programMetalUrchin(GameTestHelper helper) {
         placeMetalTrap(helper);
         Pig[] pig = new Pig[1];
         helper.startSequence()

@@ -9,7 +9,7 @@ import net.minecraft.network.codec.StreamCodec;
 /**
  * The form a thrown goo takes in flight: it stays a blob, or it morphs
  * into a pointed shape by the share of the flight its delivery's
- * transform_at names, the metal javelin's dart.
+ * transform_at names, the metal Dart's dart.
  * decision traveling-form-transforms-in-flight
  *
  * @see Delivery#transformAt()
