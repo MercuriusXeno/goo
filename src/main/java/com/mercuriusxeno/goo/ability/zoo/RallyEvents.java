@@ -74,7 +74,9 @@ public final class RallyEvents {
     @SubscribeEvent
     public static void onEntityTick(EntityTickEvent.Post event) {
         if (!(event.getEntity() instanceof Mob mob) || !(mob.level() instanceof ServerLevel level)
-                || !mob.hasData(GooAttachments.RALLIED)) {
+                || !mob.hasData(GooAttachments.RALLIED)
+                // rallied-mob-falls-downed-instead-of-dying: a downed mob lies still, fighting and following no one
+                || mob.hasData(GooAttachments.DOWNED)) {
             return;
         }
         Rallied rally = mob.getData(GooAttachments.RALLIED);
@@ -318,7 +320,8 @@ public final class RallyEvents {
     private static RallyFoes.Candidate<LivingEntity> candidate(Mob rallied, LivingEntity near) {
         LivingEntity target = near instanceof Mob nearMob ? nearMob.getTarget() : null;
         return new RallyFoes.Candidate<>(near, near.getUUID(), near.isAlive(), isUnprovokedHostile(near),
-                target == null ? null : target.getUUID(), rallied.distanceToSqr(near));
+                target == null ? null : target.getUUID(), rallied.distanceToSqr(near),
+                near.hasData(GooAttachments.DOWNED));
     }
 
     /**
