@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.throwing;
 import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityTags;
+import com.mercuriusxeno.goo.ability.Charge;
 import com.mercuriusxeno.goo.ability.ChargeSize;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
@@ -18,6 +19,7 @@ import com.mercuriusxeno.goo.ability.zoo.Rallied;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.ability.CameraEye;
 import com.mercuriusxeno.goo.client.ability.CastOrigin;
+import com.mercuriusxeno.goo.client.ability.ChargeEase;
 import com.mercuriusxeno.goo.client.ability.ReserveVisual;
 import com.mercuriusxeno.goo.client.ability.VitalityVisual;
 import com.mercuriusxeno.goo.client.ability.WindLines;
@@ -336,15 +338,48 @@ public final class GloveThrowSender {
      * @return the size, or empty when no charge of a sized ability stands
      */
     public static OptionalDouble chargedSize(Player player) {
+        return chargingSizedAbility(player).map(charging -> OptionalDouble.of(ChargeSize.affordable(
+                charging.ability().delivery().stageAt(GloveUseTracker.heldTicks()), charging.ability().cost(),
+                charging.holdings()))).orElse(OptionalDouble.empty());
+    }
+
+    /**
+     * The radius the live charge's spheroid draws at this frame: eased up from
+     * nothing and from stage to stage, never past the largest stage the
+     * player's goo pays for.
+     * decision blast-eases-between-stages-at-a-second-each
+     *
+     * @param player      the local player
+     * @param partialTick the frame's partial tick
+     * @return the radius, or empty when no charge of a sized ability stands
+     */
+    public static OptionalDouble drawnChargeRadius(Player player, float partialTick) {
+        return chargingSizedAbility(player).map(charging -> {
+            Charge charge = charging.ability().delivery().charge();
+            double eased = ChargeEase.drawnRadius(charge, GloveUseTracker.heldTicks() + partialTick);
+            double paidFor = ChargeSize.affordable(charge.maxSize(), charging.ability().cost(), charging.holdings());
+            return OptionalDouble.of(Math.min(eased, paidFor));
+        }).orElse(OptionalDouble.empty());
+    }
+
+    /**
+     * A sized ability the held glove is charging, with the goo of its type the player holds.
+     *
+     * @param ability  the charging ability's synced copy
+     * @param holdings the mB of its type the player holds
+     */
+    private record ChargingSized(ClientAbility ability, int holdings) {
+    }
+
+    private static Optional<ChargingSized> chargingSizedAbility(Player player) {
         GloveSelection selection = heldSelection(player);
         ClientAbility ability = selection == null ? null : AbilitySyncHandler.findAbility(selection.abilityId());
         if (ability == null || selection.getGooType() == null || !GloveUseTracker.charging()
                 || !ability.delivery().sizesByCharge()) {
-            return OptionalDouble.empty();
+            return Optional.empty();
         }
-        int holdings = GooSourceScanner.aggregateAvailable(player).getOrDefault(selection.getGooType(), 0);
-        return OptionalDouble.of(ChargeSize.affordable(ability.delivery().stageAt(GloveUseTracker.heldTicks()),
-                ability.cost(), holdings));
+        return Optional.of(new ChargingSized(ability,
+                GooSourceScanner.aggregateAvailable(player).getOrDefault(selection.getGooType(), 0)));
     }
 
     /**
