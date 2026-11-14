@@ -273,7 +273,7 @@ class ProgramHostLoadTest {
                         HostCapability.WORMHOLE, HostCapability.PORTAL, HostCapability.HOLE, HostCapability.METEOR,
                         HostCapability.POWER_PULSE,
                         HostCapability.AGING, HostCapability.FROST, HostCapability.SPAWN_MOB, HostCapability.IGNITE,
-                        HostCapability.MELT),
+                        HostCapability.MOLTEN),
                 HostKind.LANDING.capabilities());
     }
 

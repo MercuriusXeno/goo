@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 /**
- * Where a razor shard draws as the prism dome grows past it: undrawn until
+ * Where a Shatter shard draws as the prism dome grows past it: undrawn until
  * the dome reaches nine tenths of the shard's resting distance, born there
  * fully transparent, then drifting the last tenth to rest while it fades in
  * as the dome passes, at rest at full alpha once the dome has passed. As the

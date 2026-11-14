@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
-import com.mercuriusxeno.goo.network.MeltAbsorbPayload;
+import com.mercuriusxeno.goo.network.MoltenAbsorbPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
@@ -18,7 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Melt's blob sinking into the stone it melts: it flattens onto the struck
+ * Molten's blob sinking into the stone it melts: it flattens onto the struck
  * face and sinks through it, shrinking to nothing over the same run the
  * stone takes to mingle into the lava, so the two read as one transition.
  * melt-blob-absorbs-into-lava
@@ -27,7 +27,7 @@ import java.util.List;
  * stone mingles into lava, no burnout.
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
-public final class MeltAbsorbs {
+public final class MoltenAbsorbs {
 
     /** Ticks the sinking takes, the stone's mingle into lava. */
     static final float SINK_TICKS = BlockTransforms.DURATION_TICKS;
@@ -43,7 +43,7 @@ public final class MeltAbsorbs {
 
     private static final List<Sinking> SINKING = new ArrayList<>();
 
-    private MeltAbsorbs() {
+    private MoltenAbsorbs() {
     }
 
     /**
@@ -58,12 +58,12 @@ public final class MeltAbsorbs {
     }
 
     /**
-     * Starts a blob sinking where a Melt landed.
+     * Starts a blob sinking where Molten landed.
      *
      * @param payload the landing
      * @param context the network context
      */
-    public static void onPayload(MeltAbsorbPayload payload, IPayloadContext context) {
+    public static void onPayload(MoltenAbsorbPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.level == null) {

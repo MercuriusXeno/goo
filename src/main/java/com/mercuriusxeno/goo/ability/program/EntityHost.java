@@ -122,7 +122,7 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
 
     /**
      * Tests whether the target is a player sprinting; only a player's
-     * sprint doubles the crystal cloud's shred rate.
+     * sprint doubles the Shatter cloud's shred rate.
      *
      * @return true for a sprinting player
      */

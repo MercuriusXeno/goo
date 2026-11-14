@@ -13,7 +13,7 @@ import net.minecraft.resources.ResourceKey;
 import org.jspecify.annotations.NonNull;
 
 /**
- * Server-to-client payload: Melt's blob landed on a stone face and sinks
+ * Server-to-client payload: Molten's blob landed on a stone face and sinks
  * into it as the stone mingles into lava.
  * melt-blob-absorbs-into-lava
  *
@@ -21,30 +21,30 @@ import org.jspecify.annotations.NonNull;
  * @param struck  the block the blob sinks into
  * @param face    the face it landed on
  */
-public record MeltAbsorbPayload(ResourceKey<GooTypeDefinition> gooType, BlockPos struck, Direction face)
+public record MoltenAbsorbPayload(ResourceKey<GooTypeDefinition> gooType, BlockPos struck, Direction face)
         implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
-    public static final Type<MeltAbsorbPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath(Goo.MODID, "melt_absorb"));
+    public static final Type<MoltenAbsorbPayload> TYPE =
+            new Type<>(Identifier.fromNamespaceAndPath(Goo.MODID, "molten_absorb"));
 
     /** Stream codec for encoding/decoding. */
-    public static final StreamCodec<FriendlyByteBuf, MeltAbsorbPayload> STREAM_CODEC =
-            StreamCodec.of(MeltAbsorbPayload::encode, MeltAbsorbPayload::decode);
+    public static final StreamCodec<FriendlyByteBuf, MoltenAbsorbPayload> STREAM_CODEC =
+            StreamCodec.of(MoltenAbsorbPayload::encode, MoltenAbsorbPayload::decode);
 
     @Override
     public @NonNull Type<? extends CustomPacketPayload> type() {
         return TYPE;
     }
 
-    private static void encode(FriendlyByteBuf buf, MeltAbsorbPayload payload) {
+    private static void encode(FriendlyByteBuf buf, MoltenAbsorbPayload payload) {
         GooTypes.KEY_STREAM_CODEC.encode(buf, payload.gooType);
         buf.writeBlockPos(payload.struck);
         buf.writeVarInt(payload.face.get3DDataValue());
     }
 
-    private static MeltAbsorbPayload decode(FriendlyByteBuf buf) {
-        return new MeltAbsorbPayload(GooTypes.KEY_STREAM_CODEC.decode(buf), buf.readBlockPos(),
+    private static MoltenAbsorbPayload decode(FriendlyByteBuf buf) {
+        return new MoltenAbsorbPayload(GooTypes.KEY_STREAM_CODEC.decode(buf), buf.readBlockPos(),
                 Direction.from3DDataValue(buf.readVarInt()));
     }
 }

@@ -12,7 +12,7 @@ import java.util.stream.Stream;
  * Stands the ability's own block where its blob lands and hands it the child
  * steps, which run on the block's host from that tick until they end, when
  * the block goes (decision lingering-abilities-place-their-own-thing). An
- * ability that lingers (the crystal cloud, the metal trap, the lurker) names this step; one whose program ends the tick it
+ * ability that lingers (the Shatter cloud, the metal trap, the lurker) names this step; one whose program ends the tick it
  * lands names none and leaves only its effect behind.
  *
  * @param steps the steps the ability's block runs

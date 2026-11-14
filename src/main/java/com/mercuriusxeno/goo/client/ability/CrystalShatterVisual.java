@@ -38,12 +38,12 @@ import java.util.Map;
  * it from the first frame, and appears as the prism dome grows past it,
  * fading in and drifting to rest ({@link ShardLayering}). The cloud's
  * radius, its contract fraction, its ticks since the landing and its charge
- * density come from the crystal_cloud field effect's
+ * density come from the crystal_shatter field effect's
  * {@link FieldEffectState} on the marker. Each cloud's shards come from
- * its own layout in {@link CloudShardTables}.
+ * its own layout in {@link ShatterShardTables}.
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
-public final class CrystalCloudVisual {
+public final class CrystalShatterVisual {
 
     private static final float BLOCK_CENTER = 0.5f;
 
@@ -102,7 +102,7 @@ public final class CrystalCloudVisual {
      */
     private static final double STALE_EASING_TICKS = 100;
 
-    private static final CloudShardTables TABLES = new CloudShardTables();
+    private static final ShatterShardTables TABLES = new ShatterShardTables();
     private static @Nullable Level tablesLevel;
 
     /**
@@ -145,11 +145,11 @@ public final class CrystalCloudVisual {
         int colorAlong(Vec3 origin, Vec3 direction);
     }
 
-    private CrystalCloudVisual() {
+    private CrystalShatterVisual() {
     }
 
     /**
-     * Populates {@code state} with crystal-cloud fields: the density, the
+     * Populates {@code state} with Shatter fields: the density, the
      * ticks since the landing and the contract progress from the marker's
      * field-effect state,
      * the radius and animation lengths off the field-effect step of the
@@ -199,7 +199,7 @@ public final class CrystalCloudVisual {
     }
 
     /**
-     * Clears the crystal-cloud fields of a marker drawing no cloud.
+     * Clears the Shatter fields of a marker drawing no cloud.
      *
      * @param state the render state to clear
      */

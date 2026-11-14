@@ -135,7 +135,7 @@ class AbilityRegistryTest {
         AbilityRegistry registry = registryOf(AbilityJson.files().stream().map(AbilityJson::decode));
 
         assertEquals(Set.of(AbilityJson.idOf("blaze_flames.json"), AbilityJson.idOf("blaze_ignite.json"),
-                        AbilityJson.idOf("blaze_melt.json"), AbilityJson.idOf("blaze_kindle.json")),
+                        AbilityJson.idOf("blaze_molten.json"), AbilityJson.idOf("blaze_kindle.json")),
                 registry.getAbilitiesForType(GooTypes.BLAZE).stream().map(AbilityDefinition::id)
                         .collect(Collectors.toSet()));
     }

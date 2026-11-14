@@ -12,6 +12,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -53,7 +56,10 @@ class InventoryRenamedAbilitiesTest {
                 Arguments.of("ender_seal", "Seal"),
                 Arguments.of("void_zone", "Zone"),
                 Arguments.of("quantum_phase_self", "Phase Self"),
-                Arguments.of("quantum_phase_other", "Phase Other"));
+                Arguments.of("quantum_phase_other", "Phase Other"),
+                Arguments.of("blaze_molten", "Molten"),
+                Arguments.of("crystal_shatter", "Shatter"),
+                Arguments.of("crystal_glimmer", "Glimmer"));
     }
 
     @ParameterizedTest
@@ -62,6 +68,23 @@ class InventoryRenamedAbilitiesTest {
         assertNull(InventoryRenamedAbilitiesTest.class.getResource(ABILITY_JSON.formatted(oldId)), oldId + " json");
         assertNull(InventoryRenamedAbilitiesTest.class.getResource(ABILITY_ICON.formatted(oldId)), oldId + " icon");
         assertNull(lang.get("goo.ability." + oldId.replaceFirst("_", ".")), oldId + " lang");
+    }
+
+    /** A type whose ability was renamed ships the new keys beside its others, and no file under an old key. */
+    @ParameterizedTest
+    @MethodSource("renamedTypes")
+    void renamedTypeShipsItsNewKeysAlone(String type, Set<String> shipped) {
+        Set<String> found = AbilityJson.files().stream().map(Path::getFileName).map(Path::toString)
+                .map(name -> name.substring(0, name.length() - ".json".length()))
+                .filter(id -> id.startsWith(type + "_")).collect(Collectors.toSet());
+        assertEquals(shipped, found, type);
+    }
+
+    static Stream<Arguments> renamedTypes() {
+        return Stream.of(
+                Arguments.of("blaze", Set.of("blaze_flames", "blaze_ignite", "blaze_kindle", "blaze_molten")),
+                Arguments.of("crystal", Set.of("crystal_glimmer", "crystal_knives", "crystal_prism", "crystal_scales",
+                        "crystal_shatter")));
     }
 
     @Test

@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:fx_cloud_block_goes",
+  "function": "goo:molten_stone_to_lava",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
   "max_ticks": 80,

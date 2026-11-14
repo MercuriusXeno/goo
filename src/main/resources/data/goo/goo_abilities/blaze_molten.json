@@ -1,12 +1,12 @@
 {
   "gooType": "blaze",
-  "displayName": "goo.ability.blaze.melt",
+  "displayName": "goo.ability.blaze.molten",
   "badge": "world",
   "order": 20,
   "cost": 1000,
   "requires": ["minecraft:lava_bucket"],
   "delivery": { "kind": "arc" },
   "behaviors": [
-    { "type": "melt", "tag": "goo:meltable" }
+    { "type": "molten", "tag": "goo:meltable" }
   ]
 }

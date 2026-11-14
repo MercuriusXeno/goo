@@ -10,7 +10,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Blaze's Melt: the struck stone becomes a lava source as the blob sinks
+ * Blaze's Molten: the struck stone becomes a lava source as the blob sinks
  * into it, and the aim refuses any block the tag leaves out, so a throw at
  * one is never sent nor paid for: {@code melt tag=goo:meltable}.
  * melt-blob-absorbs-into-lava
@@ -21,31 +21,31 @@ import java.util.stream.Stream;
  *
  * @param meltable the blocks that melt
  */
-public record MeltStep(TagKey<Block> meltable) implements TargetGatedStep {
+public record MoltenStep(TagKey<Block> meltable) implements TargetGatedStep {
 
-    private static final String NAME = "melt";
+    private static final String NAME = "molten";
     private static final String FIELD_TAG = "tag";
 
     /**
      * Codec for the step's params.
      */
-    public static final MapCodec<MeltStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            TagKey.codec(Registries.BLOCK).fieldOf(FIELD_TAG).forGetter(MeltStep::meltable)
-    ).apply(inst, MeltStep::new));
+    public static final MapCodec<MoltenStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
+            TagKey.codec(Registries.BLOCK).fieldOf(FIELD_TAG).forGetter(MoltenStep::meltable)
+    ).apply(inst, MoltenStep::new));
 
     /**
      * The registered type.
      */
-    public static final StepType<MeltStep> TYPE = new StepType<>(NAME, CODEC);
+    public static final StepType<MoltenStep> TYPE = new StepType<>(NAME, CODEC);
 
     @Override
-    public StepType<MeltStep> type() {
+    public StepType<MoltenStep> type() {
         return TYPE;
     }
 
     @Override
     public boolean tick(StepContext context) {
-        context.hostAs(MeltHost.class).melt(meltable);
+        context.hostAs(MoltenHost.class).melt(meltable);
         return true;
     }
 
@@ -61,6 +61,6 @@ public record MeltStep(TagKey<Block> meltable) implements TargetGatedStep {
 
     @Override
     public Set<HostCapability> requires() {
-        return Set.of(HostCapability.MELT);
+        return Set.of(HostCapability.MOLTEN);
     }
 }

@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * reflection ray every frame, from that frame's camera, and takes the color
  * its own ray finds.
  */
-class CrystalCloudVisualTest {
+class CrystalShatterVisualTest {
 
     private static final int VISIBLE = 40;
     private static final int FRAMES = 3;
@@ -33,7 +33,7 @@ class CrystalCloudVisualTest {
     private static final float GROWN_DOME = 2f;
 
     /** A probe that records every ray cast and answers a color keyed to its direction. */
-    private static final class RecordingProbe implements CrystalCloudVisual.BlockColorProbe {
+    private static final class RecordingProbe implements CrystalShatterVisual.BlockColorProbe {
         private final List<Vec3> directions = new ArrayList<>();
 
         @Override
@@ -50,23 +50,23 @@ class CrystalCloudVisualTest {
         }
     }
 
-    private static CrystalCloudVisual.CloudDraw draw(Vec3 camPos, CrystalCloudVisual.BlockColorProbe probe) {
+    private static CrystalShatterVisual.CloudDraw draw(Vec3 camPos, CrystalShatterVisual.BlockColorProbe probe) {
         return draw(camPos, probe, 0, newEasing());
     }
 
-    private static CrystalCloudVisual.CloudDraw draw(Vec3 camPos, CrystalCloudVisual.BlockColorProbe probe,
+    private static CrystalShatterVisual.CloudDraw draw(Vec3 camPos, CrystalShatterVisual.BlockColorProbe probe,
                                                      double clock, ReflectionEasing easing) {
-        return new CrystalCloudVisual.CloudDraw(VISIBLE, ALPHA, 100f, 2f, GROWN_DOME, SHARDS,
+        return new CrystalShatterVisual.CloudDraw(VISIBLE, ALPHA, 100f, 2f, GROWN_DOME, SHARDS,
                 new Vec3(10, 64, 10), camPos, probe, clock, easing);
     }
 
     private static ReflectionEasing newEasing() {
-        return new ReflectionEasing(VISIBLE * CrystalCloudVisual.MAX_FACES_PER_SLIVER);
+        return new ReflectionEasing(VISIBLE * CrystalShatterVisual.MAX_FACES_PER_SLIVER);
     }
 
-    private static List<RecordingVertexConsumer.Vertex> emitFrame(CrystalCloudVisual.CloudDraw draw) {
+    private static List<RecordingVertexConsumer.Vertex> emitFrame(CrystalShatterVisual.CloudDraw draw) {
         RecordingVertexConsumer consumer = new RecordingVertexConsumer();
-        CrystalCloudVisual.emitCloud(new FlatQuadContext(new PoseStack().last(), consumer), draw);
+        CrystalShatterVisual.emitCloud(new FlatQuadContext(new PoseStack().last(), consumer), draw);
         return consumer.vertices();
     }
 
@@ -127,7 +127,7 @@ class CrystalCloudVisualTest {
         private static final Vec3 CAMERA = new Vec3(0.5, 70, 0.5);
 
         /** A probe answering one color for every ray until it is switched. */
-        private static final class SwitchingProbe implements CrystalCloudVisual.BlockColorProbe {
+        private static final class SwitchingProbe implements CrystalShatterVisual.BlockColorProbe {
             private int color = DARK;
 
             @Override
