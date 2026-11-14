@@ -4,14 +4,16 @@ import com.mercuriusxeno.goo.ability.Charge;
 
 /**
  * The radius a charge-sized cast's spheroid draws at while the hold grows it:
- * up from nothing across the charge's first stage, then easing from each
- * stage's whole size to the next across that stage's ticks, so it never pops
- * in nor jumps a block, and stands at the stage's whole size as each stage
- * completes; a release still casts the whole stage reached.
+ * up from nothing to the size the charge opens at over the first quarter
+ * second, then sitting at the size a release would cast and easing into the
+ * next size over the quarter second after each step, so it never pops in,
+ * never jumps a block and never runs ahead of the cast.
  * decision blast-eases-between-stages-at-a-second-each
  */
 public final class ChargeEase {
 
+    /** The ticks each ease runs: a quarter second. */
+    static final float EASE_TICKS = 5f;
     private static final double SMOOTHSTEP_CUBE = 2;
     private static final double SMOOTHSTEP_SQUARE = 3;
 
@@ -30,14 +32,17 @@ public final class ChargeEase {
         if (stages <= 0 || charge.maxTicks() <= 0) {
             return charge.stageAt(Math.round(heldTicks));
         }
-        double progress = Math.clamp(heldTicks / (charge.maxTicks() / stages), 0, stages);
-        int stage = (int) Math.floor(progress);
-        if (stage >= stages) {
-            return charge.maxSize();
+        if (heldTicks < EASE_TICKS) {
+            return charge.openingSize() * smoothstep(Math.max(0, heldTicks) / EASE_TICKS);
         }
-        double from = stage == 0 ? 0 : charge.openingSize() + stage;
-        double to = charge.openingSize() + stage + 1;
-        return from + (to - from) * smoothstep(progress - stage);
+        double stageTicks = charge.maxTicks() / stages;
+        int step = (int) Math.min(Math.floor(heldTicks / stageTicks), stages);
+        double size = charge.openingSize() + step;
+        double sinceStep = heldTicks - step * stageTicks;
+        if (step == 0 || sinceStep >= EASE_TICKS) {
+            return size;
+        }
+        return size - 1 + smoothstep(sinceStep / EASE_TICKS);
     }
 
     private static double smoothstep(double t) {
