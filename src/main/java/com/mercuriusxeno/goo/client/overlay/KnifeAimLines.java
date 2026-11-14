@@ -11,10 +11,12 @@ import java.util.List;
 /**
  * Knives' aim as points: one line per knife the current charge slings,
  * scattered across the charged cone the way the release scatters them, each
- * following its knife's flight from the hand until it would strike. The
+ * rooted at the blob floating ahead of the hand, where the server launches
+ * its knife, and following that knife's flight until it would strike. The
  * scatter is the press's own seed, rolled anew each press and sent with the
  * release, so the lines hold still through a press and the knives fly them.
  * knives-aims-a-spread-fan-not-a-blob-line
+ * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
  */
 final class KnifeAimLines {
 
@@ -37,7 +39,37 @@ final class KnifeAimLines {
     }
 
     /**
-     * Each line's velocity leaving the hand at a share of the charge: one
+     * A held press as the lines read it.
+     *
+     * @param eye        the thrower's eye
+     * @param yaw        the thrower's yaw, in degrees
+     * @param pitch      the thrower's pitch, in degrees
+     * @param gloveRight whether the glove is in the right hand
+     * @param heldTicks  the ticks the press has held the charge
+     * @param share      the share of a full charge the hold has reached, 0 to 1
+     * @param seed       the press's scatter seed, which the release sends
+     */
+    record Press(Vec3 eye, float yaw, float pitch, boolean gloveRight, int heldTicks, float share, long seed) {
+    }
+
+    /**
+     * Every line a held press aims, one per knife, each rooted where the
+     * knives leave the floating blob.
+     *
+     * @param press  the held press
+     * @param charge the delivery's charge
+     * @param strike where a tick's path meets the world
+     * @return the lines, each one point a tick, the first the root
+     */
+    static List<List<Vec3>> linesOf(Press press, Charge charge, Strike strike) {
+        Vec3 root = KnifeRain.leavesFrom(press.eye(), press.yaw(), Vec3.directionFromRotation(press.pitch(),
+                press.yaw()), press.gloveRight(), press.heldTicks(), 0);
+        return velocitiesAt(press.yaw(), press.pitch(), charge, press.share(), press.seed()).stream()
+                .map(velocity -> flight(root, velocity, strike)).toList();
+    }
+
+    /**
+     * Each line's velocity leaving the blob at a share of the charge: one
      * per knife the release would sling, across the cone it would sling them.
      *
      * @param yaw    the thrower's yaw, in degrees
@@ -52,18 +84,18 @@ final class KnifeAimLines {
     }
 
     /**
-     * A knife's flight from the hand, one point a tick, ending where it
-     * strikes or once its flight is spent.
+     * A knife's flight from where it leaves, one point a tick, ending where
+     * it strikes or once its flight is spent.
      *
-     * @param hand     where it leaves
-     * @param velocity its velocity leaving the hand
+     * @param start    where it leaves
+     * @param velocity its velocity leaving
      * @param strike   where a tick's path meets the world
-     * @return the points, the first the hand
+     * @return the points, the first where it leaves
      */
-    static List<Vec3> flight(Vec3 hand, Vec3 velocity, Strike strike) {
+    static List<Vec3> flight(Vec3 start, Vec3 velocity, Strike strike) {
         List<Vec3> points = new ArrayList<>();
-        points.add(hand);
-        Vec3 position = hand;
+        points.add(start);
+        Vec3 position = start;
         Vec3 moving = velocity;
         for (int tick = 0; tick < KnifeRain.MOST_FLIGHT_TICKS; tick++) {
             Vec3 next = position.add(moving);

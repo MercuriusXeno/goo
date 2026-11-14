@@ -117,7 +117,7 @@ public final class GooThrowHandler {
     /**
      * Fires a charged ability the player let go, when it may: a self ability
      * on the player, a thrown one as a rain of glass knives.
-     * decision shards-sling-then-morph-to-flechettes
+     * decision knives-sling-then-morph-to-flechettes
      *
      * @param player  the releasing player
      * @param payload the charge payload

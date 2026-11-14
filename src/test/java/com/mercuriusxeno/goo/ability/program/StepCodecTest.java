@@ -147,7 +147,7 @@ class StepCodecTest {
             Map.entry("flames", new FlamesStep(Expr.literal(1), 2, 5, 40,
                     TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath("goo", "flames_burns")))),
             Map.entry("heater", new HeaterStep(6, Expr.literal(1), 2, 5, 20)),
-            Map.entry("heal", LeafSteps.HEAL.step(Expr.literal(0.1))),
+            Map.entry("heal", LeafSteps.HEAL.step(new HealPulse(Expr.literal(0.1), 4))),
             Map.entry("court", LeafSteps.COURT.step(Expr.literal(0.25))),
             Map.entry("power_pulse", LeafSteps.POWER_PULSE.step(Unit.INSTANCE)),
             Map.entry("age", LeafSteps.AGE.step(Unit.INSTANCE)),
