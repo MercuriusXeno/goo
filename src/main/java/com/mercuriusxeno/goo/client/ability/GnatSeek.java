@@ -50,11 +50,12 @@ public final class GnatSeek {
         RandomSource random = level.getRandom();
         for (int i = 0; i < GNATS_PER_TICK; i++) {
             Vec3 launch = GnatSteering.launch(payload.aim(), payload.sprayDegrees(), random.nextDouble(),
-                    random.nextDouble(), payload.travel());
+                    random.nextDouble());
             if (mc.particleEngine.createParticle(GooParticles.GNAT.get(), glove.x, glove.y, glove.z, launch.x,
                     launch.y, launch.z) instanceof GnatParticle gnat) {
                 Vec3 rest = pointIn(payload.targetMin(), payload.targetMax(), random);
                 gnat.seek(prey != null ? prey : () -> rest);
+                gnat.leaveFrom(() -> CasterPoses.gloveOf(payload.casterId(), payload.glove()));
                 // glove-stream-motes-swing-with-the-glove-at-launch
                 gnat.swingWith(new GloveSwing.Tracker(payload.casterId(), CasterPoses::poseOf));
             }

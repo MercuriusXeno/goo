@@ -177,7 +177,7 @@ public final class GoopArcTests {
         Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE,
                 new BlockPos(LEVEL_STREAMER_POS.getX() + ZOMBIE_EAST, PERCHED_FLOOR_Y + 1, LEVEL_STREAMER_POS.getZ()));
         ServerPlayer streamer = perchedStreamer(helper, LOW_PERCH);
-        DripAim.at(streamer, zombie.getBoundingBox().getCenter(), goop(helper).delivery().throwSpeed(), Vec3.ZERO);
+        DripAim.at(streamer, zombie.getBoundingBox().getCenter(), goop(helper).delivery().throwSpeed());
         double off = streamer.getEyePosition().distanceTo(zombie.getBoundingBox().getCenter());
         helper.assertTrue(off > OLD_REACH, String.format(NOT_FAR, off));
         holdGoopFor(helper, streamer, WOBBLE_HOLD_TICKS);

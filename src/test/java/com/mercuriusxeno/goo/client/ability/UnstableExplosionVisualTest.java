@@ -73,7 +73,7 @@ class UnstableExplosionVisualTest {
      */
     @Test
     void burstReachFollowsTheCastsSize() {
-        ExplodeStep blast = AbilityJson.decode("unstable_explode").behaviors().stream()
+        ExplodeStep blast = AbilityJson.decode("unstable_blast").behaviors().stream()
                 .filter(ExplodeStep.class::isInstance).map(ExplodeStep.class::cast).findFirst().orElseThrow();
 
         assertEquals(6f, UnstableExplosionVisual.blastReach(blast, 6), TOLERANCE);

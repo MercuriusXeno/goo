@@ -1,0 +1,14 @@
+{
+  "gooType": "kinetic",
+  "displayName": "goo.ability.kinetic.remote",
+  "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
+  "badge": "durative",
+  "order": 20,
+  "upkeep": 1,
+  "delivery": { "kind": "self" },
+  "behaviors": [
+    { "type": "remote", "reach": 8 },
+    { "type": "sound", "id": "minecraft:entity.breeze.charge", "at": "target", "source": "players", "volume": 0.8, "pitch": 1.4 }
+  ],
+  "tags": ["self"]
+}

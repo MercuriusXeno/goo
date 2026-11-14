@@ -73,6 +73,7 @@ public final class GnatParticle extends GloveMote {
      */
     @Override
     public void tick() {
+        leaveTheGlove();
         // glove-stream-motes-swing-with-the-glove-at-launch: the swing runs before the prey pulls
         swingWithTheGlove();
         if (prey != null) {

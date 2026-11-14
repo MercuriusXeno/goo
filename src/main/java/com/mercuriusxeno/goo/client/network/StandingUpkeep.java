@@ -11,8 +11,8 @@ import java.util.stream.Collectors;
  * The upkeep already standing on one goo type, which a time count on that type subtracts.
  * time-counts-net-standing-upkeep
  *
- * @param perTick  the mB a tick the type's standing held effects draw, Extender's halving applied
- * @param extended whether an Extender stands, which halves a durative ability's own upkeep
+ * @param perTick  the mB a tick the type's standing held effects draw, Extend's halving applied
+ * @param extended whether an Extend stands, which halves a durative ability's own upkeep
  * @param paying   the abilities standing on the glove and paying upkeep
  */
 public record StandingUpkeep(double perTick, boolean extended, Set<Identifier> paying) {
@@ -31,7 +31,7 @@ public record StandingUpkeep(double perTick, boolean extended, Set<Identifier> p
      * Standing upkeep naming no standing ability.
      *
      * @param perTick  the mB a tick the type's standing held effects draw
-     * @param extended whether an Extender stands
+     * @param extended whether an Extend stands
      */
     public StandingUpkeep(double perTick, boolean extended) {
         this(perTick, extended, Set.of());
@@ -52,10 +52,10 @@ public record StandingUpkeep(double perTick, boolean extended, Set<Identifier> p
 
     /**
      * A durative ability's own upkeep a tick once it stands beside these effects: halved while
-     * an Extender stands, unless the ability is the Extender.
+     * an Extend stands, unless the ability is the Extend.
      *
      * @param upkeep        the ability's upkeep a tick
-     * @param extendsOthers whether the ability is itself an Extender
+     * @param extendsOthers whether the ability is itself an Extend
      * @return the upkeep it would draw a tick
      */
     double ownDurativeUpkeep(int upkeep, boolean extendsOthers) {

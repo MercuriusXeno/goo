@@ -1,9 +1,0 @@
-{
-  "type": "minecraft:function",
-  "function": "goo:terrakinesis_held_up_then_pulled_down_over_its_hole_seats",
-  "environment": "minecraft:default",
-  "structure": "goo:test_bay",
-  "max_ticks": 160,
-  "setup_ticks": 0,
-  "required": true
-}

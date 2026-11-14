@@ -29,7 +29,7 @@ class PrismCombosTest {
 
     @Test
     void anOnPrismReactionRunsInPlaceOfTheTypesPrismAbility() {
-        AbilityDefinition bulb = ability("glow_crystal", AbilityBadge.WORLD, REACTION);
+        AbilityDefinition bulb = ability("glow_bulb", AbilityBadge.WORLD, REACTION);
         AbilityDefinition prism = ability("glow_prism", AbilityBadge.PRISM, List.of());
 
         AbilityDefinition source = PrismCombos.comboSource(bulb, prism);

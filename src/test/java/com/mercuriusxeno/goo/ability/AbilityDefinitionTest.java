@@ -84,7 +84,7 @@ class AbilityDefinitionTest {
     @Test
     void blastRequiresGunpowder() {
         assertEquals(List.of(Identifier.withDefaultNamespace("gunpowder")),
-                AbilityJson.decode("unstable_explode").requires());
+                AbilityJson.decode("unstable_blast").requires());
     }
 
     // decision razor-keeps-its-look-gated-on-glass
@@ -328,7 +328,7 @@ class AbilityDefinitionTest {
         // decision one-proving-ability-per-kind
         @Test
         void writtenAreaStandsOverTheDerivedOne() {
-            assertEquals(new AbilityArea(AbilityArea.Shape.LINE, 0, 0), AbilityJson.decode("glow_crystal").area());
+            assertEquals(new AbilityArea(AbilityArea.Shape.LINE, 0, 0), AbilityJson.decode("glow_bulb").area());
         }
 
         @Test
@@ -354,8 +354,8 @@ class AbilityDefinitionTest {
     }
 
     @Test
-    void sunbeamLocksOnToTheAimedMob() {
-        assertTrue(AbilityJson.decode("glow_sunbeam").hasTag(AbilityTags.LOCKS_ON));
+    void laserLocksOnToTheAimedMob() {
+        assertTrue(AbilityJson.decode("glow_laser").hasTag(AbilityTags.LOCKS_ON));
     }
 
     @Test

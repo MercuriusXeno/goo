@@ -756,7 +756,7 @@ public final class WeirdTests {
     private static void aimDripAt(GameTestHelper helper, ServerPlayer streamer, Vec3 target) {
         AbilityDefinition goop = AbilityRegistry.of(helper.getLevel()).getAbility(GOOP);
         helper.assertTrue(goop != null, ABILITY_REQUIRED);
-        DripAim.at(streamer, target, goop.delivery().throwSpeed(), Vec3.ZERO);
+        DripAim.at(streamer, target, goop.delivery().throwSpeed());
     }
     /**
      * Stands a Goop streamer at the bay's west side facing east, pitched down.

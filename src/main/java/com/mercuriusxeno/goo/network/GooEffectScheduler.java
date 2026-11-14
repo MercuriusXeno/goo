@@ -425,7 +425,7 @@ public final class GooEffectScheduler {
     /**
      * Whether a program struck onto a mob lands at the mob's feet instead: the
      * struck entity cannot serve it and a blob's landing can, as Spore's
-     * colonize step, which grows the ground, needs.
+     * spore step, which grows the ground, needs.
      *
      * @param behaviors the ability's program
      * @return true for a program a landing serves and the struck entity does not

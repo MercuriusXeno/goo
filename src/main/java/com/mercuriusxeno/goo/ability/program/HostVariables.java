@@ -31,7 +31,7 @@ public final class HostVariables {
     public static final String SPRINTING = "sprinting";
     /**
      * The share of a hit the struck entity takes: one for a direct hit, and a
-     * refracted Sunbeam's split for each mob a prism's beams reach
+     * refracted Laser's split for each mob a prism's beams reach
      * (decision sunbeam-splits-at-the-prism-with-a-glisten).
      */
     public static final String SHARE = "share";

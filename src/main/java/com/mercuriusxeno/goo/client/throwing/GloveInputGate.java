@@ -77,7 +77,7 @@ public final class GloveInputGate {
     private boolean previewing;
     /** Ticks the live press has previewed, which a charged ability's release fires by. */
     private int heldTicks;
-    /** Ticks the live press has run a held channel or stream, which Terrakinesis's wind-up reads. */
+    /** Ticks the live press has run a held channel or stream, which Gouge's wind-up reads. */
     private int channelTicks;
     /** The scatter the live press slings its knives by. */
     private long scatterSeed;

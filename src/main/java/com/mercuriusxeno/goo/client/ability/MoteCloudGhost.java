@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.AbilityArea;
-import com.mercuriusxeno.goo.ability.program.ColonizeStep;
+import com.mercuriusxeno.goo.ability.program.SporeStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
@@ -132,7 +132,7 @@ public final class MoteCloudGhost implements HeldGhostVisual {
     }
 
     /**
-     * The dome and the outward rings at the colonize step's radius, falling
+     * The dome and the outward rings at the spore step's radius, falling
      * back to the area's size, the reach the program's own steps give, where
      * the program holds none.
      *
@@ -142,7 +142,7 @@ public final class MoteCloudGhost implements HeldGhostVisual {
      */
     @Override
     public HeldGhost ghost(AbilityArea area, List<Step> behaviors) {
-        float reach = SyncedSteps.first(behaviors, ColonizeStep.class).map(ColonizeStep::radius)
+        float reach = SyncedSteps.first(behaviors, SporeStep.class).map(SporeStep::radius)
                 .filter(radius -> radius.variables().isEmpty()).map(radius -> radius.evaluateFloat(Variables.NONE))
                 .filter(radius -> radius > 0).orElse((float) area.size());
         return HeldGhost.outwardTo(reach);

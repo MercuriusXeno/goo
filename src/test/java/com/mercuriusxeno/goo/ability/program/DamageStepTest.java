@@ -167,7 +167,7 @@ class DamageStepTest {
         return host;
     }
     private static DamageStep urchinsStab() {
-        FieldEffectStep field = LingerStep.bodyOf(AbilityJson.decode("metal_spikes").behaviors()).orElseThrow().stream()
+        FieldEffectStep field = LingerStep.bodyOf(AbilityJson.decode("metal_urchin").behaviors()).orElseThrow().stream()
                 .filter(FieldEffectStep.class::isInstance).map(FieldEffectStep.class::cast).findFirst().orElseThrow();
         return (DamageStep) field.strike().getFirst();
     }

@@ -17,7 +17,7 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
 /**
  * Float's platform: under every floating mob in sight, flat mint squares,
- * Pulser's square rings laid level, leave the mob's feet one after another,
+ * Tick's square rings laid level, leave the mob's feet one after another,
  * dropping a short way and widening as they fade, like an emitter pushing the
  * mob up. The whole platform fades over the float's last ticks.
  * float-blob-levitates-the-mob
@@ -96,7 +96,7 @@ public final class FloatPlatform {
     }
 
     /**
-     * A square's alpha: Pulser's fade in and out along the drop, scaled down
+     * A square's alpha: Tick's fade in and out along the drop, scaled down
      * over the float's last ticks.
      *
      * @param share     the share of the drop

@@ -230,7 +230,7 @@ class AilmentOverlayLayerTest {
     }
 
     /**
-     * Stasis, Charm, Sunbeam and Lux, and Scry outline their mob in the
+     * Stasis, Charm, Laser and Lux, and Scry outline their mob in the
      * ailment's own color, its brightness pulsing (decision ailment-glisten-becomes-a-pulsing-outline).
      */
     @Nested

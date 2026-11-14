@@ -21,7 +21,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * The glow column a Sunbeam-converted reflector draws: its beams and core
+ * The glow column a Laser-converted reflector draws: its beams and core
  * submit at the beam order, drawn after the column, so they show in front of
  * it rather than hidden behind it.
  * decision diagnose-and-correct-the-sunbeam-prism-depth

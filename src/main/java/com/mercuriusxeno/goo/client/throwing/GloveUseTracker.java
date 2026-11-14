@@ -374,7 +374,7 @@ public final class GloveUseTracker {
 
     /**
      * The ticks the live press has run a held channel or stream, the first
-     * counted 1, which Terrakinesis's wind-up shake reads
+     * counted 1, which Gouge's wind-up shake reads
      * (decision terrakinesis-shakes-the-blocks-before-the-tear).
      *
      * @return the ticks, 0 while no channel runs

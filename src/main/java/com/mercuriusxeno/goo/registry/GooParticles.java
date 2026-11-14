@@ -111,7 +111,7 @@ public class GooParticles {
 
     /**
      * The light mote: a mote of glow's warm light rising gently out of
-     * Sunbeam's beam.
+     * Laser's beam.
      * sunbeam-sheds-motes-rising-from-the-beam
      */
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> LIGHT_MOTE =

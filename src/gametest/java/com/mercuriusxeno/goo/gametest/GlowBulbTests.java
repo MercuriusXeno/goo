@@ -39,7 +39,7 @@ public final class GlowBulbTests {
 
     private static final BlockPos FLOOR_POS = new BlockPos(1, 1, 1);
     private static final BlockPos LANDED_POS = FLOOR_POS.above();
-    private static final String BULB = "goo:glow_crystal";
+    private static final String BULB = "goo:glow_bulb";
     private static final int NO_ENTITY = -1;
 
     private static final String WRONG_COMBO = "The prism should hold Bulb's beacon combo, held '%s'";

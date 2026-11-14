@@ -109,13 +109,13 @@ class DeliveryTest {
             assertTrue(knives.slingsAFan());
             assertFalse(knives.aimsALine());
             assertTrue(AbilityJson.decode("frost_orb").delivery().aimsALine());
-            assertTrue(AbilityJson.decode("glow_crystal").delivery().aimsALine());
+            assertTrue(AbilityJson.decode("glow_bulb").delivery().aimsALine());
         }
 
         // traveling-form-transforms-in-flight
         @Test
-        void javelinMorphsToADartAndAPlainArcStaysABlob() {
-            assertEquals(TravelForm.DART, AbilityJson.decode("metal_javelin").delivery().form());
+        void dartMorphsToADartAndAPlainArcStaysABlob() {
+            assertEquals(TravelForm.DART, AbilityJson.decode("metal_dart").delivery().form());
             assertEquals(TravelForm.BLOB, deliveryOf("\"delivery\": { \"kind\": \"arc\" },").form());
         }
 
@@ -274,7 +274,7 @@ class DeliveryTest {
         // bulb-beam-lands-in-a-few-ticks
         @Test
         void bulbBeamLandsAFullRangeCastWithinTheTickBudget() {
-            Delivery bulb = AbilityJson.decode("glow_crystal").delivery();
+            Delivery bulb = AbilityJson.decode("glow_bulb").delivery();
             assertTrue(bulb.travelTicks(GooThrowHandler.MAX_RANGE, LEVITY, BASE_FLIGHT_TIME)
                     <= BULB_FULL_RANGE_TICK_BUDGET);
         }
@@ -282,26 +282,26 @@ class DeliveryTest {
         /**
          * A dart thrown at a mob ten blocks off, Metal's levity and base
          * flight time, stays in the air at least the ticks the top speed
-         * metal_javelin.json names takes to cover the distance, so the eye
+         * metal_dart.json names takes to cover the distance, so the eye
          * follows it (decision dart-flies-at-a-speed-you-can-follow).
          */
         @Test
         void dartFliesNoFasterThanTheSpeedItsJsonNames() {
-            JsonObject delivery = JsonParser.parseString(AbilityJson.read("metal_javelin")).getAsJsonObject()
+            JsonObject delivery = JsonParser.parseString(AbilityJson.read("metal_dart")).getAsJsonObject()
                     .getAsJsonObject("delivery");
-            assertTrue(delivery.has(TOP_SPEED), "metal_javelin.json names no " + TOP_SPEED);
+            assertTrue(delivery.has(TOP_SPEED), "metal_dart.json names no " + TOP_SPEED);
             double topSpeed = delivery.get(TOP_SPEED).getAsDouble();
             int fewestTicks = (int) Math.ceil(TEN_BLOCKS / topSpeed);
-            int flight = AbilityJson.decode("metal_javelin").delivery().travelTicks(TEN_BLOCKS, LEVITY,
+            int flight = AbilityJson.decode("metal_dart").delivery().travelTicks(TEN_BLOCKS, LEVITY,
                     BASE_FLIGHT_TIME);
             assertTrue(flight >= fewestTicks, "a ten-block dart flew " + flight + " ticks where "
                     + topSpeed + " blocks a tick takes " + fewestTicks);
         }
 
         @Test
-        void bulbBeamsAndSunbeamChannelsOnSelf() {
-            assertEquals(DeliveryKind.BEAM, AbilityJson.decode("glow_crystal").delivery().kind());
-            assertEquals(DeliveryKind.SELF, AbilityJson.decode("glow_sunbeam").delivery().kind());
+        void bulbBeamsAndLaserChannelsOnSelf() {
+            assertEquals(DeliveryKind.BEAM, AbilityJson.decode("glow_bulb").delivery().kind());
+            assertEquals(DeliveryKind.SELF, AbilityJson.decode("glow_laser").delivery().kind());
         }
     }
 

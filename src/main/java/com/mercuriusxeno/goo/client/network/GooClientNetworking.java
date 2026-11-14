@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.client.ability.GlassKnives;
 import com.mercuriusxeno.goo.client.ability.GnatSeek;
 import com.mercuriusxeno.goo.client.ability.HeaterFlames;
 import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
+import com.mercuriusxeno.goo.client.ability.LaserVisual;
 import com.mercuriusxeno.goo.client.ability.LeechWisps;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
 import com.mercuriusxeno.goo.client.ability.MeltAbsorbs;
@@ -19,7 +20,6 @@ import com.mercuriusxeno.goo.client.ability.ReapSlashBlades;
 import com.mercuriusxeno.goo.client.ability.ReapSwells;
 import com.mercuriusxeno.goo.client.ability.ScanVisuals;
 import com.mercuriusxeno.goo.client.ability.StreamMotes;
-import com.mercuriusxeno.goo.client.ability.SunbeamVisual;
 import com.mercuriusxeno.goo.client.ability.Tomes;
 import com.mercuriusxeno.goo.client.ability.VitalityVisual;
 import com.mercuriusxeno.goo.client.hole.ClientPortableHoles;
@@ -46,6 +46,7 @@ import com.mercuriusxeno.goo.network.HeldSweepPayload;
 import com.mercuriusxeno.goo.network.HolesSyncPayload;
 import com.mercuriusxeno.goo.network.KnownItemLearnedPayload;
 import com.mercuriusxeno.goo.network.KnownItemsSyncPayload;
+import com.mercuriusxeno.goo.network.LaserPayload;
 import com.mercuriusxeno.goo.network.LeechPayload;
 import com.mercuriusxeno.goo.network.LurkerPulsePayload;
 import com.mercuriusxeno.goo.network.MeltAbsorbPayload;
@@ -69,7 +70,6 @@ import com.mercuriusxeno.goo.network.SculkerHeardPayload;
 import com.mercuriusxeno.goo.network.SculkerVibrationPayload;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
 import com.mercuriusxeno.goo.network.StreamMotesPayload;
-import com.mercuriusxeno.goo.network.SunbeamPayload;
 import com.mercuriusxeno.goo.network.TomePayload;
 import com.mercuriusxeno.goo.network.TransformationPayload;
 import com.mercuriusxeno.goo.network.TunerFeedbackPayload;
@@ -155,14 +155,14 @@ public final class GooClientNetworking {
     /**
      * Registers the handlers for the abilities' own visuals: the held sweeps of
      * astral's Scry, crystal's Glitter and metal's Magnet,
-     * glow's Sunbeam, hex's leech and tomes, frost's Nova rings and
+     * glow's Laser, hex's leech and tomes, frost's Nova rings and
      * leaf's Reap swells.
      *
      * @param event the client payload handler registration event
      */
     private static void registerAbilityOwnVisualHandlers(RegisterClientPayloadHandlersEvent event) {
         event.register(HeldSweepPayload.TYPE, HeldSweepVisual::onPayload);
-        event.register(SunbeamPayload.TYPE, SunbeamVisual::onPayload);
+        event.register(LaserPayload.TYPE, LaserVisual::onPayload);
         event.register(LeechPayload.TYPE, LeechWisps::handle);
         event.register(TomePayload.TYPE, Tomes::handle);
         event.register(NovaRingPayload.TYPE, NovaRingHandler::handle);
