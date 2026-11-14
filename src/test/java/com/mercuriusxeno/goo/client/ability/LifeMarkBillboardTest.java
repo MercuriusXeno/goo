@@ -36,6 +36,10 @@ class LifeMarkBillboardTest {
     private static final boolean BARE = false;
     /** A rallied or charmed mob, wearing a head mark. */
     private static final boolean HEAD_MARKED = true;
+    /** A mob on its feet. */
+    private static final boolean STANDING = false;
+    /** A mob lying downed. */
+    private static final boolean DOWNED = true;
 
     private final TouchedMobs touched = new TouchedMobs();
     private final KinSense kin = new KinSense();
@@ -53,7 +57,7 @@ class LifeMarkBillboardTest {
     void sensedMobDrawsItsLifeMarkWholeWithoutATouch() {
         for (float later = 0; later < 200; later += 10) {
             float time = TICK + later;
-            assertEquals(1f, LifeMarkBillboard.markStrength(SENSED_ID, time, touched, kin, BARE), EPSILON,
+            assertEquals(1f, LifeMarkBillboard.markStrength(SENSED_ID, time, touched, kin, BARE, STANDING), EPSILON,
                     "at " + time);
         }
     }
@@ -68,10 +72,10 @@ class LifeMarkBillboardTest {
         void showsItsLifeMarkWholeWithNoTouchAndNoKin() {
             for (long later = 0; later < 2000; later += 37) {
                 long tick = TICK + later;
-                assertTrue(LifeMarkBillboard.showsLifeMark(UNMARKED_ID, tick, untouched, kinInactive, HEAD_MARKED),
-                        "at " + tick);
+                assertTrue(LifeMarkBillboard.showsLifeMark(UNMARKED_ID, tick, untouched, kinInactive, HEAD_MARKED,
+                        STANDING), "at " + tick);
                 assertEquals(1f, LifeMarkBillboard.markStrength(UNMARKED_ID, tick + 0.5f, untouched, kinInactive,
-                        HEAD_MARKED), EPSILON, "at " + tick);
+                        HEAD_MARKED, STANDING), EPSILON, "at " + tick);
             }
         }
     }
@@ -81,8 +85,22 @@ class LifeMarkBillboardTest {
         for (float later = 0; later < 60; later += 1.5f) {
             float time = TICK + later;
             assertEquals(touched.opacity(TOUCHED_ID, time),
-                    LifeMarkBillboard.markStrength(TOUCHED_ID, time, touched, kin, BARE), EPSILON, "at " + time);
+                    LifeMarkBillboard.markStrength(TOUCHED_ID, time, touched, kin, BARE, STANDING), EPSILON,
+                    "at " + time);
         }
+    }
+
+    /**
+     * A downed mob whose rally ended, untouched and unsensed, draws its mark whole.
+     * downed-mob-shows-a-skull-and-its-negative-health
+     */
+    @Test
+    void downedMobDrawsItsLifeMarkWholeWithNoRally() {
+        TouchedMobs untouched = new TouchedMobs();
+        KinSense kinInactive = new KinSense();
+        assertTrue(LifeMarkBillboard.showsLifeMark(UNMARKED_ID, TICK, untouched, kinInactive, BARE, DOWNED));
+        assertEquals(1f, LifeMarkBillboard.markStrength(UNMARKED_ID, TICK, untouched, kinInactive, BARE, DOWNED),
+                EPSILON);
     }
 
     @Nested
@@ -177,8 +195,8 @@ class LifeMarkBillboardTest {
 
     @Test
     void marksDrawForTouchedAndSensedMobsAlike() {
-        assertTrue(LifeMarkBillboard.showsLifeMark(SENSED_ID, TICK, touched, kin, BARE));
-        assertTrue(LifeMarkBillboard.showsLifeMark(TOUCHED_ID, TICK, touched, kin, BARE));
-        assertFalse(LifeMarkBillboard.showsLifeMark(UNMARKED_ID, TICK, touched, kin, BARE));
+        assertTrue(LifeMarkBillboard.showsLifeMark(SENSED_ID, TICK, touched, kin, BARE, STANDING));
+        assertTrue(LifeMarkBillboard.showsLifeMark(TOUCHED_ID, TICK, touched, kin, BARE, STANDING));
+        assertFalse(LifeMarkBillboard.showsLifeMark(UNMARKED_ID, TICK, touched, kin, BARE, STANDING));
     }
 }
