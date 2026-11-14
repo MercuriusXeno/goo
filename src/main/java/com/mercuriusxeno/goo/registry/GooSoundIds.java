@@ -74,19 +74,19 @@ public final class GooSoundIds {
     public static final Identifier PORTAL_HUM = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.portal_hum");
 
     /**
-     * An Outsider room gaining a full block on every side: a dull low wub,
+     * A Zone room gaining a full block on every side: a dull low wub,
      * a synthesized placeholder the operator may swap
      * (decision full-block-growth-wubs-and-raises-void-motes).
      */
-    public static final Identifier OUTSIDER_WUB = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.outsider_wub");
+    public static final Identifier ZONE_WUB = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.zone_wub");
 
     /**
-     * A door conjured before a player channeling Outsider toward the pocket:
+     * A door conjured before a player channeling Zone toward the pocket:
      * a rising shimmer, a synthesized placeholder the operator may swap
      * (decision channeling-to-the-pocket-conjures-a-door-that-envelops-the-player).
      */
-    public static final Identifier OUTSIDER_CONJURE =
-            Identifier.fromNamespaceAndPath(Goo.MODID, "effects.outsider_conjure");
+    public static final Identifier ZONE_CONJURE =
+            Identifier.fromNamespaceAndPath(Goo.MODID, "effects.zone_conjure");
 
     /**
      * The conjured door carrying a player into the pocket, sent to them as it
@@ -95,16 +95,16 @@ public final class GooSoundIds {
      * the operator may swap it
      * (decision door-carries-its-own-sound-through-the-change).
      */
-    public static final Identifier OUTSIDER_DOOR = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.outsider_door");
+    public static final Identifier ZONE_DOOR = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.zone_door");
 
     /**
-     * Void's hole opening: the Outsider room's wub under a subtitle naming the
+     * Void's hole opening: the Zone room's wub under a subtitle naming the
      * hole, played pitched up (decision hole-opens-with-the-outsider-wub-pitched-up).
      */
     public static final Identifier HOLE_OPEN = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.hole_open");
 
     /**
-     * Void's hole closing on a punch or when its time runs out: the Outsider
+     * Void's hole closing on a punch or when its time runs out: the Zone
      * room's wub reversed, played pitched down
      * (decision hole-closes-with-the-outsider-wub-reversed-and-pitched-down).
      */

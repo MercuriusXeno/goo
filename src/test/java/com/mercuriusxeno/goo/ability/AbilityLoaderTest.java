@@ -8,21 +8,21 @@ import com.mercuriusxeno.goo.ability.program.AfterimageStep;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
 import com.mercuriusxeno.goo.ability.program.AilmentOverlayStep;
 import com.mercuriusxeno.goo.ability.program.AirbornStep;
-import com.mercuriusxeno.goo.ability.program.CoatStep;
 import com.mercuriusxeno.goo.ability.program.ChannelHost;
 import com.mercuriusxeno.goo.ability.program.CharmStep;
+import com.mercuriusxeno.goo.ability.program.CoatStep;
 import com.mercuriusxeno.goo.ability.program.CoolLavaStep;
 import com.mercuriusxeno.goo.ability.program.EntityFilter;
-import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.FloatStep;
 import com.mercuriusxeno.goo.ability.program.GhostTrailStep;
 import com.mercuriusxeno.goo.ability.program.GluttonyStep;
+import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
-import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.SoundStep;
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.TargetStep;
 import com.mercuriusxeno.goo.ability.program.TeleportStep;
 import com.mercuriusxeno.goo.ability.program.TomeKind;
@@ -193,8 +193,8 @@ class AbilityLoaderTest {
         }
 
         @Test
-        void voidShipsEraseHoleOutsiderAndVacuum() {
-            assertEquals(Set.of("void_erase", "void_hole", "void_outsider", "void_vacuum"),
+        void voidShipsEraseHoleZoneAndVacuum() {
+            assertEquals(Set.of("void_erase", "void_hole", "void_zone", "void_vacuum"),
                     shippedPathsOf(GooTypes.VOID));
         }
     }
@@ -450,16 +450,16 @@ class AbilityLoaderTest {
         }
 
         /**
-         * Outsider's price is its step's entry, read live, so its file names no formula and loads
+         * Zone's price is its step's entry, read live, so its file names no formula and loads
          * (decision outsider-cost-text-reads-the-new-mechanics).
          */
         @Test
-        void outsiderNamesNoFormulaAndLoads() {
-            JsonObject outsider = JsonParser.parseString(AbilityJson.read("void_outsider")).getAsJsonObject();
+        void zoneNamesNoFormulaAndLoads() {
+            JsonObject zone = JsonParser.parseString(AbilityJson.read("void_zone")).getAsJsonObject();
 
-            assertFalse(outsider.has("cost_formula"), () -> "cost_formula reads " + outsider.get("cost_formula"));
-            assertEquals(Identifier.fromNamespaceAndPath(Goo.MODID, "void_outsider"),
-                    AbilityJson.decode("void_outsider").id());
+            assertFalse(zone.has("cost_formula"), () -> "cost_formula reads " + zone.get("cost_formula"));
+            assertEquals(Identifier.fromNamespaceAndPath(Goo.MODID, "void_zone"),
+                    AbilityJson.decode("void_zone").id());
         }
 
         @Test

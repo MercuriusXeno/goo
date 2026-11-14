@@ -12,7 +12,7 @@ import org.jspecify.annotations.NonNull;
 import java.util.List;
 
 /**
- * Server-to-client payload: the edges of the Outsider room the player stands
+ * Server-to-client payload: the edges of the Zone room the player stands
  * in, as linked gate pairs, so the client carries its player across an edge
  * to the opposite side the way it carries it through a portal. Sent as the
  * player enters the room and each time a feed moves its extent, every gate's

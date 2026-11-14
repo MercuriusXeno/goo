@@ -150,7 +150,7 @@ final class RadialWheelRenderer {
      * @param gameTime    the game time, fraction included, which the pulse runs on
      * @param reagentSets the whole sets of a list of consumed items the inventory holds
      * @param standing    the effects standing on the player, whose upkeep the time counts subtract
-     * @param roomExtent  the extent of the Outsider room the player stands in, empty outside the pocket
+     * @param roomExtent  the extent of the Zone room the player stands in, empty outside the pocket
      */
     record Frame(RadialWheel wheel, List<ResourceKey<GooTypeDefinition>> types,
                  List<List<OfferedAbility>> abilities, Map<ResourceKey<GooTypeDefinition>, Integer> available,
@@ -991,7 +991,7 @@ final class RadialWheelRenderer {
     }
 
     /**
-     * Reads an ability wedge's cost and what the type's holdings afford beside the Outsider
+     * Reads an ability wedge's cost and what the type's holdings afford beside the Zone
      * room the player stands in.
      * decision outsider-petal-reads-rate-and-time-in-the-room
      *
@@ -999,7 +999,7 @@ final class RadialWheelRenderer {
      * @param holdings    the amount the player holds of its type
      * @param reagentSets the whole sets of the ability's consumed items the inventory holds
      * @param standing    the upkeep already standing on its type
-     * @param roomExtent  the extent of the Outsider room the player stands in, empty outside the pocket
+     * @param roomExtent  the extent of the Zone room the player stands in, empty outside the pocket
      * @return the wedge's labels
      */
     static FanSlot fanSlot(ClientAbility ability, int holdings, int reagentSets, StandingUpkeep standing,

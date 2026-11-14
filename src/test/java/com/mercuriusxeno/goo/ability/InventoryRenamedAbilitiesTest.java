@@ -1,0 +1,94 @@
+package com.mercuriusxeno.goo.ability;
+
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.stream.Stream;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * Each ability renamed in the inventory pass ships under the key its new shown name spells, with its lang entry and
+ * icon, and its old key ships nothing.
+ * decision ten-abilities-take-their-inventory-names-and-keys
+ * decision rename-rekeys-everything-that-names-the-ability
+ */
+class InventoryRenamedAbilitiesTest {
+
+    private static final String EN_US = "/assets/goo/lang/en_us.json";
+    private static final String ABILITY_JSON = "/data/goo/goo_abilities/%s.json";
+    private static final String ABILITY_ICON = "/assets/goo/textures/goo/ability/%s.png";
+
+    private static JsonObject lang;
+
+    @BeforeAll
+    static void readLang() throws IOException {
+        lang = readJson(EN_US);
+    }
+
+    @ParameterizedTest
+    @MethodSource("renamedAbilities")
+    void renamedAbilityShipsUnderItsShownName(String id, String shownName) throws IOException {
+        JsonObject ability = readJson(ABILITY_JSON.formatted(id));
+        String displayName = ability.get("displayName").getAsString();
+        assertEquals("goo.ability." + id.replaceFirst("_", "."), displayName, id);
+        assertEquals(shownName, lang.get(displayName).getAsString(), displayName);
+        assertNotNull(lang.get(displayName + ".description"), displayName + ".description");
+        assertNotNull(InventoryRenamedAbilitiesTest.class.getResource(ABILITY_ICON.formatted(id)), id + " icon");
+    }
+
+    static Stream<Arguments> renamedAbilities() {
+        return Stream.of(
+                Arguments.of("ender_seal", "Seal"),
+                Arguments.of("void_zone", "Zone"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"ender_zone"})
+    void oldKeyShipsNoAbility(String oldId) {
+        assertNull(InventoryRenamedAbilitiesTest.class.getResource(ABILITY_JSON.formatted(oldId)), oldId + " json");
+        assertNull(InventoryRenamedAbilitiesTest.class.getResource(ABILITY_ICON.formatted(oldId)), oldId + " icon");
+        assertNull(lang.get("goo.ability." + oldId.replaceFirst("_", ".")), oldId + " lang");
+    }
+
+    @Test
+    void zoneCarriesTheChanneledPocketItCarriedBeforeTheRename() throws IOException {
+        JsonObject zone = readJson(ABILITY_JSON.formatted("void_zone"));
+        assertEquals("void", zone.get("gooType").getAsString());
+        assertEquals("channeled", zone.get("badge").getAsString());
+        assertEquals("goo.ability.void.zone.cost_mechanics", zone.get("cost_mechanics").getAsString());
+        JsonObject step = zone.getAsJsonArray("behaviors").get(0).getAsJsonObject();
+        assertEquals("zone", step.get("type").getAsString());
+        assertEquals(20, step.get("charge").getAsInt());
+        assertEquals(6, step.get("enter").getAsInt());
+        assertEquals(20, step.get("ring_ticks").getAsInt());
+        assertEquals(10, step.get("cell_cost").getAsInt());
+        assertEquals(1, step.get("distance_cost").getAsInt());
+    }
+
+    @Test
+    void sealCarriesTheCurseItCarriedBeforeTheRename() throws IOException {
+        JsonObject seal = readJson(ABILITY_JSON.formatted("ender_seal"));
+        String steps = seal.getAsJsonArray("behaviors").toString();
+        assertEquals("ender", seal.get("gooType").getAsString());
+        assertTrue(steps.contains("{\"type\":\"seal\",\"radius\":6,\"range\":32}"), steps);
+    }
+
+    private static JsonObject readJson(String resource) throws IOException {
+        try (InputStream in = InventoryRenamedAbilitiesTest.class.getResourceAsStream(resource)) {
+            assertNotNull(in, resource);
+            return JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
+        }
+    }
+}

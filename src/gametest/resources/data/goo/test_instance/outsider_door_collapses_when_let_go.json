@@ -1,9 +1,0 @@
-{
-  "type": "minecraft:function",
-  "function": "goo:outsider_door_collapses_when_let_go",
-  "environment": "minecraft:default",
-  "structure": "goo:test_bay",
-  "max_ticks": 100,
-  "setup_ticks": 0,
-  "required": true
-}

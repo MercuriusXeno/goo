@@ -104,7 +104,7 @@ public final class VoidCapacityTests {
 
     /**
      * The lab kit's vat holds no infinity, since infinity pours into a held type
-     * each tick and refilled the void an Outsider hold spent.
+     * each tick and refilled the void a Zone hold spent.
      * decision lab-kit-vat-leaves-infinity-out
      *
      * @param helper the gametest helper

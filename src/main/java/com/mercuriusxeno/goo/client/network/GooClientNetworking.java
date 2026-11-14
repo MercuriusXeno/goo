@@ -24,7 +24,7 @@ import com.mercuriusxeno.goo.client.ability.Tomes;
 import com.mercuriusxeno.goo.client.ability.VitalityVisual;
 import com.mercuriusxeno.goo.client.hole.ClientPortableHoles;
 import com.mercuriusxeno.goo.client.model.GooJoins;
-import com.mercuriusxeno.goo.client.outsider.ClientConjuredDoors;
+import com.mercuriusxeno.goo.client.zone.ClientConjuredDoors;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.network.AfterimagePayload;
 import com.mercuriusxeno.goo.network.AilmentPayload;

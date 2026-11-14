@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.network;
 
-import com.mercuriusxeno.goo.ability.zone.StandingColumn;
+import com.mercuriusxeno.goo.ability.seal.StandingColumn;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
