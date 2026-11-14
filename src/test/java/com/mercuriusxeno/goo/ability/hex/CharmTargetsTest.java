@@ -42,6 +42,23 @@ class CharmTargetsTest {
         assertEquals(Optional.empty(), CharmTargets.nearestFoe(CHARMER, nearby));
     }
 
+    /** nothing-targets-a-downed-mob */
+    @Test
+    void picksAStandingHostileOverANearerDownedOne() {
+        List<Candidate<String>> nearby = List.of(new Candidate<>("downed", true, true, CHARMER, NEAR, true),
+                new Candidate<>("standing", true, true, null, FAR));
+
+        assertEquals(Optional.of("standing"), CharmTargets.nearestFoe(CHARMER, nearby));
+    }
+
+    /** nothing-targets-a-downed-mob */
+    @Test
+    void passesOverADownedMobAlone() {
+        List<Candidate<String>> nearby = List.of(new Candidate<>("downed", true, true, CHARMER, NEAR, true));
+
+        assertEquals(Optional.empty(), CharmTargets.nearestFoe(CHARMER, nearby));
+    }
+
     @Test
     void passesOverTheDead() {
         List<Candidate<String>> nearby = List.of(new Candidate<>("dead aggressor", false, true, CHARMER, NEAR));

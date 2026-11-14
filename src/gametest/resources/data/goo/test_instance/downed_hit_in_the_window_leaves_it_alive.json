@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:downed_hit_in_the_window_leaves_it_alive",
+  "environment": "goo:rally_reload",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}
