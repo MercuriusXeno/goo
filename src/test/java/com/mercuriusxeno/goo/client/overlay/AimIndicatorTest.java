@@ -36,6 +36,18 @@ class AimIndicatorTest {
         assertEquals(AimIndicator.BLOCK_OUTLINE, AimIndicator.of(AbilityJson.decode("crystal_prism").badge(), false));
     }
 
+    /**
+     * With Prism selected, the outline and face rings draw only on a face a
+     * prism can grow from; every other ability's mark stands on any face
+     * (decision prism-highlight-draws-only-on-a-face-a-prism-grows-from).
+     */
+    @ParameterizedTest
+    @CsvSource({"true, true, BLOCK_OUTLINE", "true, false, NONE", "false, false, BLOCK_OUTLINE",
+            "false, true, BLOCK_OUTLINE"})
+    void prismDrawsItsMarkOnlyOnAFaceItGrowsFrom(boolean growsAPrism, boolean growableFace, AimIndicator expected) {
+        assertEquals(expected, AimIndicator.onFace(AimIndicator.BLOCK_OUTLINE, growsAPrism, growableFace));
+    }
+
     /** Grab, a channeled badge, outlines the mob its press holds (decision grab-hides-the-reticle-once-a-mob-is-held). */
     @Test
     void aGrabHoldingAMobDrawsItsOutline() {

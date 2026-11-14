@@ -6,6 +6,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.resources.Identifier;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -38,6 +39,17 @@ public record PlaceBlockStep(Identifier block, Map<String, StateValue> state) im
      * The registered type.
      */
     public static final StepType<PlaceBlockStep> TYPE = new StepType<>(NAME, CODEC);
+
+    /**
+     * Whether a program places a block, at its top level.
+     *
+     * @param program the ability's program
+     * @param placed  the block's registry id
+     * @return true for a program with a place_block step naming the block
+     */
+    public static boolean places(List<Step> program, Identifier placed) {
+        return program.stream().anyMatch(step -> step instanceof PlaceBlockStep place && place.block().equals(placed));
+    }
 
     @Override
     public StepType<PlaceBlockStep> type() {

@@ -1,11 +1,15 @@
 package com.mercuriusxeno.goo.block.ability;
 
+import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
+import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.BlockEntityTicks;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
@@ -31,6 +35,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -45,6 +50,20 @@ import java.util.Map;
 public class PrismBlock extends BaseEntityBlock {
 
     public static final MapCodec<PrismBlock> CODEC = simpleCodec(PrismBlock::new);
+
+    /** The prism's registry id, which an ability's place_block step names to grow one. */
+    public static final Identifier ID = Identifier.fromNamespaceAndPath(Goo.MODID, "prism");
+
+    /**
+     * Whether an ability's program grows a prism.
+     * decision prism-highlight-draws-only-on-a-face-a-prism-grows-from
+     *
+     * @param program the ability's program
+     * @return true for a program placing a prism
+     */
+    public static boolean grownBy(List<Step> program) {
+        return PlaceBlockStep.places(program, ID);
+    }
 
     /** The face the prism grew from, its base against the block behind it. */
     public static final EnumProperty<Direction> FACING = EnumProperty.create("facing", Direction.class);

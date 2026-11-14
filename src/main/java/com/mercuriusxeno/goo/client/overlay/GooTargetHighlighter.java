@@ -4,6 +4,8 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.SpireFootprint;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
+import com.mercuriusxeno.goo.block.ability.FaceSupport;
+import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.ability.HeldColumnRenderer;
@@ -109,8 +111,7 @@ public final class GooTargetHighlighter {
         HighlightFrame frame = new HighlightFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera(), mc, selectedType);
         if (drawsMarks(false, null, target.passage())) {
-            renderIndicator(target, AimIndicator.of(GloveThrowSender.selectedBadge(abilityId),
-                    AimTracker.grabHoldsAMob()), frame);
+            renderIndicator(target, indicatorFor(target, abilityId), frame);
         }
         renderHeldDome(target, abilityId, frame);
     }
@@ -136,9 +137,28 @@ public final class GooTargetHighlighter {
             return;
         }
         String abilityId = GloveAim.selectedAbilityId(mc.player);
-        renderIndicator(target, AimIndicator.of(GloveThrowSender.selectedBadge(abilityId), AimTracker.grabHoldsAMob()),
+        renderIndicator(target, indicatorFor(target, abilityId),
                 new HighlightFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(), PortalView.camera(), mc,
                         selectedType));
+    }
+
+    /**
+     * The mark the selected ability draws on the aim target: its badge's,
+     * dropped for an ability growing a prism where the aimed face grows none.
+     * decision prism-highlight-draws-only-on-a-face-a-prism-grows-from
+     *
+     * @param target    the aim target
+     * @param abilityId the selected ability id
+     * @return the mark
+     */
+    private static AimIndicator indicatorFor(TargetResult target, @Nullable String abilityId) {
+        AimIndicator badged = AimIndicator.of(GloveThrowSender.selectedBadge(abilityId), AimTracker.grabHoldsAMob());
+        ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
+        boolean growsAPrism = ability != null && PrismBlock.grownBy(ability.behaviors());
+        Level level = Minecraft.getInstance().level;
+        boolean growable = target instanceof TargetResult.BlockTarget bt && level != null
+                && FaceSupport.growsFrom(level, bt.pos(), bt.face());
+        return AimIndicator.onFace(badged, growsAPrism, growable);
     }
 
     /**

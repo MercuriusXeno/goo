@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.block.ability.FaceSupport;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
@@ -35,6 +36,37 @@ public final class PrismTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, PRISM_GROWS_ON_THE_FACE, PrismTests::prismGrowsOnTheFace);
         GooTestFunctions.registerTest(registrar, PRISM_FORMS_ON_THE_RELEASE_TICK, PrismTests::prismFormsOnTheReleaseTick);
+        GooTestFunctions.registerTest(registrar, PRISM_GROWS_ONLY_FROM_A_STURDY_FACE,
+                PrismTests::prismGrowsOnlyFromASturdyFace);
+    }
+
+    private static final String PRISM_GROWS_ONLY_FROM_A_STURDY_FACE = "prism_grows_only_from_a_sturdy_face";
+
+    /**
+     * A prism grows from a stone block's top face and from no pane's, fence's
+     * or prism's, the rule both the aim highlight and the cast read.
+     * decision prism-highlight-draws-only-on-a-face-a-prism-grows-from
+     *
+     * @param helper the gametest helper
+     */
+    public static void prismGrowsOnlyFromASturdyFace(GameTestHelper helper) {
+        BlockPos stone = new BlockPos(1, 1, 1);
+        BlockPos pane = new BlockPos(3, 1, 1);
+        BlockPos fence = new BlockPos(1, 1, 3);
+        BlockPos prism = new BlockPos(3, 1, 3);
+        helper.setBlock(stone, Blocks.STONE);
+        helper.setBlock(pane, Blocks.GLASS_PANE);
+        helper.setBlock(fence, Blocks.OAK_FENCE);
+        helper.setBlock(prism, GooBlocks.PRISM.get().defaultBlockState().setValue(PrismBlock.FACING, Direction.UP));
+        helper.assertTrue(growsFromTheTop(helper, stone), "A prism should grow from stone's top face");
+        helper.assertFalse(growsFromTheTop(helper, pane), "A prism should not grow from a pane's top face");
+        helper.assertFalse(growsFromTheTop(helper, fence), "A prism should not grow from a fence's top face");
+        helper.assertFalse(growsFromTheTop(helper, prism), "A prism should not grow from a prism's top face");
+        helper.succeed();
+    }
+
+    private static boolean growsFromTheTop(GameTestHelper helper, BlockPos block) {
+        return FaceSupport.growsFrom(helper.getLevel(), helper.absolutePos(block), Direction.UP);
     }
 
     private static final String PRISM_FORMS_ON_THE_RELEASE_TICK = "prism_forms_on_the_release_tick";
