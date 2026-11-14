@@ -13,11 +13,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Where a Sunbeam beam strikes, nine probes across its cross-section find
+ * Where a Laser beam strikes, nine probes across its cross-section find
  * each surface it touches, and light motes scatter away from each one at the
  * points its own probes struck (decision sunbeam-motes-scatter-away-from-struck-surfaces).
  */
-class SunbeamStrikeTest {
+class LaserStrikeTest {
 
     private static final long SEED = 11L;
     private static final int TICKS = 400;
@@ -31,16 +31,16 @@ class SunbeamStrikeTest {
     private static final Vec3 PRISM = new Vec3(17.5, 70.5, 11.5);
     private static final Vec3 REFRACTED_END = new Vec3(25.0, 64.9, 18.0);
 
-    private static List<SunbeamMotes.Mote> scatterOver(SunbeamStrike.Surface surface) {
+    private static List<LaserMotes.Mote> scatterOver(LaserStrike.Surface surface) {
         RandomSource random = RandomSource.create(SEED);
-        List<SunbeamMotes.Mote> motes = new ArrayList<>();
+        List<LaserMotes.Mote> motes = new ArrayList<>();
         for (int tick = 0; tick < TICKS; tick++) {
-            motes.addAll(SunbeamStrike.scatterOff(surface, random));
+            motes.addAll(LaserStrike.scatterOff(surface, random));
         }
         return motes;
     }
 
-    private static boolean spawnsAtOneOf(SunbeamMotes.Mote mote, List<Vec3> points) {
+    private static boolean spawnsAtOneOf(LaserMotes.Mote mote, List<Vec3> points) {
         return points.stream().anyMatch(point -> point.distanceTo(mote.at()) < TOLERANCE);
     }
 
@@ -56,7 +56,7 @@ class SunbeamStrikeTest {
 
         @Test
         void nineProbesLieOnTheDrawnSquaresGridItsMiddleEdgeMiddlesAndCorners() {
-            List<Vec3> offsets = SunbeamStrike.probeOffsets(SLANTED_AXIS, RADIUS);
+            List<Vec3> offsets = LaserStrike.probeOffsets(SLANTED_AXIS, RADIUS);
             assertEquals(9, offsets.size());
             int middles = 0;
             int edgeMiddles = 0;
@@ -93,14 +93,14 @@ class SunbeamStrikeTest {
         private final List<Vec3> sidePoints = List.of(new Vec3(4.0, 64.97, 7.5), new Vec3(4.0, 64.96, 7.46),
                 new Vec3(4.0, 64.96, 7.54), new Vec3(4.0, 64.99, 7.48));
 
-        private List<SunbeamStrike.Surface> surfaces() {
-            List<SunbeamStrike.Probe> probes = new ArrayList<>();
-            topPoints.forEach(point -> probes.add(SunbeamStrike.Probe.onBlock(point, Direction.UP)));
-            sidePoints.forEach(point -> probes.add(SunbeamStrike.Probe.onBlock(point, Direction.EAST)));
-            return SunbeamStrike.surfacesStruck(probes, SOURCE);
+        private List<LaserStrike.Surface> surfaces() {
+            List<LaserStrike.Probe> probes = new ArrayList<>();
+            topPoints.forEach(point -> probes.add(LaserStrike.Probe.onBlock(point, Direction.UP)));
+            sidePoints.forEach(point -> probes.add(LaserStrike.Probe.onBlock(point, Direction.EAST)));
+            return LaserStrike.surfacesStruck(probes, SOURCE);
         }
 
-        private SunbeamStrike.Surface facing(Direction face) {
+        private LaserStrike.Surface facing(Direction face) {
             Vec3 normal = Vec3.atLowerCornerOf(face.getUnitVec3i());
             return surfaces().stream().filter(surface -> surface.normal().distanceTo(normal) < TOLERANCE)
                     .findFirst().orElseThrow();
@@ -113,8 +113,8 @@ class SunbeamStrikeTest {
 
         @Test
         void eachFaceScattersFromThePointsItsOwnProbesStruck() {
-            List<SunbeamMotes.Mote> offTheTop = scatterOver(facing(Direction.UP));
-            List<SunbeamMotes.Mote> offTheSide = scatterOver(facing(Direction.EAST));
+            List<LaserMotes.Mote> offTheTop = scatterOver(facing(Direction.UP));
+            List<LaserMotes.Mote> offTheSide = scatterOver(facing(Direction.EAST));
             assertFalse(offTheTop.isEmpty(), "the top face scatters motes");
             assertFalse(offTheSide.isEmpty(), "the side face scatters motes");
             offTheTop.forEach(mote -> assertTrue(spawnsAtOneOf(mote, topPoints), "top mote at " + mote.at()));
@@ -128,10 +128,10 @@ class SunbeamStrikeTest {
         @Test
         void everyMoteLeavesTheSurfaceFasterThanItSlidesAcrossItAndSlowerThanTheEndRodSparks() {
             Vec3 normal = Vec3.atLowerCornerOf(Direction.NORTH.getUnitVec3i());
-            List<SunbeamMotes.Mote> motes = scatterOver(
-                    new SunbeamStrike.Surface(normal, List.of(new Vec3(2.5, 64.5, 9.0))));
+            List<LaserMotes.Mote> motes = scatterOver(
+                    new LaserStrike.Surface(normal, List.of(new Vec3(2.5, 64.5, 9.0))));
             assertFalse(motes.isEmpty(), "a struck face scatters motes");
-            for (SunbeamMotes.Mote mote : motes) {
+            for (LaserMotes.Mote mote : motes) {
                 Vec3 velocity = mote.velocity();
                 double outward = velocity.dot(normal);
                 double across = velocity.subtract(normal.scale(outward)).length();
@@ -148,8 +148,8 @@ class SunbeamStrikeTest {
         @Test
         void aStruckMobsSurfaceFacesBackTowardTheBeamsSource() {
             Vec3 struck = new Vec3(9.2, 64.8, 5.1);
-            List<SunbeamStrike.Surface> surfaces = SunbeamStrike.surfacesStruck(
-                    List.of(SunbeamStrike.Probe.onMob(struck)), SOURCE);
+            List<LaserStrike.Surface> surfaces = LaserStrike.surfacesStruck(
+                    List.of(LaserStrike.Probe.onMob(struck)), SOURCE);
             assertEquals(1, surfaces.size());
             Vec3 towardSource = SOURCE.subtract(struck).normalize();
             assertEquals(0, surfaces.getFirst().normal().distanceTo(towardSource), TOLERANCE);
@@ -157,12 +157,12 @@ class SunbeamStrikeTest {
 
         @Test
         void aRefractedBeamScattersAtItsOwnEndBackTowardThePrism() {
-            List<SunbeamStrike.Surface> surfaces = SunbeamStrike.surfacesStruck(
-                    SunbeamStrike.refractedEndProbes(PRISM, REFRACTED_END, RADIUS), PRISM);
+            List<LaserStrike.Surface> surfaces = LaserStrike.surfacesStruck(
+                    LaserStrike.refractedEndProbes(PRISM, REFRACTED_END, RADIUS), PRISM);
             assertEquals(1, surfaces.size());
-            List<SunbeamMotes.Mote> motes = scatterOver(surfaces.getFirst());
+            List<LaserMotes.Mote> motes = scatterOver(surfaces.getFirst());
             assertFalse(motes.isEmpty(), "the refracted beam's mob scatters motes");
-            for (SunbeamMotes.Mote mote : motes) {
+            for (LaserMotes.Mote mote : motes) {
                 assertTrue(mote.at().distanceTo(REFRACTED_END) <= RADIUS * Math.sqrt(2) + FLOAT_TOLERANCE,
                         "mote spawns away from the refracted end: " + mote.at());
                 assertTrue(mote.velocity().dot(PRISM.subtract(REFRACTED_END)) > 0,

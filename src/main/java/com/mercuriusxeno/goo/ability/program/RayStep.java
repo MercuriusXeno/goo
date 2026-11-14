@@ -3,7 +3,7 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.network.EntityVisuals;
-import com.mercuriusxeno.goo.network.SunbeamPayload;
+import com.mercuriusxeno.goo.network.LaserPayload;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -32,7 +32,7 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
- * Glow's Sunbeam: a ray of light held from the channeling player's eye
+ * Glow's Laser: a ray of light held from the channeling player's eye
  * toward the cursor's aim point, out to its range. On every hit tick of the
  * hold it runs the child steps on the first living mob it strikes; striking
  * a prism instead, the prism refracts it into a beam toward every mob in
@@ -102,7 +102,7 @@ public record RayStep(double range, int every, List<EntityFilter> where, Refract
         boolean hits = hitsOn(held);
         List<Vec3> refracted = land(level, caster, hit, hits);
         impactAt(level, eye, hit, held, hits);
-        EntityVisuals.sendToWatchers(caster, new SunbeamPayload(caster.getId(), hit.getLocation(), refracted, range));
+        EntityVisuals.sendToWatchers(caster, new LaserPayload(caster.getId(), hit.getLocation(), refracted, range));
         return true;
     }
 
@@ -129,7 +129,7 @@ public record RayStep(double range, int every, List<EntityFilter> where, Refract
 
     /**
      * The prism the ray strikes where it refracts: one holding a combo, a
-     * bare prism charging toward Sunbeam's combo instead.
+     * bare prism charging toward Laser's combo instead.
      * channeled-hosts-convert-prisms-over-the-hold
      *
      * @param level the server level

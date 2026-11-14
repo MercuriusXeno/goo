@@ -34,7 +34,7 @@ import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
- * Gametests for glow's Sunbeam through the real channel path: a mock player
+ * Gametests for glow's Laser through the real channel path: a mock player
  * holds the ray for one tick, its first tick landing a hit. Struck directly,
  * a zombie loses health and burns; aimed at a prism, the ray refracts to
  * three zombies around it, each taking a share of the hit
@@ -42,12 +42,12 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
  * fires where the ray lands, its sound on hits (decision sunbeam-lands-with-impact-and-aim).
  */
 @RegistersGameTests
-public final class SunbeamChannelTests {
-    private static final String SUNBEAM_REFRACTS_TO_THREE = "sunbeam_refracts_to_three";
-    private static final String SUNBEAM_BURNS_THE_UNDEAD_IT_STRIKES = "sunbeam_burns_the_undead_it_strikes";
-    private static final String SUNBEAM_IMPACT_FIRES_AT_THE_HIT = "sunbeam_impact_fires_at_the_hit";
-    private static final String SUNBEAM_CONVERTS_A_BARE_PRISM = "sunbeam_converts_a_bare_prism";
-    private static final String SUNBEAM_WARMS_A_BARE_PRISM_AS_IT_CHARGES = "sunbeam_warms_a_bare_prism_as_it_charges";
+public final class LaserChannelTests {
+    private static final String LASER_REFRACTS_TO_THREE = "laser_refracts_to_three";
+    private static final String LASER_BURNS_THE_UNDEAD_IT_STRIKES = "laser_burns_the_undead_it_strikes";
+    private static final String LASER_IMPACT_FIRES_AT_THE_HIT = "laser_impact_fires_at_the_hit";
+    private static final String LASER_CONVERTS_A_BARE_PRISM = "laser_converts_a_bare_prism";
+    private static final String LASER_WARMS_A_BARE_PRISM_AS_IT_CHARGES = "laser_warms_a_bare_prism_as_it_charges";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -55,12 +55,12 @@ public final class SunbeamChannelTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, SUNBEAM_REFRACTS_TO_THREE, SunbeamChannelTests::sunbeamRefractsToThree);
-        GooTestFunctions.registerTest(registrar, SUNBEAM_BURNS_THE_UNDEAD_IT_STRIKES, SunbeamChannelTests::sunbeamBurnsTheUndeadItStrikes);
-        GooTestFunctions.registerTest(registrar, SUNBEAM_IMPACT_FIRES_AT_THE_HIT, SunbeamChannelTests::sunbeamImpactFiresAtTheHit);
-        GooTestFunctions.registerTest(registrar, SUNBEAM_CONVERTS_A_BARE_PRISM, SunbeamChannelTests::sunbeamConvertsABarePrism);
-        GooTestFunctions.registerTest(registrar, SUNBEAM_WARMS_A_BARE_PRISM_AS_IT_CHARGES,
-                SunbeamChannelTests::sunbeamWarmsABarePrismAsItCharges);
+        GooTestFunctions.registerTest(registrar, LASER_REFRACTS_TO_THREE, LaserChannelTests::laserRefractsToThree);
+        GooTestFunctions.registerTest(registrar, LASER_BURNS_THE_UNDEAD_IT_STRIKES, LaserChannelTests::laserBurnsTheUndeadItStrikes);
+        GooTestFunctions.registerTest(registrar, LASER_IMPACT_FIRES_AT_THE_HIT, LaserChannelTests::laserImpactFiresAtTheHit);
+        GooTestFunctions.registerTest(registrar, LASER_CONVERTS_A_BARE_PRISM, LaserChannelTests::laserConvertsABarePrism);
+        GooTestFunctions.registerTest(registrar, LASER_WARMS_A_BARE_PRISM_AS_IT_CHARGES,
+                LaserChannelTests::laserWarmsABarePrismAsItCharges);
     }
 
 
@@ -79,29 +79,29 @@ public final class SunbeamChannelTests {
     private static final float TOLERANCE = 0.01f;
     private static final double BODY_HEIGHT = 1.0;
     private static final int HELD_GOO = 2;
-    private static final Identifier SUNBEAM = Identifier.parse("goo:glow_sunbeam");
-    private static final String ABILITY_REQUIRED = "Ability registry must hold glow_sunbeam";
+    private static final Identifier LASER = Identifier.parse("goo:glow_laser");
+    private static final String ABILITY_REQUIRED = "Ability registry must hold glow_laser";
     private static final String UNTOUCHED = "Refracted zombie %d should take a share of the hit, it lost %s";
     private static final String WHOLE_HIT = "The struck zombie should lose health to the hit, it lost %s";
     private static final String NOT_BURNING = "The struck zombie is undead and should burn";
     /** Zap, whose relay is the combo the refracting prism holds. */
     private static final Identifier RELAY_HOST = Identifier.parse("goo:pulse_zap");
     private static final String RELAY_REQUIRED = "The prism should take Zap's relay combo";
-    private static final String NOT_CONVERTED = "A full Sunbeam hold should make the prism a reflector, held '%s'";
+    private static final String NOT_CONVERTED = "A full Laser hold should make the prism a reflector, held '%s'";
 
-    private SunbeamChannelTests() {
+    private LaserChannelTests() {
     }
 
     /**
-     * A mock player holds Sunbeam at a prism with three zombies in clear
+     * A mock player holds Laser at a prism with three zombies in clear
      * line around it: each zombie loses a share of the hit.
      *
      * @param helper the gametest helper
      */
-    public static void sunbeamRefractsToThree(GameTestHelper helper) {
+    public static void laserRefractsToThree(GameTestHelper helper) {
         helper.setBlock(PRISM_POS.below(), Blocks.STONE);
         helper.setBlock(PRISM_POS, GooBlocks.PRISM.get());
-        // channeled-hosts-convert-prisms-over-the-hold: only a prism holding a combo refracts Sunbeam
+        // channeled-hosts-convert-prisms-over-the-hold: only a prism holding a combo refracts Laser
         PrismBlockEntity prism = helper.getBlockEntity(PRISM_POS, PrismBlockEntity.class);
         AbilityDefinition zap = AbilityRegistry.of(helper.getLevel()).getAbility(RELAY_HOST);
         helper.assertTrue(zap != null && prism.runCombo(GooTypes.PULSE, RELAY_HOST.toString(),
@@ -120,12 +120,12 @@ public final class SunbeamChannelTests {
     }
 
     /**
-     * A mock player holds Sunbeam on a zombie: the zombie loses health and
+     * A mock player holds Laser on a zombie: the zombie loses health and
      * burns.
      *
      * @param helper the gametest helper
      */
-    public static void sunbeamBurnsTheUndeadItStrikes(GameTestHelper helper) {
+    public static void laserBurnsTheUndeadItStrikes(GameTestHelper helper) {
         helper.setBlock(STRUCK_POS.below(), Blocks.STONE);
         Zombie zombie = helmeted(helper, STRUCK_POS);
         float before = zombie.getHealth();
@@ -140,7 +140,7 @@ public final class SunbeamChannelTests {
     }
 
     /**
-     * A mock player holds Sunbeam on a stone block's face, the first tick
+     * A mock player holds Laser on a stone block's face, the first tick
      * hitting: the impact's sound reaches the player at the point the ray
      * lands once on that hit tick, and the hold runs on until the impact's
      * flame reaches the player there, on whichever held tick the impact
@@ -150,13 +150,13 @@ public final class SunbeamChannelTests {
      *
      * @param helper the gametest helper
      */
-    public static void sunbeamImpactFiresAtTheHit(GameTestHelper helper) {
+    public static void laserImpactFiresAtTheHit(GameTestHelper helper) {
         helper.setBlock(WALL_POS, Blocks.STONE);
         ServerPlayer player = standWithGlove(helper, STAND_POS);
         PacketRecorder recorder = PacketRecorder.attachTo(player);
         Vec3 eye = player.getEyePosition();
         Vec3 face = new Vec3(helper.absolutePos(WALL_POS).getX(), eye.y, eye.z);
-        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.GLOW), SUNBEAM.toString(), eye, face);
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.GLOW), LASER.toString(), eye, face);
         long[] soundsAfterTheHit = {-1};
         int[] held = {0};
         // held until the flame shows, so the wait follows the impact branch however it is tuned
@@ -212,7 +212,7 @@ public final class SunbeamChannelTests {
     }
 
     /**
-     * Stands a mock player holding glow goo in a glove and holds Sunbeam at a
+     * Stands a mock player holding glow goo in a glove and holds Laser at a
      * point for one tick, the hold's first, which lands a hit.
      *
      * @param helper the gametest helper
@@ -221,25 +221,25 @@ public final class SunbeamChannelTests {
      */
     private static ServerPlayer holdAt(GameTestHelper helper, Vec3 aim) {
         ServerPlayer player = standWithGlove(helper, STAND_POS);
-        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.GLOW), SUNBEAM.toString(),
+        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.GLOW), LASER.toString(),
                 player.getEyePosition(), aim, helper.absolutePos(STAND_POS.below()), Direction.UP.get3DDataValue());
         helper.runAfterDelay(1, () -> GooStreamHandler.streamTick(player, tick));
         return player;
     }
 
     /**
-     * A mock player holds Sunbeam on a bare prism for one charge's ticks: the
-     * prism converts into the reflector combo, Sunbeam's on_prism reaction.
+     * A mock player holds Laser on a bare prism for one charge's ticks: the
+     * prism converts into the reflector combo, Laser's on_prism reaction.
      * channeled-hosts-convert-prisms-over-the-hold
      *
      * @param helper the gametest helper
      */
-    public static void sunbeamConvertsABarePrism(GameTestHelper helper) {
+    public static void laserConvertsABarePrism(GameTestHelper helper) {
         helper.setBlock(PRISM_POS.below(), Blocks.STONE);
         helper.setBlock(PRISM_POS, GooBlocks.PRISM.get());
         ServerPlayer player = standWithGlove(helper, STAND_POS);
-        int hold = AbilityRegistry.of(helper.getLevel()).getAbility(SUNBEAM).delivery().ticksPerCharge();
-        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.GLOW), SUNBEAM.toString(),
+        int hold = AbilityRegistry.of(helper.getLevel()).getAbility(LASER).delivery().ticksPerCharge();
+        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.GLOW), LASER.toString(),
                 player.getEyePosition(), Vec3.atCenterOf(helper.absolutePos(PRISM_POS)),
                 helper.absolutePos(STAND_POS.below()), Direction.UP.get3DDataValue());
         for (int held = 1; held <= hold; held++) {
@@ -248,28 +248,28 @@ public final class SunbeamChannelTests {
         helper.runAfterDelay(hold + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
             String combo = helper.getBlockEntity(PRISM_POS, PrismBlockEntity.class).getCombo();
-            helper.assertTrue(SUNBEAM.toString().equals(combo), String.format(NOT_CONVERTED, combo));
+            helper.assertTrue(LASER.toString().equals(combo), String.format(NOT_CONVERTED, combo));
             helper.succeed();
         });
     }
 
-    private static final String NOT_WARMING = "Half a charge of Sunbeam should warm the bare prism toward its combo, "
+    private static final String NOT_WARMING = "Half a charge of Laser should warm the bare prism toward its combo, "
             + "its share stood at %s";
 
     /**
-     * A mock player holds Sunbeam on a bare prism for half a charge: the
+     * A mock player holds Laser on a bare prism for half a charge: the
      * prism warms toward the reflector it is becoming, its exposure share
      * rising with the charge, so the conversion shows rather than jumps.
      * prism-conversion-creeps-over-the-hold
      *
      * @param helper the gametest helper
      */
-    public static void sunbeamWarmsABarePrismAsItCharges(GameTestHelper helper) {
+    public static void laserWarmsABarePrismAsItCharges(GameTestHelper helper) {
         helper.setBlock(PRISM_POS.below(), Blocks.STONE);
         helper.setBlock(PRISM_POS, GooBlocks.PRISM.get());
         ServerPlayer player = standWithGlove(helper, STAND_POS);
-        int half = AbilityRegistry.of(helper.getLevel()).getAbility(SUNBEAM).delivery().ticksPerCharge() / 2;
-        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.GLOW), SUNBEAM.toString(),
+        int half = AbilityRegistry.of(helper.getLevel()).getAbility(LASER).delivery().ticksPerCharge() / 2;
+        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.GLOW), LASER.toString(),
                 player.getEyePosition(), Vec3.atCenterOf(helper.absolutePos(PRISM_POS)),
                 helper.absolutePos(STAND_POS.below()), Direction.UP.get3DDataValue());
         for (int held = 1; held <= half; held++) {
@@ -285,7 +285,7 @@ public final class SunbeamChannelTests {
     }
 
     /**
-     * Stands a mock player holding glow goo in a glove, taught Sunbeam.
+     * Stands a mock player holding glow goo in a glove, taught Laser.
      *
      * @param helper the gametest helper
      * @param pos    where the player stands, relative to the test
@@ -293,14 +293,14 @@ public final class SunbeamChannelTests {
      */
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
     private static ServerPlayer standWithGlove(GameTestHelper helper, BlockPos pos) {
-        AbilityDefinition sunbeam = AbilityRegistry.of(helper.getLevel()).getAbility(SUNBEAM);
-        helper.assertTrue(sunbeam != null, ABILITY_REQUIRED);
+        AbilityDefinition laser = AbilityRegistry.of(helper.getLevel()).getAbility(LASER);
+        helper.assertTrue(laser != null, ABILITY_REQUIRED);
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(pos));
         player.setPos(stand.x, stand.y, stand.z);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
         player.getInventory().add(GooStacks.createForOutput(GooTypes.GLOW, HELD_GOO * GooStacks.THOUSAND));
-        KnownRecipes.teachRequires(player, sunbeam);
+        KnownRecipes.teachRequires(player, laser);
         return player;
     }
 }

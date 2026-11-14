@@ -52,21 +52,21 @@ class GooRenderTypesTest {
     }
 
     /**
-     * Sunbeam's scorch draws its char translucent, darkening the face, and its
+     * Laser's scorch draws its char translucent, darkening the face, and its
      * glow in a pass of its own added onto the face, the block showing through.
      * decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades
      */
     @Test
-    void sunbeamsScorchAddsItsGlowOntoTheFace() {
+    void lasersScorchAddsItsGlowOntoTheFace() {
         assertEquals(Optional.of(BlendFunction.TRANSLUCENT),
-                GooRenderTypes.SUNBEAM_SCORCH.getColorTargetState().blendFunction());
+                GooRenderTypes.LASER_SCORCH.getColorTargetState().blendFunction());
         assertEquals(Optional.of(BlendFunction.ADDITIVE),
-                GooRenderTypes.SUNBEAM_SCORCH_GLOW.getColorTargetState().blendFunction());
+                GooRenderTypes.LASER_SCORCH_GLOW.getColorTargetState().blendFunction());
     }
 
     /**
      * A glow prism's column depth tests and writes no depth, so a beam drawn
-     * after it, Sunbeam's ray among them, shows in front of it.
+     * after it, Laser's ray among them, shows in front of it.
      * decision diagnose-and-correct-the-sunbeam-prism-depth
      */
     @Test

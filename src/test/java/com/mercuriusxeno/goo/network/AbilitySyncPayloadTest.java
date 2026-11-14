@@ -153,7 +153,7 @@ class AbilitySyncPayloadTest {
      */
     @Test
     void bulbReachesTheClientWithItsPrismReaction() {
-        AbilityDefinition bulb = AbilityJson.decode("glow_crystal");
+        AbilityDefinition bulb = AbilityJson.decode("glow_bulb");
         AbilitySyncPayload.Entry synced = roundTrip(bulb);
 
         assertEquals(AbilityBadge.WORLD, bulb.badge());

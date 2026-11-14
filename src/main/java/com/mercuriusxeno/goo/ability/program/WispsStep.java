@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 /**
- * Glow's Radiant: leaves wisps of light in dark air, each fading out after
+ * Glow's Wisps: leaves wisps of light in dark air, each fading out after
  * its life. The channel floods ({@link WispFlood}): from the holder's eyes
  * out through the connected air they see, nearest first, a budget of cells
  * a tick, a wisp by a chance, the density, in each dark cell no wisp
@@ -116,7 +116,7 @@ public record WispsStep(double radius, int count, int life, int above, boolean f
             long now = level.getGameTime();
             FLOODS.values().removeIf(stale -> now - stale.lastWalked() > FORGET_AFTER_TICKS);
             // a wisp's light keeps a cell lit until it drops to the threshold, one level a step
-            under = floodFor(under, eyes, heldTicks, WispBlock.LIGHT - GooConfig.radiantLightThreshold());
+            under = floodFor(under, eyes, heldTicks, WispBlock.LIGHT - GooConfig.wispsLightThreshold());
             FLOODS.put(holder.getUUID(), under);
         }
         under.walkedAt(level.getGameTime());
@@ -160,7 +160,7 @@ public record WispsStep(double radius, int count, int life, int above, boolean f
 
     private static boolean takesAWisp(ServerLevel level, BlockPos cell) {
         return level.getBlockState(cell).isAir()
-                && isDark(level.getMaxLocalRawBrightness(cell), GooConfig.radiantLightThreshold());
+                && isDark(level.getMaxLocalRawBrightness(cell), GooConfig.wispsLightThreshold());
     }
 
     private void placeWisp(ServerLevel level, BlockPos cell, boolean chimes) {

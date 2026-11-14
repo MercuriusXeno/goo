@@ -114,7 +114,7 @@ public final class EffectExecutorTests {
     /** The gametests' own thrown blast, today's Blast before it was drag-sized, for the landing machinery. */
     private static final String ABILITY_BLAST = "goo:test_blast";
     private static final String ABILITY_LURKER = "goo:unstable_lurker";
-    private static final String ABILITY_GLOW_CRYSTAL = "goo:glow_crystal";
+    private static final String ABILITY_GLOW_BULB = "goo:glow_bulb";
     /** Ticks an armed mine idles before the test spawns a target. */
     private static final int MINE_IDLE_TICKS = 5;
     /** Where the mine's target spawns: two blocks from the marker, inside its radius. */
@@ -709,12 +709,12 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * A glow_crystal blob's crystal stands the tick after it lands.
+     * A glow_bulb blob's crystal stands the tick after it lands.
      *
      * @param helper the gametest helper
      */
     public static void glowCrystalStandsAfterLanding(GameTestHelper helper) {
-        landBlob(helper, GooTypes.GLOW, ABILITY_GLOW_CRYSTAL);
+        landBlob(helper, GooTypes.GLOW, ABILITY_GLOW_BULB);
         helper.runAfterDelay(TICK_AFTER_LANDING, () -> {
             assertGlowCrystal(helper, Direction.SOUTH);
             helper.succeed();

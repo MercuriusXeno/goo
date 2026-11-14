@@ -12,13 +12,13 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * SunbeamVisual's stretch of beam: one ending in a prism runs on past its end
+ * LaserVisual's stretch of beam: one ending in a prism runs on past its end
  * and fades to nothing there, one ending anywhere else stops flat at its end,
  * and every stretch breathes in alpha and shrinks slightly at the ease.
  * decision reflector-rail-blooms-out-inside-the-prism
  * decision every-glow-beam-breathes-in-brightness
  */
-class SunbeamVisualTest {
+class LaserVisualTest {
 
     private static final Vec3 FROM = Vec3.ZERO;
     private static final double LENGTH = 6;
@@ -31,7 +31,7 @@ class SunbeamVisualTest {
 
     private static List<RecordingVertexConsumer.Vertex> drawSegment(boolean endsInPrism, float breath) {
         RecordingVertexConsumer consumer = new RecordingVertexConsumer();
-        SunbeamVisual.drawSegment(new PoseStack(), consumer, FROM, TO, 0f, endsInPrism, breath);
+        LaserVisual.drawSegment(new PoseStack(), consumer, FROM, TO, 0f, endsInPrism, breath);
         return consumer.vertices();
     }
 
@@ -42,7 +42,7 @@ class SunbeamVisualTest {
                 drawSegment(false, GlowBeamMesh.breath(GlowBeamMesh.BREATH_PERIOD_TICKS / 2));
 
         assertNotEquals(BeamSamples.alphas(peak), BeamSamples.alphas(trough), "the ray's alpha breathes");
-        assertEquals(GlowBeamMesh.LAYERS.getLast().radius() * SunbeamVisual.RAY_WIDTH, BeamSamples.widest(peak),
+        assertEquals(GlowBeamMesh.LAYERS.getLast().radius() * LaserVisual.RAY_WIDTH, BeamSamples.widest(peak),
                 TOLERANCE, "the ray is never fatter than its own width");
         assertTrue(BeamSamples.widest(trough) < BeamSamples.widest(peak), "the ray shrinks slightly at the ease");
     }

@@ -8,13 +8,13 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 
 /**
- * Sunbeam's hum while its ray shows: a looping beacon tone that starts
+ * Laser's hum while its ray shows: a looping beacon tone that starts
  * pitched up as the hold begins and glides down to a low, steady thrum,
  * following the caster, and stops the tick the ray stops showing
  * (operator ruling 2026-10-09).
  * decision sunbeam-splits-at-the-prism-with-a-glisten
  */
-public final class SunbeamHum extends AbstractTickableSoundInstance {
+public final class LaserHum extends AbstractTickableSoundInstance {
 
     /** The hum's pitch as the hold begins. */
     static final float START_PITCH = 1.8f;
@@ -32,7 +32,7 @@ public final class SunbeamHum extends AbstractTickableSoundInstance {
      *
      * @param caster the player holding the ray
      */
-    public SunbeamHum(Entity caster) {
+    public LaserHum(Entity caster) {
         super(SoundEvents.BEACON_AMBIENT, SoundSource.PLAYERS, SoundInstance.createUnseededRandom());
         this.caster = caster;
         this.looping = true;
@@ -44,7 +44,7 @@ public final class SunbeamHum extends AbstractTickableSoundInstance {
 
     @Override
     public void tick() {
-        if (caster.isRemoved() || !SunbeamVisual.isShowing(caster.getId())) {
+        if (caster.isRemoved() || !LaserVisual.isShowing(caster.getId())) {
             stop();
             return;
         }

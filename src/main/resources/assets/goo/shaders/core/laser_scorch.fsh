@@ -1,6 +1,6 @@
 #version 330
 
-// Sunbeam's scorch (decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades):
+// Laser's scorch (decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades):
 // one burnt spot as a ragged disc. A fresh mark glows white-hot across the
 // disc; as it cools the glow draws in to a shrinking core and runs through
 // yellow and orange to a dull red, leaving a dark char ring, and in the last

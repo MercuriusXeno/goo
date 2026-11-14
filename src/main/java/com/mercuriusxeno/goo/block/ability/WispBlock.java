@@ -18,7 +18,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
 
 /**
- * A wisp of light Radiant leaves in dark air: a light source that counts
+ * A wisp of light Wisps leaves in dark air: a light source that counts
  * as air for placement, with no shape and no collision, that fades through
  * its last stages on scheduled ticks and is gone after its life. Its block
  * entity renderer draws the soft floating mote.
@@ -33,7 +33,7 @@ public class WispBlock extends BaseEntityBlock {
     public static final IntegerProperty FADE = IntegerProperty.create("fade", 0, LAST_FADE);
     /**
      * The light a fresh wisp gives: full, so the cells around it read past
-     * Radiant's threshold and the next wisp lands further out.
+     * Wisps' threshold and the next wisp lands further out.
      * operator ruling 2026-10-09: wisps give light 15
      */
     public static final int LIGHT = 15;

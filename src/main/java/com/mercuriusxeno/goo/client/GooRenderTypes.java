@@ -204,7 +204,7 @@ public final class GooRenderTypes {
     public static final RenderType SPORE_SHELL_THROUGH_BLOCKS_TYPE = burnoutType(SPORE_SHELL_THROUGH_BLOCKS);
 
     /**
-     * Glow's shell of light, Scry's sphere and Radiant's wisps (decisions
+     * Glow's shell of light, Scry's sphere and Wisps' wisps (decisions
      * scry-sphere-reveals-faces-and-glistens-mobs, radiant-wisps-where-light-is-low):
      * plain colored quads added onto the world, depth tested with depth write
      * off and both faces drawn, so a caster inside the sphere sees its shell.
@@ -442,7 +442,7 @@ public final class GooRenderTypes {
     /**
      * A glow prism's column and halo (decision diagnose-and-correct-the-sunbeam-prism-depth):
      * vanilla's translucent entity draw with depth write off, so the beams
-     * drawn after it, Sunbeam's ray among them, show in front of the column
+     * drawn after it, Laser's ray among them, show in front of the column
      * rather than fail the depth it would write.
      */
     public static final RenderPipeline GLOW_COLUMN = RenderPipelines.ENTITY_TRANSLUCENT.toBuilder()
@@ -558,34 +558,34 @@ public final class GooRenderTypes {
     }
 
     /**
-     * Sunbeam's scorch (decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades):
+     * Laser's scorch (decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades):
      * a quad flush on each block face the ray burnt, through
-     * {@code sunbeam_scorch.vsh / .fsh}, cooling white-hot through orange to a
+     * {@code laser_scorch.vsh / .fsh}, cooling white-hot through orange to a
      * dark burn mark. Alpha blended so the char darkens the face, depth tested
      * with depth write off and biased toward the camera as a decal is, so it
      * wins the face's own depth without standing off it.
      */
-    public static final RenderPipeline SUNBEAM_SCORCH = shaderPairPipeline("sunbeam_scorch", "sunbeam_scorch",
+    public static final RenderPipeline LASER_SCORCH = shaderPairPipeline("laser_scorch", "laser_scorch",
             BlendFunction.TRANSLUCENT, DefaultVertexFormat.POSITION_COLOR_NORMAL,
             new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false,
                     BLOCK_MINGLE_DEPTH_BIAS_SCALE, BLOCK_MINGLE_DEPTH_BIAS_CONSTANT));
 
-    /** RenderType that draws Sunbeam's scorch. */
-    public static final RenderType SUNBEAM_SCORCH_TYPE = burnoutType(SUNBEAM_SCORCH);
+    /** RenderType that draws Laser's scorch. */
+    public static final RenderType LASER_SCORCH_TYPE = burnoutType(LASER_SCORCH);
 
     /**
-     * Sunbeam's scorch glow (decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades):
+     * Laser's scorch glow (decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades):
      * the scorch's shaders in their glow pass, added onto the world after
      * every mark's char, so overlapping marks' glows sum into one streak.
      */
-    public static final RenderPipeline SUNBEAM_SCORCH_GLOW = SUNBEAM_SCORCH.toBuilder()
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "sunbeam_scorch_glow"))
+    public static final RenderPipeline LASER_SCORCH_GLOW = LASER_SCORCH.toBuilder()
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "laser_scorch_glow"))
             .withShaderDefine("GLOW_PASS")
             .withColorTargetState(new ColorTargetState(BlendFunction.ADDITIVE))
             .build();
 
-    /** RenderType that draws Sunbeam's scorch glow. */
-    public static final RenderType SUNBEAM_SCORCH_GLOW_TYPE = burnoutType(SUNBEAM_SCORCH_GLOW);
+    /** RenderType that draws Laser's scorch glow. */
+    public static final RenderType LASER_SCORCH_GLOW_TYPE = burnoutType(LASER_SCORCH_GLOW);
 
     /**
      * Voronoi fissure pipeline: procedural crack pattern on a sphere mesh.
@@ -1654,7 +1654,7 @@ public final class GooRenderTypes {
 
     /**
      * Registers the overlay pipelines: the goo ripple masks and edge, the
-     * ghost, Bulb's glow beam, Sunbeam's scorch, the glow shell, Scry's
+     * ghost, Bulb's glow beam, Laser's scorch, the glow shell, Scry's
      * faces, and Meteo's scorch and rock.
      *
      * @param event the event instance
@@ -1678,8 +1678,8 @@ public final class GooRenderTypes {
         event.registerPipeline(MIASMA_VORTEX);
         event.registerPipeline(GLOW_BEAM);
         event.registerPipeline(GLOW_COLUMN);
-        event.registerPipeline(SUNBEAM_SCORCH);
-        event.registerPipeline(SUNBEAM_SCORCH_GLOW);
+        event.registerPipeline(LASER_SCORCH);
+        event.registerPipeline(LASER_SCORCH_GLOW);
         event.registerPipeline(GLOW_SHELL);
         event.registerPipeline(SCRY_FACES);
         event.registerPipeline(METEOR_SCORCH);

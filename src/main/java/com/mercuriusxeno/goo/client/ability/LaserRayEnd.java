@@ -12,20 +12,20 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 /**
- * Where a sunbeam ray's drawn end sits each frame. The server's ray arrives
+ * Where a laser ray's drawn end sits each frame. The server's ray arrives
  * once a tick, a round trip behind the look, so the local caster's own ray
  * is cast each frame from its eye along its aim that frame; another
  * caster's ray ends where the server struck.
  * decision diagnose-and-correct-the-sunbeam-jitter
  */
-final class SunbeamRayEnd {
+final class LaserRayEnd {
 
     /** Below this squared gap the aim point sits on the eye and gives no direction. */
     private static final double SHORTEST_AIM_SQUARED = 1e-6;
     /** How far past the struck spot, along the ray, the struck block is read, in blocks. */
     private static final double INTO_THE_STRUCK = 1e-3;
 
-    private SunbeamRayEnd() {
+    private LaserRayEnd() {
     }
 
     /**

@@ -1,6 +1,6 @@
 {
   "gooType": "glow",
-  "displayName": "goo.ability.glow.crystal",
+  "displayName": "goo.ability.glow.bulb",
   "badge": "world",
   "order": 0,
   "cost": 1000,

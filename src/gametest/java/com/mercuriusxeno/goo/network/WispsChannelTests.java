@@ -26,14 +26,14 @@ import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
- * Gametests for glow's Radiant through the real channel path: a mock player
+ * Gametests for glow's Wisps through the real channel path: a mock player
  * holds it in a sealed stone room. In the dark the room fills with wisps
  * that light it; lit past the threshold, the room takes none
  * (decision radiant-wisps-where-light-is-low).
  */
 @RegistersGameTests
-public final class RadiantChannelTests {
-    private static final String RADIANT_LIGHTS_A_DARK_ROOM = "radiant_lights_a_dark_room";
+public final class WispsChannelTests {
+    private static final String WISPS_LIGHT_A_DARK_ROOM = "wisps_light_a_dark_room";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -41,7 +41,7 @@ public final class RadiantChannelTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, RADIANT_LIGHTS_A_DARK_ROOM, RadiantChannelTests::radiantLightsADarkRoom);
+        GooTestFunctions.registerTest(registrar, WISPS_LIGHT_A_DARK_ROOM, WispsChannelTests::wispsLightADarkRoom);
     }
 
 
@@ -52,23 +52,23 @@ public final class RadiantChannelTests {
     /** Two tries a tick for 100 ticks: most of the ball lies outside the room, so this many tries find its air. */
     private static final int HOLD_TICKS = 100;
     private static final int HELD_GOO = 3;
-    private static final Identifier RADIANT = Identifier.parse("goo:glow_radiant");
-    private static final String ABILITY_REQUIRED = "Ability registry must hold glow_radiant";
-    private static final String NO_WISP = "Holding Radiant in a dark room should leave a wisp in it";
+    private static final Identifier WISPS = Identifier.parse("goo:glow_wisps");
+    private static final String ABILITY_REQUIRED = "Ability registry must hold glow_wisps";
+    private static final String NO_WISP = "Holding Wisps in a dark room should leave a wisp in it";
     private static final String UNLIT = "A wisp should light its cell to %d, it reads %d";
 
-    private RadiantChannelTests() {
+    private WispsChannelTests() {
     }
 
     /**
-     * Holding Radiant in a sealed dark room leaves wisps in its air, each
+     * Holding Wisps in a sealed dark room leaves wisps in its air, each
      * lighting its cell.
      *
      * @param helper the gametest helper
      */
-    public static void radiantLightsADarkRoom(GameTestHelper helper) {
+    public static void wispsLightADarkRoom(GameTestHelper helper) {
         sealRoom(helper);
-        holdRadiant(helper, () -> {
+        holdWisps(helper, () -> {
             List<BlockPos> wisps = wispsInTheRoom(helper);
             helper.assertTrue(!wisps.isEmpty(), NO_WISP);
             BlockPos wisp = wisps.getFirst();
@@ -106,22 +106,22 @@ public final class RadiantChannelTests {
 
     /**
      * Stands a mock player in the room holding glow goo in a glove, holds
-     * Radiant for the hold's ticks, then runs the check and succeeds.
+     * Wisps for the hold's ticks, then runs the check and succeeds.
      *
      * @param helper the gametest helper
      * @param check  the assertions once the hold ends
      */
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    private static void holdRadiant(GameTestHelper helper, Runnable check) {
-        AbilityDefinition radiant = AbilityRegistry.of(helper.getLevel()).getAbility(RADIANT);
-        helper.assertTrue(radiant != null, ABILITY_REQUIRED);
+    private static void holdWisps(GameTestHelper helper, Runnable check) {
+        AbilityDefinition wisps = AbilityRegistry.of(helper.getLevel()).getAbility(WISPS);
+        helper.assertTrue(wisps != null, ABILITY_REQUIRED);
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STAND_POS));
         player.setPos(stand.x, stand.y, stand.z);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
         player.getInventory().add(GooStacks.createForOutput(GooTypes.GLOW, HELD_GOO * GooStacks.THOUSAND));
-        KnownRecipes.teachRequires(player, radiant);
-        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.GLOW), RADIANT.toString(),
+        KnownRecipes.teachRequires(player, wisps);
+        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.GLOW), WISPS.toString(),
                 player.getEyePosition(), player.getEyePosition().add(0, 0, 1), helper.absolutePos(STAND_POS.below()),
                 Direction.UP.get3DDataValue());
         for (int held = 1; held <= HOLD_TICKS; held++) {
