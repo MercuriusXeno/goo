@@ -5,9 +5,9 @@
   "order": 0,
   "cost": 1000,
   "requires": ["minecraft:shulker_shell"],
-  "delivery": { "kind": "arc" },
+  "delivery": { "kind": "envelop", "spews": "shulker_bullet" },
   "behaviors": [
-    { "type": "float", "duration": 100, "amplifier": 1 }
+    { "type": "target", "where": ["living"], "steps": [] }
   ],
   "tags": ["entity", "harmful"]
 }
