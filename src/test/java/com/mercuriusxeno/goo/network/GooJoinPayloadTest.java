@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.item.GooAbsorb;
+import com.mercuriusxeno.goo.item.MixedVolume;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import java.util.List;
@@ -21,10 +22,10 @@ class GooJoinPayloadTest {
 
     @Test
     void anAbsorbNamesTheAnchorAndEachDiscardedGooItemsPlaceAndVolume() {
-        GooAbsorb.Candidate kept = new GooAbsorb.Candidate(2, 5, 0);
-        GooAbsorb.Candidate first = new GooAbsorb.Candidate(7, 11, 0);
-        GooAbsorb.Candidate second = new GooAbsorb.Candidate(9, 13, 0);
-        GooAbsorb.Result result = new GooAbsorb.Result(44, 0, List.of(7, 9));
+        GooAbsorb.Candidate kept = new GooAbsorb.Candidate(2, MixedVolume.ofWhole(5), 0);
+        GooAbsorb.Candidate first = new GooAbsorb.Candidate(7, MixedVolume.ofWhole(11), 0);
+        GooAbsorb.Candidate second = new GooAbsorb.Candidate(9, MixedVolume.ofWhole(13), 0);
+        GooAbsorb.Result result = new GooAbsorb.Result(MixedVolume.ofWhole(44), 0, List.of(7, 9));
 
         GooJoinPayload payload = GooJoinPayload.of(ANCHOR, ANCHOR_PLACE, result, List.of(
                 new GooJoinPayload.Placed(kept, KEPT_PLACE),

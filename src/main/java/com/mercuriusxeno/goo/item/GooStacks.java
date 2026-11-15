@@ -103,10 +103,22 @@ public final class GooStacks {
      * @return the exact value
      */
     public static GooFraction exactValueOf(ItemStack stack) {
+        return mixedVolumeOf(stack).exact();
+    }
+
+    /**
+     * Returns the exact value of the given item stack as it stores it, whole mB and the
+     * part under 1 mB, or zero for any other item.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+     *
+     * @param stack the item stack to measure
+     * @return the mixed volume
+     */
+    public static MixedVolume mixedVolumeOf(ItemStack stack) {
         if (stack.getItem() instanceof GooItem) {
-            return GooFraction.of(GooItem.getVolume(stack)).plus(GooItem.getPart(stack));
+            return new MixedVolume(GooItem.getVolume(stack), GooItem.getPart(stack));
         }
-        return GooFraction.ZERO;
+        return MixedVolume.ZERO;
     }
 
     /**
@@ -152,20 +164,9 @@ public final class GooStacks {
     }
 
     /**
-     * Pure math: the new goo sink volume after absorbing a source volume.
-     * Extracted so the arithmetic is covered by tests without bootstrapping Minecraft.
-     *
-     * @param sourceVolumeMb   volume being absorbed (>=0)
-     * @param gooVolumeMb current goo sink volume (>=0)
-     * @return the combined volume
-     */
-    public static int absorbedVolume(int sourceVolumeMb, int gooVolumeMb) {
-        return gooVolumeMb + sourceVolumeMb;
-    }
-
-    /**
-     * Dumps the entire volume of {@code source} (a goo of any goo type)
-     * into the goo sitting in {@code gooStack}. Clears {@code source} by setting
+     * Dumps the entire exact value of {@code source} (a goo of any goo type)
+     * into the goo sitting in {@code gooStack}, the two adding through
+     * MixedVolume's exact combine. Clears {@code source} by setting
      * its count to 0. Caller is responsible for {@code slot.setChanged()} if the sink
      * lives in a container slot.
      *
@@ -176,8 +177,8 @@ public final class GooStacks {
      * @param gooStack the sink goo stack; volume is grown in place
      */
     public static void absorbIntoGooSlot(ItemStack source, ItemStack gooStack) {
-        int total = absorbedVolume(volumeOf(source), GooItem.getVolume(gooStack));
-        GooItem.setVolume(gooStack, total);
+        // decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+        GooItem.setMixedVolume(gooStack, mixedVolumeOf(gooStack).plus(mixedVolumeOf(source)));
         source.setCount(0);
     }
 

@@ -70,6 +70,7 @@ public final class GooItemTests {
         GooTestFunctions.registerTest(registrar, ITEM_GOO_RESTS_STILL, GooItemTests::restingElasticGooStaysStill);
         GooTestFunctions.registerTest(registrar, ITEM_GOO_HOLDS_ITS_PART, GooItemTests::gooHoldsItsPartUnderOneMb);
         GooTestFunctions.registerTest(registrar, ITEM_GOO_DRAWN_DRY_KEEPS_ITS_PART, GooItemTests::gooDrawnDryKeepsItsPart);
+        GooTestFunctions.registerTest(registrar, ITEM_GOO_PARTS_JOIN_EXACTLY, GooItemTests::gooPartsJoinExactly);
     }
 
     private static final String ITEM_GOO_HOLDS_ITS_PART = "item_goo_holds_its_part";
@@ -377,6 +378,32 @@ public final class GooItemTests {
         });
     }
 
+
+    private static final String ITEM_GOO_PARTS_JOIN_EXACTLY = "item_goo_parts_join_exactly";
+    private static final GooFraction TWO_THIRDS = GooFraction.of(2, 3);
+    private static final GooFraction SEVEN_SIXTHS = GooFraction.of(7, 6);
+    private static final String PARTS_NOT_JOINED = "Two same-type goo items at 1/2 mB and 2/3 mB two blocks apart "
+            + "should stand as one goo item holding 7/6 mB; the goo items standing hold ";
+
+    /**
+     * Two same-type goo items holding parts under 1 mB, dropped two blocks apart, stand
+     * as one goo item entity holding their exact sum.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+     *
+     * @param helper the gametest helper
+     */
+    public static void gooPartsJoinExactly(GameTestHelper helper) {
+        layStoneFloor(helper);
+        CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(GooTypes.ZOO, ONE_HALF), NEAR_GOO);
+        CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(GooTypes.ZOO, TWO_THIRDS), FAR_GOO);
+        helper.succeedWhen(() -> {
+            List<GooFraction> values = helper.getLevel().getEntitiesOfClass(ItemEntity.class,
+                            new AABB(helper.absolutePos(BlockPos.ZERO)).inflate(6),
+                            item -> item.isAlive() && GooTypes.ZOO.equals(GooStacks.keyOf(item.getItem())))
+                    .stream().map(item -> GooStacks.exactValueOf(item.getItem())).toList();
+            helper.assertTrue(values.equals(List.of(SEVEN_SIXTHS)), PARTS_NOT_JOINED + values);
+        });
+    }
 
     private static final BlockPos CRYSTAL_WALL = new BlockPos(1, 1, 1);
     private static final BlockPos METAL_WALL = new BlockPos(3, 1, 1);

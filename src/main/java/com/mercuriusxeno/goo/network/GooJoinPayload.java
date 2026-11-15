@@ -65,10 +65,10 @@ public record GooJoinPayload(int anchorId, Vec3 anchorPlace, int joinedVolume, L
         List<Absorbed> absorbed = new ArrayList<>();
         for (Placed placed : candidates) {
             if (result.discardIds().contains(placed.candidate().id())) {
-                absorbed.add(new Absorbed(placed.place(), placed.candidate().volume()));
+                absorbed.add(new Absorbed(placed.place(), placed.candidate().volume().whole()));
             }
         }
-        return new GooJoinPayload(anchorId, anchorPlace, result.volume(), List.copyOf(absorbed));
+        return new GooJoinPayload(anchorId, anchorPlace, result.volume().whole(), List.copyOf(absorbed));
     }
 
     @Override
