@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.radial;
 
+import com.mercuriusxeno.goo.client.hud.MixedNumberLabel;
 import com.mercuriusxeno.goo.client.hud.NineSlice;
 import com.mercuriusxeno.goo.client.hud.PanelPainter;
 import com.mercuriusxeno.goo.client.hud.PanelRectangle;
@@ -61,12 +62,15 @@ final class AbilityExplanationPanel {
         }
         int left = panelLeft(frame);
         int textWidth = textWidth(frame.centerX() * HALF - EDGE_MARGIN - left);
-        ToIntFunction<String> widthOf = text -> font.width(Component.literal(text));
+        ToIntFunction<String> fontWidth = text -> font.width(Component.literal(text));
+        // every-mixed-number-takes-the-spacing-rule: the text wraps and the panel sizes to the respaced widths
+        ToIntFunction<String> widthOf = MixedNumberLabel.spacedWidth(fontWidth);
         List<PanelRow> rows = rows(offered.ability(), frame.look().costMechanicsLookup(), textWidth, widthOf);
         PanelPainter.PanelSize size = PanelPainter.measure(rows, widthOf);
         int top = frame.centerY() - Math.round(size.height()) / HALF;
         NineSlice.blit(graphics, new PanelRectangle(left, top, Math.round(size.width()), Math.round(size.height())));
-        drawRows(graphics, font, rows, left + Math.round(NineSlice.BORDER), top + Math.round(NineSlice.BORDER));
+        drawRows(graphics, font, rows, new RowsOrigin(left + Math.round(NineSlice.BORDER),
+                top + Math.round(NineSlice.BORDER)), fontWidth);
     }
 
     /**
@@ -117,15 +121,53 @@ final class AbilityExplanationPanel {
         return rows;
     }
 
-    private static void drawRows(GuiGraphicsExtractor graphics, Font font, List<PanelRow> rows, int left, int top) {
+    /**
+     * A row's segments laid out left to right, each segment's mixed number by
+     * the spacing rule and the next segment past its respaced width.
+     * every-mixed-number-takes-the-spacing-rule
+     *
+     * @param row     the row
+     * @param widthOf the width in pixels the font gives a string
+     * @return each segment's laid text and its left edge from the row's
+     */
+    static List<LaidSegment> laySegments(PanelRow row, ToIntFunction<String> widthOf) {
+        List<LaidSegment> laid = new ArrayList<>(row.segments().size());
+        int x = 0;
+        for (PanelRow.TextSegment segment : row.segments()) {
+            MixedNumberLabel label = MixedNumberLabel.lay(segment.text(), widthOf);
+            laid.add(new LaidSegment(label, segment.color(), x));
+            x += label.fullWidth();
+        }
+        return laid;
+    }
+
+    /**
+     * One segment of a row as it draws.
+     *
+     * @param label its text laid out
+     * @param color its ARGB color
+     * @param x     its left edge from the row's
+     */
+    record LaidSegment(MixedNumberLabel label, int color, int x) {
+    }
+
+    /**
+     * Where the panel's first row starts, inside its border.
+     *
+     * @param left the rows' left edge
+     * @param top  the first row's top
+     */
+    private record RowsOrigin(int left, int top) {
+    }
+
+    private static void drawRows(GuiGraphicsExtractor graphics, Font font, List<PanelRow> rows, RowsOrigin origin,
+                                 ToIntFunction<String> widthOf) {
         int textOffset = Math.round((PanelPainter.ROW_HEIGHT - font.lineHeight) / HALF) + 1;
         for (int index = 0; index < rows.size(); index++) {
-            int rowTop = top + Math.round(index * PanelPainter.ROW_HEIGHT);
-            int x = left;
-            for (PanelRow.TextSegment segment : rows.get(index).segments()) {
-                Component words = Component.literal(segment.text());
-                graphics.text(font, words, x, rowTop + textOffset, segment.color(), true);
-                x += font.width(words);
+            int rowTop = origin.top() + Math.round(index * PanelPainter.ROW_HEIGHT);
+            for (LaidSegment segment : laySegments(rows.get(index), widthOf)) {
+                segment.label().draw(graphics, font, origin.left() + segment.x(), rowTop + textOffset,
+                        segment.color(), true);
             }
         }
     }

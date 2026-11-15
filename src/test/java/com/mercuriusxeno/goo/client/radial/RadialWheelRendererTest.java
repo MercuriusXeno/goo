@@ -12,6 +12,10 @@ import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.ArmPose;
 import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.client.hud.MixedNumberLabel;
+import com.mercuriusxeno.goo.client.hud.MixedNumberSpacing;
+import com.mercuriusxeno.goo.client.hud.StatedGlyphs;
+import com.mercuriusxeno.goo.item.MixedNumber;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.CostMechanicsLookup;
 import com.mercuriusxeno.goo.client.network.OfferedAbility;
@@ -1249,6 +1253,24 @@ class RadialWheelRendererTest {
                                     + ", icon top " + icon.top()),
                     () -> assertTrue(lines.getLast().top() >= icon.top() + icon.size(),
                             "cost top " + lines.getLast().top() + ", icon bottom " + (icon.top() + icon.size())));
+        }
+
+        /** every-mixed-number-takes-the-spacing-rule */
+        @Test
+        void aCostHoldingAMixedNumberLaysItsPartsByTheSpacingRuleAndMeasuresTheRespacedWidth() {
+            String afterTheNumber = " x r³";
+            MixedNumberSpacing.Laid laid = MixedNumberSpacing.lay(new MixedNumber("4", "⁴", "₉"),
+                    StatedGlyphs.VANILLA);
+            List<MixedNumberSpacing.Piece> expected = new ArrayList<>(laid.pieces());
+            expected.add(new MixedNumberSpacing.Piece(afterTheNumber, laid.width()));
+
+            MixedNumberLabel costLine = RadialWheelRenderer.placeWords(name, Component.literal("4⁴⁄₉" + afterTheNumber),
+                    TIP, line -> StatedGlyphs.widthOf(line.getString()), LINE_HEIGHT).getLast().label();
+
+            assertAll(
+                    () -> assertEquals(expected, costLine.pieces()),
+                    () -> assertEquals((int) Math.ceil(laid.width() + StatedGlyphs.widthOf(afterTheNumber)),
+                            costLine.fullWidth()));
         }
 
         @Test

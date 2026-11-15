@@ -1,6 +1,9 @@
 package com.mercuriusxeno.goo.client.tooltip;
 
 import com.mercuriusxeno.goo.client.ClientGooTypes;
+import com.mercuriusxeno.goo.client.hud.MixedNumberLabel;
+import com.mercuriusxeno.goo.client.hud.MixedNumberSpacing;
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.type.GooTypeNames;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -11,7 +14,10 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
+import org.joml.Matrix3x2fStack;
 import org.jspecify.annotations.NonNull;
+import java.util.List;
+import java.util.function.ToIntFunction;
 
 /**
  * Renders a goo value tooltip line: an 11x11 type icon followed by "1.8 Metal" text.
@@ -28,9 +34,12 @@ public class GooValueClientTooltipComponent implements ClientTooltipComponent {
     private static final String AMOUNT_TYPE_SEPARATOR = " ";
     /** Fully opaque white in ARGB for tooltip text rendering. */
     private static final int TEXT_COLOR = 0xFFFFFFFF;
+    /** Where the text starts, past the icon and its gap. */
+    static final int TEXT_LEFT = ICON_SIZE + ICON_GAP;
 
     private final Identifier iconTexture;
-    private final Component displayText;
+    private final GooFraction amount;
+    private final Component typeName;
 
     /**
      * Constructs a client tooltip component from the data model.
@@ -40,20 +49,40 @@ public class GooValueClientTooltipComponent implements ClientTooltipComponent {
     public GooValueClientTooltipComponent(GooValueTooltipComponent data) {
         this.iconTexture = Identifier.fromNamespaceAndPath(
                 "goo", "textures/goo/type/" + GooTypes.id(data.type()) + ".png");
-        this.displayText = buildDisplayText(data);
+        this.amount = data.amount();
+        this.typeName = Component.translatable(GooTypeNames.translationKey(data.type()))
+                .withStyle(Style.EMPTY.withColor(ClientGooTypes.color(data.type())));
     }
 
     /**
-     * Builds the formatted display text: "1.8 Metal" with type color.
+     * Lays the line out at the tooltip's text scale: the amount and its separator, its mixed number by the
+     * spacing rule, then the type's name.
+     * every-mixed-number-takes-the-spacing-rule
      *
-     * @param data the goo value data to format
-     * @return the styled text component for display
+     * @param amount    the exact amount
+     * @param widthOf   the width in pixels the font gives a string at its own size
+     * @param nameWidth the type name's width at the font's own size
+     * @return each part's place and the line's width, in screen pixels from the component's left
      */
-    private static Component buildDisplayText(GooValueTooltipComponent data) {
-        String formatted = GooFormat.formatMixed(data.amount());
-        return Component.literal(formatted + AMOUNT_TYPE_SEPARATOR)
-                .append(Component.translatable(GooTypeNames.translationKey(data.type()))
-                        .withStyle(Style.EMPTY.withColor(ClientGooTypes.color(data.type()))));
+    static Layout layout(GooFraction amount, ToIntFunction<String> widthOf, int nameWidth) {
+        MixedNumberLabel amountLabel = MixedNumberLabel.lay(GooFormat.formatMixed(amount) + AMOUNT_TYPE_SEPARATOR,
+                widthOf);
+        List<MixedNumberSpacing.Piece> pieces = amountLabel.pieces().stream()
+                .map(piece -> new MixedNumberSpacing.Piece(piece.text(), TEXT_LEFT + piece.x() * TEXT_SCALE))
+                .toList();
+        return new Layout(amountLabel, pieces, TEXT_LEFT + amountLabel.width() * TEXT_SCALE,
+                TEXT_LEFT + Math.round((amountLabel.width() + nameWidth) * TEXT_SCALE));
+    }
+
+    /**
+     * A goo value line laid out.
+     *
+     * @param amount the amount and its separator as laid at the font's own size
+     * @param pieces each of the amount's parts at its screen place from the component's left
+     * @param nameX  where the type's name starts, from the component's left
+     * @param width  the component's width
+     */
+    record Layout(MixedNumberLabel amount, List<MixedNumberSpacing.Piece> pieces, float nameX, int width) {
     }
 
     /**
@@ -75,7 +104,7 @@ public class GooValueClientTooltipComponent implements ClientTooltipComponent {
      */
     @Override
     public int getWidth(Font font) {
-        return ICON_SIZE + ICON_GAP + Math.round(font.width(displayText) * TEXT_SCALE);
+        return layout(amount, font::width, font.width(typeName)).width();
     }
 
     /**
@@ -116,11 +145,14 @@ public class GooValueClientTooltipComponent implements ClientTooltipComponent {
      * @param guiGraphics the GUI graphics extractor for drawing
      */
     private void renderText(Font font, int x, int y, GuiGraphicsExtractor guiGraphics) {
-        guiGraphics.pose().pushMatrix();
-        float textX = x + ICON_SIZE + ICON_GAP;
-        guiGraphics.pose().translate(textX, y);
-        guiGraphics.pose().scale(TEXT_SCALE, TEXT_SCALE);
-        guiGraphics.text(font, displayText, 0, 0, TEXT_COLOR);
-        guiGraphics.pose().popMatrix();
+        MixedNumberLabel amountLabel = layout(amount, font::width, font.width(typeName)).amount();
+        Matrix3x2fStack pose = guiGraphics.pose();
+        pose.pushMatrix();
+        pose.translate(x + TEXT_LEFT, y);
+        pose.scale(TEXT_SCALE, TEXT_SCALE);
+        amountLabel.draw(guiGraphics, font, 0, 0, TEXT_COLOR, true);
+        pose.translate(amountLabel.width(), 0);
+        guiGraphics.text(font, typeName, 0, 0, TEXT_COLOR);
+        pose.popMatrix();
     }
 }
