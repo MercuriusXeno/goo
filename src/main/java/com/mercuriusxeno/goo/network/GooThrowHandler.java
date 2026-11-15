@@ -38,7 +38,6 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -148,7 +147,7 @@ public final class GooThrowHandler {
      * @param player    the releasing player
      * @param gooType   the ability's goo type
      * @param ability   the charged ability
-     * @param payload   the charge payload, its hold, its scatter seed and its aimed target
+     * @param payload   the charge payload, its hold and its aimed target
      */
     private static void fireCharge(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
                                    AbilityDefinition ability, GooChargePayload payload) {
@@ -158,8 +157,7 @@ public final class GooThrowHandler {
             payload.aimed().ifPresent(aimed -> GooChargedCastHandler.cast(player, gooType, ability, aimed,
                     payload.heldTicks()));
         } else if (ability.delivery().charge().slings()) {
-            KnifeRainSling.sling(player, gooType, ability, payload.heldTicks(),
-                    RandomSource.create(payload.scatterSeed()));
+            KnifeRainSling.sling(player, gooType, ability, payload.heldTicks());
         }
     }
 

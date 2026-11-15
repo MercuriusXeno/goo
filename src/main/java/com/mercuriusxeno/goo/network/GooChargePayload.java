@@ -11,17 +11,16 @@ import java.util.Optional;
 /**
  * Client-to-server payload: a charged ability let go, carrying how many
  * ticks the glove's use was held, which the server reads as the share of a
- * full charge (decision nova-ring-grows-with-the-hold), the press's
- * scatter seed, which a slinging release throws its knives by, and, for a spontaneous cast, the target the crosshair aimed as it let go
+ * full charge (decision nova-ring-grows-with-the-hold), and, for a
+ * spontaneous cast, the target the crosshair aimed as it let go
  * (decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob).
  *
- * @param gooTypeId   the goo type string identifier
- * @param abilityId   the selected ability id string
- * @param heldTicks   the ticks the use key was held before release
- * @param scatterSeed the press's scatter seed
- * @param aimed       the target a spontaneous cast lands at, empty for a charge aiming none
+ * @param gooTypeId the goo type string identifier
+ * @param abilityId the selected ability id string
+ * @param heldTicks the ticks the use key was held before release
+ * @param aimed     the target a spontaneous cast lands at, empty for a charge aiming none
  */
-public record GooChargePayload(String gooTypeId, String abilityId, int heldTicks, long scatterSeed,
+public record GooChargePayload(String gooTypeId, String abilityId, int heldTicks,
                                Optional<GooThrowPayload> aimed) implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
@@ -35,13 +34,12 @@ public record GooChargePayload(String gooTypeId, String abilityId, int heldTicks
     /**
      * A charge aiming no target: a self ability's or a slinging throw's.
      *
-     * @param gooTypeId   the goo type string identifier
-     * @param abilityId   the selected ability id string
-     * @param heldTicks   the ticks the use key was held before release
-     * @param scatterSeed the press's scatter seed
+     * @param gooTypeId the goo type string identifier
+     * @param abilityId the selected ability id string
+     * @param heldTicks the ticks the use key was held before release
      */
-    public GooChargePayload(String gooTypeId, String abilityId, int heldTicks, long scatterSeed) {
-        this(gooTypeId, abilityId, heldTicks, scatterSeed, Optional.empty());
+    public GooChargePayload(String gooTypeId, String abilityId, int heldTicks) {
+        this(gooTypeId, abilityId, heldTicks, Optional.empty());
     }
 
     @Override
@@ -53,7 +51,6 @@ public record GooChargePayload(String gooTypeId, String abilityId, int heldTicks
         buf.writeUtf(payload.gooTypeId);
         buf.writeUtf(payload.abilityId);
         buf.writeVarInt(payload.heldTicks);
-        buf.writeLong(payload.scatterSeed);
         buf.writeBoolean(payload.aimed.isPresent());
         payload.aimed.ifPresent(target -> GooThrowPayload.STREAM_CODEC.encode(buf, target));
     }
@@ -62,9 +59,8 @@ public record GooChargePayload(String gooTypeId, String abilityId, int heldTicks
         String gooTypeId = buf.readUtf();
         String abilityId = buf.readUtf();
         int heldTicks = buf.readVarInt();
-        long scatterSeed = buf.readLong();
         Optional<GooThrowPayload> aimed = buf.readBoolean()
                 ? Optional.of(GooThrowPayload.STREAM_CODEC.decode(buf)) : Optional.empty();
-        return new GooChargePayload(gooTypeId, abilityId, heldTicks, scatterSeed, aimed);
+        return new GooChargePayload(gooTypeId, abilityId, heldTicks, aimed);
     }
 }

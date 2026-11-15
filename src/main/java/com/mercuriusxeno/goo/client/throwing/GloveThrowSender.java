@@ -410,8 +410,7 @@ public final class GloveThrowSender {
                 reagent -> ReagentScanner.holds(player, reagent))) {
             return false;
         }
-        sendPayload(new GooChargePayload(GooTypes.id(gooType), abilityId, heldTicks, GloveUseTracker.scatterSeed(),
-                aimed));
+        sendPayload(new GooChargePayload(GooTypes.id(gooType), abilityId, heldTicks, aimed));
         unrootTheCharge();
         return true;
     }

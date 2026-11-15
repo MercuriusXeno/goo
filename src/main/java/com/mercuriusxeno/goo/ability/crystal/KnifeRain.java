@@ -1,20 +1,19 @@
 package com.mercuriusxeno.goo.ability.crystal;
 
 import com.mercuriusxeno.goo.ability.Charge;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
  * The flight of Knives' glass knives, shared by the server that strikes
  * with them and the client that draws them: each knife leaves the blob
- * floating ahead of the hand at its own tick, aimed into its own slice of
- * the cone with a scatter of yaw, pitch and speed, and arcs under gravity,
- * so the cloud rains into an area rather than flying out as a line.
+ * floating ahead of the hand at its own even tick, aimed down its own even
+ * slice of the cone at its row's speed, and arcs under gravity, so the
+ * cloud rains into an area in staggered rows rather than flying out as a line.
  * decision knives-sling-then-morph-to-flechettes
  * decision knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
+ * decision knives-land-in-staggered-rows-with-no-randomness
  */
 public final class KnifeRain {
 
@@ -29,12 +28,12 @@ public final class KnifeRain {
      * decision knives-leave-the-blob-at-a-snowballs-speed
      */
     static final double SPEED = 1.5;
-    /** The share a knife's speed scatters by, either way. */
-    static final double SPEED_SCATTER = 0.2;
+    /** The share of its speed a knife's row steps it by, slower for the near row, faster for the far. */
+    static final double ROW_SPEED_STEP = 0.2;
+    /** The rows by place from the thrower's left, in steps of speed: near, far, middle. */
+    private static final int[] ROW_SPEED_STEPS = {-1, 1, 0};
     /** Degrees above the look the cloud is lobbed, so it arcs. */
     static final float LIFT_DEGREES = 8f;
-    /** Degrees a knife's pitch scatters by, either way. */
-    static final float PITCH_SCATTER_DEGREES = 7f;
     /** Blocks below the eye the knives leave from, the glove hand's height. */
     private static final double HAND_DROP = 0.3;
     /** Blocks toward the glove side the knives leave from. */
@@ -67,70 +66,79 @@ public final class KnifeRain {
     /** Degrees from the look to the thrower's right, around the vertical. */
     private static final float RIGHT_OF_LOOK = 90f;
     private static final double HALF = 0.5;
-    private static final double BOTH_WAYS = 2;
 
     private KnifeRain() {
     }
 
     /**
-     * Each knife's velocity leaving the hand: the cone cut into one slice a
-     * knife and each knife aimed somewhere in its slice, so the cloud
-     * covers the cone without lining up, its pitch and speed scattered too.
+     * Each knife's velocity leaving the hand: the cone cut into one even
+     * slice a knife from the thrower's left to right, each knife aimed down
+     * its slice's middle, and its speed stepping near, far, middle by its
+     * place, so the knives land in three rows offset like brickwork.
+     * knives-land-in-staggered-rows-with-no-randomness
      *
      * @param yaw           the thrower's yaw, in degrees
      * @param pitch         the thrower's pitch, in degrees, negative looking up
      * @param count         the knives
      * @param spreadDegrees the cone, edge to edge, in degrees
-     * @param random        the scatter's source
-     * @return a velocity per knife, in blocks a tick
+     * @return a velocity per knife, in blocks a tick, leftmost first
      */
-    public static List<Vec3> scatteredVelocities(float yaw, float pitch, int count, double spreadDegrees,
-                                                 RandomSource random) {
+    public static List<Vec3> patternVelocities(float yaw, float pitch, int count, double spreadDegrees) {
         List<Vec3> velocities = new ArrayList<>(count);
         double slice = spreadDegrees / Math.max(1, count);
         for (int index = 0; index < count; index++) {
-            double yawOffset = -spreadDegrees * HALF + slice * (index + random.nextDouble());
-            double pitchOffset = scatter(random) * PITCH_SCATTER_DEGREES;
-            double speed = SPEED * (1 + scatter(random) * SPEED_SCATTER);
-            velocities.add(Vec3.directionFromRotation((float) (pitch - LIFT_DEGREES + pitchOffset),
-                    (float) (yaw + yawOffset)).scale(speed));
+            double yawOffset = -spreadDegrees * HALF + slice * (index + HALF);
+            double speed = SPEED * (1 + ROW_SPEED_STEPS[index % ROW_SPEED_STEPS.length] * ROW_SPEED_STEP);
+            velocities.add(direction(pitch - LIFT_DEGREES, yaw + yawOffset).scale(speed));
         }
         return velocities;
     }
 
     /**
+     * The unit vector a pitch and a yaw face, as {@link Vec3#directionFromRotation}
+     * reads them but in full precision, since its sine table would skew the
+     * pattern's even spacing.
+     *
+     * @param pitchDegrees the pitch, negative looking up
+     * @param yawDegrees   the yaw, rising to the right
+     * @return the direction
+     */
+    private static Vec3 direction(double pitchDegrees, double yawDegrees) {
+        double pitch = Math.toRadians(pitchDegrees);
+        double yaw = Math.toRadians(yawDegrees);
+        double level = Math.cos(pitch);
+        return new Vec3(-Math.sin(yaw) * level, -Math.sin(pitch), Math.cos(yaw) * level);
+    }
+
+    /**
      * Each knife's velocity leaving the hand for a release at a share of the
-     * charge, the scatter the server slings.
+     * charge: the pattern the server slings.
      *
      * @param yaw    the thrower's yaw, in degrees
      * @param pitch  the thrower's pitch, in degrees
      * @param charge the delivery's charge
      * @param share  the share of a full charge the hold reached, 0 to 1
-     * @param random the scatter's source
-     * @return a velocity per knife, in blocks a tick
+     * @return a velocity per knife, in blocks a tick, leftmost first
      */
-    public static List<Vec3> releaseVelocities(float yaw, float pitch, Charge charge, float share,
-                                               RandomSource random) {
-        return scatteredVelocities(yaw, pitch, charge.fleckCount(share), charge.spreadDegrees(share), random);
+    public static List<Vec3> releaseVelocities(float yaw, float pitch, Charge charge, float share) {
+        return patternVelocities(yaw, pitch, charge.fleckCount(share), charge.spreadDegrees(share));
     }
 
     /**
-     * The tick after the release each knife leaves the hand: spread across
-     * the sweep with a little scatter, so the knives stream out rather than
-     * leave together.
+     * The tick after the release each knife leaves the hand: even steps
+     * across the sweep, from the first tick to its last, so the knives
+     * stream out rather than leave together.
+     * knives-land-in-staggered-rows-with-no-randomness
      *
      * @param count      the knives
      * @param sweepTicks the ticks between the first knife and the last
-     * @param random     the scatter's source
      * @return a launch tick per knife, in the order the velocities run
      */
-    public static int[] launchTicks(int count, int sweepTicks, RandomSource random) {
+    public static int[] launchTicks(int count, int sweepTicks) {
         int[] ticks = new int[count];
         for (int index = 0; index < count; index++) {
-            double even = count <= 1 ? 0 : (double) sweepTicks * index / (count - 1);
-            ticks[index] = (int) Math.clamp(Math.round(even + scatter(random)), 0, sweepTicks);
+            ticks[index] = count <= 1 ? 0 : (int) Math.round((double) sweepTicks * index / (count - 1));
         }
-        Arrays.sort(ticks);
         return ticks;
     }
 
@@ -275,15 +283,5 @@ public final class KnifeRain {
      */
     public static Vec3 nextVelocity(Vec3 velocity) {
         return velocity.scale(DRAG).subtract(0, GRAVITY, 0);
-    }
-
-    /**
-     * A scatter either way.
-     *
-     * @param random the scatter's source
-     * @return a value in [-1, 1)
-     */
-    private static double scatter(RandomSource random) {
-        return (random.nextDouble() - HALF) * BOTH_WAYS;
     }
 }
