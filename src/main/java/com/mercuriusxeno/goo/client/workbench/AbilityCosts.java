@@ -23,10 +23,12 @@ import java.util.regex.Pattern;
  * spelled with its * and the type dropped (decision ability-cost-builds-as-a-one-type-by-type-value).
  */
 final class AbilityCosts {
-    // An item id or a $prefab, as the cost expression spells it, or a decimal number, which the builder reads as the
-    // fraction it writes.
+    // An item id, namespaced or bare as base_values spells a vanilla item, or a $prefab, as the cost expression spells
+    // it, or a decimal number, which the builder reads as the fraction it writes; a bare name a call follows is the
+    // call's function, no item.
     private static final Pattern REFERENT = Pattern.compile(
-            "\\$[A-Za-z0-9_]+|[A-Za-z_][A-Za-z0-9_]*:[A-Za-z0-9_/]+|\\d+\\.\\d+");
+            "\\$[A-Za-z0-9_]+|[A-Za-z_][A-Za-z0-9_]*:[A-Za-z0-9_/]+|[a-z_][a-z0-9_/]*(?![a-z0-9_/:]|\\s*\\()"
+                    + "|\\d+\\.\\d+");
     private static final String FRACTION_BAR = "/";
     private static final char PREFAB_MARK = '$';
     private static final String TYPE_MARK = ".";
