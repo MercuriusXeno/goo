@@ -309,6 +309,18 @@ public final class GooClientSetup {
     }
 
     /**
+     * Registers the model every volume cell's layers draw through, the
+     * layered shell with the goo slime core inside it.
+     * connected-goo-draws-as-one-layered-mass-with-a-core
+     *
+     * @param event the event instance
+     */
+    @SubscribeEvent
+    public static void registerBlockStateModels(RegisterBlockStateModels event) {
+        event.registerModel(SlimeCoreModel.TYPE, SlimeCoreModel.Unbaked.MAP_CODEC);
+    }
+
+    /**
      * Registers range_dispatch properties for goo size and fuel depletion.
      *
      * @param event the event instance
