@@ -181,6 +181,16 @@ class AbilityDefinitionTest {
             assertEquals(4, priced.upkeep().in(values));
         }
 
+        /** base_values spells a vanilla item bare, so a cost names it bare too: tnt is minecraft:tnt. */
+        @Test
+        void aCostNamingABareItemReadsTheVanillaItem() {
+            AbilityDefinition priced = costing("\"2 * glowstone_dust\"", "\"glowstone_dust / 50\"");
+            IGooValueLookup values = rockGlowstoneAt(200);
+
+            assertEquals(400, priced.cost().in(values));
+            assertEquals(4, priced.upkeep().in(values));
+        }
+
         @Test
         void aCostNamingPrefabsReadsAScalarWholeAndATreeAtTheAbilitysType() {
             AbilityDefinition priced = costing("\"2 * $base + $stone\"", "0");

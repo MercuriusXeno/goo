@@ -41,7 +41,8 @@ class ThrowCostTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"{\"formula\": \"quadratic\", \"baseCost\": 1000}", "-1", "\"cheap\""})
+    // a bare name reads as a vanilla item, so the word refused is one no item id spells
+    @ValueSource(strings = {"{\"formula\": \"quadratic\", \"baseCost\": 1000}", "-1", "\"Cheap\""})
     void costThatIsNoAmountRefusesNamingIt(String cost) throws IOException {
         JsonElement json = read(LURKER);
         json.getAsJsonObject().add("cost", JsonParser.parseString(cost));

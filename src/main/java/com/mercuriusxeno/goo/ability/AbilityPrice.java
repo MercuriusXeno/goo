@@ -79,7 +79,7 @@ public record AbilityPrice(Expr amount, @Nullable ResourceKey<GooTypeDefinition>
             return mb >= 0 && mb <= Integer.MAX_VALUE ? DataResult.success(amount)
                     : DataResult.error(() -> NOT_A_COST.formatted(mb));
         }
-        return amount.variables().stream().filter(name -> !HostVariables.isNamespacedId(name)
+        return amount.variables().stream().filter(name -> itemNamed(name) == null
                         && !HostVariables.isPrefab(name)).findFirst()
                 .<DataResult<Expr>>map(name -> DataResult.error(() -> NAMES_NO_ITEM.formatted(name)))
                 .orElseGet(() -> DataResult.success(amount));
@@ -162,9 +162,20 @@ public record AbilityPrice(Expr amount, @Nullable ResourceKey<GooTypeDefinition>
             GooFraction prefab = values.prefabs().in(HostVariables.prefabName(name), type);
             return prefab == null ? GooFraction.ZERO : prefab;
         }
-        Identifier item = HostVariables.isNamespacedId(name) ? Identifier.tryParse(name) : null;
+        Identifier item = itemNamed(name);
         GooValue value = item == null ? null : values.lookup(item);
         return value == null ? GooFraction.ZERO : value.exact(type);
+    }
+
+    /**
+     * The item a name reads as, spelled as base_values spells it: a bare name is a vanilla item, so tnt reads
+     * minecraft:tnt (decision ability-cost-builds-as-a-one-type-by-type-value).
+     *
+     * @param name an expression's name that is no $prefab
+     * @return the item id, null where the name is no id
+     */
+    private static @Nullable Identifier itemNamed(String name) {
+        return HostVariables.isPrefab(name) ? null : Identifier.tryParse(name);
     }
 
     /**
