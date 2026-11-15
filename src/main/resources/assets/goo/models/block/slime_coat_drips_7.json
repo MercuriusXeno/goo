@@ -1,33 +1,6 @@
 {
-  "render_type": "minecraft:translucent",
-  "ambientocclusion": false,
+  "parent": "goo:block/volume_cell_drips_7",
   "textures": {
-    "particle": "goo:block/slime_coat",
-    "drips": "goo:block/slime_coat_drips"
-  },
-  "elements": [
-    {
-      "from": [
-        0,
-        -0.5333,
-        -0.05
-      ],
-      "to": [
-        16,
-        7.4667,
-        -0.05
-      ],
-      "faces": {
-        "north": {
-          "uv": [
-            0,
-            0,
-            16,
-            8
-          ],
-          "texture": "#drips"
-        }
-      }
-    }
-  ]
+    "goo": "goo:fluid/weird_fluid"
+  }
 }
