@@ -233,6 +233,18 @@ class StepCodecTest {
         }
     }
 
+    // blast-alone-takes-the-new-explosion-look
+    @Test
+    void explodeStepReadsItsWrittenLookAndGivesAnUnwrittenOneTheSilentLook() {
+        ExplodeStep written = assertInstanceOf(ExplodeStep.class,
+                decode("{\"type\": \"explode\", \"power\": 2, \"look\": \"vanilla\"}").getOrThrow());
+        ExplodeStep unwritten = assertInstanceOf(ExplodeStep.class,
+                decode("{\"type\": \"explode\", \"power\": 2}").getOrThrow());
+
+        assertEquals(ExplosionLook.VANILLA, written.look());
+        assertEquals(ExplosionLook.SILENT, unwritten.look());
+    }
+
     @Test
     void typeFieldNamesTheStep() {
         JsonElement json = StepTypes.CODEC.encodeStart(JsonOps.INSTANCE, SAMPLES.get("explode")).getOrThrow();

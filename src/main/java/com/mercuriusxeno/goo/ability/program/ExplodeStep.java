@@ -15,15 +15,17 @@ import java.util.stream.Stream;
  * @param reach   the radius the explosion cuts at most, empty for the power's own open-air reach
  * @param gathers when the explosion gathers its mined drops into one sphere, true when nonzero; empty for never
  * @param mode    how blocks are treated
+ * @param look    how the explosion shows, the silent look unless written
  */
-public record ExplodeStep(Expr power, Optional<Expr> reach, Optional<Expr> gathers, ExplosionMode mode)
-        implements Step {
+public record ExplodeStep(Expr power, Optional<Expr> reach, Optional<Expr> gathers, ExplosionMode mode,
+                          ExplosionLook look) implements Step {
 
     private static final String NAME = "explode";
     private static final String FIELD_POWER = "power";
     private static final String FIELD_REACH = "reach";
     private static final String FIELD_GATHERS = "gathers";
     private static final String FIELD_INTERACTION = "interaction";
+    private static final String FIELD_LOOK = "look";
 
     /**
      * Codec for the step's params.
@@ -32,7 +34,9 @@ public record ExplodeStep(Expr power, Optional<Expr> reach, Optional<Expr> gathe
             Expr.CODEC.fieldOf(FIELD_POWER).forGetter(ExplodeStep::power),
             Expr.CODEC.optionalFieldOf(FIELD_REACH).forGetter(ExplodeStep::reach),
             Expr.CODEC.optionalFieldOf(FIELD_GATHERS).forGetter(ExplodeStep::gathers),
-            ExplosionMode.CODEC.optionalFieldOf(FIELD_INTERACTION, ExplosionMode.TNT).forGetter(ExplodeStep::mode)
+            ExplosionMode.CODEC.optionalFieldOf(FIELD_INTERACTION, ExplosionMode.TNT).forGetter(ExplodeStep::mode),
+            // blast-alone-takes-the-new-explosion-look
+            ExplosionLook.CODEC.optionalFieldOf(FIELD_LOOK, ExplosionLook.SILENT).forGetter(ExplodeStep::look)
     ).apply(inst, ExplodeStep::new));
 
     /**
@@ -41,13 +45,13 @@ public record ExplodeStep(Expr power, Optional<Expr> reach, Optional<Expr> gathe
     public static final StepType<ExplodeStep> TYPE = new StepType<>(NAME, CODEC);
 
     /**
-     * An explosion whose power sets its reach and whose drops pop in place.
+     * A silent explosion whose power sets its reach and whose drops pop in place.
      *
      * @param power the explosion power
      * @param mode  how blocks are treated
      */
     public ExplodeStep(Expr power, ExplosionMode mode) {
-        this(power, Optional.empty(), Optional.empty(), mode);
+        this(power, Optional.empty(), Optional.empty(), mode, ExplosionLook.SILENT);
     }
 
     /**
@@ -83,7 +87,7 @@ public record ExplodeStep(Expr power, Optional<Expr> reach, Optional<Expr> gathe
     @Override
     public boolean tick(StepContext context) {
         context.hostAs(ExplodeHost.class).explode(power.evaluateFloat(context), reachAt(context), gathersAt(context),
-                mode);
+                mode, look);
         return true;
     }
 

@@ -12,6 +12,7 @@ public interface ExplodeHost extends StepHost {
      * @param reach   the radius the explosion cuts at most
      * @param gathers true to gather the mined drops into one compression sphere at the center
      * @param mode    how blocks are treated
+     * @param look    how the explosion shows, as the step wrote it
      */
-    void explode(float power, double reach, boolean gathers, ExplosionMode mode);
+    void explode(float power, double reach, boolean gathers, ExplosionMode mode, ExplosionLook look);
 }

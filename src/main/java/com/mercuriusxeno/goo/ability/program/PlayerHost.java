@@ -172,8 +172,8 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
     }
 
     @Override
-    public void explode(float power, double reach, boolean gathers, ExplosionMode mode) {
-        asEntity().explode(power, reach, gathers, mode);
+    public void explode(float power, double reach, boolean gathers, ExplosionMode mode, ExplosionLook look) {
+        asEntity().explode(power, reach, gathers, mode, look);
     }
 
     @Override
