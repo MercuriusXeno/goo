@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.radial;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
+import com.mercuriusxeno.goo.client.hud.MixedNumberLabel;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.OfferedAbility;
 import com.mercuriusxeno.goo.client.network.StandingUpkeep;
@@ -830,21 +831,47 @@ final class RadialWheelRenderer {
         pose.pushMatrix();
         pose.translate(line.centerX(), (float) line.top());
         pose.scale(line.scale());
-        outlinedText(graphics, font, line.text(), 0, 0, color);
+        if (line.label().holdsMixedNumber()) {
+            outlinedLabel(graphics, font, line.label(), color);
+        } else {
+            outlinedText(graphics, font, line.text(), 0, 0, color);
+        }
         pose.popMatrix();
+    }
+
+    /**
+     * Draws a line holding a mixed number centered on the pose's origin inside
+     * its dark border, each run at the origin the spacing rule laid it at.
+     * every-mixed-number-takes-the-spacing-rule
+     *
+     * @param graphics the GUI graphics extractor
+     * @param font     the font
+     * @param label    the laid line
+     * @param color    the words' color
+     */
+    private static void outlinedLabel(GuiGraphicsExtractor graphics, Font font, MixedNumberLabel label, int color) {
+        int left = -label.fullWidth() / HALF;
+        for (int dx = -OUTLINE_WIDTH; dx <= OUTLINE_WIDTH; dx++) {
+            for (int dy = -OUTLINE_WIDTH; dy <= OUTLINE_WIDTH; dy++) {
+                if (dx != 0 || dy != 0) {
+                    label.draw(graphics, font, left + dx, dy, OUTLINE_COLOR, false);
+                }
+            }
+        }
+        label.draw(graphics, font, left, 0, color, false);
     }
 
     /**
      * One line of an ability petal's words as it lands on screen.
      *
-     * @param text      the words
-     * @param centerX   the x the line centers on
-     * @param top       the line's top
-     * @param scale     the scale it draws at
-     * @param fullWidth its width at full size, its border excluded
-     * @param fullLine  the font's line height at full size
+     * @param text     the words
+     * @param label    the words laid out, a mixed number in them by the spacing rule
+     * @param centerX  the x the line centers on
+     * @param top      the line's top
+     * @param scale    the scale it draws at
+     * @param fullLine the font's line height at full size
      */
-    record PlacedLine(Component text, int centerX, double top, float scale, int fullWidth, int fullLine) {
+    record PlacedLine(Component text, MixedNumberLabel label, int centerX, double top, float scale, int fullLine) {
 
         /**
          * The screen box the line and its border cover.
@@ -852,7 +879,7 @@ final class RadialWheelRenderer {
          * @return left, top, right and bottom
          */
         double[] box() {
-            double halfWidth = (fullWidth / (double) HALF + OUTLINE_WIDTH) * scale;
+            double halfWidth = (label.fullWidth() / (double) HALF + OUTLINE_WIDTH) * scale;
             double border = OUTLINE_WIDTH * scale;
             return new double[]{centerX - halfWidth, top - border, centerX + halfWidth, top + fullLine * scale + border};
         }
@@ -869,7 +896,7 @@ final class RadialWheelRenderer {
      * @param name       the name's lines
      * @param cost       the cost, or null for none
      * @param restingTip the point the icon's cluster rests on
-     * @param widthOf    each line's width at full size
+     * @param widthOf    each run's width at full size
      * @param lineHeight the font's line height at full size
      * @return the lines, the name's from the top, then the cost's
      */
@@ -879,14 +906,26 @@ final class RadialWheelRenderer {
         double nameLine = lineHeight * (double) NAME_SCALE;
         double top = restingTip[1] - ICON_SLOT_SIZE / HALF - LABEL_GAP - name.size() * nameLine;
         for (Component line : name) {
-            lines.add(new PlacedLine(line, restingTip[0], top, NAME_SCALE, widthOf.applyAsInt(line), lineHeight));
+            lines.add(new PlacedLine(line, layLine(line, widthOf), restingTip[0], top, NAME_SCALE, lineHeight));
             top += nameLine;
         }
         if (cost != null) {
-            lines.add(new PlacedLine(cost, restingTip[0], restingTip[1] + ICON_SLOT_SIZE / HALF,
-                    DETAIL_SCALE, widthOf.applyAsInt(cost), lineHeight));
+            lines.add(new PlacedLine(cost, layLine(cost, widthOf), restingTip[0],
+                    restingTip[1] + ICON_SLOT_SIZE / HALF, DETAIL_SCALE, lineHeight));
         }
         return lines;
+    }
+
+    /**
+     * Lays a line of a petal's words out, a mixed number in it by the spacing rule.
+     * every-mixed-number-takes-the-spacing-rule
+     *
+     * @param line    the words
+     * @param widthOf each run's width at full size
+     * @return the laid line
+     */
+    private static MixedNumberLabel layLine(Component line, ToIntFunction<Component> widthOf) {
+        return MixedNumberLabel.lay(line.getString(), run -> widthOf.applyAsInt(Component.literal(run)));
     }
 
     /**
