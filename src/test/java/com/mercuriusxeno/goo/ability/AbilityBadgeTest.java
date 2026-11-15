@@ -103,7 +103,9 @@ class AbilityBadgeTest {
             // self-effects-trickle-until-ended
             case SELF -> EnumSet.of(definition.upkeep().in(GooValueTable.EMPTY) > AbilityDefinition.NO_UPKEEP ? AbilityBadge.DURATIVE
                     : holds ? AbilityBadge.CHANNELED : AbilityBadge.SELF);
-            default -> holds ? EnumSet.of(AbilityBadge.CHANNELED)
+            // knives-wears-the-free-badge: a charge slinging knives is a free cast
+            default -> definition.delivery().charge().slings() ? EnumSet.of(AbilityBadge.FREE)
+                    : holds ? EnumSet.of(AbilityBadge.CHANNELED)
                     : EnumSet.of(definition.hasTag(AbilityTags.ENTITY) ? AbilityBadge.MOB : AbilityBadge.WORLD,
                             AbilityBadge.FREE, AbilityBadge.PRISM);
         };

@@ -1,7 +1,7 @@
 {
   "gooType": "crystal",
   "displayName": "goo.ability.crystal.knives",
-  "badge": "channeled",
+  "badge": "free",
   "order": 10,
   "cost": 1000,
   "requires": ["minecraft:amethyst_shard"],
