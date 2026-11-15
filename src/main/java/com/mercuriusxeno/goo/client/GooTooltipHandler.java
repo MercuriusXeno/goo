@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.tooltip.GooTooltipLines;
 import com.mercuriusxeno.goo.client.tooltip.GooValuesKey;
 import com.mercuriusxeno.goo.client.tooltip.VanillaFluidTooltipComponent;
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
 import com.mercuriusxeno.goo.data.KnownItems;
@@ -174,7 +175,7 @@ public final class GooTooltipHandler {
      */
     private static boolean handleGooTooltip(List<Either<FormattedText, TooltipComponent>> elements, ItemStack stack) {
         if (stack.getItem() instanceof GooItem) {
-            appendGooComponent(elements, GooStacks.keyOf(stack), GooItem.getVolume(stack));
+            appendGooComponent(elements, GooStacks.keyOf(stack), GooItem.getVolume(stack), GooItem.getPart(stack));
             return true;
         }
         return false;
@@ -366,19 +367,22 @@ public final class GooTooltipHandler {
     }
 
     /**
-     * Appends a goo's row, or nothing when it holds no typed volume.
+     * Appends a goo's row at its exact value, or nothing when it holds no typed goo.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
      *
      * @param elements the tooltip element list
      * @param type     the goo type
-     * @param volume   the volume
+     * @param volume   the whole mB
+     * @param part     the part under 1 mB
      */
-    private static void appendGooComponent(
+    static void appendGooComponent(
             List<Either<FormattedText, TooltipComponent>> elements,
-            @org.jspecify.annotations.Nullable ResourceKey<GooTypeDefinition> type, int volume) {
-        if (volume <= 0 || type == null) {
+            @org.jspecify.annotations.Nullable ResourceKey<GooTypeDefinition> type, int volume, GooFraction part) {
+        GooFraction exact = GooFraction.of(volume).plus(part);
+        if (!exact.isPositive() || type == null) {
             return;
         }
-        appendGooRows(elements, Map.of(type, volume));
+        GooTooltipLines.exactLines(Map.of(type, exact)).forEach(line -> elements.add(Either.right(line)));
     }
 
     /**

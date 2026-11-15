@@ -2,9 +2,11 @@ package com.mercuriusxeno.goo.block.hub;
 
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
+import com.mercuriusxeno.goo.block.canister.CanisterSlotFluidHandler;
 import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
 import com.mercuriusxeno.goo.item.GooInsert;
 import com.mercuriusxeno.goo.item.GooInteractionType;
+import com.mercuriusxeno.goo.item.GooSink;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
@@ -153,9 +155,14 @@ final class HubBlockHandlers {
     private static InteractionResult handleGooInsert(
             HubBlockEntity hub, BlockHitResult hitResult,
             ItemStack stack, Player player) {
-        int accepted = GooInsert.pour(stack, player,
-                (type, volume) -> insertGoo(hub, hitResult, type, volume));
-        if (accepted <= 0) { return InteractionResult.PASS; }
+        int slot = HubBlock.hitSlot(hitResult, hub.getBlockPos());
+        // decision goo-item-carries-its-exact-value-as-a-mixed-remainder: the aimed canister banks the part
+        CanisterSlotFluidHandler aimed = slot >= 0 && hub.canAccept(slot)
+                ? hub.containerState().getSlotFluidHandler(slot) : null;
+        boolean moved = GooInsert.pour(stack, player, GooSink.banking(aimed != null ? aimed.ledger() : null,
+                type -> aimed != null && aimed.insertGoo(type, 1, true) > 0,
+                (type, volume) -> insertGoo(hub, hitResult, type, volume)));
+        if (!moved) { return InteractionResult.PASS; }
 
         hub.getLevel().playSound(null, hub.getBlockPos(), SoundEvents.BOTTLE_EMPTY, SoundSource.BLOCKS, 1.0f, 1.0f);
         return InteractionResult.SUCCESS;

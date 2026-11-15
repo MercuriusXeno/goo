@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.mixin;
 
+import com.mercuriusxeno.goo.item.GooItem;
 import com.mercuriusxeno.goo.item.GooQuickCraft;
 import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.item.MixedVolume;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.player.Player;
@@ -247,7 +249,7 @@ public abstract class GooQuickCraftMixin {
 
         int perSlot = computePerSlotVolume(totalVolume, quickcraftSlots.size());
         int distributed = distributeToSlots(gooType, perSlot, totalVolume);
-        setCarriedRemainder(gooType, totalVolume - distributed);
+        setCarriedRemainder(gooType, new MixedVolume(totalVolume - distributed, GooItem.getPart(carried)));
         broadcastChanges();
         resetQuickCraft();
     }
@@ -314,30 +316,28 @@ public abstract class GooQuickCraftMixin {
      */
     private int placeIntoSlot(Slot slot, ResourceKey<GooTypeDefinition> gooType, int perSlot) {
         ItemStack existing = slot.getItem();
-        int mergedVolume = perSlot;
+        MixedVolume merged = MixedVolume.ofWhole(perSlot);
         if (!existing.isEmpty()) {
             ResourceKey<GooTypeDefinition> existingType = GooStacks.keyOf(existing);
             if (existingType != gooType) {
                 return INCOMPATIBLE_SLOT;
             }
-            mergedVolume += GooStacks.volumeOf(existing);
+            // decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+            merged = merged.plus(GooStacks.mixedVolumeOf(existing));
         }
-        slot.setByPlayer(GooStacks.createForOutput(gooType, mergedVolume));
+        slot.setByPlayer(GooStacks.createForOutput(gooType, merged.exact()));
         return perSlot;
     }
 
     /**
-     * Sets the carried item to the remainder after distribution.
-     * Empty if no remainder, otherwise an output-rule item.
+     * Sets the carried item to the remainder after distribution: the whole mB left and
+     * the carried part under 1 mB, which a spread never moves, or empty when neither stands.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
      *
      * @param gooType   the goo type being distributed
-     * @param remainder the remaining volume after distribution
+     * @param remainder the value left on the cursor after distribution
      */
-    private void setCarriedRemainder(ResourceKey<GooTypeDefinition> gooType, int remainder) {
-        if (remainder <= 0) {
-            setCarried(ItemStack.EMPTY);
-        } else {
-            setCarried(GooStacks.createForOutput(gooType, remainder));
-        }
+    private void setCarriedRemainder(ResourceKey<GooTypeDefinition> gooType, MixedVolume remainder) {
+        setCarried(GooStacks.createForOutput(gooType, remainder.exact()));
     }
 }

@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.item;
 
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
@@ -9,6 +10,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import org.jspecify.annotations.Nullable;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -78,6 +80,67 @@ public final class GooStacks {
     }
 
     /**
+     * Creates the goo carrying an exact value, whole mB and the part under 1 mB, so a
+     * goo of 0 whole mB and a part above 0 is a live stack.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+     *
+     * @param key   the goo type's registry key
+     * @param exact the exact value
+     * @return the goo, or EMPTY for a value of zero or less
+     */
+    public static ItemStack createForOutput(ResourceKey<GooTypeDefinition> key, GooFraction exact) {
+        if (!exact.isPositive()) {
+            return ItemStack.EMPTY;
+        }
+        return GooItem.createWithExactValue(key, exact);
+    }
+
+    /**
+     * Returns the exact value of the given item stack: the goo's whole mB plus its
+     * part under 1 mB, or zero for any other item.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+     *
+     * @param stack the item stack to measure
+     * @return the exact value
+     */
+    public static GooFraction exactValueOf(ItemStack stack) {
+        return mixedVolumeOf(stack).exact();
+    }
+
+    /**
+     * Returns the exact value of the given item stack as it stores it, whole mB and the
+     * part under 1 mB, or zero for any other item.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+     *
+     * @param stack the item stack to measure
+     * @return the mixed volume
+     */
+    public static MixedVolume mixedVolumeOf(ItemStack stack) {
+        if (stack.getItem() instanceof GooItem) {
+            return new MixedVolume(GooItem.getVolume(stack), GooItem.getPart(stack));
+        }
+        return MixedVolume.ZERO;
+    }
+
+    /**
+     * Takes whole mB from a goo, running {@code consume} once the stack holds nothing,
+     * so a goo whose last whole mB is taken keeps its part under 1 mB.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+     *
+     * @param stack   the goo stack
+     * @param taken   the whole mB taken, at most its volume
+     * @param consume removes the emptied stack from where it stands
+     */
+    static void depleteWhole(ItemStack stack, int taken, Runnable consume) {
+        int remaining = Math.max(0, GooItem.getVolume(stack) - taken);
+        if (remaining == 0 && GooItem.getPart(stack).isZero()) {
+            consume.run();
+        } else {
+            GooItem.setVolume(stack, remaining);
+        }
+    }
+
+    /**
      * Depletes a goo by the accepted volume, consuming the stack if empty.
      *
      * @param stack    the goo item stack to deplete
@@ -91,36 +154,20 @@ public final class GooStacks {
     }
 
     /**
-     * Deducts volume from a goo, consuming the stack if empty.
+     * Deducts volume from a goo, consuming the stack once it holds nothing.
      *
      * @param stack    the goo stack
      * @param accepted the accepted volume
      * @param player   the player holding the stack
      */
     private static void depleteGoo(ItemStack stack, int accepted, Player player) {
-        int remaining = GooItem.getVolume(stack) - accepted;
-        if (remaining <= 0) {
-            stack.consume(1, player);
-        } else {
-            GooItem.setVolume(stack, remaining);
-        }
+        depleteWhole(stack, accepted, () -> stack.consume(1, player));
     }
 
     /**
-     * Pure math: the new goo sink volume after absorbing a source volume.
-     * Extracted so the arithmetic is covered by tests without bootstrapping Minecraft.
-     *
-     * @param sourceVolumeMb   volume being absorbed (>=0)
-     * @param gooVolumeMb current goo sink volume (>=0)
-     * @return the combined volume
-     */
-    public static int absorbedVolume(int sourceVolumeMb, int gooVolumeMb) {
-        return gooVolumeMb + sourceVolumeMb;
-    }
-
-    /**
-     * Dumps the entire volume of {@code source} (a goo of any goo type)
-     * into the goo sitting in {@code gooStack}. Clears {@code source} by setting
+     * Dumps the entire exact value of {@code source} (a goo of any goo type)
+     * into the goo sitting in {@code gooStack}, the two adding through
+     * MixedVolume's exact combine. Clears {@code source} by setting
      * its count to 0. Caller is responsible for {@code slot.setChanged()} if the sink
      * lives in a container slot.
      *
@@ -131,24 +178,37 @@ public final class GooStacks {
      * @param gooStack the sink goo stack; volume is grown in place
      */
     public static void absorbIntoGooSlot(ItemStack source, ItemStack gooStack) {
-        int total = absorbedVolume(volumeOf(source), GooItem.getVolume(gooStack));
-        GooItem.setVolume(gooStack, total);
+        // decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+        GooItem.setMixedVolume(gooStack, mixedVolumeOf(gooStack).plus(mixedVolumeOf(source)));
         source.setCount(0);
     }
 
     /**
-     * Drops all goo in a {@link GooContents} as gooStacks at the given position, one per goo type.
+     * The exact value each goo type of a store's contents drops as: its whole mB plus its
+     * remainder, so a type holding a remainder and 0 whole mB drops its part alone.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+     * decision every-producer-consumer-and-container-holds-a-remainder-buffer
+     *
+     * @param contents the store's contents
+     * @return each type's exact value, every one above zero
+     */
+    public static Map<ResourceKey<GooTypeDefinition>, GooFraction> exactDrops(GooContents contents) {
+        Map<ResourceKey<GooTypeDefinition>, GooFraction> drops = new HashMap<>();
+        contents.getAll().forEach((type, volume) -> drops.merge(type, GooFraction.of(volume), GooFraction::plus));
+        contents.remainders().parts().forEach((type, part) -> drops.merge(type, part, GooFraction::plus));
+        drops.values().removeIf(exact -> !exact.isPositive());
+        return drops;
+    }
+
+    /**
+     * Drops all goo in a {@link GooContents} as gooStacks at the given position, one per
+     * goo type, each holding that type's exact value.
      *
      * @param contents the goo contents to drop
      * @param level    the world
      * @param pos      the position to drop items at
      */
     public static void dropAll(GooContents contents, Level level, BlockPos pos) {
-        if (contents.isEmpty()) {
-            return;
-        }
-        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : contents.getAll().entrySet()) {
-            Block.popResource(level, pos, createForOutput(entry.getKey(), entry.getValue()));
-        }
+        exactDrops(contents).forEach((type, exact) -> Block.popResource(level, pos, createForOutput(type, exact)));
     }
 }

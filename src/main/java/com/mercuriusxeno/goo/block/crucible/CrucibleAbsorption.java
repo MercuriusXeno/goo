@@ -3,9 +3,7 @@ package com.mercuriusxeno.goo.block.crucible;
 import com.mercuriusxeno.goo.block.ContainerEvaluator;
 import com.mercuriusxeno.goo.item.*;
 import com.mercuriusxeno.goo.network.PlayerKnowledge;
-import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -98,18 +96,17 @@ final class CrucibleAbsorption {
      */
     private static void absorbGoo(ItemEntity entity, ItemStack stack,
                                    CrucibleBlockEntity crucible) {
-        ResourceKey<GooTypeDefinition> type = GooStacks.keyOf(stack);
-        int volume = GooStacks.volumeOf(stack);
-        if (type == null || volume <= 0) {
+        // decision goo-item-carries-its-exact-value-as-a-mixed-remainder: the reservoir's ledger banks the part
+        GooSink wholeGoo = GooSink.banking(crucible.reservoirHandler().ledger(),
+                type -> CrucibleInsertion.reservoirUnitsThatFit(crucible, type, 1, 1) > 0,
+                (type, volume) -> volume > 0 && CrucibleInsertion.reservoirUnitsThatFit(crucible, type, volume, 1) > 0
+                        ? crucible.insertGoo(type, volume) : 0);
+        if (!GooInsert.pourInto(stack, wholeGoo, entity::discard)) {
             return;
         }
-        int perUnit = volume / stack.getCount();
-        int fitting = CrucibleInsertion.reservoirUnitsThatFit(crucible, type, perUnit, stack.getCount());
-        if (fitting <= 0) {
-            return;
+        if (!entity.isRemoved()) {
+            entity.setItem(stack);
         }
-        crucible.insertGoo(type, fitting * perUnit);
-        takeUnits(entity, stack, fitting);
         spawnMeltEffects(entity.level(), crucible);
     }
 

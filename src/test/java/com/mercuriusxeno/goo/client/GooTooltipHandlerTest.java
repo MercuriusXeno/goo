@@ -168,6 +168,31 @@ class GooTooltipHandlerTest {
             }
         }
 
+        /**
+         * A goo item's row reads its exact value as the mixed number its drawer writes.
+         * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+         */
+        @Test
+        void gooItemRowReadsItsWholeAndItsPartAsOneMixedNumber() {
+            GooTooltipHandler.appendGooComponent(elements, GooTypes.ZOO, 21, GooFraction.of(1, 3));
+
+            assertEquals(GooFormat.formatMixed(GooFraction.of(64, 3)), drawnAmount(elements));
+        }
+
+        @Test
+        void gooItemRowHoldingOnlyAPartReadsThatPart() {
+            GooTooltipHandler.appendGooComponent(elements, GooTypes.ZOO, 0, GooFraction.of(1, 3));
+
+            assertEquals(GooFormat.formatMixed(GooFraction.of(1, 3)), drawnAmount(elements));
+        }
+
+        /** The text GooValueClientTooltipComponent draws for the one goo row after the title. */
+        private String drawnAmount(List<Either<FormattedText, TooltipComponent>> tooltip) {
+            assertEquals(2, tooltip.size());
+            GooValueTooltipComponent row = (GooValueTooltipComponent) tooltip.get(1).right().orElseThrow();
+            return GooFormat.formatMixed(row.amount());
+        }
+
         /** Each element as its text line's string or its component, so a blank line reads as "". */
         private List<Object> shapes(List<Either<FormattedText, TooltipComponent>> tooltip) {
             return tooltip.stream()
