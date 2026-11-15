@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.LandingHost;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
+import com.mercuriusxeno.goo.ability.program.MeteorStep;
 import com.mercuriusxeno.goo.ability.program.MoltenStep;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
@@ -254,6 +255,18 @@ public final class AbilityImpact {
         return ability.behaviors().stream().anyMatch(step -> step.type() == LeafSteps.LIGHT_FIRE.type());
     }
 
+    /**
+     * Whether an ability calls a meteor down on its target, the falling
+     * meteor standing in for a burnout, so the release leaves no mark there.
+     * decision meteo-makes-no-mark-on-release
+     *
+     * @param ability the landing ability
+     * @return true when a top-level step calls a meteor
+     */
+    static boolean callsAMeteor(AbilityDefinition ability) {
+        return ability.behaviors().stream().anyMatch(MeteorStep.class::isInstance);
+    }
+
     private static Stream<Step> withDescendants(Step step) {
         return Stream.concat(Stream.of(step), step.children().flatMap(AbilityImpact::withDescendants));
     }
@@ -280,7 +293,7 @@ public final class AbilityImpact {
         @Override
         public boolean turnsIntoItsBlock() {
             return AbilityImpact.turnsIntoAPrism(ability) || AbilityImpact.sinksIntoTheMelt(ability)
-                    || AbilityImpact.lightsItsFire(ability);
+                    || AbilityImpact.lightsItsFire(ability) || AbilityImpact.callsAMeteor(ability);
         }
 
         @Override

@@ -6,9 +6,10 @@ import com.mojang.serialization.Codec;
 /**
  * How an ability leaves the glove, the fixed code vocabulary an ability's
  * delivery block names (decision delivery-block-in-ability-json). Each kind
- * ships with one bundled ability proving it: glow laser and glow crystal the
- * beam, blaze flames the stream, ender blink and typhoon propulsion the
- * self, deep click the scan, every other ability the arc. A further
+ * ships with one bundled ability proving it: pulse zap the beam, blaze
+ * flames the stream, ender blink and typhoon propulsion the self, deep click
+ * the scan, void hole the spontaneous cast, every other ability the arc. A
+ * further
  * ability is data, a goo_abilities JSON naming one of these kinds and its
  * params, and needs no new Java (decision one-proving-ability-per-kind).
  */
@@ -28,6 +29,12 @@ public enum DeliveryKind {
      * decision click-is-a-hit-scan-drawn-as-a-delayed-wave
      */
     SCAN,
+    /**
+     * A cast made at the aimed target the tick right click lets go, the
+     * charge held on the lifted palm blob until then; no goo leaves the hand.
+     * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
+     */
+    SPONTANEOUS,
     /**
      * The charm-like cast: the right click takes the mob highlighted at the
      * press and keeps it whatever the aim does after, and the release, however

@@ -14,14 +14,14 @@ import org.jspecify.annotations.NonNull;
  * tracking its chunk before the marker can be removed, so each goo type's
  * burnout explosion plays even for a program that finishes the tick it
  * fires (decision elemental-explosion-per-type), carrying the size the cast
- * was dragged to so a sized burst fills the sphere it cut
- * (decision blast-is-drag-sized-like-the-black-hole).
+ * was charged to so a sized burst fills the sphere it cut
+ * (decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob).
  *
  * @param pos        the marker's block position
  * @param placedFace the ordinal of the face the marker was placed on
  * @param gooTypeId  the goo type's short id
  * @param abilityId  the id of the ability the marker ran
- * @param size       the size the cast was dragged to, in blocks, zero for a throw
+ * @param size       the size the cast was charged to, in blocks, zero for a throw
  */
 public record ChainBurnoutPayload(BlockPos pos, int placedFace, String gooTypeId,
                                   String abilityId, double size) implements CustomPacketPayload {

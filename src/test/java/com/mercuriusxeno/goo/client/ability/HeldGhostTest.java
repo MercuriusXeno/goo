@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
-import com.mercuriusxeno.goo.ability.DragSize;
+import com.mercuriusxeno.goo.ability.ChargeSize;
 import com.mercuriusxeno.goo.item.GooFormat;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -38,14 +38,14 @@ class HeldGhostTest {
         assertEquals(ghost.domeRadius(), ghost.ringRadius(), TOLERANCE);
     }
 
-    // decision blast-is-drag-sized-like-the-black-hole: the dome follows the drag, the rings run out to it
+    // decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob: the dome follows the charge, the rings run out to it
     @Test
-    void aSizedBlastRingsOutwardToItsDraggedDomeAndPricesByVolume() {
+    void aSizedBlastRingsOutwardToItsChargedDomeAndPricesByVolume() {
         HeldGhost ghost = UnstableExplosionVisual.INSTANCE.sizedGhost(6f);
         assertEquals(6f, ghost.domeRadius(), TOLERANCE);
         assertEquals(6f, ghost.ringRadius(), TOLERANCE);
-        assertEquals(GooFormat.formatAmount(DragSize.costAt(BLAST_COST, 6)), DragSize.priceLabel(BLAST_COST, 6));
-        assertEquals(GooFormat.formatAmount(8000), DragSize.priceLabel(BLAST_COST, 6));
+        assertEquals(GooFormat.formatAmount(ChargeSize.costAt(BLAST_COST, 6)), ChargeSize.priceLabel(BLAST_COST, 6));
+        assertEquals(GooFormat.formatAmount(8000), ChargeSize.priceLabel(BLAST_COST, 6));
     }
 
     @Test

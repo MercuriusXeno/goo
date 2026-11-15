@@ -495,6 +495,29 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
     }
 
     /**
+     * Whether the hold sizes the cast: a spontaneous cast whose charge names
+     * a largest size.
+     * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
+     *
+     * @return true for a cast sized by its charge
+     */
+    public boolean sizesByCharge() {
+        return kind == DeliveryKind.SPONTANEOUS && charge.sizes();
+    }
+
+    /**
+     * The whole stage a hold charges the cast to: growing with the ticks held
+     * up to the cap its charge names, and no larger past it.
+     * decision blast-charges-from-two-to-seven-blocks
+     *
+     * @param heldTicks the ticks the use key was held
+     * @return the stage's size in blocks
+     */
+    public double stageAt(int heldTicks) {
+        return charge.stageAt(heldTicks);
+    }
+
+    /**
      * Whether the flight flies a straight line rather than an arc.
      *
      * @return true for a beam
@@ -549,6 +572,18 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
      */
     public boolean aimsALine() {
         return (kind == DeliveryKind.ARC || kind == DeliveryKind.BEAM) && !slingsAFan();
+    }
+
+    /**
+     * Whether the ability lands its program at the aimed target as one
+     * strike: an arc thrown there, or a spontaneous cast made there, which
+     * previews the area it will strike alike.
+     * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
+     *
+     * @return true for an arc or a spontaneous cast
+     */
+    public boolean strikesTheAim() {
+        return kind == DeliveryKind.ARC || kind == DeliveryKind.SPONTANEOUS;
     }
 
     /**

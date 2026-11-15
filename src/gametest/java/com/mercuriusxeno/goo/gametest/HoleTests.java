@@ -96,6 +96,30 @@ public final class HoleTests {
         GooTestFunctions.registerTest(registrar, CLOSED_WHILE_OPENING_KEEPS_ITS_SHELF,
                 HoleTests::closedWhileOpeningKeepsItsShelf);
         GooTestFunctions.registerTest(registrar, CLOSES_WHEN_ITS_BLOCK_BREAKS, HoleTests::closesWhenItsBlockBreaks);
+        GooTestFunctions.registerTest(registrar, OPENS_ON_THE_RELEASE_TICK, HoleTests::opensOnTheReleaseTick);
+    }
+
+    private static final String OPENS_ON_THE_RELEASE_TICK = "hole_opens_on_the_release_tick";
+
+    /**
+     * Released at a floor's top face, the hole stands there the same tick and
+     * no goo was thrown to get it there.
+     * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
+     *
+     * @param helper the gametest helper
+     */
+    public static void opensOnTheReleaseTick(GameTestHelper helper) {
+        ServerPlayer caster = caster(helper, 1);
+        layFloor(helper, cell -> true);
+        castAt(caster, helper.absolutePos(FLOOR), Direction.UP);
+        Optional<PortableHole> hole = PortableHoles.of(caster.getUUID());
+        int thrown = ThrownGoo.countAround(helper);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        helper.assertTrue(hole.isPresent() && hole.get().block().equals(helper.absolutePos(FLOOR))
+                        && hole.get().face() == Direction.UP,
+                "The hole should stand on the floor's top face the release tick, stands " + hole);
+        helper.assertTrue(thrown == 0, "No goo should be thrown, " + thrown + " thrown goo stand");
+        helper.succeed();
     }
 
     private static final String MOUTH_COVERS_THREE_BY_THREE = "hole_mouth_covers_three_by_three";
