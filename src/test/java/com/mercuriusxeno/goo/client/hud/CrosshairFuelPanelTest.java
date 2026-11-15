@@ -19,19 +19,28 @@ import com.mercuriusxeno.goo.client.hud.CrosshairFuelPanel.Count;
 import com.mercuriusxeno.goo.client.hud.CrosshairFuelPanel.FuelCell;
 import com.mercuriusxeno.goo.client.hud.CrosshairFuelPanel.ItemIcon;
 import com.mercuriusxeno.goo.client.hud.CrosshairFuelPanel.TypeIcon;
+import com.mercuriusxeno.goo.client.ClientGooValues;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.AffordedCount;
 import com.mercuriusxeno.goo.client.network.StandingUpkeep;
+import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.data.GooValueTable;
+import com.mercuriusxeno.goo.data.IGooValueLookup;
+import com.mercuriusxeno.goo.data.PrefabValues;
 import com.mercuriusxeno.goo.item.GooFormat;
+import com.mercuriusxeno.goo.item.MixedNumber;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -160,6 +169,75 @@ class CrosshairFuelPanelTest {
                     StandingUpkeep.NONE, OptionalDouble.of(RoomExtent.LAID), NOT_READ));
         }
 
+    }
+
+    /**
+     * The held cost panel's count lays a mixed number by the spacing rule and sizes to its respaced width: Blast
+     * with tnt at 120 unstable reads 4 4/9 a cube of radius, the label the operator saw drawn unspaced.
+     * every-mixed-number-takes-the-spacing-rule
+     */
+    @Nested
+    class CostLabelSpacing {
+
+        private static final int TNT_UNSTABLE = 120;
+        private static final String BLAST_COST = "4⁴⁄₉ x r³";
+        private static final String AFTER_THE_NUMBER = " x r³";
+
+        private Supplier<IGooValueLookup> standing;
+
+        @AfterEach
+        void restoreTheClientValueSource() {
+            if (standing != null) {
+                ClientGooValues.readFrom(standing);
+            }
+        }
+
+        private ClientAbility blastAtTntValue() {
+            IGooValueLookup tnt = GooValueTable.ofEffectiveValues(
+                    Map.of(Identifier.withDefaultNamespace("tnt"), new GooValue(Map.of(GooTypes.UNSTABLE, TNT_UNSTABLE))),
+                    new PrefabValues(Map.of(), Map.of()));
+            standing = ClientGooValues.readFrom(() -> tnt);
+            return ClientAbility.fromEntry(AbilitySyncPayload.gloveEntries(GooTypes.UNSTABLE,
+                    List.of(AbilityJson.decode("unstable_blast"))).getFirst());
+        }
+
+        private static MixedNumberSpacing.Laid fourAndFourNinths() {
+            return MixedNumberSpacing.lay(new MixedNumber("4", "⁴", "₉"), StatedGlyphs.VANILLA);
+        }
+
+        @Test
+        void blastsCostLabelHoldsTheMixedNumber() {
+            assertEquals(BLAST_COST, blastAtTntValue().costLabel());
+        }
+
+        @Test
+        void theCountsPartsSitAtTheSpacingRulesOffsets() {
+            ClientAbility blast = blastAtTntValue();
+            List<FuelCell> row = CrosshairFuelPanel.rowCells(GooTypes.UNSTABLE, blast, 0, Integer.MAX_VALUE,
+                    blast.costLabel());
+            MixedNumberSpacing.Laid laid = fourAndFourNinths();
+            List<MixedNumberSpacing.Piece> expected = new ArrayList<>(laid.pieces());
+            expected.add(new MixedNumberSpacing.Piece(AFTER_THE_NUMBER, laid.width()));
+
+            assertEquals(expected, CrosshairFuelPanel.countLabel((Count) row.getLast(), StatedGlyphs::widthOf).pieces());
+        }
+
+        @Test
+        void theRowMeasuresTheRespacedWidthPlusTheRestOfTheLabel() {
+            float laidAndRest = fourAndFourNinths().width() + StatedGlyphs.widthOf(AFTER_THE_NUMBER);
+
+            assertEquals((int) Math.ceil(laidAndRest),
+                    CrosshairFuelPanel.rowWidth(List.of(new Count(BLAST_COST)), StatedGlyphs::widthOf));
+        }
+
+        @Test
+        void aCountHoldingNoFractionMeasuresAndLaysAsTheFontDoes() {
+            Count uses = new Count("x3");
+
+            assertEquals(List.of(new MixedNumberSpacing.Piece("x3", 0f)),
+                    CrosshairFuelPanel.countLabel(uses, StatedGlyphs::widthOf).pieces());
+            assertEquals(StatedGlyphs.widthOf("x3"), CrosshairFuelPanel.rowWidth(List.of(uses), StatedGlyphs::widthOf));
+        }
     }
 
     /** A 60 by 22 panel at (100, 50) cuts the 24x24 effect background into nine slices with a 3px border (decision diagnose-then-fix-aiming-panel-stretch). */

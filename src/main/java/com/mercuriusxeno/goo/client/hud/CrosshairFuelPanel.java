@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.function.ToIntFunction;
 
 /**
  * A nine-slice panel at the bottom right of the screen while a glove with a
@@ -218,20 +219,44 @@ public final class CrosshairFuelPanel {
     }
 
     /**
-     * A cell's width in gui pixels.
+     * A cell's width in gui pixels, a count's the width its mixed number's respacing makes it.
+     * every-mixed-number-takes-the-spacing-rule
      *
-     * @param font the font text cells measure in
-     * @param cell the cell
+     * @param cell      the cell
+     * @param textWidth the width in pixels the font gives a string
      * @return the width
      */
-    private static int cellWidth(Font font, FuelCell cell) {
+    static int cellWidth(FuelCell cell, ToIntFunction<String> textWidth) {
         return switch (cell) {
             case TypeIcon ignored -> TYPE_ICON_SIZE;
-            case AbilityName name -> font.width(Component.translatable(name.translationKey()));
-            case Count count -> font.width(count.text());
+            case AbilityName name -> textWidth.applyAsInt(Component.translatable(name.translationKey()).getString());
+            case Count count -> countLabel(count, textWidth).fullWidth();
             case AbilityIcon ignored -> ITEM_SIZE;
             case ItemIcon ignored -> ITEM_SIZE;
         };
+    }
+
+    /**
+     * The row's width in gui pixels: its cells with a gap between each.
+     *
+     * @param cells     the row's cells, left to right
+     * @param textWidth the width in pixels the font gives a string
+     * @return the width
+     */
+    static int rowWidth(List<FuelCell> cells, ToIntFunction<String> textWidth) {
+        return cells.stream().mapToInt(cell -> cellWidth(cell, textWidth)).sum() + (cells.size() - 1) * ICON_GAP;
+    }
+
+    /**
+     * A count's text laid out, its mixed number by the spacing rule.
+     * every-mixed-number-takes-the-spacing-rule
+     *
+     * @param count     the count cell
+     * @param textWidth the width in pixels the font gives a string
+     * @return the count's pieces and width
+     */
+    static MixedNumberLabel countLabel(Count count, ToIntFunction<String> textWidth) {
+        return MixedNumberLabel.lay(count.text(), textWidth);
     }
 
     private static void paintCell(GuiGraphicsExtractor graphics, Font font, FuelCell cell, int x, int rowTop) {
@@ -242,7 +267,8 @@ public final class CrosshairFuelPanel {
                     TYPE_ICON_SIZE, TYPE_ICON_SIZE, TYPE_ICON_SIZE, TYPE_ICON_SIZE);
             case AbilityName name -> graphics.text(font, Component.translatable(name.translationKey()), x, textTop,
                     PanelPainter.TEXT_COLOR);
-            case Count count -> graphics.text(font, count.text(), x, textTop, PanelPainter.TEXT_COLOR);
+            case Count count -> countLabel(count, font::width).draw(graphics, font, x, textTop,
+                    PanelPainter.TEXT_COLOR, true);
             case AbilityIcon abilityIcon -> graphics.blit(RenderPipelines.GUI_TEXTURED, abilityIcon.texture(),
                     x, rowTop, 0.0f, 0.0f, ITEM_SIZE, ITEM_SIZE, ITEM_SIZE, ITEM_SIZE);
             case ItemIcon itemIcon -> graphics.item(BuiltInRegistries.ITEM.getValue(itemIcon.item()).getDefaultInstance(),
@@ -252,15 +278,14 @@ public final class CrosshairFuelPanel {
 
     private static void paint(GuiGraphicsExtractor graphics, Font font, List<FuelCell> cells, int guiWidth,
             int guiHeight) {
-        int rowWidth = cells.stream().mapToInt(cell -> cellWidth(font, cell)).sum() + (cells.size() - 1) * ICON_GAP;
-        PanelRectangle rect = bottomRightAnchor(guiWidth, guiHeight, BORDER + rowWidth + BORDER,
+        PanelRectangle rect = bottomRightAnchor(guiWidth, guiHeight, BORDER + rowWidth(cells, font::width) + BORDER,
                 BORDER + ITEM_SIZE + BORDER);
         NineSlice.blit(graphics, rect);
         int x = Math.round(rect.x()) + BORDER;
         int rowTop = Math.round(rect.y()) + BORDER;
         for (FuelCell cell : cells) {
             paintCell(graphics, font, cell, x, rowTop);
-            x += cellWidth(font, cell) + ICON_GAP;
+            x += cellWidth(cell, font::width) + ICON_GAP;
         }
     }
 }
