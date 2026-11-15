@@ -51,4 +51,16 @@ public interface StepHost extends Variables {
      * @param cue the evaluated sound
      */
     void playSound(SoundCue cue);
+
+    /**
+     * What each thing the program does pays as it happens: each thing a hold
+     * lays, and each hit a held stream lands on the living it strikes.
+     * goop-drains-per-cubic-meter-of-slime-placed
+     * decay-pays-per-block-degraded-and-bite
+     *
+     * @return the host's placement price, free for a program paying by the throw or by the tick
+     */
+    default PlacementPrice placementPrice() {
+        return PlacementPrice.FREE;
+    }
 }

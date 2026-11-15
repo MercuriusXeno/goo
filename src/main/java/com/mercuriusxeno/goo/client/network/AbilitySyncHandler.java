@@ -35,6 +35,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 /**
  * Client-side handler for the ability sync payload. Hands the abilities to
@@ -635,7 +636,7 @@ public final class AbilitySyncHandler {
 
         private List<String> formulaArguments() {
             if (pricedByWhatItLays()) {
-                return List.of(GooFormat.formatMixed(costPrice.exactIn(ClientGooValues::current)));
+                return unitPriceArguments(costPrice.exactIn(ClientGooValues::current));
             }
             if (delivery.sizesByCharge()) {
                 return List.of(GooFormat.formatMixed(pricePerCubeOfRadius()));
@@ -875,9 +876,28 @@ public final class AbilitySyncHandler {
                         Integer.toString(distancePrice.nodePercent()));
             }
             if (pricedByWhatItLays()) {
-                return List.of(GooFormat.formatMixed(costPrice.exactIn(lookup.values())));
+                return unitPriceArguments(costPrice.exactIn(lookup.values()));
             }
             return stepPriceArguments();
+        }
+
+        /**
+         * The prices an ability paying by what it does reads, in the order its formula and cost text fill them:
+         * its cost for the first unit, then each step's own price for any other, in program order.
+         * goop-drains-per-cubic-meter-of-slime-placed
+         * decay-pays-per-block-degraded-and-bite
+         *
+         * @param cost the ability's cost, exact
+         * @return the prices, formatted
+         */
+        private List<String> unitPriceArguments(GooFraction cost) {
+            return Stream.concat(Stream.of(cost), behaviors.stream().flatMap(ClientAbility::withDescendants)
+                            .flatMap(Step::unitPrices).map(AbilityPrice::exactUnitPrice))
+                    .map(GooFormat::formatMixed).toList();
+        }
+
+        private static Stream<Step> withDescendants(Step step) {
+            return Stream.concat(Stream.of(step), step.children().flatMap(ClientAbility::withDescendants));
         }
 
         /**

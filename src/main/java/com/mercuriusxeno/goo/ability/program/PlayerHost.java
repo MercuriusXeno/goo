@@ -91,16 +91,18 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
     }
 
     /**
-     * The host a stream's drip lands through once it strikes, whether or not
-     * its caster still holds the stream, carrying the price what it lays pays.
+     * The host of a stream's caster outside its block pass, carrying the price
+     * what the stream does pays: a drip landing once it strikes, whether or
+     * not its caster still holds the stream, or a hit on the caster itself.
      * goop-and-slick-coat-lands-where-each-drip-arc-strikes
+     * decay-pays-per-block-degraded-and-bite
      *
-     * @param level  the level the drip struck in
-     * @param caster the player who threw the drip
-     * @param price  what each placement pays
+     * @param level  the level the stream acts in
+     * @param caster the stream's caster
+     * @param price  what each placement or hit pays
      * @return the host carrying the price and no aim
      */
-    public static PlayerHost landing(ServerLevel level, ServerPlayer caster, PlacementPrice price) {
+    public static PlayerHost paying(ServerLevel level, ServerPlayer caster, PlacementPrice price) {
         return new PlayerHost(level, caster, Optional.empty(), NO_CHARGE, price);
     }
 

@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:decay_pays_a_blocks_price_per_block_degraded",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

@@ -39,6 +39,7 @@ public record AbilityPrice(Expr amount, @Nullable ResourceKey<GooTypeDefinition>
     private static final int DECIMAL_PLACES = 9;
     private static final String NAMES_NO_ITEM = "Ability cost reads '%s', which names no item or $prefab";
     private static final String UNTYPED_ITEMS = "A price naming items needs the goo type they price in";
+    private static final String UNIT_PRICE_NAMES_AN_ITEM = "A unit price is a number of mB and names no item, not '%s'";
 
     /**
      * Refuses an amount naming no type where it reads an item.
@@ -83,6 +84,28 @@ public record AbilityPrice(Expr amount, @Nullable ResourceKey<GooTypeDefinition>
                         && !HostVariables.isPrefab(name)).findFirst()
                 .<DataResult<Expr>>map(name -> DataResult.error(() -> NAMES_NO_ITEM.formatted(name)))
                 .orElseGet(() -> DataResult.success(amount));
+    }
+
+    /**
+     * Accepts a step's own price for one unit, a number of non-negative mB, whole or not, naming no item, so it
+     * prices the same on both sides with no goo type behind it.
+     * decay-pays-per-block-degraded-and-bite
+     *
+     * @param amount the amount as the JSON wrote it
+     * @return the amount, or an error naming the item it reads
+     */
+    public static DataResult<Expr> checkedUnitPrice(Expr amount) {
+        return amount.variables().stream().findFirst()
+                .<DataResult<Expr>>map(name -> DataResult.error(() -> UNIT_PRICE_NAMES_AN_ITEM.formatted(name)))
+                .orElseGet(() -> checked(amount));
+    }
+
+    /**
+     * @param unitPrice a step's own price for one unit, naming no item
+     * @return the exact mB it comes to, never below zero
+     */
+    public static GooFraction exactUnitPrice(Expr unitPrice) {
+        return new AbilityPrice(unitPrice, null).exactIn(GooValueTable.EMPTY);
     }
 
     /**
@@ -189,7 +212,7 @@ public record AbilityPrice(Expr amount, @Nullable ResourceKey<GooTypeDefinition>
      * @param amount a number or an expression
      * @return whether it is a number of zero
      */
-    static boolean isNothing(Expr amount) {
+    public static boolean isNothing(Expr amount) {
         return amount.variables().isEmpty() && amount.evaluate(Variables.NONE) == 0;
     }
 

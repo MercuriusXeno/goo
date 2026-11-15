@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.AbilityPrice;
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -41,9 +43,12 @@ import java.util.stream.Stream;
  * @param healsUndead       whether an undead target is healed by the amount instead, as Decay's bite and Hive's
  *                          strike heal it; a hit respecting i-frames heals no faster than it would land, and a
  *                          living caster the hit reaches takes nothing
+ * @param hitCost           the mB each hit that lands pays, a heal in its place included, through the host's
+ *                          placement price; zero for a hit the cost or the ticks held already pay for
  */
 public record DamageStep(Expr amount, DamageKind source, boolean knockback,
-                         Optional<Expr> invulnerableTicks, boolean iFrames, boolean healsUndead) implements Step {
+                         Optional<Expr> invulnerableTicks, boolean iFrames, boolean healsUndead, Expr hitCost)
+        implements Step {
 
     /**
      * Expire's damage type, which the vanilla bypass tags name.
@@ -70,6 +75,9 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
     private static final String FIELD_INVULNERABLE_TICKS = "invulnerable_ticks";
     private static final String FIELD_I_FRAMES = "i_frames";
     private static final String FIELD_HEALS_UNDEAD = "heals_undead";
+    private static final String FIELD_HIT_COST = "hit_cost";
+    /** The hit cost of a hit paying nothing of its own. */
+    private static final Expr NO_HIT_COST = Expr.literal(0);
 
     /**
      * Codec for the step's params.
@@ -80,7 +88,10 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
             Codec.BOOL.optionalFieldOf(FIELD_KNOCKBACK, true).forGetter(DamageStep::knockback),
             Expr.CODEC.optionalFieldOf(FIELD_INVULNERABLE_TICKS).forGetter(DamageStep::invulnerableTicks),
             Codec.BOOL.optionalFieldOf(FIELD_I_FRAMES, false).forGetter(DamageStep::iFrames),
-            Codec.BOOL.optionalFieldOf(FIELD_HEALS_UNDEAD, false).forGetter(DamageStep::healsUndead)
+            Codec.BOOL.optionalFieldOf(FIELD_HEALS_UNDEAD, false).forGetter(DamageStep::healsUndead),
+            // decay-pays-per-block-degraded-and-bite
+            Expr.CODEC.validate(AbilityPrice::checkedUnitPrice).optionalFieldOf(FIELD_HIT_COST, NO_HIT_COST)
+                    .forGetter(DamageStep::hitCost)
     ).apply(inst, DamageStep::new));
 
     /**
@@ -112,6 +123,21 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
         this(amount, source, knockback, invulnerableTicks, false, false);
     }
 
+    /**
+     * Creates a damage step whose hits pay nothing of their own.
+     *
+     * @param amount            the damage, evaluated when the step runs
+     * @param source            the damage source
+     * @param knockback         whether the hit may push the target
+     * @param invulnerableTicks the immunity ticks the hit leaves, when set; none otherwise
+     * @param iFrames           whether the hit respects the target's i-frames
+     * @param healsUndead       whether an undead target is healed by the amount instead
+     */
+    public DamageStep(Expr amount, DamageKind source, boolean knockback, Optional<Expr> invulnerableTicks,
+                      boolean iFrames, boolean healsUndead) {
+        this(amount, source, knockback, invulnerableTicks, iFrames, healsUndead, NO_HIT_COST);
+    }
+
     @Override
     public StepType<DamageStep> type() {
         return TYPE;
@@ -119,10 +145,58 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
 
     @Override
     public boolean tick(StepContext context) {
-        LivingEntity target = context.hostAs(TargetHost.class).target();
-        if (healsUndead && healedOrSpared(target, context)) {
+        TargetHost host = context.hostAs(TargetHost.class);
+        PlacementPrice price = host.placementPrice();
+        GooFraction perHit = AbilityPrice.exactUnitPrice(hitCost);
+        // decay-pays-per-block-degraded-and-bite: a hit the player cannot pay for does not land
+        if (!price.affords(perHit)) {
             return true;
         }
+        if (landed(host, context)) {
+            price.pay(perHit);
+        }
+        return true;
+    }
+
+    /**
+     * Lands the hit on the host's target, or a heal in its place on an undead target.
+     *
+     * @param host    the target's host
+     * @param context the tick's scope
+     * @return true where the hit or the heal landed
+     */
+    private boolean landed(TargetHost host, StepContext context) {
+        LivingEntity target = host.target();
+        if (healsUndead && (UndeadInversion.inverts(target) || UndeadInversion.sparesCaster(target, host.thrower()))) {
+            return healedInPlace(target, context);
+        }
+        return hurt(target, host.thrower(), context);
+    }
+
+    /**
+     * Heals an undead target in place of the hit, or leaves a living caster
+     * the hit reached as it stands.
+     * decision decay-and-hive-heal-an-undead-target
+     * decision undead-player-counts-as-undead-for-heal-and-decay
+     *
+     * @param target  the undead target, or the living caster the hit reached
+     * @param context the tick's scope
+     * @return true where a heal landed
+     */
+    private boolean healedInPlace(LivingEntity target, StepContext context) {
+        return UndeadInversion.inverts(target)
+                && UndeadInversion.healUndead(target, amount.evaluateFloat(context), iFrames);
+    }
+
+    /**
+     * Hurts the target by the amount.
+     *
+     * @param target  the entity the hit reaches
+     * @param thrower the entity whose hit it is, or null
+     * @param context the tick's scope
+     * @return true where the hurt landed
+     */
+    private boolean hurt(LivingEntity target, @Nullable Entity thrower, StepContext context) {
         // A goo hit clears damage immunity on both sides, so a touch and the melee hit of the same
         // attack-key press both land in full, in either order; a held bite respecting i-frames leaves it be.
         // decision attack-key-touches-plus-punches
@@ -131,7 +205,7 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
             target.invulnerableTime = 0;
         }
         Vec3 before = target.getDeltaMovement();
-        target.hurtServer((ServerLevel) target.level(), damageSource(target, context.hostAs(TargetHost.class).thrower()),
+        boolean hurt = target.hurtServer((ServerLevel) target.level(), damageSource(target, thrower),
                 amount.evaluateFloat(context));
         if (!knockback) {
             // An attacker's hit knocks back on the server, so no knockback restores the motion the hit found.
@@ -141,25 +215,7 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
         if (!iFrames) {
             target.invulnerableTime = invulnerableTicks.map(ticks -> ticks.evaluateInt(context)).orElse(0);
         }
-        return true;
-    }
-
-    /**
-     * Heals an undead target in place of the hit, or leaves a living caster
-     * the hit reached as it stands.
-     * decision decay-and-hive-heal-an-undead-target
-     * decision undead-player-counts-as-undead-for-heal-and-decay
-     *
-     * @param target  the entity the hit reaches
-     * @param context the tick's scope
-     * @return true when the hit is spent without hurting
-     */
-    private boolean healedOrSpared(LivingEntity target, StepContext context) {
-        if (UndeadInversion.inverts(target)) {
-            UndeadInversion.healUndead(target, amount.evaluateFloat(context), iFrames);
-            return true;
-        }
-        return UndeadInversion.sparesCaster(target, context.hostAs(TargetHost.class).thrower());
+        return hurt;
     }
 
     /**
@@ -226,6 +282,11 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
     @Override
     public Stream<Expr> expressions() {
         return Stream.concat(Stream.of(amount), invulnerableTicks.stream());
+    }
+
+    @Override
+    public Stream<Expr> unitPrices() {
+        return AbilityPrice.isNothing(hitCost) ? Stream.empty() : Stream.of(hitCost);
     }
 
     @Override

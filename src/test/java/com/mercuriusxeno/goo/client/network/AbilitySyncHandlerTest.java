@@ -4,6 +4,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.ability.AbilityPrice;
+import com.mercuriusxeno.goo.ability.program.DamageStep;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.item.GooFormat;
@@ -97,6 +99,20 @@ class AbilitySyncHandlerTest {
 
             for (AbilitySyncPayload.Entry entry : roundTrip(slick)) {
                 assertEquals(perCubicMeter, ClientAbility.fromEntry(entry).petalLabel(PLENTY, 0));
+            }
+        }
+
+        /** decay-pays-per-block-degraded-and-bite */
+        @Test
+        void decaysPetalReadsItsBlockPriceAndBitePrice() {
+            AbilityDefinition decay = AbilityJson.decode("nether_decay");
+            DamageStep bite = decay.behaviors().stream().filter(DamageStep.class::isInstance)
+                    .map(DamageStep.class::cast).findFirst().orElseThrow();
+            String perBlockAndBite = GooFormat.formatMixed(decay.cost().exactIn(GooValueTable.EMPTY)) + "/block + "
+                    + GooFormat.formatMixed(AbilityPrice.exactUnitPrice(bite.hitCost())) + "/bite";
+
+            for (AbilitySyncPayload.Entry entry : roundTrip(decay)) {
+                assertEquals(perBlockAndBite, ClientAbility.fromEntry(entry).petalLabel(PLENTY, 0));
             }
         }
     }

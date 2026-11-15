@@ -26,13 +26,27 @@ import java.util.function.Consumer;
  * @param target  the struck entity
  * @param thrower the entity that threw the goo, or null when unknown
  * @param share   the share of the hit the target takes, one for a direct hit
+ * @param placementPrice what each hit a held stream lands pays, free outside a stream draining on placement
  */
-public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entity thrower, double share)
+public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entity thrower, double share,
+                         PlacementPrice placementPrice)
         implements TargetHost, ExplodeHost, EntityScanHost {
 
     private static final double BODY_CENTER = 0.5;
     /** The share a direct hit takes: all of it. */
     public static final double WHOLE_HIT = 1;
+
+    /**
+     * The host of a hit taking a share of it, paying nothing of its own.
+     *
+     * @param level   the server level
+     * @param target  the struck entity
+     * @param thrower the entity that threw, or null
+     * @param share   the share of the hit the target takes
+     */
+    public EntityHost(ServerLevel level, LivingEntity target, @Nullable Entity thrower, double share) {
+        this(level, target, thrower, share, PlacementPrice.FREE);
+    }
 
     /**
      * The host of a direct hit, which takes the whole of it.
@@ -43,6 +57,21 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
      */
     public EntityHost(ServerLevel level, LivingEntity target, @Nullable Entity thrower) {
         this(level, target, thrower, WHOLE_HIT);
+    }
+
+    /**
+     * The host of a held stream's direct hit, paying what each hit it lands costs.
+     * decay-pays-per-block-degraded-and-bite
+     *
+     * @param level   the server level
+     * @param target  the struck entity
+     * @param thrower the streaming player
+     * @param price   what each hit pays
+     * @return the host
+     */
+    public static EntityHost paying(ServerLevel level, LivingEntity target, @Nullable Entity thrower,
+                                    PlacementPrice price) {
+        return new EntityHost(level, target, thrower, WHOLE_HIT, price);
     }
 
     @Override

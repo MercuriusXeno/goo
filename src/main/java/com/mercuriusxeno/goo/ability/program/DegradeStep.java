@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.network.HoldMarks;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Block;
 import java.util.List;
@@ -24,7 +25,8 @@ import java.util.stream.Stream;
  * has built the JSON's ticks. A painted block past nine tenths of its step is left to
  * finish alone, even after the hold ends; a position the hold has stepped
  * once it passes over, so stone becomes cobblestone and goes no further in
- * one activation (decision decay-gnats-degrade-each-block-once).
+ * one activation (decision decay-gnats-degrade-each-block-once). Each block
+ * pays its price as it degrades (decision decay-pays-per-block-degraded-and-bite).
  *
  * @param map   the id of the block map the blocks step along
  * @param ticks the ticks of swarm a block takes to step
@@ -67,10 +69,29 @@ public record DegradeStep(Identifier map, int ticks) implements TakesNoEntity {
             if (aim.reaching()) {
                 paintAimed(host, aim, found::next, marks);
             }
+            PlacementPrice price = host.placementPrice();
             // the operator's ruling on Decay: its overlay wears the nether family's dark maroon
-            PaintedHold.buildPainted(host, found::next, marks, 1f / ticks, OptionalInt.of(NETHER_MAROON));
+            PaintedHold.buildPainted(host, found::next, marks, 1f / ticks, OptionalInt.of(NETHER_MAROON),
+                    (pos, raw, into) -> degradePaidFor(host, price, pos, into));
         }));
         return true;
+    }
+
+    /**
+     * Degrades a block once the player pays its price, the ability's cost,
+     * the hold's or a block finishing alone after release alike; a block the
+     * player cannot pay for stays as it stood.
+     * decay-pays-per-block-degraded-and-bite
+     *
+     * @param host  the channel host
+     * @param price what the block pays as it degrades
+     * @param pos   the block
+     * @param into  the block it becomes
+     */
+    private static void degradePaidFor(ChannelHost host, PlacementPrice price, BlockPos pos, Block into) {
+        if (price.pay(1)) {
+            host.transformBlock(pos, into.defaultBlockState());
+        }
     }
 
     /**

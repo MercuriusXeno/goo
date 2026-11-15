@@ -1,7 +1,13 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.workbench.AbilitiesModel;
+import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -102,6 +108,27 @@ class AbilitiesTabTest {
             tab.move("rock", 0, 3);
             assertEquals(List.of("goo:c1", "goo:c2", "goo:c3", "goo:m1", "goo:m2"), ids(tab));
             assertFalse(tab.edited(), tab.postedText());
+        }
+    }
+
+    /**
+     * An ability paying by each thing it does lists each of its unit prices among its cost fields: its cost for the
+     * first unit and each step's own price field for any other
+     * (decisions decay-pays-per-block-degraded-and-bite, abilities-tab-lists-every-numeric-param-as-expression-boxes).
+     */
+    @org.junit.jupiter.api.Nested
+    class UnitPrices {
+
+        @Test
+        void decaysBlockPriceAndBitePriceAreItsCostFields() {
+            String name = "nether_decay";
+            Identifier id = AbilityJson.idOf(name + ".json");
+            JsonObject file = JsonParser.parseString(AbilityJson.read(name)).getAsJsonObject();
+            AbilitiesTab tab = new AbilitiesTab();
+            tab.readModel(AbilitiesModel.model(Map.of(id, file), Map.of()).toString());
+
+            AbilitiesTab.Ability decay = tab.abilities().getFirst();
+            assertEquals(List.of("cost", "hit_cost"), decay.prices().stream().map(AbilitiesTab.Leaf::field).toList());
         }
     }
 

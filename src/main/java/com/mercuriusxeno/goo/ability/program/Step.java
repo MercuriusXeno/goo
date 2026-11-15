@@ -52,6 +52,18 @@ public interface Step {
     Set<HostCapability> requires();
 
     /**
+     * Streams the price fields the step charges for its own units through its
+     * host's placement price, beside the ability's cost, each priced as the
+     * cost is; the petal and the cost text fill each after the cost.
+     * decay-pays-per-block-degraded-and-bite
+     *
+     * @return the step's unit prices, none for a step charging nothing of its own
+     */
+    default Stream<Expr> unitPrices() {
+        return Stream.empty();
+    }
+
+    /**
      * Streams the child steps a container step holds, so the load check
      * reaches every step of the tree; a leaf step streams nothing.
      *

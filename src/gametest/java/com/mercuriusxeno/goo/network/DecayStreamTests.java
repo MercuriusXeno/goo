@@ -1,12 +1,18 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityPrice;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.DamageStep;
 import com.mercuriusxeno.goo.ability.program.DegradeStep;
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
+import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
@@ -51,6 +57,189 @@ public final class DecayStreamTests {
         GooTestFunctions.registerTest(registrar, DECAY_HEALS_ZOMBIE, DecayStreamTests::decayHealsAWoundedZombie);
         GooTestFunctions.registerTest(registrar, DECAY_HEALS_UNDEAD_CASTER, DecayStreamTests::decayHealsItsUndeadCaster);
         GooTestFunctions.registerTest(registrar, DECAY_SPARES_LIVING_CASTER, DecayStreamTests::decaySparesItsLivingCaster);
+        GooTestFunctions.registerTest(registrar, DECAY_PAYS_PER_BLOCK, DecayStreamTests::decayPaysABlocksPricePerBlockDegraded);
+        GooTestFunctions.registerTest(registrar, DECAY_PAYS_PER_BITE, DecayStreamTests::decayPaysABitesPricePerBiteLanded);
+        GooTestFunctions.registerTest(registrar, DECAY_PAYS_NOTHING_DOING_NOTHING,
+                DecayStreamTests::decayPaysNothingDegradingAndBitingNothing);
+        GooTestFunctions.registerTest(registrar, DECAY_DEGRADES_NO_UNPAID_BLOCK,
+                DecayStreamTests::decayDegradesNoBlockItCannotPayFor);
+    }
+
+    /**
+     * A Decay hold with goo to spare degrades one stone, then turns onto a
+     * second and degrades it: the player's nether goo falls by the block
+     * price for each block degraded, and nothing for the ticks held.
+     * decay-pays-per-block-degraded-and-bite
+     *
+     * @param helper the gametest helper
+     */
+    public static void decayPaysABlocksPricePerBlockDegraded(GameTestHelper helper) {
+        ServerPlayer player = decayerOverStone(helper);
+        BlockPos second = layStone(helper, SECOND_TARGET_POS);
+        int before = netherHeld(player);
+        int ended = holdOnEachInTurn(helper, player, second, 1);
+        helper.runAfterDelay(ended, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            int degraded = cobbled(helper, TARGET_POS) + cobbled(helper, second);
+            helper.assertTrue(degraded > 0, SHOULD_DEGRADE);
+            assertDrained(helper, blockPrice(helper).times(degraded), before - netherHeld(player));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A Decay hold on a vindicator two blocks out bites it while the hold
+     * lasts: the player's nether goo falls by the bite price for each bite
+     * that lands, a landed bite being one the vindicator's health fell by.
+     * decay-pays-per-block-degraded-and-bite
+     *
+     * @param helper the gametest helper
+     */
+    public static void decayPaysABitesPricePerBiteLanded(GameTestHelper helper) {
+        helper.setBlock(IN_THE_CONE.below(), Blocks.BEDROCK);
+        Mob vindicator = helper.spawnWithNoFreeWill(EntityType.VINDICATOR, IN_THE_CONE);
+        ServerPlayer player = decayer(helper);
+        player.lookAt(EntityAnchorArgument.Anchor.EYES, vindicator.getBoundingBox().getCenter());
+        int before = netherHeld(player);
+        int[] bites = {0};
+        float[] health = {vindicator.getHealth()};
+        helper.onEachTick(() -> {
+            if (vindicator.getHealth() < health[0]) {
+                bites[0]++;
+            }
+            health[0] = vindicator.getHealth();
+        });
+        hold(helper, player, 1, BITING_TICKS);
+        helper.runAfterDelay(BITING_TICKS + SETTLE_TICKS, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(bites[0] > 0, SHOULD_BITE);
+            assertDrained(helper, bitePrice(helper).times(bites[0]), before - netherHeld(player));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A Decay hold aimed at the open sky for several seconds degrades no
+     * block and bites no mob, and leaves the player's nether goo as it
+     * started.
+     * decay-pays-per-block-degraded-and-bite
+     *
+     * @param helper the gametest helper
+     */
+    public static void decayPaysNothingDegradingAndBitingNothing(GameTestHelper helper) {
+        ServerPlayer player = decayer(helper);
+        player.setXRot(LOOKING_AT_SKY);
+        int before = netherHeld(player);
+        hold(helper, player, 1, OPEN_AIR_TICKS);
+        helper.runAfterDelay(OPEN_AIR_TICKS + SETTLE_TICKS, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            assertDrained(helper, GooFraction.ZERO, before - netherHeld(player));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A player holding exactly one block price holds Decay at the open sky
+     * for a second, then on one stone and then a second: the first degrades,
+     * the second stays stone, and the nether goo runs out. The second at the
+     * sky first spends what a hold paying by the tick would, so the one
+     * price reaches the stone only where nothing is charged for time.
+     * decay-pays-per-block-degraded-and-bite
+     *
+     * @param helper the gametest helper
+     */
+    public static void decayDegradesNoBlockItCannotPayFor(GameTestHelper helper) {
+        ServerPlayer player = decayerOverStone(helper);
+        BlockPos second = layStone(helper, SECOND_TARGET_POS);
+        GooSourceScanner.deplete(player, GooTypes.NETHER, netherHeld(player) - blockPrice(helper).ceiling());
+        player.setXRot(LOOKING_AT_SKY);
+        hold(helper, player, 1, SKY_LEAD_IN_TICKS);
+        helper.runAfterDelay(SKY_LEAD_IN_TICKS, () -> player.setXRot(LOOKING_AT_BLOCK));
+        int ended = SKY_LEAD_IN_TICKS + holdOnEachInTurn(helper, player, second, SKY_LEAD_IN_TICKS + 1);
+        helper.runAfterDelay(ended, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertBlockPresent(Blocks.COBBLESTONE, TARGET_POS);
+            helper.assertBlockPresent(Blocks.STONE, second);
+            helper.assertTrue(netherHeld(player) == 0, SHOULD_RUN_OUT + netherHeld(player));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Holds Decay on the stone at the target long enough to step it, then
+     * turns the look onto a second stone and holds as long again.
+     *
+     * @param helper the gametest helper
+     * @param player the decaying player, aimed at the target
+     * @param second the second stone
+     * @param from   the first tick of the hold
+     * @return the ticks from the hold's start to its reading, the second stone given time to finish
+     */
+    private static int holdOnEachInTurn(GameTestHelper helper, ServerPlayer player, BlockPos second, int from) {
+        int finish = finishTicks(helper);
+        hold(helper, player, from, finish * 2);
+        helper.runAfterDelay(from + finish, () -> player.lookAt(EntityAnchorArgument.Anchor.EYES,
+                Vec3.atCenterOf(helper.absolutePos(second))));
+        return finish * 2 + SETTLE_TICKS;
+    }
+
+    /**
+     * Lays stone on bedrock.
+     *
+     * @param helper the gametest helper
+     * @param pos    where the stone stands
+     * @return the stone's position
+     */
+    private static BlockPos layStone(GameTestHelper helper, BlockPos pos) {
+        helper.setBlock(pos.below(), Blocks.BEDROCK);
+        helper.setBlock(pos, Blocks.STONE);
+        return pos;
+    }
+
+    private static int cobbled(GameTestHelper helper, BlockPos pos) {
+        return helper.getBlockState(pos).is(Blocks.COBBLESTONE) ? 1 : 0;
+    }
+
+    /**
+     * Decay's price for each block it degrades, its cost, read from the loaded definition.
+     *
+     * @param helper the gametest helper
+     * @return the exact price in mb
+     */
+    private static GooFraction blockPrice(GameTestHelper helper) {
+        AbilityDefinition decay = AbilityRegistry.of(helper.getLevel()).getAbility(NETHER_DECAY);
+        helper.assertTrue(decay != null, ABILITY_REQUIRED);
+        return decay.cost().exactIn(GooValues.of(helper.getLevel()));
+    }
+
+    /**
+     * Decay's price for each bite that lands, its damage step's hit cost, read from the loaded definition.
+     *
+     * @param helper the gametest helper
+     * @return the exact price in mb
+     */
+    private static GooFraction bitePrice(GameTestHelper helper) {
+        AbilityDefinition decay = AbilityRegistry.of(helper.getLevel()).getAbility(NETHER_DECAY);
+        helper.assertTrue(decay != null, ABILITY_REQUIRED);
+        DamageStep bite = decay.behaviors().stream().filter(DamageStep.class::isInstance).map(DamageStep.class::cast)
+                .findFirst().orElseThrow();
+        return AbilityPrice.exactUnitPrice(bite.hitCost());
+    }
+
+    private static int netherHeld(ServerPlayer player) {
+        return GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.NETHER, 0);
+    }
+
+    /**
+     * Asserts a hold drained the whole mb an exact price comes to, the part
+     * of a mb overpaid banked in the player's remainder.
+     *
+     * @param helper  the gametest helper
+     * @param price   the exact price the hold should pay
+     * @param drained the mb the hold drained
+     */
+    private static void assertDrained(GameTestHelper helper, GooFraction price, int drained) {
+        helper.assertTrue(drained == price.ceiling(), String.format(DRAINED_WRONG, price, drained));
     }
 
     /**
@@ -219,6 +408,23 @@ public final class DecayStreamTests {
      * off, behind it, lies under three degrees from that line, inside the cone.
      */
     private static final float LOOKING_AT_VINDICATOR = 9.2f;
+    private static final String DECAY_PAYS_PER_BLOCK = "decay_pays_a_blocks_price_per_block_degraded";
+    private static final String DECAY_PAYS_PER_BITE = "decay_pays_a_bites_price_per_bite_landed";
+    private static final String DECAY_PAYS_NOTHING_DOING_NOTHING = "decay_pays_nothing_degrading_and_biting_nothing";
+    private static final String DECAY_DEGRADES_NO_UNPAID_BLOCK = "decay_pays_for_and_degrades_no_block_it_cannot_afford";
+    /** Two blocks north of the target, a second stone the look turns onto. */
+    private static final BlockPos SECOND_TARGET_POS = TARGET_POS.north(2);
+    /** Two seconds of biting, room for several bites at the bite's pace. */
+    private static final int BITING_TICKS = 40;
+    /** Three seconds of a hold at the open sky. */
+    private static final int OPEN_AIR_TICKS = 60;
+    /** A second at the open sky before the stones, what a hold paying by the tick would spend one price on. */
+    private static final int SKY_LEAD_IN_TICKS = 20;
+    /** Ticks after a hold ends before its reading, so a last tick's charge and hit both stand. */
+    private static final int SETTLE_TICKS = 3;
+    private static final String SHOULD_DEGRADE = "Decay should degrade at least one of the two stones";
+    private static final String SHOULD_RUN_OUT = "The player should hold no nether goo, holds ";
+    private static final String DRAINED_WRONG = "The hold should drain %s mb of nether goo, drained %d";
 
     private DecayStreamTests() {
     }

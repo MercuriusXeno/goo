@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:decay_pays_for_and_degrades_no_block_it_cannot_afford",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

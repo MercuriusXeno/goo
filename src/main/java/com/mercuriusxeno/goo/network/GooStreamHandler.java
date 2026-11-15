@@ -276,12 +276,14 @@ public final class GooStreamHandler {
         CastOn cast = new CastOn(level, player, ability.id());
         List<Step> entitySteps = channelSteps(ability.behaviors(), false);
         TickHeals heals = new TickHeals(new ArrayList<>(), new ArrayList<>());
+        PlacementPrice price = placementPrice(player, ability);
         if (delivery.range() > 0 || delivery.throwsDrips()) {
             // reserve-hearts-sit-behind-the-bar: a stream reaching nothing runs only on its caster
             List<LivingEntity> struck = sprayAndStrike(cast, apex, axis, ability, delivery, held);
             boolean heal = heals(entitySteps);
             for (LivingEntity living : struck) {
-                HEALS.runNoting(living, heals.healed(), () -> runSteps(new EntityHost(level, living, player),
+                // decay-pays-per-block-degraded-and-bite
+                HEALS.runNoting(living, heals.healed(), () -> runSteps(EntityHost.paying(level, living, player, price),
                         HostKind.ENTITY, entitySteps, cast));
                 if (heal) {
                     // touched-mobs-show-hearts-or-a-count-over-max: a mob already at full life shows its life too
@@ -290,7 +292,7 @@ public final class GooStreamHandler {
             }
             sprayFloors(player, apex, axis, ability, delivery);
         }
-        strikeCaster(cast, ability, apex, entitySteps, heals);
+        strikeCaster(cast, ability, apex, entitySteps, heals, price);
     }
 
     /**
@@ -408,8 +410,8 @@ public final class GooStreamHandler {
      * @param ability the stream ability
      */
     static void strikeLiving(ServerLevel level, ServerPlayer caster, LivingEntity living, AbilityDefinition ability) {
-        runSteps(new EntityHost(level, living, caster), HostKind.ENTITY, channelSteps(ability.behaviors(), false),
-                new CastOn(level, caster, ability.id()));
+        runSteps(EntityHost.paying(level, living, caster, placementPrice(caster, ability)), HostKind.ENTITY,
+                channelSteps(ability.behaviors(), false), new CastOn(level, caster, ability.id()));
     }
 
     /**
@@ -443,13 +445,15 @@ public final class GooStreamHandler {
      * @param apex        the cone's apex
      * @param entitySteps the entity pass's steps
      * @param heals       who the tick healed and touched so far; the caster joins the healed
+     * @param price       what each hit the entity pass lands pays
      */
     private static void strikeCaster(CastOn cast, AbilityDefinition ability, Vec3 apex, List<Step> entitySteps,
-                                     TickHeals heals) {
+                                     TickHeals heals, PlacementPrice price) {
         ServerPlayer player = cast.player();
         if (ability.hasTag(AbilityTags.SELF)) {
             HEALS.runNoting(player, heals.healed(),
-                    () -> runSteps(new PlayerHost(cast.level(), player), HostKind.PLAYER, entitySteps, cast));
+                    () -> runSteps(PlayerHost.paying(cast.level(), player, price), HostKind.PLAYER, entitySteps,
+                            cast));
         }
         if (!heals.healed().isEmpty() || !heals.touched().isEmpty()) {
             // the client homes goo to each healed thing and stars it, and shows each touched mob's life
@@ -547,21 +551,18 @@ public final class GooStreamHandler {
     }
 
     /**
-     * What each thing a stream lays pays as it lands: for a stream draining
-     * on placement, the cost over the placements one cost buys, charged
-     * exactly with the remainder paying first; for any other, nothing.
+     * What each thing a stream does pays as it happens: for a stream draining
+     * on placement, a share of its cost for each thing it lays and a step's
+     * own price for each hit it lands; for any other, nothing.
      * goop-drains-per-cubic-meter-of-slime-placed
+     * decay-pays-per-block-degraded-and-bite
      *
      * @param player  the streaming player
      * @param ability the stream ability
      * @return the placement price
      */
     static PlacementPrice placementPrice(ServerPlayer player, AbilityDefinition ability) {
-        if (!ability.delivery().drainsOnPlacement()) {
-            return PlacementPrice.FREE;
-        }
-        return placementsPerCost -> AbilityCharges.charge(player, ability.gooType(),
-                ability.cost().exactIn(GooValues.of(player.level())).dividedBy(placementsPerCost));
+        return ability.delivery().drainsOnPlacement() ? new StreamPrice(player, ability) : PlacementPrice.FREE;
     }
 
     /**

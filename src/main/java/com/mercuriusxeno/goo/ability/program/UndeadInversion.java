@@ -97,16 +97,18 @@ public final class UndeadInversion {
      * @param target     the undead entity
      * @param amount     the health the harm would have taken
      * @param atHarmPace whether the harm respected i-frames, so the heal keeps its pace
+     * @return true where the heal landed, false where it waits out the harm's pace
      */
-    public static void healUndead(LivingEntity target, float amount, boolean atHarmPace) {
+    public static boolean healUndead(LivingEntity target, float amount, boolean atHarmPace) {
         long now = target.level().getGameTime();
         if (atHarmPace) {
             if (now < NEXT_PACED_HEAL.getOrDefault(target, now)) {
-                return;
+                return false;
             }
             NEXT_PACED_HEAL.put(target, now + HARM_PACE_TICKS);
         }
         target.heal(amount);
+        return true;
     }
 
     /**

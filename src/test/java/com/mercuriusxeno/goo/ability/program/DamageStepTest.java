@@ -93,11 +93,9 @@ class DamageStepTest {
         when(cow.level()).thenReturn(mock(ServerLevel.class));
         when(cow.damageSources()).thenReturn(mock(DamageSources.class));
         when(cow.getDeltaMovement()).thenReturn(Vec3.ZERO);
-        TargetHost host = mock(TargetHost.class);
-        when(host.target()).thenReturn(cow);
 
         DamageStep strike = boresStrike();
-        strike.tick(new StepContext(host, 0, 0));
+        strike.tick(new StepContext(hostOn(cow), 0, 0));
 
         assertEquals(strike.invulnerableTicks().orElseThrow().evaluateInt(Variables.NONE), cow.invulnerableTime);
     }
@@ -161,9 +159,11 @@ class DamageStepTest {
         return target;
     }
 
+    // A host whose hits pay nothing of their own, as a throw's or a stream paying by the tick does.
     private static TargetHost hostOn(LivingEntity target) {
         TargetHost host = mock(TargetHost.class);
         when(host.target()).thenReturn(target);
+        when(host.placementPrice()).thenReturn(PlacementPrice.FREE);
         return host;
     }
     private static DamageStep urchinsStab() {

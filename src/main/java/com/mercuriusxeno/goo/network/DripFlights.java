@@ -137,7 +137,7 @@ public final class DripFlights {
             return;
         }
         DripLanding landing = thrower.landing().get();
-        ChannelHost host = PlayerHost.landing(level, caster, GooStreamHandler.placementPrice(caster,
+        ChannelHost host = PlayerHost.paying(level, caster, GooStreamHandler.placementPrice(caster,
                 thrower.ability()));
         landing.cellFed(host, strike).ifPresent(cell -> landing.feed(host, cell));
     }

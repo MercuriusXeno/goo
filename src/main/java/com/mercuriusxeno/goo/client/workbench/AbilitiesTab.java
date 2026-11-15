@@ -79,10 +79,11 @@ public final class AbilitiesTab {
      */
     public record Leaf(String path, String value, Kind kind, String mechanism, String field) {
         // Each price field as its mechanism and field read: the cost and upkeep, a blink's trip prices, Zone's
-        // way in and platform prices.
+        // way in and platform prices, and a held stream's price for each hit it lands
+        // (decision decay-pays-per-block-degraded-and-bite).
         private static final Set<String> PRICES = Set.of("cost.cost", "upkeep.upkeep",
                 "cost_per_block.cost_per_block", "wall_cost.wall_cost", "node_percent.node_percent", "zone.enter",
-                "zone.cell_cost", "zone.distance_cost");
+                "zone.cell_cost", "zone.distance_cost", "damage.hit_cost");
 
         /**
          * @return whether the leaf prices the ability, which the tab shows; it shows no other param
