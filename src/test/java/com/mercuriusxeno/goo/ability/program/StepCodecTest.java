@@ -54,6 +54,7 @@ class StepCodecTest {
             Map.entry("cool_lava", new CoolLavaStep()),
             Map.entry("coat", new CoatStep()),
             Map.entry("slick", new SlickStep(1.03, 1.08, 40, 1, 0.3)),
+            Map.entry("dowse", new DowseStep()),
             Map.entry("vacuum", new VacuumStep(1.25, 5)),
             Map.entry("vacuum_pull", new VacuumPullStep(1, 0.2, 1.5)),
             Map.entry("wobble", new WobbleStep(Expr.literal(600))),

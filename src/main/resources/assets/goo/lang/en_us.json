@@ -110,6 +110,7 @@
   "block.goo.zap_pulse": "Zap Pulse",
   "block.goo.slime_coat": "Slime Coat",
   "block.goo.kinetic_slick": "Slick",
+  "block.goo.astral_dowsing": "Dowsing",
 
   "goo.badge.world": "World",
   "goo.badge.mob": "Mob",
@@ -159,6 +160,9 @@
   "goo.ability.crystal.scales.description": "Crystal shells on your hearts block damage before it reaches your life.",
   "goo.ability.crystal.prism": "Prism",
   "goo.ability.crystal.prism.description": "Grows a prism where it lands, which reacts with other goo types.",
+  "goo.ability.astral.dowsing": "Dowsing",
+  "goo.ability.astral.dowsing.cost_mechanics": "Costs %s per block of Dowsing goo laid, a fifteenth of it per layer.",
+  "goo.ability.astral.dowsing.description": "Held stream lays a starry film; looking through it shows the gem and metal ores behind it, a block deeper per layer.",
   "goo.ability.astral.meteo": "Meteo",
   "goo.ability.astral.meteo.description": "Calls a meteor down; it crashes through whatever stands above.",
   "goo.ability.astral.scry": "Scry",
