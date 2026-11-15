@@ -147,9 +147,7 @@ public final class GloveInputGate {
 
     /**
      * The scatter the live press slings its knives by, rolled anew each
-     * press and held through it, so the lines hold still while held and the
-     * server throws the knives along them.
-     * knives-aims-a-spread-fan-not-a-blob-line
+     * press and held through it.
      *
      * @return the press's scatter seed
      */

@@ -12,9 +12,7 @@ import java.util.Optional;
  * Client-to-server payload: a charged ability let go, carrying how many
  * ticks the glove's use was held, which the server reads as the share of a
  * full charge (decision nova-ring-grows-with-the-hold), the press's
- * scatter seed, which a slinging release throws its knives by so they fly
- * along the lines the client drew (decision knives-aims-a-spread-fan-not-a-blob-line),
- * and, for a spontaneous cast, the target the crosshair aimed as it let go
+ * scatter seed, which a slinging release throws its knives by, and, for a spontaneous cast, the target the crosshair aimed as it let go
  * (decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob).
  *
  * @param gooTypeId   the goo type string identifier

@@ -100,8 +100,7 @@ public final class KnifeRain {
 
     /**
      * Each knife's velocity leaving the hand for a release at a share of the
-     * charge: the one scatter the server slings and the client's aim lines draw.
-     * knives-aims-a-spread-fan-not-a-blob-line
+     * charge, the scatter the server slings.
      *
      * @param yaw    the thrower's yaw, in degrees
      * @param pitch  the thrower's pitch, in degrees
@@ -219,10 +218,8 @@ public final class KnifeRain {
      * the float point at the hand's place across the chest that many ticks
      * into the backhand, from wherever the held charge's wind-up got to. The
      * server launches each knife from it at that knife's own launch tick, so
-     * the blob spews them along the hand's path; the client roots each aim
-     * line at it before the release.
+     * the blob spews them along the hand's path.
      * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
-     * knives-aims-a-spread-fan-not-a-blob-line
      *
      * @param eye          the thrower's eye
      * @param yaw          the thrower's yaw, in degrees

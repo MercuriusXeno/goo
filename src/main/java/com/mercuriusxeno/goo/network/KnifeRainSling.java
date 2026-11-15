@@ -56,8 +56,9 @@ public final class KnifeRainSling {
     /**
      * Pays the release's cost and reagents once and queues each knife to
      * leave the floating blob on its tick; the releasing client poses the arm's fling.
-     * The scatter comes from the press's seed, so each knife flies along the
-     * line the client drew for it (decision knives-aims-a-spread-fan-not-a-blob-line).
+     * The scatter comes from the press's seed; the client draws no line for
+     * any knife, the vanilla crosshair aiming the volley.
+     * knives-draws-no-aim-lines-the-vanilla-crosshair-aims-it
      *
      * @param player    the releasing player
      * @param gooType   the ability's goo type
