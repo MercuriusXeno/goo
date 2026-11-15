@@ -153,8 +153,8 @@ class BoreDrillTest {
         }
 
         @Test
-        void aWiderDrillReachingFartherPastIsTheConeItsBreakReads() {
-            assertTheConeTheBreakReads(new BoreDrillShape(1, 2, 22.5, 1));
+        void aDrillWhoseFourNumbersAllDifferFromTheShippedIsTheConeItsBreakReads() {
+            assertTheConeTheBreakReads(new BoreDrillShape(0.7, 3, 10, 0.5));
         }
 
         @Test
