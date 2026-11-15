@@ -25,9 +25,11 @@ import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.WeakHashMap;
 
@@ -53,6 +55,7 @@ import java.util.WeakHashMap;
  * rally-cast-on-your-rallied-mob-releases-it
  * each-rallied-mob-locks-into-a-fixed-slot
  * slots-follow-rally-order-size-and-count
+ * rallied-mobs-share-their-ralliers-speed
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class RallyEvents {
@@ -77,10 +80,15 @@ public final class RallyEvents {
     private static final double FOLLOW_SPEED = 1.0;
     /** Ticks between one path to a moving rallier and the next. */
     private static final int REPATH_TICKS = 10;
-    /** How near its spot a minion whose path has ended walks straight at it, a path's own reach and a half block. */
-    private static final double LAST_STRETCH = 1.5;
+    /**
+     * How near its spot a minion walks straight at it rather than along a
+     * path, in blocks: past the slot's travel between two re-paths at a run.
+     */
+    private static final double LAST_STRETCH = 3.0;
     /** Each unengaged minion's spot from last tick, held weakly so a mob gone from the world drops out. */
     private static final Map<Mob, Vec3> HELD_SPOTS = new WeakHashMap<>();
+    /** Each minion locked into its slot last tick, held weakly so a mob gone from the world drops out. */
+    private static final Set<Mob> LOCKED_IN = Collections.newSetFromMap(new WeakHashMap<>());
 
     private RallyEvents() {
     }
@@ -165,11 +173,13 @@ public final class RallyEvents {
     }
 
     /**
-     * Fights the caster's foe in reach; with none, walks to the spot on the
-     * side the caster heads toward and holds there once the caster stops, or
-     * with no spot follows the caster.
+     * Fights the caster's foe in reach; with none, catches up to its slot on
+     * the side the caster heads toward and marches there at the caster's
+     * speed, or with no spot follows the caster.
      * rallied-mobs-follow-the-player-who-rallied-them
      * unengaged-minions-move-where-you-move
+     * each-rallied-mob-locks-into-a-fixed-slot
+     * rallied-mobs-share-their-ralliers-speed
      *
      * @param level  the mob's level
      * @param mob    the rallied mob
@@ -181,13 +191,62 @@ public final class RallyEvents {
         List<RallyFoes.Candidate<LivingEntity>> nearby = candidatesNear(mob, caster);
         Optional<LivingEntity> foe = RallyFoes.pick(caster.getUUID(), standingAttacker(mob, rally, nearby),
                 uuidOf(caster.getLastHurtByMob()), uuidOf(caster.getLastHurtMob()), nearby);
-        Optional<Vec3> spot = foe.isPresent() ? Optional.empty() : spotInFormation(level, mob, caster);
+        Vec3 rallierVelocity = RallierMotion.velocityOf(caster, level.getGameTime());
+        Optional<Vec3> spot = foe.isPresent() ? Optional.empty()
+                : spotInFormation(level, mob, caster, rallierVelocity);
         spot.ifPresentOrElse(taken -> HELD_SPOTS.put(mob, taken), () -> HELD_SPOTS.remove(mob));
-        switch (RallyFollow.choose(foe.isPresent(), mob.position(), caster.position(), spot)) {
-            case FIGHT -> fight(level, mob, foe.orElseThrow(), rally.damage());
-            case PRE_EMPT -> walkTo(mob, spot.orElseThrow());
-            case FOLLOW -> follow(mob, caster);
-            case HOLD -> mob.getNavigation().stop();
+        boolean wasLockedIn = LOCKED_IN.remove(mob);
+        RallyFollow.Move move = RallyFollow.choose(foe.isPresent(), mob.position(), caster.position(), spot,
+                wasLockedIn);
+        if (move == RallyFollow.Move.MARCH) {
+            LOCKED_IN.add(mob);
+        }
+        if (move == RallyFollow.Move.FIGHT) {
+            fight(level, mob, foe.orElseThrow(), rally.damage());
+        } else {
+            walk(mob, caster, move, spot, rallierVelocity.horizontalDistance());
+        }
+    }
+
+    /**
+     * Walks an unengaged minion by its move: a catch-up faster than its
+     * rallier to its slot, a march at the rallier's speed in it, or a walk
+     * to or a stand by a standing rallier it holds no slot near.
+     * rallied-mobs-share-their-ralliers-speed
+     *
+     * @param mob          the rallied mob
+     * @param caster       the entity that rallied it
+     * @param move         the mob's move this tick, never a fight
+     * @param spot         the spot of its slot, empty for none
+     * @param rallierSpeed the rallier's smoothed horizontal speed, in blocks a tick
+     */
+    private static void walk(Mob mob, LivingEntity caster, RallyFollow.Move move, Optional<Vec3> spot,
+                             double rallierSpeed) {
+        double ownSpeed = mob.getAttributeValue(Attributes.MOVEMENT_SPEED);
+        double catchUp = RallyFollow.pace(rallierSpeed, ownSpeed, false);
+        switch (move) {
+            case CATCH_UP -> walkTo(mob, spot.orElseThrow(), catchUp);
+            case MARCH -> march(mob, spot.orElseThrow(), RallyFollow.pace(rallierSpeed, ownSpeed, true));
+            case FOLLOW -> follow(mob, caster, catchUp);
+            default -> mob.getNavigation().stop();
+        }
+    }
+
+    /**
+     * Moves a locked-in minion as its rallier moved: straight at its slot,
+     * which moved with the rallier, at the pace matching the rallier's speed,
+     * so a standing rallier's minion stands.
+     * each-rallied-mob-locks-into-a-fixed-slot
+     * rallied-mobs-share-their-ralliers-speed
+     *
+     * @param mob  the rallied mob
+     * @param spot the spot of its slot
+     * @param pace the speed modifier matching its rallier's speed
+     */
+    private static void march(Mob mob, Vec3 spot, double pace) {
+        mob.getNavigation().stop();
+        if (pace > 0.0) {
+            mob.getMoveControl().setWantedPosition(spot.x, mob.getY(), spot.z, pace);
         }
     }
 
@@ -198,15 +257,15 @@ public final class RallyEvents {
      * each-rallied-mob-locks-into-a-fixed-slot
      * slots-follow-rally-order-size-and-count
      *
-     * @param level  the mob's level
-     * @param mob    the rallied mob
-     * @param caster the entity that rallied it
+     * @param level           the mob's level
+     * @param mob             the rallied mob
+     * @param caster          the entity that rallied it
+     * @param rallierVelocity the caster's smoothed velocity, in blocks a tick
      * @return the spot, or empty for none
      */
-    private static Optional<Vec3> spotInFormation(ServerLevel level, Mob mob, LivingEntity caster) {
-        long gameTime = level.getGameTime();
-        Vec3 rallierVelocity = RallierMotion.velocityOf(caster, gameTime);
-        return RallierFormation.slotOf(caster, mob, () -> ralliedBy(caster), gameTime)
+    private static Optional<Vec3> spotInFormation(ServerLevel level, Mob mob, LivingEntity caster,
+                                                  Vec3 rallierVelocity) {
+        return RallierFormation.slotOf(caster, mob, () -> ralliedBy(caster), level.getGameTime())
                 .flatMap(slot -> RallyFollow.spot(Optional.ofNullable(HELD_SPOTS.get(mob)), caster.position(),
                         rallierVelocity, slot));
     }
@@ -273,29 +332,47 @@ public final class RallyEvents {
      * @param followed the entity it follows
      */
     static void follow(Mob mob, LivingEntity followed) {
-        if (mob.getNavigation().isDone() || mob.tickCount % REPATH_TICKS == 0) {
-            mob.getNavigation().moveTo(followed, FOLLOW_SPEED);
-        }
+        follow(mob, followed, FOLLOW_SPEED);
     }
 
     /**
-     * Walks a rallied mob to the spot on the side its moving rallier heads
-     * toward, re-pathing as the spot moves with the rallier.
+     * Walks a mob toward the one it follows at a pace, re-pathing as that one moves.
+     * rallied-mobs-share-their-ralliers-speed
+     *
+     * @param mob      the following mob
+     * @param followed the entity it follows
+     * @param pace     the speed modifier its walk takes
+     */
+    private static void follow(Mob mob, LivingEntity followed, double pace) {
+        if (mob.getNavigation().isDone() || mob.tickCount % REPATH_TICKS == 0) {
+            mob.getNavigation().moveTo(followed, pace);
+        }
+        mob.getNavigation().setSpeedModifier(pace);
+    }
+
+    /**
+     * Walks a rallied mob to its slot on the side its moving rallier heads
+     * toward at a catch-up pace, re-pathing as the slot moves with the rallier.
      * unengaged-minions-move-where-you-move
+     * rallied-mobs-share-their-ralliers-speed
      *
      * @param mob  the rallied mob
      * @param spot the spot it walks to
+     * @param pace the speed modifier its walk takes
      */
-    private static void walkTo(Mob mob, Vec3 spot) {
-        // each-rallied-mob-locks-into-a-fixed-slot: a path ends within a block of its target, so a minion whose
-        // path ended near its slot walks the last stretch straight at it
-        if (mob.getNavigation().isDone() && mob.position().subtract(spot).horizontalDistance() <= LAST_STRETCH) {
-            mob.getMoveControl().setWantedPosition(spot.x, mob.getY(), spot.z, FOLLOW_SPEED);
+    private static void walkTo(Mob mob, Vec3 spot, double pace) {
+        // each-rallied-mob-locks-into-a-fixed-slot: a path ends within a block of where its target stood at the
+        // last re-path, so near its moving slot a minion walks the last stretch straight at it
+        if (mob.position().subtract(spot).horizontalDistance() <= LAST_STRETCH) {
+            mob.getNavigation().stop();
+            mob.getMoveControl().setWantedPosition(spot.x, mob.getY(), spot.z, pace);
             return;
         }
         if (mob.getNavigation().isDone() || mob.tickCount % REPATH_TICKS == 0) {
-            mob.getNavigation().moveTo(spot.x, spot.y, spot.z, FOLLOW_SPEED);
+            mob.getNavigation().moveTo(spot.x, spot.y, spot.z, pace);
         }
+        // the pace moves with the rallier between re-paths
+        mob.getNavigation().setSpeedModifier(pace);
     }
 
     /**
@@ -341,6 +418,7 @@ public final class RallyEvents {
     public static void endRally(Mob mob) {
         mob.removeData(GooAttachments.RALLIED);
         HELD_SPOTS.remove(mob);
+        LOCKED_IN.remove(mob);
         mob.goalSelector.enableControlFlag(Goal.Flag.MOVE);
         removeModifier(mob.getAttribute(Attributes.MAX_HEALTH), HEALTH_MODIFIER);
         removeModifier(mob.getAttribute(Attributes.MOVEMENT_SPEED), SPEED_MODIFIER);
