@@ -384,8 +384,12 @@ class AbilitiesPaneTest {
         }
 
         private static DrawnFrame drawn(GroupsPane.Bounds view) {
+            return drawn(view, PRICES_MODEL);
+        }
+
+        private static DrawnFrame drawn(GroupsPane.Bounds view, String model) {
             AbilitiesTab tab = new AbilitiesTab();
-            tab.readModel(PRICES_MODEL);
+            tab.readModel(model);
             ManagerActions actions = mock(ManagerActions.class);
             ItemIcons icons = mock(ItemIcons.class);
             when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
@@ -458,6 +462,37 @@ class AbilitiesPaneTest {
             assertTrue(pencilBeside, "no pencil on the value's line");
             assertTrue(value.x() + DrawnFrame.font().width("3000") <= box[2],
                     "3000 runs past its box " + java.util.Arrays.toString(box));
+        }
+
+        private static final String COST_THEN_UPKEEP = """
+                {"typeOrder": ["blaze"], "abilities": [
+                  {"id": "goo:blaze_flames", "gooType": "blaze", "displayName": "blaze_flames", "draft": false,
+                   "badge": "self", "order": 10, "leaves": [
+                    {"path": "cost", "value": "0", "kind": "COST", "mechanism": "cost", "field": "cost"}, %s]}]}
+                """.formatted(leaf("upkeep", "upkeep", "upkeep", 1));
+
+        /**
+         * Where a field's room fills its column, the next field's label stands a gap past the field's box rather than
+         * against it, as the operator saw Blast's Cost box abut its Upkeep label.
+         */
+        /**
+         * At every section width, the Upkeep label sharing the Cost field's line stands a gap past the Cost box
+         * rather than against it, as the operator saw Blast's Cost box abut its Upkeep label.
+         */
+        @Test
+        void aFieldsBoxStandsAGapShortOfTheNextLabelAtEveryWidth() {
+            List<String> abutting = new ArrayList<>();
+            for (int width = 300; width <= 700; width++) {
+                DrawnFrame frame = drawn(new GroupsPane.Bounds(0, 0, width, 400), COST_THEN_UPKEEP);
+                DrawnFrame.Text upkeep = frame.find("Upkeep");
+                DrawnFrame.Text cost = frame.find("Cost");
+                // The Cost box ends at its pencil's segment, the first pencil drawn.
+                int costRight = frame.buttonAround(frame.findFirst("✎"))[2];
+                if (upkeep.x() > cost.x() && upkeep.x() - costRight < AbilitiesPane.COLUMN_PAD) {
+                    abutting.add("width " + width + ": box right " + costRight + ", Upkeep " + upkeep.x());
+                }
+            }
+            assertEquals(List.of(), abutting);
         }
 
         @Test
