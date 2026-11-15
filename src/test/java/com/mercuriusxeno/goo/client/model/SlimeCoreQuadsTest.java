@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -32,6 +33,9 @@ class SlimeCoreQuadsTest {
 
     private static final float FIFTEENTH = 1f / 15f;
     private static final float EPSILON = 1e-5f;
+    private static final int WHOLE_LAYERS = 15;
+    private static final long SWEEP_SEED = 7L;
+    private static final int SWEEP_TRIALS = 2000;
 
     private static BakedQuad.MaterialInfo coreMaterial(TextureAtlasSprite fluid) {
         return new BakedQuad.MaterialInfo(fluid, ChunkSectionLayer.SOLID, null, SlimeCoreQuads.NO_TINT, true, 0, false);
@@ -140,6 +144,41 @@ class SlimeCoreQuadsTest {
                     coreMaterial(mock(TextureAtlasSprite.class)));
             assertTrue(quads.stream().anyMatch(inPlaneY(1f).and(quad -> quad.direction() == Direction.UP)));
         }
+
+        /**
+         * The shell's top stands at its layers' height and culls only at a
+         * whole block under a cell of its goo, so a core top on that plane
+         * anywhere else would z-fight it. Seeded neighbourhoods of random
+         * cells sweep the rule.
+         */
+        @Test
+        void aCoreTopMeetsItsShellsTopOnlyWhereTheShellCullsItsTop() {
+            Random random = new Random(SWEEP_SEED);
+            BakedQuad.MaterialInfo material = coreMaterial(mock(TextureAtlasSprite.class));
+            for (int trial = 0; trial < SWEEP_TRIALS; trial++) {
+                SameGooCells cells = randomNeighbourhood(random);
+                int layers = cells.layersAt(0, 0, 0);
+                boolean shellTopCulls = layers == WHOLE_LAYERS && cells.layersAt(0, 1, 0) > 0;
+                boolean meetsShellTop = SlimeCoreQuads.quadsOf(cells, material).stream()
+                        .anyMatch(inPlaneY(layers * FIFTEENTH).and(quad -> quad.direction() == Direction.UP));
+                assertFalse(meetsShellTop && !shellTopCulls,
+                        "a core top lies on its shell's drawn top at " + layers + " layers, trial " + trial);
+            }
+        }
+    }
+
+    private static SameGooCells randomNeighbourhood(Random random) {
+        SameGooCells cells = new SameGooCells();
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    if (random.nextBoolean()) {
+                        cells.at(dx, dy, dz, 1 + random.nextInt(WHOLE_LAYERS));
+                    }
+                }
+            }
+        }
+        return cells.at(0, 0, 0, 1 + random.nextInt(WHOLE_LAYERS));
     }
 
     private static Predicate<BakedQuad> inPlaneX(float x) {
