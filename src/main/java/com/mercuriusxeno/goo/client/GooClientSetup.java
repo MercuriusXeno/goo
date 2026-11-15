@@ -73,6 +73,8 @@ import com.mercuriusxeno.goo.client.sound.FadingLoops;
 import com.mercuriusxeno.goo.client.throwing.GooFlightManager;
 import com.mercuriusxeno.goo.client.throwing.GooSizeProperty;
 import com.mercuriusxeno.goo.client.throwing.GooVolumeDecorator;
+import com.mercuriusxeno.goo.client.zone.LunarSky;
+import com.mercuriusxeno.goo.client.zone.LunarSkyRenderer;
 import com.mercuriusxeno.goo.client.zone.PocketStarSky;
 import com.mercuriusxeno.goo.client.zone.PocketStarSkyRenderer;
 import com.mercuriusxeno.goo.item.gasket.TunerAwaitState;
@@ -469,6 +471,8 @@ public final class GooClientSetup {
     @SubscribeEvent
     public static void registerCustomSkies(RegisterCustomEnvironmentEffectRendererEvent event) {
         event.registerSkyboxRenderer(PocketStarSky.ID, new PocketStarSkyRenderer());
+        // decision astral-sky-is-the-void-with-one-bright-blue-overworld-star
+        event.registerSkyboxRenderer(LunarSky.ID, new LunarSkyRenderer());
     }
 
     /**
