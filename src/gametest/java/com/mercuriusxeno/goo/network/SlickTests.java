@@ -99,8 +99,12 @@ public final class SlickTests {
     private static final double ONE_LAYER = 1.0 / 15;
     /** The layers a whole block of slick holds. */
     private static final int WHOLE_BLOCK_LAYERS = 15;
-    /** Two items sliding alike differ by no more than float rounding. */
-    private static final double SAME_SPEED = 1e-6;
+    /**
+     * Two speeds or heights that match differ by no more than float rounding: block friction is a float, and six
+     * ticks of it left two husks on alike slick 2e-6 apart at 0.2478, so the bound is ten times float's share of that
+     * speed, still far under a layer's 1/16 block.
+     */
+    private static final double SAME_SPEED = 1e-5;
     private static final String NEVER_WALKED = "The walkers never crossed from stone onto their slippery lanes:"
             + " slick %s, ice %s";
     private static final String NOT_FASTER_THAN_STONE = "A husk %d ticks onto slick should outpace its walk on stone:"
