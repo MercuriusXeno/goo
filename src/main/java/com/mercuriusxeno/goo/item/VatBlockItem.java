@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.item;
 
+import com.mercuriusxeno.goo.data.IRemainderLedger;
+import com.mercuriusxeno.goo.data.StoredRemainderLedger;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.ResourceKey;
@@ -57,7 +59,27 @@ public class VatBlockItem extends BlockItem implements GooCarrierItem {
         if (label != null) {
             return applyLabelFromCursor(vat, cursor, label);
         }
-        return CanisterInventoryHandler.insertFromCursor(cursor, cursorAccess, (type, volume) -> addGoo(vat, type, volume));
+        // decision goo-item-carries-its-exact-value-as-a-mixed-remainder: the vat item's own ledger banks the part
+        return CanisterInventoryHandler.insertFromCursor(cursor, cursorAccess,
+                GooSink.banking(ledgerOf(vat), (type, volume) -> addGoo(vat, type, volume)));
+    }
+
+    /**
+     * The remainder ledger a vat item holds in its goo contents beside the goo.
+     * decision every-producer-consumer-and-container-holds-a-remainder-buffer
+     *
+     * @param vat the vat item stack
+     * @return the ledger
+     */
+    static IRemainderLedger ledgerOf(ItemStack vat) {
+        return new StoredRemainderLedger(() -> getGooContents(vat).remainders(), remainders -> {
+            GooContents next = getGooContents(vat).withRemainders(remainders);
+            if (next.holdsNothing()) {
+                vat.remove(GooDataComponents.GOO_CONTENTS.get());
+            } else {
+                vat.set(GooDataComponents.GOO_CONTENTS.get(), next);
+            }
+        });
     }
 
     /**

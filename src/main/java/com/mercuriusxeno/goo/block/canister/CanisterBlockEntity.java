@@ -536,15 +536,27 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
     }
 
     private InteractionResult handleGooInsert(BlockHitResult hitResult, ItemStack stack, Player player) {
-        int hitSlot = aimedSlot(hitResult);
-        int accepted = GooInsert.pour(stack, player,
-                (type, volume) -> gooIntoSlot(hitSlot, type, volume));
+        int accepted = GooInsert.pour(stack, player, gooSinkFor(aimedSlot(hitResult)));
         if (accepted <= 0) {
             return InteractionResult.PASS;
         }
         level.playSound(null, worldPosition, SoundEvents.BOTTLE_EMPTY,
                 SoundSource.BLOCKS, 1.0f, 1.0f);
         return InteractionResult.SUCCESS;
+    }
+
+    /**
+     * Where goo poured at a slot goes: the canister in it, whose ledger takes a poured
+     * stack's part under 1 mB.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+     *
+     * @param hitSlot the aimed slot, negative for none
+     * @return the sink
+     */
+    public GooSink gooSinkFor(int hitSlot) {
+        CanisterSlotFluidHandler slot = hitSlot >= 0 ? state.getSlotFluidHandler(hitSlot) : null;
+        return GooSink.banking(slot != null && canAccept(hitSlot) ? slot.ledger() : null,
+                (type, volume) -> gooIntoSlot(hitSlot, type, volume));
     }
 
     private int gooIntoSlot(int hitSlot, ResourceKey<GooTypeDefinition> type, int volume) {
