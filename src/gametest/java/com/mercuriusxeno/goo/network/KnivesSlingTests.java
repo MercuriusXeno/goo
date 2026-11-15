@@ -53,7 +53,7 @@ public final class KnivesSlingTests {
     /** The light bay is sixteen blocks across and holds no floor of its own. */
     private static final int BAY_SIDE = 16;
     private static final BlockPos CASTER_POS = new BlockPos(8, 1, 1);
-    /** Husks across the cone seven blocks ahead, where the lobbed knives come down through them. */
+    /** Husks across the cone seven blocks ahead, well inside the reach of the knives' flat arc. */
     private static final List<BlockPos> SPREAD = List.of(new BlockPos(6, 1, 8), new BlockPos(8, 1, 8),
             new BlockPos(10, 1, 8));
     /** Facing south, down the bay toward the husks. */
