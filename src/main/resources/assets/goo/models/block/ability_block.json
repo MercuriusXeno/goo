@@ -1,5 +1,5 @@
 {
   "textures": {
-    "particle": "minecraft:block/slime_block"
+    "particle": "goo:fluid/goo_fluid"
   }
 }
