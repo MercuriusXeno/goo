@@ -1,6 +1,9 @@
 package com.mercuriusxeno.goo.item;
 
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.type.GooTypes;
+import java.util.Map;
 import net.minecraft.world.item.ItemStack;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
@@ -37,5 +40,20 @@ class GooStacksTest {
             factory.when(() -> GooItem.createWithVolume(GooTypes.ROCK, 1_500)).thenReturn(goo);
             assertSame(goo, GooStacks.createForOutput(GooTypes.ROCK, 1_500));
         }
+    }
+
+    // -- exactDrops (decision goo-item-carries-its-exact-value-as-a-mixed-remainder) --
+
+    /**
+     * A store's contents drop as exact values: each type's whole mB plus its remainder,
+     * and a type holding only a remainder drops that part alone.
+     */
+    @Test
+    void exactDropsCarryEachTypesRemainder() {
+        GooContents contents = new GooContents(Map.of(GooTypes.ROCK, 10),
+                GooRemainders.EMPTY.with(GooTypes.ROCK, GooFraction.of(1, 3)).with(GooTypes.LEAF, GooFraction.of(1, 2)));
+
+        assertEquals(Map.of(GooTypes.ROCK, GooFraction.of(31, 3), GooTypes.LEAF, GooFraction.of(1, 2)),
+                GooStacks.exactDrops(contents));
     }
 }
