@@ -439,9 +439,7 @@ public final class GloveUseTracker {
     }
 
     /**
-     * The scatter the live press slings its knives by, which its aim lines
-     * draw and its release sends.
-     * knives-aims-a-spread-fan-not-a-blob-line
+     * The scatter the live press slings its knives by, which its release sends.
      *
      * @return the press's scatter seed
      */

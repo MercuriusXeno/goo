@@ -7,8 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * A charged release reaches the server with the ticks it was held and the
- * press's scatter seed, so the knives fly along the lines the client drew
- * (decision knives-aims-a-spread-fan-not-a-blob-line).
+ * press's scatter seed the knives are slung by.
  */
 class GooChargePayloadTest {
 

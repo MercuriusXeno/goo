@@ -37,39 +37,27 @@ import java.util.OptionalDouble;
 /**
  * Draws the glove's aim each frame from the frame's {@link AimTracker}: a
  * goo-colored outline and face ripple on the targeted block or ability block
- * at the opaque stage, with no fill over the block, and a line per knife for
- * a delivery slinging a fan after translucent blocks. The entity outline
- * rides the render state modifier AimTracker registers (decision
- * render-context-is-the-one-emitter).
+ * at the opaque stage, with no fill over the block, and the held ghost after
+ * translucent features. The entity outline rides the render state modifier
+ * AimTracker registers (decision render-context-is-the-one-emitter).
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class GooTargetHighlighter {
 
     private static final double NANOS_PER_SECOND = 1e9;
 
-    /**
-     * Goo type the opaque stage leaves for the translucent line stage, or null
-     * when the frame aimed none or the line stage already took it.
-     */
-    private static @Nullable ResourceKey<GooTypeDefinition> cachedLineType;
-    /** Delivery of the selected ability for the line stage. */
-    private static @Nullable Delivery cachedLineDelivery;
-    /** Partial tick captured at the opaque stage. */
-    private static float cachedLinePartialTick;
-
     private GooTargetHighlighter() {
     }
 
     /**
-     * The line the aim pass draws: the knife lines while a fan-slinging press
-     * is held, and no other, the vanilla crosshair aiming every other ability.
+     * The line the aim pass draws: none, the vanilla crosshair aiming every
+     * ability, Knives among them.
      * vanilla-crosshair-aims-everything-without-reticule-line-or-touch-ring
+     * knives-draws-no-aim-lines-the-vanilla-crosshair-aims-it
      */
     enum AimPassLine {
         /** No line. */
-        NONE,
-        /** A line per knife the charge slings. */
-        KNIFE_LINES
+        NONE
     }
 
     /**
@@ -80,12 +68,11 @@ public final class GooTargetHighlighter {
      * @return the line
      */
     static AimPassLine aimPassLine(@Nullable Delivery delivery, boolean armed) {
-        return KnifeAimLineRenderer.showsLines(delivery, armed) ? AimPassLine.KNIFE_LINES : AimPassLine.NONE;
+        return AimPassLine.NONE;
     }
 
     /**
-     * Renders the targeted block or ability block highlight and leaves the
-     * selected delivery for the line stage.
+     * Renders the targeted block or ability block highlight.
      *
      * @param event the event instance
      */
@@ -95,7 +82,6 @@ public final class GooTargetHighlighter {
             drawMarksThroughTheGate(event);
             return;
         }
-        clearCachedLine();
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null || !mc.options.getCameraType().isFirstPerson()) {
             return;
@@ -106,9 +92,6 @@ public final class GooTargetHighlighter {
         }
         TargetResult target = AimTracker.currentTarget();
         String abilityId = GloveAim.selectedAbilityId(mc.player);
-        cachedLineType = selectedType;
-        cachedLineDelivery = GloveThrowSender.selectedDelivery(abilityId);
-        cachedLinePartialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         HighlightFrame frame = new HighlightFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera(), mc, selectedType);
         if (drawsMarks(false, null, target.passage())) {
@@ -142,8 +125,8 @@ public final class GooTargetHighlighter {
     /**
      * In a view through a gate, draws the marks of a target the aim reached
      * through that gate, seen from the view's camera, so the outline and the
-     * ripple show on the far side through the view; the knife lines and the
-     * held ghost stay the frame's own.
+     * ripple show on the far side through the view; the held ghost stays the
+     * frame's own.
      * aim-and-shots-carry-through-linked-gates
      *
      * @param event the view pass's render stage event
@@ -381,31 +364,6 @@ public final class GooTargetHighlighter {
     }
 
     /**
-     * Draws the knife lines after translucent blocks, so the depth buffer
-     * holds both opaque and water depth for correct sorting.
-     * vanilla-crosshair-aims-everything-without-reticule-line-or-touch-ring
-     *
-     * @param event the event instance
-     */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
-        if (PortalView.drawing()) {
-            return;
-        }
-        ResourceKey<GooTypeDefinition> type = cachedLineType;
-        Delivery delivery = cachedLineDelivery;
-        float partialTick = cachedLinePartialTick;
-        clearCachedLine();
-        if (type == null || delivery == null
-                || aimPassLine(delivery, GloveUseTracker.showsArea()) != AimPassLine.KNIFE_LINES) {
-            return;
-        }
-        Minecraft mc = Minecraft.getInstance();
-        KnifeAimLineRenderer.render(event.getPoseStack(), mc.renderBuffers().bufferSource(),
-                mc.gameRenderer.getMainCamera(), delivery, ClientGooTypes.highlight(type), partialTick);
-    }
-
-    /**
      * The real-time clock the ripple runs on, so a slow or paused tick leaves
      * its timing unchanged (decision ripple-rings-fade-to-face-edge).
      *
@@ -413,14 +371,5 @@ public final class GooTargetHighlighter {
      */
     private static double realTimeSeconds() {
         return System.nanoTime() / NANOS_PER_SECOND;
-    }
-
-    /**
-     * Drops what the line stage would draw.
-     */
-    private static void clearCachedLine() {
-        cachedLineType = null;
-        cachedLineDelivery = null;
-        cachedLinePartialTick = 0f;
     }
 }
