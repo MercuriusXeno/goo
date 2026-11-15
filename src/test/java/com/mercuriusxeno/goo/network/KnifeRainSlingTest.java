@@ -1,7 +1,11 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.ability.Charge;
 import com.mercuriusxeno.goo.ability.crystal.KnifeRain;
+import com.mercuriusxeno.goo.data.GooValues;
+import com.mercuriusxeno.goo.data.IGooValueLookup;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.Direction;
@@ -10,6 +14,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
@@ -25,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyFloat;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
@@ -108,6 +114,71 @@ class KnifeRainSlingTest {
                         + "the float point " + expected.get(knife) + ", left " + start);
                 assertEquals(0, start.distanceTo(struck.getAllValues().get(knife).aim().from()), WITHIN,
                         "the struck mob's aim should start where knife " + knife + " left");
+            }
+        }
+    }
+
+    /**
+     * A full Knives charge queues each knife to leave at the release tick
+     * plus the pattern's tick for its place, flying the pattern's velocity
+     * for that place (decision knives-land-in-staggered-rows-with-no-randomness).
+     */
+    @Test
+    void aFullChargeQueuesEachKnifeAtThePatternsVelocityAndTick() {
+        int releaseTick = 400;
+        float yaw = 20f;
+        float pitch = -10f;
+        ServerPlayer player = mock(ServerPlayer.class);
+        ServerLevel level = mock(ServerLevel.class);
+        MinecraftServer server = mock(MinecraftServer.class);
+        when(player.level()).thenReturn(level);
+        when(level.getServer()).thenReturn(server);
+        when(server.getTickCount()).thenReturn(releaseTick);
+        when(player.getYRot()).thenReturn(yaw);
+        when(player.getXRot()).thenReturn(pitch);
+        when(player.getEyePosition()).thenReturn(EYE);
+        when(player.getViewVector(1f)).thenReturn(Vec3.directionFromRotation(pitch, yaw));
+        when(level.clip(any())).thenAnswer(call -> BlockHitResult.miss(Vec3.ZERO, Direction.UP, BlockPos.ZERO));
+        AbilityDefinition knives = AbilityJson.decode("crystal_knives");
+        Charge charge = knives.delivery().charge();
+        FleckLaunches launches = new FleckLaunches();
+        GooServerState state = mock(GooServerState.class);
+        when(state.fleckLaunches()).thenReturn(launches);
+        List<Vec3> pattern = KnifeRain.releaseVelocities(yaw, pitch, charge, 1f);
+        int[] patternTicks = KnifeRain.launchTicks(charge.fleckCount(1f), charge.sweepTicks());
+        try (MockedStatic<EntityVisuals> visuals = mockStatic(EntityVisuals.class);
+             MockedStatic<ProjectileUtil> hits = mockStatic(ProjectileUtil.class);
+             MockedStatic<GooServerState> states = mockStatic(GooServerState.class);
+             MockedStatic<AbilityCharges> charges = mockStatic(AbilityCharges.class);
+             MockedStatic<GooValues> values = mockStatic(GooValues.class);
+             MockedStatic<GooThrowHandler> reagents = mockStatic(GooThrowHandler.class);
+             MockedStatic<KnifeRainSling> hand = mockStatic(KnifeRainSling.class, CALLS_REAL_METHODS)) {
+            states.when(() -> GooServerState.of(server)).thenReturn(state);
+            charges.when(() -> AbilityCharges.charge(any(), any(), any())).thenReturn(true);
+            values.when(() -> GooValues.of(any(Level.class))).thenReturn(mock(IGooValueLookup.class));
+            hand.when(() -> KnifeRainSling.gloveOnTheRight(any())).thenReturn(true);
+
+            KnifeRainSling.sling(player, GooTypes.CRYSTAL, knives, knives.delivery().chargeTicks());
+
+            assertEquals(pattern.size(), launches.pendingCount(), "every knife of the pattern should be queued");
+            List<Vec3> sent = new ArrayList<>();
+            List<Integer> sentAt = new ArrayList<>();
+            visuals.when(() -> EntityVisuals.sendToWatchers(any(), any(GlassKnifePayload.class)))
+                    .thenAnswer(call -> {
+                        sent.add(call.<GlassKnifePayload>getArgument(1).velocity());
+                        return null;
+                    });
+            for (int tick = releaseTick; tick <= releaseTick + charge.sweepTicks(); tick++) {
+                int before = sent.size();
+                launches.drainArrived(tick);
+                for (int knife = before; knife < sent.size(); knife++) {
+                    sentAt.add(tick);
+                }
+            }
+            assertEquals(pattern, sent, "each knife should fly the pattern's velocity for its place");
+            for (int knife = 0; knife < pattern.size(); knife++) {
+                assertEquals(releaseTick + patternTicks[knife], sentAt.get(knife), "knife " + knife
+                        + " should leave at the release tick plus its pattern tick");
             }
         }
     }

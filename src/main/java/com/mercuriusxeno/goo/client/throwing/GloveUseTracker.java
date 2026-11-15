@@ -438,14 +438,6 @@ public final class GloveUseTracker {
         return PRESS.channelTicks();
     }
 
-    /**
-     * The scatter the live press slings its knives by, which its release sends.
-     *
-     * @return the press's scatter seed
-     */
-    public static long scatterSeed() {
-        return PRESS.scatterSeed();
-    }
 
     /**
      * Periodically re-checks whether the selected goo type is in inventory.
