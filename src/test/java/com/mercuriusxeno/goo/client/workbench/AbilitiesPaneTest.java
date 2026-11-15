@@ -58,13 +58,20 @@ class AbilitiesPaneTest {
         return frame;
     }
 
+    /**
+     * The first price field reads on the name's line right of the name, and a field the line has no room left for
+     * wraps under the name, at its left (decision ability-params-lay-in-a-four-column-grid-spanning-whole-cells).
+     */
     @Test
-    void theNameLineReadsThePriceFields() {
+    void theNameLineReadsThePriceFieldsAndAFieldPastItsRoomWrapsUnderTheName() {
         DrawnFrame frame = draw(pane(Map.of("minecraft:cobblestone", Map.of("unstable", "250"))));
         DrawnFrame.Text name = frame.find(NAME);
-        for (String label : List.of("cost", "cost_per_block")) {
-            assertTrue(frame.find(label).x() > name.x(), label + " stands left of the name");
-        }
+        DrawnFrame.Text cost = frame.find("cost");
+        DrawnFrame.Text perBlock = frame.find("cost_per_block");
+
+        assertTrue(cost.x() > name.x(), "cost stands left of the name");
+        assertTrue(perBlock.x() > name.x() || perBlock.y() > cost.y() && perBlock.x() >= name.x(),
+                "cost_per_block stands at " + perBlock + ", neither right of the name nor wrapped under it");
     }
 
     /**
@@ -360,7 +367,7 @@ class AbilitiesPaneTest {
                 {"typeOrder": ["ender", "void"], "abilities": [
                   {"id": "goo:ender_blink", "gooType": "ender", "displayName": "ender_blink", "draft": false,
                    "badge": "self", "order": 10, "leaves": [
-                    {"path": "cost", "value": "200", "kind": "COST", "mechanism": "cost", "field": "cost"},
+                    {"path": "cost", "value": "3000", "kind": "COST", "mechanism": "cost", "field": "cost"},
                     %s, %s, %s, %s, %s]},
                   {"id": "goo:void_zone", "gooType": "void", "displayName": "void_zone", "draft": false,
                    "badge": "channeled", "order": 10, "leaves": [%s, %s, %s, %s]}]}
@@ -431,18 +438,26 @@ class AbilitiesPaneTest {
         }
 
 
+        /**
+         * A cost box reads its type's colon, its value and its pencil on one line, the value inside the box, rather
+         * than the type above a value overflowing a box half its column wide (decision
+         * ability-params-lay-in-a-four-column-grid-spanning-whole-cells, restated by the operator).
+         */
         @Test
-        void eachBoxIsHalfItsColumnWideAndStaysInsideIt() {
-            GroupsPane.Bounds wide = new GroupsPane.Bounds(0, 0, 900, 400);
-            DrawnFrame frame = drawn(wide);
-            int cell = columnLeft(wide, 1) - columnLeft(wide, 0);
-            DrawnFrame.Text value = frame.find("100");
-            int left = frame.buttonAround(value)[0];
-            int right = frame.buttonAround(frame.drawn().stream().filter(text -> text.text().equals("✎")
-                    && text.x() > value.x() && Math.abs(text.y() - value.y()) <= 1).findFirst()
-                    .orElseThrow(() -> new AssertionError("no pencil beside 100")))[2];
-            assertEquals(cell / 2, right - left, "the box runs " + left + " to " + right);
-            assertTrue(right < columnLeft(wide, 2), "the box ends at " + right + ", past its column");
+        void aCostBoxReadsItsTypeValueAndPencilOnOneLineWithTheValueInside() {
+            DrawnFrame frame = drawn(VIEW);
+            DrawnFrame.Text value = frame.find("3000");
+            int[] box = frame.buttonAround(value);
+            DrawnFrame.Text colon = frame.drawn().stream().filter(text -> text.text().equals(":")
+                    && text.x() < value.x() && text.x() >= box[0]).findFirst()
+                    .orElseThrow(() -> new AssertionError("no type colon in the box " + java.util.Arrays.toString(box)));
+            boolean pencilBeside = frame.drawn().stream().anyMatch(text -> text.text().equals("✎")
+                    && text.x() > value.x() && Math.abs(text.y() - value.y()) <= 1);
+
+            assertEquals(value.y(), colon.y(), "the type's colon stands on a line of its own above the value");
+            assertTrue(pencilBeside, "no pencil on the value's line");
+            assertTrue(value.x() + DrawnFrame.font().width("3000") <= box[2],
+                    "3000 runs past its box " + java.util.Arrays.toString(box));
         }
 
         @Test
