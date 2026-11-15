@@ -58,6 +58,7 @@ class ConventionTest {
     private static final String PLEXER_PANEL_ROWS = "com.mercuriusxeno.goo.client.hud.PlexerPanelRows";
     private static final String GOO_VALUE_TOOLTIP =
             "com.mercuriusxeno.goo.client.tooltip.GooValueClientTooltipComponent";
+    private static final String GOO_VOLUME_DECORATOR = "com.mercuriusxeno.goo.client.throwing.GooVolumeDecorator";
     private static final String[] SHARED_PACKAGES = {
             "com.mercuriusxeno.goo", "com.mercuriusxeno.goo.block..", "com.mercuriusxeno.goo.item..",
             "com.mercuriusxeno.goo.ability..", "com.mercuriusxeno.goo.data..", "com.mercuriusxeno.goo.network..",
@@ -243,11 +244,12 @@ class ConventionTest {
     }
 
     /**
-     * No class under client takes GooFormat.formatMixed's text but the three
+     * No class under client takes GooFormat.formatMixed's text but the four
      * whose text reaches the screen through MixedNumberLabel: ClientAbility's
      * cost labels and cost mechanics, laid by CrosshairFuelPanel,
      * RadialWheelRenderer and AbilityExplanationPanel; PlexerPanelRows' cells,
-     * laid by PanelAmountGrid; and GooValueClientTooltipComponent's line. A
+     * laid by PanelAmountGrid; GooValueClientTooltipComponent's line; and
+     * GooVolumeDecorator's slot amount. A
      * new draw of a mixed number joins them only once it lays its text by the
      * spacing rule.
      * every-mixed-number-takes-the-spacing-rule
@@ -259,6 +261,7 @@ class ConventionTest {
                 .and().doNotHaveFullyQualifiedName(CLIENT_ABILITY)
                 .and().doNotHaveFullyQualifiedName(PLEXER_PANEL_ROWS)
                 .and().doNotHaveFullyQualifiedName(GOO_VALUE_TOOLTIP)
+                .and().doNotHaveFullyQualifiedName(GOO_VOLUME_DECORATOR)
                 .should().callMethodWhere(target(name(FORMAT_MIXED)).and(target(owner(name(GOO_FORMAT)))))
                 .because("a mixed number drawn in play lays its parts by MixedNumberSpacing through"
                         + " MixedNumberLabel (decision every-mixed-number-takes-the-spacing-rule)"));
