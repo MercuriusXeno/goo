@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.item;
 
 import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
+import com.mercuriusxeno.goo.registry.GooCapabilities;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
@@ -9,6 +10,7 @@ import net.minecraft.world.entity.SlotAccess;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.neoforged.neoforge.transfer.access.ItemAccess;
 import java.util.Map;
 
 /**
@@ -33,8 +35,11 @@ final class CanisterInventoryHandler {
      */
     static boolean handlePrimaryClick(
             ItemStack canister, ItemStack cursor, SlotAccess cursorAccess) {
-        return insertFromCursor(cursor, cursorAccess,
-                (type, volume) -> CanisterItem.addGoo(canister, type, volume));
+        // decision goo-item-carries-its-exact-value-as-a-mixed-remainder: the canister's own ledger banks the part
+        return insertFromCursor(cursor, cursorAccess, GooSink.banking(
+                canister.getCapability(GooCapabilities.REMAINDER_ITEM, ItemAccess.forStack(canister)),
+                type -> CanisterItem.takesGoo(canister, type),
+                (type, volume) -> CanisterItem.addGoo(canister, type, volume)));
     }
 
     // --- Goo insert ---
@@ -62,29 +67,8 @@ final class CanisterInventoryHandler {
      * @return true if any goo was transferred
      */
     private static boolean handleGooInsert(ItemStack cursor, SlotAccess cursorAccess, GooSink sink) {
-        ResourceKey<GooTypeDefinition> type = GooStacks.keyOf(cursor);
-        if (type == null) { return false; }
-        int volume = GooItem.getVolume(cursor);
-        int accepted = sink.accept(type, volume);
-        if (accepted <= 0) { return false; }
-
-        applyGooRemainder(cursor, cursorAccess, volume - accepted);
-        return true;
-    }
-
-    /**
-     * Clears the goo cursor or updates its remaining volume.
-     *
-     * @param cursor       the goo item stack
-     * @param cursorAccess access to set the cursor contents
-     * @param remaining    the remaining volume after transfer
-     */
-    private static void applyGooRemainder(ItemStack cursor, SlotAccess cursorAccess, int remaining) {
-        if (remaining <= 0) {
-            cursorAccess.set(ItemStack.EMPTY);
-        } else {
-            GooItem.setVolume(cursor, remaining);
-        }
+        // decision goo-item-carries-its-exact-value-as-a-mixed-remainder: the one pour every goo item runs
+        return GooInsert.pourInto(cursor, sink, () -> cursorAccess.set(ItemStack.EMPTY));
     }
 
     // --- Drain operations ---

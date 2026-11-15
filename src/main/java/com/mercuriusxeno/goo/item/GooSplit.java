@@ -28,6 +28,34 @@ public final class GooSplit {
     }
 
     /**
+     * Halves a goo holding a part under 1 mB, keeping the sum: the whole mB halves as
+     * {@link #halve(int)} does, the part stays with the slot's half, and a goo holding only
+     * a part goes to the cursor whole. No halve mints a new fraction.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+     * decision right-click-halves-the-stack
+     *
+     * @param volume the goo's exact value, above zero
+     * @return the value the slot keeps and the value the cursor takes
+     */
+    public static MixedHalves halve(MixedVolume volume) {
+        if (volume.whole() <= 0) {
+            return new MixedHalves(MixedVolume.ZERO, volume);
+        }
+        Halves wholeHalves = halve(volume.whole());
+        return new MixedHalves(new MixedVolume(wholeHalves.slotVolume(), volume.part()),
+                MixedVolume.ofWhole(wholeHalves.cursorVolume()));
+    }
+
+    /**
+     * One right-click's split of a goo holding a part under 1 mB.
+     *
+     * @param slot   the value left in the slot, empty when the slot empties
+     * @param cursor the value placed on the cursor
+     */
+    public record MixedHalves(MixedVolume slot, MixedVolume cursor) {
+    }
+
+    /**
      * One right-click's split of a goo.
      *
      * @param slotVolume   the volume left in the slot, 0 when the slot empties

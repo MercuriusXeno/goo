@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.block.crucible;
 
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -43,9 +45,13 @@ final class CrucibleDrops {
         }
     }
 
-    /** Drops reservoir contents as one goo per goo type, save infinity, which
-     * never leaves a holder and is lost with the crucible.
+    /** Drops reservoir contents as one goo per goo type at its exact value, save infinity,
+     * which never leaves a holder and is lost with the crucible. The remainders leave with
+     * the goo, so the crucible's own item, which collects the ledger after this, carries
+     * none of them a second time.
      * decision infinity-sources-whatever-shares-its-vessel
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+     * decision every-producer-consumer-and-container-holds-a-remainder-buffer
      *
      * @param crucible the crucible block entity
      * @param level    the current level
@@ -53,15 +59,18 @@ final class CrucibleDrops {
      */
     private static void dropReservoirAsGoo(CrucibleBlockEntity crucible, Level level, BlockPos pos) {
         GooStacks.dropAll(droppedReservoir(crucible.getReservoir()), level, pos);
+        crucible.reservoirHandler().loadRemainders(GooRemainders.EMPTY);
     }
 
     /**
-     * The part of a reservoir a broken crucible drops: every type save infinity.
+     * The part of a reservoir a broken crucible drops: every type save infinity, its
+     * remainder included.
      *
      * @param reservoir what the crucible holds
      * @return the same contents with no infinity
      */
     static GooContents droppedReservoir(GooContents reservoir) {
-        return reservoir.withRemoved(GooTypes.INFINITY, reservoir.getVolume(GooTypes.INFINITY));
+        return reservoir.withRemoved(GooTypes.INFINITY, reservoir.getVolume(GooTypes.INFINITY))
+                .withRemainders(reservoir.remainders().with(GooTypes.INFINITY, GooFraction.ZERO));
     }
 }

@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.item;
 
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.item.GooAbsorb.Candidate;
 import com.mercuriusxeno.goo.item.GooAbsorb.Result;
 import org.junit.jupiter.api.Test;
@@ -19,8 +20,8 @@ class GooAbsorbTest {
      */
     @Test
     void empty_noCandidates_unchanged() {
-        Result r = GooAbsorb.compute(5, 1000, 50, List.of());
-        assertEquals(1000, r.volume());
+        Result r = GooAbsorb.compute(5, whole(1000), 50, List.of());
+        assertEquals(whole(1000), r.volume());
         assertEquals(50, r.age());
         assertTrue(r.discardIds().isEmpty());
     }
@@ -30,9 +31,9 @@ class GooAbsorbTest {
      */
     @Test
     void greaterId_absorbed() {
-        Result r = GooAbsorb.compute(5, 1000, 50,
-                List.of(new Candidate(7, 2000, 30)));
-        assertEquals(3000, r.volume());
+        Result r = GooAbsorb.compute(5, whole(1000), 50,
+                List.of(new Candidate(7, whole(2000), 30)));
+        assertEquals(whole(3000), r.volume());
         assertEquals(30, r.age());
         assertEquals(List.of(7), r.discardIds());
     }
@@ -42,9 +43,9 @@ class GooAbsorbTest {
      */
     @Test
     void lesserId_skipped() {
-        Result r = GooAbsorb.compute(5, 1000, 50,
-                List.of(new Candidate(3, 2000, 30)));
-        assertEquals(1000, r.volume());
+        Result r = GooAbsorb.compute(5, whole(1000), 50,
+                List.of(new Candidate(3, whole(2000), 30)));
+        assertEquals(whole(1000), r.volume());
         assertEquals(50, r.age());
         assertTrue(r.discardIds().isEmpty());
     }
@@ -54,9 +55,9 @@ class GooAbsorbTest {
      */
     @Test
     void sameId_skipped() {
-        Result r = GooAbsorb.compute(5, 1000, 50,
-                List.of(new Candidate(5, 2000, 30)));
-        assertEquals(1000, r.volume());
+        Result r = GooAbsorb.compute(5, whole(1000), 50,
+                List.of(new Candidate(5, whole(2000), 30)));
+        assertEquals(whole(1000), r.volume());
         assertEquals(50, r.age());
         assertTrue(r.discardIds().isEmpty());
     }
@@ -66,13 +67,13 @@ class GooAbsorbTest {
      */
     @Test
     void mixedIds_onlyGreaterAbsorbed() {
-        Result r = GooAbsorb.compute(5, 1000, 50,
+        Result r = GooAbsorb.compute(5, whole(1000), 50,
                 List.of(
-                        new Candidate(3, 2000, 10),
-                        new Candidate(7, 3000, 20),
-                        new Candidate(9, 4000, 40)
+                        new Candidate(3, whole(2000), 10),
+                        new Candidate(7, whole(3000), 20),
+                        new Candidate(9, whole(4000), 40)
                 ));
-        assertEquals(8000, r.volume());
+        assertEquals(whole(8000), r.volume());
         assertEquals(20, r.age());
         assertEquals(List.of(7, 9), r.discardIds());
     }
@@ -82,8 +83,8 @@ class GooAbsorbTest {
      */
     @Test
     void minAge_selfOlder_candidateWins() {
-        Result r = GooAbsorb.compute(1, 1000, 100,
-                List.of(new Candidate(2, 500, 5)));
+        Result r = GooAbsorb.compute(1, whole(1000), 100,
+                List.of(new Candidate(2, whole(500), 5)));
         assertEquals(5, r.age());
     }
 
@@ -92,8 +93,8 @@ class GooAbsorbTest {
      */
     @Test
     void minAge_selfYounger_selfRetained() {
-        Result r = GooAbsorb.compute(1, 1000, 5,
-                List.of(new Candidate(2, 500, 100)));
+        Result r = GooAbsorb.compute(1, whole(1000), 5,
+                List.of(new Candidate(2, whole(500), 100)));
         assertEquals(5, r.age());
     }
 
@@ -102,11 +103,11 @@ class GooAbsorbTest {
      */
     @Test
     void minAge_acrossMany() {
-        Result r = GooAbsorb.compute(1, 1000, 80,
+        Result r = GooAbsorb.compute(1, whole(1000), 80,
                 List.of(
-                        new Candidate(2, 500, 60),
-                        new Candidate(3, 500, 15),
-                        new Candidate(4, 500, 45)
+                        new Candidate(2, whole(500), 60),
+                        new Candidate(3, whole(500), 15),
+                        new Candidate(4, whole(500), 45)
                 ));
         assertEquals(15, r.age());
     }
@@ -116,14 +117,31 @@ class GooAbsorbTest {
      */
     @Test
     void onlyLesserIds_nothingAbsorbed() {
-        Result r = GooAbsorb.compute(10, 1000, 50,
+        Result r = GooAbsorb.compute(10, whole(1000), 50,
                 List.of(
-                        new Candidate(3, 2000, 10),
-                        new Candidate(7, 3000, 20)
+                        new Candidate(3, whole(2000), 10),
+                        new Candidate(7, whole(3000), 20)
                 ));
-        assertEquals(1000, r.volume());
+        assertEquals(whole(1000), r.volume());
         assertEquals(50, r.age());
         assertTrue(r.discardIds().isEmpty());
+    }
+
+    /**
+     * The absorb sums exact values: the absorber's and every absorbed candidate's parts
+     * under 1 mB add as fractions.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+     */
+    @Test
+    void absorbSumsExactValues() {
+        Result r = GooAbsorb.compute(1, new MixedVolume(1, GooFraction.of(1, 2)), 50, List.of(
+                new Candidate(2, new MixedVolume(0, GooFraction.of(2, 3)), 40),
+                new Candidate(3, new MixedVolume(0, GooFraction.of(1, 3)), 30)));
+        assertEquals(new MixedVolume(2, GooFraction.of(1, 2)), r.volume());
+    }
+
+    private static MixedVolume whole(int volume) {
+        return MixedVolume.ofWhole(volume);
     }
 
     // -- findAttractorId --
@@ -142,8 +160,8 @@ class GooAbsorbTest {
     @Test
     void attractor_allHigherIds_returnsNone() {
         int r = GooAbsorb.findAttractorId(5, List.of(
-                new Candidate(7, 1000, 0),
-                new Candidate(9, 1000, 0)
+                new Candidate(7, whole(1000), 0),
+                new Candidate(9, whole(1000), 0)
         ));
         assertEquals(-1, r);
     }
@@ -153,7 +171,7 @@ class GooAbsorbTest {
      */
     @Test
     void attractor_equalId_returnsNone() {
-        int r = GooAbsorb.findAttractorId(5, List.of(new Candidate(5, 1000, 0)));
+        int r = GooAbsorb.findAttractorId(5, List.of(new Candidate(5, whole(1000), 0)));
         assertEquals(-1, r);
     }
 
@@ -162,7 +180,7 @@ class GooAbsorbTest {
      */
     @Test
     void attractor_singleLowerId_returnsThat() {
-        int r = GooAbsorb.findAttractorId(5, List.of(new Candidate(3, 1000, 0)));
+        int r = GooAbsorb.findAttractorId(5, List.of(new Candidate(3, whole(1000), 0)));
         assertEquals(3, r);
     }
 
@@ -172,9 +190,9 @@ class GooAbsorbTest {
     @Test
     void attractor_multipleLowerIds_returnsSmallest() {
         int r = GooAbsorb.findAttractorId(10, List.of(
-                new Candidate(8, 1000, 0),
-                new Candidate(3, 1000, 0),
-                new Candidate(6, 1000, 0)
+                new Candidate(8, whole(1000), 0),
+                new Candidate(3, whole(1000), 0),
+                new Candidate(6, whole(1000), 0)
         ));
         assertEquals(3, r);
     }
@@ -185,10 +203,10 @@ class GooAbsorbTest {
     @Test
     void attractor_mixedIds_returnsSmallestLower() {
         int r = GooAbsorb.findAttractorId(5, List.of(
-                new Candidate(9, 1000, 0),
-                new Candidate(2, 1000, 0),
-                new Candidate(7, 1000, 0),
-                new Candidate(4, 1000, 0)
+                new Candidate(9, whole(1000), 0),
+                new Candidate(2, whole(1000), 0),
+                new Candidate(7, whole(1000), 0),
+                new Candidate(4, whole(1000), 0)
         ));
         assertEquals(2, r);
     }
