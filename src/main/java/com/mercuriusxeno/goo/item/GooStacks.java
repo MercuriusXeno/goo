@@ -10,6 +10,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import org.jspecify.annotations.Nullable;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -183,18 +184,31 @@ public final class GooStacks {
     }
 
     /**
-     * Drops all goo in a {@link GooContents} as gooStacks at the given position, one per goo type.
+     * The exact value each goo type of a store's contents drops as: its whole mB plus its
+     * remainder, so a type holding a remainder and 0 whole mB drops its part alone.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+     * decision every-producer-consumer-and-container-holds-a-remainder-buffer
+     *
+     * @param contents the store's contents
+     * @return each type's exact value, every one above zero
+     */
+    public static Map<ResourceKey<GooTypeDefinition>, GooFraction> exactDrops(GooContents contents) {
+        Map<ResourceKey<GooTypeDefinition>, GooFraction> drops = new HashMap<>();
+        contents.getAll().forEach((type, volume) -> drops.merge(type, GooFraction.of(volume), GooFraction::plus));
+        contents.remainders().parts().forEach((type, part) -> drops.merge(type, part, GooFraction::plus));
+        drops.values().removeIf(exact -> !exact.isPositive());
+        return drops;
+    }
+
+    /**
+     * Drops all goo in a {@link GooContents} as gooStacks at the given position, one per
+     * goo type, each holding that type's exact value.
      *
      * @param contents the goo contents to drop
      * @param level    the world
      * @param pos      the position to drop items at
      */
     public static void dropAll(GooContents contents, Level level, BlockPos pos) {
-        if (contents.isEmpty()) {
-            return;
-        }
-        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : contents.getAll().entrySet()) {
-            Block.popResource(level, pos, createForOutput(entry.getKey(), entry.getValue()));
-        }
+        exactDrops(contents).forEach((type, exact) -> Block.popResource(level, pos, createForOutput(type, exact)));
     }
 }
