@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.zone;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.lunar.Lunar;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 
@@ -15,10 +16,6 @@ public final class LunarSky {
     /** The custom skybox goo:lunar's dimension type names, under NeoForge's custom_skybox attribute. */
     public static final Identifier ID = Identifier.fromNamespaceAndPath(Goo.MODID, "lunar_void");
 
-    /** The overworld star's direction from the camera, before it is made unit. */
-    private static final double TOWARD_EAST = 0.45;
-    private static final double TOWARD_UP = 0.62;
-    private static final double TOWARD_SOUTH = 0.64;
     /** A pale bright blue, its blue past the brightest star of the sea. */
     private static final float RED = 0.45F;
     private static final float GREEN = 0.7F;
@@ -40,7 +37,7 @@ public final class LunarSky {
 
     /** The one overworld star. */
     public static final OverworldStar OVERWORLD_STAR = new OverworldStar(
-            new Vec3(TOWARD_EAST, TOWARD_UP, TOWARD_SOUTH).normalize(), RED, GREEN, BLUE, HALF_SIZE);
+            Lunar.OVERWORLD_STAR_DIRECTION, RED, GREEN, BLUE, HALF_SIZE);
 
     private LunarSky() {
     }
