@@ -23,6 +23,7 @@ import java.util.function.ToLongFunction;
  * each-rallied-mob-locks-into-a-fixed-slot
  * slots-follow-rally-order-size-and-count
  * rallied-mobs-share-their-ralliers-speed
+ * rallied-mobs-walk-around-their-rallier
  */
 public final class RallyFollow {
 
@@ -60,6 +61,20 @@ public final class RallyFollow {
     static final double SPOT_SLACK = 1.0;
     /** A step farther than this in one tick is a teleport, not travel, in blocks. */
     static final double TELEPORT_STEP = 2.0;
+    /** How far past a rallier's half width and a minion's the keep-clear radius reaches, in blocks. */
+    static final double KEEP_CLEAR_MARGIN = 0.5;
+    /** How far outside the keep-clear radius a walk round the rallier passes, in blocks. */
+    static final double WAYPOINT_SLACK = 0.5;
+    /** How near a point a minion stands to count as on it, so it only moves as its rallier does, in blocks. */
+    static final double AIM_REACHED = 0.05;
+    /**
+     * How far ahead along its heading a minion's steering point stands, in
+     * blocks: past a block, so its move control never reads the point as one
+     * straight overhead to jump to.
+     */
+    static final double AIM_LEAD = 2.0;
+    /** How far past the point it rounds the rallier a waypoint stands, so the minion walks on round, in blocks. */
+    static final double WAYPOINT_LEAD = 0.5;
     /** The share a width or a spread takes to its half. */
     private static final double HALF = 0.5;
 
@@ -148,13 +163,18 @@ public final class RallyFollow {
      * and its minions' widths. Neighbours along a shell stand their half
      * widths and the gap apart; one shell stands its widest minion's half
      * width, the gap and the next shell's widest half width inside the next.
+     * The first shell's near edge stands clear of the rallier's half width by
+     * the keep-clear margin and the gap, so every slot stands a gap outside
+     * the keep-clear radius, however wide the rallier.
+     * rallied-mobs-walk-around-their-rallier
      *
-     * @param widths the minions' widths in rally order, in blocks
+     * @param rallierWidth the rallier's width, in blocks
+     * @param widths       the minions' widths in rally order, in blocks
      * @return the slots, one per width, in the same order
      */
-    public static List<Slot> formation(List<Double> widths) {
+    public static List<Slot> formation(double rallierWidth, List<Double> widths) {
         List<Slot> slots = new ArrayList<>(widths.size());
-        double edge = FIRST_SHELL_EDGE;
+        double edge = Math.max(FIRST_SHELL_EDGE, rallierWidth * HALF + KEEP_CLEAR_MARGIN + SLOT_GAP);
         int first = 0;
         while (first < widths.size()) {
             int end = shellEnd(widths, first, edge);
@@ -315,6 +335,124 @@ public final class RallyFollow {
      */
     static double groundSpeed(double speed) {
         return WALK_GAIN * speed * speed;
+    }
+
+    /**
+     * How far a minion stands from its rallier, at the closest, before it
+     * walks round: the rallier's half width, its own half width and this
+     * margin, so it never shoves the rallier or crosses in front of its view.
+     * rallied-mobs-walk-around-their-rallier
+     *
+     * @param rallierWidth the rallier's width, in blocks
+     * @param minionWidth  the minion's width, in blocks
+     * @return the keep-clear radius round the rallier's centre, in blocks
+     */
+    public static double keepClearRadius(double rallierWidth, double minionWidth) {
+        return (rallierWidth + minionWidth) * HALF + KEEP_CLEAR_MARGIN;
+    }
+
+    /**
+     * The next point a minion walks to on its way to a target, keeping clear
+     * of its rallier: the target itself where the straight line there passes
+     * outside the keep-clear radius; a waypoint beside the rallier on the
+     * shorter way round where it crosses, along a line touching a circle a
+     * little wider than the radius, so the minion circles the rallier; and
+     * for a minion already inside, a point straight out of it first.
+     * rallied-mobs-walk-around-their-rallier
+     *
+     * @param minion  the minion's position
+     * @param target  where it walks, such as its slot's spot or a foe
+     * @param rallier the rallier's position
+     * @param radius  the keep-clear radius, from {@link #keepClearRadius}
+     * @return the point to walk to now, the target where the way is clear
+     */
+    public static Vec3 walkPoint(Vec3 minion, Vec3 target, Vec3 rallier, double radius) {
+        Vec3 out = flat(minion.subtract(rallier));
+        double distance = out.length();
+        if (distance < radius) {
+            Vec3 away = distance > 0.0 ? out.scale(1.0 / distance) : awayToward(target, rallier);
+            return rallier.add(away.scale(radius + WAYPOINT_SLACK + WAYPOINT_LEAD));
+        }
+        if (nearestPass(minion, target, rallier) >= radius) {
+            return target;
+        }
+        // a minion already inside the wider circle walks round at its own distance, never back out
+        double rounding = Math.min(radius + WAYPOINT_SLACK, distance);
+        Vec3 toRallier = flat(rallier.subtract(minion)).scale(1.0 / distance);
+        Vec3 toTarget = flat(target.subtract(minion));
+        // the target's side of the line through the rallier is the shorter way round
+        double turn = Math.copySign(Math.asin(rounding / distance),
+                toRallier.x * toTarget.z - toRallier.z * toTarget.x);
+        Vec3 along = new Vec3(toRallier.x * Math.cos(turn) - toRallier.z * Math.sin(turn), 0.0,
+                toRallier.z * Math.cos(turn) + toRallier.x * Math.sin(turn));
+        double tangent = Math.sqrt(distance * distance - rounding * rounding);
+        Vec3 waypoint = minion.add(along.scale(tangent + WAYPOINT_LEAD));
+        return new Vec3(waypoint.x, target.y, waypoint.z);
+    }
+
+    /**
+     * Where a minion steers to walk to a point measured from its moving
+     * rallier: its own motion is the rallier's plus a share toward the point,
+     * sized so its ground speed holds, so its motion relative to the rallier
+     * runs straight at the point and the walk round stays round. A minion at
+     * the point moves as its rallier moves; one too slow to outrun the
+     * rallier's drift steers straight at the point.
+     * rallied-mobs-walk-around-their-rallier
+     * each-rallied-mob-locks-into-a-fixed-slot
+     *
+     * @param minion          the minion's position
+     * @param point           the point it walks to, from {@link #walkPoint}
+     * @param rallierVelocity the rallier's smoothed velocity, in blocks a tick
+     * @param groundSpeed     the minion's ground speed, in blocks a tick
+     * @return a point along the minion's heading, at its height
+     */
+    public static Vec3 aim(Vec3 minion, Vec3 point, Vec3 rallierVelocity, double groundSpeed) {
+        Vec3 drift = flat(rallierVelocity);
+        Vec3 toPoint = flat(point.subtract(minion));
+        double distance = toPoint.length();
+        Vec3 heading = drift;
+        if (distance > AIM_REACHED) {
+            Vec3 toward = toPoint.scale(1.0 / distance);
+            double driftAlong = drift.dot(toward);
+            double room = driftAlong * driftAlong - drift.lengthSqr() + groundSpeed * groundSpeed;
+            heading = room < 0.0 ? toward : drift.add(toward.scale(Math.sqrt(room) - driftAlong));
+        }
+        if (heading.lengthSqr() == 0.0) {
+            return new Vec3(point.x, minion.y, point.z);
+        }
+        return minion.add(heading.normalize().scale(AIM_LEAD));
+    }
+
+    /**
+     * The nearest the straight walk from one point to another passes the rallier, horizontally.
+     *
+     * @param from    where the walk starts
+     * @param to      where it ends
+     * @param rallier the rallier's position
+     * @return the least horizontal distance from the rallier along the walk, in blocks
+     */
+    private static double nearestPass(Vec3 from, Vec3 to, Vec3 rallier) {
+        Vec3 walk = flat(to.subtract(from));
+        Vec3 toRallier = flat(rallier.subtract(from));
+        double length = walk.lengthSqr();
+        double along = length == 0.0 ? 0.0 : Math.clamp(toRallier.dot(walk) / length, 0.0, 1.0);
+        return toRallier.subtract(walk.scale(along)).length();
+    }
+
+    /**
+     * The way out for a minion standing on its rallier's centre: toward its target, or east for none.
+     *
+     * @param target  where the minion walks
+     * @param rallier the rallier's position
+     * @return a horizontal unit vector
+     */
+    private static Vec3 awayToward(Vec3 target, Vec3 rallier) {
+        Vec3 toward = flat(target.subtract(rallier));
+        return toward.lengthSqr() > 0.0 ? toward.normalize() : new Vec3(1.0, 0.0, 0.0);
+    }
+
+    private static Vec3 flat(Vec3 vector) {
+        return new Vec3(vector.x, 0.0, vector.z);
     }
 
     private static boolean isMoving(Vec3 velocity) {

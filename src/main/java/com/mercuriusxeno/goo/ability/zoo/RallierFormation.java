@@ -39,20 +39,20 @@ final class RallierFormation {
         Lineup lineup = LINEUPS.get(rallier);
         // a minion rallied after this tick's read is missing from it, so the read runs again
         if (lineup == null || lineup.gameTime() != gameTime || !lineup.minions().contains(minion)) {
-            lineup = lineUp(minions.get(), gameTime);
+            lineup = lineUp(rallier.getBbWidth(), minions.get(), gameTime);
             LINEUPS.put(rallier, lineup);
         }
         int index = lineup.minions().indexOf(minion);
         return index < 0 ? Optional.empty() : Optional.of(lineup.slots().get(index));
     }
 
-    private static Lineup lineUp(List<Mob> rallied, long gameTime) {
+    private static Lineup lineUp(double rallierWidth, List<Mob> rallied, long gameTime) {
         List<Mob> standing = rallied.stream()
                 .filter(mob -> mob.isAlive() && !mob.hasData(GooAttachments.DOWNED)).toList();
         List<Mob> ordered = RallyFollow.inRallyOrder(standing,
                 mob -> mob.getData(GooAttachments.RALLIED).rallyOrder(), Entity::getUUID);
         List<Double> widths = ordered.stream().map(mob -> (double) mob.getBbWidth()).toList();
-        return new Lineup(ordered, RallyFollow.formation(widths), gameTime);
+        return new Lineup(ordered, RallyFollow.formation(rallierWidth, widths), gameTime);
     }
 
     /**

@@ -56,6 +56,7 @@ import java.util.WeakHashMap;
  * each-rallied-mob-locks-into-a-fixed-slot
  * slots-follow-rally-order-size-and-count
  * rallied-mobs-share-their-ralliers-speed
+ * rallied-mobs-walk-around-their-rallier
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class RallyEvents {
@@ -202,9 +203,9 @@ public final class RallyEvents {
             LOCKED_IN.add(mob);
         }
         if (move == RallyFollow.Move.FIGHT) {
-            fight(level, mob, foe.orElseThrow(), rally.damage());
+            fight(level, mob, new Escort(caster, rallierVelocity), foe.orElseThrow(), rally.damage());
         } else {
-            walk(mob, caster, move, spot, rallierVelocity.horizontalDistance());
+            walk(mob, new Escort(caster, rallierVelocity), move, spot);
         }
     }
 
@@ -214,40 +215,73 @@ public final class RallyEvents {
      * to or a stand by a standing rallier it holds no slot near.
      * rallied-mobs-share-their-ralliers-speed
      *
-     * @param mob          the rallied mob
-     * @param caster       the entity that rallied it
-     * @param move         the mob's move this tick, never a fight
-     * @param spot         the spot of its slot, empty for none
-     * @param rallierSpeed the rallier's smoothed horizontal speed, in blocks a tick
+     * @param mob    the rallied mob
+     * @param escort the rallier and its smoothed velocity
+     * @param move   the mob's move this tick, never a fight
+     * @param spot   the spot of its slot, empty for none
      */
-    private static void walk(Mob mob, LivingEntity caster, RallyFollow.Move move, Optional<Vec3> spot,
-                             double rallierSpeed) {
+    private static void walk(Mob mob, Escort escort, RallyFollow.Move move, Optional<Vec3> spot) {
         double ownSpeed = mob.getAttributeValue(Attributes.MOVEMENT_SPEED);
+        double rallierSpeed = escort.velocity().horizontalDistance();
         double catchUp = RallyFollow.pace(rallierSpeed, ownSpeed, false);
         switch (move) {
-            case CATCH_UP -> walkTo(mob, spot.orElseThrow(), catchUp);
-            case MARCH -> march(mob, spot.orElseThrow(), RallyFollow.pace(rallierSpeed, ownSpeed, true));
-            case FOLLOW -> follow(mob, caster, catchUp);
+            case CATCH_UP -> walkTo(mob, escort, spot.orElseThrow(), catchUp);
+            case MARCH -> march(mob, escort, spot.orElseThrow(), RallyFollow.pace(rallierSpeed, ownSpeed, true));
+            case FOLLOW -> follow(mob, escort.rallier(), catchUp);
             default -> mob.getNavigation().stop();
         }
     }
 
     /**
-     * Moves a locked-in minion as its rallier moved: straight at its slot,
-     * which moved with the rallier, at the pace matching the rallier's speed,
-     * so a standing rallier's minion stands.
+     * Moves a locked-in minion as its rallier moves, at the pace matching the
+     * rallier's speed, holding its slot, so a standing rallier's minion
+     * stands; a slot across the rallier it walks round to.
      * each-rallied-mob-locks-into-a-fixed-slot
      * rallied-mobs-share-their-ralliers-speed
+     * rallied-mobs-walk-around-their-rallier
      *
-     * @param mob  the rallied mob
-     * @param spot the spot of its slot
-     * @param pace the speed modifier matching its rallier's speed
+     * @param mob    the rallied mob
+     * @param escort the rallier and its smoothed velocity
+     * @param spot   the spot of its slot
+     * @param pace   the speed modifier matching its rallier's speed
      */
-    private static void march(Mob mob, Vec3 spot, double pace) {
+    private static void march(Mob mob, Escort escort, Vec3 spot, double pace) {
         mob.getNavigation().stop();
         if (pace > 0.0) {
-            mob.getMoveControl().setWantedPosition(spot.x, mob.getY(), spot.z, pace);
+            steer(mob, escort, walkPoint(mob, escort, spot), pace);
         }
+    }
+
+    /**
+     * Steers a minion by its move control toward a point measured from its
+     * moving rallier, so its walk relative to the rallier runs straight there.
+     * rallied-mobs-walk-around-their-rallier
+     *
+     * @param mob    the rallied mob
+     * @param escort the rallier and its smoothed velocity
+     * @param point  the point it walks to, from {@link RallyFollow#walkPoint}
+     * @param pace   the speed modifier its walk takes
+     */
+    private static void steer(Mob mob, Escort escort, Vec3 point, double pace) {
+        double groundSpeed = RallyFollow.groundSpeed(mob.getAttributeValue(Attributes.MOVEMENT_SPEED) * pace);
+        Vec3 aim = RallyFollow.aim(mob.position(), point, escort.velocity(), groundSpeed);
+        mob.getNavigation().stop();
+        mob.getMoveControl().setWantedPosition(aim.x, mob.getY(), aim.z, pace);
+    }
+
+    private static Vec3 walkPoint(Mob mob, Escort escort, Vec3 target) {
+        LivingEntity rallier = escort.rallier();
+        return RallyFollow.walkPoint(mob.position(), target, rallier.position(),
+                RallyFollow.keepClearRadius(rallier.getBbWidth(), mob.getBbWidth()));
+    }
+
+    /**
+     * The rallier a minion walks beside and the rallier's smoothed velocity this tick.
+     *
+     * @param rallier  the entity that rallied the minion
+     * @param velocity its smoothed velocity, in blocks a tick
+     */
+    private record Escort(LivingEntity rallier, Vec3 velocity) {
     }
 
     /**
@@ -352,20 +386,26 @@ public final class RallyEvents {
 
     /**
      * Walks a rallied mob to its slot on the side its moving rallier heads
-     * toward at a catch-up pace, re-pathing as the slot moves with the rallier.
+     * toward at a catch-up pace, re-pathing as the slot moves with the rallier,
+     * and round the rallier where it stands in the way.
      * unengaged-minions-move-where-you-move
      * rallied-mobs-share-their-ralliers-speed
+     * rallied-mobs-walk-around-their-rallier
      *
-     * @param mob  the rallied mob
-     * @param spot the spot it walks to
-     * @param pace the speed modifier its walk takes
+     * @param mob    the rallied mob
+     * @param escort the rallier and its smoothed velocity
+     * @param spot   the spot it walks to
+     * @param pace   the speed modifier its walk takes
      */
-    private static void walkTo(Mob mob, Vec3 spot, double pace) {
+    private static void walkTo(Mob mob, Escort escort, Vec3 spot, double pace) {
+        Vec3 point = walkPoint(mob, escort, spot);
         // each-rallied-mob-locks-into-a-fixed-slot: a path ends within a block of where its target stood at the
-        // last re-path, so near its moving slot a minion walks the last stretch straight at it
-        if (mob.position().subtract(spot).horizontalDistance() <= LAST_STRETCH) {
-            mob.getNavigation().stop();
-            mob.getMoveControl().setWantedPosition(spot.x, mob.getY(), spot.z, pace);
+        // last re-path, so near its moving slot a minion walks the last stretch straight at it;
+        // rallied-mobs-walk-around-their-rallier: a path's block corners cut close, so round or near its rallier
+        // it steers too
+        if (!point.equals(spot) || mob.position().subtract(spot).horizontalDistance() <= LAST_STRETCH
+                || mob.position().subtract(escort.rallier().position()).horizontalDistance() <= LAST_STRETCH) {
+            steer(mob, escort, point, pace);
             return;
         }
         if (mob.getNavigation().isDone() || mob.tickCount % REPATH_TICKS == 0) {
@@ -470,11 +510,28 @@ public final class RallyEvents {
         }
     }
 
-    private static void fight(ServerLevel level, Mob mob, LivingEntity foe, float damage) {
+    /**
+     * Chases a foe, round the rallier where the rallier stands in the way.
+     * rallied-mobs-walk-around-their-rallier
+     *
+     * @param mob    the rallied mob
+     * @param escort the rallier and its smoothed velocity
+     * @param foe    the foe it chases
+     */
+    private static void chase(Mob mob, Escort escort, LivingEntity foe) {
+        Vec3 point = walkPoint(mob, escort, foe.position());
+        if (point.equals(foe.position())) {
+            mob.getNavigation().moveTo(foe, CHASE_SPEED);
+        } else {
+            steer(mob, escort, point, CHASE_SPEED);
+        }
+    }
+
+    private static void fight(ServerLevel level, Mob mob, Escort escort, LivingEntity foe, float damage) {
         mob.setTarget(foe);
         // a foe in reach behind a wall or fence takes no strike, as vanilla melee asks line of sight too
         if (!mob.isWithinMeleeAttackRange(foe) || !mob.getSensing().hasLineOfSight(foe)) {
-            mob.getNavigation().moveTo(foe, CHASE_SPEED);
+            chase(mob, escort, foe);
             return;
         }
         mob.getLookControl().setLookAt(foe);
