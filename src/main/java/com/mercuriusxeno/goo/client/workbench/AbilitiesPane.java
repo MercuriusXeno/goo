@@ -391,9 +391,8 @@ final class AbilitiesPane {
         int nameLeft = drawHeading(graphics, font, ability, from.left() + ControlFlow.INDENT, from.top(), targets);
         ColumnFlow flow = ColumnFlow.under(from, nameLeft);
         for (AbilitiesTab.Leaf leaf : ability.prices()) {
-            boolean editingLeaf = editing != null && editing.holds(ability, leaf);
             GroupsPane.Bounds field = isBuilding(ability, leaf) ? flow.placeLine(from.bottom())
-                    : flow.place(editingLeaf ? flow.columnsFor(fieldWidth(font, ability, leaf)) : 1, from.bottom());
+                    : flow.place(flow.columnsFor(fieldWidth(font, ability, leaf)), from.bottom());
             flow.took(drawField(graphics, font, new Priced(ability, leaf), field, from.right(), targets),
                     field.right());
         }
@@ -500,8 +499,7 @@ final class AbilitiesPane {
     // The room a price field takes: its small label, then its box as wide as its value and pencil, and while its text
     // box stands open the room the box and its ✗ Cancel and ✓ Done take.
     private int fieldWidth(Font font, AbilitiesTab.Ability ability, AbilitiesTab.Leaf leaf) {
-        int box = ExpressionLines.width(font, runsOf(ability, leaf, tab.valueOf(ability, leaf)))
-                + ButtonPainter.PADDING + ButtonPainter.PADDING + ButtonPainter.width(font, ReadValueButton.PENCIL);
+        int box = readBoxWidth(font, runsOf(ability, leaf, tab.valueOf(ability, leaf)));
         if (editing != null && editing.holds(ability, leaf)) {
             box = Math.max(box, EDITOR_WIDTH) + GAP + ButtonPainter.width(font, CANCEL) + GAP
                     + ButtonPainter.width(font, DONE);
@@ -540,7 +538,7 @@ final class AbilitiesPane {
         // The box centers on the heading's sprite row, and the label centers on the box, however tall its icons stand
         // it (the operator's ruling of 2026-11-07).
         int boxHeight = editing != null && editing.holds(ability, leaf) ? ButtonPainter.HEIGHT
-                : ReadValueButton.height(font, runs, boxRight(priced, field, valueLeft) - valueLeft);
+                : ReadValueButton.height(font, runs, boxRight(font, priced, field, valueLeft) - valueLeft);
         int boxTop = field.top() + Math.max(0, (RowLayout.SPRITE_ROW_HEIGHT - boxHeight) / HALF);
         int besideBox = building ? boxTop + ExpressionBuilderPane.PANEL_ABOVE : boxTop;
         // The labels read in the yellow the mechanism headings drew in (the operator's ruling of 2026-11-07).
@@ -549,7 +547,7 @@ final class AbilitiesPane {
                 DESCRIPTION_HOVER + AbilityWording.descriptionKey(leaf.mechanism(), leaf.field()));
         // The frame stands its box at its row's indent, so the row starts that indent short of the value.
         BuilderFrame.Row framed = new BuilderFrame.Row(new GroupsPane.Bounds(valueLeft - ControlFlow.INDENT, boxTop,
-                boxRight(priced, field, valueLeft), field.bottom()), null, GooAmountGrid.NONE, false);
+                boxRight(font, priced, field, valueLeft), field.bottom()), null, GooAmountGrid.NONE, false);
         int y = boxTop + BuilderFrame.draw(graphics, font, framed, new BuilderFrame.Value(building, runs, NO_TEXT,
                 boxOf(graphics, font, priced, runs, targets)));
         // one-red-error-line-under-every-value: the line runs under the field to the ability's right edge, so it
@@ -561,13 +559,20 @@ final class AbilitiesPane {
         return y;
     }
 
-    // A read box takes half its column, the rest of the column the gap before the next; an open box or builder takes
-    // its field whole. Decision ability-params-lay-in-a-four-column-grid-spanning-whole-cells.
-    private int boxRight(Priced priced, GroupsPane.Bounds field, int valueLeft) {
+    // A read box is as wide as its value and pencil on one line, so no value wraps or overflows; an open box or
+    // builder takes its field whole. Decision ability-params-lay-in-a-four-column-grid-spanning-whole-cells.
+    private int boxRight(Font font, Priced priced, GroupsPane.Bounds field, int valueLeft) {
         if (editing != null && editing.holds(priced.ability(), priced.leaf())) {
             return field.right();
         }
-        return Math.min(valueLeft + (field.right() - field.left()) / HALF, field.right() - GAP);
+        return Math.min(valueLeft + readBoxWidth(font, runsOf(priced.ability(), priced.leaf(),
+                tab.valueOf(priced.ability(), priced.leaf()))), field.right());
+    }
+
+    // The room a read box takes: its value on one line, its padding, then its pencil.
+    private static int readBoxWidth(Font font, List<ExpressionLines.Run> runs) {
+        return ExpressionLines.width(font, runs) + ButtonPainter.PADDING + ButtonPainter.PADDING
+                + ButtonPainter.width(font, ReadValueButton.PENCIL);
     }
 
     // The builder while it stands open over the cost, the text box while it stands open over a number, else the
