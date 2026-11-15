@@ -16,8 +16,10 @@ public enum ExplosionLook {
     SILENT,
     /**
      * Vanilla's gray-white explosion cloud, with poof and smoke over the
-     * broken blocks, beside the burnout.
+     * broken blocks, beside the burnout, and each broken block throwing its
+     * own shards.
      * blast-explosion-plays-vanillas-cloud-poof-and-smoke-with-the-fireball
+     * blast-broken-blocks-throw-their-own-break-shards
      */
     VANILLA;
 
@@ -34,6 +36,7 @@ public enum ExplosionLook {
      * @return the explosion's look
      */
     public GooExplosion.Look shown() {
-        return this == VANILLA ? GooExplosion.Look.vanilla() : GooExplosion.Look.silent(GooParticles.SILENT_BLAST.get());
+        return this == VANILLA ? GooExplosion.Look.vanilla().withShards()
+                : GooExplosion.Look.silent(GooParticles.SILENT_BLAST.get());
     }
 }
