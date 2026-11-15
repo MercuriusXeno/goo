@@ -8,6 +8,7 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -358,6 +359,36 @@ class ExpressionLinesTest {
                 id -> "minecraft:bucket".equals(id) ? "Bucket" : "Unnamed");
         assertEquals(List.of(run(ExpressionLines.Kind.NUMBER, "2"),
                 new ExpressionLines.Run(ExpressionLines.Kind.ITEM, "Bucket", "minecraft:bucket"),
-                new ExpressionLines.Run(ExpressionLines.Kind.TYPE, "", "metal")), runs);
+                run(ExpressionLines.Kind.SUFFIX, "'s"), type("metal")), runs);
+    }
+
+    /**
+     * The Abilities tab reads Blast's cost of TNT's value as TNT's name, 's, then the unstable icon, as a per-type
+     * prefab reads (decision diagnose-and-correct-the-item-missing-its-possessive).
+     */
+    @Test
+    void anAbilityCostOfAnItemsValueReadsTheItemsPossessive() {
+        List<ExpressionLines.Run> runs = ExpressionLines.shownRuns(
+                AbilityCosts.shown("minecraft:tnt", "unstable", Set.of()), id -> "TNT");
+        assertEquals(List.of(type("unstable"), symbol(":"),
+                new ExpressionLines.Run(ExpressionLines.Kind.ITEM, "TNT", "minecraft:tnt"),
+                run(ExpressionLines.Kind.SUFFIX, "'s"), type("unstable")), runs);
+    }
+
+    /**
+     * Where a line wraps at an item naming a type, the item's 's goes with it to the next line, flush against its
+     * name (decision possessive-sits-flush-against-its-word-button).
+     */
+    @Test
+    void anItemsPossessiveWrapsFlushAgainstItsName() {
+        String shown = "anvil.metal + bucket.metal";
+        List<ExpressionLines.Run> runs = ExpressionLines.shownRuns(shown, NAMES);
+        int bucket = runs.indexOf(new ExpressionLines.Run(ExpressionLines.Kind.ITEM, "Bucket", "bucket"));
+        DrawnFrame frame = drawn(shown, ExpressionLines.width(DrawnFrame.font(), runs.subList(0, bucket + 1)));
+        DrawnFrame.Text name = frame.find("Bucket");
+        DrawnFrame.Text possessive = frame.find("'s");
+        assertEquals(List.of(frame.find("Anvil").y() + ExpressionLines.ICON_LINE_HEIGHT, name.y(),
+                name.x() + DrawnFrame.font().width(name.text())), List.of(name.y(), possessive.y(), possessive.x()),
+                frame.drawn().toString());
     }
 }

@@ -32,6 +32,8 @@ import java.util.function.Supplier;
  */
 final class AbilitiesPane {
     private static final int GAP = 4;
+    /** The padding at a price column's left, so a field's label stands clear of the box before it. */
+    static final int COLUMN_PAD = GAP;
     private static final int HEADING_HEIGHT = ButtonPainter.HEIGHT;
     private static final String DRAFT_BADGE = "draft";
     private static final String NO_TEXT = "";
@@ -392,11 +394,17 @@ final class AbilitiesPane {
         ColumnFlow flow = ColumnFlow.under(from, nameLeft);
         for (AbilitiesTab.Leaf leaf : ability.prices()) {
             GroupsPane.Bounds field = isBuilding(ability, leaf) ? flow.placeLine(from.bottom())
-                    : flow.place(flow.columnsFor(fieldWidth(font, ability, leaf)), from.bottom());
+                    : padLeft(flow.place(flow.columnsFor(COLUMN_PAD + fieldWidth(font, ability, leaf)),
+                            from.bottom()));
             flow.took(drawField(graphics, font, new Priced(ability, leaf), field, from.right(), targets),
                     field.right());
         }
         return flow.bottom() + GAP;
+    }
+
+    // The operator's ruling of 2026-11-15: a column's left is padded, so Upkeep stands clear of the Cost box before it.
+    private static GroupsPane.Bounds padLeft(GroupsPane.Bounds column) {
+        return new GroupsPane.Bounds(column.left() + COLUMN_PAD, column.top(), column.right(), column.bottom());
     }
 
     /**
