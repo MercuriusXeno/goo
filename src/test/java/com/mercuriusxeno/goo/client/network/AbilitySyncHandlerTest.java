@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.AbilityPrice;
 import com.mercuriusxeno.goo.ability.program.DamageStep;
+import com.mercuriusxeno.goo.ability.program.PetrifyStep;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.item.GooFormat;
@@ -113,6 +114,20 @@ class AbilitySyncHandlerTest {
 
             for (AbilitySyncPayload.Entry entry : roundTrip(decay)) {
                 assertEquals(perBlockAndBite, ClientAbility.fromEntry(entry).petalLabel(PLENTY, 0));
+            }
+        }
+
+        /** petrify-pays-per-block-calcified-and-gauge-point */
+        @Test
+        void petrifysPetalReadsItsBlockPriceAndGaugePrice() {
+            AbilityDefinition petrify = AbilityJson.decode("rock_petrify");
+            PetrifyStep fill = petrify.behaviors().stream().filter(PetrifyStep.class::isInstance)
+                    .map(PetrifyStep.class::cast).findFirst().orElseThrow();
+            String perBlockAndPoint = GooFormat.formatMixed(petrify.cost().exactIn(GooValueTable.EMPTY)) + "/block + "
+                    + GooFormat.formatMixed(AbilityPrice.exactUnitPrice(fill.pointCost())) + "/point";
+
+            for (AbilitySyncPayload.Entry entry : roundTrip(petrify)) {
+                assertEquals(perBlockAndPoint, ClientAbility.fromEntry(entry).petalLabel(PLENTY, 0));
             }
         }
     }

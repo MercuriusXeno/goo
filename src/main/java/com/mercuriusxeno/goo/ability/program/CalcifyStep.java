@@ -67,8 +67,10 @@ public record CalcifyStep(Identifier map, int ticks) implements TakesNoEntity {
 
     /**
      * Builds each fogged block's exposure toward its next rung, stepping the
-     * rung once the share is full and passing over every position the hold
-     * already stepped.
+     * rung once the share is full and the player pays the block's price, the
+     * ability's cost, and passing over every position the hold already
+     * stepped; a block the player cannot pay for stays as it stood.
+     * petrify-pays-per-block-calcified-and-gauge-point
      *
      * @param host  the channel host
      * @param aim   the stream's aim, its reach along the look
@@ -77,10 +79,13 @@ public record CalcifyStep(Identifier map, int ticks) implements TakesNoEntity {
      */
     static void calcifyCone(ChannelHost host, ChannelAim aim, Function<Block, Optional<Block>> steps, float rate) {
         HoldMarks marks = host.holdMarks();
+        PlacementPrice price = host.placementPrice();
         for (BlockPos pos : blocksInCone(host.eye(), aim.aimPoint(), aim.coneDegrees())) {
             Optional<Block> next = nextRung(host, steps, marks, pos);
             if (next.isPresent() && host.exposeBlock(pos, next.get().defaultBlockState(), rate) >= 1f) {
-                host.transformBlock(pos, next.get().defaultBlockState());
+                if (price.pay(1)) {
+                    host.transformBlock(pos, next.get().defaultBlockState());
+                }
                 marks.noteStepped(pos);
             }
         }

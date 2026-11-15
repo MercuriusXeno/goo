@@ -63,6 +63,7 @@ class CalcifyStepTest {
         when(host.airAt(any())).thenAnswer(call -> !call.<BlockPos>getArgument(0).equals(gravel));
         when(host.blockAt(any())).thenReturn(mock(Block.class));
         when(host.exposeBlock(any(), any(), anyFloat())).thenReturn(1f);
+        when(host.placementPrice()).thenReturn(PlacementPrice.FREE);
         ChannelAim aim = new ChannelAim(REACH, null, CONE, 1, true);
 
         CalcifyStep.calcifyCone(host, aim, block -> Optional.of(cobblestone), 1f);

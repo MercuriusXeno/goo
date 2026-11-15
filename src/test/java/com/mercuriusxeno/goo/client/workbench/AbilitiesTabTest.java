@@ -119,16 +119,24 @@ class AbilitiesTabTest {
     @org.junit.jupiter.api.Nested
     class UnitPrices {
 
-        @Test
-        void decaysBlockPriceAndBitePriceAreItsCostFields() {
-            String name = "nether_decay";
+        // The price fields the tab lists for one shipped ability file, by field name.
+        private static List<String> priceFieldsOf(String name) {
             Identifier id = AbilityJson.idOf(name + ".json");
             JsonObject file = JsonParser.parseString(AbilityJson.read(name)).getAsJsonObject();
             AbilitiesTab tab = new AbilitiesTab();
             tab.readModel(AbilitiesModel.model(Map.of(id, file), Map.of()).toString());
+            return tab.abilities().getFirst().prices().stream().map(AbilitiesTab.Leaf::field).toList();
+        }
 
-            AbilitiesTab.Ability decay = tab.abilities().getFirst();
-            assertEquals(List.of("cost", "hit_cost"), decay.prices().stream().map(AbilitiesTab.Leaf::field).toList());
+        @Test
+        void decaysBlockPriceAndBitePriceAreItsCostFields() {
+            assertEquals(List.of("cost", "hit_cost"), priceFieldsOf("nether_decay"));
+        }
+
+        /** petrify-pays-per-block-calcified-and-gauge-point */
+        @Test
+        void petrifysBlockPriceAndGaugePriceAreItsCostFields() {
+            assertEquals(List.of("cost", "point_cost"), priceFieldsOf("rock_petrify"));
         }
     }
 
