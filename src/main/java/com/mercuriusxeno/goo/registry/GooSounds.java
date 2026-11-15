@@ -73,6 +73,11 @@ public final class GooSounds {
         SOUND_EVENTS.register("effects.zone_wub",
             () -> SoundEvent.createVariableRangeEvent(GooSoundIds.ZONE_WUB));
 
+    /** A sized charge reaching a stage (decision blast-charge-wubs-higher-at-each-stage). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> CHARGE_WUB =
+        SOUND_EVENTS.register("effects.charge_wub",
+            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.CHARGE_WUB));
+
     /** A door conjured toward the pocket (decision
      * channeling-to-the-pocket-conjures-a-door-that-envelops-the-player). */
     public static final DeferredHolder<SoundEvent, SoundEvent> ZONE_CONJURE =

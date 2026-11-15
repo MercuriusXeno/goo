@@ -161,6 +161,16 @@
       }
     ]
   },
+  "effects.charge_wub": {
+    "category": "players",
+    "subtitle": "subtitles.goo.charge_wub",
+    "sounds": [
+      {
+        "name": "goo:effects/zone_wub",
+        "stream": false
+      }
+    ]
+  },
   "effects.zone_conjure": {
     "category": "players",
     "subtitle": "subtitles.goo.zone_conjure",

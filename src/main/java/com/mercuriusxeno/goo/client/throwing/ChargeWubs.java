@@ -7,7 +7,8 @@ import java.util.Optional;
 
 /**
  * The sound a charge-sized cast's charge makes as it grows: the outsider
- * wub once each time the hold reaches a stage, at pitch 1.0 for the stage it
+ * wub's one take, so every stage pitches one base tone, once each time the
+ * hold reaches a stage, at pitch 1.0 for the stage it
  * opens at and 0.125 higher for each stage after, so Blast wubs 1.0 at 2
  * blocks up to 1.625 at 7; a stage the caster's goo cannot pay for, and a
  * hold resting on a stage, sound nothing more.
@@ -49,7 +50,7 @@ final class ChargeWubs {
         }
         soundedStage = stage;
         float pitch = OPENING_PITCH + (float) (stage - charge.openingSize()) * PITCH_PER_STAGE;
-        return Optional.of(new Cue(GooSoundIds.ZONE_WUB, pitch));
+        return Optional.of(new Cue(GooSoundIds.CHARGE_WUB, pitch));
     }
 
     /** Lets the next charge sound its stages afresh. */
