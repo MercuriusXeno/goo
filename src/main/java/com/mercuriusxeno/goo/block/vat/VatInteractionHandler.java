@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.item.GooDeposit;
 import com.mercuriusxeno.goo.item.GooInsert;
 import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.item.GooLabelItem;
+import com.mercuriusxeno.goo.item.GooSink;
 import com.mercuriusxeno.goo.item.gasket.GasketInstallHelper;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -117,9 +118,11 @@ final class VatInteractionHandler {
      */
     static InteractionResult handleGooInsert(
             VatBlockEntity vat, ItemStack stack, Player player) {
-        int accepted = GooInsert.pour(stack, player,
-                (type, volume) -> volume > 0 && vat.canAccept() ? vat.insertGoo(type, volume) : 0);
-        return accepted > 0 ? InteractionResult.SUCCESS : InteractionResult.PASS;
+        // decision goo-item-carries-its-exact-value-as-a-mixed-remainder: the vat's ledger banks the part
+        boolean moved = GooInsert.pour(stack, player, GooSink.banking(vat.getFluidHandler().ledger(),
+                type -> vat.canAccept() && vat.getFluidHandler().insertGoo(type, 1, true) > 0,
+                (type, volume) -> volume > 0 && vat.canAccept() ? vat.insertGoo(type, volume) : 0));
+        return moved ? InteractionResult.SUCCESS : InteractionResult.PASS;
     }
 
     /**

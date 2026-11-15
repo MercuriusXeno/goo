@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.item;
 
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.network.GooJoinPayload;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
@@ -98,6 +100,38 @@ public class GooItem extends Item implements IGooItemInteraction, GooCarrierItem
         stack.set(GooDataComponents.GOO_VOLUME.get(), volume);
     }
 
+    /**
+     * The stack's part under 1 mB, held in REMAINDERS keyed by the stack's one type, so
+     * the stack's fraction reads and writes through the remainders every store holds.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+     * decision one-remainder-capability-injected-into-every-fluid-capability
+     *
+     * @param stack the goo item stack
+     * @return its part under 1 mB, zero where none stands
+     */
+    public static GooFraction getPart(ItemStack stack) {
+        ResourceKey<GooTypeDefinition> key = GooStacks.keyOf(stack);
+        GooRemainders remainders = stack.get(GooDataComponents.REMAINDERS.get());
+        return key == null || remainders == null ? GooFraction.ZERO : remainders.of(key);
+    }
+
+    /**
+     * Sets the stack's part under 1 mB; a zero part removes the component, so a whole
+     * goo stack carries the components it carried before parts existed.
+     *
+     * @param stack the goo item stack, typed
+     * @param part  its part, at or above 0 and under 1
+     */
+    public static void setPart(ItemStack stack, GooFraction part) {
+        ResourceKey<GooTypeDefinition> key = GooStacks.keyOf(stack);
+        GooRemainders remainders = key == null ? GooRemainders.EMPTY : GooRemainders.EMPTY.with(key, part);
+        if (remainders.isEmpty()) {
+            stack.remove(GooDataComponents.REMAINDERS.get());
+        } else {
+            stack.set(GooDataComponents.REMAINDERS.get(), remainders);
+        }
+    }
+
     // --- GooCarrierItem (decision hosts-answer-bounds-through-interfaces) ---
 
     @Override
@@ -112,20 +146,17 @@ public class GooItem extends Item implements IGooItemInteraction, GooCarrierItem
     }
 
     /**
-     * Takes part of the volume; a goo drawn dry leaves the inventory.
+     * Takes part of the whole volume; a goo drawn dry leaves the inventory, and one
+     * whose last whole mB is drawn keeps its part under 1 mB.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
      */
     @Override
     public int drawGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {
         if (GooStacks.keyOf(stack) != type) {
             return 0;
         }
-        int volume = getVolume(stack);
-        int take = Math.min(amount, volume);
-        if (volume - take <= 0) {
-            stack.setCount(0);
-        } else {
-            setVolume(stack, volume - take);
-        }
+        int take = Math.min(amount, getVolume(stack));
+        GooStacks.depleteWhole(stack, take, () -> stack.setCount(0));
         return take;
     }
 
@@ -141,6 +172,33 @@ public class GooItem extends Item implements IGooItemInteraction, GooCarrierItem
         stack.set(GooDataComponents.GOO_TYPE.get(), key);
         setVolume(stack, volume);
         return stack;
+    }
+
+    /**
+     * Creates a goo ItemStack holding an exact value: its whole mB in GOO_VOLUME and
+     * its part under 1 mB beside it.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+     *
+     * @param key   the goo type's registry key
+     * @param exact the exact value, never negative
+     * @return a new goo item stack
+     */
+    public static ItemStack createWithExactValue(ResourceKey<GooTypeDefinition> key, GooFraction exact) {
+        ItemStack stack = createWithVolume(key, 0);
+        setMixedVolume(stack, MixedVolume.of(exact));
+        return stack;
+    }
+
+    /**
+     * Writes an exact value onto a goo stack, its whole mB and its part.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+     *
+     * @param stack  the goo item stack, typed
+     * @param volume the exact value
+     */
+    public static void setMixedVolume(ItemStack stack, MixedVolume volume) {
+        setVolume(stack, volume.whole());
+        setPart(stack, volume.part());
     }
 
 
@@ -318,7 +376,7 @@ public class GooItem extends Item implements IGooItemInteraction, GooCarrierItem
     private static List<GooAbsorb.Candidate> toCandidates(List<ItemEntity> entities) {
         List<GooAbsorb.Candidate> out = new ArrayList<>(entities.size());
         for (ItemEntity n : entities) {
-            out.add(new GooAbsorb.Candidate(n.getId(), getVolume(n.getItem()), n.getAge()));
+            out.add(new GooAbsorb.Candidate(n.getId(), GooStacks.mixedVolumeOf(n.getItem()), n.getAge()));
         }
         return out;
     }
@@ -340,7 +398,7 @@ public class GooItem extends Item implements IGooItemInteraction, GooCarrierItem
                 n.discard();
             }
         }
-        setVolume(selfStack, result.volume());
+        setMixedVolume(selfStack, result.volume());
         self.setItem(selfStack);
         self.age = result.age();
     }
@@ -418,7 +476,7 @@ public class GooItem extends Item implements IGooItemInteraction, GooCarrierItem
             return;
         }
         GooAbsorb.Result result = GooAbsorb.compute(
-                self.getId(), getVolume(selfStack), self.getAge(), toCandidates(touching));
+                self.getId(), GooStacks.mixedVolumeOf(selfStack), self.getAge(), toCandidates(touching));
         if (result.discardIds().isEmpty()) {
             return;
         }
@@ -495,24 +553,10 @@ public class GooItem extends Item implements IGooItemInteraction, GooCarrierItem
             return false;
         }
 
-        int remaining = volume - unit;
         slot.set(GooStacks.createForOutput(GooStacks.keyOf(goo), unit));
-        applyCursorRemainder(goo, remaining);
+        // decision goo-item-carries-its-exact-value-as-a-mixed-remainder: whole mB move, the part stays on the cursor
+        GooStacks.depleteWhole(goo, unit, () -> goo.shrink(1));
         return true;
-    }
-
-    /**
-     * Updates the cursor after removing volume: shrink when empty, else keep the remainder.
-     *
-     * @param goo  the goo on the cursor
-     * @param remaining volume remaining after extraction
-     */
-    private void applyCursorRemainder(ItemStack goo, int remaining) {
-        if (remaining <= 0) {
-            goo.shrink(1);
-        } else {
-            setVolume(goo, remaining);
-        }
     }
 
     /**
@@ -550,42 +594,34 @@ public class GooItem extends Item implements IGooItemInteraction, GooCarrierItem
     }
 
     /**
-     * Halves the goo at every volume (decision right-click-halves-the-stack):
-     * the cursor takes the floored half, the slot keeps the larger half, and a
-     * volume too small to halve goes to the cursor whole.
+     * Halves the goo at every volume through GooSplit's mixed halve, which keeps the
+     * part under 1 mB with the slot's half.
+     * decision right-click-halves-the-stack
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
      *
      * @param goo     the goo in the slot
      * @param cursorAccess access to set the cursor contents
      * @return true if the extraction was performed
      */
     private boolean handleEmptyCursorExtract(ItemStack goo, SlotAccess cursorAccess) {
-        int volume = getVolume(goo);
-        if (volume <= 0) {
+        MixedVolume volume = GooStacks.mixedVolumeOf(goo);
+        if (volume.isEmpty()) {
             return false;
         }
-        GooSplit.Halves halves = GooSplit.halve(volume);
-        cursorAccess.set(GooStacks.createForOutput(GooStacks.keyOf(goo), halves.cursorVolume()));
-        applySlotRemainder(goo, halves.slotVolume());
+        GooSplit.MixedHalves halves = GooSplit.halve(volume);
+        cursorAccess.set(GooStacks.createForOutput(GooStacks.keyOf(goo), halves.cursor().exact()));
+        if (halves.slot().isEmpty()) {
+            goo.shrink(1);
+        } else {
+            setMixedVolume(goo, halves.slot());
+        }
         return true;
     }
 
     /**
-     * Updates the slot after splitting: remove when empty, else keep the remainder.
-     *
-     * @param goo  the goo in the slot
-     * @param remaining volume remaining after split
-     */
-    private void applySlotRemainder(ItemStack goo, int remaining) {
-        if (remaining <= 0) {
-            goo.shrink(1);
-        } else {
-            setVolume(goo, remaining);
-        }
-    }
-
-    /**
-     * Combines a cursor goo of the same type into the slot goo.
-     * The cursor goo's volume is added to the slot goo, and the cursor is cleared.
+     * Combines a cursor goo of the same type into the slot goo: the two exact values
+     * add, and the cursor is cleared.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
      *
      * @param slotGoo   the goo in the slot
      * @param cursorGoo the goo on the cursor
@@ -594,9 +630,7 @@ public class GooItem extends Item implements IGooItemInteraction, GooCarrierItem
      */
     private boolean handleGooCombine(ItemStack slotGoo, ItemStack cursorGoo,
                                           SlotAccess cursorAccess) {
-        int cursorVol = getVolume(cursorGoo);
-        int slotVol = getVolume(slotGoo);
-        setVolume(slotGoo, slotVol + cursorVol);
+        setMixedVolume(slotGoo, GooStacks.mixedVolumeOf(slotGoo).plus(GooStacks.mixedVolumeOf(cursorGoo)));
         cursorAccess.set(ItemStack.EMPTY);
         return true;
     }

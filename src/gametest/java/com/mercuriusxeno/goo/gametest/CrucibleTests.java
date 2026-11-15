@@ -6,7 +6,10 @@ import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleCapacity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleMath;
 import com.mercuriusxeno.goo.block.crucible.CrucibleShape;
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.data.GooValues;
+import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
@@ -89,6 +92,7 @@ public final class CrucibleTests {
         GooTestFunctions.registerTest(registrar, CR_ITEM_MELTS_ON_ITS_CLOCK, CrucibleTests::itemMeltsOnItsClock);
         GooTestFunctions.registerTest(registrar, CR_GOO_ENTITY_ABSORBED, CrucibleTests::gooEntityAbsorbedIntoTheReservoir);
         GooTestFunctions.registerTest(registrar, CR_BROKEN_MID_MELT_DROPS_REMAINDER, CrucibleTests::brokenMidMeltDropsTheRemainder);
+        GooTestFunctions.registerTest(registrar, CR_BROKEN_SPILLS_ITS_FRACTION, CrucibleTests::brokenCrucibleSpillsItsFraction);
     }
 
 
@@ -187,6 +191,44 @@ public final class CrucibleTests {
     private static final String PART_MELTED = "pool part melted at the break: ";
     private static final String ONE_MELTED_ITEM_DROPPED = "one partially melted item dropped";
     private static final String DROP_CARRIES_REMAINDER = "dropped item carries the unmelted remainder";
+
+    private static final String CR_BROKEN_SPILLS_ITS_FRACTION = "cr_broken_spills_its_fraction";
+    private static final int SPILLED_WHOLE = 10;
+    private static final GooFraction SPILLED_PART = GooFraction.of(1, 3);
+    private static final GooFraction SPILLED_EXACT = GooFraction.of(31, 3);
+    private static final String SPILL_LOST_PART = "A crucible holding 10 and 1/3 mB of zoo, broken by a player, should drop "
+            + "zoo goo items holding 31/3 mB; they hold ";
+    private static final String FRACTION_TWICE = "The dropped zoo goo items and any zoo remainder on the dropped crucible "
+            + "item should hold 31/3 mB together; they hold ";
+
+    /**
+     * A crucible a player breaks spills its reservoir as goo items holding each type's
+     * exact value, and the fraction stands in one place: the goo items and the crucible's
+     * own item hold each type's remainder once between them.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+     * decision every-producer-consumer-and-container-holds-a-remainder-buffer
+     *
+     * @param helper the gametest helper
+     */
+    public static void brokenCrucibleSpillsItsFraction(GameTestHelper helper) {
+        CrucibleBlockEntity crucible = placeCrucible(helper);
+        crucible.insertGoo(GooTypes.ZOO, SPILLED_WHOLE);
+        crucible.reservoirHandler().ledger().creditExact(GooTypes.ZOO, SPILLED_PART);
+        survivalPlayerBreaks(helper);
+        helper.succeedWhen(() -> {
+            List<ItemStack> dropped = helper.getEntities(EntityType.ITEM, BE_POS, DROP_REACH).stream()
+                    .map(ItemEntity::getItem).toList();
+            GooFraction spilled = dropped.stream().filter(stack -> GooTypes.ZOO.equals(GooStacks.keyOf(stack)))
+                    .map(GooStacks::exactValueOf).reduce(GooFraction.ZERO, GooFraction::plus);
+            GooFraction onCrucibleItem = dropped.stream().filter(stack -> stack.is(GooItems.CRUCIBLE.get()))
+                    .map(stack -> stack.getOrDefault(GooDataComponents.REMAINDERS.get(), GooRemainders.EMPTY)
+                            .of(GooTypes.ZOO))
+                    .reduce(GooFraction.ZERO, GooFraction::plus);
+            helper.assertTrue(SPILLED_EXACT.equals(spilled), SPILL_LOST_PART + spilled);
+            helper.assertTrue(SPILLED_EXACT.equals(spilled.plus(onCrucibleItem)),
+                    FRACTION_TWICE + spilled.plus(onCrucibleItem));
+        });
+    }
 
     private CrucibleTests() {}
 

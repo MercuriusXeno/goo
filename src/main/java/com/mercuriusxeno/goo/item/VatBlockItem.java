@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.item;
 
+import com.mercuriusxeno.goo.data.IRemainderLedger;
+import com.mercuriusxeno.goo.data.StoredRemainderLedger;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.ResourceKey;
@@ -57,7 +59,27 @@ public class VatBlockItem extends BlockItem implements GooCarrierItem {
         if (label != null) {
             return applyLabelFromCursor(vat, cursor, label);
         }
-        return CanisterInventoryHandler.insertFromCursor(cursor, cursorAccess, (type, volume) -> addGoo(vat, type, volume));
+        // decision goo-item-carries-its-exact-value-as-a-mixed-remainder: the vat item's own ledger banks the part
+        return CanisterInventoryHandler.insertFromCursor(cursor, cursorAccess,
+                GooSink.banking(ledgerOf(vat), type -> takesGoo(vat, type), (type, volume) -> addGoo(vat, type, volume)));
+    }
+
+    /**
+     * The remainder ledger a vat item holds in its goo contents beside the goo.
+     * decision every-producer-consumer-and-container-holds-a-remainder-buffer
+     *
+     * @param vat the vat item stack
+     * @return the ledger
+     */
+    static IRemainderLedger ledgerOf(ItemStack vat) {
+        return new StoredRemainderLedger(() -> getGooContents(vat).remainders(), remainders -> {
+            GooContents next = getGooContents(vat).withRemainders(remainders);
+            if (next.holdsNothing()) {
+                vat.remove(GooDataComponents.GOO_CONTENTS.get());
+            } else {
+                vat.set(GooDataComponents.GOO_CONTENTS.get(), next);
+            }
+        });
     }
 
     /**
@@ -143,6 +165,20 @@ public class VatBlockItem extends BlockItem implements GooCarrierItem {
      */
     public static int addGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {
         return GooContentsOps.addGoo(stack, type, amount, ContainerCapacity.VAT_BASE);
+    }
+
+    /**
+     * Whether the vat item would take goo of a type, its label and room asked for 1 mB
+     * without moving any.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+     *
+     * @param stack the vat item stack
+     * @param type  the goo type
+     * @return true where it would take it
+     */
+    static boolean takesGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type) {
+        return GooLabelRule.admitsType(getGooLabel(stack), type)
+                && getGooContents(stack).roomFor(type, ContainerCapacity.VAT_BASE) > 0;
     }
 
     /**
