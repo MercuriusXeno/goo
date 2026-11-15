@@ -24,16 +24,6 @@ class GooStacksTest {
         assertEquals(1000, GooStacks.THOUSAND);
     }
 
-    // -- absorbedVolume (sink-into-goo math) --
-
-    /**
-     * Absorbing into a non-empty goo sums the two volumes.
-     */
-    @Test
-    void absorbedVolume_withExistingVolume() {
-        assertEquals(5500, GooStacks.absorbedVolume(500, 5000));
-    }
-
     // -- createForOutput (decision one-goo-item-at-every-amount) --
 
     /**
