@@ -67,6 +67,14 @@ public final class GooTooltipLines {
     }
 
     /**
+     * @param amounts each goo type's exact amount, as a goo item's whole and part read
+     * @return one line per type
+     */
+    public static List<GooValueTooltipComponent> exactLines(Map<ResourceKey<GooTypeDefinition>, GooFraction> amounts) {
+        return lines(amounts);
+    }
+
+    /**
      * The one place a goo tooltip line is built.
      *
      * @param amounts each goo type's exact amount

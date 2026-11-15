@@ -23,21 +23,22 @@ public final class GooAbsorb {
 
     /**
      * A nearby goo candidate considered for absorption.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
      *
      * @param id     entity id of the candidate
-     * @param volume stored volume
+     * @param volume its exact value, whole mB and part
      * @param age    current age of the candidate in ticks
      */
-    public record Candidate(int id, int volume, int age) {}
+    public record Candidate(int id, MixedVolume volume, int age) {}
 
     /**
      * Result of an absorb pass.
      *
-     * @param volume     summed volume
+     * @param volume     the exact sum
      * @param age        new age for the absorber (min across participants)
      * @param discardIds ids of absorbed candidates in iteration order
      */
-    public record Result(int volume, int age, List<Integer> discardIds) {}
+    public record Result(MixedVolume volume, int age, List<Integer> discardIds) {}
 
     /**
      * Computes the post-merge volume, new age, and discard list.
@@ -46,19 +47,19 @@ public final class GooAbsorb {
      * candidate (vanilla's own merge rule at {@code ItemEntity.merge}).
      *
      * @param selfId     entity id of the would-be absorber
-     * @param selfVolume absorber's current volume
+     * @param selfVolume absorber's current exact value
      * @param selfAge    absorber's current age in ticks
      * @param candidates nearby same-type goo entities
      * @return the combined volume, new age, and list of candidate ids to discard
      */
-    public static Result compute(int selfId, int selfVolume, int selfAge,
+    public static Result compute(int selfId, MixedVolume selfVolume, int selfAge,
             List<Candidate> candidates) {
-        int total = selfVolume;
+        MixedVolume total = selfVolume;
         int minAge = selfAge;
         List<Integer> discard = new ArrayList<>();
         for (Candidate c : candidates) {
             if (c.id() <= selfId) { continue; }
-            total += c.volume();
+            total = total.plus(c.volume());
             if (c.age() < minAge) { minAge = c.age(); }
             discard.add(c.id());
         }

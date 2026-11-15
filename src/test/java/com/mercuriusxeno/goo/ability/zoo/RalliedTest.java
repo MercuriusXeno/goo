@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.ability.zoo;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.mojang.serialization.JsonOps;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.Optional;
@@ -69,6 +72,37 @@ class RalliedTest {
         @Test
         void damageWithNoAttackerLeavesTheRally() {
             assertFalse(new Rallied(FIRST, DAMAGE).brokenBy(null));
+        }
+    }
+
+    /** slots-follow-rally-order-size-and-count */
+    @Nested
+    class RallyOrder {
+
+        @Test
+        void aRallySavedBeforeTheOrderLoadsWithTheDefaultOrder() {
+            JsonObject saved = new JsonObject();
+            JsonArray caster = new JsonArray();
+            caster.add(0);
+            caster.add(0);
+            caster.add(0);
+            caster.add(1);
+            saved.add("caster", caster);
+            saved.addProperty("damage", DAMAGE);
+            Rallied loaded = Rallied.CODEC.codec().parse(JsonOps.INSTANCE, saved).getOrThrow();
+            assertEquals(new Rallied(FIRST, DAMAGE, Optional.empty(), RallyArmor.NONE, Rallied.DEFAULT_RALLY_ORDER),
+                    loaded);
+        }
+
+        @Test
+        void aSecondRallyKeepsTheFirstRallysOrder() {
+            Rallied first = new Rallied(FIRST, DAMAGE, Optional.empty(), RallyArmor.NONE, 100L);
+            assertEquals(100L, Rallied.rallyOrderAfter(first, 200L));
+        }
+
+        @Test
+        void aFirstRallyTakesTheStamp() {
+            assertEquals(200L, Rallied.rallyOrderAfter(null, 200L));
         }
     }
 

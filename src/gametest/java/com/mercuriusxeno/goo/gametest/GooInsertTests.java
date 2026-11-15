@@ -38,7 +38,8 @@ public final class GooInsertTests {
     private static final int THOUSANDS_TAKEN = 3;
     private static final int GOO_VOLUME = 3_000;
     private static final int GOO_TAKEN = 1_000;
-    private static final String ACCEPTED = "Volume the insert answers";
+    private static final String ACCEPTED = "A sink taking goo should answer that goo moved";
+    private static final String REFUSED = "A refusing sink or a non-goo stack should answer that nothing moved";
     private static final String OFFERED_TYPE = "Type offered to the sink";
     private static final String OFFERED_VOLUME = "Volume offered to the sink";
     private static final String THOUSANDS_LEFT = "Volume left in the five-goo";
@@ -49,7 +50,7 @@ public final class GooInsertTests {
 
     /**
      * A sink taking part of a goo depletes it by what it took;
-     * a refusing sink and a non-goo stack answer 0.
+     * a refusing sink and a non-goo stack answer that nothing moved.
      *
      * @param helper the gametest helper
      */
@@ -58,23 +59,21 @@ public final class GooInsertTests {
 
         ItemStack thousands = GooStacks.createForOutput(ROCK, GOO_COUNT * GooStacks.THOUSAND);
         RecordingSink partial = new RecordingSink(THOUSANDS_TAKEN * GooStacks.THOUSAND);
-        helper.assertValueEqual(GooInsert.pour(thousands, player, partial),
-                THOUSANDS_TAKEN * GooStacks.THOUSAND, ACCEPTED);
+        helper.assertTrue(GooInsert.pour(thousands, player, partial), ACCEPTED);
         helper.assertValueEqual(partial.offeredType(), ROCK, OFFERED_TYPE);
         helper.assertValueEqual(partial.offeredVolume(), GOO_COUNT * GooStacks.THOUSAND, OFFERED_VOLUME);
         helper.assertValueEqual(GooStacks.volumeOf(thousands), (GOO_COUNT - THOUSANDS_TAKEN) * GooStacks.THOUSAND, THOUSANDS_LEFT);
 
         ItemStack goo = GooItem.createWithVolume(ROCK, GOO_VOLUME);
-        helper.assertValueEqual(GooInsert.pour(goo, player, new RecordingSink(GOO_TAKEN)),
-                GOO_TAKEN, ACCEPTED);
+        helper.assertTrue(GooInsert.pour(goo, player, new RecordingSink(GOO_TAKEN)), ACCEPTED);
         helper.assertValueEqual(GooItem.getVolume(goo), GOO_VOLUME - GOO_TAKEN, GOO_LEFT);
 
         ItemStack refused = GooStacks.createForOutput(ROCK, GOO_COUNT * GooStacks.THOUSAND);
-        helper.assertValueEqual(GooInsert.pour(refused, player, new RecordingSink(0)), 0, ACCEPTED);
+        helper.assertFalse(GooInsert.pour(refused, player, new RecordingSink(0)), REFUSED);
 
         ItemStack stone = new ItemStack(Items.STONE, GOO_COUNT);
         RecordingSink unoffered = new RecordingSink(GOO_COUNT * GooStacks.THOUSAND);
-        helper.assertValueEqual(GooInsert.pour(stone, player, unoffered), 0, ACCEPTED);
+        helper.assertFalse(GooInsert.pour(stone, player, unoffered), REFUSED);
         helper.succeed();
     }
 

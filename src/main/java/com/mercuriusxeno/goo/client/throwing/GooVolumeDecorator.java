@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.throwing;
 
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.item.GooItem;
 import com.mercuriusxeno.goo.item.GooStacks;
@@ -57,10 +58,10 @@ public class GooVolumeDecorator implements IItemDecorator {
      * @return true if decorations were rendered, false if the goo is empty
      */
     private boolean renderGoo(GuiGraphicsExtractor graphics, Font font, ItemStack stack, int xOffset, int yOffset) {
-        int volume = GooItem.getVolume(stack);
-        if (volume <= 0) { return false; }
+        if (!GooStacks.exactValueOf(stack).isPositive()) { return false; }
         renderTypeIcon(graphics, GooStacks.keyOf(stack), xOffset, yOffset);
-        renderVolumeLabel(graphics, font, volume, xOffset, yOffset);
+        renderVolumeLabel(graphics, font, volumeLabel(GooItem.getVolume(stack), GooItem.getPart(stack)),
+                xOffset, yOffset);
         return true;
     }
 
@@ -91,17 +92,29 @@ public class GooVolumeDecorator implements IItemDecorator {
     }
 
     /**
+     * The slot's amount: the stack's exact value as the mixed number the tooltip and
+     * the plexer HUD draw.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+     *
+     * @param whole the stack's whole mB
+     * @param part  its part under 1 mB
+     * @return the label text
+     */
+    static String volumeLabel(int whole, GooFraction part) {
+        return GooFormat.formatMixed(GooFraction.of(whole).plus(part));
+    }
+
+    /**
      * Draws the volume label right-aligned at the bottom of the slot, scaled down.
      *
      * @param graphics the GUI graphics context
      * @param font the font renderer
-     * @param volume the volume
+     * @param label the label text
      * @param xOffset the horizontal slot position
      * @param yOffset the vertical slot position
      */
     private void renderVolumeLabel(GuiGraphicsExtractor graphics, Font font,
-            int volume, int xOffset, int yOffset) {
-        String label = GooFormat.formatAmount(volume);
+            String label, int xOffset, int yOffset) {
         int textWidth = font.width(label);
 
         int x = (int) ((xOffset + TEXT_RIGHT_EDGE) / TEXT_SCALE) - textWidth;
