@@ -17,6 +17,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.client.model.DynamicBlockStateModel;
 import net.neoforged.neoforge.client.model.block.CustomUnbakedBlockStateModel;
@@ -44,10 +45,30 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core)
     public void collectParts(BlockAndTintGetter level, BlockPos pos, BlockState state, RandomSource random,
                              List<BlockStateModelPart> parts) {
         shell.collectParts(level, pos, state, random, parts);
-        List<BakedQuad> quads = SlimeCoreQuads.quadsOf(SlimeCoreBox.of(VolumeCellBlock.layersOf(state)), core);
+        List<BakedQuad> quads = SlimeCoreQuads.quadsOf(SlimeCoreBox.boxesOf(layersAround(level, pos, state)), core);
         if (!quads.isEmpty()) {
             parts.add(new CorePart(quads, shell.particleMaterial(level, pos, state)));
         }
+    }
+
+    /**
+     * The layers the cells of a cell's goo hold around it, read from the
+     * level as its section meshes; a cell of another goo, any other block and
+     * open air hold none. The client re-meshes a cell when any block within
+     * one of it changes, diagonals included (LevelRenderer.setBlockDirty), so
+     * reads within that reach stay current.
+     * slime-cores-connect-where-only-padding-parts-them
+     *
+     * @param level the level the section meshes from
+     * @param pos   the cell
+     * @param state the cell's state
+     * @return the neighbourhood the core rule reads
+     */
+    static LayersAround layersAround(BlockGetter level, BlockPos pos, BlockState state) {
+        return (dx, dy, dz) -> {
+            BlockState beside = dx == 0 && dy == 0 && dz == 0 ? state : level.getBlockState(pos.offset(dx, dy, dz));
+            return beside.is(state.getBlock()) ? VolumeCellBlock.layersOf(beside) : 0;
+        };
     }
 
     @Override

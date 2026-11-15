@@ -11,15 +11,18 @@ import org.joml.Vector3f;
 import org.joml.Vector3fc;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 /**
- * Builds the quads a slime core's box draws as: an opaque box on the cell's
- * goo type's fluid sprite, untinted as the palm blob's core is, its six faces
- * baked as a block model's are and textured where the box stands in its
- * block. It reads no client state, so a test hands it any sprite.
+ * Builds the quads a slime core's boxes draw as: an opaque body on the
+ * cell's goo type's fluid sprite, untinted as the palm blob's core is, each
+ * face baked as a block model's are and textured where it stands in its
+ * block, so the texture runs on across a join as across tiled blocks. A face
+ * on the block's own boundary draws nothing, since a core reaches it only
+ * where it joins the core across it. It reads no client state, so a test
+ * hands it any sprite.
  * connected-goo-draws-as-one-layered-mass-with-a-core
  * palm-blob-draws-as-the-charge-blob
+ * slime-cores-connect-where-only-padding-parts-them
  */
 public final class SlimeCoreQuads {
 
@@ -46,22 +49,37 @@ public final class SlimeCoreQuads {
     /**
      * The quads a core draws as.
      *
-     * @param box      the core's box, empty for a cell holding none
+     * @param boxes    the core's boxes, none for a cell holding no core
      * @param material the core's material: the goo type's fluid sprite, untinted, on the solid layer
-     * @return the box's six faces, none for an empty box
+     * @return each box's faces but those on its block's boundary
      */
-    public static List<BakedQuad> quadsOf(Optional<SlimeCoreBox> box, BakedQuad.MaterialInfo material) {
-        if (box.isEmpty()) {
-            return List.of();
-        }
-        SlimeCoreBox core = box.get();
-        Vector3fc from = new Vector3f(core.minX(), core.minY(), core.minZ()).mul(PIXELS_PER_LAYER);
-        Vector3fc to = new Vector3f(core.maxX(), core.maxY(), core.maxZ()).mul(PIXELS_PER_LAYER);
-        List<BakedQuad> quads = new ArrayList<>(Direction.values().length);
-        for (Direction face : Direction.values()) {
-            quads.add(FaceBakery.bakeQuad(UNSHARED, from, to, FaceBakery.defaultFaceUV(from, to, face), Quadrant.R0,
-                    material, face, BlockModelRotation.IDENTITY, null, ExtraFaceData.DEFAULT));
+    public static List<BakedQuad> quadsOf(List<SlimeCoreBox> boxes, BakedQuad.MaterialInfo material) {
+        List<BakedQuad> quads = new ArrayList<>();
+        for (SlimeCoreBox box : boxes) {
+            Vector3fc from = new Vector3f(box.minX(), box.minY(), box.minZ()).mul(PIXELS_PER_LAYER);
+            Vector3fc to = new Vector3f(box.maxX(), box.maxY(), box.maxZ()).mul(PIXELS_PER_LAYER);
+            for (Direction face : Direction.values()) {
+                if (!onBoundary(box, face)) {
+                    quads.add(FaceBakery.bakeQuad(UNSHARED, from, to, FaceBakery.defaultFaceUV(from, to, face),
+                            Quadrant.R0, material, face, BlockModelRotation.IDENTITY, null, ExtraFaceData.DEFAULT));
+                }
+            }
         }
         return quads;
+    }
+
+    /**
+     * Whether a box's face lies on its block's boundary, the face it shares with the core it joins.
+     *
+     * @param box  the box
+     * @param face the side of the box
+     * @return true where that side stands on the block's own face
+     */
+    private static boolean onBoundary(SlimeCoreBox box, Direction face) {
+        Direction.Axis axis = face.getAxis();
+        if (face.getAxisDirection() == Direction.AxisDirection.POSITIVE) {
+            return axis.choose(box.maxX(), box.maxY(), box.maxZ()) == SlimeCoreBox.WHOLE;
+        }
+        return axis.choose(box.minX(), box.minY(), box.minZ()) == 0;
     }
 }
