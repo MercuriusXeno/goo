@@ -111,6 +111,8 @@ public final class RallyTests {
                 RallyTests::ralliedCowsSwapSlotsInTheOtherRallyOrder);
         GooTestFunctions.registerTest(registrar, SLOW_AND_FAST_MINIONS_HOLD_THEIR_SLOTS,
                 RallyTests::slowAndFastMinionsHoldTheirSlots);
+        GooTestFunctions.registerTest(registrar, RALLIED_COW_WALKS_AROUND_ITS_RALLIER,
+                RallyTests::ralliedCowWalksAroundItsRallier);
     }
 
     private static final String CHARMED_ZOMBIE_AND_RALLIED_COW_LAND_NO_HIT_ON_EACH_OTHER =
@@ -567,12 +569,15 @@ public final class RallyTests {
 
     private static final String RALLY_COW_KEEPS_WALKING_ONCE_ITS_RALLIER_STOPS =
             "rally_cow_keeps_walking_once_its_rallier_stops";
-    /** The short step's start, near the bay's north-west corner so its spot lands inside the bay. */
-    private static final Vec3 STEP_START = new Vec3(1.0, 1.0, 1.0);
+    /**
+     * The short step's start in march_bay, with room on both sides of the
+     * rallier for the cow to walk round it to the spot ahead.
+     */
+    private static final Vec3 STEP_START = new Vec3(5.0, 1.0, 2.5);
     /** The short step's end, half a block on along the diagonal. */
-    private static final Vec3 STEP_END = new Vec3(1.5, 1.0, 1.5);
-    /** The cow's start, a block and a half behind the step's end, too far to get ahead while the rallier moves. */
-    private static final BlockPos BEHIND_THE_STEP_POS = new BlockPos(0, 1, 0);
+    private static final Vec3 STEP_END = new Vec3(5.5, 1.0, 3.0);
+    /** The cow's start, two blocks behind the step's end, too far to get ahead while the rallier moves. */
+    private static final BlockPos BEHIND_THE_STEP_POS = new BlockPos(4, 1, 1);
     /** The step's pace, so the rallier moves for a handful of ticks before it stops. */
     private static final double STEP_PACE = 0.1;
     /** How far past the stopped rallier the cow must stand, short of its nearest spot less the arrival distance. */
@@ -793,7 +798,7 @@ public final class RallyTests {
         helper.runAfterDelay(1, () -> rally(helper, second, caster));
         int[] walked = new int[1];
         helper.onEachTick(() -> caster.setPos(start.add(heading.scale(Math.min(length, RALLIER_PACE * walked[0]++)))));
-        List<RallyFollow.Slot> slots = RallyFollow.formation(List.of((double) first.getBbWidth(),
+        List<RallyFollow.Slot> slots = RallyFollow.formation(caster.getBbWidth(), List.of((double) first.getBbWidth(),
                 (double) second.getBbWidth()));
         helper.succeedWhen(() -> {
             helper.assertTrue(RALLIER_PACE * walked[0] > length, "The rallier should finish its march");
@@ -849,7 +854,7 @@ public final class RallyTests {
         Fox fox = helper.spawnWithNoFreeWill(EntityType.FOX, BEHIND_THE_RALLIER_POS);
         rally(helper, cow, caster);
         helper.runAfterDelay(1, () -> rally(helper, fox, caster));
-        List<RallyFollow.Slot> slots = RallyFollow.formation(List.of((double) cow.getBbWidth(),
+        List<RallyFollow.Slot> slots = RallyFollow.formation(caster.getBbWidth(), List.of((double) cow.getBbWidth(),
                 (double) fox.getBbWidth()));
         Vec3 velocity = heading.scale(WALKING_PACE);
         int[] walked = new int[1];
@@ -875,6 +880,62 @@ public final class RallyTests {
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.assertTrue(foxArrived[0], String.format(TRAILER_NEVER_ARRIVED, RallyFollow.ARRIVAL_DISTANCE,
                     foxNearest[0], offSlot(fox, caster, velocity, slots.get(1)), fox.hasData(GooAttachments.RALLIED)));
+            helper.succeed();
+        });
+    }
+
+    private static final String RALLIED_COW_WALKS_AROUND_ITS_RALLIER = "rallied_cow_walks_around_its_rallier";
+    /** Where the rallier starts in march_bay, three blocks in from its west end. */
+    private static final Vec3 AWAY_WALK_START = new Vec3(8.5, 1.0, 3.5);
+    /** A point due east of the start, along the bay's length, which sets the walk's heading. */
+    private static final Vec3 AWAY_WALK_HEADING = new Vec3(9.5, 1.0, 3.5);
+    /** The cow's start, two blocks straight behind the rallier, so its slot ahead lies across the rallier. */
+    private static final BlockPos STRAIGHT_BEHIND_POS = new BlockPos(6, 1, 3);
+    /** How far inside the keep-clear radius the cow may stray, a tenth of a block for a step's momentum. */
+    private static final double KEEP_CLEAR_TOLERANCE = 0.1;
+    private static final String COW_WALKED_INTO_ITS_RALLIER =
+            "The cow should stay %s from its rallier on its way to its slot; tick %s it stood %s away";
+    private static final String COW_NEVER_REACHED_ITS_SLOT =
+            "The cow should reach its slot across the rallier by the walk's end; it stands %s off";
+
+    /**
+     * Stands a rallied cow straight behind a mock rallier and walks the
+     * rallier away from it at a player's walking pace, so the cow's slot
+     * lies across the rallier: on every tick until the cow reaches its slot
+     * it stands outside the rallier's keep-clear radius, less a tenth of a
+     * block, and it reaches the slot before the walk ends
+     * (decision rallied-mobs-walk-around-their-rallier).
+     *
+     * @param helper the gametest helper
+     */
+    public static void ralliedCowWalksAroundItsRallier(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
+        Vec3 start = helper.absoluteVec(AWAY_WALK_START);
+        // the bay may stand rotated, so the walk's world heading is read from its world points
+        Vec3 heading = helper.absoluteVec(AWAY_WALK_HEADING).subtract(start).normalize();
+        caster.setPos(start);
+        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, STRAIGHT_BEHIND_POS);
+        rally(helper, cow, caster);
+        RallyFollow.Slot slot = RallyFollow.formation(caster.getBbWidth(), List.of((double) cow.getBbWidth()))
+                .getFirst();
+        double keepClear = RallyFollow.keepClearRadius(caster.getBbWidth(), cow.getBbWidth()) - KEEP_CLEAR_TOLERANCE;
+        Vec3 velocity = heading.scale(WALKING_PACE);
+        int[] walked = new int[1];
+        boolean[] arrived = new boolean[1];
+        helper.onEachTick(() -> {
+            if (walked[0] >= WALK_TICKS) {
+                return;
+            }
+            caster.setPos(start.add(heading.scale(WALKING_PACE * walked[0]++)));
+            arrived[0] |= offSlot(cow, caster, velocity, slot) <= RallyFollow.ARRIVAL_DISTANCE;
+            double apart = cow.position().subtract(caster.position()).horizontalDistance();
+            helper.assertTrue(arrived[0] || apart >= keepClear,
+                    String.format(COW_WALKED_INTO_ITS_RALLIER, keepClear, walked[0], apart));
+        });
+        helper.runAfterDelay(WALK_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(arrived[0], String.format(COW_NEVER_REACHED_ITS_SLOT,
+                    offSlot(cow, caster, velocity, slot)));
             helper.succeed();
         });
     }
