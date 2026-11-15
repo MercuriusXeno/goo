@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.item.GooGloveItem.GloveTier;
 import com.mercuriusxeno.goo.item.gasket.ChoralGasketItem;
 import com.mercuriusxeno.goo.item.gasket.ChoralTunerItem;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.BucketItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.Rarity;
@@ -59,6 +60,15 @@ public class GooItems {
             props -> new VatBlockItem(GooBlocks.VAT.get(), props.useBlockDescriptionPrefix()));
     public static final DeferredItem<BlockItem> EXORITE_BARS = ITEMS.registerSimpleBlockItem("exorite_bars",
             GooBlocks.EXORITE_BARS);
+    // --- Lunar matter (decision lunar-matter-is-anorthosite-basalt-regolith-and-an-iron-core) ---
+    public static final DeferredItem<BlockItem> ANORTHOSITE = ITEMS.registerSimpleBlockItem("anorthosite",
+            GooBlocks.ANORTHOSITE);
+    public static final DeferredItem<BlockItem> REGOLITH = ITEMS.registerSimpleBlockItem("regolith",
+            GooBlocks.REGOLITH);
+    public static final DeferredItem<BlockItem> IRON_CORE = ITEMS.registerSimpleBlockItem("iron_core",
+            GooBlocks.IRON_CORE);
+    public static final DeferredItem<BucketItem> MOLTEN_IRON_BUCKET = ITEMS.registerItem("molten_iron_bucket",
+            props -> new BucketItem(GooFluids.MOLTEN_IRON_SOURCE.get(), props.craftRemainder(Items.BUCKET).stacksTo(1)));
     // --- Canister ---
     public static final DeferredItem<CanisterItem> CANISTER = ITEMS.registerItem("canister",
             props -> new CanisterItem(GooBlocks.CANISTER.get(), props.stacksTo(1).useBlockDescriptionPrefix()));

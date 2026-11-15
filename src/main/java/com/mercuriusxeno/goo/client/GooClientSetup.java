@@ -139,6 +139,8 @@ public final class GooClientSetup {
      * SuppressWarnings annotation value for unchecked casts.
      */
     private static final String SUPPRESS_UNCHECKED = "unchecked";
+    /** Molten iron's animated sprite, still and flowing alike, as goo draws one sprite for both. */
+    private static final Identifier MOLTEN_IRON_SPRITE = Identifier.fromNamespaceAndPath(Goo.MODID, "fluid/molten_iron");
 
     static {
         ISidedProxy.INSTANCE[0] = new ClientProxy();
@@ -537,6 +539,9 @@ public final class GooClientSetup {
         GooFluidTintSource tint = new GooFluidTintSource();
         FluidModel.Unbaked model = new FluidModel.Unbaked(texture, texture, null, tint, new GooTypeFluidRenderer(tint));
         event.register(model, GooFluids.SOURCE, GooFluids.FLOWING);
+        Material moltenIron = new Material(MOLTEN_IRON_SPRITE, true);
+        event.register(new FluidModel.Unbaked(moltenIron, moltenIron, null, null),
+                GooFluids.MOLTEN_IRON_SOURCE, GooFluids.MOLTEN_IRON_FLOWING);
     }
 
     /**
@@ -548,7 +553,7 @@ public final class GooClientSetup {
     @SubscribeEvent
     public static void registerClientExtensions(RegisterClientExtensionsEvent event) {
         event.registerFluidType(new IClientFluidTypeExtensions() {
-        }, GooFluidTypes.GOO.get());
+        }, GooFluidTypes.GOO.get(), GooFluidTypes.MOLTEN_IRON.get());
     }
 
     /**
