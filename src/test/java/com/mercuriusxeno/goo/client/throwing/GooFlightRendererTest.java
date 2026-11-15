@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.TravelForm;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.ToDoubleFunction;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
@@ -23,29 +25,41 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 
 /**
- * The metal flight's morph into the dart follows the share of the flight
- * the ability's delivery names, so the dart's timing is ability data and a
- * different share moves it (decisions traveling-form-transforms-in-flight,
- * dart-transform-point-is-ability-data).
+ * A flight's morph into its travel form follows the share of the flight the
+ * delivery names, so the timing is ability data and a different share moves
+ * it (decisions traveling-form-transforms-in-flight,
+ * dart-transform-point-is-ability-data); Dart's javelin forms in the hand, so
+ * its blob flies whole from the start
+ * (decision shriek-bloom-portal-mitosis-and-dart-still-throw-a-blob).
  */
 class GooFlightRendererTest {
 
     private static final float TOLERANCE = 1e-5f;
     private static final float LONG_THROW = 12f;
     private static final float SHORT_THROW = 1f;
+    /** Dart's shipped transform point, the morph in the hand. */
+    private static final String IN_THE_HAND = "\"transform_at\": 0,";
+    /** A transform point a quarter of the way out, the morph in flight. */
+    private static final String IN_FLIGHT = "\"transform_at\": 0.25,";
 
     @Test
-    void theDartsDeliveryNamesItsTransformPointEarlierThanTheDefault() {
+    void theDartFormsInTheHandAndFliesWholeFromTheStart() {
         Delivery dart = AbilityJson.decode("metal_dart").delivery();
 
-        assertTrue(dart.transformAt() < Delivery.DEFAULT_TRANSFORM_AT,
-                "the dart takes its dart form no earlier than the default " + dart.transformAt());
+        assertTrue(dart.morphsInHand(), "the dart should take its form in the hand, transform_at "
+                + dart.transformAt());
+        assertEquals(1f, GooFlightRenderer.morphFraction(0f, LONG_THROW, (float) dart.transformAt()), 0f);
     }
 
     @Test
-    void theMorphIsWholeAtTheTransformPointTheDeliveryNames() {
-        float transformAt = (float) AbilityJson.decode("metal_dart").delivery().transformAt();
+    void aDartFormNamedInFlightIsTheBlobBeforeItsTransformPointAndTheDartAfter() {
+        String shipped = AbilityJson.read("metal_dart");
+        assertTrue(shipped.contains(IN_THE_HAND), "metal_dart.json should name " + IN_THE_HAND);
+        Delivery inFlight = AbilityJson.decodeText("metal_dart", shipped.replace(IN_THE_HAND, IN_FLIGHT)).delivery();
+        float transformAt = (float) inFlight.transformAt();
 
+        assertEquals(TravelForm.DART, inFlight.form());
+        assertFalse(inFlight.morphsInHand(),"a form named at transform_at " + transformAt + " morphs in flight");
         assertEquals(0f, GooFlightRenderer.morphFraction(0f, LONG_THROW, transformAt), 0f);
         assertEquals(0.5f, GooFlightRenderer.morphFraction(transformAt / 2, LONG_THROW, transformAt), TOLERANCE);
         assertEquals(1f, GooFlightRenderer.morphFraction(transformAt, LONG_THROW, transformAt), TOLERANCE);
