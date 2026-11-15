@@ -62,16 +62,16 @@ public final class BlastChargeTests {
     private static final int BAY_HEIGHT = 5;
     /** The stone block the release aims at, in the middle of the floor. */
     private static final BlockPos AIMED = new BlockPos(8, FLOOR_TOP, 8);
-    /** The point on the aimed block's top face the crosshair rests on. */
-    private static final Vec3 AIMED_POINT = new Vec3(8.5, FLOOR_TOP + 1.0, 8.5);
     /** Where the caster stands, on the floor near the bay's edge, past the blast's reach. */
     private static final BlockPos STAND = new BlockPos(8, FLOOR_TOP + 1, 1);
-    /** The hold a full charge takes, from 2 blocks to 7 at a second a stage. */
-    private static final int FULL_CHARGE = 100;
-    /** How far out along the floor a full charge breaks the stone, inside its 7 blocks. */
-    private static final int INSIDE_THE_CAP = 6;
-    /** How far out along the floor the stone stands, past its 7 blocks. */
-    private static final int PAST_THE_CAP = 7;
+    /** The hold a full charge takes, from 2 blocks to 9 at 12 ticks a stage. */
+    private static final int FULL_CHARGE = 84;
+    /** The stone a full charge aims at, near the floor's west edge, so its 9 block crater fits the floor east of it. */
+    private static final BlockPos FULL_CHARGE_AIMED = new BlockPos(3, FLOOR_TOP, 8);
+    /** How far out along the floor a full charge breaks the stone, inside its 9 blocks. */
+    private static final int INSIDE_THE_CAP = 8;
+    /** How far out along the floor the stone stands, past its 9 blocks. */
+    private static final int PAST_THE_CAP = 9;
     /** How far out along the floor a release with no hold breaks the stone, inside its 2 blocks. */
     private static final int INSIDE_THE_FIRST_STAGE = 1;
     /** How far out along the floor the stone stands, past its 2 blocks. */
@@ -85,15 +85,15 @@ public final class BlastChargeTests {
     }
 
     /**
-     * A release held its full 100 ticks breaks the floor's top stone six
-     * blocks out from the aim the release tick, and leaves it standing seven out.
+     * A release held its full 84 ticks breaks the floor's top stone eight
+     * blocks out from the aim the release tick, and leaves it standing nine out.
      * decision blast-charges-from-two-to-seven-blocks
      *
      * @param helper the gametest helper
      */
     public static void chargedBlastBreaksOutToItsSize(GameTestHelper helper) {
-        castBlast(helper, FULL_CHARGE);
-        assertBrokenOutTo(helper, INSIDE_THE_CAP, PAST_THE_CAP);
+        castBlast(helper, FULL_CHARGE, FULL_CHARGE_AIMED, player -> { });
+        assertBrokenOutTo(helper, FULL_CHARGE_AIMED, INSIDE_THE_CAP, PAST_THE_CAP);
     }
 
     /**
@@ -105,13 +105,13 @@ public final class BlastChargeTests {
      */
     public static void unchargedBlastBreaksOutToTwo(GameTestHelper helper) {
         castBlast(helper, 0);
-        assertBrokenOutTo(helper, INSIDE_THE_FIRST_STAGE, PAST_THE_FIRST_STAGE);
+        assertBrokenOutTo(helper, AIMED, INSIDE_THE_FIRST_STAGE, PAST_THE_FIRST_STAGE);
     }
 
-    private static void assertBrokenOutTo(GameTestHelper helper, int inside, int past) {
-        helper.assertTrue(helper.getBlockState(AIMED.east(inside)).isAir(),
+    private static void assertBrokenOutTo(GameTestHelper helper, BlockPos aimed, int inside, int past) {
+        helper.assertTrue(helper.getBlockState(aimed.east(inside)).isAir(),
                 "The blast should break the stone " + inside + " blocks out");
-        helper.assertTrue(helper.getBlockState(AIMED.east(past)).is(Blocks.STONE),
+        helper.assertTrue(helper.getBlockState(aimed.east(past)).is(Blocks.STONE),
                 "The blast should leave the stone " + past + " blocks out");
         helper.succeed();
     }
@@ -141,16 +141,21 @@ public final class BlastChargeTests {
         castBlast(helper, heldTicks, player -> { });
     }
 
+    private static void castBlast(GameTestHelper helper, int heldTicks, Consumer<ServerPlayer> posed) {
+        castBlast(helper, heldTicks, AIMED, posed);
+    }
+
     /**
-     * Releases Blast held for some ticks at the aimed stone, from a caster
-     * standing clear with ample unstable.
+     * Releases Blast held for some ticks at a stone, from a caster standing
+     * on the floor with ample unstable.
      *
      * @param helper    the gametest helper
      * @param heldTicks the ticks the charge was held
+     * @param target    the stone the release aims at
      * @param posed     what the caster does before the release, such as looking elsewhere
      */
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    private static void castBlast(GameTestHelper helper, int heldTicks, Consumer<ServerPlayer> posed) {
+    private static void castBlast(GameTestHelper helper, int heldTicks, BlockPos target, Consumer<ServerPlayer> posed) {
         AbilityDefinition blast = AbilityRegistry.of(helper.getLevel()).getAbility(BLAST);
         helper.assertTrue(blast != null, ABILITY_REQUIRED);
         layFloor(helper);
@@ -163,9 +168,9 @@ public final class BlastChargeTests {
         player.getInventory().add(new ItemStack(Items.GUNPOWDER));
         KnownRecipes.teachRequires(player, blast);
         posed.accept(player);
-        GooThrowPayload aimed = new GooThrowPayload(GooTypes.id(GooTypes.UNSTABLE), -1, helper.absolutePos(AIMED),
+        GooThrowPayload aimed = new GooThrowPayload(GooTypes.id(GooTypes.UNSTABLE), -1, helper.absolutePos(target),
                 Direction.UP.ordinal(), false, BLAST.toString(), player.getEyePosition(),
-                helper.absoluteVec(AIMED_POINT));
+                helper.absoluteVec(Vec3.atCenterOf(target).add(0, HALF_BLOCK, 0)));
         GooThrowHandler.releaseCharge(player, new GooChargePayload(GooTypes.id(GooTypes.UNSTABLE), BLAST.toString(),
                 heldTicks, 0L, Optional.of(aimed)));
         helper.getLevel().getServer().getPlayerList().remove(player);

@@ -64,10 +64,10 @@ public final class LiftedPalmBlob {
      */
     public static final int STREAM_GAP_TICKS = StreamHolds.LATEST_CONTINUING_GAP;
     /**
-     * The ticks one beat of the lifted blob's swell takes: once a second.
+     * The ticks one beat of the lifted blob's swell takes: 12, the length of a Blast stage.
      * decision every-lifted-palm-blob-beats-once-a-second
      */
-    static final double BEAT_TICKS = 20;
+    static final double BEAT_TICKS = 12;
     /**
      * The lifted cube's least and greatest size against the palm blob's rest
      * size, both below it, so the pancake shrinks into a smaller cube as it lifts.

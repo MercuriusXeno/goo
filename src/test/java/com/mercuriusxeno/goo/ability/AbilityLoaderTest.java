@@ -519,10 +519,11 @@ class AbilityLoaderTest {
 
         @Test
         void plainCostAbilityLoadsNamingNoCostMechanics() {
-            AbilityDefinition blast = AbilityJson.decode(BLAST);
+            // Blast prices in tnt, which reads nothing with no goo values loaded, so Lurker's plain number stands here
+            AbilityDefinition lurker = AbilityJson.decode("unstable_lurker");
 
-            assertTrue(blast.cost().in(GooValueTable.EMPTY) > 0, "Blast's cost " + blast.cost().in(GooValueTable.EMPTY));
-            assertEquals(Optional.empty(), blast.costMechanics());
+            assertTrue(lurker.cost().in(GooValueTable.EMPTY) > 0, "Lurker's cost " + lurker.cost().in(GooValueTable.EMPTY));
+            assertEquals(Optional.empty(), lurker.costMechanics());
         }
     }
 

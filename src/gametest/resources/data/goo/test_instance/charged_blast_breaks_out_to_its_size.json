@@ -5,5 +5,6 @@
   "structure": "goo:light_bay",
   "max_ticks": 40,
   "setup_ticks": 0,
-  "required": true
+  "required": true,
+  "padding": 16
 }

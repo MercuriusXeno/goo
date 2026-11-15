@@ -19,17 +19,17 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Blast's charge plays the outsider wub once at each stage it reaches, at
- * pitch 1.0 for the 2 block stage and 0.125 higher for each stage after, and
+ * Blast's charge plays the outsider wub once at each stage it reaches, up the
+ * major scale from pitch 1.0 at the 2 block stage to the octave at 9, and
  * a stage the caster's unstable cannot pay for does not sound
  * (decision blast-charge-wubs-higher-at-each-stage).
  */
 class ChargeWubsTest {
 
     private static final Charge BLAST = AbilityJson.decode("unstable_blast").delivery().charge();
-    private static final int FULL_CHARGE = 100;
+    private static final int FULL_CHARGE = 84;
     private static final int RESTING = 40;
-    private static final double PAYS_FOR_ALL = 7;
+    private static final double PAYS_FOR_ALL = 9;
     private static final double PAYS_FOR_FOUR = 4;
     private static final float DELTA = 1e-6f;
     private static final String SOUNDS_JSON = "/assets/goo/sounds.json";
@@ -48,13 +48,15 @@ class ChargeWubsTest {
     }
 
     @Test
-    void eachStageWubsOnceHigherThanTheLast() {
+    void eachStageWubsOnceUpTheMajorScale() {
         ChargeWubs wubs = new ChargeWubs();
         List<ChargeWubs.Cue> cues = new ArrayList<>();
         List<int[]> ticks = heardOver(wubs, 0, FULL_CHARGE, PAYS_FOR_ALL, cues);
 
-        assertEquals(List.of(0, 20, 40, 60, 80, 100), ticks.stream().map(at -> at[0]).toList());
-        float[] pitches = {1.0f, 1.125f, 1.25f, 1.375f, 1.5f, 1.625f};
+        assertEquals(List.of(0, 12, 24, 36, 48, 60, 72, 84), ticks.stream().map(at -> at[0]).toList());
+        // do re mi fa sol la ti do', just intonation
+        float[] pitches = {1.0f, 9f / 8, 5f / 4, 4f / 3, 3f / 2, 5f / 3, 15f / 8, 2.0f};
+        assertEquals(pitches.length, cues.size());
         for (int i = 0; i < pitches.length; i++) {
             assertEquals(GooSoundIds.CHARGE_WUB, cues.get(i).sound());
             assertEquals(pitches[i], cues.get(i).pitch(), DELTA);
