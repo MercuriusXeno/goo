@@ -40,8 +40,11 @@ public final class GlovePoses {
 
     /**
      * Plays the selection's release as a sent throw lets go: a blob thrown
-     * swings the arm, and a pose with no release of its own eases it down.
+     * swings the arm, and a pose with no release of its own eases it down;
+     * a cast throwing no blob, a scan, a spontaneous, an envelop or a Spire
+     * cast, or a Portal press that chooses, links or cancels, plays no swing.
      * decision use-key-throw-swings-no-more
+     * decision diagnose-and-correct-hand-swings-outside-throws
      *
      * @param player the local player
      * @param hand   the hand the press came from, which a swing swings
@@ -49,9 +52,16 @@ public final class GlovePoses {
     public static void release(LocalPlayer player, InteractionHand hand) {
         ArmPose pose = selectedPose(player);
         show(player, pose == null ? ArmPoseKind.NONE : pose.releaseFrame());
-        if (pose != null && pose.swingsOnRelease()) {
+        if (pose != null && releaseSwings(player, pose)) {
             player.swing(hand);
         }
+    }
+
+    private static boolean releaseSwings(LocalPlayer player, ArmPose pose) {
+        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        return selection != null && PortalAim.selected(selection.abilityId())
+                ? PortalAim.lastSentSwings(pose)
+                : pose.swingsOnRelease();
     }
 
     /**

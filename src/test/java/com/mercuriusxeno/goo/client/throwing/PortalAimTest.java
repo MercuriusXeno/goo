@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.client.throwing;
 
+import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.ability.ArmPose;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -8,9 +10,15 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import java.util.Optional;
+import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * A right click with Portal in the glove: sneaking on a portal starts
@@ -53,5 +61,33 @@ class PortalAimTest {
     void standingARightClickPlacesAPortal() {
         assertEquals(new PortalAim.Place(), PortalAim.pressed(Optional.empty(), false, Optional.of(HERE)));
         assertEquals(new PortalAim.Place(), PortalAim.pressed(Optional.empty(), true, Optional.empty()));
+    }
+
+    /**
+     * Only a Place press throws a blob, so only it swings the hand on release
+     * (decision diagnose-and-correct-hand-swings-outside-throws).
+     */
+    @Nested
+    class ReleaseSwings {
+
+        static Stream<PortalAim.Press> pressesThrowingNoBlob() {
+            return Stream.of(new PortalAim.Choose(HERE), new PortalAim.Link(THERE), new PortalAim.Cancel());
+        }
+
+        @ParameterizedTest
+        @MethodSource("pressesThrowingNoBlob")
+        void aPressThrowingNoBlobPlaysNoSwingWithPortalsSwungPose(PortalAim.Press press) {
+            assertFalse(PortalAim.swingsOnRelease(press, ArmPose.SWUNG), press.toString());
+        }
+
+        @Test
+        void aPlacePressThrowingABlobSwingsWithPortalsSwungPose() {
+            assertTrue(PortalAim.swingsOnRelease(new PortalAim.Place(), ArmPose.SWUNG));
+        }
+
+        @Test
+        void portalResolvesTheSwungPose() {
+            assertEquals(ArmPose.SWUNG, AbilityJson.decode("quantum_portal").pose());
+        }
     }
 }
