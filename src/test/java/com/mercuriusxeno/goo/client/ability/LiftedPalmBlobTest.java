@@ -176,18 +176,18 @@ class LiftedPalmBlobTest {
             assertTrue(greatest > least, "the lifted size should beat, from " + least + " to " + greatest);
         }
 
-        /** The lifted blob beats once a second for every cast (decision every-lifted-palm-blob-beats-once-a-second). */
+        /** The lifted blob beats every 12 ticks for every cast (decision every-lifted-palm-blob-beats-once-a-second). */
         @Test
-        void theLiftedSizeRepeatsEveryTwentyTicksNotEveryTwelve() {
-            boolean differsTwelveLater = false;
+        void theLiftedSizeRepeatsEveryTwelveTicksNotEveryTwenty() {
+            boolean differsTwentyLater = false;
             for (int sample = 0; sample < SAMPLES; sample++) {
-                double time = NOW + ONE_SECOND * sample / (double) SAMPLES;
+                double time = NOW + TWELVE_TICKS * sample / (double) SAMPLES;
                 float size = LiftedPalmBlob.liftedSizeAt(time);
-                assertEquals(size, LiftedPalmBlob.liftedSizeAt(time + ONE_SECOND), 1e-4,
-                        "the size a second later should be the size now");
-                differsTwelveLater |= Math.abs(size - LiftedPalmBlob.liftedSizeAt(time + TWELVE_TICKS)) > 1e-4;
+                assertEquals(size, LiftedPalmBlob.liftedSizeAt(time + TWELVE_TICKS), 1e-4,
+                        "the size twelve ticks later should be the size now");
+                differsTwentyLater |= Math.abs(size - LiftedPalmBlob.liftedSizeAt(time + ONE_SECOND)) > 1e-4;
             }
-            assertTrue(differsTwelveLater, "the size should not repeat every twelve ticks");
+            assertTrue(differsTwentyLater, "the size should not repeat every twenty ticks");
         }
 
         /**

@@ -8,18 +8,18 @@ import java.util.Optional;
 /**
  * The sound a charge-sized cast's charge makes as it grows: the outsider
  * wub's one take, so every stage pitches one base tone, once each time the
- * hold reaches a stage, at pitch 1.0 for the stage it
- * opens at and 0.125 higher for each stage after, so Blast wubs 1.0 at 2
- * blocks up to 1.625 at 7; a stage the caster's goo cannot pay for, and a
- * hold resting on a stage, sound nothing more.
+ * hold reaches a stage, up the major scale from the stage it opens at, so
+ * Blast wubs do at 2 blocks up to the octave at 9; a stage the caster's goo
+ * cannot pay for, and a hold resting on a stage, sound nothing more.
  * decision blast-charge-wubs-higher-at-each-stage
  */
 final class ChargeWubs {
 
-    /** The pitch the opening stage wubs at. */
-    static final float OPENING_PITCH = 1.0f;
-    /** How much higher each stage after the opening wubs. */
-    static final float PITCH_PER_STAGE = 0.125f;
+    /**
+     * The major scale in just intonation, do re mi fa sol la ti do', each a
+     * pitch over the opening stage's; a stage past the octave holds it.
+     */
+    static final float[] MAJOR_SCALE = {1f, 9f / 8, 5f / 4, 4f / 3, 3f / 2, 5f / 3, 15f / 8, 2f};
     /** The stage sounded before any, so the opening stage sounds. */
     private static final double NONE_SOUNDED = Double.NEGATIVE_INFINITY;
 
@@ -49,8 +49,8 @@ final class ChargeWubs {
             return Optional.empty();
         }
         soundedStage = stage;
-        float pitch = OPENING_PITCH + (float) (stage - charge.openingSize()) * PITCH_PER_STAGE;
-        return Optional.of(new Cue(GooSoundIds.CHARGE_WUB, pitch));
+        int degree = Math.clamp((long) (stage - charge.openingSize()), 0, MAJOR_SCALE.length - 1);
+        return Optional.of(new Cue(GooSoundIds.CHARGE_WUB, MAJOR_SCALE[degree]));
     }
 
     /** Lets the next charge sound its stages afresh. */
