@@ -24,8 +24,11 @@ public final class KnifeRain {
     public static final double DRAG = 0.99;
     /** The most ticks a knife flies before it is gone. */
     public static final int MOST_FLIGHT_TICKS = 60;
-    /** A knife's speed leaving the hand, in blocks a tick. */
-    static final double SPEED = 1.0;
+    /**
+     * A knife's speed leaving the hand, in blocks a tick: a snowball's.
+     * decision knives-leave-the-blob-at-a-snowballs-speed
+     */
+    static final double SPEED = 1.5;
     /** The share a knife's speed scatters by, either way. */
     static final double SPEED_SCATTER = 0.2;
     /** Degrees above the look the cloud is lobbed, so it arcs. */
