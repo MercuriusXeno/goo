@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.model;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.ability.ChargeMotes;
 import com.mercuriusxeno.goo.client.ability.GloveGlow;
 import com.mercuriusxeno.goo.client.ability.KnivesCharge;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
@@ -318,10 +319,57 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
                                         ResourceKey<GooTypeDefinition> type, LiftedPalmBlob.HandLift lift) {
         Matrix4f toHandPass = new Matrix4f(poseStack.last().pose());
         Quaternionf turn = liftedTurn(toHandPass, lift);
+        LiftedPlace place = liftedPlace(toHandPass, lift);
+        submitBlob(poseStack, nodeCollector, type, place.inModel(), lift.shape(), turn);
+        submitBlobWisps(poseStack, nodeCollector, place.inHand());
+    }
+
+    /**
+     * Where the lifted blob stands: in the glove's model, where it submits,
+     * and in the hand pass's camera-relative world axes, where its wisps gather.
+     *
+     * @param inModel the blob's center in the glove's model, in block coords
+     * @param inHand  the blob's center in the hand pass's camera-relative world axes
+     */
+    record LiftedPlace(Vector3fc inModel, Vector3fc inHand) {
+    }
+
+    /**
+     * Where the local first-person blob stands as it lifts: from the palm
+     * blob's own center, standing up off the palm, toward the spray source as
+     * the hand's pass shows it.
+     *
+     * @param toHandPass the glove's model onto the hand pass's camera-relative world axes
+     * @param lift       the local player's lift
+     * @return the blob's place in the model and in the hand pass
+     */
+    static LiftedPlace liftedPlace(Matrix4fc toHandPass, LiftedPalmBlob.HandLift lift) {
         Vector3f standing = palmCenter(palmShape(REST_SCALE)).add(0f, 0f, -lift.stand() * SHELL_HW_PX / BLOCK_PIXELS);
-        Vector3f palm = toHandPass.transformPosition(standing);
+        Vector3f palm = toHandPass.transformPosition(standing, new Vector3f());
         Vector3f lifted = palm.lerp(lift.sourceInHand().toVector3f(), lift.share());
-        submitBlob(poseStack, nodeCollector, type, toHandPass.invert().transformPosition(lifted), lift.shape(), turn);
+        // the model point takes its own vector: transformPosition rewrites its argument, and the wisps need the hand's
+        return new LiftedPlace(new Matrix4f(toHandPass).invert().transformPosition(lifted, new Vector3f()), lifted);
+    }
+
+    /**
+     * Submits the wisps a Blast charge draws in to the local first-person
+     * blob, beside it in the hand's pass, so they depth test against it rather
+     * than landing behind it as the level's would.
+     * decision blast-charge-pulls-green-motes-into-the-shell-and-the-blob
+     *
+     * @param poseStack     the pose stack, its output the hand pass's camera-relative world axes
+     * @param nodeCollector the render node collector
+     * @param blob          the blob's center in the hand pass's camera-relative world axes
+     */
+    private static void submitBlobWisps(PoseStack poseStack, SubmitNodeCollector nodeCollector, Vector3fc blob) {
+        for (ChargeMotes.HandWisp wisp : ChargeMotes.blobWispsInTheHandPass(gameTime())) {
+            poseStack.pushPose();
+            poseStack.last().pose().translation(blob.x() + (float) wisp.offset().x, blob.y() + (float) wisp.offset().y,
+                    blob.z() + (float) wisp.offset().z);
+            nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.GLOW_SHELL_TYPE,
+                    (pose, c) -> ChargeMotes.emitWisp(pose, c, wisp.haloHalf(), wisp.share()));
+            poseStack.popPose();
+        }
     }
 
     /**

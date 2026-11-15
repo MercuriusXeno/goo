@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.ability.AbilityBadge;
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import org.junit.jupiter.api.Nested;
@@ -385,6 +387,13 @@ class GloveInputGateTest {
             gate.tick(false, actions);
 
             assertEquals(1, actions.throwsSent, "a fresh press after the release should throw");
+        }
+
+        /** Blast's hold charges its size rather than running from the press, so the attack key cancels it. */
+        @Test
+        void blastsHoldIsAChargeTheAttackKeyCancels() {
+            AbilityDefinition blast = AbilityJson.decode("unstable_blast");
+            assertFalse(GloveInputGate.runsFromPress(blast.delivery(), blast.badge()));
         }
 
         @Test

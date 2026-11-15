@@ -12,12 +12,15 @@ import com.mercuriusxeno.goo.ability.RallyRelease;
 import com.mercuriusxeno.goo.ability.aging.Aging;
 import com.mercuriusxeno.goo.ability.aging.AgingTable;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
+import com.mercuriusxeno.goo.ability.program.ScanVisualStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.TargetGatedStep;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.GateRay;
 import com.mercuriusxeno.goo.ability.typhoon.ShulkerSpew;
+import com.mercuriusxeno.goo.block.ability.FaceSupport;
+import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.entity.RollingGoo;
@@ -137,17 +140,23 @@ public final class GooThrowHandler {
 
     /**
      * Fires a released charge by its delivery: on the player for a self
-     * ability, as a rain of glass knives for a thrown one that slings.
+     * ability, at the aimed target at the size the hold reached for a
+     * spontaneous cast sized by its charge, as a rain of glass knives for a
+     * thrown one that slings.
+     * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
      *
      * @param player    the releasing player
      * @param gooType   the ability's goo type
      * @param ability   the charged ability
-     * @param payload   the charge payload, its hold and its scatter seed
+     * @param payload   the charge payload, its hold, its scatter seed and its aimed target
      */
     private static void fireCharge(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
                                    AbilityDefinition ability, GooChargePayload payload) {
         if (ability.delivery().kind() == DeliveryKind.SELF) {
             GooSelfHandler.release(player, gooType, ability, payload.heldTicks());
+        } else if (ability.delivery().sizesByCharge()) {
+            payload.aimed().ifPresent(aimed -> GooChargedCastHandler.cast(player, gooType, ability, aimed,
+                    payload.heldTicks()));
         } else if (ability.delivery().charge().slings()) {
             KnifeRainSling.sling(player, gooType, ability, payload.heldTicks(),
                     RandomSource.create(payload.scatterSeed()));
@@ -221,8 +230,38 @@ public final class GooThrowHandler {
      * @return true when the throw is delivered
      */
     private static boolean cleared(ServerPlayer player, GooThrowPayload payload, AbilityDefinition ability) {
-        return throwable(player, ability) && !refusesStruck(player.level(), payload, ability)
-                && !refusedAtFace(player, payload, ability) && !aimsAnOwnMinion(player, payload, ability);
+        return throwable(player, ability) && !refusesTarget(player, payload, ability);
+    }
+
+    /**
+     * Whether the release's target refuses it: a struck block a step refuses,
+     * a face a step or a prism cannot take, or the thrower's own minion.
+     *
+     * @param player  the throwing player
+     * @param payload the throw payload data
+     * @param ability the thrown ability
+     * @return true when the target refuses the throw
+     */
+    private static boolean refusesTarget(ServerPlayer player, GooThrowPayload payload, AbilityDefinition ability) {
+        return refusesStruck(player.level(), payload, ability) || refusedAtFace(player, payload, ability)
+                || aimsAnOwnMinion(player, payload, ability) || growsNoPrismThere(player.level(), payload, ability);
+    }
+
+    /**
+     * Whether a release growing a prism aims a face no prism grows from, a
+     * prism's, a pane's or a fence's, which is refused whole before anything
+     * is paid, so nothing forms there to break at the next neighbour change.
+     * decision prism-cast-at-a-wrong-face-is-refused-and-pays-nothing
+     *
+     * @param level   the level cast in
+     * @param payload the release: the aimed block and face
+     * @param ability the released ability
+     * @return true when the release is refused
+     */
+    static boolean growsNoPrismThere(ServerLevel level, GooThrowPayload payload, AbilityDefinition ability) {
+        Direction face = directionFromOrdinal(payload.targetFace());
+        return PrismBlock.grownBy(ability.behaviors()) && (payload.targetEntityId() >= 0 || face == null
+                || !FaceSupport.growsFrom(level, payload.targetPos(), face));
     }
 
     /**
@@ -301,8 +340,9 @@ public final class GooThrowHandler {
     }
 
     /**
-     * Whether an ability may be thrown: never one sized at will, which opens
-     * by its drag (decision black-hole-leaves-a-compression-sphere), nor one
+     * Whether an ability may be thrown: never one sized by its charge, which
+     * casts on its charge's release
+     * (decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob), nor one
      * cast by its footprint (decision spire-rips-walls-and-platforms), and only
      * with every reagent it consumes held.
      *
@@ -311,7 +351,7 @@ public final class GooThrowHandler {
      * @return true when the throw goes ahead
      */
     private static boolean throwable(ServerPlayer player, AbilityDefinition ability) {
-        return !ability.hasTag(AbilityTags.DRAG_SIZED) && !ability.hasTag(AbilityTags.FOOTPRINT)
+        return !ability.delivery().sizesByCharge() && !ability.hasTag(AbilityTags.FOOTPRINT)
                 && holdsReagents(player, ability);
     }
 
@@ -335,8 +375,8 @@ public final class GooThrowHandler {
 
     /**
      * Sends a named ability by its delivery: a self ability to the player, a
-     * scan along the look, a charm-like cast's dart at the mob it took, and
-     * any other thrown from the hand.
+     * scan along the look, a spontaneous cast at the aimed target, a charm-like
+     * cast's dart at the mob it took, and any other thrown from the hand.
      *
      * @param player  the throwing player
      * @param payload the throw payload data
@@ -350,6 +390,8 @@ public final class GooThrowHandler {
         } else if (ability.delivery().kind() == DeliveryKind.SCAN) {
             // click-is-a-hit-scan-drawn-as-a-delayed-wave
             GooScanHandler.scan(player, payload, gooType, ability);
+        } else if (ability.delivery().kind() == DeliveryKind.SPONTANEOUS) {
+            castAtTarget(player, payload, gooType, ability);
         } else if (ability.delivery().envelops()) {
             castAtTakenMob(player, payload, gooType, ability.delivery());
         } else {
@@ -550,6 +592,32 @@ public final class GooThrowHandler {
         if (refuses(player, payload, cost) || !validateSupply(player, gooType, cost)) { return; }
         double distSq = targetDistanceSquared(player, payload);
         depleteAndThrow(player, payload, gooType, distSq, cost);
+    }
+
+    /**
+     * Makes a spontaneous cast at the aimed target the release names, once
+     * the range and the goo check out: it pays as a throw does and its
+     * program runs there this tick, with no flight and nothing thrown; a
+     * program naming a visual darts it from the palm blob to the place.
+     * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
+     *
+     * @param player  the casting player
+     * @param payload the release: the cast origin and the aimed block, face and point
+     * @param gooType the validated goo type
+     * @param ability the cast ability
+     */
+    private static void castAtTarget(ServerPlayer player, GooThrowPayload payload,
+            ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability) {
+        if (!validateRange(player, payload)) { return; }
+        GooFraction cost = resolveThrowCost(player, payload, gooType);
+        if (refuses(player, payload, cost) || !validateSupply(player, gooType, cost)) { return; }
+        AbilityCharges.charge(player, gooType, cost);
+        consumeReagents(player, payload.abilityId(), gooType);
+        GooEffectScheduler.castNow(player, payload, gooType);
+        Vec3 castOrigin = ThrowArc.clampToReach(player.getEyePosition(), payload.origin(),
+                ThrowArc.HAND_REACH * player.getScale());
+        ScanVisualStep.in(ability.behaviors()).ifPresent(visual -> EntityVisuals.sendToWatchers(player,
+                CastDart.wave(castOrigin, payload.targetPoint(), visual)));
     }
 
     /** Validates glove is held, logging rejection if not.

@@ -34,14 +34,6 @@ public final class AbilityTags {
     public static final String MOB_FIRST = "mob_first";
 
     /**
-     * A world ability sized at will: pressing pins its epicenter, dragging
-     * sets its radius, and releasing opens it at once, its program reading
-     * the radius as {@code size}; it is never thrown
-     * (decision black-hole-leaves-a-compression-sphere).
-     */
-    public static final String DRAG_SIZED = "drag_sized";
-
-    /**
      * A held ability whose aim follows the mob the aim assist locks and
      * outlines, as a thrown blob's does, rather than the bare crosshair
      * (decision sunbeam-lands-with-impact-and-aim).

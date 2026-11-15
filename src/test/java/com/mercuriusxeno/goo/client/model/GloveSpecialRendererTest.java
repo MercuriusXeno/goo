@@ -65,6 +65,28 @@ import static org.mockito.Mockito.when;
  */
 class GloveSpecialRendererTest {
 
+    /**
+     * A blob lifted all the way stands at the spray source in the hand's pass,
+     * the point its charge's wisps gather to, and at that point carried back
+     * into the glove's model, where it submits; the two are told apart, not
+     * one rewritten into the other
+     * (decision blast-charge-pulls-green-motes-into-the-shell-and-the-blob).
+     */
+    @Test
+    void aFullyLiftedBlobStandsAtTheSourceInTheHandPassAndInTheModel() {
+        Matrix4f toHandPass = new Matrix4f().translation(0.4f, -0.3f, -0.9f).scale(0.6f);
+        Vec3 source = new Vec3(0.2, 0.1, -1.2);
+        LiftedPalmBlob.HandLift lift = new LiftedPalmBlob.HandLift(1f, source, PalmBlobHop.pressed(), 0f, null);
+
+        GloveSpecialRenderer.LiftedPlace place = GloveSpecialRenderer.liftedPlace(toHandPass, lift);
+
+        Vector3f inHand = new Vector3f(place.inHand());
+        assertTrue(inHand.distance(source.toVector3f()) < 1e-5f, "the blob's wisps gather at " + inHand
+                + " in the hand pass, not at the source " + source);
+        Vector3f backInHand = toHandPass.transformPosition(new Vector3f(place.inModel()));
+        assertTrue(backInHand.distance(source.toVector3f()) < 1e-5f, "the blob submits at " + backInHand);
+    }
+
     private static final Identifier BLOCK_ATLAS = Identifier.withDefaultNamespace("textures/atlas/blocks.png");
     /** The game time of the holder's last stream tick. */
     private static final long SPRAYED = 400L;

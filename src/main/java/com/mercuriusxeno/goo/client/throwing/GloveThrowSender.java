@@ -3,9 +3,10 @@ package com.mercuriusxeno.goo.client.throwing;
 import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityTags;
+import com.mercuriusxeno.goo.ability.Charge;
+import com.mercuriusxeno.goo.ability.ChargeSize;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
-import com.mercuriusxeno.goo.ability.DragSize;
 import com.mercuriusxeno.goo.ability.DurativeRoute;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
@@ -18,6 +19,9 @@ import com.mercuriusxeno.goo.ability.zoo.Rallied;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.ability.CameraEye;
 import com.mercuriusxeno.goo.client.ability.CastOrigin;
+import com.mercuriusxeno.goo.client.ability.ChargeEase;
+import com.mercuriusxeno.goo.client.ability.ChargeMotes;
+import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
 import com.mercuriusxeno.goo.client.ability.ReserveVisual;
 import com.mercuriusxeno.goo.client.ability.VitalityVisual;
 import com.mercuriusxeno.goo.client.ability.WindLines;
@@ -31,7 +35,6 @@ import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
 import com.mercuriusxeno.goo.network.GooChargePayload;
-import com.mercuriusxeno.goo.network.GooDragCastPayload;
 import com.mercuriusxeno.goo.network.GooStreamPayload;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
@@ -41,6 +44,7 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
@@ -103,9 +107,6 @@ public final class GloveThrowSender {
      */
     private static boolean sendFor(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId,
                                    int heldTicks) {
-        if (selectedDragSized(abilityId)) {
-            return sendDragCast(player, gooType, abilityId);
-        }
         Delivery delivery = selectedDelivery(abilityId);
         if (HeldRoute.runsWhileHeld(delivery, selectedBadge(abilityId))) {
             return sendStreamTick(player, gooType, abilityId);
@@ -323,64 +324,76 @@ public final class GloveThrowSender {
     }
 
     /**
-     * Whether the selected ability is sized at will, pinned on the press and
-     * opened on release at the radius dragged
-     * (decision black-hole-leaves-a-compression-sphere).
+     * Whether the selected ability is sized by its charge, growing while
+     * right click is held and cast at the aimed target on release.
+     * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
      *
      * @param abilityId the selected ability id string
-     * @return true for a drag-sized selection
+     * @return true for a selection sized by its charge
      */
-    public static boolean selectedDragSized(@Nullable String abilityId) {
-        ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
-        return ability != null && ability.tags().contains(AbilityTags.DRAG_SIZED);
+    public static boolean selectedSizesByCharge(@Nullable String abilityId) {
+        return selectedDelivery(abilityId).sizesByCharge();
     }
 
     /**
-     * The radius the live drag of the held glove's sized ability sets: the
-     * distance from the pin to the cursor, cut back to what the player's goo
-     * pays for.
+     * The size the live charge of the held glove's sized ability has reached,
+     * cut back to what the player's goo pays for.
+     * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
      *
      * @param player the local player
-     * @return the radius, or empty when no drag of a sized ability is live
+     * @return the size, or empty when no charge of a sized ability stands
      */
-    public static OptionalDouble dragRadius(Player player) {
-        GloveSelection selection = heldSelection(player);
-        BlockHitResult pin = GloveUseTracker.pressPin();
-        ClientAbility ability = selection == null ? null : AbilitySyncHandler.findAbility(selection.abilityId());
-        if (pin == null || ability == null || selection.getGooType() == null
-                || !ability.tags().contains(AbilityTags.DRAG_SIZED)) {
-            return OptionalDouble.empty();
-        }
-        int holdings = GooSourceScanner.aggregateAvailable(player).getOrDefault(selection.getGooType(), 0);
-        return OptionalDouble.of(DragSize.affordable(DragSize.dragged(pin.getLocation(), player.getEyePosition(),
-                player.getViewVector(1f)), ability.cost(), holdings));
+    public static OptionalDouble chargedSize(Player player) {
+        return chargingSizedAbility(player).map(charging -> OptionalDouble.of(ChargeSize.affordable(
+                charging.ability().delivery().stageAt(GloveUseTracker.heldTicks()), charging.ability().cost(),
+                charging.holdings()))).orElse(OptionalDouble.empty());
     }
 
     /**
-     * Sends the release of a sized ability's drag at the pinned epicenter and
-     * the radius dragged, when the player's goo pays for it.
+     * The radius the live charge's spheroid draws at this frame: eased up from
+     * nothing and from stage to stage, never past the largest stage the
+     * player's goo pays for.
+     * decision blast-eases-between-stages-at-a-second-each
      *
-     * @param player    the local player
-     * @param gooType   the selected goo type
-     * @param abilityId the selected ability id string
-     * @return true when the payload was sent
+     * @param player      the local player
+     * @param partialTick the frame's partial tick
+     * @return the radius, or empty when no charge of a sized ability stands
      */
-    private static boolean sendDragCast(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId) {
-        BlockHitResult pin = GloveUseTracker.pressPin();
-        ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
-        OptionalDouble radius = dragRadius(player);
-        if (pin == null || ability == null || radius.isEmpty()
-                || !GooSourceScanner.hasEnough(player, gooType, DragSize.costAt(ability.cost(), radius.getAsDouble()))) {
-            return false;
+    public static OptionalDouble drawnChargeRadius(Player player, float partialTick) {
+        return chargingSizedAbility(player).map(charging -> {
+            Charge charge = charging.ability().delivery().charge();
+            double eased = ChargeEase.drawnRadius(charge, GloveUseTracker.heldTicks() + partialTick);
+            double paidFor = ChargeSize.affordable(charge.maxSize(), charging.ability().cost(), charging.holdings());
+            return OptionalDouble.of(Math.min(eased, paidFor));
+        }).orElse(OptionalDouble.empty());
+    }
+
+    /**
+     * A sized ability the held glove is charging, with the goo of its type the player holds.
+     *
+     * @param ability  the charging ability's synced copy
+     * @param holdings the mB of its type the player holds
+     */
+    private record ChargingSized(ClientAbility ability, int holdings) {
+    }
+
+    private static Optional<ChargingSized> chargingSizedAbility(Player player) {
+        GloveSelection selection = heldSelection(player);
+        ClientAbility ability = selection == null ? null : AbilitySyncHandler.findAbility(selection.abilityId());
+        if (ability == null || selection.getGooType() == null || !GloveUseTracker.charging()
+                || !ability.delivery().sizesByCharge()) {
+            return Optional.empty();
         }
-        sendPayload(new GooDragCastPayload(GooTypes.id(gooType), abilityId, pin.getBlockPos(),
-                pin.getDirection().get3DDataValue(), pin.getLocation(), radius.getAsDouble()));
-        return true;
+        return Optional.of(new ChargingSized(ability,
+                GooSourceScanner.aggregateAvailable(player).getOrDefault(selection.getGooType(), 0)));
     }
 
     /**
      * Sends a charged ability's release with the ticks it was held,
-     * when the player can afford it (decision nova-ring-grows-with-the-hold).
+     * when the player can afford it (decision nova-ring-grows-with-the-hold);
+     * a cast sized by its charge carries the target the crosshair aims, and
+     * sends nothing aiming at none.
+     * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
      *
      * @param player    the local player
      * @param gooType   the selected goo type
@@ -390,13 +403,125 @@ public final class GloveThrowSender {
      */
     private static boolean sendCharge(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId,
                                       int heldTicks) {
-        if (!affordsThrow(AbilitySyncHandler.findAbility(abilityId),
+        boolean sized = selectedSizesByCharge(abilityId);
+        Optional<GooThrowPayload> aimed = sized ? aimedTarget(gooType, abilityId) : Optional.empty();
+        if (sized && aimed.isEmpty() || !affordsThrow(AbilitySyncHandler.findAbility(abilityId),
                 amount -> GooSourceScanner.hasEnough(player, gooType, amount),
                 reagent -> ReagentScanner.holds(player, reagent))) {
             return false;
         }
-        sendPayload(new GooChargePayload(GooTypes.id(gooType), abilityId, heldTicks, GloveUseTracker.scatterSeed()));
+        sendPayload(new GooChargePayload(GooTypes.id(gooType), abilityId, heldTicks, GloveUseTracker.scatterSeed(),
+                aimed));
+        unrootTheCharge();
         return true;
+    }
+
+    /**
+     * The target a charge's release sends, built from the spot the charge
+     * anchors at.
+     *
+     * @param anchored  the spot the charge anchors at
+     * @param typeId    the goo type registry id
+     * @param abilityId the selected ability id string
+     * @param origin    the cast origin
+     * @return the target, empty where the anchor aims at nothing
+     */
+    static Optional<GooThrowPayload> chargeTarget(TargetResult anchored, String typeId, String abilityId,
+                                                  Vec3 origin) {
+        return anchored instanceof TargetResult.None ? Optional.empty()
+                : Optional.of(buildPayload(anchored, typeId, abilityId, origin));
+    }
+
+    /**
+     * The target a sized charge's release sends: the spot the charge rooted
+     * at as it began, whatever the crosshair rests on now.
+     * decision blast-roots-to-the-spot-the-cast-began
+     *
+     * @param gooType   the selected goo type
+     * @param abilityId the selected ability id string
+     * @return the target, empty where the charge rooted nowhere and the crosshair aims at nothing
+     */
+    private static Optional<GooThrowPayload> aimedTarget(ResourceKey<GooTypeDefinition> gooType, String abilityId) {
+        return chargeTarget(chargeAnchor(), GooTypes.id(gooType), abilityId, throwOrigin());
+    }
+
+    /** The spot the live sized charge rooted at. */
+    private static final ChargeRoot CHARGE_ROOT = new ChargeRoot();
+
+    /**
+     * Roots the local player's sized charge at the crosshair's target as it begins.
+     * decision blast-roots-to-the-spot-the-cast-began
+     */
+    static void rootTheCharge() {
+        CHARGE_ROOT.clear();
+        CHARGE_ROOT.holdAt(AimTracker.currentTarget());
+        CHARGE_WUBS.reset();
+    }
+
+    /** Lets the next sized charge root and sound afresh, as a cancel or a release leaves it. */
+    static void unrootTheCharge() {
+        CHARGE_ROOT.clear();
+        CHARGE_WUBS.reset();
+        ChargeMotes.clear();
+        LiftedPalmBlob.clockOnGameTime();
+    }
+
+    /**
+     * Carries the live sized charge's motes a tick on, drawing them in to the
+     * rooted spheroid's shell and to the palm blob, and lets them go once no
+     * sized charge stands.
+     * decision blast-charge-pulls-green-motes-into-the-shell-and-the-blob
+     *
+     * @param player the local player
+     */
+    static void pullTheChargeMotes(Player player) {
+        OptionalDouble radius = drawnChargeRadius(player, 0f);
+        if (radius.isEmpty()) {
+            ChargeMotes.clear();
+            LiftedPalmBlob.clockOnGameTime();
+            return;
+        }
+        // every-lifted-palm-blob-beats-once-a-second: the blob and the spheroid swell most on each stage step
+        chargingSizedAbility(player).ifPresent(charging -> {
+            Charge charge = charging.ability().delivery().charge();
+            LiftedPalmBlob.clockOnCharge(player.level().getGameTime() - GloveUseTracker.heldTicks(),
+                    charge.maxTicks() / (charge.maxSize() - charge.openingSize()));
+        });
+        ChargeMotes.tick(player.level().getGameTime(), chargeAnchor(), radius.getAsDouble(), throwOrigin(),
+                player.getRandom());
+    }
+
+    /** The stages the live sized charge has sounded. */
+    private static final ChargeWubs CHARGE_WUBS = new ChargeWubs();
+    /** How loud a stage's wub sounds at the caster. */
+    private static final float WUB_VOLUME = 0.8f;
+
+    /**
+     * Wubs the live sized charge's stage at the caster, once as the hold
+     * reaches each stage the goo pays for.
+     * decision blast-charge-wubs-higher-at-each-stage
+     *
+     * @param player the local player
+     */
+    static void wubTheCharge(Player player) {
+        chargingSizedAbility(player).ifPresent(charging -> {
+            Charge charge = charging.ability().delivery().charge();
+            double paidFor = ChargeSize.affordable(charge.maxSize(), charging.ability().cost(), charging.holdings());
+            CHARGE_WUBS.tick(charge, GloveUseTracker.heldTicks(), paidFor).ifPresent(cue ->
+                    BuiltInRegistries.SOUND_EVENT.get(cue.sound()).ifPresent(sound ->
+                            player.level().playLocalSound(player.getX(), player.getY(), player.getZ(), sound.value(),
+                                    SoundSource.PLAYERS, WUB_VOLUME, cue.pitch(), false)));
+        });
+    }
+
+    /**
+     * Where the live sized charge anchors its spheroid this frame.
+     * decision blast-roots-to-the-spot-the-cast-began
+     *
+     * @return the rooted spot, or the crosshair's target where the charge rooted nowhere
+     */
+    public static TargetResult chargeAnchor() {
+        return CHARGE_ROOT.anchor(AimTracker.currentTarget());
     }
 
     /**
@@ -633,18 +758,18 @@ public final class GloveThrowSender {
     }
 
     /**
-     * The cost of a cast sized as it is made: a drag-sized cast's dragged
-     * radius, or a Spire's planned stone.
+     * The cost of a cast sized as it is made: a charged cast's size reached,
+     * or a Spire's planned stone.
      *
      * @param player  the local player
      * @param ability the selected ability, or null where the client holds no synced copy
      * @return the cost, empty where no sized cast is live
      */
     private static OptionalInt sizedCost(Player player, @Nullable ClientAbility ability) {
-        OptionalDouble dragged = dragRadius(player);
-        if (ability != null && dragged.isPresent()) {
-            // black-hole-leaves-a-compression-sphere: a sized cast reads the price of the radius dragged
-            return OptionalInt.of(DragSize.costAt(ability.cost(), dragged.getAsDouble()));
+        OptionalDouble charged = chargedSize(player);
+        if (ability != null && charged.isPresent()) {
+            // spontaneous-abilities-cast-at-the-target-with-no-thrown-blob: a sized cast reads the price of its size
+            return OptionalInt.of(ChargeSize.costAt(ability.cost(), charged.getAsDouble()));
         }
         if (player instanceof LocalPlayer local && SpireCast.footprint().isPresent()) {
             // spire-grows-stone-out-of-the-top: a Spire reads the goo value of the stone it would grow

@@ -4,8 +4,11 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.SpireFootprint;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
+import com.mercuriusxeno.goo.block.ability.FaceSupport;
+import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
+import com.mercuriusxeno.goo.client.ability.ChargeMotes;
 import com.mercuriusxeno.goo.client.ability.HeldColumnRenderer;
 import com.mercuriusxeno.goo.client.ability.HeldDomeRenderer;
 import com.mercuriusxeno.goo.client.ability.PortalView;
@@ -23,7 +26,6 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.BlockHitResult;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -110,10 +112,31 @@ public final class GooTargetHighlighter {
         HighlightFrame frame = new HighlightFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera(), mc, selectedType);
         if (drawsMarks(false, null, target.passage())) {
-            renderIndicator(target, AimIndicator.of(GloveThrowSender.selectedBadge(abilityId),
-                    AimTracker.grabHoldsAMob()), frame);
+            renderIndicator(target, indicatorFor(target, abilityId), frame);
         }
-        renderHeldDome(target, abilityId, frame);
+    }
+
+    /**
+     * Draws the selected ability's held ghost once the translucent features
+     * have drawn, so a prism's crystal, a translucent feature writing depth,
+     * draws under the ghost standing in front of it rather than over it.
+     *
+     * @param event the event instance
+     */
+    @SubscribeEvent
+    public static void onAfterTranslucentFeatures(RenderLevelStageEvent.AfterTranslucentFeatures event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (PortalView.drawing() || mc.player == null || mc.level == null
+                || !mc.options.getCameraType().isFirstPerson()) {
+            return;
+        }
+        ResourceKey<GooTypeDefinition> selectedType = GloveAim.selectedGooType(mc.player);
+        if (selectedType == null) {
+            return;
+        }
+        renderHeldDome(AimTracker.currentTarget(), GloveAim.selectedAbilityId(mc.player),
+                new HighlightFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
+                        mc.gameRenderer.getMainCamera(), mc, selectedType));
     }
 
     /**
@@ -137,9 +160,28 @@ public final class GooTargetHighlighter {
             return;
         }
         String abilityId = GloveAim.selectedAbilityId(mc.player);
-        renderIndicator(target, AimIndicator.of(GloveThrowSender.selectedBadge(abilityId), AimTracker.grabHoldsAMob()),
+        renderIndicator(target, indicatorFor(target, abilityId),
                 new HighlightFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(), PortalView.camera(), mc,
                         selectedType));
+    }
+
+    /**
+     * The mark the selected ability draws on the aim target: its badge's,
+     * dropped for an ability growing a prism where the aimed face grows none.
+     * decision prism-highlight-draws-only-on-a-face-a-prism-grows-from
+     *
+     * @param target    the aim target
+     * @param abilityId the selected ability id
+     * @return the mark
+     */
+    private static AimIndicator indicatorFor(TargetResult target, @Nullable String abilityId) {
+        AimIndicator badged = AimIndicator.of(GloveThrowSender.selectedBadge(abilityId), AimTracker.grabHoldsAMob());
+        ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
+        boolean growsAPrism = ability != null && PrismBlock.grownBy(ability.behaviors());
+        Level level = Minecraft.getInstance().level;
+        boolean growable = target instanceof TargetResult.BlockTarget bt && level != null
+                && FaceSupport.growsFrom(level, bt.pos(), bt.face());
+        return AimIndicator.onFace(badged, growsAPrism, growable);
     }
 
     /**
@@ -180,8 +222,8 @@ public final class GooTargetHighlighter {
 
     /**
      * Draws the preview of a cast sized as it is made: a Spire's footprint
-     * (decision spire-rips-walls-and-platforms) or a drag-sized ability's
-     * dome (decision black-hole-leaves-a-compression-sphere).
+     * (decision spire-rips-walls-and-platforms) or a charge-sized ability's
+     * dome (decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob).
      *
      * @param abilityId the selected ability id
      * @param frame     what the frame draws with
@@ -194,7 +236,7 @@ public final class GooTargetHighlighter {
                     SpireCast.rising(), ClientGooTypes.highlight(frame.selectedType()), realTimeSeconds());
             return true;
         }
-        if (GloveThrowSender.selectedDragSized(abilityId)) {
+        if (GloveThrowSender.selectedSizesByCharge(abilityId)) {
             renderSizedDome(frame);
             return true;
         }
@@ -222,20 +264,27 @@ public final class GooTargetHighlighter {
     }
 
     /**
-     * Draws a sized ability's ghost at its pin while right click drags its
-     * radius (decision black-hole-leaves-a-compression-sphere).
+     * Draws a sized ability's ghost at the spot its charge rooted at, at the
+     * size its charge has reached, following the charge as right click holds
+     * (decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob).
      *
      * @param frame what the frame draws with
      */
     private static void renderSizedDome(HighlightFrame frame) {
-        BlockHitResult pin = GloveUseTracker.pressPin();
-        OptionalDouble radius = GloveThrowSender.dragRadius(frame.mc().player);
-        if (pin == null || radius.isEmpty()) {
+        float partialTick = frame.mc().getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        // blast-eases-between-stages-at-a-second-each: the spheroid eases while the cast keeps its whole stage
+        OptionalDouble size = GloveThrowSender.drawnChargeRadius(frame.mc().player, partialTick);
+        if (size.isEmpty() || frame.mc().level == null) {
             return;
         }
-        HeldDomeRenderer.renderSized(frame.ps(), frame.buf(), frame.camera().position(), pin,
-                (float) radius.getAsDouble(), frame.selectedType(), ClientGooTypes.highlight(frame.selectedType()),
-                realTimeSeconds());
+        double now = frame.mc().level.getGameTime() + partialTick;
+        // blast-charge-pulls-green-motes-into-the-shell-and-the-blob: the spheroid swells on the palm blob's beat
+        float swelled = (float) (size.getAsDouble() * ChargeMotes.spheroidSwell(now));
+        // blast-roots-to-the-spot-the-cast-began: the spheroid draws where the charge began, not where the aim is
+        HeldDomeRenderer.renderSized(frame.ps(), frame.buf(), frame.camera().position(),
+                GloveThrowSender.chargeAnchor(), swelled, frame.selectedType(),
+                ClientGooTypes.highlight(frame.selectedType()), realTimeSeconds());
+        ChargeMotes.render(now);
     }
 
     /**
