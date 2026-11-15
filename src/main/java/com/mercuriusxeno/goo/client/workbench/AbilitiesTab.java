@@ -46,6 +46,7 @@ public final class AbilitiesTab {
     // Decision abilities-reorder-by-a-drag-rail-and-the-order-field-hides: a tier's orders read 10, 20, 30.
     private static final int ORDER_STEP = 10;
     private static final String DESCRIPTION = "description";
+    private static final String COST_EXPLANATION_SUFFIX = ".cost_explanation";
     private static final String NOT_A_NUMBER = "This box takes a number alone.";
     private static final Pattern NUMBER = Pattern.compile("-?\\d+(\\.\\d+)?");
     private static final String NO_TEXT = "";
@@ -113,6 +114,15 @@ public final class AbilitiesTab {
          */
         public List<Leaf> prices() {
             return leaves.stream().filter(Leaf::prices).toList();
+        }
+
+        /**
+         * @return its cost explanation's translation key, its name's key plus .cost_explanation, which its row's
+         *     question mark hovers
+         */
+        // Decision ability-row-carries-a-hover-only-question-mark-for-its-cost.
+        public String costExplanation() {
+            return displayName + COST_EXPLANATION_SUFFIX;
         }
     }
 

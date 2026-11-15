@@ -35,6 +35,21 @@ class AbilitiesTabTest {
         return tab;
     }
 
+    /**
+     * An ability's cost explanation reads from its name's key plus .cost_explanation, the sibling of its description
+     * key (decision ability-row-carries-a-hover-only-question-mark-for-its-cost).
+     */
+    @Test
+    void anAbilitysCostExplanationKeyIsItsNameKeyPlusCostExplanation() {
+        AbilitiesTab tab = new AbilitiesTab();
+        tab.readModel("""
+                {"typeOrder": ["unstable"], "abilities": [{"id": "goo:unstable_blast", "gooType": "unstable",
+                  "displayName": "goo.ability.unstable.blast", "badge": "free", "order": 10, "draft": false,
+                  "leaves": []}]}
+                """);
+        assertEquals("goo.ability.unstable.blast.cost_explanation", tab.abilities().getFirst().costExplanation());
+    }
+
     @Test
     void sectionsStandInTheModelsTypeOrder() {
         assertEquals(List.of("unstable", "rock"),

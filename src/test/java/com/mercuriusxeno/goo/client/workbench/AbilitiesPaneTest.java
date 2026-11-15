@@ -472,6 +472,122 @@ class AbilitiesPaneTest {
     }
 
     /**
+     * An ability's heading row ends in a question mark button, right packed, that takes no click and hovers the
+     * ability's cost explanation from the lang file; an ability whose key holds no string draws none (decision
+     * ability-row-carries-a-hover-only-question-mark-for-its-cost).
+     */
+    @Nested
+    class CostQuestion {
+        private static final String QUESTION = "?";
+        private static final String BLAST_KEY = "goo.ability.unstable.blast";
+        private static final String BLAST_COST_KEY = BLAST_KEY + ".cost_explanation";
+        // NeoForge's ClientHooks wraps a line fitting neither side of a cursor past the screen's middle to its x less
+        // this.
+        private static final int NEOFORGE_WRAP_MARGIN = 20;
+        private static final String BLAST_MODEL = """
+                {"typeOrder": ["unstable"], "abilities": [{"id": "goo:unstable_blast", "gooType": "unstable",
+                  "displayName": "%s", "description": "%s.description", "icon": "", "badge": "free", "order": 10,
+                  "draft": false, "leaves": [
+                    {"path": "cost", "value": "3000", "kind": "COST", "mechanism": "cost", "field": "cost"}]}]}
+                """.formatted(BLAST_KEY, BLAST_KEY);
+
+        private final AbilitiesTab tab = new AbilitiesTab();
+        private AbilitiesPane pane;
+
+        private DrawnFrame drawn(java.util.function.Function<String, String> translate) {
+            tab.readModel(BLAST_MODEL);
+            ManagerActions actions = mock(ManagerActions.class);
+            when(actions.addWidget(any(AbstractWidget.class))).thenAnswer(call -> call.getArgument(0));
+            ItemIcons icons = mock(ItemIcons.class);
+            when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+            pane = new AbilitiesPane(tab, actions, icons, new ExpressionBuilderPane(actions, icons, List::of,
+                    List::of), translate, ref -> Map.of(), java.util.Set::of);
+            pane.init(DrawnFrame.font());
+            pane.show(true);
+            return draw(pane);
+        }
+
+        private DrawnFrame drawn() {
+            return drawn(key -> EnglishLang.ENTRIES.getOrDefault(key, key));
+        }
+
+        private static ClickTargets.HoveredArea questionArea(DrawnFrame frame) {
+            DrawnFrame.Text question = frame.find(QUESTION);
+            return frame.targets.hoveredArea(question.x() + 1, question.y() + 1)
+                    .orElseThrow(() -> new AssertionError("the question mark hovers nothing"));
+        }
+
+        @Test
+        void theQuestionMarksRightEdgeSitsAtTheRowsRightEdge() {
+            GroupsPane.Bounds bounds = questionArea(drawn()).bounds();
+            int rowRight = VIEW.right() - ScrollBar.WIDTH - ScrollBar.GAP;
+            assertEquals(rowRight, bounds.right(), "the question mark ends off the row's right edge " + bounds);
+            DrawnFrame.Text name = drawn().find("Blast");
+            assertTrue(bounds.top() <= name.y() && name.y() < bounds.bottom(),
+                    bounds + " stands off the heading's line " + name);
+        }
+
+        @Test
+        void hoveringTheQuestionMarkReadsTheAbilitysCostExplanation() {
+            String hoverKey = questionArea(drawn()).hoverKey();
+            String explanation = EnglishLang.ENTRIES.get(BLAST_COST_KEY);
+            assertTrue(explanation != null && !explanation.isBlank(), "en_us.json holds no " + BLAST_COST_KEY);
+            assertEquals(java.util.Optional.of(explanation),
+                    AbilitiesPane.descriptionFor(hoverKey, key -> EnglishLang.ENTRIES.getOrDefault(key, key)));
+        }
+
+        @Test
+        void aPressOnTheQuestionMarkTakesNoClickAndChangesNothing() {
+            DrawnFrame frame = drawn();
+            ClickTargets.HoveredArea area = questionArea(frame);
+            double centerX = (area.bounds().left() + area.bounds().right()) / 2.0;
+            double centerY = (area.bounds().top() + area.bounds().bottom()) / 2.0;
+            String before = tab.postedText();
+            assertFalse(frame.targets.takesClick(centerX, centerY), "the question mark takes a click");
+            assertFalse(frame.targets.click(centerX, centerY), "a press on the question mark ran an action");
+            assertEquals(before, tab.postedText(), "a press on the question mark edited the tab");
+            assertFalse(tab.edited(), "a press on the question mark left an edit standing");
+            assertTrue(tab.open("unstable"), "a press on the question mark folded its section");
+            DrawnFrame after = draw(pane);
+            assertTrue(after.texts().contains(QUESTION) && after.texts().contains("3000"),
+                    "a press on the question mark changed the row: " + after.texts());
+            assertFalse(after.texts().contains("✗ Cancel"), "a press on the question mark opened an editor");
+        }
+
+        /**
+         * The question mark's tooltip, placed by the screen's anchored positioner as every hover's is, lies whole on a
+         * screen whose right edge the pane reaches, however long the longest cost explanation runs. Its width is the
+         * longest explanation's, cut to the room NeoForge's ClientHooks.gatherTooltipComponentsFromElements wraps a
+         * line to where it fits on neither side of the cursor: the cursor's x less 20.
+         */
+        @Test
+        void theTooltipOfAQuestionMarkAtTheScreensRightEdgeLiesWholeOnTheScreen() {
+            DrawnFrame frame = drawn();
+            ClickTargets.HoveredArea area = questionArea(frame);
+            int mouseX = (area.bounds().left() + area.bounds().right()) / 2;
+            int mouseY = (area.bounds().top() + area.bounds().bottom()) / 2;
+            int longest = EnglishLang.ENTRIES.entrySet().stream()
+                    .filter(entry -> entry.getKey().endsWith(".cost_explanation"))
+                    .mapToInt(entry -> DrawnFrame.font().width(entry.getValue())).max().orElseThrow();
+            int width = Math.min(longest, mouseX - NEOFORGE_WRAP_MARGIN);
+            int height = ExpressionLines.TEXT_LINE_HEIGHT * (longest / width + 1);
+            org.joml.Vector2ic point = ValuesManagerScreen.anchoredTooltip(frame.targets, mouseX, mouseY).orElseThrow()
+                    .positionTooltip(VIEW.right(), VIEW.bottom(), mouseX, mouseY, width, height);
+            assertTrue(point.x() >= 0 && point.x() + width <= VIEW.right() && point.y() >= 0
+                    && point.y() + height <= VIEW.bottom(), "a " + width + " by " + height + " tooltip at " + point
+                    + " runs off a " + VIEW.right() + " by " + VIEW.bottom() + " screen");
+        }
+
+        /** Planner's assumption: an ability whose key holds no string, as a datapack's, draws no question mark. */
+        @Test
+        void anAbilityWhoseKeyHoldsNoStringDrawsTheRowWithoutTheQuestionMark() {
+            DrawnFrame frame = drawn(key -> key);
+            assertTrue(frame.texts().contains("3000"), frame.texts().toString());
+            assertFalse(frame.texts().contains(QUESTION), "a question mark drew over no string");
+        }
+    }
+
+    /**
      * An ability's price fields stand one to a column in four equal columns from the left third of the section's
      * width on the name's line, a field past the line's room wrapping to the next line at the name's left (decision
      * ability-params-lay-in-a-four-column-grid-spanning-whole-cells).

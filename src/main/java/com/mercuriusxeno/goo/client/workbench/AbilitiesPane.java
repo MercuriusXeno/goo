@@ -43,8 +43,12 @@ final class AbilitiesPane {
     private static final String CLOSED_MARK = ">";
     private static final String COLLAPSE_ALL = "Collapse all";
     private static final String EXPAND_ALL = "Expand all";
-    // A hover key no item, prefab or type spells, carrying the ability's description key.
+    // A hover key no item, prefab or type spells, carrying the lang key of the ability's description or cost
+    // explanation.
     private static final String DESCRIPTION_HOVER = "goo-ability-description:";
+    // The question mark that hovers an ability's cost explanation, and the room it takes at its row's right edge.
+    private static final String QUESTION = "?";
+    private static final int QUESTION_ROOM = ButtonPainter.HEIGHT + GAP;
     // The icon sits in its sprite row as an item sprite does.
     private static final int ICON_INSET = (RowLayout.SPRITE_ROW_HEIGHT - RowLayout.SPRITE_SIZE) / 2;
     private static final int HALF = 2;
@@ -389,14 +393,34 @@ final class AbilitiesPane {
     private int drawAbility(GuiGraphicsExtractor graphics, Font font, AbilitiesTab.Ability ability,
                             GroupsPane.Bounds from, ClickTargets targets) {
         int nameLeft = drawHeading(graphics, font, ability, from.left() + ControlFlow.INDENT, from.top(), targets);
-        ColumnFlow flow = ColumnFlow.under(from, nameLeft);
+        // Every ability's price fields stop short of the question mark's room, so the four column lefts stay the same
+        // in every ability, whether its question mark draws or not.
+        GroupsPane.Bounds priced = new GroupsPane.Bounds(from.left(), from.top(), from.right() - QUESTION_ROOM,
+                from.bottom());
+        ColumnFlow flow = ColumnFlow.under(priced, nameLeft);
         for (AbilitiesTab.Leaf leaf : ability.prices()) {
-            GroupsPane.Bounds field = isBuilding(ability, leaf) ? flow.placeLine(from.bottom())
-                    : flow.place(flow.columnsFor(fieldWidth(font, ability, leaf)), from.bottom());
-            flow.took(drawField(graphics, font, new Priced(ability, leaf), field, from.right(), targets),
+            GroupsPane.Bounds field = isBuilding(ability, leaf) ? flow.placeLine(priced.bottom())
+                    : flow.place(flow.columnsFor(fieldWidth(font, ability, leaf)), priced.bottom());
+            flow.took(drawField(graphics, font, new Priced(ability, leaf), field, priced.right(), targets),
                     field.right());
         }
+        drawCostQuestion(graphics, font, ability, from, targets);
         return flow.bottom() + GAP;
+    }
+
+    // The question mark packed against the row's right edge, centered on the heading's sprite row, hovering the
+    // ability's cost explanation and taking no click; an ability whose key holds no string, as a datapack's, draws
+    // none.
+    // Decision ability-row-carries-a-hover-only-question-mark-for-its-cost.
+    private void drawCostQuestion(GuiGraphicsExtractor graphics, Font font, AbilitiesTab.Ability ability,
+                                  GroupsPane.Bounds row, ClickTargets targets) {
+        String key = ability.costExplanation();
+        if (translate.apply(key).equals(key)) {
+            return;
+        }
+        int top = row.top() + (RowLayout.SPRITE_ROW_HEIGHT - ButtonPainter.HEIGHT) / HALF;
+        ButtonPainter.drawSquareHover(graphics, font, QUESTION, row.right() - ButtonPainter.HEIGHT, top, targets,
+                DESCRIPTION_HOVER + key);
     }
 
     /**
@@ -516,7 +540,8 @@ final class AbilitiesPane {
     /**
      * @param hoverKey  what the hovered area names
      * @param translate each translation key's text
-     * @return the ability's translated description where the area is an ability name's, empty otherwise
+     * @return the ability's translated description where the area is an ability name's or a price label's, its cost
+     *     explanation where the area is its question mark, empty otherwise
      */
     static Optional<String> descriptionFor(String hoverKey, Function<String, String> translate) {
         return hoverKey.startsWith(DESCRIPTION_HOVER)

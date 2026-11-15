@@ -166,11 +166,37 @@ final class ButtonPainter {
      */
     static Box drawSquare(GuiGraphicsExtractor graphics, Font font, String label, int x, int top,
                           ClickTargets targets, Runnable pressed) {
+        Box box = paintSquare(graphics, font, label, x, top);
+        reserve(targets, box, pressed, null);
+        return box;
+    }
+
+    /**
+     * Draws a square button as {@link #drawSquare} does that takes no click, only showing what its hover names, so a
+     * press on it passes to whatever stands under it.
+     * Decision ability-row-carries-a-hover-only-question-mark-for-its-cost.
+     *
+     * @param graphics the frame's graphics
+     * @param font     the font
+     * @param label    the button's label
+     * @param x        its left edge
+     * @param top      its top
+     * @param targets  the frame's click areas
+     * @param hoverKey what hovering names
+     * @return the box it took
+     */
+    static Box drawSquareHover(GuiGraphicsExtractor graphics, Font font, String label, int x, int top,
+                               ClickTargets targets, String hoverKey) {
+        Box box = paintSquare(graphics, font, label, x, top);
+        targets.addHover(box.left(), box.top(), box.width(), box.height(), hoverKey);
+        return box;
+    }
+
+    private static Box paintSquare(GuiGraphicsExtractor graphics, Font font, String label, int x, int top) {
         Lettering lettering = Lettering.full(font);
         Box box = new Box(x, top, HEIGHT, HEIGHT);
         Frame.draw(graphics, Frame.BUTTON, box);
         lettering.draw(graphics, label, lettering.labelOrigin(box, label), Palette.LINK);
-        reserve(targets, box, pressed, null);
         return box;
     }
 

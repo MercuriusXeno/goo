@@ -294,6 +294,7 @@
   "goo.ability.typhoon.updraft.description": "Places a column of air that lifts entities upward; prisms become Floatstones.",
   "goo.ability.unstable.blast": "Blast",
   "goo.ability.unstable.blast.description": "Explodes where the goo lands; hold on a block face and drag for a bigger blast.",
+  "goo.ability.unstable.blast.cost_explanation": "The cost buys a radius 3 blast, and the price scales with the radius cubed: a radius 6 blast costs eight times as much. A held charge grows the blast up to radius 9, cut back to the largest whole radius your goo pays for.",
   "goo.ability.unstable.lurker": "Lurker",
   "goo.ability.unstable.lurker.description": "A proximity mine that pulses as creatures near, then explodes.",
   "goo.ability.weird.goop": "Goop",
