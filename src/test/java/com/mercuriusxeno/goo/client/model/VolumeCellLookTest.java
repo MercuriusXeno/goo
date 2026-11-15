@@ -120,6 +120,24 @@ class VolumeCellLookTest {
             }
         }
 
+        /**
+         * A whole block's shell top stands on the block's face, where a core
+         * running up the column meets it, so it culls under the cell above; a
+         * lower top stands inside its block and always draws.
+         */
+        @ParameterizedTest
+        @MethodSource("com.mercuriusxeno.goo.client.model.VolumeCellLookTest#cells")
+        void onlyAWholeBlocksShellTopCullsAgainstTheCellAbove(Cell cell) {
+            for (int layers = 1; layers <= VolumeCellBlock.MAX_LAYERS; layers++) {
+                for (String model : partsAt(cell.blockId(), layers, false)) {
+                    String expected = layers == VolumeCellBlock.MAX_LAYERS ? "up" : null;
+                    JsonObject top = upFaceOf(model);
+                    assertEquals(expected, top.has("cullface") ? top.get("cullface").getAsString() : null,
+                            model + "'s top");
+                }
+            }
+        }
+
         @Test
         void slimeDripsOnEverySideAtEveryHeight() {
             for (int layers = 1; layers <= VolumeCellBlock.MAX_LAYERS; layers++) {
@@ -219,6 +237,27 @@ class VolumeCellLookTest {
         return FaceBakery.bakeQuad(baker, new Vector3f(0, 0, 0), new Vector3f(16, 8, 16), face,
                 new Material.Baked(sprite, material.forceTranslucent()), Direction.UP, BlockModelRotation.IDENTITY,
                 null, true, 0).materialInfo().layer();
+    }
+
+    /**
+     * The up face of the nearest elements a model or its parents carry.
+     */
+    private static JsonObject upFaceOf(String model) {
+        String next = model;
+        while (next != null) {
+            JsonObject json = read(MODEL.formatted(next.substring(next.indexOf(':') + 1)));
+            if (json.has("elements")) {
+                for (JsonElement element : json.getAsJsonArray("elements")) {
+                    JsonObject faces = element.getAsJsonObject().getAsJsonObject("faces");
+                    if (faces.has("up")) {
+                        return faces.getAsJsonObject("up");
+                    }
+                }
+                break;
+            }
+            next = json.has("parent") ? json.get("parent").getAsString() : null;
+        }
+        throw new AssertionError(model + " draws no top");
     }
 
     /**
