@@ -101,6 +101,58 @@ class SlimeCoreBoxTest {
     }
 
     /**
+     * A column of cells: a full cell at the origin with the goo standing on it.
+     */
+    @Nested
+    class Stack {
+
+        private static Optional<Span> ownSpan(LayersAround around) {
+            return SlimeCoreBox.boxesOf(around).stream()
+                    .filter(box -> box.minX() == PADDING && box.minZ() == PADDING)
+                    .map(box -> new Span(box.minY(), box.maxY())).findFirst();
+        }
+
+        @Test
+        void oneLayerAboveLeavesOneLayerOfPaddingUnderTheLowerTop() {
+            assertEquals(Optional.of(new Span(2, 14)), ownSpan(cell(15).at(0, 1, 0, 1)));
+            assertEquals(Optional.empty(), ownSpan(cell(1).at(0, -1, 0, 15)), "the upper cell draws none");
+        }
+
+        @Test
+        void twoLayersAboveLeaveNoPaddingUnderTheLowerTop() {
+            assertEquals(Optional.of(new Span(2, 15)), ownSpan(cell(15).at(0, 1, 0, 2)));
+        }
+
+        @Test
+        void threeLayersOnAFullCellShowACoreFromTheirFloor() {
+            assertEquals(Optional.of(new Span(0, 1)), ownSpan(cell(3).at(0, -1, 0, 15)));
+        }
+
+        @Test
+        void theMiddleOfAThreeHighStackIsCoreFromFloorToTop() {
+            assertEquals(Optional.of(new Span(0, 15)), ownSpan(cell(15).at(0, -1, 0, 15).at(0, 1, 0, 15)));
+        }
+
+        @Test
+        void aCellOnABlockOfAnotherKindKeepsItsPaddingBelow() {
+            assertEquals(Optional.of(new Span(2, 13)), ownSpan(cell(15)));
+        }
+
+        @Test
+        void theMiddleOfAStackJoinsALoneEightLayerCellOverItsCore() {
+            SameGooCells around = cell(15).at(0, -1, 0, 15).at(0, 1, 0, 15).at(1, 0, 0, 8);
+            assertEquals(List.of(new Span(2, 6)), eastReach(SlimeCoreBox.boxesOf(around)));
+        }
+
+        @Test
+        void theMiddlesOfTwoStacksJoinOverTheirWholeHeight() {
+            SameGooCells around = cell(15).at(0, -1, 0, 15).at(0, 1, 0, 15)
+                    .at(1, 0, 0, 15).at(1, -1, 0, 15).at(1, 1, 0, 15);
+            assertEquals(List.of(new Span(0, 15)), eastReach(SlimeCoreBox.boxesOf(around)));
+        }
+    }
+
+    /**
      * A height range in fifteenths.
      *
      * @param floor the bottom

@@ -20,6 +20,18 @@ public interface LayersAround {
     int layersAt(int dx, int dy, int dz);
 
     /**
+     * The same cells read about another cell of them.
+     *
+     * @param ox east of this neighbourhood's cell
+     * @param oy above it
+     * @param oz south of it
+     * @return the neighbourhood of the cell at that offset
+     */
+    default LayersAround shiftedBy(int ox, int oy, int oz) {
+        return (dx, dy, dz) -> layersAt(dx + ox, dy + oy, dz + oz);
+    }
+
+    /**
      * A cell with no cell of its goo around it.
      *
      * @param layers the layers the cell holds

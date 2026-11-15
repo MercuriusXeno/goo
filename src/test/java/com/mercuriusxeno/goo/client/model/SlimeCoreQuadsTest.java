@@ -48,7 +48,7 @@ class SlimeCoreQuadsTest {
     }
 
     private static List<BakedQuad> loneCore(int layers, TextureAtlasSprite fluid) {
-        return SlimeCoreQuads.quadsOf(SlimeCoreBox.boxesOf(LayersAround.alone(layers)), coreMaterial(fluid));
+        return SlimeCoreQuads.quadsOf(LayersAround.alone(layers), coreMaterial(fluid));
     }
 
     @Nested
@@ -91,8 +91,7 @@ class SlimeCoreQuadsTest {
 
         @Test
         void aJoinedSideDrawsNoQuadOnTheSharedFace() {
-            List<BakedQuad> quads = SlimeCoreQuads.quadsOf(
-                    SlimeCoreBox.boxesOf(new SameGooCells().at(0, 0, 0, 15).at(1, 0, 0, 15)),
+            List<BakedQuad> quads = SlimeCoreQuads.quadsOf(new SameGooCells().at(0, 0, 0, 15).at(1, 0, 0, 15),
                     coreMaterial(mock(TextureAtlasSprite.class)));
             assertTrue(quads.stream().noneMatch(inPlaneX(1f)), "a quad lies on the shared east face");
         }
@@ -100,18 +99,17 @@ class SlimeCoreQuadsTest {
         @Test
         void anUnjoinedSideDrawsItsSideQuadTwoFifteenthsInFromTheFace() {
             List<BakedQuad> quads = loneCore(15, mock(TextureAtlasSprite.class));
-            assertTrue(quads.stream().anyMatch(inPlaneX(13 * FIFTEENTH).and(quad -> quad.direction() == Direction.EAST)));
+            assertTrue(quads.stream()
+                    .anyMatch(inPlaneX(13 * FIFTEENTH).and(quad -> quad.direction() == Direction.EAST)));
             assertTrue(quads.stream().noneMatch(inPlaneX(1f)));
         }
 
         @Test
         void theTopsTextureRunsOnAcrossTheJoin() {
             TextureAtlasSprite fluid = wholeSprite();
-            List<BakedQuad> west = SlimeCoreQuads.quadsOf(
-                    SlimeCoreBox.boxesOf(new SameGooCells().at(0, 0, 0, 15).at(1, 0, 0, 15)),
+            List<BakedQuad> west = SlimeCoreQuads.quadsOf(new SameGooCells().at(0, 0, 0, 15).at(1, 0, 0, 15),
                     coreMaterial(fluid));
-            List<BakedQuad> east = SlimeCoreQuads.quadsOf(
-                    SlimeCoreBox.boxesOf(new SameGooCells().at(0, 0, 0, 15).at(-1, 0, 0, 15)),
+            List<BakedQuad> east = SlimeCoreQuads.quadsOf(new SameGooCells().at(0, 0, 0, 15).at(-1, 0, 0, 15),
                     coreMaterial(fluid));
             List<float[]> westEdge = topCornersAtX(west, 1f);
             List<float[]> eastEdge = topCornersAtX(east, 0f);
@@ -124,15 +122,41 @@ class SlimeCoreQuadsTest {
         }
     }
 
+    @Nested
+    class Stack {
+
+        @Test
+        void theMiddleOfAStackDrawsNoQuadOnItsTopOrFloor() {
+            List<BakedQuad> quads = SlimeCoreQuads.quadsOf(new SameGooCells().at(0, 0, 0, 15).at(0, -1, 0, 15)
+                    .at(0, 1, 0, 15), coreMaterial(mock(TextureAtlasSprite.class)));
+            assertFalse(quads.isEmpty());
+            assertTrue(quads.stream().noneMatch(inPlaneY(0f)), "a quad lies on the floor it shares");
+            assertTrue(quads.stream().noneMatch(inPlaneY(1f)), "a quad lies on the top it shares");
+        }
+
+        @Test
+        void aCoreReachingItsTopUnderACellHoldingNoCoreDrawsItsTop() {
+            List<BakedQuad> quads = SlimeCoreQuads.quadsOf(new SameGooCells().at(0, 0, 0, 15).at(0, 1, 0, 2),
+                    coreMaterial(mock(TextureAtlasSprite.class)));
+            assertTrue(quads.stream().anyMatch(inPlaneY(1f).and(quad -> quad.direction() == Direction.UP)));
+        }
+    }
+
     private static Predicate<BakedQuad> inPlaneX(float x) {
-        return quad -> {
-            for (int vertex = 0; vertex < BakedQuad.VERTEX_COUNT; vertex++) {
-                if (Math.abs(quad.position(vertex).x() - x) > EPSILON) {
-                    return false;
-                }
+        return quad -> allCorners(quad, corner -> Math.abs(corner.x() - x) < EPSILON);
+    }
+
+    private static Predicate<BakedQuad> inPlaneY(float y) {
+        return quad -> allCorners(quad, corner -> Math.abs(corner.y() - y) < EPSILON);
+    }
+
+    private static boolean allCorners(BakedQuad quad, Predicate<Vector3fc> test) {
+        for (int vertex = 0; vertex < BakedQuad.VERTEX_COUNT; vertex++) {
+            if (!test.test(quad.position(vertex))) {
+                return false;
             }
-            return true;
-        };
+        }
+        return true;
     }
 
     /**
