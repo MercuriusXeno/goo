@@ -1,6 +1,6 @@
 {
   "attributes": {
-    "minecraft:visual/sky_color": "#05060c"
+    "minecraft:visual/sky_color": "#000000"
   },
   "carvers": [],
   "downfall": 0.0,

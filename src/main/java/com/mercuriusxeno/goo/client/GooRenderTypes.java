@@ -814,6 +814,20 @@ public final class GooRenderTypes {
             .build();
 
     /**
+     * Lunar's blue overworld star, drawn added over the sky in its own color, on the pocket sky's vertex shader.
+     * decision astral-sky-is-the-void-with-one-bright-blue-overworld-star
+     */
+    public static final RenderPipeline OVERWORLD_STAR = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "overworld_star"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "pocket_sky"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "overworld_star"))
+            .withColorTargetState(new ColorTargetState(BlendFunction.ADDITIVE))
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .build();
+
+    /**
      * The render type voidstone's faces draw through, its texture transform
      * handing the shader the room the field wraps at.
      * decision voidstone-starfield-tiles-in-either-direction
@@ -1645,6 +1659,7 @@ public final class GooRenderTypes {
         event.registerPipeline(BLOCK_MINGLE_TRANSLUCENT);
         event.registerPipeline(VOIDSTONE);
         event.registerPipeline(POCKET_SKY);
+        event.registerPipeline(OVERWORLD_STAR);
         event.registerPipeline(SKY_FUNNEL);
         event.registerPipeline(PETRIFY_FOG);
         event.registerPipeline(FIRE_FIELD);
