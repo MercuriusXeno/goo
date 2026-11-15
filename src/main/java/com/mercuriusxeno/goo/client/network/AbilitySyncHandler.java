@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityIconTexture;
 import com.mercuriusxeno.goo.ability.AbilityPrice;
 import com.mercuriusxeno.goo.ability.ArmPose;
+import com.mercuriusxeno.goo.ability.ChargeSize;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.HeldRoute;
@@ -19,6 +20,7 @@ import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.ZoneStep;
 import com.mercuriusxeno.goo.client.ClientGooValues;
 import com.mercuriusxeno.goo.client.throwing.BlinkAim;
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
@@ -594,7 +596,8 @@ public final class AbilitySyncHandler {
          * @return the formula filled, or empty where the cost reads as a number
          */
         private Optional<String> formulaLabel() {
-            return costPrice.isFree() || pricedByWhatItLays() || freeWhile.isPresent() ? formula() : Optional.empty();
+            return costPrice.isFree() || pricedByWhatItLays() || freeWhile.isPresent() || delivery.sizesByCharge()
+                    ? formula() : Optional.empty();
         }
 
         /**
@@ -634,7 +637,21 @@ public final class AbilitySyncHandler {
             if (pricedByWhatItLays()) {
                 return List.of(GooFormat.formatMixed(costPrice.exactIn(ClientGooValues::current)));
             }
+            if (delivery.sizesByCharge()) {
+                return List.of(GooFormat.formatMixed(pricePerCubeOfRadius()));
+            }
             return gouge().map(step -> List.of(GooFormat.formatAmount(step.cost()))).orElse(List.of());
+        }
+
+        /**
+         * A cast sized by its charge pays its cost at the reference radius and the cube of its radius over that, so
+         * its price for a radius of r is this times r³: the cost over the reference radius cubed.
+         * dynamic-costs-keep-the-mb-quantity
+         *
+         * @return the mB a cube of radius costs
+         */
+        private GooFraction pricePerCubeOfRadius() {
+            return ChargeSize.pricePerCubeOfRadius(costPrice.exactIn(ClientGooValues::current));
         }
 
         /**

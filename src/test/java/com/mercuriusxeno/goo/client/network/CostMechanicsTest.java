@@ -14,6 +14,7 @@ import com.mercuriusxeno.goo.data.PrefabValues;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -107,6 +108,24 @@ class CostMechanicsTest {
         assertTrue(text.contains(GooFormat.formatAmount(blink.distancePrice().perBlock()) + " per block"), text);
         assertTrue(text.contains(GooFormat.formatAmount(blink.distancePrice().wallCost()) + " through a wall"), text);
         assertTrue(text.contains(blink.distancePrice().nodePercent() + " percent"), text);
+    }
+
+    /**
+     * Blast's cost buys the reference radius 3 and scales with the cube of the radius, so the petal and the crosshair
+     * panel read its price per cubic block of radius, the cost over 27, never the reference radius's price as a flat
+     * total: tnt at 108 unstable reads 4 x r³.
+     * decision dynamic-costs-keep-the-mb-quantity
+     */
+    @Test
+    void blastReadsItsPricePerCubeOfRadiusOnThePetalAndThePanel() {
+        IGooValueLookup tntAt108 = GooValueTable.ofEffectiveValues(
+                Map.of(Identifier.withDefaultNamespace("tnt"), new GooValue(Map.of(GooTypes.UNSTABLE, 108))),
+                new PrefabValues(Map.of(), Map.of()));
+        standing = ClientGooValues.readFrom(() -> tntAt108);
+        ClientAbility blast = clientOf(AbilityJson.decode("unstable_blast"));
+
+        assertEquals("4 x r³", blast.petalLabel(NO_HOLDINGS, NO_REAGENTS));
+        assertEquals("4 x r³", blast.costLabel());
     }
 
     /**

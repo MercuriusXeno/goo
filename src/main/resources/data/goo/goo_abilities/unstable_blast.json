@@ -4,7 +4,7 @@
   "badge": "free",
   "order": 10,
   "cost": "tnt",
-  "cost_formula": "1K x r³",
+  "cost_formula": "%s x r³",
   "requires": [
     "minecraft:gunpowder"
   ],
