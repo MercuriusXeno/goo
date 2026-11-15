@@ -53,7 +53,7 @@ class ProgramBehaviorTest {
 
         program.tick(host);
 
-        verify(host).explode(eq(4f), anyDouble(), anyBoolean(), eq(ExplosionMode.TNT));
+        verify(host).explode(eq(4f), anyDouble(), anyBoolean(), eq(ExplosionMode.TNT), any());
         assertFalse(program.isActive());
     }
 
@@ -67,7 +67,7 @@ class ProgramBehaviorTest {
         assertTrue(program.isActive());
 
         program.tick(host);
-        verify(host).explode(eq(1f), anyDouble(), anyBoolean(), eq(ExplosionMode.TNT));
+        verify(host).explode(eq(1f), anyDouble(), anyBoolean(), eq(ExplosionMode.TNT), any());
         assertFalse(program.isActive());
     }
 
@@ -84,7 +84,7 @@ class ProgramBehaviorTest {
         assertTrue(program.isActive());
 
         program.tick(host);
-        verify(host).explode(eq(3.5f), anyDouble(), anyBoolean(), eq(ExplosionMode.TNT));
+        verify(host).explode(eq(3.5f), anyDouble(), anyBoolean(), eq(ExplosionMode.TNT), any());
         assertFalse(program.isActive());
     }
 
@@ -95,8 +95,8 @@ class ProgramBehaviorTest {
 
         program.tick(host);
 
-        verify(host).explode(eq(1f), anyDouble(), anyBoolean(), eq(ExplosionMode.TNT));
-        verify(host).explode(eq(2f), anyDouble(), anyBoolean(), eq(ExplosionMode.TNT));
+        verify(host).explode(eq(1f), anyDouble(), anyBoolean(), eq(ExplosionMode.TNT), any());
+        verify(host).explode(eq(2f), anyDouble(), anyBoolean(), eq(ExplosionMode.TNT), any());
         assertEquals(3, program.stepIndex());
     }
 

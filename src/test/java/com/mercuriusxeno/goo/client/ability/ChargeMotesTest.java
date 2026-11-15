@@ -65,6 +65,47 @@ class ChargeMotesTest {
         assertEquals(motes.size(), atTheShell + atTheBlob, "every mote should end at the shell or the blob");
     }
 
+    /**
+     * A mote still on its way in when the charge releases is pushed back out, away from where it was headed, and
+     * fades to nothing over the brief repel, rather than vanishing (the operator's ruling of 2026-11-15).
+     */
+    @Test
+    void aMoteMidFlightAtTheReleaseIsPushedOutAndFadesToNothing() {
+        ChargeMotes.Mote headingIn = ChargeMotes.spawn(BEGAN, ROOTED, radiusAt(0), BLOB, RandomSource.create(5L))
+                .getFirst();
+        double midway = headingIn.lifeTicks() / 2.0;
+        long released = BEGAN + (long) midway;
+        ChargeMotes.Mote repelled = headingIn.repelledAt(released);
+        Vec3 atRelease = headingIn.placeAt(midway);
+
+        double halfRepel = midway + ChargeMotes.REPEL_TICKS / 2.0;
+        double fullRepel = midway + ChargeMotes.REPEL_TICKS;
+        assertTrue(repelled.placeAt(halfRepel).distanceTo(headingIn.to()) > atRelease.distanceTo(headingIn.to()),
+                "the mote should move away from where it was headed");
+        assertTrue(repelled.alphaAt(halfRepel) < headingIn.alphaAt(midway), "the mote should fade as it is pushed");
+        assertEquals(0f, repelled.alphaAt(fullRepel), DELTA);
+        assertTrue(repelled.absorbedBy(BEGAN + fullRepel), "the mote should be gone once the repel ends");
+    }
+
+    @Test
+    void theBlobDrawsAMoteEveryOtherTick() {
+        long atTheBlob = spawnedOver(0, SECOND).stream().filter(ChargeMotes.Mote::atTheBlob).count();
+
+        assertEquals(SECOND / 2, atTheBlob);
+    }
+
+    /** The blob's wisps fade in over more of their life than the shell's, so they ease in rather than pop. */
+    @Test
+    void aBlobMoteFadesInOverMoreOfItsLifeThanAShellMote() {
+        List<ChargeMotes.Mote> motes = ChargeMotes.spawn(BEGAN, ROOTED, radiusAt(0), BLOB, RandomSource.create(9L));
+        ChargeMotes.Mote shell = motes.stream().filter(mote -> !mote.atTheBlob()).findFirst().orElseThrow();
+        ChargeMotes.Mote blob = motes.stream().filter(ChargeMotes.Mote::atTheBlob).findFirst().orElseThrow();
+        double halfLife = blob.lifeTicks() / 2.0;
+
+        assertEquals(1f, shell.alphaAt(halfLife), DELTA);
+        assertTrue(blob.alphaAt(halfLife) < 1f, "a blob mote should still be fading in halfway through its life");
+    }
+
     @Test
     void theSpheroidBeatsOnThePalmBlobsBeat() {
         double[] times = {BEGAN, BEGAN + 3.25, BEGAN + 7.5};

@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.block.ability.MarkerAnchor;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.network.LurkerPulsePayload;
-import com.mercuriusxeno.goo.registry.GooParticles;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -77,16 +76,16 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     }
 
     /**
-     * Explodes at the marker with Goo's explosion and vanilla's boom, its
-     * particles swapped for none, since the marker's burnout explosion is
-     * drawn by its goo type (decision elemental-explosion-per-type), sent
-     * here as it explodes rather than when the blob landed.
+     * Explodes at the marker with Goo's explosion in the look the step
+     * wrote, beside the marker's burnout its goo type draws (decision
+     * elemental-explosion-per-type), sent here as it explodes rather than
+     * when the blob landed.
      */
     @Override
-    public void explode(float power, double reach, boolean gathers, ExplosionMode mode) {
+    public void explode(float power, double reach, boolean gathers, ExplosionMode mode, ExplosionLook look) {
         burnout().sendToTracking(level);
         GooExplosion.detonate(level, Vec3.atCenterOf(pos), power, new GooExplosion.Cut(reach, gathers), mode,
-                GooExplosion.Look.silent(GooParticles.SILENT_BLAST.get()));
+                look.shown());
     }
 
     /**

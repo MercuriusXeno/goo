@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.network;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.ability.AbilityPoses;
+import com.mercuriusxeno.goo.client.ability.BlastShards;
 import com.mercuriusxeno.goo.client.ability.ClientGateCarry;
 import com.mercuriusxeno.goo.client.ability.ClientHoles;
 import com.mercuriusxeno.goo.client.ability.ClientPortals;
@@ -29,6 +30,7 @@ import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.network.AfterimagePayload;
 import com.mercuriusxeno.goo.network.AilmentPayload;
 import com.mercuriusxeno.goo.network.ArmPosePayload;
+import com.mercuriusxeno.goo.network.BlastShardsPayload;
 import com.mercuriusxeno.goo.network.BlockAfterimagePayload;
 import com.mercuriusxeno.goo.network.BlockExposurePayload;
 import com.mercuriusxeno.goo.network.BlockTransformPayload;
@@ -124,6 +126,7 @@ public final class GooClientNetworking {
      */
     private static void registerAbilityVisualHandlers(RegisterClientPayloadHandlersEvent event) {
         event.register(ChainBurnoutPayload.TYPE, ChainBurnoutHandler::handle);
+        event.register(BlastShardsPayload.TYPE, BlastShards::onPayload);
         event.register(LurkerPulsePayload.TYPE, LurkerPulseHandler::handle);
         event.register(SculkerHeardPayload.TYPE, SculkerHeardHandler::handle);
         event.register(SculkerVibrationPayload.TYPE, SculkerVibrationHandler::handle);

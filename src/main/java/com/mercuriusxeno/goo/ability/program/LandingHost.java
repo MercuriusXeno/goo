@@ -15,7 +15,6 @@ import com.mercuriusxeno.goo.entity.Meteor;
 import com.mercuriusxeno.goo.network.BlockVisuals;
 import com.mercuriusxeno.goo.network.TransformationPayload;
 import com.mercuriusxeno.goo.registry.GooBlocks;
-import com.mercuriusxeno.goo.registry.GooParticles;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -179,14 +178,13 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     }
 
     /**
-     * Explodes at the anchor with Goo's explosion and vanilla's boom, its
-     * particles swapped for none, since the landing's burnout explosion is
-     * drawn by its goo type (decision elemental-explosion-per-type).
+     * Explodes at the anchor with Goo's explosion in the look the step
+     * wrote, beside the landing's burnout its goo type draws (decision
+     * elemental-explosion-per-type).
      */
     @Override
-    public void explode(float power, double reach, boolean gathers, ExplosionMode mode) {
-        GooExplosion.detonate(level, anchor(), power, new GooExplosion.Cut(reach, gathers), mode,
-                GooExplosion.Look.silent(GooParticles.SILENT_BLAST.get()));
+    public void explode(float power, double reach, boolean gathers, ExplosionMode mode, ExplosionLook look) {
+        GooExplosion.detonate(level, anchor(), power, new GooExplosion.Cut(reach, gathers), mode, look.shown());
     }
 
     @Override

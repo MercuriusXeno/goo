@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.gametest;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.network.protocol.game.ClientboundExplodePacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
@@ -13,13 +14,14 @@ import java.util.Set;
 /**
  * Stands in for a mock server player's connection, claims the channels of
  * several payload kinds the mock connection never negotiated, and records
- * each payload of those kinds sent to it, so a test reads which of them an
- * act sent and which it did not.
+ * each payload of those kinds sent to it and each explode packet, so a test
+ * reads which of them an act sent and which it did not.
  */
 public final class PayloadKindsRecorder extends ServerGamePacketListenerImpl {
 
     private final Set<Class<? extends CustomPacketPayload>> kinds;
     private final List<CustomPacketPayload> received = new ArrayList<>();
+    private final List<ClientboundExplodePacket> explosions = new ArrayList<>();
 
     private PayloadKindsRecorder(ServerPlayer player, Set<Class<? extends CustomPacketPayload>> kinds) {
         super(player.level().getServer(), player.connection.getConnection(), player,
@@ -49,6 +51,17 @@ public final class PayloadKindsRecorder extends ServerGamePacketListenerImpl {
         return received.stream().filter(kind::isInstance).map(kind::cast).toList();
     }
 
+    /**
+     * The explode packets sent to the player since the recorder attached, in
+     * send order: vanilla packets, kept beside the payloads since a player
+     * holds one connection.
+     *
+     * @return the explode packets
+     */
+    public List<ClientboundExplodePacket> explosions() {
+        return List.copyOf(explosions);
+    }
+
     @Override
     public boolean hasChannel(CustomPacketPayload payload) {
         return kinds.stream().anyMatch(kind -> kind.isInstance(payload));
@@ -58,6 +71,8 @@ public final class PayloadKindsRecorder extends ServerGamePacketListenerImpl {
     public void send(Packet<?> packet) {
         if (packet instanceof ClientboundCustomPayloadPacket custom && hasChannel(custom.payload())) {
             received.add(custom.payload());
+        } else if (packet instanceof ClientboundExplodePacket explosion) {
+            explosions.add(explosion);
         }
     }
 }
