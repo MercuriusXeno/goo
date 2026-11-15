@@ -1,10 +1,12 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.program.BoreStep;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.sound.FadingLoops;
+import com.mercuriusxeno.goo.network.KnifeRainSling;
 import com.mercuriusxeno.goo.registry.GooSoundIds;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -86,9 +88,11 @@ public final class BoreRumble {
     private static List<BlockPos> progressingOf(ClientLevel level, LocalPlayer player, ClientAbility bore,
                                                 BoreStep step) {
         Vec3 eye = player.getEyePosition();
-        ChannelAim aim = new ChannelAim(eye.add(player.getViewVector(1f).scale(bore.delivery().range())), null,
-                bore.delivery().coneDegrees());
-        return BoreStep.progressing(eye, step.vortexNearRadius(), step.vortexFarRadius(), aim,
+        // bore-reaches-as-far-as-your-block-reach
+        Delivery reaching = bore.delivery().reachingTo(player.blockInteractionRange());
+        ChannelAim aim = new ChannelAim(eye.add(player.getViewVector(1f).scale(reaching.range())), null,
+                reaching.coneDegrees());
+        return BoreStep.progressing(eye, step.shape(), KnifeRainSling.gloveOnTheRight(player), aim,
                 cell -> level.getBlockState(cell).isAir(), cell -> level.getBlockState(cell).is(step.breaks()));
     }
 }

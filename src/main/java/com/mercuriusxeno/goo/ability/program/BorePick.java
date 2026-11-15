@@ -2,218 +2,215 @@ package com.mercuriusxeno.goo.ability.program;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Set;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 /**
- * What a held Bore breaks this tick: the breakable blocks its eye line
- * crosses out to the reach, short of the first solid block outside its tag,
- * and every breakable block its vortex crosses besides. The vortex is a cone
- * along the eye line from the eye to the reach, from the JSON's wide near
- * radius to its narrower far radius, never wider than a block, so aiming where
- * four blocks meet drills four, at the edge between two drills two, and at
- * a block's middle drills one. The stopping block shields the
- * vortex's blocks at its depth and beyond, as it shields the line's. The
- * blocks break in groups by depth along the look, each vortex block with
- * the eye line block nearest its depth, so a nearer block gains progress
- * quicker than a farther one.
+ * What a held Bore breaks this tick: whatever its drill's cross section
+ * intersects. The cross section is the ellipse the drill cone cuts in the
+ * plane square to the look ({@link BoreDrillShape}), centered on the eye
+ * line at the depth a tube of rays sets: the eye line and 8 rays round the
+ * ellipse's rim, parallel to the look out to the reach, each stopping at the
+ * first block that is not air, the nearest stop setting the depth. The rays
+ * pick nothing: aiming at a face's middle picks one block, near an edge two
+ * and near a corner four, never every block the drill touches; no block
+ * behind them progresses.
+ * decision bore-breaks-what-the-drill-cross-section-intersects
+ * decision bore-tube-rays-set-the-depth-of-the-cross-section
+ * decision bore-breaks-the-block-at-the-point-and-its-surroundings
  * decision bore-breaks-what-is-in-the-vortex
- * decision bore-breaks-a-15-degree-cone
- * decision bore-drills-the-eye-line-with-steady-progress
+ * decision bore-drill-point-floats-along-the-crosshair-to-the-aimed-block
  *
- * @param groups the breakable blocks in groups, the nearest group first, each empty group taking no rank
- * @param tunnel every cell the line and the vortex cross short of the stopping block, air among them,
- *               where Bore strikes what stands
+ * @param blocks the breakable blocks the cross section intersects, the one on the eye line first; empty where
+ *               no ray meets a block
+ * @param tunnel every cell the eye line crosses from the eye out to the cross section, air among them, where
+ *               Bore strikes what stands
  */
-record BorePick(List<List<BlockPos>> groups, List<BlockPos> tunnel) {
+record BorePick(List<BlockPos> blocks, List<BlockPos> tunnel) {
 
-    /** Sample points across each axis of a cell, its faces among them, tested for lying in the vortex. */
-    private static final int CELL_SAMPLES = 5;
-    private static final double HALF = 0.5;
+    /** The rays round the cross section's rim, beside the eye line. */
+    static final int RIM_RAYS = 8;
+    /** How far past the cross section's plane, along the look, its cell is read. */
+    private static final double NUDGE = 1e-4;
+    /** A block's box at the origin, which a clip carries to the block it is handed. */
+    private static final AABB UNIT_CELL = new AABB(0, 0, 0, 1, 1, 1);
+    /** How far in front of the crosshair block's face a rim ray's block must stand to set the depth. */
+    private static final double IN_FRONT = 1e-3;
+
+    /**
+     * Where the cross section stands: on the eye line at the depth the tube
+     * sets, on the face the ray that set it met.
+     *
+     * @param center  the cross section's center, on the eye line
+     * @param face    the unit outward normal of the face the depth's ray met
+     * @param stopped whether a ray met a block, so the cross section stands on it; false at the end of reach
+     */
+    private record Section(Vec3 center, Vec3 face, boolean stopped) {
+    }
+
+    /**
+     * Where a ray meets a block, and the face it meets.
+     *
+     * @param at   the point on the block's outside the ray meets
+     * @param face the unit outward normal of that face
+     */
+    private record Hit(Vec3 at, Vec3 face) {
+    }
 
     /**
      * Picks what a bore breaks this tick.
      *
-     * @param eye        the eye the line and the vortex run from
-     * @param nearRadius the vortex's radius at the eye
-     * @param farRadius  the vortex's radius at the reach; both 0 pick the eye line alone
+     * @param eye        the eye the line runs from
+     * @param shape      the drill cone whose cross section the pick reads
+     * @param gloveRight whether the glove is in the right hand, the side the cross section's long axis lies
      * @param aim        the stream's aim: its reach along the look
      * @param air        whether a cell holds air
      * @param breakable  whether a cell holds a block in the tag
      * @return the pick
      */
-    static BorePick of(Vec3 eye, double nearRadius, double farRadius, ChannelAim aim, Predicate<BlockPos> air,
+    static BorePick of(Vec3 eye, BoreDrillShape shape, boolean gloveRight, ChannelAim aim, Predicate<BlockPos> air,
                        Predicate<BlockPos> breakable) {
-        List<BlockPos> crossed = BoreStep.blocksAlong(eye, aim.aimPoint());
-        int stop = stoppingIndex(crossed, air, breakable);
-        List<BlockPos> line = crossed.subList(1, stop);
         Vec3 look = aim.aimPoint().subtract(eye).normalize();
-        double shield = stop < crossed.size() ? depthOf(crossed.get(stop), eye, look) : Double.MAX_VALUE;
-        Sight sight = new Sight(eye, look, shield, crossed.getFirst());
-        List<List<BlockPos>> groups = lineGroups(line, breakable);
-        Set<BlockPos> tunnel = new LinkedHashSet<>(line);
-        for (BlockPos cell : vortexCells(new Widening(eye, aim.aimPoint(), nearRadius, farRadius))) {
-            if (sight.reaches(cell) && tunnel.add(cell) && breakable.test(cell)) {
-                groups.get(nearestByDepth(line, sight.depthOf(cell), sight)).add(cell);
-            }
+        Section section = sectionOf(eye, aim.aimPoint(), shape, gloveRight, air, breakable);
+        List<BlockPos> line = BoreStep.blocksAlong(eye, section.center().add(look.scale(NUDGE)));
+        if (!section.stopped()) {
+            return new BorePick(List.of(), List.copyOf(line.subList(1, line.size())));
         }
-        return new BorePick(groups, List.copyOf(tunnel));
+        BlockPos eyeCell = line.getFirst();
+        BlockPos outward = BlockPos.containing(section.face());
+        // a block whose face toward the crosshair's side is buried, as a tunnel's floor or ceiling is, never breaks
+        List<BlockPos> blocks = shape.cellsCrossedAt(section.center(), look, section.face(), gloveRight).stream()
+                .filter(cell -> !cell.equals(eyeCell) && breakable.test(cell) && air.test(cell.offset(outward)))
+                .toList();
+        // the strike reaches the block the eye line enters where Bore breaks it, and stops short of one it cannot
+        int tunnelEnd = blocks.contains(line.getLast()) ? line.size() : line.size() - 1;
+        return new BorePick(blocks, List.copyOf(line.subList(1, Math.max(1, tunnelEnd))));
     }
 
     /**
-     * Where the bore looks from and how deep it reaches.
+     * Where the cross section stands: where the eye line meets the crosshair's
+     * block, unless a rim ray of the tube meets a block standing in front of
+     * that block's face, which then sets the depth; or the end of reach where
+     * no ray meets a block. A rim ray meeting the same face the crosshair
+     * meets, as a slanted floor or wall gives, sets nothing, so the cross
+     * section stays on the crosshair.
      *
-     * @param eye     the eye
-     * @param look    the unit look
-     * @param shield  the stopping block's depth, past which nothing is picked
-     * @param eyeCell the eye's own block, never picked
+     * @param eye        the eye the tube runs from
+     * @param reachEnd   the end of the reach along the look
+     * @param shape      the drill cone whose cross section sizes the tube
+     * @param gloveRight whether the glove is in the right hand
+     * @param air        whether a cell holds air
+     * @param breakable  whether a cell holds a block in the tag
+     * @return the cross section's place
      */
-    private record Sight(Vec3 eye, Vec3 look, double shield, BlockPos eyeCell) {
-
-        double depthOf(BlockPos cell) {
-            return BorePick.depthOf(cell, eye, look);
+    private static Section sectionOf(Vec3 eye, Vec3 reachEnd, BoreDrillShape shape, boolean gloveRight,
+                                     Predicate<BlockPos> air, Predicate<BlockPos> breakable) {
+        Vec3 look = reachEnd.subtract(eye).normalize();
+        Optional<Hit> crosshair = hitOf(eye, reachEnd, air, breakable);
+        List<Hit> hits = new ArrayList<>();
+        crosshair.ifPresent(hits::add);
+        for (Vec3 offset : shape.rimOffsets(look, gloveRight, RIM_RAYS, 1)) {
+            hitOf(eye.add(offset), reachEnd.add(offset), air, breakable)
+                    .filter(hit -> crosshair.isEmpty() || standsInFront(hit, crosshair.get()))
+                    .ifPresent(hits::add);
         }
-
-        boolean reaches(BlockPos cell) {
-            return !cell.equals(eyeCell) && depthOf(cell) < shield;
-        }
+        return hits.stream().min(Comparator.comparingDouble(hit -> hit.at().subtract(eye).dot(look)))
+                .map(hit -> new Section(eye.add(look.scale(hit.at().subtract(eye).dot(look))), hit.face(), true))
+                .orElse(new Section(reachEnd, look.reverse(), false));
     }
 
     /**
-     * One group for each block the eye line crosses, holding the block where
-     * it breaks; one empty group where the line crosses none, which the
-     * vortex's blocks join.
+     * Whether a rim ray's block stands in front of the face the crosshair meets.
      *
-     * @param line      the line's blocks, nearest first
-     * @param breakable whether a cell holds a block in the tag
-     * @return the groups
+     * @param rim       where the rim ray meets its block
+     * @param crosshair where the eye line meets the crosshair's block
+     * @return true for a block standing out from that face toward the eye
      */
-    private static List<List<BlockPos>> lineGroups(List<BlockPos> line, Predicate<BlockPos> breakable) {
-        List<List<BlockPos>> groups = new ArrayList<>();
-        for (BlockPos cell : line) {
-            groups.add(new ArrayList<>(breakable.test(cell) ? List.of(cell) : List.of()));
-        }
-        if (groups.isEmpty()) {
-            groups.add(new ArrayList<>());
-        }
-        return groups;
+    private static boolean standsInFront(Hit rim, Hit crosshair) {
+        // a tunnel's floor, ceiling or side the rim grazes faces across the crosshair's face and sets nothing
+        return rim.face().equals(crosshair.face()) && rim.at().subtract(crosshair.at()).dot(crosshair.face()) > IN_FRONT;
     }
 
     /**
-     * The breakable blocks picked, nearest group first.
+     * Where a ray meets the first block that is not air, past the cell it
+     * starts in, and the face it meets.
      *
-     * @return the blocks
-     */
-    List<BlockPos> blocks() {
-        return groups.stream().flatMap(List::stream).toList();
-    }
-
-    /**
-     * The vortex: a cone from its near end to its far end, its radius
-     * running straight from one end's to the other's.
-     *
-     * @param near       the near end, at the eye
-     * @param far        the far end, at the reach
-     * @param nearRadius the radius at the near end
-     * @param farRadius  the radius at the far end
-     */
-    record Widening(Vec3 near, Vec3 far, double nearRadius, double farRadius) {
-
-        /**
-         * Whether a point lies inside: between the ends, and nearer the axis
-         * than the radius there, so a vortex whose edge only meets a block's
-         * face misses the block.
-         *
-         * @param point the point
-         * @return true for a point inside
-         */
-        boolean holds(Vec3 point) {
-            double length = far.distanceTo(near);
-            Vec3 axis = far.subtract(near).scale(1 / length);
-            Vec3 offset = point.subtract(near);
-            double along = offset.dot(axis);
-            if (along < 0 || along > length) {
-                return false;
-            }
-            double radius = nearRadius + (farRadius - nearRadius) * along / length;
-            return offset.subtract(axis.scale(along)).length() < radius;
-        }
-    }
-
-    /**
-     * Every cell the vortex crosses: the cells whose sample points, faces
-     * among them, lie inside it.
-     *
-     * @param vortex the vortex
-     * @return the cells, each once
-     */
-    static List<BlockPos> vortexCells(Widening vortex) {
-        double widest = Math.max(vortex.nearRadius(), vortex.farRadius());
-        if (widest <= 0 || vortex.far().distanceTo(vortex.near()) <= 0) {
-            return List.of();
-        }
-        AABB bounds = new AABB(vortex.near(), vortex.far()).inflate(widest);
-        List<BlockPos> cells = new ArrayList<>();
-        for (BlockPos cell : BlockPos.betweenClosed(BlockPos.containing(bounds.minX, bounds.minY, bounds.minZ),
-                BlockPos.containing(bounds.maxX, bounds.maxY, bounds.maxZ))) {
-            if (crosses(cell, vortex)) {
-                cells.add(cell.immutable());
-            }
-        }
-        return cells;
-    }
-
-    private static boolean crosses(BlockPos cell, Widening vortex) {
-        double step = 1.0 / (CELL_SAMPLES - 1);
-        for (int x = 0; x < CELL_SAMPLES; x++) {
-            for (int y = 0; y < CELL_SAMPLES; y++) {
-                for (int z = 0; z < CELL_SAMPLES; z++) {
-                    if (vortex.holds(new Vec3(cell.getX() + x * step, cell.getY() + y * step,
-                            cell.getZ() + z * step))) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
-    private static double depthOf(BlockPos cell, Vec3 eye, Vec3 look) {
-        return new Vec3(cell.getX() + HALF, cell.getY() + HALF, cell.getZ() + HALF).subtract(eye).dot(look);
-    }
-
-    private static int nearestByDepth(List<BlockPos> line, double depth, Sight sight) {
-        int nearest = 0;
-        double closest = Double.MAX_VALUE;
-        for (int index = 0; index < line.size(); index++) {
-            double apart = Math.abs(sight.depthOf(line.get(index)) - depth);
-            if (apart < closest) {
-                closest = apart;
-                nearest = index;
-            }
-        }
-        return nearest;
-    }
-
-    /**
-     * Where the eye line meets the first solid block outside the tag, past
-     * the eye's own block.
-     *
-     * @param line      the blocks the eye line crosses, the eye's own first
+     * @param start     the ray's start
+     * @param end       the ray's end
      * @param air       whether a cell holds air
      * @param breakable whether a cell holds a block in the tag
-     * @return the stopping block's index on the line, or the line's length where none stands
+     * @return the hit, empty where the ray meets nothing
      */
-    private static int stoppingIndex(List<BlockPos> line, Predicate<BlockPos> air, Predicate<BlockPos> breakable) {
-        for (int i = 1; i < line.size(); i++) {
-            if (!air.test(line.get(i)) && !breakable.test(line.get(i))) {
+    private static Optional<Hit> hitOf(Vec3 start, Vec3 end, Predicate<BlockPos> air, Predicate<BlockPos> breakable) {
+        List<BlockPos> crossed = BoreStep.blocksAlong(start, end);
+        int met = firstMet(crossed, air, breakable);
+        if (met == crossed.size()) {
+            return Optional.empty();
+        }
+        BlockPos block = crossed.get(met);
+        BlockHitResult hit = AABB.clip(List.of(UNIT_CELL), start, end, block);
+        return hit == null ? Optional.of(new Hit(Vec3.atCenterOf(block), end.subtract(start).normalize().reverse()))
+                : Optional.of(new Hit(hit.getLocation(), Vec3.atLowerCornerOf(hit.getDirection().getUnitVec3i())));
+    }
+
+    /**
+     * Where a bore's cross section lands on a breakable block it picks.
+     *
+     * @param eye        the eye the tube runs from
+     * @param reachEnd   the end of the reach along the look
+     * @param shape      the drill cone
+     * @param gloveRight whether the glove is in the right hand
+     * @param air        whether a cell holds air
+     * @param breakable  whether a cell holds a block in the tag
+     * @return the cross section's center and the first block it picks, empty where it picks none
+     */
+    static Optional<BorePoint> pointOf(Vec3 eye, Vec3 reachEnd, BoreDrillShape shape, boolean gloveRight,
+                                       Predicate<BlockPos> air, Predicate<BlockPos> breakable) {
+        Section section = sectionOf(eye, reachEnd, shape, gloveRight, air, breakable);
+        BorePick pick = of(eye, shape, gloveRight, new ChannelAim(reachEnd, null, 0), air, breakable);
+        return pick.blocks().isEmpty() ? Optional.empty()
+                : Optional.of(new BorePoint(pick.blocks().getFirst(), section.center()));
+    }
+
+    /**
+     * Where a bore's cross section stands: at the depth the tube sets, on a
+     * breakable block or a solid block outside the tag alike, so a drill
+     * drawn to it never runs into a block it does not break; or the end of
+     * the reach where no ray meets a block.
+     *
+     * @param eye        the eye the tube runs from
+     * @param reachEnd   the end of the reach along the look
+     * @param shape      the drill cone
+     * @param gloveRight whether the glove is in the right hand
+     * @param air        whether a cell holds air
+     * @param breakable  whether a cell holds a block in the tag
+     * @return the cross section's center
+     */
+    static Vec3 stopOf(Vec3 eye, Vec3 reachEnd, BoreDrillShape shape, boolean gloveRight, Predicate<BlockPos> air,
+                       Predicate<BlockPos> breakable) {
+        return sectionOf(eye, reachEnd, shape, gloveRight, air, breakable).center();
+    }
+
+    /**
+     * Where a ray first meets a block past the cell it starts in: a breakable
+     * block, or a solid block outside the tag, which stops it alike.
+     *
+     * @param crossed   the blocks the ray crosses, its start's own first
+     * @param air       whether a cell holds air
+     * @param breakable whether a cell holds a block in the tag
+     * @return that block's index on the ray, or the ray's length where it meets none
+     */
+    private static int firstMet(List<BlockPos> crossed, Predicate<BlockPos> air, Predicate<BlockPos> breakable) {
+        for (int i = 1; i < crossed.size(); i++) {
+            if (breakable.test(crossed.get(i)) || !air.test(crossed.get(i))) {
                 return i;
             }
         }
-        return line.size();
+        return crossed.size();
     }
 }

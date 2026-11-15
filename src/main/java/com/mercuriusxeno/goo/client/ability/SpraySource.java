@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.GloveRest;
 import com.mercuriusxeno.goo.network.KnifeRainSling;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -18,11 +19,11 @@ import net.minecraft.world.phys.Vec3;
 public final class SpraySource {
 
     /** How far ahead of the eye the source stands, along the look. */
-    static final double AHEAD = 0.7;
+    static final double AHEAD = GloveRest.AHEAD;
     /** How far out to the glove's side of the look the source stands. */
-    static final double TO_THE_GLOVE_SIDE = 0.3;
+    static final double TO_THE_GLOVE_SIDE = GloveRest.TO_THE_GLOVE_SIDE;
     /** How far below the look the source stands, a little above the glove's palm. */
-    static final double BELOW = 0.15;
+    static final double BELOW = GloveRest.BELOW;
     /** A quarter turn, in degrees. */
     private static final float QUARTER_TURN = 90f;
 

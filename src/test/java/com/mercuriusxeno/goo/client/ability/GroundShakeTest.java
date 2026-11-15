@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
+import com.mercuriusxeno.goo.ability.program.BoreDrillShape;
 import com.mercuriusxeno.goo.ability.program.BoreStep;
 import com.mercuriusxeno.goo.ability.program.BreakPace;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
@@ -56,9 +57,6 @@ class GroundShakeTest {
     private static final Vec3 LOOK_EAST = new Vec3(1, 0, 0);
     private static final double BORE_RANGE = 8;
     private static final double BORE_CONE_DEGREES = 15;
-    /** rock_bore.json's vortex radii at its near and far ends. */
-    private static final double VORTEX_NEAR = 0.35;
-    private static final double VORTEX_FAR = 0.1;
     private static final BreakPace PACE = new BreakPace(5, 1.5);
     /** The jitter's amplitude before this change, read from GroundShake.AMPLITUDE at 128a57da7. */
     private static final double PREVIOUS_AMPLITUDE = 0.04;
@@ -106,32 +104,35 @@ class GroundShakeTest {
                 new BlockPos(7, 64, 0), new BlockPos(2, 62, 0));
         private final ChannelAim aim = new ChannelAim(EYE.add(LOOK_EAST.scale(BORE_RANGE)), null, BORE_CONE_DEGREES);
         private final Predicate<BlockPos> air = cell -> !stone.contains(cell);
-        private final GroundShake.Zone zone = GroundShake.boreZone(EYE, 0, 0, aim, air, stone::contains);
+        private final GroundShake.Zone zone = GroundShake.boreZone(EYE, BoreDrillShape.SHIPPED, true, aim, air,
+                stone::contains);
 
         @Test
         void theShakenBlocksAreTheBlocksTheBoreHandsTheGradualBreak() {
-            assertEquals(Set.copyOf(BoreStep.progressing(EYE, 0, 0, aim, air, stone::contains)), shakenIn(zone));
+            assertEquals(Set.copyOf(BoreStep.progressing(EYE, BoreDrillShape.SHIPPED, true, aim, air,
+                    stone::contains)), shakenIn(zone));
         }
 
-        /** decision bore-breaks-what-is-in-the-vortex */
+        /** decision bore-breaks-the-block-at-the-point-and-its-surroundings */
         @Test
-        void theBlocksTheVortexCrossesBesideTheLineShakeAsTheBoreBreaksThem() {
+        void theFourBlocksAtACornerPointShakeAsTheBoreBreaksThem() {
             Vec3 corner = new Vec3(0.5, 64.0, 0.0);
             ChannelAim cornerAim = new ChannelAim(corner.add(LOOK_EAST.scale(BORE_RANGE)), null, BORE_CONE_DEGREES);
             Predicate<BlockPos> rock = cell -> cell.getX() >= 1 && cell.getX() <= 7;
-            GroundShake.Zone vortexZone = GroundShake.boreZone(corner, VORTEX_NEAR, VORTEX_FAR, cornerAim,
+            GroundShake.Zone pointZone = GroundShake.boreZone(corner, BoreDrillShape.SHIPPED, true, cornerAim,
                     rock.negate(), rock);
-            Set<BlockPos> shaken = shakenIn(vortexZone);
-            assertEquals(Set.copyOf(BoreStep.progressing(corner, VORTEX_NEAR, VORTEX_FAR, cornerAim, rock.negate(),
-                    rock)), shaken);
-            assertTrue(shaken.contains(new BlockPos(1, 63, -1)), "the vortex's block beside the line stays still");
+            Set<BlockPos> shaken = shakenIn(pointZone);
+            assertEquals(Set.copyOf(BoreStep.progressing(corner, BoreDrillShape.SHIPPED, true, cornerAim,
+                    rock.negate(), rock)),
+                    shaken);
+            assertTrue(shaken.contains(new BlockPos(1, 63, -1)), "the point's block beside the line stays still");
         }
 
         @Test
-        void theFarthestProgressingBlockShakesFromTheFirstTickWithinTheAmplitude() {
-            double swing = widestSwing(new BlockPos(7, 64, 0), zone);
-            assertTrue(swing > 0, "the farthest block on the line never moves");
-            assertTrue(swing <= GroundShake.AMPLITUDE * Math.sqrt(3), "the farthest block swings past the amplitude");
+        void theAimedBlockShakesFromTheFirstTickWithinTheAmplitude() {
+            double swing = widestSwing(new BlockPos(1, 64, 0), zone);
+            assertTrue(swing > 0, "the aimed block never moves");
+            assertTrue(swing <= GroundShake.AMPLITUDE * Math.sqrt(3), "the aimed block swings past the amplitude");
         }
 
         @Test
@@ -299,9 +300,9 @@ class GroundShakeTest {
             BoreStep bore = new BoreStep(BREAKABLE, PACE);
 
             GroundShake.Zone standing = GroundShake.boreZoneAlong(sightAt(STANDING_EYE_Y, LOOK_EAST), bore,
-                    BORE_RANGE, BORE_CONE_DEGREES, rock.negate(), rock);
-            GroundShake.Zone sunk = GroundShake.boreZoneAlong(sightAt(64.9, LOOK_EAST), bore,
-                    BORE_RANGE, BORE_CONE_DEGREES, rock.negate(), rock);
+                    true, BORE_RANGE, rock.negate(), rock);
+            GroundShake.Zone sunk = GroundShake.boreZoneAlong(sightAt(64.5, LOOK_EAST), bore,
+                    true, BORE_RANGE, rock.negate(), rock);
 
             assertEquals(Set.of(65), heightsIn(standing));
             assertEquals(Set.of(64), heightsIn(sunk));
@@ -345,22 +346,26 @@ class GroundShakeTest {
             return GroundShake.flattenZoneUnder(sight.eye(), cursor, plane, breakable);
         }
 
+        /**
+         * The shake runs along the camera's sight, which the drill's point
+         * lies on wherever the blob it extends from stands, so the shaken
+         * block is the one the drill's point lands on
+         * (decision bore-drill-point-floats-along-the-crosshair-to-the-aimed-block).
+         */
         @Test
-        void theBoreZoneRunsFromTheEyeTheDrillDrawsFrom() {
+        void theBoreZoneShakesTheBlockTheDrillsPointLandsOn() {
             Vec3 camera = new Vec3(0.5, 65.47, 0.5);
             CameraEye.Sight drawnFrom = CameraEye.chosen(true, new CameraEye.Sight(camera, LOOK_EAST),
                     sightAt(CROUCHED_EYE_Y, LOOK_EAST));
             Predicate<BlockPos> rock = cell -> cell.getX() >= 1 && cell.getX() <= 7;
-            Vec3 drillEye = BoreDrill.vortexEye(drawnFrom, camera).add(camera);
-            ChannelAim drillAim = new ChannelAim(drillEye.add(LOOK_EAST.scale(BORE_RANGE)), null, BORE_CONE_DEGREES);
 
             GroundShake.Zone zone = GroundShake.boreZoneAlong(drawnFrom,
-                    new BoreStep(BREAKABLE, PACE, VORTEX_NEAR, VORTEX_FAR, List.of(), List.of()), BORE_RANGE,
-                    BORE_CONE_DEGREES, rock.negate(), rock);
+                    new BoreStep(BREAKABLE, PACE, List.of(), List.of()), true, BORE_RANGE,
+                    rock.negate(), rock);
 
-            assertEquals(camera, drillEye);
-            assertEquals(Set.copyOf(BoreStep.progressing(drillEye, VORTEX_NEAR, VORTEX_FAR, drillAim, rock.negate(),
-                    rock)), shakenIn(zone));
+            Vec3 point = BoreDrill.pointOf(drawnFrom, BORE_RANGE, BoreDrillShape.SHIPPED, true, rock.negate(), rock);
+            assertEquals(new Vec3(1, 65.47, 0.5), point);
+            assertEquals(Set.of(new BlockPos(1, 65, 0)), shakenIn(zone));
         }
     }
 
