@@ -46,6 +46,29 @@ class DeliveryTest {
         return decode(deliveryField).getOrThrow().delivery();
     }
 
+    /**
+     * Bore drills only up to 3 blocks away, its own range, whatever the
+     * caster's block reach (operator ruling 2026-11-14, replacing decision
+     * bore-reaches-as-far-as-your-block-reach).
+     */
+    @Nested
+    class BoresReach {
+
+        private final Delivery bore = AbilityJson.decode("rock_bore").delivery();
+
+        @Test
+        void aBoreReachesThreeBlocksWhateverTheBlockReach() {
+            assertEquals(3, bore.reachingTo(4.5).range(), TOLERANCE);
+            assertEquals(3, bore.reachingTo(12.5).range(), TOLERANCE);
+        }
+
+        @Test
+        void aStreamNamingItsOwnRangeKeepsItWhateverTheBlockReach() {
+            Delivery stream = deliveryOf("\"delivery\": { \"kind\": \"stream\", \"range\": 6 },");
+            assertEquals(6, stream.reachingTo(12.5).range(), TOLERANCE);
+        }
+    }
+
     @Nested
     class Codec {
 
