@@ -21,13 +21,22 @@ import java.util.UUID;
  * rally-is-a-mob-effect-on-one-target
  * rallied-mobs-turn-on-a-player-who-attacks-their-rallier
  * rally-minions-get-half-your-armor-and-a-floor
+ * slots-follow-rally-order-size-and-count
  *
  * @param caster   the entity the mob fights for
  * @param damage   the damage one strike deals
  * @param attacker the player who attacked the caster, empty for none
- * @param armor    the armor the mob wears from the caster
+ * @param armor      the armor the mob wears from the caster
+ * @param rallyOrder when the mob was first rallied, the level's game time, which sets its slot in the formation
  */
-public record Rallied(UUID caster, float damage, Optional<UUID> attacker, RallyArmor armor) {
+public record Rallied(UUID caster, float damage, Optional<UUID> attacker, RallyArmor armor, long rallyOrder) {
+
+    /**
+     * The rally order a save written before rallies carried one loads with:
+     * ahead of every stamped rally, its ties broken by uuid.
+     * slots-follow-rally-order-size-and-count
+     */
+    public static final long DEFAULT_RALLY_ORDER = 0L;
 
     /** No rally: the mob fights for no one. */
     public static final Rallied NONE = new Rallied(new UUID(0L, 0L), 0f);
@@ -36,13 +45,15 @@ public record Rallied(UUID caster, float damage, Optional<UUID> attacker, RallyA
     private static final String FIELD_DAMAGE = "damage";
     private static final String FIELD_ATTACKER = "attacker";
     private static final String FIELD_ARMOR = "armor";
+    private static final String FIELD_RALLY_ORDER = "rally_order";
 
     /** Saves the rally with the mob; a save's older expires_at field is ignored on load. */
     public static final MapCodec<Rallied> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             UUIDUtil.CODEC.fieldOf(FIELD_CASTER).forGetter(Rallied::caster),
             Codec.FLOAT.fieldOf(FIELD_DAMAGE).forGetter(Rallied::damage),
             UUIDUtil.CODEC.optionalFieldOf(FIELD_ATTACKER).forGetter(Rallied::attacker),
-            RallyArmor.CODEC.optionalFieldOf(FIELD_ARMOR, RallyArmor.NONE).forGetter(Rallied::armor)
+            RallyArmor.CODEC.optionalFieldOf(FIELD_ARMOR, RallyArmor.NONE).forGetter(Rallied::armor),
+            Codec.LONG.optionalFieldOf(FIELD_RALLY_ORDER, DEFAULT_RALLY_ORDER).forGetter(Rallied::rallyOrder)
     ).apply(inst, Rallied::new));
 
     /**
@@ -54,16 +65,17 @@ public record Rallied(UUID caster, float damage, Optional<UUID> attacker, RallyA
             ByteBufCodecs.FLOAT, Rallied::damage,
             ByteBufCodecs.optional(UUIDUtil.STREAM_CODEC), Rallied::attacker,
             RallyArmor.STREAM_CODEC, Rallied::armor,
+            ByteBufCodecs.VAR_LONG, Rallied::rallyOrder,
             Rallied::new);
 
     /**
-     * A rally recording no attacker and lending no armor.
+     * A rally recording no attacker, lending no armor and standing at the default rally order.
      *
      * @param caster the entity the mob fights for
      * @param damage the damage one strike deals
      */
     public Rallied(UUID caster, float damage) {
-        this(caster, damage, Optional.empty(), RallyArmor.NONE);
+        this(caster, damage, Optional.empty(), RallyArmor.NONE, DEFAULT_RALLY_ORDER);
     }
 
     /**
@@ -97,7 +109,7 @@ public record Rallied(UUID caster, float damage, Optional<UUID> attacker, RallyA
      * @return the rally recording the attacker
      */
     public Rallied withAttacker(UUID player) {
-        return new Rallied(caster, damage, Optional.of(player), armor);
+        return new Rallied(caster, damage, Optional.of(player), armor, rallyOrder);
     }
 
     /**
@@ -107,7 +119,7 @@ public record Rallied(UUID caster, float damage, Optional<UUID> attacker, RallyA
      * @return the rally recording no attacker
      */
     public Rallied withoutAttacker() {
-        return new Rallied(caster, damage, Optional.empty(), armor);
+        return new Rallied(caster, damage, Optional.empty(), armor, rallyOrder);
     }
 
     /**
@@ -120,6 +132,20 @@ public record Rallied(UUID caster, float damage, Optional<UUID> attacker, RallyA
      */
     public static Optional<UUID> attackerAfter(@Nullable Rallied standing) {
         return standing != null ? standing.attacker() : Optional.empty();
+    }
+
+    /**
+     * The rally order a rally reaching a mob carries: the standing rally's,
+     * so a second caster's rally keeps the mob's slot, and the stamp where
+     * the mob holds no rally.
+     * slots-follow-rally-order-size-and-count
+     *
+     * @param standing the rally the mob holds, null for none
+     * @param stamp    when this rally lands, such as the level's game time
+     * @return the rally order
+     */
+    public static long rallyOrderAfter(@Nullable Rallied standing, long stamp) {
+        return standing != null ? standing.rallyOrder() : stamp;
     }
 
     /**
