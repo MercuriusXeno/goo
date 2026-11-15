@@ -274,17 +274,21 @@ public final class GooTargetHighlighter {
         float partialTick = frame.mc().getDeltaTracker().getGameTimeDeltaPartialTick(false);
         // blast-eases-between-stages-at-a-second-each: the spheroid eases while the cast keeps its whole stage
         OptionalDouble size = GloveThrowSender.drawnChargeRadius(frame.mc().player, partialTick);
-        if (size.isEmpty() || frame.mc().level == null) {
+        if (frame.mc().level == null) {
             return;
         }
         double now = frame.mc().level.getGameTime() + partialTick;
+        // a released charge's motes still draw as they are pushed out and fade
+        ChargeMotes.render(now);
+        if (size.isEmpty()) {
+            return;
+        }
         // blast-charge-pulls-green-motes-into-the-shell-and-the-blob: the spheroid swells on the palm blob's beat
         float swelled = (float) (size.getAsDouble() * ChargeMotes.spheroidSwell(now));
         // blast-roots-to-the-spot-the-cast-began: the spheroid draws where the charge began, not where the aim is
         HeldDomeRenderer.renderSized(frame.ps(), frame.buf(), frame.camera().position(),
                 GloveThrowSender.chargeAnchor(), swelled, frame.selectedType(),
                 ClientGooTypes.highlight(frame.selectedType()), realTimeSeconds());
-        ChargeMotes.render(now);
     }
 
     /**
