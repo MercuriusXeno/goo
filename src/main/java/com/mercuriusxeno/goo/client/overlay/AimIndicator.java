@@ -40,4 +40,19 @@ enum AimIndicator {
             case BLOCK -> BLOCK_OUTLINE;
         };
     }
+
+    /**
+     * The mark drawn on the aimed face: for an ability growing a prism,
+     * nothing on a face no prism can grow from, so the outline and its rings
+     * mark only where a prism takes; every other ability's mark stands.
+     * decision prism-highlight-draws-only-on-a-face-a-prism-grows-from
+     *
+     * @param indicator    the mark the badge chooses
+     * @param growsAPrism  whether the selected ability grows a prism
+     * @param growableFace whether a prism can grow from the aimed face
+     * @return the mark drawn there
+     */
+    static AimIndicator onFace(AimIndicator indicator, boolean growsAPrism, boolean growableFace) {
+        return growsAPrism && !growableFace ? NONE : indicator;
+    }
 }

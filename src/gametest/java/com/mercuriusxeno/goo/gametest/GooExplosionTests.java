@@ -3,7 +3,7 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.DragSize;
+import com.mercuriusxeno.goo.ability.ChargeSize;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.entity.CompressionSphere;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -28,7 +28,7 @@ import java.util.stream.Stream;
  * sphere its preview draws, every block it breaks drops whole, and items in
  * its sphere survive (decisions goo-ray-diminishes-block-resistance,
  * preview-sphere-is-max-reach, explosion-drops-whole-and-spares-items,
- * blast-is-drag-sized-like-the-black-hole).
+ * spontaneous-abilities-cast-at-the-target-with-no-thrown-blob).
  */
 @RegistersGameTests
 public final class GooExplosionTests {
@@ -69,7 +69,7 @@ public final class GooExplosionTests {
 
     private static void strike(GameTestHelper helper, AbilityDefinition ability) {
         AbilityImpact.land(helper.getLevel(), helper.absolutePos(STRUCK), GooTypes.UNSTABLE, Direction.UP, ability,
-                helper.absoluteVec(AIM), DragSize.REFERENCE_RADIUS);
+                helper.absoluteVec(AIM), ChargeSize.REFERENCE_RADIUS);
     }
 
     /**

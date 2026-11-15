@@ -33,10 +33,18 @@ public final class ScanVisuals {
         void start(ScanWavePayload wave, long gameTime);
     }
 
+    /**
+     * The visual Glow's Bulb names: a dart of light from the palm blob that
+     * puffs its motes out where the crystal forms.
+     * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
+     */
+    public static final String LIGHT_DART = "light_dart";
+
     private static final Map<String, ScanVisual> RENDERERS = new HashMap<>();
 
     static {
         RENDERERS.put(SOUND_WAVE, SoundWaves::start);
+        RENDERERS.put(LIGHT_DART, LightDarts::start);
     }
 
     private ScanVisuals() {

@@ -63,8 +63,11 @@ public final class LiftedPalmBlob {
      * keep the spray running: the gap a server hold continues across.
      */
     public static final int STREAM_GAP_TICKS = StreamHolds.LATEST_CONTINUING_GAP;
-    /** The ticks one beat of the lifted blob's swell takes. */
-    static final double BEAT_TICKS = 12;
+    /**
+     * The ticks one beat of the lifted blob's swell takes: once a second.
+     * decision every-lifted-palm-blob-beats-once-a-second
+     */
+    static final double BEAT_TICKS = 20;
     /**
      * The lifted cube's least and greatest size against the palm blob's rest
      * size, both below it, so the pancake shrinks into a smaller cube as it lifts.
@@ -83,6 +86,10 @@ public final class LiftedPalmBlob {
 
     /** Each lifting caster's lift, by entity id. */
     private static final Map<Integer, Lift> LIFTS = new ConcurrentHashMap<>();
+    /** The game tick a charge-sized hold the beat clocks on began, while one runs. */
+    private static long chargeBegan;
+    /** The ticks a stage of that hold takes, 0 while the beat runs on the game clock. */
+    private static double chargeStageTicks;
 
     private LiftedPalmBlob() {
     }
@@ -296,6 +303,56 @@ public final class LiftedPalmBlob {
     }
 
     /**
+     * Where the lifted blob stands in its beat at a moment, the one clock a
+     * charging Blast's spheroid beats on too.
+     * decision blast-charge-pulls-green-motes-into-the-shell-and-the-blob
+     *
+     * @param time the game time in ticks, with the frame's partial tick
+     * @return the beat's phase, 0 to 1
+     */
+    static double beatPhase(double time) {
+        if (chargeStageTicks > 0) {
+            return chargeBeatPhase(chargeBegan, time, chargeStageTicks);
+        }
+        return fraction(time / BEAT_TICKS);
+    }
+
+    /**
+     * Where a charge-sized hold's beat stands: one beat a stage, clocked on
+     * the hold's own ticks, at its greatest swell on each stage step and its
+     * least midway, whatever game tick the hold began on.
+     * decision every-lifted-palm-blob-beats-once-a-second
+     *
+     * @param began      the game tick the hold began on
+     * @param now        the game time, partial ticks included
+     * @param stageTicks the ticks one stage of the charge takes
+     * @return the beat's phase, 0 to 1, the half beat on each step
+     */
+    static double chargeBeatPhase(long began, double now, double stageTicks) {
+        return fraction((now - began) / stageTicks + HALF);
+    }
+
+    /**
+     * Clocks every lifted blob's beat on a charge-sized hold while it runs.
+     *
+     * @param began      the game tick the hold began on
+     * @param stageTicks the ticks one stage of the charge takes
+     */
+    public static void clockOnCharge(long began, double stageTicks) {
+        chargeBegan = began;
+        chargeStageTicks = stageTicks;
+    }
+
+    /** Returns the beat to the game clock, as a charge-sized hold ends. */
+    public static void clockOnGameTime() {
+        chargeStageTicks = 0;
+    }
+
+    private static double fraction(double beats) {
+        return beats - Math.floor(beats);
+    }
+
+    /**
      * The lifted blob's size at the source: beating between its least and
      * greatest size, both above the palm blob's rest size, once a beat.
      *
@@ -303,7 +360,18 @@ public final class LiftedPalmBlob {
      * @return the size against the palm blob's rest size
      */
     static float liftedSizeAt(double time) {
-        double swell = HALF - HALF * Math.cos(FULL_TURN * time / BEAT_TICKS);
+        return liftedSizeAtPhase(beatPhase(time));
+    }
+
+    /**
+     * The lifted blob's size at a point of its beat: least at the beat's
+     * start, greatest at its middle.
+     *
+     * @param phase the beat's phase, 0 to 1
+     * @return the size against the palm blob's rest size
+     */
+    static float liftedSizeAtPhase(double phase) {
+        double swell = HALF - HALF * Math.cos(FULL_TURN * phase);
         return (float) (LIFTED_LEAST + (LIFTED_GREATEST - LIFTED_LEAST) * swell);
     }
 
