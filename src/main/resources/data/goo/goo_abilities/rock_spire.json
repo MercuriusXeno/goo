@@ -11,5 +11,6 @@
   "behaviors": [
     { "type": "spire" }
   ],
-  "tags": ["footprint"]
+  "tags": ["footprint"],
+  "pose": "resting"
 }
