@@ -40,8 +40,11 @@ public final class GlovePoses {
 
     /**
      * Plays the selection's release as a sent throw lets go: a blob thrown
-     * swings the arm, and a pose with no release of its own eases it down.
+     * swings the arm, and a pose with no release of its own eases it down;
+     * a cast throwing no blob, a scan, a spontaneous, an envelop or a Spire
+     * cast, rests and plays no swing.
      * decision use-key-throw-swings-no-more
+     * decision diagnose-and-correct-hand-swings-outside-throws
      *
      * @param player the local player
      * @param hand   the hand the press came from, which a swing swings

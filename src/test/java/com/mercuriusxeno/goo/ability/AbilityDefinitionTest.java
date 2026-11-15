@@ -250,7 +250,8 @@ class AbilityDefinitionTest {
         }
 
         @ParameterizedTest
-        @CsvSource({"arc, SWUNG", "beam, HELD_OUT", "stream, HELD_OUT", "self, HELD_UP"})
+        @CsvSource({"arc, SWUNG", "scan, RESTING", "spontaneous, RESTING", "envelop, RESTING",
+                "beam, HELD_OUT", "stream, HELD_OUT", "self, HELD_UP"})
         void anAbilityNamingNoPoseTakesItsDeliveryKindsDefault(String delivery, ArmPose expected) {
             assertEquals(expected, decoded(delivery, "").pose());
         }
@@ -270,6 +271,7 @@ class AbilityDefinitionTest {
             assertFalse(ArmPose.HELD_OUT.swingsOnRelease());
             assertFalse(ArmPose.HELD_UP.swingsOnRelease());
             assertFalse(ArmPose.SHOULDER_CAST.swingsOnRelease());
+            assertFalse(ArmPose.RESTING.swingsOnRelease());
             assertEquals(ArmPoseKind.NONE, ArmPose.HELD_OUT.releaseFrame());
             assertEquals(ArmPoseKind.HOLD_UP, ArmPose.HELD_UP.holdFrame());
         }
