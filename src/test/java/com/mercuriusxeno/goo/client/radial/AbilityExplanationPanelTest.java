@@ -8,15 +8,24 @@ import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
+import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.client.hud.MixedNumberLabel;
+import com.mercuriusxeno.goo.client.hud.MixedNumberSpacing;
 import com.mercuriusxeno.goo.client.hud.PanelRow;
+import com.mercuriusxeno.goo.client.hud.StatedGlyphs;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.CostMechanicsLookup;
 import com.mercuriusxeno.goo.data.GooValueTable;
+import com.mercuriusxeno.goo.item.MixedNumber;
+import com.mercuriusxeno.goo.network.AbilitySyncPayload;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -60,6 +69,36 @@ class AbilityExplanationPanelTest {
     @Test
     void aPlainCostAbilityReadsItsNameAndDescription() {
         assertEquals(List.of(NAME, DESCRIPTION), rowTexts(explaining(Optional.empty())));
+    }
+
+    /**
+     * Goop priced at 64/3 a block names 21 1/3 in its cost mechanics, and the panel lays that number by the
+     * spacing rule and measures the row at its respaced width.
+     * every-mixed-number-takes-the-spacing-rule
+     */
+    @Test
+    void theCostMechanicsTextLaysItsMixedNumberByTheSpacingRuleAndMeasuresTheRespacedWidth() {
+        String before = "Costs ";
+        String after = " per block laid.";
+        CostMechanicsLookup lang = new CostMechanicsLookup(
+                key -> key.equals("goo.ability.weird.goop.cost_mechanics") ? before + "%s" + after : key,
+                () -> GooValueTable.EMPTY);
+        String json = AbilityJson.read("weird_goop").replaceFirst("\"cost\"\\s*:\\s*\\d+", "\"cost\": \"64 / 3\"");
+        ClientAbility goop = ClientAbility.fromEntry(AbilitySyncPayload.gloveEntries(GooTypes.WEIRD,
+                List.of(AbilityJson.decodeText("weird_goop", json))).getFirst());
+        ToIntFunction<String> spaced = MixedNumberLabel.spacedWidth(StatedGlyphs::widthOf);
+        PanelRow mechanics = AbilityExplanationPanel.rows(goop, lang, TEXT_WIDTH, spaced).getLast();
+        MixedNumberSpacing.Laid laid = MixedNumberSpacing.lay(new MixedNumber("21", "¹", "₃"), StatedGlyphs.VANILLA);
+        float numberLeft = StatedGlyphs.widthOf(before);
+        List<MixedNumberSpacing.Piece> expected = new ArrayList<>();
+        expected.add(new MixedNumberSpacing.Piece(before, 0f));
+        laid.pieces().forEach(piece -> expected.add(new MixedNumberSpacing.Piece(piece.text(), numberLeft + piece.x())));
+        expected.add(new MixedNumberSpacing.Piece(after, numberLeft + laid.width()));
+        int respaced = (int) Math.ceil(numberLeft + laid.width() + StatedGlyphs.widthOf(after));
+
+        assertEquals(expected,
+                AbilityExplanationPanel.laySegments(mechanics, StatedGlyphs::widthOf).getFirst().label().pieces());
+        assertEquals(respaced, mechanics.width(spaced));
     }
 
     @Test
