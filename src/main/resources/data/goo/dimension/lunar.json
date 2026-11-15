@@ -1,0 +1,11 @@
+{
+  "type": "goo:lunar",
+  "generator": {
+    "type": "minecraft:noise",
+    "settings": "goo:lunar",
+    "biome_source": {
+      "type": "minecraft:fixed",
+      "biome": "goo:lunar"
+    }
+  }
+}
