@@ -536,8 +536,7 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
     }
 
     private InteractionResult handleGooInsert(BlockHitResult hitResult, ItemStack stack, Player player) {
-        int accepted = GooInsert.pour(stack, player, gooSinkFor(aimedSlot(hitResult)));
-        if (accepted <= 0) {
+        if (!GooInsert.pour(stack, player, gooSinkFor(aimedSlot(hitResult)))) {
             return InteractionResult.PASS;
         }
         level.playSound(null, worldPosition, SoundEvents.BOTTLE_EMPTY,
@@ -554,8 +553,9 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
      * @return the sink
      */
     public GooSink gooSinkFor(int hitSlot) {
-        CanisterSlotFluidHandler slot = hitSlot >= 0 ? state.getSlotFluidHandler(hitSlot) : null;
-        return GooSink.banking(slot != null && canAccept(hitSlot) ? slot.ledger() : null,
+        CanisterSlotFluidHandler slot = hitSlot >= 0 && canAccept(hitSlot) ? state.getSlotFluidHandler(hitSlot) : null;
+        return GooSink.banking(slot != null ? slot.ledger() : null,
+                type -> slot != null && slot.insertGoo(type, 1, true) > 0,
                 (type, volume) -> gooIntoSlot(hitSlot, type, volume));
     }
 
