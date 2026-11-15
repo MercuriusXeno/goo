@@ -82,7 +82,9 @@ final class CrucibleInteraction {
         if (GooStacks.volumeOf(stack) <= 0) {
             return InteractionResult.TRY_WITH_EMPTY_HAND;
         }
-        GooInsert.pour(stack, player, (type, volume) -> acceptWholeUnits(crucible, type, volume));
+        // decision goo-item-carries-its-exact-value-as-a-mixed-remainder: the reservoir's ledger banks the part
+        GooInsert.pour(stack, player, GooSink.banking(crucible.reservoirHandler().ledger(),
+                (type, volume) -> acceptWholeUnits(crucible, type, volume)));
         return InteractionResult.SUCCESS;
     }
 
