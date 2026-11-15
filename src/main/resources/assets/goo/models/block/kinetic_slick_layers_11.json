@@ -1,6 +1,6 @@
 {
   "parent": "goo:block/volume_cell_layers_11",
   "textures": {
-    "goo": "goo:fluid/kinetic_fluid"
+    "goo": {"sprite": "goo:fluid/kinetic_fluid", "force_translucent": true}
   }
 }
