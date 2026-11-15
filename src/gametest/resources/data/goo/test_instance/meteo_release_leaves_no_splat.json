@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:blast_drag_explodes_at_the_pin",
+  "function": "goo:meteo_release_leaves_no_splat",
   "environment": "minecraft:default",
-  "structure": "goo:light_bay",
-  "max_ticks": 40,
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
   "setup_ticks": 0,
   "required": true
 }

@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:meteo_calls_the_meteor_on_the_release_tick",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

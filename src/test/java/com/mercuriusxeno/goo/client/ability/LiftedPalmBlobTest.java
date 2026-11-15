@@ -175,7 +175,48 @@ class LiftedPalmBlobTest {
                     + " should be below the palm blob's rest size " + KnivesCharge.PALM_REST);
             assertTrue(greatest > least, "the lifted size should beat, from " + least + " to " + greatest);
         }
+
+        /** The lifted blob beats once a second for every cast (decision every-lifted-palm-blob-beats-once-a-second). */
+        @Test
+        void theLiftedSizeRepeatsEveryTwentyTicksNotEveryTwelve() {
+            boolean differsTwelveLater = false;
+            for (int sample = 0; sample < SAMPLES; sample++) {
+                double time = NOW + ONE_SECOND * sample / (double) SAMPLES;
+                float size = LiftedPalmBlob.liftedSizeAt(time);
+                assertEquals(size, LiftedPalmBlob.liftedSizeAt(time + ONE_SECOND), 1e-4,
+                        "the size a second later should be the size now");
+                differsTwelveLater |= Math.abs(size - LiftedPalmBlob.liftedSizeAt(time + TWELVE_TICKS)) > 1e-4;
+            }
+            assertTrue(differsTwelveLater, "the size should not repeat every twelve ticks");
+        }
+
+        /**
+         * While Blast charges, the palm blob and the rooted spheroid swell most
+         * on each stage step of the hold and least midway, whatever game tick
+         * the hold began on (decision every-lifted-palm-blob-beats-once-a-second).
+         */
+        @ParameterizedTest
+        @ValueSource(longs = {NOW, NOW + 7})
+        void aChargesBeatSwellsMostOnEachStepAndLeastMidway(long began) {
+            for (int step = ONE_SECOND; step <= FULL_CHARGE; step += ONE_SECOND) {
+                double phase = LiftedPalmBlob.chargeBeatPhase(began, began + step, ONE_SECOND);
+                assertEquals(LiftedPalmBlob.LIFTED_GREATEST, LiftedPalmBlob.liftedSizeAtPhase(phase), 1e-4,
+                        "the blob at held tick " + step);
+                assertEquals(1 + ChargeMotes.SWELL_DEPTH, ChargeMotes.swellAtPhase(phase), 1e-6,
+                        "the spheroid at held tick " + step);
+            }
+            for (int midway = ONE_SECOND + ONE_SECOND / 2; midway < FULL_CHARGE; midway += ONE_SECOND) {
+                double phase = LiftedPalmBlob.chargeBeatPhase(began, began + midway, ONE_SECOND);
+                assertEquals(LiftedPalmBlob.LIFTED_LEAST, LiftedPalmBlob.liftedSizeAtPhase(phase), 1e-4,
+                        "the blob at held tick " + midway);
+                assertEquals(1, ChargeMotes.swellAtPhase(phase), 1e-6, "the spheroid at held tick " + midway);
+            }
+        }
     }
+
+    private static final int ONE_SECOND = 20;
+    private static final int TWELVE_TICKS = 12;
+    private static final int FULL_CHARGE = 100;
 
     @Nested
     class OneBlobAtATime {
