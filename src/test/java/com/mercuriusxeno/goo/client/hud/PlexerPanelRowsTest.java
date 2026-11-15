@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.client.hud;
 
+import com.mercuriusxeno.goo.client.workbench.Lettering;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.item.MixedNumber;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.ResourceKey;
@@ -52,6 +54,25 @@ class PlexerPanelRowsTest {
         assertEquals(List.of(GooTypes.ROCK, GooTypes.BLAZE, GooTypes.GLOW, GooTypes.LEAF).stream()
                 .map(PanelPainter::gooIcon).toList(), rows.getFirst().grid().cells().stream()
                 .map(PanelAmountGrid.Cell::icon).toList());
+    }
+
+    /**
+     * A cost cell holding 21 1/3 lays its parts at the spacing rule's offsets and its column sizes to the
+     * respaced width at the amount scale.
+     * every-mixed-number-takes-the-spacing-rule
+     */
+    @Test
+    void aMixedNumberCostCellLaysByTheSpacingRuleAndItsColumnSizesToIt() {
+        PanelAmountGrid grid = PlexerPanelRows.rows(fraction(GooTypes.LEAF, 64, 3)).getFirst().grid();
+        PanelAmountGrid.Cell cell = grid.cells().getFirst();
+        MixedNumberSpacing.Laid laid = MixedNumberSpacing.lay(new MixedNumber("21", "¹", "₃"), StatedGlyphs.VANILLA);
+        float digits = (float) Math.ceil(laid.width() * Lettering.AMOUNT_SCALE);
+
+        assertEquals(laid.pieces(), PanelAmountGrid.digitPieces(cell, StatedGlyphs::widthOf).stream()
+                .map(piece -> new MixedNumberSpacing.Piece(piece.text(), piece.x())).toList());
+        assertEquals(digits, grid.digitsWidth(cell, StatedGlyphs::widthOf));
+        assertEquals(PanelPainter.ICON_SIZE + PanelPainter.ICON_TEXT_GAP + digits,
+                grid.columnWidth(0, StatedGlyphs::widthOf));
     }
 
     /** A target the client holds no value for lays no row, so no panel paints. */

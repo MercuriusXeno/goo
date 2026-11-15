@@ -87,12 +87,44 @@ public record PanelAmountGrid(List<Cell> cells) {
      * @return the digits' width in scaled pixels
      */
     public float digitsWidth(Cell cell, ToIntFunction<String> textWidth) {
-        int segmentsWidth = 0;
+        float segmentsWidth = 0;
         for (PanelRow.TextSegment segment : cell.segments()) {
-            segmentsWidth += textWidth.applyAsInt(segment.text());
+            segmentsWidth += MixedNumberLabel.lay(segment.text(), textWidth).width();
         }
         int floorWidth = cell.floorText() == null ? 0 : textWidth.applyAsInt(cell.floorText());
         return (float) Math.ceil(Math.max(segmentsWidth, floorWidth) * Lettering.AMOUNT_SCALE);
+    }
+
+    /**
+     * Lays a cell's digits out, in font pixels from the digits' left edge before the amount scale, a mixed
+     * number in them by the spacing rule.
+     * every-mixed-number-takes-the-spacing-rule
+     *
+     * @param cell      the cell
+     * @param textWidth the width in pixels the font gives a string at its own size
+     * @return each run of the digits, its origin and its color
+     */
+    public static List<DigitPiece> digitPieces(Cell cell, ToIntFunction<String> textWidth) {
+        List<DigitPiece> pieces = new ArrayList<>();
+        float x = 0;
+        for (PanelRow.TextSegment segment : cell.segments()) {
+            MixedNumberLabel label = MixedNumberLabel.lay(segment.text(), textWidth);
+            for (MixedNumberSpacing.Piece piece : label.pieces()) {
+                pieces.add(new DigitPiece(piece.text(), x + piece.x(), segment.color()));
+            }
+            x += label.width();
+        }
+        return pieces;
+    }
+
+    /**
+     * One run of a cell's digits as it draws.
+     *
+     * @param text  the run
+     * @param x     its origin, in font pixels from the digits' left edge before the amount scale
+     * @param color its ARGB color
+     */
+    public record DigitPiece(String text, float x, int color) {
     }
 
     /**
@@ -193,10 +225,9 @@ public record PanelAmountGrid(List<Cell> cells) {
             poseStack.pushPose();
             poseStack.translate(left + ICON_AND_GAP, geometry.textTop(), 0);
             poseStack.scale(Lettering.AMOUNT_SCALE, Lettering.AMOUNT_SCALE, 1f);
-            float textX = 0;
-            for (PanelRow.TextSegment segment : cell.segments()) {
-                PanelPainter.drawFadedSegment(poseStack, font, buffers, segment, textX, opacity);
-                textX += font.width(segment.text());
+            for (DigitPiece piece : digitPieces(cell, font::width)) {
+                PanelPainter.drawFadedSegment(poseStack, font, buffers,
+                        new PanelRow.TextSegment(piece.text(), piece.color()), piece.x(), opacity);
             }
             poseStack.popPose();
         }
