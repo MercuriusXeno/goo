@@ -62,7 +62,7 @@ class SlimeCoreQuadsTest {
         void slimeAtEightLayersDrawsWeirdsFluidOverTheRulesBox() {
             TextureAtlasSprite weird = mock(TextureAtlasSprite.class);
             List<BakedQuad> quads = loneCore(8, weird);
-            assertSpans(quads, new SlimeCoreBox(2, 2, 2, 13, 6, 13));
+            assertSpans(quads, new SlimeCoreBox(1, 1, 1, 14, 7, 14));
             assertTrue(quads.stream().allMatch(quad -> quad.materialInfo().sprite() == weird));
             assertTrue(quads.stream().noneMatch(quad -> quad.materialInfo().isTinted()));
         }
@@ -71,13 +71,13 @@ class SlimeCoreQuadsTest {
         void slickAtEightLayersDrawsKineticsFluidOverTheRulesBox() {
             TextureAtlasSprite kinetic = mock(TextureAtlasSprite.class);
             List<BakedQuad> quads = loneCore(8, kinetic);
-            assertSpans(quads, new SlimeCoreBox(2, 2, 2, 13, 6, 13));
+            assertSpans(quads, new SlimeCoreBox(1, 1, 1, 14, 7, 14));
             assertTrue(quads.stream().allMatch(quad -> quad.materialInfo().sprite() == kinetic));
         }
 
         @Test
-        void aCellAtFourLayersDrawsNoCore() {
-            assertEquals(List.of(), loneCore(4, mock(TextureAtlasSprite.class)));
+        void aCellAtTwoLayersDrawsNoCore() {
+            assertEquals(List.of(), loneCore(2, mock(TextureAtlasSprite.class)));
         }
 
         @Test
@@ -101,10 +101,10 @@ class SlimeCoreQuadsTest {
         }
 
         @Test
-        void anUnjoinedSideDrawsItsSideQuadTwoFifteenthsInFromTheFace() {
+        void anUnjoinedSideDrawsItsSideQuadOneFifteenthInFromTheFace() {
             List<BakedQuad> quads = loneCore(15, mock(TextureAtlasSprite.class));
             assertTrue(quads.stream()
-                    .anyMatch(inPlaneX(13 * FIFTEENTH).and(quad -> quad.direction() == Direction.EAST)));
+                    .anyMatch(inPlaneX(14 * FIFTEENTH).and(quad -> quad.direction() == Direction.EAST)));
             assertTrue(quads.stream().noneMatch(inPlaneX(1f)));
         }
 
@@ -140,7 +140,7 @@ class SlimeCoreQuadsTest {
 
         @Test
         void aCoreReachingItsTopUnderACellHoldingNoCoreDrawsItsTop() {
-            List<BakedQuad> quads = SlimeCoreQuads.quadsOf(new SameGooCells().at(0, 0, 0, 15).at(0, 1, 0, 2),
+            List<BakedQuad> quads = SlimeCoreQuads.quadsOf(new SameGooCells().at(0, 0, 0, 15).at(0, 1, 0, 1),
                     coreMaterial(mock(TextureAtlasSprite.class)));
             assertTrue(quads.stream().anyMatch(inPlaneY(1f).and(quad -> quad.direction() == Direction.UP)));
         }
