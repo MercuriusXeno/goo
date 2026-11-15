@@ -1,6 +1,6 @@
 {
   "parent": "goo:block/volume_cell_layers_10",
   "textures": {
-    "goo": "goo:fluid/weird_fluid"
+    "goo": {"sprite": "goo:fluid/weird_fluid", "force_translucent": true}
   }
 }

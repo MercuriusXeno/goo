@@ -3,15 +3,33 @@ package com.mercuriusxeno.goo.client.model;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 import com.mercuriusxeno.goo.block.ability.CellBinding;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.type.GooColors;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
+import com.mojang.blaze3d.platform.Transparency;
+import com.mojang.math.Quadrant;
 import com.mojang.serialization.JsonOps;
+import net.minecraft.client.renderer.block.dispatch.BlockModelRotation;
+import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
+import net.minecraft.client.renderer.texture.SpriteContents;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.client.resources.model.ModelBaker;
+import net.minecraft.client.resources.model.cuboid.CuboidFace;
+import net.minecraft.client.resources.model.cuboid.FaceBakery;
+import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.resources.model.sprite.Material;
+import net.minecraft.core.Direction;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.client.model.ExtraFaceData;
+import org.apache.commons.lang3.mutable.MutableObject;
+import org.joml.Vector3f;
+import org.joml.Vector3fc;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -30,7 +48,9 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Covers the volume cells' look as their shipped block state and model files
@@ -43,8 +63,8 @@ class VolumeCellLookTest {
     private static final String BLOCKSTATE = "/assets/goo/blockstates/%s.json";
     private static final String MODEL = "/assets/goo/models/%s.json";
     private static final String TYPE_JSON = "/data/goo/goo/goo_type/%s.json";
-    private static final String TRANSLUCENT = "minecraft:translucent";
     private static final int SHELL_TINT_INDEX = 0;
+    private static final Identifier BLOCK_ATLAS = Identifier.withDefaultNamespace("textures/atlas/blocks.png");
 
     /**
      * A volume cell's block id beside the binding its block registers with
@@ -126,11 +146,12 @@ class VolumeCellLookTest {
      */
     private static void assertDrawsGoo(String model, String fluid) {
         ResolvedModel resolved = resolve(model);
-        assertEquals(TRANSLUCENT, resolved.renderType(), model + " is not translucent");
         assertFalse(resolved.faces().isEmpty(), model + " draws no face");
         for (JsonObject face : resolved.faces()) {
-            assertEquals(fluid, resolved.texture(face.get("texture").getAsString()),
-                    model + " samples another texture");
+            String texture = face.get("texture").getAsString();
+            assertEquals(fluid, resolved.texture(texture), model + " samples another texture");
+            assertEquals(ChunkSectionLayer.TRANSLUCENT, bakedLayerOf(resolved.material(texture)),
+                    model + " bakes onto another layer than the translucent one");
             assertNotNull(face.get("tintindex"), model + " draws a face under no tint");
             assertEquals(SHELL_TINT_INDEX, face.get("tintindex").getAsInt(), model + " takes another tint");
         }
@@ -171,41 +192,75 @@ class VolumeCellLookTest {
     }
 
     /**
+     * The chunk layer a face drawn with a material bakes onto, through the
+     * game's own face baking, on a fully opaque sprite as the goo fluid
+     * sprites are: the layer decides whether the face draws see-through.
+     */
+    private static ChunkSectionLayer bakedLayerOf(Material material) {
+        SpriteContents opaque = mock(SpriteContents.class);
+        when(opaque.computeTransparency(anyFloat(), anyFloat(), anyFloat(), anyFloat())).thenReturn(Transparency.NONE);
+        TextureAtlasSprite sprite = mock(TextureAtlasSprite.class);
+        when(sprite.contents()).thenReturn(opaque);
+        when(sprite.atlasLocation()).thenReturn(BLOCK_ATLAS);
+        ModelBaker baker = mock(ModelBaker.class);
+        when(baker.interner()).thenReturn(new ModelBaker.Interner() {
+            @Override
+            public Vector3fc vector(Vector3fc vector) {
+                return vector;
+            }
+
+            @Override
+            public BakedQuad.MaterialInfo materialInfo(BakedQuad.MaterialInfo info) {
+                return info;
+            }
+        });
+        CuboidFace face = new CuboidFace(null, SHELL_TINT_INDEX, "#goo", null, Quadrant.R0, ExtraFaceData.DEFAULT,
+                new MutableObject<>());
+        return FaceBakery.bakeQuad(baker, new Vector3f(0, 0, 0), new Vector3f(16, 8, 16), face,
+                new Material.Baked(sprite, material.forceTranslucent()), Direction.UP, BlockModelRotation.IDENTITY,
+                null, true, 0).materialInfo().layer();
+    }
+
+    /**
      * A model with its parents folded in: their textures merged, the
-     * nearest elements and render type kept.
+     * nearest elements kept.
      */
     private static ResolvedModel resolve(String model) {
-        Map<String, String> textures = new HashMap<>();
+        Map<String, JsonElement> textures = new HashMap<>();
         List<JsonObject> faces = new ArrayList<>();
-        String renderType = null;
         String next = model;
         while (next != null) {
             JsonObject json = read(MODEL.formatted(next.substring(next.indexOf(':') + 1)));
             if (json.has("textures")) {
                 json.getAsJsonObject("textures").entrySet()
-                        .forEach(entry -> textures.putIfAbsent(entry.getKey(), entry.getValue().getAsString()));
+                        .forEach(entry -> textures.putIfAbsent(entry.getKey(), entry.getValue()));
             }
             if (faces.isEmpty() && json.has("elements")) {
                 json.getAsJsonArray("elements").forEach(element -> element.getAsJsonObject()
                         .getAsJsonObject("faces").entrySet()
                         .forEach(face -> faces.add(face.getValue().getAsJsonObject())));
             }
-            if (renderType == null && json.has("render_type")) {
-                renderType = json.get("render_type").getAsString();
-            }
             next = json.has("parent") ? json.get("parent").getAsString() : null;
         }
-        return new ResolvedModel(textures, faces, renderType);
+        return new ResolvedModel(textures, faces);
     }
 
-    private record ResolvedModel(Map<String, String> textures, List<JsonObject> faces, String renderType) {
+    private record ResolvedModel(Map<String, JsonElement> textures, List<JsonObject> faces) {
+
+        /**
+         * The material a texture reference resolves to, read as the game reads a model's texture entry.
+         */
+        Material material(String reference) {
+            JsonElement value = new JsonPrimitive(reference);
+            while (value != null && value.isJsonPrimitive() && value.getAsString().startsWith("#")) {
+                value = textures.get(value.getAsString().substring(1));
+            }
+            assertNotNull(value, "unresolved texture " + reference);
+            return Material.CODEC.parse(JsonOps.INSTANCE, value).getOrThrow();
+        }
 
         String texture(String reference) {
-            String value = reference;
-            while (value != null && value.startsWith("#")) {
-                value = textures.get(value.substring(1));
-            }
-            return value;
+            return material(reference).sprite().toString();
         }
     }
 
