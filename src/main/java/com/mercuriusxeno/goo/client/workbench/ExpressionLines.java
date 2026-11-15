@@ -364,15 +364,12 @@ final class ExpressionLines {
                 // Decision diagnose-and-correct-prefabs-drawn-without-their-dollar.
                 runs.add(new Run(Kind.LINK, PrefabNames.marked(prefab.name()), prefab.name()));
                 // Decision read-view-reads-type-equals-possessive-terms: a member reads as the prefab's own.
-                // Decision possessive-sits-flush-against-its-word-button.
-                if (prefab.type() != null) {
-                    runs.add(new Run(Kind.SUFFIX, POSSESSIVE, null));
-                }
-                addType(runs, prefab.type());
+                addPossessiveType(runs, prefab.type());
             }
             case ExpressionTerms.Item item -> {
                 runs.add(new Run(Kind.ITEM, names.apply(item.id()), item.id()));
-                addType(runs, item.type());
+                // Decision diagnose-and-correct-the-item-missing-its-possessive: an item's type reads as its own.
+                addPossessiveType(runs, item.type());
             }
             case ExpressionTerms.Group group -> {
                 runs.add(operator(OPEN));
@@ -386,8 +383,10 @@ final class ExpressionLines {
         }
     }
 
-    private static void addType(List<Run> runs, @Nullable String type) {
+    // Decision possessive-sits-flush-against-its-word-button.
+    private static void addPossessiveType(List<Run> runs, @Nullable String type) {
         if (type != null) {
+            runs.add(new Run(Kind.SUFFIX, POSSESSIVE, null));
             runs.add(type(type));
         }
     }
