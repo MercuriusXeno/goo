@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.item;
 
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.network.GooJoinPayload;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
@@ -98,6 +100,38 @@ public class GooItem extends Item implements IGooItemInteraction, GooCarrierItem
         stack.set(GooDataComponents.GOO_VOLUME.get(), volume);
     }
 
+    /**
+     * The stack's part under 1 mB, held in REMAINDERS keyed by the stack's one type, so
+     * the stack's fraction reads and writes through the remainders every store holds.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+     * decision one-remainder-capability-injected-into-every-fluid-capability
+     *
+     * @param stack the goo item stack
+     * @return its part under 1 mB, zero where none stands
+     */
+    public static GooFraction getPart(ItemStack stack) {
+        ResourceKey<GooTypeDefinition> key = GooStacks.keyOf(stack);
+        GooRemainders remainders = stack.get(GooDataComponents.REMAINDERS.get());
+        return key == null || remainders == null ? GooFraction.ZERO : remainders.of(key);
+    }
+
+    /**
+     * Sets the stack's part under 1 mB; a zero part removes the component, so a whole
+     * goo stack carries the components it carried before parts existed.
+     *
+     * @param stack the goo item stack, typed
+     * @param part  its part, at or above 0 and under 1
+     */
+    public static void setPart(ItemStack stack, GooFraction part) {
+        ResourceKey<GooTypeDefinition> key = GooStacks.keyOf(stack);
+        GooRemainders remainders = key == null ? GooRemainders.EMPTY : GooRemainders.EMPTY.with(key, part);
+        if (remainders.isEmpty()) {
+            stack.remove(GooDataComponents.REMAINDERS.get());
+        } else {
+            stack.set(GooDataComponents.REMAINDERS.get(), remainders);
+        }
+    }
+
     // --- GooCarrierItem (decision hosts-answer-bounds-through-interfaces) ---
 
     @Override
@@ -112,20 +146,17 @@ public class GooItem extends Item implements IGooItemInteraction, GooCarrierItem
     }
 
     /**
-     * Takes part of the volume; a goo drawn dry leaves the inventory.
+     * Takes part of the whole volume; a goo drawn dry leaves the inventory, and one
+     * whose last whole mB is drawn keeps its part under 1 mB.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
      */
     @Override
     public int drawGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {
         if (GooStacks.keyOf(stack) != type) {
             return 0;
         }
-        int volume = getVolume(stack);
-        int take = Math.min(amount, volume);
-        if (volume - take <= 0) {
-            stack.setCount(0);
-        } else {
-            setVolume(stack, volume - take);
-        }
+        int take = Math.min(amount, getVolume(stack));
+        GooStacks.depleteWhole(stack, take, () -> stack.setCount(0));
         return take;
     }
 
@@ -140,6 +171,22 @@ public class GooItem extends Item implements IGooItemInteraction, GooCarrierItem
         ItemStack stack = new ItemStack(GooItems.GOO.get());
         stack.set(GooDataComponents.GOO_TYPE.get(), key);
         setVolume(stack, volume);
+        return stack;
+    }
+
+    /**
+     * Creates a goo ItemStack holding an exact value: its whole mB in GOO_VOLUME and
+     * its part under 1 mB beside it.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+     *
+     * @param key   the goo type's registry key
+     * @param exact the exact value, never negative
+     * @return a new goo item stack
+     */
+    public static ItemStack createWithExactValue(ResourceKey<GooTypeDefinition> key, GooFraction exact) {
+        int whole = exact.floor();
+        ItemStack stack = createWithVolume(key, whole);
+        setPart(stack, exact.minus(GooFraction.of(whole)));
         return stack;
     }
 
