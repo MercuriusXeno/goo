@@ -45,7 +45,7 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core)
     public void collectParts(BlockAndTintGetter level, BlockPos pos, BlockState state, RandomSource random,
                              List<BlockStateModelPart> parts) {
         shell.collectParts(level, pos, state, random, parts);
-        List<BakedQuad> quads = SlimeCoreQuads.quadsOf(SlimeCoreBox.boxesOf(layersAround(level, pos, state)), core);
+        List<BakedQuad> quads = SlimeCoreQuads.quadsOf(layersAround(level, pos, state), core);
         if (!quads.isEmpty()) {
             parts.add(new CorePart(quads, shell.particleMaterial(level, pos, state)));
         }

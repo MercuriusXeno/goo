@@ -129,7 +129,8 @@ class VolumeCellLookTest {
         assertEquals(TRANSLUCENT, resolved.renderType(), model + " is not translucent");
         assertFalse(resolved.faces().isEmpty(), model + " draws no face");
         for (JsonObject face : resolved.faces()) {
-            assertEquals(fluid, resolved.texture(face.get("texture").getAsString()), model + " samples another texture");
+            assertEquals(fluid, resolved.texture(face.get("texture").getAsString()),
+                    model + " samples another texture");
             assertNotNull(face.get("tintindex"), model + " draws a face under no tint");
             assertEquals(SHELL_TINT_INDEX, face.get("tintindex").getAsInt(), model + " takes another tint");
         }
