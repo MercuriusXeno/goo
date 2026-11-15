@@ -91,7 +91,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * depth along the palm toward the cuff (+y).
      * palm-blob-rests-pressed-and-stands-into-the-cube: pressed against the palm, not the fingers
      */
-    private static final Quaternionf STANDING_ON_THE_PALM = new Quaternionf().rotationX((float) (-Math.PI / 2));
+    static final Quaternionfc STANDING_ON_THE_PALM = new Quaternionf().rotationX((float) (-Math.PI / 2));
     private static final float QUARTER_TURN = (float) (Math.PI / 2);
     private static final float HALF_TURN = (float) Math.PI;
     private static final int QUARTER_TURNS_IN_A_TURN = 4;
@@ -318,7 +318,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
     private static void submitLiftedGoo(PoseStack poseStack, SubmitNodeCollector nodeCollector,
                                         ResourceKey<GooTypeDefinition> type, LiftedPalmBlob.HandLift lift) {
         Matrix4f toHandPass = new Matrix4f(poseStack.last().pose());
-        Quaternionf turn = liftedTurn(toHandPass, lift);
+        Quaternionf turn = liftedTurn(toHandPass, FirstPersonSwing.unswung(toHandPass), lift);
         LiftedPlace place = liftedPlace(toHandPass, lift);
         submitBlob(poseStack, nodeCollector, type, place.inModel(), lift.shape(), turn);
         submitBlobWisps(poseStack, nodeCollector, place.inHand());
@@ -374,7 +374,8 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
 
     /**
      * The turn a lifted blob draws in, in the glove's model: standing on the
-     * palm and turned with the glove, or, for a lift facing the look, easing
+     * palm and turned with the glove as it stands unswung, easing out of
+     * vanilla's swing as it leaves the palm, or, for a lift facing the look, easing
      * as it leaves the palm onto the look's square, the glove's own turn
      * undone. A cube looks the same a quarter turn round any axis, so of the
      * cube's turns squared to the look it eases onto the one nearest its turn
@@ -382,16 +383,20 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives: facing forward with the look, not the hand
      * operator ruling 2026-11-14: no spin as the blob leaves the palm for its charge
      *
-     * @param toHandPass the glove's model onto the hand pass's camera-relative world axes
-     * @param lift       the local player's lift
+     * @param toHandPass         the glove's model onto the hand pass's camera-relative world axes
+     * @param unswungToHandPass  the same had vanilla's swing not turned the hand
+     * @param lift               the local player's lift
      * @return the turn, in the glove's model
      */
-    static Quaternionf liftedTurn(Matrix4fc toHandPass, LiftedPalmBlob.HandLift lift) {
+    static Quaternionf liftedTurn(Matrix4fc toHandPass, Matrix4fc unswungToHandPass, LiftedPalmBlob.HandLift lift) {
+        Quaternionf gloveTurnUndone = toHandPass.getUnnormalizedRotation(new Quaternionf()).conjugate();
         if (lift.facing() == null) {
-            return new Quaternionf(STANDING_ON_THE_PALM);
+            // blob-holds-its-angle-through-a-throws-swing
+            Quaternionf unswungStanding = gloveTurnUndone.mul(unswungToHandPass.getUnnormalizedRotation(
+                    new Quaternionf())).mul(STANDING_ON_THE_PALM);
+            return new Quaternionf(STANDING_ON_THE_PALM).slerp(unswungStanding, lift.share());
         }
-        Quaternionf facingInTheModel = toHandPass.getUnnormalizedRotation(new Quaternionf()).conjugate()
-                .mul(lift.facing());
+        Quaternionf facingInTheModel = gloveTurnUndone.mul(lift.facing());
         return new Quaternionf(STANDING_ON_THE_PALM).slerp(nearestSquaring(facingInTheModel, STANDING_ON_THE_PALM),
                 lift.share());
     }

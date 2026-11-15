@@ -42,6 +42,7 @@
     "ClientPacketListenerGateCarryMixin",
     "GameRendererPortalViewMixin",
     "InterpolationHandlerGateCarryMixin",
+    "ItemInHandRendererSwingMixin",
     "LevelRendererSculkerCullMixin",
     "LevelRendererVoidstoneMixin",
     "LivingEntityRendererPhaseMixin",
