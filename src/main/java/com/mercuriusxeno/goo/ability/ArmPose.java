@@ -22,7 +22,13 @@ public enum ArmPose {
     /** Eased across the chest while charging, backhanded outward on release: Knives' pose. */
     SHOULDER_CAST(ArmPoseKind.WIND_UP, ArmPoseKind.FLING, false),
     /** The arm left where vanilla draws it while held, and vanilla's swing on release: a blob thrown. */
-    SWUNG(ArmPoseKind.NONE, ArmPoseKind.NONE, true);
+    SWUNG(ArmPoseKind.NONE, ArmPoseKind.NONE, true),
+    /**
+     * The arm left where vanilla draws it, held and released alike, with no
+     * swing: a cast that throws no blob.
+     * decision diagnose-and-correct-hand-swings-outside-throws
+     */
+    RESTING(ArmPoseKind.NONE, ArmPoseKind.NONE, false);
 
     private static final String WHAT = "arm pose";
 
@@ -47,6 +53,7 @@ public enum ArmPose {
      * Whether a sent throw swings the glove arm as vanilla does, the one
      * place a swing suits: a blob thrown.
      * decision use-key-throw-swings-no-more
+     * decision diagnose-and-correct-hand-swings-outside-throws
      *
      * @return true for the swung pose
      */
@@ -74,15 +81,18 @@ public enum ArmPose {
 
     /**
      * The pose an ability naming none takes, by how it leaves the glove: an
-     * arc, a scan or a spontaneous cast swung, a beam or a stream held out,
-     * a self ability held up.
+     * arc, a blob thrown, swung; a scan, a spontaneous or an envelop cast,
+     * which throws no blob, resting; a beam or a stream held out; a self
+     * ability held up. An arc throwing no blob names its pose in its JSON.
+     * decision diagnose-and-correct-hand-swings-outside-throws
      *
      * @param kind the ability's delivery kind
      * @return the default pose
      */
     public static ArmPose defaultFor(DeliveryKind kind) {
         return switch (kind) {
-            case ARC, SCAN, SPONTANEOUS, ENVELOP -> SWUNG;
+            case ARC -> SWUNG;
+            case SCAN, SPONTANEOUS, ENVELOP -> RESTING;
             case BEAM, STREAM -> HELD_OUT;
             case SELF -> HELD_UP;
         };
