@@ -91,6 +91,15 @@ class VolumeCellLookTest {
             }
         }
 
+        @ParameterizedTest
+        @MethodSource("com.mercuriusxeno.goo.client.model.VolumeCellLookTest#cells")
+        void everyHeightDrawsThroughTheSlimeCoreModel(Cell cell) {
+            for (int layers = 1; layers <= VolumeCellBlock.MAX_LAYERS; layers++) {
+                assertEquals(List.of(SlimeCoreModel.TYPE.toString()), bodyTypesAt(cell.blockId(), layers),
+                        cell.blockId() + " at " + layers + " layers");
+            }
+        }
+
         @Test
         void slimeDripsOnEverySideAtEveryHeight() {
             for (int layers = 1; layers <= VolumeCellBlock.MAX_LAYERS; layers++) {
@@ -136,10 +145,28 @@ class VolumeCellLookTest {
             JsonObject when = part.getAsJsonObject().getAsJsonObject("when");
             boolean drip = when.keySet().stream().anyMatch(key -> !"layers".equals(key));
             if (String.valueOf(layers).equals(when.get("layers").getAsString()) && drip == drips) {
-                models.add(part.getAsJsonObject().getAsJsonObject("apply").get("model").getAsString());
+                JsonObject apply = part.getAsJsonObject().getAsJsonObject("apply");
+                JsonObject variant = apply.has("shell") ? apply.getAsJsonObject("shell") : apply;
+                models.add(variant.get("model").getAsString());
             }
         }
         return models;
+    }
+
+    /**
+     * The model types a block state's bodies draw through at a height.
+     */
+    private static List<String> bodyTypesAt(String blockId, int layers) {
+        List<String> types = new ArrayList<>();
+        for (JsonElement part : read(BLOCKSTATE.formatted(blockId)).getAsJsonArray("multipart")) {
+            JsonObject when = part.getAsJsonObject().getAsJsonObject("when");
+            if (when.keySet().equals(java.util.Set.of("layers"))
+                    && String.valueOf(layers).equals(when.get("layers").getAsString())) {
+                JsonObject apply = part.getAsJsonObject().getAsJsonObject("apply");
+                types.add(apply.has("type") ? apply.get("type").getAsString() : "minecraft:variant");
+            }
+        }
+        return types;
     }
 
     /**
