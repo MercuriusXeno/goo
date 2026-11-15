@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.ChargeSize;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
+import com.mercuriusxeno.goo.network.BlastShardsPayload;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooParticles;
@@ -41,7 +42,7 @@ import java.util.stream.Collectors;
  * Gametests for how each Unstable explosion shows to the players near it:
  * Blast sends vanilla's cloud, poof and smoke in its explode packet beside
  * its burnout, while Lurker's mine and the Lurker Ignite sets off send the
- * silent look their burnout draws over (decisions
+ * silent look their burnout draws over and throw no shards (decisions
  * blast-explosion-plays-vanillas-cloud-poof-and-smoke-with-the-fireball,
  * blast-alone-takes-the-new-explosion-look).
  */
@@ -88,12 +89,16 @@ public final class ExplosionLookTests {
     private static final String ONE_EXPLOSION = "The viewer should receive one explode packet, received %d";
     private static final String VANILLA_PARTICLE = "Blast's explode packet should carry %s, carried %s";
     private static final String VANILLA_BLOCK_PARTICLES = "Blast's block particles should be poof and smoke, were %s";
-    private static final String GENERIC_EXPLODE = "The explode packet should carry vanilla's generic explode sound";
+    private static final String SMOKE_INSIDE_THE_REACH =
+            "Blast's explode packet should spread its smoke within its %.1f block reach, carried radius %.2f";
+    private static final String GENERIC_EXPLODE ="The explode packet should carry vanilla's generic explode sound";
     private static final String ONE_UNSTABLE_BURNOUT = "The viewer should receive one Unstable burnout, received %s";
     private static final String SILENT_PARTICLE = "The explode packet should carry the silent blast, carried %s";
     private static final String NO_BLOCK_PARTICLES = "The explode packet should carry no block particles, carried %s";
     private static final String SHOULD_STAND_LURKER = "The lurker should stand on the floor before it goes off";
     private static final String SHOULD_GO_OFF = "The lurker should go off with the zombie beside it";
+    private static final String SHOULD_BREAK_THE_FLOOR = "The lurker's mine should break the floor under it";
+    private static final String NO_SHARDS = "The lurker's mine should send no shards, sent %d";
 
     private ExplosionLookTests() {
     }
@@ -122,19 +127,43 @@ public final class ExplosionLookTests {
                         BuiltInRegistries.PARTICLE_TYPE.getKey(ParticleTypes.SMOKE))),
                 String.format(VANILLA_BLOCK_PARTICLES, blockParticles));
         assertGenericExplode(helper, explosion);
+        // the client spreads poof and smoke over the packet's radius (ClientExplosionTracker.addParticle)
+        helper.assertTrue(explosion.radius() <= ChargeSize.REFERENCE_RADIUS,
+                String.format(SMOKE_INSIDE_THE_REACH, ChargeSize.REFERENCE_RADIUS, explosion.radius()));
+        assertOneUnstableBurnout(helper, viewer);
+        removeViewer(helper, viewer);
+        helper.succeed();
+    }
+
+    private static void assertOneUnstableBurnout(GameTestHelper helper, PayloadKindsRecorder viewer) {
         AABB bay = helper.getBounds();
         List<ChainBurnoutPayload> burnouts = viewer.receivedOf(ChainBurnoutPayload.class).stream()
                 .filter(burnout -> bay.contains(Vec3.atCenterOf(burnout.pos()))).toList();
         helper.assertTrue(burnouts.size() == 1
                         && burnouts.getFirst().gooTypeId().equals(GooTypes.id(GooTypes.UNSTABLE)),
                 String.format(ONE_UNSTABLE_BURNOUT, burnouts));
-        removeViewer(helper, viewer);
-        helper.succeed();
+    }
+
+    /**
+     * Shards payloads naming the struck block, which this test's explosion
+     * breaks; a neighboring test's Blast reaches the viewer and the bay's
+     * border too.
+     *
+     * @param helper the gametest helper
+     * @param viewer the viewer's recording connection
+     * @return the shards payloads of this test's explosion
+     */
+    static List<BlastShardsPayload> shardsOfTheStruckBlock(GameTestHelper helper, PayloadKindsRecorder viewer) {
+        BlockPos struck = helper.absolutePos(STRUCK);
+        return viewer.receivedOf(BlastShardsPayload.class).stream()
+                .filter(shards -> shards.cells().stream().anyMatch(cell -> cell.pos().equals(struck)))
+                .toList();
     }
 
     /**
      * Lurker standing on the floor, set off by a zombie standing beside it,
-     * sends the viewer one explode packet with the silent look.
+     * breaks the floor and sends the viewer one explode packet with the
+     * silent look, its burnout, and no shards: Blast alone throws them.
      *
      * @param helper the gametest helper
      */
@@ -149,6 +178,10 @@ public final class ExplosionLookTests {
             helper.assertFalse(helper.getBlockState(OVER_THE_STRUCK).is(GooBlocks.ABILITY_BLOCK.get()),
                     SHOULD_GO_OFF);
             assertSilentLook(helper, onlyExplosion(helper, viewer));
+            assertOneUnstableBurnout(helper, viewer);
+            helper.assertFalse(helper.getBlockState(STRUCK).is(Blocks.STONE), SHOULD_BREAK_THE_FLOOR);
+            List<BlastShardsPayload> shards = shardsOfTheStruckBlock(helper, viewer);
+            helper.assertTrue(shards.isEmpty(), String.format(NO_SHARDS, shards.size()));
             zombie.discard();
             removeViewer(helper, viewer);
         });
@@ -207,7 +240,7 @@ public final class ExplosionLookTests {
         player.setPos(stand.x, stand.y, stand.z);
         // a mock player tracks no chunk, so the burnout's chunk watchers would skip it without this view
         player.setChunkTrackingView(ChunkTrackingView.of(ChunkPos.containing(helper.absolutePos(STRUCK)), 1));
-        return PayloadKindsRecorder.attachTo(player, Set.of(ChainBurnoutPayload.class));
+        return PayloadKindsRecorder.attachTo(player, Set.of(ChainBurnoutPayload.class, BlastShardsPayload.class));
     }
 
     /**

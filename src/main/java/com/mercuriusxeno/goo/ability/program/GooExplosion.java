@@ -3,6 +3,8 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.entity.CompressedHoard;
 import com.mercuriusxeno.goo.entity.CompressionSphere;
 import com.mercuriusxeno.goo.entity.SphereCore;
+import com.mercuriusxeno.goo.network.BlastShardsPayload;
+import com.mercuriusxeno.goo.network.ChunkWatchers;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.particles.ExplosionParticleInfo;
@@ -63,12 +65,16 @@ public final class GooExplosion extends ServerExplosion {
     private final boolean lightsFires;
     private final double reach;
     private final boolean gathers;
+    private final boolean throwsShards;
+    /** Each broken cell with the block that stood there, kept when the look throws shards. */
+    private final List<BlastShardsPayload.Shattered> shattered = new ArrayList<>();
 
-    private GooExplosion(ServerLevel level, Vec3 center, float power, Cut cut, ExplosionMode mode) {
+    private GooExplosion(ServerLevel level, Vec3 center, float power, Cut cut, ExplosionMode mode, Look look) {
         super(level, null, null, DAMAGE_CALCULATOR, center, power, mode == ExplosionMode.FIRE, blockInteraction(mode));
         this.lightsFires = mode == ExplosionMode.FIRE;
         this.reach = cut.reach();
         this.gathers = cut.gathers();
+        this.throwsShards = look.throwsShards();
     }
 
     /**
@@ -78,9 +84,11 @@ public final class GooExplosion extends ServerExplosion {
      * @param largeParticle  the particle a large explosion shows
      * @param blockParticles the particles thrown off broken blocks
      * @param sound          the boom
+     * @param throwsShards   true to send the players near it each broken block, so each throws its own shards
      */
     public record Look(ParticleOptions smallParticle, ParticleOptions largeParticle,
-                       WeightedList<ExplosionParticleInfo> blockParticles, Holder<SoundEvent> sound) {
+                       WeightedList<ExplosionParticleInfo> blockParticles, Holder<SoundEvent> sound,
+                       boolean throwsShards) {
 
         /**
          * Vanilla's look, the one level.explode gives by default.
@@ -93,7 +101,7 @@ public final class GooExplosion extends ServerExplosion {
                             .add(new ExplosionParticleInfo(ParticleTypes.POOF, POOF_SCALING, PARTICLE_SPEED))
                             .add(new ExplosionParticleInfo(ParticleTypes.SMOKE, SMOKE_SCALING, PARTICLE_SPEED))
                             .build(),
-                    SoundEvents.GENERIC_EXPLODE);
+                    SoundEvents.GENERIC_EXPLODE, false);
         }
 
         /**
@@ -104,7 +112,17 @@ public final class GooExplosion extends ServerExplosion {
          * @return the silent look
          */
         public static Look silent(ParticleOptions silent) {
-            return new Look(silent, silent, WeightedList.of(), SoundEvents.GENERIC_EXPLODE);
+            return new Look(silent, silent, WeightedList.of(), SoundEvents.GENERIC_EXPLODE, false);
+        }
+
+        /**
+         * This look with each broken block throwing its own shards.
+         * blast-broken-blocks-throw-their-own-break-shards
+         *
+         * @return the look throwing shards
+         */
+        public Look withShards() {
+            return new Look(smallParticle, largeParticle, blockParticles, sound, true);
         }
     }
 
@@ -146,16 +164,22 @@ public final class GooExplosion extends ServerExplosion {
      */
     public static void detonate(ServerLevel level, Vec3 center, float power, Cut cut, ExplosionMode mode,
                                 Look look) {
-        GooExplosion explosion = new GooExplosion(level, center, power, cut, mode);
+        GooExplosion explosion = new GooExplosion(level, center, power, cut, mode, look);
         if (EventHooks.onExplosionStart(level, explosion)) {
             return;
         }
         int blockCount = explosion.explode();
+        if (!explosion.shattered.isEmpty()) {
+            ChunkWatchers.send(level, BlockPos.containing(center), new BlastShardsPayload(explosion.shattered));
+        }
         ParticleOptions particle = explosion.isSmall() ? look.smallParticle() : look.largeParticle();
+        // the client spreads the block particles over this radius, so a blast held to its drawn reach
+        // keeps its smoke inside the crater (decision blast-fills-its-drawn-radius)
+        float smokeRadius = (float) Math.min(power, cut.reach());
         for (ServerPlayer player : level.players()) {
             if (player.distanceToSqr(center) < PACKET_RANGE_SQR) {
                 Optional<Vec3> knockback = Optional.ofNullable(explosion.getHitPlayers().get(player));
-                player.connection.send(new ClientboundExplodePacket(center, power, blockCount, knockback,
+                player.connection.send(new ClientboundExplodePacket(center, smokeRadius, blockCount, knockback,
                         particle, look.sound(), look.blockParticles()));
             }
         }
@@ -237,7 +261,12 @@ public final class GooExplosion extends ServerExplosion {
                 ? (stack, at) -> gathered.add(stack)
                 : (stack, at) -> Block.popResource(level, at, stack);
         for (BlockPos pos : marked) {
-            level.getBlockState(pos).onExplosionHit(level, pos, this, dropped);
+            BlockState state = level.getBlockState(pos);
+            // blast-broken-blocks-throw-their-own-break-shards
+            if (throwsShards && !state.isAir()) {
+                shattered.add(new BlastShardsPayload.Shattered(pos.immutable(), state));
+            }
+            state.onExplosionHit(level, pos, this, dropped);
         }
         CompressionSphere.leave(level, center(), gathered, SphereCore.GREEN);
     }
