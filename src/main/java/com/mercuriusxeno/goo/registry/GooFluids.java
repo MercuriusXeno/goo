@@ -17,7 +17,8 @@ import org.jspecify.annotations.Nullable;
  * generic-goo-fluids). A goo type is not a fluid but a
  * {@link GooDataComponents#GOO_TYPE} component on a {@link FluidResource}
  * of that fluid, so containers key goo by resource, and the in-world type
- * rides on the fluid block's block entity.
+ * rides on the fluid block's block entity. Molten iron, lunar's core liquid,
+ * registers here beside goo as a fluid of its own.
  */
 public final class GooFluids {
     /**
@@ -42,6 +43,24 @@ public final class GooFluids {
      */
     public static final DeferredHolder<Fluid, GooFluid.Flowing> FLOWING =
             FLUIDS.register(GOO_PATH + "_flowing", () -> new GooFluid.Flowing(fluidProperties()));
+
+    /**
+     * Registry path of molten iron's source fluid, its fluid type and its liquid block.
+     */
+    public static final String MOLTEN_IRON_PATH = "molten_iron";
+
+    /**
+     * Molten iron's source fluid, sitting where it is placed as goo does.
+     * decision lunar-matter-is-anorthosite-basalt-regolith-and-an-iron-core
+     */
+    public static final DeferredHolder<Fluid, GooFluid.Source> MOLTEN_IRON_SOURCE =
+            FLUIDS.register(MOLTEN_IRON_PATH, () -> new GooFluid.Source(moltenIronProperties()));
+
+    /**
+     * Molten iron's flowing fluid.
+     */
+    public static final DeferredHolder<Fluid, GooFluid.Flowing> MOLTEN_IRON_FLOWING =
+            FLUIDS.register(MOLTEN_IRON_PATH + "_flowing", () -> new GooFluid.Flowing(moltenIronProperties()));
 
     private GooFluids() {
     }
@@ -92,5 +111,11 @@ public final class GooFluids {
     private static BaseFlowingFluid.Properties fluidProperties() {
         return new BaseFlowingFluid.Properties(GooFluidTypes.GOO, SOURCE, FLOWING)
                 .block(GooBlocks.GOO_FLUID);
+    }
+
+    private static BaseFlowingFluid.Properties moltenIronProperties() {
+        return new BaseFlowingFluid.Properties(GooFluidTypes.MOLTEN_IRON, MOLTEN_IRON_SOURCE, MOLTEN_IRON_FLOWING)
+                .block(GooBlocks.MOLTEN_IRON)
+                .bucket(GooItems.MOLTEN_IRON_BUCKET);
     }
 }

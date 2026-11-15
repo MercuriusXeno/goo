@@ -25,6 +25,7 @@ import com.mercuriusxeno.goo.fluid.GooFluidBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.IronBarsBlock;
+import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
@@ -322,4 +323,46 @@ public class GooBlocks {
                     .noCollision()
                     .strength(INDESTRUCTIBLE)
                     .noLootTable());
+
+    // --- Lunar matter (decision lunar-matter-is-anorthosite-basalt-regolith-and-an-iron-core) ---
+    /** Stone's hardness and blast resistance, which anorthosite mines like. */
+    private static final float STONE_HARDNESS = 1.5F;
+    private static final float STONE_RESISTANCE = 6.0F;
+    /** Sand's hardness, which regolith digs like. */
+    private static final float SAND_HARDNESS = 0.5F;
+    /** An iron block's hardness and blast resistance, which the iron core mines like. */
+    private static final float IRON_BLOCK_HARDNESS = 5.0F;
+    private static final float IRON_BLOCK_RESISTANCE = 6.0F;
+    /** Lava's light and its blast resistance. */
+    private static final int MOLTEN_IRON_LIGHT = 15;
+    private static final float MOLTEN_IRON_RESISTANCE = 100.0F;
+
+    /** Anorthosite: lunar's pale feldspar highland stone. */
+    public static final DeferredBlock<Block> ANORTHOSITE = BLOCKS.registerSimpleBlock("anorthosite",
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.QUARTZ).requiresCorrectToolForDrops()
+                    .strength(STONE_HARDNESS, STONE_RESISTANCE).sound(SoundType.STONE));
+
+    /** Regolith: lunar's grey glass dust over the stone. */
+    public static final DeferredBlock<Block> REGOLITH = BLOCKS.registerSimpleBlock("regolith",
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_LIGHT_GRAY).strength(SAND_HARDNESS)
+                    .sound(SoundType.SAND));
+
+    /** The iron core: the solid iron at lunar's heart, mined like an iron block. */
+    public static final DeferredBlock<Block> IRON_CORE = BLOCKS.registerSimpleBlock("iron_core",
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.METAL).requiresCorrectToolForDrops()
+                    .strength(IRON_BLOCK_HARDNESS, IRON_BLOCK_RESISTANCE).sound(SoundType.METAL));
+
+    /** Molten iron's liquid block, glowing as lava does. */
+    public static final DeferredBlock<LiquidBlock> MOLTEN_IRON = BLOCKS.registerBlock(GooFluids.MOLTEN_IRON_PATH,
+            p -> new LiquidBlock(GooFluids.MOLTEN_IRON_SOURCE.get(), p),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.FIRE)
+                    .replaceable()
+                    .noCollision()
+                    .strength(MOLTEN_IRON_RESISTANCE)
+                    .pushReaction(PushReaction.DESTROY)
+                    .noLootTable()
+                    .liquid()
+                    .sound(SoundType.EMPTY)
+                    .lightLevel(state -> MOLTEN_IRON_LIGHT));
 }

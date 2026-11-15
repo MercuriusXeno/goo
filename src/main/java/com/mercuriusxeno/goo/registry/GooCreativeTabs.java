@@ -47,6 +47,10 @@ public class GooCreativeTabs {
                 output.accept(GooItems.EXORITE.get());
                 output.accept(GooItems.EXORITE_UPGRADE_SMITHING_TEMPLATE.get());
                 output.accept(GooItems.EXORITE_BARS.get());
+                output.accept(GooItems.ANORTHOSITE.get());
+                output.accept(GooItems.REGOLITH.get());
+                output.accept(GooItems.IRON_CORE.get());
+                output.accept(GooItems.MOLTEN_IRON_BUCKET.get());
                 // Equipment
                 output.accept(GooItems.GOO_GLOVE.get());
                 output.accept(GooItems.GOO_GAUNTLET.get());

@@ -45,6 +45,12 @@
   "block.goo.goo": "Goo",
 
   "fluid_type.goo.goo": "Goo",
+  "fluid_type.goo.molten_iron": "Molten Iron",
+  "block.goo.molten_iron": "Molten Iron",
+  "item.goo.molten_iron_bucket": "Molten Iron Bucket",
+  "block.goo.anorthosite": "Anorthosite",
+  "block.goo.regolith": "Regolith",
+  "block.goo.iron_core": "Iron Core",
 
   "block.goo.canister": "Canister",
   "block.goo.crucible": "Crucible",
