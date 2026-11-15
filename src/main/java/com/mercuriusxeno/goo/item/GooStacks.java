@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.item;
 
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
@@ -78,6 +79,55 @@ public final class GooStacks {
     }
 
     /**
+     * Creates the goo carrying an exact value, whole mB and the part under 1 mB, so a
+     * goo of 0 whole mB and a part above 0 is a live stack.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+     *
+     * @param key   the goo type's registry key
+     * @param exact the exact value
+     * @return the goo, or EMPTY for a value of zero or less
+     */
+    public static ItemStack createForOutput(ResourceKey<GooTypeDefinition> key, GooFraction exact) {
+        if (!exact.isPositive()) {
+            return ItemStack.EMPTY;
+        }
+        return GooItem.createWithExactValue(key, exact);
+    }
+
+    /**
+     * Returns the exact value of the given item stack: the goo's whole mB plus its
+     * part under 1 mB, or zero for any other item.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+     *
+     * @param stack the item stack to measure
+     * @return the exact value
+     */
+    public static GooFraction exactValueOf(ItemStack stack) {
+        if (stack.getItem() instanceof GooItem) {
+            return GooFraction.of(GooItem.getVolume(stack)).plus(GooItem.getPart(stack));
+        }
+        return GooFraction.ZERO;
+    }
+
+    /**
+     * Takes whole mB from a goo, running {@code consume} once the stack holds nothing,
+     * so a goo whose last whole mB is taken keeps its part under 1 mB.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+     *
+     * @param stack   the goo stack
+     * @param taken   the whole mB taken, at most its volume
+     * @param consume removes the emptied stack from where it stands
+     */
+    static void depleteWhole(ItemStack stack, int taken, Runnable consume) {
+        int remaining = Math.max(0, GooItem.getVolume(stack) - taken);
+        if (remaining == 0 && GooItem.getPart(stack).isZero()) {
+            consume.run();
+        } else {
+            GooItem.setVolume(stack, remaining);
+        }
+    }
+
+    /**
      * Depletes a goo by the accepted volume, consuming the stack if empty.
      *
      * @param stack    the goo item stack to deplete
@@ -91,19 +141,14 @@ public final class GooStacks {
     }
 
     /**
-     * Deducts volume from a goo, consuming the stack if empty.
+     * Deducts volume from a goo, consuming the stack once it holds nothing.
      *
      * @param stack    the goo stack
      * @param accepted the accepted volume
      * @param player   the player holding the stack
      */
     private static void depleteGoo(ItemStack stack, int accepted, Player player) {
-        int remaining = GooItem.getVolume(stack) - accepted;
-        if (remaining <= 0) {
-            stack.consume(1, player);
-        } else {
-            GooItem.setVolume(stack, remaining);
-        }
+        depleteWhole(stack, accepted, () -> stack.consume(1, player));
     }
 
     /**
