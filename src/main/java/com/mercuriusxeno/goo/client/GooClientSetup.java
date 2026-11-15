@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.ability.nether.HiveSwarm;
 import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
+import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.client.ability.AbilityPoses;
 import com.mercuriusxeno.goo.client.ability.Afterimages;
 import com.mercuriusxeno.goo.client.ability.AilmentOverlayLayer;
@@ -291,6 +292,32 @@ public final class GooClientSetup {
     @SubscribeEvent
     public static void registerItemTintSources(RegisterColorHandlersEvent.ItemTintSources event) {
         event.register(Identifier.fromNamespaceAndPath(Goo.MODID, GooTypeItemTint.PATH), GooTypeItemTint.MAP_CODEC);
+    }
+
+    /**
+     * Registers each volume cell's tint, its goo type's highlight at the
+     * shell's alpha, which its layer and drip models draw under.
+     * connected-goo-draws-as-one-layered-mass-with-a-core
+     *
+     * @param event the event instance
+     */
+    @SubscribeEvent
+    public static void registerBlockTintSources(RegisterColorHandlersEvent.BlockTintSources event) {
+        for (VolumeCellBlock cell : List.of(GooBlocks.SLIME_COAT.get(), GooBlocks.KINETIC_SLICK.get())) {
+            event.register(List.of(new VolumeCellTint(cell.binding().gooType(), ClientGooTypes::color)), cell);
+        }
+    }
+
+    /**
+     * Registers the model every volume cell's layers draw through, the
+     * layered shell with the goo slime core inside it.
+     * connected-goo-draws-as-one-layered-mass-with-a-core
+     *
+     * @param event the event instance
+     */
+    @SubscribeEvent
+    public static void registerBlockStateModels(RegisterBlockStateModels event) {
+        event.registerModel(SlimeCoreModel.TYPE, SlimeCoreModel.Unbaked.MAP_CODEC);
     }
 
     /**

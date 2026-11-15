@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.throwing;
 
+import com.mercuriusxeno.goo.client.hud.MixedNumberLabel;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.item.GooItem;
@@ -15,6 +16,7 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.client.IItemDecorator;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import java.util.function.ToIntFunction;
 
 /**
  * Renders a goo type icon (top-right) and a compact volume label
@@ -60,7 +62,7 @@ public class GooVolumeDecorator implements IItemDecorator {
     private boolean renderGoo(GuiGraphicsExtractor graphics, Font font, ItemStack stack, int xOffset, int yOffset) {
         if (!GooStacks.exactValueOf(stack).isPositive()) { return false; }
         renderTypeIcon(graphics, GooStacks.keyOf(stack), xOffset, yOffset);
-        renderVolumeLabel(graphics, font, volumeLabel(GooItem.getVolume(stack), GooItem.getPart(stack)),
+        renderVolumeLabel(graphics, font, volumeLabel(GooItem.getVolume(stack), GooItem.getPart(stack), font::width),
                 xOffset, yOffset);
         return true;
     }
@@ -93,15 +95,17 @@ public class GooVolumeDecorator implements IItemDecorator {
 
     /**
      * The slot's amount: the stack's exact value as the mixed number the tooltip and
-     * the plexer HUD draw.
+     * the plexer HUD draw, laid by the spacing rule as they lay it.
      * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+     * decision every-mixed-number-takes-the-spacing-rule
      *
-     * @param whole the stack's whole mB
-     * @param part  its part under 1 mB
-     * @return the label text
+     * @param whole   the stack's whole mB
+     * @param part    its part under 1 mB
+     * @param widthOf the width in pixels the font gives a string
+     * @return the label laid out
      */
-    static String volumeLabel(int whole, GooFraction part) {
-        return GooFormat.formatMixed(GooFraction.of(whole).plus(part));
+    static MixedNumberLabel volumeLabel(int whole, GooFraction part, ToIntFunction<String> widthOf) {
+        return MixedNumberLabel.lay(GooFormat.formatMixed(GooFraction.of(whole).plus(part)), widthOf);
     }
 
     /**
@@ -109,20 +113,20 @@ public class GooVolumeDecorator implements IItemDecorator {
      *
      * @param graphics the GUI graphics context
      * @param font the font renderer
-     * @param label the label text
+     * @param label the label laid out
      * @param xOffset the horizontal slot position
      * @param yOffset the vertical slot position
      */
     private void renderVolumeLabel(GuiGraphicsExtractor graphics, Font font,
-            String label, int xOffset, int yOffset) {
-        int textWidth = font.width(label);
+            MixedNumberLabel label, int xOffset, int yOffset) {
+        int textWidth = label.fullWidth();
 
         int x = (int) ((xOffset + TEXT_RIGHT_EDGE) / TEXT_SCALE) - textWidth;
         int y = (int) ((yOffset + TEXT_BOTTOM_EDGE) / TEXT_SCALE);
 
         graphics.pose().pushMatrix();
         graphics.pose().scale(TEXT_SCALE, TEXT_SCALE);
-        graphics.text(font, label, x, y, WHITE, true);
+        label.draw(graphics, font, x, y, WHITE, true);
         graphics.pose().popMatrix();
     }
 }
