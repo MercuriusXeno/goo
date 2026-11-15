@@ -279,6 +279,20 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
     }
 
     /**
+     * Whether the canister would take goo of a type, its label and room asked for 1 mB
+     * without moving any.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+     *
+     * @param stack the canister item stack
+     * @param type  the goo type
+     * @return true where it would take it
+     */
+    public static boolean takesGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type) {
+        return getFluidContent(stack).cappedAddAmount(GooFluids.resource(type), 1, ContainerCapacity.CANISTER_BASE,
+                getMetadata(stack).gooLabel()) > 0;
+    }
+
+    /**
      * Try to remove one fluid from the canister, leaving every other fluid
      * inside as it stands. Returns the amount actually removed.
      *

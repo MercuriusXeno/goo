@@ -119,9 +119,10 @@ final class VatInteractionHandler {
     static InteractionResult handleGooInsert(
             VatBlockEntity vat, ItemStack stack, Player player) {
         // decision goo-item-carries-its-exact-value-as-a-mixed-remainder: the vat's ledger banks the part
-        int accepted = GooInsert.pour(stack, player, GooSink.banking(vat.getFluidHandler().ledger(),
+        boolean moved = GooInsert.pour(stack, player, GooSink.banking(vat.getFluidHandler().ledger(),
+                type -> vat.canAccept() && vat.getFluidHandler().insertGoo(type, 1, true) > 0,
                 (type, volume) -> volume > 0 && vat.canAccept() ? vat.insertGoo(type, volume) : 0));
-        return accepted > 0 ? InteractionResult.SUCCESS : InteractionResult.PASS;
+        return moved ? InteractionResult.SUCCESS : InteractionResult.PASS;
     }
 
     /**

@@ -79,11 +79,12 @@ final class CrucibleInteraction {
      *         goo never falls through to goo extraction; TRY_WITH_EMPTY_HAND for an empty one
      */
     static InteractionResult pourGoo(ItemStack stack, CrucibleBlockEntity crucible, Player player) {
-        if (GooStacks.volumeOf(stack) <= 0) {
+        if (!GooStacks.exactValueOf(stack).isPositive()) {
             return InteractionResult.TRY_WITH_EMPTY_HAND;
         }
         // decision goo-item-carries-its-exact-value-as-a-mixed-remainder: the reservoir's ledger banks the part
         GooInsert.pour(stack, player, GooSink.banking(crucible.reservoirHandler().ledger(),
+                type -> CrucibleInsertion.reservoirUnitsThatFit(crucible, type, 1, 1) > 0,
                 (type, volume) -> acceptWholeUnits(crucible, type, volume)));
         return InteractionResult.SUCCESS;
     }

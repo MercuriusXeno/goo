@@ -61,7 +61,7 @@ public class VatBlockItem extends BlockItem implements GooCarrierItem {
         }
         // decision goo-item-carries-its-exact-value-as-a-mixed-remainder: the vat item's own ledger banks the part
         return CanisterInventoryHandler.insertFromCursor(cursor, cursorAccess,
-                GooSink.banking(ledgerOf(vat), (type, volume) -> addGoo(vat, type, volume)));
+                GooSink.banking(ledgerOf(vat), type -> takesGoo(vat, type), (type, volume) -> addGoo(vat, type, volume)));
     }
 
     /**
@@ -165,6 +165,20 @@ public class VatBlockItem extends BlockItem implements GooCarrierItem {
      */
     public static int addGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {
         return GooContentsOps.addGoo(stack, type, amount, ContainerCapacity.VAT_BASE);
+    }
+
+    /**
+     * Whether the vat item would take goo of a type, its label and room asked for 1 mB
+     * without moving any.
+     * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
+     *
+     * @param stack the vat item stack
+     * @param type  the goo type
+     * @return true where it would take it
+     */
+    static boolean takesGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type) {
+        return GooLabelRule.admitsType(getGooLabel(stack), type)
+                && getGooContents(stack).roomFor(type, ContainerCapacity.VAT_BASE) > 0;
     }
 
     /**

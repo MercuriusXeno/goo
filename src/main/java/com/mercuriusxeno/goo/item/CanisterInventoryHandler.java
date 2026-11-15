@@ -38,6 +38,7 @@ final class CanisterInventoryHandler {
         // decision goo-item-carries-its-exact-value-as-a-mixed-remainder: the canister's own ledger banks the part
         return insertFromCursor(cursor, cursorAccess, GooSink.banking(
                 canister.getCapability(GooCapabilities.REMAINDER_ITEM, ItemAccess.forStack(canister)),
+                type -> CanisterItem.takesGoo(canister, type),
                 (type, volume) -> CanisterItem.addGoo(canister, type, volume)));
     }
 
@@ -67,7 +68,7 @@ final class CanisterInventoryHandler {
      */
     private static boolean handleGooInsert(ItemStack cursor, SlotAccess cursorAccess, GooSink sink) {
         // decision goo-item-carries-its-exact-value-as-a-mixed-remainder: the one pour every goo item runs
-        return GooInsert.pourInto(cursor, sink, () -> cursorAccess.set(ItemStack.EMPTY)) > 0;
+        return GooInsert.pourInto(cursor, sink, () -> cursorAccess.set(ItemStack.EMPTY));
     }
 
     // --- Drain operations ---

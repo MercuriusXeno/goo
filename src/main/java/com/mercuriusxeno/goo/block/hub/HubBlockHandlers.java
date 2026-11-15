@@ -157,11 +157,12 @@ final class HubBlockHandlers {
             ItemStack stack, Player player) {
         int slot = HubBlock.hitSlot(hitResult, hub.getBlockPos());
         // decision goo-item-carries-its-exact-value-as-a-mixed-remainder: the aimed canister banks the part
-        CanisterSlotFluidHandler aimed = slot >= 0 ? hub.containerState().getSlotFluidHandler(slot) : null;
-        int accepted = GooInsert.pour(stack, player, GooSink.banking(
-                aimed != null && hub.canAccept(slot) ? aimed.ledger() : null,
+        CanisterSlotFluidHandler aimed = slot >= 0 && hub.canAccept(slot)
+                ? hub.containerState().getSlotFluidHandler(slot) : null;
+        boolean moved = GooInsert.pour(stack, player, GooSink.banking(aimed != null ? aimed.ledger() : null,
+                type -> aimed != null && aimed.insertGoo(type, 1, true) > 0,
                 (type, volume) -> insertGoo(hub, hitResult, type, volume)));
-        if (accepted <= 0) { return InteractionResult.PASS; }
+        if (!moved) { return InteractionResult.PASS; }
 
         hub.getLevel().playSound(null, hub.getBlockPos(), SoundEvents.BOTTLE_EMPTY, SoundSource.BLOCKS, 1.0f, 1.0f);
         return InteractionResult.SUCCESS;

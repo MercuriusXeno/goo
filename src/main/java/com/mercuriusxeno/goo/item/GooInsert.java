@@ -45,35 +45,38 @@ public final class GooInsert {
 
     /**
      * Pours a held goo into a sink and depletes the stack by what the sink took.
-     * Any other stack, or a sink accepting nothing, leaves the stack whole.
+     * Any other stack, or a sink taking nothing, leaves the stack whole.
      *
      * @param stack  the held stack
      * @param player the player holding it
      * @param sink   where the goo goes
-     * @return the volume accepted, 0 when nothing moved
+     * @return true when any goo moved
      */
-    public static int pour(ItemStack stack, Player player, GooSink sink) {
+    public static boolean pour(ItemStack stack, Player player, GooSink sink) {
         return pourInto(stack, sink, () -> stack.consume(1, player));
     }
 
     /**
      * Pours a goo stack into a sink: the sink takes whole mB, a sink with a ledger that took
      * every whole mB is credited the stack's part and takes any whole mB the credit carries,
-     * and the stack keeps the rest, or is consumed once it holds nothing.
+     * and the stack keeps the rest, or is consumed once it holds nothing. A stack holding
+     * only a part has taken its 0 whole mB entire, so its part goes to the ledger of a store
+     * that takes its type, and stays on the stack anywhere else.
      *
      * @param stack   the goo stack
      * @param sink    where the goo goes
      * @param consume removes the emptied stack from where it stands
-     * @return the whole mB the store took, 0 when nothing moved
+     * @return true when any goo moved
      */
-    public static int pourInto(ItemStack stack, GooSink sink, Runnable consume) {
+    public static boolean pourInto(ItemStack stack, GooSink sink, Runnable consume) {
         ResourceKey<GooTypeDefinition> type = GooStacks.keyOf(stack);
-        if (type == null) { return 0; }
+        if (type == null) { return false; }
         MixedVolume held = GooStacks.mixedVolumeOf(stack);
-        int accepted = sink.accept(type, held.whole());
-        if (accepted <= 0) { return 0; }
-
         IRemainderLedger ledger = sink.ledger();
+        int accepted = held.whole() > 0 ? sink.accept(type, held.whole()) : 0;
+        boolean partAloneBanks = held.whole() == 0 && ledger != null && held.part().isPositive() && sink.takes(type);
+        if (accepted <= 0 && !partAloneBanks) { return false; }
+
         PourSettlement settled = ledger == null
                 ? new PourSettlement(new MixedVolume(held.whole() - accepted, held.part()), GooFraction.ZERO)
                 : settle(held, accepted);
@@ -84,7 +87,7 @@ public final class GooInsert {
         } else {
             GooItem.setMixedVolume(stack, left);
         }
-        return accepted;
+        return true;
     }
 
     /**
