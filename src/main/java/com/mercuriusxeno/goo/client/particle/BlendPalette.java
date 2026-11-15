@@ -33,6 +33,13 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
      */
     public static final BlendPalette SLICK_SLIME_BLUES = new BlendPalette(
             0x6A / 255f, 0x9A / 255f, 0xE0 / 255f, 0x2C / 255f, 0x7D / 255f, 0xC1 / 255f);
+    /**
+     * Dowsing's spray drips, from Astral's starlight, its bright FFF4B0, to
+     * its night blue, its highlight 2A3C9A.
+     * astral-world-goo-is-dowsing-an-x-ray-of-ore
+     */
+    public static final BlendPalette DOWSING_STARLIGHT_BLUES = new BlendPalette(
+            0xFF / 255f, 0xF4 / 255f, 0xB0 / 255f, 0x2A / 255f, 0x3C / 255f, 0x9A / 255f);
 
     /**
      * The color a share of the way from the light end to the dark.

@@ -321,9 +321,9 @@ class DeliveryTest {
     }
 
     /**
-     * Goop and Slick are the shipped streams throwing drips, so their spray
-     * lands where their coat lands; every other stream's motes keep the
-     * crosshair-distance launch.
+     * Goop, Slick and Dowsing, the streams laying world goo, are the shipped
+     * streams throwing drips, so their spray lands where their goo lands;
+     * every other stream's motes keep the crosshair-distance launch.
      * goop-and-slick-spray-follows-the-coat
      */
     @Nested
@@ -333,14 +333,15 @@ class DeliveryTest {
          * goop-and-slick-coat-lands-where-each-drip-arc-strikes
          */
         @Test
-        void goopAndSlickAloneThrowDripsOnTheirArcs() {
+        void theWorldGooStreamsAloneThrowDripsOnTheirArcs() {
             Set<Identifier> throwing = AbilityJson.files().stream()
                     .filter(file -> AbilityJson.decode(file).delivery().throwsDrips())
                     .map(file -> AbilityJson.idOf(file.getFileName().toString()))
                     .collect(Collectors.toSet());
 
             assertEquals(Set.of(Identifier.fromNamespaceAndPath("goo", "weird_goop"),
-                    Identifier.fromNamespaceAndPath("goo", "kinetic_slick")), throwing);
+                    Identifier.fromNamespaceAndPath("goo", "kinetic_slick"),
+                    Identifier.fromNamespaceAndPath("goo", "astral_dowsing")), throwing);
         }
     }
 

@@ -56,6 +56,15 @@ public class GooParticles {
         PARTICLE_TYPES.register("slick_spray_drip", () -> new SimpleParticleType(false));
 
     /**
+     * Dowsing's spray drip: the mod's blocky goo drip in Astral's starlight
+     * and night blue, flying its arc until it strikes, where it splats and the
+     * Dowsing goo lands.
+     * astral-world-goo-is-dowsing-an-x-ray-of-ore
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> DOWSING_SPRAY_DRIP =
+        PARTICLE_TYPES.register("dowsing_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
      * A snowflake crystal flitting weightlessly along Cold's wind (decision
      * cold-streams-wind-lines-and-snowflakes).
      */

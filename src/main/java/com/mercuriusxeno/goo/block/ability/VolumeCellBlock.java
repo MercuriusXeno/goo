@@ -9,8 +9,10 @@ import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.SlimeFlow.Side;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
@@ -170,6 +172,32 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
+     * The goo a broken cell of a binding gives back: its goo type, worth
+     * what its layers cost.
+     *
+     * @param gooType the goo type dropped
+     * @param mb      the goo in mb
+     */
+    record ReclaimedGoo(ResourceKey<GooTypeDefinition> gooType, int mb) {
+    }
+
+    /**
+     * The goo a broken cell bound to a binding gives back: the binding's goo
+     * type, worth a fifteenth of the laying ability's cost per layer.
+     * breaking-slime-drops-weird-goo-worth-its-layers
+     * breaking-slick-drops-kinetic-goo-worth-its-film
+     * astral-world-goo-is-dowsing-an-x-ray-of-ore
+     *
+     * @param binding   the binding the cell holds
+     * @param layers    the layers the cell held
+     * @param blockCost the cost of a whole block of the goo
+     * @return the goo type and its mb
+     */
+    static ReclaimedGoo reclaimedGoo(CellBinding binding, int layers, GooFraction blockCost) {
+        return new ReclaimedGoo(binding.gooType(), reclaimed(layers, blockCost));
+    }
+
+    /**
      * Gives back the goo the cell's layers cost, as the glow crystal gives
      * back its goo, whatever breaks the cell, Vacuum included; a cell broken
      * where its laying ability's definition does not load gives back nothing.
@@ -178,9 +206,11 @@ public class VolumeCellBlock extends Block {
      */
     @Override
     protected @NonNull List<ItemStack> getDrops(@NonNull BlockState state, LootParams.@NonNull Builder builder) {
-        int mb = LoadedAbilityCost.of(builder.getLevel(), binding.layingAbility())
-                .map(cost -> reclaimed(state.getValue(LAYERS), cost)).orElse(0);
-        return mb > 0 ? List.of(GooStacks.createForOutput(binding.gooType(), mb)) : List.of();
+        return LoadedAbilityCost.of(builder.getLevel(), binding.layingAbility())
+                .map(cost -> reclaimedGoo(binding, state.getValue(LAYERS), cost))
+                .filter(goo -> goo.mb() > 0)
+                .map(goo -> List.of(GooStacks.createForOutput(goo.gooType(), goo.mb())))
+                .orElse(List.of());
     }
 
     /**

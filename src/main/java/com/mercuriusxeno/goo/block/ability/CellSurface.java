@@ -1,11 +1,12 @@
 package com.mercuriusxeno.goo.block.ability;
 
 /**
- * What a volume cell does to the things on it, the one way two goo types'
+ * What a volume cell does to the things on it, the one way goo types'
  * cells differ besides their look and their viscosity: slime breaks a fall
  * and bounces what lands on it, ramping while jump is held; slick lets a fall
  * harm as any ground does and ramps a thing trying to move on it, slippery as
- * ice. A goo type binding a world goo to the cell names one.
+ * ice; Dowsing is ordinary ground. A goo type binding a world goo to the cell
+ * names one.
  * slime-and-slick-are-one-volume-cell-tech
  * bounce-ramps-jump-height-while-jump-is-held
  * slick-coats-the-ground-with-kinetic-speed
@@ -17,7 +18,13 @@ public enum CellSurface {
     /** Slime's: a fall onto it does no harm, and what lands on it bounces. */
     BOUNCE(Frictions.ORDINARY_GROUND),
     /** Slick's: as slippery as ice, it ramps a thing trying to move on it. */
-    RAMP(Frictions.ICE);
+    RAMP(Frictions.ICE),
+    /**
+     * Dowsing's: ordinary ground underfoot that neither bounces nor ramps;
+     * the cell works on the eye looking through it, not on what stands on it.
+     * astral-world-goo-is-dowsing-an-x-ray-of-ore
+     */
+    LENS(Frictions.ORDINARY_GROUND);
 
     /** The friction a cell bound to this surface stands at, the slipperiness what moves on it meets. */
     private final float friction;

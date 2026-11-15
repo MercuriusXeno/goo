@@ -10,8 +10,8 @@ import net.minecraft.resources.ResourceKey;
  * What one goo type's world goo binds the volume cell to: the goo type the
  * cell holds and drops when broken, the ability laying it, whose cost prices
  * a whole block of it and whose program names what the cell's surface does,
- * and that surface. Weird's slime and Kinetic's slick are bound so far, and a
- * third goo type ships its world goo as a third binding.
+ * and that surface. Weird's slime, Kinetic's slick and Astral's Dowsing are
+ * bound so far, and each further goo type ships its world goo as a binding.
  * slime-and-slick-are-one-volume-cell-tech
  * each-goo-type-ships-a-world-goo-on-the-volume-cell
  *
@@ -28,6 +28,14 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
 
     /** Weird's slime: Goop lays it, and it bounces what lands on it. */
     public static final CellBinding SLIME = new CellBinding(GooTypes.WEIRD, GOOP_ABILITY, CellSurface.BOUNCE);
+    /** The ability laying Astral's Dowsing goo, whose cost prices a whole block of it. */
+    public static final Identifier DOWSING_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "astral_dowsing");
+
     /** Kinetic's slick: Slick lays it, and it ramps a thing trying to move on it. */
     public static final CellBinding SLICK = new CellBinding(GooTypes.KINETIC, SLICK_ABILITY, CellSurface.RAMP);
+    /**
+     * Astral's Dowsing goo: Dowsing lays it, ordinary ground to stand on.
+     * astral-world-goo-is-dowsing-an-x-ray-of-ore
+     */
+    public static final CellBinding DOWSING = new CellBinding(GooTypes.ASTRAL, DOWSING_ABILITY, CellSurface.LENS);
 }

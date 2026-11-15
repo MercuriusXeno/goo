@@ -303,7 +303,8 @@ public final class GooClientSetup {
      */
     @SubscribeEvent
     public static void registerBlockTintSources(RegisterColorHandlersEvent.BlockTintSources event) {
-        for (VolumeCellBlock cell : List.of(GooBlocks.SLIME_COAT.get(), GooBlocks.KINETIC_SLICK.get())) {
+        for (VolumeCellBlock cell : List.of(GooBlocks.SLIME_COAT.get(), GooBlocks.KINETIC_SLICK.get(),
+                GooBlocks.ASTRAL_DOWSING.get())) {
             event.register(List.of(new VolumeCellTint(cell.binding().gooType(), ClientGooTypes::color)), cell);
         }
     }
@@ -364,6 +365,8 @@ public final class GooClientSetup {
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.GOOP_SLIME_GREENS));
         event.registerSpriteSet(GooParticles.SLICK_SPRAY_DRIP.get(),
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.SLICK_SLIME_BLUES));
+        event.registerSpriteSet(GooParticles.DOWSING_SPRAY_DRIP.get(),
+                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.DOWSING_STARLIGHT_BLUES));
         event.registerSpriteSet(GooParticles.SNOWFLAKE.get(), SnowflakeParticle.Provider::new);
         event.registerSpriteSet(GooParticles.CLICK_WAVE.get(), ClickWaveParticle.Provider::new);
         event.registerSpriteSet(GooParticles.RESTORE_MOTE.get(), RestoreMoteParticle.Provider::new);

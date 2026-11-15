@@ -59,6 +59,7 @@ public final class StepTypes {
         register(CoolLavaStep.TYPE);
         register(CoatStep.TYPE);
         register(SlickStep.TYPE);
+        register(DowseStep.TYPE);
         register(VacuumStep.TYPE);
         register(VacuumPullStep.TYPE);
         register(WobbleStep.TYPE);

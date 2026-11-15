@@ -6,6 +6,7 @@ import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.block.CompiledStateDefinition;
 import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.EntityBlock;
@@ -83,21 +84,31 @@ class VolumeCellBlockTest {
     class OneImplementation {
 
         @Test
-        void gooBlocksRegistersSlimeAndSlickAsTheOneVolumeCell() throws ReflectiveOperationException {
-            assertEquals(List.of(VolumeCellBlock.class, VolumeCellBlock.class),
-                    List.of(registeredBlockClass("SLIME_COAT"), registeredBlockClass("KINETIC_SLICK")));
+        void gooBlocksRegistersSlimeSlickAndDowsingAsTheOneVolumeCell() throws ReflectiveOperationException {
+            assertEquals(List.of(VolumeCellBlock.class, VolumeCellBlock.class, VolumeCellBlock.class),
+                    List.of(registeredBlockClass("SLIME_COAT"), registeredBlockClass("KINETIC_SLICK"),
+                            registeredBlockClass("ASTRAL_DOWSING")));
         }
 
         @Test
-        void slimeIsBoundToWeirdAndSlickToKinetic() {
-            assertEquals(List.of(GooTypes.WEIRD, GooTypes.KINETIC),
-                    List.of(CellBinding.SLIME.gooType(), CellBinding.SLICK.gooType()));
+        void slimeIsBoundToWeirdSlickToKineticAndDowsingToAstral() {
+            assertEquals(List.of(GooTypes.WEIRD, GooTypes.KINETIC, GooTypes.ASTRAL),
+                    List.of(CellBinding.SLIME.gooType(), CellBinding.SLICK.gooType(), CellBinding.DOWSING.gooType()));
         }
 
         @Test
         void slimeBouncesAndSlickRamps() {
             assertEquals(List.of(CellSurface.BOUNCE, CellSurface.RAMP),
                     List.of(CellBinding.SLIME.surface(), CellBinding.SLICK.surface()));
+        }
+
+        /** astral-world-goo-is-dowsing-an-x-ray-of-ore: Dowsing's cell is ordinary ground to stand on */
+        @Test
+        void dowsingStandsAtOrdinaryGroundFrictionAndNeitherBouncesNorRamps() {
+            CellSurface dowsing = CellBinding.DOWSING.surface();
+
+            assertEquals(List.of(CellSurface.BOUNCE.friction(), false, false),
+                    List.of(dowsing.friction(), dowsing.bounces(), dowsing.ramps()));
         }
 
         /**
@@ -215,6 +226,21 @@ class VolumeCellBlockTest {
         @Test
         void slicksCostPricesACubicMeter() {
             assertEquals(Optional.of("%s/m³"), AbilityJson.decode("kinetic_slick").costFormula());
+        }
+
+        /**
+         * A broken Dowsing cell drops astral goo, a fifteenth of Dowsing's
+         * shipped cost for each layer it held.
+         * astral-world-goo-is-dowsing-an-x-ray-of-ore
+         */
+        @Test
+        void aBrokenDowsingCellDropsAstralGooAFifteenthOfDowsingsCostPerLayer() {
+            GooFraction dowsingCost = AbilityJson.decode("astral_dowsing").cost().exactIn(GooValueTable.EMPTY);
+            int dowsingLayers = 7;
+
+            assertEquals(new VolumeCellBlock.ReclaimedGoo(GooTypes.ASTRAL,
+                            dowsingCost.times(dowsingLayers).dividedBy(FIFTEEN).floor()),
+                    VolumeCellBlock.reclaimedGoo(CellBinding.DOWSING, dowsingLayers, dowsingCost));
         }
     }
 

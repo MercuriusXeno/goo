@@ -192,6 +192,25 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
+     * Dowsing: the volume cell bound to Astral's Dowsing goo, the starry blue
+     * goo Dowsing lays on a block's top, one to fifteen layers, ordinary
+     * ground underfoot, dropping the astral goo its layers cost through
+     * VolumeCellBlock.getDrops, no loot table
+     * (decisions astral-world-goo-is-dowsing-an-x-ray-of-ore, slime-and-slick-are-one-volume-cell-tech,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VolumeCellBlock> ASTRAL_DOWSING = BLOCKS.registerBlock(
+            "astral_dowsing", properties -> new VolumeCellBlock(properties, CellBinding.DOWSING),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_BLUE)
+                    .friction(CellBinding.DOWSING.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
      * Prism: the milky quartz crystal Crystal's Prism grows, the host every
      * prism combo grows on (decision prism-blob-becomes-a-milky-quartz-crystal).
      */
