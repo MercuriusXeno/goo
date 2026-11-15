@@ -39,6 +39,8 @@ class RallyFollowTest {
     /** A spot straight behind a rallier that backed up south and stopped, where a lone cow's slot stands. */
     private static final Vec3 HELD_SPOT = RALLIER.add(0.0, 0.0, LONE_COW_SLOT.distance());
     private static final double SAME = 1e-9;
+    private static final boolean LOCKED_IN = true;
+    private static final boolean UNLOCKED = false;
 
     private static Optional<Vec3> movingSpot(Vec3 velocity) {
         return RallyFollow.spot(Optional.empty(), RALLIER, velocity, LONE_COW_SLOT);
@@ -53,54 +55,138 @@ class RallyFollowTest {
 
         @Test
         void mobBeyondTheNearDistanceWalksToItsStandingRallier() {
-            assertEquals(RallyFollow.Move.FOLLOW, RallyFollow.choose(false, BEYOND, RALLIER, Optional.empty()));
+            assertEquals(RallyFollow.Move.FOLLOW,
+                    RallyFollow.choose(false, BEYOND, RALLIER, Optional.empty(), UNLOCKED));
         }
 
         @Test
         void mobWithinTheNearDistanceOfAStandingRallierHolds() {
-            assertEquals(RallyFollow.Move.HOLD, RallyFollow.choose(false, WITHIN, RALLIER, Optional.empty()));
+            assertEquals(RallyFollow.Move.HOLD,
+                    RallyFollow.choose(false, WITHIN, RALLIER, Optional.empty(), UNLOCKED));
         }
 
         @Test
         void mobBesideARallierBelowTheStandingSpeedHolds() {
             Vec3 drift = new Vec3(RallyFollow.STANDING_SPEED / 2, 0.0, 0.0);
             Optional<Vec3> spot = RallyFollow.spot(Optional.empty(), RALLIER, drift, LONE_COW_SLOT);
-            assertEquals(RallyFollow.Move.HOLD, RallyFollow.choose(false, WITHIN, RALLIER, spot));
+            assertEquals(RallyFollow.Move.HOLD, RallyFollow.choose(false, WITHIN, RALLIER, spot, UNLOCKED));
         }
 
         @Test
         void mobWithAFoeInReachFightsWhereverItsRallierStands() {
-            assertEquals(RallyFollow.Move.FIGHT, RallyFollow.choose(true, BEYOND, RALLIER, Optional.empty()));
-            assertEquals(RallyFollow.Move.FIGHT, RallyFollow.choose(true, WITHIN, RALLIER, Optional.empty()));
+            assertEquals(RallyFollow.Move.FIGHT,
+                    RallyFollow.choose(true, BEYOND, RALLIER, Optional.empty(), UNLOCKED));
+            assertEquals(RallyFollow.Move.FIGHT,
+                    RallyFollow.choose(true, WITHIN, RALLIER, Optional.empty(), UNLOCKED));
         }
 
         @Test
         void mobWithAFoeInReachFightsWhileItsRallierMoves() {
             assertEquals(RallyFollow.Move.FIGHT,
-                    RallyFollow.choose(true, WITHIN, RALLIER, movingSpot(BACKING_SOUTH)));
+                    RallyFollow.choose(true, WITHIN, RALLIER, movingSpot(BACKING_SOUTH), UNLOCKED));
             assertEquals(RallyFollow.Move.FIGHT,
-                    RallyFollow.choose(true, BEYOND, RALLIER, movingSpot(STEPPING_WEST)));
+                    RallyFollow.choose(true, BEYOND, RALLIER, movingSpot(STEPPING_WEST), UNLOCKED));
         }
 
         @Test
         void mobWithNoFoeTakesTheSideItsMovingRallierHeadsToward() {
-            assertEquals(RallyFollow.Move.PRE_EMPT,
-                    RallyFollow.choose(false, WITHIN, RALLIER, movingSpot(BACKING_SOUTH)));
-            assertEquals(RallyFollow.Move.PRE_EMPT,
-                    RallyFollow.choose(false, BEYOND, RALLIER, movingSpot(STEPPING_WEST)));
+            assertEquals(RallyFollow.Move.CATCH_UP,
+                    RallyFollow.choose(false, WITHIN, RALLIER, movingSpot(BACKING_SOUTH), UNLOCKED));
+            assertEquals(RallyFollow.Move.CATCH_UP,
+                    RallyFollow.choose(false, BEYOND, RALLIER, movingSpot(STEPPING_WEST), UNLOCKED));
         }
 
         @Test
         void mobShortOfItsHeldSpotKeepsWalkingThereOnceItsRallierStops() {
             Optional<Vec3> spot = RallyFollow.spot(Optional.of(HELD_SPOT), RALLIER, STANDING, LONE_COW_SLOT);
-            assertEquals(RallyFollow.Move.PRE_EMPT, RallyFollow.choose(false, RALLIER, RALLIER, spot));
+            assertEquals(RallyFollow.Move.CATCH_UP, RallyFollow.choose(false, RALLIER, RALLIER, spot, UNLOCKED));
         }
 
         @Test
-        void mobAtItsHeldSpotHoldsThere() {
+        void mobAtItsHeldSpotMarchesThereAtItsStandingRalliersPace() {
             Optional<Vec3> spot = RallyFollow.spot(Optional.of(HELD_SPOT), RALLIER, STANDING, LONE_COW_SLOT);
             Vec3 arrived = HELD_SPOT.add(RallyFollow.ARRIVAL_DISTANCE / 2, 0.0, 0.0);
-            assertEquals(RallyFollow.Move.HOLD, RallyFollow.choose(false, arrived, RALLIER, spot));
+            assertEquals(RallyFollow.Move.MARCH, RallyFollow.choose(false, arrived, RALLIER, spot, UNLOCKED));
+        }
+    }
+
+    /** each-rallied-mob-locks-into-a-fixed-slot */
+    @Nested
+    class LockIn {
+
+        private static final Optional<Vec3> SLOT = Optional.of(HELD_SPOT);
+        private static final Vec3 AT_THE_SLOT = HELD_SPOT.add(RallyFollow.ARRIVAL_DISTANCE / 2, 0.0, 0.0);
+        private static final Vec3 BETWEEN = HELD_SPOT.add(
+                (RallyFollow.ARRIVAL_DISTANCE + RallyFollow.RELEASE_DISTANCE) / 2, 0.0, 0.0);
+        private static final Vec3 PAST_THE_RELEASE = HELD_SPOT.add(RallyFollow.RELEASE_DISTANCE + 0.5, 0.0, 0.0);
+
+        @Test
+        void anUnlockedMinionBeyondTheArrivalDistanceCatchesUp() {
+            assertEquals(RallyFollow.Move.CATCH_UP, RallyFollow.choose(false, BETWEEN, RALLIER, SLOT, UNLOCKED));
+        }
+
+        @Test
+        void anUnlockedMinionWithinTheArrivalDistanceMarches() {
+            assertEquals(RallyFollow.Move.MARCH, RallyFollow.choose(false, AT_THE_SLOT, RALLIER, SLOT, UNLOCKED));
+        }
+
+        @Test
+        void aLockedInMinionBetweenTheArrivalAndReleaseDistancesKeepsMarching() {
+            assertEquals(RallyFollow.Move.MARCH, RallyFollow.choose(false, BETWEEN, RALLIER, SLOT, LOCKED_IN));
+        }
+
+        @Test
+        void aLockedInMinionBeyondTheReleaseDistanceCatchesUp() {
+            assertEquals(RallyFollow.Move.CATCH_UP,
+                    RallyFollow.choose(false, PAST_THE_RELEASE, RALLIER, SLOT, LOCKED_IN));
+        }
+
+        @Test
+        void aMinionWithAFoeInReachFightsLockedInOrNot() {
+            for (Vec3 mob : List.of(AT_THE_SLOT, BETWEEN, PAST_THE_RELEASE)) {
+                assertEquals(RallyFollow.Move.FIGHT, RallyFollow.choose(true, mob, RALLIER, SLOT, UNLOCKED));
+                assertEquals(RallyFollow.Move.FIGHT, RallyFollow.choose(true, mob, RALLIER, SLOT, LOCKED_IN));
+            }
+        }
+    }
+
+    /** rallied-mobs-share-their-ralliers-speed */
+    @Nested
+    class Pace {
+
+        /** A player's walk, in blocks a tick. */
+        private static final double RALLIER_WALK = 0.216;
+        /** A rallied cow's movement speed: a cow's 0.2, lifted by the rally's half. */
+        private static final double RALLIED_COW_SPEED = 0.3;
+        /** A rallied fox's movement speed: a fox's 0.3, lifted by the rally's half. */
+        private static final double RALLIED_FOX_SPEED = 0.45;
+        private static final double MATCHED = 1e-9;
+
+        private double groundSpeedAt(double ownSpeed, double rallierSpeed, boolean lockedIn) {
+            return RallyFollow.groundSpeed(ownSpeed * RallyFollow.pace(rallierSpeed, ownSpeed, lockedIn));
+        }
+
+        @Test
+        void aLockedInMinionSlowerThanItsRallierWalksAtTheRalliersSpeed() {
+            assertTrue(RallyFollow.groundSpeed(RALLIED_COW_SPEED) < RALLIER_WALK, "the cow should be the slower");
+            assertEquals(RALLIER_WALK, groundSpeedAt(RALLIED_COW_SPEED, RALLIER_WALK, LOCKED_IN), MATCHED);
+        }
+
+        @Test
+        void aLockedInMinionFasterThanItsRallierWalksAtTheRalliersSpeed() {
+            assertTrue(RallyFollow.groundSpeed(RALLIED_FOX_SPEED) > RALLIER_WALK, "the fox should be the faster");
+            assertEquals(RALLIER_WALK, groundSpeedAt(RALLIED_FOX_SPEED, RALLIER_WALK, LOCKED_IN), MATCHED);
+        }
+
+        @Test
+        void aMinionCatchingUpOutpacesItsRallier() {
+            assertTrue(groundSpeedAt(RALLIED_COW_SPEED, RALLIER_WALK, UNLOCKED) > RALLIER_WALK);
+            assertTrue(groundSpeedAt(RALLIED_FOX_SPEED, RALLIER_WALK, UNLOCKED) > RALLIER_WALK);
+        }
+
+        @Test
+        void aMinionCatchingUpToAStandingRallierStillMoves() {
+            assertTrue(RallyFollow.pace(0.0, RALLIED_COW_SPEED, UNLOCKED) > 0.0);
         }
     }
 

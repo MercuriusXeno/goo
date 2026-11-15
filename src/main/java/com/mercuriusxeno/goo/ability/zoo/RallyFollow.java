@@ -15,11 +15,14 @@ import java.util.function.ToLongFunction;
  * walks to its slot in the formation on the side its rallier heads toward and
  * holds there once the rallier stops, or with no spot walks to its rallier
  * from beyond the near distance and holds within it. The formation's slots
- * come from rally order, the count of minions and their widths alone.
+ * come from rally order, the count of minions and their widths alone. A
+ * minion far from its slot catches up faster than its rallier; one at its
+ * slot locks in and marches at the rallier's speed.
  * rallied-mobs-follow-the-player-who-rallied-them
  * unengaged-minions-move-where-you-move
  * each-rallied-mob-locks-into-a-fixed-slot
  * slots-follow-rally-order-size-and-count
+ * rallied-mobs-share-their-ralliers-speed
  */
 public final class RallyFollow {
 
@@ -35,8 +38,24 @@ public final class RallyFollow {
     static final double SHELL_ARC = 2.0 * Math.PI / 3.0;
     /** The share of each tick's step a smoothed velocity takes, so one stutter cannot swing the group. */
     static final double STEP_WEIGHT = 0.3;
-    /** How near its spot a minion stands before it holds there, in blocks. */
-    static final double ARRIVAL_DISTANCE = 0.5;
+    /** How near its slot a minion comes before it locks in and marches, in blocks. */
+    public static final double ARRIVAL_DISTANCE = 0.5;
+    /**
+     * How far from its slot a locked-in minion falls before it catches up
+     * again, in blocks: wider than the arrival, so it does not flicker between the two.
+     */
+    static final double RELEASE_DISTANCE = 1.0;
+    /** How many times its rallier's speed a minion catching up walks at. */
+    static final double CATCH_UP_SHARE = 1.5;
+    /** The least ground speed a minion catches up at, so it closes on a standing rallier, in blocks a tick. */
+    static final double CATCH_UP_FLOOR = 0.15;
+    /**
+     * The ground speed a walking mob reaches per square of its speed on a
+     * plain block: its input keeps 0.98 of its speed after each tick's decay,
+     * and the block's 0.6 friction under the 0.91 drag keeps 0.546 of its
+     * motion a tick, which a steady walk holds at one over the 0.454 lost.
+     */
+    static final double WALK_GAIN = 0.98 / (1.0 - 0.6 * 0.91);
     /** How much farther than its slot a standing rallier may stand from a held spot and still keep it, in blocks. */
     static final double SPOT_SLACK = 1.0;
     /** A step farther than this in one tick is a teleport, not travel, in blocks. */
@@ -48,11 +67,16 @@ public final class RallyFollow {
     enum Move {
         /** Chase and strike the foe in reach. */
         FIGHT,
-        /** Walk to the spot on the side the rallier heads toward, or headed toward before it stopped. */
-        PRE_EMPT,
+        /**
+         * Walk faster than the rallier to the slot on the side it heads
+         * toward, or headed toward before it stopped.
+         */
+        CATCH_UP,
+        /** Move with the rallier at its speed, locked into the slot. */
+        MARCH,
         /** Walk toward the standing rallier. */
         FOLLOW,
-        /** Stand where it is: at its spot, or near the standing rallier. */
+        /** Stand where it is, near the standing rallier. */
         HOLD
     }
 
@@ -85,14 +109,18 @@ public final class RallyFollow {
      * @param mobPosition     the mob's position
      * @param rallierPosition the rallier's position
      * @param spot            the spot the mob walks to on the side its rallier headed toward, from {@link #spot}
+     * @param lockedIn        whether the mob marched locked into its slot last tick
      * @return the move
      */
-    static Move choose(boolean foeInReach, Vec3 mobPosition, Vec3 rallierPosition, Optional<Vec3> spot) {
+    static Move choose(boolean foeInReach, Vec3 mobPosition, Vec3 rallierPosition, Optional<Vec3> spot,
+                       boolean lockedIn) {
         if (foeInReach) {
             return Move.FIGHT;
         }
         if (spot.isPresent()) {
-            return mobPosition.subtract(spot.get()).horizontalDistance() > ARRIVAL_DISTANCE ? Move.PRE_EMPT : Move.HOLD;
+            // each-rallied-mob-locks-into-a-fixed-slot: a locked-in minion holds the march out to the wider release
+            double lockReach = lockedIn ? RELEASE_DISTANCE : ARRIVAL_DISTANCE;
+            return mobPosition.subtract(spot.get()).horizontalDistance() > lockReach ? Move.CATCH_UP : Move.MARCH;
         }
         return mobPosition.distanceToSqr(rallierPosition) > NEAR_DISTANCE * NEAR_DISTANCE ? Move.FOLLOW : Move.HOLD;
     }
@@ -255,6 +283,38 @@ public final class RallyFollow {
             return Vec3.ZERO;
         }
         return smoothed.scale(1.0 - STEP_WEIGHT).add(step.scale(STEP_WEIGHT));
+    }
+
+    /**
+     * The pace that walks a minion at a given ground speed: the modifier on
+     * its movement speed, so a locked-in minion matches its rallier's speed
+     * and one catching up outruns it, closing even on a standing rallier.
+     * rallied-mobs-share-their-ralliers-speed
+     *
+     * @param rallierSpeed the rallier's smoothed horizontal speed, in blocks a tick
+     * @param ownSpeed     the minion's movement speed attribute value, its rally buff included
+     * @param lockedIn     whether the minion marches locked into its slot
+     * @return the speed modifier its walk takes
+     */
+    static double pace(double rallierSpeed, double ownSpeed, boolean lockedIn) {
+        if (ownSpeed <= 0.0) {
+            return 0.0;
+        }
+        double ground = lockedIn ? rallierSpeed : Math.max(rallierSpeed * CATCH_UP_SHARE, CATCH_UP_FLOOR);
+        return Math.sqrt(ground / WALK_GAIN) / ownSpeed;
+    }
+
+    /**
+     * The ground speed a mob walks at under its move control: its speed
+     * drives both its input and its friction-scaled push, so on a plain block
+     * the walk settles at the walk gain times the speed's square.
+     * rallied-mobs-share-their-ralliers-speed
+     *
+     * @param speed the mob's movement speed times its walk's modifier
+     * @return the ground speed, in blocks a tick
+     */
+    static double groundSpeed(double speed) {
+        return WALK_GAIN * speed * speed;
     }
 
     private static boolean isMoving(Vec3 velocity) {
