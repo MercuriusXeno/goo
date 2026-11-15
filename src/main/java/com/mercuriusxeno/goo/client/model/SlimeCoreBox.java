@@ -31,7 +31,7 @@ import java.util.Optional;
 public record SlimeCoreBox(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
 
     /** The layers of goo standing between the core and wherever the goo ends: the tuning a thicker shell turns. */
-    public static final int PADDING_LAYERS = 2;
+    public static final int PADDING_LAYERS = 1;
     /** A whole block, in fifteenths. */
     static final int WHOLE = VolumeCellBlock.MAX_LAYERS;
     /** The offset toward the west, the north or below: the low side of an axis. */

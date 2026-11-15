@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Covers the rule turning a cell and the cells of its goo around it into
- * its slime core's boxes, in fifteenths of a block: two layers of goo stand
+ * its slime core's boxes, in fifteenths of a block: one layer of goo stands
  * between the core and wherever the goo ends, and a core runs through that
  * padding to a neighbour whose core it would otherwise be parted from by
  * padding alone.
@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class SlimeCoreBoxTest {
 
     private static final int WHOLE = 15;
-    private static final int PADDING = 2;
+    private static final int PADDING = 1;
 
     private static SameGooCells cell(int layers) {
         return new SameGooCells().at(0, 0, 0, layers);
@@ -27,23 +27,23 @@ class SlimeCoreBoxTest {
     class LoneCell {
 
         @Test
-        void fourLayersHoldNoCore() {
-            assertEquals(Optional.empty(), SlimeCoreBox.of(4));
+        void twoLayersHoldNoCore() {
+            assertEquals(Optional.empty(), SlimeCoreBox.of(2));
         }
 
         @Test
-        void fiveLayersHoldACoreOneLayerThick() {
-            assertEquals(Optional.of(new SlimeCoreBox(2, 2, 2, 13, 3, 13)), SlimeCoreBox.of(5));
+        void threeLayersHoldACoreOneLayerThick() {
+            assertEquals(Optional.of(new SlimeCoreBox(1, 1, 1, 14, 2, 14)), SlimeCoreBox.of(3));
         }
 
         @Test
-        void eachLayerPastFiveAddsALayerToTheCore() {
-            assertEquals(Optional.of(new SlimeCoreBox(2, 2, 2, 13, 6, 13)), SlimeCoreBox.of(8));
+        void eachLayerPastThreeAddsALayerToTheCore() {
+            assertEquals(Optional.of(new SlimeCoreBox(1, 1, 1, 14, 7, 14)), SlimeCoreBox.of(8));
         }
 
         @Test
-        void aWholeBlockHoldsACoreTwoLayersInFromEveryFace() {
-            assertEquals(Optional.of(new SlimeCoreBox(2, 2, 2, 13, 13, 13)), SlimeCoreBox.of(15));
+        void aWholeBlockHoldsACoreOneLayerInFromEveryFace() {
+            assertEquals(Optional.of(new SlimeCoreBox(1, 1, 1, 14, 14, 14)), SlimeCoreBox.of(15));
         }
     }
 
@@ -56,20 +56,20 @@ class SlimeCoreBoxTest {
         @Test
         void aWholeBlockBesideAWholeBlockReachesTheSharedFaceOverItsWholeCore() {
             List<SlimeCoreBox> boxes = SlimeCoreBox.boxesOf(cell(15).at(1, 0, 0, 15));
-            assertEquals(List.of(new Span(2, 13)), eastReach(boxes));
+            assertEquals(List.of(new Span(1, 14)), eastReach(boxes));
         }
 
         @Test
         void aWholeBlockBesideEightLayersReachesTheFaceOverTheSharedHeightAndStandsClearAbove() {
             List<SlimeCoreBox> boxes = SlimeCoreBox.boxesOf(cell(15).at(1, 0, 0, 8));
-            assertEquals(List.of(new Span(2, 6)), eastReach(boxes));
-            assertTrue(boxes.stream().filter(box -> box.maxY() > 6).allMatch(box -> box.maxX() <= WHOLE - PADDING),
-                    "the core stands 2/15 clear of the face above the shared height");
+            assertEquals(List.of(new Span(1, 7)), eastReach(boxes));
+            assertTrue(boxes.stream().filter(box -> box.maxY() > 7).allMatch(box -> box.maxX() <= WHOLE - PADDING),
+                    "the core stands 1/15 clear of the face above the shared height");
         }
 
         @Test
-        void aCoreBesideFourLayersStandsClearAtEveryHeight() {
-            assertStandsClearEast(SlimeCoreBox.boxesOf(cell(15).at(1, 0, 0, 4)));
+        void aCoreBesideTwoLayersStandsClearAtEveryHeight() {
+            assertStandsClearEast(SlimeCoreBox.boxesOf(cell(15).at(1, 0, 0, 2)));
         }
 
         @Test
@@ -90,7 +90,7 @@ class SlimeCoreBoxTest {
         void theCornerFillsWhereBothSidesAndTheDiagonalHoldCores() {
             List<SlimeCoreBox> boxes = SlimeCoreBox.boxesOf(cell(15).at(1, 0, 0, 15).at(0, 0, -1, 15)
                     .at(1, 0, -1, 15));
-            assertTrue(boxes.contains(new SlimeCoreBox(13, 2, 0, 15, 13, 2)));
+            assertTrue(boxes.contains(new SlimeCoreBox(14, 1, 0, 15, 14, 1)));
         }
 
         @Test
@@ -113,19 +113,14 @@ class SlimeCoreBoxTest {
         }
 
         @Test
-        void oneLayerAboveLeavesOneLayerOfPaddingUnderTheLowerTop() {
-            assertEquals(Optional.of(new Span(2, 14)), ownSpan(cell(15).at(0, 1, 0, 1)));
+        void oneLayerAboveLeavesNoPaddingUnderTheLowerTop() {
+            assertEquals(Optional.of(new Span(1, 15)), ownSpan(cell(15).at(0, 1, 0, 1)));
             assertEquals(Optional.empty(), ownSpan(cell(1).at(0, -1, 0, 15)), "the upper cell draws none");
         }
 
         @Test
-        void twoLayersAboveLeaveNoPaddingUnderTheLowerTop() {
-            assertEquals(Optional.of(new Span(2, 15)), ownSpan(cell(15).at(0, 1, 0, 2)));
-        }
-
-        @Test
-        void threeLayersOnAFullCellShowACoreFromTheirFloor() {
-            assertEquals(Optional.of(new Span(0, 1)), ownSpan(cell(3).at(0, -1, 0, 15)));
+        void twoLayersOnAFullCellShowACoreFromTheirFloor() {
+            assertEquals(Optional.of(new Span(0, 1)), ownSpan(cell(2).at(0, -1, 0, 15)));
         }
 
         @Test
@@ -135,13 +130,13 @@ class SlimeCoreBoxTest {
 
         @Test
         void aCellOnABlockOfAnotherKindKeepsItsPaddingBelow() {
-            assertEquals(Optional.of(new Span(2, 13)), ownSpan(cell(15)));
+            assertEquals(Optional.of(new Span(1, 14)), ownSpan(cell(15)));
         }
 
         @Test
         void theMiddleOfAStackJoinsALoneEightLayerCellOverItsCore() {
             SameGooCells around = cell(15).at(0, -1, 0, 15).at(0, 1, 0, 15).at(1, 0, 0, 8);
-            assertEquals(List.of(new Span(2, 6)), eastReach(SlimeCoreBox.boxesOf(around)));
+            assertEquals(List.of(new Span(1, 7)), eastReach(SlimeCoreBox.boxesOf(around)));
         }
 
         @Test
@@ -168,6 +163,6 @@ class SlimeCoreBoxTest {
 
     private static void assertStandsClearEast(List<SlimeCoreBox> boxes) {
         assertTrue(boxes.stream().allMatch(box -> box.maxX() <= WHOLE - PADDING),
-                "the core stands 2/15 clear of the east face");
+                "the core stands 1/15 clear of the east face");
     }
 }
