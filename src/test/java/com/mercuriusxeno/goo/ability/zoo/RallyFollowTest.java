@@ -4,16 +4,21 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Covers what a rallied mob does each tick: fights a foe in reach; with none,
- * walks to the spot on the side its rallier heads toward and holds there once
- * the rallier stops, or walks to a rallier it holds no spot for from beyond
- * the near distance and holds within it.
+ * walks to its slot in the formation on the side its rallier heads toward and
+ * holds there once the rallier stops, or walks to a rallier it holds no spot
+ * for from beyond the near distance and holds within it; and the formation's
+ * slots, set by rally order, count and width.
  */
 class RallyFollowTest {
 
@@ -25,14 +30,22 @@ class RallyFollowTest {
     private static final Vec3 BACKING_SOUTH = new Vec3(0.0, 0.0, WALK);
     private static final Vec3 STEPPING_WEST = new Vec3(-WALK, 0.0, 0.0);
     private static final Vec3 STANDING = Vec3.ZERO;
-    private static final int SPREAD_SEEDS = 12;
-    /** Two minions' spots closer than this would stack them on one block. */
-    private static final double APART = 0.75;
-    /** A spot three blocks behind a rallier that backed up south and stopped. */
-    private static final Vec3 HELD_SPOT = RALLIER.add(0.0, 0.0, RallyFollow.LEAD_DISTANCE);
+    private static final double CHICKEN = 0.4;
+    private static final double COW = 0.9;
+    private static final double HORSE = 1.3965;
+    private static final List<Double> ONE_COW = List.of(COW);
+    private static final List<Double> FOUR_COWS = List.of(COW, COW, COW, COW);
+    private static final RallyFollow.Slot LONE_COW_SLOT = RallyFollow.formation(ONE_COW).getFirst();
+    /** A spot straight behind a rallier that backed up south and stopped, where a lone cow's slot stands. */
+    private static final Vec3 HELD_SPOT = RALLIER.add(0.0, 0.0, LONE_COW_SLOT.distance());
+    private static final double SAME = 1e-9;
 
     private static Optional<Vec3> movingSpot(Vec3 velocity) {
-        return RallyFollow.spot(Optional.empty(), RALLIER, velocity, 0);
+        return RallyFollow.spot(Optional.empty(), RALLIER, velocity, LONE_COW_SLOT);
+    }
+
+    private static List<Double> cows(int count) {
+        return Collections.nCopies(count, COW);
     }
 
     @Nested
@@ -51,7 +64,7 @@ class RallyFollowTest {
         @Test
         void mobBesideARallierBelowTheStandingSpeedHolds() {
             Vec3 drift = new Vec3(RallyFollow.STANDING_SPEED / 2, 0.0, 0.0);
-            Optional<Vec3> spot = RallyFollow.spot(Optional.empty(), RALLIER, drift, 0);
+            Optional<Vec3> spot = RallyFollow.spot(Optional.empty(), RALLIER, drift, LONE_COW_SLOT);
             assertEquals(RallyFollow.Move.HOLD, RallyFollow.choose(false, WITHIN, RALLIER, spot));
         }
 
@@ -79,58 +92,170 @@ class RallyFollowTest {
 
         @Test
         void mobShortOfItsHeldSpotKeepsWalkingThereOnceItsRallierStops() {
-            Optional<Vec3> spot = RallyFollow.spot(Optional.of(HELD_SPOT), RALLIER, STANDING, 0);
+            Optional<Vec3> spot = RallyFollow.spot(Optional.of(HELD_SPOT), RALLIER, STANDING, LONE_COW_SLOT);
             assertEquals(RallyFollow.Move.PRE_EMPT, RallyFollow.choose(false, RALLIER, RALLIER, spot));
         }
 
         @Test
         void mobAtItsHeldSpotHoldsThere() {
-            Optional<Vec3> spot = RallyFollow.spot(Optional.of(HELD_SPOT), RALLIER, STANDING, 0);
+            Optional<Vec3> spot = RallyFollow.spot(Optional.of(HELD_SPOT), RALLIER, STANDING, LONE_COW_SLOT);
             Vec3 arrived = HELD_SPOT.add(RallyFollow.ARRIVAL_DISTANCE / 2, 0.0, 0.0);
             assertEquals(RallyFollow.Move.HOLD, RallyFollow.choose(false, arrived, RALLIER, spot));
         }
     }
 
+    /** slots-follow-rally-order-size-and-count */
+    @Nested
+    class Formation {
+
+        @Test
+        void theSameIndexCountAndWidthsAnswerTheSameSlot() {
+            List<Double> widths = List.of(COW, HORSE, CHICKEN, COW, COW);
+            for (int index = 0; index < widths.size(); index++) {
+                assertEquals(RallyFollow.formation(widths).get(index),
+                        RallyFollow.formation(new ArrayList<>(widths)).get(index), "slot " + index + " moved");
+            }
+        }
+
+        @Test
+        void aFormationAnswersOneSlotPerMinion() {
+            assertEquals(12, RallyFollow.formation(cows(12)).size());
+        }
+
+        @Test
+        void smallMobsStandAtLeastTheirHalfWidthsApart() {
+            assertEveryPairApart(Collections.nCopies(12, CHICKEN));
+        }
+
+        @Test
+        void narrowAndWideMobsStandAtLeastTheirHalfWidthsApart() {
+            assertEveryPairApart(List.of(CHICKEN, HORSE, CHICKEN, HORSE, COW, CHICKEN, HORSE, HORSE, CHICKEN, COW));
+        }
+
+        @Test
+        void theLastSlotOfALargerFormationStandsFartherOut() {
+            double small = RallyFollow.formation(cows(3)).getLast().distance();
+            double large = RallyFollow.formation(cows(12)).getLast().distance();
+            assertTrue(large > small, "twelve cows' last slot stands at " + large + ", three cows' at " + small);
+        }
+
+        @Test
+        void aSlotBesideAWiderMobStandsFartherOut() {
+            double narrow = RallyFollow.formation(List.of(COW, COW, COW)).getFirst().distance();
+            double wide = RallyFollow.formation(List.of(COW, HORSE, COW)).getFirst().distance();
+            assertTrue(wide > narrow, "beside a horse the slot stands at " + wide + ", beside a cow at " + narrow);
+        }
+
+        private void assertEveryPairApart(List<Double> widths) {
+            List<RallyFollow.Slot> slots = RallyFollow.formation(widths);
+            for (int one = 0; one < slots.size(); one++) {
+                for (int other = one + 1; other < slots.size(); other++) {
+                    double apart = Math.hypot(slots.get(one).ahead() - slots.get(other).ahead(),
+                            slots.get(one).aside() - slots.get(other).aside());
+                    double needed = (widths.get(one) + widths.get(other)) / 2;
+                    assertTrue(apart >= needed,
+                            "slots " + one + " and " + other + " stand " + apart + " apart, need " + needed);
+                }
+            }
+        }
+    }
+
+    /** slots-follow-rally-order-size-and-count */
+    @Nested
+    class RallyOrder {
+
+        private static final UUID LOW = new UUID(0L, 1L);
+        private static final UUID MIDDLE = new UUID(0L, 2L);
+        private static final UUID HIGH = new UUID(0L, 3L);
+
+        private record Minion(long rallyOrder, UUID uuid) {
+        }
+
+        private List<Minion> ordered(List<Minion> minions) {
+            return RallyFollow.inRallyOrder(minions, Minion::rallyOrder, Minion::uuid);
+        }
+
+        @Test
+        void theEarliestRallyTakesIndexZeroAndLaterOnesRise() {
+            Minion first = new Minion(100L, HIGH);
+            Minion second = new Minion(200L, LOW);
+            Minion third = new Minion(300L, MIDDLE);
+            List<Minion> ordered = ordered(List.of(third, first, second));
+            assertEquals(0, ordered.indexOf(first));
+            assertEquals(1, ordered.indexOf(second));
+            assertEquals(2, ordered.indexOf(third));
+        }
+
+        @Test
+        void anEqualStampBreaksByUuidOnEveryCall() {
+            Minion low = new Minion(100L, LOW);
+            Minion high = new Minion(100L, HIGH);
+            assertEquals(List.of(low, high), ordered(List.of(high, low)));
+            assertEquals(List.of(low, high), ordered(List.of(low, high)));
+        }
+
+        @Test
+        void aMinionLeavingMovesEveryLaterMinionUpOne() {
+            Minion first = new Minion(100L, LOW);
+            Minion second = new Minion(200L, MIDDLE);
+            Minion third = new Minion(300L, HIGH);
+            List<Minion> all = ordered(List.of(first, second, third));
+            List<Minion> afterTheFirstLeaves = ordered(List.of(third, second));
+            assertEquals(all.indexOf(second) - 1, afterTheFirstLeaves.indexOf(second));
+            assertEquals(all.indexOf(third) - 1, afterTheFirstLeaves.indexOf(third));
+        }
+    }
+
+    /** each-rallied-mob-locks-into-a-fixed-slot */
     @Nested
     class Destination {
 
         @Test
         void rallierFacingNorthAndBackingSouthPutsEveryMinionSouthOfIt() {
             // the destination reads travel alone, so a rallier facing north while it backs up heads south
-            for (int seed = 0; seed < SPREAD_SEEDS; seed++) {
-                Vec3 spot = RallyFollow.destination(RALLIER, BACKING_SOUTH, seed).orElseThrow();
-                assertTrue(spot.z > RALLIER.z + 1.0, "seed " + seed + " lands at " + spot);
+            for (RallyFollow.Slot slot : RallyFollow.formation(FOUR_COWS)) {
+                Vec3 spot = RallyFollow.destination(RALLIER, BACKING_SOUTH, slot).orElseThrow();
+                assertTrue(spot.z > RALLIER.z + 1.0, slot + " lands at " + spot);
             }
         }
 
         @Test
         void rallierSteppingWestPutsEveryMinionWestOfIt() {
-            for (int seed = 0; seed < SPREAD_SEEDS; seed++) {
-                Vec3 spot = RallyFollow.destination(RALLIER, STEPPING_WEST, seed).orElseThrow();
-                assertTrue(spot.x < RALLIER.x - 1.0, "seed " + seed + " lands at " + spot);
+            for (RallyFollow.Slot slot : RallyFollow.formation(FOUR_COWS)) {
+                Vec3 spot = RallyFollow.destination(RALLIER, STEPPING_WEST, slot).orElseThrow();
+                assertTrue(spot.x < RALLIER.x - 1.0, slot + " lands at " + spot);
             }
+        }
+
+        @Test
+        void aMinionHoldsItsSlotRelativeToTravelWhenTheRallierTurns() {
+            for (RallyFollow.Slot slot : RallyFollow.formation(FOUR_COWS)) {
+                Vec3 south = RallyFollow.destination(RALLIER, BACKING_SOUTH, slot).orElseThrow().subtract(RALLIER);
+                Vec3 west = RallyFollow.destination(RALLIER, STEPPING_WEST, slot).orElseThrow().subtract(RALLIER);
+                // the quarter turn taking south travel (0, 1) to west travel (-1, 0) takes (x, z) to (-z, x)
+                assertEquals(-south.z, west.x, SAME, slot + " moved off its place under westward travel");
+                assertEquals(south.x, west.z, SAME, slot + " moved off its place under westward travel");
+            }
+        }
+
+        @Test
+        void neighbouringSlotsStandOnEitherSideOfTheTravelLine() {
+            List<RallyFollow.Slot> slots = RallyFollow.formation(List.of(COW, COW));
+            Vec3 first = RallyFollow.destination(RALLIER, BACKING_SOUTH, slots.get(0)).orElseThrow();
+            Vec3 second = RallyFollow.destination(RALLIER, BACKING_SOUTH, slots.get(1)).orElseThrow();
+            assertTrue((first.x - RALLIER.x) * (second.x - RALLIER.x) < 0.0,
+                    "two cows' slots " + first + " and " + second + " stand on one side of the travel line");
         }
 
         @Test
         void rallierBelowTheStandingSpeedGivesNoOffsetDestination() {
             Vec3 drift = new Vec3(0.0, 0.0, RallyFollow.STANDING_SPEED / 2);
-            assertEquals(Optional.empty(), RallyFollow.destination(RALLIER, drift, 0));
+            assertEquals(Optional.empty(), RallyFollow.destination(RALLIER, drift, LONE_COW_SLOT));
         }
 
         @Test
         void rallierFallingStraightDownGivesNoOffsetDestination() {
-            assertEquals(Optional.empty(), RallyFollow.destination(RALLIER, new Vec3(0.0, -1.0, 0.0), 0));
-        }
-
-        @Test
-        void minionsSpreadAroundTheDestinationRatherThanStack() {
-            for (int one = 0; one < RallyFollow.SPREAD_ROUND; one++) {
-                for (int other = one + 1; other < RallyFollow.SPREAD_ROUND; other++) {
-                    Vec3 first = RallyFollow.destination(RALLIER, BACKING_SOUTH, one).orElseThrow();
-                    Vec3 second = RallyFollow.destination(RALLIER, BACKING_SOUTH, other).orElseThrow();
-                    assertTrue(first.distanceTo(second) > APART, "seeds " + one + " and " + other + " stack");
-                }
-            }
+            assertEquals(Optional.empty(), RallyFollow.destination(RALLIER, new Vec3(0.0, -1.0, 0.0), LONE_COW_SLOT));
         }
     }
 
@@ -139,19 +264,28 @@ class RallyFollowTest {
 
         @Test
         void standingRallierKeepsTheHeldSpotNearIt() {
-            assertEquals(Optional.of(HELD_SPOT), RallyFollow.spot(Optional.of(HELD_SPOT), RALLIER, STANDING, 0));
+            assertEquals(Optional.of(HELD_SPOT),
+                    RallyFollow.spot(Optional.of(HELD_SPOT), RALLIER, STANDING, LONE_COW_SLOT));
+        }
+
+        @Test
+        void standingRallierKeepsAnOuterSlotsHeldSpot() {
+            RallyFollow.Slot outer = RallyFollow.formation(cows(12)).getLast();
+            Vec3 held = RallyFollow.destination(RALLIER, BACKING_SOUTH, outer).orElseThrow();
+            assertEquals(Optional.of(held), RallyFollow.spot(Optional.of(held), RALLIER, STANDING, outer));
         }
 
         @Test
         void movingRallierReplacesTheHeldSpotWithAFreshOne() {
-            Optional<Vec3> spot = RallyFollow.spot(Optional.of(HELD_SPOT), RALLIER, STEPPING_WEST, 0);
+            Optional<Vec3> spot = RallyFollow.spot(Optional.of(HELD_SPOT), RALLIER, STEPPING_WEST, LONE_COW_SLOT);
             assertTrue(spot.orElseThrow().x < RALLIER.x - 1.0, "the spot stayed behind at " + spot);
         }
 
         @Test
         void rallierFarFromItsHeldSpotDropsIt() {
             Vec3 teleported = RALLIER.add(50.0, 0.0, 0.0);
-            assertEquals(Optional.empty(), RallyFollow.spot(Optional.of(HELD_SPOT), teleported, STANDING, 0));
+            assertEquals(Optional.empty(),
+                    RallyFollow.spot(Optional.of(HELD_SPOT), teleported, STANDING, LONE_COW_SLOT));
         }
     }
 
