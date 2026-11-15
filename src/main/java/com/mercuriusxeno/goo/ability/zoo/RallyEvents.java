@@ -36,8 +36,8 @@ import java.util.WeakHashMap;
  * on it again: it walks to the caster's nearest enemy within reach of the
  * caster, a player who attacked the caster first, and strikes it with the
  * rally's damage on reaching it and every strike interval after; with no enemy
- * in reach it takes the side its moving caster heads toward, or follows a
- * standing caster. It wears its share of the caster's armor, read again every
+ * in reach it takes its slot in the caster's formation on the side its moving
+ * caster heads toward, or follows a standing caster. It wears its share of the caster's armor, read again every
  * refresh interval. The caster's own hit or the caster's second Rally cast,
  * both dealing no damage, ends the rally and takes its buffs off; a hit or a
  * cast from anyone else leaves it. It takes no charmed or rallied mob as its
@@ -51,6 +51,8 @@ import java.util.WeakHashMap;
  * rallied-mobs-turn-on-a-player-who-attacks-their-rallier
  * rally-minions-get-half-your-armor-and-a-floor
  * rally-cast-on-your-rallied-mob-releases-it
+ * each-rallied-mob-locks-into-a-fixed-slot
+ * slots-follow-rally-order-size-and-count
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class RallyEvents {
@@ -75,6 +77,8 @@ public final class RallyEvents {
     private static final double FOLLOW_SPEED = 1.0;
     /** Ticks between one path to a moving rallier and the next. */
     private static final int REPATH_TICKS = 10;
+    /** How near its spot a minion whose path has ended walks straight at it, a path's own reach and a half block. */
+    private static final double LAST_STRETCH = 1.5;
     /** Each unengaged minion's spot from last tick, held weakly so a mob gone from the world drops out. */
     private static final Map<Mob, Vec3> HELD_SPOTS = new WeakHashMap<>();
 
@@ -177,10 +181,7 @@ public final class RallyEvents {
         List<RallyFoes.Candidate<LivingEntity>> nearby = candidatesNear(mob, caster);
         Optional<LivingEntity> foe = RallyFoes.pick(caster.getUUID(), standingAttacker(mob, rally, nearby),
                 uuidOf(caster.getLastHurtByMob()), uuidOf(caster.getLastHurtMob()), nearby);
-        Vec3 rallierVelocity = RallierMotion.velocityOf(caster, level.getGameTime());
-        Optional<Vec3> spot = foe.isPresent() ? Optional.empty()
-                : RallyFollow.spot(Optional.ofNullable(HELD_SPOTS.get(mob)), caster.position(), rallierVelocity,
-                        mob.getId());
+        Optional<Vec3> spot = foe.isPresent() ? Optional.empty() : spotInFormation(level, mob, caster);
         spot.ifPresentOrElse(taken -> HELD_SPOTS.put(mob, taken), () -> HELD_SPOTS.remove(mob));
         switch (RallyFollow.choose(foe.isPresent(), mob.position(), caster.position(), spot)) {
             case FIGHT -> fight(level, mob, foe.orElseThrow(), rally.damage());
@@ -188,6 +189,26 @@ public final class RallyEvents {
             case FOLLOW -> follow(mob, caster);
             case HOLD -> mob.getNavigation().stop();
         }
+    }
+
+    /**
+     * The spot an unengaged minion walks to: its slot in its rallier's
+     * formation, on the side the rallier heads toward, or the spot it held
+     * once the rallier stops.
+     * each-rallied-mob-locks-into-a-fixed-slot
+     * slots-follow-rally-order-size-and-count
+     *
+     * @param level  the mob's level
+     * @param mob    the rallied mob
+     * @param caster the entity that rallied it
+     * @return the spot, or empty for none
+     */
+    private static Optional<Vec3> spotInFormation(ServerLevel level, Mob mob, LivingEntity caster) {
+        long gameTime = level.getGameTime();
+        Vec3 rallierVelocity = RallierMotion.velocityOf(caster, gameTime);
+        return RallierFormation.slotOf(caster, mob, () -> ralliedBy(caster), gameTime)
+                .flatMap(slot -> RallyFollow.spot(Optional.ofNullable(HELD_SPOTS.get(mob)), caster.position(),
+                        rallierVelocity, slot));
     }
 
     /**
@@ -266,6 +287,12 @@ public final class RallyEvents {
      * @param spot the spot it walks to
      */
     private static void walkTo(Mob mob, Vec3 spot) {
+        // each-rallied-mob-locks-into-a-fixed-slot: a path ends within a block of its target, so a minion whose
+        // path ended near its slot walks the last stretch straight at it
+        if (mob.getNavigation().isDone() && mob.position().subtract(spot).horizontalDistance() <= LAST_STRETCH) {
+            mob.getMoveControl().setWantedPosition(spot.x, mob.getY(), spot.z, FOLLOW_SPEED);
+            return;
+        }
         if (mob.getNavigation().isDone() || mob.tickCount % REPATH_TICKS == 0) {
             mob.getNavigation().moveTo(spot.x, spot.y, spot.z, FOLLOW_SPEED);
         }
@@ -286,15 +313,18 @@ public final class RallyEvents {
     }
 
     /**
-     * Every loaded mob a player rallied.
+     * Every loaded mob a rallier rallied.
      *
-     * @param player the rallier
-     * @return the mobs whose rally names the player as caster
+     * @param rallier the rallier
+     * @return the mobs whose rally names the rallier as caster
      */
-    private static List<Mob> ralliedBy(ServerPlayer player) {
-        UUID holder = player.getUUID();
+    private static List<Mob> ralliedBy(LivingEntity rallier) {
+        UUID holder = rallier.getUUID();
         List<Mob> rallied = new ArrayList<>();
-        for (Entity entity : player.level().getAllEntities()) {
+        if (!(rallier.level() instanceof ServerLevel level)) {
+            return rallied;
+        }
+        for (Entity entity : level.getAllEntities()) {
             if (entity instanceof Mob mob && mob.hasData(GooAttachments.RALLIED)
                     && mob.getData(GooAttachments.RALLIED).caster().equals(holder)) {
                 rallied.add(mob);

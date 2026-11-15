@@ -84,8 +84,10 @@ public record RallyStep(Expr damage, Expr health, Expr speed, Expr armorShare, E
         // rally-remembers-the-first-rallier: a second caster's rally keeps the first rallier
         UUID rallier = Rallied.rallierAfter(standing, caster.getUUID());
         RallyArmor armor = new RallyArmor(armorShare.evaluateFloat(context), armorFloor.evaluateFloat(context));
+        // slots-follow-rally-order-size-and-count: the first rally's game time sets the mob's slot
         mob.setData(GooAttachments.RALLIED, new Rallied(rallier, damage.evaluateFloat(context),
-                Rallied.attackerAfter(standing), armor));
+                Rallied.attackerAfter(standing), armor,
+                Rallied.rallyOrderAfter(standing, mob.level().getGameTime())));
         if (standing == null) {
             // a second rally leaves the buff it already holds, healing the mob no further
             buffFreshRally(context, mob, caster, armor);
