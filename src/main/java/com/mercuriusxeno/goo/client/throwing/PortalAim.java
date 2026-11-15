@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.ArmPose;
 import com.mercuriusxeno.goo.ability.program.PortalStep;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
 import com.mercuriusxeno.goo.client.ability.ClientPortals;
@@ -31,6 +32,9 @@ public final class PortalAim {
 
     /** The sneak held through a link, which stops counting until let go. */
     private static final SneakLatch LATCH = new SneakLatch();
+
+    /** The route the last Portal press sent, which its release swings by. */
+    private static Press lastSent = new Place();
 
     private PortalAim() {
     }
@@ -91,6 +95,30 @@ public final class PortalAim {
     }
 
     /**
+     * Whether a sent Portal press swings the glove hand on release: only a
+     * Place, which throws a blob, and only by a pose that swings; a Choose, a
+     * Link or a Cancel throws no blob.
+     * decision diagnose-and-correct-hand-swings-outside-throws
+     *
+     * @param press the route the press sent
+     * @param pose  the selected ability's arm pose
+     * @return true where the press swings
+     */
+    public static boolean swingsOnRelease(Press press, ArmPose pose) {
+        return press instanceof Place && pose.swingsOnRelease();
+    }
+
+    /**
+     * Whether the last Portal press sent swings the glove hand on release.
+     *
+     * @param pose the selected ability's arm pose
+     * @return true where that press swings
+     */
+    public static boolean lastSentSwings(ArmPose pose) {
+        return swingsOnRelease(lastSent, pose);
+    }
+
+    /**
      * Sends what a press with Portal in hand does among the player's portals.
      *
      * @param player the local player
@@ -98,6 +126,7 @@ public final class PortalAim {
      */
     public static boolean press(Player player) {
         Press press = pressed(ClientPortals.choosing(), sneaks(player), faced(player));
+        lastSent = press;
         CustomPacketPayload payload = switch (press) {
             case Choose choose -> new PortalChoosePayload(Optional.of(choose.portal()));
             case Link link -> {
