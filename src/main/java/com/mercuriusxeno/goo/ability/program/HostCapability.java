@@ -115,6 +115,11 @@ public enum HostCapability {
      */
     ZONE(ZoneHost.class),
     /**
+     * A player Astral's gate can fix on the moon or the blue overworld star
+     * (decision gate-fixates-your-view-on-the-moon-until-it-takes-you).
+     */
+    ASTRAL_GATE(AstralGateHost.class),
+    /**
      * A landing a meteor can be called down toward (decision
      * meteo-crashes-through-whatever-is-above).
      */
