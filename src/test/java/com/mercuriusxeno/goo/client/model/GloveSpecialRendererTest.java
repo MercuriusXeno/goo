@@ -18,15 +18,18 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Axis;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.geometry.QuadCollection;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -335,6 +338,98 @@ class GloveSpecialRendererTest {
                 along = Math.max(along, Math.abs(lookAxis.rotate(facing).dot(axis)));
             }
             assertEquals(1f, along, 1e-4f, "the blob's axis " + axis + " should lie along one of the look's axes");
+        }
+    }
+
+    /**
+     * Vanilla's swing tips the glove's model down; the blob floating off the
+     * palm takes that turn back out, while the blob resting on the palm turns
+     * with the hand as it always has, and with no swing the floating blob
+     * draws as it did before (decision blob-holds-its-angle-through-a-throws-swing).
+     */
+    @Nested
+    class TheFloatingBlobHoldsItsAngleThroughASwing {
+
+        /** The hand's pose before the swing: placed before the eye and turned with the view. */
+        private static final Matrix4f BEFORE_THE_SWING = new Matrix4f().translation(0.56f, -0.52f, -0.72f)
+                .rotateXYZ(0.3f, -0.6f, 0.1f);
+        /** The glove's display transform and model below the swing. */
+        private static final Matrix4f BELOW_THE_SWING = new Matrix4f().rotateXYZ(0.2f, 1.1f, -0.4f)
+                .translate(-0.5f, -0.5f, -0.5f).scale(0.6f);
+        /** Halfway through the swing, where it tips the hand furthest down. */
+        private static final float MID_SWING = 0.25f;
+        private static final double SAME_TURN_DEGREES = 1e-2;
+
+        @AfterEach
+        void forgetTheSwing() {
+            FirstPersonSwing.forgetSwing();
+        }
+
+        @Test
+        void theBlobStandingFullyOffThePalmDrawsAtTheSameTurnSwungOrNot() {
+            Matrix4f unswung = new Matrix4f(BEFORE_THE_SWING).mul(BELOW_THE_SWING);
+            Matrix4f swung = new Matrix4f(BEFORE_THE_SWING).mul(vanillaSwing(MID_SWING)).mul(BELOW_THE_SWING);
+            LiftedPalmBlob.HandLift lift = new LiftedPalmBlob.HandLift(1f, new Vec3(0.2, 0.1, -1.2),
+                    PalmBlobHop.pressed(), 0f, null);
+
+            Quaternionf drawnSwung = turnOf(swung).mul(GloveSpecialRenderer.liftedTurn(swung, unswung, lift));
+            Quaternionf drawnUnswung = turnOf(unswung).mul(GloveSpecialRenderer.liftedTurn(unswung, unswung, lift));
+
+            assertEquals(0, degreesBetween(drawnSwung, drawnUnswung), SAME_TURN_DEGREES,
+                    "the floating blob should hold its angle in the hand pass while the swing tips the glove");
+        }
+
+        @Test
+        void theRestingBlobStandsOnThePalmInTheGlovesModelWhileASwingPlays() {
+            FirstPersonSwing.recordSwing(BEFORE_THE_SWING, new Matrix4f(BEFORE_THE_SWING).mul(vanillaSwing(MID_SWING)));
+            Quaternionf handTurn = new Quaternionf().rotationXYZ(1.2f, 0.4f, -0.3f);
+            try (SprayingClient client = SprayingClient.local(GooTypes.ZOO);
+                 MockedStatic<GloveBodyModels> models = bodiless()) {
+                client.at(SPRAYED);
+
+                Quaternionf drawn = coreTurnDrawnAt(new GloveSpecialRenderer.GloveData(null, GooTypes.ZOO, 0f, 1f,
+                        false, true), handTurn);
+
+                assertEquals(0, degreesBetween(drawn, new Quaternionf(handTurn).mul(
+                        GloveSpecialRenderer.STANDING_ON_THE_PALM)), SAME_TURN_DEGREES,
+                        "the resting blob should stand on the palm and turn with the swung hand");
+            }
+        }
+
+        @Test
+        void withNoSwingTheBlobLiftedFacingNothingStandsOnThePalm() {
+            Matrix4f glove = new Matrix4f(BEFORE_THE_SWING).mul(BELOW_THE_SWING);
+            LiftedPalmBlob.HandLift lift = new LiftedPalmBlob.HandLift(1f, new Vec3(0.2, 0.1, -1.2),
+                    PalmBlobHop.pressed(), 0f, null);
+
+            assertEquals(0, degreesBetween(GloveSpecialRenderer.liftedTurn(glove, glove, lift),
+                    new Quaternionf(GloveSpecialRenderer.STANDING_ON_THE_PALM)), SAME_TURN_DEGREES,
+                    "with no swing the lifted blob should stand on the palm, turned with the glove");
+        }
+
+        /** The turn ItemInHandRenderer.applyItemArmAttackTransform lays on a right hand an attack value in. */
+        private static Matrix4f vanillaSwing(float attack) {
+            PoseStack swing = new PoseStack();
+            float ySwing = Mth.sin(attack * attack * Mth.PI);
+            swing.mulPose(Axis.YP.rotationDegrees(45f + ySwing * -20f));
+            float xzSwing = Mth.sin(Mth.sqrt(attack) * Mth.PI);
+            swing.mulPose(Axis.ZP.rotationDegrees(xzSwing * -20f));
+            swing.mulPose(Axis.XP.rotationDegrees(xzSwing * -80f));
+            swing.mulPose(Axis.YP.rotationDegrees(-45f));
+            return new Matrix4f(swing.last().pose());
+        }
+
+        private static Quaternionf turnOf(Matrix4f matrix) {
+            return matrix.getUnnormalizedRotation(new Quaternionf());
+        }
+
+        /** The least angle between two turns, read off their difference's axis and its cosine half alike. */
+        private static double degreesBetween(Quaternionf a, Quaternionf b) {
+            Quaternionf difference = new Quaternionf(a).normalize().difference(new Quaternionf(b).normalize(),
+                    new Quaternionf());
+            double axis = Math.sqrt((double) difference.x() * difference.x() + (double) difference.y() * difference.y()
+                    + (double) difference.z() * difference.z());
+            return Math.toDegrees(2 * Math.atan2(axis, Math.abs(difference.w())));
         }
     }
 
