@@ -150,6 +150,40 @@ class KnifeRainTest {
         }
     }
 
+    // knives-leave-the-blob-at-a-snowballs-speed
+    @Test
+    void knivesLeaveTheBlobAtASnowballsSpeed() {
+        List<Vec3> velocities = KnifeRain.scatteredVelocities(SOUTH, 0f, 400, 50, RandomSource.create(13L));
+
+        for (Vec3 velocity : velocities) {
+            double speed = velocity.length();
+            assertTrue(speed >= 1.2 - TOLERANCE && speed <= 1.8 + TOLERANCE,
+                    "every knife leaves at 1.2 to 1.8 blocks a tick, left at " + speed);
+        }
+        double meanSpeed = velocities.stream().mapToDouble(Vec3::length).average().orElseThrow();
+        assertEquals(1.5, meanSpeed, 0.1, "the knives leave at a snowball's speed on average");
+    }
+
+    // knives-leave-the-blob-at-a-snowballs-speed
+    @Test
+    void aLevelThrowCarriesPastEighteenBlocks() {
+        Vec3 hand = new Vec3(0, 1.32, 0);
+        Vec3 velocity = Vec3.directionFromRotation(-KnifeRain.LIFT_DEGREES, SOUTH).scale(KnifeRain.SPEED);
+
+        double landing = Double.NaN;
+        Vec3 before = hand;
+        for (int tick = 1; tick <= KnifeRain.MOST_FLIGHT_TICKS; tick++) {
+            Vec3 after = KnifeRain.positionAt(hand, velocity, tick);
+            if (after.y <= 0) {
+                double share = before.y / (before.y - after.y);
+                landing = before.z + (after.z - before.z) * share;
+                break;
+            }
+            before = after;
+        }
+        assertTrue(landing >= 18, "a level throw from the hand carries 18 blocks or farther, landed at " + landing);
+    }
+
     @Test
     void aKnifeArcsDownUnderGravity() {
         Vec3 start = new Vec3(0, 10, 0);
