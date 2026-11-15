@@ -28,16 +28,24 @@ public final class ChargeMotes {
     static final int UNSTABLE_GREEN = 0x39FF14;
     /** Motes the shell draws in each tick. */
     static final int SHELL_MOTES_PER_TICK = 2;
-    /** Motes the palm blob draws in each tick. */
-    static final int BLOB_MOTES_PER_TICK = 1;
+    /** The ticks between the palm blob's motes: one every other tick, so they read as wisps, not noise. */
+    static final int BLOB_MOTE_EVERY_TICKS = 2;
     /** The ticks a mote takes from fading in to being absorbed. */
     static final int LIFE_TICKS = 16;
     /** How far outside the shell a shell mote fades in, in blocks. */
     static final double SHELL_GATHER = 1.5;
     /** How far from the palm blob a blob wisp fades in, in blocks: close around the held blob. */
     static final double BLOB_GATHER = 0.3;
-    /** The share of a mote's life it takes to fade in from nothing. */
+    /** The share of a shell mote's life it takes to fade in from nothing. */
     static final float FADE_IN_SHARE = 0.4f;
+    /** The share of a blob mote's life it takes to fade in, longer than a shell mote's so it eases in. */
+    static final float BLOB_FADE_IN_SHARE = 0.6f;
+    /** The ticks a mote still on its way in at the release takes to be pushed out and fade to nothing. */
+    static final int REPEL_TICKS = 6;
+    /** How far a released mote is pushed back out over its repel, against how far it had left to travel. */
+    static final double REPEL_SHARE = 0.5;
+    /** The repel moment of a mote the release has not touched. */
+    static final long NOT_REPELLED = Long.MIN_VALUE;
     /** The share of a mote's life it takes to fade out as it is absorbed. */
     static final float ABSORB_SHARE = 0.15f;
     /** How far the spheroid swells over the blob's beat, as a share of its radius. */
@@ -59,44 +67,85 @@ public final class ChargeMotes {
      * @param born      the game tick it spawned on
      * @param lifeTicks the ticks it takes to arrive
      * @param rgb       its color
-     * @param haloHalf  its wisp's halo half-size, in blocks
-     * @param atTheBlob whether the palm blob absorbs it, rather than the shell
+     * @param haloHalf   its wisp's halo half-size, in blocks
+     * @param atTheBlob  whether the palm blob absorbs it, rather than the shell
+     * @param repelledAt the game tick the release pushed it back out, NOT_REPELLED while it heads in
      */
-    public record Mote(Vec3 from, Vec3 to, long born, int lifeTicks, int rgb, float haloHalf, boolean atTheBlob) {
+    public record Mote(Vec3 from, Vec3 to, long born, int lifeTicks, int rgb, float haloHalf, boolean atTheBlob,
+                       long repelledAt) {
+
+        /**
+         * This mote pushed back out from the release on, fading as it goes.
+         * The operator's ruling of 2026-11-15: wisps mid-cycle at an early release repel and fade, briefly.
+         *
+         * @param released the game tick the charge released
+         * @return the repelled mote
+         */
+        public Mote repelledAt(long released) {
+            return new Mote(from, to, born, lifeTicks, rgb, haloHalf, atTheBlob, released);
+        }
+
+        private boolean repelled() {
+            return repelledAt != NOT_REPELLED;
+        }
 
         /**
          * Its alpha share at an age: nothing as it spawns, full once faded in,
-         * and fading again as the shell or the blob absorbs it.
+         * and fading again as the shell or the blob absorbs it; once repelled,
+         * the share it held at the release, falling to nothing over the repel.
          *
          * @param age the ticks since it spawned, partial ticks included
          * @return the share, 0 to 1
          */
         public float alphaAt(double age) {
+            if (repelled()) {
+                double sinceRelease = born + age - repelledAt;
+                float left = (float) Mth.clamp(1 - sinceRelease / REPEL_TICKS, 0, 1);
+                return headingInAlphaAt(repelledAt - born) * left;
+            }
+            return headingInAlphaAt(age);
+        }
+
+        private float headingInAlphaAt(double age) {
             float share = (float) Mth.clamp(age / lifeTicks, 0, 1);
-            float in = Math.min(1f, share / FADE_IN_SHARE);
+            float in = Math.min(1f, share / (atTheBlob ? BLOB_FADE_IN_SHARE : FADE_IN_SHARE));
             float out = Math.min(1f, (1f - share) / ABSORB_SHARE);
             return Math.min(in, out);
         }
 
         /**
-         * Where it stands at an age, pulling inward faster as it nears its end.
+         * Where it stands at an age, pulling inward faster as it nears its
+         * end; once repelled, pushed back out from where the release caught
+         * it, slowing as the push spends itself.
          *
          * @param age the ticks since it spawned, partial ticks included
          * @return its place
          */
         public Vec3 placeAt(double age) {
+            if (!repelled()) {
+                return headingInPlaceAt(age);
+            }
+            Vec3 caught = headingInPlaceAt(repelledAt - born);
+            Vec3 outward = caught.subtract(to);
+            Vec3 heading = (outward.lengthSqr() > 0 ? outward : from.subtract(to)).normalize();
+            double pushed = Mth.clamp((born + age - repelledAt) / REPEL_TICKS, 0, 1);
+            double eased = 1 - (1 - pushed) * (1 - pushed);
+            return caught.add(heading.scale(from.distanceTo(to) * REPEL_SHARE * eased));
+        }
+
+        private Vec3 headingInPlaceAt(double age) {
             double share = Mth.clamp(age / lifeTicks, 0, 1);
             return from.lerp(to, share * share);
         }
 
         /**
-         * Whether it has been absorbed by a moment.
+         * Whether it has been absorbed by a moment, or faded out from its repel.
          *
          * @param now the game time, partial ticks included
-         * @return true once its life has run
+         * @return true once its life or its repel has run
          */
         boolean absorbedBy(double now) {
-            return now - born >= lifeTicks;
+            return repelled() ? now - repelledAt >= REPEL_TICKS : now - born >= lifeTicks;
         }
     }
 
@@ -112,15 +161,16 @@ public final class ChargeMotes {
      * @return the motes spawned
      */
     static List<Mote> spawn(long gameTime, Vec3 rooted, double shellRadius, Vec3 blob, RandomSource random) {
-        List<Mote> spawned = new ArrayList<>(SHELL_MOTES_PER_TICK + BLOB_MOTES_PER_TICK);
+        List<Mote> spawned = new ArrayList<>(SHELL_MOTES_PER_TICK + 1);
         for (int i = 0; i < SHELL_MOTES_PER_TICK; i++) {
             Vec3 heading = randomUnit(random);
             spawned.add(new Mote(rooted.add(heading.scale(shellRadius + SHELL_GATHER)),
-                    rooted.add(heading.scale(shellRadius)), gameTime, LIFE_TICKS, UNSTABLE_GREEN, SHELL_HALO_HALF, false));
+                    rooted.add(heading.scale(shellRadius)), gameTime, LIFE_TICKS, UNSTABLE_GREEN, SHELL_HALO_HALF, false,
+                    NOT_REPELLED));
         }
-        for (int i = 0; i < BLOB_MOTES_PER_TICK; i++) {
+        if (gameTime % BLOB_MOTE_EVERY_TICKS == 0) {
             spawned.add(new Mote(blob.add(randomUnit(random).scale(BLOB_GATHER)), blob, gameTime, LIFE_TICKS,
-                    UNSTABLE_GREEN, BLOB_HALO_HALF, true));
+                    UNSTABLE_GREEN, BLOB_HALO_HALF, true, NOT_REPELLED));
         }
         return spawned;
     }
@@ -128,7 +178,7 @@ public final class ChargeMotes {
     /** A shell wisp's halo half-size, in blocks: the wisps around the blast zone draw larger. */
     static final float SHELL_HALO_HALF = 0.13f;
     /** A blob wisp's halo half-size, in blocks: small around the held blob. */
-    static final float BLOB_HALO_HALF = 0.03f;
+    static final float BLOB_HALO_HALF = 0.02f;
     /** A wisp's core half-size against its halo's, as a radiant wisp's core stands to its halo. */
     static final float CORE_SHARE = 0.4f;
     /** The paler green a wisp's core burns, as a radiant wisp's core is paler than its halo. */
@@ -236,9 +286,21 @@ public final class ChargeMotes {
         }).toList();
     }
 
-    /** Lets every live mote go, as the charge releases or cancels. */
+    /** Lets every live mote go at once. */
     public static void clear() {
         LIVE.clear();
+    }
+
+    /**
+     * The charge released or cancelled: no mote spawns, each still on its way in is pushed back out to fade over
+     * the repel, and each repel run out goes.
+     * The operator's ruling of 2026-11-15: wisps mid-cycle at an early release repel and fade, briefly.
+     *
+     * @param gameTime the game tick
+     */
+    public static void release(long gameTime) {
+        LIVE.replaceAll(mote -> mote.repelledAt == NOT_REPELLED ? mote.repelledAt(gameTime) : mote);
+        LIVE.removeIf(mote -> mote.absorbedBy(gameTime));
     }
 
     /**

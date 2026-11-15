@@ -144,9 +144,13 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
         return target.blockPosition();
     }
 
-
+    /**
+     * Explodes at the entity with vanilla's look whatever the step wrote, the
+     * look an entity's explosion always showed: Blast alone takes the written look.
+     * blast-alone-takes-the-new-explosion-look
+     */
     @Override
-    public void explode(float power, double reach, boolean gathers, ExplosionMode mode) {
+    public void explode(float power, double reach, boolean gathers, ExplosionMode mode, ExplosionLook look) {
         GooExplosion.detonate(level, target.position(), power, new GooExplosion.Cut(reach, gathers), mode,
                 GooExplosion.Look.vanilla());
     }

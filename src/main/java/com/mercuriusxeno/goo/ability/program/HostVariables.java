@@ -82,9 +82,8 @@ public final class HostVariables {
     }
 
     /**
-     * Tells whether an expression's name is a namespaced id, which a step reads as a counter and an ability's cost
-     * reads as an item, spelled as base_values spells it
-     * (decision ability-cost-builds-as-a-one-type-by-type-value).
+     * Tells whether an expression's name is a namespaced id, which a step reads as a counter
+     * (decision rewind-fills-while-held).
      *
      * @param name the name
      * @return true for a namespaced id

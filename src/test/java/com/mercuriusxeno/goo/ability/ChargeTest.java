@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Knives' shipped charge slings flecks, and only a charge naming flecks slings
  * (decision knives-sling-then-morph-to-flechettes); Blast's shipped charge
- * opens at 2 blocks and gains a block every 20 ticks of hold up to 7
+ * opens at 2 blocks and gains a block every 12 ticks of hold up to 9
  * (decisions blast-charges-from-two-to-seven-blocks, blast-eases-between-stages-at-a-second-each).
  */
 class ChargeTest {
@@ -28,8 +28,9 @@ class ChargeTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"0, 2", "10, 2", "19, 2", "20, 3", "40, 4", "60, 5", "80, 6", "99, 6", "100, 7", "140, 7", "1000, 7"})
-    void blastsChargeGainsABlockEveryTwentyTicksFromTwoToSeven(int heldTicks, double stage) {
+    @CsvSource({"0, 2", "6, 2", "11, 2", "12, 3", "24, 4", "36, 5", "48, 6", "60, 7", "72, 8", "83, 8", "84, 9",
+        "140, 9", "1000, 9"})
+    void blastsChargeGainsABlockEveryTwelveTicksFromTwoToNine(int heldTicks, double stage) {
         assertEquals(stage, blast.stageAt(heldTicks), DELTA);
     }
 }

@@ -458,18 +458,20 @@ public final class GloveThrowSender {
         CHARGE_WUBS.reset();
     }
 
-    /** Lets the next sized charge root and sound afresh, as a cancel or a release leaves it. */
+    /**
+     * Lets the next sized charge root and sound afresh, as a cancel or a release leaves it; its motes in flight are
+     * left to the next tick's pull, which repels them.
+     */
     static void unrootTheCharge() {
         CHARGE_ROOT.clear();
         CHARGE_WUBS.reset();
-        ChargeMotes.clear();
         LiftedPalmBlob.clockOnGameTime();
     }
 
     /**
      * Carries the live sized charge's motes a tick on, drawing them in to the
-     * rooted spheroid's shell and to the palm blob, and lets them go once no
-     * sized charge stands.
+     * rooted spheroid's shell and to the palm blob, and once no sized charge
+     * stands, pushes those still in flight back out to fade.
      * decision blast-charge-pulls-green-motes-into-the-shell-and-the-blob
      *
      * @param player the local player
@@ -477,7 +479,7 @@ public final class GloveThrowSender {
     static void pullTheChargeMotes(Player player) {
         OptionalDouble radius = drawnChargeRadius(player, 0f);
         if (radius.isEmpty()) {
-            ChargeMotes.clear();
+            ChargeMotes.release(player.level().getGameTime());
             LiftedPalmBlob.clockOnGameTime();
             return;
         }

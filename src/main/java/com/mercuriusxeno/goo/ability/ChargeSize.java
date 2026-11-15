@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability;
 
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.item.GooFormat;
 
 /**
@@ -32,6 +33,17 @@ public final class ChargeSize {
      */
     public static int costAt(double referenceCost, double radius) {
         return (int) Math.ceil(referenceCost * Math.pow(radius / REFERENCE_RADIUS, CUBE));
+    }
+
+    /**
+     * The price of a cube of radius, so a cast at a radius of r costs this times r³: the reference cost over the
+     * reference radius cubed, exact.
+     *
+     * @param referenceCost the ability's JSON cost, the reference radius's price, in mB
+     * @return the mB one cube of radius costs
+     */
+    public static GooFraction pricePerCubeOfRadius(GooFraction referenceCost) {
+        return referenceCost.dividedBy(GooFraction.of((long) Math.pow(REFERENCE_RADIUS, CUBE)));
     }
 
     /**

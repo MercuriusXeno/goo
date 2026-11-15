@@ -28,6 +28,15 @@ class AbilityCostsTest {
                     AbilityCosts.shown("3 * minecraft:cobblestone + $stick + 2 * $base", "rock", Set.of("stick")));
         }
 
+        /** base_values spells a vanilla item bare, so a cost names it bare too: tnt reads the type as cobblestone does. */
+        @Test
+        void aBareItemReadsTheTypeAndWritesBackBare() {
+            String shown = AbilityCosts.shown("2 * tnt", "unstable", Set.of());
+
+            assertEquals("{\"unstable\":\"2 * tnt.unstable\"}", shown);
+            assertEquals(Optional.of("2 * tnt"), AbilityCosts.written(shown, "unstable"));
+        }
+
         @Test
         void aDecimalCostShowsAsTheFractionTheBuilderReads() {
             assertEquals("{\"rock\":\"25/2\"}", AbilityCosts.shown("12.5", "rock", Set.of()));

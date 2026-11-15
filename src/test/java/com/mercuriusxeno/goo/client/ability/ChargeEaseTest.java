@@ -18,9 +18,9 @@ class ChargeEaseTest {
 
     private static final Charge BLAST = AbilityJson.decode("unstable_blast").delivery().charge();
     private static final float[] PARTIALS = {0f, 0.25f, 0.5f, 0.75f};
-    private static final int EASED_HOLD = 105;
+    private static final int EASED_HOLD = 89;
     private static final int LONG_HOLD = 120;
-    private static final int[] STEPS = {20, 40, 60, 80, 100};
+    private static final int[] STEPS = {12, 24, 36, 48, 60, 72, 84};
     private static final int TWO_TICKS = 2;
     private static final int QUARTER_SECOND = 5;
     private static final double DELTA = 1e-6;
@@ -39,8 +39,8 @@ class ChargeEaseTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"5, 2", "20, 2", "25, 3", "40, 3", "45, 4", "60, 4", "65, 5", "80, 5", "85, 6", "100, 6",
-            "105, 7"})
+    @CsvSource({"5, 2", "12, 2", "17, 3", "24, 3", "29, 4", "36, 4", "41, 5", "48, 5", "53, 6", "60, 6",
+            "65, 7", "72, 7", "77, 8", "84, 8", "89, 9"})
     void theRadiusSitsAtEachSizeAndEasesIntoTheNextAQuarterSecondAfterItsStep(int tick, double radius) {
         assertEquals(radius, ChargeEase.drawnRadius(BLAST, tick), DELTA);
     }
