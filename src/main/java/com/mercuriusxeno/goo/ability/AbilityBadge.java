@@ -52,7 +52,14 @@ public enum AbilityBadge implements StringRepresentable {
      * Refracts through a prism.
      * badge-vocabulary-gains-free-prism-tap-brew
      */
-    PRISM("prism");
+    PRISM("prism"),
+
+    /**
+     * Prepares on right click and throws on left click, running while held. Declared last so the
+     * network ordinal of every badge before it stays put.
+     * decision held-badge-marks-abilities-that-prepare-and-throw
+     */
+    HELD("held");
 
     /** Datapack codec, reading the badge by its word. */
     public static final Codec<AbilityBadge> CODEC = StringRepresentable.fromEnum(AbilityBadge::values);
@@ -65,8 +72,10 @@ public enum AbilityBadge implements StringRepresentable {
      * The badges in the rank the radial fan lists them, kept apart from the
      * declaration order so the network ordinal stays put.
      * fan-sorts-badge-then-order
+     * held-badge-marks-abilities-that-prepare-and-throw
      */
-    private static final List<AbilityBadge> FAN_RANK = List.of(CHANNELED, MOB, WORLD, FREE, PRISM, SELF, DURATIVE);
+    private static final List<AbilityBadge> FAN_RANK =
+            List.of(CHANNELED, HELD, MOB, WORLD, FREE, PRISM, SELF, DURATIVE);
 
     private final String serializedName;
 
@@ -88,11 +97,12 @@ public enum AbilityBadge implements StringRepresentable {
      * Whether this badge's abilities aim a point in space rather than favor a
      * mob or a block: they land and resolve at the aimed point itself.
      * aim-point-follows-the-cursor
+     * held-badge-marks-abilities-that-prepare-and-throw
      *
-     * @return true for free, channeled and prism
+     * @return true for free, channeled, held and prism
      */
     public boolean aimsAPoint() {
-        return this == FREE || this == CHANNELED || this == PRISM;
+        return this == FREE || this == CHANNELED || this == HELD || this == PRISM;
     }
 
     /**
