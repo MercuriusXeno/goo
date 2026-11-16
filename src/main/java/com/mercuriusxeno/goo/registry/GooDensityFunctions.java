@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.lunar.CraterField;
+import com.mercuriusxeno.goo.lunar.RilleField;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.levelgen.DensityFunction;
@@ -25,6 +26,13 @@ public final class GooDensityFunctions {
      */
     public static final DeferredHolder<MapCodec<? extends DensityFunction>, MapCodec<CraterField>> CRATERS =
             DENSITY_FUNCTION_TYPES.register("craters", () -> CraterField.DATA_CODEC);
+
+    /**
+     * {@code goo:rilles}, the channels lunar's noise settings cut through its basins.
+     * decision lunar-surface-gains-giant-craters-mountains-rilles-and-boulder-fields
+     */
+    public static final DeferredHolder<MapCodec<? extends DensityFunction>, MapCodec<RilleField>> RILLES =
+            DENSITY_FUNCTION_TYPES.register("rilles", () -> RilleField.DATA_CODEC);
 
     private GooDensityFunctions() {
     }
