@@ -3,6 +3,8 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.lunar.CraterField;
 import com.mercuriusxeno.goo.lunar.GiantCraterField;
+import com.mercuriusxeno.goo.lunar.LunarDepths;
+import com.mercuriusxeno.goo.lunar.SeaCavern;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -17,6 +19,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
+import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.List;
@@ -46,10 +49,12 @@ public final class LunarTerrainTests {
     /** Columns spread over a few chunks, so one crater or basin reads no different from open ground. */
     private static final List<BlockPos> TEST_SPOTS = List.of(
             new BlockPos(8, 0, 8), new BlockPos(-40, 0, 72), new BlockPos(120, 0, -24));
-    /** The strata's named depths: bedrock at the floor, iron core to y 23, molten iron from y 24 to y 39. */
-    private static final int FLOOR_Y = 0;
-    private static final int IRON_CORE_TOP_Y = 23;
-    private static final int MOLTEN_IRON_TOP_Y = 39;
+    /** A walk down from the surface stops at the top of the shallow zone, past every surface skin. */
+    private static final int MOLTEN_IRON_TOP_Y = LunarDepths.SHALLOW_ZONE_TOP_Y;
+    /** The open air standing over the sea, at the least, in blocks. */
+    private static final int AIR_OVER_THE_SEA = 24;
+    /** How far from a test spot a search for a sea column reaches, in blocks. */
+    private static final int SEA_SEARCH_REACH = 96;
 
     private static final String LUNAR_REQUIRED = "The server should hold goo:lunar";
     private static final String OWN_NOISE = "goo:lunar should generate from goo:lunar's noise settings, generates from %s";
@@ -58,6 +63,7 @@ public final class LunarTerrainTests {
     private static final String BELOW_REGOLITH = "%s should read anorthosite, basalt or a crater's breccia or impact glass "
             + "under its regolith at y %d, reads %s";
     private static final String STRATUM = "%s should read %s at y %d, reads %s";
+    private static final String NO_SEA_COLUMN = "No column within %d blocks of %s reads open sea";
     private static final String METEORIC_IRON_IN_ANORTHOSITE =
             "The chunks around %s should hold meteoric iron touching anorthosite";
     private static final String NO_CRATER_CENTRE = "No column within %d blocks of the origin sits at a crater's centre";
@@ -115,8 +121,9 @@ public final class LunarTerrainTests {
 
     /**
      * Each test spot's column in goo:lunar reads regolith at its surface (or a crater ray's anorthosite), anorthosite
-     * or basalt beneath (or the breccia and impact glass a crater lays there), molten iron
-     * from y 24 to y 39, the iron core from y 1 to y 23 and bedrock at y 0.
+     * or basalt beneath (or the breccia and impact glass a crater lays there); and the nearest column through the
+     * open sea, found through the seeded sea cavern, reads bedrock at the world's floor, iron core over it to the sea
+     * floor, molten iron from there up to the sea's level, and open air for 24 blocks over the sea.
      *
      * @param helper the gametest helper
      */
@@ -148,13 +155,33 @@ public final class LunarTerrainTests {
         helper.assertTrue(beneath.is(GooBlocks.ANORTHOSITE.get()) || beneath.is(Blocks.BASALT)
                 || beneath.is(GooBlocks.BRECCIA.get()) || beneath.is(GooBlocks.IMPACT_GLASS.get()),
                 String.format(BELOW_REGOLITH, spot, y, beneath));
-        for (int depth = IRON_CORE_TOP_Y + 1; depth <= MOLTEN_IRON_TOP_Y; depth++) {
-            assertStratum(helper, lunar, spot.atY(depth), GooBlocks.MOLTEN_IRON.get().defaultBlockState());
+        assertSeaColumn(helper, lunar, spot);
+    }
+
+    private static void assertSeaColumn(GameTestHelper helper, ServerLevel lunar, BlockPos spot) {
+        RandomState randomState = lunar.getChunkSource().randomState();
+        SeaCavern sea = SeaCavern.seeded(randomState.getOrCreateNoise(SeaCavern.FLOOR_NOISE),
+                randomState.getOrCreateNoise(SeaCavern.ROOF_NOISE), randomState.getOrCreateNoise(SeaCavern.PILLAR_NOISE));
+        BlockPos column = null;
+        for (int reach = 0; reach <= SEA_SEARCH_REACH && column == null; reach++) {
+            BlockPos candidate = spot.offset(reach, 0, 0);
+            if (sea.isOpenSeaAt(candidate.getX(), candidate.getZ())) {
+                column = candidate;
+            }
         }
-        for (int depth = FLOOR_Y + 1; depth <= IRON_CORE_TOP_Y; depth++) {
-            assertStratum(helper, lunar, spot.atY(depth), GooBlocks.IRON_CORE.get().defaultBlockState());
+        helper.assertTrue(column != null, String.format(NO_SEA_COLUMN, SEA_SEARCH_REACH, spot));
+        lunar.getChunk(column.getX() >> 4, column.getZ() >> 4);
+        int floorY = sea.floorYAt(column.getX(), column.getZ());
+        assertStratum(helper, lunar, column.atY(LunarDepths.WORLD_FLOOR_Y), Blocks.BEDROCK.defaultBlockState());
+        for (int y = LunarDepths.WORLD_FLOOR_Y + 1; y <= floorY; y++) {
+            assertStratum(helper, lunar, column.atY(y), GooBlocks.IRON_CORE.get().defaultBlockState());
         }
-        assertStratum(helper, lunar, spot.atY(FLOOR_Y), Blocks.BEDROCK.defaultBlockState());
+        for (int y = floorY + 1; y < LunarDepths.SEA_LEVEL_Y; y++) {
+            assertStratum(helper, lunar, column.atY(y), GooBlocks.MOLTEN_IRON.get().defaultBlockState());
+        }
+        for (int y = LunarDepths.SEA_LEVEL_Y; y < LunarDepths.SEA_LEVEL_Y + AIR_OVER_THE_SEA; y++) {
+            assertStratum(helper, lunar, column.atY(y), Blocks.AIR.defaultBlockState());
+        }
     }
 
     private static void assertStratum(GameTestHelper helper, ServerLevel lunar, BlockPos pos, BlockState expected) {

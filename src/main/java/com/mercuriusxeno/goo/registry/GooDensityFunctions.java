@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.lunar.CraterField;
 import com.mercuriusxeno.goo.lunar.GiantCraterField;
 import com.mercuriusxeno.goo.lunar.RilleField;
+import com.mercuriusxeno.goo.lunar.SeaCavern;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.levelgen.DensityFunction;
@@ -41,6 +42,13 @@ public final class GooDensityFunctions {
      */
     public static final DeferredHolder<MapCodec<? extends DensityFunction>, MapCodec<GiantCraterField>> GIANT_CRATERS =
             DENSITY_FUNCTION_TYPES.register("giant_craters", () -> GiantCraterField.DATA_CODEC);
+
+    /**
+     * {@code goo:sea_cavern}, the vast cavern lunar's noise settings open over its molten iron sea.
+     * decision lunar-underground-changes-by-depth-down-to-a-molten-iron-sea
+     */
+    public static final DeferredHolder<MapCodec<? extends DensityFunction>, MapCodec<SeaCavern>> SEA_CAVERN =
+            DENSITY_FUNCTION_TYPES.register("sea_cavern", () -> SeaCavern.DATA_CODEC);
 
     private GooDensityFunctions() {
     }
