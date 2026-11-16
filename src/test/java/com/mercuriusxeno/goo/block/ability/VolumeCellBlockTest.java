@@ -278,6 +278,32 @@ class VolumeCellBlockTest {
         }
     }
 
+    /**
+     * A broken Leech cell gives back hex goo, each layer a fifteenth of
+     * Leech's cost as hex_leech.json ships it.
+     * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
+     */
+    @Nested
+    class LeechReclaim {
+
+        private static final int LAYERS = 7;
+
+        @Test
+        void leechIsHexGooLaidByHexsLeech() {
+            assertEquals(List.of(GooTypes.HEX, AbilityJson.idOf("hex_leech.json")),
+                    List.of(CellBinding.LEECH.gooType(), CellBinding.LEECH.layingAbility()));
+        }
+
+        @Test
+        void aBrokenLeechCellDropsHexGooAtFifteenthsOfLeechsCost() {
+            GooFraction cost = AbilityJson.decode("hex_leech").cost().exactIn(GooValueTable.EMPTY);
+
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.HEX,
+                            cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.LEECH, LAYERS, cost));
+        }
+    }
+
     private static JsonObject classpathJson(String path) throws IOException {
         try (InputStream in = VolumeCellBlockTest.class.getResourceAsStream(path)) {
             assertTrue(in != null, path + " is not on the classpath");

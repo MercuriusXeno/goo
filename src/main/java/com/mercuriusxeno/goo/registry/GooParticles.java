@@ -74,6 +74,15 @@ public class GooParticles {
         PARTICLE_TYPES.register("host_spray_drip", () -> new SimpleParticleType(false));
 
     /**
+     * Leech's spray drip: the mod's blocky goo drip in hex's violets, flying
+     * its arc until it strikes a block's top, where it splats and the Leech
+     * goo lands.
+     * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> LEECH_SPRAY_DRIP =
+        PARTICLE_TYPES.register("leech_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
      * A snowflake crystal flitting weightlessly along Cold's wind (decision
      * cold-streams-wind-lines-and-snowflakes).
      */

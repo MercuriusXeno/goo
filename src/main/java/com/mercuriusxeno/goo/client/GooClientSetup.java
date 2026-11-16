@@ -311,7 +311,7 @@ public final class GooClientSetup {
     @SubscribeEvent
     public static void registerBlockTintSources(RegisterColorHandlersEvent.BlockTintSources event) {
         for (VolumeCellBlock cell : List.of(GooBlocks.SLIME_COAT.get(), GooBlocks.KINETIC_SLICK.get(),
-                GooBlocks.BLAZE_MOLTEN.get(), GooBlocks.DEEP_HOST.get())) {
+                GooBlocks.BLAZE_MOLTEN.get(), GooBlocks.DEEP_HOST.get(), GooBlocks.HEX_LEECH.get())) {
             event.register(List.of(new VolumeCellTint(cell.binding().gooType(), ClientGooTypes::color)), cell);
         }
     }
@@ -389,6 +389,7 @@ public final class GooClientSetup {
      * goop-and-slick-spray-throws-goo-drips-that-splat
      * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
      * host-is-a-sculky-slime-that-sculk-spreads-eagerly-through
+     * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
      *
      * @param event the event instance
      */
@@ -402,6 +403,8 @@ public final class GooClientSetup {
                         CellBinding.MOLTEN.liesOnLava()));
         event.registerSpriteSet(GooParticles.HOST_SPRAY_DRIP.get(),
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.HOST_DEEP_TEALS));
+        event.registerSpriteSet(GooParticles.LEECH_SPRAY_DRIP.get(),
+                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.LEECH_HEX_VIOLETS));
     }
 
     /**
