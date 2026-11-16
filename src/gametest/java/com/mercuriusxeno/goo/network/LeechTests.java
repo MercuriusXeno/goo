@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.AbilityRegistrySource;
+import com.mercuriusxeno.goo.ability.program.LeechGooStep;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
@@ -94,7 +95,7 @@ public final class LeechTests {
     /** Two healths that match differ by no more than float rounding. */
     private static final float SAME_HEALTH = 1e-4f;
     private static final String NOT_DRAINED = "The husk striking a pig in Leech goo should heal by the damage dealt"
-            + " to %.2f, reads %.2f";
+            + " times the drained life fraction to %.2f, reads %.2f";
 
     private LeechTests() {
     }
@@ -117,7 +118,7 @@ public final class LeechTests {
     /**
      * A wounded husk on bare stone strikes a pig standing on a full Leech
      * cell for a known damage; the husk's health reads its wounded health
-     * plus that damage.
+     * plus that damage times the drained life fraction Leech carries.
      * damage-dealt-to-a-mob-in-leech-goo-becomes-drained-life-for-its-source
      *
      * @param helper the gametest helper
@@ -128,10 +129,13 @@ public final class LeechTests {
         Pig pig = helper.spawnWithNoFreeWill(EntityType.PIG, SPIRIT_FLOOR.above(2));
         Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, ATTACKER_FLOOR.above());
         husk.setHealth(WOUNDED_HEALTH);
+        AbilityDefinition leech = AbilityRegistry.of(helper.getLevel()).getAbility(LEECH);
+        helper.assertTrue(leech != null, ABILITY_REQUIRED);
+        float fraction = LeechGooStep.in(leech.behaviors()).orElseThrow().drainFraction();
         pig.hurtServer(helper.getLevel(), helper.getLevel().damageSources().mobAttack(husk), STRIKE_DAMAGE);
         float healed = husk.getHealth();
-        helper.assertTrue(Math.abs(healed - (WOUNDED_HEALTH + STRIKE_DAMAGE)) < SAME_HEALTH,
-                String.format(NOT_DRAINED, WOUNDED_HEALTH + STRIKE_DAMAGE, healed));
+        float expected = WOUNDED_HEALTH + STRIKE_DAMAGE * fraction;
+        helper.assertTrue(Math.abs(healed - expected) < SAME_HEALTH, String.format(NOT_DRAINED, expected, healed));
         helper.succeed();
     }
 

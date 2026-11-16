@@ -21,7 +21,8 @@ import java.util.stream.Stream;
 
 /**
  * Drained life through Leech goo: damage dealt to a living thing standing
- * in Leech goo heals the one who dealt it by the damage dealt, where that
+ * in Leech goo heals the one who dealt it by a share of the damage dealt,
+ * the drained life fraction the goo's laying ability names, where that
  * one is a living entity or a player striking directly; damage with no
  * entity source heals nobody. The life splashes off the victim as hex wisps,
  * with a soul's escape, and each drained strike rolls the chance to take a
@@ -67,16 +68,18 @@ public final class LeechDrain {
     }
 
     /**
-     * The life a hit drains to its source: the damage dealt where a living
-     * source struck a victim in Leech goo directly, nothing otherwise.
+     * The life a hit drains to its source: the damage dealt times the drained
+     * life fraction where a living source struck a victim in Leech goo
+     * directly, nothing otherwise, with no cap on what a hit drains.
      *
      * @param damage        the damage the hit dealt
      * @param victimInLeech whether the victim stands in Leech goo
      * @param source        what dealt the hit
+     * @param fraction      the share of the damage that drains, as the goo's laying ability names it
      * @return the health its source heals, 0 where it drains none
      */
-    static float drainedLife(float damage, boolean victimInLeech, DrainSource source) {
-        return victimInLeech && source == DrainSource.DIRECT_LIVING ? Math.max(0f, damage) : 0f;
+    static float drainedLife(float damage, boolean victimInLeech, DrainSource source, float fraction) {
+        return victimInLeech && source == DrainSource.DIRECT_LIVING ? Math.max(0f, damage) * fraction : 0f;
     }
 
     /**
@@ -109,6 +112,19 @@ public final class LeechDrain {
     }
 
     /**
+     * The leech goo step the ability that laid a Leech cell runs, naming its
+     * drained life fraction and its deplete chance.
+     *
+     * @param level the level
+     * @param cell  the Leech cell
+     * @return the step, empty where the cell is gone or its ability is not loaded
+     */
+    private static Optional<LeechGooStep> leechStepAt(ServerLevel level, BlockPos cell) {
+        return level.getBlockState(cell).getBlock() instanceof VolumeCellBlock leechCell
+                ? LeechGooStep.in(leechCell.layingProgram(level)) : Optional.empty();
+    }
+
+    /**
      * Rolls the deplete chance the cell's laying ability names on the Leech
      * cell a drained strike's victim stands in, taking a layer where the roll
      * falls under it and leaving air where that was the last.
@@ -116,26 +132,22 @@ public final class LeechDrain {
      *
      * @param level the level
      * @param cell  the Leech cell under the victim
+     * @param leech the cell's laying ability's leech goo step
      */
-    private static void depleteAt(ServerLevel level, BlockPos cell) {
+    private static void depleteAt(ServerLevel level, BlockPos cell, LeechGooStep leech) {
         BlockState state = level.getBlockState(cell);
-        if (!(state.getBlock() instanceof VolumeCellBlock leechCell)) {
-            return;
+        int layers = state.getValue(VolumeCellBlock.LAYERS);
+        int left = layersAfterStrike(layers, level.getRandom().nextDouble(), leech.depleteChance());
+        if (left != layers) {
+            level.setBlock(cell, left > 0 ? state.setValue(VolumeCellBlock.LAYERS, left)
+                    : Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
         }
-        LeechGooStep.in(leechCell.layingProgram(level)).ifPresent(leech -> {
-            int layers = state.getValue(VolumeCellBlock.LAYERS);
-            int left = layersAfterStrike(layers, level.getRandom().nextDouble(), leech.depleteChance());
-            if (left != layers) {
-                level.setBlock(cell, left > 0 ? state.setValue(VolumeCellBlock.LAYERS, left)
-                        : Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
-            }
-        });
     }
 
     /**
-     * Heals the direct living source of a hit on a victim in Leech goo by
-     * the damage the hit dealt, and rolls the deplete on the cell under the
-     * victim.
+     * Heals the direct living source of a hit on a victim in Leech goo by the
+     * share of the damage the cell's laying ability names, and rolls the
+     * deplete on the cell under the victim.
      *
      * @param event the damage event, after the damage landed
      */
@@ -147,9 +159,11 @@ public final class LeechDrain {
             return;
         }
         Optional<BlockPos> cell = leechCellOf(victim);
-        float drained = drainedLife(event.getNewDamage(), cell.isPresent(), DrainSource.of(event.getSource()));
+        Optional<LeechGooStep> leech = cell.flatMap(pos -> leechStepAt(level, pos));
+        float drained = drainedLife(event.getNewDamage(), leech.isPresent(), DrainSource.of(event.getSource()),
+                leech.map(LeechGooStep::drainFraction).orElse(0f));
         if (drained > 0f) {
-            depleteAt(level, cell.orElseThrow());
+            depleteAt(level, cell.orElseThrow(), leech.orElseThrow());
             source.heal(drained);
             EntityVisuals.sendToWatchers(victim, new LeechPayload(victim.getId(), source.getId(), drained, true));
             victim.level().playSound(null, victim.getX(), victim.getY(BODY_CENTER), victim.getZ(),

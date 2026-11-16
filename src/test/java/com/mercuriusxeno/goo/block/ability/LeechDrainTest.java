@@ -9,9 +9,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Covers the choice of the life a hit drains to its source through Leech
- * goo, the damage dealt for a direct living source striking a victim in the
- * goo and nothing otherwise, and the roll a drained strike makes on the cell
- * under its victim at the deplete chance hex_leech.json ships.
+ * goo, the damage dealt times the drained life fraction hex_leech.json ships
+ * for a direct living source striking a victim in the goo and nothing
+ * otherwise, and the roll a drained strike makes on the cell under its
+ * victim at the deplete chance hex_leech.json ships.
  * damage-dealt-to-a-mob-in-leech-goo-becomes-drained-life-for-its-source
  * leech-goo-has-a-chance-to-deplete-when-the-spirits-damage
  */
@@ -25,23 +26,26 @@ class LeechDrainTest {
     class DrainedLife {
 
         @Test
-        void aLivingSourceStrikingAVictimInTheGooDrainsTheDamage() {
-            assertEquals(DAMAGE, LeechDrain.drainedLife(DAMAGE, true, DrainSource.DIRECT_LIVING));
+        void aLivingSourceStrikingAVictimInTheGooDrainsTheDamageTimesTheFraction() {
+            float fraction = SHIPPED.drainFraction();
+            assertEquals(DAMAGE * fraction,
+                    LeechDrain.drainedLife(DAMAGE, true, DrainSource.DIRECT_LIVING, fraction));
         }
 
         @Test
         void theSameHitOnAVictimOutsideTheGooDrainsNothing() {
-            assertEquals(0f, LeechDrain.drainedLife(DAMAGE, false, DrainSource.DIRECT_LIVING));
+            assertEquals(0f, LeechDrain.drainedLife(DAMAGE, false, DrainSource.DIRECT_LIVING,
+                    SHIPPED.drainFraction()));
         }
 
         @Test
         void sourcelessDamageToAVictimInTheGooDrainsNothing() {
-            assertEquals(0f, LeechDrain.drainedLife(DAMAGE, true, DrainSource.NONE));
+            assertEquals(0f, LeechDrain.drainedLife(DAMAGE, true, DrainSource.NONE, SHIPPED.drainFraction()));
         }
 
         @Test
         void anIndirectHitOnAVictimInTheGooDrainsNothing() {
-            assertEquals(0f, LeechDrain.drainedLife(DAMAGE, true, DrainSource.INDIRECT));
+            assertEquals(0f, LeechDrain.drainedLife(DAMAGE, true, DrainSource.INDIRECT, SHIPPED.drainFraction()));
         }
     }
 
