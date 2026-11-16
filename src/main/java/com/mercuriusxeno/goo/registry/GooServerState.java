@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.frost.GlacialFields;
 import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
 import com.mercuriusxeno.goo.ability.program.MorphBirths;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
+import com.mercuriusxeno.goo.block.ability.HostFreeCells;
 import com.mercuriusxeno.goo.block.ability.HostSpreaders;
 import com.mercuriusxeno.goo.block.ability.MoltenHeats;
 import com.mercuriusxeno.goo.network.DripFlights;
@@ -34,6 +35,7 @@ public final class GooServerState {
     private final DripFlights dripFlights = new DripFlights();
     private final MoltenHeats moltenHeats = new MoltenHeats();
     private final HostSpreaders hostSpreaders = new HostSpreaders();
+    private final HostFreeCells hostFreeCells = new HostFreeCells();
 
     /**
      * Answers the state the server holds.
@@ -146,6 +148,16 @@ public final class GooServerState {
     }
 
     /**
+     * The Host cells a recent walk found free of a stranded charge
+     * (decision sculk-charge-runs-along-host-goo-without-weakening).
+     *
+     * @return the free Host cells
+     */
+    public HostFreeCells hostFreeCells() {
+        return hostFreeCells;
+    }
+
+    /**
      * @return how long each player has held a stream
      */
     public StreamHolds streamHolds() {
@@ -194,5 +206,6 @@ public final class GooServerState {
         dripFlights.clear();
         moltenHeats.clear();
         hostSpreaders.clear();
+        hostFreeCells.clear();
     }
 }

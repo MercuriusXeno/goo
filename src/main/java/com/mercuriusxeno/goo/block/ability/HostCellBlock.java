@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.block.ability;
 
 import com.mercuriusxeno.goo.ability.program.HostStep;
+import com.mercuriusxeno.goo.registry.GooServerState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.sounds.SoundEvents;
@@ -57,9 +58,31 @@ public class HostCellBlock extends VolumeCellBlock implements SculkBehaviour {
             return cursor.getCharge();
         }
         turnTheBlockUnder(world, pos, spreader, sculkLayers);
-        boolean stranded = HostReach.stranded(world, pos,
-                cell -> layersSpentAt(world, cell, spreader, sculkLayers) > 0);
-        return HostSpread.chargeOut(cursor.getCharge(), stranded);
+        return HostSpread.chargeOut(cursor.getCharge(), stranded(world, pos, spreader, sculkLayers));
+    }
+
+    /**
+     * Whether a charge standing in a cell is stranded, walking the goo only
+     * where no recent walk found the cell free, and recording the cells a
+     * walk finds free.
+     *
+     * @param level       the level
+     * @param pos         where the charge stands
+     * @param spreader    the spreader whose replaceable tag names the ground sculk takes
+     * @param sculkLayers the layers a block of sculk spends
+     * @return true where no reachable cell turns its block and no step leads off the goo
+     */
+    private static boolean stranded(Level level, BlockPos pos, SculkSpreader spreader, int sculkLayers) {
+        GooServerState state = GooServerState.of(level);
+        long now = level.getGameTime();
+        if (state != null && state.hostFreeCells().isFree(level, pos, now)) {
+            return false;
+        }
+        HostReach.Walk walk = HostReach.walk(level, pos, cell -> layersSpentAt(level, cell, spreader, sculkLayers) > 0);
+        if (!walk.stranded() && state != null) {
+            state.hostFreeCells().markFree(level, walk.visited(), now);
+        }
+        return walk.stranded();
     }
 
     /**

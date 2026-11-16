@@ -17,19 +17,29 @@ import java.util.function.Predicate;
  * to turns the block under it, and no step leads off the goo onto sculk or
  * a vein. The walk takes the moves vanilla's charge cursor takes, to the
  * eighteen neighbours sharing a face or an edge, past no sturdy corner, onto
- * blocks answering SculkBehaviour.
+ * blocks answering SculkBehaviour, and runs over a coat of any size: it
+ * stops at the first cell turning its block or step off the goo, so a free
+ * charge pays only the walk to the nearest of them, and a stranded charge
+ * pays one whole walk and ends.
  * sculk-charge-runs-along-host-goo-without-weakening
  */
 final class HostReach {
 
-    /** The most Host cells a walk visits before it calls the charge free, bounding a wide coat's cost. */
-    static final int MOST_CELLS = 1024;
     /** The neighbours a charge cursor steps to: every offset in the cube around it but its corners and itself. */
     private static final List<Vec3i> STEPS = BlockPos.betweenClosedStream(new BlockPos(-1, -1, -1),
                     new BlockPos(1, 1, 1))
             .filter(offset -> (offset.getX() == 0 || offset.getY() == 0 || offset.getZ() == 0)
                     && !offset.equals(BlockPos.ZERO))
             .map(BlockPos::immutable).map(Vec3i.class::cast).toList();
+
+    /**
+     * What a walk found.
+     *
+     * @param stranded whether the charge can do nothing more and go nowhere off the goo
+     * @param visited  the Host cells the walk reached, every one sharing the verdict where the charge is free
+     */
+    record Walk(boolean stranded, Set<BlockPos> visited) {
+    }
 
     private HostReach() {
     }
@@ -40,23 +50,23 @@ final class HostReach {
      * @param level          the level
      * @param start          where the charge stands
      * @param turnsSomething whether a Host cell turns the block under it
-     * @return true where the charge can do nothing more and go nowhere off the goo
+     * @return whether the charge is stranded, and the cells the walk reached
      */
-    static boolean stranded(LevelAccessor level, BlockPos start, Predicate<BlockPos> turnsSomething) {
+    static Walk walk(LevelAccessor level, BlockPos start, Predicate<BlockPos> turnsSomething) {
         Deque<BlockPos> open = new ArrayDeque<>(List.of(start.immutable()));
         Set<BlockPos> seen = new HashSet<>(open);
         while (!open.isEmpty()) {
             BlockPos cell = open.poll();
-            if (turnsSomething.test(cell) || seen.size() > MOST_CELLS) {
-                return false;
+            if (turnsSomething.test(cell)) {
+                return new Walk(false, seen);
             }
             List<BlockPos> steps = stepsFrom(level, cell);
             if (steps.stream().anyMatch(next -> !(level.getBlockState(next).getBlock() instanceof HostCellBlock))) {
-                return false;
+                return new Walk(false, seen);
             }
             steps.stream().filter(seen::add).forEach(open::add);
         }
-        return true;
+        return new Walk(true, seen);
     }
 
     /**
