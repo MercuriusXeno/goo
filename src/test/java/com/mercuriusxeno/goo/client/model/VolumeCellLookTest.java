@@ -138,11 +138,17 @@ class VolumeCellLookTest {
             }
         }
 
+        /**
+         * Slime names its drips at every height its fill stands, which the
+         * slime core model turns to each side, and none at fill 0, whose goo
+         * stands in films alone.
+         */
         @Test
-        void slimeDripsOnEverySideAtEveryHeight() {
+        void slimeNamesItsDripsAtEveryHeightOfFill() {
             for (int layers = 1; layers <= VolumeCellBlock.MAX_LAYERS; layers++) {
-                assertEquals(4, partsAt("slime_coat", layers, true).size(), "drips at " + layers + " layers");
+                assertEquals(1, partsAt("slime_coat", layers, true).size(), "drips at " + layers + " layers");
             }
+            assertEquals(List.of(), partsAt("slime_coat", 0, true));
         }
     }
 
@@ -177,17 +183,17 @@ class VolumeCellLookTest {
     }
 
     /**
-     * The models a block state applies at a height: its body, or its drips.
+     * The models a block state applies at a height: its body's shell, or the
+     * drips the slime core model turns to each side no cell of its goo continues.
      */
     private static List<String> partsAt(String blockId, int layers, boolean drips) {
         List<String> models = new ArrayList<>();
+        String key = drips ? "drips" : "shell";
         for (JsonElement part : read(BLOCKSTATE.formatted(blockId)).getAsJsonArray("multipart")) {
             JsonObject when = part.getAsJsonObject().getAsJsonObject("when");
-            boolean drip = when.keySet().stream().anyMatch(key -> !"layers".equals(key));
-            if (String.valueOf(layers).equals(when.get("layers").getAsString()) && drip == drips) {
-                JsonObject apply = part.getAsJsonObject().getAsJsonObject("apply");
-                JsonObject variant = apply.has("shell") ? apply.getAsJsonObject("shell") : apply;
-                models.add(variant.get("model").getAsString());
+            JsonObject apply = part.getAsJsonObject().getAsJsonObject("apply");
+            if (String.valueOf(layers).equals(when.get("layers").getAsString()) && apply.has(key)) {
+                models.add(apply.getAsJsonObject(key).get("model").getAsString());
             }
         }
         return models;

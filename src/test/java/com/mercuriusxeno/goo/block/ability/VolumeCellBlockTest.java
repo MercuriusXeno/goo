@@ -121,12 +121,16 @@ class VolumeCellBlockTest {
     @Nested
     class PlainBlockState {
 
+        /**
+         * The state holds a fill of 0 to 15 layers and each of four sides bare,
+         * one layer or runny (decision goo-cell-holds-a-fill-and-a-state-per-side).
+         */
         @Test
-        void theStateHoldsFifteenLayerCountsAndASideFlagEach() {
-            List<String> flag = List.of("true", "false");
-            List<String> layerCounts = IntStream.rangeClosed(1, FIFTEEN).mapToObj(Integer::toString).toList();
+        void theStateHoldsAFillAndAStatePerSide() {
+            List<String> side = List.of("bare", "film", "runny");
+            List<String> fills = IntStream.rangeClosed(0, FIFTEEN).mapToObj(Integer::toString).toList();
 
-            assertEquals(Map.of("north", flag, "east", flag, "south", flag, "west", flag, "layers", layerCounts),
+            assertEquals(Map.of("north", side, "east", side, "south", side, "west", side, "layers", fills),
                     CompiledStateDefinition.of(VolumeCellBlock.class));
         }
 
@@ -134,6 +138,34 @@ class VolumeCellBlockTest {
         void theCellHoldsNoBlockEntity() {
             assertFalse(EntityBlock.class.isAssignableFrom(VolumeCellBlock.class));
         }
+    }
+
+    /**
+     * A cell holding fill stands on a top; a cell of fill 0 stands on its
+     * films alone, each clinging to a wall with a face to hold it
+     * (decision goo-cell-holds-a-fill-and-a-state-per-side).
+     */
+    @Nested
+    class Standing {
+
+        @Test
+        void aFilledCellStandsOnATopAlone() {
+            assertTrue(VolumeCellBlock.stands(LAYERS_ON_TOP, true, List.of()));
+            assertFalse(VolumeCellBlock.stands(LAYERS_ON_TOP, false, List.of(true)));
+        }
+
+        @Test
+        void aCellOfFillZeroStandsOnAFilmClingingToItsWall() {
+            assertTrue(VolumeCellBlock.stands(0, false, List.of(true)));
+        }
+
+        @Test
+        void aCellOfFillZeroFallsWhenAFilmsWallIsGone() {
+            assertFalse(VolumeCellBlock.stands(0, false, List.of(true, false)));
+            assertFalse(VolumeCellBlock.stands(0, true, List.of()));
+        }
+
+        private static final int LAYERS_ON_TOP = 3;
     }
 
     @Nested
@@ -164,7 +196,7 @@ class VolumeCellBlockTest {
                 }
             }
 
-            assertEquals(IntStream.rangeClosed(1, FIFTEEN).boxed().collect(Collectors.toSet()), drawn);
+            assertEquals(IntStream.rangeClosed(0, FIFTEEN).boxed().collect(Collectors.toSet()), drawn);
         }
 
         private static JsonObject blockstateJson() throws IOException {
@@ -193,6 +225,18 @@ class VolumeCellBlockTest {
         @Test
         void aRetunedCostRetunesTheLayersPrice() {
             assertEquals(GooFraction.of(160).dividedBy(FIFTEEN), VolumeCellBlock.layerPrice(RETUNED_COST));
+        }
+
+        /**
+         * A broken cell gives back every layer it holds, its fill and its films together
+         * (decision goo-cell-holds-a-fill-and-a-state-per-side).
+         */
+        @Test
+        void aBrokenCellReturnsItsFillAndItsFilms() {
+            int held = VolumeCellBlock.layersHeld(LAYERS,
+                    List.of(SideCoat.FILM, SideCoat.BARE, SideCoat.FILM, SideCoat.BARE));
+
+            assertEquals((LAYERS + 2) * 96 / FIFTEEN, VolumeCellBlock.reclaimed(held, A_COST));
         }
 
         @Test

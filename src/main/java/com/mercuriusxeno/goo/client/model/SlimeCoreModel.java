@@ -1,9 +1,12 @@
 package com.mercuriusxeno.goo.client.model;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.block.ability.SideCoat;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mojang.blaze3d.platform.Transparency;
+import com.mojang.math.Quadrant;
 import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
@@ -22,7 +25,10 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.client.model.DynamicBlockStateModel;
 import net.neoforged.neoforge.client.model.block.CustomUnbakedBlockStateModel;
 import org.jspecify.annotations.Nullable;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * The model every volume cell's layers draw through, for slime, slick and
@@ -30,24 +36,50 @@ import java.util.List;
  * inside it the goo slime core the cell holds, drawn from what the model
  * reads as the cell's section meshes, so the core adds nothing to the block
  * state. The core samples the shell's own fluid sprite, the goo type's.
+ * The model also draws the cell's films, one slab on each wall a side holds
+ * a film against, read from the block state, and its fill's drips over the
+ * edge of the block under it on each side no cell of its goo continues,
+ * read from the level as the core is, so the drips add nothing to the
+ * block state either.
  * connected-goo-draws-as-one-layered-mass-with-a-core
  * slime-core-keeps-a-two-layer-gap-and-grows-with-fill
+ * goo-cell-holds-a-fill-and-a-state-per-side
  *
  * @param shell the layered shell the cell's layers draw as
  * @param core  the core's material: the shell's fluid sprite, untinted, on the solid layer
+ * @param film  the films' material: the shell's fluid sprite, under the shell tint, translucent
+ * @param drips the fill's drips over each side's edge, keyed by the side, empty for a cell drawing none
  */
-public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core) implements DynamicBlockStateModel {
+public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core, BakedQuad.MaterialInfo film,
+                             Map<Direction, BlockStateModel> drips) implements DynamicBlockStateModel {
 
     /** The type a block state file names to draw a cell's layers through this model. */
     public static final Identifier TYPE = Identifier.fromNamespaceAndPath(Goo.MODID, "slime_core");
+    /** The tint index the shell, its drips and its films draw under. */
+    static final int SHELL_TINT = 0;
+    /** Each side's drips' turn about the vertical, the north drips' model turned to face it. */
+    private static final Map<Direction, Quadrant> DRIP_TURNS = Map.of(Direction.NORTH, Quadrant.R0,
+            Direction.EAST, Quadrant.R90, Direction.SOUTH, Quadrant.R180, Direction.WEST, Quadrant.R270);
 
     @Override
     public void collectParts(BlockAndTintGetter level, BlockPos pos, BlockState state, RandomSource random,
                              List<BlockStateModelPart> parts) {
         shell.collectParts(level, pos, state, random, parts);
+        if (VolumeCellBlock.layersOf(state) > 0) {
+            drips.forEach((side, drip) -> {
+                if (!level.getBlockState(pos.relative(side)).is(state.getBlock())) {
+                    drip.collectParts(level, pos, state, random, parts);
+                }
+            });
+        }
         List<BakedQuad> quads = SlimeCoreQuads.quadsOf(layersAround(level, pos, state), core);
         if (!quads.isEmpty()) {
             parts.add(new CorePart(quads, shell.particleMaterial(level, pos, state)));
+        }
+        List<Direction> walls = Direction.Plane.HORIZONTAL.stream()
+                .filter(side -> VolumeCellBlock.coatOn(state, side) == SideCoat.FILM).toList();
+        if (!walls.isEmpty()) {
+            parts.add(new CorePart(SlimeFilmQuads.quadsOf(walls, film), shell.particleMaterial(level, pos, state)));
         }
     }
 
@@ -116,15 +148,19 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core)
 
     /**
      * The model as a block state file names it: the shell variant whose
-     * layers the core sits inside.
+     * layers the core sits inside, and the north drips' variant the fill's
+     * drips turn from, left out for a cell of fill 0.
      *
      * @param shell the shell's variant
+     * @param drips the drips' variant over the north edge
      */
-    public record Unbaked(Variant shell) implements CustomUnbakedBlockStateModel {
+    public record Unbaked(Variant shell, Optional<Variant> drips) implements CustomUnbakedBlockStateModel {
 
-        /** Reads {@code {"type": "goo:slime_core", "shell": {"model": ...}}}. */
-        public static final MapCodec<Unbaked> MAP_CODEC = Variant.CODEC.fieldOf("shell")
-                .xmap(Unbaked::new, Unbaked::shell);
+        /** Reads {@code {"type": "goo:slime_core", "shell": {"model": ...}, "drips": {"model": ...}}}. */
+        public static final MapCodec<Unbaked> MAP_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+                Variant.CODEC.fieldOf("shell").forGetter(Unbaked::shell),
+                Variant.CODEC.optionalFieldOf("drips").forGetter(Unbaked::drips)
+        ).apply(instance, Unbaked::new));
 
         @Override
         public MapCodec<Unbaked> codec() {
@@ -138,12 +174,18 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core)
             BlockStateModel layers = new SingleVariant.Unbaked(shell).bake(baker);
             BakedQuad.MaterialInfo core = baker.interner().materialInfo(BakedQuad.MaterialInfo.of(
                     layers.particleMaterial(), Transparency.NONE, SlimeCoreQuads.NO_TINT, true, 0, false));
-            return new SlimeCoreModel(layers, core);
+            BakedQuad.MaterialInfo film = baker.interner().materialInfo(BakedQuad.MaterialInfo.of(
+                    layers.particleMaterial(), Transparency.TRANSLUCENT, SHELL_TINT, true, 0, false));
+            Map<Direction, BlockStateModel> turned = new EnumMap<>(Direction.class);
+            drips.ifPresent(north -> DRIP_TURNS.forEach((side, turn) ->
+                    turned.put(side, new SingleVariant.Unbaked(north.withYRot(turn)).bake(baker))));
+            return new SlimeCoreModel(layers, core, film, turned);
         }
 
         @Override
         public void resolveDependencies(ResolvableModel.Resolver resolver) {
             shell.resolveDependencies(resolver);
+            drips.ifPresent(north -> north.resolveDependencies(resolver));
         }
     }
 }

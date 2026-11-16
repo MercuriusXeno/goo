@@ -2,7 +2,11 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.block.ability.SideCoat;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
@@ -16,6 +20,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -47,6 +52,24 @@ public final class GoopArcTests {
     private static final String DRIPS_ADD_A_LAYER_EACH = "goop_drips_add_a_layer_each_up_to_fifteen";
     /** The cell the landed drips strike, walled in stone on a stone floor so nothing pours. */
     private static final BlockPos DRIPPED_CELL = new BlockPos(4, 1, 4);
+    private static final String HELD_AT_A_WALL = "goop_held_at_a_wall_leaves_a_film";
+    private static final String DRIP_ON_A_WALL_COSTS = "goop_drip_on_a_wall_costs_one_layer";
+    private static final String FILM_DROPS_ITS_LAYER = "goop_film_drops_its_layer_when_its_wall_breaks";
+    /** The wall Goop is held at, four blocks east of the streamer. */
+    private static final int WALL_EAST = 4;
+    private static final int WALL_HEIGHT = 5;
+    /** A stone block standing alone over open air, its west face struck. */
+    private static final BlockPos FLOATING_WALL = new BlockPos(6, 4, 4);
+    /** Ticks a film is watched standing before its wall breaks, past several pours' pace. */
+    private static final int FILM_WATCH_TICKS = 20;
+    /** Ticks a broken film's goo item is given to fall to the floor. */
+    private static final int FILM_FALL_TICKS = 30;
+    /** How far from the film's cell its dropped goo item is looked for. */
+    private static final double FILM_DROP_REACH = 6.0;
+    private static final String NO_FILM_ON_THE_WALL = "Goop held at a wall should leave a film on a cell beside it";
+    private static final String NO_FILM_AT = "The cell at %s should hold a film facing the wall east, holds %s";
+    private static final String FILM_PRICE_WRONG = "One drip on a wall should drain one layer's price %s, drained %d";
+    private static final String FILM_DROP_WRONG = "A film whose wall broke should drop %d mb of weird goo, dropped %d";
     /** The layers a whole block of slime holds. */
     private static final int WHOLE_BLOCK_LAYERS = 15;
     private static final String LAYERS_WRONG = "The dripped cell should hold %d layers of slime, holds %s";
@@ -106,6 +129,9 @@ public final class GoopArcTests {
         GooTestFunctions.registerTest(registrar, GOOP_WOBBLES_A_FAR_MOB, GoopArcTests::goopWobblesAFarMobItsDripStrikes);
         GooTestFunctions.registerTest(registrar, DRIP_STANDS_A_CELL, GoopArcTests::goopDripStandsAOneLayerCell);
         GooTestFunctions.registerTest(registrar, DRIPS_ADD_A_LAYER_EACH, GoopArcTests::goopDripsAddALayerEach);
+        GooTestFunctions.registerTest(registrar, HELD_AT_A_WALL, GoopArcTests::goopHeldAtAWallLeavesAFilm);
+        GooTestFunctions.registerTest(registrar, DRIP_ON_A_WALL_COSTS, GoopArcTests::goopDripOnAWallCostsOneLayer);
+        GooTestFunctions.registerTest(registrar, FILM_DROPS_ITS_LAYER, GoopArcTests::goopFilmDropsItsLayerWhenItsWallBreaks);
     }
 
     /**
@@ -347,6 +373,107 @@ public final class GoopArcTests {
         }
     }
 
+
+    /**
+     * A streamer on a flat stone floor holds Goop level at a stone wall four
+     * blocks east: once the drips have fallen an open cell beside the wall's
+     * west face holds a film on its side facing the wall.
+     * drip-striking-a-side-sticks-or-runs-by-adhesion
+     * goop-and-slick-coat-lands-where-each-drip-arc-strikes
+     *
+     * @param helper the gametest helper
+     */
+    public static void goopHeldAtAWallLeavesAFilm(GameTestHelper helper) {
+        BlockPos floor = LEVEL_STREAMER_POS.below();
+        layFloor(helper, floor.getY(), floor.getZ());
+        for (int up = 1; up <= WALL_HEIGHT; up++) {
+            for (int z = floor.getZ() - FLOOR_HALF_WIDTH; z <= floor.getZ() + FLOOR_HALF_WIDTH; z++) {
+                helper.setBlock(new BlockPos(WALL_EAST, up, z), Blocks.STONE);
+            }
+        }
+        ServerPlayer streamer = goopStreamerAt(helper, LEVEL_STREAMER_POS, LEVEL);
+        holdGoopFor(helper, streamer, SPRAY_HOLD_TICKS);
+        helper.runAfterDelay(SPRAY_HOLD_TICKS + FALL_TICKS, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
+            List<BlockPos> filmed = new ArrayList<>();
+            for (int up = 1; up <= WALL_HEIGHT; up++) {
+                for (int z = floor.getZ() - FLOOR_HALF_WIDTH; z <= floor.getZ() + FLOOR_HALF_WIDTH; z++) {
+                    BlockPos cell = new BlockPos(WALL_EAST - 1, up, z);
+                    BlockState state = helper.getBlockState(cell);
+                    if (state.is(GooBlocks.SLIME_COAT.get())
+                            && VolumeCellBlock.coatOn(state, Direction.EAST) == SideCoat.FILM) {
+                        filmed.add(cell);
+                    }
+                }
+            }
+            helper.assertTrue(!filmed.isEmpty(), NO_FILM_ON_THE_WALL);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * One Goop drip landed through the real landing on a wall's side costs
+     * its caster one layer's price, the film it lays.
+     * drip-striking-a-side-sticks-or-runs-by-adhesion
+     * world-goo-fills-a-block-space-in-one-to-fifteen-layers
+     *
+     * @param helper the gametest helper
+     */
+    public static void goopDripOnAWallCostsOneLayer(GameTestHelper helper) {
+        helper.setBlock(FLOATING_WALL, Blocks.STONE);
+        helper.setBlock(FLOATING_WALL.west(), Blocks.AIR);
+        ServerPlayer caster = goopStreamerAt(helper, LEVEL_STREAMER_POS, LEVEL);
+        int before = weirdHeld(caster);
+        LandedDrips.landOnSide(helper, caster, goop(helper), FLOATING_WALL, Direction.WEST, 1);
+        int drained = before - weirdHeld(caster);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        GooFraction price = ResidualPrices.layerPrice(helper);
+        helper.assertTrue(drained == price.ceiling(), String.format(FILM_PRICE_WRONG, price, drained));
+        assertFilmFacingEast(helper, FLOATING_WALL.west());
+        helper.succeed();
+    }
+
+    /**
+     * A Goop film laid on a wall standing over open air stands with no top
+     * under it while its wall stands; once the wall is broken the film's
+     * layer drops as weird goo worth one layer's price.
+     * goo-cell-holds-a-fill-and-a-state-per-side
+     * drip-striking-a-side-sticks-or-runs-by-adhesion
+     *
+     * @param helper the gametest helper
+     */
+    public static void goopFilmDropsItsLayerWhenItsWallBreaks(GameTestHelper helper) {
+        helper.setBlock(FLOATING_WALL, Blocks.STONE);
+        helper.setBlock(FLOATING_WALL.west(), Blocks.AIR);
+        helper.setBlock(FLOATING_WALL.west().below(), Blocks.AIR);
+        ServerPlayer caster = goopStreamerAt(helper, LEVEL_STREAMER_POS, LEVEL);
+        LandedDrips.landOnSide(helper, caster, goop(helper), FLOATING_WALL, Direction.WEST, 1);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        BlockPos film = FLOATING_WALL.west();
+        helper.runAfterDelay(FILM_WATCH_TICKS, () -> {
+            assertFilmFacingEast(helper, film);
+            helper.getLevel().destroyBlock(helper.absolutePos(FLOATING_WALL), false);
+        });
+        helper.runAfterDelay(FILM_WATCH_TICKS + FILM_FALL_TICKS, () -> {
+            int weird = helper.getEntities(EntityType.ITEM, film, FILM_DROP_REACH).stream()
+                    .map(ItemEntity::getItem).filter(stack -> GooTypes.WEIRD.equals(GooStacks.keyOf(stack)))
+                    .mapToInt(GooStacks::volumeOf).sum();
+            int owed = ResidualPrices.layersRefund(helper, 1);
+            helper.assertTrue(weird == owed, String.format(FILM_DROP_WRONG, owed, weird));
+            helper.succeed();
+        });
+    }
+
+    private static void assertFilmFacingEast(GameTestHelper helper, BlockPos cell) {
+        BlockState state = helper.getBlockState(cell);
+        helper.assertTrue(state.is(GooBlocks.SLIME_COAT.get())
+                        && VolumeCellBlock.coatOn(state, Direction.EAST) == SideCoat.FILM,
+                String.format(NO_FILM_AT, cell, state));
+    }
+
+    private static int weirdHeld(ServerPlayer player) {
+        return GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.WEIRD, 0);
+    }
 
     private static AbilityDefinition goop(GameTestHelper helper) {
         AbilityDefinition goop = AbilityRegistry.of(helper.getLevel()).getAbility(GOOP);

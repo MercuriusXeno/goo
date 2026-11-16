@@ -32,7 +32,7 @@ public final class SlimeCoreQuads {
     /** Model pixels to one fifteenth of a block. */
     private static final float PIXELS_PER_LAYER = 16f / SlimeCoreBox.WHOLE;
     /** Bakes each quad as it comes, sharing nothing between them. */
-    private static final ModelBaker.Interner UNSHARED = new ModelBaker.Interner() {
+    static final ModelBaker.Interner UNSHARED = new ModelBaker.Interner() {
         @Override
         public Vector3fc vector(Vector3fc vector) {
             return vector;

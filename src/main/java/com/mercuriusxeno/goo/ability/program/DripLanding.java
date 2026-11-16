@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.throwing.CoatRay;
-import net.minecraft.core.BlockPos;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,21 +14,21 @@ import java.util.Optional;
 public interface DripLanding {
 
     /**
-     * The cell a drip's strike feeds.
+     * The cell a drip's strike feeds, and the side whose wall it coats there.
      *
      * @param host   the caster's host
      * @param strike where the drip struck
-     * @return the cell, empty where the strike lays nothing
+     * @return the cell and the side fed, empty where the strike lays nothing
      */
-    Optional<BlockPos> cellFed(ChannelHost host, CoatRay.BlockStrike strike);
+    Optional<CellFed> cellFed(ChannelHost host, CoatRay.BlockStrike strike);
 
     /**
      * Feeds a cell what one strike lays, paid for as it lands.
      *
      * @param host the caster's host
-     * @param cell the cell a strike fed
+     * @param fed  the cell and the side a strike fed
      */
-    void feed(ChannelHost host, BlockPos cell);
+    void feed(ChannelHost host, CellFed fed);
 
     /**
      * Whether the stream throws its drips faster the faster its caster
