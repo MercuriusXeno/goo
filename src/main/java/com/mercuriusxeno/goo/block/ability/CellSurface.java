@@ -54,6 +54,20 @@ public enum CellSurface {
         return this == RAMP;
     }
 
+    /**
+     * Whether the cell, rather than the block under it, takes the steps and
+     * the ground friction of a thing standing on it, however thin the cell:
+     * slick, so its ramp and its ice's slide reach what moves on it, and
+     * rime, so its slide and its cold do.
+     * slick-coats-the-ground-with-kinetic-speed
+     * rime-goo-is-slippery-to-walk-on
+     *
+     * @return true for slick and rime
+     */
+    public boolean holdsTheFeet() {
+        return this == RAMP || this == GLAZE;
+    }
+
     /** The frictions the surfaces stand at, held apart so the constants above can read them. */
     private static final class Frictions {
         /** Vanilla's friction for ordinary ground. */
