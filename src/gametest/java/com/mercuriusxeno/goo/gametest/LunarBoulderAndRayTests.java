@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.lunar.CraterField;
+import com.mercuriusxeno.goo.lunar.EjectaRays;
 import com.mercuriusxeno.goo.lunar.GiantCraterField;
 import com.mercuriusxeno.goo.lunar.Lunar;
 import com.mercuriusxeno.goo.registry.GooBlocks;
@@ -20,6 +21,7 @@ import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 
@@ -44,14 +46,18 @@ public final class LunarBoulderAndRayTests {
     private static final BlockPos BOULDER_SPOT = new BlockPos(4, FLOOR_Y + 1, 4);
     /** How many giant crater cells from the origin a search reaches each way. */
     private static final int CELL_REACH = 8;
-    /** The two columns stand this many radii out from the crater's centre, past its rim's fall. */
-    private static final double COLUMN_REACH = 1.6;
+    /** The between column stands this many radii out from the crater's centre, past its rim's fall. */
+    private static final double BETWEEN_REACH = 1.6;
+    /** The ray column is sought out along the ray from past the rim's fall, in steps of a hundredth of a radius. */
+    private static final double RAY_SEARCH_FROM = 1.45;
+    private static final double RAY_SEARCH_TO = 2.2;
+    private static final double RAY_SEARCH_STEP = 0.01;
 
     private static final String BIOME_NAMES_BOULDERS = "goo:lunar's features should name goo:boulder_field";
     private static final String BOULDER_STANDS = "The boulder placed at %s should stand anorthosite, basalt or breccia "
             + "over the regolith, reads %s";
-    private static final String NO_RAYED_CRATER = "No giant crater within %d cells of the origin has a ray column and a "
-            + "between column clear of every other crater";
+    private static final String NO_RAYED_CRATER = "No fresh giant crater within %d cells of the origin has a flecked ray "
+            + "column and a between column clear of every other crater";
     private static final String RAY_READS_ANORTHOSITE = "The ray column %s should read anorthosite at its surface y %d, "
             + "reads %s";
     private static final String BETWEEN_READS_REGOLITH = "The column %s between two rays should read regolith at its "
@@ -135,25 +141,45 @@ public final class LunarBoulderAndRayTests {
         for (int cellX = -CELL_REACH; cellX <= CELL_REACH; cellX++) {
             for (int cellZ = -CELL_REACH; cellZ <= CELL_REACH; cellZ++) {
                 Optional<GiantCraterField.Crater> crater = giants.craterInCell(cellX, cellZ);
-                if (crater.isEmpty()) {
+                if (crater.isEmpty() || !crater.get().fresh()) {
                     continue;
                 }
-                double spacing = 2.0 * Math.PI / crater.get().rays();
-                BlockPos onRay = columnAt(crater.get(), crater.get().phase());
-                BlockPos between = columnAt(crater.get(), crater.get().phase() + spacing / 2.0);
-                if (clearOfOtherCraters(craters, giants, onRay) && clearOfOtherCraters(craters, giants, between)
-                        && clearOfBoulders.test(onRay) && clearOfBoulders.test(between)
-                        && !craters.isOnRayAt(between.getX(), between.getZ())
-                        && !giants.isOnRayAt(between.getX(), between.getZ())) {
-                    return new BlockPos[] {onRay, between};
+                BlockPos[] columns = rayColumns(craters, giants, clearOfBoulders, crater.get());
+                if (columns != null) {
+                    return columns;
                 }
             }
         }
         return null;
     }
 
-    private static BlockPos columnAt(GiantCraterField.Crater crater, double angle) {
-        double distance = crater.radius() * COLUMN_REACH;
+    /**
+     * A flecked column out along a fresh crater's first ray and a column midway between that ray and the next, both
+     * clear of every other crater and every thrown boulder, the between column on no ray; or null.
+     */
+    private static BlockPos[] rayColumns(CraterField craters, GiantCraterField giants, ClearOfBoulders clearOfBoulders,
+            GiantCraterField.Crater crater) {
+        List<Double> angles = crater.rays().stream().map(EjectaRays.Ray::angle).sorted().toList();
+        double first = angles.get(0);
+        double between = (first + angles.get(1)) / 2.0;
+        BlockPos betweenColumn = columnAt(crater, between, BETWEEN_REACH);
+        if (!clearOfOtherCraters(craters, giants, betweenColumn) || !clearOfBoulders.test(betweenColumn)
+                || craters.isOnRayAt(betweenColumn.getX(), betweenColumn.getZ())
+                || giants.isOnRayAt(betweenColumn.getX(), betweenColumn.getZ())) {
+            return null;
+        }
+        for (double reach = RAY_SEARCH_FROM; reach < RAY_SEARCH_TO; reach += RAY_SEARCH_STEP) {
+            BlockPos onRay = columnAt(crater, first, reach);
+            if (giants.isOnRayAt(onRay.getX(), onRay.getZ()) && clearOfOtherCraters(craters, giants, onRay)
+                    && clearOfBoulders.test(onRay)) {
+                return new BlockPos[] {onRay, betweenColumn};
+            }
+        }
+        return null;
+    }
+
+    private static BlockPos columnAt(GiantCraterField.Crater crater, double angle, double reach) {
+        double distance = crater.radius() * reach;
         return BlockPos.containing(crater.centerX() + Math.cos(angle) * distance, 0.0,
                 crater.centerZ() + Math.sin(angle) * distance);
     }

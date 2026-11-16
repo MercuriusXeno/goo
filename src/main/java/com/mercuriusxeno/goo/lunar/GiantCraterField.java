@@ -58,6 +58,9 @@ public record GiantCraterField(DensityFunction.NoiseHolder noise) implements Den
     private static final int SIZE = 11;
     private static final int RAY_COUNT = 12;
     private static final int RAY_PHASE = 13;
+    private static final int FRESH = 60;
+    /** A giant crater's rays roll on their own indices from here, three to a ray. */
+    private static final int RAY_ROLLS = 61;
     /** A giant crater throws six to twelve boulders, each rolled on three rolls of its own past these. */
     private static final int BOULDER_COUNT = 14;
     private static final int BOULDER_ROLLS = 15;
@@ -87,17 +90,19 @@ public record GiantCraterField(DensityFunction.NoiseHolder noise) implements Den
     private static final int NEIGHBOURHOOD = 9;
 
     /**
-     * One giant crater: its centre and its radius, in blocks, and the ejecta rays it throws.
+     * One giant crater: its centre and its radius, in blocks, the lines its ejecta run out along, and the boulders it
+     * threw.
      *
      * @param centerX the centre's x
      * @param centerZ the centre's z
      * @param radius  the radius, rim crest to centre
-     * @param rays         how many ejecta rays it throws
-     * @param phase        the angle of its first ray, in radians
+     * @param fresh        whether it is fresh enough to paint its rays on the ground
+     * @param rays         the lines its ejecta run out along, painted only where it is fresh; empty where the crater
+     *                     was read only for its shape
      * @param boulderSpots the columns its thrown boulders lie on, half on its rim and half out along its rays; empty
      *                     where the crater was read only for its shape
      */
-    public record Crater(double centerX, double centerZ, double radius, int rays, double phase,
+    public record Crater(double centerX, double centerZ, double radius, boolean fresh, List<EjectaRays.Ray> rays,
             List<BlockPos> boulderSpots) {
 
         /**
@@ -119,7 +124,7 @@ public record GiantCraterField(DensityFunction.NoiseHolder noise) implements Den
          * @return true on a ray
          */
         public boolean isOnRay(int x, int z) {
-            return EjectaRays.isOnRayOf(x, z, centerX, centerZ, radius, rays, phase);
+            return fresh && EjectaRays.isOnRayOf(x, z, centerX, centerZ, radius, rays);
         }
     }
 
@@ -176,11 +181,21 @@ public record GiantCraterField(DensityFunction.NoiseHolder noise) implements Den
         double centerX = (cellX + rolls.roll(cellX, cellZ, OFFSET_X)) * CELL;
         double centerZ = (cellZ + rolls.roll(cellX, cellZ, OFFSET_Z)) * CELL;
         double radius = radius(cellX, cellZ, rolls);
-        int rays = EjectaRays.rayCount(rolls.roll(cellX, cellZ, RAY_COUNT));
-        double phase = EjectaRays.phase(rolls.roll(cellX, cellZ, RAY_PHASE));
-        List<BlockPos> boulders = withBoulders
-                ? boulderSpots(cellX, cellZ, rolls, centerX, centerZ, radius, rays, phase) : List.of();
-        return Optional.of(new Crater(centerX, centerZ, radius, rays, phase, boulders));
+        if (!withBoulders) {
+            return Optional.of(new Crater(centerX, centerZ, radius, false, List.of(), List.of()));
+        }
+        List<EjectaRays.Ray> rays = rays(cellX, cellZ, rolls);
+        return Optional.of(new Crater(centerX, centerZ, radius, isFresh(cellX, cellZ, rolls), rays,
+                boulderSpots(cellX, cellZ, rolls, centerX, centerZ, radius, rays)));
+    }
+
+    private static List<EjectaRays.Ray> rays(int cellX, int cellZ, CraterField.CellRolls rolls) {
+        return EjectaRays.rays(rolls.roll(cellX, cellZ, RAY_COUNT), rolls.roll(cellX, cellZ, RAY_PHASE) * FULL_TURN,
+                ray -> rolls.roll(cellX, cellZ, RAY_ROLLS + ray));
+    }
+
+    private static boolean isFresh(int cellX, int cellZ, CraterField.CellRolls rolls) {
+        return rolls.roll(cellX, cellZ, FRESH) < EjectaRays.FRESH_CHANCE;
     }
 
     /**
@@ -189,7 +204,7 @@ public record GiantCraterField(DensityFunction.NoiseHolder noise) implements Den
      * decision lunar-surface-gains-giant-craters-mountains-rilles-and-boulder-fields
      */
     private static List<BlockPos> boulderSpots(int cellX, int cellZ, CraterField.CellRolls rolls, double centerX,
-            double centerZ, double radius, int rays, double phase) {
+            double centerZ, double radius, List<EjectaRays.Ray> rays) {
         int count = MIN_BOULDERS + (int) (rolls.roll(cellX, cellZ, BOULDER_COUNT) * BOULDER_SPREAD);
         List<BlockPos> spots = new ArrayList<>(count);
         for (int boulder = 0; boulder < count; boulder++) {
@@ -198,7 +213,7 @@ public record GiantCraterField(DensityFunction.NoiseHolder noise) implements Den
             double out = rolls.roll(cellX, cellZ, base + WHERE_TO_OUT);
             double stray = rolls.roll(cellX, cellZ, base + WHERE_TO_STRAY) * RAY_BOULDER_STRAY_SPAN - RAY_BOULDER_STRAY;
             boolean alongARay = Math.floorMod(boulder, ALTERNATION) == 0;
-            double angle = alongARay ? phase + FULL_TURN * Math.floor(where * rays) / rays + stray : where * FULL_TURN;
+            double angle = alongARay ? rays.get((int) (where * rays.size())).angle() + stray : where * FULL_TURN;
             double reach = alongARay ? RAY_BOULDER_REACH + out * RAY_BOULDER_SPREAD
                     : RIM_BOULDER_REACH + out * RIM_BOULDER_SPREAD;
             spots.add(BlockPos.containing(centerX + Math.cos(angle) * reach * radius, 0.0,
@@ -264,7 +279,7 @@ public record GiantCraterField(DensityFunction.NoiseHolder noise) implements Den
     }
 
     /**
-     * Whether a column lies on an ejecta ray of some giant crater; every giant crater throws rays.
+     * Whether a column lies flecked on an ejecta ray of some fresh giant crater.
      * decision lunar-surface-gains-giant-craters-mountains-rilles-and-boulder-fields
      *
      * @param x     the column's x
@@ -273,12 +288,29 @@ public record GiantCraterField(DensityFunction.NoiseHolder noise) implements Den
      * @return true on a giant crater's ray
      */
     static boolean isOnRay(int x, int z, CraterField.CellRolls rolls) {
-        for (Crater crater : cratersNear(x, z, rolls)) {
-            if (crater.isOnRay(x, z)) {
-                return true;
+        int cellX = Math.floorDiv(x, CELL);
+        int cellZ = Math.floorDiv(z, CELL);
+        for (int dx = -NEIGHBOUR_REACH; dx <= NEIGHBOUR_REACH; dx++) {
+            for (int dz = -NEIGHBOUR_REACH; dz <= NEIGHBOUR_REACH; dz++) {
+                if (isOnRayOfCell(x, z, cellX + dx, cellZ + dz, rolls)) {
+                    return true;
+                }
             }
         }
         return false;
+    }
+
+    private static boolean isOnRayOfCell(int x, int z, int cellX, int cellZ, CraterField.CellRolls rolls) {
+        Optional<Crater> crater = craterIn(cellX, cellZ, rolls);
+        if (crater.isEmpty()) {
+            return false;
+        }
+        double reach = crater.get().reach(x, z);
+        if (reach < 1.0 || reach >= EjectaRays.REACH || !isFresh(cellX, cellZ, rolls)) {
+            return false;
+        }
+        return EjectaRays.isOnRayOf(x, z, crater.get().centerX(), crater.get().centerZ(), crater.get().radius(),
+                rays(cellX, cellZ, rolls));
     }
 
     private static Iterable<Crater> cratersNear(int x, int z, CraterField.CellRolls rolls) {
