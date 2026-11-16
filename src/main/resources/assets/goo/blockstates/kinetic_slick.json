@@ -1,5 +1,6 @@
 {
   "multipart": [
+    {"when": {"layers": "0"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/kinetic_slick_layers_0"}}},
     {"when": {"layers": "1"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/kinetic_slick_layers_1"}}},
     {"when": {"layers": "2"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/kinetic_slick_layers_2"}}},
     {"when": {"layers": "3"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/kinetic_slick_layers_3"}}},
