@@ -10,7 +10,9 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -22,21 +24,25 @@ import java.util.stream.Stream;
  * nothing itself. The cone is the whole volume within the
  * reach and the cone's angle of the look, not the stream's sampled rays, so a
  * held aim takes every residual in front of it; a cell needs a clear line
- * from the eye that only other residuals cross. The break runs as a wave: a
- * cell breaks whole once the hold is as many ticks old as its distance from
- * the eye sets, nearest first; a cell the wave never reached keeps standing.
+ * from the eye that only other residuals cross. Every reached cell shows
+ * vanilla's break lines from the tick the cone reaches it and breaks whole
+ * once the ticks its distance sets have run, the near value beside the eye
+ * to the far value at the reach's far end, so nearer cells break first;
+ * releasing, or turning the cone off a cell, clears its break lines and it
+ * stands whole.
  * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
  * vacuum-breaks-a-cell-the-tick-the-wave-reaches-it
  *
- * @param ticksPerBlock the hold ticks the wave takes to cross one block, so the reach's far end breaks this many
- *                      ticks a block in
+ * @param nearBreakTicks the ticks a cell at the eye takes to break
+ * @param farBreakTicks  the ticks a cell at the reach's far end takes to break
  */
-public record VacuumStep(double ticksPerBlock) implements TakesNoEntity {
+public record VacuumStep(double nearBreakTicks, double farBreakTicks) implements TakesNoEntity {
 
     private static final String NAME = "vacuum";
     /** The break particles a taken cell throws for each layer it held. */
     private static final int BREAK_PARTICLES_PER_LAYER = 3;
-    private static final String FIELD_TICKS_PER_BLOCK = "ticks_per_block";
+    private static final String FIELD_NEAR_BREAK_TICKS = "near_break_ticks";
+    private static final String FIELD_FAR_BREAK_TICKS = "far_break_ticks";
     /** The pitch a residual taken at the eye slurps at. */
     private static final double SLURP_LOW_PITCH = 0.8;
     /** The pitch a residual taken at the reach's far end slurps at. */
@@ -48,7 +54,10 @@ public record VacuumStep(double ticksPerBlock) implements TakesNoEntity {
      * Codec for the step's params.
      */
     public static final MapCodec<VacuumStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            Codec.doubleRange(0, Double.MAX_VALUE).fieldOf(FIELD_TICKS_PER_BLOCK).forGetter(VacuumStep::ticksPerBlock)
+            Codec.doubleRange(1, Double.MAX_VALUE).fieldOf(FIELD_NEAR_BREAK_TICKS)
+                    .forGetter(VacuumStep::nearBreakTicks),
+            Codec.doubleRange(1, Double.MAX_VALUE).fieldOf(FIELD_FAR_BREAK_TICKS)
+                    .forGetter(VacuumStep::farBreakTicks)
     ).apply(inst, VacuumStep::new));
 
     /**
@@ -69,7 +78,11 @@ public record VacuumStep(double ticksPerBlock) implements TakesNoEntity {
     }
 
     /**
-     * Breaks each residual in the cone the wave has reached this tick, nearest first.
+     * Hands the hold's gradual break every residual in the cone this tick,
+     * nearest first, each gaining the share of a break its distance sets, so
+     * each cracks from the tick the cone reaches it and breaks away once its
+     * progress fills; a residual the cone turned off loses its cracks and its
+     * progress.
      * vacuum-breaks-a-cell-the-tick-the-wave-reaches-it
      *
      * @param host the channel host
@@ -80,18 +93,36 @@ public record VacuumStep(double ticksPerBlock) implements TakesNoEntity {
         double reach = aim.aimPoint().distanceTo(eye);
         List<BlockPos> inCone = residualsInCone(eye, aim.aimPoint().subtract(eye), aim.coneDegrees(),
                 pos -> worldGoo(host.stateAt(pos)), pos -> passable(host, pos));
+        Map<BlockPos, Double> rates = new LinkedHashMap<>();
         for (BlockPos cell : inCone) {
-            double distance = middleOf(cell).distanceTo(eye);
-            if (aim.held() >= breaksOn(distance, ticksPerBlock)) {
-                breakAway(host, cell, host.stateAt(cell), slurpPitch(distance, reach));
-            }
+            rates.put(cell, 1 / breakTicks(middleOf(cell).distanceTo(eye), reach));
         }
+        host.gradualBreak().progress(rates, host, cell -> breakAway(host, cell, host.stateAt(cell),
+                slurpPitch(middleOf(cell).distanceTo(eye), reach)));
     }
 
     /**
-     * Breaks a reached residual quietly with its drops, throwing three break
-     * particles a layer rather than vanilla's whole burst, plays its break
-     * sound and slurps it up at its cell.
+     * The ticks a residual takes to break: the near value at the eye, rising
+     * evenly with its distance to the far value at the reach's far end.
+     * vacuum-breaks-a-cell-the-tick-the-wave-reaches-it
+     *
+     * @param distance the cell's middle's distance from the eye, in blocks
+     * @param reach    the stream's reach, in blocks
+     * @return the break ticks, from the near value to the far value
+     */
+    double breakTicks(double distance, double reach) {
+        return nearBreakTicks + (farBreakTicks - nearBreakTicks) * alongTheReach(distance, reach);
+    }
+
+    /** How far along the reach a distance stands, 0 at the eye to 1 at the far end. */
+    private static double alongTheReach(double distance, double reach) {
+        return reach <= 0 ? 1 : Math.clamp(distance / reach, 0, 1);
+    }
+
+    /**
+     * Breaks a residual whose break filled quietly with its drops, throwing
+     * three break particles a layer rather than vanilla's whole burst, plays
+     * its break sound and slurps it up at its cell.
      * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
      * vacuum-throws-three-break-particles-a-layer
      */
@@ -106,7 +137,7 @@ public record VacuumStep(double ticksPerBlock) implements TakesNoEntity {
 
     /**
      * The pitch a taken residual slurps at: low at the eye, rising evenly
-     * along the wave to high at the reach's far end.
+     * with its distance to high at the reach's far end.
      * vacuum-sounds-a-suction-wind-and-rising-slurps
      *
      * @param distance the cell's middle's distance from the eye, in blocks
@@ -114,21 +145,7 @@ public record VacuumStep(double ticksPerBlock) implements TakesNoEntity {
      * @return the pitch
      */
     static float slurpPitch(double distance, double reach) {
-        double along = reach <= 0 ? 1 : Math.clamp(distance / reach, 0, 1);
-        return (float) (SLURP_LOW_PITCH + (SLURP_HIGH_PITCH - SLURP_LOW_PITCH) * along);
-    }
-
-    /**
-     * The hold tick a residual cell breaks on: its distance from the eye times
-     * the wave's ticks a block, so the wave runs from the player outward.
-     * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
-     *
-     * @param distance      the cell's middle's distance from the eye, in blocks
-     * @param ticksPerBlock the hold ticks the wave takes to cross one block
-     * @return the hold tick it breaks on, counting the hold's first tick as 1
-     */
-    public static int breaksOn(double distance, double ticksPerBlock) {
-        return (int) Math.ceil(distance * ticksPerBlock);
+        return (float) (SLURP_LOW_PITCH + (SLURP_HIGH_PITCH - SLURP_LOW_PITCH) * alongTheReach(distance, reach));
     }
 
     /**
