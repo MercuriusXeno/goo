@@ -105,7 +105,6 @@ public final class GooNetworking {
         r.playToClient(HeldSweepPayload.TYPE, HeldSweepPayload.STREAM_CODEC);
         r.playToClient(LaserPayload.TYPE, LaserPayload.STREAM_CODEC);
         r.playToClient(LeechPayload.TYPE, LeechPayload.STREAM_CODEC);
-        r.playToClient(SpiritBitePayload.TYPE, SpiritBitePayload.STREAM_CODEC);
         r.playToClient(TomePayload.TYPE, TomePayload.STREAM_CODEC);
         r.playToClient(NovaRingPayload.TYPE, NovaRingPayload.STREAM_CODEC);
         r.playToClient(HeaterFlamePayload.TYPE, HeaterFlamePayload.STREAM_CODEC);
