@@ -51,7 +51,6 @@ class StepCodecTest {
             Map.entry("nova", new NovaStep(Expr.parse("2 + 6 * charge").getOrThrow(),
                     Expr.parse("4 + 12 * charge").getOrThrow(), 0.05f, 0.4f, new FrostCurve(300, 0.005f, 0.5f, 3f))),
             Map.entry("freeze_blocks", new FreezeBlocksStep(Expr.literal(2))),
-            Map.entry("cool_lava", new CoolLavaStep()),
             Map.entry("coat", new CoatStep()),
             Map.entry("slick", new SlickStep(1.03, 1.08, 40, 1, 0.3)),
             Map.entry("vacuum", new VacuumStep(1.25)),
@@ -368,6 +367,14 @@ class StepCodecTest {
     @Test
     void extinguishDecodesFromItsTypeAlone() {
         assertEquals(new ExtinguishStep(), decode("{\"type\": \"extinguish\"}").getOrThrow());
+    }
+
+    // goop-stops-turning-lava-into-magma
+    @Test
+    void aStepListCarryingCoolLavaLoadsTheCoatAlone() {
+        String json = "[{\"type\": \"cool_lava\"}, {\"type\": \"coat\"}]";
+        List<Step> steps = StepTypes.LIST_CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(json)).getOrThrow();
+        assertEquals(List.of(new CoatStep()), steps);
     }
 
     @Test
