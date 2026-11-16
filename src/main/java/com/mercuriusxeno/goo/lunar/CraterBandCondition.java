@@ -12,7 +12,7 @@ import net.minecraft.world.level.levelgen.synth.NormalNoise;
 /**
  * The {@code goo:crater_band} surface rule condition: it passes a column some crater reaches within a band of its
  * radii, read from the same seeded crater noise lunar's terrain sinks its craters from, so a rule it gates lays its
- * block on the craters the world drew. A band from zero to half a radius is a crater's floor; a least radius keeps
+ * block on the craters the world drew, the giant craters among them. A band from zero to half a radius is a crater's floor; a least radius keeps
  * the band to the larger craters.
  * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
  *
@@ -40,7 +40,8 @@ public record CraterBandCondition(ResourceKey<NormalNoise.NoiseParameters> noise
 
     @Override
     public SurfaceRules.Condition apply(SurfaceRules.Context context) {
-        return new ColumnTest(context, CraterField.seeded(context.randomState.getOrCreateNoise(noise)));
+        NormalNoise craterNoise = context.randomState.getOrCreateNoise(noise);
+        return new ColumnTest(context, CraterField.seeded(craterNoise), GiantCraterField.seeded(craterNoise));
     }
 
     /**
@@ -49,13 +50,15 @@ public record CraterBandCondition(ResourceKey<NormalNoise.NoiseParameters> noise
     private final class ColumnTest implements SurfaceRules.Condition {
         private final SurfaceRules.Context context;
         private final CraterField craters;
+        private final GiantCraterField giants;
         private int testedX = Integer.MIN_VALUE;
         private int testedZ = Integer.MIN_VALUE;
         private boolean inBand;
 
-        private ColumnTest(SurfaceRules.Context context, CraterField craters) {
+        private ColumnTest(SurfaceRules.Context context, CraterField craters, GiantCraterField giants) {
             this.context = context;
             this.craters = craters;
+            this.giants = giants;
         }
 
         @Override
@@ -63,7 +66,8 @@ public record CraterBandCondition(ResourceKey<NormalNoise.NoiseParameters> noise
             if (context.blockX != testedX || context.blockZ != testedZ) {
                 testedX = context.blockX;
                 testedZ = context.blockZ;
-                inBand = craters.reachesBandAt(testedX, testedZ, minReach, maxReach, minRadius);
+                inBand = craters.reachesBandAt(testedX, testedZ, minReach, maxReach, minRadius)
+                        || giants.reachesBandAt(testedX, testedZ, minReach, maxReach, minRadius);
             }
             return inBand;
         }

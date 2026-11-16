@@ -52,7 +52,8 @@ public final class LunarTerrainTests {
     private static final String LUNAR_REQUIRED = "The server should hold goo:lunar";
     private static final String OWN_NOISE = "goo:lunar should generate from goo:lunar's noise settings, generates from %s";
     private static final String SURFACE = "%s should read regolith at the surface y %d, reads %s";
-    private static final String BELOW_REGOLITH = "%s should read anorthosite or basalt under its regolith at y %d, reads %s";
+    private static final String BELOW_REGOLITH = "%s should read anorthosite, basalt or a crater's breccia or impact glass "
+            + "under its regolith at y %d, reads %s";
     private static final String STRATUM = "%s should read %s at y %d, reads %s";
     private static final String METEORIC_IRON_IN_ANORTHOSITE =
             "The chunks around %s should hold meteoric iron touching anorthosite";
@@ -110,7 +111,8 @@ public final class LunarTerrainTests {
     }
 
     /**
-     * Each test spot's column in goo:lunar reads regolith at its surface, anorthosite or basalt beneath, molten iron
+     * Each test spot's column in goo:lunar reads regolith at its surface, anorthosite or basalt beneath (or the breccia
+     * and impact glass a crater lays there), molten iron
      * from y 24 to y 39, the iron core from y 1 to y 23 and bedrock at y 0.
      *
      * @param helper the gametest helper
@@ -139,7 +141,8 @@ public final class LunarTerrainTests {
             y--;
         }
         BlockState beneath = lunar.getBlockState(spot.atY(y));
-        helper.assertTrue(beneath.is(GooBlocks.ANORTHOSITE.get()) || beneath.is(Blocks.BASALT),
+        helper.assertTrue(beneath.is(GooBlocks.ANORTHOSITE.get()) || beneath.is(Blocks.BASALT)
+                || beneath.is(GooBlocks.BRECCIA.get()) || beneath.is(GooBlocks.IMPACT_GLASS.get()),
                 String.format(BELOW_REGOLITH, spot, y, beneath));
         for (int depth = IRON_CORE_TOP_Y + 1; depth <= MOLTEN_IRON_TOP_Y; depth++) {
             assertStratum(helper, lunar, spot.atY(depth), GooBlocks.MOLTEN_IRON.get().defaultBlockState());
