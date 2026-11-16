@@ -9,6 +9,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.Block;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -44,6 +45,16 @@ public record MoltenStep(TagKey<Block> meltable) implements TakesNoEntity, DripL
      * The registered type.
      */
     public static final StepType<MoltenStep> TYPE = new StepType<>(NAME, CODEC);
+
+    /**
+     * The molten step a program carries, the first where it carries several.
+     *
+     * @param program the ability's steps
+     * @return the molten step, empty where the program lays no molten goo
+     */
+    public static Optional<MoltenStep> in(List<Step> program) {
+        return program.stream().filter(MoltenStep.class::isInstance).map(MoltenStep.class::cast).findFirst();
+    }
 
     @Override
     public StepType<MoltenStep> type() {
