@@ -18,6 +18,8 @@ public final class SkyResources {
 
     /** The dimension type the Zone's rooms stand in. */
     public static final String POCKET = "data/goo/dimension_type/pocket.json";
+    /** Astral's lunar dimension type. */
+    public static final String LUNAR = "data/goo/dimension_type/lunar.json";
     /** Vanilla's overworld dimension type, which the Minecraft jar carries. */
     public static final String OVERWORLD = "data/minecraft/dimension_type/overworld.json";
     /** The attribute NeoForge picks a dimension's custom sky renderer by. */

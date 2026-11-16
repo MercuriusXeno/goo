@@ -70,6 +70,7 @@ public class Goo {
         GooSounds.SOUND_EVENTS.register(modEventBus);
         GooCreativeTabs.TABS.register(modEventBus);
         GooRecipeSerializers.RECIPE_SERIALIZERS.register(modEventBus);
+        GooDensityFunctions.DENSITY_FUNCTION_TYPES.register(modEventBus);
     }
 
     /**
