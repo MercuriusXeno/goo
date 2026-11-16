@@ -12,8 +12,10 @@ import com.mercuriusxeno.goo.network.PalmBlobChargePayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -355,9 +357,32 @@ public final class GloveUseTracker {
         }
 
         @Override
-        public void beginNextJavelin() {
-            LiftedPalmBlob.liftAfresh(player.getId(), player.getEyePosition(), player.level().getGameTime());
+        public void javelinTurned(JavelinTurn turn) {
+            if (turn == JavelinTurn.THROWN) {
+                // dart-forms-on-right-click-and-throws-on-left-click: the next javelin forms from the blob behind it
+                LiftedPalmBlob.liftAfresh(player.getId(), player.getEyePosition(), player.level().getGameTime());
+            }
+            shink(player, turn);
         }
+    }
+
+    /**
+     * Plays at the local player the sound a turn of the javelin asks for:
+     * the shink as it begins forming, the lower shink as it begins reverting.
+     * decision dart-shinks-as-it-forms-and-pitched-down-as-it-reverts
+     *
+     * @param player the local player
+     * @param turn   the javelin's turn
+     */
+    private static void shink(LocalPlayer player, JavelinTurn turn) {
+        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        if (selection == null) {
+            return;
+        }
+        turn.soundOf(GloveThrowSender.selectedDelivery(selection.abilityId()).formSounds()).ifPresent(cue ->
+                BuiltInRegistries.SOUND_EVENT.get(cue.sound()).ifPresent(sound -> player.level().playLocalSound(
+                        player.getX(), player.getY(), player.getZ(), sound.value(), SoundSource.PLAYERS,
+                        cue.volume(), cue.pitch(), false)));
     }
 
     /**
