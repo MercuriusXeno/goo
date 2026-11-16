@@ -169,11 +169,16 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     /**
      * Explodes at the anchor with Goo's explosion in the look the step
      * wrote, beside the landing's burnout its goo type draws (decision
-     * elemental-explosion-per-type).
+     * elemental-explosion-per-type), each hit naming the caster where the
+     * caster stands on the server.
+     * direct-goo-hit-credits-its-caster
+     * goo-hit-keeps-its-kind-and-names-the-player-behind-it
      */
     @Override
     public void explode(float power, double reach, boolean gathers, ExplosionMode mode, ExplosionLook look) {
-        GooExplosion.detonate(level, anchor(), power, new GooExplosion.Cut(reach, gathers), mode, look.shown());
+        ServerPlayer player = caster == null ? null : level.getServer().getPlayerList().getPlayer(caster);
+        GooExplosion.detonate(level, anchor(), power, new GooExplosion.Cut(reach, gathers), mode, look.shown(),
+                player);
     }
 
     @Override

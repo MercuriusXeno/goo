@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.frost;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.held.HeldEffectsEvents;
@@ -196,8 +197,11 @@ public final class IcebornEvents {
     @SubscribeEvent
     public static void onProjectileImpact(ProjectileImpactEvent event) {
         if (event.getRayTraceResult() instanceof EntityHitResult hit && hit.getEntity() instanceof LivingEntity struck) {
+            // direct-goo-hit-credits-its-caster
+            // goo-hit-keeps-its-kind-and-names-the-player-behind-it
             icebornThrower(event.getProjectile()).ifPresent(thrower -> struck.hurtServer(thrower.level(),
-                    thrower.damageSources().freeze(), snowballDamage(struck.fireImmune())));
+                    GooHitCredit.credit(thrower.damageSources().freeze(), struck, thrower),
+                    snowballDamage(struck.fireImmune())));
         }
     }
 
