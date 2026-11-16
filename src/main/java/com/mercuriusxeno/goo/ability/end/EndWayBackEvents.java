@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.ability.end;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -27,10 +26,10 @@ public final class EndWayBackEvents {
     @SubscribeEvent
     public static void onChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
         Player player = event.getEntity();
-        EndWayBack held = player.getData(GooAttachments.END_WAY_BACK);
+        EndWayBack held = EndWayBack.heldBy(player);
         EndWayBack kept = held.afterChangingDimension(event.getFrom(), event.getTo());
         if (!kept.equals(held)) {
-            player.setData(GooAttachments.END_WAY_BACK, kept);
+            EndWayBack.keepOn(player, kept);
         }
     }
 
@@ -43,8 +42,8 @@ public final class EndWayBackEvents {
     @SubscribeEvent
     public static void onRespawn(PlayerEvent.PlayerRespawnEvent event) {
         Player player = event.getEntity();
-        if (player.level().dimension() != Level.END && player.getData(GooAttachments.END_WAY_BACK).stands()) {
-            player.setData(GooAttachments.END_WAY_BACK, EndWayBack.NONE);
+        if (player.level().dimension() != Level.END && EndWayBack.heldBy(player).stands()) {
+            EndWayBack.keepOn(player, EndWayBack.NONE);
         }
     }
 }
