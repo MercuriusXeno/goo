@@ -5,6 +5,8 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.SculkSpreader;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -64,6 +66,18 @@ public final class HostSpreaders {
         if (inLevel.isEmpty()) {
             charges.remove(level.dimension());
         }
+    }
+
+    /**
+     * The charges in flight in a level that began within a box.
+     *
+     * @param level the level
+     * @param box   the box their origins lie in
+     * @return how many charges began there and still run
+     */
+    public long chargesWithin(Level level, AABB box) {
+        return charges.getOrDefault(level.dimension(), List.of()).stream()
+                .filter(charge -> box.contains(Vec3.atCenterOf(charge.origin()))).count();
     }
 
     /**

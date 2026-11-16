@@ -19,13 +19,15 @@ public final class HostSpread {
 
     /**
      * The charge a cursor carries out of a Host cell: all it carried in, where
-     * on ordinary sculk it would decay.
+     * on ordinary sculk it would decay, save that a charge stranded on the
+     * goo, with nothing left to turn and no step off it, ends.
      *
      * @param chargeIn the charge the cursor carried into the cell
-     * @return the charge it carries on
+     * @param stranded whether no reachable cell turns its block and no step leads off the goo
+     * @return the charge it carries on, 0 where it ends
      */
-    public static int chargeOut(int chargeIn) {
-        return chargeIn;
+    public static int chargeOut(int chargeIn, boolean stranded) {
+        return stranded ? 0 : chargeIn;
     }
 
     /**
