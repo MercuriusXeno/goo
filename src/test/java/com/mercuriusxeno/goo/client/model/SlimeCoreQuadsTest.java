@@ -11,6 +11,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.level.block.state.BlockState;
+import org.joml.Vector3f;
 import org.joml.Vector3fc;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -45,6 +46,10 @@ class SlimeCoreQuadsTest {
     private static final int WHOLE_LAYERS = 15;
     private static final long SWEEP_SEED = 7L;
     private static final int SWEEP_TRIALS = 2000;
+    /** A core box's units to a block. */
+    private static final float BLOCK_UNITS = 120f;
+    /** How far off a quad's middle the side test reads, in blocks: well under a box unit. */
+    private static final float HAIR = 1e-3f;
     private static final Identifier BLOCK_ATLAS = Identifier.withDefaultNamespace("textures/atlas/blocks.png");
     /** A goo type's highlight, the shell's tint, which the core never takes. */
     private static final int HIGHLIGHT = 0x3A7F22;
@@ -118,6 +123,42 @@ class SlimeCoreQuadsTest {
 
     @Nested
     class Join {
+
+        /**
+         * A translucent core shows any face drawn inside it, so a face where
+         * two of a cell's own boxes meet reads as a wall within the core.
+         * Seeded neighbourhoods of random cells sweep the rule.
+         * slime-cores-connect-where-only-padding-parts-them
+         * slime-core-draws-translucent-at-the-shells-opacity
+         */
+        @Test
+        void aCoreDrawsNoFaceWithCoreOnBothSides() {
+            Random random = new Random(SWEEP_SEED);
+            BakedQuad.MaterialInfo material = coreMaterial(mock(TextureAtlasSprite.class));
+            for (int trial = 0; trial < SWEEP_TRIALS; trial++) {
+                SameGooCells cells = randomNeighbourhood(random);
+                List<SlimeCoreBox> boxes = SlimeCoreBox.boxesOf(cells);
+                for (BakedQuad quad : SlimeCoreQuads.quadsOf(cells, material)) {
+                    assertFalse(coreOnBothSides(quad, boxes), "a " + quad.direction() + " face lies inside the core "
+                            + "at trial " + trial + ", its middle at " + middleOf(quad));
+                }
+            }
+        }
+
+        @Test
+        void theMiddleOfAJoinedFieldDrawsOnlyItsTopAndFloor() {
+            SameGooCells field = new SameGooCells();
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    field.at(dx, 0, dz, 1);
+                }
+            }
+            List<BakedQuad> quads = SlimeCoreQuads.quadsOf(field, coreMaterial(mock(TextureAtlasSprite.class)));
+            assertTrue(quads.stream().allMatch(quad -> quad.direction().getAxis().isVertical()),
+                    "the middle of a joined field draws a side face at "
+                            + quads.stream().filter(quad -> quad.direction().getAxis().isHorizontal())
+                            .map(quad -> middleOf(quad).toString()).toList());
+        }
 
         @Test
         void aJoinedSideDrawsNoQuadOnTheSharedFace() {
@@ -193,6 +234,34 @@ class SlimeCoreQuadsTest {
                         "a core top lies on its shell's drawn top at " + layers + " layers, trial " + trial);
             }
         }
+    }
+
+    /**
+     * Whether core stands on both sides of a quad: a point a hair off its
+     * middle on each side lies inside one of the cell's own core boxes, or
+     * past the block where the core across covers that side.
+     */
+    private static boolean coreOnBothSides(BakedQuad quad, List<SlimeCoreBox> boxes) {
+        Vector3f middle = middleOf(quad);
+        Vector3f step = new Vector3f(quad.direction().getStepX(), quad.direction().getStepY(),
+                quad.direction().getStepZ()).mul(HAIR);
+        return insideAnyBox(new Vector3f(middle).add(step), boxes)
+                && insideAnyBox(new Vector3f(middle).sub(step), boxes);
+    }
+
+    private static boolean insideAnyBox(Vector3f point, List<SlimeCoreBox> boxes) {
+        Vector3f units = new Vector3f(point).mul(BLOCK_UNITS);
+        return boxes.stream().anyMatch(box -> units.x() > box.minX() && units.x() < box.maxX()
+                && units.y() > box.minY() && units.y() < box.maxY()
+                && units.z() > box.minZ() && units.z() < box.maxZ());
+    }
+
+    private static Vector3f middleOf(BakedQuad quad) {
+        Vector3f middle = new Vector3f();
+        for (int vertex = 0; vertex < BakedQuad.VERTEX_COUNT; vertex++) {
+            middle.add(quad.position(vertex));
+        }
+        return middle.div(BakedQuad.VERTEX_COUNT);
     }
 
     private static SameGooCells randomNeighbourhood(Random random) {

@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.model;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import net.minecraft.core.Direction;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -114,6 +115,50 @@ public record SlimeCoreBox(int minX, int minY, int minZ, int maxX, int maxY, int
         return columnBox(across, towardX, towardZ)
                 .filter(theirs -> theirs.onBoundary(face.getOpposite()) && theirs.spansAcross(this, face.getAxis()))
                 .isPresent();
+    }
+
+    /**
+     * The parts of this box whose side shows: a side inside its block shows
+     * only over the height no other box of the cell's own core covers across
+     * it, so a translucent core draws no wall where two of its boxes meet.
+     * slime-cores-connect-where-only-padding-parts-them
+     * slime-core-draws-translucent-at-the-shells-opacity
+     *
+     * @param face     a side of this box inside its block
+     * @param cellCore every box of the cell's core, this one among them
+     * @return this box cut to each height its side shows over, none where another box covers it whole
+     */
+    public List<SlimeCoreBox> exposedAlong(Direction face, List<SlimeCoreBox> cellCore) {
+        List<Span> covers = cellCore.stream().filter(other -> other.meetsAcross(this, face))
+                .map(other -> new Span(other.minY, other.maxY)).toList();
+        List<SlimeCoreBox> shown = new ArrayList<>();
+        int from = minY;
+        for (Span cover : covers.stream().sorted(Comparator.comparingInt(Span::floor)).toList()) {
+            if (cover.floor() > from && from < maxY) {
+                shown.add(new SlimeCoreBox(minX, from, minZ, maxX, Math.min(cover.floor(), maxY), maxZ));
+            }
+            from = Math.max(from, cover.top());
+        }
+        if (from < maxY) {
+            shown.add(new SlimeCoreBox(minX, from, minZ, maxX, maxY, maxZ));
+        }
+        return shown;
+    }
+
+    /**
+     * Whether this box stands against a side of another, its own facing side
+     * on the same plane and as wide across it.
+     */
+    private boolean meetsAcross(SlimeCoreBox other, Direction face) {
+        if (face.getAxis().isVertical()) {
+            return false;
+        }
+        Direction.Axis across = face.getAxis() == Direction.Axis.X ? Direction.Axis.Z : Direction.Axis.X;
+        boolean touching = face.getAxisDirection() == Direction.AxisDirection.POSITIVE
+                ? face.getAxis().choose(minX, minY, minZ) == face.getAxis().choose(other.maxX, other.maxY, other.maxZ)
+                : face.getAxis().choose(maxX, maxY, maxZ) == face.getAxis().choose(other.minX, other.minY, other.minZ);
+        return touching && across.choose(minX, minY, minZ) <= across.choose(other.minX, other.minY, other.minZ)
+                && across.choose(maxX, maxY, maxZ) >= across.choose(other.maxX, other.maxY, other.maxZ);
     }
 
     /**
