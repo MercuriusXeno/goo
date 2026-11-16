@@ -22,7 +22,7 @@ public enum CellSurface {
     BOUNCE(Frictions.ORDINARY_GROUND),
     /** Slick's: as slippery as ice, it ramps a thing trying to move on it. */
     RAMP(Frictions.ICE),
-    /** Molten's: ordinary ground, letting a fall harm and moving nothing on it. */
+    /** Molten's and Host's: ordinary ground, letting a fall harm and moving nothing on it. */
     POOL(Frictions.ORDINARY_GROUND),
     /** Shatter's: ordinary ground under the glass shards hanging over it, which cut what moves through them. */
     SHARDS(Frictions.ORDINARY_GROUND);

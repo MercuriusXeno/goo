@@ -1,17 +1,13 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
+import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.network.HoldMarks;
 import com.mercuriusxeno.goo.throwing.StreamCone;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
-import net.minecraft.tags.TagKey;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -24,10 +20,10 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
- * Void Vacuum's block step, run each held tick of the stream: every slime
- * residual cell inside the cone, goop or slick, breaks whole with its drops,
- * so goop gives back every layer's weird goo and slick its film's kinetic goo;
- * the step converts nothing itself. The cone is the whole volume within the
+ * Void Vacuum's block step, run each held tick of the stream: every world goo
+ * cell inside the cone, any goo laid on the volume cell, breaks whole with its
+ * drops, so each gives back the goo its layers cost; the step converts
+ * nothing itself. The cone is the whole volume within the
  * reach and the cone's angle of the look, not the stream's sampled rays, so a
  * held aim takes every residual in front of it; a cell needs a clear line
  * from the eye that only other residuals cross. The break runs as a wave: a
@@ -44,10 +40,9 @@ import java.util.stream.Stream;
  */
 public record VacuumStep(double ticksPerBlock, int decayTicks) implements TakesNoEntity {
 
-    /** The blocks Vacuum takes, goop and slick, so a later residual joins by data. */
-    public static final TagKey<Block> SLIME_RESIDUALS =
-            TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath(Goo.MODID, "slime_residuals"));
     private static final String NAME = "vacuum";
+    /** The break particles a taken cell throws for each layer it held. */
+    private static final int BREAK_PARTICLES_PER_LAYER = 3;
     private static final String FIELD_TICKS_PER_BLOCK = "ticks_per_block";
     private static final String FIELD_DECAY_TICKS = "decay_ticks";
     /** The pitch a residual taken at the eye slurps at. */
@@ -99,7 +94,7 @@ public record VacuumStep(double ticksPerBlock, int decayTicks) implements TakesN
      */
     private void paintReached(ChannelHost host, ChannelAim aim, Vec3 eye, HoldMarks marks) {
         List<BlockPos> reached = residualsInCone(eye, aim.aimPoint().subtract(eye), aim.coneDegrees(),
-                pos -> host.blockIn(pos, SLIME_RESIDUALS), pos -> passable(host, pos));
+                pos -> worldGoo(host.stateAt(pos)), pos -> passable(host, pos));
         for (BlockPos cell : reached) {
             if (aim.held() >= decayStartsOn(middleOf(cell).distanceTo(eye))) {
                 marks.paint(cell, host.stateAt(cell));
@@ -147,12 +142,19 @@ public record VacuumStep(double ticksPerBlock, int decayTicks) implements TakesN
     }
 
     /**
-     * Breaks a decayed residual with its drops, slurps it up at its cell, and
-     * tells the clients it went to nothing, so the melt they drew over it ends.
+     * Breaks a decayed residual quietly with its drops, throwing three break
+     * particles a layer rather than vanilla's whole burst, plays its break
+     * sound and slurps it up at its cell, and tells the clients it went to
+     * nothing, so the melt they drew over it ends.
+     * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
      */
     private static void breakAway(ChannelHost host, BlockPos cell, BlockState residual, BlockState nothing,
                                   float slurpPitch) {
-        host.breakBlock(cell);
+        int layers = VolumeCellBlock.layersOf(residual);
+        host.breakBlockQuietly(cell);
+        host.scatterBreakParticles(cell, residual, layers * BREAK_PARTICLES_PER_LAYER,
+                (double) layers / VolumeCellBlock.MAX_LAYERS);
+        host.playBreakSound(cell, residual);
         host.slurpAt(cell, slurpPitch);
         host.sendTransform(cell, residual, nothing);
     }
@@ -252,6 +254,18 @@ public record VacuumStep(double ticksPerBlock, int decayTicks) implements TakesN
             }
         }
         return true;
+    }
+
+    /**
+     * Whether a state is a world goo Vacuum takes: any goo laid on the volume
+     * cell, so a world goo shipping later is taken the moment it registers.
+     * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
+     *
+     * @param state the state standing in a cell
+     * @return true for a volume cell of any goo type
+     */
+    static boolean worldGoo(BlockState state) {
+        return state.getBlock() instanceof VolumeCellBlock;
     }
 
     private static boolean passable(BlockBreakHost host, BlockPos pos) {

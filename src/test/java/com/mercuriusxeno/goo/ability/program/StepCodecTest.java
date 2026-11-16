@@ -78,6 +78,7 @@ class StepCodecTest {
                     Identifier.fromNamespaceAndPath("goo", "meltable")), 40)),
             Map.entry("shatter", new ShatterStep(List.of(EntityFilter.LIVING), Expr.literal(1), List.of(),
                     Expr.literal(0.02))),
+            Map.entry("host", new HostStep(3, 8)),
             Map.entry("entities", new EntitiesStep(SelectionShape.SPHERE, Expr.literal(2.5),
                     List.of(EntityFilter.LIVING, EntityFilter.NOT_FIRE_IMMUNE),
                     List.of(LeafSteps.IGNITE.step(Expr.literal(5))))),
