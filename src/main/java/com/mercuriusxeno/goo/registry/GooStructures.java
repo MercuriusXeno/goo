@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.registry;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.lunar.LandmarkStructure;
 import com.mercuriusxeno.goo.lunar.MeteoritePiece;
+import com.mercuriusxeno.goo.lunar.MonolithPiece;
 import com.mercuriusxeno.goo.lunar.NestPiece;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.registries.Registries;
@@ -48,6 +49,16 @@ public final class GooStructures {
     public static final DeferredHolder<StructurePieceType, StructurePieceType> NEST_PIECE =
             PIECE_TYPES.register("eldritch_nest", () -> (StructurePieceType.ContextlessType) NestPiece::new);
 
+    /**
+     * {@code goo:monolith}, a tall, alien standing stone on lunar's open ground.
+     * decision lunar-holds-meteorites-eldritch-nests-monoliths-and-ruins
+     */
+    public static final DeferredHolder<StructureType<?>, StructureType<LandmarkStructure>> MONOLITH =
+            STRUCTURE_TYPES.register("monolith", () -> landmark(MonolithPiece::new, GooStructures::monolith));
+    /** The monolith's one piece. */
+    public static final DeferredHolder<StructurePieceType, StructurePieceType> MONOLITH_PIECE =
+            PIECE_TYPES.register("monolith", () -> (StructurePieceType.ContextlessType) MonolithPiece::new);
+
     private GooStructures() {
     }
 
@@ -63,5 +74,9 @@ public final class GooStructures {
 
     private static StructureType<?> eldritchNest() {
         return ELDRITCH_NEST.get();
+    }
+
+    private static StructureType<?> monolith() {
+        return MONOLITH.get();
     }
 }
