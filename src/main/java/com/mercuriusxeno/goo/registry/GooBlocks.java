@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.CellBinding;
 import com.mercuriusxeno.goo.block.ability.FungalBudBlock;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
+import com.mercuriusxeno.goo.block.ability.HostCellBlock;
 import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
@@ -219,8 +220,8 @@ public class GooBlocks {
      * (decisions host-is-a-sculky-slime-that-sculk-spreads-eagerly-through,
      * each-goo-type-ships-a-world-goo-on-the-volume-cell).
      */
-    public static final DeferredBlock<VolumeCellBlock> DEEP_HOST = BLOCKS.registerBlock(
-            "deep_host", properties -> new VolumeCellBlock(properties, CellBinding.HOST),
+    public static final DeferredBlock<HostCellBlock> DEEP_HOST = BLOCKS.registerBlock(
+            "deep_host", properties -> new HostCellBlock(properties, CellBinding.HOST),
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_CYAN)
                     .friction(CellBinding.HOST.surface().friction())

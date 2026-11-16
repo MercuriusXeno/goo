@@ -30,6 +30,7 @@
     "ReloadableServerResourcesGooMixin",
     "ServerGamePacketListenerRisenCellMixin",
     "ServerLevelSculkerHearingMixin",
+    "SculkVeinSparesWorldGooMixin",
     "WitchHeldDrinksNoPotionMixin",
     "WorldDimensionsGooStableMixin"
   ],
