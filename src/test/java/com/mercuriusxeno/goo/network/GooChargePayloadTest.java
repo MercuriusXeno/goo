@@ -6,15 +6,15 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * A charged release reaches the server with the ticks it was held and the
- * press's scatter seed, so the knives fly along the lines the client drew
- * (decision knives-aims-a-spread-fan-not-a-blob-line).
+ * A charged release reaches the server with the ticks it was held, which
+ * the knives' fixed pattern reads its share of a full charge from
+ * (decision knives-land-in-staggered-rows-with-no-randomness).
  */
 class GooChargePayloadTest {
 
     @Test
-    void aReleaseCarriesItsHoldAndItsScatterSeed() {
-        GooChargePayload sent = new GooChargePayload("goo:crystal", "goo:crystal_knives", 17, -6_917_529_027_641_081_856L);
+    void aReleaseCarriesItsHold() {
+        GooChargePayload sent = new GooChargePayload("goo:crystal", "goo:crystal_knives", 17);
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
 
         GooChargePayload.STREAM_CODEC.encode(buf, sent);

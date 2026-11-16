@@ -15,7 +15,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.EntityType;
@@ -60,8 +59,6 @@ public final class KnivesSlingTests {
             new BlockPos(10, 1, 8));
     /** Facing south, down the bay toward the husks. */
     private static final float FACING_SOUTH = 0f;
-    /** A fixed scatter, so the rain falls the same each run. */
-    private static final long SCATTER_SEED = 11L;
     private static final String ABILITY_REQUIRED = "Ability registry must hold crystal_knives";
     private static final String SHOULD_RAIN = "The rain should strike every husk across the area, struck %s of %s";
     private static final String SHOULD_BE_THE_THROWERS_ATTACK = "Every knife should strike as the caster's own"
@@ -97,8 +94,7 @@ public final class KnivesSlingTests {
         helper.assertTrue(knives != null, ABILITY_REQUIRED);
         KnownRecipes.teachRequires(caster, knives);
 
-        KnifeRainSling.sling(caster, GooTypes.CRYSTAL, knives, knives.delivery().chargeTicks(),
-                RandomSource.create(SCATTER_SEED));
+        KnifeRainSling.sling(caster, GooTypes.CRYSTAL, knives, knives.delivery().chargeTicks());
 
         helper.succeedWhen(() -> {
             long struck = husks.stream().filter(husk -> husk.getHealth() < husk.getMaxHealth()).count();
@@ -128,8 +124,7 @@ public final class KnivesSlingTests {
         GooFraction[] banked = {GooFraction.of(1, 2), GooFraction.ZERO};
         for (int release = 0; release < took.length; release++) {
             int before = crystalHeld(caster);
-            KnifeRainSling.sling(caster, GooTypes.CRYSTAL, halved, halved.delivery().chargeTicks(),
-                    RandomSource.create(SCATTER_SEED));
+            KnifeRainSling.sling(caster, GooTypes.CRYSTAL, halved, halved.delivery().chargeTicks());
             int spent = before - crystalHeld(caster);
             GooFraction kept = GooCapabilities.remainderLedgerOf(caster).remainders().of(GooTypes.CRYSTAL);
             helper.assertTrue(spent == took[release] && kept.equals(banked[release]),

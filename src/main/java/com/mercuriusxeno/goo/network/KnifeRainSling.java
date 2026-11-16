@@ -15,7 +15,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -32,12 +31,12 @@ import java.util.List;
 /**
  * Throws a charged Knives release as a rain of glass knives: the glove arm
  * flings out, the knives stream from the blob floating ahead of the hand
- * over the sweep, each into
- * its own slice of the cone with scattered pitch and speed, and each arcs
+ * over the sweep in the fixed pattern {@link KnifeRain} lays, and each arcs
  * under gravity until it sticks in a block, strikes a mob, or is spent. A
  * knife striking a mob runs the ability's program on it when it arrives.
  * decision knives-sling-then-morph-to-flechettes
  * decision knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
+ * decision knives-land-in-staggered-rows-with-no-randomness
  */
 public final class KnifeRainSling {
 
@@ -56,17 +55,17 @@ public final class KnifeRainSling {
     /**
      * Pays the release's cost and reagents once and queues each knife to
      * leave the floating blob on its tick; the releasing client poses the arm's fling.
-     * The scatter comes from the press's seed, so each knife flies along the
-     * line the client drew for it (decision knives-aims-a-spread-fan-not-a-blob-line).
+     * The pattern is the look's and the charge's alone, so the same charge
+     * always slings the same knives.
+     * knives-land-in-staggered-rows-with-no-randomness
      *
      * @param player    the releasing player
      * @param gooType   the ability's goo type
      * @param ability   the slinging ability
      * @param heldTicks the ticks the use key was held
-     * @param random    the scatter's source, seeded by the press
      */
     public static void sling(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability,
-                             int heldTicks, RandomSource random) {
+                             int heldTicks) {
         if (!pay(player, gooType, ability)) {
             return;
         }
@@ -74,9 +73,8 @@ public final class KnifeRainSling {
         Charge charge = delivery.charge();
         float share = delivery.chargeShare(heldTicks);
         int count = charge.fleckCount(share);
-        List<Vec3> velocities = KnifeRain.releaseVelocities(player.getYRot(), player.getXRot(), charge, share,
-                random);
-        int[] launchTicks = KnifeRain.launchTicks(count, charge.sweepTicks(), random);
+        List<Vec3> velocities = KnifeRain.releaseVelocities(player.getYRot(), player.getXRot(), charge, share);
+        int[] launchTicks = KnifeRain.launchTicks(count, charge.sweepTicks());
         boolean gloveRight = gloveOnTheRight(player);
 
         int now = player.level().getServer().getTickCount();
