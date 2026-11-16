@@ -49,6 +49,6 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
     public static final CellBinding MOLTEN = new CellBinding(GooTypes.BLAZE, MOLTEN_ABILITY, CellSurface.POOL, true);
     /** Deep's sculky slime: Host lays it, and it stands as ordinary ground. */
     public static final CellBinding HOST = new CellBinding(GooTypes.DEEP, HOST_ABILITY, CellSurface.POOL, false);
-    /** Glow's goo: Wisps lays it, it stands as ordinary ground, and it shines at its layers. */
-    public static final CellBinding WISPS = new CellBinding(GooTypes.GLOW, WISPS_ABILITY, CellSurface.POOL, false);
+    /** Glow's goo: Wisps lays it, it shines at its layers, and it smites the undead touching it. */
+    public static final CellBinding WISPS = new CellBinding(GooTypes.GLOW, WISPS_ABILITY, CellSurface.SMITE, false);
 }

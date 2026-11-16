@@ -12,6 +12,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -21,7 +23,8 @@ import java.util.function.Consumer;
 /**
  * Glow's Wisps through the real landing its stream's drips take, in a
  * sealed dark stone room: a drip striking the floor lays a one-layer Wisps
- * cell shining at light 1, and a full cell shines at 15.
+ * cell shining at light 1, a full cell shines at 15, and a zombie standing
+ * on a full cell burns.
  * glow-world-goo-is-named-wisps-and-takes-the-holds-place
  * wisps-goo-glows-at-a-light-level-equal-to-its-layers
  */
@@ -41,6 +44,9 @@ public final class WispsTests {
     private static final String ABILITY_REQUIRED = "The ability registry must hold glow_wisps";
     private static final String CELL_WRONG = "The cell over the floor should hold %d layers of Wisps, stands %s";
     private static final String LIGHT_WRONG = "A Wisps cell of %d layers should shine at block light %d, reads %d";
+    private static final String WISPS_BURNS_A_ZOMBIE_ON_IT = "wisps_burns_a_zombie_on_it";
+    private static final String ZOMBIE_UNLIT = "A zombie on a full Wisps cell should be on fire";
+    private static final String ZOMBIE_UNHARMED = "A zombie on a full Wisps cell should take holy damage";
 
     private WispsTests() {
     }
@@ -53,6 +59,27 @@ public final class WispsTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, WISPS_CELL_SHINES_AT_ITS_LAYERS,
                 WispsTests::wispsCellShinesAtItsLayers);
+        GooTestFunctions.registerTest(registrar, WISPS_BURNS_A_ZOMBIE_ON_IT, WispsTests::wispsBurnsAZombieOnIt);
+    }
+
+    /**
+     * A zombie standing on a full Wisps cell, roofed from the sun in the
+     * stone shaft, is set on fire and its health falls once the holy
+     * damage's cadence comes round.
+     * undead-touching-wisps-goo-erupt-in-flames-and-take-holy-damage-by-fill
+     *
+     * @param helper the gametest helper
+     */
+    public static void wispsBurnsAZombieOnIt(GameTestHelper helper) {
+        sealRoom(helper);
+        helper.setBlock(OVER_THE_FLOOR, GooBlocks.GLOW_WISPS.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
+        Zombie zombie = helper.spawn(EntityType.ZOMBIE, OVER_THE_FLOOR.above());
+        float startingHealth = zombie.getHealth();
+        helper.succeedWhen(() -> {
+            helper.assertTrue(zombie.isOnFire(), ZOMBIE_UNLIT);
+            helper.assertTrue(zombie.getHealth() < startingHealth, ZOMBIE_UNHARMED);
+        });
     }
 
     /**

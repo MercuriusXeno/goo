@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.LoadedAbilityCost;
 import com.mercuriusxeno.goo.ability.program.MoltenStep;
 import com.mercuriusxeno.goo.ability.program.SlickStep;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.WispsStep;
 import com.mercuriusxeno.goo.block.ability.SlimeFlow.Side;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.item.GooStacks;
@@ -20,6 +21,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.InsideBlockEffectApplier;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -685,7 +687,37 @@ public class VolumeCellBlock extends Block {
         if (surface().ramps()) {
             SlickStep.in(layingProgram(level)).ifPresent(slick -> SlickBuild.slide(entity, slick));
         }
+        smite(level, state, entity);
         super.stepOn(level, pos, state, entity);
+    }
+
+    /**
+     * Smites an undead inside a smiting cell's space, where a cell too thin
+     * to stand on as the block under its feet still touches it.
+     * undead-touching-wisps-goo-erupt-in-flames-and-take-holy-damage-by-fill
+     */
+    @Override
+    protected void entityInside(@NonNull BlockState state, @NonNull Level level, @NonNull BlockPos pos,
+                                @NonNull Entity entity, @NonNull InsideBlockEffectApplier effects,
+                                boolean pastEdges) {
+        smite(level, state, entity);
+        super.entityInside(state, level, pos, entity, effects, pastEdges);
+    }
+
+    /**
+     * Burns an undead touching a smiting cell and deals it holy damage by
+     * the cell's layers, as the laying ability's wisps step names.
+     * undead-touching-wisps-goo-erupt-in-flames-and-take-holy-damage-by-fill
+     *
+     * @param level  the level the cell stands in
+     * @param state  the cell's state
+     * @param entity the entity touching the cell
+     */
+    private void smite(Level level, BlockState state, Entity entity) {
+        if (surface().smites() && level instanceof ServerLevel server) {
+            WispsStep.in(layingProgram(level))
+                    .ifPresent(wisps -> WispsSmite.touch(server, entity, state.getValue(LAYERS), wisps));
+        }
     }
 
     /**
