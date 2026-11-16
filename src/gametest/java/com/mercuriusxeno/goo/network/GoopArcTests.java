@@ -79,6 +79,13 @@ public final class GoopArcTests {
     /** Where the overhang's streamer stands, two blocks west of the cell under it. */
     private static final BlockPos OVERHANG_STREAMER_POS = new BlockPos(2, 1, 8);
     private static final String NO_FILL_UNDER = "The cell at %s should hold the underside's layers as fill, holds %s";
+    private static final String LEDGE_POUR_FALLS = "goop_poured_off_a_ledge_lands_when_its_drip_arrives";
+    private static final String UNDERSIDE_STRIKE_FALLS = "goop_struck_under_an_overhang_falls_when_its_drip_arrives";
+    /** The layers the pillar's Goop starts at: one past Goop's step over an open ledge, so it pours one. */
+    private static final int POURING_LAYERS = 6;
+    /** Ticks a fall is watched, past any three-block fall's arrival. */
+    private static final int FALL_WATCH_TICKS = 40;
+    private static final String FALL_PRICE_WRONG = "The underside strike should cost one layer's %d mb, cost %d";
     private static final String LAYERS_UNPAID = "The %d layers of slime standing should cost %s, the weird goo"
             + " drained, %d mb";
     /** The wall Goop is held at, four blocks east of the streamer. */
@@ -163,6 +170,10 @@ public final class GoopArcTests {
                 GoopArcTests::goopHeldUpAtAnOverhangBesideAWallEndsAtItsFoot);
         GooTestFunctions.registerTest(registrar, OVERHANG_OVER_OPEN_FLOOR,
                 GoopArcTests::goopHeldUpAtAnOverhangOverOpenFloorDropsToIt);
+        GooTestFunctions.registerTest(registrar, LEDGE_POUR_FALLS,
+                GoopArcTests::goopPouredOffALedgeLandsWhenItsDripArrives);
+        GooTestFunctions.registerTest(registrar, UNDERSIDE_STRIKE_FALLS,
+                GoopArcTests::goopStruckUnderAnOverhangFallsWhenItsDripArrives);
         GooTestFunctions.registerTest(registrar, GLASS_RING_KEEPS_EVERY_LAYER,
                 GoopArcTests::goopHeldIntoAGlassRingKeepsEveryLayerPaidFor);
     }
@@ -666,6 +677,61 @@ public final class GoopArcTests {
             helper.assertTrue(atTheEnd > 0, String.format(NO_FILL_UNDER, ending, helper.getBlockState(ending)));
             helper.assertTrue(layers == thrown, String.format(DRIPS_UNLANDED, thrown, layers));
             helper.assertTrue(paid.ceiling() == drained, String.format(LAYERS_UNPAID, layers, paid, drained));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Six layers of Goop on a pillar three blocks over a walled floor cell
+     * pour one layer off the ledge: the pillar's cell is one layer down in
+     * the tick it pours, and the floor cell holds nothing new until the
+     * fall's arrival tick and one layer on it; the test's layers stand
+     * whole once it lands.
+     * falling-layer-lands-when-its-drip-arrives
+     * goo-moving-downward-falls-as-drips
+     *
+     * @param helper the gametest helper
+     */
+    public static void goopPouredOffALedgeLandsWhenItsDripArrives(GameTestHelper helper) {
+        TallDrop.layPillar(helper);
+        helper.setBlock(TallDrop.ON_THE_PILLAR, GooBlocks.SLIME_COAT.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, POURING_LAYERS));
+        FallWatch watch = FallWatch.over(helper, FALL_WATCH_TICKS, TallDrop.ON_THE_PILLAR, TallDrop.AT_THE_FOOT);
+        helper.runAfterDelay(FALL_WATCH_TICKS + 1, () -> {
+            int poured = watch.firstChange(0);
+            int ticks = FallWatch.ticksBetween(TallDrop.ON_THE_PILLAR.getY()
+                    + (double) POURING_LAYERS / VolumeCellBlock.MAX_LAYERS, TallDrop.AT_THE_FOOT.getY());
+            helper.assertTrue(poured > 0, "The pillar's Goop should pour a layer off its ledge");
+            watch.assertLandsOn(1, poured + ticks);
+            watch.assertLayersKept();
+            helper.succeed();
+        });
+    }
+
+    /**
+     * One Goop drip striking the underside of a stone block hung three
+     * blocks over open floor costs its caster one layer's price in the tick
+     * it strikes and nothing more, and the floor cell under it holds nothing
+     * new until the fall's arrival tick and one layer on it.
+     * falling-layer-lands-when-its-drip-arrives
+     * drip-striking-a-ceiling-runs-down-a-wall-or-drops
+     *
+     * @param helper the gametest helper
+     */
+    public static void goopStruckUnderAnOverhangFallsWhenItsDripArrives(GameTestHelper helper) {
+        BlockPos floor = TallDrop.layOverOpenAir(helper, TallDrop.OVERHANG, Direction.DOWN);
+        ServerPlayer caster = goopStreamerAt(helper, LEVEL_STREAMER_POS, LEVEL);
+        int before = weirdHeld(caster);
+        FallWatch watch = FallWatch.over(helper, FALL_WATCH_TICKS, floor);
+        LandedDrips.landOnSide(helper, caster, goop(helper), TallDrop.OVERHANG, Direction.DOWN, 1);
+        int drainedAtTheStrike = before - weirdHeld(caster);
+        int owed = ResidualPrices.layerPrice(helper).ceiling();
+        helper.assertTrue(drainedAtTheStrike == owed, String.format(FALL_PRICE_WRONG, owed, drainedAtTheStrike));
+        helper.runAfterDelay(FALL_WATCH_TICKS + 1, () -> {
+            int drained = before - weirdHeld(caster);
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(drained == owed, String.format(FALL_PRICE_WRONG, owed, drained));
+            watch.assertLandsOn(0, FallWatch.ticksBetween(TallDrop.OVERHANG.getY(), floor.getY()));
             helper.succeed();
         });
     }
