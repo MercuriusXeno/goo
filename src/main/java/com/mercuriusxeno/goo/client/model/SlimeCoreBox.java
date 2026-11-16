@@ -3,20 +3,22 @@ package com.mercuriusxeno.goo.client.model;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import net.minecraft.core.Direction;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
 /**
- * A box of a volume cell's goo slime core, in fifteenths of a block, the
- * unit a cell's layers count in, and the rule turning a cell and the cells
- * of its goo around it into its core: the core keeps a padding of goo
- * between itself and wherever the goo ends, the ground, the surface, an open
- * side or a wall, so a lone cell shows no core until its layers outgrow two
- * paddings and each layer after adds one to the core's height; and the core
- * runs through its padding to the face it shares with a cell of its goo
- * whose core stands across it, over the height both cores span, since only
- * padding parts them there.
+ * A box of a volume cell's goo slime core, in 120ths of a block, the unit
+ * that holds every bound whole (a layer is 8, the side margin 15), and the
+ * rule turning a cell and the cells of its goo around it into its core: the
+ * core keeps a margin of one size wherever the goo ends, the ground, the
+ * surface, an open side or a wall: 2 px at the sides and 0.4 px under and
+ * over it, so a cell holds a core at every fill and the core grows with
+ * each layer; and the core runs through
+ * its margin to the face it shares with a cell of its goo whose core stands
+ * across it, over the height both cores span, since only margin parts them there.
  * connected-goo-draws-as-one-layered-mass-with-a-core
+ * residual-always-draws-a-core-inside-a-one-eighth-margin
  * slime-core-keeps-a-two-layer-gap-and-grows-with-fill
  * slime-cores-connect-where-only-padding-parts-them
  * stacked-goo-cells-share-one-slime-core
@@ -30,10 +32,25 @@ import java.util.Optional;
  */
 public record SlimeCoreBox(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
 
-    /** The layers of goo standing between the core and wherever the goo ends: the tuning a thicker shell turns. */
-    public static final int PADDING_LAYERS = 1;
-    /** A whole block, in fifteenths. */
-    static final int WHOLE = VolumeCellBlock.MAX_LAYERS;
+    /** A whole block, in the box's units. */
+    static final int WHOLE = 120;
+    /** The layers a full cell holds. */
+    private static final int FULL_LAYERS = VolumeCellBlock.MAX_LAYERS;
+    /** One layer, in the box's units. */
+    private static final int UNITS_PER_LAYER = WHOLE / FULL_LAYERS;
+    /**
+     * The margin at every side, 2 px.
+     * residual-always-draws-a-core-inside-a-one-eighth-margin
+     */
+    private static final int SIDE_MARGIN = 15;
+    /**
+     * The margin under and over every core at every fill, 0.4 px, one size
+     * so neighbouring cores of any fills share a floor and join.
+     * residual-always-draws-a-core-inside-a-one-eighth-margin
+     */
+    private static final int VERTICAL_MARGIN = 3;
+    /** Where a cell's plan splits along each axis: the margin toward each side and the middle. */
+    static final int[] BAND_EDGES = {0, SIDE_MARGIN, WHOLE - SIDE_MARGIN, WHOLE};
     /** The offset toward the west, the north or below: the low side of an axis. */
     private static final int LOW_SIDE = -1;
     /** The offsets along one axis: the cell's own column and the cells to either side. */
@@ -43,7 +60,7 @@ public record SlimeCoreBox(int minX, int minY, int minZ, int maxX, int maxY, int
      * The core a cell read alone holds.
      *
      * @param layers the layers the cell holds
-     * @return the core's box, empty where the padding leaves no room for one
+     * @return the core's box, empty for a cell of no layers
      */
     public static Optional<SlimeCoreBox> of(int layers) {
         return boxesOf(LayersAround.alone(layers)).stream().findFirst();
@@ -52,7 +69,7 @@ public record SlimeCoreBox(int minX, int minY, int minZ, int maxX, int maxY, int
     /**
      * The boxes a cell's core fills, read from the cells of its goo around
      * it. The cell's plan splits into three bands along each axis, the
-     * padding toward each side and the middle; each of the nine columns this
+     * margin toward each side and the middle; each of the nine columns this
      * makes fills over the height every core meeting at it spans: the middle
      * column the cell's own core, a side column the height the cell's core
      * shares with the core across that side, and a corner column the height
@@ -103,6 +120,50 @@ public record SlimeCoreBox(int minX, int minY, int minZ, int maxX, int maxY, int
     }
 
     /**
+     * The parts of this box whose side shows: a side inside its block shows
+     * only over the height no other box of the cell's own core covers across
+     * it, so a translucent core draws no wall where two of its boxes meet.
+     * slime-cores-connect-where-only-padding-parts-them
+     * slime-core-draws-translucent-at-the-shells-opacity
+     *
+     * @param face     a side of this box inside its block
+     * @param cellCore every box of the cell's core, this one among them
+     * @return this box cut to each height its side shows over, none where another box covers it whole
+     */
+    public List<SlimeCoreBox> exposedAlong(Direction face, List<SlimeCoreBox> cellCore) {
+        List<Span> covers = cellCore.stream().filter(other -> other.meetsAcross(this, face))
+                .map(other -> new Span(other.minY, other.maxY)).toList();
+        List<SlimeCoreBox> shown = new ArrayList<>();
+        int from = minY;
+        for (Span cover : covers.stream().sorted(Comparator.comparingInt(Span::floor)).toList()) {
+            if (cover.floor() > from && from < maxY) {
+                shown.add(new SlimeCoreBox(minX, from, minZ, maxX, Math.min(cover.floor(), maxY), maxZ));
+            }
+            from = Math.max(from, cover.top());
+        }
+        if (from < maxY) {
+            shown.add(new SlimeCoreBox(minX, from, minZ, maxX, maxY, maxZ));
+        }
+        return shown;
+    }
+
+    /**
+     * Whether this box stands against a side of another, its own facing side
+     * on the same plane and as wide across it.
+     */
+    private boolean meetsAcross(SlimeCoreBox other, Direction face) {
+        if (face.getAxis().isVertical()) {
+            return false;
+        }
+        Direction.Axis across = face.getAxis() == Direction.Axis.X ? Direction.Axis.Z : Direction.Axis.X;
+        boolean touching = face.getAxisDirection() == Direction.AxisDirection.POSITIVE
+                ? face.getAxis().choose(minX, minY, minZ) == face.getAxis().choose(other.maxX, other.maxY, other.maxZ)
+                : face.getAxis().choose(maxX, maxY, maxZ) == face.getAxis().choose(other.minX, other.minY, other.minZ);
+        return touching && across.choose(minX, minY, minZ) <= across.choose(other.minX, other.minY, other.minZ)
+                && across.choose(maxX, maxY, maxZ) >= across.choose(other.maxX, other.maxY, other.maxZ);
+    }
+
+    /**
      * Whether this box reaches at least as far as another along both axes but one.
      */
     private boolean spansAcross(SlimeCoreBox other, Direction.Axis skipped) {
@@ -149,30 +210,31 @@ public record SlimeCoreBox(int minX, int minY, int minZ, int maxX, int maxY, int
     }
 
     /**
-     * The height a cell's own core spans, its padding kept under and over
-     * it where its column of goo ends: a cell lying on a full cell of its
-     * goo is the same column, so it keeps no padding under its core, and a
-     * full cell under a cell of its goo keeps under its top only what the
-     * upper cell's layers leave short of the padding.
+     * The height a cell's own core spans, its margin kept under and over it
+     * where its column of goo ends: a cell lying on a full cell of its goo is
+     * the same column, so it keeps no margin under its core and its column
+     * stands taller than a block, and a full cell under a cell of its goo
+     * keeps under its top only what the upper cell's layers leave short of
+     * the margin.
      */
     private static Optional<Span> spanAt(LayersAround around, int dx, int dz) {
         int layers = around.layersAt(dx, 0, dz);
-        int floor = around.layersAt(dx, LOW_SIDE, dz) == WHOLE ? 0 : PADDING_LAYERS;
-        int above = layers == WHOLE ? around.layersAt(dx, 1, dz) : 0;
-        Span span = new Span(floor, layers - Math.max(0, PADDING_LAYERS - above));
+        int floor = around.layersAt(dx, LOW_SIDE, dz) == FULL_LAYERS ? 0 : VERTICAL_MARGIN;
+        int above = layers == FULL_LAYERS ? around.layersAt(dx, 1, dz) : 0;
+        Span span = new Span(floor, layers * UNITS_PER_LAYER - Math.max(0, VERTICAL_MARGIN - above * UNITS_PER_LAYER));
         return span.holdsALayer() ? Optional.of(span) : Optional.empty();
     }
 
     private static int bandStart(int offset) {
-        return offset < 0 ? 0 : offset == 0 ? PADDING_LAYERS : WHOLE - PADDING_LAYERS;
+        return offset < 0 ? 0 : offset == 0 ? SIDE_MARGIN : WHOLE - SIDE_MARGIN;
     }
 
     private static int bandEnd(int offset) {
-        return offset < 0 ? PADDING_LAYERS : offset == 0 ? WHOLE - PADDING_LAYERS : WHOLE;
+        return offset < 0 ? SIDE_MARGIN : offset == 0 ? WHOLE - SIDE_MARGIN : WHOLE;
     }
 
     /**
-     * A height a core spans, in fifteenths.
+     * A height a core spans, in 120ths of a block.
      *
      * @param floor its bottom
      * @param top   its top

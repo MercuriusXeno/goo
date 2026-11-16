@@ -1,11 +1,14 @@
 # goo quality gate. FleetView starts it through the gate field of .fleetview.json:
 #   pwsh -NoProfile -File tools/gate.ps1 -Scope <ChangedFixtures|ChangedWholeProject|Everything> [-Legs a,b]
 # and reads one line per leg, "gate: {name} {PASS|FAIL} {seconds}s whole", plus the
-# exit code: 0 green, 1 red.
+# exit code: 0 green, 1 red. The gradle leg also says "gate: gradle check WAITING 0.0s whole"
+# while it waits for a build slot and "gate: gradle check RUNNING 0.0s whole" once it holds one.
 #
 # Two legs. "python tests" runs the unittest suites under tools/, and "gradle check"
-# runs the Gradle check lifecycle, whose finalizer writes build/reports/digest.txt.# A changed scope runs the legs the changed paths feed: a tools/*.py edit feeds the
-# python leg, a Java, resource, config or Gradle edit feeds the gradle leg. Everything,
+# runs the Gradle check lifecycle, whose finalizer writes build/reports/digest.txt.
+# A changed scope runs the legs the changed paths feed: a tools/*.py, tools/build-slots.ps1 or tools/gate.ps1
+# edit feeds the python leg, a Java, resource, config or Gradle edit feeds the gradle leg, and a gradlew or
+# gradlew.bat edit feeds both. Everything,
 # the scope a merge fires, runs both. Neither leg narrows, so every leg runs whole.
 #
 # The legs run one after another and none of them stops the run, so one run names
@@ -52,8 +55,13 @@ function Find-FleetConfig {
 function Get-FedLegs([string[]] $changed) {
     $fed = foreach ($path in $changed) {
         $p = $path -replace '\\', '/'
-        if ($p -match '^tools/.*\.py$') { 'python tests' }
-        elseif ($p -match '^(src|config|gradle)/' -or $p -match '^(build\.gradle|settings\.gradle|gradle\.properties|gradlew(\.bat)?)$') { 'gradle check' }
+        # tools/test_gate_waiting.py drives this script, so an edit here feeds the python leg.
+        if ($p -match '^tools/(.*\.py|build-slots\.ps1|gate\.ps1)$') { 'python tests' }
+        elseif ($p -match '^(src|config|gradle)/' -or $p -match '^(build\.gradle|settings\.gradle|gradle\.properties|gradlew(\.bat)?)$') {
+            'gradle check'
+            # The wrappers take each run's build slot, and the python tests prove it.
+            if ($p -match '^gradlew(\.bat)?$') { 'python tests' }
+        }
     }
     @($fed | Select-Object -Unique)
 }
@@ -81,6 +89,58 @@ function Invoke-PythonTests {
     [pscustomobject]@{ Green = $green; Output = $said }
 }
 
+# The leg's state goes to the gate's output and to the run's report as it changes, so a reader timing the run can
+# tell the wait for a slot from the run itself. A report the reporter refuses costs the leg nothing.
+# Decision gate-prints-waiting-then-running-for-its-gradle-leg
+function Send-GradleLegState([string] $verdict) {
+    $leg = [pscustomobject]@{ Name = 'gradle check'; Verdict = $verdict; Seconds = 0; Rung = 'whole' }
+    Write-Host ('gate: {0} {1} {2:n1}s {3}' -f $leg.Name, $leg.Verdict, $leg.Seconds, $leg.Rung)
+    if (-not $reports) { return }
+    try {
+        Send-GateRun -RunId $runId -Script 'tools/gate.ps1' -Cwd $repo -Status 'running' -Legs @($leg) `
+            -Commit $commit -RunScope $Scope -RunLegs $Legs | Out-Null
+    }
+    catch {
+        Write-Host ('gate: the reporter refused the gradle check leg reading {0}: {1}' -f $verdict, $_)
+    }
+}
+
+# The gate holds the leg's build slot itself, under its own process id, and reads the reserve's lines as they arrive:
+# inside gradlew the wait happens where the gate cannot see it. The reserve is its own short process, so Gradle still
+# starts with none of the gate's handles.
+# Decision gate-prints-waiting-then-running-for-its-gradle-leg
+function Wait-BuildSlot {
+    $start = [Diagnostics.ProcessStartInfo]::new('pwsh')
+    $arguments = @('-NoProfile', '-File', (Join-Path $PSScriptRoot 'build-slots.ps1'), 'reserve',
+        '-HolderPid', [string]$PID, '-Runs', 'tools/gate.ps1 gradle check')
+    foreach ($argument in $arguments) { $start.ArgumentList.Add($argument) }
+    $start.WorkingDirectory = $repo
+    $start.UseShellExecute = $false
+    $start.RedirectStandardOutput = $true
+    $start.RedirectStandardError = $true
+    $reserve = [Diagnostics.Process]::Start($start)
+    $refusal = $reserve.StandardError.ReadToEndAsync()
+    $said = [Collections.Generic.List[string]]::new()
+    $waiting = $false
+    while ($null -ne ($line = $reserve.StandardOutput.ReadLine())) {
+        $said.Add($line)
+        if ($line -like 'waiting for a build slot*' -and -not $waiting) {
+            Send-GradleLegState 'WAITING'
+            $waiting = $true
+        }
+        elseif ($line -like 'holding build slot*') { Send-GradleLegState 'RUNNING' }
+    }
+    $reserve.WaitForExit()
+    if ($reserve.ExitCode -ne 0) {
+        throw ('the build slot reserve failed: {0} {1}' -f ($said -join '; '), $refusal.Result)
+    }
+}
+
+function Exit-BuildSlot {
+    try { & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'build-slots.ps1') release -HolderPid $PID | Out-Null }
+    catch { Write-Host ('gate: the build slot release failed, and the slot frees when the gate ends: {0}' -f $_) }
+}
+
 function Invoke-GradleCheck {
     $gradlew = Join-Path $repo $(if ($IsWindows) { 'gradlew.bat' } else { 'gradlew' })
     # The run builds in the worktree's daemon, which dies idle (decisions daemon-back-on, idle-daemon-dies-in-minutes).
@@ -94,6 +154,9 @@ function Invoke-GradleCheck {
     $outFile = "$spool.out"
     $errFile = "$spool.err"
     try {
+        Wait-BuildSlot
+        # The wrappers reserve under the holder BUILD_SLOT_HOLDER names, so the run takes the slot the gate holds.
+        $env:BUILD_SLOT_HOLDER = [string]$PID
         $command = '/d /c ""{0}" check sca --console=plain > "{1}" 2> "{2}""' -f $gradlew, $outFile, $errFile
         $gradle = Start-Process -FilePath 'cmd.exe' -ArgumentList $command -WorkingDirectory $repo `
             -WindowStyle Hidden -PassThru
@@ -103,6 +166,8 @@ function Invoke-GradleCheck {
         [pscustomobject]@{ Green = $gradle.ExitCode -eq 0; Output = $said }
     }
     finally {
+        Remove-Item Env:BUILD_SLOT_HOLDER -ErrorAction SilentlyContinue
+        Exit-BuildSlot
         # A daemon still holding a spool file keeps it until it dies; the temp folder takes it then.
         Remove-Item $outFile, $errFile -ErrorAction SilentlyContinue
     }

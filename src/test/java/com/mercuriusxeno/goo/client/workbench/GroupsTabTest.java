@@ -418,6 +418,24 @@ class GroupsTabTest {
         }
 
         /**
+         * The member picker offers lava, a block with no item form, by its name, and picking it with a member
+         * selected posts it right after that member, so a pairing group takes it at the position chosen (decision
+         * this-becomes-that-is-two-parallel-groups-in-the-goo-workbench).
+         */
+        @Test
+        void pickedItemlessBlockLandsRightAfterTheSelectedMember() {
+            SearchDropdown picker = SearchDropdown.overMembers(INVENTORY,
+                    List.of(new ValuesTab.ManagerEntry("minecraft:lava", "Lava", false)));
+            SearchDropdown.Choice lava = new SearchDropdown.Choice(SearchDropdown.Kind.BLOCK, "minecraft:lava", "Lava");
+            assertTrue(picker.choices().contains(lava), picker.choices().toString());
+            tab.selectGroup("spawn_eggs");
+            tab.selectMember("minecraft:zombie_spawn_egg");
+            JsonObject request = parsed(tab.addPickRequest(lava.id()));
+            assertEquals(List.of("minecraft:zombie_spawn_egg", "minecraft:lava", "minecraft:gone_spawn_egg"),
+                    request.getAsJsonArray("picks").asList().stream().map(pick -> pick.getAsString()).toList());
+        }
+
+        /**
          * Removing a member posts the group's other members as its picks.
          */
         @Test
