@@ -315,7 +315,7 @@ public final class GooClientSetup {
         for (VolumeCellBlock cell : List.of(GooBlocks.SLIME_COAT.get(), GooBlocks.KINETIC_SLICK.get(),
                 GooBlocks.BLAZE_MOLTEN.get(), GooBlocks.CRYSTAL_SHATTER.get(), GooBlocks.DEEP_HOST.get(),
                 GooBlocks.GLOW_WISPS.get())) {
-            event.register(List.of(new VolumeCellTint(cell.binding().gooType(), ClientGooTypes::color)), cell);
+            event.register(VolumeCellTint.sources(cell.binding().gooType(), ClientGooTypes::color), cell);
         }
     }
 

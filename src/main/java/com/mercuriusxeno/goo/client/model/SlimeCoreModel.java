@@ -22,6 +22,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.client.model.DynamicBlockStateModel;
 import net.neoforged.neoforge.client.model.block.CustomUnbakedBlockStateModel;
 import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -29,12 +30,14 @@ import java.util.List;
  * every later world goo alike: the layered shell its variant names, and
  * inside it the goo slime core the cell holds, drawn from what the model
  * reads as the cell's section meshes, so the core adds nothing to the block
- * state. The core samples the shell's own fluid sprite, the goo type's.
+ * state. The core samples the shell's own fluid sprite, the goo type's, and
+ * stands at every fill inside a margin of one size: 2 px at the sides, 0.4 px under and over.
  * connected-goo-draws-as-one-layered-mass-with-a-core
+ * residual-always-draws-a-core-inside-a-one-eighth-margin
  * slime-core-keeps-a-two-layer-gap-and-grows-with-fill
  *
  * @param shell the layered shell the cell's layers draw as
- * @param core  the core's material: the shell's fluid sprite, untinted, on the solid layer
+ * @param core  the core's material: the shell's fluid sprite at 50% opacity, on the translucent layer
  */
 public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core) implements DynamicBlockStateModel {
 
@@ -44,7 +47,9 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core)
     @Override
     public void collectParts(BlockAndTintGetter level, BlockPos pos, BlockState state, RandomSource random,
                              List<BlockStateModelPart> parts) {
-        shell.collectParts(level, pos, state, random, parts);
+        List<BlockStateModelPart> layers = new ArrayList<>();
+        shell.collectParts(level, pos, state, random, layers);
+        layers.forEach(part -> parts.add(new BandedShellPart(part)));
         List<BakedQuad> quads = SlimeCoreQuads.quadsOf(layersAround(level, pos, state), core);
         if (!quads.isEmpty()) {
             parts.add(new CorePart(quads, shell.particleMaterial(level, pos, state)));
@@ -69,6 +74,20 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core)
             BlockState beside = dx == 0 && dy == 0 && dz == 0 ? state : level.getBlockState(pos.offset(dx, dy, dz));
             return beside.is(state.getBlock()) ? VolumeCellBlock.layersOf(beside) : 0;
         };
+    }
+
+    /**
+     * The material a cell's core draws with: the shell's own fluid sprite on
+     * the translucent layer, under the core's tint, 50% opaque in the
+     * sprite's own colors.
+     * slime-core-draws-translucent-at-the-shells-opacity
+     *
+     * @param fluid the shell's particle material, the goo type's fluid sprite
+     * @return the core's material
+     */
+    static BakedQuad.MaterialInfo coreMaterial(Material.Baked fluid) {
+        return BakedQuad.MaterialInfo.of(fluid, Transparency.TRANSLUCENT, VolumeCellTint.CORE_TINT_INDEX, true, 0,
+                false);
     }
 
     @Override
@@ -115,6 +134,44 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core)
     }
 
     /**
+     * The shell's layers with their top cut into the core's bands.
+     * slime-core-draws-translucent-at-the-shells-opacity
+     *
+     * @param layers the shell's own part
+     */
+    private record BandedShellPart(BlockStateModelPart layers) implements BlockStateModelPart {
+
+        @Override
+        public List<BakedQuad> getQuads(@Nullable Direction direction) {
+            List<BakedQuad> quads = new ArrayList<>();
+            for (BakedQuad quad : layers.getQuads(direction)) {
+                if (quad.direction() == Direction.UP) {
+                    quads.addAll(SlimeCoreQuads.bandedTop(quad));
+                } else {
+                    quads.add(quad);
+                }
+            }
+            return quads;
+        }
+
+        @Override
+        @Deprecated
+        public boolean useAmbientOcclusion() {
+            return layers.useAmbientOcclusion();
+        }
+
+        @Override
+        public Material.Baked particleMaterial() {
+            return layers.particleMaterial();
+        }
+
+        @Override
+        public int materialFlags() {
+            return layers.materialFlags();
+        }
+    }
+
+    /**
      * The model as a block state file names it: the shell variant whose
      * layers the core sits inside.
      *
@@ -136,8 +193,7 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core)
         @Override
         public BlockStateModel bake(ModelBaker baker) {
             BlockStateModel layers = new SingleVariant.Unbaked(shell).bake(baker);
-            BakedQuad.MaterialInfo core = baker.interner().materialInfo(BakedQuad.MaterialInfo.of(
-                    layers.particleMaterial(), Transparency.NONE, SlimeCoreQuads.NO_TINT, true, 0, false));
+            BakedQuad.MaterialInfo core = baker.interner().materialInfo(coreMaterial(layers.particleMaterial()));
             return new SlimeCoreModel(layers, core);
         }
 
