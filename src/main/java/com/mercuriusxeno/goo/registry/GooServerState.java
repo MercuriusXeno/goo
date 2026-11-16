@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.frost.GlacialFields;
 import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
 import com.mercuriusxeno.goo.ability.program.MorphBirths;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
+import com.mercuriusxeno.goo.block.ability.MoltenHeats;
 import com.mercuriusxeno.goo.network.DripFlights;
 import com.mercuriusxeno.goo.network.FleckLaunches;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
@@ -30,6 +31,7 @@ public final class GooServerState {
     private final GlacialFields glacialFields = new GlacialFields();
     private final ScanWaves scanWaves = new ScanWaves();
     private final DripFlights dripFlights = new DripFlights();
+    private final MoltenHeats moltenHeats = new MoltenHeats();
 
     /**
      * Answers the state the server holds.
@@ -122,6 +124,16 @@ public final class GooServerState {
     }
 
     /**
+     * The Molten cells melting the block below them
+     * (decision stone-goes-red-hot-before-molten-turns-it-to-lava).
+     *
+     * @return the molten heats
+     */
+    public MoltenHeats moltenHeats() {
+        return moltenHeats;
+    }
+
+    /**
      * @return how long each player has held a stream
      */
     public StreamHolds streamHolds() {
@@ -168,5 +180,6 @@ public final class GooServerState {
         glacialFields.clear();
         scanWaves.clear();
         dripFlights.clear();
+        moltenHeats.clear();
     }
 }

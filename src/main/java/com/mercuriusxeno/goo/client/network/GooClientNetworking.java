@@ -64,6 +64,7 @@ import com.mercuriusxeno.goo.network.PortableHolesSyncPayload;
 import com.mercuriusxeno.goo.network.PortalsSyncPayload;
 import com.mercuriusxeno.goo.network.ReapSlashPayload;
 import com.mercuriusxeno.goo.network.ReapSwellPayload;
+import com.mercuriusxeno.goo.network.RedHotPayload;
 import com.mercuriusxeno.goo.network.RoomEdgesSyncPayload;
 import com.mercuriusxeno.goo.network.ScanWavePayload;
 import com.mercuriusxeno.goo.network.SculkerHeardPayload;
@@ -142,6 +143,7 @@ public final class GooClientNetworking {
         registerAbilityOwnVisualHandlers(event);
         event.register(BlockTransformPayload.TYPE, BlockTransformHandler::handle);
         event.register(BlockExposurePayload.TYPE, BlockTransformHandler::handleExposure);
+        event.register(RedHotPayload.TYPE, BlockTransformHandler::handleRedHot);
         event.register(AfterimagePayload.TYPE, AfterimageHandler::handle);
         event.register(TransformationPayload.TYPE, TransformationHandler::handle);
         event.register(ModelShrinkPayload.TYPE, TransformationHandler::handleShrink);

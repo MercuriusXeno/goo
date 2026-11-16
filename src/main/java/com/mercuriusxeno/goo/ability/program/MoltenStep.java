@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.block.ability.CellBinding;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.throwing.CoatRay;
+import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
@@ -20,25 +21,30 @@ import java.util.stream.Stream;
  * one landing, as Goop lays its slime and Slick its slick; a drip striking a
  * lava source lays its layer on the lava's surface, where the goo pools. The
  * tag names the stone the goo stands over to melt:
- * {@code molten tag=goo:meltable}.
+ * {@code molten tag=goo:meltable heat_ticks=40}. A cell melting a block
+ * heats it red hot for the heat's ticks before it becomes lava.
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+ * stone-goes-red-hot-before-molten-turns-it-to-lava
  * melt-blob-absorbs-into-lava
  * slime-and-slick-are-one-volume-cell-tech
  * drip-creates-a-volume-cell-immediately
  * drip-on-a-standing-cell-increases-it
  *
- * @param meltable the blocks that melt
+ * @param meltable  the blocks that melt
+ * @param heatTicks the ticks a melting block stands red hot before it becomes lava
  */
-public record MoltenStep(TagKey<Block> meltable) implements TakesNoEntity, DripLanding {
+public record MoltenStep(TagKey<Block> meltable, int heatTicks) implements TakesNoEntity, DripLanding {
 
     private static final String NAME = "molten";
     private static final String FIELD_TAG = "tag";
+    private static final String FIELD_HEAT_TICKS = "heat_ticks";
 
     /**
      * Codec for the step's params.
      */
     public static final MapCodec<MoltenStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            TagKey.codec(Registries.BLOCK).fieldOf(FIELD_TAG).forGetter(MoltenStep::meltable)
+            TagKey.codec(Registries.BLOCK).fieldOf(FIELD_TAG).forGetter(MoltenStep::meltable),
+            Codec.intRange(1, Integer.MAX_VALUE).fieldOf(FIELD_HEAT_TICKS).forGetter(MoltenStep::heatTicks)
     ).apply(inst, MoltenStep::new));
 
     /**

@@ -75,7 +75,7 @@ class StepCodecTest {
             Map.entry("light_fire", LeafSteps.LIGHT_FIRE.step(Unit.INSTANCE)),
             Map.entry("detonate_explosive", LeafSteps.DETONATE_EXPLOSIVE.step(Expr.literal(2.5))),
             Map.entry("molten", new MoltenStep(TagKey.create(Registries.BLOCK,
-                    Identifier.fromNamespaceAndPath("goo", "meltable")))),
+                    Identifier.fromNamespaceAndPath("goo", "meltable")), 40)),
             Map.entry("entities", new EntitiesStep(SelectionShape.SPHERE, Expr.literal(2.5),
                     List.of(EntityFilter.LIVING, EntityFilter.NOT_FIRE_IMMUNE),
                     List.of(LeafSteps.IGNITE.step(Expr.literal(5))))),

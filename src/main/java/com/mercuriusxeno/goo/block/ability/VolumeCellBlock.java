@@ -10,6 +10,9 @@ import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.SlimeFlow.Side;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.network.BlockVisuals;
+import com.mercuriusxeno.goo.network.RedHotPayload;
+import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -42,6 +45,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 
 /**
  * The volume cell, the one block every goo type's world goo stands on,
@@ -402,30 +406,84 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
-     * Melts the block under a cell whose laying ability names a meltable tag
-     * into a lava source, the cell resting on it lower by the layers the melt
-     * spends and gone where that empties it; a cell the melt spends nothing
-     * of stays pooled.
+     * Melts the block under a cell whose laying ability names a meltable tag,
+     * where the melt would spend layers of it: the block heats red hot over
+     * the molten step's heat, the cell resting still meanwhile, then becomes
+     * a lava source; a cell the melt spends nothing of stays pooled, and one
+     * whose block stopped melting part way cools it as it was.
      * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+     * stone-goes-red-hot-before-molten-turns-it-to-lava
+     *
+     * @param level the level
+     * @param pos   the cell
+     * @param state the cell's state
+     * @return true where the block under the cell is heating or melted
+     */
+    private boolean meltBelow(ServerLevel level, BlockPos pos, BlockState state) {
+        Optional<MoltenStep> molten = MoltenStep.in(layingProgram(level));
+        int spent = molten.map(step -> MoltenMelt.layersSpent(state.getValue(LAYERS),
+                level.getBlockState(pos.below()), step.meltable())).orElse(0);
+        if (spent == 0) {
+            coolBelow(level, pos);
+            return false;
+        }
+        MoltenHeats heats = GooServerState.of(level.getServer()).moltenHeats();
+        int heatTicks = molten.orElseThrow().heatTicks();
+        OptionalLong started = heats.startedAt(level, pos);
+        if (started.isEmpty()) {
+            heats.start(level, pos, level.getGameTime());
+            BlockVisuals.sendToWatchers(level, pos.below(), new RedHotPayload(pos.below(), heatTicks));
+        }
+        long left = started.orElse(level.getGameTime()) + heatTicks - level.getGameTime();
+        if (left > 0) {
+            level.scheduleTick(pos, this, (int) left);
+        } else {
+            heats.end(level, pos);
+            meltInto(level, pos, state, spent);
+        }
+        return true;
+    }
+
+    /**
+     * Turns the block under a cell into a lava source, the cell resting on it
+     * lower by the layers the melt spends and gone where that empties it.
      * molten-spends-three-layers-per-stone-block-priced-at-lava-minus-mundane-block
      *
      * @param level the level
      * @param pos   the cell
      * @param state the cell's state
-     * @return true where the block under the cell melted
+     * @param spent the layers the melt spends
      */
-    private boolean meltBelow(ServerLevel level, BlockPos pos, BlockState state) {
-        Optional<MoltenStep> molten = MoltenStep.in(layingProgram(level));
-        BlockPos under = pos.below();
-        int spent = molten.map(step -> MoltenMelt.layersSpent(state.getValue(LAYERS), level.getBlockState(under),
-                step.meltable())).orElse(0);
-        if (spent == 0) {
-            return false;
-        }
-        level.setBlock(under, Blocks.LAVA.defaultBlockState(), UPDATE_ALL);
+    private static void meltInto(ServerLevel level, BlockPos pos, BlockState state, int spent) {
+        level.setBlock(pos.below(), Blocks.LAVA.defaultBlockState(), UPDATE_ALL);
         int left = state.getValue(LAYERS) - spent;
         level.setBlock(pos, left > 0 ? state.setValue(LAYERS, left) : Blocks.AIR.defaultBlockState(), UPDATE_ALL);
-        return true;
+    }
+
+    /**
+     * Ends a cell's heat with no layer spent, the block below cooling as it
+     * was, where the cell was heating it.
+     * stone-goes-red-hot-before-molten-turns-it-to-lava
+     *
+     * @param level the level
+     * @param pos   the cell
+     */
+    private static void coolBelow(ServerLevel level, BlockPos pos) {
+        if (GooServerState.of(level.getServer()).moltenHeats().end(level, pos)) {
+            BlockVisuals.sendToWatchers(level, pos.below(), new RedHotPayload(pos.below(), 0));
+        }
+    }
+
+    /**
+     * A cell broken or carried off while it heats the block below cools it
+     * as it was, no layer spent.
+     * stone-goes-red-hot-before-molten-turns-it-to-lava
+     */
+    @Override
+    protected void affectNeighborsAfterRemoval(@NonNull BlockState state, @NonNull ServerLevel level,
+                                               @NonNull BlockPos pos, boolean movedByPiston) {
+        coolBelow(level, pos);
+        super.affectNeighborsAfterRemoval(state, level, pos, movedByPiston);
     }
 
     /**
