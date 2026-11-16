@@ -11,7 +11,8 @@ import java.util.stream.Stream;
  * Roots the host's target in vines where it stands, and finishes: the vines
  * hold it for the duration or the hits, thorn it for straining past the
  * leash and multiply fire damage, and a throw landing on vines still
- * holding stacks its hits and thorns onto them. Leaf Vines is
+ * holding stacks its hits and thorns onto them. The thorns name the player
+ * who threw the vines (decision lingering-goo-effect-credits-whoever-applied-it). Leaf Vines is
  * {@code root duration=300 hits=4 thorns=1 fire_factor=1.5}, fifteen seconds.
  * vines-unpack-root-and-thorn
  *
@@ -52,7 +53,9 @@ public record RootStep(Expr duration, Expr hits, Expr thorns, Expr fireFactor) i
     public boolean tick(StepContext context) {
         Rooted.Throw thrown = new Rooted.Throw(hits.evaluateInt(context), (float) thorns.evaluate(context),
                 (float) fireFactor.evaluate(context), duration.evaluateInt(context));
-        RootEvents.latch(context.hostAs(TargetHost.class).target(), thrown);
+        TargetHost host = context.hostAs(TargetHost.class);
+        // lingering-goo-effect-credits-whoever-applied-it: the vines' later thorns name this thrower
+        RootEvents.latch(host.target(), thrown, host.thrower());
         return true;
     }
 
