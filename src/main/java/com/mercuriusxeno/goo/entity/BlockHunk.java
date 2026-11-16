@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.entity;
 
 import com.mercuriusxeno.goo.ISidedProxy;
+import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooEntities;
 import com.mojang.serialization.Codec;
@@ -35,6 +36,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * A hunk of blocks lifted out of the world and carried as one entity: each
@@ -173,6 +175,8 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     private boolean settled;
     /** Interpolated over one tick, so a held hunk drawn where the server holds it trails it by no more. */
     private final InterpolationHandler interpolation = new InterpolationHandler(this, INTERPOLATION_TICKS);
+    /** The player who threw the hunk, whom its strike names, or null for one let go or never thrown. */
+    private @Nullable UUID throwerId;
     /** Ticks the hunk has flown free since a hold last stood on it. */
     private int flightTicks;
     /** The grid seat a let-go hunk come to rest moves on to, or null while it flies or is held. */
@@ -428,12 +432,17 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     }
 
     /**
-     * Marks the hunk thrown, as a throw launches it, so it breaks on impact
-     * rather than being placed where it lands.
+     * Marks the hunk thrown by a player, as a throw launches it, so it breaks
+     * on impact rather than being placed where it lands, its strike naming
+     * that player.
      * decision terrakinesis-release-drops-the-hunk-and-places-it-on-the-grid
+     * direct-goo-hit-credits-its-caster
+     *
+     * @param thrower the player who threw it
      */
-    public void markThrown() {
+    public void markThrownBy(Player thrower) {
         entityData.set(THROWN, true);
+        throwerId = thrower.getUUID();
     }
 
     /**
@@ -1032,7 +1041,10 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
             }
             DamageSource source = level.damageSources().fallingBlock(this);
             float damage = Math.min(MOST_DAMAGE, DAMAGE_PER_BLOCK * blocks.size());
-            struck.forEach(mob -> mob.hurtServer(level, source, damage));
+            // direct-goo-hit-credits-its-caster
+            // goo-hit-keeps-its-kind-and-names-the-player-behind-it
+            Player thrower = throwerId == null ? null : level.getPlayerByUUID(throwerId);
+            struck.forEach(mob -> mob.hurtServer(level, GooHitCredit.credit(source, mob, thrower), damage));
         }
         setDeltaMovement(Vec3.ZERO);
         dropped = new boolean[blocks.size()];
