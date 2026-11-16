@@ -126,8 +126,6 @@ public final class SlickTests {
     /** The nearest and farthest the level shot's film may stand ahead of the streamer, in cells. */
     private static final int NEAREST_AHEAD = 7;
     private static final int FARTHEST_AHEAD = 9;
-    /** The strip's cell a level-reach shot is aimed at, its row's middle between the nearest and farthest. */
-    private static final int LEVEL_REACH_AHEAD = 8;
     /** Ticks given the last drips of a hold to fall onto the floor, past the longest fall these tests make. */
     private static final int FALL_TICKS = 60;
     /** The perched floor stands over the light bay's barrier roof, in open air the roof does not cut. */
@@ -1300,13 +1298,10 @@ public final class SlickTests {
 
     /**
      * A streamer standing at the head of a long strip of stone holds Slick
-     * on the strip's cell eight blocks ahead, then lets go: once the drips
-     * have fallen a slick film stands in a cell 7 to 9 blocks ahead along the
-     * look. A look held level meets the bay's east wall, which the drips
-     * would reach.
+     * level, then lets go: once the drips have fallen a slick film stands in
+     * a cell 7 to 9 blocks ahead along the look.
      * slick-sprays-twelve-blocks-ahead
      * goop-and-slick-throw-keeps-todays-level-reach
-     * diagnose-and-correct-the-spray-landing-off-the-aim
      *
      * @param helper the gametest helper
      */
@@ -1315,8 +1310,8 @@ public final class SlickTests {
             helper.setBlock(FAR_STREAMER_POS.below().east(east), Blocks.STONE);
         }
         ServerPlayer streamer = slickStreamerAt(helper, FAR_STREAMER_POS);
-        DripAim.at(streamer, Vec3.upFromBottomCenterOf(helper.absolutePos(FAR_STREAMER_POS.below().east(
-                LEVEL_REACH_AHEAD)), 1));
+        streamer.setYRot(FACING_EAST);
+        streamer.setXRot(0);
         int hold = REACH_HOLD_TICKS;
         holdSlickFor(helper, streamer, hold);
         helper.runAfterDelay(hold + FALL_TICKS, () -> {
@@ -1441,12 +1436,8 @@ public final class SlickTests {
             int drips = SlickLayPace.dripsThisTick(delivery.dripsPerTick(), SlickLayPace.factor(
                     MOVING_AND_RISING.horizontalDistance(), SlickLayPace.unadjustedSpeed(
                     streamer.getAttributeBaseValue(Attributes.MOVEMENT_SPEED))), 2);
-            // diagnose-and-correct-the-spray-landing-off-the-aim: the drips leave aimed through the crosshair's
-            // point at the tick's exit speed
-            Vec3 aimed = GooStreamHandler.dripAxis(streamer.getEyePosition(), streamer.getLookAngle(),
-                    GooStreamHandler.dripTarget(streamer), exitSpeed);
             List<Vec3> atRest = CoatRay.scatteredShares(2, drips).stream()
-                    .map(share -> DripArc.launch(aimed, delivery.coneDegrees(), share, exitSpeed))
+                    .map(share -> DripArc.launch(streamer.getLookAngle(), delivery.coneDegrees(), share, exitSpeed))
                     .toList();
             helper.assertTrue(!atRest.isEmpty() && atRest.size() == moving.size(),
                     String.format(LAUNCHED_UNEVENLY, atRest.size(), moving.size()));
@@ -1801,7 +1792,8 @@ public final class SlickTests {
      * @param streamer the streaming player
      */
     private static void aimAtTheStone(GameTestHelper helper, ServerPlayer streamer) {
-        DripAim.at(streamer, Vec3.upFromBottomCenterOf(helper.absolutePos(SLICKED_STONE), 1));
+        DripAim.at(streamer, Vec3.upFromBottomCenterOf(helper.absolutePos(SLICKED_STONE), 1),
+                slick(helper).delivery().throwSpeed());
     }
 
     /**
