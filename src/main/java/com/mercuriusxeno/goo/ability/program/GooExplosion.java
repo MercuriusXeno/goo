@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.entity.CompressedHoard;
 import com.mercuriusxeno.goo.entity.CompressionSphere;
 import com.mercuriusxeno.goo.entity.SphereCore;
@@ -18,6 +19,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.tags.EntityTypeTags;
 import net.minecraft.util.Util;
 import net.minecraft.util.random.WeightedList;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -35,6 +37,7 @@ import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.EventHooks;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -47,6 +50,8 @@ import java.util.function.BiConsumer;
  * explosion. Entities within the max reach take vanilla's damage and
  * knockback, item entities aside, and every broken block drops whole, at its
  * own position or, for a gathering explosion, into one sphere at the center.
+ * A living entity it hurts takes the explosion's damage naming the player
+ * behind it, where one stands behind it.
  * goo-ray-diminishes-block-resistance
  * preview-sphere-is-max-reach
  */
@@ -66,15 +71,19 @@ public final class GooExplosion extends ServerExplosion {
     private final double reach;
     private final boolean gathers;
     private final boolean throwsShards;
+    /** The entity behind the explosion, named on each living entity's hit, or null for none. */
+    private final @Nullable Entity cause;
     /** Each broken cell with the block that stood there, kept when the look throws shards. */
     private final List<BlastShardsPayload.Shattered> shattered = new ArrayList<>();
 
-    private GooExplosion(ServerLevel level, Vec3 center, float power, Cut cut, ExplosionMode mode, Look look) {
+    private GooExplosion(ServerLevel level, Vec3 center, float power, Cut cut, ExplosionMode mode, Look look,
+                         @Nullable Entity cause) {
         super(level, null, null, DAMAGE_CALCULATOR, center, power, mode == ExplosionMode.FIRE, blockInteraction(mode));
         this.lightsFires = mode == ExplosionMode.FIRE;
         this.reach = cut.reach();
         this.gathers = cut.gathers();
         this.throwsShards = look.throwsShards();
+        this.cause = cause;
     }
 
     /**
@@ -164,7 +173,26 @@ public final class GooExplosion extends ServerExplosion {
      */
     public static void detonate(ServerLevel level, Vec3 center, float power, Cut cut, ExplosionMode mode,
                                 Look look) {
-        GooExplosion explosion = new GooExplosion(level, center, power, cut, mode, look);
+        detonate(level, center, power, cut, mode, look, null);
+    }
+
+    /**
+     * Detonates a Goo explosion cutting at most the reach given, each living
+     * entity it hurts taking the hit naming the entity behind it.
+     * direct-goo-hit-credits-its-caster
+     * goo-hit-keeps-its-kind-and-names-the-player-behind-it
+     *
+     * @param level  the server level
+     * @param center the explosion center
+     * @param power  the power every ray starts with
+     * @param cut    how far it cuts and whether it gathers its drops
+     * @param mode   how blocks are treated
+     * @param look   how the explosion shows and sounds
+     * @param cause  the entity behind the explosion, or null for none
+     */
+    public static void detonate(ServerLevel level, Vec3 center, float power, Cut cut, ExplosionMode mode,
+                                Look look, @Nullable Entity cause) {
+        GooExplosion explosion = new GooExplosion(level, center, power, cut, mode, look, cause);
         if (EventHooks.onExplosionStart(level, explosion)) {
             return;
         }
@@ -295,7 +323,8 @@ public final class GooExplosion extends ServerExplosion {
         float knockbackMultiplier = DAMAGE_CALCULATOR.getKnockbackMultiplier(entity);
         float exposure = !damages && knockbackMultiplier == 0.0F ? 0.0F : getSeenPercent(center, entity);
         if (damages) {
-            entity.hurtServer(level(), getDamageSource(), DAMAGE_CALCULATOR.getEntityDamageAmount(this, entity, exposure));
+            entity.hurtServer(level(), damageSourceFor(entity),
+                    DAMAGE_CALCULATOR.getEntityDamageAmount(this, entity, exposure));
         }
         double knockbackPower = (1.0 - distance) * exposure * knockbackMultiplier * (1.0 - knockbackResistance(entity));
         Vec3 knockback = EventHooks.getExplosionKnockback(level(), this, entity,
@@ -303,6 +332,21 @@ public final class GooExplosion extends ServerExplosion {
         entity.push(knockback);
         recordKnockback(entity, knockback);
         entity.onExplosionHit(null);
+    }
+
+    /**
+     * The source an entity the explosion hurts takes: the explosion's own,
+     * naming the entity behind it on a living entity.
+     * direct-goo-hit-credits-its-caster
+     * goo-hit-keeps-its-kind-and-names-the-player-behind-it
+     *
+     * @param entity the entity hurt
+     * @return the source to hurt it with
+     */
+    private DamageSource damageSourceFor(Entity entity) {
+        return entity instanceof LivingEntity living
+                ? GooHitCredit.credit(getDamageSource(), living, cause)
+                : getDamageSource();
     }
 
     private Vec3 knockbackDirection(Entity entity) {
