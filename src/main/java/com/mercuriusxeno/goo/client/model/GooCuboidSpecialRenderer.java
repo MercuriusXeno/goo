@@ -59,12 +59,12 @@ public class GooCuboidSpecialRenderer implements SpecialModelRenderer<GooCuboidS
 
     /**
      * Submits the palm cuboid of the stack's goo type about the model's
-     * center, sized by its volume: the core inside the shell, both on the
-     * translucent goo type and the core first, the pair the glove's palm blob
-     * submits.
-     * slime-core-draws-translucent-at-the-shells-opacity A stack
-     * with no goo type draws nothing.
+     * center, sized by its volume: the core still inside the shell, both on
+     * the translucent goo type and the core first, the pair the glove's palm
+     * blob submits. A stack with no goo type draws nothing.
      * decision fleck-size-follows-volume-on-a-log-scale
+     * goo-cuboid-core-is-three-quarters-of-its-shell
+     * slime-core-draws-translucent-at-the-shells-opacity
      *
      * @param data          the cuboid to draw, or null
      * @param poseStack     the current pose stack
@@ -81,12 +81,11 @@ public class GooCuboidSpecialRenderer implements SpecialModelRenderer<GooCuboidS
             return;
         }
         ResourceKey<GooTypeDefinition> type = data.type();
-        float gameTime = GloveSpecialRenderer.gameTime();
         BlobShape shape = BlobShape.CUBE.scaled(data.size());
         poseStack.pushPose();
         poseStack.translate(MODEL_CENTER, MODEL_CENTER, MODEL_CENTER);
         nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
-                (pose, c) -> GooFlightRenderer.emitCore(pose, c, type, gameTime, shape));
+                (pose, c) -> GooFlightRenderer.emitStillCore(pose, c, type, shape));
         nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
                 (pose, c) -> GooFlightRenderer.emitShell(pose, c, type, shape));
         poseStack.popPose();
