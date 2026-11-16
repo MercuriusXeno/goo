@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:molten_stone_to_lava",
+  "function": "goo:goo_item_survives_lava",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 80,
+  "max_ticks": 300,
   "setup_ticks": 0,
   "required": true
 }

@@ -41,7 +41,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
@@ -234,8 +233,8 @@ public final class GooThrowHandler {
     }
 
     /**
-     * Whether the release's target refuses it: a struck block a step refuses,
-     * a face a step or a prism cannot take, or the thrower's own minion.
+     * Whether the release's target refuses it: a face a step or a prism
+     * cannot take, or the thrower's own minion.
      *
      * @param player  the throwing player
      * @param payload the throw payload data
@@ -243,7 +242,7 @@ public final class GooThrowHandler {
      * @return true when the target refuses the throw
      */
     private static boolean refusesTarget(ServerPlayer player, GooThrowPayload payload, AbilityDefinition ability) {
-        return refusesStruck(player.level(), payload, ability) || refusedAtFace(player, payload, ability)
+        return refusedAtFace(player, payload, ability)
                 || aimsAnOwnMinion(player, payload, ability) || growsNoPrismThere(player.level(), payload, ability);
     }
 
@@ -307,36 +306,6 @@ public final class GooThrowHandler {
             }
         }
         return false;
-    }
-
-    /**
-     * Whether a step of the ability refuses the block a throw strikes, so the
-     * throw is dropped unpaid; the client sends none at such a block, so this
-     * meets only a throw sent past it. Molten strikes only meltable stone.
-     * melt-blob-absorbs-into-lava
-     *
-     * @param level   the level thrown in
-     * @param payload the throw payload data
-     * @param ability the thrown ability
-     * @return true when a step refuses the struck block
-     */
-    static boolean refusesStruck(ServerLevel level, GooThrowPayload payload, AbilityDefinition ability) {
-        return payload.targetEntityId() < 0
-                && refusesStruck(level.getBlockState(payload.targetPos()), ability.behaviors());
-    }
-
-    /**
-     * Whether a step of a program refuses a struck block, read alike by the
-     * server and by the client's aim.
-     * melt-blob-absorbs-into-lava
-     *
-     * @param struck    the block the throw would strike
-     * @param behaviors the thrown ability's program
-     * @return true when a step refuses it
-     */
-    public static boolean refusesStruck(BlockState struck, List<Step> behaviors) {
-        return behaviors.stream().anyMatch(step -> step instanceof TargetGatedStep gated
-                && !gated.admitsStruck(struck));
     }
 
     /**
