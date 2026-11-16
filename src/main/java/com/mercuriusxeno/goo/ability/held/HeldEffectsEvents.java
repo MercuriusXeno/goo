@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.deep.Sculker;
 import com.mercuriusxeno.goo.ability.gluttony.GluttonyEvents;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
-import com.mercuriusxeno.goo.ability.hex.Lifetap;
 import com.mercuriusxeno.goo.ability.nether.Undead;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.Sight;
@@ -280,7 +279,7 @@ public final class HeldEffectsEvents {
 
     /**
      * Clears the states an ended effect laid on the player's senses and
-     * draws: its sight, its Elude, its Lux and its lifetap.
+     * draws: its sight, its Elude and its Lux.
      *
      * @param player the player
      * @param lays   the states the ended effect laid
@@ -314,16 +313,12 @@ public final class HeldEffectsEvents {
 
     /**
      * Clears the player state an ability's own step laid on the player's
-     * draws, reach and senses: a lifetap, Remote's reach, the eldritch state, the dive.
+     * draws, reach and senses: Remote's reach, the eldritch state, the dive.
      *
      * @param player the player
      * @param lays   the state the effect laid
      */
     static void clearSensesAndReach(ServerPlayer player, Set<LaidState> lays) {
-        if (lays.contains(LaidState.LIFETAP)) {
-            // lifetap-trades-regen-for-leech: the leech ends with its held effect
-            player.setData(GooAttachments.LIFETAP, Lifetap.NONE);
-        }
         if (lays.contains(LaidState.PHASE)) {
             // phase-shares-a-plane-between-the-phased: the player steps back into phase with its held effect
             player.setData(GooAttachments.OUT_OF_PHASE, OutOfPhase.NONE);

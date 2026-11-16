@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:a_fall_onto_leech_goo_harms_as_on_stone",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 80,
+  "setup_ticks": 0,
+  "required": true
+}
