@@ -10,6 +10,8 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.util.ARGB;
+import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
@@ -75,6 +77,13 @@ class GooFlightRendererTest {
     }
 
     @Test
+    void theGlowBeamsBillboardIsScaledToItsOwnHalfWidth() {
+        Vec3 lateral = GooFlightRenderer.computeGlowLateral(Vec3.ZERO, new Vec3(0, 0, 4), new Vec3(3, 0, 2));
+
+        assertEquals(0.08, lateral.length(), TOLERANCE);
+    }
+
+    @Test
     void aShortThrowFliesAsTheDartFromTheStart() {
         assertEquals(1f, GooFlightRenderer.morphFraction(0f, SHORT_THROW, (float) Delivery.DEFAULT_TRANSFORM_AT), 0f);
     }
@@ -87,6 +96,10 @@ class GooFlightRendererTest {
     class CoreAndShellTakeOneShape {
 
         private static final BlobShape PRESSED = new BlobShape(1.3f, 1.2f, 0.6f);
+        /** The shell's alpha, 30% opaque. */
+        private static final int SHELL_ALPHA = 0x4C;
+        /** The core's alpha, 50% opaque. */
+        private static final int CORE_ALPHA = 0x80;
         /** A quarter of the core's pulse, in ticks: its sine's quarter turn over its pace. */
         private static final float QUARTER_PULSE = (float) (Math.PI / 2 / 0.3);
 
@@ -112,6 +125,35 @@ class GooFlightRendererTest {
             }
         }
 
+        /** goo-cuboid-core-is-three-quarters-of-its-shell */
+        @Test
+        void theCoreIsThreeQuartersOfItsShellAtTheMiddleOfItsPulse() {
+            for (BlobShape shape : new BlobShape[] {BlobShape.CUBE, PRESSED}) {
+                Extents shell = drawn(c -> GooFlightRenderer.emitShell(new PoseStack().last(), c, GooTypes.ZOO, shape));
+                Extents core = drawn(c -> GooFlightRenderer.emitCore(new PoseStack().last(), c, GooTypes.ZOO, 0f,
+                        shape));
+
+                assertEquals(0.75f * shell.width(), core.width(), TOLERANCE, "the core's width in " + shape);
+                assertEquals(0.75f * shell.depth(), core.depth(), TOLERANCE, "the core's depth in " + shape);
+                assertEquals(0.75f * shell.height(), core.height(), TOLERANCE, "the core's height in " + shape);
+            }
+        }
+
+        @Test
+        void theCoreStaysInsideItsShellAtThePeakOfItsPulse() {
+            for (BlobShape shape : new BlobShape[] {BlobShape.CUBE, PRESSED}) {
+                Extents shell = drawn(c -> GooFlightRenderer.emitShell(new PoseStack().last(), c, GooTypes.ZOO, shape));
+                Extents peak = drawn(c -> GooFlightRenderer.emitCore(new PoseStack().last(), c, GooTypes.ZOO,
+                        QUARTER_PULSE, shape));
+
+                assertTrue(peak.width() < shell.width(), "the swollen core's width in " + shape);
+                assertTrue(peak.depth() < shell.depth(), "the swollen core's depth in " + shape);
+                assertTrue(peak.height() < shell.height(), "the swollen core's height in " + shape);
+                assertEquals(0.825f * shell.height(), peak.height(), TOLERANCE, "the swollen core's height in "
+                        + shape);
+            }
+        }
+
         @Test
         void theCoresPulseChangesItsSizeAQuarterPulseOn() {
             Extents still = drawn(c -> GooFlightRenderer.emitCore(new PoseStack().last(), c, GooTypes.ZOO, 0f,
@@ -123,7 +165,26 @@ class GooFlightRendererTest {
                     + still.height() + " to " + swollen.height());
         }
 
+        /** slime-core-draws-translucent-at-the-shells-opacity */
+        @Test
+        void theCoreDrawsAtHalfOpacityInItsSpritesOwnColorsUnderAShellAtThirtyPercent() {
+            List<RecordingVertexConsumer.Vertex> core = recorded(c -> GooFlightRenderer.emitCore(new PoseStack().last(),
+                    c, GooTypes.ZOO, 0f, BlobShape.CUBE));
+            List<RecordingVertexConsumer.Vertex> shell = recorded(c -> GooFlightRenderer.emitShell(
+                    new PoseStack().last(), c, GooTypes.ZOO, BlobShape.CUBE));
+
+            assertTrue(shell.stream().allMatch(vertex -> ARGB.alpha(vertex.color()) == SHELL_ALPHA));
+            for (RecordingVertexConsumer.Vertex vertex : core) {
+                assertEquals(CORE_ALPHA, ARGB.alpha(vertex.color()), "the core's alpha");
+                assertEquals(0xFFFFFF, vertex.color() & 0xFFFFFF, "the core's untinted red, green and blue");
+            }
+        }
+
         private static Extents drawn(Consumer<VertexConsumer> emitter) {
+            return Extents.of(recorded(emitter));
+        }
+
+        private static List<RecordingVertexConsumer.Vertex> recorded(Consumer<VertexConsumer> emitter) {
             Minecraft minecraft = mock(Minecraft.class);
             try (MockedStatic<Minecraft> client = mockStatic(Minecraft.class);
                  MockedStatic<GooRenderUtil> util = mockStatic(GooRenderUtil.class, CALLS_REAL_METHODS)) {
@@ -131,7 +192,7 @@ class GooFlightRendererTest {
                 util.when(() -> GooRenderUtil.lookupFluidSprite(any())).thenReturn(mock(TextureAtlasSprite.class));
                 RecordingVertexConsumer recorder = new RecordingVertexConsumer();
                 emitter.accept(recorder);
-                return Extents.of(recorder.vertices());
+                return recorder.vertices();
             }
         }
     }

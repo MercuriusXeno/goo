@@ -11,7 +11,6 @@ import com.mercuriusxeno.goo.ability.program.AirbornStep;
 import com.mercuriusxeno.goo.ability.program.ChannelHost;
 import com.mercuriusxeno.goo.ability.program.CharmStep;
 import com.mercuriusxeno.goo.ability.program.CoatStep;
-import com.mercuriusxeno.goo.ability.program.CoolLavaStep;
 import com.mercuriusxeno.goo.ability.program.EntityFilter;
 import com.mercuriusxeno.goo.ability.program.GhostTrailStep;
 import com.mercuriusxeno.goo.ability.program.GluttonyStep;
@@ -687,13 +686,14 @@ class AbilityLoaderTest {
         }
 
         @Test
-        void goopStreamsCoolingLavaAndCoatingBlocksInTheBlockPass() {
+        void goopStreamsCoatingBlocksAloneInTheBlockPass() {
             AbilityDefinition goop = AbilityJson.decode("weird_goop");
             List<Step> blockPass = ChannelHost.passSteps(goop.behaviors(), true);
 
             assertEquals(DeliveryKind.STREAM, goop.delivery().kind());
             // coat-is-a-green-slime-film-over-the-blocks-own-texture
-            assertEquals(List.of(CoolLavaStep.class, CoatStep.class), blockPass.stream().map(Object::getClass).toList());
+            // goop-stops-turning-lava-into-magma
+            assertEquals(List.of(CoatStep.class), blockPass.stream().map(Object::getClass).toList());
             assertTrue(ProgramBehavior.serves(blockPass, HostKind.PLAYER), "the channeling player runs the block pass");
         }
 
