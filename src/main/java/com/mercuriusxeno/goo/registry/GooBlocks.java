@@ -272,6 +272,25 @@ public class GooBlocks {
                     .pushReaction(PushReaction.DESTROY)
                     .lightLevel(state -> state.getValue(VolumeCellBlock.LAYERS)));
     /**
+     * Leech: the volume cell bound to Hex's goo, the violet goo Leech sprays
+     * onto a block's top, one to fifteen layers, ordinary ground underfoot
+     * that slows what it catches and sounds as soul sand does, dropping the
+     * hex goo its layers cost through VolumeCellBlock.getDrops, no loot table
+     * (decisions leech-goo-slows-what-it-catches-and-the-spirits-damage-it,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VolumeCellBlock> HEX_LEECH = BLOCKS.registerBlock(
+            "hex_leech", properties -> new VolumeCellBlock(properties, CellBinding.LEECH),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_PURPLE)
+                    .friction(CellBinding.LEECH.surface().friction())
+                    .sound(SoundType.SOUL_SAND)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
      * Prism: the milky quartz crystal Crystal's Prism grows, the host every
      * prism combo grows on (decision prism-blob-becomes-a-milky-quartz-crystal).
      */

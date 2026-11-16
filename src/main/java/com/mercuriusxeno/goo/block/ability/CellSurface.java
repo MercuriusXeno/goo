@@ -7,11 +7,12 @@ package com.mercuriusxeno.goo.block.ability;
  * harm as any ground does and ramps a thing trying to move on it, slippery as
  * ice; molten stands as ordinary ground, and so does shatter under the
  * shards hanging over it, which cut what moves through them; wisps stands as
- * ordinary ground and smites the undead touching it. A goo type binding a
- * world goo to the cell names one.
+ * ordinary ground and smites the undead touching it; leech slows a thing
+ * caught in it. A goo type binding a world goo to the cell names one.
  * slime-and-slick-are-one-volume-cell-tech
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
  * shatter-is-splattered-goo-and-shards-form-over-the-splatters
+ * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
  * bounce-ramps-jump-height-while-jump-is-held
  * slick-coats-the-ground-with-kinetic-speed
  * undead-touching-wisps-goo-erupt-in-flames-and-take-holy-damage-by-fill
@@ -29,7 +30,9 @@ public enum CellSurface {
     /** Shatter's: ordinary ground under the glass shards hanging over it, which cut what moves through them. */
     SHARDS(Frictions.ORDINARY_GROUND),
     /** Wisps': ordinary ground that sets the undead touching it on fire and deals them holy damage. */
-    SMITE(Frictions.ORDINARY_GROUND);
+    SMITE(Frictions.ORDINARY_GROUND),
+    /** Leech's: ordinary ground underfoot, it slows a thing caught in it. */
+    SLOW(Frictions.ORDINARY_GROUND);
 
     /** The friction a cell bound to this surface stands at, the slipperiness what moves on it meets. */
     private final float friction;
@@ -83,6 +86,13 @@ public enum CellSurface {
      */
     public boolean smites() {
         return this == SMITE;
+    }
+
+    /**
+     * @return true where the cell slows a thing caught in it
+     */
+    public boolean slows() {
+        return this == SLOW;
     }
 
     /** The frictions the surfaces stand at, held apart so the constants above can read them. */
