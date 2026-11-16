@@ -45,7 +45,64 @@ class GrabStepTest {
 
     private static final double HOLD_DISTANCE = 4;
     private static final double EPSILON = 1e-6;
-    private static final GrabStep GRAB = new GrabStep(8, HOLD_DISTANCE, 1.5, 1, 10);
+    /** An acceleration unequal to the shipped one, so the test reads the step's field. */
+    private static final double PULL_ACCELERATION = 0.25;
+    private static final double PULL_SPEED = 1;
+    private static final GrabStep GRAB = new GrabStep(8, HOLD_DISTANCE, 1.5, PULL_SPEED, 10, PULL_ACCELERATION);
+
+    /**
+     * A locked item gains speed tick over tick toward where the eye stands
+     * that tick, up to the pull speed
+     * (decision grabbed-item-locks-in-and-homes-on-your-current-position).
+     */
+    @Nested
+    class Homing {
+
+        private static final Vec3 EYE = new Vec3(0, 1.62, 0);
+        private static final Vec3 ITEM_AT = new Vec3(12, 0.2, 0);
+        /** Where the eye stands once the player moves, off the item's first line to it. */
+        private static final Vec3 MOVED_EYE = new Vec3(4, 1.62, 6);
+        private static final int TICKS = 30;
+
+        @Test
+        void theFirstTickFromRestGainsTheAcceleration() {
+            Vec3 velocity = GRAB.homingVelocity(Vec3.ZERO, ITEM_AT, EYE);
+            assertEquals(PULL_ACCELERATION, velocity.length(), EPSILON);
+        }
+
+        @Test
+        void aLaterTickFliesFasterThanTheFirst() {
+            Vec3 first = GRAB.homingVelocity(Vec3.ZERO, ITEM_AT, EYE);
+            Vec3 second = GRAB.homingVelocity(first, ITEM_AT.add(first), EYE);
+            assertTrue(second.length() > first.length(), "The second tick should fly faster, " + first.length()
+                    + " then " + second.length());
+        }
+
+        @Test
+        void theMotionAfterTheEyeMovesPointsAtTheEyesNewPosition() {
+            Vec3 at = ITEM_AT;
+            Vec3 velocity = Vec3.ZERO;
+            for (int tick = 0; tick < 3; tick++) {
+                velocity = GRAB.homingVelocity(velocity, at, EYE);
+                at = at.add(velocity);
+            }
+            Vec3 turned = GRAB.homingVelocity(velocity, at, MOVED_EYE);
+            Vec3 toMovedEye = MOVED_EYE.subtract(at).normalize();
+            assertEquals(1, turned.normalize().dot(toMovedEye), EPSILON, "The motion should point at the eye's new "
+                    + "position, moves " + turned + " from " + at);
+        }
+
+        @Test
+        void noTickFliesFasterThanThePullSpeed() {
+            Vec3 at = ITEM_AT;
+            Vec3 velocity = Vec3.ZERO;
+            for (int tick = 0; tick < TICKS; tick++) {
+                velocity = GRAB.homingVelocity(velocity, at, EYE);
+                assertTrue(velocity.length() <= PULL_SPEED + EPSILON, "Tick " + tick + " flies " + velocity.length());
+                at = at.add(velocity);
+            }
+        }
+    }
 
     /**
      * Where Grab hangs a held body's middle: against the first block the look

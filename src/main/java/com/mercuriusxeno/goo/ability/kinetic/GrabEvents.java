@@ -160,21 +160,38 @@ public final class GrabEvents {
     }
 
     /**
-     * Pulls an item entity toward a player's eye this channel tick, by its
-     * motion rather than its position, so the client interpolates the flight,
-     * and clears its pickup delay so the player's own tick picks it up on
+     * The item entity a player's press locked, while the lock stands and the item lives.
+     * decision grabbed-item-locks-in-and-homes-on-your-current-position
+     *
+     * @param player the pressing player
+     * @return the locked item, or null where the press locks none
+     */
+    public static @Nullable ItemEntity lockedItemOf(ServerPlayer player) {
+        GrabItemLock lock = player.getData(GooAttachments.GRAB_ITEM_LOCK);
+        if (!lock.standsAt(player.level().getGameTime())) {
+            return null;
+        }
+        return player.level().getEntity(lock.itemId()) instanceof ItemEntity item && item.isAlive() ? item : null;
+    }
+
+    /**
+     * Pulls a locked item entity toward a player this channel tick: stretches
+     * the press's lock on it and its gravity's suspension across the hold
+     * grace, sets its motion, so the client interpolates the flight, and
+     * clears its pickup delay so the player's own tick picks it up on
      * arrival. The item stands under no hold, so a left click throws nothing.
      * decision grab-pulls-an-item-to-you-and-picks-it-up
+     * decision grabbed-item-locks-in-and-homes-on-your-current-position
      *
-     * @param player    the pulling player
-     * @param item      the item entity
-     * @param pullSpeed the speed the item flies at, in blocks per tick
-     * @param toward    where the item flies for: the eye, or the eye as seen through a linked pair the way runs
+     * @param player   the pulling player
+     * @param item     the locked item entity
+     * @param velocity the item's motion this tick, in blocks per tick
      */
-    public static void pull(ServerPlayer player, ItemEntity item, double pullSpeed, Vec3 toward) {
-        Vec3 toEye = toward.subtract(item.position());
-        // Capped at the distance left, so the last tick lands on the player rather than past it.
-        item.setDeltaMovement(toEye.normalize().scale(Math.min(pullSpeed, toEye.length())));
+    public static void pull(ServerPlayer player, ItemEntity item, Vec3 velocity) {
+        long until = player.level().getGameTime() + HOLD_GRACE_TICKS;
+        player.setData(GooAttachments.GRAB_ITEM_LOCK, new GrabItemLock(item.getId(), until));
+        suspend(item, until);
+        item.setDeltaMovement(velocity);
         item.setNoPickUpDelay();
         item.hurtMarked = true;
     }
