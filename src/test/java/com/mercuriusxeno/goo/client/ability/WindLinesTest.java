@@ -2,12 +2,20 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.program.WindStep;
+import com.mercuriusxeno.goo.client.LineContext;
+import java.util.List;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 /**
  * A wind line's path: it rushes straight along its axis, swaying slightly,
@@ -167,11 +175,6 @@ class WindLinesTest {
                 SWAYING, 1, 0f, false, 0L, false, true);
 
         @Test
-        void anInwardLineStartsInsideTheConeAtItsStraightRun() {
-            assertEquals(STRAIGHT, WindLines.pathPoint(inward, 0).length(), WindLines.SWAY * 2);
-        }
-
-        @Test
         void anInwardLinesHeadClosesOnTheGloveAlongItsLife() {
             for (int tick = 1; tick <= WindLines.LIFE_TICKS; tick++) {
                 assertTrue(WindLines.pathPoint(inward, tick).length() < WindLines.pathPoint(inward, tick - 1).length(),
@@ -225,19 +228,6 @@ class WindLinesTest {
         }
 
         @Test
-        void anInwardLineRunsTheWholeOfItsGustsRange() {
-            for (double range : new double[] {8, 5}) {
-                double run = WindLines.runOf(range, true, 0.3);
-                WindLines.Line spanning = new WindLines.Line(Vec3.ZERO, EAST, SOUTH, EAST.cross(SOUTH), run,
-                        WindLines.Sway.NONE, 1, 0f, false, 0L, false, true);
-
-                assertEquals(range, run, EPSILON);
-                assertEquals(range, WindLines.pathPoint(spanning, 0).length(), EPSILON);
-                assertEquals(0, WindLines.pathPoint(spanning, WindLines.LIFE_TICKS).length(), EPSILON);
-            }
-        }
-
-        @Test
         void anInwardLineTurnsGentlyOneWayAboutTheConesAxis() {
             double about = 0.7;
             Vec3 outward = WindLines.radial(EAST, about);
@@ -256,6 +246,84 @@ class WindLinesTest {
             }
             double total = Math.abs(last - start);
             assertTrue(total > 0 && total <= Math.PI / 2, "the twist turns " + Math.toDegrees(total) + " degrees");
+        }
+
+        /**
+         * Vacuum's streak is Gust's streak played toward the blob
+         * (decision vacuum-wind-lines-are-gusts-streaks-flying-into-the-blob).
+         */
+        @Nested
+        class GustsStreakIntoTheBlob {
+
+            private static final double RANGE = 8;
+            private static final double SPREAD = 0.3;
+            private final Vec3 blob = new Vec3(2, 64, -3);
+            private final WindLines.Line gusts = new WindLines.Line(blob, EAST, SOUTH, EAST.cross(SOUTH),
+                    WindLines.runOf(RANGE, SPREAD), WindLines.Sway.NONE, 1, 0f, false, 0L, false);
+            private final WindLines.Line vacuums = new WindLines.Line(blob, EAST, SOUTH, EAST.cross(SOUTH),
+                    WindLines.runOf(RANGE, SPREAD), SWAYING, 1, 0f, false, 0L, false, true);
+
+            private double gustsRun() {
+                return gustsReachAt(WindLines.LIFE_TICKS);
+            }
+
+            /** How far along its axis Gust's head stands from the glove. */
+            private double gustsReachAt(double age) {
+                return WindLines.pathPoint(gusts, age).subtract(blob).dot(EAST);
+            }
+
+            @Test
+            void anInwardLineRunsTheLengthGustsLineRunsOverTheTicksItTakes() {
+                assertEquals(gustsRun(), WindLines.pathPoint(vacuums, 0).distanceTo(blob), EPSILON,
+                        "Vacuum's streak should start as far out as Gust's ends");
+                assertTrue(WindLines.pathPoint(vacuums, WindLines.LIFE_TICKS - 1).distanceTo(blob) > EPSILON,
+                        "a tick before its life ends the streak has not yet reached the blob");
+                assertEquals(0, WindLines.pathPoint(vacuums, WindLines.LIFE_TICKS).distanceTo(blob), EPSILON,
+                        "Vacuum's streak should end at the blob");
+            }
+
+            @Test
+            void anInwardLineDrawsGustsBrightnessByShareOfItsRunFromTheBlob() {
+                double run = gustsRun();
+                for (int tick = 0; tick <= WindLines.LIFE_TICKS; tick++) {
+                    int inwardAge = WindLines.LIFE_TICKS - tick;
+                    double gustsShare = gustsReachAt(tick) / run;
+                    double vacuumsShare = WindLines.pathPoint(vacuums, inwardAge).distanceTo(blob) / run;
+                    assertEquals(gustsShare, vacuumsShare, 1e-9, "Gust's tick " + tick + " share of the run");
+                    assertEquals(headAlpha(gusts, tick), headAlpha(vacuums, inwardAge),
+                            "at " + gustsShare + " of the run Vacuum's head should draw Gust's alpha");
+                }
+                assertEquals(headAlpha(gusts, 0), headAlpha(vacuums, WindLines.LIFE_TICKS),
+                        "Vacuum's streak should be brightest where it meets the blob");
+            }
+
+            @Test
+            void anInwardLineDrawsAtGustsWidth() {
+                assertEquals(List.of(WindLines.LINE_WIDTH), drawnWidths(gusts, 10));
+                assertEquals(List.of(WindLines.LINE_WIDTH), drawnWidths(vacuums, WindLines.LIFE_TICKS - 10));
+            }
+
+            @Test
+            void anInwardLineTrailsGustsTailSoItIsWholeWhereItMeetsTheBlob() {
+                for (int tick = 0; tick <= WindLines.LIFE_TICKS; tick++) {
+                    assertEquals(WindLines.tailLagOf(gusts, tick),
+                            WindLines.tailLagOf(vacuums, WindLines.LIFE_TICKS - tick), EPSILON, "tick " + tick);
+                }
+                assertEquals(WindLines.TAIL_TICKS, WindLines.tailLagOf(vacuums, WindLines.LIFE_TICKS), EPSILON);
+            }
+
+            /** The distinct widths a line's segments draw at, read off the polylines it emits. */
+            private static List<Float> drawnWidths(WindLines.Line line, double age) {
+                LineContext lines = mock(LineContext.class);
+                WindLines.drawLine(lines, Vec3.ZERO, line, age, Vec3.ZERO);
+                ArgumentCaptor<Float> widths = ArgumentCaptor.forClass(Float.class);
+                verify(lines, atLeastOnce()).emitPolyline(any(), any(), anyInt(), widths.capture());
+                return widths.getAllValues().stream().distinct().toList();
+            }
+
+            private static int headAlpha(WindLines.Line line, double age) {
+                return WindLines.trailColor(line, (float) (age / WindLines.LIFE_TICKS), 0f) >>> 24;
+            }
         }
 
         private double closing(int tick) {

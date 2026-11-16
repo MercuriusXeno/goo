@@ -87,7 +87,7 @@ public final class WindLines {
     static final double TAIL_TICKS = 10;
     /** Points the line draws through, enough that its curve reads smooth. */
     private static final int TAIL_SAMPLES = 32;
-    private static final float LINE_WIDTH = 3.5f;
+    static final float LINE_WIDTH = 3.5f;
     /** Snowflakes a line drops along itself each tick it lives. */
     private static final float SNOWFLAKES_PER_LINE_TICK = 0.2f;
     private static final int MAX_ALPHA = 200;
@@ -161,7 +161,7 @@ public final class WindLines {
      * @param snowflakes whether snowflakes flit along it
      * @param startTick  the game time it left the glove
      * @param carried    whether it rides along with the player, a jet's tailwind
-     * @param inward     whether it runs from its straight run's end into the glove rather than out of it
+     * @param inward     whether it plays its course back from the far end into the blob rather than out of it
      */
     record Line(Vec3 origin, Vec3 axis, Vec3 outward, Vec3 across, double straight, Sway sway, double winding,
                 float gray, boolean snowflakes, long startTick, boolean carried, boolean inward,
@@ -262,19 +262,52 @@ public final class WindLines {
 
     private static Vec3 coursePoint(Line line, double age) {
         if (line.inward()) {
-            double drawn = drawnIn(age);
-            Vec3 run = line.axis().scale(line.straight() * (1 - drawn));
-            return line.origin().add(turnedAbout(run, gustAxisOf(line), line.winding() * INWARD_TWIST * drawn));
+            return inwardCoursePoint(line, age);
         }
         if (age <= STRAIGHT_TICKS) {
-            return line.origin().add(line.axis().scale(line.straight() * launched(age / STRAIGHT_TICKS)));
+            return line.origin().add(line.axis().scale(reachAt(line, age)));
         }
         double twisted = (age - STRAIGHT_TICKS) / TWIST_TICKS;
         double radius = TWIST_RADIUS * twisted * twisted;
         double angle = line.winding() * TWIST_TURNS * TWO_PI * twisted;
-        return line.origin().add(line.axis().scale(line.straight() + twistAdvance(line, twisted)))
+        return line.origin().add(line.axis().scale(reachAt(line, age)))
                 .add(line.outward().scale(radius * Math.cos(angle)))
                 .add(line.across().scale(radius * Math.sin(angle)));
+    }
+
+    /**
+     * Where an inward line's head stands: Gust's head played back toward the
+     * blob, as far out along its axis as Gust's head stands at the same ticks
+     * short of its life's end, so it crosses Gust's run in Gust's ticks and
+     * arrives at Gust's launch pace; turned gently one way about the gust's
+     * axis as it draws in.
+     * vacuum-wind-lines-are-gusts-streaks-flying-into-the-blob
+     * vacuum-wind-lines-run-straight-and-far-in-void-colors-with-motes
+     *
+     * @param line the inward line
+     * @param age  ticks since it started, at its run's far end
+     * @return the head's world position
+     */
+    private static Vec3 inwardCoursePoint(Line line, double age) {
+        double reach = reachAt(line, LIFE_TICKS - age);
+        double drawn = 1 - reach / reachAt(line, LIFE_TICKS);
+        Vec3 run = line.axis().scale(reach);
+        return line.origin().add(turnedAbout(run, gustAxisOf(line), line.winding() * INWARD_TWIST * drawn));
+    }
+
+    /**
+     * How far along its axis an outward line's head stands from the glove:
+     * its launched straight run, then carrying on, slowing, as it twists.
+     *
+     * @param line the line
+     * @param age  ticks since it left the glove, 0 to LIFE_TICKS
+     * @return the distance along its axis, in blocks
+     */
+    static double reachAt(Line line, double age) {
+        if (age <= STRAIGHT_TICKS) {
+            return line.straight() * launched(age / STRAIGHT_TICKS);
+        }
+        return line.straight() + twistAdvance(line, (age - STRAIGHT_TICKS) / TWIST_TICKS);
     }
 
     /**
@@ -311,15 +344,6 @@ public final class WindLines {
     }
 
     /**
-     * The share of its run an inward line has drawn in toward the glove: it
-     * leaves its far end at half its average pace and speeds up to half again
-     * its average as it nears, reaching the glove as it ends.
-     * vacuum-streaks-wind-lines-inward-to-the-glove
-     *
-     * @param age ticks since the line started
-     * @return the share drawn in, 0 at its start to 1 at the glove
-     */
-    /**
      * Where a void mote leaves an inward line and how it flies: from the
      * line's head, toward the glove, at the speed that, slowed by a void
      * mote's friction each tick, carries it to the glove as its flight ends,
@@ -349,24 +373,16 @@ public final class WindLines {
     }
 
     /**
-     * How far a line runs: an inward line the whole of its gust's range, so it
-     * starts at the reach's far end; an outward line a random share of it
-     * before it curls.
-     * vacuum-wind-lines-run-straight-and-far-in-void-colors-with-motes
+     * How far a line rushes straight before it twists: a random share of its
+     * gust's range, inward or out, so Vacuum's streak runs the length Gust's does.
+     * vacuum-wind-lines-are-gusts-streaks-flying-into-the-blob
      *
      * @param range  the gust's range, in blocks
-     * @param inward whether the line runs into the glove
-     * @param spread a random draw from 0 to 1 sizing an outward line's run
-     * @return the run, in blocks
+     * @param spread a random draw from 0 to 1 sizing the run
+     * @return the straight run, in blocks
      */
-    static double runOf(double range, boolean inward, double spread) {
-        return inward ? range : range * STRAIGHT_SHARE * (HALF + spread);
-    }
-
-    static double drawnIn(double age) {
-        double lived = Math.clamp(age / LIFE_TICKS, 0, 1);
-        // vacuum-wind-lines-run-straight-and-far-in-void-colors-with-motes: moving from its first tick, so it reads
-        return lived * (HALF + HALF * lived);
+    static double runOf(double range, double spread) {
+        return range * STRAIGHT_SHARE * (HALF + spread);
     }
 
     /**
@@ -408,6 +424,33 @@ public final class WindLines {
         }
         double curled = Math.min(1, (age - STRAIGHT_TICKS) / (LIFE_TICKS - STRAIGHT_TICKS));
         return TAIL_TICKS * (1 - curled);
+    }
+
+    /**
+     * How far behind its head a line's tail trails: an inward line trails the
+     * tail Gust's line trails the same ticks short of its life's end, so its
+     * streak is whole where it meets the blob.
+     * vacuum-wind-lines-are-gusts-streaks-flying-into-the-blob
+     *
+     * @param line the line
+     * @param age  ticks since the line started
+     * @return the tail's lag behind the head, in ticks of the path
+     */
+    static double tailLagOf(Line line, double age) {
+        return tailLag(line.inward() ? LIFE_TICKS - age : age);
+    }
+
+    /**
+     * How far through Gust's life a line stands at a share of its own: an
+     * inward line plays Gust's life back, its end at Gust's start.
+     * vacuum-wind-lines-are-gusts-streaks-flying-into-the-blob
+     *
+     * @param line the line
+     * @param life the share of its life it has lived, 0 to 1
+     * @return the share of Gust's life its look matches, 0 at the glove
+     */
+    static float lifeFromTheGlove(Line line, float life) {
+        return line.inward() ? 1f - life : life;
     }
 
     /**
@@ -598,7 +641,7 @@ public final class WindLines {
         Vec3 axis = tilt(look, spread * Math.sqrt(random.nextDouble()), about);
         Vec3 outward = radial(look, about);
         Vec3 across = look.cross(outward).normalize();
-        double straight = runOf(range, wind.inward(), random.nextDouble());
+        double straight = runOf(range, random.nextDouble());
         double winding = random.nextBoolean() ? CLOCKWISE : COUNTERCLOCKWISE;
         Line line = new Line(apex, axis, outward, across, straight, sway(random, axis), winding, random.nextFloat(),
                 wind.snowflakes(), now, gust.carried(), wind.inward(), wind.colors(), wind.voidMotes());
@@ -687,8 +730,10 @@ public final class WindLines {
     }
 
     /**
-     * The color a line draws at a point of its trail: its blend of white and
-     * pale gray, fading toward its tail and out as it ages.
+     * The color a line draws at a point of its trail: its blend of its wind
+     * step's light and dark colors, fading toward its tail and out as it
+     * draws away from the glove, so an inward line brightens as it nears the blob.
+     * vacuum-wind-lines-are-gusts-streaks-flying-into-the-blob
      *
      * @param line the line
      * @param life the share of its life it has lived, 0 to 1
@@ -696,7 +741,7 @@ public final class WindLines {
      * @return the ARGB color
      */
     static int trailColor(Line line, float life, float tail) {
-        float alpha = (1f - life) * (1f - tail);
+        float alpha = (1f - lifeFromTheGlove(line, life)) * (1f - tail);
         return ARGB.color(Math.round(alpha * MAX_ALPHA),
                 ARGB.srgbLerp(line.gray(), line.colors().light(), line.colors().dark()));
     }
@@ -772,9 +817,9 @@ public final class WindLines {
         return line.carried() ? rider : Vec3.ZERO;
     }
 
-    private static void drawLine(LineContext lines, Vec3 camera, Line line, double age, Vec3 anchor) {
+    static void drawLine(LineContext lines, Vec3 camera, Line line, double age, Vec3 anchor) {
         float life = (float) (age / LIFE_TICKS);
-        double lag = tailLag(age);
+        double lag = tailLagOf(line, age);
         Vec3 previous = anchor.add(pathPoint(line, age));
         for (int sample = 1; sample <= TAIL_SAMPLES; sample++) {
             float tail = (float) sample / TAIL_SAMPLES;
