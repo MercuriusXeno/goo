@@ -17,18 +17,33 @@ import java.util.stream.Stream;
  * strikes, one layer for each drip, through the volume cell's one landing, as
  * Goop lays its slime and Host its sculky slime. The step names the share of
  * its speed a thing caught in Leech goo keeps, as soul sand's speed factor
- * reads: {@code leech_goo speed_factor=0.4}.
+ * reads, the damage the goo's spirits deal a living thing caught in it, the
+ * ticks between their bites, and the chance each bite takes a layer from the
+ * cell: {@code leech_goo speed_factor=0.4 spirit_damage=1 spirit_ticks=20
+ * deplete_chance=0.1}.
  * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
+ * leech-goo-has-a-chance-to-deplete-when-the-spirits-damage
  * each-goo-type-ships-a-world-goo-on-the-volume-cell
  * drip-creates-a-volume-cell-immediately
  * drip-on-a-standing-cell-increases-it
  *
- * @param speedFactor the share of its horizontal speed a thing caught in Leech goo keeps
+ * @param speedFactor   the share of its horizontal speed a thing caught in Leech goo keeps
+ * @param spiritDamage  the damage the spirits deal a living thing caught in the goo at each bite
+ * @param spiritTicks   the ticks between the spirits' bites
+ * @param depleteChance the chance each bite takes a layer from the cell under the bitten thing
  */
-public record LeechGooStep(double speedFactor) implements TakesNoEntity, DripLanding {
+public record LeechGooStep(double speedFactor, float spiritDamage, int spiritTicks, double depleteChance)
+        implements TakesNoEntity, DripLanding {
 
     private static final String NAME = "leech_goo";
     private static final String FIELD_SPEED_FACTOR = "speed_factor";
+    private static final String FIELD_SPIRIT_DAMAGE = "spirit_damage";
+    private static final String FIELD_SPIRIT_TICKS = "spirit_ticks";
+    private static final String FIELD_DEPLETE_CHANCE = "deplete_chance";
+    /** The most damage one bite deals, a whole health bar of a player at a time. */
+    private static final float MOST_SPIRIT_DAMAGE = 20f;
+    /** The longest the spirits wait between bites, a minute. */
+    private static final int MOST_SPIRIT_TICKS = 1200;
     /** The least share of its speed a caught thing keeps, so the goo slows and never pins. */
     private static final double LEAST_SPEED_FACTOR = 0.01;
 
@@ -37,7 +52,11 @@ public record LeechGooStep(double speedFactor) implements TakesNoEntity, DripLan
      */
     public static final MapCodec<LeechGooStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             Codec.doubleRange(LEAST_SPEED_FACTOR, 1.0).fieldOf(FIELD_SPEED_FACTOR)
-                    .forGetter(LeechGooStep::speedFactor)
+                    .forGetter(LeechGooStep::speedFactor),
+            Codec.floatRange(0f, MOST_SPIRIT_DAMAGE).fieldOf(FIELD_SPIRIT_DAMAGE)
+                    .forGetter(LeechGooStep::spiritDamage),
+            Codec.intRange(1, MOST_SPIRIT_TICKS).fieldOf(FIELD_SPIRIT_TICKS).forGetter(LeechGooStep::spiritTicks),
+            Codec.doubleRange(0.0, 1.0).fieldOf(FIELD_DEPLETE_CHANCE).forGetter(LeechGooStep::depleteChance)
     ).apply(inst, LeechGooStep::new));
 
     /**

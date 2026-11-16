@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.particle.HexWispParticle;
 import com.mercuriusxeno.goo.network.LeechPayload;
+import com.mercuriusxeno.goo.network.SpiritBitePayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -122,6 +123,23 @@ public final class LeechWisps {
             } else {
                 trickle(mc, level.getRandom(), victim.position().add(0, victim.getBbHeight() * CHEST, 0), healed);
                 burst(mc, level.getRandom(), victim);
+            }
+        });
+    }
+
+    /**
+     * Bursts wisps over a thing the spirits in Leech goo bit, as Drain bursts
+     * them at each strike, on the client thread.
+     * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
+     *
+     * @param payload the spirit bite payload
+     * @param context the network context
+     */
+    public static void handleSpiritBite(SpiritBitePayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.level != null && mc.level.getEntity(payload.victimId()) instanceof Entity victim) {
+                burst(mc, mc.level.getRandom(), victim);
             }
         });
     }

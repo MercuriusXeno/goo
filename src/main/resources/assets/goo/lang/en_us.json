@@ -230,7 +230,7 @@
   "goo.ability.hex.fuse.description": "Fuses two identical enchanted books you carry into one a level higher.",
   "goo.ability.hex.leech": "Leech",
   "goo.ability.hex.leech.cost_mechanics": "Costs %s per block of Leech laid, a fifteenth of it per layer.",
-  "goo.ability.hex.leech.description": "Held stream sprays Leech, a soul-steeped goo that slows whatever it catches.",
+  "goo.ability.hex.leech.description": "Held stream sprays Leech, a soul-steeped goo that slows whatever it catches while its spirits gnaw at it.",
   "goo.ability.hex.lifetap": "Lifetap",
   "goo.ability.hex.lifetap.description": "Damage you deal heals you, but food no longer regenerates your health.",
   "goo.ability.hex.drain": "Drain",
