@@ -1,8 +1,10 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.LingeringAppliers;
 import com.mercuriusxeno.goo.ability.aging.AgingBlocks;
 import com.mercuriusxeno.goo.ability.deep.Sculker;
+import com.mercuriusxeno.goo.ability.end.EndWayBack;
 import com.mercuriusxeno.goo.ability.frost.Frozen;
 import com.mercuriusxeno.goo.ability.gate.GateFixation;
 import com.mercuriusxeno.goo.ability.gate.WayHome;
@@ -82,6 +84,17 @@ public final class GooAttachments {
             ATTACHMENT_TYPES.register("entity_counters",
                     () -> AttachmentType.builder(() -> EntityCounters.EMPTY)
                             .serialize(EntityCounters.CODEC)
+                            .build());
+
+    /**
+     * The players who applied the lingering goo effects an afflicted entity holds, one per effect, saved with the
+     * entity while any stands so each later tick names its applier after a reload.
+     * lingering-goo-effect-credits-whoever-applied-it
+     */
+    public static final Supplier<AttachmentType<LingeringAppliers>> LINGERING_APPLIERS =
+            ATTACHMENT_TYPES.register("lingering_appliers",
+                    () -> AttachmentType.builder(() -> LingeringAppliers.NONE)
+                            .serialize(LingeringAppliers.CODEC, LingeringAppliers::stands)
                             .build());
 
     /**
@@ -494,6 +507,20 @@ public final class GooAttachments {
                             .serialize(Breath.CODEC, Breath::stands)
                             .sync(GooAttachments::syncsToOwner, Breath.STREAM_CODEC)
                             .build());
+    /**
+     * Where a player the End gate carried to the End portalled in from,
+     * saved with the player so the gate they summon there leads back, and
+     * synced to them, whose client grays End out in the End without it.
+     * decision end-gate-in-the-end-is-free-and-returns-you-where-you-portalled-in
+     * decision end-is-grayed-out-in-the-end-unless-you-came-by-the-ability
+     */
+    public static final Supplier<AttachmentType<EndWayBack>> END_WAY_BACK =
+            ATTACHMENT_TYPES.register("end_way_back",
+                    () -> AttachmentType.builder(() -> EndWayBack.NONE)
+                            .serialize(EndWayBack.CODEC.fieldOf("end_way_back"), EndWayBack::stands)
+                            .sync(GooAttachments::syncsToOwner, EndWayBack.STREAM_CODEC)
+                            .build());
+
     private GooAttachments() {
     }
 

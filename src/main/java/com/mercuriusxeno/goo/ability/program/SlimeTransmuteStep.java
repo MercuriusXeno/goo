@@ -20,6 +20,7 @@ import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.EventHooks;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -79,7 +80,8 @@ public record SlimeTransmuteStep(ResourceKey<GooTypeDefinition> goo, boolean hos
 
     @Override
     public boolean tick(StepContext context) {
-        LivingEntity target = context.hostAs(TargetHost.class).target();
+        TargetHost host = context.hostAs(TargetHost.class);
+        LivingEntity target = host.target();
         if (takesEntity(target) && target.level() instanceof ServerLevel level) {
             Slime slime = (Slime) target;
             BlockPos cell = slime.blockPosition();
@@ -87,7 +89,7 @@ public record SlimeTransmuteStep(ResourceKey<GooTypeDefinition> goo, boolean hos
             NaturalSpawns.drawAt(level, cell, level.getRandom(), categoryFilter(hostile), type -> type != EntityType.SLIME)
                     .ifPresent(type -> {
                         slime.discard();
-                        bear(level, type, cell, morphFrom);
+                        bear(level, type, cell, morphFrom, host.thrower());
                     });
         }
         return true;
@@ -119,14 +121,20 @@ public record SlimeTransmuteStep(ResourceKey<GooTypeDefinition> goo, boolean hos
 
     /**
      * Makes a mob of the type standing in the slime's cell, announces the goo
-     * morphing into it, adds it to the level and runs the steps on it.
+     * morphing into it, adds it to the level and runs the steps on it,
+     * hosted with the slime's thrower so a hit among them names the player
+     * behind the goo.
+     * direct-goo-hit-credits-its-caster
+     * goo-hit-keeps-its-kind-and-names-the-player-behind-it
      *
      * @param level     the level
      * @param type      the type drawn
      * @param cell      the cell the mob stands in
      * @param morphFrom where the goo morphs from, the slime's center
+     * @param thrower   the entity that threw the goo at the slime, or null when unknown
      */
-    private void bear(ServerLevel level, EntityType<?> type, BlockPos cell, Vec3 morphFrom) {
+    private void bear(ServerLevel level, EntityType<?> type, BlockPos cell, Vec3 morphFrom,
+                      @Nullable Entity thrower) {
         Entity entity = type.create(level, EntitySpawnReason.MOB_SUMMONED);
         if (entity == null) {
             return;
@@ -140,7 +148,7 @@ public record SlimeTransmuteStep(ResourceKey<GooTypeDefinition> goo, boolean hos
         TransformationPayload morph = new TransformationPayload(goo, morphFrom, morphFrom, entity.getId(), morphTicks);
         spawnAnnounced(entity, () -> BlockVisuals.sendToWatchers(level, cell, morph), level::addFreshEntity);
         if (entity instanceof LivingEntity living && !steps.isEmpty()) {
-            new ProgramBehavior(steps).tick(new EntityHost(level, living, null));
+            new ProgramBehavior(steps).tick(new EntityHost(level, living, thrower));
         }
     }
 

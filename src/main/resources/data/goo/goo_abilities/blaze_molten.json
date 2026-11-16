@@ -2,7 +2,7 @@
   "gooType": "blaze",
   "displayName": "goo.ability.blaze.molten",
   "cost_mechanics": "goo.ability.blaze.molten.cost_mechanics",
-  "badge": "channeled",
+  "badge": "residual",
   "order": 20,
   "cost": 1000,
   "cost_formula": "%s/m³",
