@@ -23,6 +23,7 @@ import com.mercuriusxeno.goo.block.statue.StatueBlock;
 import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.block.zone.DimensionDoorBlock;
 import com.mercuriusxeno.goo.fluid.GooFluidBlock;
+import com.mercuriusxeno.goo.fluid.MoltenIronBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.IronBarsBlock;
@@ -423,7 +424,7 @@ public class GooBlocks {
 
     /** Molten iron's liquid block, glowing as lava does. */
     public static final DeferredBlock<LiquidBlock> MOLTEN_IRON = BLOCKS.registerBlock(GooFluids.MOLTEN_IRON_PATH,
-            p -> new LiquidBlock(GooFluids.MOLTEN_IRON_SOURCE.get(), p),
+            p -> new MoltenIronBlock(GooFluids.MOLTEN_IRON_SOURCE.get(), p),
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.FIRE)
                     .replaceable()
