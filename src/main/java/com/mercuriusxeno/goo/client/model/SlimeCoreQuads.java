@@ -13,8 +13,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Builds the quads a slime core's boxes draw as: an opaque body on the
- * cell's goo type's fluid sprite, untinted as the palm blob's core is, each
+ * Builds the quads a slime core's boxes draw as: a body at the shell's alpha
+ * on the cell's goo type's fluid sprite, in its own colors as the palm blob's core is, each
  * face baked as a block model's are and textured where it stands in its
  * block, so the texture runs on across a join as across tiled blocks. A face
  * on the block's own boundary draws nothing where the core across covers it,
@@ -29,8 +29,6 @@ import java.util.List;
  */
 public final class SlimeCoreQuads {
 
-    /** The tint index of a quad drawn in its sprite's own colors. */
-    public static final int NO_TINT = -1;
     /** Model pixels to one of the core box's units, a 120th of a block. */
     private static final float PIXELS_PER_UNIT = 16f / SlimeCoreBox.WHOLE;
     /** Bakes each quad as it comes, sharing nothing between them. */
@@ -53,7 +51,7 @@ public final class SlimeCoreQuads {
      * The quads a cell's core draws as.
      *
      * @param around   the layers the cells of the goo hold around the cell
-     * @param material the core's material: the goo type's fluid sprite, untinted, on the solid layer
+     * @param material the core's material: the goo type's fluid sprite, on the translucent layer
      * @return each core box's faces but those the core across covers, none for a cell of no layers
      */
     public static List<BakedQuad> quadsOf(LayersAround around, BakedQuad.MaterialInfo material) {

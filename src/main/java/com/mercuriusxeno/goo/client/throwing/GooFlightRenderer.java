@@ -28,7 +28,7 @@ import java.util.Collection;
 
 /**
  * Renders goo flights as multi-layer animated projectiles.
- * Core: opaque fluid cuboid with pulsing width.
+ * Core: fluid cuboid with pulsing width, at the shell's alpha.
  * Shell: translucent cuboid for slime effect.
  * Tail: billboarded sprite quads behind the velocity vector.
  * Particles: drip sparks and color-tinted bubbles shed along the trail.
@@ -54,6 +54,11 @@ public final class GooFlightRenderer {
      * Shell alpha (translucent).
      */
     private static final int SHELL_ALPHA = 0x60;
+    /**
+     * The core's color: the shell's alpha over its fluid sprite's own colors.
+     * slime-core-draws-translucent-at-the-shells-opacity
+     */
+    private static final int CORE_COLOR = ARGB.color(SHELL_ALPHA, 0xFFFFFF);
 
     /**
      * Tail quad length behind the goo.
@@ -271,7 +276,7 @@ public final class GooFlightRenderer {
      */
     public static void renderBlob(PoseStack poseStack, MultiBufferSource buffers,
                                   ResourceKey<GooTypeDefinition> type, float gameTime, BlobShape shape) {
-        emitCore(poseStack.last(), buffers.getBuffer(GooSubmitter.solidOnBlockAtlas()), type, gameTime, shape);
+        emitCore(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()), type, gameTime, shape);
         emitShell(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()), type, shape);
     }
 
@@ -285,8 +290,7 @@ public final class GooFlightRenderer {
      */
     private static void renderCore(PoseStack poseStack, MultiBufferSource buffers,
                                    ResourceKey<GooTypeDefinition> type, float gameTime) {
-        emitCore(poseStack.last(), buffers.getBuffer(GooSubmitter.solidOnBlockAtlas()), type, gameTime,
-                BlobShape.CUBE);
+        emitCore(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()), type, gameTime, BlobShape.CUBE);
     }
 
     /**
@@ -302,15 +306,18 @@ public final class GooFlightRenderer {
     }
 
     /**
-     * Emits the blob's core: an opaque fluid cuboid 3/4 of its shell at rest,
-     * with sin-pulsing size, fullbright, about the pose's origin, in the
-     * shell's shape so a pressed shell keeps its core inside it. The consumer takes
-     * {@link GooSubmitter#solidOnBlockAtlas()} geometry; the glove's palm blob
-     * submits through this too (decision palm-blob-draws-as-the-charge-blob).
+     * Emits the blob's core: a fluid cuboid 3/4 of its shell at rest, at the
+     * shell's alpha in its sprite's own colors, with sin-pulsing size,
+     * fullbright, about the pose's origin, in the shell's shape so a pressed
+     * shell keeps its core inside it. The consumer takes
+     * {@link GooSubmitter#renderType()} geometry, submitted ahead of the
+     * shell; the glove's palm blob submits through this too (decision
+     * palm-blob-draws-as-the-charge-blob).
      * palm-blob-rests-pressed-and-stands-into-the-cube
+     * slime-core-draws-translucent-at-the-shells-opacity
      *
      * @param pose     the pose at the blob's center
-     * @param c        a consumer of the solid block atlas render type
+     * @param c        a consumer of the translucent goo render type
      * @param type     the goo type
      * @param gameTime the level game time in ticks, driving the pulse
      * @param shape    the blob's box against a flight's cube
@@ -319,7 +326,7 @@ public final class GooFlightRenderer {
                                 ResourceKey<GooTypeDefinition> type, float gameTime, BlobShape shape) {
         float pulse = 1.0f + CORE_PULSE_AMP * Mth.sin(gameTime * CORE_PULSE_SPEED);
         RenderContext ctx = new RenderContext(pose, c, GooSubmitter.fullbrightLight());
-        ctx.emitBox(boxAbout(shape.scaled(CORE_HW * pulse)), spriteToUv(type));
+        ctx.emitBox(CORE_COLOR, boxAbout(shape.scaled(CORE_HW * pulse)), spriteToUv(type));
     }
 
     /**

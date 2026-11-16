@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
 import com.mercuriusxeno.goo.client.ability.PalmBlobHop;
 import com.mercuriusxeno.goo.client.ability.SprayingClient;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
+import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.client.zone.RoomBodyCopyRenderer;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.google.gson.JsonArray;
@@ -18,8 +19,10 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.geometry.QuadCollection;
@@ -47,6 +50,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -54,8 +58,10 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 /**
- * The glove body submits on the cutout block-atlas type and the palm blob's
- * core on the solid one (decision diagnose-and-correct-the-palm-core-cull).
+ * The glove body submits on the cutout block-atlas type (decision
+ * diagnose-and-correct-the-palm-core-cull) and the palm blob's core on the
+ * translucent goo type ahead of its shell (decision
+ * slime-core-draws-translucent-at-the-shells-opacity).
  * The hand the aim line starts from: the first-person glove stores it, and a
  * glove drawn on a copy of the player's body in a Zone room's copies
  * leaves it where the player's own glove put it
@@ -114,9 +120,36 @@ class GloveSpecialRendererTest {
         assertEquals(RenderTypes.entityCutout(BLOCK_ATLAS), GloveSpecialRenderer.bodyType());
     }
 
+    /** slime-core-draws-translucent-at-the-shells-opacity */
     @Test
-    void theCoreSubmitsOnTheSolidBlockAtlasType() {
-        assertEquals(RenderTypes.entitySolid(BLOCK_ATLAS), GloveSpecialRenderer.coreType());
+    void thePalmBlobSubmitsItsCoreOnTheGooTypeAheadOfItsShell() {
+        List<RenderType> types = new ArrayList<>();
+        List<String> drawn = new ArrayList<>();
+        try (SprayingClient client = SprayingClient.another(GooTypes.ZOO);
+             MockedStatic<GloveBodyModels> models = bodiless();
+             MockedStatic<GooFlightRenderer> flight = mockStatic(GooFlightRenderer.class)) {
+            flight.when(() -> GooFlightRenderer.emitCore(any(), any(), any(), anyFloat(), any()))
+                    .thenAnswer(call -> drawn.add("core"));
+            flight.when(() -> GooFlightRenderer.emitShell(any(), any(), any(), any()))
+                    .thenAnswer(call -> drawn.add("shell"));
+            SubmitNodeCollector collector = mock(SubmitNodeCollector.class);
+            doAnswer(call -> {
+                int before = drawn.size();
+                call.<SubmitNodeCollector.CustomGeometryRenderer>getArgument(2)
+                        .render(call.<PoseStack>getArgument(0).last(), mock(VertexConsumer.class));
+                if (drawn.size() > before) {
+                    types.add(call.getArgument(1));
+                }
+                return null;
+            }).when(collector).submitCustomGeometry(any(), any(), any());
+
+            new GloveSpecialRenderer().submit(new GloveSpecialRenderer.GloveData(null, GooTypes.ZOO, 0f, 1f, false,
+                    false), new PoseStack(), collector, 0, 0, false, 0);
+        }
+
+        assertEquals(List.of("core", "shell"), drawn, "the core should submit ahead of the shell");
+        assertEquals(List.of(GooSubmitter.renderType(), GooSubmitter.renderType()), types,
+                "the core and the shell should both submit on the translucent goo type");
     }
 
     @Test
@@ -622,7 +655,8 @@ class GloveSpecialRendererTest {
 
         new GloveSpecialRenderer().submit(data, hand, collector, 0, 0, false, 0);
 
-        assertEquals(1, cores.size(), "the glove should draw one core");
-        return cores.get(0);
+        assertFalse(cores.isEmpty(), "the glove should draw a core");
+        // the core is the blob's first submission on its type, ahead of its shell
+        return cores.getFirst();
     }
 }

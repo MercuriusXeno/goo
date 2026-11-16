@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.client.model;
 
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
+import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -9,10 +11,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.item.ItemModelResolver;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +29,9 @@ import static org.mockito.Mockito.RETURNS_SELF;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -70,6 +77,33 @@ class GooItemEntityRendererTest {
             assertTrue(lowest > WITHIN && lowest <= ALMOST_FLUSH + WITHIN, "the cuboid's bottom should stand "
                     + "almost flush on the entity's feet, clear of the floor's face so the two never z-fight but no "
                     + "more than " + ALMOST_FLUSH + " blocks above it; it stands at " + lowest);
+        }
+    }
+
+    /** slime-core-draws-translucent-at-the-shells-opacity */
+    @Test
+    void aDroppedGooItemSubmitsItsCoreOnTheGooTypeAheadOfItsShell() {
+        GooItemEntityRenderer renderer = new GooItemEntityRenderer(context());
+        GooItemEntityRenderer.GooItemRenderState state = renderer.createRenderState();
+        state.gooType = GooTypes.ZOO;
+        state.gooSize = SIZE;
+        SubmitNodeCollector collector = mock(SubmitNodeCollector.class);
+        try (MockedStatic<Minecraft> client = mockStatic(Minecraft.class);
+             MockedStatic<GooFlightRenderer> flight = mockStatic(GooFlightRenderer.class)) {
+            client.when(Minecraft::getInstance).thenReturn(mock(Minecraft.class));
+
+            renderer.submit(state, new PoseStack(), collector, new CameraRenderState());
+
+            ArgumentCaptor<RenderType> types = ArgumentCaptor.forClass(RenderType.class);
+            ArgumentCaptor<SubmitNodeCollector.CustomGeometryRenderer> geometry =
+                    ArgumentCaptor.forClass(SubmitNodeCollector.CustomGeometryRenderer.class);
+            verify(collector, times(2)).submitCustomGeometry(any(), types.capture(), geometry.capture());
+            assertEquals(List.of(GooSubmitter.renderType(), GooSubmitter.renderType()), types.getAllValues(),
+                    "the core and the shell should both submit on the translucent goo type");
+            PoseStack.Pose pose = new PoseStack().last();
+            geometry.getAllValues().getFirst().render(pose, mock(VertexConsumer.class));
+            flight.verify(() -> GooFlightRenderer.emitCore(any(), any(), any(), anyFloat(), any()));
+            flight.verify(() -> GooFlightRenderer.emitShell(any(), any(), any(), any()), never());
         }
     }
 

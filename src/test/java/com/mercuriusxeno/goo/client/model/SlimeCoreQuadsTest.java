@@ -1,10 +1,16 @@
 package com.mercuriusxeno.goo.client.model;
 
+import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.client.color.block.BlockTintSource;
 import net.minecraft.client.model.geom.builders.UVPair;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.Identifier;
+import net.minecraft.util.ARGB;
+import net.minecraft.world.level.block.state.BlockState;
 import org.joml.Vector3fc;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -23,8 +29,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Covers the quads a slime core's boxes draw as: an opaque body on the
- * cell's goo type's fluid sprite, untinted as the palm blob's core is,
+ * Covers the quads a slime core's boxes draw as: a translucent body at the
+ * shell's alpha on the cell's goo type's fluid sprite, in the sprite's own
+ * colors as the palm blob's core is,
  * spanning its boxes in 120ths of a block, drawing nothing on a face its block shares with a
  * joined core and textured where it stands in its block so the texture runs
  * on across a join. The sprites stand in for weird's and kinetic's.
@@ -38,9 +45,16 @@ class SlimeCoreQuadsTest {
     private static final int WHOLE_LAYERS = 15;
     private static final long SWEEP_SEED = 7L;
     private static final int SWEEP_TRIALS = 2000;
+    private static final Identifier BLOCK_ATLAS = Identifier.withDefaultNamespace("textures/atlas/blocks.png");
+    /** A goo type's highlight, the shell's tint, which the core never takes. */
+    private static final int HIGHLIGHT = 0x3A7F22;
 
+    /**
+     * The material SlimeCoreModel bakes a core with, over a fluid sprite on the block atlas.
+     */
     private static BakedQuad.MaterialInfo coreMaterial(TextureAtlasSprite fluid) {
-        return new BakedQuad.MaterialInfo(fluid, ChunkSectionLayer.SOLID, null, SlimeCoreQuads.NO_TINT, true, 0, false);
+        when(fluid.atlasLocation()).thenReturn(BLOCK_ATLAS);
+        return SlimeCoreModel.coreMaterial(new Material.Baked(fluid, false));
     }
 
     /**
@@ -66,7 +80,6 @@ class SlimeCoreQuadsTest {
             List<BakedQuad> quads = loneCore(8, weird);
             assertSpans(quads, new SlimeCoreBox(15, 8, 15, 105, 56, 105));
             assertTrue(quads.stream().allMatch(quad -> quad.materialInfo().sprite() == weird));
-            assertTrue(quads.stream().noneMatch(quad -> quad.materialInfo().isTinted()));
         }
 
         @Test
@@ -85,13 +98,21 @@ class SlimeCoreQuadsTest {
                     new float[] {2f, layerPixels / 8, 2f}, new float[] {14f, layerPixels * 7 / 8, 14f});
         }
 
+        /** slime-core-draws-translucent-at-the-shells-opacity */
         @Test
-        void theCoreDrawsOnTheSolidLayerFacingEverySide() {
+        void theCoreDrawsOnTheTranslucentLayerAtTheShellsAlphaFacingEverySide() {
             List<BakedQuad> quads = loneCore(15, mock(TextureAtlasSprite.class));
             Set<Direction> faces = quads.stream().map(BakedQuad::direction)
                     .collect(Collectors.toCollection(() -> EnumSet.noneOf(Direction.class)));
+            List<BlockTintSource> tints = VolumeCellTint.sources(GooTypes.ZOO, type -> HIGHLIGHT);
+
             assertEquals(EnumSet.allOf(Direction.class), faces);
-            assertTrue(quads.stream().allMatch(quad -> quad.materialInfo().layer() == ChunkSectionLayer.SOLID));
+            for (BakedQuad quad : quads) {
+                assertEquals(ChunkSectionLayer.TRANSLUCENT, quad.materialInfo().layer());
+                assertEquals(ARGB.color(VolumeCellTint.SHELL_ALPHA, 0xFFFFFF),
+                        tints.get(quad.materialInfo().tintIndex()).color(mock(BlockState.class)),
+                        "the core draws at the shell's alpha in its sprite's own colors");
+            }
         }
     }
 

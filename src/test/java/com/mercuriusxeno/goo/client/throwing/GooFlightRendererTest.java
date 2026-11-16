@@ -10,6 +10,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -95,6 +96,8 @@ class GooFlightRendererTest {
     class CoreAndShellTakeOneShape {
 
         private static final BlobShape PRESSED = new BlobShape(1.3f, 1.2f, 0.6f);
+        /** The shell's alpha, the opacity the core draws at too. */
+        private static final int SHELL_ALPHA = 0x60;
         /** A quarter of the core's pulse, in ticks: its sine's quarter turn over its pace. */
         private static final float QUARTER_PULSE = (float) (Math.PI / 2 / 0.3);
 
@@ -160,7 +163,26 @@ class GooFlightRendererTest {
                     + still.height() + " to " + swollen.height());
         }
 
+        /** slime-core-draws-translucent-at-the-shells-opacity */
+        @Test
+        void theCoreDrawsAtTheShellsAlphaInItsSpritesOwnColors() {
+            List<RecordingVertexConsumer.Vertex> core = recorded(c -> GooFlightRenderer.emitCore(new PoseStack().last(),
+                    c, GooTypes.ZOO, 0f, BlobShape.CUBE));
+            List<RecordingVertexConsumer.Vertex> shell = recorded(c -> GooFlightRenderer.emitShell(
+                    new PoseStack().last(), c, GooTypes.ZOO, BlobShape.CUBE));
+
+            assertTrue(shell.stream().allMatch(vertex -> ARGB.alpha(vertex.color()) == SHELL_ALPHA));
+            for (RecordingVertexConsumer.Vertex vertex : core) {
+                assertEquals(SHELL_ALPHA, ARGB.alpha(vertex.color()), "the core's alpha");
+                assertEquals(0xFFFFFF, vertex.color() & 0xFFFFFF, "the core's untinted red, green and blue");
+            }
+        }
+
         private static Extents drawn(Consumer<VertexConsumer> emitter) {
+            return Extents.of(recorded(emitter));
+        }
+
+        private static List<RecordingVertexConsumer.Vertex> recorded(Consumer<VertexConsumer> emitter) {
             Minecraft minecraft = mock(Minecraft.class);
             try (MockedStatic<Minecraft> client = mockStatic(Minecraft.class);
                  MockedStatic<GooRenderUtil> util = mockStatic(GooRenderUtil.class, CALLS_REAL_METHODS)) {
@@ -168,7 +190,7 @@ class GooFlightRendererTest {
                 util.when(() -> GooRenderUtil.lookupFluidSprite(any())).thenReturn(mock(TextureAtlasSprite.class));
                 RecordingVertexConsumer recorder = new RecordingVertexConsumer();
                 emitter.accept(recorder);
-                return Extents.of(recorder.vertices());
+                return recorder.vertices();
             }
         }
     }
