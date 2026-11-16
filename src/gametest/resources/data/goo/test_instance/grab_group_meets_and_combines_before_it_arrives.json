@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:grab_group_meets_and_combines_before_it_arrives",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}

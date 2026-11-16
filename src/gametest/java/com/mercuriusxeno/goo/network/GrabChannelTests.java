@@ -104,6 +104,61 @@ public final class GrabChannelTests {
                 GrabChannelTests::grabLocksTheSameItemsWithinFourBlocks);
         GooTestFunctions.registerTest(registrar, GRAB_SNEAKING_LOCKS_THE_TARGETED_ITEM_ALONE,
                 GrabChannelTests::grabSneakingLocksTheTargetedItemAlone);
+        GooTestFunctions.registerTest(registrar, GRAB_GROUP_MEETS_AND_COMBINES_BEFORE_IT_ARRIVES,
+                GrabChannelTests::grabGroupMeetsAndCombinesBeforeItArrives);
+    }
+
+    private static final String GRAB_GROUP_MEETS_AND_COMBINES_BEFORE_IT_ARRIVES =
+            "grab_group_meets_and_combines_before_it_arrives";
+    /** The targeted stack, below the level look east of the player. */
+    private static final Vec3 MEET_TARGETED = new Vec3(5.5, 0, 2.5);
+    /** A stack two blocks north of the targeted one. */
+    private static final Vec3 MEET_NORTH = new Vec3(5.5, 0, 0.5);
+    /** The stack closest to the player, its nearest point on the look 3.5 blocks east of the eye. */
+    private static final Vec3 MEET_CLOSEST = new Vec3(4.0, 0, 4.0);
+    private static final int STACK = 8;
+    private static final int STACKS = 3;
+    /**
+     * A tick after the meet ends and before the combined stack reaches the player: the closest stack's flight to
+     * the look, about 3 blocks at the pull speed, lands by the fifth tick, and the homing flight that follows takes
+     * several more ticks to cover the 2 blocks to the player's pickup reach.
+     */
+    private static final int AFTER_THE_MEET = 6;
+    /** How far around the player the combined stack is counted. */
+    private static final double COUNTED_WITHIN = 10;
+
+    /**
+     * Three stacks of 8 cobblestone Grab locks as a group meet on the aim
+     * line and combine there into one stack of 24 before any of it reaches
+     * the player, who ends holding 24
+     * (decisions grabbed-item-group-converges-on-the-aim-line-then-pulls-as-one,
+     * group-meet-caps-the-fastest-item-at-a-multiple-of-pull-speed).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabGroupMeetsAndCombinesBeforeItArrives(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        ItemEntity targeted = restingItem(helper, MEET_TARGETED, new ItemStack(Items.COBBLESTONE, STACK));
+        restingItem(helper, MEET_NORTH, new ItemStack(Items.COBBLESTONE, STACK));
+        restingItem(helper, MEET_CLOSEST, new ItemStack(Items.COBBLESTONE, STACK));
+        for (int tick = 1; tick <= HOMING_TICKS; tick++) {
+            helper.runAfterDelay(tick, () -> sweepTick(player, targeted.isAlive() ? holdTick(player, targeted)
+                    : aimTick(player)));
+        }
+        helper.runAfterDelay(AFTER_THE_MEET, () -> {
+            java.util.List<ItemEntity> standing = helper.getLevel().getEntitiesOfClass(ItemEntity.class,
+                    player.getBoundingBox().inflate(COUNTED_WITHIN), item -> item.getItem().is(Items.COBBLESTONE));
+            helper.assertTrue(standing.size() == 1 && standing.getFirst().getItem().getCount() == STACK * STACKS,
+                    "The group should stand as one stack of " + STACK * STACKS + " after the meet, stands as "
+                            + standing.stream().map(item -> item.getItem().getCount() + " at "
+                            + helper.relativeVec(item.position())).toList() + ", player holds "
+                            + player.getInventory().countItem(Items.COBBLESTONE));
+        });
+        helper.runAfterDelay(HOMING_TICKS + 1, () -> {
+            int held = player.getInventory().countItem(Items.COBBLESTONE);
+            helper.assertTrue(held == STACK * STACKS, "The player should hold " + STACK * STACKS + ", holds " + held);
+            leave(helper, player);
+        });
     }
 
     private static final String GRAB_LOCKS_THE_SAME_ITEMS_WITHIN_FOUR_BLOCKS =
@@ -372,8 +427,12 @@ public final class GrabChannelTests {
     }
 
     private static ItemEntity restingItem(GameTestHelper helper, Vec3 relative, net.minecraft.world.item.Item kind) {
+        return restingItem(helper, relative, new ItemStack(kind));
+    }
+
+    private static ItemEntity restingItem(GameTestHelper helper, Vec3 relative, ItemStack stack) {
         Vec3 itemAt = helper.absoluteVec(relative);
-        ItemEntity item = new ItemEntity(helper.getLevel(), itemAt.x, itemAt.y, itemAt.z, new ItemStack(kind));
+        ItemEntity item = new ItemEntity(helper.getLevel(), itemAt.x, itemAt.y, itemAt.z, stack);
         item.setDeltaMovement(Vec3.ZERO);
         helper.getLevel().addFreshEntity(item);
         return item;
