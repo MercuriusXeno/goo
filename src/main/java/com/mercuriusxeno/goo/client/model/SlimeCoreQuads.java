@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Builds the quads a slime core's boxes draw as: a body at the shell's alpha
+ * Builds the quads a slime core's boxes draw as: a body at 50% opacity
  * on the cell's goo type's fluid sprite, in its own colors as the palm blob's core is, each
  * face baked as a block model's are and textured where it stands in its
  * block, so the texture runs on across a join as across tiled blocks. A face

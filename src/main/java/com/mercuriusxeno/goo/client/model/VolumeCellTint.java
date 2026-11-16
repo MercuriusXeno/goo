@@ -25,14 +25,14 @@ public final class VolumeCellTint implements BlockTintSource {
      * The layers' alpha, the palm blob shell's: the tuning a thicker or
      * clearer world goo turns.
      */
-    public static final int SHELL_ALPHA = 0x60;
+    public static final int SHELL_ALPHA = 0x4C;
     /** The tint index a cell's slime core draws under, after the layers' own at 0. */
     public static final int CORE_TINT_INDEX = 1;
     /**
-     * The core's tint: the shell's alpha over its fluid sprite's own colors.
+     * The core's tint: 50% opaque over its fluid sprite's own colors.
      * slime-core-draws-translucent-at-the-shells-opacity
      */
-    private static final BlockTintSource CORE_TINT = state -> ARGB.color(SHELL_ALPHA, 0xFFFFFF);
+    private static final BlockTintSource CORE_TINT = state -> ARGB.color(0x80, 0xFFFFFF);
 
     private final ResourceKey<GooTypeDefinition> gooType;
     private final ToIntFunction<ResourceKey<GooTypeDefinition>> colorOf;

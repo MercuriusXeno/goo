@@ -28,7 +28,7 @@ import java.util.Collection;
 
 /**
  * Renders goo flights as multi-layer animated projectiles.
- * Core: fluid cuboid with pulsing width, at the shell's alpha.
+ * Core: fluid cuboid with pulsing width, 50% opaque.
  * Shell: translucent cuboid for slime effect.
  * Tail: billboarded sprite quads behind the velocity vector.
  * Particles: drip sparks and color-tinted bubbles shed along the trail.
@@ -51,14 +51,15 @@ public final class GooFlightRenderer {
      */
     private static final float CORE_HW = SHELL_HW * CORE_SHARE_OF_SHELL;
     /**
-     * Shell alpha (translucent).
-     */
-    private static final int SHELL_ALPHA = 0x60;
-    /**
-     * The core's color: the shell's alpha over its fluid sprite's own colors.
+     * Shell alpha, 30% opaque.
      * slime-core-draws-translucent-at-the-shells-opacity
      */
-    private static final int CORE_COLOR = ARGB.color(SHELL_ALPHA, 0xFFFFFF);
+    private static final int SHELL_ALPHA = 0x4C;
+    /**
+     * The core's color: 50% opaque over its fluid sprite's own colors.
+     * slime-core-draws-translucent-at-the-shells-opacity
+     */
+    private static final int CORE_COLOR = ARGB.color(0x80, 0xFFFFFF);
 
     /**
      * Tail quad length behind the goo.
@@ -306,8 +307,8 @@ public final class GooFlightRenderer {
     }
 
     /**
-     * Emits the blob's core: a fluid cuboid 3/4 of its shell at rest, at the
-     * shell's alpha in its sprite's own colors, with sin-pulsing size,
+     * Emits the blob's core: a fluid cuboid 3/4 of its shell at rest,
+     * 50% opaque in its sprite's own colors, with sin-pulsing size,
      * fullbright, about the pose's origin, in the shell's shape so a pressed
      * shell keeps its core inside it. The consumer takes
      * {@link GooSubmitter#renderType()} geometry, submitted ahead of the
