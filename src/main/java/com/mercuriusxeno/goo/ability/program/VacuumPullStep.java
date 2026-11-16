@@ -39,6 +39,8 @@ public record VacuumPullStep(double itemAcceleration, double itemTopSpeed, doubl
     private static final String FIELD_ITEM_TOP_SPEED = "item_top_speed";
     private static final String FIELD_MOB_SPEED = "mob_speed";
     private static final String FIELD_STOP_DISTANCE = "stop_distance";
+    /** The share of an item's motion across the line to the eye the pull keeps each held tick. */
+    private static final double ACROSS_MOTION_KEPT = 0.5;
 
     /**
      * Codec for the step's params.
@@ -115,9 +117,9 @@ public record VacuumPullStep(double itemAcceleration, double itemTopSpeed, doubl
 
     /**
      * An item's motion after one held tick of the pull: the motion it had
-     * plus the acceleration toward the eye, no faster than the top speed and
-     * no longer than the distance left, so it lands on the player rather than
-     * flying past.
+     * along the line to the eye, half its motion across that line, plus the
+     * acceleration toward the eye, no faster than the top speed and no longer
+     * than the distance left, so it homes on the player rather than flying past.
      * vacuum-pulls-items-to-pickup-and-drags-mobs
      *
      * @param velocity     the item's motion before the tick, in blocks a tick
@@ -129,7 +131,11 @@ public record VacuumPullStep(double itemAcceleration, double itemTopSpeed, doubl
      */
     static Vec3 pulledVelocity(Vec3 velocity, Vec3 from, Vec3 toward, double acceleration, double topSpeed) {
         Vec3 toEye = toward.subtract(from);
-        Vec3 pulled = velocity.add(toEye.normalize().scale(acceleration));
+        Vec3 along = toEye.normalize();
+        Vec3 alongMotion = along.scale(velocity.dot(along));
+        // a drop's pop, kept whole with its gravity off, carries it out of the cone and over the player's head
+        Vec3 acrossMotion = velocity.subtract(alongMotion).scale(ACROSS_MOTION_KEPT);
+        Vec3 pulled = alongMotion.add(acrossMotion).add(along.scale(acceleration));
         double cap = Math.min(topSpeed, toEye.length());
         return pulled.length() > cap ? pulled.normalize().scale(cap) : pulled;
     }

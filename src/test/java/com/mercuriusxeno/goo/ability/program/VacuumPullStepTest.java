@@ -64,12 +64,21 @@ class VacuumPullStepTest {
         }
 
         @Test
-        void aMovingItemKeepsItsMotionAndGainsTheAccelerationTowardTheEye() {
-            Vec3 moving = new Vec3(-0.3, 0, 0.1);
+        void anItemMovingAlongTheLineKeepsItsMotionAndGainsTheAccelerationTowardTheEye() {
+            Vec3 moving = new Vec3(-0.3, 0, 0);
 
             Vec3 pulled = VacuumPullStep.pulledVelocity(moving, FAR_EAST, PLAYER, ACCELERATION, TOP_SPEED);
 
             assertVelocity(moving.add(-ACCELERATION, 0, 0), pulled);
+        }
+
+        @Test
+        void anItemMovingAcrossTheLineKeepsHalfThatMotion() {
+            Vec3 popping = new Vec3(0, 0.2, 0.1);
+
+            Vec3 pulled = VacuumPullStep.pulledVelocity(popping, FAR_EAST, PLAYER, ACCELERATION, TOP_SPEED);
+
+            assertVelocity(new Vec3(-ACCELERATION, 0.1, 0.05), pulled);
         }
 
         @Test
