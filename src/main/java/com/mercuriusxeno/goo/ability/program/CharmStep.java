@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.OwnMinions;
 import com.mercuriusxeno.goo.ability.hex.Charmed;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.serialization.MapCodec;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -40,10 +41,23 @@ public record CharmStep() implements Step {
     @Override
     public boolean tick(StepContext context) {
         TargetHost host = context.hostAs(TargetHost.class);
-        if (host.thrower() instanceof Player charmer && !OwnMinions.charmRefuses(charmer, host.target())) {
+        if (host.thrower() instanceof Player charmer && !refusesFor(charmer, host.target())) {
             host.target().setData(GooAttachments.CHARMED, new Charmed(charmer.getUUID()));
         }
         return true;
+    }
+
+    /**
+     * Charm refuses a rallied mob and a mob another player charmed.
+     * refused-rally-or-charm-spends-no-goo
+     *
+     * @param caster the caster the Charm would act for
+     * @param entity the candidate
+     * @return true where the Charm leaves the entity untouched
+     */
+    @Override
+    public boolean refusesFor(Entity caster, Entity entity) {
+        return OwnMinions.charmRefuses(caster, entity);
     }
 
     @Override
