@@ -3,12 +3,12 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.tags.FluidTags;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.Fluids;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -16,9 +16,11 @@ import java.util.stream.Stream;
  * A stream's block pass that cools every source lava block inside its cone
  * into a magma block each held tick, still harmful underfoot but far less
  * than the lava it replaced, and leaves flowing lava as it is; Goop's slime
- * cools the lava it reaches: {@code cool_lava}.
+ * cools the lava it reaches: {@code cool_lava}. It matches vanilla's lava source fluid itself, never the
+ * {@code minecraft:lava} tag, which molten iron carries to move a thing in it as lava does.
  * weird-bounces-and-softens-harm
  * weird-cools-only-source-lava
+ * diagnose-and-correct-molten-iron-moving-you-as-open-air-does
  */
 public record CoolLavaStep() implements TakesNoEntity {
 
@@ -45,21 +47,22 @@ public record CoolLavaStep() implements TakesNoEntity {
         ServerLevel level = context.hostAs(FrostHost.class).level();
         host.channelAim().ifPresent(aim -> coolSourceLava(level,
                 CalcifyStep.blocksInCone(host.eye(), aim.aimPoint(), aim.coneDegrees()),
-                Blocks.MAGMA_BLOCK.defaultBlockState()));
+                Fluids.LAVA, Blocks.MAGMA_BLOCK.defaultBlockState()));
         return true;
     }
 
     /**
-     * Turns each source lava cell among the given cells into magma.
+     * Turns each cell among the given cells holding the lava source fluid into magma; flowing lava is another fluid
+     * and stays.
      *
-     * @param level the level
-     * @param cells the cells the stream's cone reaches
-     * @param magma the state a cooled cell takes
+     * @param level      the level
+     * @param cells      the cells the stream's cone reaches
+     * @param sourceLava the lava source fluid a cell must hold to cool
+     * @param magma      the state a cooled cell takes
      */
-    static void coolSourceLava(Level level, Iterable<BlockPos> cells, BlockState magma) {
+    static void coolSourceLava(Level level, Iterable<BlockPos> cells, Fluid sourceLava, BlockState magma) {
         for (BlockPos pos : cells) {
-            FluidState fluid = level.getFluidState(pos);
-            if (fluid.is(FluidTags.LAVA) && fluid.isSource()) {
+            if (level.getFluidState(pos).is(sourceLava)) {
                 level.setBlock(pos, magma, Block.UPDATE_ALL);
             }
         }
