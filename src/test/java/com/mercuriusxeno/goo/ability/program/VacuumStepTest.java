@@ -79,8 +79,8 @@ class VacuumStepTest {
             JsonObject behavior = shippedVacuumBehavior();
 
             assertEquals(Set.of("type", "near_break_ticks", "far_break_ticks"), behavior.keySet());
-            assertEquals(6, behavior.get("near_break_ticks").getAsDouble());
-            assertEquals(30, behavior.get("far_break_ticks").getAsDouble());
+            assertEquals(5, behavior.get("near_break_ticks").getAsDouble());
+            assertEquals(20, behavior.get("far_break_ticks").getAsDouble());
             assertNotNull(shippedVacuum());
         }
 
