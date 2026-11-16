@@ -620,6 +620,19 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
     }
 
     /**
+     * Whether the palm blob takes its travel form in the hand as the press
+     * lifts it, so its thrown goo entity leaves already in that form: a form
+     * that morphs, named with no transform point in flight. A form named with
+     * a transform point above zero morphs in flight instead.
+     * shriek-bloom-portal-mitosis-and-dart-still-throw-a-blob
+     *
+     * @return true for a morphing form at a transform point of zero
+     */
+    public boolean morphsInHand() {
+        return form.morphs() && transformAt <= 0;
+    }
+
+    /**
      * Whether a throw rolls through the air rather than flying an arc: an arc
      * naming a range and a speed below a beam's default rolls in a straight
      * line at that speed for that range, with no gravity, the way Frost's Orb
