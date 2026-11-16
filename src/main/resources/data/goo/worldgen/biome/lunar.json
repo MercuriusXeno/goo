@@ -10,7 +10,9 @@
   "features": [
     [],
     [],
-    [],
+    [
+      "goo:boulder_field"
+    ],
     [],
     [],
     [],

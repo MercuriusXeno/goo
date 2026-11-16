@@ -59,6 +59,10 @@ public record CraterField(DensityFunction.NoiseHolder noise) implements DensityF
     private static final int OFFSET_X = 1;
     private static final int OFFSET_Z = 2;
     private static final int SIZE = 3;
+    private static final int RAY_COUNT = 4;
+    private static final int RAY_PHASE = 5;
+    /** A large crater's rays reach two and a half radii, past one cell, so a ray search reads two cells around. */
+    private static final int RAY_NEIGHBOUR_REACH = 2;
     /** Spreads one cell's rolls apart in the noise, so neighbouring cells and rolls read unrelated values. */
     private static final double CELL_STRIDE = 7.31;
     private static final double ROLL_STRIDE = 101.7;
@@ -223,6 +227,54 @@ public record CraterField(DensityFunction.NoiseHolder noise) implements DensityF
      */
     static boolean isOpenGround(int x, int z, CellRolls rolls) {
         return !reachesBand(x, z, rolls, 0.0, 1.0 + RIM_REACH);
+    }
+
+    /**
+     * Whether a column lies on an ejecta ray of some crater past {@link #DEEP_CRATER_RADIUS}, the craters large enough
+     * to throw rays.
+     * decision lunar-surface-gains-giant-craters-mountains-rilles-and-boulder-fields
+     *
+     * @param x     the column's x
+     * @param z     the column's z
+     * @param rolls each cell's rolls
+     * @return true on a large crater's ray
+     */
+    static boolean isOnRay(int x, int z, CellRolls rolls) {
+        int cellX = Math.floorDiv(x, CELL);
+        int cellZ = Math.floorDiv(z, CELL);
+        for (int dx = -RAY_NEIGHBOUR_REACH; dx <= RAY_NEIGHBOUR_REACH; dx++) {
+            for (int dz = -RAY_NEIGHBOUR_REACH; dz <= RAY_NEIGHBOUR_REACH; dz++) {
+                if (isOnRayOfCell(x, z, cellX + dx, cellZ + dz, rolls)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean isOnRayOfCell(int x, int z, int cellX, int cellZ, CellRolls rolls) {
+        if (rolls.roll(cellX, cellZ, PRESENCE) >= CRATER_CHANCE) {
+            return false;
+        }
+        double radius = radius(cellX, cellZ, rolls);
+        if (radius < DEEP_CRATER_RADIUS) {
+            return false;
+        }
+        return EjectaRays.isOnRayOf(x, z, (cellX + rolls.roll(cellX, cellZ, OFFSET_X)) * CELL,
+                (cellZ + rolls.roll(cellX, cellZ, OFFSET_Z)) * CELL, radius,
+                EjectaRays.rayCount(rolls.roll(cellX, cellZ, RAY_COUNT)),
+                EjectaRays.phase(rolls.roll(cellX, cellZ, RAY_PHASE)));
+    }
+
+    /**
+     * Whether a column lies on an ejecta ray of some large crater in this field.
+     *
+     * @param x the column's x
+     * @param z the column's z
+     * @return true on a large crater's ray
+     */
+    public boolean isOnRayAt(int x, int z) {
+        return isOnRay(x, z, this::roll);
     }
 
     /**

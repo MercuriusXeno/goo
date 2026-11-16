@@ -48,26 +48,30 @@ public record GiantCraterField(DensityFunction.NoiseHolder noise) implements Den
     /** The share of each terrace that is flat tread before its riser climbs to the next. */
     static final double TREAD = 0.7;
     /** The rim falls back to the ground at 1.4 radii. */
-    static final double RIM_REACH = 0.4;
+    public static final double RIM_REACH = 0.4;
 
     /** Giant craters roll on indices clear of CraterField's, so the two scales read unrelated values. */
     private static final int PRESENCE = 8;
     private static final int OFFSET_X = 9;
     private static final int OFFSET_Z = 10;
     private static final int SIZE = 11;
+    private static final int RAY_COUNT = 12;
+    private static final int RAY_PHASE = 13;
     private static final double MAX_RADIUS = MIN_RADIUS + RADIUS_SPREAD;
     private static final int NEIGHBOUR_REACH = 1;
     /** Nine cells' giant craters at their deepest and their highest bound the field. */
     private static final int NEIGHBOURHOOD = 9;
 
     /**
-     * One giant crater: its centre and its radius, in blocks.
+     * One giant crater: its centre and its radius, in blocks, and the ejecta rays it throws.
      *
      * @param centerX the centre's x
      * @param centerZ the centre's z
      * @param radius  the radius, rim crest to centre
+     * @param rays    how many ejecta rays it throws
+     * @param phase   the angle of its first ray, in radians
      */
-    public record Crater(double centerX, double centerZ, double radius) {
+    public record Crater(double centerX, double centerZ, double radius, int rays, double phase) {
 
         /**
          * A column's distance from this crater's centre, in its radii.
@@ -78,6 +82,17 @@ public record GiantCraterField(DensityFunction.NoiseHolder noise) implements Den
          */
         public double reach(int x, int z) {
             return Math.hypot(x - centerX, z - centerZ) / radius;
+        }
+
+        /**
+         * Whether a column lies on one of this crater's ejecta rays.
+         *
+         * @param x the column's x
+         * @param z the column's z
+         * @return true on a ray
+         */
+        public boolean isOnRay(int x, int z) {
+            return EjectaRays.isOnRayOf(x, z, centerX, centerZ, radius, rays, phase);
         }
     }
 
@@ -128,7 +143,9 @@ public record GiantCraterField(DensityFunction.NoiseHolder noise) implements Den
             return Optional.empty();
         }
         return Optional.of(new Crater((cellX + rolls.roll(cellX, cellZ, OFFSET_X)) * CELL,
-                (cellZ + rolls.roll(cellX, cellZ, OFFSET_Z)) * CELL, radius(cellX, cellZ, rolls)));
+                (cellZ + rolls.roll(cellX, cellZ, OFFSET_Z)) * CELL, radius(cellX, cellZ, rolls),
+                EjectaRays.rayCount(rolls.roll(cellX, cellZ, RAY_COUNT)),
+                EjectaRays.phase(rolls.roll(cellX, cellZ, RAY_PHASE))));
     }
 
     /**
@@ -187,6 +204,24 @@ public record GiantCraterField(DensityFunction.NoiseHolder noise) implements Den
         return false;
     }
 
+    /**
+     * Whether a column lies on an ejecta ray of some giant crater; every giant crater throws rays.
+     * decision lunar-surface-gains-giant-craters-mountains-rilles-and-boulder-fields
+     *
+     * @param x     the column's x
+     * @param z     the column's z
+     * @param rolls each cell's rolls
+     * @return true on a giant crater's ray
+     */
+    static boolean isOnRay(int x, int z, CraterField.CellRolls rolls) {
+        for (Crater crater : cratersNear(x, z, rolls)) {
+            if (crater.isOnRay(x, z)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static Iterable<Crater> cratersNear(int x, int z, CraterField.CellRolls rolls) {
         int cellX = Math.floorDiv(x, CELL);
         int cellZ = Math.floorDiv(z, CELL);
@@ -232,6 +267,17 @@ public record GiantCraterField(DensityFunction.NoiseHolder noise) implements Den
      */
     public boolean reachesBandAt(int x, int z, double minReach, double maxReach, double minRadius) {
         return reachesBand(x, z, this::roll, minReach, maxReach, minRadius);
+    }
+
+    /**
+     * Whether a column lies on an ejecta ray of some giant crater in this field.
+     *
+     * @param x the column's x
+     * @param z the column's z
+     * @return true on a giant crater's ray
+     */
+    public boolean isOnRayAt(int x, int z) {
+        return isOnRay(x, z, this::roll);
     }
 
     private double roll(int cellX, int cellZ, int roll) {

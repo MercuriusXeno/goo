@@ -305,6 +305,14 @@
               }
             },
             {
+              "type": "minecraft:condition",
+              "if_true": { "type": "goo:crater_rays", "noise": "goo:lunar_craters" },
+              "then_run": {
+                "type": "minecraft:block",
+                "result_state": { "Name": "goo:anorthosite" }
+              }
+            },
+            {
               "type": "minecraft:block",
               "result_state": { "Name": "goo:regolith" }
             }
