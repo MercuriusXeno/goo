@@ -64,9 +64,13 @@ import java.util.stream.Stream;
  *                         per tick
  * @param groupRadius  how far from an item Grab locks the same items with it, in blocks
  * @param meetCapMultiple how many times the pull speed a grouped item flies to the meet point at most
+ * @param holdAcceleration the speed a held mob of the reference volume gains toward the hold point each tick, in
+ *                         blocks a tick per tick
+ * @param referenceVolume  the hitbox volume, in cubic blocks, that gains the hold acceleration whole
  */
 public record GrabStep(double range, double holdDistance, double throwSpeed, double pullSpeed, double pickCone,
-                       double pullAcceleration, double groupRadius, double meetCapMultiple)
+                       double pullAcceleration, double groupRadius, double meetCapMultiple,
+                       double holdAcceleration, double referenceVolume)
         implements ReachesTheAim {
 
     private static final String NAME = "grab";
@@ -78,7 +82,11 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
     private static final String FIELD_PULL_ACCELERATION = "pull_acceleration";
     private static final String FIELD_GROUP_RADIUS = "group_radius";
     private static final String FIELD_MEET_CAP_MULTIPLE = "meet_cap_multiple";
+    private static final String FIELD_HOLD_ACCELERATION = "hold_acceleration";
+    private static final String FIELD_REFERENCE_VOLUME = "reference_volume";
     private static final double HALF = 0.5;
+    /** The two of the stopping rule, speed squared is two times the deceleration times the distance. */
+    private static final double STOPPING_FACTOR = 2;
     /** The fewest items that meet on the aim line; a lone item homes at once. */
     private static final int SMALLEST_GROUP = 2;
 
@@ -93,7 +101,11 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
                     .forGetter(GrabStep::pullAcceleration),
             Codec.doubleRange(0, Double.MAX_VALUE).fieldOf(FIELD_GROUP_RADIUS).forGetter(GrabStep::groupRadius),
             Codec.doubleRange(1, Double.MAX_VALUE).fieldOf(FIELD_MEET_CAP_MULTIPLE)
-                    .forGetter(GrabStep::meetCapMultiple)
+                    .forGetter(GrabStep::meetCapMultiple),
+            Codec.doubleRange(0, Double.MAX_VALUE).fieldOf(FIELD_HOLD_ACCELERATION)
+                    .forGetter(GrabStep::holdAcceleration),
+            Codec.doubleRange(Double.MIN_VALUE, Double.MAX_VALUE).fieldOf(FIELD_REFERENCE_VOLUME)
+                    .forGetter(GrabStep::referenceVolume)
     ).apply(inst, GrabStep::new));
 
     /** The registered type. */
@@ -214,7 +226,8 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
             GrabEvents.drawToward(player, body, toGate.normalize().scale(Math.min(pullSpeed, toGate.length())),
                     throwSpeed);
         } else {
-            GrabEvents.hold(player, body, hold, throwSpeed);
+            Vec3 velocity = heldVelocity(body.position(), GrabEvents.heldVelocity(player, body), hold, volumeOf(body));
+            GrabEvents.carryHeld(player, body, velocity, throwSpeed);
         }
     }
 
@@ -608,6 +621,46 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
                         && !GrabEvents.locks(player, neighbor) && joinsGroup(targeted.getItem(), neighbor.getItem(),
                         neighbor.position().distanceTo(targeted.position()), groupRadius, sneaking)));
         return group;
+    }
+
+    /**
+     * A held mob's motion this tick: the speed it already had toward the
+     * hold point plus the hold acceleration over its hitbox volume against
+     * the reference volume, so a bigger mob gains speed slower; damped to the
+     * speed it can still shed over the distance left at that same rate, so
+     * it settles at the hold point rather than overshooting it. Each axis
+     * moves at that speed at most and no farther than its own distance left,
+     * the way a move resolves blocks axis by axis, so a mob pressed against a
+     * floor still slides the short way off a ledge and drops.
+     * decision grabbed-mob-accelerates-slower-the-bigger-its-hitbox
+     *
+     * @param position  the mob's feet
+     * @param velocity  the motion the hold kept from the last tick
+     * @param holdPoint where the hold puts its feet
+     * @param volume    the mob's hitbox volume, in cubic blocks
+     * @return this tick's motion
+     */
+    Vec3 heldVelocity(Vec3 position, Vec3 velocity, Vec3 holdPoint, double volume) {
+        Vec3 toHold = holdPoint.subtract(position);
+        double left = toHold.length();
+        Vec3 along = toHold.normalize();
+        double gain = holdAcceleration * referenceVolume / Math.max(volume, Double.MIN_VALUE);
+        // The fastest speed from which the same gain, spent braking, still stops at the hold point.
+        double braking = Math.sqrt(STOPPING_FACTOR * gain * left);
+        double speed = Math.min(Math.max(0, velocity.dot(along)) + gain, braking);
+        return new Vec3(Math.clamp(toHold.x, -speed, speed), Math.clamp(toHold.y, -speed, speed),
+                Math.clamp(toHold.z, -speed, speed));
+    }
+
+    /**
+     * A mob's mass as Grab weighs it: its hitbox volume.
+     * decision grabbed-mob-accelerates-slower-the-bigger-its-hitbox
+     *
+     * @param body the held mob
+     * @return its width squared times its height, in cubic blocks
+     */
+    private static double volumeOf(Entity body) {
+        return body.getBbWidth() * body.getBbWidth() * body.getBbHeight();
     }
 
     /**

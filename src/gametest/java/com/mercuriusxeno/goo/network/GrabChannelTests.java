@@ -106,6 +106,87 @@ public final class GrabChannelTests {
                 GrabChannelTests::grabSneakingLocksTheTargetedItemAlone);
         GooTestFunctions.registerTest(registrar, GRAB_GROUP_MEETS_AND_COMBINES_BEFORE_IT_ARRIVES,
                 GrabChannelTests::grabGroupMeetsAndCombinesBeforeItArrives);
+        GooTestFunctions.registerTest(registrar, GRAB_HEAVIER_MOB_COMES_SLOWER_AND_SETTLES,
+                GrabChannelTests::grabHeavierMobComesSlowerAndSettles);
+    }
+
+    private static final String GRAB_HEAVIER_MOB_COMES_SLOWER_AND_SETTLES =
+            "grab_heavier_mob_comes_slower_and_settles";
+    /** Where each mob starts from its own hold point: 1.5 blocks south of it, level, so both start equally far. */
+    private static final Vec3 SOUTH_OF_THE_HOLD = new Vec3(0, 0, 1.5);
+    /** Channel ticks after which the two mobs' distances to the hold point are compared. */
+    private static final int EARLY_TICKS = 3;
+    /** Channel ticks after which each mob should rest at the hold point, enough for a ravager-sized box. */
+    private static final int SETTLE_HOLD_TICKS = 40;
+    /** How near the hold point a settled mob's feet stand. */
+    private static final double SETTLED = 0.1;
+    /** How far a settled mob may move in one tick and still read as still. */
+    private static final double STILL = 1.0E-3;
+
+    /**
+     * A pig and, in a second run of the same arrangement, a ravager are each
+     * grabbed from the same distance: the pig stands nearer the hold point
+     * after the same few ticks, and each comes to rest at the hold point,
+     * moving no more (decision grabbed-mob-accelerates-slower-the-bigger-its-hitbox).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabHeavierMobComesSlowerAndSettles(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        java.util.List<Double> early = new java.util.ArrayList<>();
+        int pigRun = 1;
+        int ravagerRun = pigRun + SETTLE_HOLD_TICKS + 2;
+        heldFromTheSouth(helper, player, EntityType.PIG, pigRun, early);
+        heldFromTheSouth(helper, player, EntityType.RAVAGER, ravagerRun, early);
+        helper.runAfterDelay(ravagerRun + SETTLE_HOLD_TICKS + 1, () -> {
+            helper.assertTrue(early.get(0) < early.get(1), "The pig should stand nearer the hold point after "
+                    + EARLY_TICKS + " ticks, the pig " + early.get(0) + " off, the ravager " + early.get(1) + " off");
+            leave(helper, player);
+        });
+    }
+
+    /**
+     * Spawns a mob south of its hold point from a tick on, holds it, records
+     * its distance to the hold point after EARLY_TICKS, and checks it rests
+     * at the hold point after SETTLE_HOLD_TICKS, then frees it.
+     */
+    private static void heldFromTheSouth(GameTestHelper helper, ServerPlayer player,
+            EntityType<? extends net.minecraft.world.entity.Mob> type, int from, java.util.List<Double> early) {
+        AtomicReference<net.minecraft.world.entity.Mob> held = new AtomicReference<>();
+        AtomicReference<Vec3> lastFeet = new AtomicReference<>();
+        helper.runAfterDelay(from, () -> {
+            net.minecraft.world.entity.Mob mob = helper.spawnWithNoFreeWill(type, BlockPos.ZERO);
+            Vec3 start = heldFeet(helper, player, mob).add(SOUTH_OF_THE_HOLD);
+            mob.setNoGravity(true);
+            mob.setPos(start.x, start.y, start.z);
+            mob.setDeltaMovement(Vec3.ZERO);
+            held.set(mob);
+        });
+        for (int tick = 1; tick <= SETTLE_HOLD_TICKS; tick++) {
+            int at = tick;
+            helper.runAfterDelay(from + tick, () -> {
+                net.minecraft.world.entity.Mob mob = held.get();
+                lastFeet.set(mob.position());
+                GooStreamHandler.streamTick(player, holdTick(player, mob));
+                if (at == EARLY_TICKS) {
+                    early.add(mob.position().distanceTo(heldFeet(helper, player, mob)));
+                }
+            });
+        }
+        helper.runAfterDelay(from + SETTLE_HOLD_TICKS + 1, () -> {
+            net.minecraft.world.entity.Mob mob = held.get();
+            double off = mob.position().distanceTo(heldFeet(helper, player, mob));
+            double moved = mob.position().distanceTo(lastFeet.get());
+            helper.assertTrue(off < SETTLED && moved < STILL, "The held " + mob.getType() + " should rest at the hold "
+                    + "point, stands " + off + " off it, moved " + moved + " in its last tick");
+            mob.discard();
+        });
+    }
+
+    /** Where Grab holds a mob's feet for a level look in open air: its middle the hold distance along the look. */
+    private static Vec3 heldFeet(GameTestHelper helper, ServerPlayer player, Entity mob) {
+        return player.getEyePosition().add(player.getLookAngle().normalize().scale(holdDistance(helper)))
+                .subtract(0, mob.getBbHeight() * HALF, 0);
     }
 
     private static final String GRAB_GROUP_MEETS_AND_COMBINES_BEFORE_IT_ARRIVES =
@@ -1106,6 +1187,11 @@ public final class GrabChannelTests {
     private static final int LEDGE_TOP = 4;
     /** Where the pig stands on the ledge, a block and a half back from its edge. */
     private static final BlockPos ON_THE_LEDGE = new BlockPos(LEDGE_FACE_X + 1, LEDGE_TOP, 2);
+    /**
+     * Channel ticks enough for the held pig to slide off the ledge and come down, the hold gaining speed tick
+     * over tick rather than snapping there (decision grabbed-mob-accelerates-slower-the-bigger-its-hitbox).
+     */
+    private static final int OFF_THE_LEDGE_TICKS = 15;
 
     /**
      * A pig standing on a ledge three blocks above the player, held by a
@@ -1126,8 +1212,8 @@ public final class GrabChannelTests {
             }
         }
         Pig pig = helper.spawn(EntityType.PIG, ON_THE_LEDGE);
-        holdFor(helper, player, pig, HOLD_TICKS);
-        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
+        holdFor(helper, player, pig, OFF_THE_LEDGE_TICKS);
+        helper.runAfterDelay(OFF_THE_LEDGE_TICKS + 1, () -> {
             AABB box = pig.getBoundingBox();
             double ledgeTop = helper.absolutePos(ON_THE_LEDGE).getY();
             helper.assertTrue(GrabEvents.heldBy(player) == pig, "The pig on the ledge should be held, held "
