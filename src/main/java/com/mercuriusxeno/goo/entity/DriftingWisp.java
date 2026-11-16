@@ -156,14 +156,15 @@ public class DriftingWisp extends Entity {
     }
 
     private void arrive(ServerLevel server, BlockPos spot) {
-        WispClaims claims = GooServerState.of(server.getServer()).wispClaims();
-        claims.release(server, spot);
         if (WispShed.settles(server, spot)) {
+            // the claim stands on: the other wisps know this spot's light until the world shows it
             WispShed.settle(server, spot, life);
             settledTicks = 0;
             return;
         }
-        destination = retargeted ? null : WispShed.destinationFrom(server, spot, RETARGET_REACH).orElse(null);
+        WispClaims claims = GooServerState.of(server.getServer()).wispClaims();
+        claims.release(server, spot);
+        destination = retargeted ? null : WispShed.destinationFrom(server, spot, RETARGET_REACH, 0).orElse(null);
         retargeted = true;
         if (destination == null) {
             discard();

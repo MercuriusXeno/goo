@@ -22,9 +22,12 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
@@ -69,6 +72,15 @@ public final class WispsTests {
     private static final BlockPos CORRIDOR_CELL = new BlockPos(1, 1, CORRIDOR_Z);
     private static final String WISPS_DRIFTING_WISP_STANDS_ON_ITS_SPOT =
             "wisps_drifting_wisp_stands_on_its_spot_as_it_settles";
+    private static final String WISPS_EVERY_DRIFTING_WISP_SETTLES = "wisps_every_drifting_wisp_settles";
+    /** Ticks the corridor sheds for, several sheds of a full cell, before the test succeeds. */
+    private static final int SHEDDING_TICKS = 400;
+    /** The cave spans 0 to 15 across and 0 to 4 up inside the light bay, stone shell around its air. */
+    private static final int CAVE_EDGE = 15;
+    private static final int CAVE_TOP = 4;
+    /** The full Wisps cell, on the cave's floor in a corner. */
+    private static final BlockPos CAVE_CELL = new BlockPos(1, 1, 1);
+    private static final String VANISHED = "A drifting wisp left %s with no wisp block settled there";
     private static final String SETTLED_ALONE = "The wisp block at %s appeared with no drifting wisp on its spot";
     private static final String NO_WISP_SETTLED = "A wisp shed by the Wisps cell should settle in the corridor's air";
 
@@ -88,6 +100,8 @@ public final class WispsTests {
                 WispsTests::wispsHolyDamageHurtsAWitherSkeleton);
         GooTestFunctions.registerTest(registrar, WISPS_SHEDS_A_WISP_INTO_THE_DARK,
                 WispsTests::wispsShedsAWispIntoTheDark);
+        GooTestFunctions.registerTest(registrar, WISPS_EVERY_DRIFTING_WISP_SETTLES,
+                WispsTests::wispsEveryDriftingWispSettles);
         GooTestFunctions.registerTest(registrar, WISPS_DRIFTING_WISP_STANDS_ON_ITS_SPOT,
                 WispsTests::wispsDriftingWispStandsOnItsSpotAsItSettles);
     }
@@ -126,6 +140,44 @@ public final class WispsTests {
             }
         });
         helper.succeedWhen(() -> helper.assertTrue(!settled.isEmpty(), NO_WISP_SETTLED));
+    }
+
+    /**
+     * Every wisp a full cell sheds into a sealed dark cave ends settled: no
+     * drifting wisp leaves the world but onto a wisp block, so none heads
+     * for a spot another wisp's light will reach first.
+     * wisps-travel-as-entities-then-settle-as-glowy-air-blocks
+     *
+     * @param helper the gametest helper
+     */
+    public static void wispsEveryDriftingWispSettles(GameTestHelper helper) {
+        for (int x = 0; x <= CAVE_EDGE; x++) {
+            for (int y = 0; y <= CAVE_TOP; y++) {
+                for (int z = 0; z <= CAVE_EDGE; z++) {
+                    boolean shell = x == 0 || x == CAVE_EDGE || y == 0 || y == CAVE_TOP || z == 0 || z == CAVE_EDGE;
+                    helper.setBlock(new BlockPos(x, y, z), shell ? Blocks.STONE : Blocks.AIR);
+                }
+            }
+        }
+        helper.setBlock(CAVE_CELL, GooBlocks.GLOW_WISPS.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
+        Map<UUID, BlockPos> drifting = new HashMap<>();
+        AABB cave = new AABB(helper.absolutePos(BlockPos.ZERO)).expandTowards(CAVE_EDGE, CAVE_TOP, CAVE_EDGE);
+        helper.onEachTick(() -> {
+            Map<UUID, BlockPos> now = new HashMap<>();
+            for (DriftingWisp wisp : helper.getLevel().getEntitiesOfClass(DriftingWisp.class, cave)) {
+                now.put(wisp.getUUID(), wisp.blockPosition());
+            }
+            drifting.forEach((id, last) -> {
+                if (!now.containsKey(id)) {
+                    helper.assertTrue(helper.getLevel().getBlockState(last).is(GooBlocks.WISP.get()),
+                            String.format(VANISHED, helper.relativePos(last)));
+                }
+            });
+            drifting.clear();
+            drifting.putAll(now);
+        });
+        helper.runAtTickTime(SHEDDING_TICKS, helper::succeed);
     }
 
     private static void sealCorridorWithAFullCell(GameTestHelper helper) {
