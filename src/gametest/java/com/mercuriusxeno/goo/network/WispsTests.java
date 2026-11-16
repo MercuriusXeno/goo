@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
+import com.mercuriusxeno.goo.entity.DriftingWisp;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
@@ -17,7 +18,12 @@ import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
@@ -55,6 +61,9 @@ public final class WispsTests {
     private static final int CORRIDOR_Z = 3;
     /** The full Wisps cell, on the floor at the corridor's near end. */
     private static final BlockPos CORRIDOR_CELL = new BlockPos(1, 1, CORRIDOR_Z);
+    private static final String WISPS_DRIFTING_WISP_STANDS_ON_ITS_SPOT =
+            "wisps_drifting_wisp_stands_on_its_spot_as_it_settles";
+    private static final String SETTLED_ALONE = "The wisp block at %s appeared with no drifting wisp on its spot";
     private static final String NO_WISP_SETTLED = "A wisp shed by the Wisps cell should settle in the corridor's air";
 
     private WispsTests() {
@@ -71,6 +80,8 @@ public final class WispsTests {
         GooTestFunctions.registerTest(registrar, WISPS_BURNS_A_ZOMBIE_ON_IT, WispsTests::wispsBurnsAZombieOnIt);
         GooTestFunctions.registerTest(registrar, WISPS_SHEDS_A_WISP_INTO_THE_DARK,
                 WispsTests::wispsShedsAWispIntoTheDark);
+        GooTestFunctions.registerTest(registrar, WISPS_DRIFTING_WISP_STANDS_ON_ITS_SPOT,
+                WispsTests::wispsDriftingWispStandsOnItsSpotAsItSettles);
     }
 
     /**
@@ -82,6 +93,34 @@ public final class WispsTests {
      * @param helper the gametest helper
      */
     public static void wispsShedsAWispIntoTheDark(GameTestHelper helper) {
+        sealCorridorWithAFullCell(helper);
+        helper.succeedWhen(() -> helper.assertTrue(!wispsInTheCorridor(helper).isEmpty(), NO_WISP_SETTLED));
+    }
+
+    /**
+     * A drifting wisp still stands on its spot on the tick its wisp block
+     * appears there, so a watching client never meets the spot with neither
+     * the drifting mote nor the settled one drawn.
+     * wisps-travel-as-entities-then-settle-as-glowy-air-blocks
+     *
+     * @param helper the gametest helper
+     */
+    public static void wispsDriftingWispStandsOnItsSpotAsItSettles(GameTestHelper helper) {
+        sealCorridorWithAFullCell(helper);
+        Set<BlockPos> settled = new HashSet<>();
+        helper.onEachTick(() -> {
+            for (BlockPos wisp : wispsInTheCorridor(helper)) {
+                if (settled.add(wisp)) {
+                    int drifting = helper.getLevel().getEntitiesOfClass(DriftingWisp.class,
+                            new AABB(helper.absolutePos(wisp))).size();
+                    helper.assertTrue(drifting > 0, String.format(SETTLED_ALONE, wisp));
+                }
+            }
+        });
+        helper.succeedWhen(() -> helper.assertTrue(!settled.isEmpty(), NO_WISP_SETTLED));
+    }
+
+    private static void sealCorridorWithAFullCell(GameTestHelper helper) {
         for (int x = 0; x <= CORRIDOR_LENGTH + 1; x++) {
             for (int y = 0; y <= CORRIDOR_HEIGHT + 1; y++) {
                 for (int z = CORRIDOR_Z - 1; z <= CORRIDOR_Z + 1; z++) {
@@ -92,19 +131,19 @@ public final class WispsTests {
         }
         helper.setBlock(CORRIDOR_CELL, GooBlocks.GLOW_WISPS.get().defaultBlockState()
                 .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
-        helper.succeedWhen(() -> helper.assertTrue(wispSettledInTheCorridor(helper), NO_WISP_SETTLED));
     }
 
-    private static boolean wispSettledInTheCorridor(GameTestHelper helper) {
+    private static List<BlockPos> wispsInTheCorridor(GameTestHelper helper) {
+        List<BlockPos> wisps = new ArrayList<>();
         for (int x = 1; x <= CORRIDOR_LENGTH; x++) {
             for (int y = 1; y <= CORRIDOR_HEIGHT; y++) {
                 BlockPos air = new BlockPos(x, y, CORRIDOR_Z);
-                if (!air.equals(CORRIDOR_CELL) && helper.getBlockState(air).is(GooBlocks.WISP.get())) {
-                    return true;
+                if (helper.getBlockState(air).is(GooBlocks.WISP.get())) {
+                    wisps.add(air);
                 }
             }
         }
-        return false;
+        return wisps;
     }
 
     /**

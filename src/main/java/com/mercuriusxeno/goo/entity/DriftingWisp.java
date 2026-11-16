@@ -20,7 +20,9 @@ import org.jspecify.annotations.Nullable;
  * A wisp a Wisps cell let out, drifting off the goo upward and over to the
  * dark spot it claimed, lighting nothing on the way, since a light update
  * each tick it moved would cost more than the light is worth. On arrival it
- * becomes the glowy air block wisps are, fading on its own; where its spot
+ * becomes the glowy air block wisps are, fading on its own, its drifting
+ * mote staying on the spot a moment so the block's mote takes over from it
+ * with no gap; where its spot
  * was taken or lit meanwhile it heads once for another dark spot near it,
  * and where none lies it is gone. A drifting wisp is not saved: a chunk
  * unloading under it drops it, and its claim lapses.
@@ -35,11 +37,20 @@ public class DriftingWisp extends Entity {
     static final double RISE = 1.0;
     /** How far a wisp heads for another spot, in blocks, when it finds its own taken. */
     private static final int RETARGET_REACH = 8;
+    /**
+     * Ticks a settled wisp's drifting mote stays on its spot after the wisp
+     * block appears there, so a watching client holds the block before the
+     * drifting mote leaves it.
+     */
+    static final int HANDOFF_TICKS = 5;
+    /** The settled ticks of a wisp still drifting. */
+    private static final int DRIFTING = -1;
 
     private @Nullable BlockPos destination;
     private @Nullable Vec3 risePoint;
     private int life;
     private boolean retargeted;
+    private int settledTicks = DRIFTING;
 
     /**
      * The constructor the entity type builds a synced wisp with.
@@ -101,20 +112,46 @@ public class DriftingWisp extends Entity {
     }
 
     private void tickServer(ServerLevel server) {
+        if (settledTicks != DRIFTING) {
+            holdOnTheSpot();
+            return;
+        }
         if (destination == null || tickCount > WispClaims.LONGEST_DRIFT_TICKS) {
             giveUp(server);
             return;
         }
-        Vec3 aim = risePoint != null ? risePoint : Vec3.atCenterOf(destination);
-        Vec3 step = driftToward(position(), aim, DRIFT_SPEED);
-        setPos(position().add(step));
+        driftOn(server, destination);
+    }
+
+    /**
+     * Keeps a settled wisp's drifting mote on its spot for the handoff, then
+     * lets it go, the wisp block drawing the mote from then on.
+     * operator UAT 2026-11-16: the mote vanished for a few frames as the wisp settled
+     */
+    private void holdOnTheSpot() {
+        settledTicks++;
+        if (settledTicks >= HANDOFF_TICKS) {
+            discard();
+        }
+    }
+
+    /**
+     * Drifts a step toward the rise point off the goo, then toward the spot,
+     * arriving once it stands there.
+     *
+     * @param server the server level
+     * @param spot   the spot the wisp heads for
+     */
+    private void driftOn(ServerLevel server, BlockPos spot) {
+        Vec3 aim = risePoint != null ? risePoint : Vec3.atCenterOf(spot);
+        setPos(position().add(driftToward(position(), aim, DRIFT_SPEED)));
         if (position().distanceToSqr(aim) > 0) {
             return;
         }
         if (risePoint != null) {
             risePoint = null;
         } else {
-            arrive(server, destination);
+            arrive(server, spot);
         }
     }
 
@@ -123,7 +160,7 @@ public class DriftingWisp extends Entity {
         claims.release(server, spot);
         if (WispShed.settles(server, spot)) {
             WispShed.settle(server, spot, life);
-            discard();
+            settledTicks = 0;
             return;
         }
         destination = retargeted ? null : WispShed.destinationFrom(server, spot, RETARGET_REACH).orElse(null);

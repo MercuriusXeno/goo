@@ -17,11 +17,12 @@ import java.util.stream.Stream;
  * landing, as Goop lays its slime and Host its sculky slime, and the cell
  * shines at its layers. The step names the holy damage a Wisps cell deals
  * an undead touching it for each layer it holds, and the ticks between two
- * of those hits; and how a Wisps cell sheds wisps toward the dark: how far
- * off a wisp's destination may lie, the ticks between two sheds, the chance
- * a shed wisp spends a layer of the cell, and the ticks a settled wisp
- * lasts: {@code wisps holy_per_layer=0.5 holy_every=20 shed_reach=16
- * shed_every=40 shed_spend_chance=0.25 wisp_life=1200}.
+ * of those hits; and how a Wisps cell sheds wisps toward the dark: the
+ * ticks between two sheds, the chance a shed wisp spends a layer of the
+ * cell, and the ticks a settled wisp lasts: {@code wisps holy_per_layer=0.5
+ * holy_every=20 shed_every=40 shed_spend_chance=0.25 wisp_life=1200}. How
+ * far off a wisp's destination may lie follows the cell's fill
+ * ({@link WispShed#reachOf}).
  * glow-world-goo-is-named-wisps-and-takes-the-holds-place
  * wisps-goo-glows-at-a-light-level-equal-to-its-layers
  * undead-touching-wisps-goo-erupt-in-flames-and-take-holy-damage-by-fill
@@ -33,23 +34,18 @@ import java.util.stream.Stream;
  *
  * @param holyPerLayer    the holy damage a Wisps cell deals an undead touching it, for each layer it holds
  * @param holyEvery       the ticks between two holy hits on an undead touching the goo
- * @param shedReach       how far from the cell a shed wisp's destination may lie, in blocks
  * @param shedEvery       the ticks between two sheds of a cell standing level
  * @param shedSpendChance the chance, from 0 to 1, that a shed wisp spends a layer of the cell
  * @param wispLife        the ticks a settled wisp lasts before it is gone
  */
-public record WispsStep(double holyPerLayer, int holyEvery, int shedReach, int shedEvery, double shedSpendChance,
-                        int wispLife) implements TakesNoEntity, DripLanding {
+public record WispsStep(double holyPerLayer, int holyEvery, int shedEvery, double shedSpendChance, int wispLife) implements TakesNoEntity, DripLanding {
 
     private static final String NAME = "wisps";
     private static final String FIELD_HOLY_PER_LAYER = "holy_per_layer";
     private static final String FIELD_HOLY_EVERY = "holy_every";
-    private static final String FIELD_SHED_REACH = "shed_reach";
     private static final String FIELD_SHED_EVERY = "shed_every";
     private static final String FIELD_SHED_SPEND_CHANCE = "shed_spend_chance";
     private static final String FIELD_WISP_LIFE = "wisp_life";
-    /** The farthest a shed wisp may head, bounding the cells a shed walks. */
-    private static final int MOST_SHED_REACH = 64;
 
     /**
      * Codec for the step's params.
@@ -57,7 +53,6 @@ public record WispsStep(double holyPerLayer, int holyEvery, int shedReach, int s
     public static final MapCodec<WispsStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             Codec.doubleRange(0, Double.MAX_VALUE).fieldOf(FIELD_HOLY_PER_LAYER).forGetter(WispsStep::holyPerLayer),
             Codec.intRange(1, Integer.MAX_VALUE).fieldOf(FIELD_HOLY_EVERY).forGetter(WispsStep::holyEvery),
-            Codec.intRange(1, MOST_SHED_REACH).fieldOf(FIELD_SHED_REACH).forGetter(WispsStep::shedReach),
             Codec.intRange(1, Integer.MAX_VALUE).fieldOf(FIELD_SHED_EVERY).forGetter(WispsStep::shedEvery),
             Codec.doubleRange(0, 1).fieldOf(FIELD_SHED_SPEND_CHANCE).forGetter(WispsStep::shedSpendChance),
             Codec.intRange(1, Integer.MAX_VALUE).fieldOf(FIELD_WISP_LIFE).forGetter(WispsStep::wispLife)
