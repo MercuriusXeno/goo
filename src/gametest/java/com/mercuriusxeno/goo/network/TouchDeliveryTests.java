@@ -12,7 +12,11 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.damagesource.CombatRules;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
@@ -56,15 +60,18 @@ public final class TouchDeliveryTests {
     private static final int HELD_GOO = 4;
     private static final Identifier METAL_DART = Identifier.parse("goo:metal_dart");
     private static final String ABILITY_REQUIRED = "Ability registry must hold metal_dart";
-    /** Dart's damage, which the magic source lands past the husk's armor (metal_dart.json). */
+    /** Dart's damage, the husk's armor taking its share (metal_dart.json). */
     private static final float DART_DAMAGE = 8f;
+    /** How far apart two float healths may read and still be one, the subtraction's rounding. */
+    private static final float HEALTH_TOLERANCE = 1e-4f;
     /** Dart's cost in mB (metal_dart.json). */
     private static final int DART_COST = 1000;
-    private static final String SHOULD_TAKE_DAMAGE = "Husk should lose 8 health the tick it is touched, lost %.1f";
+    private static final String SHOULD_TAKE_DAMAGE = "Husk should lose 8 health past its armor the tick it is touched, lost %.3f";
+    private static final String SHOULD_BE_THE_THROWERS_ATTACK = "Dart's hit should be the thrower's attack";
     private static final String SHOULD_DRAIN_COST = "A touch should drain 1000 mB of metal goo, drained %d mB";
     private static final String SHOULD_DRAIN_COST_ONCE = "A throw should drain 1000 mB of metal goo once, drained %d mB";
     private static final String SHOULD_SCHEDULE_FLIGHT = "A throw beyond reach should schedule one flight, scheduled %d";
-    private static final String SHOULD_TAKE_DAMAGE_ON_ARRIVAL = "Husk beyond reach should lose 8 health on arrival";
+    private static final String SHOULD_TAKE_DAMAGE_ON_ARRIVAL = "Husk beyond reach should lose 8 health past its armor on arrival";
 
     private TouchDeliveryTests() {
     }
@@ -86,7 +93,9 @@ public final class TouchDeliveryTests {
             float lost = healthBefore - husk.getHealth();
             int drained = heldBefore - metalHeld(player);
             helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(lost == DART_DAMAGE, String.format(SHOULD_TAKE_DAMAGE, lost));
+            helper.assertTrue(struckByTheThrower(husk, player), SHOULD_BE_THE_THROWERS_ATTACK);
+            helper.assertTrue(Math.abs(lost - dartDamagePastArmor(husk)) < HEALTH_TOLERANCE,
+                    String.format(SHOULD_TAKE_DAMAGE, lost));
             helper.assertTrue(drained == DART_COST, String.format(SHOULD_DRAIN_COST, drained));
             helper.succeed();
         });
@@ -113,7 +122,9 @@ public final class TouchDeliveryTests {
             helper.assertTrue(scheduled == 1, String.format(SHOULD_SCHEDULE_FLIGHT, scheduled));
             helper.assertTrue(drained == DART_COST, String.format(SHOULD_DRAIN_COST_ONCE, drained));
             helper.succeedWhen(() -> {
-                helper.assertTrue(healthBefore - husk.getHealth() == DART_DAMAGE, SHOULD_TAKE_DAMAGE_ON_ARRIVAL);
+                helper.assertTrue(struckByTheThrower(husk, player), SHOULD_BE_THE_THROWERS_ATTACK);
+                helper.assertTrue(Math.abs(healthBefore - husk.getHealth() - dartDamagePastArmor(husk))
+                        < HEALTH_TOLERANCE, SHOULD_TAKE_DAMAGE_ON_ARRIVAL);
                 // The thrower stays listed until arrival, since the arriving effect names it.
                 helper.getLevel().getServer().getPlayerList().remove(player);
             });
@@ -129,6 +140,30 @@ public final class TouchDeliveryTests {
     private static GooThrowPayload dartPayload(ServerPlayer player, Mob target) {
         return new GooThrowPayload(GooTypes.id(GooTypes.METAL), target.getId(), BlockPos.ZERO, NO_ENTITY, false,
                 METAL_DART.toString(), player.getEyePosition());
+    }
+
+    /**
+     * Whether the husk's last hit was the thrower's own attack, which Dart
+     * deals (operator ruling 2026-11-16: Dart deals attack damage, not magic).
+     *
+     * @param husk   the struck husk
+     * @param player the thrower
+     * @return true where the thrower's attack struck last
+     */
+    private static boolean struckByTheThrower(Mob husk, ServerPlayer player) {
+        DamageSource last = husk.getLastDamageSource();
+        return last != null && last.getEntity() == player && last.is(DamageTypes.PLAYER_ATTACK);
+    }
+
+    /**
+     * What Dart's 8 leaves past the husk's armor, by vanilla's armor rule.
+     *
+     * @param husk the struck husk, its last hit Dart's
+     * @return the health the hit takes
+     */
+    private static float dartDamagePastArmor(Mob husk) {
+        return CombatRules.getDamageAfterAbsorb(husk, DART_DAMAGE, husk.getLastDamageSource(), husk.getArmorValue(),
+                (float) husk.getAttributeValue(Attributes.ARMOR_TOUGHNESS));
     }
 
     private static int metalHeld(ServerPlayer player) {
