@@ -68,6 +68,7 @@ public final class ValuesTab {
 
     private final ManagerDraft draft;
     private final List<ManagerEntry> entries = new ArrayList<>();
+    private final List<ManagerEntry> itemlessBlocks = new ArrayList<>();
     private final Map<String, JsonObject> resolved = new HashMap<>();
     private final Map<String, Recipe> derivedFrom = new HashMap<>();
     private final Set<String> uncovered = new HashSet<>();
@@ -124,7 +125,9 @@ public final class ValuesTab {
      */
     public void readEntries(ManagerEntrySource source) {
         entries.clear();
+        itemlessBlocks.clear();
         tagMembers.clear();
+        source.itemlessBlocks().forEach(block -> itemlessBlocks.add(new ManagerEntry(block.id(), block.name(), false)));
         // Items list by display name ignoring case, ties by id, whatever order the source feeds them (decision
         // items-tab-lists-items-by-translated-name).
         source.items().stream().sorted(BY_NAME_THEN_ID)
@@ -265,6 +268,15 @@ public final class ValuesTab {
      */
     public List<ManagerEntry> entries() {
         return List.copyOf(entries);
+    }
+
+    /**
+     * this-becomes-that-is-two-parallel-groups-in-the-goo-workbench
+     *
+     * @return every block with no item form the client lists, which no Items row shows and the group picker offers
+     */
+    public List<ManagerEntry> itemlessBlocks() {
+        return List.copyOf(itemlessBlocks);
     }
 
     /**

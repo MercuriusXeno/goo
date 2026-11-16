@@ -56,7 +56,6 @@ public final class StepTypes {
         register(FreezeStep.TYPE);
         register(NovaStep.TYPE);
         register(FreezeBlocksStep.TYPE);
-        register(CoolLavaStep.TYPE);
         register(CoatStep.TYPE);
         register(SlickStep.TYPE);
         register(VacuumStep.TYPE);
