@@ -18,7 +18,7 @@
     "sound": { "id": "minecraft:block.honey_block.slide", "every": 10, "volume": 1.0, "pitch": 1.0, "pitch_spread": 0.1 }
   },
   "behaviors": [
-    { "type": "leech_goo", "speed_factor": 0.5, "drain_fraction": 0.3, "deplete_chance": 0.1 }
+    { "type": "leech_goo", "speed_factor": 0.5, "drain_fraction": 0.3, "deplete_chance": 0.1, "soul_pop_chance": 0.1 }
   ],
   "tags": ["stream"]
 }
