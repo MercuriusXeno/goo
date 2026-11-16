@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.end;
 
 import com.mercuriusxeno.goo.ability.zone.ConjuredDoors;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -8,14 +9,17 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.feature.EndPlatformFeature;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec3;
+import java.util.Optional;
 
 /**
  * Carries a player through the gate End conjured to its destination: into
  * the End onto its entrance platform, laid as a vanilla end portal lays it,
  * where a matching gate stands on them and releases them, as Zone's door
- * releases its arriver in their room.
+ * releases its arriver in their room. A player carried into the End keeps
+ * where they portalled in from, which the gate they summon there leads back to.
  * decision end-summons-a-gate-like-zone-that-takes-you-to-the-end-and-back
  * decision matching-doorway-opens-in-the-room-and-releases-you
+ * decision end-gate-in-the-end-is-free-and-returns-you-where-you-portalled-in
  */
 public final class EndGatePassage {
 
@@ -36,6 +40,9 @@ public final class EndGatePassage {
         }
         if (destination.dimension() == Level.END) {
             EndPlatformFeature.createEndPlatform(there, BlockPos.containing(destination.feet()), true);
+            // decision end-gate-in-the-end-is-free-and-returns-you-where-you-portalled-in
+            player.setData(GooAttachments.END_WAY_BACK, new EndWayBack(Optional.of(EndDestination.wayBackFrom(
+                    player.level().dimension(), player.position(), player.getYRot()))));
         }
         // decision door-carries-its-own-sound-through-the-change
         ConjuredDoors.sendDoorSound(player);
