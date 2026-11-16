@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
@@ -11,8 +12,10 @@ import com.mercuriusxeno.goo.network.PalmBlobChargePayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -347,6 +350,75 @@ public final class GloveUseTracker {
         public boolean runsWhileHeld() {
             return selectedRunsWhileHeld(player);
         }
+
+        @Override
+        public boolean throwsOnAttack() {
+            return selectedThrowsOnAttack(player);
+        }
+
+        @Override
+        public void javelinTurned(JavelinTurn turn) {
+            if (turn == JavelinTurn.THROWN) {
+                // dart-forms-on-right-click-and-throws-on-left-click: the next javelin forms from the blob behind it
+                LiftedPalmBlob.liftAfresh(player.getId(), player.getEyePosition(), player.level().getGameTime());
+            }
+            shink(player, turn);
+        }
+    }
+
+    /**
+     * Plays at the local player the sound a turn of the javelin asks for:
+     * the shink as it begins forming, the lower shink as it begins reverting.
+     * decision dart-shinks-as-it-forms-and-pitched-down-as-it-reverts
+     *
+     * @param player the local player
+     * @param turn   the javelin's turn
+     */
+    private static void shink(LocalPlayer player, JavelinTurn turn) {
+        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        if (selection == null) {
+            return;
+        }
+        turn.soundOf(GloveThrowSender.selectedDelivery(selection.abilityId()).formSounds()).ifPresent(cue ->
+                BuiltInRegistries.SOUND_EVENT.get(cue.sound()).ifPresent(sound -> player.level().playLocalSound(
+                        player.getX(), player.getY(), player.getZ(), sound.value(), SoundSource.PLAYERS,
+                        cue.volume(), cue.pitch(), false)));
+    }
+
+    /**
+     * Whether the held glove's selection forms a javelin on right click and
+     * throws it on left click.
+     * decision dart-forms-on-right-click-and-throws-on-left-click
+     *
+     * @param player the local player
+     * @return true for a held throw
+     */
+    private static boolean selectedThrowsOnAttack(LocalPlayer player) {
+        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        return selection != null && HeldRoute.throwsOnAttack(GloveThrowSender.selectedDelivery(selection.abilityId()),
+                GloveThrowSender.selectedBadge(selection.abilityId()));
+    }
+
+    /**
+     * Whether right click holds a javelin forming or formed, which the attack key throws.
+     * decision dart-forms-on-right-click-and-throws-on-left-click
+     *
+     * @param player the local player
+     * @return true while the press holds a held throw
+     */
+    public static boolean holdsAJavelin(LocalPlayer player) {
+        return PRESS.holdsAJavelin(pressActions(player));
+    }
+
+    /**
+     * Throws the javelin right click has formed, the attack key's turn.
+     * decision dart-forms-on-right-click-and-throws-on-left-click
+     *
+     * @param player the local player
+     * @return true where a javelin was sent
+     */
+    public static boolean throwTheJavelin(LocalPlayer player) {
+        return PRESS.throwHeld(pressActions(player));
     }
 
     /**

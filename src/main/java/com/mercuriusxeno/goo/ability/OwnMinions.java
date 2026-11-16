@@ -50,13 +50,15 @@ public final class OwnMinions {
 
     /**
      * Whether an ability spares its caster's own minions: a harmful one
-     * wearing the mob badge.
+     * aiming as a mob ability, Dart's held javelin among them.
+     * decision dart-forms-on-right-click-and-throws-on-left-click
      *
      * @param badge   the ability's badge
+     * @param kind    the ability's delivery kind
      * @param harmful whether the ability carries the harmful tag
      * @return true when the ability refuses the caster's own minions
      */
-    public static boolean sparesOwnMinions(AbilityBadge badge, boolean harmful) {
-        return badge == AbilityBadge.MOB && harmful;
+    public static boolean sparesOwnMinions(AbilityBadge badge, DeliveryKind kind, boolean harmful) {
+        return badge.aimsAs(kind) == AbilityBadge.MOB && harmful;
     }
 }

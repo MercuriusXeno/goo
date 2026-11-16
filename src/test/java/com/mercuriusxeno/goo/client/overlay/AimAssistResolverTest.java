@@ -5,6 +5,7 @@ import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
+import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.OwnMinions;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.GrabStep;
@@ -161,7 +162,7 @@ class AimAssistResolverTest {
         void aHarmfulMobAbilityOutlinesNoOwnMinion() {
             Mob minion = pickable(Mob.class);
             assertFalse(AimAssistResolver.isCandidate(minion, heal,
-                    OwnMinions.sparesOwnMinions(AbilityBadge.MOB, true), ownMinion -> ownMinion == minion));
+                    OwnMinions.sparesOwnMinions(AbilityBadge.MOB, DeliveryKind.ARC, true), ownMinion -> ownMinion == minion));
         }
 
         /** decision mob-targeted-attacks-refuse-your-minions */
@@ -169,7 +170,7 @@ class AimAssistResolverTest {
         void anUntaggedMobAbilityOutlinesAnOwnMinion() {
             Mob minion = pickable(Mob.class);
             assertTrue(AimAssistResolver.isCandidate(minion, heal,
-                    OwnMinions.sparesOwnMinions(AbilityBadge.MOB, false), ownMinion -> ownMinion == minion));
+                    OwnMinions.sparesOwnMinions(AbilityBadge.MOB, DeliveryKind.ARC, false), ownMinion -> ownMinion == minion));
         }
 
         private static <E extends Entity> E pickable(Class<E> kind) {

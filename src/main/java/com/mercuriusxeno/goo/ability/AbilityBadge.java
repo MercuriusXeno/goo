@@ -106,6 +106,20 @@ public enum AbilityBadge implements StringRepresentable {
     }
 
     /**
+     * The badge an ability of a delivery kind aims as: a held arc, Dart's
+     * javelin formed on right click and thrown on left, aims as a mob
+     * ability, favoring the aimed mob and sparing the caster's minions; every
+     * other ability aims as its own badge.
+     * decision dart-forms-on-right-click-and-throws-on-left-click
+     *
+     * @param kind the ability's delivery kind
+     * @return the badge its aim, its spare and its throw read
+     */
+    public AbilityBadge aimsAs(DeliveryKind kind) {
+        return this == HELD && kind == DeliveryKind.ARC ? MOB : this;
+    }
+
+    /**
      * Where this badge's abilities stand in the fan, lowest first.
      *
      * @return the badge's fan rank
