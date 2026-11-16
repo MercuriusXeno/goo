@@ -30,12 +30,20 @@
       "argument2": {
         "type": "minecraft:min",
         "argument1": {
-          "type": "goo:lava_tubes",
-          "noise": "goo:lunar_lava_tubes"
+          "type": "goo:rubble_caves",
+          "footprint": "goo:lunar_rubble_caves",
+          "rubble": "goo:lunar_rubble"
         },
         "argument2": {
-          "type": "minecraft:interpolated",
-          "argument": "goo:lunar/terrain"
+          "type": "minecraft:min",
+          "argument1": {
+            "type": "goo:lava_tubes",
+            "noise": "goo:lunar_lava_tubes"
+          },
+          "argument2": {
+            "type": "minecraft:interpolated",
+            "argument": "goo:lunar/terrain"
+          }
         }
       }
     },
@@ -240,6 +248,37 @@
               }
             }
           ]
+        }
+      },
+      {
+        "type": "minecraft:condition",
+        "if_true": {
+          "type": "minecraft:y_above",
+          "anchor": {
+            "absolute": 0
+          },
+          "surface_depth_multiplier": 0,
+          "add_stone_depth": false
+        },
+        "then_run": {
+          "type": "minecraft:condition",
+          "if_true": {
+            "type": "minecraft:not",
+            "invert": {
+              "type": "minecraft:y_above",
+              "anchor": {
+                "absolute": 40
+              },
+              "surface_depth_multiplier": 0,
+              "add_stone_depth": false
+            }
+          },
+          "then_run": {
+            "type": "minecraft:block",
+            "result_state": {
+              "Name": "goo:breccia"
+            }
+          }
         }
       },
       {

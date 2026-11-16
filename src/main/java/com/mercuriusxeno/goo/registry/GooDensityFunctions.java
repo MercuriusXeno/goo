@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.lunar.CraterField;
 import com.mercuriusxeno.goo.lunar.GiantCraterField;
 import com.mercuriusxeno.goo.lunar.LavaTubes;
 import com.mercuriusxeno.goo.lunar.RilleField;
+import com.mercuriusxeno.goo.lunar.RubbleCaves;
 import com.mercuriusxeno.goo.lunar.SeaCavern;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.registries.Registries;
@@ -57,6 +58,13 @@ public final class GooDensityFunctions {
      */
     public static final DeferredHolder<MapCodec<? extends DensityFunction>, MapCodec<LavaTubes>> LAVA_TUBES =
             DENSITY_FUNCTION_TYPES.register("lava_tubes", () -> LavaTubes.DATA_CODEC);
+
+    /**
+     * {@code goo:rubble_caves}, the low, wide caves lunar's noise settings open through its shallow zone's breccia.
+     * decision lunar-underground-changes-by-depth-down-to-a-molten-iron-sea
+     */
+    public static final DeferredHolder<MapCodec<? extends DensityFunction>, MapCodec<RubbleCaves>> RUBBLE_CAVES =
+            DENSITY_FUNCTION_TYPES.register("rubble_caves", () -> RubbleCaves.DATA_CODEC);
 
     private GooDensityFunctions() {
     }
