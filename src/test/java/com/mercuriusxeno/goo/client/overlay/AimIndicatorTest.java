@@ -17,7 +17,7 @@ class AimIndicatorTest {
 
     @ParameterizedTest
     @CsvSource({"MOB, ENTITY_OUTLINE", "WORLD, BLOCK_OUTLINE", "SELF, NONE", "DURATIVE, NONE",
-            "FREE, NONE", "CHANNELED, NONE", "PRISM, NONE"})
+            "FREE, NONE", "CHANNELED, NONE", "PRISM, NONE", "RESIDUAL, NONE"})
     void eachBadgeDrawsItsOwnMark(AbilityBadge badge, AimIndicator expected) {
         assertEquals(expected, AimIndicator.of(badge, false));
     }

@@ -2,7 +2,8 @@ package com.mercuriusxeno.goo.ability;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -14,30 +15,34 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
- * The held badge ships a sprite the size of the channeled sprite beside it and a name in en_us.json,
- * both read from the classpath.
+ * The held and residual badges each ship a sprite the size of the channeled sprite beside them and a
+ * name in en_us.json, both read from the classpath.
  * decision held-badge-marks-abilities-that-prepare-and-throw
+ * decision residual-badge-is-a-goo-splat
  */
 class AbilityBadgeAssetsTest {
 
     private static final String BADGE_TEXTURES = "/assets/goo/textures/goo/badge/";
     private static final String EN_US_JSON = "/assets/goo/lang/en_us.json";
 
-    @Test
-    void heldSpriteMatchesTheChanneledSpriteSize() throws IOException {
-        BufferedImage held = readSprite(AbilityBadge.HELD);
+    @ParameterizedTest
+    @CsvSource({"HELD", "RESIDUAL"})
+    void badgeSpriteMatchesTheChanneledSpriteSize(AbilityBadge badge) throws IOException {
+        BufferedImage sprite = readSprite(badge);
         BufferedImage channeled = readSprite(AbilityBadge.CHANNELED);
-        assertEquals(channeled.getWidth(), held.getWidth(), "held.png width");
-        assertEquals(channeled.getHeight(), held.getHeight(), "held.png height");
+        assertEquals(channeled.getWidth(), sprite.getWidth(), badge.getSerializedName() + ".png width");
+        assertEquals(channeled.getHeight(), sprite.getHeight(), badge.getSerializedName() + ".png height");
     }
 
-    @Test
-    void enUsNamesTheHeldBadge() throws IOException {
+    @ParameterizedTest
+    @CsvSource({"HELD, Held", "RESIDUAL, Residual"})
+    void enUsNamesTheBadge(AbilityBadge badge, String name) throws IOException {
+        String key = "goo.badge." + badge.getSerializedName();
         try (InputStream in = AbilityBadgeAssetsTest.class.getResourceAsStream(EN_US_JSON)) {
             assertNotNull(in, EN_US_JSON + " is not on the classpath");
             JsonObject lang = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
-            assertNotNull(lang.get("goo.badge.held"), "en_us.json names no goo.badge.held");
-            assertEquals("Held", lang.get("goo.badge.held").getAsString());
+            assertNotNull(lang.get(key), "en_us.json names no " + key);
+            assertEquals(name, lang.get(key).getAsString());
         }
     }
 
