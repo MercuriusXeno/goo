@@ -120,54 +120,60 @@ class GrabStepTest {
     }
 
     /**
-     * Where and when a locked group meets: the member closest to the player
-     * flies at the pull speed to its nearest point on the aim line, and every
-     * member flies its own distance to that point over one meet time, no
-     * faster than the cap
-     * (decisions grabbed-item-group-converges-on-the-aim-line-then-pulls-as-one,
-     * group-meet-caps-the-fastest-item-at-a-multiple-of-pull-speed).
+     * Where a locked item streams in: a point on the live look line at its
+     * own place along the look less the stream lead, the eye once it is
+     * within the lead, so each item eases onto the aim line and flows in
+     * along it (decision grabbed-item-group-converges-on-the-aim-line-then-pulls-as-one).
      */
     @Nested
-    class GroupMeeting {
+    class Stream {
 
         private static final Vec3 EYE = Vec3.ZERO;
         private static final Vec3 LOOK = new Vec3(1, 0, 0);
-        /** A cap loose enough that the closest member's flight sets the meet time. */
-        private static final double LOOSE_CAP = 5;
-        /** A cap unequal to the shipped 3, tight enough that the farthest member's flight sets the meet time. */
-        private static final double TIGHT_CAP = 2;
-        private static final Vec3 FARTHER = new Vec3(5, 2, 0);
-        private static final Vec3 FARTHEST = new Vec3(6, -2, 1);
+        /** GRAB's stream lead, unequal to the shipped 2, so the tests read the step's field. */
+        private static final double LEAD = 3;
+        private static final List<Vec3> MEMBERS = List.of(new Vec3(8, -2, 1), new Vec3(10, -1.5, -2),
+                new Vec3(6, -2.5, 0.5));
+        private static final int MOST_TICKS = 200;
 
         @Test
-        void theClosestMemberFliesAtThePullSpeedAndAllLandOnOneTick() {
-            Vec3 closest = new Vec3(3, 1, 0);
-            List<Vec3> members = List.of(FARTHER, closest, FARTHEST);
-            GrabStep.GroupMeet meet = GrabStep.meetOf(EYE, LOOK, members, PULL_SPEED, LOOSE_CAP);
-            assertEquals(0, meet.point().distanceTo(new Vec3(3, 0, 0)), EPSILON, "The meet point should be the "
-                    + "closest member's nearest point on the aim line, is " + meet.point());
-            assertEquals(PULL_SPEED, meet.speeds().get(1), EPSILON);
-            assertTrue(meet.speeds().get(0) > PULL_SPEED && meet.speeds().get(2) > PULL_SPEED,
-                    "Each farther member should fly faster, flies " + meet.speeds());
-            for (int member = 0; member < members.size(); member++) {
-                assertEquals(meet.time(), members.get(member).distanceTo(meet.point()) / meet.speeds().get(member),
-                        EPSILON, "Member " + member + " should land at the one meet time");
-            }
+        void anItemOffTheLineFliesForThePointItsLeadShortOfItsPlaceAlongTheLook() {
+            assertEquals(LEAD, GRAB.streamLead(), EPSILON);
+            Vec3 point = GRAB.streamPoint(EYE, LOOK, new Vec3(8, -2, 1));
+            assertEquals(0, point.distanceTo(new Vec3(8 - LEAD, 0, 0)), EPSILON, "The stream point should lie on "
+                    + "the look line the lead short of the item's place along it, is " + point);
         }
 
         @Test
-        void theCapSetsTheMeetTimeWhereTheClosestMemberWaitsOnTheLine() {
-            GrabStep capped = new GrabStep(8, HOLD_DISTANCE, 1.5, PULL_SPEED, 10, PULL_ACCELERATION, 4, TIGHT_CAP,
-                    HOLD_ACCELERATION, REFERENCE_VOLUME);
-            Vec3 onTheLine = new Vec3(3, 0, 0);
-            List<Vec3> members = List.of(onTheLine, FARTHER, FARTHEST);
-            GrabStep.GroupMeet meet = GrabStep.meetOf(EYE, LOOK, members, PULL_SPEED, capped.meetCapMultiple());
-            double cap = PULL_SPEED * TIGHT_CAP;
-            assertEquals(cap, meet.speeds().get(2), EPSILON, "The farthest member should fly at the cap");
-            assertEquals(FARTHEST.distanceTo(meet.point()) / cap, meet.time(), EPSILON);
-            assertTrue(meet.speeds().stream().allMatch(speed -> speed <= cap + EPSILON), "No member should fly past "
-                    + "the cap, flies " + meet.speeds());
-            assertEquals(0, meet.speeds().get(0), EPSILON, "The closest member should wait on the line");
+        void anItemWithinTheLeadFliesForTheEye() {
+            assertEquals(EYE, GRAB.streamPoint(EYE, LOOK, new Vec3(LEAD - 1, -1, 0)));
+            assertEquals(EYE, GRAB.streamPoint(EYE, LOOK, new Vec3(-2, 0, 1)));
+        }
+
+        @Test
+        void aGroupEasesOntoTheLookLineAtNoMoreThanThePullSpeedAndAcceleration() {
+            for (Vec3 start : MEMBERS) {
+                Vec3 at = start;
+                Vec3 velocity = Vec3.ZERO;
+                double offTheLine = offTheLine(at);
+                for (int tick = 0; tick < MOST_TICKS && at.distanceTo(EYE) > EPSILON; tick++) {
+                    Vec3 next = GRAB.homingVelocity(velocity, at, GRAB.streamPoint(EYE, LOOK, at));
+                    assertTrue(next.length() <= PULL_SPEED + EPSILON, "Tick " + tick + " flies " + next.length());
+                    assertTrue(next.length() - velocity.length() <= PULL_ACCELERATION + EPSILON, "Tick " + tick
+                            + " gains " + (next.length() - velocity.length()));
+                    velocity = next;
+                    at = at.add(velocity);
+                    double nowOff = offTheLine(at);
+                    assertTrue(nowOff <= offTheLine + EPSILON, "The member from " + start + " should come no "
+                            + "farther off the line, " + offTheLine + " then " + nowOff);
+                    offTheLine = nowOff;
+                }
+                assertEquals(0, at.distanceTo(EYE), EPSILON, "The member from " + start + " should reach the eye");
+            }
+        }
+
+        private static double offTheLine(Vec3 at) {
+            return at.subtract(LOOK.scale(at.dot(LOOK))).length();
         }
     }
 

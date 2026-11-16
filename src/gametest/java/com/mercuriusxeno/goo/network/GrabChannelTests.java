@@ -104,8 +104,8 @@ public final class GrabChannelTests {
                 GrabChannelTests::grabLocksTheSameItemsWithinFourBlocks);
         GooTestFunctions.registerTest(registrar, GRAB_SNEAKING_LOCKS_THE_TARGETED_ITEM_ALONE,
                 GrabChannelTests::grabSneakingLocksTheTargetedItemAlone);
-        GooTestFunctions.registerTest(registrar, GRAB_GROUP_MEETS_AND_COMBINES_BEFORE_IT_ARRIVES,
-                GrabChannelTests::grabGroupMeetsAndCombinesBeforeItArrives);
+        GooTestFunctions.registerTest(registrar, GRAB_GROUP_STREAMS_INTO_THE_INVENTORY,
+                GrabChannelTests::grabGroupStreamsIntoTheInventory);
         GooTestFunctions.registerTest(registrar, GRAB_HEAVIER_MOB_COMES_SLOWER_AND_SETTLES,
                 GrabChannelTests::grabHeavierMobComesSlowerAndSettles);
     }
@@ -189,52 +189,33 @@ public final class GrabChannelTests {
                 .subtract(0, mob.getBbHeight() * HALF, 0);
     }
 
-    private static final String GRAB_GROUP_MEETS_AND_COMBINES_BEFORE_IT_ARRIVES =
-            "grab_group_meets_and_combines_before_it_arrives";
+    private static final String GRAB_GROUP_STREAMS_INTO_THE_INVENTORY =
+            "grab_group_streams_into_the_inventory";
     /** The targeted stack, below the level look east of the player. */
-    private static final Vec3 MEET_TARGETED = new Vec3(5.5, 0, 2.5);
+    private static final Vec3 STREAM_TARGETED = new Vec3(5.5, 0, 2.5);
     /** A stack two blocks north of the targeted one. */
-    private static final Vec3 MEET_NORTH = new Vec3(5.5, 0, 0.5);
-    /** The stack closest to the player, its nearest point on the look 3.5 blocks east of the eye. */
-    private static final Vec3 MEET_CLOSEST = new Vec3(4.0, 0, 4.0);
+    private static final Vec3 STREAM_NORTH = new Vec3(5.5, 0, 0.5);
+    /** A stack closer to the player, south-west of the targeted one. */
+    private static final Vec3 STREAM_SOUTH_WEST = new Vec3(4.0, 0, 4.0);
     private static final int STACK = 8;
     private static final int STACKS = 3;
-    /**
-     * A tick after the meet ends and before the combined stack reaches the player: the closest stack's flight to
-     * the look, about 3 blocks at the pull speed, lands by the fifth tick, and the homing flight that follows takes
-     * several more ticks to cover the 2 blocks to the player's pickup reach.
-     */
-    private static final int AFTER_THE_MEET = 6;
-    /** How far around the player the combined stack is counted. */
-    private static final double COUNTED_WITHIN = 10;
 
     /**
-     * Three stacks of 8 cobblestone Grab locks as a group meet on the aim
-     * line and combine there into one stack of 24 before any of it reaches
-     * the player, who ends holding 24
-     * (decisions grabbed-item-group-converges-on-the-aim-line-then-pulls-as-one,
-     * group-meet-caps-the-fastest-item-at-a-multiple-of-pull-speed).
+     * Three stacks of 8 cobblestone Grab locks as a group all stream into
+     * the player, who ends holding 24, joined on the way or not
+     * (decision grabbed-item-group-converges-on-the-aim-line-then-pulls-as-one).
      *
      * @param helper the gametest helper
      */
-    public static void grabGroupMeetsAndCombinesBeforeItArrives(GameTestHelper helper) {
+    public static void grabGroupStreamsIntoTheInventory(GameTestHelper helper) {
         ServerPlayer player = grabber(helper);
-        ItemEntity targeted = restingItem(helper, MEET_TARGETED, new ItemStack(Items.COBBLESTONE, STACK));
-        restingItem(helper, MEET_NORTH, new ItemStack(Items.COBBLESTONE, STACK));
-        restingItem(helper, MEET_CLOSEST, new ItemStack(Items.COBBLESTONE, STACK));
+        ItemEntity targeted = restingItem(helper, STREAM_TARGETED, new ItemStack(Items.COBBLESTONE, STACK));
+        restingItem(helper, STREAM_NORTH, new ItemStack(Items.COBBLESTONE, STACK));
+        restingItem(helper, STREAM_SOUTH_WEST, new ItemStack(Items.COBBLESTONE, STACK));
         for (int tick = 1; tick <= HOMING_TICKS; tick++) {
             helper.runAfterDelay(tick, () -> sweepTick(player, targeted.isAlive() ? holdTick(player, targeted)
                     : aimTick(player)));
         }
-        helper.runAfterDelay(AFTER_THE_MEET, () -> {
-            java.util.List<ItemEntity> standing = helper.getLevel().getEntitiesOfClass(ItemEntity.class,
-                    player.getBoundingBox().inflate(COUNTED_WITHIN), item -> item.getItem().is(Items.COBBLESTONE));
-            helper.assertTrue(standing.size() == 1 && standing.getFirst().getItem().getCount() == STACK * STACKS,
-                    "The group should stand as one stack of " + STACK * STACKS + " after the meet, stands as "
-                            + standing.stream().map(item -> item.getItem().getCount() + " at "
-                            + helper.relativeVec(item.position())).toList() + ", player holds "
-                            + player.getInventory().countItem(Items.COBBLESTONE));
-        });
         helper.runAfterDelay(HOMING_TICKS + 1, () -> {
             int held = player.getInventory().countItem(Items.COBBLESTONE);
             helper.assertTrue(held == STACK * STACKS, "The player should hold " + STACK * STACKS + ", holds " + held);
@@ -532,7 +513,7 @@ public final class GrabChannelTests {
     /** Several blocks east of the player, on the floor, so the pull takes ticks to arrive. */
     private static final Vec3 ITEM_POS = new Vec3(5.5, 1.2, 2.5);
     /** Channel ticks enough for a pull from ITEM_POS to arrive at the pull speed. */
-    private static final int PULL_TICKS = 12;
+    private static final int PULL_TICKS = 20;
     /** Yaw looking east, along +x. */
     private static final float FACING_EAST = -90f;
     private static final float LEVEL = 0f;

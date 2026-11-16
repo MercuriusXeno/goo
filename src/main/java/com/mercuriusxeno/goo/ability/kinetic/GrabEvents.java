@@ -14,7 +14,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -220,81 +219,20 @@ public final class GrabEvents {
 
     /**
      * Stretches a player's item lock across this channel tick and adds the
-     * items this tick locks with their group's meet; a player locking none
-     * and holding no lock stays unlocked.
+     * items this tick locks; a player locking none and holding no lock stays unlocked.
      * decision sweeping-grab-locks-every-item-the-highlight-passes
-     * decision grabbed-item-group-converges-on-the-aim-line-then-pulls-as-one
      *
      * @param player the pressing player
      * @param adding the items this tick locks
-     * @param meet   the meet of the group this tick locks, empty for a lone item or none
      */
-    public static void lockItems(ServerPlayer player, List<ItemEntity> adding, Optional<GrabItemLock.Meet> meet) {
+    public static void lockItems(ServerPlayer player, List<ItemEntity> adding) {
         long now = player.level().getGameTime();
         GrabItemLock lock = player.getData(GooAttachments.GRAB_ITEM_LOCK);
         if (adding.isEmpty() && !lock.standsAt(now)) {
             return;
         }
         player.setData(GooAttachments.GRAB_ITEM_LOCK,
-                lock.stretched(adding.stream().map(Entity::getId).toList(), meet, now, now + HOLD_GRACE_TICKS));
-    }
-
-    /**
-     * The meet a locked item still flies to.
-     * decision grabbed-item-group-converges-on-the-aim-line-then-pulls-as-one
-     *
-     * @param player the pressing player
-     * @param item   the locked item
-     * @return its group's meet, empty once the group met or for an item locked alone
-     */
-    public static Optional<GrabItemLock.Meet> meetOf(ServerPlayer player, ItemEntity item) {
-        return player.getData(GooAttachments.GRAB_ITEM_LOCK).meetOf(item.getId());
-    }
-
-    /**
-     * Ends every meet whose members have all landed by now: the stacks
-     * vanilla lets merge combine into one, and the group homes as one from
-     * then on.
-     * decision grabbed-item-group-converges-on-the-aim-line-then-pulls-as-one
-     *
-     * @param player the pressing player
-     */
-    public static void combineMetGroups(ServerPlayer player) {
-        long now = player.level().getGameTime();
-        GrabItemLock lock = player.getData(GooAttachments.GRAB_ITEM_LOCK);
-        for (GrabItemLock.Meet meet : lock.meets()) {
-            if (now >= meet.endsAt()) {
-                combine(meet.speeds().keySet().stream().map(player.level()::getEntity)
-                        .filter(entity -> entity instanceof ItemEntity && entity.isAlive())
-                        .map(ItemEntity.class::cast).toList());
-                lock = lock.without(meet);
-            }
-        }
-        player.setData(GooAttachments.GRAB_ITEM_LOCK, lock);
-    }
-
-    /**
-     * Merges every pair of stacks vanilla lets merge, the later into the earlier.
-     *
-     * @param members the group's standing item entities
-     */
-    private static void combine(List<ItemEntity> members) {
-        for (int into = 0; into < members.size(); into++) {
-            for (int from = into + 1; from < members.size(); from++) {
-                mergeInto(members.get(into), members.get(from));
-            }
-        }
-    }
-
-    private static void mergeInto(ItemEntity into, ItemEntity from) {
-        if (!into.isAlive() || !from.isAlive() || !ItemEntity.areMergable(into.getItem(), from.getItem())) {
-            return;
-        }
-        ItemStack fromStack = from.getItem();
-        into.setItem(ItemEntity.merge(into.getItem(), fromStack, into.getItem().getMaxStackSize()));
-        if (fromStack.isEmpty()) {
-            from.discard();
-        }
+                lock.stretched(adding.stream().map(Entity::getId).toList(), now, now + HOLD_GRACE_TICKS));
     }
 
     /**
