@@ -77,7 +77,7 @@ class StepCodecTest {
             Map.entry("molten", new MoltenStep(TagKey.create(Registries.BLOCK,
                     Identifier.fromNamespaceAndPath("goo", "meltable")), 40)),
             Map.entry("host", new HostStep(3, 8)),
-            Map.entry("rime", new RimeStep()),
+            Map.entry("rime", new RimeStep(3, 20)),
             Map.entry("entities", new EntitiesStep(SelectionShape.SPHERE, Expr.literal(2.5),
                     List.of(EntityFilter.LIVING, EntityFilter.NOT_FIRE_IMMUNE),
                     List.of(LeafSteps.IGNITE.step(Expr.literal(5))))),

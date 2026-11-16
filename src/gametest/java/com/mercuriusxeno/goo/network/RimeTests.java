@@ -6,12 +6,15 @@ import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
+import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -35,6 +38,22 @@ public final class RimeTests {
     private static final String ABILITY_REQUIRED = "The ability registry must hold frost_rime";
     private static final String LAYERS_WRONG = "The cell over the stone should hold one layer of Rime, stands %s";
     private static final String FRICTION_WRONG = "The Rime cell should stand at ice's friction %s, stands at %s";
+    private static final String RIME_FREEZES_WATER_AND_LAVA = "rime_freezes_the_water_and_lava_in_reach";
+    private static final String RIME_ICE_THAWS = "rime_ice_thaws_once_no_rime_stands_in_reach";
+    private static final Identifier RIME_ICE = Identifier.parse("goo:rime_ice");
+    /** The Rime cell, lying on the bay floor. */
+    private static final BlockPos RIME_CELL = new BlockPos(2, 1, 2);
+    /** A water source sunk into the floor, a block and a half from the cell. */
+    private static final BlockPos WATER_POOL = new BlockPos(1, 0, 3);
+    /** A lava source sunk into the floor, across the cell from the water. */
+    private static final BlockPos LAVA_POOL = new BlockPos(3, 0, 1);
+    /** Ticks a laid cell takes to tick and freeze what is in reach, with room to spare. */
+    private static final int CHILL_WAIT_TICKS = 10;
+    /** Ticks a broken cell's ice takes to thaw: the thaw pass runs every second, with room to spare. */
+    private static final int THAW_WAIT_TICKS = 45;
+    private static final String SHOULD_ICE = "The water in the Rime cell's reach should stand as Rime ice, stands %s";
+    private static final String SHOULD_OBSIDIAN = "The lava in the Rime cell's reach should stand as obsidian, stands %s";
+    private static final String SHOULD_THAW = "The Rime ice should read water once no Rime cell stands in reach, stands %s";
 
     private RimeTests() {
     }
@@ -46,6 +65,71 @@ public final class RimeTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, RIME_DRIP_LAYS_AN_ICY_CELL, RimeTests::rimeDripLaysAnIcyCellOnStone);
+        GooTestFunctions.registerTest(registrar, RIME_FREEZES_WATER_AND_LAVA, RimeTests::rimeFreezesTheWaterAndLavaInReach);
+        GooTestFunctions.registerTest(registrar, RIME_ICE_THAWS, RimeTests::rimeIceThawsOnceNoRimeStandsInReach);
+    }
+
+    /**
+     * A Rime cell standing over stone, once it has ticked, freezes the water
+     * source in reach to Rime ice and the lava source in reach to obsidian.
+     * rime-freezes-water-and-lava-and-freezes-and-damages-the-shoeless
+     *
+     * @param helper the gametest helper
+     */
+    public static void rimeFreezesTheWaterAndLavaInReach(GameTestHelper helper) {
+        layRimeBesideWaterAndLava(helper);
+        helper.runAfterDelay(CHILL_WAIT_TICKS, () -> {
+            assertFrozen(helper);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Water a Rime cell froze reads water again once the cell is broken and
+     * the thaw pass has run, no Rime cell standing in reach of it.
+     * iceborn-is-dropped-for-rime-a-frost-goo-that-keeps-what-is-around-it-frozen
+     *
+     * @param helper the gametest helper
+     */
+    public static void rimeIceThawsOnceNoRimeStandsInReach(GameTestHelper helper) {
+        layRimeBesideWaterAndLava(helper);
+        helper.runAfterDelay(CHILL_WAIT_TICKS, () -> {
+            assertFrozen(helper);
+            helper.setBlock(RIME_CELL, Blocks.AIR);
+        });
+        helper.runAfterDelay(CHILL_WAIT_TICKS + THAW_WAIT_TICKS, () -> {
+            BlockState water = helper.getBlockState(WATER_POOL);
+            helper.assertTrue(water.is(Blocks.WATER), String.format(SHOULD_THAW, water));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Lays a one-layer Rime cell on stone with a walled water source and a
+     * walled lava source sunk into the floor within its reach, apart from
+     * each other so neither meets the other.
+     */
+    private static void layRimeBesideWaterAndLava(GameTestHelper helper) {
+        helper.setBlock(RIME_CELL.below(), Blocks.STONE);
+        basin(helper, WATER_POOL, Blocks.WATER);
+        basin(helper, LAVA_POOL, Blocks.LAVA);
+        helper.setBlock(RIME_CELL, GooBlocks.FROST_RIME.get());
+    }
+
+    private static void assertFrozen(GameTestHelper helper) {
+        BlockState water = helper.getBlockState(WATER_POOL);
+        helper.assertTrue(BuiltInRegistries.BLOCK.getKey(water.getBlock()).equals(RIME_ICE),
+                String.format(SHOULD_ICE, water));
+        BlockState lava = helper.getBlockState(LAVA_POOL);
+        helper.assertTrue(lava.is(Blocks.OBSIDIAN), String.format(SHOULD_OBSIDIAN, lava));
+    }
+
+    private static void basin(GameTestHelper helper, BlockPos pos, Block fluid) {
+        helper.setBlock(pos.below(), Blocks.STONE);
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            helper.setBlock(pos.relative(side), Blocks.STONE);
+        }
+        helper.setBlock(pos, fluid);
     }
 
     /**
