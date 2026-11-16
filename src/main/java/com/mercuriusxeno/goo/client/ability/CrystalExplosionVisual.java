@@ -24,6 +24,10 @@ import java.util.List;
  * floating splinters in their place. Alpha blended. The vertex color
  * carries progress in red and how far the shell has shattered in blue,
  * since a core pipeline takes no per-draw uniforms.
+ * <p>
+ * Unplugged: no goo type's burnout or held ghost draws it since Shatter
+ * became a spray, and the code stays, held for infinity goo.
+ * prismatic-voronoi-code-stays-and-is-unplugged-from-shatter
  */
 public final class CrystalExplosionVisual implements BurnoutVisual, HeldGhostVisual {
 

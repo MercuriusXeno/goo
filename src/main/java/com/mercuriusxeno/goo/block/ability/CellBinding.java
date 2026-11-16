@@ -12,11 +12,12 @@ import net.minecraft.resources.ResourceKey;
  * a whole block of it and whose program names what the cell's surface does,
  * that surface, and whether the goo lies on a lava source's surface as well
  * as on a sturdy top. Weird's slime, Kinetic's slick, Blaze's molten,
- * Deep's host and Hex's leech are bound so far, and another goo type ships
- * its world goo as another binding.
+ * Crystal's shatter, Deep's host and Hex's leech are bound so far, and
+ * another goo type ships its world goo as another binding.
  * slime-and-slick-are-one-volume-cell-tech
  * each-goo-type-ships-a-world-goo-on-the-volume-cell
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+ * shatter-is-splattered-goo-and-shards-form-over-the-splatters
  * host-is-a-sculky-slime-that-sculk-spreads-eagerly-through
  * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
  *
@@ -34,6 +35,8 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
     public static final Identifier SLICK_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "kinetic_slick");
     /** The ability laying Blaze's molten goo, Molten, whose cost prices a whole block of it. */
     public static final Identifier MOLTEN_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "blaze_molten");
+    /** The ability laying Crystal's shatter goo, Shatter, whose cost prices a whole block of it. */
+    public static final Identifier SHATTER_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_shatter");
 
     /** The ability laying Deep's sculky slime, Host, whose cost prices a whole block of it. */
     public static final Identifier HOST_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "deep_host");
@@ -46,6 +49,9 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
     public static final CellBinding SLICK = new CellBinding(GooTypes.KINETIC, SLICK_ABILITY, CellSurface.RAMP, false);
     /** Blaze's molten goo: Molten lays it, it stands as ordinary ground, and it pools on lava. */
     public static final CellBinding MOLTEN = new CellBinding(GooTypes.BLAZE, MOLTEN_ABILITY, CellSurface.POOL, true);
+    /** Crystal's shatter goo: Shatter lays it, and glass shards hang over it. */
+    public static final CellBinding SHATTER = new CellBinding(GooTypes.CRYSTAL, SHATTER_ABILITY, CellSurface.SHARDS,
+            false);
     /** Deep's sculky slime: Host lays it, and it stands as ordinary ground. */
     public static final CellBinding HOST = new CellBinding(GooTypes.DEEP, HOST_ABILITY, CellSurface.POOL, false);
     /** Hex's goo: Leech lays it, and it slows what it catches. */

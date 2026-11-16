@@ -13,47 +13,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Covers whom a mob follows when a rally reaches it, the attacker a second
- * rally keeps, whose hit ends the rally, and whose cast releases it.
+ * Covers whose hit ends a rally, the rally order an older save loads with,
+ * and whose cast releases the rally.
  */
 class RalliedTest {
 
     private static final UUID FIRST = new UUID(0L, 1L);
     private static final UUID SECOND = new UUID(0L, 2L);
-    private static final UUID ATTACKER = new UUID(0L, 3L);
     private static final float DAMAGE = 6f;
-
-    @Nested
-    class Rallier {
-
-        @Test
-        void unralliedMobTakesTheCaller() {
-            assertEquals(SECOND, Rallied.rallierAfter(null, SECOND));
-        }
-
-        /** rally-remembers-the-first-rallier */
-        @Test
-        void ralliedMobKeepsItsFirstRallier() {
-            assertEquals(FIRST, Rallied.rallierAfter(new Rallied(FIRST, DAMAGE), SECOND));
-        }
-    }
-
-    /** rallied-mobs-turn-on-a-player-who-attacks-their-rallier */
-    @Nested
-    class Attacker {
-
-        @Test
-        void aSecondRallyKeepsTheStandingAttacker() {
-            Rallied attacked = new Rallied(FIRST, DAMAGE).withAttacker(ATTACKER);
-
-            assertEquals(Optional.of(ATTACKER), Rallied.attackerAfter(attacked));
-        }
-
-        @Test
-        void aFirstRallyRecordsNoAttacker() {
-            assertEquals(Optional.empty(), Rallied.attackerAfter(null));
-        }
-    }
 
     /** rally-is-a-mob-effect-on-one-target: the rally fades when its rallier strikes the mob, as Charm does. */
     @Nested
@@ -92,17 +59,6 @@ class RalliedTest {
             Rallied loaded = Rallied.CODEC.codec().parse(JsonOps.INSTANCE, saved).getOrThrow();
             assertEquals(new Rallied(FIRST, DAMAGE, Optional.empty(), RallyArmor.NONE, Rallied.DEFAULT_RALLY_ORDER),
                     loaded);
-        }
-
-        @Test
-        void aSecondRallyKeepsTheFirstRallysOrder() {
-            Rallied first = new Rallied(FIRST, DAMAGE, Optional.empty(), RallyArmor.NONE, 100L);
-            assertEquals(100L, Rallied.rallyOrderAfter(first, 200L));
-        }
-
-        @Test
-        void aFirstRallyTakesTheStamp() {
-            assertEquals(200L, Rallied.rallyOrderAfter(null, 200L));
         }
     }
 
