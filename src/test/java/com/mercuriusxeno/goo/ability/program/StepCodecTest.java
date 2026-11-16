@@ -79,7 +79,7 @@ class StepCodecTest {
             Map.entry("shatter", new ShatterStep(List.of(EntityFilter.LIVING), Expr.literal(1), List.of(),
                     Expr.literal(0.02))),
             Map.entry("host", new HostStep(3, 8)),
-            Map.entry("leech_goo", new LeechGooStep(0.4, 0.1)),
+            Map.entry("leech_goo", new LeechGooStep(0.4, 0.3f, 0.1)),
             Map.entry("entities", new EntitiesStep(SelectionShape.SPHERE, Expr.literal(2.5),
                     List.of(EntityFilter.LIVING, EntityFilter.NOT_FIRE_IMMUNE),
                     List.of(LeafSteps.IGNITE.step(Expr.literal(5))))),

@@ -17,22 +17,27 @@ import java.util.stream.Stream;
  * strikes, one layer for each drip, through the volume cell's one landing, as
  * Goop lays its slime and Host its sculky slime. The step names the share of
  * its speed a thing caught in Leech goo keeps, as soul sand's speed factor
- * reads, and the chance a strike that drains life from a thing in the goo
- * takes a layer from the cell under it:
- * {@code leech_goo speed_factor=0.4 deplete_chance=0.1}.
+ * reads, the share of a strike's damage on a thing in the goo that drains
+ * to the striker, and the chance a strike that drains life takes a layer
+ * from the cell under its victim:
+ * {@code leech_goo speed_factor=0.4 drain_fraction=0.3 deplete_chance=0.1}.
  * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
  * leech-goo-has-a-chance-to-deplete-when-the-spirits-damage
+ * damage-dealt-to-a-mob-in-leech-goo-becomes-drained-life-for-its-source
  * each-goo-type-ships-a-world-goo-on-the-volume-cell
  * drip-creates-a-volume-cell-immediately
  * drip-on-a-standing-cell-increases-it
  *
  * @param speedFactor   the share of its horizontal speed a thing caught in Leech goo keeps
+ * @param drainFraction the share of a strike's damage on a thing in the goo that heals the striker
  * @param depleteChance the chance a drained strike takes a layer from the cell under its victim
  */
-public record LeechGooStep(double speedFactor, double depleteChance) implements TakesNoEntity, DripLanding {
+public record LeechGooStep(double speedFactor, float drainFraction, double depleteChance)
+        implements TakesNoEntity, DripLanding {
 
     private static final String NAME = "leech_goo";
     private static final String FIELD_SPEED_FACTOR = "speed_factor";
+    private static final String FIELD_DRAIN_FRACTION = "drain_fraction";
     private static final String FIELD_DEPLETE_CHANCE = "deplete_chance";
     /** The least share of its speed a caught thing keeps, so the goo slows and never pins. */
     private static final double LEAST_SPEED_FACTOR = 0.01;
@@ -43,6 +48,7 @@ public record LeechGooStep(double speedFactor, double depleteChance) implements 
     public static final MapCodec<LeechGooStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             Codec.doubleRange(LEAST_SPEED_FACTOR, 1.0).fieldOf(FIELD_SPEED_FACTOR)
                     .forGetter(LeechGooStep::speedFactor),
+            Codec.floatRange(0f, 1f).fieldOf(FIELD_DRAIN_FRACTION).forGetter(LeechGooStep::drainFraction),
             Codec.doubleRange(0.0, 1.0).fieldOf(FIELD_DEPLETE_CHANCE).forGetter(LeechGooStep::depleteChance)
     ).apply(inst, LeechGooStep::new));
 
