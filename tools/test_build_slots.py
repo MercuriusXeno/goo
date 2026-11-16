@@ -18,7 +18,8 @@ WAIT_SECONDS = 60
 
 def slot_environment(store=None):
     """The caller's environment with the slot settings replaced, so no test reaches the real queue."""
-    env = {k: v for k, v in os.environ.items() if k not in ("BUILD_SLOT_STORE", "BUILD_SLOT_COUNT")}
+    env = {k: v for k, v in os.environ.items()
+           if k not in ("BUILD_SLOT_STORE", "BUILD_SLOT_COUNT", "BUILD_SLOT_HOLDER")}
     if store is not None:
         env["BUILD_SLOT_STORE"] = str(store)
     return env
@@ -48,8 +49,8 @@ class RunningReserve:
             self.closed = True
             self.arrived.notify_all()
 
-    def wait_for_line(self, pattern):
-        deadline = time.monotonic() + WAIT_SECONDS
+    def wait_for_line(self, pattern, seconds=WAIT_SECONDS):
+        deadline = time.monotonic() + seconds
         with self.arrived:
             while True:
                 if any(re.search(pattern, line) for line in self.lines):
