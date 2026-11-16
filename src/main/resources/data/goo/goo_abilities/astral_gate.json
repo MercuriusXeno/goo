@@ -8,7 +8,7 @@
   "cost_formula": "1000",
   "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "astral_gate", "fixation": 60, "cost": 1000 }
+    { "type": "astral_gate", "fixation": 100, "cost": 1000 }
   ],
   "tags": ["self"],
   "pose": "held_out"

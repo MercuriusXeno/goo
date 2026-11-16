@@ -218,5 +218,15 @@
         "stream": false
       }
     ]
+  },
+  "effects.gate_tone": {
+    "category": "players",
+    "subtitle": "subtitles.goo.gate_tone",
+    "sounds": [
+      {
+        "name": "goo:effects/gate_tone",
+        "stream": false
+      }
+    ]
   }
 }

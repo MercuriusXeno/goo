@@ -3,12 +3,16 @@ package com.mercuriusxeno.goo.ability.gate;
 import com.mercuriusxeno.goo.ability.zone.VoidPockets;
 import com.mercuriusxeno.goo.lunar.Lunar;
 import com.mercuriusxeno.goo.registry.GooAttachments;
+import com.mercuriusxeno.goo.registry.GooSounds;
 import net.minecraft.core.SectionPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.attribute.EnvironmentAttributes;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec3;
@@ -17,10 +21,11 @@ import java.util.Optional;
 
 /**
  * Astral's gate on the server. Cast looking at the moon in the overworld, or at the blue overworld star in lunar,
- * it fixes the caster's gaze and holds them still where they stand while the moon or the star swells to fill their view; when the fixation
- * runs out the moon carries them to lunar over the column they stood on, keeping where they left from, and the star
- * carries them back to exactly that place and facing. Cast looking at neither, it refuses with a tell. The gate
- * places nothing.
+ * it fixes the caster's gaze, sends them its rising tone, and holds them still where they stand while the moon or
+ * the star swells to fill their view; when the fixation runs out the moon carries them to lunar over the column they
+ * stood on, keeping where they left from, and the star carries them back to exactly that place and facing, each
+ * leaving the arrival mark their client's white clears on. Cast looking at neither, it refuses with a tell. The
+ * gate places nothing.
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
  */
@@ -30,6 +35,8 @@ public final class AstralGate {
     static final String TELL_REFUSED = "goo.ability.astral.gate.refused";
     /** How far a held caster may drift from where they cast before the server sets them back, in blocks. */
     private static final double DRIFT = 1e-3;
+    private static final float TONE_VOLUME = 1F;
+    private static final float TONE_PITCH = 1F;
 
     private AstralGate() {
     }
@@ -53,7 +60,19 @@ public final class AstralGate {
         }
         caster.setData(GooAttachments.GATE_FIXATION, new GateFixation(sky.get(),
                 GateSight.directionOf(sky.get(), moonAngle), caster.position(), caster.level().getGameTime(), duration));
+        sendTone(caster);
         return true;
+    }
+
+    /**
+     * Sends the gate's rising tone to the caster alone, where they stand, to rise over the fixation and peak as the
+     * white floods their view.
+     *
+     * @param caster the caster
+     */
+    private static void sendTone(ServerPlayer caster) {
+        caster.connection.send(new ClientboundSoundPacket(GooSounds.GATE_TONE, SoundSource.PLAYERS, caster.getX(),
+                caster.getY(), caster.getZ(), TONE_VOLUME, TONE_PITCH, caster.getRandom().nextLong()));
     }
 
     /**
@@ -95,8 +114,9 @@ public final class AstralGate {
                 continue;
             }
             if (fixation.ranOut(caster.level().getGameTime())) {
-                // Removed, not set to none, so the dimension change ahead carries no synced fixation.
+                // Removed, not set to none, so the dimension change ahead carries no synced fixation or mark.
                 caster.removeData(GooAttachments.GATE_FIXATION);
+                caster.removeData(GooAttachments.GATE_ARRIVAL);
                 carry(caster, fixation.sky());
             } else {
                 hold(caster, fixation.anchor());
@@ -112,10 +132,15 @@ public final class AstralGate {
     }
 
     private static void carry(ServerPlayer caster, GateSight.Sky sky) {
+        Level from = caster.level();
         if (sky == GateSight.Sky.MOON) {
             toLunar(caster);
         } else {
             toHome(caster);
+        }
+        if (caster.level() != from) {
+            // The caster's client holds its white over the crossing until this mark reaches it.
+            caster.setData(GooAttachments.GATE_ARRIVAL, new GateArrival(caster.level().getGameTime()));
         }
     }
 

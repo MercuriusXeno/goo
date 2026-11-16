@@ -1,11 +1,13 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.gate.GateFixation;
 import net.minecraft.util.Mth;
 
 /**
  * The gate trip's curves against the fixation's progress, zero as the gate takes hold and one as it carries the
  * caster: the sky dims to the star void first, the land drops into darkness behind it, and the moon swells from
- * vanilla's size, slowly and then rushing in, until it covers the whole view.
+ * vanilla's size, slowly and then rushing in, until it covers the whole view; white floods the view as it does,
+ * stands full over the crossing until the caster's client learns they arrived, and then clears.
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  */
 final class GateTrip {
@@ -38,8 +40,24 @@ final class GateTrip {
     private static final float LAND_DARK_END = 0.6F;
     /** The share of the fixation from which the moon swells, once the sky is dimming. */
     private static final float SWELL_START = 0.25F;
+    /** The share of the fixation from which white floods the view, as the moon nears covering it. */
+    private static final float WHITE_FLOOD_START = 0.85F;
+    /** The ticks the white takes to clear once the caster stands at the far end. */
+    static final float WHITE_FADE_TICKS = 30F;
 
     private GateTrip() {
+    }
+
+    /**
+     * How far a fixation has run at a frame, between its ticks.
+     *
+     * @param fixation the fixation
+     * @param gameTime the client's game time
+     * @param partial  the frame's partial tick
+     * @return the share of its ticks run, zero to one
+     */
+    static float progress(GateFixation fixation, long gameTime, float partial) {
+        return Mth.clamp((gameTime - fixation.startedAt() + partial) / fixation.duration(), 0F, 1F);
     }
 
     /**
@@ -73,6 +91,32 @@ final class GateTrip {
         float swell = Mth.clamp((progress - SWELL_START) / (1F - SWELL_START), 0F, 1F);
         return RESTING_MOON_HALF_TANGENT
                 * Math.pow(SWOLLEN_MOON_HALF_TANGENT / RESTING_MOON_HALF_TANGENT, swell * swell);
+    }
+
+    /**
+     * How far white has flooded the view over the fixation: clear until the moon has nearly covered it, then
+     * rising to stand full at the tick the gate carries the caster.
+     *
+     * @param progress the share of the fixation run, zero to one
+     * @return none to full
+     */
+    static float whiteBeforeCarry(float progress) {
+        return eased(progress, WHITE_FLOOD_START, 1F);
+    }
+
+    /**
+     * How white the view stands once the gate has carried the caster: full while the client awaits the arrival
+     * mark, so the dimension change shows no cut, then clearing over a short fade once the mark has landed.
+     *
+     * @param arrived           whether the arrival mark has reached the client
+     * @param ticksSinceArrival the ticks since it did
+     * @return full to none
+     */
+    static float whiteAfterCarry(boolean arrived, float ticksSinceArrival) {
+        if (!arrived) {
+            return 1F;
+        }
+        return 1F - eased(ticksSinceArrival, 0F, WHITE_FADE_TICKS);
     }
 
     /**
