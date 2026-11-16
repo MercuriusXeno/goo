@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -45,6 +46,16 @@ public final class GoopArcTests {
     private static final String GOOP_WOBBLES_A_FAR_MOB = "goop_wobbles_a_mob_its_drip_strikes_past_eight_blocks";
     private static final String DRIP_STANDS_A_CELL = "goop_drip_stands_a_one_layer_cell_in_the_tick_it_strikes";
     private static final String DRIPS_ADD_A_LAYER_EACH = "goop_drips_add_a_layer_each_up_to_fifteen";
+    private static final String GOOP_COATS_THE_AIMED_TOP = "goop_coats_the_top_of_the_block_aimed_at";
+    /** How far ahead of the streamer the aimed floor block stands, in blocks. */
+    private static final int AIMED_AHEAD = 4;
+    /** The first-person glove hand off the eye of a streamer facing east: ahead, below and to the right, south. */
+    private static final double HAND_AHEAD_OF_THE_EYE = 0.6;
+    private static final double HAND_BELOW_THE_EYE = -0.35;
+    private static final double HAND_RIGHT_OF_THE_EYE = 0.4;
+    private static final double HALF_A_BLOCK = 0.5;
+    private static final String AIMED_NOT_CENTERED = "The coat's layer-weighted center should stand over the aimed"
+            + " block's cell %s, stands at east %.2f south %.2f over the coat %s";
     /** The cell the landed drips strike, walled in stone on a stone floor so nothing pours. */
     private static final BlockPos DRIPPED_CELL = new BlockPos(4, 1, 4);
     /** The layers a whole block of slime holds. */
@@ -63,8 +74,8 @@ public final class GoopArcTests {
     private static final double OLD_REACH = 8;
     private static final float FACING_EAST = -90f;
     private static final float LEVEL = 0f;
-    /** Pitched well down, so the cone's drips clear the perch's edge and fall to the floor east of it. */
-    private static final float DOWN_OFF_THE_PERCH = 60f;
+    /** How far east of the perch its streamer looks down at the floor, so the drips clear the perch's edge. */
+    private static final int PERCH_AIM_EAST = 6;
     /** Where the level shot's streamer stands in the light bay, at its west wall, on the floor's first stone. */
     private static final BlockPos LEVEL_STREAMER_POS = new BlockPos(0, 1, 8);
     /** The light bay is sixteen blocks across and holds no floor of its own, so the floor runs to its east wall. */
@@ -106,6 +117,7 @@ public final class GoopArcTests {
         GooTestFunctions.registerTest(registrar, GOOP_WOBBLES_A_FAR_MOB, GoopArcTests::goopWobblesAFarMobItsDripStrikes);
         GooTestFunctions.registerTest(registrar, DRIP_STANDS_A_CELL, GoopArcTests::goopDripStandsAOneLayerCell);
         GooTestFunctions.registerTest(registrar, DRIPS_ADD_A_LAYER_EACH, GoopArcTests::goopDripsAddALayerEach);
+        GooTestFunctions.registerTest(registrar, GOOP_COATS_THE_AIMED_TOP, GoopArcTests::goopCoatsTheTopOfTheBlockAimedAt);
     }
 
     /**
@@ -168,10 +180,12 @@ public final class GoopArcTests {
     }
 
     /**
-     * A streamer standing on a flat stone floor holds Goop level, then lets
-     * go: once the drips have fallen a slime coat stands in a floor cell 7 to
-     * 9 blocks ahead along the look.
+     * A streamer standing on a flat stone floor holds Goop on the floor cell
+     * eight blocks ahead, then lets go: once the drips have fallen a slime
+     * coat stands in a floor cell 7 to 9 blocks ahead along the look. A look
+     * held level meets the bay's east wall, which the drips would reach.
      * goop-and-slick-throw-keeps-todays-level-reach
+     * diagnose-and-correct-the-spray-landing-off-the-aim
      *
      * @param helper the gametest helper
      */
@@ -179,6 +193,7 @@ public final class GoopArcTests {
         BlockPos floor = LEVEL_STREAMER_POS.below();
         layFloor(helper, floor.getY(), floor.getZ());
         ServerPlayer streamer = goopStreamerAt(helper, LEVEL_STREAMER_POS, LEVEL);
+        DripAim.at(streamer, Vec3.upFromBottomCenterOf(helper.absolutePos(floor.east((int) OLD_REACH)), 1));
         int hold = SPRAY_HOLD_TICKS;
         holdGoopFor(helper, streamer, hold);
         helper.runAfterDelay(hold + FALL_TICKS, () -> {
@@ -190,6 +205,52 @@ public final class GoopArcTests {
             helper.assertTrue(ahead, String.format(NO_COAT_AHEAD, coated));
             helper.succeed();
         });
+    }
+
+    /**
+     * A streamer standing on a flat stone floor looks at the top of the floor
+     * block four blocks ahead and holds Goop from a glove hand ahead of, below
+     * and right of the eye: once the drips have fallen the coat's center,
+     * each cell weighed by its layers, stands over the aimed block.
+     * diagnose-and-correct-the-spray-landing-off-the-aim
+     *
+     * @param helper the gametest helper
+     */
+    public static void goopCoatsTheTopOfTheBlockAimedAt(GameTestHelper helper) {
+        BlockPos floor = LEVEL_STREAMER_POS.below();
+        layFloor(helper, floor.getY(), floor.getZ());
+        BlockPos aimed = floor.east(AIMED_AHEAD);
+        ServerPlayer streamer = goopStreamerAt(helper, LEVEL_STREAMER_POS, LEVEL);
+        streamer.lookAt(EntityAnchorArgument.Anchor.EYES, Vec3.upFromBottomCenterOf(helper.absolutePos(aimed), 1));
+        Vec3 hand = streamer.getEyePosition().add(HAND_AHEAD_OF_THE_EYE, HAND_BELOW_THE_EYE, HAND_RIGHT_OF_THE_EYE);
+        holdGoopFrom(helper, streamer, hand, SPRAY_HOLD_TICKS);
+        helper.runAfterDelay(SPRAY_HOLD_TICKS + FALL_TICKS, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
+            BlockPos over = aimed.above();
+            double east = 0;
+            double south = 0;
+            int layers = 0;
+            List<String> coat = new ArrayList<>();
+            for (BlockPos cell : coatedOver(helper, floor.getY(), floor.getZ())) {
+                int held = layersIn(helper, cell);
+                east += (cell.getX() + HALF_A_BLOCK) * held;
+                south += (cell.getZ() + HALF_A_BLOCK) * held;
+                layers += held;
+                coat.add(cell.toShortString() + "=" + held);
+            }
+            double centerEast = layers == 0 ? Double.NaN : east / layers;
+            double centerSouth = layers == 0 ? Double.NaN : south / layers;
+            boolean overTheAimed = layersIn(helper, over) > 0 && Math.floor(centerEast) == over.getX()
+                    && Math.floor(centerSouth) == over.getZ();
+            helper.assertTrue(overTheAimed, String.format(AIMED_NOT_CENTERED, over.toShortString(), centerEast,
+                    centerSouth, coat));
+            helper.succeed();
+        });
+    }
+
+    private static int layersIn(GameTestHelper helper, BlockPos cell) {
+        BlockState state = helper.getBlockState(cell);
+        return state.is(GooBlocks.SLIME_COAT.get()) ? state.getValue(VolumeCellBlock.LAYERS) : 0;
     }
 
     /**
@@ -251,7 +312,7 @@ public final class GoopArcTests {
         Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE,
                 new BlockPos(LEVEL_STREAMER_POS.getX() + ZOMBIE_EAST, PERCHED_FLOOR_Y + 1, LEVEL_STREAMER_POS.getZ()));
         ServerPlayer streamer = perchedStreamer(helper, LOW_PERCH);
-        DripAim.at(streamer, zombie.getBoundingBox().getCenter(), goop(helper).delivery().throwSpeed());
+        DripAim.at(streamer, zombie.getBoundingBox().getCenter());
         double off = streamer.getEyePosition().distanceTo(zombie.getBoundingBox().getCenter());
         helper.assertTrue(off > OLD_REACH, String.format(NOT_FAR, off));
         holdGoopFor(helper, streamer, WOBBLE_HOLD_TICKS);
@@ -301,7 +362,8 @@ public final class GoopArcTests {
 
     /**
      * Stands a Goop streamer on a stone perch at the floor's west edge, a
-     * height over the perched floor's top, aimed down and east off the perch.
+     * height over the perched floor's top, looking down and east off the
+     * perch at the floor's middle.
      *
      * @param helper the gametest helper
      * @param height how far the perch's top stands over the floor's top
@@ -311,7 +373,11 @@ public final class GoopArcTests {
         BlockPos stand = new BlockPos(LEVEL_STREAMER_POS.getX(), PERCHED_FLOOR_Y + 1 + height,
                 LEVEL_STREAMER_POS.getZ());
         helper.setBlock(stand.below(), Blocks.STONE);
-        return goopStreamerAt(helper, stand, DOWN_OFF_THE_PERCH);
+        ServerPlayer streamer = goopStreamerAt(helper, stand, LEVEL);
+        BlockPos below = new BlockPos(LEVEL_STREAMER_POS.getX() + PERCH_AIM_EAST, PERCHED_FLOOR_Y,
+                LEVEL_STREAMER_POS.getZ());
+        DripAim.at(streamer, Vec3.upFromBottomCenterOf(helper.absolutePos(below), 1));
+        return streamer;
     }
 
     /**
@@ -340,8 +406,20 @@ public final class GoopArcTests {
      * @param ticks    how many ticks the hold lasts
      */
     private static void holdGoopFor(GameTestHelper helper, ServerPlayer streamer, int ticks) {
+        holdGoopFrom(helper, streamer, streamer.getEyePosition(), ticks);
+    }
+
+    /**
+     * Streams Goop every tick of a hold from the first tick, its cone opening from a glove hand.
+     *
+     * @param helper   the gametest helper
+     * @param streamer the streaming player
+     * @param hand     the glove hand the client sends
+     * @param ticks    how many ticks the hold lasts
+     */
+    private static void holdGoopFrom(GameTestHelper helper, ServerPlayer streamer, Vec3 hand, int ticks) {
         Vec3 eye = streamer.getEyePosition();
-        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.WEIRD), GOOP.toString(), eye, eye);
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.WEIRD), GOOP.toString(), hand, eye);
         for (int held = 1; held <= ticks; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(streamer, tick));
         }
