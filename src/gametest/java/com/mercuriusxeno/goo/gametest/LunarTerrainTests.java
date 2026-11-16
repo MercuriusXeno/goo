@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.lunar.CraterField;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -18,11 +19,13 @@ import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * Gametests for goo:lunar's terrain: it generates from its own noise settings, and a column reads regolith at the
  * surface over anorthosite or basalt, molten iron over the iron core at depth, and bedrock at the floor; and its
- * ground holds meteoric iron veined through the anorthosite.
+ * ground holds meteoric iron veined through the anorthosite, and impact glass lines its crater floors under the
+ * regolith.
  * decision lunar-generates-from-its-own-noise-and-surface-rules
  * decision lunar-matter-is-anorthosite-basalt-regolith-and-an-iron-core
  * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
@@ -31,6 +34,7 @@ import java.util.function.Consumer;
 public final class LunarTerrainTests {
     private static final String LUNAR_COLUMN_READS_ITS_STRATA = "lunar_column_reads_its_strata";
     private static final String LUNAR_GROUND_HOLDS_METEORIC_IRON = "lunar_ground_holds_meteoric_iron";
+    private static final String LUNAR_CRATER_FLOORS_READ_IMPACT_GLASS = "lunar_crater_floors_read_impact_glass";
 
     private static final ResourceKey<Level> LUNAR = ResourceKey.create(Registries.DIMENSION,
             Identifier.fromNamespaceAndPath(Goo.MODID, "lunar"));
@@ -50,6 +54,16 @@ public final class LunarTerrainTests {
     private static final String STRATUM = "%s should read %s at y %d, reads %s";
     private static final String METEORIC_IRON_IN_ANORTHOSITE =
             "The chunks around %s should hold meteoric iron touching anorthosite";
+    private static final String NO_CRATER_CENTRE = "No column within %d blocks of the origin sits at a crater's centre";
+    private static final String NO_OPEN_GROUND = "No column within %d blocks of the origin lies outside every crater";
+    private static final String CENTRE_READS_GLASS = "The crater centre column %s should read impact glass under its "
+            + "regolith at y %d, reads %s";
+    private static final String OPEN_GROUND_READS_NO_GLASS = "The open ground column %s should read no impact glass, "
+            + "reads it at y %d";
+    /** How far from the origin a search for a crater's centre or open ground reaches, in blocks. */
+    private static final int SEARCH_REACH = 160;
+    /** A column within a tenth of a radius of a crater's centre stands at that centre. */
+    private static final double CENTRE_REACH = 0.1;
     /** The chunks one step around a test spot's own, which a vein search scans. */
     private static final int CHUNK_REACH = 1;
     private static final int CHUNK_SIDE = 16;
@@ -68,6 +82,8 @@ public final class LunarTerrainTests {
         GooTestFunctions.registerTest(registrar, LUNAR_COLUMN_READS_ITS_STRATA, LunarTerrainTests::lunarColumnReadsItsStrata);
         GooTestFunctions.registerTest(registrar, LUNAR_GROUND_HOLDS_METEORIC_IRON,
                 LunarTerrainTests::lunarGroundHoldsMeteoricIron);
+        GooTestFunctions.registerTest(registrar, LUNAR_CRATER_FLOORS_READ_IMPACT_GLASS,
+                LunarTerrainTests::lunarCraterFloorsReadImpactGlass);
     }
 
     /**
@@ -168,5 +184,56 @@ public final class LunarTerrainTests {
             }
         }
         return false;
+    }
+
+    /**
+     * A column at a crater's centre in goo:lunar reads impact glass under its regolith, and a column outside every
+     * crater reads none; both columns are found through the seeded CraterField the terrain sinks its craters from.
+     *
+     * @param helper the gametest helper
+     */
+    public static void lunarCraterFloorsReadImpactGlass(GameTestHelper helper) {
+        ServerLevel lunar = helper.getLevel().getServer().getLevel(LUNAR);
+        helper.assertTrue(lunar != null, LUNAR_REQUIRED);
+        CraterField craters = CraterField.seeded(lunar.getChunkSource().randomState().getOrCreateNoise(CraterField.NOISE));
+        BlockPos centre = findColumn(column -> craters.reachesBandAt(column.getX(), column.getZ(), 0.0, CENTRE_REACH));
+        helper.assertTrue(centre != null, String.format(NO_CRATER_CENTRE, SEARCH_REACH));
+        BlockPos openGround = findColumn(column -> craters.isOpenGroundAt(column.getX(), column.getZ()));
+        helper.assertTrue(openGround != null, String.format(NO_OPEN_GROUND, SEARCH_REACH));
+        assertCentreReadsImpactGlass(helper, lunar, centre);
+        assertOpenGroundReadsNoImpactGlass(helper, lunar, openGround);
+        helper.succeed();
+    }
+
+    private static BlockPos findColumn(Predicate<BlockPos> wanted) {
+        for (int x = -SEARCH_REACH; x <= SEARCH_REACH; x++) {
+            for (int z = -SEARCH_REACH; z <= SEARCH_REACH; z++) {
+                BlockPos column = new BlockPos(x, 0, z);
+                if (wanted.test(column)) {
+                    return column;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static void assertCentreReadsImpactGlass(GameTestHelper helper, ServerLevel lunar, BlockPos centre) {
+        lunar.getChunk(centre.getX() >> 4, centre.getZ() >> 4);
+        int y = lunar.getHeight(Heightmap.Types.WORLD_SURFACE, centre.getX(), centre.getZ()) - 1;
+        while (y > MOLTEN_IRON_TOP_Y && (lunar.getBlockState(centre.atY(y)).is(GooBlocks.REGOLITH.get())
+                || lunar.getBlockState(centre.atY(y)).is(GooBlocks.METEORIC_IRON.get()))) {
+            y--;
+        }
+        BlockState beneath = lunar.getBlockState(centre.atY(y));
+        helper.assertTrue(beneath.is(GooBlocks.IMPACT_GLASS.get()), String.format(CENTRE_READS_GLASS, centre, y, beneath));
+    }
+
+    private static void assertOpenGroundReadsNoImpactGlass(GameTestHelper helper, ServerLevel lunar, BlockPos column) {
+        lunar.getChunk(column.getX() >> 4, column.getZ() >> 4);
+        int surfaceY = lunar.getHeight(Heightmap.Types.WORLD_SURFACE, column.getX(), column.getZ()) - 1;
+        for (int y = surfaceY; y > MOLTEN_IRON_TOP_Y; y--) {
+            helper.assertFalse(lunar.getBlockState(column.atY(y)).is(GooBlocks.IMPACT_GLASS.get()),
+                    String.format(OPEN_GROUND_READS_NO_GLASS, column, y));
+        }
     }
 }
