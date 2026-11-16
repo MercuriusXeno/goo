@@ -95,7 +95,33 @@ public final class SlimeCoreQuads {
      * @param material the core's material
      * @return the side's quad
      */
-    private static BakedQuad faceOf(SlimeCoreBox box, Direction face, BakedQuad.MaterialInfo material) {
+    /**
+     * A shell's top cut into the bands a core's plan splits into, so each
+     * core top piece stands under a shell piece of its own extent and the
+     * translucent sort, farthest centre first, draws the core before the
+     * shell over it from any view above.
+     * slime-core-draws-translucent-at-the-shells-opacity
+     *
+     * @param top the shell's top, spanning its whole block
+     * @return the top's nine pieces, in its material
+     */
+    static List<BakedQuad> bandedTop(BakedQuad top) {
+        float height = top.position(0).y() * SlimeCoreBox.WHOLE;
+        int[] edges = SlimeCoreBox.BAND_EDGES;
+        List<BakedQuad> pieces = new ArrayList<>();
+        for (int x = 0; x + 1 < edges.length; x++) {
+            for (int z = 0; z + 1 < edges.length; z++) {
+                Vector3fc from = new Vector3f(edges[x], height, edges[z]).mul(PIXELS_PER_UNIT);
+                Vector3fc to = new Vector3f(edges[x + 1], height, edges[z + 1]).mul(PIXELS_PER_UNIT);
+                pieces.add(FaceBakery.bakeQuad(UNSHARED, from, to, FaceBakery.defaultFaceUV(from, to, Direction.UP),
+                        Quadrant.R0, top.materialInfo(), Direction.UP, BlockModelRotation.IDENTITY, null,
+                        ExtraFaceData.DEFAULT));
+            }
+        }
+        return pieces;
+    }
+
+    static BakedQuad faceOf(SlimeCoreBox box, Direction face, BakedQuad.MaterialInfo material) {
         Vector3fc from = new Vector3f(box.minX(), box.minY(), box.minZ()).mul(PIXELS_PER_UNIT);
         Vector3fc to = new Vector3f(box.maxX(), box.maxY(), box.maxZ()).mul(PIXELS_PER_UNIT);
         return FaceBakery.bakeQuad(UNSHARED, from, to, FaceBakery.defaultFaceUV(from, to, face), Quadrant.R0,
