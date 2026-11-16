@@ -17,6 +17,7 @@
     "InventoryPickupMergeMixin",
     "ItemEntityFleckMotionMixin",
     "LivingEntityHeldFallsMixin",
+    "LivingEntityLunarAirlessMixin",
     "LivingEntityPneumaBreathMixin",
     "LivingEntitySculkerSilenceMixin",
     "LivingEntitySlickMomentumMixin",

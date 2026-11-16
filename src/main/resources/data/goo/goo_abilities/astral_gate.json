@@ -1,0 +1,15 @@
+{
+  "gooType": "astral",
+  "displayName": "goo.ability.astral.gate",
+  "cost_mechanics": "goo.ability.astral.gate.cost_mechanics",
+  "badge": "instant",
+  "order": 30,
+  "cost": 0,
+  "cost_formula": "1000",
+  "delivery": { "kind": "self" },
+  "behaviors": [
+    { "type": "astral_gate", "fixation": 60, "cost": 1000 }
+  ],
+  "tags": ["self"],
+  "pose": "held_out"
+}
