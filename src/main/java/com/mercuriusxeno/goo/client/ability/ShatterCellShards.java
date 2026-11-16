@@ -8,12 +8,13 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * Where the glass shards over one Shatter cell stand: each tile draws two to
- * four shards from its seed, and spreads them evenly at random, each shard in
- * a square of a 3 by 3 grid over the tile no other of its shards takes, at a
- * random spot inside that square and a random height in a band over the goo,
- * whole above the surface within the tile's column, so a thicker cell lifts
- * its shards with its goo. A cell's shown share lifts each shard out of the
+ * Where the glass shards over one Shatter cell stand: each tile draws three
+ * to five shards from its seed, and spreads them evenly at random, each
+ * shard's center in a square of a 3 by 3 grid over the whole tile, edge to
+ * edge, no other of its shards takes, at a random spot inside that square; a
+ * shard near an edge may reach over it into the next block. Each rests whole
+ * just above the goo, at a random height in a thin band over it, so a thicker
+ * cell lifts its shards with its goo. A cell's shown share lifts each shard out of the
  * goo to its resting place, from wholly under the surface at none to at rest
  * at all of it, and fades it in from full transparency as it rises.
  * shatter-is-splattered-goo-and-shards-form-over-the-splatters
@@ -25,21 +26,23 @@ final class ShatterCellShards {
     /** The layers a whole block of goo holds, the cell's surface rising a fifteenth a layer. */
     static final int LAYERS_PER_BLOCK = 15;
     /** The fewest shards a tile draws. */
-    static final int FEWEST_SHARDS = 2;
+    static final int FEWEST_SHARDS = 3;
     /** The most shards a tile draws. */
-    static final int MOST_SHARDS = 4;
+    static final int MOST_SHARDS = 5;
     /** The squares along each side of the grid a tile's shards spread over. */
     static final int GRID = 3;
     /** How far a shard's reach stands off its long arm, so the pyramid's short arms and apex fit inside it. */
     private static final float REACH_SLACK = 1.05f;
-    /** The gap a shard keeps from the cell's surface and the column's sides, in blocks. */
-    private static final float CLEARANCE = 0.03f;
-    /** The height of the band over the surface the shards' resting centers spread through, in blocks. */
-    private static final float HANG_BAND = 0.4f;
+    /** The least gap a resting shard keeps over the goo's surface, in blocks. */
+    private static final float CLEARANCE = 0.02f;
+    /** The height of the thin band over that gap the shards' lowest points rest through, in blocks. */
+    private static final float HANG_BAND = 0.1f;
+    /** The most a resting shard's lowest point stands over the goo's surface, in blocks. */
+    static final float RESTING_GAP = CLEARANCE + HANG_BAND;
     /** The share of its square a shard's spot may stand anywhere in, keeping it off its neighbors' edges. */
     private static final float SQUARE_PLAY = 0.8f;
     private static final float HALF = 0.5f;
-    /** A column's two sides, each keeping a shard's reach and clearance clear. */
+    /** A spot runs both ways from its square's middle. */
     private static final int BOTH_SIDES = 2;
 
     private ShatterCellShards() {
@@ -117,18 +120,6 @@ final class ShatterCellShards {
     }
 
     /**
-     * The low edge of the span a shard's center may stand in across the
-     * tile, its reach and clearance in from the column's side, so the whole
-     * shard stays inside the column; the high edge mirrors it.
-     *
-     * @param reach the shard's reach, in blocks
-     * @return the span's low edge, in blocks from the column's side
-     */
-    static float spanLow(float reach) {
-        return reach + CLEARANCE;
-    }
-
-    /**
      * The shards over a cell at a shown share.
      *
      * @param cell   the cell's block position
@@ -146,9 +137,9 @@ final class ShatterCellShards {
             float underTheGoo = surface - reach;
             int square = layout.squares()[shard];
             Vector3f center = new Vector3f(
-                    cell.getX() + spotInSpan(square / GRID, layout.across()[shard], reach),
+                    cell.getX() + spotOnTheTile(square / GRID, layout.across()[shard]),
                     cell.getY() + underTheGoo + shown * (rest - underTheGoo),
-                    cell.getZ() + spotInSpan(square % GRID, layout.along()[shard], reach));
+                    cell.getZ() + spotOnTheTile(square % GRID, layout.along()[shard]));
             shards.add(new CellShard(shard, center, reach, shown));
         }
         return shards;
@@ -156,16 +147,13 @@ final class ShatterCellShards {
 
     /**
      * Where a shard's center stands along one side of the tile: in its
-     * square of the span its reach leaves it, at its spot inside the square.
+     * square of the grid over the whole tile, at its spot inside the square.
      *
      * @param square the square's index along that side
      * @param spot   the shard's spot inside the square, -1 to 1
-     * @param reach  the shard's reach, in blocks
-     * @return the center's offset from the column's side, in blocks
+     * @return the center's offset from the tile's side, in blocks
      */
-    private static float spotInSpan(int square, float spot, float reach) {
-        float low = spanLow(reach);
-        float squareWidth = (1f - BOTH_SIDES * low) / GRID;
-        return low + (square + HALF + spot * HALF * SQUARE_PLAY) * squareWidth;
+    private static float spotOnTheTile(int square, float spot) {
+        return (square + HALF + spot * HALF * SQUARE_PLAY) / GRID;
     }
 }
