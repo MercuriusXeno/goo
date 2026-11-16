@@ -32,13 +32,25 @@ import java.util.function.Consumer;
 /**
  * Gametests for lunar's landmarks, each generated at a spot in goo:lunar the way the place command generates a
  * structure, and each placed in goo:lunar by its structure set: the fallen meteorite in its scorched crater, and the
- * eldritch nest where the monstrosities gather.
+ * eldritch nest where the monstrosities gather, and the monolith standing over open ground.
  * decision lunar-holds-meteorites-eldritch-nests-monoliths-and-ruins
  */
 @RegistersGameTests
 public final class LunarLandmarkTests {
     private static final String METEORITE_SITS_IN_A_SCORCHED_CRATER = "meteorite_sits_in_a_scorched_crater";
     private static final String NEST_GATHERS_THE_ELDRITCH = "nest_gathers_the_eldritch";
+    private static final String MONOLITH_STANDS_OVER_THE_SURFACE = "monolith_stands_over_the_surface";
+    private static final ResourceKey<Structure> MONOLITH = ResourceKey.create(Registries.STRUCTURE,
+            Identifier.fromNamespaceAndPath(Goo.MODID, "monolith"));
+    private static final ResourceKey<StructureSet> MONOLITHS = ResourceKey.create(Registries.STRUCTURE_SET,
+            Identifier.fromNamespaceAndPath(Goo.MODID, "monoliths"));
+    private static final BlockPos MONOLITH_SPOT = new BlockPos(1200, 0, 1000);
+    /** The least the slab stands over the surface beside it, in blocks. */
+    private static final int LEAST_RISE = 12;
+    /** The surface is read this far from the slab's centre, clear of its footing. */
+    private static final int BESIDE = 6;
+    private static final String MONOLITH_RISES = "The monolith at %s should stand a slab %d blocks tall over the "
+            + "surface beside it at y %d, stands its top at y %d on a slab %d blocks tall";
     private static final ResourceKey<Structure> NEST = ResourceKey.create(Registries.STRUCTURE,
             Identifier.fromNamespaceAndPath(Goo.MODID, "eldritch_nest"));
     private static final ResourceKey<StructureSet> NESTS = ResourceKey.create(Registries.STRUCTURE_SET,
@@ -81,6 +93,8 @@ public final class LunarLandmarkTests {
         GooTestFunctions.registerTest(registrar, METEORITE_SITS_IN_A_SCORCHED_CRATER,
                 LunarLandmarkTests::meteoriteSitsInAScorchedCrater);
         GooTestFunctions.registerTest(registrar, NEST_GATHERS_THE_ELDRITCH, LunarLandmarkTests::nestGathersTheEldritch);
+        GooTestFunctions.registerTest(registrar, MONOLITH_STANDS_OVER_THE_SURFACE,
+                LunarLandmarkTests::monolithStandsOverTheSurface);
     }
 
     /**
@@ -142,6 +156,28 @@ public final class LunarLandmarkTests {
         int nestWeight = overrides == null ? 0 : monstrosityWeight(overrides.spawns());
         helper.assertTrue(nestWeight > biomeWeight, String.format(NEST_OUTSPAWNS, biomeWeight, nestWeight));
         assertSetPlacesInLunar(helper, lunar, NESTS, NEST);
+        helper.succeed();
+    }
+
+    /**
+     * The monolith generated at a spot in goo:lunar stands one slab of at least 12 blocks down its centre column, its
+     * top at least 12 blocks over the surface beside it; and its structure set places it in goo:lunar's biome.
+     *
+     * @param helper the gametest helper
+     */
+    public static void monolithStandsOverTheSurface(GameTestHelper helper) {
+        ServerLevel lunar = place(helper, MONOLITH, MONOLITH_SPOT);
+        ChunkPos chunk = ChunkPos.containing(MONOLITH_SPOT);
+        BlockPos column = new BlockPos(chunk.getMiddleBlockX(), 0, chunk.getMiddleBlockZ());
+        int top = lunar.getHeight(Heightmap.Types.WORLD_SURFACE, column.getX(), column.getZ()) - 1;
+        int beside = lunar.getHeight(Heightmap.Types.WORLD_SURFACE, column.getX() + BESIDE, column.getZ()) - 1;
+        int slab = 0;
+        while (lunar.getBlockState(column.atY(top - slab)).is(GooBlocks.IMPACT_GLASS.get())) {
+            slab++;
+        }
+        helper.assertTrue(slab >= LEAST_RISE && top - beside >= LEAST_RISE,
+                String.format(MONOLITH_RISES, column, LEAST_RISE, beside, top, slab));
+        assertSetPlacesInLunar(helper, lunar, MONOLITHS, MONOLITH);
         helper.succeed();
     }
 
