@@ -122,6 +122,14 @@ class LunarMatterTest {
             assertTrue(resourceJson("/assets/goo/textures/fluid/molten_iron.png.mcmeta").has("animation"));
         }
 
+        /** Flowing molten iron draws its own sprite, twice a still frame's width as lava's flow sprite is. */
+        @Test
+        void flowingMoltenIronDrawsItsOwnAnimatedSprite() throws IOException {
+            BufferedImage image = sprite("/assets/goo/textures/fluid/molten_iron_flow.png");
+            assertEquals(2 * SPRITE_SIZE, image.getWidth());
+            assertTrue(resourceJson("/assets/goo/textures/fluid/molten_iron_flow.png.mcmeta").has("animation"));
+        }
+
         @Test
         void moltenIronBucketDrawsTheMoltenIronFluid() throws IOException {
             JsonObject model = resourceJson("/assets/goo/items/molten_iron_bucket.json").getAsJsonObject("model");

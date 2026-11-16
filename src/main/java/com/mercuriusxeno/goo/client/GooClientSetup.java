@@ -141,8 +141,10 @@ public final class GooClientSetup {
      * SuppressWarnings annotation value for unchecked casts.
      */
     private static final String SUPPRESS_UNCHECKED = "unchecked";
-    /** Molten iron's animated sprite, still and flowing alike, as goo draws one sprite for both. */
+    /** Molten iron's still and flowing sprites, lava's animations run hotter. */
     private static final Identifier MOLTEN_IRON_SPRITE = Identifier.fromNamespaceAndPath(Goo.MODID, "fluid/molten_iron");
+    private static final Identifier MOLTEN_IRON_FLOW_SPRITE =
+            Identifier.fromNamespaceAndPath(Goo.MODID, "fluid/molten_iron_flow");
 
     static {
         ISidedProxy.INSTANCE[0] = new ClientProxy();
@@ -543,8 +545,9 @@ public final class GooClientSetup {
         GooFluidTintSource tint = new GooFluidTintSource();
         FluidModel.Unbaked model = new FluidModel.Unbaked(texture, texture, null, tint, new GooTypeFluidRenderer(tint));
         event.register(model, GooFluids.SOURCE, GooFluids.FLOWING);
-        Material moltenIron = new Material(MOLTEN_IRON_SPRITE, true);
-        event.register(new FluidModel.Unbaked(moltenIron, moltenIron, null, null),
+        // Opaque as lava draws, on its own still and flowing sprites.
+        event.register(new FluidModel.Unbaked(new Material(MOLTEN_IRON_SPRITE), new Material(MOLTEN_IRON_FLOW_SPRITE),
+                        null, null),
                 GooFluids.MOLTEN_IRON_SOURCE, GooFluids.MOLTEN_IRON_FLOWING);
     }
 
