@@ -109,7 +109,7 @@ public record HeaterStep(double radius, Expr damage, int every, int burnSeconds,
             List<FlameRays.Ray> rays = FlameRays.spray(tip, axis, cone, radius, level.getRandom(),
                     FlameRays.clipIn(level));
             for (Mob mob : FlameRays.crossed(rays, inReach, Mob::getBoundingBox)) {
-                FlamesStep.burn(level, mob, amount, burnSeconds);
+                FlamesStep.burn(level, mob, amount, burnSeconds, null);
             }
         }
         EntityVisuals.sendToWatchersOf(level, tip, new HeaterFlamePayload(prism, tip, axis));
