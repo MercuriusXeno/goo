@@ -214,17 +214,18 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
     }
 
     /**
-     * The render type the palm blob's core submits on: solid on the block atlas.
+     * The render type the palm blob's core submits on, ahead of its shell: the translucent goo type.
+     * slime-core-draws-translucent-at-the-shells-opacity
      *
-     * @return entitySolid on the block atlas
+     * @return entityTranslucent on the block atlas
      */
     static RenderType coreType() {
-        return GooSubmitter.solidOnBlockAtlas();
+        return GooSubmitter.renderType();
     }
 
     /**
-     * Draws the held goo in the palm as the charge blob, a pulsing opaque
-     * core inside a translucent tinted shell, both fullbright and pressed
+     * Draws the held goo in the palm as the charge blob, a pulsing
+     * translucent core inside a translucent tinted shell, both fullbright and pressed
      * flat, resting on the fingers with its back in the hand. A charge swells
      * both layers from that floor and back, so the blob grows up and out of
      * the palm. First person, another player's hand and the inventory slot
