@@ -249,20 +249,6 @@ public interface BlockBreakHost extends StepHost {
     }
 
     /**
-     * Tells the watching clients a block stepped from one state to another,
-     * as a transform does, for a step that set the block some other way; a
-     * cell the clients drew melting away stops drawing the melt.
-     * vacuumed-residuals-decay-through-mingle-noise-before-breaking
-     *
-     * @param pos  the block
-     * @param from the state it was
-     * @param to   the state it is now
-     */
-    default void sendTransform(BlockPos pos, BlockState from, BlockState to) {
-        new BlockTransformPayload(pos, Block.getId(from), Block.getId(to)).sendToTracking(level());
-    }
-
-    /**
      * Plays a slurp at a block's middle, heard by everyone near.
      * vacuum-sounds-a-suction-wind-and-rising-slurps
      *

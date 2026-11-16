@@ -232,7 +232,8 @@ public final class GooThrowHandler {
 
     /**
      * Whether the release's target refuses it: a face a step or a prism
-     * cannot take, or the thrower's own minion.
+     * cannot take, the thrower's own minion, or a mob a step refuses for
+     * the thrower.
      *
      * @param player  the throwing player
      * @param payload the throw payload data
@@ -241,7 +242,25 @@ public final class GooThrowHandler {
      */
     private static boolean refusesTarget(ServerPlayer player, GooThrowPayload payload, AbilityDefinition ability) {
         return refusedAtFace(player, payload, ability)
-                || aimsAnOwnMinion(player, payload, ability) || growsNoPrismThere(player.level(), payload, ability);
+                || aimsAnOwnMinion(player, payload, ability) || aimsAMobItsStepsRefuse(player, payload, ability)
+                || growsNoPrismThere(player.level(), payload, ability);
+    }
+
+    /**
+     * Whether a throw names a mob a step of its ability refuses for the
+     * thrower, such as Charm at a rallied mob or Rally at another player's
+     * rallied mob, which is refused whole, before anything is paid.
+     * refused-rally-or-charm-spends-no-goo
+     *
+     * @param player  the throwing player
+     * @param payload the throw payload data
+     * @param ability the thrown ability
+     * @return true when a step refuses the named mob for the thrower
+     */
+    private static boolean aimsAMobItsStepsRefuse(ServerPlayer player, GooThrowPayload payload,
+                                                  AbilityDefinition ability) {
+        Entity target = payload.targetEntityId() < 0 ? null : player.level().getEntity(payload.targetEntityId());
+        return target != null && Step.refusedByAny(ability.behaviors(), player, target);
     }
 
     /**

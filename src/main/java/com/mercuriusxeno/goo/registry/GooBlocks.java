@@ -213,6 +213,25 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
+     * Shatter: the volume cell bound to Crystal's shatter goo, the pale blue
+     * goo Shatter sprays onto a block's top, one to fifteen layers, ordinary
+     * ground underfoot with glass shards hanging over it, dropping the crystal
+     * goo its layers cost through VolumeCellBlock.getDrops, no loot table
+     * (decisions shatter-is-splattered-goo-and-shards-form-over-the-splatters,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VolumeCellBlock> CRYSTAL_SHATTER = BLOCKS.registerBlock(
+            "crystal_shatter", properties -> new VolumeCellBlock(properties, CellBinding.SHATTER),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.ICE)
+                    .friction(CellBinding.SHATTER.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
      * Host: the volume cell bound to Deep's sculky slime, the dark teal goo
      * Host sprays onto a block's top, one to fifteen layers, ordinary ground
      * underfoot that squelches as sculk does, dropping the deep goo its layers

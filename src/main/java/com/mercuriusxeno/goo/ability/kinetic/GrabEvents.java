@@ -179,6 +179,19 @@ public final class GrabEvents {
         item.hurtMarked = true;
     }
 
+    /**
+     * Turns an item's gravity off until a game time, as a hold suspends a
+     * held entity, the entity tick after that time turning it back on as it
+     * stood; a later call stretches the end.
+     * vacuum-pulls-items-to-pickup-and-drags-mobs
+     *
+     * @param item  the pulled item
+     * @param until the last game time its gravity stays off
+     */
+    public static void holdAloft(ItemEntity item, long until) {
+        suspend(item, until);
+    }
+
     private static void suspend(Entity held, long until) {
         if (held.hasData(GooAttachments.GRABBED)) {
             held.setData(GooAttachments.GRABBED, held.getData(GooAttachments.GRABBED).heldTo(until));
