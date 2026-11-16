@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.end.EndDestination;
 import com.mercuriusxeno.goo.ability.end.EndGatePassage;
+import com.mercuriusxeno.goo.ability.end.EndWayBack;
 import com.mercuriusxeno.goo.ability.gate.AstralGate;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.ability.zone.ConjuredDoors;
@@ -10,7 +11,6 @@ import com.mercuriusxeno.goo.ability.zone.ZoneRooms;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.HoldMarks;
 import com.mercuriusxeno.goo.network.KnifeRainSling;
-import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -298,7 +298,7 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
     @Override
     public Optional<EndDestination> endDestination() {
         return EndDestination.from(level.dimension(),
-                player.getData(GooAttachments.END_WAY_BACK).destination());
+                EndWayBack.heldBy(player).destination());
     }
 
     /** Conjures End's gate before the player, as Zone's door is (decision

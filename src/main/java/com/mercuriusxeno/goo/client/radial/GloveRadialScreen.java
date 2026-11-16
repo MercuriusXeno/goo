@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.radial;
 
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.end.EndAvailability;
+import com.mercuriusxeno.goo.ability.end.EndWayBack;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
 import com.mercuriusxeno.goo.client.ClientKnownItems;
 import com.mercuriusxeno.goo.client.ability.ClientRoomEdges;
@@ -89,7 +90,7 @@ public final class GloveRadialScreen extends Screen {
             return ability -> false;
         }
         ResourceKey<Level> standingIn = mc.level.dimension();
-        boolean holdsWayBack = mc.player.getData(GooAttachments.END_WAY_BACK).stands();
+        boolean holdsWayBack = EndWayBack.heldBy(mc.player).stands();
         return ability -> EndAvailability.graysOut(ability.behaviors(), standingIn, holdsWayBack);
     }
 

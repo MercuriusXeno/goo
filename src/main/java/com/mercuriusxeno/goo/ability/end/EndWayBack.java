@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.end;
 
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.netty.buffer.ByteBuf;
@@ -7,6 +8,7 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
+import net.neoforged.neoforge.attachment.IAttachmentHolder;
 import java.util.Optional;
 
 /**
@@ -42,6 +44,34 @@ public record EndWayBack(Optional<EndDestination> destination) {
      */
     public EndWayBack afterChangingDimension(ResourceKey<Level> from, ResourceKey<Level> to) {
         return from == Level.END && to != Level.END ? NONE : this;
+    }
+
+    /**
+     * The way back a player keeps, read without attaching one: a synced
+     * attachment a player holds goes out on each of their teleports whatever
+     * its sync predicate answers, which a connection lacking the channel, a
+     * gametest's mock player, refuses, so a player the gate never carried
+     * holds none.
+     *
+     * @param player the player
+     * @return their way back, none where they hold no attachment
+     */
+    public static EndWayBack heldBy(IAttachmentHolder player) {
+        return player.getExistingData(GooAttachments.END_WAY_BACK).orElse(NONE);
+    }
+
+    /**
+     * Keeps a way back on a player, removing the attachment where none stands.
+     *
+     * @param player  the player
+     * @param wayBack the way back they keep
+     */
+    public static void keepOn(IAttachmentHolder player, EndWayBack wayBack) {
+        if (wayBack.stands()) {
+            player.setData(GooAttachments.END_WAY_BACK, wayBack);
+        } else {
+            player.removeData(GooAttachments.END_WAY_BACK);
+        }
     }
 
     /**

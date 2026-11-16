@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.ability.end;
 
 import com.mercuriusxeno.goo.ability.zone.ConjuredDoors;
-import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -41,7 +40,7 @@ public final class EndGatePassage {
         if (destination.dimension() == Level.END) {
             EndPlatformFeature.createEndPlatform(there, BlockPos.containing(destination.feet()), true);
             // decision end-gate-in-the-end-is-free-and-returns-you-where-you-portalled-in
-            player.setData(GooAttachments.END_WAY_BACK, new EndWayBack(Optional.of(EndDestination.wayBackFrom(
+            EndWayBack.keepOn(player, new EndWayBack(Optional.of(EndDestination.wayBackFrom(
                     player.level().dimension(), player.position(), player.getYRot()))));
         }
         // decision door-carries-its-own-sound-through-the-change
