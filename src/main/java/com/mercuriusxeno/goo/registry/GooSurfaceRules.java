@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.registry;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.lunar.CraterBandCondition;
 import com.mercuriusxeno.goo.lunar.CraterRaysCondition;
+import com.mercuriusxeno.goo.lunar.SeaCavernCondition;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.levelgen.SurfaceRules;
@@ -33,6 +34,13 @@ public final class GooSurfaceRules {
      */
     public static final DeferredHolder<MapCodec<? extends SurfaceRules.ConditionSource>, MapCodec<CraterRaysCondition>>
             CRATER_RAYS = CONDITION_TYPES.register("crater_rays", () -> CraterRaysCondition.DATA_CODEC);
+
+    /**
+     * {@code goo:sea_cavern}, which lays lunar's molten iron sea and the iron core under it.
+     * decision lunar-underground-changes-by-depth-down-to-a-molten-iron-sea
+     */
+    public static final DeferredHolder<MapCodec<? extends SurfaceRules.ConditionSource>, MapCodec<SeaCavernCondition>>
+            SEA_CAVERN = CONDITION_TYPES.register("sea_cavern", () -> SeaCavernCondition.DATA_CODEC);
 
     private GooSurfaceRules() {
     }
