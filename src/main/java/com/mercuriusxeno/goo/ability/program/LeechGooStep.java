@@ -18,10 +18,10 @@ import java.util.stream.Stream;
  * its speed a thing caught in Leech goo keeps, as soul sand's speed factor
  * reads, the share of a strike's damage on a thing in the goo that drains
  * to the striker, the chance a strike that drains life takes a layer from
- * the cell under its victim, the chance a cell pops a soul each animate
- * tick, and the ticks between the hex wisps a living thing standing in the
- * goo sheds: {@code leech_goo speed_factor=0.5 drain_fraction=0.3
- * deplete_chance=0.1 soul_pop_chance=0.1 wisp_shed_ticks=10}.
+ * the cell under its victim, the chance a living thing standing in the goo
+ * pops a soul off its body each client tick, and the ticks between the hex
+ * wisps it sheds: {@code leech_goo speed_factor=0.5 drain_fraction=0.3
+ * deplete_chance=0.1 soul_pop_chance=0.01 wisp_shed_ticks=10}.
  * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
  * leech-goo-has-a-chance-to-deplete-when-the-spirits-damage
  * damage-dealt-to-a-mob-in-leech-goo-becomes-drained-life-for-its-source
@@ -34,7 +34,7 @@ import java.util.stream.Stream;
  * @param speedFactor   the share of its horizontal speed a thing caught in Leech goo keeps
  * @param drainFraction the share of a strike's damage on a thing in the goo that heals the striker
  * @param depleteChance the chance a drained strike takes a layer from the cell under its victim
- * @param soulPopChance the chance a Leech cell pops a soul each animate tick
+ * @param soulPopChance the chance a living thing standing in the goo pops a soul each client tick
  * @param wispShedTicks the ticks between the hex wisps a living thing standing in the goo sheds
  */
 public record LeechGooStep(double speedFactor, float drainFraction, double depleteChance, double soulPopChance,

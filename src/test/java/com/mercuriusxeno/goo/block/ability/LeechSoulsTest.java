@@ -2,18 +2,18 @@ package com.mercuriusxeno.goo.block.ability;
 
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.program.LeechGooStep;
-import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Covers the souls Leech goo pops: a cell pops one when the draw falls under
- * the rate hex_leech.json ships, and each rises from the goo's surface at
- * the height the cell's layers reach, inside the cell's column.
+ * Covers the souls that pop off mobs standing in Leech goo: a standing mob
+ * pops one when the draw falls under the rate hex_leech.json ships, a mob
+ * outside the goo pops none, and each soul rises from a point on the mob's
+ * body, inside its bounding box.
  * soul-particles-pop-from-leech-goo-now-and-then
  */
 class LeechSoulsTest {
@@ -25,38 +25,46 @@ class LeechSoulsTest {
     class Pops {
 
         @Test
-        void aDrawUnderTheRatePopsASoul() {
-            assertTrue(LeechSouls.pops(RATE / 2, RATE));
+        void aMobInTheGooPopsASoulOnADrawUnderTheRate() {
+            assertTrue(LeechSouls.pops(true, RATE / 2, RATE));
         }
 
         @Test
-        void aDrawOverTheRatePopsNone() {
-            assertFalse(LeechSouls.pops((1 + RATE) / 2, RATE));
+        void theSameMobPopsNoneOnADrawOverTheRate() {
+            assertFalse(LeechSouls.pops(true, (1 + RATE) / 2, RATE));
+        }
+
+        @Test
+        void aMobOutsideTheGooPopsNoneOnADrawUnderTheRate() {
+            assertFalse(LeechSouls.pops(false, RATE / 2, RATE));
         }
     }
 
     @Nested
-    class RisePoint {
+    class BodyPoint {
 
-        private static final BlockPos CELL = new BlockPos(4, 70, -3);
-        private static final double ACROSS_X = 0.25;
-        private static final double ACROSS_Z = 0.75;
+        /** A pig's box, short and wide, standing on a cell's top. */
+        private static final AABB SHORT_MOB = new AABB(4.05, 71.0, -3.45, 4.95, 71.9, -2.55);
+        /** A zombie's box, tall and narrow. */
+        private static final AABB TALL_MOB = new AABB(-8.3, 64.0, 12.2, -7.7, 65.95, 12.8);
+        private static final double LOWEST_DRAW = 0.0;
+        /** The highest draw a random source hands back, just under one. */
+        private static final double HIGHEST_DRAW = Math.nextDown(1.0);
 
         @Test
-        void aOneLayerCellRisesFromItsThinSurfaceInsideItsColumn() {
-            Vec3 rise = LeechSouls.risePoint(CELL, 1, ACROSS_X, ACROSS_Z);
-
-            assertEquals(new Vec3(CELL.getX() + ACROSS_X, CELL.getY() + 1.0 / VolumeCellBlock.MAX_LAYERS,
-                    CELL.getZ() + ACROSS_Z), rise);
+        void theLowestAndHighestDrawsFallInsideAShortMobsBox() {
+            assertInside(SHORT_MOB, LeechSouls.bodyPoint(SHORT_MOB, LOWEST_DRAW, LOWEST_DRAW, LOWEST_DRAW));
+            assertInside(SHORT_MOB, LeechSouls.bodyPoint(SHORT_MOB, HIGHEST_DRAW, HIGHEST_DRAW, HIGHEST_DRAW));
         }
 
         @Test
-        void aFullCellRisesFromItsTopHigherThanAOneLayerCell() {
-            Vec3 full = LeechSouls.risePoint(CELL, VolumeCellBlock.MAX_LAYERS, ACROSS_X, ACROSS_Z);
-            Vec3 thin = LeechSouls.risePoint(CELL, 1, ACROSS_X, ACROSS_Z);
+        void theLowestAndHighestDrawsFallInsideATallMobsBox() {
+            assertInside(TALL_MOB, LeechSouls.bodyPoint(TALL_MOB, LOWEST_DRAW, LOWEST_DRAW, LOWEST_DRAW));
+            assertInside(TALL_MOB, LeechSouls.bodyPoint(TALL_MOB, HIGHEST_DRAW, HIGHEST_DRAW, HIGHEST_DRAW));
+        }
 
-            assertEquals(new Vec3(CELL.getX() + ACROSS_X, CELL.getY() + 1.0, CELL.getZ() + ACROSS_Z), full);
-            assertTrue(full.y > thin.y, full + " over " + thin);
+        private static void assertInside(AABB box, Vec3 point) {
+            assertTrue(box.contains(point), point + " lies outside " + box);
         }
     }
 }
