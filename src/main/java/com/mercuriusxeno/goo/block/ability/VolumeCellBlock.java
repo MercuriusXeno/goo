@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.LoadedAbilityCost;
+import com.mercuriusxeno.goo.ability.program.MoltenStep;
 import com.mercuriusxeno.goo.ability.program.SlickStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.SlimeFlow.Side;
@@ -395,7 +396,36 @@ public class VolumeCellBlock extends Block {
     @Override
     protected void tick(@NonNull BlockState state, @NonNull ServerLevel level, @NonNull BlockPos pos,
                         @NonNull RandomSource random) {
-        pourOnce(level, pos, state);
+        if (!meltBelow(level, pos, state)) {
+            pourOnce(level, pos, state);
+        }
+    }
+
+    /**
+     * Melts the block under a cell whose laying ability names a meltable tag
+     * into a lava source, the cell resting on it lower by the layers the melt
+     * spends and gone where that empties it; a cell the melt spends nothing
+     * of stays pooled.
+     * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+     * molten-spends-three-layers-per-stone-block-priced-at-lava-minus-mundane-block
+     *
+     * @param level the level
+     * @param pos   the cell
+     * @param state the cell's state
+     * @return true where the block under the cell melted
+     */
+    private boolean meltBelow(ServerLevel level, BlockPos pos, BlockState state) {
+        Optional<MoltenStep> molten = MoltenStep.in(layingProgram(level));
+        BlockPos under = pos.below();
+        int spent = molten.map(step -> MoltenMelt.layersSpent(state.getValue(LAYERS), level.getBlockState(under),
+                step.meltable())).orElse(0);
+        if (spent == 0) {
+            return false;
+        }
+        level.setBlock(under, Blocks.LAVA.defaultBlockState(), UPDATE_ALL);
+        int left = state.getValue(LAYERS) - spent;
+        level.setBlock(pos, left > 0 ? state.setValue(LAYERS, left) : Blocks.AIR.defaultBlockState(), UPDATE_ALL);
+        return true;
     }
 
     /**

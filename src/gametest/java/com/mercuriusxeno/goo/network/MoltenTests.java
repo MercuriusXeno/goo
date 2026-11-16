@@ -40,6 +40,13 @@ public final class MoltenTests {
     private static final String ABILITY_REQUIRED = "The ability registry must hold blaze_molten";
     private static final String LAYERS_WRONG = "The cell over the %s should hold one layer of Molten, stands %s";
     private static final String LAVA_GONE = "The lava source should stand under the Molten cell, stands %s";
+    private static final String MOLTEN_MELTS_STONE = "molten_over_stone_melts_it_for_three_layers";
+    /** The layers the melt test lays over the stone. */
+    private static final int FIVE_LAYERS = 5;
+    /** The layers melting one block spends, stated here so the test checks the cell rather than echoing it. */
+    private static final int MELT_LAYERS = 3;
+    private static final String NOT_MELTED = "Five layers of Molten should melt the stone to a lava source, stands %s";
+    private static final String LAYERS_LEFT_WRONG = "The Molten cell should rest on the lava at two layers, stands %s";
 
     private MoltenTests() {
     }
@@ -52,6 +59,7 @@ public final class MoltenTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, MOLTEN_DRIP_LAYS_A_CELL, MoltenTests::moltenDripLaysACellOnStone);
         GooTestFunctions.registerTest(registrar, MOLTEN_POOLS_ON_LAVA, MoltenTests::moltenDripPoolsOnLava);
+        GooTestFunctions.registerTest(registrar, MOLTEN_MELTS_STONE, MoltenTests::moltenOverStoneMeltsItForThreeLayers);
     }
 
     /**
@@ -81,6 +89,32 @@ public final class MoltenTests {
             BlockState under = helper.getBlockState(FLOOR);
             helper.assertTrue(under.is(Blocks.LAVA) && under.getFluidState().isSource(),
                     String.format(LAVA_GONE, under));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Five layers of Molten over stone melt it: a lava source stands where
+     * the stone stood, and the cell rests on it three layers lower, at two.
+     * molten-spends-three-layers-per-stone-block-priced-at-lava-minus-mundane-block
+     *
+     * @param helper the gametest helper
+     */
+    public static void moltenOverStoneMeltsItForThreeLayers(GameTestHelper helper) {
+        walledIn(helper, Blocks.STONE);
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            helper.setBlock(OVER_THE_FLOOR.relative(side), Blocks.STONE);
+        }
+        helper.setBlock(OVER_THE_FLOOR, GooBlocks.BLAZE_MOLTEN.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, FIVE_LAYERS));
+        helper.runAfterDelay(PAST_THE_POUR, () -> {
+            BlockState melted = helper.getBlockState(FLOOR);
+            helper.assertTrue(melted.is(Blocks.LAVA) && melted.getFluidState().isSource(),
+                    String.format(NOT_MELTED, melted));
+            BlockState cell = helper.getBlockState(OVER_THE_FLOOR);
+            boolean twoLayers = cell.is(GooBlocks.BLAZE_MOLTEN.get())
+                    && cell.getValue(VolumeCellBlock.LAYERS) == FIVE_LAYERS - MELT_LAYERS;
+            helper.assertTrue(twoLayers, String.format(LAYERS_LEFT_WRONG, cell));
             helper.succeed();
         });
     }
