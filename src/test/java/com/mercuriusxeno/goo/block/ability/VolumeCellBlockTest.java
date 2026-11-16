@@ -278,6 +278,32 @@ class VolumeCellBlockTest {
         }
     }
 
+    /**
+     * A broken Host cell gives back deep goo, each layer a fifteenth of
+     * Host's cost as deep_host.json ships it
+     * (decision host-is-a-sculky-slime-that-sculk-spreads-eagerly-through).
+     */
+    @Nested
+    class HostReclaim {
+
+        private static final int LAYERS = 7;
+
+        @Test
+        void hostIsDeepGooLaidByDeepsHost() {
+            assertEquals(List.of(GooTypes.DEEP, AbilityJson.idOf("deep_host.json")),
+                    List.of(CellBinding.HOST.gooType(), CellBinding.HOST.layingAbility()));
+        }
+
+        @Test
+        void aBrokenHostCellDropsDeepGooAtFifteenthsOfHostsCost() {
+            GooFraction cost = AbilityJson.decode("deep_host").cost().exactIn(GooValueTable.EMPTY);
+
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.DEEP,
+                            cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.HOST, LAYERS, cost));
+        }
+    }
+
     private static JsonObject classpathJson(String path) throws IOException {
         try (InputStream in = VolumeCellBlockTest.class.getResourceAsStream(path)) {
             assertTrue(in != null, path + " is not on the classpath");

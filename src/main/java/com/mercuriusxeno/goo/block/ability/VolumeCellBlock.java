@@ -702,7 +702,7 @@ public class VolumeCellBlock extends Block {
      * @param level the level the cell stands in
      * @return the steps, empty where the ability is not loaded
      */
-    private List<Step> layingProgram(Level level) {
+    protected List<Step> layingProgram(Level level) {
         if (level.isClientSide()) {
             return ISidedProxy.get().syncedAbilityProgram(binding.layingAbility().toString());
         }
