@@ -212,6 +212,25 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
+     * Host: the volume cell bound to Deep's sculky slime, the dark teal goo
+     * Host sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot that squelches as sculk does, dropping the deep goo its layers
+     * cost through VolumeCellBlock.getDrops, no loot table
+     * (decisions host-is-a-sculky-slime-that-sculk-spreads-eagerly-through,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VolumeCellBlock> DEEP_HOST = BLOCKS.registerBlock(
+            "deep_host", properties -> new VolumeCellBlock(properties, CellBinding.HOST),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_CYAN)
+                    .friction(CellBinding.HOST.surface().friction())
+                    .sound(SoundType.SCULK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
      * Prism: the milky quartz crystal Crystal's Prism grows, the host every
      * prism combo grows on (decision prism-blob-becomes-a-milky-quartz-crystal).
      */
