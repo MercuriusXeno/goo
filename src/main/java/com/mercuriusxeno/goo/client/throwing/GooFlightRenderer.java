@@ -37,13 +37,19 @@ import java.util.Collection;
 public final class GooFlightRenderer {
 
     /**
-     * Half-width of the core cuboid (~2.5 pixels).
-     */
-    private static final float CORE_HW = 0.08f;
-    /**
      * Half-width of the shell cuboid (~5 pixels), the blob's size a morph starts from.
      */
     public static final float SHELL_HW = 0.15f;
+    /**
+     * The core's share of its shell on each axis, the vanilla slime's 6 px
+     * inner cube in its 8 px outer one.
+     * goo-cuboid-core-is-three-quarters-of-its-shell
+     */
+    private static final float CORE_SHARE_OF_SHELL = 0.75f;
+    /**
+     * Half-width of the core cuboid at rest, between pulses.
+     */
+    private static final float CORE_HW = SHELL_HW * CORE_SHARE_OF_SHELL;
     /**
      * Shell alpha (translucent).
      */
@@ -86,9 +92,10 @@ public final class GooFlightRenderer {
 
 
     /**
-     * Billboard half-width matches the goo core size.
+     * Billboard half-width, its own size: the core's widening reaches cuboid cores alone.
+     * goo-cuboid-core-is-three-quarters-of-its-shell
      */
-    private static final float BEAM_HW = CORE_HW;
+    private static final float BEAM_HW = 0.08f;
     /**
      * ARGB color for the beam center (white-hot).
      */
@@ -295,9 +302,9 @@ public final class GooFlightRenderer {
     }
 
     /**
-     * Emits the blob's core: an opaque fluid cuboid with sin-pulsing size,
-     * fullbright, about the pose's origin, in the shell's shape so a pressed
-     * shell keeps its core inside it. The consumer takes
+     * Emits the blob's core: an opaque fluid cuboid 3/4 of its shell at rest,
+     * with sin-pulsing size, fullbright, about the pose's origin, in the
+     * shell's shape so a pressed shell keeps its core inside it. The consumer takes
      * {@link GooSubmitter#solidOnBlockAtlas()} geometry; the glove's palm blob
      * submits through this too (decision palm-blob-draws-as-the-charge-blob).
      * palm-blob-rests-pressed-and-stands-into-the-cube
@@ -610,7 +617,7 @@ public final class GooFlightRenderer {
      * @param camPos  camera world position
      * @return the lateral offset, or null if degenerate
      */
-    private static @Nullable Vec3 computeGlowLateral(Vec3 tailPos,
+    static @Nullable Vec3 computeGlowLateral(Vec3 tailPos,
                                                      Vec3 beamVec, Vec3 camPos) {
         Vec3 beamMid = tailPos.add(beamVec.scale(BEAM_MIDPOINT));
         Vec3 toCamera = camPos.subtract(beamMid);
