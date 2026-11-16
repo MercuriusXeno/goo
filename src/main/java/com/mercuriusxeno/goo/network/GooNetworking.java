@@ -81,6 +81,7 @@ public final class GooNetworking {
         registerAbilityOwnVisualPayloads(r);
         r.playToClient(BlockTransformPayload.TYPE, BlockTransformPayload.STREAM_CODEC);
         r.playToClient(BlockExposurePayload.TYPE, BlockExposurePayload.STREAM_CODEC);
+        r.playToClient(RedHotPayload.TYPE, RedHotPayload.STREAM_CODEC);
         r.playToClient(AfterimagePayload.TYPE, AfterimagePayload.STREAM_CODEC);
         r.playToClient(ScanWavePayload.TYPE, ScanWavePayload.STREAM_CODEC);
         r.playToClient(TransformationPayload.TYPE, TransformationPayload.STREAM_CODEC);
@@ -107,7 +108,6 @@ public final class GooNetworking {
         r.playToClient(TomePayload.TYPE, TomePayload.STREAM_CODEC);
         r.playToClient(NovaRingPayload.TYPE, NovaRingPayload.STREAM_CODEC);
         r.playToClient(HeaterFlamePayload.TYPE, HeaterFlamePayload.STREAM_CODEC);
-        r.playToClient(MoltenAbsorbPayload.TYPE, MoltenAbsorbPayload.STREAM_CODEC);
         r.playToClient(ReapSwellPayload.TYPE, ReapSwellPayload.STREAM_CODEC);
         r.playToClient(ReapSlashPayload.TYPE, ReapSlashPayload.STREAM_CODEC);
         r.playToClient(OreRevealPayload.TYPE, OreRevealPayload.STREAM_CODEC);

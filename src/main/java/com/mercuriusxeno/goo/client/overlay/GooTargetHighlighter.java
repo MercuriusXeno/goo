@@ -175,8 +175,10 @@ public final class GooTargetHighlighter {
      * @return the mark
      */
     private static AimIndicator indicatorFor(TargetResult target, @Nullable String abilityId) {
-        AimIndicator badged = AimIndicator.of(GloveThrowSender.selectedBadge(abilityId), AimTracker.grabHoldsAMob());
         ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
+        // dart-forms-on-right-click-and-throws-on-left-click: a held javelin marks the mob it aims at
+        AimIndicator badged = AimIndicator.of(ability == null ? null
+                : ability.badge().aimsAs(ability.delivery().kind()), AimTracker.grabHoldsAMob());
         boolean growsAPrism = ability != null && PrismBlock.grownBy(ability.behaviors());
         Level level = Minecraft.getInstance().level;
         boolean growable = target instanceof TargetResult.BlockTarget bt && level != null

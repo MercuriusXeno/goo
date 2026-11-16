@@ -4,13 +4,19 @@ import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.LoadedAbilityCost;
+import com.mercuriusxeno.goo.ability.program.MoltenStep;
 import com.mercuriusxeno.goo.ability.program.SlickStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.SlimeFlow.Side;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.network.BlockVisuals;
+import com.mercuriusxeno.goo.network.RedHotPayload;
+import com.mercuriusxeno.goo.registry.GooServerState;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
@@ -39,13 +45,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 
 /**
  * The volume cell, the one block every goo type's world goo stands on,
  * bound to a goo type by a CellBinding: a plain block holding one to fifteen
  * layers in its block state, with no block entity, drawn as height like snow
  * layers, laid on a block's top with the block under it unchanged and
- * showing through. Each landed drip adds a layer, and a cell taller than a
+ * showing through, or, for a goo its binding pools on lava, on a lava
+ * source's surface. Each landed drip adds a layer, and a cell taller than a
  * side neighbour of its own goo pours a layer into it, and off a ledge
  * downward, until level, waiting between pours as its goo type's viscosity
  * sets. A layer is priced at a fifteenth of the laying ability's cost; the
@@ -62,6 +70,7 @@ import java.util.Optional;
  * breaking-slick-drops-kinetic-goo-worth-its-film
  * bounce-ramps-jump-height-while-jump-is-held
  * slick-coats-the-ground-with-kinetic-speed
+ * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
  */
 public class VolumeCellBlock extends Block {
 
@@ -170,6 +179,31 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
+     * The goo a broken cell gives back, by type and amount.
+     *
+     * @param gooType the goo type given back
+     * @param mb      the goo in mb
+     */
+    public record Reclaim(ResourceKey<GooTypeDefinition> gooType, int mb) {
+    }
+
+    /**
+     * What a broken cell bound to a world goo gives back: its goo type, worth
+     * what its layers cost, nothing where that comes to no whole mb.
+     * breaking-slime-drops-weird-goo-worth-its-layers
+     * breaking-slick-drops-kinetic-goo-worth-its-film
+     *
+     * @param binding   the world goo the cell is bound to
+     * @param layers    the layers the cell held
+     * @param blockCost the cost of a whole block of the goo
+     * @return the goo given back, empty where it comes to none
+     */
+    static Optional<Reclaim> reclaimedBy(CellBinding binding, int layers, GooFraction blockCost) {
+        int mb = reclaimed(layers, blockCost);
+        return mb > 0 ? Optional.of(new Reclaim(binding.gooType(), mb)) : Optional.empty();
+    }
+
+    /**
      * Gives back the goo the cell's layers cost, as the glow crystal gives
      * back its goo, whatever breaks the cell, Vacuum included; a cell broken
      * where its laying ability's definition does not load gives back nothing.
@@ -178,9 +212,10 @@ public class VolumeCellBlock extends Block {
      */
     @Override
     protected @NonNull List<ItemStack> getDrops(@NonNull BlockState state, LootParams.@NonNull Builder builder) {
-        int mb = LoadedAbilityCost.of(builder.getLevel(), binding.layingAbility())
-                .map(cost -> reclaimed(state.getValue(LAYERS), cost)).orElse(0);
-        return mb > 0 ? List.of(GooStacks.createForOutput(binding.gooType(), mb)) : List.of();
+        return LoadedAbilityCost.of(builder.getLevel(), binding.layingAbility())
+                .flatMap(cost -> reclaimedBy(binding, state.getValue(LAYERS), cost))
+                .map(reclaim -> List.of(GooStacks.createForOutput(reclaim.gooType(), reclaim.mb())))
+                .orElse(List.of());
     }
 
     /**
@@ -279,15 +314,19 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
-     * Whether a cell can hold a world goo: the block under it has a sturdy top.
+     * Whether a cell can hold this world goo: the block under it has a
+     * sturdy top, or, for a goo pooling on lava, is a lava source.
+     * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
      *
      * @param level the level
      * @param pos   the cell
-     * @return true where a world goo can lie
+     * @return true where this world goo can lie
      */
-    public static boolean liesOn(LevelReader level, BlockPos pos) {
+    public boolean liesOn(LevelReader level, BlockPos pos) {
         BlockPos under = pos.below();
-        return level.getBlockState(under).isFaceSturdy(level, under, Direction.UP);
+        BlockState footing = level.getBlockState(under);
+        return footing.isFaceSturdy(level, under, Direction.UP)
+                || binding.liesOnLava() && footing.is(Blocks.LAVA) && footing.getFluidState().isSource();
     }
 
     @Override
@@ -361,7 +400,90 @@ public class VolumeCellBlock extends Block {
     @Override
     protected void tick(@NonNull BlockState state, @NonNull ServerLevel level, @NonNull BlockPos pos,
                         @NonNull RandomSource random) {
-        pourOnce(level, pos, state);
+        if (!meltBelow(level, pos, state)) {
+            pourOnce(level, pos, state);
+        }
+    }
+
+    /**
+     * Melts the block under a cell whose laying ability names a meltable tag,
+     * where the melt would spend layers of it: the block heats red hot over
+     * the molten step's heat, the cell resting still meanwhile, then becomes
+     * a lava source; a cell the melt spends nothing of stays pooled, and one
+     * whose block stopped melting part way cools it as it was.
+     * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+     * stone-goes-red-hot-before-molten-turns-it-to-lava
+     *
+     * @param level the level
+     * @param pos   the cell
+     * @param state the cell's state
+     * @return true where the block under the cell is heating or melted
+     */
+    private boolean meltBelow(ServerLevel level, BlockPos pos, BlockState state) {
+        Optional<MoltenStep> molten = MoltenStep.in(layingProgram(level));
+        int spent = molten.map(step -> MoltenMelt.layersSpent(state.getValue(LAYERS),
+                level.getBlockState(pos.below()), step.meltable())).orElse(0);
+        if (spent == 0) {
+            coolBelow(level, pos);
+            return false;
+        }
+        MoltenHeats heats = GooServerState.of(level.getServer()).moltenHeats();
+        int heatTicks = molten.orElseThrow().heatTicks();
+        OptionalLong started = heats.startedAt(level, pos);
+        if (started.isEmpty()) {
+            heats.start(level, pos, level.getGameTime());
+            BlockVisuals.sendToWatchers(level, pos.below(), new RedHotPayload(pos.below(), heatTicks));
+        }
+        long left = started.orElse(level.getGameTime()) + heatTicks - level.getGameTime();
+        if (left > 0) {
+            level.scheduleTick(pos, this, (int) left);
+        } else {
+            heats.end(level, pos);
+            meltInto(level, pos, state, spent);
+        }
+        return true;
+    }
+
+    /**
+     * Turns the block under a cell into a lava source, the cell resting on it
+     * lower by the layers the melt spends and gone where that empties it.
+     * molten-spends-three-layers-per-stone-block-priced-at-lava-minus-mundane-block
+     *
+     * @param level the level
+     * @param pos   the cell
+     * @param state the cell's state
+     * @param spent the layers the melt spends
+     */
+    private static void meltInto(ServerLevel level, BlockPos pos, BlockState state, int spent) {
+        level.setBlock(pos.below(), Blocks.LAVA.defaultBlockState(), UPDATE_ALL);
+        int left = state.getValue(LAYERS) - spent;
+        level.setBlock(pos, left > 0 ? state.setValue(LAYERS, left) : Blocks.AIR.defaultBlockState(), UPDATE_ALL);
+    }
+
+    /**
+     * Ends a cell's heat with no layer spent, the block below cooling as it
+     * was, where the cell was heating it.
+     * stone-goes-red-hot-before-molten-turns-it-to-lava
+     *
+     * @param level the level
+     * @param pos   the cell
+     */
+    private static void coolBelow(ServerLevel level, BlockPos pos) {
+        if (GooServerState.of(level.getServer()).moltenHeats().end(level, pos)) {
+            BlockVisuals.sendToWatchers(level, pos.below(), new RedHotPayload(pos.below(), 0));
+        }
+    }
+
+    /**
+     * A cell broken or carried off while it heats the block below cools it
+     * as it was, no layer spent.
+     * stone-goes-red-hot-before-molten-turns-it-to-lava
+     */
+    @Override
+    protected void affectNeighborsAfterRemoval(@NonNull BlockState state, @NonNull ServerLevel level,
+                                               @NonNull BlockPos pos, boolean movedByPiston) {
+        coolBelow(level, pos);
+        super.affectNeighborsAfterRemoval(state, level, pos, movedByPiston);
     }
 
     /**
