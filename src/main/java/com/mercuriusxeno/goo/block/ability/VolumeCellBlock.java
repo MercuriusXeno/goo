@@ -961,7 +961,7 @@ public class VolumeCellBlock extends Block {
      * @param ledge the open cell the layer falls through
      * @return the landing cell, empty where it finds no top
      */
-    private Optional<BlockPos> landingBelow(LevelReader level, BlockPos ledge) {
+    public Optional<BlockPos> landingBelow(LevelReader level, BlockPos ledge) {
         BlockPos open = ledge;
         BlockPos below = ledge.below();
         while (below.getY() >= level.getMinY() && opens(level.getBlockState(below))) {

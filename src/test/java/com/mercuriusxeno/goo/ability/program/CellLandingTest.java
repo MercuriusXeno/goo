@@ -31,6 +31,12 @@ class CellLandingTest {
     /** A wall whose west neighbour already holds a film against it. */
     private static final BlockPos FILMED_WALL = new BlockPos(3, 1, 9);
     private static final int HOLDS_WHERE_IT_STRIKES = 3;
+    /** The cell under an overhang, walled east and south. */
+    private static final BlockPos UNDER_THE_OVERHANG = new BlockPos(12, 2, 12);
+    /** An overhang whose cell below touches no wall. */
+    private static final BlockPos OPEN_OVERHANG = new BlockPos(20, 5, 20);
+    /** The floor an open overhang's drip drops to. */
+    private static final BlockPos DROP_FLOOR = new BlockPos(20, 0, 20);
     private static final int HOLDS_TOPS = 1;
 
     /** Open cells stand over every top but the cell's and the slab's; the standing cell alone thickens. */
@@ -58,7 +64,43 @@ class CellLandingTest {
         public boolean gooBelow(BlockPos cell) {
             return false;
         }
+
+        @Override
+        public boolean wallAt(BlockPos cell, Direction side) {
+            return cell.equals(UNDER_THE_OVERHANG) && (side == Direction.EAST || side == Direction.SOUTH);
+        }
+
+        @Override
+        public Optional<BlockPos> dropLanding(BlockPos cell) {
+            return Optional.of(DROP_FLOOR.above());
+        }
     };
+
+    /**
+     * Goo holds no ceiling: a drip striking a block's underside runs down a
+     * wall the cell under it touches, the nearest, at any adhesion, and
+     * where it touches none drops to the first top below
+     * (decision drip-striking-a-ceiling-runs-down-a-wall-or-drops).
+     */
+    @Nested
+    class Underside {
+
+        @Test
+        void aStrikeOnAnUndersideBesideAWallRunsDownTheNearestWall() {
+            BlockPos overhang = UNDER_THE_OVERHANG.above();
+            CoatRay.BlockStrike nearTheEast = new CoatRay.BlockStrike(
+                    new Vec3(overhang.getX() + 0.9, overhang.getY(), overhang.getZ() + 0.5), overhang, Direction.DOWN);
+
+            assertEquals(Optional.of(CellFed.runny(UNDER_THE_OVERHANG, Direction.EAST)),
+                    CellLanding.cellFedBy(nearTheEast, HOLDS_WHERE_IT_STRIKES, cells));
+        }
+
+        @Test
+        void aStrikeOnAnUndersideTouchingNoWallDropsToTheFirstTopBelow() {
+            assertEquals(Optional.of(CellFed.fill(DROP_FLOOR.above())),
+                    CellLanding.cellFedBy(strike(OPEN_OVERHANG, Direction.DOWN), 0, cells));
+        }
+    }
 
     /**
      * What a side strike lays follows the adhesion ladder, read whole without a

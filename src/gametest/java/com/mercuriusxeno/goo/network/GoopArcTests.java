@@ -61,6 +61,13 @@ public final class GoopArcTests {
     private static final BlockPos HOLLOW = new BlockPos(6, 1, 8);
     private static final String DRIPS_UNLANDED = "Each of the %d drips the hold threw should stand as a layer,"
             + " %d layers stand";
+    private static final String OVERHANG_BESIDE_A_WALL = "goop_held_up_at_an_overhang_beside_a_wall_ends_at_its_foot";
+    private static final String OVERHANG_OVER_OPEN_FLOOR = "goop_held_up_at_an_overhang_over_open_floor_drops_to_it";
+    /** The open cell under the overhang, a block over the floor's cell, three blocks east of the streamer. */
+    private static final BlockPos UNDER_THE_OVERHANG = new BlockPos(4, 2, 8);
+    /** Where the overhang's streamer stands, two blocks west of the cell under it. */
+    private static final BlockPos OVERHANG_STREAMER_POS = new BlockPos(2, 1, 8);
+    private static final String NO_FILL_UNDER = "The cell at %s should hold the underside's layers as fill, holds %s";
     private static final String LAYERS_UNPAID = "The %d layers of slime standing should cost %s, the weird goo"
             + " drained, %d mb";
     /** The wall Goop is held at, four blocks east of the streamer. */
@@ -140,6 +147,10 @@ public final class GoopArcTests {
         GooTestFunctions.registerTest(registrar, HELD_AT_A_WALL, GoopArcTests::goopHeldAtAWallLeavesAFilm);
         GooTestFunctions.registerTest(registrar, DRIP_ON_A_WALL_COSTS, GoopArcTests::goopDripOnAWallCostsOneLayer);
         GooTestFunctions.registerTest(registrar, FILM_DROPS_ITS_LAYER, GoopArcTests::goopFilmDropsItsLayerWhenItsWallBreaks);
+        GooTestFunctions.registerTest(registrar, OVERHANG_BESIDE_A_WALL,
+                GoopArcTests::goopHeldUpAtAnOverhangBesideAWallEndsAtItsFoot);
+        GooTestFunctions.registerTest(registrar, OVERHANG_OVER_OPEN_FLOOR,
+                GoopArcTests::goopHeldUpAtAnOverhangOverOpenFloorDropsToIt);
         GooTestFunctions.registerTest(registrar, GLASS_RING_KEEPS_EVERY_LAYER,
                 GoopArcTests::goopHeldIntoAGlassRingKeepsEveryLayerPaidFor);
     }
@@ -504,6 +515,77 @@ public final class GoopArcTests {
             int layers = layersStandingIn(helper);
             int thrown = SPRAY_HOLD_TICKS * goop(helper).delivery().dripsPerTick();
             GooFraction paid = ResidualPrices.layerPrice(helper).times(layers);
+            helper.assertTrue(layers == thrown, String.format(DRIPS_UNLANDED, thrown, layers));
+            helper.assertTrue(paid.ceiling() == drained, String.format(LAYERS_UNPAID, layers, paid, drained));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A streamer holds Goop up at the underside of an overhang whose cell
+     * below stands beside a stone wall running down to the floor: goo holds
+     * no ceiling, so the drips striking the underside run down the wall, and
+     * once every drip has landed the cell at the wall's foot holds fill and
+     * the layers standing, times one layer's price, come to the goo drained.
+     * drip-striking-a-ceiling-runs-down-a-wall-or-drops
+     *
+     * @param helper the gametest helper
+     */
+    public static void goopHeldUpAtAnOverhangBesideAWallEndsAtItsFoot(GameTestHelper helper) {
+        layOverhang(helper);
+        helper.setBlock(UNDER_THE_OVERHANG.east(), Blocks.STONE);
+        helper.setBlock(UNDER_THE_OVERHANG.east().below(), Blocks.STONE);
+        holdGoopUpAtTheOverhang(helper, UNDER_THE_OVERHANG.below());
+    }
+
+    /**
+     * A streamer holds Goop up at the underside of an overhang standing over
+     * open floor: the drips striking the underside drop to the floor below,
+     * and once every drip has landed the floor cell under the overhang holds
+     * fill and the layers standing, times one layer's price, come to the goo drained.
+     * drip-striking-a-ceiling-runs-down-a-wall-or-drops
+     *
+     * @param helper the gametest helper
+     */
+    public static void goopHeldUpAtAnOverhangOverOpenFloorDropsToIt(GameTestHelper helper) {
+        layOverhang(helper);
+        holdGoopUpAtTheOverhang(helper, UNDER_THE_OVERHANG.below());
+    }
+
+    /**
+     * Lays the stone floor and a lone stone block hung two blocks over it, the overhang.
+     *
+     * @param helper the gametest helper
+     */
+    private static void layOverhang(GameTestHelper helper) {
+        BlockPos floor = LEVEL_STREAMER_POS.below();
+        layFloor(helper, floor.getY(), floor.getZ());
+        helper.setBlock(UNDER_THE_OVERHANG.above(), Blocks.STONE);
+    }
+
+    /**
+     * Holds Goop aimed at the overhang's underside from beside it, lets
+     * every drip land, and asserts the cell its layers end in holds fill,
+     * every drip the hold threw stands as a layer, and every layer standing
+     * was paid for.
+     *
+     * @param helper the gametest helper
+     * @param ending the cell the underside's layers should end as fill in
+     */
+    private static void holdGoopUpAtTheOverhang(GameTestHelper helper, BlockPos ending) {
+        ServerPlayer streamer = goopStreamerAt(helper, OVERHANG_STREAMER_POS, LEVEL);
+        Vec3 underside = Vec3.atBottomCenterOf(helper.absolutePos(UNDER_THE_OVERHANG.above()));
+        DripAim.at(streamer, underside, goop(helper).delivery().throwSpeed());
+        int before = weirdHeld(streamer);
+        holdGoopFor(helper, streamer, SPRAY_HOLD_TICKS);
+        helper.runAfterDelay(SPRAY_HOLD_TICKS + FALL_TICKS, () -> {
+            int drained = before - weirdHeld(streamer);
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
+            int layers = layersStandingIn(helper);
+            GooFraction paid = ResidualPrices.layerPrice(helper).times(layers);
+            int atTheEnd = VolumeCellBlock.layersOf(helper.getBlockState(ending));
+            int thrown = SPRAY_HOLD_TICKS * goop(helper).delivery().dripsPerTick();
+            helper.assertTrue(atTheEnd > 0, String.format(NO_FILL_UNDER, ending, helper.getBlockState(ending)));
             helper.assertTrue(layers == thrown, String.format(DRIPS_UNLANDED, thrown, layers));
             helper.assertTrue(paid.ceiling() == drained, String.format(LAYERS_UNPAID, layers, paid, drained));
             helper.succeed();
