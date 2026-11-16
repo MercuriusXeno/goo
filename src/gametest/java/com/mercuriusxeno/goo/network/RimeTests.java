@@ -2,11 +2,14 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.block.ability.CellBinding;
+import com.mercuriusxeno.goo.block.ability.FluidFooting;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -24,6 +27,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
@@ -56,6 +60,20 @@ public final class RimeTests {
     private static final int THREE_PASSES_TICKS = 70;
     private static final String SHOULD_STAND_AT = "The Rime cell should stand at %s layers, stands %s";
     private static final String SHOULD_BE_SPENT = "The Rime cell its last freeze paid for should be gone, stands %s";
+    private static final String RIME_FREEZES_DEEP_TOPS = "rime_drip_freezes_the_top_of_deep_water_and_lava";
+    /** The deep water's top source, three sources over the bay floor. */
+    private static final BlockPos DEEP_WATER_TOP = new BlockPos(1, 3, 1);
+    /** The deep lava's top source, three sources over the bay floor, across the bay from the water. */
+    private static final BlockPos DEEP_LAVA_TOP = new BlockPos(4, 3, 4);
+    /** How many sources deep each basin runs. */
+    private static final int BASIN_DEPTH = 3;
+    private static final String SHOULD_ICE_THE_TOP = "The deep water's top should stand as Rime ice, stands %s";
+    private static final String SHOULD_OBSIDIAN_THE_TOP = "The deep lava's top should stand as obsidian, stands %s";
+    private static final String DRIP_CLIPS_STOP_AT_THEIR_FLUIDS = "rime_and_molten_drip_clips_stop_at_their_fluids";
+    /** How far over a column's top a clip starts. */
+    private static final double CLIP_START_OVER_THE_TOP = 2.5;
+    private static final String SHOULD_STRIKE = "%s's clip over the %s column should strike %s from above, struck %s";
+    private static final String NO_CELL_ON_THE_FLOOR ="No Rime cell should lie on the %s basin's floor, stands %s";
     private static final String RIME_STAYS_FROZEN = "rime_ice_and_obsidian_stay_frozen_once_the_rime_is_gone";
     private static final Identifier RIME_ICE = Identifier.parse("goo:rime_ice");
     /** The Rime cell, lying on the bay floor. */
@@ -100,6 +118,9 @@ public final class RimeTests {
                 RimeTests::rimeCellSpentByItsLastFreezeLeavesTheIce);
         GooTestFunctions.registerTest(registrar, RIME_WITH_NO_SOURCE_KEEPS_ITS_LAYERS,
                 RimeTests::rimeCellWithNoSourceInReachKeepsItsLayers);
+        GooTestFunctions.registerTest(registrar, RIME_FREEZES_DEEP_TOPS, RimeTests::rimeDripFreezesTheTopOfDeepWaterAndLava);
+        GooTestFunctions.registerTest(registrar, DRIP_CLIPS_STOP_AT_THEIR_FLUIDS,
+                RimeTests::rimeAndMoltenDripClipsStopAtTheirFluids);
         GooTestFunctions.registerTest(registrar, RIME_STAYS_FROZEN, RimeTests::rimeIceAndObsidianStayFrozenOnceTheRimeIsGone);
         GooTestFunctions.registerTest(registrar, RIME_FREEZES_THE_SHOELESS, RimeTests::rimeFreezesAndHurtsABarefootZombie);
         GooTestFunctions.registerTest(registrar, RIME_HOLDS_THE_FEET, RimeTests::thinRimeSetsTheFrictionUnderfoot);
@@ -202,6 +223,89 @@ public final class RimeTests {
             assertLayers(helper, LAYERS_WITH_NOTHING_TO_FREEZE);
             helper.succeed();
         });
+    }
+
+    /**
+     * One Rime drip landing on a basin of water three sources deep, and one
+     * on a basin of lava as deep, through the real landing a stream's drips
+     * take, stops at each top source: the cell it lays there spends its one
+     * layer freezing the water's top to Rime ice and the lava's to obsidian,
+     * and neither basin's floor holds a Rime cell.
+     * rime-drips-stop-at-a-water-or-lava-surface
+     *
+     * @param helper the gametest helper
+     */
+    public static void rimeDripFreezesTheTopOfDeepWaterAndLava(GameTestHelper helper) {
+        deepBasin(helper, DEEP_WATER_TOP, Blocks.WATER);
+        deepBasin(helper, DEEP_LAVA_TOP, Blocks.LAVA);
+        AbilityDefinition rime = AbilityRegistry.of(helper.getLevel()).getAbility(RIME);
+        helper.assertTrue(rime != null, ABILITY_REQUIRED);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.FROST);
+        KnownRecipes.teachRequires(caster, rime);
+        LandedDrips.landOn(helper, caster, rime, DEEP_WATER_TOP, 1);
+        LandedDrips.landOn(helper, caster, rime, DEEP_LAVA_TOP, 1);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        helper.runAfterDelay(CHILL_WAIT_TICKS, () -> {
+            BlockState water = helper.getBlockState(DEEP_WATER_TOP);
+            helper.assertTrue(BuiltInRegistries.BLOCK.getKey(water.getBlock()).equals(RIME_ICE),
+                    String.format(SHOULD_ICE_THE_TOP, water));
+            BlockState lava = helper.getBlockState(DEEP_LAVA_TOP);
+            helper.assertTrue(lava.is(Blocks.OBSIDIAN), String.format(SHOULD_OBSIDIAN_THE_TOP, lava));
+            assertNoCellOnTheFloor(helper, DEEP_WATER_TOP, "water");
+            assertNoCellOnTheFloor(helper, DEEP_LAVA_TOP, "lava");
+            helper.succeed();
+        });
+    }
+
+    /**
+     * The clip a drip flies through, flown straight down over a column of
+     * water sources and one of lava sources: Rime's strikes each column's top
+     * source from above, and Molten's passes the water to strike the stone
+     * beneath it.
+     * rime-drips-stop-at-a-water-or-lava-surface
+     * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+     *
+     * @param helper the gametest helper
+     */
+    public static void rimeAndMoltenDripClipsStopAtTheirFluids(GameTestHelper helper) {
+        deepBasin(helper, DEEP_WATER_TOP, Blocks.WATER);
+        deepBasin(helper, DEEP_LAVA_TOP, Blocks.LAVA);
+        FluidFooting rime = CellBinding.RIME.fluidFooting();
+        assertStrikesFromAbove(helper, "Rime", rime, "water", DEEP_WATER_TOP, DEEP_WATER_TOP);
+        assertStrikesFromAbove(helper, "Rime", rime, "lava", DEEP_LAVA_TOP, DEEP_LAVA_TOP);
+        assertStrikesFromAbove(helper, "Molten", CellBinding.MOLTEN.fluidFooting(), "water", DEEP_WATER_TOP,
+                DEEP_WATER_TOP.below(BASIN_DEPTH));
+        helper.succeed();
+    }
+
+    private static void assertStrikesFromAbove(GameTestHelper helper, String goo, FluidFooting footing,
+                                               String column, BlockPos top, BlockPos struck) {
+        Vec3 over = Vec3.atBottomCenterOf(helper.absolutePos(top)).add(0, CLIP_START_OVER_THE_TOP, 0);
+        Vec3 under = Vec3.atBottomCenterOf(helper.absolutePos(top.below(BASIN_DEPTH))).add(0, -1, 0);
+        Optional<CoatRay.BlockStrike> strike = CoatRay.clippingFor(helper.getLevel(), footing).firstHit(over, under);
+        boolean fromAbove = strike.filter(hit -> hit.block().equals(helper.absolutePos(struck))
+                && hit.face() == Direction.UP).isPresent();
+        helper.assertTrue(fromAbove, String.format(SHOULD_STRIKE, goo, column, struck, strike));
+    }
+
+    /**
+     * Fills a stone-walled basin with sources of a fluid, BASIN_DEPTH deep,
+     * its top source at the position given and its floor the bay's.
+     */
+    private static void deepBasin(GameTestHelper helper, BlockPos top, Block fluid) {
+        for (int depth = 0; depth < BASIN_DEPTH; depth++) {
+            BlockPos source = top.below(depth);
+            for (Direction side : Direction.Plane.HORIZONTAL) {
+                helper.setBlock(source.relative(side), Blocks.STONE);
+            }
+            helper.setBlock(source, fluid);
+        }
+        helper.setBlock(top.below(BASIN_DEPTH), Blocks.STONE);
+    }
+
+    private static void assertNoCellOnTheFloor(GameTestHelper helper, BlockPos top, String basin) {
+        BlockState floor = helper.getBlockState(top.below(BASIN_DEPTH - 1));
+        helper.assertTrue(!floor.is(GooBlocks.FROST_RIME.get()), String.format(NO_CELL_ON_THE_FLOOR, basin, floor));
     }
 
     /**
