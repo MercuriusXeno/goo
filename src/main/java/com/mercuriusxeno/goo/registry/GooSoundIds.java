@@ -124,6 +124,13 @@ public final class GooSoundIds {
      */
     public static final Identifier VACUUM_SLURP = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.vacuum_slurp");
 
+    /**
+     * Astral's gate rising tone: sent to the caster as the fixation begins, rising over the whole trip to peak as
+     * the white floods the view and the gate carries them
+     * (decision gate-fixates-your-view-on-the-moon-until-it-takes-you).
+     */
+    public static final Identifier GATE_TONE = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.gate_tone");
+
     private GooSoundIds() {
     }
 }

@@ -98,8 +98,8 @@ public final class GateTripView {
         if (!fixation.stands() || fixation.sky() != GateSight.Sky.MOON) {
             return NO_TRIP;
         }
-        float partial = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        return Mth.clamp((mc.level.getGameTime() - fixation.startedAt() + partial) / fixation.duration(), 0F, FULL);
+        return GateTrip.progress(fixation, mc.level.getGameTime(),
+                mc.getDeltaTracker().getGameTimeDeltaPartialTick(false));
     }
 
     /**

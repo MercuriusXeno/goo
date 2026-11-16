@@ -8,7 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The gate trip's curves: over a moon fixation the sky dims and the land darkens from none to full, and the moon
- * swells from vanilla's size to cover the whole view.
+ * swells from vanilla's size to cover the whole view; white floods in to stand full at the carry, holds while the
+ * arrival mark is awaited, and clears after it lands.
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  */
 class GateTripTest {
@@ -59,6 +60,42 @@ class GateTripTest {
         @Test
         void landDarkRisesAcrossTheFixation() {
             assertTrue(rises(progress -> GateTrip.landDark((float) progress)));
+        }
+    }
+
+    @Nested
+    class White {
+        private static final float BEFORE_THE_FLOOD = 0.5F;
+        private static final float PAST_THE_FADE = 1000F;
+
+        @Test
+        void viewStandsClearBeforeTheFlood() {
+            assertEquals(0.0, GateTrip.whiteBeforeCarry(BEFORE_THE_FLOOD), EXACT);
+        }
+
+        @Test
+        void whiteStandsFullAtTheCarry() {
+            assertEquals(1.0, GateTrip.whiteBeforeCarry(1F), EXACT);
+        }
+
+        @Test
+        void whiteHoldsFullWhileTheArrivalMarkIsAwaited() {
+            assertEquals(1.0, GateTrip.whiteAfterCarry(false, PAST_THE_FADE), EXACT);
+        }
+
+        @Test
+        void whiteHoldsFullAsTheArrivalMarkLands() {
+            assertEquals(1.0, GateTrip.whiteAfterCarry(true, 0F), EXACT);
+        }
+
+        @Test
+        void whiteClearsOnceTheFadeAfterArrivalRuns() {
+            assertEquals(0.0, GateTrip.whiteAfterCarry(true, PAST_THE_FADE), EXACT);
+        }
+
+        @Test
+        void whiteFloodRisesAcrossTheFixation() {
+            assertTrue(rises(progress -> GateTrip.whiteBeforeCarry((float) progress)));
         }
     }
 

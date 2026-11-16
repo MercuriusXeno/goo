@@ -32,7 +32,7 @@ public final class AstralGateTests {
 
     private static final Identifier ASTRAL_GATE = Identifier.parse("goo:astral_gate");
     /** Past astral_gate.json's fixation, so the gate has carried the caster by then. */
-    private static final int PAST_THE_FIXATION = 80;
+    private static final int PAST_THE_FIXATION = 120;
     /** Inside the fixation, when the caster still stands held where they cast. */
     private static final int INSIDE_THE_FIXATION = 20;
     /** Where the caster left from in the return test: off the bay, facing somewhere particular. */
@@ -46,7 +46,8 @@ public final class AstralGateTests {
     private static final String HELD = "Inside the fixation the caster should stand held where they cast, %s, stands %s";
     private static final String IN_LUNAR = "The gate should carry the caster to lunar over %s, carried to %s at %s";
     private static final String HOME = "The gate should return the caster to %s at %s facing %s/%s, returned to %s at %s facing %s/%s";
-    private static final String REFUSED = "A gate cast looking at neither moon nor star should hold no fixation";
+    private static final String ARRIVAL_MARKED = "A caster the gate carried should hold the arrival mark at the far end";
+    private static final String REFUSED ="A gate cast looking at neither moon nor star should hold no fixation";
     private static final String STAYED = "A refused gate should leave the caster where they stood, %s, stands %s";
 
     private AstralGateTests() {
@@ -87,6 +88,7 @@ public final class AstralGateTests {
                     && Math.floor(caster.getZ()) == Math.floor(castFrom.z);
             helper.assertTrue(overTheColumn, String.format(IN_LUNAR, castFrom, caster.level().dimension(),
                     caster.position()));
+            helper.assertTrue(caster.getData(GooAttachments.GATE_ARRIVAL).stands(), ARRIVAL_MARKED);
             overworld.getServer().getPlayerList().remove(caster);
             helper.succeed();
         });
