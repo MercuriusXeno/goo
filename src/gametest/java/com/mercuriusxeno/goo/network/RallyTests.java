@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.zoo.Rallied;
 import com.mercuriusxeno.goo.ability.zoo.RallyEvents;
 import com.mercuriusxeno.goo.ability.zoo.RallyFollow;
 import com.mercuriusxeno.goo.data.GooValues;
@@ -89,8 +90,14 @@ public final class RallyTests {
                 RallyTests::ralliedCowKeepsItsRaisedMaxHealthAfterAHit);
         GooTestFunctions.registerTest(registrar, RALLY_AGAIN_RELEASES_THE_COW, RallyTests::rallyAgainReleasesTheCow);
         GooTestFunctions.registerTest(registrar, RALLY_RELEASE_DEALS_NO_DAMAGE, RallyTests::rallyReleaseDealsNoDamage);
-        GooTestFunctions.registerTest(registrar, RALLY_BY_A_SECOND_PLAYER_KEEPS_THE_FIRST,
-                RallyTests::rallyByASecondPlayerKeepsTheFirst);
+        GooTestFunctions.registerTest(registrar, RALLY_BY_A_SECOND_PLAYER_LEAVES_THE_RALLY_AS_IT_STOOD,
+                RallyTests::rallyByASecondPlayerLeavesTheRallyAsItStood);
+        GooTestFunctions.registerTest(registrar, CHARM_BY_A_SECOND_PLAYER_KEEPS_THE_FIRST_CHARMER,
+                RallyTests::charmByASecondPlayerKeepsTheFirstCharmer);
+        GooTestFunctions.registerTest(registrar, CHARM_LEAVES_A_RALLIED_COW_ITS_RALLY,
+                RallyTests::charmLeavesARalliedCowItsRally);
+        GooTestFunctions.registerTest(registrar, RALLY_LEAVES_A_CHARMED_COW_ITS_CHARM,
+                RallyTests::rallyLeavesACharmedCowItsCharm);
         GooTestFunctions.registerTest(registrar, RELEASED_COW_TAKES_A_FRESH_RALLY,
                 RallyTests::releasedCowTakesAFreshRally);
         GooTestFunctions.registerTest(registrar, RALLY_RELEASE_THROW_DRAINS_NO_ZOO_GOO,
@@ -457,14 +464,27 @@ public final class RallyTests {
 
     private static final String RALLY_AGAIN_RELEASES_THE_COW = "rally_again_releases_the_cow";
     private static final String RALLY_RELEASE_DEALS_NO_DAMAGE = "rally_release_deals_no_damage";
-    private static final String RALLY_BY_A_SECOND_PLAYER_KEEPS_THE_FIRST = "rally_by_a_second_player_keeps_the_first";
+    private static final String RALLY_BY_A_SECOND_PLAYER_LEAVES_THE_RALLY_AS_IT_STOOD =
+            "rally_by_a_second_player_leaves_the_rally_as_it_stood";
+    private static final String CHARM_BY_A_SECOND_PLAYER_KEEPS_THE_FIRST_CHARMER =
+            "charm_by_a_second_player_keeps_the_first_charmer";
+    private static final String CHARM_LEAVES_A_RALLIED_COW_ITS_RALLY = "charm_leaves_a_rallied_cow_its_rally";
+    private static final String RALLY_LEAVES_A_CHARMED_COW_ITS_CHARM = "rally_leaves_a_charmed_cow_its_charm";
     private static final String RELEASED_COW_TAKES_A_FRESH_RALLY = "released_cow_takes_a_fresh_rally";
     private static final String RELEASE_LEFT_THE_RALLY = "The rallier's second Rally should release the cow";
     private static final String RELEASE_LEFT_A_MODIFIER = "The released cow's %s should carry no %s";
     private static final String RELEASE_HEALTH = "The released cow's health should be %s, stands %s";
     private static final String RELEASE_HURT_THE_COW = "The release should record no damage on the cow, recorded %s";
-    private static final String SECOND_PLAYER_TOOK_THE_RALLY =
-            "A second player's Rally should leave the first player as the cow's rallier";
+    private static final String SECOND_PLAYER_CHANGED_THE_RALLY =
+            "A second player's Rally should leave the cow's rally as it stood, %s, reads %s";
+    private static final String SECOND_PLAYER_TOOK_THE_CHARM =
+            "A second player's Charm should leave the first player as the zombie's charmer";
+    private static final String CHARM_TOOK_A_RALLIED_COW =
+            "%s Charm should leave the rallied cow its rally for the first player and no charm";
+    private static final String RALLY_TOOK_A_CHARMED_COW =
+            "%s Rally should leave the charmed cow its charm for the first player, no rally and max health %s, reads %s";
+    /** A cow's base max health low enough that, rallied, Charm's chance pow(20 / max_health, 1.5) is certain. */
+    private static final double CERTAIN_CHARM_COW_HEALTH = 4;
     private static final String NOT_RALLIED_FRESH = "The third Rally should rally the released cow for its caster";
 
     /**
@@ -522,25 +542,119 @@ public final class RallyTests {
     }
 
     /**
-     * A second player's Rally on a cow the first player rallied leaves the
-     * rally standing for the first player
-     * (decision rally-remembers-the-first-rallier).
+     * A second player wearing a diamond chestplate the first lacks casts
+     * Rally at a cow the first player rallied, and the cow's rally stands
+     * as it stood, its first rallier kept
+     * (decisions other-players-rally-and-charm-refuse-your-minions, rally-remembers-the-first-rallier).
      *
      * @param helper the gametest helper
      */
-    public static void rallyByASecondPlayerKeepsTheFirst(GameTestHelper helper) {
+    public static void rallyByASecondPlayerLeavesTheRallyAsItStood(GameTestHelper helper) {
         ServerPlayer first = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
         ServerPlayer second = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
+        second.setItemSlot(EquipmentSlot.CHEST, new ItemStack(Items.DIAMOND_CHESTPLATE));
         Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
         rally(helper, cow, first);
+        Rallied before = cow.getData(GooAttachments.RALLIED);
 
         rally(helper, cow, second);
 
         helper.getLevel().getServer().getPlayerList().remove(first);
         helper.getLevel().getServer().getPlayerList().remove(second);
-        helper.assertTrue(cow.hasData(GooAttachments.RALLIED)
-                && cow.getData(GooAttachments.RALLIED).caster().equals(first.getUUID()), SECOND_PLAYER_TOOK_THE_RALLY);
+        Rallied after = cow.hasData(GooAttachments.RALLIED) ? cow.getData(GooAttachments.RALLIED) : null;
+        helper.assertTrue(before.equals(after), String.format(SECOND_PLAYER_CHANGED_THE_RALLY, before, after));
         helper.succeed();
+    }
+
+    /**
+     * A second player's Charm on a zombie the first player charmed leaves the
+     * first player its charmer
+     * (decision other-players-rally-and-charm-refuse-your-minions).
+     *
+     * @param helper the gametest helper
+     */
+    public static void charmByASecondPlayerKeepsTheFirstCharmer(GameTestHelper helper) {
+        ServerPlayer first = SelfDeliveryTests.invoker(helper, GooTypes.HEX);
+        ServerPlayer second = SelfDeliveryTests.invoker(helper, GooTypes.HEX);
+        Zombie zombie = charmable(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS));
+        charm(helper, zombie, first);
+        helper.assertTrue(zombie.hasData(GooAttachments.CHARMED), NOT_CHARMED);
+
+        charm(helper, zombie, second);
+
+        helper.getLevel().getServer().getPlayerList().remove(first);
+        helper.getLevel().getServer().getPlayerList().remove(second);
+        helper.assertTrue(zombie.hasData(GooAttachments.CHARMED)
+                && zombie.getData(GooAttachments.CHARMED).charmer().equals(first.getUUID()),
+                SECOND_PLAYER_TOOK_THE_CHARM);
+        helper.succeed();
+    }
+
+    /**
+     * Charm cast at a rallied cow, by its rallier and by a second player,
+     * leaves the cow its rally and no charm; the cow's health is lowered so
+     * Charm's chance would land every cast
+     * (decisions rallied-mobs-are-immune-to-charm, other-players-rally-and-charm-refuse-your-minions).
+     *
+     * @param helper the gametest helper
+     */
+    public static void charmLeavesARalliedCowItsRally(GameTestHelper helper) {
+        ServerPlayer rallier = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
+        ServerPlayer second = SelfDeliveryTests.invoker(helper, GooTypes.HEX);
+        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        cow.getAttribute(Attributes.MAX_HEALTH).setBaseValue(CERTAIN_CHARM_COW_HEALTH);
+        cow.setHealth(cow.getMaxHealth());
+        rally(helper, cow, rallier);
+
+        charm(helper, cow, rallier);
+        assertRallyStandsUncharmed(helper, cow, rallier, "The rallier's");
+        charm(helper, cow, second);
+        assertRallyStandsUncharmed(helper, cow, rallier, "A second player's");
+
+        helper.getLevel().getServer().getPlayerList().remove(rallier);
+        helper.getLevel().getServer().getPlayerList().remove(second);
+        helper.succeed();
+    }
+
+    private static void assertRallyStandsUncharmed(GameTestHelper helper, Cow cow, ServerPlayer rallier,
+                                                   String whose) {
+        helper.assertTrue(cow.hasData(GooAttachments.RALLIED)
+                && cow.getData(GooAttachments.RALLIED).caster().equals(rallier.getUUID())
+                && !cow.hasData(GooAttachments.CHARMED), String.format(CHARM_TOOK_A_RALLIED_COW, whose));
+    }
+
+    /**
+     * Rally cast at a charmed cow, by its charmer and by a second player,
+     * leaves the cow its charm, no rally and a cow's unrallied max health
+     * (decisions charmed-mobs-are-immune-to-rally, other-players-rally-and-charm-refuse-your-minions).
+     *
+     * @param helper the gametest helper
+     */
+    public static void rallyLeavesACharmedCowItsCharm(GameTestHelper helper) {
+        ServerPlayer charmer = SelfDeliveryTests.invoker(helper, GooTypes.HEX);
+        ServerPlayer second = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
+        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        double baseMaxHealth = cow.getAttribute(Attributes.MAX_HEALTH).getBaseValue();
+        charm(helper, cow, charmer);
+        helper.assertTrue(cow.hasData(GooAttachments.CHARMED), NOT_CHARMED);
+
+        rally(helper, cow, charmer);
+        assertCharmStandsUnrallied(helper, cow, charmer, baseMaxHealth, "The charmer's");
+        rally(helper, cow, second);
+        assertCharmStandsUnrallied(helper, cow, charmer, baseMaxHealth, "A second player's");
+
+        helper.getLevel().getServer().getPlayerList().remove(charmer);
+        helper.getLevel().getServer().getPlayerList().remove(second);
+        helper.succeed();
+    }
+
+    private static void assertCharmStandsUnrallied(GameTestHelper helper, Cow cow, ServerPlayer charmer,
+                                                   double baseMaxHealth, String whose) {
+        helper.assertTrue(cow.hasData(GooAttachments.CHARMED)
+                && cow.getData(GooAttachments.CHARMED).charmer().equals(charmer.getUUID())
+                && !cow.hasData(GooAttachments.RALLIED)
+                && cow.getMaxHealth() == baseMaxHealth,
+                String.format(RALLY_TOOK_A_CHARMED_COW, whose, baseMaxHealth, cow.getMaxHealth()));
     }
 
     /**
