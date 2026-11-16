@@ -5,7 +5,8 @@
 
 // The pocket's sky stars (decision sky-stars-sit-distant-sparser-and-dimmer-than-voidstone): drawn in the
 // voidstone's own star color at the brightness PocketStarSky gave each star, fainter than the voidstone's,
-// twinkling on the voidstone's clock. Red carries the brightness, green the twinkle rate and blue its phase.
+// twinkling on the voidstone's clock. Red carries the brightness, green the twinkle rate and blue its phase;
+// alpha carries how bright the whole sea draws.
 
 in vec4 starColor;
 
@@ -19,5 +20,5 @@ const float PHASE_SPAN = 61.0;
 void main() {
     float ticks = GameTime * TICKS_PER_CLOCK;
     float rate = SLOWEST_TWINKLE + TWINKLE_SPAN * starColor.g;
-    fragColor = vec4(STAR * starColor.r * twinkle(ticks, rate, starColor.b * PHASE_SPAN), 1.0);
+    fragColor = vec4(STAR * starColor.r * starColor.a * twinkle(ticks, rate, starColor.b * PHASE_SPAN), 1.0);
 }

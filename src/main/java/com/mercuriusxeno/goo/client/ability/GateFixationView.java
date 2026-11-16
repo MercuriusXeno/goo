@@ -12,47 +12,21 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.ComputeFovModifierEvent;
 import net.neoforged.neoforge.client.event.MovementInputUpdateEvent;
 
 /**
- * The caster's view while Astral's gate holds them: the gaze turns onto the moon or the blue star and cannot look
- * away, the body takes no step, and the field of view closes in on it until the gate carries them.
+ * The caster's hold while Astral's gate takes them: the gaze turns onto the moon or the blue star and cannot look
+ * away, and the body takes no step. The field of view stays as it stands; the moon comes to the caster
+ * (GateTripView) rather than the view closing in on it.
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class GateFixationView {
 
-    /** The share of the normal field of view left at the fixation's end. */
-    static final float CLOSEST_FOV = 0.15F;
     /** The share of the remaining turn the gaze makes each tick, so it settles onto its target in a few ticks. */
     private static final float TURN_SHARE = 0.35F;
 
     private GateFixationView() {
-    }
-
-    /**
-     * The field of view's scale as the fixation runs: unchanged at its start, closing in faster as it ends.
-     *
-     * @param progress the share of the fixation run, zero to one
-     * @return the scale on the field of view
-     */
-    static float fovScale(float progress) {
-        return 1F - (1F - CLOSEST_FOV) * progress * progress;
-    }
-
-    /**
-     * Closes the field of view in on the fixation.
-     *
-     * @param event the field of view event
-     */
-    @SubscribeEvent
-    public static void onComputeFov(ComputeFovModifierEvent event) {
-        GateFixation fixation = event.getPlayer().getData(GooAttachments.GATE_FIXATION);
-        if (fixation.stands()) {
-            float progress = fixation.progress(event.getPlayer().level().getGameTime());
-            event.setNewFovModifier(event.getNewFovModifier() * fovScale(progress));
-        }
     }
 
     /**

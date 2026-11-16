@@ -17,7 +17,7 @@ import java.util.Optional;
 
 /**
  * Astral's gate on the server. Cast looking at the moon in the overworld, or at the blue overworld star in lunar,
- * it fixes the caster's gaze and holds them still where they stand while their view closes in; when the fixation
+ * it fixes the caster's gaze and holds them still where they stand while the moon or the star swells to fill their view; when the fixation
  * runs out the moon carries them to lunar over the column they stood on, keeping where they left from, and the star
  * carries them back to exactly that place and facing. Cast looking at neither, it refuses with a tell. The gate
  * places nothing.

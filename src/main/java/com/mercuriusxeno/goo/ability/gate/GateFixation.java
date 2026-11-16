@@ -7,8 +7,8 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * A caster held in Astral's gate: their gaze fixed on the moon or the blue overworld star, standing still where
- * they cast while the view closes in, until the fixation's ticks run out and the gate carries them. Synced to the
- * caster's client, which zooms the view and holds the look; the server holds the body and carries it.
+ * they cast while it swells to fill their view, until the fixation's ticks run out and the gate carries them.
+ * Synced to the caster's client, which holds the look and draws the trip; the server holds the body and carries it.
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  *
  * @param sky       what the caster fixates on, the moon or the overworld star

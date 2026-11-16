@@ -231,8 +231,8 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The fixation Astral's gate holds a caster in, synced to the caster's client, which zooms the view and holds
-     * the look; a fixation an unload interrupts is dropped, and the caster stays where they stood.
+     * The fixation Astral's gate holds a caster in, synced to the caster's client, which holds the look and brings
+     * the moon or the star to the caster; a fixation an unload interrupts is dropped, and the caster stays where they stood.
      * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
      */
     public static final Supplier<AttachmentType<GateFixation>> GATE_FIXATION =
