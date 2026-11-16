@@ -20,19 +20,25 @@ import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.MobSpawnSettings;
+import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureSet;
 import net.minecraft.world.level.levelgen.structure.StructureSpawnOverride;
+import net.minecraft.world.level.levelgen.structure.StructureStart;
+import net.minecraft.world.level.storage.loot.LootTable;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
 /**
  * Gametests for lunar's landmarks, each generated at a spot in goo:lunar the way the place command generates a
  * structure, and each placed in goo:lunar by its structure set: the fallen meteorite in its scorched crater, and the
- * eldritch nest where the monstrosities gather, and the monolith standing over open ground.
+ * eldritch nest where the monstrosities gather, the monolith standing over open ground, and the ruin half buried in
+ * the regolith.
  * decision lunar-holds-meteorites-eldritch-nests-monoliths-and-ruins
  */
 @RegistersGameTests
@@ -40,6 +46,19 @@ public final class LunarLandmarkTests {
     private static final String METEORITE_SITS_IN_A_SCORCHED_CRATER = "meteorite_sits_in_a_scorched_crater";
     private static final String NEST_GATHERS_THE_ELDRITCH = "nest_gathers_the_eldritch";
     private static final String MONOLITH_STANDS_OVER_THE_SURFACE = "monolith_stands_over_the_surface";
+    private static final String RUIN_LIES_HALF_BURIED = "ruin_lies_half_buried";
+    private static final ResourceKey<Structure> RUIN = ResourceKey.create(Registries.STRUCTURE,
+            Identifier.fromNamespaceAndPath(Goo.MODID, "lunar_ruin"));
+    private static final ResourceKey<StructureSet> RUINS = ResourceKey.create(Registries.STRUCTURE_SET,
+            Identifier.fromNamespaceAndPath(Goo.MODID, "lunar_ruins"));
+    private static final ResourceKey<LootTable> RUIN_LOOT = ResourceKey.create(Registries.LOOT_TABLE,
+            Identifier.fromNamespaceAndPath(Goo.MODID, "chests/lunar_ruin"));
+    private static final BlockPos RUIN_SPOT = new BlockPos(1200, 0, 1200);
+    /** The surrounding surface is read this far outside the ruin's box. */
+    private static final int OUTSIDE = 3;
+    private static final String RUIN_WALLS = "The ruin at %s should stand end stone brick walls both over and under "
+            + "the surrounding surface at y %d, stands %d over and %d under";
+    private static final String RUIN_CHEST = "The ruin at %s should hold a chest reading %s, holds %s";
     private static final ResourceKey<Structure> MONOLITH = ResourceKey.create(Registries.STRUCTURE,
             Identifier.fromNamespaceAndPath(Goo.MODID, "monolith"));
     private static final ResourceKey<StructureSet> MONOLITHS = ResourceKey.create(Registries.STRUCTURE_SET,
@@ -95,6 +114,7 @@ public final class LunarLandmarkTests {
         GooTestFunctions.registerTest(registrar, NEST_GATHERS_THE_ELDRITCH, LunarLandmarkTests::nestGathersTheEldritch);
         GooTestFunctions.registerTest(registrar, MONOLITH_STANDS_OVER_THE_SURFACE,
                 LunarLandmarkTests::monolithStandsOverTheSurface);
+        GooTestFunctions.registerTest(registrar, RUIN_LIES_HALF_BURIED, LunarLandmarkTests::ruinLiesHalfBuried);
     }
 
     /**
@@ -179,6 +199,66 @@ public final class LunarLandmarkTests {
                 String.format(MONOLITH_RISES, column, LEAST_RISE, beside, top, slab));
         assertSetPlacesInLunar(helper, lunar, MONOLITHS, MONOLITH);
         helper.succeed();
+    }
+
+    /**
+     * The ruin generated at a spot in goo:lunar stands end stone brick walls both over and under the surface outside
+     * its box, and holds a chest reading the lunar ruin loot table; and its structure set places it in goo:lunar's
+     * biome.
+     *
+     * @param helper the gametest helper
+     */
+    public static void ruinLiesHalfBuried(GameTestHelper helper) {
+        ServerLevel lunar = helper.getLevel().getServer().getLevel(Lunar.LEVEL);
+        helper.assertTrue(lunar != null, LUNAR_REQUIRED);
+        StructureStart start = generate(lunar, RUIN, RUIN_SPOT);
+        helper.assertTrue(start.isValid(), String.format(PLACED, RUIN.identifier(), RUIN_SPOT, "no start"));
+        BoundingBox box = start.getBoundingBox();
+        BlockPos outside = new BlockPos(box.minX() - OUTSIDE, 0, box.getCenter().getZ());
+        lunar.getChunk(outside.getX() >> 4, outside.getZ() >> 4);
+        int surfaceY = lunar.getHeight(Heightmap.Types.WORLD_SURFACE, outside.getX(), outside.getZ()) - 1;
+        int over = 0;
+        int under = 0;
+        String chestLoot = "no chest";
+        for (BlockPos at : BlockPos.betweenClosed(box.minX(), box.minY(), box.minZ(), box.maxX(), box.maxY(), box.maxZ())) {
+            BlockState block = lunar.getBlockState(at);
+            if (block.is(Blocks.END_STONE_BRICKS)) {
+                over += at.getY() > surfaceY ? 1 : 0;
+                under += at.getY() < surfaceY ? 1 : 0;
+            }
+            if (lunar.getBlockEntity(at) instanceof RandomizableContainerBlockEntity chest && chest.getLootTable() != null) {
+                chestLoot = chest.getLootTable().identifier().toString();
+            }
+        }
+        helper.assertTrue(over > 0 && under > 0, String.format(RUIN_WALLS, box.getCenter(), surfaceY, over, under));
+        helper.assertTrue(chestLoot.equals(RUIN_LOOT.identifier().toString()),
+                String.format(RUIN_CHEST, box.getCenter(), RUIN_LOOT.identifier(), chestLoot));
+        assertSetPlacesInLunar(helper, lunar, RUINS, RUIN);
+        helper.succeed();
+    }
+
+    /**
+     * Generates a structure at a spot in goo:lunar as the place command does, placing it in every chunk its box
+     * reaches, and answers its start.
+     */
+    private static StructureStart generate(ServerLevel lunar, ResourceKey<Structure> structure, BlockPos spot) {
+        Holder.Reference<Structure> holder = lunar.registryAccess().lookupOrThrow(Registries.STRUCTURE)
+                .getOrThrow(structure);
+        ChunkGenerator generator = lunar.getChunkSource().getGenerator();
+        StructureStart start = holder.value().generate(holder, lunar.dimension(), lunar.registryAccess(), generator,
+                generator.getBiomeSource(), lunar.getChunkSource().randomState(), lunar.getStructureManager(),
+                lunar.getSeed(), ChunkPos.containing(spot), 0, lunar, biome -> true);
+        if (start.isValid()) {
+            BoundingBox box = start.getBoundingBox();
+            ChunkPos.rangeClosed(ChunkPos.containing(new BlockPos(box.minX(), 0, box.minZ())),
+                    ChunkPos.containing(new BlockPos(box.maxX(), 0, box.maxZ()))).forEach(chunk -> {
+                        lunar.getChunk(chunk.x(), chunk.z());
+                        start.placeInChunk(lunar, lunar.structureManager(), generator, lunar.getRandom(),
+                                new BoundingBox(chunk.getMinBlockX(), lunar.getMinY(), chunk.getMinBlockZ(),
+                                        chunk.getMaxBlockX(), lunar.getMaxY(), chunk.getMaxBlockZ()), chunk);
+                    });
+        }
+        return start;
     }
 
     private static int monstrosityWeight(WeightedList<MobSpawnSettings.SpawnerData> spawns) {
