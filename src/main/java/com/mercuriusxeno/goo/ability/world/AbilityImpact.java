@@ -10,7 +10,6 @@ import com.mercuriusxeno.goo.ability.program.LandingHost;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.MeteorStep;
-import com.mercuriusxeno.goo.ability.program.MoltenStep;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
@@ -232,18 +231,6 @@ public final class AbilityImpact {
     }
 
     /**
-     * Whether an ability's blob sinks into the stone it melts, the sinking
-     * standing in for a burnout.
-     * melt-blob-absorbs-into-lava
-     *
-     * @param ability the landing ability
-     * @return true when a top-level step melts the struck block
-     */
-    static boolean sinksIntoTheMelt(AbilityDefinition ability) {
-        return ability.behaviors().stream().anyMatch(MoltenStep.class::isInstance);
-    }
-
-    /**
      * Whether an ability's blob lights a fire where it lands, the fire it
      * lights standing in for a burnout; the operator's ruling (idea
      * ignite-plays-no-burnout): Ignite's fire is its whole visual.
@@ -292,8 +279,8 @@ public final class AbilityImpact {
 
         @Override
         public boolean turnsIntoItsBlock() {
-            return AbilityImpact.turnsIntoAPrism(ability) || AbilityImpact.sinksIntoTheMelt(ability)
-                    || AbilityImpact.lightsItsFire(ability) || AbilityImpact.callsAMeteor(ability);
+            return AbilityImpact.turnsIntoAPrism(ability) || AbilityImpact.lightsItsFire(ability)
+                    || AbilityImpact.callsAMeteor(ability);
         }
 
         @Override

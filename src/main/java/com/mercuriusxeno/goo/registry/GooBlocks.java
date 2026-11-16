@@ -192,6 +192,25 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
+     * Molten: the volume cell bound to Blaze's molten goo, the orange goo
+     * Molten sprays onto a block's top or a lava source's surface, one to
+     * fifteen layers, ordinary ground underfoot, dropping the blaze goo its
+     * layers cost through VolumeCellBlock.getDrops, no loot table
+     * (decisions molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VolumeCellBlock> BLAZE_MOLTEN = BLOCKS.registerBlock(
+            "blaze_molten", properties -> new VolumeCellBlock(properties, CellBinding.MOLTEN),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.FIRE)
+                    .friction(CellBinding.MOLTEN.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
      * Prism: the milky quartz crystal Crystal's Prism grows, the host every
      * prism combo grows on (decision prism-blob-becomes-a-milky-quartz-crystal).
      */

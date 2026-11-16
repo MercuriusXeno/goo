@@ -110,6 +110,7 @@
   "block.goo.zap_pulse": "Zap Pulse",
   "block.goo.slime_coat": "Slime Coat",
   "block.goo.kinetic_slick": "Slick",
+  "block.goo.blaze_molten": "Molten",
 
   "goo.badge.world": "World",
   "goo.badge.mob": "Mob",
@@ -147,7 +148,8 @@
   "goo.ability.blaze.kindle": "Kindle",
   "goo.ability.blaze.kindle.description": "Ember hearts shield your ash hearts, which reignite by how many embers remain.",
   "goo.ability.blaze.molten": "Molten",
-  "goo.ability.blaze.molten.description": "Melts natural stone into lava.",
+  "goo.ability.blaze.molten.cost_mechanics": "Costs %s per block of molten goo laid, a fifteenth of it per layer.",
+  "goo.ability.blaze.molten.description": "Held stream sprays molten goo that pools on floors and on lava.",
   "goo.ability.blaze.flames": "Flames",
   "goo.ability.blaze.flames.description": "Hold to channel a stream of fire that cooks what it touches.",
   "goo.ability.crystal.shatter": "Shatter",
