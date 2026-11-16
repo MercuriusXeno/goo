@@ -56,10 +56,15 @@ public final class TouchDeliveryTests {
     private static final int HELD_GOO = 4;
     private static final Identifier METAL_DART = Identifier.parse("goo:metal_dart");
     private static final String ABILITY_REQUIRED = "Ability registry must hold metal_dart";
-    private static final String SHOULD_TAKE_DAMAGE = "Husk should lose health the tick it is touched, lost %.1f";
-    private static final String SHOULD_DRAIN_COST = "A touch should drain metal goo, drained %d mB";
+    /** Dart's damage, which the magic source lands past the husk's armor (metal_dart.json). */
+    private static final float DART_DAMAGE = 8f;
+    /** Dart's cost in mB (metal_dart.json). */
+    private static final int DART_COST = 1000;
+    private static final String SHOULD_TAKE_DAMAGE = "Husk should lose 8 health the tick it is touched, lost %.1f";
+    private static final String SHOULD_DRAIN_COST = "A touch should drain 1000 mB of metal goo, drained %d mB";
+    private static final String SHOULD_DRAIN_COST_ONCE = "A throw should drain 1000 mB of metal goo once, drained %d mB";
     private static final String SHOULD_SCHEDULE_FLIGHT = "A throw beyond reach should schedule one flight, scheduled %d";
-    private static final String SHOULD_TAKE_DAMAGE_ON_ARRIVAL = "Husk beyond reach should lose health on arrival";
+    private static final String SHOULD_TAKE_DAMAGE_ON_ARRIVAL = "Husk beyond reach should lose 8 health on arrival";
 
     private TouchDeliveryTests() {
     }
@@ -81,8 +86,8 @@ public final class TouchDeliveryTests {
             float lost = healthBefore - husk.getHealth();
             int drained = heldBefore - metalHeld(player);
             helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(lost > 0, String.format(SHOULD_TAKE_DAMAGE, lost));
-            helper.assertTrue(drained > 0, String.format(SHOULD_DRAIN_COST, drained));
+            helper.assertTrue(lost == DART_DAMAGE, String.format(SHOULD_TAKE_DAMAGE, lost));
+            helper.assertTrue(drained == DART_COST, String.format(SHOULD_DRAIN_COST, drained));
             helper.succeed();
         });
     }
@@ -99,13 +104,16 @@ public final class TouchDeliveryTests {
         ServerPlayer player = thrower(helper, FAR_PLAYER_POS);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             float healthBefore = husk.getHealth();
+            int heldBefore = metalHeld(player);
             GooEffectScheduler effects = GooServerState.of(helper.getLevel().getServer()).gooEffects();
             int pendingBefore = effects.pendingCount();
             GooThrowHandler.execute(player, dartPayload(player, husk));
             int scheduled = effects.pendingCount() - pendingBefore;
+            int drained = heldBefore - metalHeld(player);
             helper.assertTrue(scheduled == 1, String.format(SHOULD_SCHEDULE_FLIGHT, scheduled));
+            helper.assertTrue(drained == DART_COST, String.format(SHOULD_DRAIN_COST_ONCE, drained));
             helper.succeedWhen(() -> {
-                helper.assertTrue(husk.getHealth() < healthBefore, SHOULD_TAKE_DAMAGE_ON_ARRIVAL);
+                helper.assertTrue(healthBefore - husk.getHealth() == DART_DAMAGE, SHOULD_TAKE_DAMAGE_ON_ARRIVAL);
                 // The thrower stays listed until arrival, since the arriving effect names it.
                 helper.getLevel().getServer().getPlayerList().remove(player);
             });

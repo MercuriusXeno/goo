@@ -8,28 +8,34 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * with no touch and no punch, a press with no charge standing touches as it
  * did, and a channeled Grab throws its held mob
  * (decisions abilities-not-channeled-charge-and-cancel-on-left-click,
- * attack-key-touches-plus-punches, grab-holds-and-throws-a-physics-body).
+ * attack-key-touches-plus-punches, grab-holds-and-throws-a-physics-body), and a javelin right click
+ * holds is thrown before any of them (decision dart-forms-on-right-click-and-throws-on-left-click).
  */
 class GloveAttackTrackerTest {
 
     @Test
     void anAttackKeyDuringAChargeCancelsItAndSendsNoTouch() {
         assertEquals(GloveAttackTracker.AttackOutcome.CANCEL_CHARGE,
-                GloveAttackTracker.outcomeOf(true, false, true));
+                GloveAttackTracker.outcomeOf(false, true, false, true));
     }
 
     @Test
     void anAttackKeyWithNoChargeStandingSendsTheTouch() {
-        assertEquals(GloveAttackTracker.AttackOutcome.TOUCH, GloveAttackTracker.outcomeOf(false, false, true));
+        assertEquals(GloveAttackTracker.AttackOutcome.TOUCH, GloveAttackTracker.outcomeOf(false, false, false, true));
     }
 
     @Test
     void anAttackKeyWithNoChargeAndNothingToTouchStaysVanilla() {
-        assertEquals(GloveAttackTracker.AttackOutcome.VANILLA, GloveAttackTracker.outcomeOf(false, false, false));
+        assertEquals(GloveAttackTracker.AttackOutcome.VANILLA, GloveAttackTracker.outcomeOf(false, false, false, false));
     }
 
     @Test
     void anAttackKeyDuringAChanneledGrabThrowsTheHeldMob() {
-        assertEquals(GloveAttackTracker.AttackOutcome.THROW_GRAB, GloveAttackTracker.outcomeOf(false, true, true));
+        assertEquals(GloveAttackTracker.AttackOutcome.THROW_GRAB, GloveAttackTracker.outcomeOf(false, false, true, true));
+    }
+
+    @Test
+    void anAttackKeyWhileRightClickHoldsAJavelinThrowsItAndCancelsNothing() {
+        assertEquals(GloveAttackTracker.AttackOutcome.THROW_JAVELIN, GloveAttackTracker.outcomeOf(true, true, false, true));
     }
 }

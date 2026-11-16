@@ -29,6 +29,20 @@ public final class HeldRoute {
     }
 
     /**
+     * Whether an ability forms a javelin while the glove's use is held and
+     * throws it on the attack key, sending nothing as the use comes up: an
+     * arc wearing the held badge.
+     * decision dart-forms-on-right-click-and-throws-on-left-click
+     *
+     * @param delivery the ability's delivery, or null where none is selected
+     * @param badge    the ability's badge, or null where none is selected
+     * @return true for a held arc
+     */
+    public static boolean throwsOnAttack(@Nullable Delivery delivery, @Nullable AbilityBadge badge) {
+        return delivery != null && badge == AbilityBadge.HELD && delivery.kind() == DeliveryKind.ARC;
+    }
+
+    /**
      * Whether an ability is a channel run on the player each held tick.
      *
      * @param delivery the ability's delivery, or null where none is selected
