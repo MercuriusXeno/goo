@@ -155,19 +155,23 @@ public class VolumeCellBlock extends Block {
 
     /**
      * Whether a cell stands: a cell holding fill lies on a top, and a cell of
-     * fill 0 stands on its films alone, every one clinging to its wall.
+     * fill 0 stands on its films, every one clinging to its wall, and while a
+     * runny layer passes through it on its way down.
      * goo-cell-holds-a-fill-and-a-state-per-side
+     * runny-goo-runs-down-the-wall-to-the-first-top-below
      *
      * @param fill            the fill on its floor
      * @param liesOnATop      whether the block under it has a sturdy top
      * @param filmsClinging   for each film it holds, whether its wall has a face to hold it
+     * @param holdsARunnyLayer whether a side holds a runny layer
      * @return true where the cell stands
      */
-    static boolean stands(int fill, boolean liesOnATop, List<Boolean> filmsClinging) {
+    static boolean stands(int fill, boolean liesOnATop, List<Boolean> filmsClinging, boolean holdsARunnyLayer) {
         if (fill > 0) {
             return liesOnATop;
         }
-        return !filmsClinging.isEmpty() && filmsClinging.stream().allMatch(Boolean::booleanValue);
+        boolean holdsGoo = holdsARunnyLayer || !filmsClinging.isEmpty();
+        return holdsGoo && filmsClinging.stream().allMatch(Boolean::booleanValue);
     }
 
     /**
@@ -178,6 +182,16 @@ public class VolumeCellBlock extends Block {
      */
     static List<Direction> filmedSides(BlockState state) {
         return SIDES.stream().filter(side -> coatOn(state, side) == SideCoat.FILM).toList();
+    }
+
+    /**
+     * The sides a cell holds a runny layer on.
+     *
+     * @param state the cell's state
+     * @return each side holding a runny layer
+     */
+    static List<Direction> runnySides(BlockState state) {
+        return SIDES.stream().filter(side -> coatOn(state, side) == SideCoat.RUNNY).toList();
     }
 
     /**
@@ -199,7 +213,7 @@ public class VolumeCellBlock extends Block {
      * @param state the cell's state
      * @return its fill and its sides' layers
      */
-    static int layersHeldIn(BlockState state) {
+    public static int layersHeldIn(BlockState state) {
         return layersHeld(state.getValue(LAYERS), SIDES.stream().map(side -> coatOn(state, side)).toList());
     }
 
@@ -323,12 +337,100 @@ public class VolumeCellBlock extends Block {
      * @return the filmed state, empty where the side can take no film
      */
     public static Optional<BlockState> filmed(BlockState standing, Block cell, Direction side) {
+        return coated(standing, cell, side, SideCoat.FILM);
+    }
+
+    /**
+     * What a cell becomes when a layer of a goo lands on one of its sides:
+     * air takes a cell of fill 0 holding that layer there, a cell of that goo
+     * whose side stands bare takes it, anything else nothing.
+     * goo-cell-holds-a-fill-and-a-state-per-side
+     *
+     * @param standing the cell's state
+     * @param cell     the goo's volume cell block
+     * @param side     the side the layer lands on
+     * @param coat     what the layer stands as there, a film or a runny layer
+     * @return the coated state, empty where the side can take no layer
+     */
+    static Optional<BlockState> coated(BlockState standing, Block cell, Direction side, SideCoat coat) {
         if (standing.isAir()) {
-            return Optional.of(cell.defaultBlockState().setValue(LAYERS, 0).setValue(coatProperty(side),
-                    SideCoat.FILM));
+            return Optional.of(cell.defaultBlockState().setValue(LAYERS, 0).setValue(coatProperty(side), coat));
         }
         return standing.is(cell) && coatOn(standing, side) == SideCoat.BARE
-                ? Optional.of(standing.setValue(coatProperty(side), SideCoat.FILM)) : Optional.empty();
+                ? Optional.of(standing.setValue(coatProperty(side), coat)) : Optional.empty();
+    }
+
+    /**
+     * Where a layer lands, and the state it leaves that cell in.
+     *
+     * @param pos   the cell
+     * @param state its state with the layer landed
+     */
+    public record Placement(BlockPos pos, BlockState state) {
+    }
+
+    /** What a runny layer does on its cell's step. */
+    enum RunStep {
+        /** It joins the fill of its own cell, which lies on a top. */
+        JOIN_HERE,
+        /** It joins the fill of the cell below. */
+        JOIN_BELOW,
+        /** It moves to the same side of the cell below, the wall going on beside it. */
+        RUN_DOWN,
+        /** The wall ends: it falls to the first top below, as a layer poured off a ledge. */
+        FALL,
+        /** It waits on its side, the way down full or taken. */
+        WAIT
+    }
+
+    /** What the cell below a runny layer holds for it. */
+    enum Below {
+        /** A top under it, or fill of this goo with room for a layer. */
+        FILL_ROOM,
+        /** Fill of this goo, a whole block of it. */
+        FILL_FULL,
+        /** An open cell with the wall going on beside it and that side bare. */
+        WALL_GOES_ON,
+        /** An open cell with the wall going on beside it and that side taken. */
+        SIDE_TAKEN,
+        /** An open cell with no wall beside it. */
+        WALL_ENDS,
+        /** Any other block. */
+        BLOCKED
+    }
+
+    /**
+     * A runny layer's step down its wall: in a cell lying on a top it joins
+     * that cell's fill; else it joins the fill of the cell below, moves to
+     * the same side of the cell below while the wall goes on beside it, or
+     * falls where the wall ends; a full fill or a taken side holds it waiting.
+     * runny-goo-runs-down-the-wall-to-the-first-top-below
+     *
+     * @param hereOnATop whether its cell lies on a top
+     * @param hereFull   whether its cell holds a whole block of fill
+     * @param below      what the cell below holds for it
+     * @return the step
+     */
+    static RunStep runStep(boolean hereOnATop, boolean hereFull, Below below) {
+        if (hereOnATop) {
+            return hereFull ? RunStep.WAIT : RunStep.JOIN_HERE;
+        }
+        return stepOver(below);
+    }
+
+    /**
+     * A runny layer's step from a cell lying on no top, by what the cell below holds for it.
+     *
+     * @param below what the cell below holds for the layer
+     * @return the step
+     */
+    private static RunStep stepOver(Below below) {
+        return switch (below) {
+            case FILL_ROOM -> RunStep.JOIN_BELOW;
+            case WALL_GOES_ON -> RunStep.RUN_DOWN;
+            case WALL_ENDS -> RunStep.FALL;
+            case FILL_FULL, SIDE_TAKEN, BLOCKED -> RunStep.WAIT;
+        };
     }
 
     /**
@@ -430,7 +532,8 @@ public class VolumeCellBlock extends Block {
     @Override
     protected boolean canSurvive(@NonNull BlockState state, @NonNull LevelReader level, @NonNull BlockPos pos) {
         return stands(state.getValue(LAYERS), liesOn(level, pos),
-                filmedSides(state).stream().map(side -> clingsTo(level, pos, side)).toList());
+                filmedSides(state).stream().map(side -> clingsTo(level, pos, side)).toList(),
+                !runnySides(state).isEmpty());
     }
 
     /**
@@ -474,12 +577,143 @@ public class VolumeCellBlock extends Block {
     @Override
     protected void tick(@NonNull BlockState state, @NonNull ServerLevel level, @NonNull BlockPos pos,
                         @NonNull RandomSource random) {
-        BlockState held = shedLooseFilms(level, pos, state);
+        BlockState held = runRunnyLayers(level, pos, shedLooseFilms(level, pos, state));
+        if (!held.is(this)) {
+            return;
+        }
         if (!canSurvive(held, level, pos)) {
             level.destroyBlock(pos, true);
             return;
         }
         pourOnce(level, pos, held);
+    }
+
+    /**
+     * Steps each runny layer a cell holds one cell down its wall, or into the
+     * fill it ends in; a cell left with fill 0 and every side bare stands open.
+     * runny-goo-runs-down-the-wall-to-the-first-top-below
+     *
+     * @param level the level
+     * @param pos   the cell
+     * @param state the cell's state
+     * @return the cell's state once its runny layers have stepped
+     */
+    private BlockState runRunnyLayers(ServerLevel level, BlockPos pos, BlockState state) {
+        BlockState left = state;
+        for (Direction side : runnySides(state)) {
+            Optional<Placement> step = runFrom(level, pos, left, side);
+            if (step.isPresent()) {
+                left = stepRunnyLayer(level, pos, left, side, step.get());
+            }
+        }
+        if (layersHeldIn(left) == 0) {
+            left = Blocks.AIR.defaultBlockState();
+        }
+        if (left != state) {
+            level.setBlock(pos, left, UPDATE_ALL);
+        }
+        return left;
+    }
+
+    /**
+     * Moves one runny layer to where its step lands it, clearing its side.
+     *
+     * @param level   the level
+     * @param pos     the cell the layer leaves
+     * @param state   the cell's state
+     * @param side    the side the layer ran down
+     * @param landing where its step lands it
+     * @return the cell's state with the layer gone from its side
+     */
+    private BlockState stepRunnyLayer(ServerLevel level, BlockPos pos, BlockState state, Direction side,
+                                      Placement landing) {
+        if (landing.pos().equals(pos)) {
+            return landing.state().setValue(coatProperty(side), SideCoat.BARE);
+        }
+        level.setBlock(landing.pos(), landing.state(), UPDATE_ALL);
+        return state.setValue(coatProperty(side), SideCoat.BARE);
+    }
+
+    /**
+     * Where a runny layer struck against a cell's side lands: on that side
+     * where it stands bare, or, the side already holding its layer, wherever
+     * the layer's first step down the wall takes it at once, so the struck
+     * layer stands somewhere it can be seen and given back.
+     * drip-striking-a-side-sticks-or-runs-by-adhesion
+     * runny-goo-runs-down-the-wall-to-the-first-top-below
+     *
+     * @param level the level
+     * @param pos   the cell beside the struck wall
+     * @param side  the cell's side facing that wall
+     * @return where the layer lands, empty where it can find no room
+     */
+    public Optional<Placement> runnyLanding(ServerLevel level, BlockPos pos, Direction side) {
+        BlockState standing = level.getBlockState(pos);
+        Optional<BlockState> onTheSide = coated(standing, this, side, SideCoat.RUNNY);
+        return onTheSide.isPresent() ? onTheSide.map(state -> new Placement(pos, state))
+                : runFrom(level, pos, standing, side);
+    }
+
+    /**
+     * Where a runny layer on a cell's side lands on its step down the wall.
+     * runny-goo-runs-down-the-wall-to-the-first-top-below
+     *
+     * @param level the level
+     * @param here  the cell holding the layer
+     * @param state that cell's state
+     * @param side  the side the layer runs down
+     * @return where it lands and what that cell becomes, empty where it waits
+     */
+    private Optional<Placement> runFrom(LevelReader level, BlockPos here, BlockState state, Direction side) {
+        BlockPos below = here.below();
+        BlockState under = level.getBlockState(below);
+        RunStep step = runStep(liesOn(level, here), layersOf(state) >= MAX_LAYERS, belowFor(level, below, side));
+        return switch (step) {
+            case JOIN_HERE -> thickened(state, this).map(into -> new Placement(here, into));
+            case JOIN_BELOW -> thickened(under, this).map(into -> new Placement(below, into));
+            case RUN_DOWN -> coated(under, this, side, SideCoat.RUNNY).map(into -> new Placement(below, into));
+            case FALL -> landingBelow(level, below).flatMap(cell -> thickened(level.getBlockState(cell), this)
+                    .map(into -> new Placement(cell, into)));
+            case WAIT -> Optional.empty();
+        };
+    }
+
+    /**
+     * What the cell below a runny layer holds for it.
+     *
+     * @param level the level
+     * @param below the cell below the layer's cell
+     * @param side  the side the layer runs down
+     * @return what that cell holds for the layer
+     */
+    private Below belowFor(LevelReader level, BlockPos below, Direction side) {
+        BlockState under = level.getBlockState(below);
+        if (under.is(this) && under.getValue(LAYERS) > 0) {
+            return under.getValue(LAYERS) < MAX_LAYERS ? Below.FILL_ROOM : Below.FILL_FULL;
+        }
+        return opens(under) ? openBelowFor(level, below, under, side) : Below.BLOCKED;
+    }
+
+    /**
+     * What an open cell below a runny layer, air or a cell of this goo's
+     * films alone, holds for it: a top under it takes the layer's fill, a
+     * wall going on beside it carries the layer down where that side is
+     * bare, and no wall lets it fall.
+     *
+     * @param level the level
+     * @param below the open cell below the layer's cell
+     * @param under that cell's state
+     * @param side  the side the layer runs down
+     * @return what that cell holds for the layer
+     */
+    private Below openBelowFor(LevelReader level, BlockPos below, BlockState under, Direction side) {
+        if (liesOn(level, below)) {
+            return Below.FILL_ROOM;
+        }
+        if (!clingsTo(level, below, side)) {
+            return Below.WALL_ENDS;
+        }
+        return coatOn(under, side) == SideCoat.BARE ? Below.WALL_GOES_ON : Below.SIDE_TAKEN;
     }
 
     /**

@@ -25,6 +25,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.client.model.DynamicBlockStateModel;
 import net.neoforged.neoforge.client.model.block.CustomUnbakedBlockStateModel;
 import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -76,11 +77,15 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core,
         if (!quads.isEmpty()) {
             parts.add(new CorePart(quads, shell.particleMaterial(level, pos, state)));
         }
-        List<Direction> walls = Direction.Plane.HORIZONTAL.stream()
-                .filter(side -> VolumeCellBlock.coatOn(state, side) == SideCoat.FILM).toList();
-        if (!walls.isEmpty()) {
-            parts.add(new CorePart(SlimeFilmQuads.quadsOf(walls, film), shell.particleMaterial(level, pos, state)));
+        List<BakedQuad> coats = new ArrayList<>(SlimeFilmQuads.quadsOf(sidesHolding(state, SideCoat.FILM), film));
+        coats.addAll(SlimeFilmQuads.streaksOf(sidesHolding(state, SideCoat.RUNNY), film));
+        if (!coats.isEmpty()) {
+            parts.add(new CorePart(coats, shell.particleMaterial(level, pos, state)));
         }
+    }
+
+    private static List<Direction> sidesHolding(BlockState state, SideCoat coat) {
+        return Direction.Plane.HORIZONTAL.stream().filter(side -> VolumeCellBlock.coatOn(state, side) == coat).toList();
     }
 
     /**

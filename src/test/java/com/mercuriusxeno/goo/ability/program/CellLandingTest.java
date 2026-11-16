@@ -1,12 +1,15 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.block.ability.SideCoat;
 import com.mercuriusxeno.goo.throwing.CoatRay;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -43,10 +46,57 @@ class CellLandingTest {
         }
 
         @Override
-        public boolean coatsSide(BlockPos cell, Direction side) {
-            return !cell.equals(FILMED_WALL.west());
+        public Optional<SideCoat> sideAt(BlockPos cell, Direction side) {
+            if (cell.equals(WALL) || cell.equals(FILMED_WALL) || cell.equals(CELL)) {
+                return Optional.empty();
+            }
+            boolean filmed = cell.equals(FILMED_WALL.west()) && side == Direction.EAST;
+            return Optional.of(filmed ? SideCoat.FILM : SideCoat.BARE);
+        }
+
+        @Override
+        public boolean gooBelow(BlockPos cell) {
+            return false;
         }
     };
+
+    /**
+     * What a side strike lays follows the adhesion ladder, read whole without a
+     * goo dialed to each rung (decisions adhesion-is-a-ladder-of-holds,
+     * drip-striking-a-side-sticks-or-runs-by-adhesion).
+     */
+    @Nested
+    class Ladder {
+
+        @Test
+        void adhesionZeroAndOneRunAtABareSide() {
+            assertEquals(SideCoat.RUNNY, CellLanding.sideCoatFor(0, SideCoat.BARE, true));
+            assertEquals(SideCoat.RUNNY, CellLanding.sideCoatFor(HOLDS_TOPS, SideCoat.BARE, true));
+        }
+
+        @Test
+        void adhesionTwoHoldsOnlyOverGooOfItsType() {
+            assertEquals(SideCoat.FILM, CellLanding.sideCoatFor(2, SideCoat.BARE, true));
+            assertEquals(SideCoat.RUNNY, CellLanding.sideCoatFor(2, SideCoat.BARE, false));
+        }
+
+        @Test
+        void adhesionThreeHoldsWhereItStrikes() {
+            assertEquals(SideCoat.FILM, CellLanding.sideCoatFor(HOLDS_WHERE_IT_STRIKES, SideCoat.BARE, false));
+        }
+
+        @ParameterizedTest
+        @ValueSource(ints = {0, 1, 2, 3})
+        void aSideAlreadyHoldingItsLayerRunsAtAnyAdhesion(int adhesion) {
+            assertEquals(SideCoat.RUNNY, CellLanding.sideCoatFor(adhesion, SideCoat.FILM, true));
+        }
+    }
+
+    @Test
+    void aSideStrikeAtAdhesionZeroRunsDownTheWallInTheCellBesideIt() {
+        assertEquals(Optional.of(CellFed.runny(WALL.west(), Direction.EAST)),
+                CellLanding.cellFedBy(strike(WALL, Direction.WEST), 0, cells));
+    }
 
     private static CoatRay.BlockStrike strike(BlockPos block, Direction face) {
         return new CoatRay.BlockStrike(Vec3.atCenterOf(block).relative(face, 0.5), block, face);
@@ -80,9 +130,27 @@ class CellLandingTest {
                 CellLanding.cellFedBy(strike(WALL, face), HOLDS_WHERE_IT_STRIKES, cells));
     }
 
+    /**
+     * A drip striking a film's own face, the slab standing out from its wall,
+     * strikes the wall the film coats and runs there.
+     */
     @Test
-    void aSideStrikeOnAWallAlreadyFilmedFeedsNothingYet() {
-        assertEquals(Optional.empty(),
+    void aStrikeOnAFilmsFaceRunsOnThatFilmsSide() {
+        assertEquals(Optional.of(CellFed.runny(FILMED_WALL.west(), Direction.EAST)),
+                CellLanding.cellFedBy(strike(FILMED_WALL.west(), Direction.WEST), HOLDS_WHERE_IT_STRIKES, cells));
+    }
+
+    /**
+     * A drip striking the side of its goo's fill joins that fill, as one striking its top does.
+     */
+    @Test
+    void aStrikeOnTheSideOfItsGoosFillJoinsThatFill() {
+        assertEquals(Optional.of(CellFed.fill(CELL)), CellLanding.cellFedBy(strike(CELL, Direction.WEST), 0, cells));
+    }
+
+    @Test
+    void aSideStrikeOnAWallAlreadyFilmedRuns() {
+        assertEquals(Optional.of(CellFed.runny(FILMED_WALL.west(), Direction.EAST)),
                 CellLanding.cellFedBy(strike(FILMED_WALL, Direction.WEST), HOLDS_WHERE_IT_STRIKES, cells));
     }
 }

@@ -150,22 +150,72 @@ class VolumeCellBlockTest {
 
         @Test
         void aFilledCellStandsOnATopAlone() {
-            assertTrue(VolumeCellBlock.stands(LAYERS_ON_TOP, true, List.of()));
-            assertFalse(VolumeCellBlock.stands(LAYERS_ON_TOP, false, List.of(true)));
+            assertTrue(VolumeCellBlock.stands(LAYERS_ON_TOP, true, List.of(), false));
+            assertFalse(VolumeCellBlock.stands(LAYERS_ON_TOP, false, List.of(true), false));
         }
 
         @Test
         void aCellOfFillZeroStandsOnAFilmClingingToItsWall() {
-            assertTrue(VolumeCellBlock.stands(0, false, List.of(true)));
+            assertTrue(VolumeCellBlock.stands(0, false, List.of(true), false));
+        }
+
+        @Test
+        void aCellOfFillZeroStandsWhileARunnyLayerPassesThroughIt() {
+            assertTrue(VolumeCellBlock.stands(0, false, List.of(), true));
         }
 
         @Test
         void aCellOfFillZeroFallsWhenAFilmsWallIsGone() {
-            assertFalse(VolumeCellBlock.stands(0, false, List.of(true, false)));
-            assertFalse(VolumeCellBlock.stands(0, true, List.of()));
+            assertFalse(VolumeCellBlock.stands(0, false, List.of(true, false), false));
+            assertFalse(VolumeCellBlock.stands(0, true, List.of(), false));
         }
 
         private static final int LAYERS_ON_TOP = 3;
+    }
+
+    /**
+     * A runny layer moves down its wall a cell each step and ends as fill on
+     * the first top below, so every layer paid for stands as fill or film
+     * (decision runny-goo-runs-down-the-wall-to-the-first-top-below).
+     */
+    @Nested
+    class RunnyStep {
+
+        @Test
+        void aRunnyLayerInACellOnATopJoinsThatCellsFill() {
+            assertEquals(VolumeCellBlock.RunStep.JOIN_HERE,
+                    VolumeCellBlock.runStep(true, false, VolumeCellBlock.Below.BLOCKED));
+        }
+
+        @Test
+        void aRunnyLayerWaitsOverAFullCellOnATop() {
+            assertEquals(VolumeCellBlock.RunStep.WAIT,
+                    VolumeCellBlock.runStep(true, true, VolumeCellBlock.Below.BLOCKED));
+        }
+
+        @Test
+        void aRunnyLayerJoinsTheFillOfTheCellBelow() {
+            assertEquals(VolumeCellBlock.RunStep.JOIN_BELOW,
+                    VolumeCellBlock.runStep(false, false, VolumeCellBlock.Below.FILL_ROOM));
+        }
+
+        @Test
+        void aRunnyLayerWaitsOverAFullCellBelow() {
+            assertEquals(VolumeCellBlock.RunStep.WAIT,
+                    VolumeCellBlock.runStep(false, false, VolumeCellBlock.Below.FILL_FULL));
+        }
+
+        @Test
+        void aRunnyLayerMovesDownWhileTheWallGoesOn() {
+            assertEquals(VolumeCellBlock.RunStep.RUN_DOWN,
+                    VolumeCellBlock.runStep(false, false, VolumeCellBlock.Below.WALL_GOES_ON));
+        }
+
+        @Test
+        void aRunnyLayerFallsWhereTheWallEnds() {
+            assertEquals(VolumeCellBlock.RunStep.FALL,
+                    VolumeCellBlock.runStep(false, false, VolumeCellBlock.Below.WALL_ENDS));
+        }
     }
 
     @Nested
