@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Covers Lifetap's splash count and Drain's trickle and burst: the trickle
+ * Covers Leech goo's splash count and Drain's trickle and burst: the trickle
  * sets off evenly from close around the drained mob's chest, a tight stream
  * (decision drain-casts-a-filled-tornadic-miasma-vortex-along-the-look).
  */

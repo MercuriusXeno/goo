@@ -93,6 +93,7 @@
 
   "effect.goo.astral_held": "Starlight",
   "effect.goo.deep_held": "Abyssal",
+  "effect.goo.hex_held": "Hexed",
   "effect.goo.infinity_held": "Infinity",
   "effect.goo.metal_held": "Heavy Metal",
   "effect.goo.opulent_held": "Fortune",
@@ -231,8 +232,6 @@
   "goo.ability.hex.leech": "Leech",
   "goo.ability.hex.leech.cost_mechanics": "Costs %s per block of Leech laid, a fifteenth of it per layer.",
   "goo.ability.hex.leech.description": "Held stream sprays Leech, a soul-steeped goo that slows whatever it catches while its spirits gnaw at it.",
-  "goo.ability.hex.lifetap": "Lifetap",
-  "goo.ability.hex.lifetap.description": "Damage you deal heals you, but food no longer regenerates your health.",
   "goo.ability.hex.drain": "Drain",
   "goo.ability.hex.drain.description": "Hold to drain health from the creatures in a wide cone ahead.",
   "goo.ability.jelly.heal": "Heal",

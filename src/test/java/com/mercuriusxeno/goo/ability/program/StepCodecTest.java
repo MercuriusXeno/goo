@@ -204,7 +204,6 @@ class StepCodecTest {
                     Expr.literal(0.5), Expr.literal(4))),
             Map.entry("transmute_slime", new SlimeTransmuteStep(GooTypes.ZOO, true, 20,
                     List.of(new AilmentOverlayStep(AilmentKind.HEX, Expr.literal(60))))),
-            Map.entry("lifetap", new LifetapStep(Expr.literal(0.3))),
             Map.entry("tome", new TomeStep(TomeKind.FUSE)),
             Map.entry("float", new FloatStep(Expr.literal(100), Expr.literal(1))),
             Map.entry("lift", new LiftStep(Expr.literal(0.3), Expr.literal(0.2), Expr.literal(32))),

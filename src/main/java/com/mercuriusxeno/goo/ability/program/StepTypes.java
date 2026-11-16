@@ -163,7 +163,6 @@ public final class StepTypes {
         register(FuseBooksStep.TYPE);
         register(SlimeTransmuteStep.TYPE);
         register(RallyStep.TYPE);
-        register(LifetapStep.TYPE);
         register(LeechStep.TYPE);
         register(TomeStep.TYPE);
         register(FloatStep.TYPE);

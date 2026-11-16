@@ -16,7 +16,7 @@ import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
  * in Leech goo heals the one who dealt it by the damage dealt, where that
  * one is a living entity or a player striking directly; damage with no
  * entity source, the goo's own spirits among it, heals nobody. The life
- * splashes off the victim as the hex wisps Lifetap drew, with a soul's escape.
+ * splashes off the victim as hex wisps, with a soul's escape.
  * damage-dealt-to-a-mob-in-leech-goo-becomes-drained-life-for-its-source
  */
 @EventBusSubscriber(modid = Goo.MODID)
