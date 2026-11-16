@@ -325,8 +325,28 @@ public final class GooFlightRenderer {
     public static void emitCore(PoseStack.Pose pose, VertexConsumer c,
                                 ResourceKey<GooTypeDefinition> type, float gameTime, BlobShape shape) {
         float pulse = 1.0f + CORE_PULSE_AMP * Mth.sin(gameTime * CORE_PULSE_SPEED);
+        emitCoreScaled(pose, c, type, shape.scaled(CORE_HW * pulse));
+    }
+
+    /**
+     * Emits the blob's core still at its rest size, 3/4 of its shell: the
+     * goo item's core, which breathes no pulse.
+     * goo-cuboid-core-is-three-quarters-of-its-shell
+     *
+     * @param pose  the pose at the blob's center
+     * @param c     a consumer of the translucent goo render type
+     * @param type  the goo type
+     * @param shape the blob's box against a flight's cube
+     */
+    public static void emitStillCore(PoseStack.Pose pose, VertexConsumer c,
+                                     ResourceKey<GooTypeDefinition> type, BlobShape shape) {
+        emitCoreScaled(pose, c, type, shape.scaled(CORE_HW));
+    }
+
+    private static void emitCoreScaled(PoseStack.Pose pose, VertexConsumer c,
+                                       ResourceKey<GooTypeDefinition> type, BlobShape halves) {
         RenderContext ctx = new RenderContext(pose, c, GooSubmitter.fullbrightLight());
-        ctx.emitBox(CORE_COLOR, boxAbout(shape.scaled(CORE_HW * pulse)), spriteToUv(type));
+        ctx.emitBox(CORE_COLOR, boxAbout(halves), spriteToUv(type));
     }
 
     /**

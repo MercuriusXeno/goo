@@ -99,7 +99,8 @@ public class GooItemEntityRenderer extends ItemEntityRenderer {
 
     /**
      * Submits the palm cuboid resting on the pose's origin, unturned: the
-     * core inside the shell, both translucent and the core first.
+     * core still inside the shell, both translucent and the core first.
+     * goo-cuboid-core-is-three-quarters-of-its-shell
      * slime-core-draws-translucent-at-the-shells-opacity
      *
      * @param type          the goo type
@@ -110,11 +111,10 @@ public class GooItemEntityRenderer extends ItemEntityRenderer {
     private static void submitCuboid(ResourceKey<GooTypeDefinition> type, float size, PoseStack poseStack,
                                      SubmitNodeCollector nodeCollector) {
         BlobShape shape = BlobShape.CUBE.scaled(GooCuboidSize.sizeInLevel(size));
-        float gameTime = GloveSpecialRenderer.gameTime();
         poseStack.pushPose();
         poseStack.translate(0, GooCuboidSize.restingCenterHeight(size), 0);
         nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
-                (pose, c) -> GooFlightRenderer.emitCore(pose, c, type, gameTime, shape));
+                (pose, c) -> GooFlightRenderer.emitStillCore(pose, c, type, shape));
         nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
                 (pose, c) -> GooFlightRenderer.emitShell(pose, c, type, shape));
         poseStack.popPose();
