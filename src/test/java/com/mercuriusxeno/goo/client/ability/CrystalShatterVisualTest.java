@@ -196,4 +196,33 @@ class CrystalShatterVisualTest {
             assertEquals((int) (ARGB.red(BRIGHT) * 1.3f), firstFaceRedAt(0));
         }
     }
+
+    /**
+     * A cell drawing a layout of more shards than the last one drawn at its
+     * position draws every face of it: the 2026-11-16 dev client crashed with
+     * Index 12 out of bounds for length 12 when a tile took a new, larger layout.
+     */
+    @Test
+    void aLargerLayoutAtAPositionDrawsEveryFace() {
+        BlockPos cell = new BlockPos(-300, 70, 41);
+        ShatterCellShards.CellLayout fewer = layoutOfSize(ShatterCellShards.FEWEST_SHARDS);
+        ShatterCellShards.CellLayout more = layoutOfSize(ShatterCellShards.MOST_SHARDS);
+        RecordingProbe probe = new RecordingProbe();
+
+        emitFrame(CrystalShatterVisual.drawOf(cell, fewer.shapes(),
+                ShatterCellShards.shardsOver(cell, LAYERS, 1f, fewer), 0, new Vec3(0.5, 70, 0.5), probe));
+        List<RecordingVertexConsumer.Vertex> vertices = emitFrame(CrystalShatterVisual.drawOf(cell, more.shapes(),
+                ShatterCellShards.shardsOver(cell, LAYERS, 1f, more), 1, new Vec3(0.5, 70, 0.5), probe));
+
+        assertTrue(vertices.size() >= more.size() * QUAD_VERTICES, "drew " + vertices.size() + " vertices");
+    }
+
+    private static ShatterCellShards.CellLayout layoutOfSize(int size) {
+        for (long seed = 0; ; seed++) {
+            ShatterCellShards.CellLayout layout = ShatterCellShards.layoutFromSeed(seed);
+            if (layout.size() == size) {
+                return layout;
+            }
+        }
+    }
 }

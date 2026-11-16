@@ -252,7 +252,9 @@ public final class CrystalShatterVisual {
     }
 
     /**
-     * What this frame of one cell's shards draws.
+     * What this frame of one cell's shards draws. The cell's eased
+     * reflections start over where its position last drew a layout of fewer
+     * faces, as a tile drawn again from a new seed may.
      *
      * @param pos    the cell's position
      * @param layout the cell's shard layout
@@ -262,10 +264,15 @@ public final class CrystalShatterVisual {
      * @param probe  casts the reflection rays
      * @return the frame's draw
      */
-    private static CellDraw drawOf(BlockPos pos, ShardTable layout, List<ShatterCellShards.CellShard> shards,
-                                   double clock, Vec3 eye, BlockColorProbe probe) {
-        return new CellDraw(pos, shards, layout, (float) clock, eye, probe, clock, EASINGS.computeIfAbsent(pos,
-                p -> new ReflectionEasing(layout.size() * MAX_FACES_PER_SLIVER)));
+    static CellDraw drawOf(BlockPos pos, ShardTable layout, List<ShatterCellShards.CellShard> shards,
+                           double clock, Vec3 eye, BlockColorProbe probe) {
+        int faces = layout.size() * MAX_FACES_PER_SLIVER;
+        ReflectionEasing easing = EASINGS.get(pos);
+        if (easing == null || !easing.covers(faces)) {
+            easing = new ReflectionEasing(faces);
+            EASINGS.put(pos, easing);
+        }
+        return new CellDraw(pos, shards, layout, (float) clock, eye, probe, clock, easing);
     }
 
     /**
