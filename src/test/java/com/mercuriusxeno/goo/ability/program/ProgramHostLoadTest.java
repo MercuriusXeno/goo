@@ -267,10 +267,10 @@ class ProgramHostLoadTest {
 
     /** The landing is no target. */
     @Test
-    void theLandingHostProvidesItsEighteenCapabilities() {
+    void theLandingHostProvidesItsSeventeenCapabilities() {
         assertEquals(Set.of(HostCapability.PLACED_FACE, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN,
                         HostCapability.PLACE_BLOCK, HostCapability.LINGER, HostCapability.SPORE,
-                        HostCapability.FLOOR_SCAN, HostCapability.BREAK_BLOCKS, HostCapability.END_GATE,
+                        HostCapability.FLOOR_SCAN, HostCapability.BREAK_BLOCKS,
                         HostCapability.WORMHOLE, HostCapability.PORTAL, HostCapability.HOLE, HostCapability.METEOR,
                         HostCapability.POWER_PULSE,
                         HostCapability.AGING, HostCapability.FROST, HostCapability.SPAWN_MOB, HostCapability.IGNITE),
