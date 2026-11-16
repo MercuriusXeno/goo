@@ -9,15 +9,12 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.WorldGenLevel;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
-import net.minecraft.world.level.levelgen.structure.StructurePiece;
-import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceSerializationContext;
 
 /**
  * The one piece of a fallen meteorite: a bowl sunk into the ground around its centre, its floor scorched to basalt,
@@ -25,7 +22,7 @@ import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceSeriali
  * on its upper face. The bowl follows each column's own ground, so it sits in the terrain wherever it falls.
  * decision lunar-holds-meteorites-eldritch-nests-monoliths-and-ruins
  */
-public final class MeteoritePiece extends StructurePiece {
+public final class MeteoritePiece extends LandmarkPiece {
 
     /** The scorched bowl's radius, and how deep it sinks under the centre's ground. */
     static final int CRATER_RADIUS = 7;
@@ -41,16 +38,6 @@ public final class MeteoritePiece extends StructurePiece {
     private static final int BOX_HEADROOM = 16;
     /** Every third block of the lump's upper shell crusts to glass. */
     private static final int CRUST_SPACING = 3;
-    /** Block flags for a structure's placement: tell clients, and skip neighbour updates. */
-    private static final int PLACE_FLAGS = Block.UPDATE_CLIENTS;
-    private static final String CENTER_X = "CX";
-    private static final String CENTER_Y = "CY";
-    private static final String CENTER_Z = "CZ";
-
-    private final int centerX;
-    private final int groundY;
-    private final int centerZ;
-
     /**
      * A meteorite piece centred on a column.
      *
@@ -59,12 +46,9 @@ public final class MeteoritePiece extends StructurePiece {
      * @param centerZ the centre's z
      */
     public MeteoritePiece(int centerX, int groundY, int centerZ) {
-        super(GooStructures.METEORITE_PIECE.get(), 0, new BoundingBox(centerX - CRATER_RADIUS,
+        super(GooStructures.METEORITE_PIECE.get(), new BoundingBox(centerX - CRATER_RADIUS,
                 groundY - CRATER_DEPTH - SCORCH_DEPTH, centerZ - CRATER_RADIUS, centerX + CRATER_RADIUS,
-                groundY + BOX_HEADROOM, centerZ + CRATER_RADIUS));
-        this.centerX = centerX;
-        this.groundY = groundY;
-        this.centerZ = centerZ;
+                groundY + BOX_HEADROOM, centerZ + CRATER_RADIUS), centerX, groundY, centerZ);
     }
 
     /**
@@ -74,16 +58,6 @@ public final class MeteoritePiece extends StructurePiece {
      */
     public MeteoritePiece(CompoundTag tag) {
         super(GooStructures.METEORITE_PIECE.get(), tag);
-        this.centerX = tag.getIntOr(CENTER_X, 0);
-        this.groundY = tag.getIntOr(CENTER_Y, 0);
-        this.centerZ = tag.getIntOr(CENTER_Z, 0);
-    }
-
-    @Override
-    protected void addAdditionalSaveData(StructurePieceSerializationContext context, CompoundTag tag) {
-        tag.putInt(CENTER_X, centerX);
-        tag.putInt(CENTER_Y, groundY);
-        tag.putInt(CENTER_Z, centerZ);
     }
 
     /**

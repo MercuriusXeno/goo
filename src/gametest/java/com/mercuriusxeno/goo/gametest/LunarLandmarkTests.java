@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.lunar.Lunar;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.registry.GooEntities;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -13,24 +14,42 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.commands.PlaceCommand;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.random.Weighted;
+import net.minecraft.util.random.WeightedList;
+import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.MobSpawnSettings;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureSet;
+import net.minecraft.world.level.levelgen.structure.StructureSpawnOverride;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
 /**
  * Gametests for lunar's landmarks, each generated at a spot in goo:lunar the way the place command generates a
- * structure, and each placed in goo:lunar by its structure set: the fallen meteorite in its scorched crater.
+ * structure, and each placed in goo:lunar by its structure set: the fallen meteorite in its scorched crater, and the
+ * eldritch nest where the monstrosities gather.
  * decision lunar-holds-meteorites-eldritch-nests-monoliths-and-ruins
  */
 @RegistersGameTests
 public final class LunarLandmarkTests {
     private static final String METEORITE_SITS_IN_A_SCORCHED_CRATER = "meteorite_sits_in_a_scorched_crater";
+    private static final String NEST_GATHERS_THE_ELDRITCH = "nest_gathers_the_eldritch";
+    private static final ResourceKey<Structure> NEST = ResourceKey.create(Registries.STRUCTURE,
+            Identifier.fromNamespaceAndPath(Goo.MODID, "eldritch_nest"));
+    private static final ResourceKey<StructureSet> NESTS = ResourceKey.create(Registries.STRUCTURE_SET,
+            Identifier.fromNamespaceAndPath(Goo.MODID, "eldritch_nests"));
+    private static final BlockPos NEST_SPOT = new BlockPos(1000, 0, 1200);
+    /** The nest's hollow stands at least this many blocks tall down its centre. */
+    private static final int LEAST_HOLLOW = 3;
+    private static final String NEST_HOLLOW = "The nest at %s should stand sculk over a hollow of %d blocks over a sculk "
+            + "floor, reads %s over %d blocks of air over %s";
+    private static final String NEST_OUTSPAWNS = "The nest's spawn overrides should weigh goo:eldritch_monstrosity over "
+            + "the lunar biome's %d, weigh %d";
 
     private static final ResourceKey<Biome> LUNAR_BIOME = ResourceKey.create(Registries.BIOME,
             Identifier.fromNamespaceAndPath(Goo.MODID, "lunar"));
@@ -61,6 +80,7 @@ public final class LunarLandmarkTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, METEORITE_SITS_IN_A_SCORCHED_CRATER,
                 LunarLandmarkTests::meteoriteSitsInAScorchedCrater);
+        GooTestFunctions.registerTest(registrar, NEST_GATHERS_THE_ELDRITCH, LunarLandmarkTests::nestGathersTheEldritch);
     }
 
     /**
@@ -92,6 +112,42 @@ public final class LunarLandmarkTests {
         helper.assertTrue(floor.is(Blocks.BASALT), String.format(ON_BASALT, column.atY(top), y, floor));
         assertSetPlacesInLunar(helper, lunar, METEORITES, METEORITE);
         helper.succeed();
+    }
+
+    /**
+     * The eldritch nest generated at a spot in goo:lunar leaves, down its chunk's centre column, a sculk roof over a
+     * hollow over a sculk floor; its spawn overrides weigh the monstrosity over the lunar biome's spawner; and its
+     * structure set places it in goo:lunar's biome.
+     *
+     * @param helper the gametest helper
+     */
+    public static void nestGathersTheEldritch(GameTestHelper helper) {
+        ServerLevel lunar = place(helper, NEST, NEST_SPOT);
+        ChunkPos chunk = ChunkPos.containing(NEST_SPOT);
+        BlockPos column = new BlockPos(chunk.getMiddleBlockX(), 0, chunk.getMiddleBlockZ());
+        int top = lunar.getHeight(Heightmap.Types.WORLD_SURFACE, column.getX(), column.getZ()) - 1;
+        BlockState roof = lunar.getBlockState(column.atY(top));
+        int y = top - 1;
+        while (lunar.getBlockState(column.atY(y)).isAir()) {
+            y--;
+        }
+        int hollow = top - 1 - y;
+        BlockState floor = lunar.getBlockState(column.atY(y));
+        helper.assertTrue(roof.is(Blocks.SCULK) && hollow >= LEAST_HOLLOW && floor.is(Blocks.SCULK),
+                String.format(NEST_HOLLOW, column.atY(top), LEAST_HOLLOW, roof, hollow, floor));
+        int biomeWeight = monstrosityWeight(lunar.registryAccess().lookupOrThrow(Registries.BIOME).getOrThrow(LUNAR_BIOME)
+                .value().getMobSettings().getMobs(MobCategory.MONSTER));
+        StructureSpawnOverride overrides = lunar.registryAccess().lookupOrThrow(Registries.STRUCTURE).getOrThrow(NEST)
+                .value().spawnOverrides().get(MobCategory.MONSTER);
+        int nestWeight = overrides == null ? 0 : monstrosityWeight(overrides.spawns());
+        helper.assertTrue(nestWeight > biomeWeight, String.format(NEST_OUTSPAWNS, biomeWeight, nestWeight));
+        assertSetPlacesInLunar(helper, lunar, NESTS, NEST);
+        helper.succeed();
+    }
+
+    private static int monstrosityWeight(WeightedList<MobSpawnSettings.SpawnerData> spawns) {
+        return spawns.unwrap().stream().filter(spawn -> spawn.value().type() == GooEntities.ELDRITCH_MONSTROSITY.get())
+                .mapToInt(Weighted::weight).max().orElse(0);
     }
 
     /** Generates a structure at a spot in goo:lunar as the place command does, and answers lunar. */
