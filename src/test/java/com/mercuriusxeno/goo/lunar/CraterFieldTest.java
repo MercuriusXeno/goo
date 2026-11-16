@@ -3,12 +3,14 @@ package com.mercuriusxeno.goo.lunar;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * A lunar crater sinks a bowl under the ground and rings it with a raised rim, and a cell rolled empty leaves its
- * ground untouched.
+ * ground untouched; a column near a crater's centre reads as its floor.
  * decision lunar-generates-from-its-own-noise-and-surface-rules
+ * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
  */
 class CraterFieldTest {
 
@@ -64,6 +66,22 @@ class CraterFieldTest {
         void aColumnNoCraterReachesReadsTheGround() {
             assertEquals(0.0, CraterField.heightAt(-CraterField.CELL, -CraterField.CELL,
                     Field::rollOneCenteredCrater), TOLERANCE);
+        }
+
+        @Test
+        void aColumnAtACraterCenterReadsAsItsFloor() {
+            assertTrue(CraterField.isFloor(CENTER, CENTER, Field::rollOneCenteredCrater));
+        }
+
+        @Test
+        void aColumnOnACraterRimReadsAsNoFloor() {
+            int rim = CENTER + (int) Math.round(CENTERED_RADIUS);
+            assertFalse(CraterField.isFloor(rim, CENTER, Field::rollOneCenteredCrater));
+        }
+
+        @Test
+        void aColumnNoCraterReachesReadsAsNoFloor() {
+            assertFalse(CraterField.isFloor(-CraterField.CELL, -CraterField.CELL, Field::rollOneCenteredCrater));
         }
     }
 }

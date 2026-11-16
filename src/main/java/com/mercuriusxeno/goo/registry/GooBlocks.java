@@ -371,6 +371,14 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.of().mapColor(MapColor.METAL).requiresCorrectToolForDrops()
                     .strength(IRON_BLOCK_HARDNESS, IRON_BLOCK_RESISTANCE).sound(SoundType.METAL));
 
+    /**
+     * Meteoric iron: the iron-nickel of fallen meteorites, veined through lunar's stone, mined like a raw iron block.
+     * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
+     */
+    public static final DeferredBlock<Block> METEORIC_IRON = BLOCKS.registerSimpleBlock("meteoric_iron",
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.RAW_IRON).requiresCorrectToolForDrops()
+                    .strength(IRON_BLOCK_HARDNESS, IRON_BLOCK_RESISTANCE).sound(SoundType.METAL));
+
     /** Molten iron's liquid block, glowing as lava does. */
     public static final DeferredBlock<LiquidBlock> MOLTEN_IRON = BLOCKS.registerBlock(GooFluids.MOLTEN_IRON_PATH,
             p -> new LiquidBlock(GooFluids.MOLTEN_IRON_SOURCE.get(), p),
