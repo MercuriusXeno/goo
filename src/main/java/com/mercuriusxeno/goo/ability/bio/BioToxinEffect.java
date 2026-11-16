@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.ability.bio;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.LingeringAppliers;
 import com.mercuriusxeno.goo.registry.GooAttachments;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.effect.MobEffect;
@@ -32,14 +34,17 @@ public final class BioToxinEffect extends MobEffect {
     }
 
     /**
-     * Takes the second's share of max health, times the amplitude.
+     * Takes the second's share of max health, times the amplitude, as magic
+     * naming the player who applied the toxin.
      */
     @Override
     public boolean applyEffectTick(ServerLevel level, LivingEntity entity, int amplifier) {
         double share = entity.getData(GooAttachments.ENTITY_COUNTERS).read(SHARE_PER_SECOND);
         float damage = ToxinDrain.perSecond(share, entity.getMaxHealth(), amplifier);
         if (damage > 0) {
-            entity.hurtServer(level, entity.damageSources().magic(), damage);
+            // lingering-goo-effect-credits-whoever-applied-it, goo-hit-keeps-its-kind-and-names-the-player-behind-it
+            entity.hurtServer(level, LingeringAppliers.credit(level, entity.damageSources().magic(), entity,
+                    BuiltInRegistries.MOB_EFFECT.getKey(this)), damage);
         }
         return true;
     }
