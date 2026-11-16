@@ -5,11 +5,13 @@ import com.mercuriusxeno.goo.lunar.LavaTubes;
 import com.mercuriusxeno.goo.lunar.Lunar;
 import com.mercuriusxeno.goo.lunar.LunarDepths;
 import com.mercuriusxeno.goo.lunar.RubbleCaves;
+import com.mercuriusxeno.goo.lunar.WarrenTunnels;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.RandomState;
@@ -19,7 +21,7 @@ import java.util.function.Predicate;
 
 /**
  * Gametests for lunar's depth zones, each reading as its own place: the shallow zone's breccia and its rubble caves,
- * and the middle zone's caverns floored in crater ice and grown with impact glass.
+ * the middle zone's caverns floored in crater ice and grown with impact glass, and the warrens' sculk-lined tunnels.
  * decision lunar-underground-changes-by-depth-down-to-a-molten-iron-sea
  */
 @RegistersGameTests
@@ -27,6 +29,7 @@ public final class LunarZoneTests {
     private static final String LUNAR_SHALLOW_ZONE_HOLDS_RUBBLE_CAVES = "lunar_shallow_zone_holds_rubble_caves";
     private static final String LUNAR_MIDDLE_ZONE_HOLDS_ICE_AND_CRYSTAL_CAVERNS =
             "lunar_middle_zone_holds_ice_and_crystal_caverns";
+    private static final String LUNAR_WARRENS_TWIST_THROUGH_SCULK = "lunar_warrens_twist_through_sculk";
     /** How far from the origin a scan of the middle zone reaches each way, in blocks. */
     private static final int CAVERN_SCAN_REACH = 64;
 
@@ -44,6 +47,8 @@ public final class LunarZoneTests {
             + "reads %s at y %d";
     private static final String NO_ICE_AND_CRYSTAL = "No air within %d blocks of the origin in the middle zone stands "
             + "on crater ice beside or under impact glass";
+    private static final String NO_SCULK_TUNNEL = "No air within %d blocks of the origin in the warren zone borders "
+            + "sculk";
     private static final String CAVE_IS_OPEN = "The rubble cave column %s should read air at y %d, reads %s";
     private static final String CAVE_IN_BRECCIA = "The rubble cave column %s should read breccia %s the cave at y %d, "
             + "reads %s";
@@ -61,6 +66,8 @@ public final class LunarZoneTests {
                 LunarZoneTests::lunarShallowZoneHoldsRubbleCaves);
         GooTestFunctions.registerTest(registrar, LUNAR_MIDDLE_ZONE_HOLDS_ICE_AND_CRYSTAL_CAVERNS,
                 LunarZoneTests::lunarMiddleZoneHoldsIceAndCrystalCaverns);
+        GooTestFunctions.registerTest(registrar, LUNAR_WARRENS_TWIST_THROUGH_SCULK,
+                LunarZoneTests::lunarWarrensTwistThroughSculk);
     }
 
     /**
@@ -116,6 +123,42 @@ public final class LunarZoneTests {
             }
         }
         helper.fail(String.format(NO_ICE_AND_CRYSTAL, CAVERN_SCAN_REACH));
+    }
+
+    /**
+     * Scans the warren zone's band in goo:lunar across a stretch, at the tunnel blocks the seeded warrens open, for
+     * a tunnel's air bordered by sculk.
+     *
+     * @param helper the gametest helper
+     */
+    public static void lunarWarrensTwistThroughSculk(GameTestHelper helper) {
+        ServerLevel lunar = helper.getLevel().getServer().getLevel(Lunar.LEVEL);
+        helper.assertTrue(lunar != null, LUNAR_REQUIRED);
+        WarrenTunnels warrens = WarrenTunnels.seeded(lunar.getChunkSource().randomState());
+        for (int x = -CAVERN_SCAN_REACH; x <= CAVERN_SCAN_REACH; x++) {
+            for (int z = -CAVERN_SCAN_REACH; z <= CAVERN_SCAN_REACH; z++) {
+                for (int y = LunarDepths.SEA_ZONE_TOP_Y; y < LunarDepths.WARREN_ZONE_TOP_Y; y++) {
+                    if (warrens.isOpenAt(x, y, z) && bordersSculk(lunar, new BlockPos(x, y, z))) {
+                        helper.succeed();
+                        return;
+                    }
+                }
+            }
+        }
+        helper.fail(String.format(NO_SCULK_TUNNEL, CAVERN_SCAN_REACH));
+    }
+
+    private static boolean bordersSculk(ServerLevel lunar, BlockPos air) {
+        lunar.getChunk(air.getX() >> 4, air.getZ() >> 4);
+        if (!lunar.getBlockState(air).isAir()) {
+            return false;
+        }
+        for (Direction side : Direction.values()) {
+            if (lunar.getBlockState(air.relative(side)).is(Blocks.SCULK)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean standsOnIceByGlass(ServerLevel lunar, BlockPos air) {
