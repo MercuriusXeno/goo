@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:a_full_slick_cell_settles_sooner_than_a_full_slime_cell",
+  "function": "goo:a_full_slick_cell_pours_faster_than_a_full_slime_cell",
   "environment": "minecraft:default",
   "structure": "goo:light_bay",
   "max_ticks": 120,

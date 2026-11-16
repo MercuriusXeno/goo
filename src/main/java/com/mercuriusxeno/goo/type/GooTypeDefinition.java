@@ -37,11 +37,13 @@ import java.util.Locale;
  * @param hueCycle       how the color channels drift around the hue wheel, {@link HueCycle#NONE} for a still type
  * @param elasticity     the share of its speed into a block face a fleck of the type keeps rebounding off it,
  *                       0 landing dead to 1 keeping all of it
+ * @param cohesion       the step in layers the type's world goo holds over a neighbour before pouring,
+ *                       0 levelling flat to 15 never pouring
  */
 public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, int bright, int highlight, int edge,
                                 int density, int viscosity, int temperature, boolean extinguishes, MapColor mapColor,
                                 float levity, int baseFlightTime, GooTypeTextures textures,
-                                int vesselSourcePerMb, HueCycle hueCycle, float elasticity) {
+                                int vesselSourcePerMb, HueCycle hueCycle, float elasticity, int cohesion) {
 
     /**
      * JSON key of {@link #peakLight}.
@@ -109,6 +111,16 @@ public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, 
      */
     public static final String ELASTICITY = "elasticity";
     /**
+     * JSON key for the step in layers the type's world goo holds before pouring.
+     * goo-types-carry-adhesion-and-cohesion
+     * cohesion-is-the-step-the-goo-holds
+     */
+    public static final String COHESION = "cohesion";
+    /**
+     * The most layers a cohesion step stands, a whole cell: goo this firm never pours.
+     */
+    public static final int FIRM_COHESION = 15;
+    /**
      * The rate of a type whose JSON leaves {@link #VESSEL_SOURCE_PER_MB} out.
      */
     public static final int NO_VESSEL_SOURCE = 0;
@@ -162,24 +174,27 @@ public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, 
                        extinguishes, mapColor, levity, baseFlightTime, textures, vesselSourcePerMb, tail) ->
             new GooTypeDefinition(peakLight, saturationFill, wheel, bright, highlight, edge, density, viscosity,
                     temperature, extinguishes, mapColor, levity, baseFlightTime, textures, vesselSourcePerMb,
-                    tail.hueCycle(), tail.elasticity())));
+                    tail.hueCycle(), tail.elasticity(), tail.cohesion())));
 
     /**
-     * The type JSON's last fields, the hue cycle's and the elasticity, read as one
-     * group so the record's codec stays within the sixteen fields a group holds.
+     * The type JSON's last fields, the hue cycle's, the elasticity and the
+     * cohesion, read as one group so the record's codec stays within the
+     * sixteen fields a group holds.
      *
      * @param hueCycle   how the color channels drift around the hue wheel
      * @param elasticity the share of its speed a fleck keeps rebounding off a block face
+     * @param cohesion   the step in layers the type's world goo holds before pouring
      */
-    private record Tail(HueCycle hueCycle, float elasticity) {
+    private record Tail(HueCycle hueCycle, float elasticity, int cohesion) {
 
         static final MapCodec<Tail> MAP_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
                 HueCycle.MAP_CODEC.forGetter(Tail::hueCycle),
-                Codec.floatRange(0f, 1f).fieldOf(ELASTICITY).forGetter(Tail::elasticity)
+                Codec.floatRange(0f, 1f).fieldOf(ELASTICITY).forGetter(Tail::elasticity),
+                Codec.intRange(0, FIRM_COHESION).fieldOf(COHESION).forGetter(Tail::cohesion)
         ).apply(instance, Tail::new));
 
         static Tail of(GooTypeDefinition definition) {
-            return new Tail(definition.hueCycle(), definition.elasticity());
+            return new Tail(definition.hueCycle(), definition.elasticity(), definition.cohesion());
         }
     }
 

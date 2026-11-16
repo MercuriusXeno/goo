@@ -176,7 +176,7 @@ public final class SlickTests {
             "slick_drips_drain_a_layers_price_each_and_unpaid_drips_lay_nothing";
     /** The drips the drain test lands, over two ticks. */
     private static final int COUNTED_DRIPS = 4;
-    private static final String SLICK_SETTLES_SOONER = "a_full_slick_cell_settles_sooner_than_a_full_slime_cell";
+    private static final String SLICK_POURS_FASTER = "a_full_slick_cell_pours_faster_than_a_full_slime_cell";
     /** The middles of the slick's and the slime's crosses of open floor in the light bay. */
     private static final BlockPos SLICK_CROSS = new BlockPos(4, 1, 4);
     private static final BlockPos SLIME_CROSS = new BlockPos(10, 1, 4);
@@ -184,10 +184,17 @@ public final class SlickTests {
     private static final int SETTLE_WATCH_TICKS = 90;
     /** Ticks a cross must stand unchanged at the watch's end to read as settled. */
     private static final int STILL_TICKS = 20;
-    private static final String NOT_SOONER = "Full slick should settle sooner than full slime: slick last changed"
-            + " on tick %d, slime on tick %d";
+    private static final String NOT_FASTER = "Full slick should pour faster than full slime: the first %d pours"
+            + " ended on tick %d for slick, on tick %d for slime";
     private static final String NEVER_SETTLED = "Both crosses should stand still the last %d watched ticks: slick"
-            + " last changed on tick %d, slime on tick %d";
+            + " changed on ticks %s, slime on ticks %s";
+    private static final String SLICK_MOUND_LEVELS = "slick_mound_levels_on_open_floor";
+    /** The open floor's middle cell the mound test raises, clear of the streamer's stand. */
+    private static final BlockPos MOUND_CELL = new BlockPos(3, 1, 3);
+    /** The drips landed on the mound's cell. */
+    private static final int MOUND_DRIPS = 10;
+    private static final String MOUND_NOT_LEVEL = "Ten Slick drips on open floor should rest with no side two layers"
+            + " below the middle, rest as %s, the middle first";
     private static final String SPRINT_RIDES_THE_TRACK = "slick_lays_a_track_a_sprinter_rides";
     /** A sprinting player's speed east, in blocks a tick, and the small fall each tick that keeps it grounded. */
     private static final Vec3 SPRINT_STEP = new Vec3(0.28, -0.08, 0);
@@ -986,7 +993,7 @@ public final class SlickTests {
         GooTestFunctions.registerTest(registrar, SLICK_FILLS_AND_RAMPS_ALIKE,
                 SlickTests::slickFillsToFifteenAndRampsTheSameAtAnyHeight);
         GooTestFunctions.registerTest(registrar, DRIPS_DRAIN_A_LAYER_EACH, SlickTests::slickDripsDrainALayersPriceEach);
-        GooTestFunctions.registerTest(registrar, SLICK_SETTLES_SOONER, SlickTests::aFullSlickCellSettlesSooner);
+        GooTestFunctions.registerTest(registrar, SLICK_POURS_FASTER, SlickTests::aFullSlickCellPoursFasterThanSlime);
         GooTestFunctions.registerTest(registrar, SPRINT_RIDES_THE_TRACK, SlickTests::slickLaysATrackASprinterRides);
         GooTestFunctions.registerTest(registrar, RAMPED_RUNNER_RIDES_THE_TRACK,
                 SlickTests::slickLaysATrackARampedRunnerRides);
@@ -1001,6 +1008,29 @@ public final class SlickTests {
         GooTestFunctions.registerTest(registrar, SPRAYED_AHEAD_KEEPS_MOMENTUM,
                 SlickTests::slickSprayedAheadKeepsASlidersMomentum);
         GooTestFunctions.registerTest(registrar, STEPS_UP_IN_THE_AIR, SlickTests::slickStepsAFallingSliderUpOntoARaisedCell);
+        GooTestFunctions.registerTest(registrar, SLICK_MOUND_LEVELS, SlickTests::slickMoundLevelsOnOpenFloor);
+    }
+
+    /**
+     * Ten Slick drips landed through the real landing on one cell of open
+     * stone floor come to rest level, as Slick's cohesion of 0 asks: no side
+     * cell stands two layers below the cell.
+     * cohesion-is-the-step-the-goo-holds
+     *
+     * @param helper the gametest helper
+     */
+    public static void slickMoundLevelsOnOpenFloor(GameTestHelper helper) {
+        OpenFloor.layAround(helper, MOUND_CELL);
+        ServerPlayer caster = slickStreamerAt(helper, STREAMER_POS);
+        LandedDrips.landOn(helper, caster, slick(helper), MOUND_CELL, MOUND_DRIPS);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        helper.runAfterDelay(SETTLE_WATCH_TICKS, () -> {
+            List<Integer> rest = OpenFloor.layersIn(helper, OpenFloor.crossAt(MOUND_CELL));
+            int middle = rest.getFirst();
+            helper.assertTrue(middle > 0 && rest.stream().skip(1).allMatch(side -> side > middle - 2),
+                    String.format(MOUND_NOT_LEVEL, rest));
+            helper.succeed();
+        });
     }
 
     /**
@@ -1143,19 +1173,23 @@ public final class SlickTests {
 
     /**
      * A full slick cell and a full slime cell, each at the middle of a cross
-     * of open stone floor walled in, pour level: the slick, thinner, stands
-     * still on an earlier tick than the slime.
+     * of open stone floor walled in, pour until each holds its goo's step:
+     * the slick, thinner, pours at a quicker pace, so its pours reach the
+     * count the slime's pours come to on an earlier tick. The two settle
+     * after different counts of pours, since slime's cohesion holds a step
+     * slick's does not, so the pace is read at the same count.
      * slick-is-a-layered-cell-that-flows-thinner-and-faster-than-slime
+     * cohesion-is-the-step-the-goo-holds
      *
      * @param helper the gametest helper
      */
-    public static void aFullSlickCellSettlesSooner(GameTestHelper helper) {
+    public static void aFullSlickCellPoursFasterThanSlime(GameTestHelper helper) {
         List<BlockPos> slickCross = crossOfOpenFloor(helper, SLICK_CROSS);
         List<BlockPos> slimeCross = crossOfOpenFloor(helper, SLIME_CROSS);
         helper.setBlock(SLICK_CROSS, slickOf(WHOLE_BLOCK_LAYERS));
         helper.setBlock(SLIME_CROSS, GooBlocks.SLIME_COAT.get().defaultBlockState()
                 .setValue(VolumeCellBlock.LAYERS, WHOLE_BLOCK_LAYERS));
-        int[] lastChanged = {0, 0};
+        List<List<Integer>> changedOn = List.of(new ArrayList<>(), new ArrayList<>());
         List<List<Integer>> last = new ArrayList<>(List.of(layersIn(helper, slickCross), layersIn(helper, slimeCross)));
         for (int tick = 1; tick <= SETTLE_WATCH_TICKS; tick++) {
             int now = tick;
@@ -1163,17 +1197,21 @@ public final class SlickTests {
                 List<List<Integer>> crosses = List.of(layersIn(helper, slickCross), layersIn(helper, slimeCross));
                 for (int cross = 0; cross < crosses.size(); cross++) {
                     if (!crosses.get(cross).equals(last.get(cross))) {
-                        lastChanged[cross] = now;
+                        changedOn.get(cross).add(now);
                         last.set(cross, crosses.get(cross));
                     }
                 }
             });
         }
         helper.runAfterDelay(SETTLE_WATCH_TICKS + 1, () -> {
-            helper.assertTrue(Math.max(lastChanged[0], lastChanged[1]) <= SETTLE_WATCH_TICKS - STILL_TICKS,
-                    String.format(NEVER_SETTLED, STILL_TICKS, lastChanged[0], lastChanged[1]));
-            helper.assertTrue(lastChanged[0] < lastChanged[1],
-                    String.format(NOT_SOONER, lastChanged[0], lastChanged[1]));
+            List<Integer> slick = changedOn.get(0);
+            List<Integer> slime = changedOn.get(1);
+            helper.assertTrue(!slick.isEmpty() && !slime.isEmpty()
+                    && Math.max(slick.getLast(), slime.getLast()) <= SETTLE_WATCH_TICKS - STILL_TICKS,
+                    String.format(NEVER_SETTLED, STILL_TICKS, slick, slime));
+            int count = Math.min(slick.size(), slime.size());
+            helper.assertTrue(slick.get(count - 1) < slime.get(count - 1),
+                    String.format(NOT_FASTER, count, slick.get(count - 1), slime.get(count - 1)));
             helper.succeed();
         });
     }

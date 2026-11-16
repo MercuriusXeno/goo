@@ -8,6 +8,7 @@
   "density": 1500,
   "viscosity": 1500,
   "elasticity": 0.3,
+  "cohesion": 0,
   "temperature": 900,
   "extinguishes": false,
   "levity": 1.0,
