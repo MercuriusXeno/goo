@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.lunar.CraterField;
+import com.mercuriusxeno.goo.lunar.CrystalCaverns;
 import com.mercuriusxeno.goo.lunar.GiantCraterField;
 import com.mercuriusxeno.goo.lunar.LavaTubes;
 import com.mercuriusxeno.goo.lunar.RilleField;
@@ -65,6 +66,13 @@ public final class GooDensityFunctions {
      */
     public static final DeferredHolder<MapCodec<? extends DensityFunction>, MapCodec<RubbleCaves>> RUBBLE_CAVES =
             DENSITY_FUNCTION_TYPES.register("rubble_caves", () -> RubbleCaves.DATA_CODEC);
+
+    /**
+     * {@code goo:crystal_caverns}, the large caverns lunar's noise settings open through its middle zone.
+     * decision lunar-underground-changes-by-depth-down-to-a-molten-iron-sea
+     */
+    public static final DeferredHolder<MapCodec<? extends DensityFunction>, MapCodec<CrystalCaverns>> CRYSTAL_CAVERNS =
+            DENSITY_FUNCTION_TYPES.register("crystal_caverns", () -> CrystalCaverns.DATA_CODEC);
 
     private GooDensityFunctions() {
     }

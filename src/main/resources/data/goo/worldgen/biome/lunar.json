@@ -20,7 +20,10 @@
       "goo:ore_meteoric_iron",
       "goo:meteoric_iron_nuggets"
     ],
-    [],
+    [
+      "goo:crystal_spikes_rising",
+      "goo:crystal_spikes_hanging"
+    ],
     [],
     [],
     []
