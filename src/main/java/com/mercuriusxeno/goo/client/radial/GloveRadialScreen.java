@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.radial;
 
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.ability.end.EndAvailability;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
 import com.mercuriusxeno.goo.client.ClientKnownItems;
 import com.mercuriusxeno.goo.client.ability.ClientRoomEdges;
@@ -27,11 +28,13 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
@@ -67,9 +70,27 @@ public final class GloveRadialScreen extends Screen {
         // wheel-shows-only-held-types-with-abilities
         this.types = RadialWheel.shownTypes(GooTypes.order(), type -> synced.offeredForType(type, known),
                 type -> available.getOrDefault(type, 0));
-        this.abilities = types.stream().map(type -> synced.offeredForType(type, known)).toList();
+        Predicate<ClientAbility> grayedOut = grayedOutWhereThePlayerStands();
+        this.abilities = types.stream().map(type -> synced.offeredForType(type, known, grayedOut)).toList();
         this.available = available;
         this.wheel = new RadialWheel(types.size(), type -> abilities.get(type).size());
+    }
+
+    /**
+     * Whether an ability stands grayed out for the player where they stand:
+     * End in the End without the way back an arrival by its gate keeps.
+     * decision end-is-grayed-out-in-the-end-unless-you-came-by-the-ability
+     *
+     * @return the test each offered ability reads
+     */
+    private static Predicate<ClientAbility> grayedOutWhereThePlayerStands() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || mc.player == null) {
+            return ability -> false;
+        }
+        ResourceKey<Level> standingIn = mc.level.dimension();
+        boolean holdsWayBack = mc.player.getData(GooAttachments.END_WAY_BACK).stands();
+        return ability -> EndAvailability.graysOut(ability.behaviors(), standingIn, holdsWayBack);
     }
 
     /**
@@ -217,7 +238,7 @@ public final class GloveRadialScreen extends Screen {
         GloveRadialKeyGate.release(pick, new GloveRadialKeyGate.ReleaseActions() {
             @Override
             public boolean isLocked(RadialWheel.Outcome hovered) {
-                return abilities.get(hovered.type()).get(hovered.ability()).locked();
+                return abilities.get(hovered.type()).get(hovered.ability()).refused();
             }
 
             @Override

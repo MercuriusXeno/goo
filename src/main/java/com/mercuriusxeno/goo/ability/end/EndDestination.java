@@ -2,7 +2,11 @@ package com.mercuriusxeno.goo.ability.end;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import io.netty.buffer.ByteBuf;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -28,6 +32,13 @@ public record EndDestination(ResourceKey<Level> dimension, Vec3 feet, float yaw)
             Vec3.CODEC.fieldOf("feet").forGetter(EndDestination::feet),
             Codec.FLOAT.fieldOf("yaw").forGetter(EndDestination::yaw)
     ).apply(inst, EndDestination::new));
+
+    /** Sends a destination to the client of the player who keeps it. */
+    public static final StreamCodec<ByteBuf, EndDestination> STREAM_CODEC = StreamCodec.composite(
+            ResourceKey.streamCodec(Registries.DIMENSION), EndDestination::dimension,
+            Vec3.STREAM_CODEC, EndDestination::feet,
+            ByteBufCodecs.FLOAT, EndDestination::yaw,
+            EndDestination::new);
 
     /** The block a vanilla end portal centres its arrival on, ServerLevel's END_SPAWN_POINT. */
     static final BlockPos END_SPAWN_POINT = new BlockPos(100, 50, 0);

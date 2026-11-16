@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.HealReport;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.StreamSound;
+import com.mercuriusxeno.goo.ability.end.EndAvailability;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.ChannelHost;
 import com.mercuriusxeno.goo.ability.program.DripLanding;
@@ -30,6 +31,7 @@ import com.mercuriusxeno.goo.block.ability.SlickLayPace;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mercuriusxeno.goo.throwing.DripArc;
@@ -186,7 +188,8 @@ public final class GooStreamHandler {
     }
 
     /**
-     * The ability the payload names, where the player may use it and it runs while held.
+     * The ability the payload names, where the player may use it, it stands available to them and it runs while
+     * held: End grayed out in the End runs nothing and drains nothing.
      *
      * @param player  the holding player
      * @param payload the held tick
@@ -196,7 +199,11 @@ public final class GooStreamHandler {
     private static @Nullable AbilityDefinition heldAbility(ServerPlayer player, GooStreamPayload payload,
                                                             ResourceKey<GooTypeDefinition> gooType) {
         AbilityDefinition ability = GooThrowHandler.usableAbility(player, payload.abilityId(), gooType);
-        return ability != null && HeldRoute.runsWhileHeld(ability.delivery(), ability.badge()) ? ability : null;
+        // decision end-is-grayed-out-in-the-end-unless-you-came-by-the-ability
+        boolean grayedOut = ability != null && EndAvailability.graysOut(ability.behaviors(),
+                player.level().dimension(), player.getData(GooAttachments.END_WAY_BACK).stands());
+        return ability != null && !grayedOut && HeldRoute.runsWhileHeld(ability.delivery(), ability.badge())
+                ? ability : null;
     }
 
     /**
