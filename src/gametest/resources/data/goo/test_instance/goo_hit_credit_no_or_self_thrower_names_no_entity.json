@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:goo_hit_credit_no_or_self_thrower_names_no_entity",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 20,
+  "setup_ticks": 0,
+  "required": true
+}
