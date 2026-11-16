@@ -1,11 +1,13 @@
 package com.mercuriusxeno.goo.gametest;
 
+import com.mercuriusxeno.goo.lunar.CrystalCaverns;
 import com.mercuriusxeno.goo.lunar.LavaTubes;
 import com.mercuriusxeno.goo.lunar.Lunar;
 import com.mercuriusxeno.goo.lunar.LunarDepths;
 import com.mercuriusxeno.goo.lunar.RubbleCaves;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.state.BlockState;
@@ -16,12 +18,17 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /**
- * Gametests for lunar's depth zones, each reading as its own place: the shallow zone's breccia and its rubble caves.
+ * Gametests for lunar's depth zones, each reading as its own place: the shallow zone's breccia and its rubble caves,
+ * and the middle zone's caverns floored in crater ice and grown with impact glass.
  * decision lunar-underground-changes-by-depth-down-to-a-molten-iron-sea
  */
 @RegistersGameTests
 public final class LunarZoneTests {
     private static final String LUNAR_SHALLOW_ZONE_HOLDS_RUBBLE_CAVES = "lunar_shallow_zone_holds_rubble_caves";
+    private static final String LUNAR_MIDDLE_ZONE_HOLDS_ICE_AND_CRYSTAL_CAVERNS =
+            "lunar_middle_zone_holds_ice_and_crystal_caverns";
+    /** How far from the origin a scan of the middle zone reaches each way, in blocks. */
+    private static final int CAVERN_SCAN_REACH = 64;
 
     /** How far from the origin a search for a column reaches each way, in blocks. */
     private static final int STRETCH_REACH = 256;
@@ -35,6 +42,8 @@ public final class LunarZoneTests {
     private static final String NO_CAVE = "No column within %d blocks of the origin holds a rubble cave";
     private static final String ZONE_READS_BRECCIA = "The solid column %s should read breccia through the shallow zone, "
             + "reads %s at y %d";
+    private static final String NO_ICE_AND_CRYSTAL = "No air within %d blocks of the origin in the middle zone stands "
+            + "on crater ice beside or under impact glass";
     private static final String CAVE_IS_OPEN = "The rubble cave column %s should read air at y %d, reads %s";
     private static final String CAVE_IN_BRECCIA = "The rubble cave column %s should read breccia %s the cave at y %d, "
             + "reads %s";
@@ -50,6 +59,8 @@ public final class LunarZoneTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, LUNAR_SHALLOW_ZONE_HOLDS_RUBBLE_CAVES,
                 LunarZoneTests::lunarShallowZoneHoldsRubbleCaves);
+        GooTestFunctions.registerTest(registrar, LUNAR_MIDDLE_ZONE_HOLDS_ICE_AND_CRYSTAL_CAVERNS,
+                LunarZoneTests::lunarMiddleZoneHoldsIceAndCrystalCaverns);
     }
 
     /**
@@ -81,6 +92,43 @@ public final class LunarZoneTests {
         helper.assertTrue(cave != null, String.format(NO_CAVE, STRETCH_REACH));
         assertCave(helper, lunar, caves, cave);
         helper.succeed();
+    }
+
+    /**
+     * Scans the middle zone's band in goo:lunar across a stretch, at the columns the seeded crystal caverns open, for
+     * a cavern's air standing on crater ice with impact glass beside it or over it.
+     *
+     * @param helper the gametest helper
+     */
+    public static void lunarMiddleZoneHoldsIceAndCrystalCaverns(GameTestHelper helper) {
+        ServerLevel lunar = helper.getLevel().getServer().getLevel(Lunar.LEVEL);
+        helper.assertTrue(lunar != null, LUNAR_REQUIRED);
+        CrystalCaverns caverns = CrystalCaverns.seeded(lunar.getChunkSource().randomState()
+                .getOrCreateNoise(CrystalCaverns.NOISE));
+        for (int x = -CAVERN_SCAN_REACH; x <= CAVERN_SCAN_REACH; x++) {
+            for (int z = -CAVERN_SCAN_REACH; z <= CAVERN_SCAN_REACH; z++) {
+                for (int y = LunarDepths.WARREN_ZONE_TOP_Y; y < LunarDepths.CAVERN_ZONE_TOP_Y; y++) {
+                    if (caverns.isOpenAt(x, y, z) && standsOnIceByGlass(lunar, new BlockPos(x, y, z))) {
+                        helper.succeed();
+                        return;
+                    }
+                }
+            }
+        }
+        helper.fail(String.format(NO_ICE_AND_CRYSTAL, CAVERN_SCAN_REACH));
+    }
+
+    private static boolean standsOnIceByGlass(ServerLevel lunar, BlockPos air) {
+        lunar.getChunk(air.getX() >> 4, air.getZ() >> 4);
+        if (!lunar.getBlockState(air).isAir() || !lunar.getBlockState(air.below()).is(GooBlocks.CRATER_ICE.get())) {
+            return false;
+        }
+        for (Direction side : Direction.values()) {
+            if (side != Direction.DOWN && lunar.getBlockState(air.relative(side)).is(GooBlocks.IMPACT_GLASS.get())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void assertCave(GameTestHelper helper, ServerLevel lunar, RubbleCaves caves, BlockPos column) {

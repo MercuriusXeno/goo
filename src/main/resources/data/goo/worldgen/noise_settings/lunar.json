@@ -30,19 +30,26 @@
       "argument2": {
         "type": "minecraft:min",
         "argument1": {
-          "type": "goo:rubble_caves",
-          "footprint": "goo:lunar_rubble_caves",
-          "rubble": "goo:lunar_rubble"
+          "type": "goo:crystal_caverns",
+          "shape": "goo:lunar_crystal_caverns"
         },
         "argument2": {
           "type": "minecraft:min",
           "argument1": {
-            "type": "goo:lava_tubes",
-            "noise": "goo:lunar_lava_tubes"
+            "type": "goo:rubble_caves",
+            "footprint": "goo:lunar_rubble_caves",
+            "rubble": "goo:lunar_rubble"
           },
           "argument2": {
-            "type": "minecraft:interpolated",
-            "argument": "goo:lunar/terrain"
+            "type": "minecraft:min",
+            "argument1": {
+              "type": "goo:lava_tubes",
+              "noise": "goo:lunar_lava_tubes"
+            },
+            "argument2": {
+              "type": "minecraft:interpolated",
+              "argument": "goo:lunar/terrain"
+            }
           }
         }
       }
@@ -277,6 +284,47 @@
             "type": "minecraft:block",
             "result_state": {
               "Name": "goo:breccia"
+            }
+          }
+        }
+      },
+      {
+        "type": "minecraft:condition",
+        "if_true": {
+          "type": "minecraft:y_above",
+          "anchor": {
+            "absolute": -64
+          },
+          "surface_depth_multiplier": 0,
+          "add_stone_depth": false
+        },
+        "then_run": {
+          "type": "minecraft:condition",
+          "if_true": {
+            "type": "minecraft:not",
+            "invert": {
+              "type": "minecraft:y_above",
+              "anchor": {
+                "absolute": 0
+              },
+              "surface_depth_multiplier": 0,
+              "add_stone_depth": false
+            }
+          },
+          "then_run": {
+            "type": "minecraft:condition",
+            "if_true": {
+              "type": "minecraft:stone_depth",
+              "offset": 1,
+              "surface_type": "floor",
+              "add_surface_depth": false,
+              "secondary_depth_range": 0
+            },
+            "then_run": {
+              "type": "minecraft:block",
+              "result_state": {
+                "Name": "goo:crater_ice"
+              }
             }
           }
         }
