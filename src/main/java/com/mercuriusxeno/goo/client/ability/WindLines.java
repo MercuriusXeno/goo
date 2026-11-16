@@ -93,11 +93,17 @@ public final class WindLines {
     private static final float SNOWFLAKES_PER_LINE_TICK = 0.2f;
     private static final int MAX_ALPHA = 200;
     /**
-     * The turn an inward line makes about its gust's axis over its run: a
-     * fifth of a turn, one way, for the vortex without a loop.
+     * The turn an inward line makes about its gust's axis over its run: an
+     * eighth of a turn, one way, for the vortex without a loop.
      * vacuum-wind-lines-run-straight-and-far-in-void-colors-with-motes
+     * operator ruling: twist just slightly less, a flatter curve
      */
-    static final double INWARD_TWIST = 0.2 * 2 * Math.PI;
+    static final double INWARD_TWIST = 0.12 * 2 * Math.PI;
+    /**
+     * How many times Gust's launch pace an inward line flies into the blob at.
+     * operator ruling: speed up their approach a bit more
+     */
+    static final double INWARD_PACE = 1.4;
     /** Void motes a held tick of Vacuum flies loose from the cone. */
     private static final int MOTES_PER_TICK = 3;
     /** The nearest a loose mote starts to the blob, as a share of the cone's range squared. */
@@ -273,7 +279,7 @@ public final class WindLines {
 
     /**
      * Where an inward line's head stands: leaving the far end of Gust's run
-     * at Gust's launch pace and holding it into the blob, with no slow start;
+     * at its inward pace and holding it into the blob, with no slow start;
      * before its start, where its tail trails, it stands out beyond the far
      * end on the same course; turned gently one way about the gust's axis as
      * it draws in.
@@ -287,7 +293,7 @@ public final class WindLines {
      */
     private static Vec3 inwardCoursePoint(Line line, double age) {
         double run = reachAt(line, LIFE_TICKS);
-        double reach = Math.max(0, run - launchPace(line) * age);
+        double reach = Math.max(0, run - inwardPace(line) * age);
         double drawn = 1 - reach / run;
         Vec3 out = line.axis().scale(reach);
         return line.origin().add(turnedAbout(out, gustAxisOf(line), line.winding() * INWARD_TWIST * drawn));
@@ -305,15 +311,25 @@ public final class WindLines {
     }
 
     /**
-     * The ticks an inward line's head takes to cross Gust's run into the
-     * blob at Gust's launch pace.
+     * The pace an inward line's head flies into the blob at, held from its
+     * first tick: INWARD_PACE times Gust's launch.
      * operator ruling: launch fast, hold pace into the blob
+     *
+     * @param line the inward line
+     * @return the pace, in blocks a tick
+     */
+    static double inwardPace(Line line) {
+        return INWARD_PACE * launchPace(line);
+    }
+
+    /**
+     * The ticks an inward line's head takes to cross Gust's run into the blob.
      *
      * @param line the inward line
      * @return the ticks until its head lands on the blob
      */
     static double arrivalTicks(Line line) {
-        return reachAt(line, LIFE_TICKS) / launchPace(line);
+        return reachAt(line, LIFE_TICKS) / inwardPace(line);
     }
 
     /**

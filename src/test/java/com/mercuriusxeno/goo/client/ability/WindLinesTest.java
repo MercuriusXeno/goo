@@ -242,7 +242,8 @@ class WindLinesTest {
                 last = angle;
             }
             double total = Math.abs(last - start);
-            assertTrue(total > 0 && total <= Math.PI / 2, "the twist turns " + Math.toDegrees(total) + " degrees");
+            // operator ruling: twist just slightly less, a flatter curve
+            assertTrue(total > 0 && total <= 0.12 * 2 * Math.PI, "the twist turns " + Math.toDegrees(total) + " degrees");
         }
 
         /**
@@ -280,14 +281,14 @@ class WindLinesTest {
                 return WindLines.pathPoint(vacuums, age).distanceTo(blob);
             }
 
-            // operator ruling: launch fast, hold pace into the blob, no weird delay
+            // operator rulings: launch fast, hold pace into the blob, no weird delay; then 1.4 times as fast
             @Test
-            void anInwardLineLeavesItsFarEndAtGustsLaunchPaceAndHoldsItIntoTheBlob() {
+            void anInwardLineLeavesItsFarEndAtOnePointFourTimesGustsLaunchPaceAndHoldsItIntoTheBlob() {
                 double arrival = WindLines.arrivalTicks(vacuums);
                 assertEquals(gustsRun(), vacuumsReachAt(0), EPSILON, "Vacuum's streak should start as far out as Gust's ends");
                 for (int tick = 1; tick <= arrival; tick++) {
-                    assertEquals(gustsLaunchPace(), vacuumsReachAt(tick - 1) - vacuumsReachAt(tick), 1e-4,
-                            "tick " + tick + " should close on the blob at Gust's launch pace");
+                    assertEquals(1.4 * gustsLaunchPace(), vacuumsReachAt(tick - 1) - vacuumsReachAt(tick), 1e-4,
+                            "tick " + tick + " should close on the blob at 1.4 times Gust's launch pace");
                 }
                 assertEquals(0, vacuumsReachAt(arrival), EPSILON, "Vacuum's head should land on the blob");
                 assertTrue(WindLines.lifeOf(vacuums) > arrival, "the streak should live on past its head's arrival");
