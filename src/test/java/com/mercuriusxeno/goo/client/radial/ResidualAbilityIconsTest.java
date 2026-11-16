@@ -7,8 +7,13 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -24,8 +29,10 @@ class ResidualAbilityIconsTest {
     // residual-icons-draw-one-gray-block-with-the-types-goo-on-top
     // residual-icon-style-reaches-all-seven-and-later-world-goos
     /** The icons drawing the residual style; a later residual joins by its icon's name. */
-    static final List<String> RESIDUAL_ICONS = List.of("weird_goop", "kinetic_slick", "blaze_molten", "deep_host");
+    static final List<String> RESIDUAL_ICONS = List.of("weird_goop", "kinetic_slick", "blaze_molten", "deep_host",
+            "crystal_shatter");
 
+    private static final String SHATTER = "crystal_shatter";
     private static final String ABILITY_ICONS = "/assets/goo/textures/goo/ability/";
     private static final int SIDE = 16;
     private static final int ALPHA_SHIFT = 24;
@@ -95,21 +102,57 @@ class ResidualAbilityIconsTest {
         assertTrue(copies.isEmpty(), String.join("; ", copies));
     }
 
+    // shatter-icon-is-a-block-with-crystal-goo-and-shards-over-it
+    @Test
+    void shattersShapeIsNoOtherAbilityIconsCopiedOrMirrored() throws IOException, URISyntaxException {
+        String shatter = shape(read(SHATTER), false, false);
+        List<String> copies = new ArrayList<>();
+        for (String other : otherAbilityIcons(SHATTER)) {
+            BufferedImage icon = read(other);
+            if (shatter.equals(shape(icon, false, false))) {
+                copies.add(SHATTER + " draws " + other + "'s shape");
+            }
+            if (shatter.equals(shape(icon, true, false))) {
+                copies.add(SHATTER + " draws " + other + "'s shape mirrored");
+            }
+        }
+        assertTrue(copies.isEmpty(), String.join("; ", copies));
+    }
+
+    /**
+     * The icon's opaque texels, '#' for opaque, read left to right or
+     * mirrored, the shared block's mask left clear where asked.
+     */
+    static String shape(BufferedImage icon, boolean mirrored, boolean outsideBlockOnly) {
+        StringBuilder rows = new StringBuilder();
+        for (int y = 0; y < icon.getHeight(); y++) {
+            for (int column = 0; column < icon.getWidth(); column++) {
+                int x = mirrored ? icon.getWidth() - 1 - column : column;
+                boolean masked = outsideBlockOnly && inSharedBlock(column, y);
+                rows.append(!masked && isOpaque(icon.getRGB(x, y)) ? '#' : '.');
+            }
+            rows.append('\n');
+        }
+        return rows.toString();
+    }
+
+    /** Every shipped ability icon's name but the one given. */
+    static List<String> otherAbilityIcons(String ability) throws IOException, URISyntaxException {
+        URL folder = ResidualAbilityIconsTest.class.getResource(ABILITY_ICONS);
+        assertNotNull(folder, ABILITY_ICONS + " is not on the classpath");
+        try (Stream<Path> icons = Files.list(Path.of(folder.toURI()))) {
+            return icons.map(path -> path.getFileName().toString()).filter(name -> name.endsWith(".png"))
+                    .map(name -> name.substring(0, name.length() - ".png".length()))
+                    .filter(name -> !name.equals(ability)).toList();
+        }
+    }
+
     /**
      * The icon's opaque texels outside the shared block, '#' for opaque, read
      * left to right or mirrored; a recolor draws the same shape.
      */
     static String drawingOutsideBlock(BufferedImage icon, boolean mirrored) {
-        StringBuilder rows = new StringBuilder();
-        for (int y = 0; y < icon.getHeight(); y++) {
-            for (int column = 0; column < icon.getWidth(); column++) {
-                int x = mirrored ? icon.getWidth() - 1 - column : column;
-                boolean drawn = !inSharedBlock(column, y) && isOpaque(icon.getRGB(x, y));
-                rows.append(drawn ? '#' : '.');
-            }
-            rows.append('\n');
-        }
-        return rows.toString();
+        return shape(icon, mirrored, true);
     }
 
     private static boolean isOpaque(int argb) {
