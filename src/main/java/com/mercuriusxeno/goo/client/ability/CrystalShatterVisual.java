@@ -10,10 +10,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.ARGB;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.MapColor;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -33,12 +35,15 @@ import java.util.Map;
  * Draws the glass shards hanging over every Shatter cell near the camera as
  * thin elongated pyramids, a sixth to a half of a block long and as wide as
  * a tenth of their length, each lying and spinning as its cell's seeded
- * layout draws it, at the place {@link ShatterCellShards} answers: whole
- * above the goo's surface within the cell's column, fading in and drifting
- * to rest as the goo lands. Each face reflects what its own ray off the
- * camera's view meets in the world, eased across ticks. The cells come from
+ * layout draws it, at the place {@link ShatterCellShards} answers: rising
+ * out of the goo and fading in while a living thing stands within 3 blocks
+ * of the cell, at rest whole above its surface within its column, and
+ * sinking back once nothing living is near; a cell whose shards stand
+ * hidden draws nothing. Each face reflects what its own ray off the camera's
+ * view meets in the world, eased across ticks. The cells come from
  * {@link ShatterCells}, and the shards draw after the translucent blocks.
  * shatter-is-splattered-goo-and-shards-form-over-the-splatters
+ * razor-shards-appear-in-layers-ahead-of-the-dome
  * razor-keeps-its-look-gated-on-glass
  * diagnose-then-ease-crystal-reflection
  */
@@ -154,8 +159,23 @@ public final class CrystalShatterVisual {
             cellsLevel = level;
         }
         if (level != null && mc.player != null) {
-            CELLS.rescanIfDue(level, mc.player.getEyePosition(), level.getGameTime());
+            Vec3 eye = mc.player.getEyePosition();
+            CELLS.rescanIfDue(level, eye, level.getGameTime());
+            CELLS.tickShown(livingNear(level, eye));
         }
+    }
+
+    /**
+     * Where each living thing that could raise a scanned cell's shards stands.
+     *
+     * @param level the client level
+     * @param eye   the camera's position
+     * @return the feet of every living thing within the scan's reach and a near radius past it
+     */
+    private static List<Vec3> livingNear(Level level, Vec3 eye) {
+        double reach = ShatterCells.REACH + ShatterCells.NEAR_RADIUS;
+        return level.getEntitiesOfClass(LivingEntity.class, new AABB(eye, eye).inflate(reach),
+                living -> living.isAlive() && !living.isSpectator()).stream().map(LivingEntity::position).toList();
     }
 
     /**
@@ -175,15 +195,44 @@ public final class CrystalShatterVisual {
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.CRYSTAL_SHARD_TYPE);
         Level level = mc.level;
-        BlockColorProbe probe = (origin, direction) -> raycastBlockColor(level, origin, direction);
-        for (Map.Entry<BlockPos, ShatterCells.Cell> entry : CELLS.cells().entrySet()) {
-            BlockState state = level.getBlockState(entry.getKey());
-            if (ShatterCells.isShatter(state)) {
-                submitCell(event.getPoseStack(), consumer, drawOf(entry.getKey(), entry.getValue(),
-                        state.getValue(VolumeCellBlock.LAYERS), clock, mc.player.getEyePosition(partialTick), probe));
-            }
-        }
+        Frame frame = new Frame(level, partialTick, clock, mc.player.getEyePosition(partialTick),
+                (origin, direction) -> raycastBlockColor(level, origin, direction));
+        CELLS.cells().forEach((pos, cell) -> drawCell(event.getPoseStack(), consumer, pos, cell, frame));
         buffers.endBatch(GooRenderTypes.CRYSTAL_SHARD_TYPE);
+    }
+
+    /**
+     * What every cell drawn this frame shares.
+     *
+     * @param level       the client level
+     * @param partialTick the frame's share of the way from the last tick to the next
+     * @param clock       the game time with its partial tick
+     * @param eye         the camera eye position
+     * @param probe       casts the reflection rays
+     */
+    private record Frame(Level level, float partialTick, double clock, Vec3 eye, BlockColorProbe probe) {
+    }
+
+    /**
+     * Draws one cell's shards where its cell still stands and its shards stand risen at all.
+     *
+     * @param poseStack the level's pose stack, at the camera
+     * @param consumer  the shard render type's vertex consumer
+     * @param pos       the cell's position
+     * @param cell      the cell's layout and shown share
+     * @param frame     what every cell drawn this frame shares
+     */
+    private static void drawCell(PoseStack poseStack, VertexConsumer consumer, BlockPos pos, ShatterCells.Cell cell,
+                                 Frame frame) {
+        BlockState state = frame.level().getBlockState(pos);
+        float shown = cell.shownAt(frame.partialTick());
+        if (shown <= 0f || !ShatterCells.isShatter(state)) {
+            return;
+        }
+        List<ShatterCellShards.CellShard> shards = ShatterCellShards.shardsOver(pos,
+                state.getValue(VolumeCellBlock.LAYERS), shown, cell.layout());
+        submitCell(poseStack, consumer, drawOf(pos, cell.layout(), shards, frame.clock(), frame.eye(),
+                frame.probe()));
     }
 
     /**
@@ -206,19 +255,17 @@ public final class CrystalShatterVisual {
      * What this frame of one cell's shards draws.
      *
      * @param pos    the cell's position
-     * @param cell   the cell's landing and layout
-     * @param layers the layers the cell holds
+     * @param layout the cell's shard layout
+     * @param shards the cell's shards at their places this frame
      * @param clock  the game time with its partial tick
      * @param eye    the camera eye position
      * @param probe  casts the reflection rays
      * @return the frame's draw
      */
-    private static CellDraw drawOf(BlockPos pos, ShatterCells.Cell cell, int layers, double clock, Vec3 eye,
-                                   BlockColorProbe probe) {
-        float sinceLanding = (float) Math.min(ShatterCellShards.FADE_TICKS, clock - cell.landedAt());
-        return new CellDraw(pos, ShatterCellShards.shardsOver(pos, layers, sinceLanding, cell.layout()),
-                cell.layout(), (float) clock, eye, probe, clock, EASINGS.computeIfAbsent(pos,
-                        p -> new ReflectionEasing(cell.layout().size() * MAX_FACES_PER_SLIVER)));
+    private static CellDraw drawOf(BlockPos pos, ShardTable layout, List<ShatterCellShards.CellShard> shards,
+                                   double clock, Vec3 eye, BlockColorProbe probe) {
+        return new CellDraw(pos, shards, layout, (float) clock, eye, probe, clock, EASINGS.computeIfAbsent(pos,
+                p -> new ReflectionEasing(layout.size() * MAX_FACES_PER_SLIVER)));
     }
 
     /**

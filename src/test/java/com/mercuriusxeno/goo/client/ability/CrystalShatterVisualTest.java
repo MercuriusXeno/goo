@@ -60,7 +60,7 @@ class CrystalShatterVisualTest {
     private static CrystalShatterVisual.CellDraw draw(Vec3 camPos, CrystalShatterVisual.BlockColorProbe probe,
                                                     double clock, ReflectionEasing easing) {
         return new CrystalShatterVisual.CellDraw(CELL,
-                ShatterCellShards.shardsOver(CELL, LAYERS, ShatterCellShards.FADE_TICKS, SHARDS), SHARDS, 100f,
+                ShatterCellShards.shardsOver(CELL, LAYERS, 1f, SHARDS), SHARDS, 100f,
                 camPos, probe, clock, easing);
     }
 

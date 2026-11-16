@@ -12,11 +12,9 @@ import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.Set;
 import java.util.function.LongSupplier;
 
 /**
@@ -24,19 +22,23 @@ import java.util.function.LongSupplier;
  * only, since the cell is a plain block with no block entity and no chunk
  * storage: the chunk sections near the camera are scanned again every few
  * ticks, skipping any whose palette holds no Shatter cell, and the nearest
- * cells are kept. A cell found in a section an earlier scan already read
- * landed since, so its shards fade in from then; a cell found in a section
- * read for the first time stood there already, so its shards stand at rest.
+ * cells are kept. A cell's shards stay hidden in its goo until a living thing
+ * comes within 3 blocks of it, then rise and fade in over the fade's ticks,
+ * and sink back and fade out over as many once nothing living is that near,
+ * so only cells something stands by draw shards and cast reflection rays.
  * Each cell's shard layout is drawn from a seed the client picks the first
  * time it sees the cell.
  * shatter-is-splattered-goo-and-shards-form-over-the-splatters
+ * razor-shards-appear-in-layers-ahead-of-the-dome
  * world-goo-fills-a-block-space-in-one-to-fifteen-layers
  * cloud-seed-per-client-ephemeral
  */
 final class ShatterCells {
 
-    /** The landing time of a cell that stood before this client first read its section: long since at rest. */
-    static final long LONG_LANDED = Long.MIN_VALUE / 2;
+    /** How near a living thing stands to a cell's center to raise its shards, in blocks. */
+    static final double NEAR_RADIUS = 3.0;
+    /** Ticks a cell's shards take to rise and fade in, and to sink and fade out. */
+    static final int FADE_TICKS = 20;
     /** Ticks between scans. */
     static final int SCAN_TICKS = 4;
     /** How far from the camera cells are scanned, in blocks. */
@@ -48,18 +50,49 @@ final class ShatterCells {
     static final long NEVER_SCANNED = Long.MIN_VALUE;
 
     private final Map<BlockPos, Cell> cells = new HashMap<>();
-    private final Set<Long> readSections = new HashSet<>();
-    private final Set<BlockPos> foundLastScan = new HashSet<>();
     private final LongSupplier seeds;
     private long lastScan = NEVER_SCANNED;
 
     /**
-     * One cell's shards: when its goo landed and its layout.
-     *
-     * @param landedAt the game tick the cell's goo landed, or {@link #LONG_LANDED}
-     * @param layout   the cell's shard layout
+     * One cell's shards: its layout, and how far they have risen out of its
+     * goo this tick and the tick before, which a frame between reads between.
      */
-    record Cell(long landedAt, ShardTable layout) {
+    static final class Cell {
+
+        private final ShardTable layout;
+        private float shown;
+        private float shownBefore;
+
+        /**
+         * A cell whose shards stand hidden in its goo.
+         *
+         * @param layout the cell's shard layout
+         */
+        Cell(ShardTable layout) {
+            this.layout = layout;
+        }
+
+        /**
+         * @return the cell's shard layout
+         */
+        ShardTable layout() {
+            return layout;
+        }
+
+        /**
+         * How far the cell's shards stand risen out of its goo at a frame.
+         *
+         * @param partialTick the frame's share of the way from the last tick to the next
+         * @return the shown share, 0 hidden to 1 at rest
+         */
+        float shownAt(float partialTick) {
+            return shownBefore + (shown - shownBefore) * partialTick;
+        }
+
+        private void tick(boolean near) {
+            shownBefore = shown;
+            shown = shownAfterTick(shown, near);
+        }
     }
 
     /**
@@ -79,20 +112,6 @@ final class ShatterCells {
     }
 
     /**
-     * When a cell a scan finds landed: now where the last scan read its
-     * section and found no cell there, long since where the last scan found
-     * it standing or this scan reads its section for the first time.
-     *
-     * @param sectionReadBefore whether the last scan read the cell's section
-     * @param foundBefore       whether the last scan found the cell standing
-     * @param now               the game tick of this scan
-     * @return the cell's landing tick
-     */
-    static long landedAt(boolean sectionReadBefore, boolean foundBefore, long now) {
-        return sectionReadBefore && !foundBefore ? now : LONG_LANDED;
-    }
-
-    /**
      * Whether a scan is due: the first, one a scan interval after the last,
      * or one after the clock ran backward. The first is asked by its sentinel
      * rather than by a difference, since the tick minus the sentinel overflows.
@@ -103,6 +122,40 @@ final class ShatterCells {
      */
     static boolean isDue(long lastScan, long now) {
         return lastScan == NEVER_SCANNED || now < lastScan || now - lastScan >= SCAN_TICKS;
+    }
+
+    /**
+     * Whether a living thing stands near enough a cell to raise its shards.
+     *
+     * @param cell   the cell
+     * @param living where each living thing near the camera stands
+     * @return true where one stands within {@link #NEAR_RADIUS} of the cell's center
+     */
+    static boolean isNear(BlockPos cell, List<Vec3> living) {
+        Vec3 center = Vec3.atCenterOf(cell);
+        return living.stream().anyMatch(at -> at.distanceToSqr(center) <= NEAR_RADIUS * NEAR_RADIUS);
+    }
+
+    /**
+     * A cell's shown share a tick on: a fade's share higher while something
+     * living is near, as much lower while nothing is, held between none and all.
+     *
+     * @param shown the share this tick
+     * @param near  whether a living thing stands near the cell
+     * @return the share next tick
+     */
+    static float shownAfterTick(float shown, boolean near) {
+        float step = 1f / FADE_TICKS;
+        return Math.clamp(shown + (near ? step : -step), 0f, 1f);
+    }
+
+    /**
+     * Moves every cell's shards a tick toward risen where a living thing is near it, toward hidden where not.
+     *
+     * @param living where each living thing near the camera stands
+     */
+    void tickShown(List<Vec3> living) {
+        cells.forEach((pos, cell) -> cell.tick(isNear(pos, living)));
     }
 
     /**
@@ -119,8 +172,6 @@ final class ShatterCells {
      */
     void clear() {
         cells.clear();
-        readSections.clear();
-        foundLastScan.clear();
         lastScan = NEVER_SCANNED;
     }
 
@@ -136,7 +187,6 @@ final class ShatterCells {
             return;
         }
         lastScan = now;
-        Set<Long> sectionsNow = new HashSet<>();
         List<BlockPos> found = new ArrayList<>();
         SectionPos low = SectionPos.of(BlockPos.containing(eye.subtract(REACH, REACH, REACH)));
         SectionPos high = SectionPos.of(BlockPos.containing(eye.add(REACH, REACH, REACH)));
@@ -144,34 +194,27 @@ final class ShatterCells {
             for (int sz = low.z(); sz <= high.z(); sz++) {
                 ChunkAccess chunk = level.getChunk(sx, sz, ChunkStatus.FULL, false);
                 if (chunk != null) {
-                    scanChunk(chunk, low.y(), high.y(), sectionsNow, found);
+                    scanChunk(chunk, low.y(), high.y(), found);
                 }
             }
         }
         found.sort(Comparator.comparingDouble(pos -> Vec3.atCenterOf(pos).distanceToSqr(eye)));
-        keep(found.subList(0, Math.min(found.size(), MOST_DRAWN)), now);
-        readSections.clear();
-        readSections.addAll(sectionsNow);
-        foundLastScan.clear();
-        foundLastScan.addAll(found);
+        keep(found.subList(0, Math.min(found.size(), MOST_DRAWN)));
     }
 
-    private void keep(List<BlockPos> nearest, long now) {
+    private void keep(List<BlockPos> nearest) {
         Map<BlockPos, Cell> kept = new HashMap<>();
         for (BlockPos pos : nearest) {
             Cell standing = cells.get(pos);
-            kept.put(pos, standing != null ? standing : new Cell(
-                    landedAt(readSections.contains(SectionPos.asLong(pos)), foundLastScan.contains(pos), now),
-                    ShardTable.fromSeed(seeds.getAsLong(), ShatterCellShards.SHARDS_PER_CELL)));
+            kept.put(pos, standing != null ? standing
+                    : new Cell(ShardTable.fromSeed(seeds.getAsLong(), ShatterCellShards.SHARDS_PER_CELL)));
         }
         cells.clear();
         cells.putAll(kept);
     }
 
-    private static void scanChunk(ChunkAccess chunk, int lowY, int highY, Set<Long> sectionsNow,
-                                  List<BlockPos> found) {
+    private static void scanChunk(ChunkAccess chunk, int lowY, int highY, List<BlockPos> found) {
         for (int sy = Math.max(lowY, chunk.getMinSectionY()); sy <= Math.min(highY, chunk.getMaxSectionY()); sy++) {
-            sectionsNow.add(SectionPos.asLong(chunk.getPos().x(), sy, chunk.getPos().z()));
             LevelChunkSection section = chunk.getSection(chunk.getSectionIndexFromSectionY(sy));
             if (section.hasOnlyAir() || !section.getStates().maybeHas(ShatterCells::isShatter)) {
                 continue;
