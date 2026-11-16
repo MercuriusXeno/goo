@@ -80,7 +80,8 @@ class VolumeCellLookTest {
 
     static Stream<Cell> cells() {
         return Stream.of(new Cell("slime_coat", CellBinding.SLIME, "goo:fluid/weird_fluid", 0x5FAE4C),
-                new Cell("kinetic_slick", CellBinding.SLICK, "goo:fluid/kinetic_fluid", 0x3C6CFF));
+                new Cell("kinetic_slick", CellBinding.SLICK, "goo:fluid/kinetic_fluid", 0x3C6CFF),
+                new Cell("blaze_molten", CellBinding.MOLTEN, "goo:fluid/blaze_fluid", 0xFF750F));
     }
 
     @Nested
