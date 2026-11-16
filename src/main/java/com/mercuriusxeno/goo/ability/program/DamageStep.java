@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -163,19 +164,26 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
     }
 
     /**
-     * Maps the step's damage kind to the target's damage source.
+     * Maps the step's damage kind to the target's damage source: the
+     * thrower's attack, or the kind's own type naming the player who threw.
+     * direct-goo-hit-credits-its-caster
+     * goo-hit-keeps-its-kind-and-names-the-player-behind-it
      *
-     * @param target the entity being hurt
+     * @param target  the entity being hurt
+     * @param thrower the entity that threw the goo, or null
      * @return the damage source
      */
     private DamageSource damageSource(LivingEntity target, @Nullable Entity thrower) {
-        Optional<ResourceKey<DamageType>> owned = gooTypeOf(source);
-        if (owned.isPresent()) {
-            return new DamageSource(target.level().registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE)
-                    .getOrThrow(owned.get()));
-        }
         DamageSources sources = target.damageSources();
-        return source == DamageKind.ATTACK ? attackBy(sources, thrower) : sourceOfItsOwn(sources);
+        if (source == DamageKind.ATTACK) {
+            return attackBy(sources, thrower);
+        }
+        Optional<ResourceKey<DamageType>> owned = gooTypeOf(source);
+        DamageSource uncredited = owned.isPresent()
+                ? new DamageSource(target.level().registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE)
+                        .getOrThrow(owned.get()))
+                : sourceOfItsOwn(sources);
+        return GooHitCredit.credit(uncredited, target, thrower);
     }
 
     /**
@@ -194,7 +202,7 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
     }
 
     /**
-     * The source of a kind that names its own, owing nothing to the thrower.
+     * The source of a vanilla kind, naming no one.
      *
      * @param sources the level's damage sources
      * @return the damage source
