@@ -69,7 +69,7 @@ public record RallyStep(Expr damage, Expr health, Expr speed, Expr armorShare, E
     public boolean tick(StepContext context) {
         TargetHost host = context.hostAs(TargetHost.class);
         Entity caster = host.thrower();
-        if (caster != null && takesEntity(host.target()) && !OwnMinions.rallyRefuses(caster, host.target())) {
+        if (caster != null && takesEntity(host.target()) && !refusesFor(caster, host.target())) {
             Mob mob = (Mob) host.target();
             if (mob.hasData(GooAttachments.RALLIED)) {
                 // rally-cast-on-your-rallied-mob-releases-it: the release deals no damage
@@ -102,6 +102,20 @@ public record RallyStep(Expr damage, Expr health, Expr speed, Expr armorShare, E
     @Override
     public boolean takesEntity(Entity entity) {
         return entity instanceof Mob;
+    }
+
+    /**
+     * Rally refuses a charmed mob and a mob another caster rallied; its
+     * rallier's own rallied mob takes the cast, which releases it.
+     * refused-rally-or-charm-spends-no-goo
+     *
+     * @param caster the caster the Rally would act for
+     * @param entity the candidate
+     * @return true where the Rally leaves the entity untouched
+     */
+    @Override
+    public boolean refusesFor(Entity caster, Entity entity) {
+        return OwnMinions.rallyRefuses(caster, entity);
     }
 
     @Override
