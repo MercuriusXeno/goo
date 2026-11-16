@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.MoltenStep;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
@@ -46,7 +47,9 @@ public final class MoltenTests {
     /** The layers melting one block spends, stated here so the test checks the cell rather than echoing it. */
     private static final int MELT_LAYERS = 3;
     private static final String NOT_MELTED = "Five layers of Molten should melt the stone to a lava source, stands %s";
-    private static final String LAYERS_LEFT_WRONG = "The Molten cell should rest on the lava at two layers, stands %s";
+    private static final String MELTED_EARLY = "Half way through the heat the stone should stand under five layers,"
+            + " stands %s under %s";
+    private static final String LAYERS_LEFT_WRONG ="The Molten cell should rest on the lava at two layers, stands %s";
 
     private MoltenTests() {
     }
@@ -94,9 +97,12 @@ public final class MoltenTests {
     }
 
     /**
-     * Five layers of Molten over stone melt it: a lava source stands where
-     * the stone stood, and the cell rests on it three layers lower, at two.
+     * Five layers of Molten over stone heat it red hot and then melt it: half
+     * way through the heat the stone still stands under all five layers, and
+     * after it a lava source stands where the stone stood, the cell resting on
+     * it three layers lower, at two.
      * molten-spends-three-layers-per-stone-block-priced-at-lava-minus-mundane-block
+     * stone-goes-red-hot-before-molten-turns-it-to-lava
      *
      * @param helper the gametest helper
      */
@@ -105,9 +111,19 @@ public final class MoltenTests {
         for (Direction side : Direction.Plane.HORIZONTAL) {
             helper.setBlock(OVER_THE_FLOOR.relative(side), Blocks.STONE);
         }
+        AbilityDefinition molten = AbilityRegistry.of(helper.getLevel()).getAbility(MOLTEN);
+        helper.assertTrue(molten != null, ABILITY_REQUIRED);
+        int heatTicks = MoltenStep.in(molten.behaviors()).orElseThrow().heatTicks();
         helper.setBlock(OVER_THE_FLOOR, GooBlocks.BLAZE_MOLTEN.get().defaultBlockState()
                 .setValue(VolumeCellBlock.LAYERS, FIVE_LAYERS));
-        helper.runAfterDelay(PAST_THE_POUR, () -> {
+        helper.runAfterDelay(heatTicks / 2, () -> {
+            BlockState heating = helper.getBlockState(FLOOR);
+            BlockState cell = helper.getBlockState(OVER_THE_FLOOR);
+            boolean fiveLayers = cell.is(GooBlocks.BLAZE_MOLTEN.get())
+                    && cell.getValue(VolumeCellBlock.LAYERS) == FIVE_LAYERS;
+            helper.assertTrue(heating.is(Blocks.STONE) && fiveLayers, String.format(MELTED_EARLY, heating, cell));
+        });
+        helper.runAfterDelay(heatTicks + PAST_THE_POUR, () -> {
             BlockState melted = helper.getBlockState(FLOOR);
             helper.assertTrue(melted.is(Blocks.LAVA) && melted.getFluidState().isSource(),
                     String.format(NOT_MELTED, melted));
