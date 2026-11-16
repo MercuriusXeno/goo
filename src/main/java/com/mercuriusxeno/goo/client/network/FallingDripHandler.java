@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.network;
 
+import com.mercuriusxeno.goo.client.particle.DripParticle;
 import com.mercuriusxeno.goo.client.particle.FallingDripLaunch;
 import com.mercuriusxeno.goo.network.FallingDripPayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
@@ -39,6 +40,9 @@ public final class FallingDripHandler {
                     launch.start().y, launch.start().z, launch.velocity().x, launch.velocity().y, launch.velocity().z);
             if (drip != null) {
                 drip.setLifetime(launch.lifetime());
+            }
+            if (payload.paced() && drip instanceof DripParticle paced) {
+                paced.moveAtAPace();
             }
         });
     }

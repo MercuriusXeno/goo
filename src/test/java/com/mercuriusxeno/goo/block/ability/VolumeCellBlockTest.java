@@ -219,6 +219,44 @@ class VolumeCellBlockTest {
     }
 
     /**
+     * Each step a runny layer takes down its wall hands the visuals one drip
+     * launch, on the wall face of the cell it leaves, set off the wall as the
+     * streak is, ending on that face in the cell it enters or on the surface
+     * of the fill it joins; a step into its own cell's fill draws none
+     * (decision goo-moving-downward-falls-as-drips).
+     */
+    @Nested
+    class WallDrips {
+
+        private static final BlockPos HERE = new BlockPos(6, 70, -4);
+        private static final int BELOW_FILL = 3;
+        private final Vec3 onTheEastWall = new Vec3(7 - VolumeCellBlock.WALL_DRIP_OFF, 71, -3.5);
+
+        @Test
+        void aStepToTheCellBelowDrawsADripDownTheWallOneCell() {
+            Optional<VolumeCellBlock.WallDrip> drip = VolumeCellBlock.wallDripOf(VolumeCellBlock.RunStep.RUN_DOWN,
+                    HERE, Direction.EAST, BELOW_FILL);
+
+            assertEquals(Optional.of(new VolumeCellBlock.WallDrip(onTheEastWall, 70)), drip);
+        }
+
+        @Test
+        void aStepIntoTheFillBelowDrawsADripDownToItsSurface() {
+            Optional<VolumeCellBlock.WallDrip> drip = VolumeCellBlock.wallDripOf(VolumeCellBlock.RunStep.JOIN_BELOW,
+                    HERE, Direction.EAST, BELOW_FILL);
+
+            assertEquals(Optional.of(new VolumeCellBlock.WallDrip(onTheEastWall,
+                    69 + (double) BELOW_FILL / FIFTEEN)), drip);
+        }
+
+        @Test
+        void aStepIntoItsOwnCellsFillDrawsNone() {
+            assertEquals(Optional.empty(), VolumeCellBlock.wallDripOf(VolumeCellBlock.RunStep.JOIN_HERE, HERE,
+                    Direction.EAST, BELOW_FILL));
+        }
+    }
+
+    /**
      * A runny layer moves down its wall a cell each step and ends as fill on
      * the first top below, so every layer paid for stands as fill or film
      * (decision runny-goo-runs-down-the-wall-to-the-first-top-below).

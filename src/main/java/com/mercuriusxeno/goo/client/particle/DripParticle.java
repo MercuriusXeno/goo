@@ -59,6 +59,8 @@ public abstract class DripParticle extends SingleQuadParticle {
 
     private final Layer layer;
     private final GooRenderUtil.UvRect uv;
+    /** Whether the drip keeps its launch velocity, a wall run's steady pace. */
+    private boolean paced;
 
     /**
      * Creates a goo drip drawing the given look on the given layer.
@@ -126,12 +128,23 @@ public abstract class DripParticle extends SingleQuadParticle {
         return false;
     }
 
+    /**
+     * Moves the drip at the velocity it was launched with, unpulled by
+     * gravity and undamped by drag, as a drip running down a wall at its
+     * run's pace moves.
+     * goo-moving-downward-falls-as-drips
+     */
+    public void moveAtAPace() {
+        this.gravity = 0f;
+        this.paced = true;
+    }
+
     /** Applies gravity, moves the particle, runs post-move hooks, and damps velocity. */
     private void applyPhysics() {
         this.yd -= this.gravity;
         this.move(this.xd, this.yd, this.zd);
         this.postMoveUpdate();
-        if (!this.removed) {
+        if (!this.removed && !this.paced) {
             this.xd *= DRAG;
             this.yd *= DRAG;
             this.zd *= DRAG;
