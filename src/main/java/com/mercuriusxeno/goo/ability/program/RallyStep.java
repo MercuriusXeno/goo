@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.OwnMinions;
 import com.mercuriusxeno.goo.ability.zoo.Rallied;
 import com.mercuriusxeno.goo.ability.zoo.RallyArmor;
 import com.mercuriusxeno.goo.ability.zoo.RallyEvents;
@@ -9,9 +10,8 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
-import org.jspecify.annotations.Nullable;
+import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Stream;
 
 /**
@@ -20,8 +20,8 @@ import java.util.stream.Stream;
  * for the named damage, its max health and speed lifted by the named shares,
  * and wearing the named share of the caster's armor and toughness over an
  * armor floor. A cast with no caster behind it rallies nothing. The rallier's
- * own second cast releases the mob unhurt; another caster's leaves the buff,
- * the health, the first rallier and the attacker it records. Zoo's Rally is
+ * own second cast releases the mob unhurt; a mob {@link OwnMinions#rallyRefuses}
+ * refuses, charmed or another caster's, keeps what it holds. Zoo's Rally is
  * {@code rally damage=6 health=1.5 speed=0.5 armor_share=0.5 armor_floor=4},
  * thrown at one mob.
  * zoo-rally-arms-the-peaceful
@@ -30,6 +30,8 @@ import java.util.stream.Stream;
  * rally-remembers-the-first-rallier
  * rally-minions-get-half-your-armor-and-a-floor
  * rally-cast-on-your-rallied-mob-releases-it
+ * charmed-mobs-are-immune-to-rally
+ * other-players-rally-and-charm-refuse-your-minions
  *
  * @param damage    the damage one strike deals
  * @param health     the share max health grows by
@@ -67,34 +69,23 @@ public record RallyStep(Expr damage, Expr health, Expr speed, Expr armorShare, E
     public boolean tick(StepContext context) {
         TargetHost host = context.hostAs(TargetHost.class);
         Entity caster = host.thrower();
-        if (caster != null && takesEntity(host.target())) {
+        if (caster != null && takesEntity(host.target()) && !refusesFor(caster, host.target())) {
             Mob mob = (Mob) host.target();
-            Rallied standing = mob.hasData(GooAttachments.RALLIED) ? mob.getData(GooAttachments.RALLIED) : null;
-            if (standing != null && standing.releasedBy(caster.getUUID())) {
+            if (mob.hasData(GooAttachments.RALLIED)) {
                 // rally-cast-on-your-rallied-mob-releases-it: the release deals no damage
                 RallyEvents.endRally(mob);
             } else {
-                rallyFor(context, mob, caster, standing);
+                rallyFor(context, mob, caster);
             }
         }
         return true;
     }
 
-    private void rallyFor(StepContext context, Mob mob, Entity caster, @Nullable Rallied standing) {
-        // rally-remembers-the-first-rallier: a second caster's rally keeps the first rallier
-        UUID rallier = Rallied.rallierAfter(standing, caster.getUUID());
+    private void rallyFor(StepContext context, Mob mob, Entity caster) {
         RallyArmor armor = new RallyArmor(armorShare.evaluateFloat(context), armorFloor.evaluateFloat(context));
-        // slots-follow-rally-order-size-and-count: the first rally's game time sets the mob's slot
-        mob.setData(GooAttachments.RALLIED, new Rallied(rallier, damage.evaluateFloat(context),
-                Rallied.attackerAfter(standing), armor,
-                Rallied.rallyOrderAfter(standing, mob.level().getGameTime())));
-        if (standing == null) {
-            // a second rally leaves the buff it already holds, healing the mob no further
-            buffFreshRally(context, mob, caster, armor);
-        }
-    }
-
-    private void buffFreshRally(StepContext context, Mob mob, Entity caster, RallyArmor armor) {
+        // slots-follow-rally-order-size-and-count: the rally's game time sets the mob's slot
+        mob.setData(GooAttachments.RALLIED, new Rallied(caster.getUUID(), damage.evaluateFloat(context),
+                Optional.empty(), armor, mob.level().getGameTime()));
         RallyEvents.buff(mob, health.evaluate(context), speed.evaluate(context));
         if (caster instanceof LivingEntity rallier) {
             RallyEvents.wearRalliersArmor(mob, rallier, armor);
@@ -111,6 +102,20 @@ public record RallyStep(Expr damage, Expr health, Expr speed, Expr armorShare, E
     @Override
     public boolean takesEntity(Entity entity) {
         return entity instanceof Mob;
+    }
+
+    /**
+     * Rally refuses a charmed mob and a mob another caster rallied; its
+     * rallier's own rallied mob takes the cast, which releases it.
+     * refused-rally-or-charm-spends-no-goo
+     *
+     * @param caster the caster the Rally would act for
+     * @param entity the candidate
+     * @return true where the Rally leaves the entity untouched
+     */
+    @Override
+    public boolean refusesFor(Entity caster, Entity entity) {
+        return OwnMinions.rallyRefuses(caster, entity);
     }
 
     @Override

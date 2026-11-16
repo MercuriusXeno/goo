@@ -14,7 +14,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Covers which mobs are a caster's own minions and which shipped abilities
- * spare them by the harmful tag (decision mob-targeted-attacks-refuse-your-minions).
+ * spare them by the harmful tag (decision mob-targeted-attacks-refuse-your-minions),
+ * and which mobs Charm and Rally refuse for a caster.
  */
 class OwnMinionsTest {
 
@@ -46,6 +47,67 @@ class OwnMinionsTest {
             assertFalse(OwnMinions.ownMinionOf(CASTER, Rallied.NONE, Charmed.NONE));
         }
 
+    }
+
+    /** rallied-mobs-are-immune-to-charm, other-players-rally-and-charm-refuse-your-minions */
+    @Nested
+    class CharmRefuses {
+
+        @Test
+        void charmRefusesAMobTheCasterRallied() {
+            assertTrue(OwnMinions.charmRefuses(CASTER, new Rallied(CASTER, STRIKE), Charmed.NONE));
+        }
+
+        @Test
+        void charmRefusesAMobAnotherPlayerRallied() {
+            assertTrue(OwnMinions.charmRefuses(CASTER, new Rallied(OTHER_PLAYER, STRIKE), Charmed.NONE));
+        }
+
+        @Test
+        void charmRefusesAMobAnotherPlayerCharmed() {
+            assertTrue(OwnMinions.charmRefuses(CASTER, Rallied.NONE, new Charmed(OTHER_PLAYER)));
+        }
+
+        @Test
+        void charmTakesAMobHoldingNeitherEffect() {
+            assertFalse(OwnMinions.charmRefuses(CASTER, Rallied.NONE, Charmed.NONE));
+        }
+
+        @Test
+        void charmTakesAMobItsCasterCharmed() {
+            assertFalse(OwnMinions.charmRefuses(CASTER, Rallied.NONE, new Charmed(CASTER)));
+        }
+    }
+
+    /** charmed-mobs-are-immune-to-rally, other-players-rally-and-charm-refuse-your-minions */
+    @Nested
+    class RallyRefuses {
+
+        @Test
+        void rallyRefusesAMobTheCasterCharmed() {
+            assertTrue(OwnMinions.rallyRefuses(CASTER, Rallied.NONE, new Charmed(CASTER)));
+        }
+
+        @Test
+        void rallyRefusesAMobAnotherPlayerCharmed() {
+            assertTrue(OwnMinions.rallyRefuses(CASTER, Rallied.NONE, new Charmed(OTHER_PLAYER)));
+        }
+
+        @Test
+        void rallyRefusesAMobAnotherCasterRallied() {
+            assertTrue(OwnMinions.rallyRefuses(CASTER, new Rallied(OTHER_PLAYER, STRIKE), Charmed.NONE));
+        }
+
+        @Test
+        void rallyTakesAMobHoldingNeitherEffect() {
+            assertFalse(OwnMinions.rallyRefuses(CASTER, Rallied.NONE, Charmed.NONE));
+        }
+
+        /** rally-cast-on-your-rallied-mob-releases-it: the rallier's own Rally reaches the mob to release it */
+        @Test
+        void rallyTakesAMobTheCasterRallied() {
+            assertFalse(OwnMinions.rallyRefuses(CASTER, new Rallied(CASTER, STRIKE), Charmed.NONE));
+        }
     }
 
     /**

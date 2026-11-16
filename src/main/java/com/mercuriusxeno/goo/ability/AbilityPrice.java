@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.ExprNode;
 import com.mercuriusxeno.goo.ability.program.ExprOperator;
 import com.mercuriusxeno.goo.ability.program.HostVariables;
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
@@ -13,9 +14,11 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.serialization.DataResult;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import org.jspecify.annotations.Nullable;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.List;
 import java.util.OptionalDouble;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -176,6 +179,19 @@ public record AbilityPrice(Expr amount, @Nullable ResourceKey<GooTypeDefinition>
      */
     private static @Nullable Identifier itemNamed(String name) {
         return HostVariables.isPrefab(name) ? null : Identifier.tryParse(name);
+    }
+
+    /**
+     * The price a caster standing in a level pays for an ability running a program: nothing where a step of the
+     * program makes it free there, as End is in the End, and this price elsewhere.
+     * decision end-gate-in-the-end-is-free-and-returns-you-where-you-portalled-in
+     *
+     * @param casterIn the level the caster stands in
+     * @param program  the ability's steps
+     * @return the price
+     */
+    public AbilityPrice forCasterIn(ResourceKey<Level> casterIn, List<? extends Step> program) {
+        return program.stream().anyMatch(step -> step.freeIn(casterIn)) ? FREE : this;
     }
 
     /**

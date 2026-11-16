@@ -452,7 +452,8 @@ final class RadialWheelRenderer {
                 frame.reagentSets().applyAsInt(ability.consumes()), StandingUpkeep.on(frame.standing(), key),
                 frame.roomExtent());
         // locked-petal-stays-on-the-wheel: a locked petal takes the unaffordable petal's dimmed look
-        boolean dimmed = offered.locked() || slotLabels.dimmed();
+        // end-is-grayed-out-in-the-end-unless-you-came-by-the-ability: a grayed out petal takes it too
+        boolean dimmed = offered.refused() || slotLabels.dimmed();
         PetalPainter.paint(graphics, frame, frame.look().fluidFace(key), petal,
                 abilityPetalTint(frame, petal, offered, slotLabels));
         int[] restingTip = tipCenter(frame, petal);
@@ -469,8 +470,9 @@ final class RadialWheelRenderer {
 
     /**
      * The tint an ability petal's fill blits under: hovered while the cursor rests on it, dimmed while it is
-     * locked or its holdings afford none, pulsing while its effect is held.
+     * locked or grayed out or its holdings afford none, pulsing while its effect is held.
      * locked-petal-stays-on-the-wheel
+     * end-is-grayed-out-in-the-end-unless-you-came-by-the-ability
      * wheel-pulses-the-active-effect
      *
      * @param frame      what the frame draws from
@@ -481,7 +483,7 @@ final class RadialWheelRenderer {
      */
     static int abilityPetalTint(Frame frame, RadialWheel.PetalArc petal, OfferedAbility offered, FanSlot slotLabels) {
         boolean hovered = petal.ability() == frame.wheel().hoveredAbility();
-        boolean dimmed = offered.locked() || slotLabels.dimmed();
+        boolean dimmed = offered.refused() || slotLabels.dimmed();
         return tint(hovered, dimmed, frame.pulseOf(offered.ability().id()), frame.gameTime());
     }
 

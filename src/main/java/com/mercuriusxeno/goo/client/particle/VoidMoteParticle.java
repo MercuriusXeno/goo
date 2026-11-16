@@ -22,12 +22,8 @@ import java.util.function.Supplier;
  */
 public final class VoidMoteParticle extends DriftingGlowParticle {
 
-    /**
-     * The velocity a speck keeps each tick, which Vacuum's wind sizes a mote's
-     * flight by so it ends at the glove
-     * (decision vacuum-wind-lines-run-straight-and-far-in-void-colors-with-motes).
-     */
-    public static final float FRICTION = 0.99f;
+    /** The velocity a speck keeps each tick. */
+    private static final float FRICTION = 0.99f;
     private static final float START_ALPHA = 0.95f;
     /** Slow to lose its rise, long lived and small, in the void's violet. */
     private static final Look SPECK = new Look(FRICTION, 0.02f, 40, 30, 0.05f, 0.05f,
@@ -54,17 +50,20 @@ public final class VoidMoteParticle extends DriftingGlowParticle {
     }
 
     /**
-     * Sends the speck into a moving point, landing on it as its life ends,
-     * as Vacuum's motes stream into the glove wherever the hand has moved.
-     * vacuum-wind-lines-run-straight-and-far-in-void-colors-with-motes
+     * Flies the speck fast and straight into a moving point, landing on it
+     * as its flight ends, as Vacuum's motes fly into the blob wherever the
+     * caster has moved; it keeps one sprite in flight, since stepping through
+     * the glitter sprites over a flight of a few ticks read as a sequence.
+     * vacuum-motes-fly-loose-from-the-cone-to-the-blob
      *
      * @param target where the point stands each tick
      */
-    public void homeTo(Supplier<Vec3> target) {
+    public void flyInto(Supplier<Vec3> target) {
         this.home = target;
+        this.lifetime = MoteHoming.flightTicks(new Vec3(this.x, this.y, this.z), target.get());
     }
 
-    /** Shrinks the speck through the glitter sprites, twinkles it and fades it toward nothing over its life. */
+    /** Shrinks a drifting speck through the glitter sprites, twinkles it and fades it toward nothing over its life. */
     @Override
     public void tick() {
         if (home != null) {
@@ -74,7 +73,9 @@ public final class VoidMoteParticle extends DriftingGlowParticle {
             this.zd = step.z;
         }
         super.tick();
-        this.setSpriteFromAge(sprites);
+        if (home == null) {
+            this.setSpriteFromAge(sprites);
+        }
         float glint = DIMMEST + (1f - DIMMEST) * Math.abs(Mth.sin(this.age * twinkle + phase));
         this.alpha = START_ALPHA * (1f - lifeProgress()) * glint;
     }
