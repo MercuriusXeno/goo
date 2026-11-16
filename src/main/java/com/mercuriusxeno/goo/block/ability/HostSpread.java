@@ -1,10 +1,16 @@
 package com.mercuriusxeno.goo.block.ability;
 
+import net.minecraft.core.BlockPos;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.Optional;
+
 /**
- * The two choices a sculk charge makes crossing a Host cell: the charge it
- * carries on, and the layers the cell spends turning the block under it to
- * sculk.
+ * The choices Host goo makes about sculk: the charge a cursor carries on out
+ * of a Host cell, the layers the cell spends turning the block under it to
+ * sculk, and the cell a death's charge starts at.
  * sculk-charge-runs-along-host-goo-without-weakening
+ * mob-dying-on-or-near-host-goo-spreads-sculk-from-the-goo
  */
 public final class HostSpread {
 
@@ -34,5 +40,21 @@ public final class HostSpread {
      */
     public static int layersSpent(int layers, boolean turnsToSculk, int sculkLayers) {
         return turnsToSculk && layers >= sculkLayers ? sculkLayers : 0;
+    }
+
+    /**
+     * The Host cell a death's charge starts at: the cell nearest the death,
+     * where it lies within Host's radius of it.
+     * mob-dying-on-or-near-host-goo-spreads-sculk-from-the-goo
+     *
+     * @param death  where the mob died
+     * @param cells  the Host cells around the death
+     * @param radius how far from the death a cell still counts as near it
+     * @return the starting cell, empty where no cell lies near enough
+     */
+    public static Optional<BlockPos> startingCell(BlockPos death, Collection<BlockPos> cells, int radius) {
+        double reach = (double) radius * radius;
+        return cells.stream().filter(cell -> cell.distSqr(death) <= reach)
+                .min(Comparator.comparingDouble(cell -> cell.distSqr(death)));
     }
 }

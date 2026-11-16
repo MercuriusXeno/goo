@@ -17,25 +17,33 @@ import java.util.stream.Stream;
  * stream's drips strikes, one layer for each drip, through the volume cell's
  * one landing, as Goop lays its slime and Molten its molten goo. The step
  * names the layers a Host cell spends turning the block under it to sculk
- * when a sculk charge crosses it: {@code host sculk_layers=3}.
+ * when a sculk charge crosses it, and how near Host goo a mob's death must
+ * fall for the goo to take its charge, starting at a sculk catalyst's own
+ * reach: {@code host sculk_layers=3 radius=8}.
  * host-is-a-sculky-slime-that-sculk-spreads-eagerly-through
  * sculk-charge-runs-along-host-goo-without-weakening
+ * mob-dying-on-or-near-host-goo-spreads-sculk-from-the-goo
  * each-goo-type-ships-a-world-goo-on-the-volume-cell
  * drip-creates-a-volume-cell-immediately
  * drip-on-a-standing-cell-increases-it
  *
  * @param sculkLayers the layers a Host cell spends turning the block under it to sculk
+ * @param radius      how far from a death a Host cell still takes its charge, in blocks
  */
-public record HostStep(int sculkLayers) implements TakesNoEntity, DripLanding {
+public record HostStep(int sculkLayers, int radius) implements TakesNoEntity, DripLanding {
 
     private static final String NAME = "host";
     private static final String FIELD_SCULK_LAYERS = "sculk_layers";
+    private static final String FIELD_RADIUS = "radius";
+    /** The farthest a death may fall from Host goo, bounding the blocks a death searches. */
+    private static final int MOST_RADIUS = 32;
 
     /**
      * Codec for the step's params.
      */
     public static final MapCodec<HostStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            Codec.intRange(1, VolumeCellBlock.MAX_LAYERS).fieldOf(FIELD_SCULK_LAYERS).forGetter(HostStep::sculkLayers)
+            Codec.intRange(1, VolumeCellBlock.MAX_LAYERS).fieldOf(FIELD_SCULK_LAYERS).forGetter(HostStep::sculkLayers),
+            Codec.intRange(1, MOST_RADIUS).fieldOf(FIELD_RADIUS).forGetter(HostStep::radius)
     ).apply(inst, HostStep::new));
 
     /**
