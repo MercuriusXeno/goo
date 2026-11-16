@@ -191,9 +191,36 @@ public record SeaCavern(DensityFunction.NoiseHolder floor, DensityFunction.Noise
         if (y < LunarDepths.SEA_LEVEL_Y || y >= LunarDepths.SEA_ZONE_TOP_Y) {
             return SOLID;
         }
-        int x = context.blockX();
-        int z = context.blockZ();
-        return isOpenAir(y, floorYAt(x, z), roofYAt(x, z), isPillarAt(x, z)) ? OPEN : SOLID;
+        LastColumn column = LAST_COLUMN.get().read(this, context.blockX(), context.blockZ());
+        return isOpenAir(y, column.floorY, column.roofY, column.pillar) ? OPEN : SOLID;
+    }
+
+    /** Each thread's last column read, so the cavern's three noises read once per column rather than per block. */
+    private static final ThreadLocal<LastColumn> LAST_COLUMN = ThreadLocal.withInitial(LastColumn::new);
+
+    /**
+     * The last column a thread read, keyed by the cavern it read it from: its floor, its roof and whether a pillar
+     * stands there.
+     */
+    private static final class LastColumn {
+        private SeaCavern cavern;
+        private int x;
+        private int z;
+        private int floorY;
+        private int roofY;
+        private boolean pillar;
+
+        LastColumn read(SeaCavern reading, int columnX, int columnZ) {
+            if (cavern != reading || x != columnX || z != columnZ) {
+                cavern = reading;
+                x = columnX;
+                z = columnZ;
+                floorY = reading.floorYAt(columnX, columnZ);
+                roofY = reading.roofYAt(columnX, columnZ);
+                pillar = reading.isPillarAt(columnX, columnZ);
+            }
+            return this;
+        }
     }
 
     @Override

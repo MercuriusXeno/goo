@@ -90,7 +90,11 @@ public record WarrenTunnels(DensityFunction.NoiseHolder first, DensityFunction.N
         if (y < LunarDepths.SEA_ZONE_TOP_Y || y >= LunarDepths.WARREN_ZONE_TOP_Y) {
             return false;
         }
-        return isOpen(y, first.getValue(x, y, z), second.getValue(x, y, z));
+        double firstValue = first.getValue(x, y, z);
+        if (Math.abs(firstValue) >= HALF_WIDTH) {
+            return false;
+        }
+        return isOpen(y, firstValue, second.getValue(x, y, z));
     }
 
     @Override

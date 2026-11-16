@@ -53,25 +53,25 @@
         "argument2": {
           "type": "minecraft:min",
           "argument1": {
-            "type": "goo:crystal_caverns",
-            "shape": "goo:lunar_crystal_caverns"
+            "type": "goo:rubble_caves",
+            "footprint": "goo:lunar_rubble_caves",
+            "rubble": "goo:lunar_rubble"
           },
           "argument2": {
             "type": "minecraft:min",
             "argument1": {
-              "type": "goo:rubble_caves",
-              "footprint": "goo:lunar_rubble_caves",
-              "rubble": "goo:lunar_rubble"
+              "type": "goo:lava_tubes",
+              "noise": "goo:lunar_lava_tubes"
             },
             "argument2": {
-              "type": "minecraft:min",
-              "argument1": {
-                "type": "goo:lava_tubes",
-                "noise": "goo:lunar_lava_tubes"
-              },
-              "argument2": {
-                "type": "minecraft:interpolated",
-                "argument": "goo:lunar/terrain"
+              "type": "minecraft:interpolated",
+              "argument": {
+                "type": "minecraft:min",
+                "argument1": {
+                  "type": "goo:crystal_caverns",
+                  "shape": "goo:lunar_crystal_caverns"
+                },
+                "argument2": "goo:lunar/terrain"
               }
             }
           }

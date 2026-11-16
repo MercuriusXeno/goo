@@ -39,6 +39,8 @@ public record CrystalCaverns(DensityFunction.NoiseHolder shape) implements Densi
     static final double EDGE_MARGIN = 14.0;
     /** The noise reads heights stretched by this, so caverns spread wider than they stand tall. */
     static final double VERTICAL_STRETCH = 2.0;
+    /** How fast the density climbs from a cavern's air to its rock across the noise's threshold. */
+    static final double WALL_SHARPNESS = 8.0;
     private static final double OPEN = -1.0;
     private static final double SOLID = 1.0;
 
@@ -50,12 +52,25 @@ public record CrystalCaverns(DensityFunction.NoiseHolder shape) implements Densi
      * @return true in a cavern
      */
     static boolean isOpen(int y, double shapeValue) {
+        return density(y, shapeValue) < 0.0;
+    }
+
+    /**
+     * The caverns' density at a block, from its height and the noise there: below zero inside a cavern, rising
+     * smoothly through zero at its wall, so the terrain's interpolation shapes the walls between cell corners.
+     *
+     * @param y          the block's y
+     * @param shapeValue the noise at the block
+     * @return the density, in [-1, 1]
+     */
+    static double density(int y, double shapeValue) {
         if (y < LunarDepths.WARREN_ZONE_TOP_Y || y >= LunarDepths.CAVERN_ZONE_TOP_Y) {
-            return false;
+            return SOLID;
         }
         double fromEdge = Math.min(y - LunarDepths.WARREN_ZONE_TOP_Y, LunarDepths.CAVERN_ZONE_TOP_Y - 1 - y);
         double closing = Math.max(0.0, 1.0 - fromEdge / EDGE_MARGIN);
-        return shapeValue > THRESHOLD + EDGE_CLOSE * closing;
+        double threshold = THRESHOLD + EDGE_CLOSE * closing;
+        return Math.max(OPEN, Math.min(SOLID, (threshold - shapeValue) * WALL_SHARPNESS));
     }
 
     /**
@@ -86,7 +101,7 @@ public record CrystalCaverns(DensityFunction.NoiseHolder shape) implements Densi
         if (y < LunarDepths.WARREN_ZONE_TOP_Y || y >= LunarDepths.CAVERN_ZONE_TOP_Y) {
             return SOLID;
         }
-        return isOpenAt(context.blockX(), y, context.blockZ()) ? OPEN : SOLID;
+        return density(y, shape.getValue(context.blockX(), y * VERTICAL_STRETCH, context.blockZ()));
     }
 
     @Override
