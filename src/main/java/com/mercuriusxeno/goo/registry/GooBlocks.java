@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.CellBinding;
 import com.mercuriusxeno.goo.block.ability.FungalBudBlock;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
+import com.mercuriusxeno.goo.block.ability.HostCellBlock;
 import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
@@ -206,6 +207,25 @@ public class GooBlocks {
                     .mapColor(MapColor.FIRE)
                     .friction(CellBinding.MOLTEN.surface().friction())
                     .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
+     * Host: the volume cell bound to Deep's sculky slime, the dark teal goo
+     * Host sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot that squelches as sculk does, dropping the deep goo its layers
+     * cost through VolumeCellBlock.getDrops, no loot table
+     * (decisions host-is-a-sculky-slime-that-sculk-spreads-eagerly-through,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<HostCellBlock> DEEP_HOST = BLOCKS.registerBlock(
+            "deep_host", properties -> new HostCellBlock(properties, CellBinding.HOST),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_CYAN)
+                    .friction(CellBinding.HOST.surface().friction())
+                    .sound(SoundType.SCULK)
                     .instabreak()
                     .noOcclusion()
                     .replaceable()
