@@ -173,6 +173,19 @@ public final class GrabEvents {
     }
 
     /**
+     * Whether a player's standing press already locked an item.
+     * decision sweeping-grab-locks-every-item-the-highlight-passes
+     *
+     * @param player the pressing player
+     * @param item   the item
+     * @return true where the press's lock holds it
+     */
+    public static boolean locks(ServerPlayer player, ItemEntity item) {
+        GrabItemLock lock = player.getData(GooAttachments.GRAB_ITEM_LOCK);
+        return lock.standsAt(player.level().getGameTime()) && lock.itemIds().contains(item.getId());
+    }
+
+    /**
      * Stretches a player's item lock across this channel tick and adds the
      * items this tick locks; a player locking none and holding no lock stays unlocked.
      * decision sweeping-grab-locks-every-item-the-highlight-passes

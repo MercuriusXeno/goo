@@ -17,6 +17,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
@@ -24,6 +25,7 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
@@ -56,9 +58,10 @@ import java.util.stream.Stream;
  *                     shared one so a look passing close to a mob still picks it
  * @param pullAcceleration the speed a locked item gains toward the player's eye each channel tick, in blocks a tick
  *                         per tick
+ * @param groupRadius  how far from an item Grab locks the same items with it, in blocks
  */
 public record GrabStep(double range, double holdDistance, double throwSpeed, double pullSpeed, double pickCone,
-                       double pullAcceleration)
+                       double pullAcceleration, double groupRadius)
         implements ReachesTheAim {
 
     private static final String NAME = "grab";
@@ -68,6 +71,7 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
     private static final String FIELD_PULL_SPEED = "pull_speed";
     private static final String FIELD_PICK_CONE = "pick_cone";
     private static final String FIELD_PULL_ACCELERATION = "pull_acceleration";
+    private static final String FIELD_GROUP_RADIUS = "group_radius";
     private static final double HALF = 0.5;
 
     /** Codec for the step's params. */
@@ -78,7 +82,8 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
             Codec.DOUBLE.fieldOf(FIELD_PULL_SPEED).forGetter(GrabStep::pullSpeed),
             Codec.DOUBLE.fieldOf(FIELD_PICK_CONE).forGetter(GrabStep::pickCone),
             Codec.doubleRange(0, Double.MAX_VALUE).fieldOf(FIELD_PULL_ACCELERATION)
-                    .forGetter(GrabStep::pullAcceleration)
+                    .forGetter(GrabStep::pullAcceleration),
+            Codec.doubleRange(0, Double.MAX_VALUE).fieldOf(FIELD_GROUP_RADIUS).forGetter(GrabStep::groupRadius)
     ).apply(inst, GrabStep::new));
 
     /** The registered type. */
@@ -115,6 +120,7 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
      * every locked item stays the press's wherever the look goes.
      * decision grabbed-item-locks-in-and-homes-on-your-current-position
      * decision sweeping-grab-locks-every-item-the-highlight-passes
+     * decision grab-on-one-item-grabs-every-same-item-within-four-blocks
      *
      * @param player the channeling player
      * @param sent   the entity the glove outlined and Grab takes, or null
@@ -122,7 +128,8 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
      */
     private @Nullable Entity takenThisTick(ServerPlayer player, @Nullable Entity sent) {
         boolean locksItems = GrabEvents.locksItems(player);
-        GrabEvents.lockItems(player, sent instanceof ItemEntity item ? List.of(item) : List.of());
+        GrabEvents.lockItems(player, sent instanceof ItemEntity item && !GrabEvents.locks(player, item)
+                ? groupOf(player, item) : List.of());
         if (sent == null || sent instanceof ItemEntity || locksItems) {
             return null;
         }
@@ -517,6 +524,45 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
             return null;
         }
         return takesSent(sent, reachedSquared(player, sent), Remote.entityReachLaid(player)) ? sent : null;
+    }
+
+    /**
+     * Whether a neighbor joins the group of an item Grab locks: the same
+     * item, whatever components either stack carries, within the radius of
+     * the targeted item; a sneaking player's Grab takes the targeted item alone.
+     * decision grab-on-one-item-grabs-every-same-item-within-four-blocks
+     * decision sneaking-grab-pulls-the-single-targeted-item
+     *
+     * @param targeted  the targeted item entity's stack
+     * @param candidate the neighbor's stack
+     * @param distance  how far the neighbor stands from the targeted item, in blocks
+     * @param radius    the group radius, in blocks
+     * @param sneaking  whether the player sneaks at the tick the item locks
+     * @return true where the neighbor locks with the targeted item
+     */
+    static boolean joinsGroup(ItemStack targeted, ItemStack candidate, double distance, double radius,
+            boolean sneaking) {
+        return !sneaking && distance <= radius && candidate.getItem() == targeted.getItem();
+    }
+
+    /**
+     * The items a newly targeted item locks with: itself, and every live item
+     * entity that joins its group.
+     * decision grab-on-one-item-grabs-every-same-item-within-four-blocks
+     * decision sneaking-grab-pulls-the-single-targeted-item
+     *
+     * @param player   the pressing player
+     * @param targeted the item the glove outlined
+     * @return the targeted item first, then its group
+     */
+    private List<ItemEntity> groupOf(ServerPlayer player, ItemEntity targeted) {
+        boolean sneaking = player.isShiftKeyDown();
+        List<ItemEntity> group = new ArrayList<>(List.of(targeted));
+        group.addAll(targeted.level().getEntitiesOfClass(ItemEntity.class,
+                targeted.getBoundingBox().inflate(groupRadius), neighbor -> neighbor != targeted && neighbor.isAlive()
+                        && joinsGroup(targeted.getItem(), neighbor.getItem(),
+                        neighbor.position().distanceTo(targeted.position()), groupRadius, sneaking)));
+        return group;
     }
 
     @Override
