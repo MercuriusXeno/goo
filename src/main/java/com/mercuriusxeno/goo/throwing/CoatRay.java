@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.throwing;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.ClipContext;
@@ -92,6 +93,40 @@ public final class CoatRay {
     }
 
     /**
+     * The clip a level's blocks make for a drip that lands on lava: a lava
+     * source stops it at the lava's surface, struck from above, where the
+     * level's own clip passes every fluid through.
+     * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+     *
+     * @param level the blocks
+     * @return the level's clip, lava sources stopping it
+     */
+    public static BlockClip clippingAtLava(BlockGetter level) {
+        BlockClip blocks = clipping(level);
+        return (from, to) -> {
+            BlockHitResult hit = level.clip(new ClipContext(from, to, ClipContext.Block.OUTLINE,
+                    ClipContext.Fluid.SOURCE_ONLY, CollisionContext.empty()));
+            if (hit.getType() == HitResult.Type.BLOCK && level.getFluidState(hit.getBlockPos()).is(FluidTags.LAVA)) {
+                return Optional.of(new BlockStrike(hit.getLocation(), hit.getBlockPos(), hit.getDirection()));
+            }
+            return blocks.firstHit(from, to);
+        };
+    }
+
+    /**
+     * The clip a spray's drips fly through: one stopping at lava sources for
+     * a drip that lands on lava, the level's own clip for any other.
+     * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+     *
+     * @param level      the blocks
+     * @param landsOnLava whether the drip lands on a lava source's surface
+     * @return the clip the drip flies through
+     */
+    public static BlockClip clippingFor(BlockGetter level, boolean landsOnLava) {
+        return landsOnLava ? clippingAtLava(level) : clipping(level);
+    }
+
+    /**
      * The places in the cone a stream's fan runs: the axis, then rings of
      * shares out to the cone's rim. A painting stream's rays run them, and Goop's and Slick's drips
      * launch along them.
@@ -118,8 +153,7 @@ public final class CoatRay {
      * draw, since the area within a tilt grows as its square. The draw is
      * seeded by the hold's tick, so a tick throws the same drips wherever the
      * thrower moves.
-     * operator ruling 2026-11-14: the spray scatters each drip and thins, so slick spreads a track, not walls
-     * operator ruling 2026-11-14: stop hitting the same block, so drips spread evenly over the cone's area
+     * spray-drips-scatter-over-the-cone-and-slick-thins
      * goop-drains-per-cubic-meter-of-slime-placed: the spray's pace is how many drips land a tick, each a layer
      *
      * @param held         the hold's tick count, 1 on its first tick

@@ -1,6 +1,9 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.program.DegradeStep;
+import com.mercuriusxeno.goo.ability.program.MoltenStep;
+import com.mercuriusxeno.goo.network.RedHotPayload;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
 import org.junit.jupiter.api.Nested;
@@ -23,6 +26,27 @@ class BlockTransformsTest {
     private static final long START = 100L;
     private static final float DELTA = 1e-6f;
     private static final int MAROON = DegradeStep.NETHER_MAROON;
+
+    /**
+     * The payload the server sends as a Molten cell begins melting the block
+     * below it stands a red hot transition there, running the heat the
+     * ability's molten step names
+     * (decision stone-goes-red-hot-before-molten-turns-it-to-lava).
+     */
+    @Nested
+    class RedHot {
+
+        @Test
+        void aMeltBeginningHoldsARedHotTransitionRunningTheAbilitysHeat() {
+            int heatTicks = MoltenStep.in(AbilityJson.decode("blaze_molten").behaviors()).orElseThrow().heatTicks();
+            BlockTransforms transforms = new BlockTransforms();
+
+            transforms.heat(new RedHotPayload(GRAVEL, heatTicks), START);
+
+            assertEquals(Optional.of(new BlockTransforms.RedHot(GRAVEL, START, heatTicks)),
+                    transforms.redHotAt(GRAVEL));
+        }
+    }
 
     @Test
     void progressRunsOverTheDuration() {

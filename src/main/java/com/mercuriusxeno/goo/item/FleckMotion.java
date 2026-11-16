@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.item;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.phys.Vec3;
 import java.util.Optional;
@@ -34,6 +35,14 @@ public final class FleckMotion {
     static final double MIN_CLING_STRIKE = 0.02;
     /** How far past its box, in blocks, a clinging fleck feels for the face behind it. */
     private static final double FACE_PROBE = 0.05;
+    /** How deep, in blocks, a floating fleck rests under the surface: half an item's height. */
+    static final double FLOATING_DEPTH = 0.125;
+    /** The fastest, in blocks a tick, a fleck deeper than its floating depth rises at. */
+    static final double RISE_SPEED = 0.04;
+    /** The rise, in blocks a tick, for each block a fleck stands off its floating depth, so it slows as it nears it. */
+    static final double SURFACING_PULL = 0.5;
+    /** The share of the way to its rise a submerged fleck's vertical speed eases each tick. */
+    static final double FLOAT_EASE = 0.25;
     /** Vanilla's vertical drag on an item each tick. */
     private static final double VERTICAL_DRAG = 0.98;
 
@@ -49,6 +58,14 @@ public final class FleckMotion {
      * @return the movement to make
      */
     public static Vec3 beforeMove(ItemEntity self, Vec3 delta) {
+        double submerged = submergedDepth(self);
+        if (submerged > 0 && typeOf(self).isPresent()) {
+            // goo-items-are-fire-immune-and-do-not-sink-in-water: a submerged fleck rises to the surface and rests
+            ((FleckHost) self).goo$setCling(null);
+            Vec3 floating = floated(self.getDeltaMovement(), submerged);
+            self.setDeltaMovement(floating);
+            return floating;
+        }
         FleckCling.Cling cling = ((FleckHost) self).goo$cling();
         if (cling == null) {
             return delta;
@@ -76,6 +93,10 @@ public final class FleckMotion {
      * @param wasOnGround whether it stood on the ground before the move, so the floor it meets is the one it rests on
      */
     public static void afterMove(ItemEntity self, Vec3 before, boolean wasOnGround) {
+        if (submergedDepth(self) > 0) {
+            // goo-items-are-fire-immune-and-do-not-sink-in-water: the fluid takes the strike, so nothing rebounds it
+            return;
+        }
         typeOf(self).ifPresent(type -> answerStruckFaces(self, before, type.elasticity(), wasOnGround));
         if (self.onGround()) {
             ((FleckHost) self).goo$setCling(null);
@@ -110,6 +131,33 @@ public final class FleckMotion {
      */
     public static Vec3 groundBounce(ItemEntity self, Vec3 bounced) {
         return typeOf(self).isPresent() ? self.getDeltaMovement() : bounced;
+    }
+
+    /**
+     * The velocity a fleck submerged in water or lava keeps: it rises toward
+     * its floating depth under the surface, slower the nearer it stands, and
+     * settles there, easing its vertical speed toward that rise each tick in place
+     * of any rebound off the bed, so a fleck thrown in, however elastic,
+     * comes to rest at the surface rather than bouncing through or settling
+     * on the bed. Goo resists being destroyed, so it rides lava's surface as
+     * it does water's.
+     * goo-items-are-fire-immune-and-do-not-sink-in-water
+     *
+     * @param velocity  its velocity, blocks a tick
+     * @param submerged how deep the fluid stands over its feet, in blocks
+     * @return its velocity after the tick
+     */
+    static Vec3 floated(Vec3 velocity, double submerged) {
+        double rise = Math.min(RISE_SPEED, (submerged - FLOATING_DEPTH) * SURFACING_PULL);
+        return velocity.with(Direction.Axis.Y, velocity.y + (rise - velocity.y) * FLOAT_EASE);
+    }
+
+    /**
+     * @param self the item entity
+     * @return how deep water or lava stands over its feet, in blocks, 0 out of both
+     */
+    private static double submergedDepth(ItemEntity self) {
+        return Math.max(self.getFluidHeight(FluidTags.WATER), self.getFluidHeight(FluidTags.LAVA));
     }
 
     private static Optional<GooTypeDefinition> typeOf(ItemEntity self) {

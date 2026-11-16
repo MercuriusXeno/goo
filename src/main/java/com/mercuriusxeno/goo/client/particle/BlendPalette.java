@@ -34,6 +34,13 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
     public static final BlendPalette SLICK_SLIME_BLUES = new BlendPalette(
             0x6A / 255f, 0x9A / 255f, 0xE0 / 255f, 0x2C / 255f, 0x7D / 255f, 0xC1 / 255f);
     /**
+     * Molten's spray drips, from blaze's bright orange, FF8E28, to its wheel
+     * orange, FF6600, the two the blaze goo type's definition names.
+     * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+     */
+    public static final BlendPalette MOLTEN_BLAZE_ORANGES = new BlendPalette(
+            0xFF / 255f, 0x8E / 255f, 0x28 / 255f, 0xFF / 255f, 0x66 / 255f, 0x00 / 255f);
+    /**
      * Dowsing's spray drips, from Astral's starlight, its bright FFF4B0, to
      * its night blue, its highlight 2A3C9A.
      * astral-world-goo-is-dowsing-an-x-ray-of-ore

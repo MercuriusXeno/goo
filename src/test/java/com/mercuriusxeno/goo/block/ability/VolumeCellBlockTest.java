@@ -84,22 +84,31 @@ class VolumeCellBlockTest {
     class OneImplementation {
 
         @Test
-        void gooBlocksRegistersSlimeSlickAndDowsingAsTheOneVolumeCell() throws ReflectiveOperationException {
-            assertEquals(List.of(VolumeCellBlock.class, VolumeCellBlock.class, VolumeCellBlock.class),
+        void gooBlocksRegistersSlimeSlickMoltenAndDowsingAsTheOneVolumeCell() throws ReflectiveOperationException {
+            assertEquals(List.of(VolumeCellBlock.class, VolumeCellBlock.class, VolumeCellBlock.class,
+                            VolumeCellBlock.class),
                     List.of(registeredBlockClass("SLIME_COAT"), registeredBlockClass("KINETIC_SLICK"),
-                            registeredBlockClass("ASTRAL_DOWSING")));
+                            registeredBlockClass("BLAZE_MOLTEN"), registeredBlockClass("ASTRAL_DOWSING")));
         }
 
         @Test
-        void slimeIsBoundToWeirdSlickToKineticAndDowsingToAstral() {
-            assertEquals(List.of(GooTypes.WEIRD, GooTypes.KINETIC, GooTypes.ASTRAL),
-                    List.of(CellBinding.SLIME.gooType(), CellBinding.SLICK.gooType(), CellBinding.DOWSING.gooType()));
+        void slimeIsBoundToWeirdSlickToKineticMoltenToBlazeAndDowsingToAstral() {
+            assertEquals(List.of(GooTypes.WEIRD, GooTypes.KINETIC, GooTypes.BLAZE, GooTypes.ASTRAL),
+                    List.of(CellBinding.SLIME.gooType(), CellBinding.SLICK.gooType(), CellBinding.MOLTEN.gooType(),
+                            CellBinding.DOWSING.gooType()));
         }
 
         @Test
-        void slimeBouncesAndSlickRamps() {
-            assertEquals(List.of(CellSurface.BOUNCE, CellSurface.RAMP),
-                    List.of(CellBinding.SLIME.surface(), CellBinding.SLICK.surface()));
+        void slimeBouncesSlickRampsAndMoltenPools() {
+            assertEquals(List.of(CellSurface.BOUNCE, CellSurface.RAMP, CellSurface.POOL),
+                    List.of(CellBinding.SLIME.surface(), CellBinding.SLICK.surface(), CellBinding.MOLTEN.surface()));
+        }
+
+        /** molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava: Molten alone pools on lava */
+        @Test
+        void moltenAlonePoolsOnLava() {
+            assertEquals(List.of(false, false, true, false), List.of(CellBinding.SLIME.liesOnLava(),
+                    CellBinding.SLICK.liesOnLava(), CellBinding.MOLTEN.liesOnLava(), CellBinding.DOWSING.liesOnLava()));
         }
 
         /** astral-world-goo-is-dowsing-an-x-ray-of-ore: Dowsing's cell is ordinary ground to stand on */
@@ -238,9 +247,34 @@ class VolumeCellBlockTest {
             GooFraction dowsingCost = AbilityJson.decode("astral_dowsing").cost().exactIn(GooValueTable.EMPTY);
             int dowsingLayers = 7;
 
-            assertEquals(new VolumeCellBlock.ReclaimedGoo(GooTypes.ASTRAL,
-                            dowsingCost.times(dowsingLayers).dividedBy(FIFTEEN).floor()),
-                    VolumeCellBlock.reclaimedGoo(CellBinding.DOWSING, dowsingLayers, dowsingCost));
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.ASTRAL,
+                            dowsingCost.times(dowsingLayers).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.DOWSING, dowsingLayers, dowsingCost));
+        }
+    }
+
+    /**
+     * A broken Molten cell gives back blaze goo, each layer a fifteenth of
+     * Molten's cost as blaze_molten.json ships it
+     * (decision molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava).
+     */
+    @Nested
+    class MoltenReclaim {
+
+        private static final int LAYERS = 4;
+
+        @Test
+        void moltenIsLaidByBlazesMolten() {
+            assertEquals(AbilityJson.idOf("blaze_molten.json"), CellBinding.MOLTEN.layingAbility());
+        }
+
+        @Test
+        void aBrokenMoltenCellDropsBlazeGooAtFifteenthsOfMoltensCost() {
+            GooFraction cost = AbilityJson.decode("blaze_molten").cost().exactIn(GooValueTable.EMPTY);
+
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.BLAZE,
+                            cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.MOLTEN, LAYERS, cost));
         }
     }
 
