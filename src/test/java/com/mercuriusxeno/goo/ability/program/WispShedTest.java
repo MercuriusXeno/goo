@@ -40,6 +40,21 @@ class WispShedTest {
         }
     }
 
+    /** operator ruling 2026-11-16: the reach scales with the fill, n+1, so a full cell seeks farthest. */
+    @Nested
+    class Reach {
+
+        @Test
+        void aOneLayerCellSeeksTwoBlocksOut() {
+            assertEquals(2, WispShed.reachOf(1));
+        }
+
+        @Test
+        void aFullCellSeeksSixteenBlocksOut() {
+            assertEquals(16, WispShed.reachOf(15));
+        }
+    }
+
     @Nested
     class Spend {
 

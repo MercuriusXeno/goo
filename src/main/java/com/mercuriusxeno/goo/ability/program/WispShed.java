@@ -23,7 +23,7 @@ import java.util.function.ToIntFunction;
 
 /**
  * A Wisps cell shedding a wisp toward the dark near it: the cell walks the
- * air connected to it, nearest first, as Wisps' flood walked it, picks a
+ * air connected to it out to one block past its layers, nearest first, as Wisps' flood walked it, picks a
  * destination slightly at random among the nearest dark air no other wisp
  * has claimed, lets out a wisp that drifts there, and spends a layer by the
  * laying step's chance, so a layer buys several wisps on average. Where no
@@ -54,16 +54,16 @@ public final class WispShed {
      * @param level the level
      * @param cell  the Wisps cell
      * @param state the cell's state
-     * @param wisps the laying step, naming the reach, the chance and the wisp's life
+     * @param wisps the laying step, naming the chance and the wisp's life
      */
     public static void shed(ServerLevel level, BlockPos cell, BlockState state, WispsStep wisps) {
-        Optional<BlockPos> destination = destinationFrom(level, cell, wisps.shedReach());
+        int layers = state.getValue(VolumeCellBlock.LAYERS);
+        Optional<BlockPos> destination = destinationFrom(level, cell, reachOf(layers));
         if (destination.isEmpty()) {
             return;
         }
         GooServerState.of(level.getServer()).wispClaims().claim(level, destination.get());
         DriftingWisp.shed(level, cell, destination.get(), wisps.wispLife());
-        int layers = state.getValue(VolumeCellBlock.LAYERS);
         int left = layersAfterShedding(layers, level.getRandom().nextDouble(), wisps.shedSpendChance());
         if (left != layers) {
             level.setBlock(cell, left > 0 ? state.setValue(VolumeCellBlock.LAYERS, left)
@@ -104,6 +104,19 @@ public final class WispShed {
                 .filter(cell -> lightAt.applyAsInt(cell) < threshold && !claimed.test(cell))
                 .limit(NEAREST_PICKED_AMONG).toList();
         return free.isEmpty() ? Optional.empty() : Optional.of(free.get(random.nextInt(free.size())));
+    }
+
+    /**
+     * How far off a Wisps cell's shed wisp may head, in blocks: one past
+     * its layers, so a full cell seeks farthest, past the reach of its own
+     * light, and a thin one keeps its wisps close.
+     * operator ruling 2026-11-16: the reach scales with the fill, n+1
+     *
+     * @param layers the layers the cell holds
+     * @return the reach, in blocks
+     */
+    static int reachOf(int layers) {
+        return layers + 1;
     }
 
     /**
