@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.overlay;
 import com.mercuriusxeno.goo.client.TargetResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.phys.AABB;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -62,6 +63,20 @@ class HeldPickTest {
         assertEquals(bystander, aimedAt(frame), "A slime this press never picked should not take the aim");
     }
 
+    /**
+     * A locked item, which wears Grab's ailment as a held mob does, leaves the
+     * aim free to pick the next item (decision sweeping-grab-locks-every-item-the-highlight-passes).
+     */
+    @Test
+    void aLockedItemLeavesTheAimFreeForTheNext() {
+        ItemEntity locked = mock(ItemEntity.class);
+        when(locked.isAlive()).thenReturn(true);
+        when(locked.getBoundingBox()).thenReturn(new AABB(4, 0, 0, 4.25, 0.25, 0.25));
+        held.resolve(true, Set.of()::contains, () -> picking(locked));
+        AimState.Resolution frame = held.resolve(true, Set.<Entity>of(locked)::contains, () -> picking(bystander));
+        assertEquals(bystander, aimedAt(frame), "A locked item should leave the aim to the next pick");
+    }
+
     /** Whether this Grab press holds a mob now, which hides the reticule (decision grab-hides-the-reticle-once-a-mob-is-held). */
     @Nested
     class Holds {
@@ -92,7 +107,7 @@ class HeldPickTest {
         return frame.target() instanceof TargetResult.EntityTarget aimed ? aimed.entity() : null;
     }
 
-    private static AimState.Resolution picking(Mob mob) {
+    private static AimState.Resolution picking(Entity mob) {
         return new AimState.Resolution(TargetResult.entity(mob, mob.getBoundingBox().getCenter()),
                 new AimAssistResolver.AimHit.EntityHit(mob));
     }

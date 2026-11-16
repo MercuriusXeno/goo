@@ -20,6 +20,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -160,40 +161,72 @@ public final class GrabEvents {
     }
 
     /**
-     * The item entity a player's press locked, while the lock stands and the item lives.
-     * decision grabbed-item-locks-in-and-homes-on-your-current-position
+     * Whether a player's press has locked an item, the items it delivered
+     * included, so it takes no mob until right click lets go.
+     * decision sweeping-grab-locks-every-item-the-highlight-passes
      *
      * @param player the pressing player
-     * @return the locked item, or null where the press locks none
+     * @return true while the press's item lock stands
      */
-    public static @Nullable ItemEntity lockedItemOf(ServerPlayer player) {
-        GrabItemLock lock = player.getData(GooAttachments.GRAB_ITEM_LOCK);
-        if (!lock.standsAt(player.level().getGameTime())) {
-            return null;
-        }
-        return player.level().getEntity(lock.itemId()) instanceof ItemEntity item && item.isAlive() ? item : null;
+    public static boolean locksItems(ServerPlayer player) {
+        return player.getData(GooAttachments.GRAB_ITEM_LOCK).standsAt(player.level().getGameTime());
     }
 
     /**
-     * Pulls a locked item entity toward a player this channel tick: stretches
-     * the press's lock on it and its gravity's suspension across the hold
-     * grace, sets its motion, so the client interpolates the flight, and
-     * clears its pickup delay so the player's own tick picks it up on
-     * arrival. The item stands under no hold, so a left click throws nothing.
+     * Stretches a player's item lock across this channel tick and adds the
+     * items this tick locks; a player locking none and holding no lock stays unlocked.
+     * decision sweeping-grab-locks-every-item-the-highlight-passes
+     *
+     * @param player the pressing player
+     * @param adding the items this tick locks
+     */
+    public static void lockItems(ServerPlayer player, List<ItemEntity> adding) {
+        long now = player.level().getGameTime();
+        GrabItemLock lock = player.getData(GooAttachments.GRAB_ITEM_LOCK);
+        if (adding.isEmpty() && !lock.standsAt(now)) {
+            return;
+        }
+        player.setData(GooAttachments.GRAB_ITEM_LOCK,
+                lock.stretched(adding.stream().map(Entity::getId).toList(), now, now + HOLD_GRACE_TICKS));
+    }
+
+    /**
+     * The item entities a player's press locked that still stand, in the order it locked them.
+     * decision sweeping-grab-locks-every-item-the-highlight-passes
+     *
+     * @param player the pressing player
+     * @return the locked items, empty where the press locks none
+     */
+    public static List<ItemEntity> lockedItemsOf(ServerPlayer player) {
+        GrabItemLock lock = player.getData(GooAttachments.GRAB_ITEM_LOCK);
+        if (!lock.standsAt(player.level().getGameTime())) {
+            return List.of();
+        }
+        return lock.itemIds().stream().map(player.level()::getEntity)
+                .filter(entity -> entity instanceof ItemEntity && entity.isAlive()).map(ItemEntity.class::cast)
+                .toList();
+    }
+
+    /**
+     * Pulls a locked item entity toward a player this channel tick: suspends
+     * its gravity across the hold grace, sets its motion, so the client
+     * interpolates the flight, tells its watchers it is locked, so the glove
+     * outlines it, and clears its pickup delay so the player's own tick picks
+     * it up on arrival. The item stands under no hold, so a left click throws nothing.
      * decision grab-pulls-an-item-to-you-and-picks-it-up
      * decision grabbed-item-locks-in-and-homes-on-your-current-position
+     * decision sweeping-grab-locks-every-item-the-highlight-passes
      *
      * @param player   the pulling player
      * @param item     the locked item entity
      * @param velocity the item's motion this tick, in blocks per tick
      */
     public static void pull(ServerPlayer player, ItemEntity item, Vec3 velocity) {
-        long until = player.level().getGameTime() + HOLD_GRACE_TICKS;
-        player.setData(GooAttachments.GRAB_ITEM_LOCK, new GrabItemLock(item.getId(), until));
-        suspend(item, until);
+        suspend(item, player.level().getGameTime() + HOLD_GRACE_TICKS);
         item.setDeltaMovement(velocity);
         item.setNoPickUpDelay();
         item.hurtMarked = true;
+        EntityVisuals.sendToWatchers(item, new AilmentPayload(item.getId(), AilmentKind.GRABBED, FLAIL_OVERLAY_TICKS));
     }
 
     /**
