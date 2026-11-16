@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.LingeringAppliers;
 import com.mercuriusxeno.goo.ability.bio.BioToxinEffect;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.serialization.Codec;
@@ -21,7 +22,8 @@ import java.util.stream.Stream;
  * Bio's step: inflicts the toxin on the host's target, raising its amplitude
  * by one per application up to the cap and refreshing its duration every
  * time, and writes the share of max health it takes a second where the
- * toxin reads it. Leaf Bio is
+ * toxin reads it, beside the player who threw it, whom the toxin's later
+ * ticks name (decision lingering-goo-effect-credits-whoever-applied-it). Leaf Bio is
  * {@code toxin effect=goo:bio_toxin share_per_second=0.06 duration=100 max_amplitude=2}.
  * bio-toxin-stacks-to-amplitude-two
  *
@@ -68,10 +70,13 @@ public record ToxinStep(Identifier effect, Expr sharePerSecond, Expr duration, i
             Goo.LOGGER.warn(LOG_UNKNOWN_EFFECT, effect);
             return true;
         }
-        LivingEntity target = context.hostAs(TargetHost.class).target();
+        TargetHost host = context.hostAs(TargetHost.class);
+        LivingEntity target = host.target();
         int amplifier = amplifierOver(target.getEffect(holder.get()), maxAmplitude);
         target.setData(GooAttachments.ENTITY_COUNTERS, target.getData(GooAttachments.ENTITY_COUNTERS)
                 .withValue(BioToxinEffect.SHARE_PER_SECOND, sharePerSecond.evaluate(context)));
+        // lingering-goo-effect-credits-whoever-applied-it: each later tick of the toxin names this thrower
+        LingeringAppliers.remember(target, effect, host.thrower());
         target.addEffect(new MobEffectInstance(holder.get(), duration.evaluateInt(context), amplifier));
         return true;
     }

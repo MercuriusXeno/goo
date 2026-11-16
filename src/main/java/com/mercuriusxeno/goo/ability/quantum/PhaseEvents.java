@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.quantum;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.ability.xeno.EldritchEvents;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.world.damagesource.DamageSource;
@@ -116,9 +117,11 @@ public final class PhaseEvents {
     }
 
     // A projectile stands on its shooter's plane, so the shooter judges the hit; a hit with no entity behind it
-    // comes from the world, which phase leaves to the hit's own source.
+    // comes from the world, which phase leaves to the hit's own source; a goo hit naming its player reads as none.
+    // goo-hit-keeps-its-kind-and-names-the-player-behind-it
     private static boolean crossesPhase(DamageSource source, boolean victimPhased) {
-        Entity actor = source.getEntity() != null ? source.getEntity() : source.getDirectEntity();
+        Entity cause = GooHitCredit.causeOf(source);
+        Entity actor = cause != null ? cause : source.getDirectEntity();
         return actor != null && !OutOfPhase.sharePlane(phased(actor), victimPhased);
     }
 }

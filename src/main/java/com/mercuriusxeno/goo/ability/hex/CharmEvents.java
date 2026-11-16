@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.hex;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.ability.Minions;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.world.entity.Entity;
@@ -85,7 +86,7 @@ public final class CharmEvents {
      */
     @SubscribeEvent
     public static void onIncomingDamage(LivingIncomingDamageEvent event) {
-        if (event.getEntity() instanceof Player && event.getSource().getEntity() instanceof Mob mob
+        if (event.getEntity() instanceof Player && GooHitCredit.causeOf(event.getSource()) instanceof Mob mob
                 && standingCharm(mob).isPresent()) {
             event.setCanceled(true);
         }
@@ -103,7 +104,7 @@ public final class CharmEvents {
         if (!(event.getEntity() instanceof Mob mob)) {
             return;
         }
-        Entity attacker = event.getSource().getEntity();
+        Entity attacker = GooHitCredit.causeOf(event.getSource());
         UUID attackerId = attacker == null ? null : attacker.getUUID();
         standingCharm(mob).filter(charm -> charm.brokenBy(attackerId))
                 .ifPresent(charm -> mob.removeData(GooAttachments.CHARMED));

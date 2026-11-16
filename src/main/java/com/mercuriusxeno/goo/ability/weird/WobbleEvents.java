@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.weird;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -29,7 +30,7 @@ public final class WobbleEvents {
      */
     @SubscribeEvent
     public static void onIncomingDamage(LivingIncomingDamageEvent event) {
-        if (event.getSource().getEntity() instanceof LivingEntity attacker && wobbles(attacker)) {
+        if (GooHitCredit.causeOf(event.getSource()) instanceof LivingEntity attacker && wobbles(attacker)) {
             LivingEntity struck = event.getEntity();
             event.setCanceled(true);
             struck.knockback(knockbackFor(event.getAmount()), attacker.getX() - struck.getX(),
