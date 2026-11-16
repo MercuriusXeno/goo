@@ -8,8 +8,7 @@ import java.util.Optional;
 /**
  * The blocks Rime goo freezes and thaws, warm and frozen: a water source
  * freezes to Rime ice and a lava source to obsidian while a Rime cell stands
- * in reach of it, and each goes back once none does, the rule Iceborn keyed
- * on its player's distance now keyed on the goo.
+ * in reach of it, and each goes back once none does.
  * rime-freezes-water-and-lava-and-freezes-and-damages-the-shoeless
  * iceborn-is-dropped-for-rime-a-frost-goo-that-keeps-what-is-around-it-frozen
  */

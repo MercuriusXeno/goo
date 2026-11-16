@@ -93,6 +93,7 @@
 
   "effect.goo.astral_held": "Starlight",
   "effect.goo.deep_held": "Abyssal",
+  "effect.goo.frost_held": "Frostbite",
   "effect.goo.infinity_held": "Infinity",
   "effect.goo.metal_held": "Heavy Metal",
   "effect.goo.opulent_held": "Fortune",
@@ -213,8 +214,6 @@
   "goo.ability.frost.rime": "Rime",
   "goo.ability.frost.rime.cost_mechanics": "Costs %s per block of Rime laid, a fifteenth of it per layer.",
   "goo.ability.frost.rime.description": "Held stream sprays Rime, a slippery endothermic goo that keeps the water and lava around it frozen and freezes whatever walks on it barefoot.",
-  "goo.ability.frost.iceborn": "Iceborn",
-  "goo.ability.frost.iceborn.description": "Frozen hearts take damage first but are weak to physical hits, and you become extremely endothermic.",
   "goo.ability.glow.bulb": "Bulb",
   "goo.ability.glow.bulb.description": "Places a flat glowing crystal where its ray strikes; prisms become skyward beams.",
   "goo.ability.glow.laser": "Laser",
