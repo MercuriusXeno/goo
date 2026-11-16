@@ -13,7 +13,8 @@ import java.util.stream.Stream;
 /**
  * A stream's block pass that puts out every fire block inside its cone each
  * held tick, with the extinguish hiss and smoke, freezes the still water
- * inside it to ice and the still lava to obsidian, and clears the fire on
+ * inside it to ice and each still lava type to what the molten groups pair it
+ * with, and clears the fire on
  * every burning living thing the cone reaches; Cold puts out the fire and
  * freezes the water and lava its wind reaches: {@code extinguish}.
  * frost-reach-extinguishes-fire-and-burning-mobs
