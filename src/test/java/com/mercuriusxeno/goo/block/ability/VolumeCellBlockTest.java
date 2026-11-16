@@ -84,10 +84,11 @@ class VolumeCellBlockTest {
     class OneImplementation {
 
         @Test
-        void gooBlocksRegistersSlimeSlickAndMoltenAsTheOneVolumeCell() throws ReflectiveOperationException {
-            assertEquals(List.of(VolumeCellBlock.class, VolumeCellBlock.class, VolumeCellBlock.class),
+        void gooBlocksRegistersSlimeSlickMoltenAndShatterAsTheOneVolumeCell() throws ReflectiveOperationException {
+            assertEquals(List.of(VolumeCellBlock.class, VolumeCellBlock.class, VolumeCellBlock.class,
+                            VolumeCellBlock.class),
                     List.of(registeredBlockClass("SLIME_COAT"), registeredBlockClass("KINETIC_SLICK"),
-                            registeredBlockClass("BLAZE_MOLTEN")));
+                            registeredBlockClass("BLAZE_MOLTEN"), registeredBlockClass("CRYSTAL_SHATTER")));
         }
 
         @Test
@@ -249,6 +250,31 @@ class VolumeCellBlockTest {
             assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.BLAZE,
                             cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
                     VolumeCellBlock.reclaimedBy(CellBinding.MOLTEN, LAYERS, cost));
+        }
+    }
+
+    /**
+     * A broken Shatter cell gives back crystal goo, each layer a fifteenth of
+     * Shatter's cost as crystal_shatter.json ships it
+     * (decision shatter-is-splattered-goo-and-shards-form-over-the-splatters).
+     */
+    @Nested
+    class ShatterReclaim {
+
+        private static final int LAYERS = 6;
+
+        @Test
+        void shatterIsLaidByCrystalsShatter() {
+            assertEquals(AbilityJson.idOf("crystal_shatter.json"), CellBinding.SHATTER.layingAbility());
+        }
+
+        @Test
+        void aBrokenShatterCellDropsCrystalGooAtFifteenthsOfShattersCost() {
+            GooFraction cost = AbilityJson.decode("crystal_shatter").cost().exactIn(GooValueTable.EMPTY);
+
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.CRYSTAL,
+                            cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.SHATTER, LAYERS, cost));
         }
     }
 

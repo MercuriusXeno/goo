@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.Level;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -50,6 +52,17 @@ public interface Step {
      * @return the required capabilities
      */
     Set<HostCapability> requires();
+
+    /**
+     * Whether the ability running this step costs nothing for a caster
+     * standing in a level; a step changing no price keeps this default.
+     *
+     * @param casterIn the level the caster stands in
+     * @return true where the ability is free there
+     */
+    default boolean freeIn(ResourceKey<Level> casterIn) {
+        return false;
+    }
 
     /**
      * Streams the child steps a container step holds, so the load check
@@ -157,6 +170,37 @@ public interface Step {
      */
     static boolean takenByAny(List<Step> program, Entity entity) {
         return program.stream().anyMatch(step -> step.takesEntity(entity));
+    }
+
+    /**
+     * Whether the step refuses an entity for a caster, a question
+     * {@link #takesEntity} cannot answer since it knows no caster: Charm
+     * refuses a rallied mob and another player's charmed one, Rally a
+     * charmed mob and another caster's rallied one. A container refuses
+     * what any of its children refuse; any other step refuses nothing.
+     * refused-rally-or-charm-spends-no-goo
+     *
+     * @param caster the caster the step would act for
+     * @param entity the candidate
+     * @return true where the step leaves the entity untouched for the caster
+     */
+    default boolean refusesFor(Entity caster, Entity entity) {
+        return refusedByAny(children().toList(), caster, entity);
+    }
+
+    /**
+     * Whether any step of a program refuses an entity for a caster, read
+     * alike by the server's throw and the glove's aim, so a refused cast is
+     * neither outlined, locked nor paid for.
+     * refused-rally-or-charm-spends-no-goo
+     *
+     * @param program the steps
+     * @param caster  the caster the program would act for
+     * @param entity  the candidate
+     * @return true where a step refuses the entity for the caster
+     */
+    static boolean refusedByAny(List<Step> program, Entity caster, Entity entity) {
+        return program.stream().anyMatch(step -> step.refusesFor(caster, entity));
     }
 
     /**

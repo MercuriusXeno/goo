@@ -2,7 +2,7 @@
   "gooType": "weird",
   "displayName": "goo.ability.weird.goop",
   "cost_mechanics": "goo.ability.weird.goop.cost_mechanics",
-  "badge": "channeled",
+  "badge": "residual",
   "order": 0,
   "cost": 96,
   "cost_formula": "%s/m³",

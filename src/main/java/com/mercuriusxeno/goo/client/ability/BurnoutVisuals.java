@@ -19,11 +19,13 @@ public final class BurnoutVisuals {
      * Every goo type a chain ability carries. Blaze carries none: Ignite's
      * fire is its landing's whole visual (idea ignite-plays-no-burnout). Void's
      * Hole and Cancel draw no explosion, and Nether carries none
-     * (decision anti-moves-from-nether-to-void).
+     * (decision anti-moves-from-nether-to-void). Crystal carries none since
+     * Shatter became a spray, its prism dome unplugged and kept in
+     * CrystalExplosionVisual (decision prismatic-voronoi-code-stays-and-is-unplugged-from-shatter).
      */
     public static final List<ResourceKey<GooTypeDefinition>> CHAIN_TYPES = List.of(
             GooTypes.ROCK, GooTypes.FROST, GooTypes.VOID,
-            GooTypes.METAL, GooTypes.CRYSTAL, GooTypes.GLOW, GooTypes.UNSTABLE);
+            GooTypes.METAL, GooTypes.GLOW, GooTypes.UNSTABLE);
 
     /** The explosions designed so far, by the goo type each draws for. */
     private static final Map<ResourceKey<GooTypeDefinition>, BurnoutVisual> DESIGNED = Map.of(
@@ -31,7 +33,6 @@ public final class BurnoutVisuals {
             GooTypes.ROCK, RockExplosionVisual.INSTANCE,
             GooTypes.FROST, FrostExplosionVisual.INSTANCE,
             GooTypes.METAL, MetalExplosionVisual.INSTANCE,
-            GooTypes.CRYSTAL, CrystalExplosionVisual.INSTANCE,
             GooTypes.GLOW, GlowExplosionVisual.INSTANCE);
 
     private static final Map<ResourceKey<GooTypeDefinition>, BurnoutVisual> BY_TYPE =

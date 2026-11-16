@@ -11,10 +11,17 @@ import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
  */
 final class GooCuboidSize {
 
-    /** The cuboid's size at 1 mB and under, a little fleck of goo. */
-    static final float FLECK_SIZE = 0.5f;
-    /** The cuboid's size at the cap volume and above. */
-    static final float CAPPED_SIZE = 3.5f;
+    /**
+     * The cuboid's size at 1 mB and under, a little fleck of goo.
+     * decision fleck-is-one-and-a-half-and-the-cap-rises-by-the-same
+     */
+    static final float FLECK_SIZE = 1.5f;
+    /**
+     * The cuboid's size at the cap volume and above, raised by the fleck's
+     * own rise so each tenfold of volume keeps its step.
+     * decision fleck-is-one-and-a-half-and-the-cap-rises-by-the-same
+     */
+    static final float CAPPED_SIZE = 4.5f;
     /** The volume in mB at which the cuboid stops growing, the largest sprite tier's. */
     static final double CAP_VOLUME = 1_000_000_000d;
 
