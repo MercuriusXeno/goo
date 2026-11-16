@@ -13,9 +13,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Vacuum's drag on a mob: a steady pace that knockback resistance slows,
- * closing on the player until about a block in front, and refused to bosses
- * and players (decision vacuum-pulls-items-to-pickup-and-drags-mobs).
+ * Vacuum's pull: an item gains an acceleration toward the eye; a mob is
+ * dragged at a steady pace that knockback resistance slows, closing on the
+ * player until about a block in front; bosses and players are refused
+ * (decision vacuum-pulls-items-to-pickup-and-drags-mobs).
  */
 class VacuumPullStepTest {
 
@@ -40,6 +41,66 @@ class VacuumPullStepTest {
         @Test
         void aMobWhollyResistingKnockbackIsNotDragged() {
             assertEquals(0, VacuumPullStep.pace(PACE, 1), CLOSE);
+        }
+    }
+
+    /**
+     * Vacuum's pull on an item adds an acceleration toward the eye to the
+     * motion the item already has, no faster than the top speed and no
+     * farther than the eye (decision vacuum-pulls-items-to-pickup-and-drags-mobs).
+     */
+    @Nested
+    class ItemPull {
+
+        private static final double ACCELERATION = 0.05;
+        private static final double TOP_SPEED = 1;
+        private static final Vec3 FAR_EAST = new Vec3(5, 1, 0);
+
+        @Test
+        void anItemAtRestGainsTheAccelerationTowardTheEye() {
+            Vec3 pulled = VacuumPullStep.pulledVelocity(Vec3.ZERO, FAR_EAST, PLAYER, ACCELERATION, TOP_SPEED);
+
+            assertVelocity(new Vec3(-ACCELERATION, 0, 0), pulled);
+        }
+
+        @Test
+        void anItemMovingAlongTheLineKeepsItsMotionAndGainsTheAccelerationTowardTheEye() {
+            Vec3 moving = new Vec3(-0.3, 0, 0);
+
+            Vec3 pulled = VacuumPullStep.pulledVelocity(moving, FAR_EAST, PLAYER, ACCELERATION, TOP_SPEED);
+
+            assertVelocity(moving.add(-ACCELERATION, 0, 0), pulled);
+        }
+
+        @Test
+        void anItemMovingAcrossTheLineKeepsHalfThatMotion() {
+            Vec3 popping = new Vec3(0, 0.2, 0.1);
+
+            Vec3 pulled = VacuumPullStep.pulledVelocity(popping, FAR_EAST, PLAYER, ACCELERATION, TOP_SPEED);
+
+            assertVelocity(new Vec3(-ACCELERATION, 0.1, 0.05), pulled);
+        }
+
+        @Test
+        void aFastItemIsHeldToTheTopSpeed() {
+            Vec3 pulled = VacuumPullStep.pulledVelocity(new Vec3(-0.98, 0, 0), FAR_EAST, PLAYER, ACCELERATION,
+                    TOP_SPEED);
+
+            assertVelocity(new Vec3(-TOP_SPEED, 0, 0), pulled);
+        }
+
+        @Test
+        void anItemBesideTheEyeMovesNoFartherThanTheEye() {
+            Vec3 pulled = VacuumPullStep.pulledVelocity(new Vec3(-0.3, 0, 0), new Vec3(0.2, 1, 0), PLAYER,
+                    ACCELERATION, TOP_SPEED);
+
+            assertVelocity(new Vec3(-0.2, 0, 0), pulled);
+        }
+
+        private static void assertVelocity(Vec3 expected, Vec3 actual) {
+            assertEquals(expected.x, actual.x, CLOSE, () -> "x of " + actual);
+            assertEquals(expected.y, actual.y, CLOSE, () -> "y of " + actual);
+            assertEquals(expected.z, actual.z, CLOSE, () -> "z of " + actual);
         }
     }
 

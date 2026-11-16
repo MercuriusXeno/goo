@@ -150,7 +150,9 @@ public class RollingGoo extends Projectile {
     private void travel(ServerLevel server) {
         ability(server).flatMap(def -> TravelingStep.of(def.behaviors())).ifPresent(traveling -> {
             try {
-                ProgramBehavior.forHost(traveling.steps(), HostKind.FLIGHT).tick(new FlightHost(server, position()));
+                // direct-goo-hit-credits-its-caster: what the flight reaches is hosted with the blob's thrower
+                ProgramBehavior.forHost(traveling.steps(), HostKind.FLIGHT)
+                        .tick(new FlightHost(server, position(), getOwner()));
             } catch (ProgramLoadException e) {
                 Goo.LOGGER.error(LOG_REFUSED, abilityId(), e.getMessage());
                 discard();
