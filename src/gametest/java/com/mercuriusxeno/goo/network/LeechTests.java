@@ -25,8 +25,10 @@ import java.util.function.Consumer;
  * Hex's Leech through the real landing its stream's drips take: a drip
  * striking stone's top lays a one-layer Leech cell there, and a husk walking
  * a lane of Leech goo covers less ground than a like husk walking bare stone
- * over the same ticks.
+ * over the same ticks; the goo's spirits bite a pig standing in it, and a
+ * husk striking that pig heals by the damage it dealt.
  * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
+ * damage-dealt-to-a-mob-in-leech-goo-becomes-drained-life-for-its-source
  */
 @RegistersGameTests
 public final class LeechTests {
@@ -60,6 +62,17 @@ public final class LeechTests {
     private static final int PAST_THE_CADENCE = 2;
     private static final String NOT_BITTEN = "A pig standing in Leech goo past the spirits' cadence of %d ticks"
             + " should have lost health: %.2f at the start, %.2f after";
+    private static final String STRIKE_DRAINS_LIFE = "a_strike_on_a_mob_in_leech_goo_heals_its_attacker";
+    /** The stone the attacking husk stands on, two blocks east of the goo, outside it. */
+    private static final BlockPos ATTACKER_FLOOR = SPIRIT_FLOOR.east(2);
+    /** The husk's health once wounded, half its twenty. */
+    private static final float WOUNDED_HEALTH = 10f;
+    /** The damage the husk's strike deals the pig, under the pig's ten health. */
+    private static final float STRIKE_DAMAGE = 4f;
+    /** Two healths that match differ by no more than float rounding. */
+    private static final float SAME_HEALTH = 1e-4f;
+    private static final String NOT_DRAINED = "The husk striking a pig in Leech goo should heal by the damage dealt"
+            + " to %.2f, reads %.2f";
 
     private LeechTests() {
     }
@@ -73,6 +86,32 @@ public final class LeechTests {
         GooTestFunctions.registerTest(registrar, LEECH_LAYS_AND_SLOWS,
                 LeechTests::leechDripLaysACellAndTheGooSlowsAWalker);
         GooTestFunctions.registerTest(registrar, SPIRITS_BITE, LeechTests::leechSpiritsBiteAMobStandingInTheGoo);
+        GooTestFunctions.registerTest(registrar, STRIKE_DRAINS_LIFE,
+                LeechTests::aStrikeOnAMobInLeechGooHealsItsAttacker);
+    }
+
+    /**
+     * A wounded husk on bare stone strikes a pig standing on a full Leech
+     * cell for a known damage, dealt in the tick the pig is spawned, before
+     * the spirits can bite it; the husk's health reads its wounded health
+     * plus that damage.
+     * damage-dealt-to-a-mob-in-leech-goo-becomes-drained-life-for-its-source
+     *
+     * @param helper the gametest helper
+     */
+    public static void aStrikeOnAMobInLeechGooHealsItsAttacker(GameTestHelper helper) {
+        helper.setBlock(SPIRIT_FLOOR, Blocks.STONE);
+        helper.setBlock(SPIRIT_FLOOR.above(), GooBlocks.HEX_LEECH.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
+        helper.setBlock(ATTACKER_FLOOR, Blocks.STONE);
+        Pig pig = helper.spawnWithNoFreeWill(EntityType.PIG, SPIRIT_FLOOR.above(2));
+        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, ATTACKER_FLOOR.above());
+        husk.setHealth(WOUNDED_HEALTH);
+        pig.hurtServer(helper.getLevel(), helper.getLevel().damageSources().mobAttack(husk), STRIKE_DAMAGE);
+        float healed = husk.getHealth();
+        helper.assertTrue(Math.abs(healed - (WOUNDED_HEALTH + STRIKE_DAMAGE)) < SAME_HEALTH,
+                String.format(NOT_DRAINED, WOUNDED_HEALTH + STRIKE_DAMAGE, healed));
+        helper.succeed();
     }
 
     /**
