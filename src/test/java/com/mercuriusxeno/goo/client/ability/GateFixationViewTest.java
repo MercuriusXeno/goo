@@ -50,7 +50,7 @@ class GateFixationViewTest {
 
     @Test
     void aStandingFixationLeavesTheFieldOfViewAsNoFixationDoes() {
-        GateFixation standing = new GateFixation(GateSight.Sky.MOON, new Vec3(0, 1, 0), Vec3.ZERO, CAST_AT,
+        GateFixation standing = GateFixation.held(GateSight.Sky.MOON, new Vec3(0, 1, 0), Vec3.ZERO, CAST_AT,
                 FIXATION_TICKS);
         assertEquals(fovModifierUnder(GateFixation.NONE), fovModifierUnder(standing), EXACT);
     }

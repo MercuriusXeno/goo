@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.gate.GateArrival;
 import com.mercuriusxeno.goo.ability.gate.GateFixation;
 import com.mercuriusxeno.goo.lunar.Lunar;
 import com.mercuriusxeno.goo.registry.GooAttachments;
+import com.mercuriusxeno.goo.registry.GooSoundIds;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -12,6 +13,7 @@ import net.minecraft.client.gui.screens.LevelLoadingScreen;
 import net.minecraft.client.multiplayer.LevelLoadTracker;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.Identifier;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.ARGB;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -88,8 +90,8 @@ public final class GateWhiteout {
     }
 
     /**
-     * Follows the trip: a fixation's end starts the crossing, a fresh arrival mark outside a loading screen ends
-     * it, and the fade after it runs out.
+     * Follows the trip: a fixation's end starts the crossing, unless the caster let go of it, a fresh arrival mark
+     * outside a loading screen ends the crossing, and the fade after it runs out.
      *
      * @param event the client post-tick event
      */
@@ -100,8 +102,17 @@ public final class GateWhiteout {
         if (player == null) {
             return;
         }
-        if (player.getData(GooAttachments.GATE_FIXATION).stands()) {
+        GateFixation fixation = player.getData(GooAttachments.GATE_FIXATION);
+        if (fixation.stands()) {
             fixated = true;
+            enter(Stage.CLEAR);
+            return;
+        }
+        if (fixated && fixation.released()) {
+            // decision holding-right-click-pulls-the-moon-and-early-release-cancels: let go early, the trip runs
+            // back with no crossing, and the tone stops.
+            fixated = false;
+            mc.getSoundManager().stop(GooSoundIds.GATE_TONE, SoundSource.PLAYERS);
             enter(Stage.CLEAR);
             return;
         }
@@ -158,7 +169,7 @@ public final class GateWhiteout {
             return 0F;
         }
         GateFixation fixation = mc.player.getData(GooAttachments.GATE_FIXATION);
-        if (fixation.stands()) {
+        if (fixation.stands() || fixation.released()) {
             return GateTrip.whiteBeforeCarry(GateTrip.progress(fixation, mc.level.getGameTime(), partial));
         }
         return switch (stage) {

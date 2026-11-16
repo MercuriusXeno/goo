@@ -7,11 +7,13 @@ package com.mercuriusxeno.goo.ability.program;
 public interface AstralGateHost extends StepHost {
 
     /**
-     * Fixes the player's gaze on the moon or the star their look holds, for the fixation's ticks, paying the
-     * gate's cost as it begins; a look holding neither is refused with a tell and pays nothing.
+     * One held tick of the gate: the press's first tick fixes the player's gaze on the moon or the star their look
+     * holds, for the fixation's ticks, and each tick after keeps the pull standing; the gate's cost is paid only as
+     * the moon or the star takes the player. A look holding neither is refused with a tell.
+     * decision holding-right-click-pulls-the-moon-and-early-release-cancels
      *
      * @param fixation the ticks the fixation runs
-     * @param cost     the astral the gate costs (mB)
+     * @param cost     the astral the gate costs at the carry (mB)
      */
     void fixateOnTheSky(int fixation, int cost);
 }

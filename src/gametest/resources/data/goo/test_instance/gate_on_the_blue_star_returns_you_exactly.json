@@ -3,7 +3,7 @@
   "function": "goo:gate_on_the_blue_star_returns_you_exactly",
   "environment": "goo:astral_night",
   "structure": "goo:test_bay",
-  "max_ticks": 300,
+  "max_ticks": 400,
   "setup_ticks": 0,
   "required": true
 }

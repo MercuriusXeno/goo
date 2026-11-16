@@ -47,6 +47,8 @@ final class GateTrip {
     private static final float SWELL_START = 0.25F;
     /** The share of the fixation from which white floods the view, as the moon nears covering it. */
     private static final float WHITE_FLOOD_START = 0.85F;
+    /** The share of the rise's ticks a trip let go of early takes to run back. */
+    private static final float RUN_BACK_SHARE = 0.4F;
     /** The ticks the white takes to clear once the caster stands at the far end. */
     static final float WHITE_FADE_TICKS = 30F;
 
@@ -54,14 +56,19 @@ final class GateTrip {
     }
 
     /**
-     * How far a fixation has run at a frame, between its ticks.
+     * How far the trip a fixation draws stands at a frame, between its ticks: the share of a held fixation run, or,
+     * for one let go of early, the trip running back from where it had reached.
      *
      * @param fixation the fixation
      * @param gameTime the client's game time
      * @param partial  the frame's partial tick
-     * @return the share of its ticks run, zero to one
+     * @return the trip's progress, zero to one
      */
     static float progress(GateFixation fixation, long gameTime, float partial) {
+        if (fixation.released()) {
+            float reached = fixation.progress(fixation.releasedAt());
+            return progressRunningBack(reached, fixation.duration(), gameTime - fixation.releasedAt() + partial);
+        }
         return Mth.clamp((gameTime - fixation.startedAt() + partial) / fixation.duration(), 0F, 1F);
     }
 
@@ -120,6 +127,35 @@ final class GateTrip {
             return 1F;
         }
         return 1F - eased(ticksSinceArrival, 0F, WHITE_FADE_TICKS);
+    }
+
+    /**
+     * The ticks a trip let go of early takes to run back to nothing: a share of the ticks it took to rise there, so
+     * it runs back quicker than it rose.
+     * decision holding-right-click-pulls-the-moon-and-early-release-cancels
+     *
+     * @param reached  the progress the trip had reached as the caster let go
+     * @param duration the fixation's ticks
+     * @return the run back's ticks
+     */
+    static float runBackTicks(float reached, int duration) {
+        return reached * duration * RUN_BACK_SHARE;
+    }
+
+    /**
+     * The progress a trip let go of early stands at as it runs back from where it had reached to nothing.
+     *
+     * @param reached           the progress the trip had reached as the caster let go
+     * @param duration          the fixation's ticks
+     * @param ticksSinceRelease the ticks since the caster let go
+     * @return the progress, falling from the reach to none
+     */
+    static float progressRunningBack(float reached, int duration, float ticksSinceRelease) {
+        float runBack = runBackTicks(reached, duration);
+        if (runBack <= 0F) {
+            return 0F;
+        }
+        return reached * (1F - Mth.clamp(ticksSinceRelease / runBack, 0F, 1F));
     }
 
     /**

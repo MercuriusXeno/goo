@@ -70,7 +70,8 @@ public final class GateTripView {
 
     /**
      * The trip the local caster is on this frame: a moon fixation in the overworld or a blue star fixation in
-     * lunar.
+     * lunar, held, or let go of and still running back.
+     * decision holding-right-click-pulls-the-moon-and-early-release-cancels
      *
      * @return the trip, or null for none
      */
@@ -81,11 +82,12 @@ public final class GateTripView {
             return null;
         }
         GateFixation fixation = player.getData(GooAttachments.GATE_FIXATION);
-        if (!fixation.stands() || mc.level.dimension() != homeOf(fixation.sky())) {
+        if (!(fixation.stands() || fixation.released()) || mc.level.dimension() != homeOf(fixation.sky())) {
             return null;
         }
-        return new Trip(fixation.sky(), fixation, GateTrip.progress(fixation, mc.level.getGameTime(),
-                mc.getDeltaTracker().getGameTimeDeltaPartialTick(false)));
+        float progress = GateTrip.progress(fixation, mc.level.getGameTime(),
+                mc.getDeltaTracker().getGameTimeDeltaPartialTick(false));
+        return fixation.released() && progress <= 0F ? null : new Trip(fixation.sky(), fixation, progress);
     }
 
     private static ResourceKey<Level> homeOf(GateSight.Sky sky) {

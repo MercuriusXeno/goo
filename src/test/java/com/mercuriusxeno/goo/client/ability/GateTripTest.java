@@ -100,6 +100,39 @@ class GateTripTest {
     }
 
     @Nested
+    class RunBack {
+        private static final int FIXATION_TICKS = 100;
+        private static final float REACHED = 0.6F;
+        private static final float RISE_TICKS = REACHED * FIXATION_TICKS;
+
+        @Test
+        void runBackStartsFromTheProgressReachedAtRelease() {
+            assertEquals(REACHED, GateTrip.progressRunningBack(REACHED, FIXATION_TICKS, 0F), EXACT);
+        }
+
+        @Test
+        void runBackStandsPartwayBetweenTheReachAndNoneMidway() {
+            float midway = GateTrip.runBackTicks(REACHED, FIXATION_TICKS) / 2F;
+            float progress = GateTrip.progressRunningBack(REACHED, FIXATION_TICKS, midway);
+            assertTrue(progress > 0F && progress < REACHED, "midway through the run back the trip stands at "
+                    + progress + ", not between none and " + REACHED);
+        }
+
+        @Test
+        void runBackEndsAtNone() {
+            float end = GateTrip.runBackTicks(REACHED, FIXATION_TICKS);
+            assertEquals(0.0, GateTrip.progressRunningBack(REACHED, FIXATION_TICKS, end), EXACT);
+        }
+
+        @Test
+        void runBackTakesSeveralTicksYetFewerThanTheRise() {
+            float runBack = GateTrip.runBackTicks(REACHED, FIXATION_TICKS);
+            assertTrue(runBack > 1F && runBack < RISE_TICKS,
+                    "the run back takes " + runBack + " ticks against a rise of " + RISE_TICKS);
+        }
+    }
+
+    @Nested
     class StarSize {
         @Test
         void blueStarStandsAtItsRestingSizeAtTheStart() {

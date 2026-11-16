@@ -1,8 +1,13 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.gate.GateSight;
+import com.mercuriusxeno.goo.item.GooGloveItem;
+import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.lunar.Lunar;
+import com.mercuriusxeno.goo.network.GooStreamHandler;
+import com.mercuriusxeno.goo.network.GooStreamPayload;
 import com.mercuriusxeno.goo.network.SelfDeliveryTests;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -18,23 +23,38 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
 /**
- * Gametests for Astral's gate: cast looking at the moon in the overworld, it holds the caster's gaze through its
- * fixation and then carries them to lunar over the spot they stood on; cast looking at the blue overworld star in
- * lunar, it carries them back to the exact place they left from; cast looking at neither, it refuses.
+ * Gametests for Astral's gate, a hold: holding the cast on the moon in the overworld holds the caster's gaze through
+ * the fixation and then carries them to lunar over the spot they stood on, paying the astral at the carry; letting go
+ * early leaves them where they stood, free, and paying nothing; held on the blue overworld star in lunar it carries
+ * them back to the exact place they left from, and let go early it leaves them on lunar with their way home kept;
+ * held looking at neither, it refuses.
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
+ * decision holding-right-click-pulls-the-moon-and-early-release-cancels
  */
 @RegistersGameTests
 public final class AstralGateTests {
     private static final String GATE_ON_THE_MOON_TAKES_YOU_TO_LUNAR = "gate_on_the_moon_takes_you_to_lunar";
+    private static final String GATE_LET_GO_EARLY_LEAVES_YOU_WHERE_YOU_STOOD =
+            "gate_let_go_early_leaves_you_where_you_stood";
     private static final String GATE_ON_THE_BLUE_STAR_RETURNS_YOU_EXACTLY = "gate_on_the_blue_star_returns_you_exactly";
     private static final String GATE_ON_NEITHER_REFUSES = "gate_on_neither_refuses";
 
     private static final Identifier ASTRAL_GATE = Identifier.parse("goo:astral_gate");
-    /** Past astral_gate.json's fixation, so the gate has carried the caster by then. */
-    private static final int PAST_THE_FIXATION = 120;
+    /** astral_gate.json's fixation, the held ticks a full pull takes. */
+    private static final int FIXATION = 100;
+    /** Held ticks past the fixation, so the hold still stands on the tick the fixation runs out. */
+    private static final int HOLD_PAST = 3;
+    /** astral_gate.json's cost, the astral the moon or the star takes at the carry (mB). */
+    private static final int COST = 1000;
+    /** Past a full hold, so the gate has carried the caster by then. */
+    private static final int PAST_THE_FIXATION = FIXATION + 20;
     /** Inside the fixation, when the caster still stands held where they cast. */
     private static final int INSIDE_THE_FIXATION = 20;
+    /** The held ticks an early release lets go after. */
+    private static final int LET_GO_AFTER = 30;
+    /** How far the freed caster steps once they let go, in blocks. */
+    private static final double STEP = 1.0;
     /** Where the caster left from in the return test: off the bay, facing somewhere particular. */
     private static final Vec3 LEFT_FROM = new Vec3(0.25, 3, 0.75);
     private static final float LEFT_FACING_YAW = 37F;
@@ -45,9 +65,19 @@ public final class AstralGateTests {
     private static final String LUNAR_REQUIRED = "The server should hold goo:lunar";
     private static final String HELD = "Inside the fixation the caster should stand held where they cast, %s, stands %s";
     private static final String IN_LUNAR = "The gate should carry the caster to lunar over %s, carried to %s at %s";
-    private static final String HOME = "The gate should return the caster to %s at %s facing %s/%s, returned to %s at %s facing %s/%s";
+    private static final String HOME = "The gate should return the caster to %s at %s facing %s/%s, returned to %s at %s"
+            + " facing %s/%s";
     private static final String ARRIVAL_MARKED = "A caster the gate carried should hold the arrival mark at the far end";
-    private static final String REFUSED ="A gate cast looking at neither moon nor star should hold no fixation";
+    private static final String UNPAID_BEFORE_THE_CARRY = "The gate should spend no astral before the carry, held %d"
+            + " of %d";
+    private static final String PAID_ONCE = "The gate should spend %d astral at the carry, spent %d";
+    private static final String STAYED_HOME = "A caster who let go should stay in the overworld where they stood, %s,"
+            + " stands in %s at %s";
+    private static final String NO_FIXATION = "A caster who let go should hold no standing fixation";
+    private static final String UNPAID = "A caster who let go should keep their astral, held %d, now %d";
+    private static final String STAYED_ON_LUNAR = "A caster who let go of the star should stay on lunar, stands in %s";
+    private static final String WAY_HOME_KEPT = "A caster who let go of the star should keep their way home";
+    private static final String REFUSED = "A gate held looking at neither moon nor star should hold no fixation";
     private static final String STAYED = "A refused gate should leave the caster where they stood, %s, stands %s";
 
     private AstralGateTests() {
@@ -61,14 +91,16 @@ public final class AstralGateTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, GATE_ON_THE_MOON_TAKES_YOU_TO_LUNAR,
                 AstralGateTests::gateOnTheMoonTakesYouToLunar);
+        GooTestFunctions.registerTest(registrar, GATE_LET_GO_EARLY_LEAVES_YOU_WHERE_YOU_STOOD,
+                AstralGateTests::gateLetGoEarlyLeavesYouWhereYouStood);
         GooTestFunctions.registerTest(registrar, GATE_ON_THE_BLUE_STAR_RETURNS_YOU_EXACTLY,
                 AstralGateTests::gateOnTheBlueStarReturnsYouExactly);
         GooTestFunctions.registerTest(registrar, GATE_ON_NEITHER_REFUSES, AstralGateTests::gateOnNeitherRefuses);
     }
 
     /**
-     * By the overworld's night a caster looking at the moon stands held through the fixation, then stands in lunar
-     * over the column they cast from.
+     * By the overworld's night a caster holding the cast on the moon stands held through the fixation, spending
+     * nothing, then stands in lunar over the column they cast from, the astral spent once at the carry.
      *
      * @param helper the gametest helper
      */
@@ -78,10 +110,13 @@ public final class AstralGateTests {
         helper.assertTrue(overworld.getServer().getLevel(Lunar.LEVEL) != null, LUNAR_REQUIRED);
         face(caster, moonFrom(caster));
         Vec3 castFrom = caster.position();
-        cast(caster);
+        int astralBefore = astral(caster);
+        holdFor(helper, caster, 1, FIXATION + HOLD_PAST);
         helper.runAfterDelay(INSIDE_THE_FIXATION, () -> helper.assertTrue(
                 caster.level() == overworld && caster.position().distanceTo(castFrom) < SAME_SPOT,
                 String.format(HELD, castFrom, caster.position())));
+        helper.runAfterDelay(FIXATION - 1, () -> helper.assertTrue(astral(caster) == astralBefore,
+                String.format(UNPAID_BEFORE_THE_CARRY, astral(caster), astralBefore)));
         helper.runAfterDelay(PAST_THE_FIXATION, () -> {
             boolean overTheColumn = caster.level().dimension() == Lunar.LEVEL
                     && Math.floor(caster.getX()) == Math.floor(castFrom.x)
@@ -89,14 +124,42 @@ public final class AstralGateTests {
             helper.assertTrue(overTheColumn, String.format(IN_LUNAR, castFrom, caster.level().dimension(),
                     caster.position()));
             helper.assertTrue(caster.getData(GooAttachments.GATE_ARRIVAL).stands(), ARRIVAL_MARKED);
+            int spent = astralBefore - astral(caster);
+            helper.assertTrue(spent == COST, String.format(PAID_ONCE, COST, spent));
             overworld.getServer().getPlayerList().remove(caster);
             helper.succeed();
         });
     }
 
     /**
-     * A caster who left the overworld for lunar and looks at the blue star there stands, past the fixation, at the
-     * exact place and facing they left from.
+     * A caster who lets go of the moon partway stays in the overworld where they stood, holds no standing fixation,
+     * steps freely and keeps the astral they started with, past the tick the carry would have come.
+     *
+     * @param helper the gametest helper
+     */
+    public static void gateLetGoEarlyLeavesYouWhereYouStood(GameTestHelper helper) {
+        ServerPlayer caster = caster(helper);
+        ServerLevel overworld = helper.getLevel();
+        face(caster, moonFrom(caster));
+        Vec3 castFrom = caster.position();
+        int astralBefore = astral(caster);
+        holdFor(helper, caster, 1, LET_GO_AFTER);
+        Vec3 steppedTo = castFrom.add(STEP, 0, 0);
+        helper.runAfterDelay(LET_GO_AFTER + HOLD_PAST, () -> caster.teleportTo(steppedTo.x, steppedTo.y, steppedTo.z));
+        helper.runAfterDelay(PAST_THE_FIXATION, () -> {
+            helper.assertTrue(caster.level() == overworld && caster.position().distanceTo(steppedTo) < SAME_SPOT,
+                    String.format(STAYED_HOME, steppedTo, caster.level().dimension(), caster.position()));
+            helper.assertFalse(caster.getData(GooAttachments.GATE_FIXATION).stands(), NO_FIXATION);
+            helper.assertTrue(astral(caster) == astralBefore, String.format(UNPAID, astralBefore, astral(caster)));
+            overworld.getServer().getPlayerList().remove(caster);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A caster who left the overworld for lunar and lets go of a pull on the blue star stays on lunar with their way
+     * home kept; holding the star through after that, they stand at the exact place and facing they left from,
+     * marked as arrived anew.
      *
      * @param helper the gametest helper
      */
@@ -112,16 +175,25 @@ public final class AstralGateTests {
         float castPitch = caster.getXRot();
         // The return carries the caster to where they stood and the way they faced as the moon took them.
         caster.snapTo(leftFrom.x, leftFrom.y, leftFrom.z, castYaw, castPitch);
-        cast(caster);
+        holdFor(helper, caster, 1, FIXATION + HOLD_PAST);
         long[] arrivedInLunarAt = new long[1];
-        helper.runAfterDelay(PAST_THE_FIXATION, () -> {
+        int starFrom = PAST_THE_FIXATION;
+        helper.runAfterDelay(starFrom, () -> {
             helper.assertTrue(caster.level().dimension() == Lunar.LEVEL, String.format(IN_LUNAR, leftFrom,
                     caster.level().dimension(), caster.position()));
             arrivedInLunarAt[0] = caster.getData(GooAttachments.GATE_ARRIVAL).arrivedAt();
+            dropRemainders(caster);
             face(caster, Lunar.OVERWORLD_STAR_DIRECTION);
-            cast(caster);
         });
-        helper.runAfterDelay(2 * PAST_THE_FIXATION, () -> {
+        holdFor(helper, caster, starFrom + 1, LET_GO_AFTER);
+        int fullFrom = starFrom + LET_GO_AFTER + INSIDE_THE_FIXATION;
+        helper.runAfterDelay(fullFrom, () -> {
+            helper.assertTrue(caster.level().dimension() == Lunar.LEVEL,
+                    String.format(STAYED_ON_LUNAR, caster.level().dimension()));
+            helper.assertTrue(caster.getData(GooAttachments.WAY_HOME).point().isPresent(), WAY_HOME_KEPT);
+        });
+        holdFor(helper, caster, fullFrom + 1, FIXATION + HOLD_PAST);
+        helper.runAfterDelay(fullFrom + PAST_THE_FIXATION, () -> {
             boolean exactly = caster.level() == overworld && caster.position().distanceTo(leftFrom) < SAME_SPOT
                     && caster.getYRot() == castYaw && caster.getXRot() == castPitch;
             helper.assertTrue(exactly, String.format(HOME, Level.OVERWORLD.identifier(), leftFrom, castYaw, castPitch,
@@ -135,7 +207,7 @@ public final class AstralGateTests {
     }
 
     /**
-     * A caster looking at the ground holds no fixation and stays where they stood.
+     * A caster holding the cast looking at the ground holds no fixation and stays where they stood.
      *
      * @param helper the gametest helper
      */
@@ -143,8 +215,9 @@ public final class AstralGateTests {
         ServerPlayer caster = caster(helper);
         face(caster, new Vec3(0, -1, 0));
         Vec3 stood = caster.position();
-        cast(caster);
-        helper.assertFalse(caster.getData(GooAttachments.GATE_FIXATION).stands(), REFUSED);
+        holdFor(helper, caster, 1, LET_GO_AFTER);
+        helper.runAfterDelay(LET_GO_AFTER, () -> helper.assertFalse(
+                caster.getData(GooAttachments.GATE_FIXATION).stands(), REFUSED));
         helper.runAfterDelay(PAST_THE_FIXATION, () -> {
             helper.assertTrue(caster.level() == helper.getLevel() && caster.position().distanceTo(stood) < SAME_SPOT,
                     String.format(STAYED, stood, caster.position()));
@@ -157,19 +230,44 @@ public final class AstralGateTests {
         helper.assertTrue(AbilityRegistry.of(helper.getLevel()).getAbility(ASTRAL_GATE) != null, ABILITY_REQUIRED);
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.ASTRAL);
         caster.connection.markClientLoaded();
+        GooGloveItem.setSelection(caster.getMainHandItem(), GloveSelection.ofAbility(GooTypes.ASTRAL, ASTRAL_GATE));
         return caster;
     }
 
     /**
-     * Casts the gate from the caster's glove. Paying the cost lays the caster's remainders, an attachment NeoForge
-     * syncs in full on every dimension change; a real client negotiates the channel it rides, the mock connection
-     * cannot, so the test drops the remainders the gate never reads before the gate carries the caster.
+     * Holds the cast from the caster's glove for a run of ticks, one held tick a tick, as a client holding right
+     * click sends them.
+     *
+     * @param helper the gametest helper
+     * @param caster the caster
+     * @param from   the delay of the first held tick
+     * @param ticks  how many ticks the hold lasts
+     */
+    private static void holdFor(GameTestHelper helper, ServerPlayer caster, int from, int ticks) {
+        for (int tick = from; tick < from + ticks; tick++) {
+            helper.runAfterDelay(tick, () -> GooStreamHandler.streamTick(caster, holdOf(caster)));
+        }
+    }
+
+    private static GooStreamPayload holdOf(ServerPlayer caster) {
+        return new GooStreamPayload(GooTypes.id(GooTypes.ASTRAL), ASTRAL_GATE.toString(), caster.getEyePosition(),
+                caster.getEyePosition().add(caster.getLookAngle()), caster.blockPosition().below(),
+                GooStreamPayload.NO_FACE);
+    }
+
+    /**
+     * Drops the remainders paying the cost laid. NeoForge syncs that attachment in full on every dimension change;
+     * a real client negotiates the channel it rides, the mock connection cannot, so the test drops the remainders the
+     * gate never reads before the gate carries the caster again.
      *
      * @param caster the caster
      */
-    private static void cast(ServerPlayer caster) {
-        SelfDeliveryTests.invoke(caster, GooTypes.ASTRAL, ASTRAL_GATE);
+    private static void dropRemainders(ServerPlayer caster) {
         caster.removeData(GooAttachments.REMAINDERS);
+    }
+
+    private static int astral(ServerPlayer caster) {
+        return GooSourceScanner.aggregateAvailable(caster).getOrDefault(GooTypes.ASTRAL, 0);
     }
 
     private static Vec3 moonFrom(ServerPlayer caster) {
