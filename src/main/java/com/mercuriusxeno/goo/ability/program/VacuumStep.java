@@ -41,6 +41,8 @@ import java.util.stream.Stream;
 public record VacuumStep(double ticksPerBlock, int decayTicks) implements TakesNoEntity {
 
     private static final String NAME = "vacuum";
+    /** The break particles a taken cell throws for each layer it held. */
+    private static final int BREAK_PARTICLES_PER_LAYER = 3;
     private static final String FIELD_TICKS_PER_BLOCK = "ticks_per_block";
     private static final String FIELD_DECAY_TICKS = "decay_ticks";
     /** The pitch a residual taken at the eye slurps at. */
@@ -140,8 +142,8 @@ public record VacuumStep(double ticksPerBlock, int decayTicks) implements TakesN
     }
 
     /**
-     * Breaks a decayed residual quietly with its drops, throwing one break
-     * particle a layer rather than vanilla's whole burst, plays its break
+     * Breaks a decayed residual quietly with its drops, throwing three break
+     * particles a layer rather than vanilla's whole burst, plays its break
      * sound and slurps it up at its cell, and tells the clients it went to
      * nothing, so the melt they drew over it ends.
      * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
@@ -150,7 +152,8 @@ public record VacuumStep(double ticksPerBlock, int decayTicks) implements TakesN
                                   float slurpPitch) {
         int layers = VolumeCellBlock.layersOf(residual);
         host.breakBlockQuietly(cell);
-        host.scatterBreakParticles(cell, residual, layers, (double) layers / VolumeCellBlock.MAX_LAYERS);
+        host.scatterBreakParticles(cell, residual, layers * BREAK_PARTICLES_PER_LAYER,
+                (double) layers / VolumeCellBlock.MAX_LAYERS);
         host.playBreakSound(cell, residual);
         host.slurpAt(cell, slurpPitch);
         host.sendTransform(cell, residual, nothing);

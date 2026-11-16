@@ -145,7 +145,9 @@ public final class VacuumTests {
     private static final String WORLD_GOOS_LEFT = "Every goo on the volume cell should break and return its layers'"
             + " goo: %s";
 
-    private static final String ONE_PARTICLE_PER_LAYER = "vacuum_throws_one_break_particle_per_layer";
+    private static final String THREE_PARTICLES_PER_LAYER = "vacuum_throws_three_break_particles_per_layer";
+    /** The break particles a vacuumed cell throws for each layer it held. */
+    private static final int PARTICLES_PER_LAYER = 3;
     private static final String PARTICLES_WRONG = "The vacuumed cell of %d layers should throw %d break particles,"
             + " threw %d: %d through vanilla's break event, %d sent";
     /** The vanilla break event that bursts a block's break particles on every client. */
@@ -178,17 +180,18 @@ public final class VacuumTests {
         GooTestFunctions.registerTest(registrar, RETURNS_THE_LAYERS_PRICE, VacuumTests::vacuumReturnsASlimeCellsLayersPrice);
         GooTestFunctions.registerTest(registrar, RETURNS_THE_SLICKS_PRICE, VacuumTests::vacuumReturnsASlickCellsLayersPrice);
         GooTestFunctions.registerTest(registrar, BREAKS_EVERY_WORLD_GOO, VacuumTests::vacuumBreaksEveryGooOnTheVolumeCell);
-        GooTestFunctions.registerTest(registrar, ONE_PARTICLE_PER_LAYER, VacuumTests::vacuumThrowsOneBreakParticlePerLayer);
+        GooTestFunctions.registerTest(registrar, THREE_PARTICLES_PER_LAYER,
+                VacuumTests::vacuumThrowsThreeBreakParticlesPerLayer);
     }
 
     /**
-     * Vacuum held over one slime cell of eleven layers throws eleven break
-     * particles as it takes the cell, one a layer, counting both the
-     * particles sent and the burst each vanilla break event lays on a client.
+     * Vacuum held over one slime cell of eleven layers throws three break
+     * particles a layer as it takes the cell, counting both the particles
+     * sent and the burst each vanilla break event lays on a client.
      *
      * @param helper the gametest helper
      */
-    public static void vacuumThrowsOneBreakParticlePerLayer(GameTestHelper helper) {
+    public static void vacuumThrowsThreeBreakParticlesPerLayer(GameTestHelper helper) {
         layTheFloor(helper);
         helper.setBlock(laneCell(DECAYED - 1).below(), Blocks.STONE_SLAB);
         helper.setBlock(laneCell(DECAYED + 1).below(), Blocks.STONE_SLAB);
@@ -207,8 +210,9 @@ public final class VacuumTests {
                     .filter(particles -> particles.getParticle() instanceof BlockParticleOption
                             && BlockPos.containing(particles.getX(), particles.getY(), particles.getZ()).equals(at))
                     .mapToInt(ClientboundLevelParticlesPacket::getCount).sum();
-            helper.assertTrue(burst + sent == VACUUMED_LAYERS, String.format(PARTICLES_WRONG, VACUUMED_LAYERS,
-                    VACUUMED_LAYERS, burst + sent, burst, sent));
+            int owed = VACUUMED_LAYERS * PARTICLES_PER_LAYER;
+            helper.assertTrue(burst + sent == owed, String.format(PARTICLES_WRONG, VACUUMED_LAYERS, owed,
+                    burst + sent, burst, sent));
             helper.succeed();
         });
     }
