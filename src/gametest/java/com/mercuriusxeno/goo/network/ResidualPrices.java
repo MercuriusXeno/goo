@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValues;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -69,6 +70,20 @@ final class ResidualPrices {
      */
     static int layersRefund(GameTestHelper helper, int layers) {
         return layerPrice(helper).times(layers).floor();
+    }
+
+    /**
+     * The goo a broken cell of any world goo gives back: its laying ability's
+     * cost over the fifteen layers a whole block holds, times its layers.
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell
+     *
+     * @param helper the gametest helper
+     * @param cell   the world goo's block
+     * @param layers the layers the cell held
+     * @return the whole mb
+     */
+    static int worldGooRefund(GameTestHelper helper, VolumeCellBlock cell, int layers) {
+        return costOf(helper, cell.binding().layingAbility()).dividedBy(LAYERS_PER_BLOCK).times(layers).floor();
     }
 
     private static GooFraction costOf(GameTestHelper helper, Identifier ability) {
