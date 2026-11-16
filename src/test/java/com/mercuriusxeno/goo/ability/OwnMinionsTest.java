@@ -7,6 +7,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.Test;
 import java.util.UUID;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -51,12 +52,31 @@ class OwnMinionsTest {
 
         @Test
         void aHarmfulMobAbilitySparesThem() {
-            assertTrue(OwnMinions.sparesOwnMinions(AbilityBadge.MOB, true));
+            assertTrue(OwnMinions.sparesOwnMinions(AbilityBadge.MOB, DeliveryKind.ARC, true));
         }
 
         @Test
         void anUntaggedMobAbilityTargetsThem() {
-            assertFalse(OwnMinions.sparesOwnMinions(AbilityBadge.MOB, false));
+            assertFalse(OwnMinions.sparesOwnMinions(AbilityBadge.MOB, DeliveryKind.ARC, false));
+        }
+
+        /**
+         * Dart wears the held badge, prepared on right click and thrown on
+         * left, and still spares the caster's minions as a mob ability does
+         * (decision dart-forms-on-right-click-and-throws-on-left-click).
+         */
+        @Test
+        void dartWearsTheHeldBadgeAndStillSparesThem() {
+            AbilityDefinition dart = AbilityJson.decode("metal_dart");
+
+            assertEquals(AbilityBadge.HELD, dart.badge());
+            assertTrue(OwnMinions.sparesOwnMinions(dart.badge(), dart.delivery().kind(),
+                    dart.hasTag(AbilityTags.HARMFUL)));
+        }
+
+        @Test
+        void aHeldChannelOnTheSelfSparesNone() {
+            assertFalse(OwnMinions.sparesOwnMinions(AbilityBadge.HELD, DeliveryKind.SELF, true));
         }
     }
 
