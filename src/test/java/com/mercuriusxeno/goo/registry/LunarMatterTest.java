@@ -155,9 +155,15 @@ class LunarMatterTest {
         }
 
         @ParameterizedTest
-        @ValueSource(strings = {"iron_core", "molten_iron_bucket"})
-        void theCoreAndTheMoltenIronCarryIron(String item) throws IOException {
+        @ValueSource(strings = {"anorthosite", "iron_core", "molten_iron_bucket"})
+        void theStoneTheCoreAndTheMoltenIronCarryIron(String item) throws IOException {
             assertCarries(item, GooTypes.METAL);
+        }
+
+        /** Regolith is glass dust, so it carries crystal. */
+        @Test
+        void regolithCarriesCrystal() throws IOException {
+            assertCarries("regolith", GooTypes.CRYSTAL);
         }
     }
 }
