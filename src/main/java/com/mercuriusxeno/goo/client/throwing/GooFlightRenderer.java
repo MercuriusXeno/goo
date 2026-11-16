@@ -758,11 +758,25 @@ public final class GooFlightRenderer {
     private static void emitTravelForm(PoseStack poseStack, MultiBufferSource buffers,
                                        ResourceKey<GooTypeDefinition> type, TravelForm form, Vec3 vel,
                                        float morphFrac) {
-        GooRenderUtil.UvRect uv = spriteToUv(type);
-        VertexConsumer c = buffers.getBuffer(
-                GooSubmitter.renderType());
-        PoseStack.Pose pose = poseStack.last();
+        emitTravelForm(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()), type, form, vel, morphFrac);
+    }
 
+    /**
+     * Emits a travel form about the pose's origin, pointed along a direction
+     * and grown by the morph; the consumer takes {@link GooSubmitter#renderType()}
+     * geometry. The lifted palm blob draws Dart's javelin through this as the
+     * press lifts it (decision shriek-bloom-portal-mitosis-and-dart-still-throw-a-blob).
+     *
+     * @param pose      the pose at the form's middle
+     * @param c         a consumer of the translucent goo render type
+     * @param type      the goo type, whose fluid sprite the form wears
+     * @param form      the travel form drawn
+     * @param vel       the direction the form points along
+     * @param morphFrac how far the form has grown, 0 to 1
+     */
+    public static void emitTravelForm(PoseStack.Pose pose, VertexConsumer c, ResourceKey<GooTypeDefinition> type,
+                                      TravelForm form, Vec3 vel, float morphFrac) {
+        GooRenderUtil.UvRect uv = spriteToUv(type);
         Vec3 dir = vel.normalize();
         float dx = (float) dir.x;
         float dy = (float) dir.y;

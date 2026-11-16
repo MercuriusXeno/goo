@@ -320,8 +320,56 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         Matrix4f toHandPass = new Matrix4f(poseStack.last().pose());
         Quaternionf turn = liftedTurn(toHandPass, FirstPersonSwing.unswung(toHandPass), lift);
         LiftedPlace place = liftedPlace(toHandPass, lift);
-        submitBlob(poseStack, nodeCollector, type, place.inModel(), lift.shape(), turn);
+        if (lift.javelin() < 1f) {
+            submitBlob(poseStack, nodeCollector, type, place.inModel(), lift.shape().scaled(1f - lift.javelin()),
+                    turn);
+        }
+        if (lift.javelin() > 0f && lift.facing() != null) {
+            submitJavelin(poseStack, nodeCollector, type, place.inModel(), turn,
+                    lookInTheBlob(toHandPass, turn, lift.facing()), lift);
+        }
         submitBlobWisps(poseStack, nodeCollector, place.inHand());
+    }
+
+    /**
+     * Submits the travel form a lifted blob becomes in the hand, Dart's
+     * javelin, about the blob's center and pointed along the look.
+     * shriek-bloom-portal-mitosis-and-dart-still-throw-a-blob
+     *
+     * @param poseStack     the pose stack, at the glove's model
+     * @param nodeCollector the render node collector
+     * @param type          the goo type
+     * @param center        the blob's center in the model, in block coords
+     * @param turn          the blob's turn in the model
+     * @param along         the look, in the blob's own axes
+     * @param lift          the local player's lift
+     */
+    private static void submitJavelin(PoseStack poseStack, SubmitNodeCollector nodeCollector,
+                                      ResourceKey<GooTypeDefinition> type, Vector3fc center, Quaternionfc turn,
+                                      Vec3 along, LiftedPalmBlob.HandLift lift) {
+        poseStack.pushPose();
+        poseStack.translate(center.x(), center.y(), center.z());
+        poseStack.mulPose(turn);
+        nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
+                (pose, c) -> GooFlightRenderer.emitTravelForm(pose, c, type, lift.form(), along, lift.javelin()));
+        poseStack.popPose();
+    }
+
+    /**
+     * The look in a lifted blob's own axes: the facing's front carried out of
+     * the hand pass's world axes into the glove's model, then out of the
+     * blob's turn there.
+     *
+     * @param toHandPass the glove's model onto the hand pass's camera-relative world axes
+     * @param turn       the blob's turn in the model
+     * @param facing     the turn facing the look, in the hand pass's world axes
+     * @return the look, in the blob's axes
+     */
+    static Vec3 lookInTheBlob(Matrix4fc toHandPass, Quaternionfc turn, Quaternionfc facing) {
+        Vector3f look = facing.transform(new Vector3f(0f, 0f, 1f));
+        Quaternionf modelInHand = toHandPass.getUnnormalizedRotation(new Quaternionf()).normalize();
+        Vector3f inModel = modelInHand.conjugate().transform(look);
+        return new Vec3(new Quaternionf(turn).conjugate().transform(inModel));
     }
 
     /**
