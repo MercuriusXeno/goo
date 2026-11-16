@@ -367,21 +367,21 @@ class AbilityDefinitionTest {
 
         @Test
         void mobThrowOverAFieldStepDrawsNoArea() {
-            List<Step> field = AbilityJson.decode("crystal_shatter").behaviors();
+            List<Step> field = AbilityJson.decode("metal_urchin").behaviors();
             assertEquals(AbilityArea.NONE,
                     AbilityDefinition.heldArea(AbilityArea.NONE, Delivery.ARC, AbilityBadge.MOB, field));
         }
 
         @Test
         void beamOverAFieldStepDrawsNoArea() {
-            List<Step> field = AbilityJson.decode("crystal_shatter").behaviors();
+            List<Step> field = AbilityJson.decode("metal_urchin").behaviors();
             assertEquals(AbilityArea.NONE,
                     AbilityDefinition.heldArea(AbilityArea.NONE, Delivery.BEAM, AbilityBadge.WORLD, field));
         }
 
         @Test
         void freeThrowOverAFieldStepDrawsItsSphere() {
-            List<Step> field = AbilityJson.decode("crystal_shatter").behaviors();
+            List<Step> field = AbilityJson.decode("metal_urchin").behaviors();
             assertEquals(AbilityArea.Shape.SPHERE,
                     AbilityDefinition.heldArea(AbilityArea.NONE, Delivery.ARC, AbilityBadge.FREE, field).shape());
         }
