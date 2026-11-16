@@ -29,8 +29,10 @@ import java.util.List;
  * every later world goo alike: the layered shell its variant names, and
  * inside it the goo slime core the cell holds, drawn from what the model
  * reads as the cell's section meshes, so the core adds nothing to the block
- * state. The core samples the shell's own fluid sprite, the goo type's.
+ * state. The core samples the shell's own fluid sprite, the goo type's, and
+ * stands at every fill inside a margin of 1/8 of the cell's goo.
  * connected-goo-draws-as-one-layered-mass-with-a-core
+ * residual-always-draws-a-core-inside-a-one-eighth-margin
  * slime-core-keeps-a-two-layer-gap-and-grows-with-fill
  *
  * @param shell the layered shell the cell's layers draw as

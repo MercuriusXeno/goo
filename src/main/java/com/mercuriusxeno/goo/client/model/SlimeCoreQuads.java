@@ -19,9 +19,11 @@ import java.util.List;
  * block, so the texture runs on across a join as across tiled blocks. A face
  * on the block's own boundary draws nothing where the core across covers it,
  * beside it or above and below in a column. It reads no client state, so a
- * test hands it any sprite.
+ * test hands it any sprite. A cell of any fill draws a core, down to a
+ * sliver at one layer.
  * connected-goo-draws-as-one-layered-mass-with-a-core
  * palm-blob-draws-as-the-charge-blob
+ * residual-always-draws-a-core-inside-a-one-eighth-margin
  * slime-cores-connect-where-only-padding-parts-them
  * stacked-goo-cells-share-one-slime-core
  */
@@ -29,8 +31,8 @@ public final class SlimeCoreQuads {
 
     /** The tint index of a quad drawn in its sprite's own colors. */
     public static final int NO_TINT = -1;
-    /** Model pixels to one fifteenth of a block. */
-    private static final float PIXELS_PER_LAYER = 16f / SlimeCoreBox.WHOLE;
+    /** Model pixels to one of the core box's units, a 120th of a block. */
+    private static final float PIXELS_PER_UNIT = 16f / SlimeCoreBox.WHOLE;
     /** Bakes each quad as it comes, sharing nothing between them. */
     private static final ModelBaker.Interner UNSHARED = new ModelBaker.Interner() {
         @Override
@@ -52,13 +54,13 @@ public final class SlimeCoreQuads {
      *
      * @param around   the layers the cells of the goo hold around the cell
      * @param material the core's material: the goo type's fluid sprite, untinted, on the solid layer
-     * @return each core box's faces but those the core across covers, none for a cell holding no core
+     * @return each core box's faces but those the core across covers, none for a cell of no layers
      */
     public static List<BakedQuad> quadsOf(LayersAround around, BakedQuad.MaterialInfo material) {
         List<BakedQuad> quads = new ArrayList<>();
         for (SlimeCoreBox box : SlimeCoreBox.boxesOf(around)) {
-            Vector3fc from = new Vector3f(box.minX(), box.minY(), box.minZ()).mul(PIXELS_PER_LAYER);
-            Vector3fc to = new Vector3f(box.maxX(), box.maxY(), box.maxZ()).mul(PIXELS_PER_LAYER);
+            Vector3fc from = new Vector3f(box.minX(), box.minY(), box.minZ()).mul(PIXELS_PER_UNIT);
+            Vector3fc to = new Vector3f(box.maxX(), box.maxY(), box.maxZ()).mul(PIXELS_PER_UNIT);
             for (Direction face : Direction.values()) {
                 if (!box.onBoundary(face) || !box.joinsAcross(face, around)) {
                     quads.add(FaceBakery.bakeQuad(UNSHARED, from, to, FaceBakery.defaultFaceUV(from, to, face),

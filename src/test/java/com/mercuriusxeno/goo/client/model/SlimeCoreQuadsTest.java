@@ -25,13 +25,15 @@ import static org.mockito.Mockito.when;
 /**
  * Covers the quads a slime core's boxes draw as: an opaque body on the
  * cell's goo type's fluid sprite, untinted as the palm blob's core is,
- * spanning its boxes, drawing nothing on a face its block shares with a
+ * spanning its boxes in 120ths of a block, drawing nothing on a face its block shares with a
  * joined core and textured where it stands in its block so the texture runs
  * on across a join. The sprites stand in for weird's and kinetic's.
  */
 class SlimeCoreQuadsTest {
 
     private static final float FIFTEENTH = 1f / 15f;
+    private static final float UNIT = 1f / 120f;
+    private static final float PIXEL = 1f / 16f;
     private static final float EPSILON = 1e-5f;
     private static final int WHOLE_LAYERS = 15;
     private static final long SWEEP_SEED = 7L;
@@ -62,7 +64,7 @@ class SlimeCoreQuadsTest {
         void slimeAtEightLayersDrawsWeirdsFluidOverTheRulesBox() {
             TextureAtlasSprite weird = mock(TextureAtlasSprite.class);
             List<BakedQuad> quads = loneCore(8, weird);
-            assertSpans(quads, new SlimeCoreBox(1, 1, 1, 14, 7, 14));
+            assertSpans(quads, new SlimeCoreBox(15, 8, 15, 105, 56, 105));
             assertTrue(quads.stream().allMatch(quad -> quad.materialInfo().sprite() == weird));
             assertTrue(quads.stream().noneMatch(quad -> quad.materialInfo().isTinted()));
         }
@@ -71,13 +73,16 @@ class SlimeCoreQuadsTest {
         void slickAtEightLayersDrawsKineticsFluidOverTheRulesBox() {
             TextureAtlasSprite kinetic = mock(TextureAtlasSprite.class);
             List<BakedQuad> quads = loneCore(8, kinetic);
-            assertSpans(quads, new SlimeCoreBox(1, 1, 1, 14, 7, 14));
+            assertSpans(quads, new SlimeCoreBox(15, 8, 15, 105, 56, 105));
             assertTrue(quads.stream().allMatch(quad -> quad.materialInfo().sprite() == kinetic));
         }
 
+        /** residual-always-draws-a-core-inside-a-one-eighth-margin */
         @Test
-        void aCellAtTwoLayersDrawsNoCore() {
-            assertEquals(List.of(), loneCore(2, mock(TextureAtlasSprite.class)));
+        void aCellAtOneLayerDrawsSixQuadsTwoPixelsInAndAnEighthOfItsLayerUpAndDown() {
+            float layerPixels = 16f / WHOLE_LAYERS;
+            assertSpansPixels(loneCore(1, mock(TextureAtlasSprite.class)),
+                    new float[] {2f, layerPixels / 8, 2f}, new float[] {14f, layerPixels * 7 / 8, 14f});
         }
 
         @Test
@@ -101,10 +106,10 @@ class SlimeCoreQuadsTest {
         }
 
         @Test
-        void anUnjoinedSideDrawsItsSideQuadOneFifteenthInFromTheFace() {
+        void anUnjoinedSideDrawsItsSideQuadTwoPixelsInFromTheFace() {
             List<BakedQuad> quads = loneCore(15, mock(TextureAtlasSprite.class));
             assertTrue(quads.stream()
-                    .anyMatch(inPlaneX(14 * FIFTEENTH).and(quad -> quad.direction() == Direction.EAST)));
+                    .anyMatch(inPlaneX(14 * PIXEL).and(quad -> quad.direction() == Direction.EAST)));
             assertTrue(quads.stream().noneMatch(inPlaneX(1f)));
         }
 
@@ -138,11 +143,14 @@ class SlimeCoreQuadsTest {
             assertTrue(quads.stream().noneMatch(inPlaneY(1f)), "a quad lies on the top it shares");
         }
 
+        /** stacked-goo-cells-share-one-slime-core */
         @Test
-        void aCoreReachingItsTopUnderACellHoldingNoCoreDrawsItsTop() {
+        void aColumnsCoreToppingInsideTheLowerCellDrawsItsTopTwoPixelsUnderTheSurface() {
             List<BakedQuad> quads = SlimeCoreQuads.quadsOf(new SameGooCells().at(0, 0, 0, 15).at(0, 1, 0, 1),
                     coreMaterial(mock(TextureAtlasSprite.class)));
-            assertTrue(quads.stream().anyMatch(inPlaneY(1f).and(quad -> quad.direction() == Direction.UP)));
+            float surface = 1f + FIFTEENTH;
+            assertTrue(quads.stream().anyMatch(inPlaneY(surface - 2 * PIXEL)
+                    .and(quad -> quad.direction() == Direction.UP)));
         }
 
         /**
@@ -229,6 +237,16 @@ class SlimeCoreQuadsTest {
      * Asserts the quads' corners reach exactly the box's bounds.
      */
     private static void assertSpans(List<BakedQuad> quads, SlimeCoreBox box) {
+        assertSpansPixels(quads, new float[] {box.minX() * UNIT / PIXEL, box.minY() * UNIT / PIXEL,
+                box.minZ() * UNIT / PIXEL}, new float[] {box.maxX() * UNIT / PIXEL, box.maxY() * UNIT / PIXEL,
+                box.maxZ() * UNIT / PIXEL});
+    }
+
+    /**
+     * Asserts the quads are one box's six faces, its corners reaching exactly
+     * the bounds given in model pixels, x, y and z.
+     */
+    private static void assertSpansPixels(List<BakedQuad> quads, float[] from, float[] to) {
         assertEquals(6, quads.size());
         float minX = Float.MAX_VALUE;
         float minY = Float.MAX_VALUE;
@@ -247,11 +265,11 @@ class SlimeCoreQuadsTest {
                 maxZ = Math.max(maxZ, corner.z());
             }
         }
-        assertEquals(box.minX() * FIFTEENTH, minX, EPSILON);
-        assertEquals(box.minY() * FIFTEENTH, minY, EPSILON);
-        assertEquals(box.minZ() * FIFTEENTH, minZ, EPSILON);
-        assertEquals(box.maxX() * FIFTEENTH, maxX, EPSILON);
-        assertEquals(box.maxY() * FIFTEENTH, maxY, EPSILON);
-        assertEquals(box.maxZ() * FIFTEENTH, maxZ, EPSILON);
+        assertEquals(from[0] * PIXEL, minX, EPSILON);
+        assertEquals(from[1] * PIXEL, minY, EPSILON);
+        assertEquals(from[2] * PIXEL, minZ, EPSILON);
+        assertEquals(to[0] * PIXEL, maxX, EPSILON);
+        assertEquals(to[1] * PIXEL, maxY, EPSILON);
+        assertEquals(to[2] * PIXEL, maxZ, EPSILON);
     }
 }
