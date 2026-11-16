@@ -50,6 +50,17 @@
         "settings": "minecraft:nether"
       }
     },
+    "goo:lunar": {
+      "type": "goo:lunar",
+      "generator": {
+        "type": "minecraft:noise",
+        "settings": "goo:lunar",
+        "biome_source": {
+          "type": "minecraft:fixed",
+          "biome": "goo:lunar"
+        }
+      }
+    },
     "goo:pocket": {
       "type": "goo:pocket",
       "generator": {

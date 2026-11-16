@@ -74,6 +74,8 @@ import com.mercuriusxeno.goo.client.sound.FadingLoops;
 import com.mercuriusxeno.goo.client.throwing.GooFlightManager;
 import com.mercuriusxeno.goo.client.throwing.GooSizeProperty;
 import com.mercuriusxeno.goo.client.throwing.GooVolumeDecorator;
+import com.mercuriusxeno.goo.client.zone.LunarSky;
+import com.mercuriusxeno.goo.client.zone.LunarSkyRenderer;
 import com.mercuriusxeno.goo.client.zone.PocketStarSky;
 import com.mercuriusxeno.goo.client.zone.PocketStarSkyRenderer;
 import com.mercuriusxeno.goo.item.gasket.TunerAwaitState;
@@ -140,6 +142,10 @@ public final class GooClientSetup {
      * SuppressWarnings annotation value for unchecked casts.
      */
     private static final String SUPPRESS_UNCHECKED = "unchecked";
+    /** Molten iron's still and flowing sprites, lava's animations run hotter. */
+    private static final Identifier MOLTEN_IRON_SPRITE = Identifier.fromNamespaceAndPath(Goo.MODID, "fluid/molten_iron");
+    private static final Identifier MOLTEN_IRON_FLOW_SPRITE =
+            Identifier.fromNamespaceAndPath(Goo.MODID, "fluid/molten_iron_flow");
 
     static {
         ISidedProxy.INSTANCE[0] = new ClientProxy();
@@ -487,6 +493,8 @@ public final class GooClientSetup {
     @SubscribeEvent
     public static void registerCustomSkies(RegisterCustomEnvironmentEffectRendererEvent event) {
         event.registerSkyboxRenderer(PocketStarSky.ID, new PocketStarSkyRenderer());
+        // decision astral-sky-is-the-void-with-one-bright-blue-overworld-star
+        event.registerSkyboxRenderer(LunarSky.ID, new LunarSkyRenderer());
     }
 
     /**
@@ -557,6 +565,10 @@ public final class GooClientSetup {
         GooFluidTintSource tint = new GooFluidTintSource();
         FluidModel.Unbaked model = new FluidModel.Unbaked(texture, texture, null, tint, new GooTypeFluidRenderer(tint));
         event.register(model, GooFluids.SOURCE, GooFluids.FLOWING);
+        // Opaque as lava draws, on its own still and flowing sprites.
+        event.register(new FluidModel.Unbaked(new Material(MOLTEN_IRON_SPRITE), new Material(MOLTEN_IRON_FLOW_SPRITE),
+                        null, null),
+                GooFluids.MOLTEN_IRON_SOURCE, GooFluids.MOLTEN_IRON_FLOWING);
     }
 
     /**
@@ -568,7 +580,7 @@ public final class GooClientSetup {
     @SubscribeEvent
     public static void registerClientExtensions(RegisterClientExtensionsEvent event) {
         event.registerFluidType(new IClientFluidTypeExtensions() {
-        }, GooFluidTypes.GOO.get());
+        }, GooFluidTypes.GOO.get(), GooFluidTypes.MOLTEN_IRON.get());
     }
 
     /**

@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:monstrosity_spawns_on_lunars_surface",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}
