@@ -23,7 +23,7 @@ import java.util.function.LongSupplier;
  * storage: the chunk sections near the camera are scanned again every few
  * ticks, skipping any whose palette holds no Shatter cell, and the nearest
  * cells are kept. A cell's shards stay hidden in its goo until a living thing
- * comes within 3 blocks of it, then rise and fade in over the fade's ticks,
+ * comes within 4 blocks of it, then rise and fade in over the fade's ticks,
  * and sink back and fade out over as many once nothing living is that near,
  * so only cells something stands by draw shards and cast reflection rays.
  * Each cell's shard layout is drawn from a seed the client picks the first
@@ -36,7 +36,7 @@ import java.util.function.LongSupplier;
 final class ShatterCells {
 
     /** How near a living thing stands to a cell's center to raise its shards, in blocks. */
-    static final double NEAR_RADIUS = 3.0;
+    static final double NEAR_RADIUS = 4.0;
     /** Ticks a cell's shards take to rise and fade in, and to sink and fade out. */
     static final int FADE_TICKS = 20;
     /** Ticks between scans. */
@@ -59,7 +59,7 @@ final class ShatterCells {
      */
     static final class Cell {
 
-        private final ShardTable layout;
+        private final ShatterCellShards.CellLayout layout;
         private float shown;
         private float shownBefore;
 
@@ -68,14 +68,14 @@ final class ShatterCells {
          *
          * @param layout the cell's shard layout
          */
-        Cell(ShardTable layout) {
+        Cell(ShatterCellShards.CellLayout layout) {
             this.layout = layout;
         }
 
         /**
          * @return the cell's shard layout
          */
-        ShardTable layout() {
+        ShatterCellShards.CellLayout layout() {
             return layout;
         }
 
@@ -207,7 +207,7 @@ final class ShatterCells {
         for (BlockPos pos : nearest) {
             Cell standing = cells.get(pos);
             kept.put(pos, standing != null ? standing
-                    : new Cell(ShardTable.fromSeed(seeds.getAsLong(), ShatterCellShards.SHARDS_PER_CELL)));
+                    : new Cell(ShatterCellShards.layoutFromSeed(seeds.getAsLong())));
         }
         cells.clear();
         cells.putAll(kept);

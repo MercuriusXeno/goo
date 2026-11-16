@@ -23,14 +23,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class CrystalShatterVisualTest {
 
-    private static final int VISIBLE = 40;
     private static final int FRAMES = 3;
     private static final int QUAD_VERTICES = 4;
     /** A shard at rest draws at four fifths of a byte's alpha. */
     private static final int ALPHA = 204;
     /** The sky-blue a face too thin to carry a normal takes without casting a ray. */
     private static final int SKY_FALLBACK = ARGB.color(ALPHA, 0x87CEEB);
-    private static final ShardTable SHARDS = ShardTable.fromSeed(7L, VISIBLE);
+    private static final ShatterCellShards.CellLayout LAYOUT = ShatterCellShards.layoutFromSeed(7L);
+    /** The shards the drawn cell holds. */
+    private static final int VISIBLE = LAYOUT.size();
     private static final BlockPos CELL = new BlockPos(10, 64, 10);
     /** The layers the drawn cell holds. */
     private static final int LAYERS = 4;
@@ -60,7 +61,7 @@ class CrystalShatterVisualTest {
     private static CrystalShatterVisual.CellDraw draw(Vec3 camPos, CrystalShatterVisual.BlockColorProbe probe,
                                                     double clock, ReflectionEasing easing) {
         return new CrystalShatterVisual.CellDraw(CELL,
-                ShatterCellShards.shardsOver(CELL, LAYERS, 1f, SHARDS), SHARDS, 100f,
+                ShatterCellShards.shardsOver(CELL, LAYERS, 1f, LAYOUT), LAYOUT.shapes(), 100f,
                 camPos, probe, clock, easing);
     }
 

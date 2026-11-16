@@ -20,7 +20,7 @@ import static org.mockito.Mockito.verify;
  * The client's Shatter cell index scans the sections near the camera on its
  * first tick in a level, so the shards over cells already standing draw, and
  * again each time its scan interval has run; a cell counts a living thing
- * within 3 blocks as near, and its shards' shown share climbs to full over
+ * within 4 blocks as near, and its shards' shown share climbs to full over
  * the fade while one is near and falls back to none once none is.
  * shatter-is-splattered-goo-and-shards-form-over-the-splatters
  * razor-shards-appear-in-layers-ahead-of-the-dome
@@ -46,12 +46,12 @@ class ShatterCellsTest {
     }
 
     @Test
-    void aLivingThingWithinThreeBlocksIsNearAndOnePastThreeIsNot() {
+    void aLivingThingWithinFourBlocksIsNearAndOnePastFourIsNot() {
         BlockPos cell = new BlockPos(4, 64, -9);
         Vec3 center = Vec3.atCenterOf(cell);
 
-        assertTrue(ShatterCells.isNear(cell, List.of(center.add(2.9, 0, 0))));
-        assertFalse(ShatterCells.isNear(cell, List.of(center.add(0, 0, 3.1))));
+        assertTrue(ShatterCells.isNear(cell, List.of(center.add(3.9, 0, 0))));
+        assertFalse(ShatterCells.isNear(cell, List.of(center.add(0, 0, 4.1))));
         assertFalse(ShatterCells.isNear(cell, List.of()));
     }
 
