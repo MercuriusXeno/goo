@@ -51,7 +51,7 @@ class FlamesStepTest {
 
     @Test
     void aBurnSetsTheMobAlightThenHurtsItWithFire() {
-        FlamesStep.burn(level, mob, DAMAGE, BURN_SECONDS);
+        FlamesStep.burn(level, mob, DAMAGE, BURN_SECONDS, null);
 
         InOrder order = inOrder(mob);
         order.verify(mob).igniteForSeconds(BURN_SECONDS);
