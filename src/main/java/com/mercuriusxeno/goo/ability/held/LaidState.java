@@ -7,7 +7,6 @@ import com.mercuriusxeno.goo.ability.program.ExtendStep;
 import com.mercuriusxeno.goo.ability.program.GluttonyStep;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
 import com.mercuriusxeno.goo.ability.program.KinStep;
-import com.mercuriusxeno.goo.ability.program.LifetapStep;
 import com.mercuriusxeno.goo.ability.program.LowerCaseEnumCodec;
 import com.mercuriusxeno.goo.ability.program.LuxStep;
 import com.mercuriusxeno.goo.ability.program.PhaseStep;
@@ -46,8 +45,6 @@ public enum LaidState {
     ELUDE,
     /** The Extend's mark, laid by an extend step (decision extender-multiplies-the-next-self-duration). */
     EXTEND,
-    /** A lifetap (decision lifetap-trades-regen-for-leech). */
-    LIFETAP,
     /** Float's flight (decision tailwind-and-airborn-merge-into-float). */
     AIRBORN,
     /** Remote's raised reach (decision telekinesis-enacts-at-extended-reach). */
@@ -101,7 +98,6 @@ public enum LaidState {
             Map.entry(UndeadStep.class, UNDEAD),
             Map.entry(EludeStep.class, ELUDE),
             Map.entry(ExtendStep.class, EXTEND),
-            Map.entry(LifetapStep.class, LIFETAP),
             Map.entry(AirbornStep.class, AIRBORN),
             Map.entry(RemoteStep.class, REMOTE),
             Map.entry(UnveilStep.class, UNVEIL),

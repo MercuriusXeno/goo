@@ -163,7 +163,7 @@ public class GooParticles {
 
     /**
      * The hex wisp: a wisp of drawn life in hex purple, scattering off a
-     * victim then curling home to whoever it heals: Lifetap's splashes and
+     * victim then curling home to whoever it heals: Leech goo's splashes and
      * Drain's trickle.
      * lifetap-trades-regen-for-leech
      */

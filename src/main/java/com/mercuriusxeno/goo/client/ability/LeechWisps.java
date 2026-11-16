@@ -12,8 +12,9 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
- * Lifetap's look, which Drain shares: life drawn from a victim to the one it
- * heals as hex wisps. Lifetap splashes once per point of health healed, each
+ * Drained life's look, which Drain and Leech goo share: life drawn from a
+ * victim to the one it heals as hex wisps. A strike on a victim in Leech goo
+ * splashes once per point of health healed, each
  * splash a burst of wisps scattering off the victim before they curl home,
  * the splashes a beat apart; Drain streams its wisps from the drained mob's
  * chest into the player in one tight, steady stream, and bursts a few on the
@@ -21,6 +22,7 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
  * lifetap-trades-regen-for-leech
  * drain-field-heals-with-the-lifetap-visuals
  * drained-mobs-show-stream-burst-and-tether
+ * damage-dealt-to-a-mob-in-leech-goo-becomes-drained-life-for-its-source
  */
 public final class LeechWisps {
 

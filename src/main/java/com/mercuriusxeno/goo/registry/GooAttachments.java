@@ -10,7 +10,6 @@ import com.mercuriusxeno.goo.ability.gluttony.Gluttony;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
 import com.mercuriusxeno.goo.ability.hex.Charmed;
-import com.mercuriusxeno.goo.ability.hex.Lifetap;
 import com.mercuriusxeno.goo.ability.kinetic.GrabHold;
 import com.mercuriusxeno.goo.ability.kinetic.Grabbed;
 import com.mercuriusxeno.goo.ability.nether.Undead;
@@ -393,17 +392,6 @@ public final class GooAttachments {
             ATTACHMENT_TYPES.register("wobbled",
                     () -> AttachmentType.builder(() -> Wobbled.NONE)
                             .serialize(Wobbled.CODEC, wobbled -> wobbled.expiresAt() > 0L)
-                            .build());
-
-    /**
-     * The lifetap a player holds, its leech fraction and when it fades,
-     * saved with the player while it stands.
-     * lifetap-trades-regen-for-leech
-     */
-    public static final Supplier<AttachmentType<Lifetap>> LIFETAP =
-            ATTACHMENT_TYPES.register("lifetap",
-                    () -> AttachmentType.builder(() -> Lifetap.NONE)
-                            .serialize(Lifetap.CODEC, lifetap -> lifetap.expiresAt() > 0L)
                             .build());
 
     /**
