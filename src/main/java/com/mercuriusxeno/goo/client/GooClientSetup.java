@@ -314,7 +314,7 @@ public final class GooClientSetup {
     public static void registerBlockTintSources(RegisterColorHandlersEvent.BlockTintSources event) {
         for (VolumeCellBlock cell : List.of(GooBlocks.SLIME_COAT.get(), GooBlocks.KINETIC_SLICK.get(),
                 GooBlocks.BLAZE_MOLTEN.get(), GooBlocks.CRYSTAL_SHATTER.get(), GooBlocks.DEEP_HOST.get(),
-                GooBlocks.GLOW_WISPS.get())) {
+                GooBlocks.GLOW_WISPS.get(), GooBlocks.HEX_LEECH.get())) {
             event.register(VolumeCellTint.sources(cell.binding().gooType(), ClientGooTypes::color), cell);
         }
     }
@@ -394,6 +394,7 @@ public final class GooClientSetup {
      * shatter-is-splattered-goo-and-shards-form-over-the-splatters
      * host-is-a-sculky-slime-that-sculk-spreads-eagerly-through
      * glow-world-goo-is-named-wisps-and-takes-the-holds-place
+     * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
      *
      * @param event the event instance
      */
@@ -411,6 +412,8 @@ public final class GooClientSetup {
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.HOST_DEEP_TEALS));
         event.registerSpriteSet(GooParticles.WISPS_SPRAY_DRIP.get(),
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.WISPS_GLOW_GOLDS));
+        event.registerSpriteSet(GooParticles.LEECH_SPRAY_DRIP.get(),
+                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.LEECH_HEX_VIOLETS));
     }
 
     /**

@@ -14,7 +14,7 @@ import java.util.stream.Stream;
 /**
  * Runs its strike on the host's target, then heals the caster by the
  * fraction of the health the strike took, the life flowing from the target
- * to the caster as Lifetap's wisps, and finishes. Drain streams
+ * to the caster as hex wisps, and finishes. Drain streams
  * {@code leech fraction=0.5 strike=[damage amount=2 source=attack]} over
  * every mob in its cone.
  * drain-field-heals-with-the-lifetap-visuals
