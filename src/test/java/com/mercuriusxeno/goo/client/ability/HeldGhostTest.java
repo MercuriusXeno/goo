@@ -23,10 +23,11 @@ class HeldGhostTest {
         return visual.ghost(definition.area(), definition.behaviors());
     }
 
+    /** prismatic-voronoi-code-stays-and-is-unplugged-from-shatter: the unplugged prism dome still ghosts a field */
     @Test
-    void razorRingsOutwardToItsDome() {
-        HeldGhost ghost = ghostOf(CrystalExplosionVisual.INSTANCE, "crystal_shatter");
-        float synced = (float) AbilityJson.decode("crystal_shatter").area().size();
+    void thePrismDomeRingsOutwardToAFieldsDome() {
+        HeldGhost ghost = ghostOf(CrystalExplosionVisual.INSTANCE, "metal_urchin");
+        float synced = (float) AbilityJson.decode("metal_urchin").area().size();
         assertEquals(synced, ghost.domeRadius(), TOLERANCE);
         assertEquals(ghost.domeRadius(), ghost.ringRadius(), TOLERANCE);
     }

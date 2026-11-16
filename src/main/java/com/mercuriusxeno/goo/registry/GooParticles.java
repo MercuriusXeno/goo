@@ -65,6 +65,15 @@ public class GooParticles {
         PARTICLE_TYPES.register("molten_spray_drip", () -> new SimpleParticleType(false));
 
     /**
+     * Shatter's spray drip: the mod's blocky goo drip in crystal's blues,
+     * flying its arc until it strikes a block's top, where it splats and the
+     * shatter goo lands.
+     * shatter-is-splattered-goo-and-shards-form-over-the-splatters
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> SHATTER_SPRAY_DRIP =
+        PARTICLE_TYPES.register("shatter_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
      * Host's spray drip: the mod's blocky goo drip in deep's teals, flying
      * its arc until it strikes a block's top, where it splats and the Host
      * goo lands.
