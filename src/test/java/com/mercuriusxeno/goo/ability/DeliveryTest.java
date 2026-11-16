@@ -333,14 +333,15 @@ class DeliveryTest {
          * goop-and-slick-coat-lands-where-each-drip-arc-strikes
          */
         @Test
-        void goopAndSlickAloneThrowDripsOnTheirArcs() {
+        void goopSlickAndMoltenAloneThrowDripsOnTheirArcs() {
             Set<Identifier> throwing = AbilityJson.files().stream()
                     .filter(file -> AbilityJson.decode(file).delivery().throwsDrips())
                     .map(file -> AbilityJson.idOf(file.getFileName().toString()))
                     .collect(Collectors.toSet());
 
             assertEquals(Set.of(Identifier.fromNamespaceAndPath("goo", "weird_goop"),
-                    Identifier.fromNamespaceAndPath("goo", "kinetic_slick")), throwing);
+                    Identifier.fromNamespaceAndPath("goo", "kinetic_slick"),
+                    Identifier.fromNamespaceAndPath("goo", "blaze_molten")), throwing);
         }
     }
 
@@ -357,7 +358,7 @@ class DeliveryTest {
 
         @Test
         void eachSprayLeavesFasterByTheCastersSpeed() {
-            for (String spray : Set.of("weird_goop", "kinetic_slick")) {
+            for (String spray : Set.of("weird_goop", "kinetic_slick", "blaze_molten")) {
                 Delivery delivery = AbilityJson.decode(spray).delivery();
 
                 assertEquals(delivery.throwSpeed() + RAMPED, delivery.exitSpeedAt(RAMPED), 1e-9, spray);

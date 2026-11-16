@@ -23,7 +23,6 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.Vec3;
@@ -62,7 +61,7 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
                           @Nullable UUID caster)
         implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost,
         SporeHost, FloorScanHost, GateHost, PowerPulseHost, MobSpawnHost, FrostHost, MeteorHost, AgingHost,
-        WormholeHost, PortalHost, IgniteHost, MoltenHost, HoleHost {
+        WormholeHost, PortalHost, IgniteHost, HoleHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -195,11 +194,6 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     @Override
     public boolean detonateExplosive(float power) {
         return IgniteLanding.detonateExplosive(level, cell, face, power);
-    }
-
-    @Override
-    public boolean melt(TagKey<Block> meltable) {
-        return MoltenLanding.melt(level, cell, face, gooType, meltable);
     }
 
     @Override
