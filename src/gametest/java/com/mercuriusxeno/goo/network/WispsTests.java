@@ -14,6 +14,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.monster.skeleton.WitherSkeleton;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Blocks;
@@ -54,6 +55,11 @@ public final class WispsTests {
     private static final String WISPS_BURNS_A_ZOMBIE_ON_IT = "wisps_burns_a_zombie_on_it";
     private static final String ZOMBIE_UNLIT = "A zombie on a full Wisps cell should be on fire";
     private static final String ZOMBIE_UNHARMED = "A zombie on a full Wisps cell should take holy damage";
+    private static final String WISPS_HOLY_DAMAGE_HURTS_A_WITHER_SKELETON = "wisps_holy_damage_hurts_a_wither_skeleton";
+    /** The tall shaft's air runs over the cell up to here, under a stone roof one higher. */
+    private static final int TALL_SHAFT_TOP = 4;
+    private static final String SKELETON_UNHARMED =
+            "A fire-immune wither skeleton on a full Wisps cell should take holy damage";
     private static final String WISPS_SHEDS_A_WISP_INTO_THE_DARK = "wisps_sheds_a_wisp_into_the_dark";
     /** The corridor's air runs 1 to 30 along x, 1 to 2 up, at z 3, inside the march bay. */
     private static final int CORRIDOR_LENGTH = 30;
@@ -78,6 +84,8 @@ public final class WispsTests {
         GooTestFunctions.registerTest(registrar, WISPS_CELL_SHINES_AT_ITS_LAYERS,
                 WispsTests::wispsCellShinesAtItsLayers);
         GooTestFunctions.registerTest(registrar, WISPS_BURNS_A_ZOMBIE_ON_IT, WispsTests::wispsBurnsAZombieOnIt);
+        GooTestFunctions.registerTest(registrar, WISPS_HOLY_DAMAGE_HURTS_A_WITHER_SKELETON,
+                WispsTests::wispsHolyDamageHurtsAWitherSkeleton);
         GooTestFunctions.registerTest(registrar, WISPS_SHEDS_A_WISP_INTO_THE_DARK,
                 WispsTests::wispsShedsAWispIntoTheDark);
         GooTestFunctions.registerTest(registrar, WISPS_DRIFTING_WISP_STANDS_ON_ITS_SPOT,
@@ -164,6 +172,31 @@ public final class WispsTests {
             helper.assertTrue(zombie.isOnFire(), ZOMBIE_UNLIT);
             helper.assertTrue(zombie.getHealth() < startingHealth, ZOMBIE_UNHARMED);
         });
+    }
+
+    /**
+     * A wither skeleton standing on a full Wisps cell, in a stone shaft tall
+     * enough to hold it and roofed from the sun, loses health once the holy
+     * damage's cadence comes round: fire cannot harm it, so the health it
+     * loses is goo:holy's.
+     * undead-touching-wisps-goo-erupt-in-flames-and-take-holy-damage-by-fill
+     *
+     * @param helper the gametest helper
+     */
+    public static void wispsHolyDamageHurtsAWitherSkeleton(GameTestHelper helper) {
+        for (int x = 0; x <= ROOM_EDGE; x++) {
+            for (int y = 0; y <= TALL_SHAFT_TOP + 1; y++) {
+                for (int z = 0; z <= ROOM_EDGE; z++) {
+                    boolean shaft = x == FLOOR.getX() && z == FLOOR.getZ() && y > FLOOR.getY() && y <= TALL_SHAFT_TOP;
+                    helper.setBlock(new BlockPos(x, y, z), shaft ? Blocks.AIR : Blocks.STONE);
+                }
+            }
+        }
+        helper.setBlock(OVER_THE_FLOOR, GooBlocks.GLOW_WISPS.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
+        WitherSkeleton skeleton = helper.spawn(EntityType.WITHER_SKELETON, OVER_THE_FLOOR.above());
+        float startingHealth = skeleton.getHealth();
+        helper.succeedWhen(() -> helper.assertTrue(skeleton.getHealth() < startingHealth, SKELETON_UNHARMED));
     }
 
     /**
