@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.Level;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -50,6 +52,17 @@ public interface Step {
      * @return the required capabilities
      */
     Set<HostCapability> requires();
+
+    /**
+     * Whether the ability running this step costs nothing for a caster
+     * standing in a level; a step changing no price keeps this default.
+     *
+     * @param casterIn the level the caster stands in
+     * @return true where the ability is free there
+     */
+    default boolean freeIn(ResourceKey<Level> casterIn) {
+        return false;
+    }
 
     /**
      * Streams the child steps a container step holds, so the load check

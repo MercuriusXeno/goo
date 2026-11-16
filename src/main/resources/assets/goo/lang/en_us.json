@@ -54,7 +54,6 @@
 
   "block.goo.canister": "Canister",
   "block.goo.crucible": "Crucible",
-  "block.goo.end_gate": "End Gate",
   "block.goo.exorite_bars": "Exorite Bars",
   "block.goo.hub": "Hub",
   "block.goo.plexer": "Plexer",
@@ -194,7 +193,7 @@
   "goo.ability.ender.blink.description": "Teleports you a short way; blinking to a prism makes an Oculus.",
   "goo.ability.ender.blink.cost_mechanics": "Plus %s per block travelled and %s more through a wall; Oculus Blinks cost %s percent.",
   "goo.ability.ender.end": "End",
-  "goo.ability.ender.end.description": "Opens a temporary portal to the End.",
+  "goo.ability.ender.end.description": "Channel to summon a gate that takes you to the End.",
   "goo.ability.ender.elude": "Elude",
   "goo.ability.ender.elude.description": "When a mob or projectile would hurt you, you blink to a random safe spot within 8 blocks, facing a random way.",
   "goo.ability.quantum.phase_self": "Phase Self",
