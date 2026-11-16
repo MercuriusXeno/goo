@@ -304,14 +304,18 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
         }
     }
 
-    /** Fixes the player's gaze on the moon or the blue star (decisions
-     * gate-fixates-your-view-on-the-moon-until-it-takes-you, gate-on-the-blue-star-returns-you-exactly-where-you-left). */
+    /** Fixes the player's gaze on the moon or the blue star on a press's first held tick and keeps the pull on each
+     * tick after (decisions gate-fixates-your-view-on-the-moon-until-it-takes-you,
+     * gate-on-the-blue-star-returns-you-exactly-where-you-left,
+     * holding-right-click-pulls-the-moon-and-early-release-cancels). */
     @Override
     public void fixateOnTheSky(int fixation, int cost) {
-        if (!AstralGate.findsTheSky(player)) {
+        if (channelAim.map(ChannelAim::held).orElse(1) > 1) {
+            AstralGate.keepHeld(player);
+        } else if (!AstralGate.findsTheSky(player)) {
             AstralGate.refuse(player);
-        } else if (GooSourceScanner.hasEnough(player, GooTypes.ASTRAL, cost) && AstralGate.begin(player, fixation)) {
-            GooSourceScanner.deplete(player, GooTypes.ASTRAL, cost);
+        } else {
+            AstralGate.begin(player, fixation, cost);
         }
     }
 

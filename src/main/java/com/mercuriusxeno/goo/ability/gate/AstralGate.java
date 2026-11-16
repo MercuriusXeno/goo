@@ -1,9 +1,11 @@
 package com.mercuriusxeno.goo.ability.gate;
 
 import com.mercuriusxeno.goo.ability.zone.VoidPockets;
+import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.lunar.Lunar;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooSounds;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.SectionPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
@@ -17,17 +19,22 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Astral's gate on the server. Cast looking at the moon in the overworld, or at the blue overworld star in lunar,
- * it fixes the caster's gaze, sends them its rising tone, and holds them still where they stand while the moon or
- * the star swells to fill their view; when the fixation runs out the moon carries them to lunar over the column they
- * stood on, keeping where they left from, and the star carries them back to exactly that place and facing, each
- * leaving the arrival mark their client's white clears on. Cast looking at neither, it refuses with a tell. The
- * gate places nothing.
+ * Astral's gate on the server, a hold. Held looking at the moon in the overworld, or at the blue overworld star in
+ * lunar, it fixes the caster's gaze, sends them its rising tone, and holds them still where they stand while the moon
+ * or the star swells to fill their view; held until the fixation runs out, the moon carries them to lunar over the
+ * column they stood on, keeping where they left from, and the star carries them back to exactly that place and
+ * facing, each taking the astral then and leaving the arrival mark their client's white clears on. Let go early, it
+ * releases them where they stand and takes nothing. Held looking at neither, it refuses with a tell. The gate places
+ * nothing.
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
+ * decision holding-right-click-pulls-the-moon-and-early-release-cancels
  */
 public final class AstralGate {
 
@@ -37,19 +44,34 @@ public final class AstralGate {
     private static final double DRIFT = 1e-3;
     private static final float TONE_VOLUME = 1F;
     private static final float TONE_PITCH = 1F;
+    /** Server ticks a pull outlasts the last held tick it heard, so one late tick lets no caster go. */
+    private static final int HOLD_OUTLASTS = 1;
+
+    /** Each holding caster's last held tick and the cost their carry takes. */
+    private static final Map<UUID, Hold> HOLDS = new ConcurrentHashMap<>();
 
     private AstralGate() {
     }
 
     /**
-     * Begins the fixation a cast asks for, when the caster looks at the moon or the star and stands in no
-     * fixation already.
+     * A caster's hold on the cast.
+     *
+     * @param heldAt the server tick the cast was last held
+     * @param cost   the astral the carry takes (mB)
+     */
+    private record Hold(int heldAt, int cost) {
+    }
+
+    /**
+     * Begins the fixation the first held tick of a cast asks for, when the caster looks at the moon or the star and
+     * stands in no fixation already. Nothing is paid yet: the moon or the star takes the cost at the carry.
      *
      * @param caster   the caster
      * @param duration the ticks the fixation runs
+     * @param cost     the astral the carry takes (mB)
      * @return true when the fixation began
      */
-    public static boolean begin(ServerPlayer caster, int duration) {
+    public static boolean begin(ServerPlayer caster, int duration, int cost) {
         if (caster.getData(GooAttachments.GATE_FIXATION).stands()) {
             return false;
         }
@@ -58,10 +80,22 @@ public final class AstralGate {
         if (sky.isEmpty()) {
             return false;
         }
-        caster.setData(GooAttachments.GATE_FIXATION, new GateFixation(sky.get(),
+        caster.setData(GooAttachments.GATE_FIXATION, GateFixation.held(sky.get(),
                 GateSight.directionOf(sky.get(), moonAngle), caster.position(), caster.level().getGameTime(), duration));
+        HOLDS.put(caster.getUUID(), new Hold(caster.level().getServer().getTickCount(), cost));
         sendTone(caster);
         return true;
+    }
+
+    /**
+     * Keeps a caster's pull standing for a further held tick of the cast.
+     * decision holding-right-click-pulls-the-moon-and-early-release-cancels
+     *
+     * @param caster the caster
+     */
+    public static void keepHeld(ServerPlayer caster) {
+        int now = caster.level().getServer().getTickCount();
+        HOLDS.computeIfPresent(caster.getUUID(), (id, hold) -> new Hold(now, hold.cost()));
     }
 
     /**
@@ -96,8 +130,10 @@ public final class AstralGate {
     }
 
     /**
-     * Runs one server tick of every standing fixation: each caster stands held, and a caster whose fixation ran
-     * out is carried.
+     * Runs one server tick of every standing fixation: a caster still holding the cast stands held, one holding it
+     * as the fixation runs out is carried, and one who let go, or cannot pay as the moon or the star takes them, is
+     * released where they stand, paying nothing.
+     * decision holding-right-click-pulls-the-moon-and-early-release-cancels
      *
      * @param server the server
      */
@@ -110,18 +146,41 @@ public final class AstralGate {
                 continue;
             }
             GateFixation fixation = caster.getData(GooAttachments.GATE_FIXATION);
-            if (!fixation.stands()) {
-                continue;
-            }
-            if (fixation.ranOut(caster.level().getGameTime())) {
-                // Removed, not set to none, so the dimension change ahead carries no synced fixation or mark.
-                caster.removeData(GooAttachments.GATE_FIXATION);
-                caster.removeData(GooAttachments.GATE_ARRIVAL);
-                carry(caster, fixation.sky());
-            } else {
-                hold(caster, fixation.anchor());
+            if (fixation.stands()) {
+                tick(caster, fixation, server.getTickCount());
             }
         }
+    }
+
+    private static void tick(ServerPlayer caster, GateFixation fixation, int now) {
+        Hold hold = HOLDS.get(caster.getUUID());
+        if (hold == null || now - hold.heldAt() > HOLD_OUTLASTS) {
+            release(caster, fixation);
+        } else if (!fixation.ranOut(caster.level().getGameTime())) {
+            hold(caster, fixation.anchor());
+        } else if (GooSourceScanner.hasEnough(caster, GooTypes.ASTRAL, hold.cost())) {
+            HOLDS.remove(caster.getUUID());
+            // Removed, not set to none, so the dimension change ahead carries no synced fixation or mark.
+            caster.removeData(GooAttachments.GATE_FIXATION);
+            caster.removeData(GooAttachments.GATE_ARRIVAL);
+            if (carry(caster, fixation.sky())) {
+                GooSourceScanner.deplete(caster, GooTypes.ASTRAL, hold.cost());
+            }
+        } else {
+            release(caster, fixation);
+        }
+    }
+
+    /**
+     * Lets a caster go where they stand: the fixation stops standing, kept as let go so their client runs the trip
+     * back, and nothing is paid.
+     *
+     * @param caster   the caster
+     * @param fixation the fixation they held
+     */
+    private static void release(ServerPlayer caster, GateFixation fixation) {
+        HOLDS.remove(caster.getUUID());
+        caster.setData(GooAttachments.GATE_FIXATION, fixation.releaseAt(caster.level().getGameTime()));
     }
 
     private static void hold(ServerPlayer caster, Vec3 anchor) {
@@ -131,17 +190,26 @@ public final class AstralGate {
         }
     }
 
-    private static void carry(ServerPlayer caster, GateSight.Sky sky) {
+    /**
+     * Carries the caster by the moon or the star, marking them arrived once they stand at the far end.
+     *
+     * @param caster the caster
+     * @param sky    what carries them
+     * @return true when the carry changed their level
+     */
+    private static boolean carry(ServerPlayer caster, GateSight.Sky sky) {
         Level from = caster.level();
         if (sky == GateSight.Sky.MOON) {
             toLunar(caster);
         } else {
             toHome(caster);
         }
-        if (caster.level() != from) {
-            // The caster's client holds its white over the crossing until this mark reaches it.
-            caster.setData(GooAttachments.GATE_ARRIVAL, new GateArrival(caster.level().getGameTime()));
+        if (caster.level() == from) {
+            return false;
         }
+        // The caster's client holds its white over the crossing until this mark reaches it.
+        caster.setData(GooAttachments.GATE_ARRIVAL, new GateArrival(caster.level().getGameTime()));
+        return true;
     }
 
     /**

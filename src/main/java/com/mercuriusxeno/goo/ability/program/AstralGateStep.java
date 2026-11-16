@@ -6,15 +6,17 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Astral's gate: fixes the caster's gaze on the moon or the blue overworld star their look holds, holding them
- * still while it swells to fill their view, then carries them, and finishes; it places nothing. Astral's gate is
- * {@code astral_gate fixation=100 cost=1000}, five seconds of fixation, the time the trip takes to dim the sky,
- * darken the land, swell the moon and flood the view white.
+ * Astral's gate, run each held tick of the channel: the first held tick fixes the caster's gaze on the moon or the
+ * blue overworld star their look holds, holding them still while it swells to fill their view, and each tick after
+ * keeps the pull; held through, it carries them and takes its cost, and let go early, it releases them and takes
+ * nothing. It places nothing. Astral's gate is {@code astral_gate fixation=100 cost=1000}, five seconds of
+ * fixation, the time the trip takes to dim the sky, darken the land, swell the moon and flood the view white.
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
+ * decision holding-right-click-pulls-the-moon-and-early-release-cancels
  *
- * @param fixation the ticks the fixation runs before the gate carries the caster
- * @param cost     the astral the gate costs as the fixation begins (mB)
+ * @param fixation the held ticks the fixation runs before the gate carries the caster
+ * @param cost     the astral the gate costs as the moon or the star takes the caster (mB)
  */
 public record AstralGateStep(Expr fixation, Expr cost) implements Step {
 
