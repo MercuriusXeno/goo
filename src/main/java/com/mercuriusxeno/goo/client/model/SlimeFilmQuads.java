@@ -26,6 +26,10 @@ public final class SlimeFilmQuads {
     private static final float WHOLE = 16f;
     /** Model pixels to one fifteenth of a block, a film's thickness. */
     private static final float ONE_LAYER = WHOLE / SlimeCoreBox.WHOLE;
+    /** How far a streak stands out from its wall, in model pixels: the edge drips' hair, clear of the wall. */
+    private static final float STREAK_OUT = 0.1f;
+    /** Each strip of a streak, its span across the wall in model pixels. */
+    private static final float[][] STRIPS = {{3f, 4.5f}, {7.5f, 9f}, {12f, 13.5f}};
 
     private SlimeFilmQuads() {
     }
@@ -45,6 +49,36 @@ public final class SlimeFilmQuads {
             for (Direction face : List.of(wall, wall.getOpposite())) {
                 quads.add(FaceBakery.bakeQuad(SlimeCoreQuads.UNSHARED, from, to,
                         FaceBakery.defaultFaceUV(from, to, face), Quadrant.R0, material, face,
+                        BlockModelRotation.IDENTITY, null, ExtraFaceData.DEFAULT));
+            }
+        }
+        return quads;
+    }
+
+    /**
+     * The quads a cell's runny layers draw as: each a streak of strips
+     * running the height of its wall, flat on the wall's plane a hair out
+     * from it as the edge drips stand, facing the open cell, in the drips'
+     * texture, the goo type's fluid sprite under the shell tint.
+     * runny-goo-runs-down-the-wall-to-the-first-top-below
+     *
+     * @param walls    the sides holding a runny layer
+     * @param material the streak's material, the film's
+     * @return one face for each strip of each streak
+     */
+    public static List<BakedQuad> streaksOf(List<Direction> walls, BakedQuad.MaterialInfo material) {
+        List<BakedQuad> quads = new ArrayList<>();
+        for (Direction wall : walls) {
+            boolean wallOnHigh = wall.getAxisDirection() == Direction.AxisDirection.POSITIVE;
+            float depth = wallOnHigh ? WHOLE - STREAK_OUT : STREAK_OUT;
+            for (float[] strip : STRIPS) {
+                Vector3fc from = wall.getAxis() == Direction.Axis.X ? new Vector3f(depth, 0, strip[0])
+                        : new Vector3f(strip[0], 0, depth);
+                Vector3fc to = wall.getAxis() == Direction.Axis.X ? new Vector3f(depth, WHOLE, strip[1])
+                        : new Vector3f(strip[1], WHOLE, depth);
+                Direction out = wall.getOpposite();
+                quads.add(FaceBakery.bakeQuad(SlimeCoreQuads.UNSHARED, from, to,
+                        FaceBakery.defaultFaceUV(from, to, out), Quadrant.R0, material, out,
                         BlockModelRotation.IDENTITY, null, ExtraFaceData.DEFAULT));
             }
         }

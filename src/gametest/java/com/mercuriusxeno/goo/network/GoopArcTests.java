@@ -24,6 +24,7 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.ArrayList;
@@ -55,6 +56,13 @@ public final class GoopArcTests {
     private static final String HELD_AT_A_WALL = "goop_held_at_a_wall_leaves_a_film";
     private static final String DRIP_ON_A_WALL_COSTS = "goop_drip_on_a_wall_costs_one_layer";
     private static final String FILM_DROPS_ITS_LAYER = "goop_film_drops_its_layer_when_its_wall_breaks";
+    private static final String GLASS_RING_KEEPS_EVERY_LAYER = "goop_held_into_a_glass_ring_keeps_every_layer_paid_for";
+    /** A one-block hollow six blocks east of the streamer, in the floor's row, ringed by glass. */
+    private static final BlockPos HOLLOW = new BlockPos(6, 1, 8);
+    private static final String DRIPS_UNLANDED = "Each of the %d drips the hold threw should stand as a layer,"
+            + " %d layers stand";
+    private static final String LAYERS_UNPAID = "The %d layers of slime standing should cost %s, the weird goo"
+            + " drained, %d mb";
     /** The wall Goop is held at, four blocks east of the streamer. */
     private static final int WALL_EAST = 4;
     private static final int WALL_HEIGHT = 5;
@@ -132,6 +140,8 @@ public final class GoopArcTests {
         GooTestFunctions.registerTest(registrar, HELD_AT_A_WALL, GoopArcTests::goopHeldAtAWallLeavesAFilm);
         GooTestFunctions.registerTest(registrar, DRIP_ON_A_WALL_COSTS, GoopArcTests::goopDripOnAWallCostsOneLayer);
         GooTestFunctions.registerTest(registrar, FILM_DROPS_ITS_LAYER, GoopArcTests::goopFilmDropsItsLayerWhenItsWallBreaks);
+        GooTestFunctions.registerTest(registrar, GLASS_RING_KEEPS_EVERY_LAYER,
+                GoopArcTests::goopHeldIntoAGlassRingKeepsEveryLayerPaidFor);
     }
 
     /**
@@ -462,6 +472,61 @@ public final class GoopArcTests {
             helper.assertTrue(weird == owed, String.format(FILM_DROP_WRONG, owed, weird));
             helper.succeed();
         });
+    }
+
+    /**
+     * A streamer holds Goop aimed into a one-block hollow in a stone floor
+     * ringed by eight glass blocks: once every drip has landed and every
+     * runny layer has come down, the layers of fill, film and runny goo
+     * standing in the test, times one layer's price, come to the weird goo
+     * the streamer's gauge lost, and number the drips the hold threw, so no
+     * struck drip vanished and no paid layer either.
+     * runny-goo-runs-down-the-wall-to-the-first-top-below
+     * drip-striking-a-side-sticks-or-runs-by-adhesion
+     *
+     * @param helper the gametest helper
+     */
+    public static void goopHeldIntoAGlassRingKeepsEveryLayerPaidFor(GameTestHelper helper) {
+        BlockPos floor = LEVEL_STREAMER_POS.below();
+        layFloor(helper, floor.getY(), floor.getZ());
+        for (int east = -1; east <= 1; east++) {
+            for (int south = -1; south <= 1; south++) {
+                helper.setBlock(HOLLOW.offset(east, 0, south), east == 0 && south == 0 ? Blocks.AIR : Blocks.GLASS);
+            }
+        }
+        ServerPlayer streamer = goopStreamerAt(helper, LEVEL_STREAMER_POS, LEVEL);
+        DripAim.at(streamer, Vec3.atBottomCenterOf(helper.absolutePos(HOLLOW)), goop(helper).delivery().throwSpeed());
+        int before = weirdHeld(streamer);
+        holdGoopFor(helper, streamer, SPRAY_HOLD_TICKS);
+        helper.runAfterDelay(SPRAY_HOLD_TICKS + FALL_TICKS, () -> {
+            int drained = before - weirdHeld(streamer);
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
+            int layers = layersStandingIn(helper);
+            int thrown = SPRAY_HOLD_TICKS * goop(helper).delivery().dripsPerTick();
+            GooFraction paid = ResidualPrices.layerPrice(helper).times(layers);
+            helper.assertTrue(layers == thrown, String.format(DRIPS_UNLANDED, thrown, layers));
+            helper.assertTrue(paid.ceiling() == drained, String.format(LAYERS_UNPAID, layers, paid, drained));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Every layer of slime standing in the test's bounds: each cell's fill and its sides' layers.
+     *
+     * @param helper the gametest helper
+     * @return the layers
+     */
+    private static int layersStandingIn(GameTestHelper helper) {
+        AABB bounds = helper.getBounds();
+        int layers = 0;
+        for (BlockPos pos : BlockPos.betweenClosed(BlockPos.containing(bounds.minX, bounds.minY, bounds.minZ),
+                BlockPos.containing(bounds.maxX - 1, bounds.maxY - 1, bounds.maxZ - 1))) {
+            BlockState state = helper.getLevel().getBlockState(pos);
+            if (state.is(GooBlocks.SLIME_COAT.get())) {
+                layers += VolumeCellBlock.layersHeldIn(state);
+            }
+        }
+        return layers;
     }
 
     private static void assertFilmFacingEast(GameTestHelper helper, BlockPos cell) {

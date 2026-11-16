@@ -36,6 +36,8 @@ class VolumeCellFilmTest {
     private static final BlockPos CELL = new BlockPos(4, 64, 4);
     private static final float ONE_LAYER = 1f / VolumeCellBlock.MAX_LAYERS;
     private static final float EPSILON = 1e-5f;
+    /** How near its wall a streak lies: within the edge drips' hair, a fraction of a layer. */
+    private static final float STREAK_REACH = 0.25f / 16f;
 
     private final BakedQuad.MaterialInfo film = new BakedQuad.MaterialInfo(mock(TextureAtlasSprite.class),
             ChunkSectionLayer.TRANSLUCENT, null, 0, true, 0, false);
@@ -63,14 +65,41 @@ class VolumeCellFilmTest {
         assertTrue(outerFace, wall + " film should face out of its wall one layer out");
     }
 
+    /**
+     * A runny side draws a streak flat on its wall's plane, a hair out from
+     * it as the edge drips stand, in the drips' texture, the goo's fluid
+     * sprite under the shell tint (decision runny-goo-runs-down-the-wall-to-the-first-top-below).
+     */
+    @ParameterizedTest
+    @EnumSource(value = Direction.class, names = {"NORTH", "EAST", "SOUTH", "WEST"})
+    void aRunnySideDrawsAStreakOnItsWall(Direction wall) {
+        List<BakedQuad> quads = quadsOf(wall, SideCoat.RUNNY);
+
+        assertFalse(quads.isEmpty(), "a runny side on the " + wall + " wall draws nothing");
+        float plane = wall.getAxisDirection() == Direction.AxisDirection.POSITIVE ? 1f : 0f;
+        for (BakedQuad quad : quads) {
+            assertEquals(film, quad.materialInfo(), "the streak draws in the drips' texture");
+            assertEquals(wall.getOpposite(), quad.direction(), "the streak faces out of its wall");
+            for (int vertex = 0; vertex < 4; vertex++) {
+                float at = coordinateOn(wall.getAxis(), quad.position(vertex));
+                assertTrue(Math.abs(at - plane) < STREAK_REACH && Math.abs(at - plane) > 0,
+                        wall + " streak at " + at + " should lie on the wall's plane " + plane + ", clear of it");
+            }
+        }
+    }
+
     private List<BakedQuad> filmQuadsOf(Direction wall) {
+        return quadsOf(wall, SideCoat.FILM);
+    }
+
+    private List<BakedQuad> quadsOf(Direction wall, SideCoat coat) {
         VolumeCellBlock goo = mock(VolumeCellBlock.class);
         BlockState state = mock(BlockState.class);
         when(state.getBlock()).thenReturn(goo);
         when(state.is(goo)).thenReturn(true);
         when(state.getValue(VolumeCellBlock.LAYERS)).thenReturn(0);
         for (Direction side : Direction.Plane.HORIZONTAL) {
-            when(state.getValue(VolumeCellBlock.coatProperty(side))).thenReturn(side == wall ? SideCoat.FILM
+            when(state.getValue(VolumeCellBlock.coatProperty(side))).thenReturn(side == wall ? coat
                     : SideCoat.BARE);
         }
         BlockAndTintGetter level = mock(BlockAndTintGetter.class);

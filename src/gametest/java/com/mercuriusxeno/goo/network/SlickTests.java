@@ -190,6 +190,16 @@ public final class SlickTests {
             + " changed on ticks %s, slime on ticks %s";
     private static final String SLICK_MOUND_LEVELS = "slick_mound_levels_on_open_floor";
     private static final String ONE_SLICK_LAYER_RUNS_OFF = "one_slick_layer_runs_off_a_drop";
+    private static final String SLICK_RUNS_TO_THE_FOOT = "slick_held_at_a_wall_runs_to_its_foot";
+    /**
+     * The wall Slick is held at, two blocks east of the streamer, so a level
+     * hold's drips strike its side before any falls to the floor, and its
+     * foot holds only goo that ran down it.
+     */
+    private static final int RUN_WALL_EAST = 2;
+    private static final int RUN_WALL_HEIGHT = 3;
+    private static final String NOT_RUN_DOWN = "Slick held at a wall should end as fill at its foot and open air"
+            + " above: the foot cells hold %s layers, goo stands above at %s";
     /** The open floor's middle cell the mound test raises, clear of the streamer's stand. */
     private static final BlockPos MOUND_CELL = new BlockPos(3, 1, 3);
     /** The drips landed on the mound's cell. */
@@ -1011,6 +1021,52 @@ public final class SlickTests {
         GooTestFunctions.registerTest(registrar, STEPS_UP_IN_THE_AIR, SlickTests::slickStepsAFallingSliderUpOntoARaisedCell);
         GooTestFunctions.registerTest(registrar, SLICK_MOUND_LEVELS, SlickTests::slickMoundLevelsOnOpenFloor);
         GooTestFunctions.registerTest(registrar, ONE_SLICK_LAYER_RUNS_OFF, SlickTests::oneSlickLayerRunsOffADrop);
+        GooTestFunctions.registerTest(registrar, SLICK_RUNS_TO_THE_FOOT, SlickTests::slickHeldAtAWallRunsToItsFoot);
+    }
+
+    /**
+     * A streamer on a stone floor holds Slick level at a stone wall three
+     * blocks tall two blocks east, near enough that its drips strike the
+     * wall's side before any reaches the floor: Slick clings to nothing, so every drip striking the wall
+     * runs down it, and once the drips have come down the cells at the
+     * wall's foot hold Slick's fill while every cell above them against the
+     * wall stands open.
+     * runny-goo-runs-down-the-wall-to-the-first-top-below
+     * drip-striking-a-side-sticks-or-runs-by-adhesion
+     *
+     * @param helper the gametest helper
+     */
+    public static void slickHeldAtAWallRunsToItsFoot(GameTestHelper helper) {
+        for (int east = 0; east <= RUN_WALL_EAST; east++) {
+            for (int off = -REACH_ROWS; off <= REACH_ROWS; off++) {
+                helper.setBlock(FAR_STREAMER_POS.below().east(east).south(off), Blocks.STONE);
+                for (int up = 1; up <= RUN_WALL_HEIGHT; up++) {
+                    helper.setBlock(FAR_STREAMER_POS.below().east(east).south(off).above(up),
+                            east == RUN_WALL_EAST ? Blocks.STONE : Blocks.AIR);
+                }
+            }
+        }
+        ServerPlayer streamer = slickStreamerAt(helper, FAR_STREAMER_POS);
+        streamer.setYRot(FACING_EAST);
+        streamer.setXRot(0);
+        holdSlickFor(helper, streamer, REACH_HOLD_TICKS);
+        helper.runAfterDelay(REACH_HOLD_TICKS + FALL_TICKS, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
+            List<Integer> foot = new ArrayList<>();
+            List<BlockPos> above = new ArrayList<>();
+            for (int off = -REACH_ROWS; off <= REACH_ROWS; off++) {
+                BlockPos atTheFoot = FAR_STREAMER_POS.east(RUN_WALL_EAST - 1).south(off);
+                foot.add(VolumeCellBlock.layersOf(helper.getBlockState(atTheFoot)));
+                for (int up = 1; up < RUN_WALL_HEIGHT; up++) {
+                    if (!helper.getBlockState(atTheFoot.above(up)).isAir()) {
+                        above.add(atTheFoot.above(up));
+                    }
+                }
+            }
+            helper.assertTrue(foot.stream().anyMatch(layers -> layers > 0) && above.isEmpty(),
+                    String.format(NOT_RUN_DOWN, foot, above));
+            helper.succeed();
+        });
     }
 
     /**
