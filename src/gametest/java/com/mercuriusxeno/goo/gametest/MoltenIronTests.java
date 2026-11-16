@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.golem.IronGolem;
@@ -11,6 +12,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
@@ -18,9 +20,10 @@ import java.util.function.Consumer;
 /**
  * Gametests for molten iron, lunar's core liquid: it spreads as lava does; water cools a source of it to iron core
  * and flowing molten iron to anorthosite, as water cools lava to obsidian and cobblestone; and it burns what stands
- * in it harder and longer than lava; and a mob falls and jumps in it as in lava.
+ * in it harder and longer than lava; a mob falls and jumps in it as in lava; and a camera reads it as lava.
  * decision lunar-matter-is-anorthosite-basalt-regolith-and-an-iron-core
  * decision diagnose-and-correct-molten-iron-moving-you-as-open-air-does
+ * decision diagnose-and-correct-molten-iron-showing-no-in-lava-view
  */
 @RegistersGameTests
 public final class MoltenIronTests {
@@ -86,7 +89,12 @@ public final class MoltenIronTests {
             "A mob jumping in molten iron should rise as in lava: molten iron %.4f, lava %.4f, ground jump %.4f";
     private static final String SHOULD_RISE_SLOWER_THAN_GROUND_JUMP =
             "A mob jumping in molten iron should rise slower than its jump from the ground: molten iron %.4f, ground %.4f";
-    private static final String SHOULD_FLOW = "Molten iron should spread beside its source to %s, reads %s";
+    private static final String MOLTEN_IRON_READS_AS_LAVA_TO_THE_CAMERA = "molten_iron_reads_as_lava_to_the_camera";
+    private static final BlockPos CAMERA_IN_SOURCE = new BlockPos(1, LIQUID_Y, 1);
+    private static final BlockPos CAMERA_IN_FLOW = new BlockPos(4, LIQUID_Y, 4);
+    private static final String SHOULD_READ_AS_LAVA = "A camera in molten iron at %s should read lava: %s, lava tag %b,"
+            + " surface %.3f above camera %.3f";
+    private static final String SHOULD_FLOW ="Molten iron should spread beside its source to %s, reads %s";
     private static final String SHOULD_COOL = "Water should cool molten iron at %s to %s, reads %s";
     private static final String SHOULD_HURT_MORE = "Molten iron should hurt harder than lava: lava took %.1f, molten iron %.1f";
     private static final String SHOULD_BURN_LONGER = "Molten iron should set a longer fire than lava: lava %d ticks, molten iron %d";
@@ -108,6 +116,36 @@ public final class MoltenIronTests {
                 MoltenIronTests::moltenIronSlowsAFallAsLavaDoes);
         GooTestFunctions.registerTest(registrar, MOLTEN_IRON_JUMP_RISES_AS_IN_LAVA,
                 MoltenIronTests::moltenIronJumpRisesAsInLava);
+        GooTestFunctions.registerTest(registrar, MOLTEN_IRON_READS_AS_LAVA_TO_THE_CAMERA,
+                MoltenIronTests::moltenIronReadsAsLavaToTheCamera);
+    }
+
+    /**
+     * A source and a flowing molten iron block each answer what Camera.getFluidInCamera reads to answer FogType.LAVA:
+     * a fluid in the {@code minecraft:lava} tag whose surface stands above a point inside the block. A camera there
+     * takes lava's fog through LavaFogEnvironment.
+     * decision diagnose-and-correct-molten-iron-showing-no-in-lava-view
+     *
+     * @param helper the gametest helper
+     */
+    public static void moltenIronReadsAsLavaToTheCamera(GameTestHelper helper) {
+        layStoneFloor(helper);
+        helper.setBlock(CAMERA_IN_SOURCE, GooBlocks.MOLTEN_IRON.get());
+        helper.setBlock(CAMERA_IN_FLOW, GooBlocks.MOLTEN_IRON.get().defaultBlockState()
+                .setValue(LiquidBlock.LEVEL, ONE_STEP_OUT));
+        assertReadsAsLavaToTheCamera(helper, CAMERA_IN_SOURCE);
+        assertReadsAsLavaToTheCamera(helper, CAMERA_IN_FLOW);
+        helper.succeed();
+    }
+
+    /** Camera.getFluidInCamera's lava test, at a camera point halfway up the block. */
+    private static void assertReadsAsLavaToTheCamera(GameTestHelper helper, BlockPos pos) {
+        BlockPos absolute = helper.absolutePos(pos);
+        FluidState fluid = helper.getLevel().getFluidState(absolute);
+        double surface = absolute.getY() + fluid.getHeight(helper.getLevel(), absolute);
+        double cameraY = absolute.getY() + CELL_MIDDLE;
+        helper.assertTrue(fluid.is(FluidTags.LAVA) && cameraY <= surface,
+                String.format(SHOULD_READ_AS_LAVA, pos, fluid, fluid.is(FluidTags.LAVA), surface, cameraY));
     }
 
     /**
