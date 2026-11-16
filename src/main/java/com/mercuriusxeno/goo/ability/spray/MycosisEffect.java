@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.ability.spray;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.LingeringAppliers;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.effect.MobEffect;
@@ -41,12 +43,15 @@ public final class MycosisEffect extends MobEffect {
     }
 
     /**
-     * Takes a point of health, leaving the last.
+     * Takes a point of health, leaving the last, as magic naming the player
+     * who applied the spore poison.
      */
     @Override
     public boolean applyEffectTick(ServerLevel level, LivingEntity entity, int amplifier) {
         if (entity.getHealth() > DAMAGE_PER_BEAT) {
-            entity.hurtServer(level, entity.damageSources().magic(), DAMAGE_PER_BEAT);
+            // lingering-goo-effect-credits-whoever-applied-it, goo-hit-keeps-its-kind-and-names-the-player-behind-it
+            entity.hurtServer(level, LingeringAppliers.credit(level, entity.damageSources().magic(), entity,
+                    BuiltInRegistries.MOB_EFFECT.getKey(this)), DAMAGE_PER_BEAT);
         }
         return true;
     }

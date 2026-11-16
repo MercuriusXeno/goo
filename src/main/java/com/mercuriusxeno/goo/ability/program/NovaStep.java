@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.ability.frost.FrostCurve;
 import com.mercuriusxeno.goo.ability.frost.FrozenEvents;
 import com.mercuriusxeno.goo.network.EntityVisuals;
@@ -99,15 +100,19 @@ public record NovaStep(Expr radius, Expr amount, float crowd, float push, FrostC
         float hurt = damage.evaluateFloat(context);
         FrostHost host = context.hostAs(FrostHost.class);
         Vec3 center = host.frostCenter();
-        List<LivingEntity> struck = new ArrayList<>();
-        host.forEachEntityWithin(SelectionShape.SPHERE, reach, AROUND_THE_HOST, selected -> struck.add(selected.target()));
+        List<TargetHost> struck = new ArrayList<>();
+        host.forEachEntityWithin(SelectionShape.SPHERE, reach, AROUND_THE_HOST, struck::add);
         float each = freeze * crowdShare(crowd, struck.size());
-        for (LivingEntity living : struck) {
+        for (TargetHost selected : struck) {
+            LivingEntity living = selected.target();
             if (living instanceof Mob mob) {
                 FrozenEvents.freeze(mob, each, curve);
             }
             if (hurt > 0f) {
-                living.hurtServer(host.level(), host.level().damageSources().freeze(), hurt);
+                // direct-goo-hit-credits-its-caster
+                // goo-hit-keeps-its-kind-and-names-the-player-behind-it
+                living.hurtServer(host.level(),
+                        GooHitCredit.credit(host.level().damageSources().freeze(), living, selected.thrower()), hurt);
             }
             living.knockback(push, center.x - living.getX(), center.z - living.getZ());
         }
