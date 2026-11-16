@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.HostStep;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
@@ -9,12 +10,16 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -33,6 +38,9 @@ public final class HostTests {
     private static final BlockPos OVER_THE_FLOOR = FLOOR.above();
     private static final String ABILITY_REQUIRED = "The ability registry must hold deep_host";
     private static final String LAYERS_WRONG = "The cell over the stone should hold one layer of Host, stands %s";
+    private static final String CHARGE_TURNS_THE_STONE = "host_charge_turns_the_stone_under_it";
+    private static final String NOT_SCULK = "The stone under the Host cell should be sculk, stands %s";
+    private static final String LAYERS_LEFT_WRONG = "The Host cell should stand at %s layers, stands %s";
 
     private HostTests() {
     }
@@ -44,6 +52,41 @@ public final class HostTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, HOST_DRIP_LAYS_A_CELL, HostTests::hostDripLaysACellOnStone);
+        GooTestFunctions.registerTest(registrar, CHARGE_TURNS_THE_STONE, HostTests::chargeCrossingHostTurnsTheStoneUnderIt);
+    }
+
+    /**
+     * A sculk charge from a catalyst crossing a full Host cell turns the stone
+     * under the cell to sculk, and the cell stands lower by the layers Host's
+     * step names a block of sculk spends. The cell stands walled on three
+     * sides and against the catalyst on the fourth, so it cannot pour; a
+     * zombie killed on top of it starts the catalyst's charge there.
+     * sculk-charge-runs-along-host-goo-without-weakening
+     *
+     * @param helper the gametest helper
+     */
+    public static void chargeCrossingHostTurnsTheStoneUnderIt(GameTestHelper helper) {
+        AbilityDefinition host = AbilityRegistry.of(helper.getLevel()).getAbility(HOST);
+        helper.assertTrue(host != null, ABILITY_REQUIRED);
+        int sculkLayers = HostStep.in(host.behaviors()).orElseThrow().sculkLayers();
+        helper.setBlock(FLOOR, Blocks.STONE);
+        helper.setBlock(FLOOR.west(), Blocks.STONE);
+        helper.setBlock(OVER_THE_FLOOR.west(), Blocks.SCULK_CATALYST);
+        for (Direction side : List.of(Direction.EAST, Direction.NORTH, Direction.SOUTH)) {
+            helper.setBlock(OVER_THE_FLOOR.relative(side), Blocks.STONE);
+        }
+        helper.setBlock(OVER_THE_FLOOR, GooBlocks.DEEP_HOST.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
+        Zombie zombie = helper.spawn(EntityType.ZOMBIE, OVER_THE_FLOOR.above());
+        zombie.kill(helper.getLevel());
+        helper.succeedWhen(() -> {
+            BlockState under = helper.getBlockState(FLOOR);
+            helper.assertTrue(under.is(Blocks.SCULK), String.format(NOT_SCULK, under));
+            BlockState cell = helper.getBlockState(OVER_THE_FLOOR);
+            boolean spent = cell.is(GooBlocks.DEEP_HOST.get())
+                    && cell.getValue(VolumeCellBlock.LAYERS) == VolumeCellBlock.MAX_LAYERS - sculkLayers;
+            helper.assertTrue(spent, String.format(LAYERS_LEFT_WRONG, VolumeCellBlock.MAX_LAYERS - sculkLayers, cell));
+        });
     }
 
     /**
