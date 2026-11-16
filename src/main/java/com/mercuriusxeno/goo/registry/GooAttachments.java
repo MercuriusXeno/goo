@@ -182,6 +182,15 @@ public final class GooAttachments {
                             .serialize(Codec.BOOL.fieldOf("laid"), laid -> laid).build());
 
     /**
+     * The game time Leech goo last slowed an entity, so a thing caught by
+     * several cells or by both of a cell's hooks in one tick is slowed once,
+     * as soul sand slows it once a move; never saved.
+     * leech-goo-slows-the-way-soul-sand-does
+     */
+    public static final Supplier<AttachmentType<Long>> LEECH_SLOWED_AT =
+            ATTACHMENT_TYPES.register("leech_slowed_at", () -> AttachmentType.builder(() -> -1L).build());
+
+    /**
      * Where an entity stood before its latest goo teleport, kept for the
      * steps after the teleport in the same program, a ghost trail among
      * them, and never saved (decision ghost-trail-spans-the-blink).

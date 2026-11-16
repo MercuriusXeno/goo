@@ -698,7 +698,7 @@ public class VolumeCellBlock extends Block {
             ShatterStep.in(layingProgram(level)).ifPresent(shatter -> ShatterCut.cut(server, pos, state, entity,
                     shatter));
         }
-        catchIn(level, pos, state, entity);
+        catchIn(level, entity);
         super.stepOn(level, pos, state, entity);
     }
 
@@ -711,24 +711,24 @@ public class VolumeCellBlock extends Block {
     protected void entityInside(@NonNull BlockState state, @NonNull Level level, @NonNull BlockPos pos,
                                 @NonNull Entity entity, @NonNull InsideBlockEffectApplier effects,
                                 boolean pastEdges) {
-        catchIn(level, pos, state, entity);
+        catchIn(level, entity);
     }
 
     /**
      * Catches a thing on a slowing cell by its laying ability's leech goo
-     * step: slows it by the step's speed factor, as a cobweb or a berry bush
-     * slows what moves through it, on both sides since the client moves its
-     * own player. The goo's spirits deal no damage.
+     * step: slows its horizontal motion by the step's speed factor once a
+     * tick, as soul sand does, momentum carried and a fall harming as on any
+     * block, on both sides since the client moves its own player. The goo's
+     * spirits deal no damage.
      * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
+     * leech-goo-slows-the-way-soul-sand-does
      *
      * @param level  the level the cell stands in
-     * @param pos    the cell
-     * @param state  the cell's state
      * @param entity the thing caught
      */
-    private void catchIn(Level level, BlockPos pos, BlockState state, Entity entity) {
+    private void catchIn(Level level, Entity entity) {
         if (surface().slows()) {
-            LeechGooStep.in(layingProgram(level)).ifPresent(leech -> entity.makeStuckInBlock(state, leech.slowing()));
+            LeechGooStep.in(layingProgram(level)).ifPresent(leech -> LeechSlow.slowOnce(level, entity, leech));
         }
     }
 

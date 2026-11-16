@@ -6,7 +6,6 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.phys.Vec3;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -65,16 +64,6 @@ public record LeechGooStep(double speedFactor, float drainFraction, double deple
      */
     public static Optional<LeechGooStep> in(List<Step> program) {
         return program.stream().filter(LeechGooStep.class::isInstance).map(LeechGooStep.class::cast).findFirst();
-    }
-
-    /**
-     * The multiplier a thing caught in Leech goo moves under: its horizontal
-     * speed by the speed factor, its rise and fall untouched.
-     *
-     * @return the movement multiplier
-     */
-    public Vec3 slowing() {
-        return new Vec3(speedFactor, 1.0, speedFactor);
     }
 
     @Override
