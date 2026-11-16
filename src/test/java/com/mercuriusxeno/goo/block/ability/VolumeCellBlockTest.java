@@ -106,8 +106,9 @@ class VolumeCellBlockTest {
         /** molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava: Molten alone pools on lava */
         @Test
         void moltenAlonePoolsOnLava() {
-            assertEquals(List.of(false, false, true), List.of(CellBinding.SLIME.liesOnLava(),
-                    CellBinding.SLICK.liesOnLava(), CellBinding.MOLTEN.liesOnLava()));
+            assertEquals(List.of(FluidFooting.NONE, FluidFooting.NONE, FluidFooting.LAVA),
+                    List.of(CellBinding.SLIME.fluidFooting(), CellBinding.SLICK.fluidFooting(),
+                            CellBinding.MOLTEN.fluidFooting()));
         }
 
         /**

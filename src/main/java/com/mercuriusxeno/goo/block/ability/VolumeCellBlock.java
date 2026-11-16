@@ -327,7 +327,7 @@ public class VolumeCellBlock extends Block {
         BlockPos under = pos.below();
         BlockState footing = level.getBlockState(under);
         return footing.isFaceSturdy(level, under, Direction.UP)
-                || binding.liesOnLava() && footing.is(Blocks.LAVA) && footing.getFluidState().isSource();
+                || binding.fluidFooting().liesOn(footing);
     }
 
     @Override

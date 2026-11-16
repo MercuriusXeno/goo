@@ -401,13 +401,14 @@ public final class GooClientSetup {
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.SLICK_SLIME_BLUES));
         event.registerSpriteSet(GooParticles.MOLTEN_SPRAY_DRIP.get(),
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.MOLTEN_BLAZE_ORANGES,
-                        CellBinding.MOLTEN.liesOnLava()));
+                        CellBinding.MOLTEN.fluidFooting()));
         event.registerSpriteSet(GooParticles.SHATTER_SPRAY_DRIP.get(),
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.SHATTER_CRYSTAL_BLUES));
         event.registerSpriteSet(GooParticles.HOST_SPRAY_DRIP.get(),
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.HOST_DEEP_TEALS));
         event.registerSpriteSet(GooParticles.RIME_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.RIME_FROST_BLUES));
+                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.RIME_FROST_BLUES,
+                        CellBinding.RIME.fluidFooting()));
     }
 
     /**

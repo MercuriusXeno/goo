@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.throwing;
 
+import com.mercuriusxeno.goo.block.ability.FluidFooting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.tags.FluidTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.ClipContext;
@@ -93,20 +93,23 @@ public final class CoatRay {
     }
 
     /**
-     * The clip a level's blocks make for a drip that lands on lava: a lava
-     * source stops it at the lava's surface, struck from above, where the
-     * level's own clip passes every fluid through.
+     * The clip a level's blocks make for a drip that lands on fluids: a
+     * source of a fluid its footing names stops it at the fluid's surface,
+     * struck from above, where the level's own clip passes every fluid
+     * through.
      * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+     * rime-drips-stop-at-a-water-or-lava-surface
      *
-     * @param level the blocks
-     * @return the level's clip, lava sources stopping it
+     * @param level   the blocks
+     * @param footing the fluid sources the drip stops at
+     * @return the level's clip, those sources stopping it
      */
-    public static BlockClip clippingAtLava(BlockGetter level) {
+    public static BlockClip clippingAtFluids(BlockGetter level, FluidFooting footing) {
         BlockClip blocks = clipping(level);
         return (from, to) -> {
             BlockHitResult hit = level.clip(new ClipContext(from, to, ClipContext.Block.OUTLINE,
                     ClipContext.Fluid.SOURCE_ONLY, CollisionContext.empty()));
-            if (hit.getType() == HitResult.Type.BLOCK && level.getFluidState(hit.getBlockPos()).is(FluidTags.LAVA)) {
+            if (hit.getType() == HitResult.Type.BLOCK && footing.stopsAt(level.getFluidState(hit.getBlockPos()))) {
                 return Optional.of(new BlockStrike(hit.getLocation(), hit.getBlockPos(), hit.getDirection()));
             }
             return blocks.firstHit(from, to);
@@ -114,16 +117,18 @@ public final class CoatRay {
     }
 
     /**
-     * The clip a spray's drips fly through: one stopping at lava sources for
-     * a drip that lands on lava, the level's own clip for any other.
+     * The clip a spray's drips fly through: one stopping at the fluid
+     * sources the drip's footing names, the level's own clip for a drip that
+     * stops at none.
      * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+     * rime-drips-stop-at-a-water-or-lava-surface
      *
-     * @param level      the blocks
-     * @param landsOnLava whether the drip lands on a lava source's surface
+     * @param level   the blocks
+     * @param footing the fluid sources the drip stops at
      * @return the clip the drip flies through
      */
-    public static BlockClip clippingFor(BlockGetter level, boolean landsOnLava) {
-        return landsOnLava ? clippingAtLava(level) : clipping(level);
+    public static BlockClip clippingFor(BlockGetter level, FluidFooting footing) {
+        return footing.stopsAtAnyFluid() ? clippingAtFluids(level, footing) : clipping(level);
     }
 
     /**

@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.block.ability.CellBinding;
+import com.mercuriusxeno.goo.block.ability.FluidFooting;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.throwing.CoatRay;
@@ -107,6 +109,16 @@ public record RimeStep(int reach, int chillTicks, int layersPerFreeze, int freez
     @Override
     public void feed(ChannelHost host, BlockPos cell) {
         CellLanding.feed(host, cell, GooBlocks.FROST_RIME.get());
+    }
+
+    /**
+     * Rime's drips strike a water or lava source at its surface, where the
+     * cell they lay freezes it.
+     * rime-drips-stop-at-a-water-or-lava-surface
+     */
+    @Override
+    public FluidFooting fluidFooting() {
+        return CellBinding.RIME.fluidFooting();
     }
 
     @Override
