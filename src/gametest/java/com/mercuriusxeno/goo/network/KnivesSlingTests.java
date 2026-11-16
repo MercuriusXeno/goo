@@ -15,7 +15,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.RandomSource;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.Blocks;
@@ -58,10 +59,10 @@ public final class KnivesSlingTests {
             new BlockPos(10, 1, 8));
     /** Facing south, down the bay toward the husks. */
     private static final float FACING_SOUTH = 0f;
-    /** A fixed scatter, so the rain falls the same each run. */
-    private static final long SCATTER_SEED = 11L;
     private static final String ABILITY_REQUIRED = "Ability registry must hold crystal_knives";
     private static final String SHOULD_RAIN = "The rain should strike every husk across the area, struck %s of %s";
+    private static final String SHOULD_BE_THE_THROWERS_ATTACK = "Every knife should strike as the caster's own"
+            + " attack, struck so by %s of %s";
     private static final String FIELD_COST = "cost";
     /** A cost of 12 1/2 mB, written as the decimal an ability file may write. */
     private static final double TWELVE_AND_A_HALF = 12.5;
@@ -73,7 +74,9 @@ public final class KnivesSlingTests {
 
     /**
      * A mock player holds crystal_knives to a full charge and lets go facing
-     * three husks spread across the area ahead: the rain strikes all three.
+     * three husks spread across the area ahead: the rain strikes all three,
+     * each knife as the caster's own attack.
+     * decision knives-deal-the-throwers-attack-damage
      *
      * @param helper the gametest helper
      */
@@ -91,12 +94,14 @@ public final class KnivesSlingTests {
         helper.assertTrue(knives != null, ABILITY_REQUIRED);
         KnownRecipes.teachRequires(caster, knives);
 
-        KnifeRainSling.sling(caster, GooTypes.CRYSTAL, knives, knives.delivery().chargeTicks(),
-                RandomSource.create(SCATTER_SEED));
+        KnifeRainSling.sling(caster, GooTypes.CRYSTAL, knives, knives.delivery().chargeTicks());
 
         helper.succeedWhen(() -> {
             long struck = husks.stream().filter(husk -> husk.getHealth() < husk.getMaxHealth()).count();
             helper.assertTrue(struck == husks.size(), String.format(SHOULD_RAIN, struck, husks.size()));
+            long struckByTheCaster = husks.stream().filter(husk -> struckByTheThrower(husk, caster)).count();
+            helper.assertTrue(struckByTheCaster == husks.size(),
+                    String.format(SHOULD_BE_THE_THROWERS_ATTACK, struckByTheCaster, husks.size()));
             helper.getLevel().getServer().getPlayerList().remove(caster);
         });
     }
@@ -119,8 +124,7 @@ public final class KnivesSlingTests {
         GooFraction[] banked = {GooFraction.of(1, 2), GooFraction.ZERO};
         for (int release = 0; release < took.length; release++) {
             int before = crystalHeld(caster);
-            KnifeRainSling.sling(caster, GooTypes.CRYSTAL, halved, halved.delivery().chargeTicks(),
-                    RandomSource.create(SCATTER_SEED));
+            KnifeRainSling.sling(caster, GooTypes.CRYSTAL, halved, halved.delivery().chargeTicks());
             int spent = before - crystalHeld(caster);
             GooFraction kept = GooCapabilities.remainderLedgerOf(caster).remainders().of(GooTypes.CRYSTAL);
             helper.assertTrue(spent == took[release] && kept.equals(banked[release]),
@@ -136,6 +140,12 @@ public final class KnivesSlingTests {
         JsonObject file = codec.encodeStart(JsonOps.INSTANCE, ability).getOrThrow().getAsJsonObject();
         file.addProperty(FIELD_COST, cost);
         return codec.parse(JsonOps.INSTANCE, file).getOrThrow();
+    }
+
+    // A player attack is the type armor takes its share of and the kill is credited by.
+    private static boolean struckByTheThrower(Mob husk, ServerPlayer caster) {
+        DamageSource last = husk.getLastDamageSource();
+        return last != null && last.getEntity() == caster && last.is(DamageTypes.PLAYER_ATTACK);
     }
 
     private static int crystalHeld(ServerPlayer player) {

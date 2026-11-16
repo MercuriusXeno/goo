@@ -679,7 +679,7 @@ public final class FrostAbilityTests {
 
     private static void release(ServerPlayer caster, int heldTicks) {
         GooThrowHandler.releaseCharge(caster,
-                new GooChargePayload(GooTypes.id(GooTypes.FROST), FROST_NOVA.toString(), heldTicks, 0L));
+                new GooChargePayload(GooTypes.id(GooTypes.FROST), FROST_NOVA.toString(), heldTicks));
     }
 
     private static ServerPlayer caster(GameTestHelper helper) {
