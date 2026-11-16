@@ -1,27 +1,34 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.block.ability.CellBinding;
+import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Blaze's Molten: the struck stone becomes a lava source as the blob sinks
- * into it, and the aim refuses any block the tag leaves out, so a throw at
- * one is never sent nor paid for: {@code melt tag=goo:meltable}.
+ * Blaze's Molten block step: Blaze's molten goo lands where each of the
+ * stream's drips strikes, one layer for each drip, through the volume cell's
+ * one landing, as Goop lays its slime and Slick its slick; a drip striking a
+ * lava source lays its layer on the lava's surface, where the goo pools. The
+ * tag names the stone the goo stands over to melt:
+ * {@code molten tag=goo:meltable}.
+ * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
  * melt-blob-absorbs-into-lava
- * <p>
- * The operator's rulings (idea melt-rulings): the natural stones melt; the
- * blob sinks in while the stone mingles into lava, one transition and no
- * burnout; the lava bucket's pour sounds.
+ * slime-and-slick-are-one-volume-cell-tech
+ * drip-creates-a-volume-cell-immediately
+ * drip-on-a-standing-cell-increases-it
  *
  * @param meltable the blocks that melt
  */
-public record MoltenStep(TagKey<Block> meltable) implements TargetGatedStep {
+public record MoltenStep(TagKey<Block> meltable) implements TakesNoEntity, DripLanding {
 
     private static final String NAME = "molten";
     private static final String FIELD_TAG = "tag";
@@ -43,15 +50,34 @@ public record MoltenStep(TagKey<Block> meltable) implements TargetGatedStep {
         return TYPE;
     }
 
+    /**
+     * Runs nothing on the hold's tick: the stream's drips lay the molten goo as they strike.
+     *
+     * @param context the step's context
+     * @return true, the step never fails
+     */
     @Override
     public boolean tick(StepContext context) {
-        context.hostAs(MoltenHost.class).melt(meltable);
         return true;
     }
 
     @Override
-    public boolean admitsStruck(BlockState struck) {
-        return struck.is(meltable);
+    public Optional<BlockPos> cellFed(ChannelHost host, CoatRay.BlockStrike strike) {
+        return CellLanding.cellFed(host, strike, GooBlocks.BLAZE_MOLTEN.get());
+    }
+
+    @Override
+    public void feed(ChannelHost host, BlockPos cell) {
+        CellLanding.feed(host, cell, GooBlocks.BLAZE_MOLTEN.get());
+    }
+
+    /**
+     * Molten's drips strike a lava source at its surface, where the goo pools.
+     * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+     */
+    @Override
+    public boolean landsOnLava() {
+        return CellBinding.MOLTEN.liesOnLava();
     }
 
     @Override
@@ -61,6 +87,6 @@ public record MoltenStep(TagKey<Block> meltable) implements TargetGatedStep {
 
     @Override
     public Set<HostCapability> requires() {
-        return Set.of(HostCapability.MOLTEN);
+        return Set.of(HostCapability.CHANNEL);
     }
 }

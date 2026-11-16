@@ -9,8 +9,10 @@ import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.SlimeFlow.Side;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
@@ -45,7 +47,8 @@ import java.util.Optional;
  * bound to a goo type by a CellBinding: a plain block holding one to fifteen
  * layers in its block state, with no block entity, drawn as height like snow
  * layers, laid on a block's top with the block under it unchanged and
- * showing through. Each landed drip adds a layer, and a cell taller than a
+ * showing through, or, for a goo its binding pools on lava, on a lava
+ * source's surface. Each landed drip adds a layer, and a cell taller than a
  * side neighbour of its own goo pours a layer into it, and off a ledge
  * downward, until level, waiting between pours as its goo type's viscosity
  * sets. A layer is priced at a fifteenth of the laying ability's cost; the
@@ -62,6 +65,7 @@ import java.util.Optional;
  * breaking-slick-drops-kinetic-goo-worth-its-film
  * bounce-ramps-jump-height-while-jump-is-held
  * slick-coats-the-ground-with-kinetic-speed
+ * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
  */
 public class VolumeCellBlock extends Block {
 
@@ -170,6 +174,31 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
+     * The goo a broken cell gives back, by type and amount.
+     *
+     * @param gooType the goo type given back
+     * @param mb      the goo in mb
+     */
+    public record Reclaim(ResourceKey<GooTypeDefinition> gooType, int mb) {
+    }
+
+    /**
+     * What a broken cell bound to a world goo gives back: its goo type, worth
+     * what its layers cost, nothing where that comes to no whole mb.
+     * breaking-slime-drops-weird-goo-worth-its-layers
+     * breaking-slick-drops-kinetic-goo-worth-its-film
+     *
+     * @param binding   the world goo the cell is bound to
+     * @param layers    the layers the cell held
+     * @param blockCost the cost of a whole block of the goo
+     * @return the goo given back, empty where it comes to none
+     */
+    static Optional<Reclaim> reclaimedBy(CellBinding binding, int layers, GooFraction blockCost) {
+        int mb = reclaimed(layers, blockCost);
+        return mb > 0 ? Optional.of(new Reclaim(binding.gooType(), mb)) : Optional.empty();
+    }
+
+    /**
      * Gives back the goo the cell's layers cost, as the glow crystal gives
      * back its goo, whatever breaks the cell, Vacuum included; a cell broken
      * where its laying ability's definition does not load gives back nothing.
@@ -178,9 +207,10 @@ public class VolumeCellBlock extends Block {
      */
     @Override
     protected @NonNull List<ItemStack> getDrops(@NonNull BlockState state, LootParams.@NonNull Builder builder) {
-        int mb = LoadedAbilityCost.of(builder.getLevel(), binding.layingAbility())
-                .map(cost -> reclaimed(state.getValue(LAYERS), cost)).orElse(0);
-        return mb > 0 ? List.of(GooStacks.createForOutput(binding.gooType(), mb)) : List.of();
+        return LoadedAbilityCost.of(builder.getLevel(), binding.layingAbility())
+                .flatMap(cost -> reclaimedBy(binding, state.getValue(LAYERS), cost))
+                .map(reclaim -> List.of(GooStacks.createForOutput(reclaim.gooType(), reclaim.mb())))
+                .orElse(List.of());
     }
 
     /**
@@ -279,15 +309,19 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
-     * Whether a cell can hold a world goo: the block under it has a sturdy top.
+     * Whether a cell can hold this world goo: the block under it has a
+     * sturdy top, or, for a goo pooling on lava, is a lava source.
+     * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
      *
      * @param level the level
      * @param pos   the cell
-     * @return true where a world goo can lie
+     * @return true where this world goo can lie
      */
-    public static boolean liesOn(LevelReader level, BlockPos pos) {
+    public boolean liesOn(LevelReader level, BlockPos pos) {
         BlockPos under = pos.below();
-        return level.getBlockState(under).isFaceSturdy(level, under, Direction.UP);
+        BlockState footing = level.getBlockState(under);
+        return footing.isFaceSturdy(level, under, Direction.UP)
+                || binding.liesOnLava() && footing.is(Blocks.LAVA) && footing.getFluidState().isSource();
     }
 
     @Override
