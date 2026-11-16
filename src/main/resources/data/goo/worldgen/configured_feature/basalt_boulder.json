@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:block_blob",
+  "config": {
+    "can_place_on": {
+      "type": "minecraft:matching_blocks",
+      "blocks": [
+        "goo:regolith",
+        "goo:anorthosite",
+        "minecraft:basalt"
+      ]
+    },
+    "state": {
+      "Name": "minecraft:basalt",
+      "Properties": {
+        "axis": "y"
+      }
+    }
+  }
+}

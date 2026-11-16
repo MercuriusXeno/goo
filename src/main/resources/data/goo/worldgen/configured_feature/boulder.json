@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:random_selector",
+  "config": {
+    "features": [
+      {
+        "chance": 0.4,
+        "feature": {
+          "feature": "goo:anorthosite_boulder",
+          "placement": []
+        }
+      },
+      {
+        "chance": 0.5,
+        "feature": {
+          "feature": "goo:breccia_boulder",
+          "placement": []
+        }
+      }
+    ],
+    "default": {
+      "feature": "goo:basalt_boulder",
+      "placement": []
+    }
+  }
+}

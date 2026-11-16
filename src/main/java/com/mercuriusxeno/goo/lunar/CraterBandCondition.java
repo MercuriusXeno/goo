@@ -41,35 +41,9 @@ public record CraterBandCondition(ResourceKey<NormalNoise.NoiseParameters> noise
     @Override
     public SurfaceRules.Condition apply(SurfaceRules.Context context) {
         NormalNoise craterNoise = context.randomState.getOrCreateNoise(noise);
-        return new ColumnTest(context, CraterField.seeded(craterNoise), GiantCraterField.seeded(craterNoise));
-    }
-
-    /**
-     * Tests the column the surface rules stand on, reading the field once per column as the rules walk down it.
-     */
-    private final class ColumnTest implements SurfaceRules.Condition {
-        private final SurfaceRules.Context context;
-        private final CraterField craters;
-        private final GiantCraterField giants;
-        private int testedX = Integer.MIN_VALUE;
-        private int testedZ = Integer.MIN_VALUE;
-        private boolean inBand;
-
-        private ColumnTest(SurfaceRules.Context context, CraterField craters, GiantCraterField giants) {
-            this.context = context;
-            this.craters = craters;
-            this.giants = giants;
-        }
-
-        @Override
-        public boolean test() {
-            if (context.blockX != testedX || context.blockZ != testedZ) {
-                testedX = context.blockX;
-                testedZ = context.blockZ;
-                inBand = craters.reachesBandAt(testedX, testedZ, minReach, maxReach, minRadius)
-                        || giants.reachesBandAt(testedX, testedZ, minReach, maxReach, minRadius);
-            }
-            return inBand;
-        }
+        CraterField craters = CraterField.seeded(craterNoise);
+        GiantCraterField giants = GiantCraterField.seeded(craterNoise);
+        return new ColumnTest(context, (x, z) -> craters.reachesBandAt(x, z, minReach, maxReach, minRadius)
+                || giants.reachesBandAt(x, z, minReach, maxReach, minRadius));
     }
 }
