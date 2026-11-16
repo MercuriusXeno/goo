@@ -1,0 +1,24 @@
+{
+  "gooType": "deep",
+  "displayName": "goo.ability.deep.host",
+  "cost_mechanics": "goo.ability.deep.host.cost_mechanics",
+  "badge": "channeled",
+  "order": 0,
+  "cost": 96,
+  "cost_formula": "%s/m³",
+  "requires": ["minecraft:sculk_catalyst"],
+  "delivery": {
+    "kind": "stream",
+    "drains_on_placement": true,
+    "throw_speed": 0.84,
+    "drips_per_tick": 1,
+    "cone": 16,
+    "ticks_per_charge": 20,
+    "particle": "goo:host_spray_drip",
+    "sound": { "id": "minecraft:block.honey_block.slide", "every": 10, "volume": 1.0, "pitch": 1.0, "pitch_spread": 0.1 }
+  },
+  "behaviors": [
+    { "type": "host", "sculk_layers": 3, "radius": 8 }
+  ],
+  "tags": ["stream"]
+}
