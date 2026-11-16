@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:rime_freezes_the_water_and_lava_in_reach",
+  "function": "goo:rime_cell_spent_by_its_last_freeze_leaves_the_ice",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
   "max_ticks": 120,

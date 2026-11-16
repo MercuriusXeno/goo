@@ -1,16 +1,23 @@
 package com.mercuriusxeno.goo.ability.frost;
 
+import com.mercuriusxeno.goo.ability.program.RimeStep;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 
 /**
- * A Rime cell's pass over its reach: each water source in it freezes to Rime
- * ice and each lava source to obsidian, for good, kept by no record, so
- * nothing turns them back once the Rime is gone.
+ * A Rime cell's pass over its reach: the water and lava sources in it
+ * freeze, water to Rime ice and lava to obsidian, nearest first, each
+ * spending the layers Rime's step prices a freeze at, for as many as the
+ * cell's layers pay for; what freezes stays frozen for good, kept by no
+ * record, so nothing turns it back once the Rime is gone.
  * rime-freezes-water-and-lava-and-freezes-and-damages-the-shoeless
  * rime-freezing-is-permanent-with-no-restore-on-removal
+ * rime-goo-depletes-on-freezing
  */
 public final class RimeChill {
 
@@ -18,22 +25,59 @@ public final class RimeChill {
     }
 
     /**
-     * Freezes the water and lava sources within a Rime cell's reach; a reach
-     * running into an unloaded chunk freezes nothing this pass.
+     * What a pass's layers pay for.
      *
-     * @param level the server level
-     * @param cell  the Rime cell
-     * @param reach how far from the cell water and lava freeze, in blocks along each axis
+     * @param frozen     the sources the pass freezes, nearest the cell first
+     * @param layersLeft the layers the cell holds after paying for them
      */
-    public static void freezeAround(ServerLevel level, BlockPos cell, int reach) {
+    public record Paid(List<BlockPos> frozen, int layersLeft) {
+    }
+
+    /**
+     * The sources a cell's layers pay to freeze, nearest the cell first, at a
+     * price in layers each, stopping at the last one the layers cover.
+     *
+     * @param cell    the Rime cell
+     * @param layers  the layers the cell holds
+     * @param price   the layers each freeze spends, one or more
+     * @param sources the water and lava sources in the cell's reach, in any order
+     * @return the sources frozen and the layers left
+     */
+    static Paid paidFor(BlockPos cell, int layers, int price, List<BlockPos> sources) {
+        List<BlockPos> frozen = sources.stream().sorted(Comparator.comparingDouble(cell::distSqr))
+                .limit(Math.min(sources.size(), layers / price)).toList();
+        return new Paid(frozen, layers - frozen.size() * price);
+    }
+
+    /**
+     * Freezes the water and lava sources within a Rime cell's reach that its
+     * layers pay for; a reach running into an unloaded chunk freezes nothing
+     * this pass.
+     *
+     * @param level  the server level
+     * @param cell   the Rime cell
+     * @param layers the layers the cell holds
+     * @param rime   Rime's step, naming the reach and the layers a freeze spends
+     * @return the layers the cell holds after the pass, 0 where it spent them all
+     */
+    public static int freezeAround(ServerLevel level, BlockPos cell, int layers, RimeStep rime) {
+        int reach = rime.reach();
         if (!reachLoaded(level, cell, reach)) {
-            return;
+            return layers;
         }
+        List<BlockPos> sources = new ArrayList<>();
         for (BlockPos pos : BlockPos.betweenClosed(cell.offset(-reach, -reach, -reach),
                 cell.offset(reach, reach, reach))) {
+            if (RimeFreeze.of(level.getBlockState(pos)).flatMap(RimeFreeze::freeze).isPresent()) {
+                sources.add(pos.immutable());
+            }
+        }
+        Paid paid = paidFor(cell, layers, rime.layersPerFreeze(), sources);
+        for (BlockPos pos : paid.frozen()) {
             RimeFreeze.of(level.getBlockState(pos)).flatMap(RimeFreeze::freeze)
                     .ifPresent(frozen -> level.setBlock(pos, frozen.state(), Block.UPDATE_ALL));
         }
+        return paid.layersLeft();
     }
 
     /**

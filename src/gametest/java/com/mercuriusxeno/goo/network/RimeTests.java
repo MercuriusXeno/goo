@@ -44,7 +44,18 @@ public final class RimeTests {
     private static final String ABILITY_REQUIRED = "The ability registry must hold frost_rime";
     private static final String LAYERS_WRONG = "The cell over the stone should hold one layer of Rime, stands %s";
     private static final String FRICTION_WRONG = "The Rime cell should stand at ice's friction %s, stands at %s";
-    private static final String RIME_FREEZES_WATER_AND_LAVA = "rime_freezes_the_water_and_lava_in_reach";
+    private static final String RIME_SPENDS_A_LAYER_A_SOURCE = "rime_cell_spends_a_layer_for_each_source_it_freezes";
+    private static final String RIME_SPENT_BY_ITS_LAST_FREEZE = "rime_cell_spent_by_its_last_freeze_leaves_the_ice";
+    private static final String RIME_WITH_NO_SOURCE_KEEPS_ITS_LAYERS =
+            "rime_cell_with_no_source_in_reach_keeps_its_layers";
+    /** Layers a cell freezing the water and the lava is laid with: one for each, and one left over. */
+    private static final int LAYERS_FOR_TWO_FREEZES_AND_ONE_LEFT = 3;
+    /** Layers a cell with nothing in reach to freeze is laid with. */
+    private static final int LAYERS_WITH_NOTHING_TO_FREEZE = 2;
+    /** Ticks three of Rime's 20-tick passes take, with room to spare. */
+    private static final int THREE_PASSES_TICKS = 70;
+    private static final String SHOULD_STAND_AT = "The Rime cell should stand at %s layers, stands %s";
+    private static final String SHOULD_BE_SPENT = "The Rime cell its last freeze paid for should be gone, stands %s";
     private static final String RIME_STAYS_FROZEN = "rime_ice_and_obsidian_stay_frozen_once_the_rime_is_gone";
     private static final Identifier RIME_ICE = Identifier.parse("goo:rime_ice");
     /** The Rime cell, lying on the bay floor. */
@@ -83,7 +94,12 @@ public final class RimeTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, RIME_DRIP_LAYS_AN_ICY_CELL, RimeTests::rimeDripLaysAnIcyCellOnStone);
-        GooTestFunctions.registerTest(registrar, RIME_FREEZES_WATER_AND_LAVA, RimeTests::rimeFreezesTheWaterAndLavaInReach);
+        GooTestFunctions.registerTest(registrar, RIME_SPENDS_A_LAYER_A_SOURCE,
+                RimeTests::rimeCellSpendsALayerForEachSourceItFreezes);
+        GooTestFunctions.registerTest(registrar, RIME_SPENT_BY_ITS_LAST_FREEZE,
+                RimeTests::rimeCellSpentByItsLastFreezeLeavesTheIce);
+        GooTestFunctions.registerTest(registrar, RIME_WITH_NO_SOURCE_KEEPS_ITS_LAYERS,
+                RimeTests::rimeCellWithNoSourceInReachKeepsItsLayers);
         GooTestFunctions.registerTest(registrar, RIME_STAYS_FROZEN, RimeTests::rimeIceAndObsidianStayFrozenOnceTheRimeIsGone);
         GooTestFunctions.registerTest(registrar, RIME_FREEZES_THE_SHOELESS, RimeTests::rimeFreezesAndHurtsABarefootZombie);
         GooTestFunctions.registerTest(registrar, RIME_HOLDS_THE_FEET, RimeTests::thinRimeSetsTheFrictionUnderfoot);
@@ -136,18 +152,75 @@ public final class RimeTests {
     }
 
     /**
-     * A Rime cell standing over stone, once it has ticked, freezes the water
-     * source in reach to Rime ice and the lava source in reach to obsidian.
+     * A three-layer Rime cell walled in on stone, once it has ticked, freezes
+     * the water source in reach to Rime ice and the lava source in reach to
+     * obsidian, and stands one layer lower for each, at one layer.
      * rime-freezes-water-and-lava-and-freezes-and-damages-the-shoeless
+     * rime-goo-depletes-on-freezing
      *
      * @param helper the gametest helper
      */
-    public static void rimeFreezesTheWaterAndLavaInReach(GameTestHelper helper) {
+    public static void rimeCellSpendsALayerForEachSourceItFreezes(GameTestHelper helper) {
         layRimeBesideWaterAndLava(helper);
         helper.runAfterDelay(CHILL_WAIT_TICKS, () -> {
             assertFrozen(helper);
+            assertLayers(helper, LAYERS_FOR_TWO_FREEZES_AND_ONE_LEFT - 2);
             helper.succeed();
         });
+    }
+
+    /**
+     * A one-layer Rime cell with one water source in reach spends its last
+     * layer freezing it: the cell is gone and the ice stands.
+     * rime-goo-depletes-on-freezing
+     *
+     * @param helper the gametest helper
+     */
+    public static void rimeCellSpentByItsLastFreezeLeavesTheIce(GameTestHelper helper) {
+        layWalledRime(helper, 1);
+        basin(helper, WATER_POOL, Blocks.WATER);
+        helper.runAfterDelay(CHILL_WAIT_TICKS, () -> {
+            BlockState cell = helper.getBlockState(RIME_CELL);
+            helper.assertTrue(cell.isAir(), String.format(SHOULD_BE_SPENT, cell));
+            BlockState water = helper.getBlockState(WATER_POOL);
+            helper.assertTrue(BuiltInRegistries.BLOCK.getKey(water.getBlock()).equals(RIME_ICE),
+                    String.format(SHOULD_ICE, water));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A two-layer Rime cell with no water or lava in reach keeps both layers
+     * over three of its passes: a pass that freezes nothing spends nothing.
+     * rime-goo-depletes-on-freezing
+     *
+     * @param helper the gametest helper
+     */
+    public static void rimeCellWithNoSourceInReachKeepsItsLayers(GameTestHelper helper) {
+        layWalledRime(helper, LAYERS_WITH_NOTHING_TO_FREEZE);
+        helper.runAfterDelay(THREE_PASSES_TICKS, () -> {
+            assertLayers(helper, LAYERS_WITH_NOTHING_TO_FREEZE);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Lays a Rime cell on stone with stone on its four sides, so it pours no
+     * layer away and any layer it loses is one a freeze spent.
+     */
+    private static void layWalledRime(GameTestHelper helper, int layers) {
+        helper.setBlock(RIME_CELL.below(), Blocks.STONE);
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            helper.setBlock(RIME_CELL.relative(side), Blocks.STONE);
+        }
+        helper.setBlock(RIME_CELL, GooBlocks.FROST_RIME.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, layers));
+    }
+
+    private static void assertLayers(GameTestHelper helper, int layers) {
+        BlockState cell = helper.getBlockState(RIME_CELL);
+        boolean standsAt = cell.is(GooBlocks.FROST_RIME.get()) && cell.getValue(VolumeCellBlock.LAYERS) == layers;
+        helper.assertTrue(standsAt, String.format(SHOULD_STAND_AT, layers, cell));
     }
 
     /**
@@ -175,15 +248,14 @@ public final class RimeTests {
     }
 
     /**
-     * Lays a one-layer Rime cell on stone with a walled water source and a
-     * walled lava source sunk into the floor within its reach, apart from
-     * each other so neither meets the other.
+     * Lays a walled three-layer Rime cell on stone with a walled water source
+     * and a walled lava source sunk into the floor within its reach, apart
+     * from each other so neither meets the other.
      */
     private static void layRimeBesideWaterAndLava(GameTestHelper helper) {
-        helper.setBlock(RIME_CELL.below(), Blocks.STONE);
         basin(helper, WATER_POOL, Blocks.WATER);
         basin(helper, LAVA_POOL, Blocks.LAVA);
-        helper.setBlock(RIME_CELL, GooBlocks.FROST_RIME.get());
+        layWalledRime(helper, LAYERS_FOR_TWO_FREEZES_AND_ONE_LEFT);
     }
 
     private static void assertFrozen(GameTestHelper helper) {
