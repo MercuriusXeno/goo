@@ -192,9 +192,13 @@
                   "type": "minecraft:mul",
                   "argument1": 0.015625,
                   "argument2": {
-                    "type": "goo:craters",
-                    "noise": "goo:lunar_craters"
-                  }
+                                 "type": "minecraft:add",
+                                 "argument1": {
+                      "type": "goo:craters",
+                      "noise": "goo:lunar_craters"
+                    },
+                                 "argument2": { "type": "goo:rilles", "line": "goo:lunar_rilles", "maria": "goo:lunar_maria" }
+                               }
                 }
               }
             }
