@@ -115,7 +115,7 @@ class AbilitySyncPayloadTest {
     }
 
     /**
-     * Knives' charge reaches the client whole, so the client's aim lines fan the count and cone the server slings.
+     * Knives' charge reaches the client whole, so the client's charge reads the count and cone the server slings.
      */
     @Test
     void knivesChargeRoundTripsWhole() {

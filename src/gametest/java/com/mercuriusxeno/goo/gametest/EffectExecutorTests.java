@@ -459,7 +459,7 @@ public final class EffectExecutorTests {
                 Direction.SOUTH.ordinal(), false, ABILITY_BLAST_CHARGED, player.getEyePosition(),
                 Vec3.atCenterOf(aimed).relative(Direction.SOUTH, HALF_BLOCK));
         GooThrowHandler.releaseCharge(player, new GooChargePayload(GooTypes.id(GooTypes.UNSTABLE),
-                ABILITY_BLAST_CHARGED, ticksToCharge(blast.delivery(), size), 0L, Optional.of(target)));
+                ABILITY_BLAST_CHARGED, ticksToCharge(blast.delivery(), size), Optional.of(target)));
         helper.getLevel().getServer().getPlayerList().remove(player);
     }
 

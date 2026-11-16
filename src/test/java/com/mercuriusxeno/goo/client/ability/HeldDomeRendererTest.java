@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
@@ -45,9 +46,16 @@ class HeldDomeRendererTest {
         }
 
         @ParameterizedTest
-        @ValueSource(strings = {"crystal_knives", "ender_blink", "blaze_flames", "crystal_shatter"})
+        @ValueSource(strings = {"crystal_glimmer", "ender_blink", "blaze_flames", "crystal_shatter"})
         void mobSelfAndChanneledShowNoDome(String name) {
             assertFalse(shows(name, true));
+        }
+
+        /** knives-wears-the-free-badge: Knives slings knives and throws no blob, so it draws no dome. */
+        @Test
+        void knivesUnderTheFreeBadgeShowsNoDome() {
+            assertEquals(AbilityBadge.FREE, AbilityJson.decode("crystal_knives").badge());
+            assertFalse(shows("crystal_knives", true));
         }
     }
 

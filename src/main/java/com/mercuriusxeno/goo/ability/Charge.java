@@ -54,8 +54,8 @@ public record Charge(int maxTicks, int flecks, double spreadDegrees, int sweepTi
 
     /**
      * Stream codec carrying the charge on the ability sync and the flight
-     * broadcast, floors included, so the client's aim lines fan the count and
-     * cone the server slings and its preview grows to the size the server casts.
+     * broadcast, floors included, so the client's preview grows to the size
+     * the server casts.
      */
     public static final StreamCodec<ByteBuf, Charge> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.VAR_INT, Charge::maxTicks,
