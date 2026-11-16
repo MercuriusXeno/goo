@@ -5,11 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The held route: a stream and a self delivery wearing the channeled badge
- * run on every held tick, a self delivery wearing any other badge and an arc
- * do not, and only the channeled self runs on the player
+ * The held route: a stream and a self delivery wearing the channeled or held
+ * badge run on every held tick, a self delivery wearing any other badge and an
+ * arc do not, and only the channeled or held self runs on the player
  * (decisions stream-delivery-held-cone,
- * flatten-disc-cursor-breaks-above-the-plane).
+ * flatten-disc-cursor-breaks-above-the-plane,
+ * held-badge-marks-abilities-that-prepare-and-throw).
  */
 class HeldRouteTest {
 
@@ -26,6 +27,13 @@ class HeldRouteTest {
     void channeledSelfRunsWhileHeldOnThePlayer() {
         assertTrue(HeldRoute.runsWhileHeld(SELF, AbilityBadge.CHANNELED));
         assertTrue(HeldRoute.channelsOnSelf(SELF, AbilityBadge.CHANNELED));
+    }
+
+    // held-badge-marks-abilities-that-prepare-and-throw
+    @Test
+    void heldSelfRunsWhileHeldOnThePlayer() {
+        assertTrue(HeldRoute.runsWhileHeld(SELF, AbilityBadge.HELD));
+        assertTrue(HeldRoute.channelsOnSelf(SELF, AbilityBadge.HELD));
     }
 
     @Test

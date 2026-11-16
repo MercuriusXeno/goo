@@ -36,9 +36,45 @@ class AbilityBadgeTest {
 
     @ParameterizedTest
     @CsvSource({"world, WORLD", "mob, MOB", "instant, SELF", "channeled, CHANNELED", "durative, DURATIVE",
-            "free, FREE", "prism, PRISM"})
+            "free, FREE", "prism, PRISM", "held, HELD"})
     void eachVocabularyWordParsesToItsBadge(String word, AbilityBadge expected) {
         assertEquals(expected, AbilityBadge.CODEC.parse(JsonOps.INSTANCE, new JsonPrimitive(word)).getOrThrow());
+    }
+
+    /**
+     * The network codec writes the ordinal, so every badge that stood before held keeps its own,
+     * and held takes the next.
+     * decision held-badge-marks-abilities-that-prepare-and-throw
+     */
+    @Test
+    void everyBadgeKeepsItsNetworkOrdinal() {
+        assertEquals(List.of(AbilityBadge.WORLD, AbilityBadge.MOB, AbilityBadge.SELF, AbilityBadge.CHANNELED,
+                AbilityBadge.DURATIVE, AbilityBadge.FREE, AbilityBadge.PRISM, AbilityBadge.HELD),
+                List.of(AbilityBadge.values()));
+    }
+
+    /**
+     * A held ability resolves at the aimed point, as a channeled one does.
+     * decision held-badge-marks-abilities-that-prepare-and-throw
+     */
+    @Test
+    void heldAimsAPoint() {
+        assertTrue(AbilityBadge.HELD.aimsAPoint());
+    }
+
+    /**
+     * Grab and Gouge prepare on right click and throw on left click, so they wear held; the
+     * channels stay channeled.
+     * decision held-badge-marks-abilities-that-prepare-and-throw
+     *
+     * @param ability the shipped ability's file name
+     * @param badge   the badge it wears
+     */
+    @ParameterizedTest
+    @CsvSource({"kinetic_grab, HELD", "rock_gouge, HELD", "blaze_flames, CHANNELED", "typhoon_gust, CHANNELED",
+            "frost_cold, CHANNELED", "weird_goop, CHANNELED", "kinetic_slick, CHANNELED"})
+    void shippedAbilityWearsItsControlBadge(String ability, AbilityBadge badge) {
+        assertEquals(badge, AbilityJson.decode(ability).badge(), ability);
     }
 
     /** decision self-badge-becomes-instant-with-a-noita-trigger-star */
@@ -48,16 +84,17 @@ class AbilityBadgeTest {
     }
 
     /**
-     * Each badge holds its own tier, ranked channeled, mob, world, free,
+     * Each badge holds its own tier, ranked channeled, held, mob, world, free,
      * prism, self, durative, at orders that reverse that rank if order alone
-     * decided; a shared badge falls back to order (decision
-     * fan-sorts-badge-then-order).
+     * decided; a shared badge falls back to order (decisions
+     * fan-sorts-badge-then-order, held-badge-marks-abilities-that-prepare-and-throw).
      */
     @Test
     void fanOrderRanksEachBadgeThenOrder() {
         record Ranked(String name, AbilityBadge badge, int order) {
         }
         List<Ranked> shuffled = List.of(
+                new Ranked("held", AbilityBadge.HELD, 7),
                 new Ranked("durative", AbilityBadge.DURATIVE, -3),
                 new Ranked("world", AbilityBadge.WORLD, 3),
                 new Ranked("self", AbilityBadge.SELF, -2),
@@ -67,7 +104,7 @@ class AbilityBadgeTest {
                 new Ranked("channeled", AbilityBadge.CHANNELED, 6),
                 new Ranked("mob_early", AbilityBadge.MOB, 4));
 
-        assertEquals(List.of("channeled", "mob_early", "mob_late", "world", "free", "prism", "self", "durative"),
+        assertEquals(List.of("channeled", "held", "mob_early", "mob_late", "world", "free", "prism", "self", "durative"),
                 shuffled.stream().sorted(AbilityBadge.fanOrder(Ranked::badge, Ranked::order)).map(Ranked::name).toList());
     }
 
@@ -82,8 +119,8 @@ class AbilityBadgeTest {
     }
 
     /**
-     * The badges a shipped ability may wear, read from its own fields: channeled for a stream or for any delivery that charges, its charge sizing no cast, or writes a hold's ticks
-     * per charge, save the charm-like cast, which takes a mob and wears mob, durative for a self delivery paying upkeep, instant for any other self delivery,
+     * The badges a shipped ability may wear, read from its own fields: channeled or held for any delivery that charges, its charge sizing no cast, or writes a hold's ticks
+     * per charge, channeled for a stream, save the charm-like cast, which takes a mob and wears mob, durative for a self delivery paying upkeep, instant for any other self delivery,
      * and for a thrown ability mob where it targets entities and world elsewhere. Free and
      * prism are carried by the badge alone, since no field marks them, so a thrown ability
      * wearing either passes on its badge.
@@ -101,9 +138,11 @@ class AbilityBadgeTest {
             // charm-like-abilities-lock-the-highlighted-mob-on-right-click: a charm-like cast takes a mob
             case ENVELOP -> EnumSet.of(AbilityBadge.MOB);
             // self-effects-trickle-until-ended
-            case SELF -> EnumSet.of(definition.upkeep().in(GooValueTable.EMPTY) > AbilityDefinition.NO_UPKEEP ? AbilityBadge.DURATIVE
-                    : holds ? AbilityBadge.CHANNELED : AbilityBadge.SELF);
-            default -> holds ? EnumSet.of(AbilityBadge.CHANNELED)
+            case SELF -> definition.upkeep().in(GooValueTable.EMPTY) > AbilityDefinition.NO_UPKEEP
+                    ? EnumSet.of(AbilityBadge.DURATIVE)
+                    : holds ? EnumSet.of(AbilityBadge.CHANNELED, AbilityBadge.HELD) : EnumSet.of(AbilityBadge.SELF);
+            // held-badge-marks-abilities-that-prepare-and-throw
+            default -> holds ? EnumSet.of(AbilityBadge.CHANNELED, AbilityBadge.HELD)
                     : EnumSet.of(definition.hasTag(AbilityTags.ENTITY) ? AbilityBadge.MOB : AbilityBadge.WORLD,
                             AbilityBadge.FREE, AbilityBadge.PRISM);
         };
