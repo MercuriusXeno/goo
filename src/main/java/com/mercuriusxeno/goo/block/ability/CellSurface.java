@@ -5,12 +5,14 @@ package com.mercuriusxeno.goo.block.ability;
  * cells differ besides their look and their viscosity: slime breaks a fall
  * and bounces what lands on it, ramping while jump is held; slick lets a fall
  * harm as any ground does and ramps a thing trying to move on it, slippery as
- * ice; molten stands as ordinary ground. A goo type binding a world goo to
- * the cell names one.
+ * ice; molten stands as ordinary ground; wisps stands as ordinary ground
+ * and smites the undead touching it. A goo type binding a world goo to the
+ * cell names one.
  * slime-and-slick-are-one-volume-cell-tech
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
  * bounce-ramps-jump-height-while-jump-is-held
  * slick-coats-the-ground-with-kinetic-speed
+ * undead-touching-wisps-goo-erupt-in-flames-and-take-holy-damage-by-fill
  *
  * @see VolumeCellBlock
  */
@@ -21,7 +23,9 @@ public enum CellSurface {
     /** Slick's: as slippery as ice, it ramps a thing trying to move on it. */
     RAMP(Frictions.ICE),
     /** Molten's and Host's: ordinary ground, letting a fall harm and moving nothing on it. */
-    POOL(Frictions.ORDINARY_GROUND);
+    POOL(Frictions.ORDINARY_GROUND),
+    /** Wisps': ordinary ground that sets the undead touching it on fire and deals them holy damage. */
+    SMITE(Frictions.ORDINARY_GROUND);
 
     /** The friction a cell bound to this surface stands at, the slipperiness what moves on it meets. */
     private final float friction;
@@ -49,6 +53,13 @@ public enum CellSurface {
      */
     public boolean ramps() {
         return this == RAMP;
+    }
+
+    /**
+     * @return true where the cell burns the undead touching it and deals them holy damage
+     */
+    public boolean smites() {
+        return this == SMITE;
     }
 
     /** The frictions the surfaces stand at, held apart so the constants above can read them. */
