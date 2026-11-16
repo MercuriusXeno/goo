@@ -93,6 +93,9 @@ fi
 # Decision dev-instance-holds-its-slot-until-the-client-closes
 slot_holder=$$
 if [ -r "/proc/$$/winpid" ]; then slot_holder=$( cat "/proc/$$/winpid" ); fi
+# A caller already holding a slot for this run, as tools/gate.ps1 does, names itself in BUILD_SLOT_HOLDER, and the
+# reserve answers with the slot it holds. Decision gate-prints-waiting-then-running-for-its-gradle-leg
+if [ -n "$BUILD_SLOT_HOLDER" ]; then slot_holder=$BUILD_SLOT_HOLDER; fi
 BUILD_SLOT_RUNS="gradlew $*" pwsh -NoProfile -File "$APP_HOME/tools/build-slots.ps1" reserve -HolderPid "$slot_holder" || exit
 
 # Collect all arguments for the java command:
