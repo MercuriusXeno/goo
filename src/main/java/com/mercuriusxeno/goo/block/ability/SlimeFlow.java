@@ -6,12 +6,14 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * The pour rule of a layered cell, pure of any level: a cell taller than a
- * side neighbour pours one whole layer into it, and off a ledge downward,
- * until it stands level, as a fluid levels out; the giver loses the layer the
- * taker gains, and the ticks between pours follow the goo type's viscosity.
+ * The pour rule of a layered cell, pure of any level: a cell standing above
+ * a side neighbour by more than its goo's cohesion step pours one whole layer
+ * into it, and off a ledge downward, until it holds that step, a cohesion of
+ * 0 levelling out as a fluid does; the giver loses the layer the taker
+ * gains, and the ticks between pours follow the goo type's viscosity.
  * slime-is-a-layered-cell-that-levels-out
  * spread-decreases-the-cell-it-leaves
+ * cohesion-is-the-step-the-goo-holds
  */
 public final class SlimeFlow {
 
@@ -66,18 +68,20 @@ public final class SlimeFlow {
     /**
      * Which side neighbour takes one of a cell's layers this pour: an open
      * ledge before any neighbour, else the lowest neighbour holding at least
-     * two layers fewer, the first listed among equals. A cell never pours
-     * its last layer, so a one-layer film stays where it was laid, dripping
-     * at its open edges.
+     * two layers plus the goo's cohesion fewer, the first listed among
+     * equals. A cell never pours its last layer, so a one-layer film stays
+     * where it was laid, dripping at its open edges.
      * slime-is-a-layered-cell-that-levels-out
+     * cohesion-is-the-step-the-goo-holds
      * coat-is-a-green-slime-film-over-the-blocks-own-texture
      *
-     * @param layers the coat layers the pouring cell holds
-     * @param sides  its side neighbours
-     * @return the side that takes a layer, empty where the cell stands level
+     * @param layers   the coat layers the pouring cell holds
+     * @param cohesion the step in layers the goo holds over a neighbour, 0 levelling flat
+     * @param sides    its side neighbours
+     * @return the side that takes a layer, empty where the cell holds its step
      */
-    static Optional<Direction> pour(int layers, List<Side> sides) {
-        List<Side> takers = sides.stream().filter(side -> takes(layers, side)).toList();
+    static Optional<Direction> pour(int layers, int cohesion, List<Side> sides) {
+        List<Side> takers = sides.stream().filter(side -> takes(layers - cohesion, side)).toList();
         Optional<Side> ledge = takers.stream().filter(side -> side.footing() == Footing.LEDGE).findFirst();
         return ledge.or(() -> takers.stream().min(Comparator.comparingInt(Side::layers))).map(Side::direction);
     }
@@ -119,13 +123,14 @@ public final class SlimeFlow {
 
     /**
      * Whether a side can take a layer from a cell: it is open and stands at
-     * least POUR_GAP layers below, a ledge standing at none.
+     * least POUR_GAP layers below the layers the cell holds over its step,
+     * a ledge standing at none.
      *
-     * @param layers the coat layers the pouring cell holds
-     * @param side   the side
+     * @param overStep the coat layers the pouring cell holds less its goo's cohesion
+     * @param side     the side
      * @return true where the side takes a layer
      */
-    private static boolean takes(int layers, Side side) {
-        return side.footing() != Footing.BLOCKED && side.layers() <= layers - POUR_GAP;
+    private static boolean takes(int overStep, Side side) {
+        return side.footing() != Footing.BLOCKED && side.layers() <= overStep - POUR_GAP;
     }
 }

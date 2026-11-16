@@ -401,8 +401,9 @@ public class VolumeCellBlock extends Block {
     private boolean pourOnce(ServerLevel level, BlockPos pos, BlockState state) {
         List<Side> sides = new ArrayList<>(SIDES.stream().map(side -> sideOf(level, pos.relative(side), side))
                 .toList());
+        int cohesion = cohesionAt(level);
         for (int tried = 0; tried < SIDES.size(); tried++) {
-            Optional<Direction> toward = SlimeFlow.pour(state.getValue(LAYERS), sides);
+            Optional<Direction> toward = SlimeFlow.pour(state.getValue(LAYERS), cohesion, sides);
             if (toward.isEmpty()) {
                 return false;
             }
@@ -456,6 +457,19 @@ public class VolumeCellBlock extends Block {
         int viscosity = level.registryAccess().get(binding.gooType()).map(type -> type.value().viscosity())
                 .orElse(SlimeFlow.WATER_VISCOSITY);
         return SlimeFlow.pourTicks(viscosity);
+    }
+
+    /**
+     * The step in layers this cell holds over a neighbour before pouring,
+     * read from its goo type's cohesion; a cell whose goo type's definition
+     * does not load levels flat.
+     * cohesion-is-the-step-the-goo-holds
+     *
+     * @param level the level, whose registries hold the goo type
+     * @return the cohesion
+     */
+    private int cohesionAt(LevelReader level) {
+        return level.registryAccess().get(binding.gooType()).map(type -> type.value().cohesion()).orElse(0);
     }
 
     /**
