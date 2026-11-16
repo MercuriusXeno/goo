@@ -1,7 +1,7 @@
 {
   "gooType": "metal",
   "displayName": "goo.ability.metal.dart",
-  "badge": "mob",
+  "badge": "held",
   "order": 10,
   "cost": 1000,
   "delivery": { "kind": "arc", "transform_at": 0, "form": "dart", "arc_speed": 2.5, "peak_share": 0.25 },

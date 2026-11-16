@@ -277,7 +277,8 @@ public final class GooThrowHandler {
      */
     private static boolean aimsAnOwnMinion(ServerPlayer player, GooThrowPayload payload, AbilityDefinition ability) {
         if (payload.targetEntityId() < 0
-                || !OwnMinions.sparesOwnMinions(ability.badge(), ability.hasTag(AbilityTags.HARMFUL))) {
+                || !OwnMinions.sparesOwnMinions(ability.badge(), ability.delivery().kind(),
+                        ability.hasTag(AbilityTags.HARMFUL))) {
             return false;
         }
         Entity target = player.level().getEntity(payload.targetEntityId());
@@ -414,9 +415,9 @@ public final class GooThrowHandler {
             GooTouchHandler.touch(player, payload, gooType);
         } else if (ability.delivery().rolls()) {
             rollGoo(player, payload, gooType, ability);
-        } else if (ability.badge().aimsAPoint()) {
+        } else if (aimedBadge(ability).aimsAPoint()) {
             throwAtPoint(player, payload, gooType);
-        } else if (!aimsNoMob(ability.badge(), payload.targetEntityId() >= 0)) {
+        } else if (!aimsNoMob(aimedBadge(ability), payload.targetEntityId() >= 0)) {
             throwFlight(player, payload, gooType);
         }
     }
@@ -479,6 +480,17 @@ public final class GooThrowHandler {
      */
     static boolean takesMob(@Nullable Entity named) {
         return named instanceof LivingEntity living && living.isAlive();
+    }
+
+    /**
+     * The badge a thrown ability aims as, Dart's held javelin aiming as a mob ability.
+     * decision dart-forms-on-right-click-and-throws-on-left-click
+     *
+     * @param ability the thrown ability
+     * @return the badge its throw reads
+     */
+    static AbilityBadge aimedBadge(AbilityDefinition ability) {
+        return ability.badge().aimsAs(ability.delivery().kind());
     }
 
     /**

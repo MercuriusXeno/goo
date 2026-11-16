@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
@@ -347,6 +348,52 @@ public final class GloveUseTracker {
         public boolean runsWhileHeld() {
             return selectedRunsWhileHeld(player);
         }
+
+        @Override
+        public boolean throwsOnAttack() {
+            return selectedThrowsOnAttack(player);
+        }
+
+        @Override
+        public void beginNextJavelin() {
+            LiftedPalmBlob.liftAfresh(player.getId(), player.getEyePosition(), player.level().getGameTime());
+        }
+    }
+
+    /**
+     * Whether the held glove's selection forms a javelin on right click and
+     * throws it on left click.
+     * decision dart-forms-on-right-click-and-throws-on-left-click
+     *
+     * @param player the local player
+     * @return true for a held throw
+     */
+    private static boolean selectedThrowsOnAttack(LocalPlayer player) {
+        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        return selection != null && HeldRoute.throwsOnAttack(GloveThrowSender.selectedDelivery(selection.abilityId()),
+                GloveThrowSender.selectedBadge(selection.abilityId()));
+    }
+
+    /**
+     * Whether right click holds a javelin forming or formed, which the attack key throws.
+     * decision dart-forms-on-right-click-and-throws-on-left-click
+     *
+     * @param player the local player
+     * @return true while the press holds a held throw
+     */
+    public static boolean holdsAJavelin(LocalPlayer player) {
+        return PRESS.holdsAJavelin(pressActions(player));
+    }
+
+    /**
+     * Throws the javelin right click has formed, the attack key's turn.
+     * decision dart-forms-on-right-click-and-throws-on-left-click
+     *
+     * @param player the local player
+     * @return true where a javelin was sent
+     */
+    public static boolean throwTheJavelin(LocalPlayer player) {
+        return PRESS.throwHeld(pressActions(player));
     }
 
     /**
