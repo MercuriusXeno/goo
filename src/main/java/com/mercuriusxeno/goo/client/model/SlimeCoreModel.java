@@ -22,6 +22,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.client.model.DynamicBlockStateModel;
 import net.neoforged.neoforge.client.model.block.CustomUnbakedBlockStateModel;
 import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -46,7 +47,9 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core)
     @Override
     public void collectParts(BlockAndTintGetter level, BlockPos pos, BlockState state, RandomSource random,
                              List<BlockStateModelPart> parts) {
-        shell.collectParts(level, pos, state, random, parts);
+        List<BlockStateModelPart> layers = new ArrayList<>();
+        shell.collectParts(level, pos, state, random, layers);
+        layers.forEach(part -> parts.add(new BandedShellPart(part)));
         List<BakedQuad> quads = SlimeCoreQuads.quadsOf(layersAround(level, pos, state), core);
         if (!quads.isEmpty()) {
             parts.add(new CorePart(quads, shell.particleMaterial(level, pos, state)));
@@ -127,6 +130,44 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core)
         @Override
         public int materialFlags() {
             return quads.isEmpty() ? 0 : quads.getFirst().materialInfo().flags();
+        }
+    }
+
+    /**
+     * The shell's layers with their top cut into the core's bands.
+     * slime-core-draws-translucent-at-the-shells-opacity
+     *
+     * @param layers the shell's own part
+     */
+    private record BandedShellPart(BlockStateModelPart layers) implements BlockStateModelPart {
+
+        @Override
+        public List<BakedQuad> getQuads(@Nullable Direction direction) {
+            List<BakedQuad> quads = new ArrayList<>();
+            for (BakedQuad quad : layers.getQuads(direction)) {
+                if (quad.direction() == Direction.UP) {
+                    quads.addAll(SlimeCoreQuads.bandedTop(quad));
+                } else {
+                    quads.add(quad);
+                }
+            }
+            return quads;
+        }
+
+        @Override
+        @Deprecated
+        public boolean useAmbientOcclusion() {
+            return layers.useAmbientOcclusion();
+        }
+
+        @Override
+        public Material.Baked particleMaterial() {
+            return layers.particleMaterial();
+        }
+
+        @Override
+        public int materialFlags() {
+            return layers.materialFlags();
         }
     }
 
