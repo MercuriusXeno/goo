@@ -56,16 +56,25 @@ goto fail
 
 set CLASSPATH=%APP_HOME%\gradle\wrapper\gradle-wrapper.jar
 
+@rem Every run takes one of the machine's build slots before Gradle starts, waiting in the queue while all are held,
+@rem and frees it when Gradle ends (tools/build-slots.ps1). This shell holds the slot, so a run stopped before the
+@rem release still frees it when this shell ends.
+@rem Decision every-gradle-run-reserves-one-of-four-slots
+@rem Decision dev-instance-holds-its-slot-until-the-client-closes
+set "BUILD_SLOT_RUNS=gradlew %*"
+pwsh -NoProfile -File "%APP_HOME%\tools\build-slots.ps1" reserve
+if %ERRORLEVEL% neq 0 goto fail
+
 @rem Execute Gradle
 "%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %GRADLE_OPTS% "-Dorg.gradle.appname=%APP_BASE_NAME%" -classpath "%CLASSPATH%" org.gradle.wrapper.GradleWrapperMain %*
+set GRADLE_EXIT=%ERRORLEVEL%
 
-:end
-@rem End local scope for the variables with windows NT shell
-if %OS%==Windows_NT endlocal
+pwsh -NoProfile -File "%APP_HOME%\tools\build-slots.ps1" release
 
 :omega
 
-@exit /b %ERRORLEVEL%
+@rem exit /b ends the local scope for the variables with windows NT shell
+@exit /b %GRADLE_EXIT%
 
 :fail
 @exit /b 1
