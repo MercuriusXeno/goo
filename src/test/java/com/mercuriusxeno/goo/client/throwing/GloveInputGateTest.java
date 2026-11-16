@@ -56,8 +56,10 @@ class GloveInputGateTest {
         }
 
         @Override
-        public void beginNextJavelin() {
-            nextJavelins++;
+        public void javelinTurned(JavelinTurn turn) {
+            if (turn == JavelinTurn.THROWN) {
+                nextJavelins++;
+            }
         }
 
         @Override

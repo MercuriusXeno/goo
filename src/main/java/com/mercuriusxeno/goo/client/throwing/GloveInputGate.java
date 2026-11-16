@@ -68,8 +68,13 @@ public final class GloveInputGate {
             return false;
         }
 
-        /** Lifts the palm blob afresh to form the next javelin, right click still held after a throw. */
-        default void beginNextJavelin() {
+        /**
+         * Answers a turn the press's javelin takes: it begins forming, leaves the hand, or begins reverting.
+         * decision dart-forms-on-right-click-and-throws-on-left-click
+         *
+         * @param turn the turn
+         */
+        default void javelinTurned(JavelinTurn turn) {
             // a press throwing on release forms no javelin
         }
     }
@@ -224,7 +229,7 @@ public final class GloveInputGate {
         }
         actions.releasePose();
         heldTicks = 0;
-        actions.beginNextJavelin();
+        actions.javelinTurned(JavelinTurn.THROWN);
         return true;
     }
 
@@ -289,10 +294,14 @@ public final class GloveInputGate {
             if (!previewing) {
                 actions.holdPose();
             }
+            if (heldTicks == 0 && actions.throwsOnAttack()) {
+                actions.javelinTurned(JavelinTurn.FORMS);
+            }
             previewing = true;
             heldTicks++;
         } else if (actions.throwsOnAttack()) {
             // dart-forms-on-right-click-and-throws-on-left-click: the release reverts the javelin, throwing nothing
+            actions.javelinTurned(JavelinTurn.REVERTS);
             actions.dropPose();
             cancel();
         } else {

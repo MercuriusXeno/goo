@@ -291,6 +291,22 @@ class DeliveryTest {
         }
 
         /**
+         * The shipped dart shinks as its javelin forms and shinks lower as it
+         * reverts: one sample, the revert pitched below the form
+         * (decision dart-shinks-as-it-forms-and-pitched-down-as-it-reverts).
+         */
+        @Test
+        void dartNamesAFormShinkAndALowerRevertShinkOfOneSample() {
+            FormSounds sounds = AbilityJson.decode("metal_dart").delivery().formSounds();
+
+            assertTrue(sounds.form().isPresent(), "metal_dart.json names no form sound");
+            assertTrue(sounds.revert().isPresent(), "metal_dart.json names no revert sound");
+            assertEquals(sounds.form().get().sound(), sounds.revert().get().sound());
+            assertTrue(sounds.revert().get().pitch() < sounds.form().get().pitch(),
+                    "the revert's pitch stands at or above the form's");
+        }
+
+        /**
          * The shipped dart flies 2.5 blocks a tick at every distance, Metal's
          * levity and base flight time passed in
          * (decision dart-flies-low-and-straight-at-double-speed).

@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability;
 
+import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mojang.serialization.Codec;
@@ -42,12 +43,46 @@ import java.util.Optional;
  * @param spew           what a charm-like cast's release sends at the mob its press took, the blob for any other
  * @param reachesBlockReach whether a stream reaches as far as its caster's block reach in place of its range
  * @param peakShare      the share of the base peak an arc flies, {@link #FULL_PEAK} for the whole
+ * @param formSounds     the sounds a form formed in the hand makes as it forms and as it reverts
  */
 public record Delivery(DeliveryKind kind, double blocksPerTick, double range, double coneDegrees,
                        int ticksPerCharge, boolean grannyAllowed, Optional<Identifier> particle, double transformAt,
                        Optional<StreamSound> sound, Charge charge, TravelForm form, double arcSpeed,
                        double seekRange, boolean drainsOnPlacement, double throwSpeed, int dripsPerTick,
-                       Spew spew, boolean reachesBlockReach, double peakShare) {
+                       Spew spew, boolean reachesBlockReach, double peakShare, FormSounds formSounds) {
+
+    /**
+     * A delivery whose form makes no sound as it forms or reverts in the hand.
+     *
+     * @param kind              the delivery kind
+     * @param blocksPerTick     a beam's speed in blocks per tick
+     * @param range             a stream's reach in blocks
+     * @param coneDegrees       a stream's cone, apex to rim, in degrees
+     * @param ticksPerCharge    a stream's ticks of hold one cost pays for
+     * @param grannyAllowed     whether an arc may lob onto a top face
+     * @param particle          the particle a stream sprays along its cone, empty for none
+     * @param transformAt       the share of the flight by which the blob has taken its traveling form
+     * @param sound             the sound a stream makes while held, empty for none
+     * @param charge            the charge block
+     * @param form              the form the goo takes in flight
+     * @param arcSpeed          the speed an arc flies at in blocks per tick
+     * @param seekRange         how far a stream reaches the living it strikes
+     * @param drainsOnPlacement whether a stream pays its cost by what it lays
+     * @param throwSpeed        the speed a stream throws its drips at
+     * @param dripsPerTick      the drips a stream throws a tick
+     * @param spew              what a charm-like cast's release sends
+     * @param reachesBlockReach whether a stream reaches as far as its caster's block reach
+     * @param peakShare         the share of the base peak an arc flies
+     */
+    public Delivery(DeliveryKind kind, double blocksPerTick, double range, double coneDegrees, int ticksPerCharge,
+                    boolean grannyAllowed, Optional<Identifier> particle, double transformAt,
+                    Optional<StreamSound> sound, Charge charge, TravelForm form, double arcSpeed, double seekRange,
+                    boolean drainsOnPlacement, double throwSpeed, int dripsPerTick, Spew spew,
+                    boolean reachesBlockReach, double peakShare) {
+        this(kind, blocksPerTick, range, coneDegrees, ticksPerCharge, grannyAllowed, particle, transformAt, sound,
+                charge, form, arcSpeed, seekRange, drainsOnPlacement, throwSpeed, dripsPerTick, spew,
+                reachesBlockReach, peakShare, FormSounds.NONE);
+    }
 
     /**
      * A delivery whose arc flies the whole base peak.
@@ -409,12 +444,13 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
             // goop-and-slick-coat-lands-where-each-drip-arc-strikes
             Codec.DOUBLE.optionalFieldOf("throw_speed", NO_THROW_SPEED).forGetter(Delivery::throwSpeed),
             CodecTail.CODEC.forGetter(delivery -> new CodecTail(delivery.dripsPerTick(), delivery.spew(),
-                    delivery.reachesBlockReach(), delivery.peakShare()))
+                    delivery.reachesBlockReach(), delivery.peakShare(), delivery.formSounds().form(),
+                    delivery.formSounds().revert()))
     ).apply(inst, (kind, blocksPerTick, range, coneDegrees, ticksPerCharge, grannyAllowed, particle, transformAt,
                    sound, charge, form, arcSpeed, seekRange, drainsOnPlacement, throwSpeed, tail) -> new Delivery(
             kind, blocksPerTick, range, coneDegrees, ticksPerCharge, grannyAllowed, particle, transformAt, sound,
             charge, form, arcSpeed, seekRange, drainsOnPlacement, throwSpeed, tail.dripsPerTick(), tail.spew(),
-            tail.reachesBlockReach(), tail.peakShare())));
+            tail.reachesBlockReach(), tail.peakShare(), new FormSounds(tail.formSound(), tail.revertSound()))));
 
     /**
      * The delivery block's last fields as one, since a record codec groups at most sixteen; their keys stay
@@ -424,8 +460,11 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
      * @param spew              what a charm-like cast's release sends
      * @param reachesBlockReach whether a stream reaches as far as its caster's block reach
      * @param peakShare         the share of the base peak an arc flies
+     * @param formSound         the sound a form formed in the hand makes as it begins forming
+     * @param revertSound       the sound a form formed in the hand makes as it begins reverting
      */
-    private record CodecTail(int dripsPerTick, Spew spew, boolean reachesBlockReach, double peakShare) {
+    private record CodecTail(int dripsPerTick, Spew spew, boolean reachesBlockReach, double peakShare,
+                             Optional<SoundCue> formSound, Optional<SoundCue> revertSound) {
 
         private static final MapCodec<CodecTail> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
                 // goop-drains-per-cubic-meter-of-slime-placed: the spray's pace is how many drips land a tick
@@ -436,7 +475,10 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
                 // bore-reaches-as-far-as-your-block-reach
                 Codec.BOOL.optionalFieldOf("reaches_block_reach", false).forGetter(CodecTail::reachesBlockReach),
                 // dart-flies-low-and-straight-at-double-speed
-                Codec.DOUBLE.optionalFieldOf("peak_share", FULL_PEAK).forGetter(CodecTail::peakShare)
+                Codec.DOUBLE.optionalFieldOf("peak_share", FULL_PEAK).forGetter(CodecTail::peakShare),
+                // dart-shinks-as-it-forms-and-pitched-down-as-it-reverts
+                SoundCue.CODEC.optionalFieldOf("form_sound").forGetter(CodecTail::formSound),
+                SoundCue.CODEC.optionalFieldOf("revert_sound").forGetter(CodecTail::revertSound)
         ).apply(inst, CodecTail::new));
     }
 
@@ -460,12 +502,12 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
             WireTail.STREAM_CODEC,
             delivery -> new WireTail(delivery.arcSpeed(), delivery.seekRange(), delivery.drainsOnPlacement(),
                     delivery.throwSpeed(), delivery.dripsPerTick(), delivery.spew(), delivery.reachesBlockReach(),
-                    delivery.peakShare()),
+                    delivery.peakShare(), delivery.formSounds()),
             (kind, blocksPerTick, range, coneDegrees, ticksPerCharge, grannyAllowed, particle, transformAt, sound,
              charge, form, tail) -> new Delivery(kind, blocksPerTick, range, coneDegrees, ticksPerCharge,
                     grannyAllowed, particle, transformAt, sound, charge, form, tail.arcSpeed(), tail.seekRange(),
                     tail.drainsOnPlacement(), tail.throwSpeed(), tail.dripsPerTick(), tail.spew(),
-                    tail.reachesBlockReach(), tail.peakShare()));
+                    tail.reachesBlockReach(), tail.peakShare(), tail.formSounds()));
 
     /**
      * The delivery's last fields on the wire as one, since a stream codec
@@ -479,9 +521,11 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
      * @param spew              what a charm-like cast's release sends
      * @param reachesBlockReach whether a stream reaches as far as its caster's block reach
      * @param peakShare         the share of the base peak an arc flies
+     * @param formSounds        the sounds a form formed in the hand makes
      */
     private record WireTail(double arcSpeed, double seekRange, boolean drainsOnPlacement, double throwSpeed,
-                            int dripsPerTick, Spew spew, boolean reachesBlockReach, double peakShare) {
+                            int dripsPerTick, Spew spew, boolean reachesBlockReach, double peakShare,
+                            FormSounds formSounds) {
 
         private static final StreamCodec<ByteBuf, WireTail> STREAM_CODEC = StreamCodec.composite(
                 ByteBufCodecs.DOUBLE, WireTail::arcSpeed,
@@ -492,6 +536,7 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
                 Spew.STREAM_CODEC, WireTail::spew,
                 ByteBufCodecs.BOOL, WireTail::reachesBlockReach,
                 ByteBufCodecs.DOUBLE, WireTail::peakShare,
+                FormSounds.STREAM_CODEC, WireTail::formSounds,
                 WireTail::new);
     }
 
@@ -750,7 +795,7 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
     public Delivery withCone(double newRange, double newConeDegrees) {
         return new Delivery(kind, blocksPerTick, newRange, newConeDegrees, ticksPerCharge, grannyAllowed, particle,
                 transformAt, sound, charge, form, arcSpeed, seekRange, drainsOnPlacement, throwSpeed, dripsPerTick,
-                spew, reachesBlockReach, peakShare);
+                spew, reachesBlockReach, peakShare, formSounds);
     }
 
     /**
