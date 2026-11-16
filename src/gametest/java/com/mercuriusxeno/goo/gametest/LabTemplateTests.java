@@ -64,9 +64,9 @@ public final class LabTemplateTests {
     private static final String NOT_FLAT = "Overworld should be superflat";
     private static final String UNSTABLE = "Every dimension, goo's own among them, should read stable,"
             + " or the world opens on the Experimental Settings screen";
-    private static final String GOO_DIMENSIONS = "The bake's goo dimensions should be goo:pocket alone, holds %s";
+    private static final String GOO_DIMENSIONS = "The bake's goo dimensions should be goo:lunar and goo:pocket, holds %s";
     private static final List<Identifier> GOO_DIMENSIONS_BAKED = List.of(
-            Identifier.fromNamespaceAndPath(Goo.MODID, "pocket"));
+            Identifier.fromNamespaceAndPath(Goo.MODID, "lunar"), Identifier.fromNamespaceAndPath(Goo.MODID, "pocket"));
     private static final String STRUCTURES = "Template should generate no structures";
     private static final String RULES_UNREADABLE = "Game rules should parse: ";
     private static final String TIME_ADVANCES = "Template should lock daylight";
@@ -131,7 +131,7 @@ public final class LabTemplateTests {
         WorldDimensions.Complete baked = settings.dimensions().bake(registry.lookupOrThrow(Registries.LEVEL_STEM));
         LevelStem overworld = baked.dimensions().getValue(LevelStem.OVERWORLD);
         helper.assertTrue(overworld != null && overworld.generator() instanceof FlatLevelSource, NOT_FLAT);
-        // decision gate-lunar-and-solar-leave-the-mod-until-their-content-is-designed
+        // decision lunar-generates-from-its-own-noise-and-surface-rules
         List<Identifier> gooDimensions = baked.dimensions().keySet().stream()
                 .filter(id -> Goo.MODID.equals(id.getNamespace())).sorted().toList();
         helper.assertTrue(gooDimensions.equals(GOO_DIMENSIONS_BAKED), String.format(GOO_DIMENSIONS, gooDimensions));
