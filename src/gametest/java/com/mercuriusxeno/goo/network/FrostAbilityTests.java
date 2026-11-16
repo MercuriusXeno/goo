@@ -489,7 +489,7 @@ public final class FrostAbilityTests {
         helper.runAfterDelay(LEECH_TICKS + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertTrue(helper.getBlockState(ICEBORN_LAVA_POS).is(Blocks.OBSIDIAN), SHOULD_OBSIDIAN);
-            helper.assertTrue(helper.getBlockState(ICEBORN_WATER_POS).is(GooBlocks.ICEBORN_ICE.get()), SHOULD_RIME);
+            helper.assertTrue(helper.getBlockState(ICEBORN_WATER_POS).is(GooBlocks.RIME_ICE.get()), SHOULD_RIME);
         });
         helper.runAfterDelay(LEECH_TICKS + 1 + THAW_AFTER_LEAVING_TICKS, () -> {
             helper.assertTrue(helper.getBlockState(ICEBORN_WATER_POS).is(Blocks.WATER), SHOULD_THAW_ICE);

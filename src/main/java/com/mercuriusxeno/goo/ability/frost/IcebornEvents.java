@@ -73,7 +73,7 @@ public final class IcebornEvents {
      * @return the Iceborn ice block
      */
     static Block icebornIce() {
-        return GooBlocks.ICEBORN_ICE.get();
+        return GooBlocks.RIME_ICE.get();
     }
 
     /**
@@ -170,7 +170,7 @@ public final class IcebornEvents {
         if (state.is(Blocks.LAVA)) {
             return Optional.of(Blocks.OBSIDIAN.defaultBlockState());
         }
-        return state.is(Blocks.WATER) ? Optional.of(GooBlocks.ICEBORN_ICE.get().defaultBlockState())
+        return state.is(Blocks.WATER) ? Optional.of(GooBlocks.RIME_ICE.get().defaultBlockState())
                 : Optional.empty();
     }
 

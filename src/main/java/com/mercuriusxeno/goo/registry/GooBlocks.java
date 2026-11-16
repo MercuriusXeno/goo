@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.block.ability.HostCellBlock;
 import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
+import com.mercuriusxeno.goo.block.ability.RimeCellBlock;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.block.ability.WispBlock;
 import com.mercuriusxeno.goo.block.ability.ZapPulseBlock;
@@ -239,8 +240,8 @@ public class GooBlocks {
      * (decisions iceborn-is-dropped-for-rime-a-frost-goo-that-keeps-what-is-around-it-frozen,
      * rime-goo-is-slippery-to-walk-on, each-goo-type-ships-a-world-goo-on-the-volume-cell).
      */
-    public static final DeferredBlock<VolumeCellBlock> FROST_RIME = BLOCKS.registerBlock(
-            "frost_rime", properties -> new VolumeCellBlock(properties, CellBinding.RIME),
+    public static final DeferredBlock<RimeCellBlock> FROST_RIME = BLOCKS.registerBlock(
+            "frost_rime", properties -> new RimeCellBlock(properties, CellBinding.RIME),
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.ICE)
                     .friction(CellBinding.RIME.surface().friction())
@@ -316,12 +317,13 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.ofFullCopy(Blocks.ICE)
                     .overrideLootTable(Blocks.ICE.getLootTable()));
     /**
-     * Iceborn's ice: magicked ice an Iceborn player leaves on water, its own
-     * block so the level's record knows it still stands frozen when it sends
-     * it back to water (decision iceborn-frozen-hearts-thaw-on-fire).
+     * Rime ice: magicked ice Rime goo leaves on the water in its reach, its
+     * own block so the level's record knows it still stands frozen when it
+     * sends it back to water once no Rime goo stands in reach
+     * (decision rime-freezes-water-and-lava-and-freezes-and-damages-the-shoeless).
      */
-    public static final DeferredBlock<MagickedIceBlock> ICEBORN_ICE = BLOCKS.registerBlock(
-            "iceborn_ice", MagickedIceBlock::new,
+    public static final DeferredBlock<MagickedIceBlock> RIME_ICE = BLOCKS.registerBlock(
+            "rime_ice", MagickedIceBlock::new,
             () -> BlockBehaviour.Properties.ofFullCopy(Blocks.ICE)
                     .overrideLootTable(Blocks.ICE.getLootTable()));
     /**
