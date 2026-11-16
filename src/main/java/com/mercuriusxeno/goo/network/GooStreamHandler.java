@@ -47,6 +47,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
@@ -81,6 +82,12 @@ public final class GooStreamHandler {
     public static final double LAUNCH_SPEED_PER_BLOCK = 0.1;
     /** Below this squared gap the crosshair sits on the hand and the look aims instead. */
     private static final double MIN_AIM_LENGTH_SQUARED = 1e-6;
+    /**
+     * How far along the look a stream's drips seek the block they aim through, in blocks: past the farthest a
+     * running caster's Goop or Slick drip carries on level ground; a block past it the drips miss, flying
+     * along the look.
+     */
+    private static final double DRIP_AIM_REACH = 64;
     /** Rays the spray casts each tick to find the floors it lands on. */
     private static final int FLOOR_RAYS_PER_TICK = 12;
     /** Reads which living things a tick's program healed. */
@@ -339,9 +346,12 @@ public final class GooStreamHandler {
         if (delivery.throwsDrips()) {
             // goop-wobbles-a-mob-its-drip-strikes: a stream throwing drips strikes the living its drips strike, not
             // the living in its cone
-            runBlockPass(cast, apex, axis, delivery, ability, held, true);
-            boolean strikesLiving = throwDrips(player, apex, axis, ability, held);
-            sprayParticles(player, apex, axis, delivery, 0, strikesLiving);
+            // diagnose-and-correct-the-spray-landing-off-the-aim: the drips leave the hand aimed through the
+            // crosshair's point, and the drawn drips fly the same axis
+            Vec3 dripAxis = dripAxis(apex, axis, dripTarget(player), exitSpeedOf(player, delivery));
+            runBlockPass(cast, apex, dripAxis, delivery, ability, held, true);
+            boolean strikesLiving = throwDrips(player, apex, dripAxis, ability, held);
+            sprayParticles(player, apex, dripAxis, delivery, 0, strikesLiving);
             return List.of();
         }
         // decay-gnats-degrade-each-block-once: what the stream strikes follows the look; only its motes
@@ -389,10 +399,53 @@ public final class GooStreamHandler {
         Delivery delivery = ability.delivery();
         DripFlights flights = GooServerState.of(player.level().getServer()).dripFlights();
         for (CoatRay.ConeShare share : CoatRay.scatteredShares(held, dripsThisTick(player, delivery, landing, held))) {
-            flights.launch(new DripFlights.Flight(thrower, apex, DripArc.launch(axis, delivery.coneDegrees(), share,
+            flights.launch(new DripFlights.Flight(thrower, apex, dripLaunch(axis, delivery, share,
                     exitSpeedOf(player, delivery))));
         }
         return strikesLiving;
+    }
+
+    /**
+     * The point a stream's drips aim through: where the player's look first
+     * meets a block, empty where it meets none within the throw's farthest reach.
+     * diagnose-and-correct-the-spray-landing-off-the-aim
+     *
+     * @param player the spraying player
+     * @return the crosshair's point on the block it lands on
+     */
+    static Optional<Vec3> dripTarget(ServerPlayer player) {
+        BlockHitResult crosshair = crosshairHit(player, DRIP_AIM_REACH);
+        return crosshair.getType() == HitResult.Type.MISS ? Optional.empty() : Optional.of(crosshair.getLocation());
+    }
+
+    /**
+     * The axis a stream's drips leave the cone's apex along: the launch that
+     * flies the center drip through the crosshair's point, or the look where
+     * the crosshair meets no block or no launch at the exit speed reaches it.
+     * diagnose-and-correct-the-spray-landing-off-the-aim
+     *
+     * @param apex      the cone's apex, the glove hand
+     * @param look      the player's look
+     * @param target    the crosshair's point, empty where it meets no block
+     * @param exitSpeed the drips' exit speed, blocks per tick
+     * @return the unit axis the server's drips and the drawn drips launch about
+     */
+    static Vec3 dripAxis(Vec3 apex, Vec3 look, Optional<Vec3> target, double exitSpeed) {
+        return target.map(point -> DripArc.axisToward(apex, point, look, exitSpeed)).orElse(look);
+    }
+
+    /**
+     * One server drip's launch velocity for its share of the cone, the arc
+     * its drawn drip steps through from the same axis.
+     *
+     * @param axis      the cone's axis
+     * @param delivery  the stream delivery
+     * @param share     the drip's place in the cone
+     * @param exitSpeed the drip's exit speed, blocks per tick
+     * @return the launch velocity, blocks per tick
+     */
+    static Vec3 dripLaunch(Vec3 axis, Delivery delivery, CoatRay.ConeShare share, double exitSpeed) {
+        return DripArc.launch(axis, delivery.coneDegrees(), share, exitSpeed);
     }
 
     /**
@@ -413,13 +466,13 @@ public final class GooStreamHandler {
     }
 
     /**
-     * Where a stream's block pass reaches along the look: the end of its
+     * Where a stream's block pass reaches along its axis: the end of its
      * range, or, for a stream throwing drips, where its axis drip's arc ends.
      * goop-and-slick-coat-lands-where-each-drip-arc-strikes
      *
      * @param player the streaming player
      * @param apex   the cone's apex
-     * @param axis   the look
+     * @param axis   the look, or for a stream throwing drips the axis aimed through the crosshair's point
      * @param delivery the stream's delivery
      * @return the point the block pass aims at
      */
@@ -717,9 +770,27 @@ public final class GooStreamHandler {
      */
     private static void sprayParticles(ServerPlayer player, Vec3 apex, Vec3 axis, Delivery delivery, double speed,
                                        boolean strikesLiving) {
-        delivery.particle().ifPresent(particle -> EntityVisuals.sendToWatchers(player, new StreamMotesPayload(
-                player.getId(), apex, axis, particle, delivery.coneDegrees(), speed,
-                exitSpeedOf(player, delivery), strikesLiving)));
+        delivery.particle().ifPresent(particle -> EntityVisuals.sendToWatchers(player, motesOf(player.getId(), apex,
+                axis, particle, delivery, speed, exitSpeedOf(player, delivery), strikesLiving)));
+    }
+
+    /**
+     * The payload that launches a tick's drawn motes about an axis.
+     *
+     * @param casterId      the caster's entity id
+     * @param apex          the cone's apex
+     * @param axis          the cone's axis
+     * @param particle      the mote's particle
+     * @param delivery      the stream delivery
+     * @param speed         each mote's launch speed along its heading, blocks per tick
+     * @param exitSpeed     a drawn drip's exit speed, blocks per tick
+     * @param strikesLiving whether a drawn drip ends on the living it meets
+     * @return the payload
+     */
+    static StreamMotesPayload motesOf(int casterId, Vec3 apex, Vec3 axis, Identifier particle, Delivery delivery,
+                                      double speed, double exitSpeed, boolean strikesLiving) {
+        return new StreamMotesPayload(casterId, apex, axis, particle, delivery.coneDegrees(), speed, exitSpeed,
+                strikesLiving);
     }
 
     /**
