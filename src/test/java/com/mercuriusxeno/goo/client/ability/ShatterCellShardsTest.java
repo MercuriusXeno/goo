@@ -14,9 +14,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Shards stand over a Shatter cell while something living is near it: every
- * shard of a cell fully shown lies whole in the space above its goo surface
- * within its block column, and a shard rises out of the goo, fading in from
- * full transparency, as its cell's shown share grows.
+ * shard of a cell fully shown lies whole above its goo surface, its center
+ * over the tile, and a shard rises out of the goo, fading in from full
+ * transparency, as its cell's shown share grows.
  * shatter-is-splattered-goo-and-shards-form-over-the-splatters
  * razor-shards-appear-in-layers-ahead-of-the-dome
  */
@@ -37,17 +37,17 @@ class ShatterCellShardsTest {
 
         @ParameterizedTest
         @ValueSource(ints = {1, 7, 14, 15})
-        void everyShardOfAShownCellLiesWholeAboveTheSurfaceWithinItsColumn(int layers) {
+        void everyShardOfAShownCellLiesWholeAboveTheSurfaceItsCenterOverTheTile(int layers) {
             float surface = surfaceOf(layers);
 
             for (ShatterCellShards.CellShard shard : shardsOver(layers, SHOWN)) {
                 float reach = shard.reach();
                 assertTrue(shard.center().y() - reach > surface,
                         "a shard reaches down to " + (shard.center().y() - reach) + " under the surface " + surface);
-                assertTrue(shard.center().x() - reach >= CELL.getX() && shard.center().x() + reach <= CELL.getX() + 1,
-                        "a shard leaves the column across x at " + shard.center().x());
-                assertTrue(shard.center().z() - reach >= CELL.getZ() && shard.center().z() + reach <= CELL.getZ() + 1,
-                        "a shard leaves the column across z at " + shard.center().z());
+                assertTrue(shard.center().x() > CELL.getX() && shard.center().x() < CELL.getX() + 1,
+                        "a shard's center leaves the tile across x at " + shard.center().x());
+                assertTrue(shard.center().z() > CELL.getZ() && shard.center().z() < CELL.getZ() + 1,
+                        "a shard's center leaves the tile across z at " + shard.center().z());
             }
         }
 
@@ -67,14 +67,15 @@ class ShatterCellShardsTest {
 
     /**
      * A tile's shards spread evenly over it at random: each tile draws its
-     * own count between two and four, and each of its shards stands in a
-     * square of the tile's 3 by 3 grid no other of its shards takes.
+     * own count between three and five, and each of its shards stands in a
+     * square of a 3 by 3 grid over the whole tile, edge to edge, no other of
+     * its shards takes.
      */
     @Nested
     class Spread {
 
         @Test
-        void eachTileDrawsTwoToFourShardsAndTilesDrawEveryCountBetween() {
+        void eachTileDrawsThreeToFiveShardsAndTilesDrawEveryCountBetween() {
             Set<Integer> counts = new HashSet<>();
             for (long seed = 0; seed < SEEDS; seed++) {
                 int count = ShatterCellShards.layoutFromSeed(seed).size();
@@ -82,7 +83,7 @@ class ShatterCellShardsTest {
                         "seed " + seed + " draws " + count + " shards");
                 counts.add(count);
             }
-            assertEquals(Set.of(2, 3, 4), counts);
+            assertEquals(Set.of(3, 4, 5), counts);
         }
 
         @Test
@@ -92,20 +93,41 @@ class ShatterCellShardsTest {
                 Set<Integer> squares = new HashSet<>();
                 List<ShatterCellShards.CellShard> shards = ShatterCellShards.shardsOver(CELL, 3, SHOWN, layout);
                 for (ShatterCellShards.CellShard shard : shards) {
-                    int square = squareOf(shard, layout);
+                    int square = squareOf(shard);
                     assertTrue(squares.add(square), "seed " + seed + " stands two shards in square " + square);
                 }
             }
         }
 
-        /** The grid square a shard's center stands in, read across the span its reach leaves it in the column. */
-        private int squareOf(ShatterCellShards.CellShard shard, ShatterCellShards.CellLayout layout) {
-            float lo = ShatterCellShards.spanLow(shard.reach());
-            float span = 1f - 2 * lo;
-            int column = (int) ((shard.center().x() - CELL.getX() - lo) / span * ShatterCellShards.GRID);
-            int row = (int) ((shard.center().z() - CELL.getZ() - lo) / span * ShatterCellShards.GRID);
-            return Math.min(column, ShatterCellShards.GRID - 1) * ShatterCellShards.GRID
-                    + Math.min(row, ShatterCellShards.GRID - 1);
+        /** The square of the grid over the whole tile a shard's center stands in. */
+        private int squareOf(ShatterCellShards.CellShard shard) {
+            int column = (int) ((shard.center().x() - CELL.getX()) * ShatterCellShards.GRID);
+            int row = (int) ((shard.center().z() - CELL.getZ()) * ShatterCellShards.GRID);
+            return column * ShatterCellShards.GRID + row;
+        }
+
+        @Test
+        void everyShardsCenterStandsInTheSquareOfTheWholeTileItsSeedGaveIt() {
+            for (long seed = 0; seed < SEEDS; seed++) {
+                ShatterCellShards.CellLayout layout = ShatterCellShards.layoutFromSeed(seed);
+                for (ShatterCellShards.CellShard shard : ShatterCellShards.shardsOver(CELL, 3, SHOWN, layout)) {
+                    assertEquals(layout.squares()[shard.index()], squareOf(shard),
+                            "seed " + seed + " shard " + shard.index() + " stands off its square");
+                }
+            }
+        }
+
+        @Test
+        void aShownShardRestsJustAboveTheGoo() {
+            float surface = surfaceOf(3);
+            for (long seed = 0; seed < SEEDS; seed++) {
+                for (ShatterCellShards.CellShard shard : ShatterCellShards.shardsOver(CELL, 3, SHOWN,
+                        ShatterCellShards.layoutFromSeed(seed))) {
+                    float gap = shard.center().y() - shard.reach() - surface;
+                    assertTrue(gap > 0f && gap <= ShatterCellShards.RESTING_GAP,
+                            "seed " + seed + " shard " + shard.index() + " rests " + gap + " over the goo");
+                }
+            }
         }
     }
 
