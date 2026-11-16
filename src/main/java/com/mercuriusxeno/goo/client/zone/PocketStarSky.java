@@ -72,6 +72,8 @@ public final class PocketStarSky {
     public enum Sky {
         /** goo's sea of stars. */
         STARS,
+        /** goo's sea of stars beside lunar's one blue overworld star (LunarSky). */
+        LUNAR_VOID,
         /** Vanilla's own sky for the dimension's skybox. */
         VANILLA
     }
@@ -101,10 +103,13 @@ public final class PocketStarSky {
      * The sky a dimension draws, by the custom skybox its dimension type names.
      *
      * @param customSkybox the dimension's custom_skybox attribute
-     * @return the star sky where it names goo's, else vanilla's own
+     * @return the star sky where it names goo's, lunar's void where it names lunar's, else vanilla's own
      */
     public static Sky skyOf(Identifier customSkybox) {
-        return ID.equals(customSkybox) ? Sky.STARS : Sky.VANILLA;
+        if (ID.equals(customSkybox)) {
+            return Sky.STARS;
+        }
+        return LunarSky.ID.equals(customSkybox) ? Sky.LUNAR_VOID : Sky.VANILLA;
     }
 
     /**
