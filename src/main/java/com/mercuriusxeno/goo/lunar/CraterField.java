@@ -11,6 +11,7 @@ import net.minecraft.util.KeyDispatchDataCodec;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.levelgen.DensityFunction;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
+import java.util.Optional;
 
 /**
  * The craters pocking lunar's surface, as the height in blocks they add to the ground at a column: a bowl sunk
@@ -264,6 +265,31 @@ public record CraterField(DensityFunction.NoiseHolder noise) implements DensityF
                 (cellZ + rolls.roll(cellX, cellZ, OFFSET_Z)) * CELL, radius,
                 EjectaRays.rayCount(rolls.roll(cellX, cellZ, RAY_COUNT)),
                 EjectaRays.phase(rolls.roll(cellX, cellZ, RAY_PHASE)));
+    }
+
+    /**
+     * One small crater: its centre and its radius, in blocks.
+     *
+     * @param centerX the centre's x
+     * @param centerZ the centre's z
+     * @param radius  the radius, rim crest to centre
+     */
+    public record Crater(double centerX, double centerZ, double radius) {
+    }
+
+    /**
+     * The crater a cell of this field holds, if it holds one.
+     *
+     * @param cellX the cell's x
+     * @param cellZ the cell's z
+     * @return the crater, or empty
+     */
+    public Optional<Crater> craterInCell(int cellX, int cellZ) {
+        if (roll(cellX, cellZ, PRESENCE) >= CRATER_CHANCE) {
+            return Optional.empty();
+        }
+        return Optional.of(new Crater((cellX + roll(cellX, cellZ, OFFSET_X)) * CELL,
+                (cellZ + roll(cellX, cellZ, OFFSET_Z)) * CELL, radius(cellX, cellZ, this::roll)));
     }
 
     /**

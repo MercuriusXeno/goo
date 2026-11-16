@@ -100,7 +100,8 @@ public final class LunarBoulderAndRayTests {
 
     /**
      * Finds a giant crater in goo:lunar through the seeded giant crater field, with a column on one of its rays and a
-     * column midway between two, both past its rim and clear of every other crater and every other ray; the ray
+     * column midway between two, both past its rim and clear of every other crater, every other ray and every thrown
+     * boulder; the ray
      * column reads anorthosite at its surface and the between column reads regolith.
      *
      * @param helper the gametest helper
@@ -110,7 +111,7 @@ public final class LunarBoulderAndRayTests {
         RandomState randomState = lunar.getChunkSource().randomState();
         CraterField craters = CraterField.seeded(randomState.getOrCreateNoise(CraterField.NOISE));
         GiantCraterField giants = GiantCraterField.seeded(randomState.getOrCreateNoise(CraterField.NOISE));
-        BlockPos[] columns = findRayColumns(craters, giants);
+        BlockPos[] columns = findRayColumns(craters, giants, ClearOfBoulders.in(lunar));
         helper.assertTrue(columns != null, String.format(NO_RAYED_CRATER, CELL_REACH));
         BlockPos ray = surface(lunar, columns[0]);
         BlockState rayState = lunar.getBlockState(ray);
@@ -129,7 +130,8 @@ public final class LunarBoulderAndRayTests {
     }
 
     /** A column on a ray and a column between two rays of one giant crater, or null where the search finds none. */
-    private static BlockPos[] findRayColumns(CraterField craters, GiantCraterField giants) {
+    private static BlockPos[] findRayColumns(CraterField craters, GiantCraterField giants,
+            ClearOfBoulders clearOfBoulders) {
         for (int cellX = -CELL_REACH; cellX <= CELL_REACH; cellX++) {
             for (int cellZ = -CELL_REACH; cellZ <= CELL_REACH; cellZ++) {
                 Optional<GiantCraterField.Crater> crater = giants.craterInCell(cellX, cellZ);
@@ -140,6 +142,7 @@ public final class LunarBoulderAndRayTests {
                 BlockPos onRay = columnAt(crater.get(), crater.get().phase());
                 BlockPos between = columnAt(crater.get(), crater.get().phase() + spacing / 2.0);
                 if (clearOfOtherCraters(craters, giants, onRay) && clearOfOtherCraters(craters, giants, between)
+                        && clearOfBoulders.test(onRay) && clearOfBoulders.test(between)
                         && !craters.isOnRayAt(between.getX(), between.getZ())
                         && !giants.isOnRayAt(between.getX(), between.getZ())) {
                     return new BlockPos[] {onRay, between};

@@ -253,9 +253,9 @@ public final class LunarTerrainTests {
         ServerLevel lunar = helper.getLevel().getServer().getLevel(LUNAR);
         helper.assertTrue(lunar != null, LUNAR_REQUIRED);
         CraterField craters = CraterField.seeded(lunar.getChunkSource().randomState().getOrCreateNoise(CraterField.NOISE));
-        RayFree rayFree = RayFree.of(lunar);
+        Predicate<BlockPos> bare = RayFree.of(lunar).and(ClearOfBoulders.in(lunar));
         BlockPos centre = findColumn(column -> craters.reachesBandAt(column.getX(), column.getZ(), 0.0, CENTRE_REACH)
-                && rayFree.test(column));
+                && bare.test(column));
         helper.assertTrue(centre != null, String.format(NO_CRATER_CENTRE, SEARCH_REACH));
         BlockPos openGround = findColumn(column -> craters.isOpenGroundAt(column.getX(), column.getZ()));
         helper.assertTrue(openGround != null, String.format(NO_OPEN_GROUND, SEARCH_REACH));
@@ -274,10 +274,10 @@ public final class LunarTerrainTests {
         ServerLevel lunar = helper.getLevel().getServer().getLevel(LUNAR);
         helper.assertTrue(lunar != null, LUNAR_REQUIRED);
         CraterField craters = CraterField.seeded(lunar.getChunkSource().randomState().getOrCreateNoise(CraterField.NOISE));
-        RayFree rayFree = RayFree.of(lunar);
+        Predicate<BlockPos> bare = RayFree.of(lunar).and(ClearOfBoulders.in(lunar));
         BlockPos rim = findColumn(column -> craters.reachesBandAt(column.getX(), column.getZ(), RIM_INNER_REACH,
                 RIM_OUTER_REACH) && !craters.reachesBandAt(column.getX(), column.getZ(), 0.0, FLOOR_REACH)
-                && rayFree.test(column));
+                && bare.test(column));
         helper.assertTrue(rim != null, String.format(NO_CRATER_RIM, SEARCH_REACH));
         int y = yBeneathTheRegolith(lunar, rim);
         BlockState beneath = lunar.getBlockState(rim.atY(y));
@@ -286,8 +286,9 @@ public final class LunarTerrainTests {
     }
 
     /**
-     * The floor at the centre of a crater past the depth threshold in goo:lunar reads crater ice, and the floor at the
-     * centre of a crater short of it reads none; both are found through the seeded CraterField.
+     * The floor at the centre of a crater past the depth threshold in goo:lunar reads crater ice, the bottom of its
+     * frozen pool, and the floor at the centre of a crater short of it, inside no deep or giant crater, reads none;
+     * both are found through the seeded crater fields.
      *
      * @param helper the gametest helper
      */
@@ -298,9 +299,11 @@ public final class LunarTerrainTests {
         BlockPos deep = findColumn(column -> craters.reachesBandAt(column.getX(), column.getZ(), 0.0, CENTRE_REACH,
                 CraterField.DEEP_CRATER_RADIUS));
         helper.assertTrue(deep != null, String.format(NO_DEEP_CRATER, SEARCH_REACH));
+        GiantCraterField giants = GiantCraterField.seeded(lunar.getChunkSource().randomState()
+                .getOrCreateNoise(CraterField.NOISE));
         BlockPos shallow = findColumn(column -> craters.reachesBandAt(column.getX(), column.getZ(), 0.0, CENTRE_REACH)
-                && !craters.reachesBandAt(column.getX(), column.getZ(), 0.0, CraterField.ICE_REACH,
-                CraterField.DEEP_CRATER_RADIUS));
+                && !craters.reachesBandAt(column.getX(), column.getZ(), 0.0, 1.0, CraterField.DEEP_CRATER_RADIUS)
+                && !giants.reachesBandAt(column.getX(), column.getZ(), 0.0, 1.0 + GiantCraterField.RIM_REACH, 0.0));
         helper.assertTrue(shallow != null, String.format(NO_SHALLOW_CRATER, SEARCH_REACH));
         lunar.getChunk(deep.getX() >> 4, deep.getZ() >> 4);
         int deepY = lunar.getHeight(Heightmap.Types.WORLD_SURFACE, deep.getX(), deep.getZ()) - 1;

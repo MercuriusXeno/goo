@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.lunar;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.util.KeyDispatchDataCodec;
 import net.minecraft.world.level.levelgen.DensityFunction;
@@ -57,8 +58,31 @@ public record GiantCraterField(DensityFunction.NoiseHolder noise) implements Den
     private static final int SIZE = 11;
     private static final int RAY_COUNT = 12;
     private static final int RAY_PHASE = 13;
+    /** A giant crater throws six to twelve boulders, each rolled on three rolls of its own past these. */
+    private static final int BOULDER_COUNT = 14;
+    private static final int BOULDER_ROLLS = 15;
+    private static final int ROLLS_PER_BOULDER = 3;
+    static final int MIN_BOULDERS = 6;
+    static final int BOULDER_SPREAD = 7;
+    /** A rim boulder lies between the rim crest and a third of a radius past it. */
+    static final double RIM_BOULDER_REACH = 0.95;
+    static final double RIM_BOULDER_SPREAD = 0.3;
+    /** A ray boulder lies out along one of the crater's rays, up to two radii from its centre. */
+    static final double RAY_BOULDER_REACH = 1.15;
+    static final double RAY_BOULDER_SPREAD = 0.85;
+    /** How far a ray boulder strays either side of its ray's line, in radians, and the width of that stray. */
+    static final double RAY_BOULDER_STRAY = 0.04;
+    static final double RAY_BOULDER_STRAY_SPAN = RAY_BOULDER_STRAY + RAY_BOULDER_STRAY;
+    /** A boulder's rolls in order: where round the crater, how far out, how far it strays from its ray. */
+    private static final int WHERE_TO_OUT = 1;
+    private static final int WHERE_TO_STRAY = 2;
+    /** Boulders alternate between the crater's rays and its rim. */
+    private static final int ALTERNATION = 2;
+    /** A crater thrown boulders' farthest reach, in radii, past which no chunk reads them. */
+    static final double BOULDER_REACH = RAY_BOULDER_REACH + RAY_BOULDER_SPREAD;
     private static final double MAX_RADIUS = MIN_RADIUS + RADIUS_SPREAD;
     private static final int NEIGHBOUR_REACH = 1;
+    private static final double FULL_TURN = 2.0 * Math.PI;
     /** Nine cells' giant craters at their deepest and their highest bound the field. */
     private static final int NEIGHBOURHOOD = 9;
 
@@ -68,10 +92,13 @@ public record GiantCraterField(DensityFunction.NoiseHolder noise) implements Den
      * @param centerX the centre's x
      * @param centerZ the centre's z
      * @param radius  the radius, rim crest to centre
-     * @param rays    how many ejecta rays it throws
-     * @param phase   the angle of its first ray, in radians
+     * @param rays         how many ejecta rays it throws
+     * @param phase        the angle of its first ray, in radians
+     * @param boulderSpots the columns its thrown boulders lie on, half on its rim and half out along its rays; empty
+     *                     where the crater was read only for its shape
      */
-    public record Crater(double centerX, double centerZ, double radius, int rays, double phase) {
+    public record Crater(double centerX, double centerZ, double radius, int rays, double phase,
+            List<BlockPos> boulderSpots) {
 
         /**
          * A column's distance from this crater's centre, in its radii.
@@ -139,13 +166,45 @@ public record GiantCraterField(DensityFunction.NoiseHolder noise) implements Den
      * @return the crater, or empty
      */
     static Optional<Crater> craterIn(int cellX, int cellZ, CraterField.CellRolls rolls) {
+        return craterIn(cellX, cellZ, rolls, false);
+    }
+
+    private static Optional<Crater> craterIn(int cellX, int cellZ, CraterField.CellRolls rolls, boolean withBoulders) {
         if (rolls.roll(cellX, cellZ, PRESENCE) >= CRATER_CHANCE) {
             return Optional.empty();
         }
-        return Optional.of(new Crater((cellX + rolls.roll(cellX, cellZ, OFFSET_X)) * CELL,
-                (cellZ + rolls.roll(cellX, cellZ, OFFSET_Z)) * CELL, radius(cellX, cellZ, rolls),
-                EjectaRays.rayCount(rolls.roll(cellX, cellZ, RAY_COUNT)),
-                EjectaRays.phase(rolls.roll(cellX, cellZ, RAY_PHASE))));
+        double centerX = (cellX + rolls.roll(cellX, cellZ, OFFSET_X)) * CELL;
+        double centerZ = (cellZ + rolls.roll(cellX, cellZ, OFFSET_Z)) * CELL;
+        double radius = radius(cellX, cellZ, rolls);
+        int rays = EjectaRays.rayCount(rolls.roll(cellX, cellZ, RAY_COUNT));
+        double phase = EjectaRays.phase(rolls.roll(cellX, cellZ, RAY_PHASE));
+        List<BlockPos> boulders = withBoulders
+                ? boulderSpots(cellX, cellZ, rolls, centerX, centerZ, radius, rays, phase) : List.of();
+        return Optional.of(new Crater(centerX, centerZ, radius, rays, phase, boulders));
+    }
+
+    /**
+     * The columns a giant crater throws its boulders onto: six to twelve, the even ones out along its rays between
+     * 1.15 and 2 radii, the odd ones on its rim between the crest and a third of a radius past it.
+     * decision lunar-surface-gains-giant-craters-mountains-rilles-and-boulder-fields
+     */
+    private static List<BlockPos> boulderSpots(int cellX, int cellZ, CraterField.CellRolls rolls, double centerX,
+            double centerZ, double radius, int rays, double phase) {
+        int count = MIN_BOULDERS + (int) (rolls.roll(cellX, cellZ, BOULDER_COUNT) * BOULDER_SPREAD);
+        List<BlockPos> spots = new ArrayList<>(count);
+        for (int boulder = 0; boulder < count; boulder++) {
+            int base = BOULDER_ROLLS + boulder * ROLLS_PER_BOULDER;
+            double where = rolls.roll(cellX, cellZ, base);
+            double out = rolls.roll(cellX, cellZ, base + WHERE_TO_OUT);
+            double stray = rolls.roll(cellX, cellZ, base + WHERE_TO_STRAY) * RAY_BOULDER_STRAY_SPAN - RAY_BOULDER_STRAY;
+            boolean alongARay = Math.floorMod(boulder, ALTERNATION) == 0;
+            double angle = alongARay ? phase + FULL_TURN * Math.floor(where * rays) / rays + stray : where * FULL_TURN;
+            double reach = alongARay ? RAY_BOULDER_REACH + out * RAY_BOULDER_SPREAD
+                    : RIM_BOULDER_REACH + out * RIM_BOULDER_SPREAD;
+            spots.add(BlockPos.containing(centerX + Math.cos(angle) * reach * radius, 0.0,
+                    centerZ + Math.sin(angle) * reach * radius));
+        }
+        return spots;
     }
 
     /**
@@ -252,7 +311,7 @@ public record GiantCraterField(DensityFunction.NoiseHolder noise) implements Den
      * @return the crater, or empty
      */
     public Optional<Crater> craterInCell(int cellX, int cellZ) {
-        return craterIn(cellX, cellZ, this::roll);
+        return craterIn(cellX, cellZ, this::roll, true);
     }
 
     /**
