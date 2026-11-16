@@ -2,7 +2,7 @@
   "gooType": "rock",
   "displayName": "goo.ability.rock.gouge",
   "cost_mechanics": "goo.ability.rock.gouge.cost_mechanics",
-  "badge": "channeled",
+  "badge": "held",
   "order": 45,
   "cost": 0,
   "cost_formula": "%s",
