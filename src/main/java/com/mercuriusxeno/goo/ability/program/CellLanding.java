@@ -202,7 +202,8 @@ final class CellLanding {
      * What a strike on a block's underside lays, goo holding no ceiling: a
      * runny layer on the wall the cell under it touches, the wall nearest
      * the strike where it touches several, at any adhesion; where it touches
-     * none, the layer drops to the first top below and joins the fill there.
+     * none, the layer falls from that cell to the first top below and joins
+     * the fill there when its drip arrives.
      * drip-striking-a-ceiling-runs-down-a-wall-or-drops
      *
      * @param strike where the drip struck a block's underside
@@ -216,7 +217,7 @@ final class CellLanding {
         if (nearest.isPresent()) {
             return Optional.of(CellFed.runny(under, nearest.get()));
         }
-        return cells.dropLanding(under).map(CellFed::fill);
+        return cells.dropLanding(under).map(landing -> CellFed.falling(under));
     }
 
     /**
@@ -274,19 +275,52 @@ final class CellLanding {
      */
     static void feed(ChannelHost host, CellFed fed, VolumeCellBlock cell) {
         BlockPos pos = fed.cell();
-        BlockState standing = host.stateAt(pos);
-        if (fed.side().isPresent() && fed.coat() == SideCoat.RUNNY) {
-            cell.runnyLanding(host.level(), pos, fed.side().get())
+        if (fed.falls()) {
+            // falling-layer-lands-when-its-drip-arrives: the layer is paid once, as the strike starts its fall
+            if (host.placementPrice().pay(VolumeCellBlock.MAX_LAYERS)) {
+                cell.beginFall(host.level(), pos, pos.getY() + 1.0);
+            }
+        } else if (fed.side().isPresent()) {
+            feedSide(host, pos, fed.side().get(), fed.coat(), cell);
+        } else {
+            feedFill(host, pos, cell);
+        }
+    }
+
+    /**
+     * Lands a side strike's layer once the player pays for it: a runny layer
+     * wherever its run first takes it, a film on its wall.
+     * drip-striking-a-side-sticks-or-runs-by-adhesion
+     *
+     * @param host the caster's host
+     * @param pos  the cell beside the struck wall
+     * @param side the cell's side facing that wall
+     * @param coat what the layer stands as there
+     * @param cell the goo's volume cell block
+     */
+    private static void feedSide(ChannelHost host, BlockPos pos, Direction side, SideCoat coat, VolumeCellBlock cell) {
+        if (coat == SideCoat.RUNNY) {
+            cell.runnyLanding(host.level(), pos, side)
                     .filter(landing -> host.placementPrice().pay(VolumeCellBlock.MAX_LAYERS))
-                    .ifPresent(landing -> host.transformBlock(landing.pos(), landing.state()));
+                    .ifPresent(landing -> cell.place(host, landing));
             return;
         }
-        if (fed.side().isPresent()) {
-            VolumeCellBlock.filmed(standing, cell, fed.side().get())
-                    .filter(into -> host.placementPrice().pay(VolumeCellBlock.MAX_LAYERS))
-                    .ifPresent(into -> host.transformBlock(pos, into));
-            return;
-        }
+        VolumeCellBlock.filmed(host.stateAt(pos), cell, side)
+                .filter(into -> host.placementPrice().pay(VolumeCellBlock.MAX_LAYERS))
+                .ifPresent(into -> host.transformBlock(pos, into));
+    }
+
+    /**
+     * Lands a fill layer once the player pays for it and spreads the cell at once into its side cells.
+     * drip-creates-a-volume-cell-immediately
+     * spread-decreases-the-cell-it-leaves
+     *
+     * @param host the caster's host
+     * @param pos  the cell whose fill takes the layer
+     * @param cell the goo's volume cell block
+     */
+    private static void feedFill(ChannelHost host, BlockPos pos, VolumeCellBlock cell) {
+        BlockState standing = host.stateAt(pos);
         VolumeCellBlock.thickened(standing, cell)
                 .filter(into -> !VolumeCellBlock.wouldRiseAroundFeet(host.level(), pos,
                         VolumeCellBlock.layersOf(standing), into.getValue(VolumeCellBlock.LAYERS)))

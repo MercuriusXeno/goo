@@ -193,6 +193,10 @@ public final class SlickTests {
     private static final String SLICK_MOUND_LEVELS = "slick_mound_levels_on_open_floor";
     private static final String ONE_SLICK_LAYER_RUNS_OFF = "one_slick_layer_runs_off_a_drop";
     private static final String SLICK_RUNS_TO_THE_FOOT = "slick_held_at_a_wall_runs_to_its_foot";
+    private static final String RUN_OFF_FALLS = "slick_run_off_an_edge_lands_when_its_drip_arrives";
+    private static final String WALL_END_FALLS = "slick_running_off_the_end_of_a_wall_lands_when_its_drip_arrives";
+    /** Ticks a fall is watched, past any three-block fall's arrival. */
+    private static final int FALL_WATCH_TICKS = 40;
     /**
      * The wall Slick is held at, two blocks east of the streamer, so a level
      * hold's drips strike its side before any falls to the floor, and its
@@ -1024,6 +1028,9 @@ public final class SlickTests {
         GooTestFunctions.registerTest(registrar, SLICK_MOUND_LEVELS, SlickTests::slickMoundLevelsOnOpenFloor);
         GooTestFunctions.registerTest(registrar, ONE_SLICK_LAYER_RUNS_OFF, SlickTests::oneSlickLayerRunsOffADrop);
         GooTestFunctions.registerTest(registrar, SLICK_RUNS_TO_THE_FOOT, SlickTests::slickHeldAtAWallRunsToItsFoot);
+        GooTestFunctions.registerTest(registrar, RUN_OFF_FALLS, SlickTests::slickRunOffAnEdgeLandsWhenItsDripArrives);
+        GooTestFunctions.registerTest(registrar, WALL_END_FALLS,
+                SlickTests::slickRunningOffTheEndOfAWallLandsWhenItsDripArrives);
     }
 
     /**
@@ -1067,6 +1074,56 @@ public final class SlickTests {
             }
             helper.assertTrue(foot.stream().anyMatch(layers -> layers > 0) && above.isEmpty(),
                     String.format(NOT_RUN_DOWN, foot, above));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * One Slick drip landed on a pillar three blocks over a walled floor
+     * cell runs off its open edge in the tick it lands, Slick clinging to
+     * nothing, and the floor cell holds nothing until the fall's arrival
+     * tick and one layer on it.
+     * falling-layer-lands-when-its-drip-arrives
+     * adhesion-is-a-ladder-of-holds
+     *
+     * @param helper the gametest helper
+     */
+    public static void slickRunOffAnEdgeLandsWhenItsDripArrives(GameTestHelper helper) {
+        TallDrop.layPillar(helper);
+        ServerPlayer caster = slickStreamerAt(helper, STREAMER_POS);
+        FallWatch watch = FallWatch.over(helper, FALL_WATCH_TICKS, TallDrop.ON_THE_PILLAR, TallDrop.AT_THE_FOOT);
+        LandedDrips.landOn(helper, caster, slick(helper), TallDrop.ON_THE_PILLAR, 1);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        helper.assertBlockPresent(Blocks.AIR, TallDrop.ON_THE_PILLAR);
+        helper.runAfterDelay(FALL_WATCH_TICKS + 1, () -> {
+            int ticks = FallWatch.ticksBetween(TallDrop.ON_THE_PILLAR.getY() + 1.0 / WHOLE_BLOCK_LAYERS,
+                    TallDrop.AT_THE_FOOT.getY());
+            watch.assertLandsOn(1, ticks);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * One Slick drip striking the west face of a lone stone block three
+     * blocks over a stone floor runs down it, and where the wall ends under
+     * it the runny layer falls: its side is bare in the tick it steps, and the
+     * floor cell holds nothing until the fall's arrival tick and one layer on it.
+     * falling-layer-lands-when-its-drip-arrives
+     * runny-goo-runs-down-the-wall-to-the-first-top-below
+     *
+     * @param helper the gametest helper
+     */
+    public static void slickRunningOffTheEndOfAWallLandsWhenItsDripArrives(GameTestHelper helper) {
+        BlockPos floor = TallDrop.layOverOpenAir(helper, TallDrop.LONE_WALL, Direction.WEST);
+        BlockPos beside = TallDrop.LONE_WALL.west();
+        ServerPlayer caster = slickStreamerAt(helper, STREAMER_POS);
+        LandedDrips.landOnSide(helper, caster, slick(helper), TallDrop.LONE_WALL, Direction.WEST, 1);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        FallWatch watch = FallWatch.over(helper, FALL_WATCH_TICKS, beside, floor);
+        helper.runAfterDelay(FALL_WATCH_TICKS + 1, () -> {
+            int stepped = watch.firstChange(0);
+            helper.assertTrue(stepped > 0, "The runny layer beside the wall should step off its side");
+            watch.assertLandsOn(1, stepped + FallWatch.ticksBetween(beside.getY(), floor.getY()));
             helper.succeed();
         });
     }

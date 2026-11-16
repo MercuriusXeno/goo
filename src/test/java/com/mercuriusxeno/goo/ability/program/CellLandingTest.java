@@ -95,9 +95,14 @@ class CellLandingTest {
                     CellLanding.cellFedBy(nearTheEast, HOLDS_WHERE_IT_STRIKES, cells));
         }
 
+        /**
+         * Where the cell under it touches no wall, the layer falls from that
+         * cell to the first top below, landing there when its drip arrives
+         * (decision falling-layer-lands-when-its-drip-arrives).
+         */
         @Test
-        void aStrikeOnAnUndersideTouchingNoWallDropsToTheFirstTopBelow() {
-            assertEquals(Optional.of(CellFed.fill(DROP_FLOOR.above())),
+        void aStrikeOnAnUndersideTouchingNoWallFallsFromTheCellUnderIt() {
+            assertEquals(Optional.of(CellFed.falling(OPEN_OVERHANG.below())),
                     CellLanding.cellFedBy(strike(OPEN_OVERHANG, Direction.DOWN), 0, cells));
         }
     }

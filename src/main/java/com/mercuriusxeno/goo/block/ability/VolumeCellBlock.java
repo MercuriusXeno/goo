@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.LoadedAbilityCost;
+import com.mercuriusxeno.goo.ability.program.ChannelHost;
 import com.mercuriusxeno.goo.ability.program.MoltenStep;
 import com.mercuriusxeno.goo.ability.program.SlickStep;
 import com.mercuriusxeno.goo.ability.program.Step;
@@ -11,8 +12,11 @@ import com.mercuriusxeno.goo.block.ability.SlimeFlow.Side;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.BlockVisuals;
+import com.mercuriusxeno.goo.network.FallingDripPayload;
 import com.mercuriusxeno.goo.network.RedHotPayload;
 import com.mercuriusxeno.goo.registry.GooServerState;
+import com.mercuriusxeno.goo.throwing.DripFall;
+import com.mercuriusxeno.goo.type.GooColors;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -35,6 +39,7 @@ import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -45,6 +50,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.function.ToIntFunction;
 
 /**
  * The volume cell, the one block every goo type's world goo stands on,
@@ -85,6 +91,8 @@ public class VolumeCellBlock extends Block {
     public static final int MAX_LAYERS = 15;
     /** The adhesion of a goo that holds tops, every goo's rule before adhesion was read. */
     private static final int HOLDS_TOPS = 1;
+    /** Half a block, the middle of a cell across. */
+    private static final double HALF = 0.5;
     /**
      * The fill the cell holds on its floor, each layer a fifteenth of a block
      * of goo; a cell of fill 0 holds its goo in films alone.
@@ -396,12 +404,134 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
-     * Where a layer lands, and the state it leaves that cell in.
+     * Where a layer lands, and the state it leaves that cell in, or the open
+     * cell it falls from to the first top below, landing when its drip arrives.
+     * falling-layer-lands-when-its-drip-arrives
      *
      * @param pos   the cell
-     * @param state its state with the layer landed
+     * @param state its state with the layer landed, empty where the layer falls from it
      */
-    public record Placement(BlockPos pos, BlockState state) {
+    public record Placement(BlockPos pos, Optional<BlockState> state) {
+
+        static Placement at(BlockPos pos, BlockState state) {
+            return new Placement(pos, Optional.of(state));
+        }
+
+        static Placement fallingFrom(BlockPos pos) {
+            return new Placement(pos, Optional.empty());
+        }
+    }
+
+    /**
+     * Where a falling layer's drawn drip starts, the surface it lands on and
+     * the ticks it falls, the one launch a fall hands the visuals.
+     *
+     * @param from     the point the layer leaves: the middle of the cell it falls from, at the height it leaves
+     * @param landingY the surface of the fill it lands on
+     * @param ticks    the ticks a drip takes to fall that far
+     */
+    record FallStart(Vec3 from, double landingY, int ticks) {
+    }
+
+    /**
+     * The launch a fall hands the visuals as it starts.
+     * goo-moving-downward-falls-as-drips
+     * falling-layer-lands-when-its-drip-arrives
+     *
+     * @param start         the open cell the layer falls from
+     * @param fromY         the height it leaves at
+     * @param landing       the cell it lands in
+     * @param landingLayers the fill that cell holds
+     * @return the launch
+     */
+    static FallStart fallStart(BlockPos start, double fromY, BlockPos landing, int landingLayers) {
+        double landingY = landing.getY() + (double) landingLayers / MAX_LAYERS;
+        return new FallStart(new Vec3(start.getX() + HALF, fromY, start.getZ() + HALF), landingY,
+                DripFall.ticksToFall(fromY - landingY));
+    }
+
+    /**
+     * Starts a layer falling from an open cell to the first top below: the
+     * server carries it, its chunk's watchers draw its drip, and it joins the
+     * fill there when the drip arrives; a fall finding no top below starts nothing.
+     * falling-layer-lands-when-its-drip-arrives
+     * goo-moving-downward-falls-as-drips
+     *
+     * @param level the level
+     * @param start the open cell the layer falls from
+     * @param fromY the height it leaves at
+     * @return true where the fall started
+     */
+    public boolean beginFall(ServerLevel level, BlockPos start, double fromY) {
+        Optional<BlockPos> landing = landingBelow(level, start);
+        if (landing.isEmpty()) {
+            return false;
+        }
+        FallStart launch = fallStart(start, fromY, landing.get(), layersOf(level.getBlockState(landing.get())));
+        GooServerState.of(level.getServer()).layerFalls().start(new LayerFalls.Fall(level.dimension(),
+                start.immutable(), this, level.getServer().getTickCount() + launch.ticks()));
+        BlockVisuals.sendToWatchers(level, start, new FallingDripPayload(launch.from(), launch.landingY(),
+                launch.ticks(), colourOf(level, GooColors::highlight), colourOf(level, GooColors::bright)));
+        return true;
+    }
+
+    /**
+     * One of this cell's goo type's colours.
+     *
+     * @param level  the level, whose registries hold the goo type
+     * @param colour which colour of the type
+     * @return the colour, black where the type's definition does not load
+     */
+    private int colourOf(LevelReader level, ToIntFunction<GooTypeDefinition> colour) {
+        return level.registryAccess().get(binding.gooType()).map(type -> colour.applyAsInt(type.value())).orElse(0);
+    }
+
+    /**
+     * Lands a falling layer on the first top below the cell it fell from,
+     * read again on its arrival, since the world may have changed under it,
+     * and spreads the cell it joins as a landed drip does.
+     * falling-layer-lands-when-its-drip-arrives
+     *
+     * @param level the level
+     * @param start the open cell the layer fell from
+     * @return true where the layer joined a fill, false where it found no room
+     */
+    public boolean landFall(ServerLevel level, BlockPos start) {
+        Optional<Placement> landing = landingBelow(level, start)
+                .flatMap(cell -> thickened(level.getBlockState(cell), this).map(into -> Placement.at(cell, into)));
+        landing.ifPresent(placed -> {
+            level.setBlock(placed.pos(), placed.state().orElseThrow(), UPDATE_ALL);
+            spreadAtOnce(level, placed.pos());
+        });
+        return landing.isPresent();
+    }
+
+    /**
+     * Lands a falling layer at once: as fill where it finds room, and as its
+     * goo given back where the cell it fell from stands where it finds none,
+     * so the layer is never lost.
+     * falling-layer-lands-when-its-drip-arrives
+     *
+     * @param level the level
+     * @param start the open cell the layer fell from
+     */
+    public void landFallNow(ServerLevel level, BlockPos start) {
+        if (!landFall(level, start)) {
+            LoadedAbilityCost.of(level, binding.layingAbility()).map(cost -> reclaimed(1, cost)).filter(mb -> mb > 0)
+                    .ifPresent(mb -> popResource(level, start, GooStacks.createForOutput(binding.gooType(), mb)));
+        }
+    }
+
+    /**
+     * Lands a layer a strike placed: into the cell it names, or falling from it.
+     * falling-layer-lands-when-its-drip-arrives
+     *
+     * @param host    the caster's host
+     * @param landing where the layer lands
+     */
+    public void place(ChannelHost host, Placement landing) {
+        landing.state().ifPresentOrElse(state -> host.transformBlock(landing.pos(), state),
+                () -> beginFall(host.level(), landing.pos(), landing.pos().getY() + 1.0));
     }
 
     /** What a runny layer does on its cell's step. */
@@ -750,10 +880,15 @@ public class VolumeCellBlock extends Block {
      */
     private BlockState stepRunnyLayer(ServerLevel level, BlockPos pos, BlockState state, Direction side,
                                       Placement landing) {
-        if (landing.pos().equals(pos)) {
-            return landing.state().setValue(coatProperty(side), SideCoat.BARE);
+        if (landing.state().isEmpty()) {
+            // falling-layer-lands-when-its-drip-arrives: where the wall ends the layer falls, landing on arrival
+            return beginFall(level, landing.pos(), landing.pos().getY() + 1.0)
+                    ? state.setValue(coatProperty(side), SideCoat.BARE) : state;
         }
-        level.setBlock(landing.pos(), landing.state(), UPDATE_ALL);
+        if (landing.pos().equals(pos)) {
+            return landing.state().get().setValue(coatProperty(side), SideCoat.BARE);
+        }
+        level.setBlock(landing.pos(), landing.state().get(), UPDATE_ALL);
         return state.setValue(coatProperty(side), SideCoat.BARE);
     }
 
@@ -773,7 +908,7 @@ public class VolumeCellBlock extends Block {
     public Optional<Placement> runnyLanding(ServerLevel level, BlockPos pos, Direction side) {
         BlockState standing = level.getBlockState(pos);
         Optional<BlockState> onTheSide = coated(standing, this, side, SideCoat.RUNNY);
-        return onTheSide.isPresent() ? onTheSide.map(state -> new Placement(pos, state))
+        return onTheSide.isPresent() ? onTheSide.map(state -> Placement.at(pos, state))
                 : runFrom(level, pos, standing, side);
     }
 
@@ -792,11 +927,10 @@ public class VolumeCellBlock extends Block {
         BlockState under = level.getBlockState(below);
         RunStep step = runStep(liesOn(level, here), layersOf(state) >= MAX_LAYERS, belowFor(level, below, side));
         return switch (step) {
-            case JOIN_HERE -> thickened(state, this).map(into -> new Placement(here, into));
-            case JOIN_BELOW -> thickened(under, this).map(into -> new Placement(below, into));
-            case RUN_DOWN -> coated(under, this, side, SideCoat.RUNNY).map(into -> new Placement(below, into));
-            case FALL -> landingBelow(level, below).flatMap(cell -> thickened(level.getBlockState(cell), this)
-                    .map(into -> new Placement(cell, into)));
+            case JOIN_HERE -> thickened(state, this).map(into -> Placement.at(here, into));
+            case JOIN_BELOW -> thickened(under, this).map(into -> Placement.at(below, into));
+            case RUN_DOWN -> coated(under, this, side, SideCoat.RUNNY).map(into -> Placement.at(below, into));
+            case FALL -> landingBelow(level, below).map(cell -> Placement.fallingFrom(below));
             case WAIT -> Optional.empty();
         };
     }
@@ -1028,9 +1162,33 @@ public class VolumeCellBlock extends Block {
     private void pourToward(ServerLevel level, BlockPos pos, BlockState state, Direction side) {
         BlockPos toward = pos.relative(side);
         BlockState beside = level.getBlockState(toward);
-        Optional<BlockPos> landing = opens(beside) && !liesOn(level, toward) ? landingBelow(level, toward)
-                : Optional.of(toward);
-        landing.ifPresent(cell -> pourInto(level, pos, state, cell));
+        if (opens(beside) && !liesOn(level, toward)) {
+            pourOffTheLedge(level, pos, state, toward);
+        } else {
+            pourInto(level, pos, state, toward);
+        }
+    }
+
+    /**
+     * Pours one layer off a ledge: the cell loses it at once, and it falls
+     * through the open cell beside to the first top below, landing there
+     * when its drip arrives; a ledge with no top below takes no layer.
+     * spread-decreases-the-cell-it-leaves
+     * falling-layer-lands-when-its-drip-arrives
+     *
+     * @param level the level
+     * @param pos   the pouring cell
+     * @param state the pouring cell's state
+     * @param ledge the open cell beside it the layer falls through
+     */
+    private void pourOffTheLedge(ServerLevel level, BlockPos pos, BlockState state, BlockPos ledge) {
+        if (landingBelow(level, ledge).isEmpty()) {
+            return;
+        }
+        int layers = state.getValue(LAYERS);
+        BlockState left = state.setValue(LAYERS, layers - 1);
+        level.setBlock(pos, layersHeldIn(left) == 0 ? Blocks.AIR.defaultBlockState() : left, UPDATE_ALL);
+        beginFall(level, ledge, pos.getY() + (double) layers / MAX_LAYERS);
     }
 
     /**

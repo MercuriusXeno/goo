@@ -8,7 +8,10 @@ import com.mercuriusxeno.goo.block.CompiledStateDefinition;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.type.GooTypes;
+import com.mercuriusxeno.goo.throwing.DripFall;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import org.junit.jupiter.api.Nested;
@@ -180,6 +183,39 @@ class VolumeCellBlockTest {
         }
 
         private static final int LAYERS_ON_TOP = 3;
+    }
+
+    /**
+     * A layer starting a fall hands the visuals one launch: from the middle
+     * of the cell it falls from at the height it leaves, to the surface of
+     * the fill it lands on, over the ticks a drip takes to fall that far
+     * (decisions goo-moving-downward-falls-as-drips, falling-layer-lands-when-its-drip-arrives).
+     */
+    @Nested
+    class FallStart {
+
+        private static final BlockPos FALLS_FROM = new BlockPos(6, 70, -4);
+        private static final BlockPos LANDS_IN = new BlockPos(6, 64, -4);
+        private static final double LEAVES_AT = 70.4;
+        private static final int LANDING_FILL = 3;
+
+        private final VolumeCellBlock.FallStart start = VolumeCellBlock.fallStart(FALLS_FROM, LEAVES_AT, LANDS_IN,
+                LANDING_FILL);
+
+        @Test
+        void theLaunchLeavesTheMiddleOfTheCellAtTheHeightTheLayerLeaves() {
+            assertEquals(new Vec3(6.5, LEAVES_AT, -3.5), start.from());
+        }
+
+        @Test
+        void theLaunchEndsOnTheSurfaceOfTheFillItLandsOn() {
+            assertEquals(64 + (double) LANDING_FILL / FIFTEEN, start.landingY(), 1e-9);
+        }
+
+        @Test
+        void theLaunchTakesTheTicksADripTakesToFallThatFar() {
+            assertEquals(DripFall.ticksToFall(LEAVES_AT - start.landingY()), start.ticks());
+        }
     }
 
     /**
