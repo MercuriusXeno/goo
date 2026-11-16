@@ -1,15 +1,20 @@
 package com.mercuriusxeno.goo.client;
 
 import com.mojang.blaze3d.pipeline.BlendFunction;
+import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.CompareOp;
 import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
+import net.neoforged.neoforge.client.stencil.StencilOperation;
+import net.neoforged.neoforge.client.stencil.StencilPerFaceTest;
+import net.neoforged.neoforge.client.stencil.StencilTest;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
@@ -49,6 +54,43 @@ class GooRenderTypesTest {
                 .collect(Collectors.toCollection(TreeSet::new));
 
         assertEquals(Set.of(), unregistered, "declared but never registered");
+    }
+
+    /**
+     * Dowsing's window: the mask pass marks the Dowsing stencil bit only
+     * where the goo is the nearest surface, writing no color, and the ore and
+     * glow passes draw only on that bit, while Glimmer's and Sight's x-ray
+     * keep drawing through everything.
+     * dowsing-goo-is-a-window-onto-the-ore-behind-it
+     */
+    @Test
+    void dowsingsMaskMarksTheNearestGooAndItsOreDrawsOnlyThere() {
+        RenderPipeline mask = GooRenderTypes.DOWSING_MASK;
+        StencilTest marks = mask.getStencilTest().orElseThrow();
+        StencilTest onTheMark = new StencilTest(
+                new StencilPerFaceTest(StencilOperation.KEEP, StencilOperation.KEEP, StencilOperation.KEEP,
+                        CompareOp.EQUAL), marks.writeMask(), 0, marks.referenceValue());
+
+        assertEquals(List.of(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false).depthTest(), false,
+                        ColorTargetState.WRITE_NONE, CompareOp.ALWAYS_PASS, StencilOperation.REPLACE),
+                List.of(mask.getDepthStencilState().depthTest(), mask.getDepthStencilState().writeDepth(),
+                        mask.getColorTargetState().writeMask(), marks.front().compare(), marks.front().pass()));
+        assertEquals(List.of(Optional.of(onTheMark), Optional.of(onTheMark)),
+                List.of(GooRenderTypes.DOWSING_ORE.getStencilTest(), GooRenderTypes.DOWSING_GLOW.getStencilTest()));
+    }
+
+    /**
+     * Glimmer's and Sight's x-ray draw through every block, untouched by
+     * Dowsing's window.
+     * dowsing-goo-is-a-window-onto-the-ore-behind-it
+     */
+    @Test
+    void theFungusXrayAndGlowStillDrawThroughEverything() {
+        DepthStencilState throughEverything = new DepthStencilState(CompareOp.ALWAYS_PASS, false);
+
+        assertEquals(List.of(throughEverything, Optional.empty(), throughEverything, Optional.empty()),
+                List.of(GooRenderTypes.FUNGUS_XRAY.getDepthStencilState(), GooRenderTypes.FUNGUS_XRAY.getStencilTest(),
+                        GooRenderTypes.FUNGUS_GLOW.getDepthStencilState(), GooRenderTypes.FUNGUS_GLOW.getStencilTest()));
     }
 
     /**

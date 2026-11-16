@@ -322,6 +322,18 @@ public final class GooClientSetup {
     }
 
     /**
+     * Gives the main render target a stencil, which Dowsing's window marks
+     * so its ore draws only inside the goo's outline on screen.
+     * dowsing-goo-is-a-window-onto-the-ore-behind-it
+     *
+     * @param event the event instance
+     */
+    @SubscribeEvent
+    public static void enableTheStencil(ConfigureMainRenderTargetEvent event) {
+        event.enableStencil();
+    }
+
+    /**
      * Registers range_dispatch properties for goo size and fuel depletion.
      *
      * @param event the event instance
