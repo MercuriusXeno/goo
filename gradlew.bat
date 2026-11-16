@@ -61,15 +61,20 @@ set CLASSPATH=%APP_HOME%\gradle\wrapper\gradle-wrapper.jar
 @rem release still frees it when this shell ends.
 @rem Decision every-gradle-run-reserves-one-of-four-slots
 @rem Decision dev-instance-holds-its-slot-until-the-client-closes
+@rem A run whose caller already holds a slot for it, as tools/gate.ps1 does, names that holder in BUILD_SLOT_HOLDER:
+@rem the reserve answers with the slot the holder holds, and the holder frees it.
+@rem Decision gate-prints-waiting-then-running-for-its-gradle-leg
 set "BUILD_SLOT_RUNS=gradlew %*"
-pwsh -NoProfile -File "%APP_HOME%\tools\build-slots.ps1" reserve
+set "SLOT_HOLDER_ARGUMENTS="
+if defined BUILD_SLOT_HOLDER set "SLOT_HOLDER_ARGUMENTS=-HolderPid %BUILD_SLOT_HOLDER%"
+pwsh -NoProfile -File "%APP_HOME%\tools\build-slots.ps1" reserve %SLOT_HOLDER_ARGUMENTS%
 if %ERRORLEVEL% neq 0 goto fail
 
 @rem Execute Gradle
 "%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %GRADLE_OPTS% "-Dorg.gradle.appname=%APP_BASE_NAME%" -classpath "%CLASSPATH%" org.gradle.wrapper.GradleWrapperMain %*
 set GRADLE_EXIT=%ERRORLEVEL%
 
-pwsh -NoProfile -File "%APP_HOME%\tools\build-slots.ps1" release
+if not defined BUILD_SLOT_HOLDER pwsh -NoProfile -File "%APP_HOME%\tools\build-slots.ps1" release
 
 :omega
 
