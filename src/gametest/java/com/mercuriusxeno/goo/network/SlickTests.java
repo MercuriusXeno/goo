@@ -1431,10 +1431,10 @@ public final class SlickTests {
             streamer.setKnownMovement(MOVING_AND_RISING);
             List<Vec3> moving = launchedThisTick(helper, streamer, tick);
             helper.getLevel().getServer().getPlayerList().remove(streamer);
-            // operator ruling 2026-11-14: each tick scatters its own places, so the moving tick's drips are read
-            // against that tick's places thrown from rest
-            // goop-and-slick-drips-leave-at-one-exit-speed: the moving tick's drips keep the at-rest headings,
-            // leaving faster by the streamer's horizontal speed alone
+            // spray-drips-scatter-over-the-cone-and-slick-thins: each tick scatters its own places, so the moving
+            // tick's drips are read against that tick's places thrown from rest
+            // goop-and-slick-drips-leave-at-one-exit-speed: the moving tick's drips leave faster by the streamer's
+            // horizontal speed alone
             Delivery delivery = slick(helper).delivery();
             double exitSpeed = delivery.exitSpeedAt(MOVING_AND_RISING.horizontalDistance());
             // slick-resolves-faster-by-speed-over-unadjusted-speed: the moving tick throws its drips by its speed
