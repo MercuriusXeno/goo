@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.zoo;
 
+import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -123,13 +124,14 @@ public record Downed(long downedAt, boolean wasNoAi, float negativeHealth, long 
     }
 
     /**
-     * Whether a hit is an attack: damage some entity caused or carried, or an explosion.
+     * Whether a hit is an attack: damage some entity caused or carried, or an explosion; a goo hit naming its
+     * player is no attack, as it was none before goo hits named their player.
      *
      * @param source the hit's source
      * @return true for an attack
      */
     public static boolean isAttack(DamageSource source) {
-        return source.getEntity() != null || source.getDirectEntity() != null
+        return GooHitCredit.causeOf(source) != null || source.getDirectEntity() != null
                 || source.is(DamageTypeTags.IS_EXPLOSION);
     }
 
