@@ -18,6 +18,9 @@ import java.nio.file.Path;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -36,45 +39,62 @@ class AbilityBadgeTest {
 
     @ParameterizedTest
     @CsvSource({"world, WORLD", "mob, MOB", "instant, SELF", "channeled, CHANNELED", "durative, DURATIVE",
-            "free, FREE", "prism, PRISM", "held, HELD"})
+            "free, FREE", "prism, PRISM", "held, HELD", "residual, RESIDUAL"})
     void eachVocabularyWordParsesToItsBadge(String word, AbilityBadge expected) {
         assertEquals(expected, AbilityBadge.CODEC.parse(JsonOps.INSTANCE, new JsonPrimitive(word)).getOrThrow());
     }
 
     /**
-     * The network codec writes the ordinal, so every badge that stood before held keeps its own,
-     * and held takes the next.
+     * The network codec writes the ordinal, so every badge keeps the ordinal it had as each new
+     * badge joins last.
      * decision held-badge-marks-abilities-that-prepare-and-throw
+     * decision residual-badge-marks-the-four-goo-sprays
      */
     @Test
     void everyBadgeKeepsItsNetworkOrdinal() {
         assertEquals(List.of(AbilityBadge.WORLD, AbilityBadge.MOB, AbilityBadge.SELF, AbilityBadge.CHANNELED,
-                AbilityBadge.DURATIVE, AbilityBadge.FREE, AbilityBadge.PRISM, AbilityBadge.HELD),
-                List.of(AbilityBadge.values()));
+                AbilityBadge.DURATIVE, AbilityBadge.FREE, AbilityBadge.PRISM, AbilityBadge.HELD,
+                AbilityBadge.RESIDUAL), List.of(AbilityBadge.values()));
     }
 
     /**
-     * A held ability resolves at the aimed point, as a channeled one does.
+     * A held ability and a residual spray each resolve at the aimed point, as a channeled one does.
      * decision held-badge-marks-abilities-that-prepare-and-throw
+     * decision residual-badge-marks-the-four-goo-sprays
+     *
+     * @param badge the badge aiming a point
      */
-    @Test
-    void heldAimsAPoint() {
-        assertTrue(AbilityBadge.HELD.aimsAPoint());
+    @ParameterizedTest
+    @CsvSource({"HELD", "RESIDUAL"})
+    void heldAndResidualAimAPoint(AbilityBadge badge) {
+        assertTrue(badge.aimsAPoint(), badge + " aims no point");
     }
 
     /**
-     * Grab and Gouge prepare on right click and throw on left click, so they wear held; the
-     * channels stay channeled.
+     * Grab and Gouge prepare on right click and throw on left click, so they wear held; Flames,
+     * Gust and Cold stay channeled; Goop, Slick, Molten and Host spray a goo in world and wear
+     * residual.
      * decision held-badge-marks-abilities-that-prepare-and-throw
+     * decision residual-badge-marks-the-four-goo-sprays
      *
      * @param ability the shipped ability's file name
      * @param badge   the badge it wears
      */
     @ParameterizedTest
     @CsvSource({"kinetic_grab, HELD", "rock_gouge, HELD", "blaze_flames, CHANNELED", "typhoon_gust, CHANNELED",
-            "frost_cold, CHANNELED", "weird_goop, CHANNELED", "kinetic_slick, CHANNELED"})
+            "frost_cold, CHANNELED", "weird_goop, RESIDUAL", "kinetic_slick, RESIDUAL", "blaze_molten, RESIDUAL",
+            "deep_host, RESIDUAL"})
     void shippedAbilityWearsItsControlBadge(String ability, AbilityBadge badge) {
         assertEquals(badge, AbilityJson.decode(ability).badge(), ability);
+    }
+
+    /** decision residual-badge-marks-the-four-goo-sprays */
+    @Test
+    void residualIsWornByExactlyTheFourGooSprays() {
+        Set<String> wearers = AbilityJson.files().stream().map(AbilityJson::decode)
+                .filter(definition -> definition.badge() == AbilityBadge.RESIDUAL)
+                .map(definition -> definition.id().getPath()).collect(Collectors.toSet());
+        assertEquals(Set.of("weird_goop", "kinetic_slick", "blaze_molten", "deep_host"), wearers);
     }
 
     /** decision self-badge-becomes-instant-with-a-noita-trigger-star */
@@ -84,10 +104,11 @@ class AbilityBadgeTest {
     }
 
     /**
-     * Each badge holds its own tier, ranked channeled, held, mob, world, free,
+     * Each badge holds its own tier, ranked residual, channeled, held, mob, world, free,
      * prism, self, durative, at orders that reverse that rank if order alone
      * decided; a shared badge falls back to order (decisions
-     * fan-sorts-badge-then-order, held-badge-marks-abilities-that-prepare-and-throw).
+     * fan-sorts-badge-then-order, held-badge-marks-abilities-that-prepare-and-throw,
+     * residual-tier-leads-the-fan).
      */
     @Test
     void fanOrderRanksEachBadgeThenOrder() {
@@ -95,6 +116,7 @@ class AbilityBadgeTest {
         }
         List<Ranked> shuffled = List.of(
                 new Ranked("held", AbilityBadge.HELD, 7),
+                new Ranked("residual", AbilityBadge.RESIDUAL, 8),
                 new Ranked("durative", AbilityBadge.DURATIVE, -3),
                 new Ranked("world", AbilityBadge.WORLD, 3),
                 new Ranked("self", AbilityBadge.SELF, -2),
@@ -104,7 +126,10 @@ class AbilityBadgeTest {
                 new Ranked("channeled", AbilityBadge.CHANNELED, 6),
                 new Ranked("mob_early", AbilityBadge.MOB, 4));
 
-        assertEquals(List.of("channeled", "held", "mob_early", "mob_late", "world", "free", "prism", "self", "durative"),
+        // an unranked badge answers -1 and sorts first by accident, so every badge holds its own rank
+        assertEquals(IntStream.range(0, AbilityBadge.values().length).boxed().toList(),
+                Stream.of(AbilityBadge.values()).map(AbilityBadge::fanRank).sorted().toList());
+        assertEquals(List.of("residual", "channeled", "held", "mob_early", "mob_late", "world", "free", "prism", "self", "durative"),
                 shuffled.stream().sorted(AbilityBadge.fanOrder(Ranked::badge, Ranked::order)).map(Ranked::name).toList());
     }
 
@@ -120,7 +145,7 @@ class AbilityBadgeTest {
 
     /**
      * The badges a shipped ability may wear, read from its own fields: channeled or held for any delivery that charges, its charge sizing no cast, or writes a hold's ticks
-     * per charge, channeled for a stream, save the charm-like cast, which takes a mob and wears mob, durative for a self delivery paying upkeep, instant for any other self delivery,
+     * per charge, channeled or residual for a stream, save the charm-like cast, which takes a mob and wears mob, durative for a self delivery paying upkeep, instant for any other self delivery,
      * and for a thrown ability mob where it targets entities and world elsewhere. Free and
      * prism are carried by the badge alone, since no field marks them, so a thrown ability
      * wearing either passes on its badge.
@@ -134,7 +159,8 @@ class AbilityBadgeTest {
         boolean holds = definition.delivery().charges() && !definition.delivery().sizesByCharge()
                 || delivery.has(TICKS_PER_CHARGE_FIELD);
         return switch (definition.delivery().kind()) {
-            case STREAM -> EnumSet.of(AbilityBadge.CHANNELED);
+            // residual-badge-marks-the-four-goo-sprays
+            case STREAM -> EnumSet.of(AbilityBadge.CHANNELED, AbilityBadge.RESIDUAL);
             // charm-like-abilities-lock-the-highlighted-mob-on-right-click: a charm-like cast takes a mob
             case ENVELOP -> EnumSet.of(AbilityBadge.MOB);
             // self-effects-trickle-until-ended
