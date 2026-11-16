@@ -19,6 +19,8 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.io.IOException;
@@ -48,13 +50,70 @@ class GrabStepTest {
     /** An acceleration unequal to the shipped one, so the test reads the step's field. */
     private static final double PULL_ACCELERATION = 0.25;
     private static final double PULL_SPEED = 1;
-    private static final GrabStep GRAB = new GrabStep(8, HOLD_DISTANCE, 1.5, PULL_SPEED, 10, PULL_ACCELERATION);
+    private static final GrabStep GRAB = new GrabStep(8, HOLD_DISTANCE, 1.5, PULL_SPEED, 10, PULL_ACCELERATION, 4);
 
     /**
      * A locked item gains speed tick over tick toward where the eye stands
      * that tick, up to the pull speed
      * (decision grabbed-item-locks-in-and-homes-on-your-current-position).
      */
+    /**
+     * Which neighbors join a targeted item's group: the same item within the
+     * step's radius of it, whatever components the stacks carry, and none
+     * while the player sneaks
+     * (decisions grab-on-one-item-grabs-every-same-item-within-four-blocks,
+     * sneaking-grab-pulls-the-single-targeted-item).
+     */
+    @Nested
+    class GroupMembership {
+
+        /** A radius unequal to the shipped 4, so the test reads the step's field. */
+        private static final double RADIUS = 2.5;
+        private static final double JUST_INSIDE = RADIUS - 0.01;
+        private static final double JUST_OUTSIDE = RADIUS + 0.01;
+        private final GrabStep step = new GrabStep(8, HOLD_DISTANCE, 1.5, PULL_SPEED, 10, PULL_ACCELERATION, RADIUS);
+        private final Item cobblestone = mock(Item.class);
+        private final Item dirt = mock(Item.class);
+        private final ItemStack targeted = stackOf(cobblestone);
+
+        @Test
+        void theSameItemJustInsideTheRadiusJoins() {
+            assertTrue(GrabStep.joinsGroup(targeted, stackOf(cobblestone), JUST_INSIDE, step.groupRadius(), false));
+        }
+
+        @Test
+        void theSameItemJustOutsideTheRadiusStaysOut() {
+            assertFalse(GrabStep.joinsGroup(targeted, stackOf(cobblestone), JUST_OUTSIDE, step.groupRadius(), false));
+        }
+
+        @Test
+        void anotherItemInsideTheRadiusStaysOut() {
+            assertFalse(GrabStep.joinsGroup(targeted, stackOf(dirt), JUST_INSIDE, step.groupRadius(), false));
+        }
+
+        @Test
+        void theSameItemCarryingOtherComponentsJoins() {
+            ItemStack renamed = stackOf(cobblestone);
+            when(renamed.getComponentsPatch()).thenReturn(mock(net.minecraft.core.component.DataComponentPatch.class));
+            assertTrue(GrabStep.joinsGroup(targeted, renamed, JUST_INSIDE, step.groupRadius(), false));
+        }
+
+        @Test
+        void sneakingAnswersFalseForEveryNeighbor() {
+            for (ItemStack neighbor : List.of(stackOf(cobblestone), stackOf(dirt))) {
+                for (double distance : new double[] {0, JUST_INSIDE, JUST_OUTSIDE}) {
+                    assertFalse(GrabStep.joinsGroup(targeted, neighbor, distance, step.groupRadius(), true));
+                }
+            }
+        }
+
+        private static ItemStack stackOf(Item item) {
+            ItemStack stack = mock(ItemStack.class);
+            when(stack.getItem()).thenReturn(item);
+            return stack;
+        }
+    }
+
     @Nested
     class Homing {
 

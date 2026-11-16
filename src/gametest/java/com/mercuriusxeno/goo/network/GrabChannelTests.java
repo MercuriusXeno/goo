@@ -100,6 +100,91 @@ public final class GrabChannelTests {
                 GrabChannelTests::grabLockedItemLeavesALaterMobFree);
         GooTestFunctions.registerTest(registrar, GRAB_HELD_MOB_LEAVES_A_LATER_ITEM_UNLOCKED,
                 GrabChannelTests::grabHeldMobLeavesALaterItemUnlocked);
+        GooTestFunctions.registerTest(registrar, GRAB_LOCKS_THE_SAME_ITEMS_WITHIN_FOUR_BLOCKS,
+                GrabChannelTests::grabLocksTheSameItemsWithinFourBlocks);
+        GooTestFunctions.registerTest(registrar, GRAB_SNEAKING_LOCKS_THE_TARGETED_ITEM_ALONE,
+                GrabChannelTests::grabSneakingLocksTheTargetedItemAlone);
+    }
+
+    private static final String GRAB_LOCKS_THE_SAME_ITEMS_WITHIN_FOUR_BLOCKS =
+            "grab_locks_the_same_items_within_four_blocks";
+    private static final String GRAB_SNEAKING_LOCKS_THE_TARGETED_ITEM_ALONE =
+            "grab_sneaking_locks_the_targeted_item_alone";
+    /** The targeted cobblestone, on the floor in the bay's north-east corner. */
+    private static final Vec3 TARGETED_COBBLE = new Vec3(5.5, 0, 0.5);
+    /** Cobblestone 2 blocks south of the targeted one. */
+    private static final Vec3 COBBLE_TWO_AWAY = new Vec3(5.5, 0, 2.5);
+    /** Cobblestone 3.5 blocks west of the targeted one. */
+    private static final Vec3 COBBLE_THREE_AND_A_HALF_AWAY = new Vec3(2.0, 0, 0.5);
+    /** Cobblestone about 6 blocks south-west of the targeted one, clear of the player's pickup reach. */
+    private static final Vec3 COBBLE_SIX_AWAY = new Vec3(1.5, 0, 5.0);
+    /** Dirt 2 blocks west of the targeted cobblestone. */
+    private static final Vec3 DIRT_TWO_AWAY = new Vec3(3.5, 0, 0.5);
+    /** The near cobblestone, the targeted one and its two neighbors within 4 blocks, one apiece. */
+    private static final int NEAR_COBBLE = 3;
+
+    /**
+     * Grab on one cobblestone locks every cobblestone within 4 blocks of it,
+     * and they land in the inventory with it, while cobblestone 6 blocks off
+     * and dirt beside it rest where they lay
+     * (decision grab-on-one-item-grabs-every-same-item-within-four-blocks).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabLocksTheSameItemsWithinFourBlocks(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        ItemEntity targeted = restingItem(helper, TARGETED_COBBLE, Items.COBBLESTONE);
+        restingItem(helper, COBBLE_TWO_AWAY, Items.COBBLESTONE);
+        restingItem(helper, COBBLE_THREE_AND_A_HALF_AWAY, Items.COBBLESTONE);
+        ItemEntity far = restingItem(helper, COBBLE_SIX_AWAY, Items.COBBLESTONE);
+        ItemEntity dirt = restingItem(helper, DIRT_TWO_AWAY, Items.DIRT);
+        Vec3 farLay = far.position();
+        Vec3 dirtLay = dirt.position();
+        for (int tick = 1; tick <= HOMING_TICKS; tick++) {
+            helper.runAfterDelay(tick, () -> sweepTick(player, targeted.isAlive() ? holdTick(player, targeted)
+                    : aimTick(player)));
+        }
+        helper.runAfterDelay(HOMING_TICKS + 1, () -> {
+            int held = player.getInventory().countItem(Items.COBBLESTONE);
+            helper.assertTrue(held == NEAR_COBBLE, "The three near cobblestone should land in the inventory, holds "
+                    + held);
+            helper.assertTrue(far.isAlive() && far.position().distanceTo(farLay) < RESTING,
+                    "The cobblestone 6 blocks off should rest where it lay, stands at " + helper.relativeVec(
+                            far.position()));
+            helper.assertTrue(dirt.isAlive() && dirt.position().distanceTo(dirtLay) < RESTING,
+                    "The dirt should rest where it lay, stands at " + helper.relativeVec(dirt.position()));
+            far.discard();
+            dirt.discard();
+            leave(helper, player);
+        });
+    }
+
+    /**
+     * A sneaking player's Grab locks the targeted cobblestone alone: it lands
+     * in the inventory and the cobblestone 2 blocks from it rests where it
+     * lay, its gravity on (decision sneaking-grab-pulls-the-single-targeted-item).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabSneakingLocksTheTargetedItemAlone(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        player.setShiftKeyDown(true);
+        ItemEntity targeted = restingItem(helper, TARGETED_COBBLE, Items.COBBLESTONE);
+        ItemEntity neighbor = restingItem(helper, COBBLE_TWO_AWAY, Items.COBBLESTONE);
+        Vec3 neighborLay = neighbor.position();
+        for (int tick = 1; tick <= HOMING_TICKS; tick++) {
+            helper.runAfterDelay(tick, () -> sweepTick(player, targeted.isAlive() ? holdTick(player, targeted)
+                    : aimTick(player)));
+        }
+        helper.runAfterDelay(HOMING_TICKS + 1, () -> {
+            int held = player.getInventory().countItem(Items.COBBLESTONE);
+            helper.assertTrue(held == 1, "The targeted cobblestone alone should land in the inventory, holds " + held);
+            helper.assertTrue(neighbor.isAlive() && neighbor.position().distanceTo(neighborLay) < RESTING
+                    && !neighbor.isNoGravity(), "The neighbor should rest where it lay with its gravity on, stands at "
+                    + helper.relativeVec(neighbor.position()) + ", gravity " + !neighbor.isNoGravity());
+            neighbor.discard();
+            leave(helper, player);
+        });
     }
 
     private static final String GRAB_SWEEP_LOCKS_EVERY_ITEM_PASSED = "grab_sweep_locks_every_item_passed";
