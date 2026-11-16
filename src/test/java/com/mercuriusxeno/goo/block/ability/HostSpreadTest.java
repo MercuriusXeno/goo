@@ -1,7 +1,10 @@
 package com.mercuriusxeno.goo.block.ability;
 
+import net.minecraft.core.BlockPos;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.List;
+import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
@@ -29,6 +32,32 @@ class HostSpreadTest {
         @Test
         void aFullChargeLeavesAHostCellFull() {
             assertEquals(FULL_CHARGE, HostSpread.chargeOut(FULL_CHARGE));
+        }
+    }
+
+    /**
+     * A death spreads sculk from the Host cell nearest it, where that cell
+     * lies within Host's radius
+     * (decision mob-dying-on-or-near-host-goo-spreads-sculk-from-the-goo).
+     */
+    @Nested
+    class StartingCell {
+
+        private static final int RADIUS = 8;
+        private final BlockPos death = new BlockPos(10, 64, 10);
+        private final BlockPos nearer = death.offset(2, -1, 0);
+        private final BlockPos farther = death.offset(-5, 0, 4);
+        private final BlockPos outside = death.offset(RADIUS + 1, 0, 0);
+
+        @Test
+        void theNearerCellInsideTheRadiusStartsTheCharge() {
+            assertEquals(Optional.of(nearer),
+                    HostSpread.startingCell(death, List.of(farther, outside, nearer), RADIUS));
+        }
+
+        @Test
+        void aCellOutsideTheRadiusStartsNothing() {
+            assertEquals(Optional.empty(), HostSpread.startingCell(death, List.of(outside), RADIUS));
         }
     }
 

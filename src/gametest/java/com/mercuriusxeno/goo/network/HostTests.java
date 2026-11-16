@@ -39,7 +39,8 @@ public final class HostTests {
     private static final String ABILITY_REQUIRED = "The ability registry must hold deep_host";
     private static final String LAYERS_WRONG = "The cell over the stone should hold one layer of Host, stands %s";
     private static final String CHARGE_TURNS_THE_STONE = "host_charge_turns_the_stone_under_it";
-    private static final String NOT_SCULK = "The stone under the Host cell should be sculk, stands %s";
+    private static final String DEATH_ON_HOST_SPREADS = "host_death_spreads_sculk_with_no_catalyst";
+    private static final String NOT_SCULK ="The stone under the Host cell should be sculk, stands %s";
     private static final String LAYERS_LEFT_WRONG = "The Host cell should stand at %s layers, stands %s";
 
     private HostTests() {
@@ -53,6 +54,34 @@ public final class HostTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, HOST_DRIP_LAYS_A_CELL, HostTests::hostDripLaysACellOnStone);
         GooTestFunctions.registerTest(registrar, CHARGE_TURNS_THE_STONE, HostTests::chargeCrossingHostTurnsTheStoneUnderIt);
+        GooTestFunctions.registerTest(registrar, DEATH_ON_HOST_SPREADS, HostTests::deathOnHostSpreadsSculkWithNoCatalyst);
+    }
+
+    /**
+     * A zombie a player kills on a walled full Host cell, with no catalyst in
+     * the bay, turns the stone under the cell to sculk and drops no
+     * experience, the goo taking it as a catalyst would.
+     * mob-dying-on-or-near-host-goo-spreads-sculk-from-the-goo
+     *
+     * @param helper the gametest helper
+     */
+    public static void deathOnHostSpreadsSculkWithNoCatalyst(GameTestHelper helper) {
+        helper.setBlock(FLOOR, Blocks.STONE);
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            helper.setBlock(OVER_THE_FLOOR.relative(side), Blocks.STONE);
+        }
+        helper.setBlock(OVER_THE_FLOOR, GooBlocks.DEEP_HOST.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
+        ServerPlayer killer = SelfDeliveryTests.invoker(helper, GooTypes.DEEP);
+        Zombie zombie = helper.spawn(EntityType.ZOMBIE, OVER_THE_FLOOR.above());
+        zombie.hurtServer(helper.getLevel(), helper.getLevel().damageSources().playerAttack(killer), Float.MAX_VALUE);
+        helper.getLevel().getServer().getPlayerList().remove(killer);
+        helper.assertTrue(zombie.isDeadOrDying(), "The zombie should die of the blow");
+        helper.succeedWhen(() -> {
+            BlockState under = helper.getBlockState(FLOOR);
+            helper.assertTrue(under.is(Blocks.SCULK), String.format(NOT_SCULK, under));
+            helper.assertEntityNotPresent(EntityType.EXPERIENCE_ORB);
+        });
     }
 
     /**

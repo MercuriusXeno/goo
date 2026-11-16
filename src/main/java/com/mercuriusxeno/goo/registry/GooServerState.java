@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.frost.GlacialFields;
 import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
 import com.mercuriusxeno.goo.ability.program.MorphBirths;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
+import com.mercuriusxeno.goo.block.ability.HostSpreaders;
 import com.mercuriusxeno.goo.block.ability.MoltenHeats;
 import com.mercuriusxeno.goo.network.DripFlights;
 import com.mercuriusxeno.goo.network.FleckLaunches;
@@ -32,6 +33,7 @@ public final class GooServerState {
     private final ScanWaves scanWaves = new ScanWaves();
     private final DripFlights dripFlights = new DripFlights();
     private final MoltenHeats moltenHeats = new MoltenHeats();
+    private final HostSpreaders hostSpreaders = new HostSpreaders();
 
     /**
      * Answers the state the server holds.
@@ -134,6 +136,16 @@ public final class GooServerState {
     }
 
     /**
+     * The sculk charges Host goo started from deaths near it
+     * (decision mob-dying-on-or-near-host-goo-spreads-sculk-from-the-goo).
+     *
+     * @return the Host spreaders
+     */
+    public HostSpreaders hostSpreaders() {
+        return hostSpreaders;
+    }
+
+    /**
      * @return how long each player has held a stream
      */
     public StreamHolds streamHolds() {
@@ -181,5 +193,6 @@ public final class GooServerState {
         scanWaves.clear();
         dripFlights.clear();
         moltenHeats.clear();
+        hostSpreaders.clear();
     }
 }
