@@ -67,6 +67,7 @@ public enum AbilityBadge implements StringRepresentable {
      * Sprays a goo in world for as long as right click is held, leaving it standing as a residue.
      * Declared last so the network ordinal of every badge before it stays put.
      * decision residual-badge-marks-the-four-goo-sprays
+     * decision rime-wears-the-residual-badge
      */
     RESIDUAL("residual");
 
