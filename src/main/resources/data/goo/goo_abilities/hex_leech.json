@@ -2,7 +2,7 @@
   "gooType": "hex",
   "displayName": "goo.ability.hex.leech",
   "cost_mechanics": "goo.ability.hex.leech.cost_mechanics",
-  "badge": "channeled",
+  "badge": "residual",
   "order": 50,
   "cost": 96,
   "cost_formula": "%s/m³",

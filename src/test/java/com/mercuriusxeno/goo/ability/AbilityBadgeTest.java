@@ -83,18 +83,18 @@ class AbilityBadgeTest {
     @ParameterizedTest
     @CsvSource({"kinetic_grab, HELD", "rock_gouge, HELD", "blaze_flames, CHANNELED", "typhoon_gust, CHANNELED",
             "frost_cold, CHANNELED", "weird_goop, RESIDUAL", "kinetic_slick, RESIDUAL", "blaze_molten, RESIDUAL",
-            "deep_host, RESIDUAL"})
+            "deep_host, RESIDUAL", "hex_leech, RESIDUAL"})
     void shippedAbilityWearsItsControlBadge(String ability, AbilityBadge badge) {
         assertEquals(badge, AbilityJson.decode(ability).badge(), ability);
     }
 
     /** decision residual-badge-marks-the-four-goo-sprays */
     @Test
-    void residualIsWornByExactlyTheFourGooSprays() {
+    void residualIsWornByExactlyTheGooSprays() {
         Set<String> wearers = AbilityJson.files().stream().map(AbilityJson::decode)
                 .filter(definition -> definition.badge() == AbilityBadge.RESIDUAL)
                 .map(definition -> definition.id().getPath()).collect(Collectors.toSet());
-        assertEquals(Set.of("weird_goop", "kinetic_slick", "blaze_molten", "deep_host"), wearers);
+        assertEquals(Set.of("weird_goop", "kinetic_slick", "blaze_molten", "deep_host", "hex_leech"), wearers);
     }
 
     /** decision self-badge-becomes-instant-with-a-noita-trigger-star */
