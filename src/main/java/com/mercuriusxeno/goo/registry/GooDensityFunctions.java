@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.lunar.LavaTubes;
 import com.mercuriusxeno.goo.lunar.RilleField;
 import com.mercuriusxeno.goo.lunar.RubbleCaves;
 import com.mercuriusxeno.goo.lunar.SeaCavern;
+import com.mercuriusxeno.goo.lunar.WarrenTunnels;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.levelgen.DensityFunction;
@@ -73,6 +74,13 @@ public final class GooDensityFunctions {
      */
     public static final DeferredHolder<MapCodec<? extends DensityFunction>, MapCodec<CrystalCaverns>> CRYSTAL_CAVERNS =
             DENSITY_FUNCTION_TYPES.register("crystal_caverns", () -> CrystalCaverns.DATA_CODEC);
+
+    /**
+     * {@code goo:warrens}, the tight tunnels lunar's noise settings twist through its warren zone.
+     * decision lunar-underground-changes-by-depth-down-to-a-molten-iron-sea
+     */
+    public static final DeferredHolder<MapCodec<? extends DensityFunction>, MapCodec<WarrenTunnels>> WARRENS =
+            DENSITY_FUNCTION_TYPES.register("warrens", () -> WarrenTunnels.DATA_CODEC);
 
     private GooDensityFunctions() {
     }
