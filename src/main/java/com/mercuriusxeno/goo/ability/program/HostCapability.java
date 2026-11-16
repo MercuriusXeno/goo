@@ -115,6 +115,11 @@ public enum HostCapability {
      */
     ZONE(ZoneHost.class),
     /**
+     * A player Astral's gate can fix on the moon or the blue overworld star
+     * (decision gate-fixates-your-view-on-the-moon-until-it-takes-you).
+     */
+    ASTRAL_GATE(AstralGateHost.class),
+    /**
      * A landing a meteor can be called down toward (decision
      * meteo-crashes-through-whatever-is-above).
      */
@@ -169,11 +174,6 @@ public enum HostCapability {
      * ability block it struck (decision ignite-fire-and-explosive-combo).
      */
     IGNITE(IgniteHost.class),
-    /**
-     * A landing that melts the stone it struck into lava (decision
-     * melt-blob-absorbs-into-lava).
-     */
-    MOLTEN(MoltenHost.class),
     /**
      * A spot a vibration carrying no source entity can go off at (decision
      * click-vibration-carries-no-source-entity).

@@ -49,9 +49,26 @@ class GooTouchHandlerTest {
         }
 
         @ParameterizedTest
-        @EnumSource(value = AbilityBadge.class, names = "MOB", mode = EnumSource.Mode.EXCLUDE)
+        @EnumSource(value = AbilityBadge.class, names = {"MOB", "HELD"}, mode = EnumSource.Mode.EXCLUDE)
         void otherBadgesThrow(AbilityBadge badge) {
             assertFalse(GooTouchHandler.touches(Delivery.ARC, badge, true, WITHIN, REACH));
+        }
+
+        // dart-forms-on-right-click-and-throws-on-left-click: a held arc lands as a mob ability does
+        @Test
+        void aHeldArcTouchesAnEntityAtReachAsAMobAbilityDoes() {
+            assertTrue(GooTouchHandler.touches(Delivery.ARC, AbilityBadge.HELD, true, WITHIN, REACH));
+            assertFalse(GooTouchHandler.touches(Delivery.of(DeliveryKind.SELF), AbilityBadge.HELD, true, WITHIN,
+                    REACH));
+        }
+
+        // dart-forms-on-right-click-and-throws-on-left-click: a held javelin's left click is its throw alone
+        @Test
+        void anAttackKeyPressWithAHeldArcSelectedTouchesNothing() {
+            Entity aimed = mock(Entity.class);
+            when(aimed.position()).thenReturn(new Vec3(REACH, 0, 0));
+            assertFalse(GooTouchHandler.attackTouches(new GooTouchHandler.AttackPress(true, Delivery.ARC,
+                    AbilityBadge.HELD, aimed, Vec3.ZERO, REACH)));
         }
 
         @ParameterizedTest

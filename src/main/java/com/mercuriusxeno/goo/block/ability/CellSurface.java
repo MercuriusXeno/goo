@@ -5,9 +5,10 @@ package com.mercuriusxeno.goo.block.ability;
  * cells differ besides their look and their viscosity: slime breaks a fall
  * and bounces what lands on it, ramping while jump is held; slick lets a fall
  * harm as any ground does and ramps a thing trying to move on it, slippery as
- * ice; Dowsing is ordinary ground. A goo type binding a world goo to the cell
- * names one.
+ * ice; molten stands as ordinary ground, and Dowsing is ordinary ground too.
+ * A goo type binding a world goo to the cell names one.
  * slime-and-slick-are-one-volume-cell-tech
+ * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
  * bounce-ramps-jump-height-while-jump-is-held
  * slick-coats-the-ground-with-kinetic-speed
  *
@@ -19,6 +20,8 @@ public enum CellSurface {
     BOUNCE(Frictions.ORDINARY_GROUND),
     /** Slick's: as slippery as ice, it ramps a thing trying to move on it. */
     RAMP(Frictions.ICE),
+    /** Molten's: ordinary ground, letting a fall harm and moving nothing on it. */
+    POOL(Frictions.ORDINARY_GROUND),
     /**
      * Dowsing's: ordinary ground underfoot that neither bounces nor ramps;
      * the cell works on the eye looking through it, not on what stands on it.

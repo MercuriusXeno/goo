@@ -4,6 +4,8 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.aging.AgingBlocks;
 import com.mercuriusxeno.goo.ability.deep.Sculker;
 import com.mercuriusxeno.goo.ability.frost.Frozen;
+import com.mercuriusxeno.goo.ability.gate.GateFixation;
+import com.mercuriusxeno.goo.ability.gate.WayHome;
 import com.mercuriusxeno.goo.ability.gluttony.Gluttony;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
@@ -227,6 +229,26 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> Undead.NONE)
                             .serialize(Undead.CODEC, Undead::stands)
                             .build());
+
+    /**
+     * The fixation Astral's gate holds a caster in, synced to the caster's client, which zooms the view and holds
+     * the look; a fixation an unload interrupts is dropped, and the caster stays where they stood.
+     * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
+     */
+    public static final Supplier<AttachmentType<GateFixation>> GATE_FIXATION =
+            ATTACHMENT_TYPES.register("gate_fixation",
+                    () -> AttachmentType.builder(() -> GateFixation.NONE)
+                            .sync(GooAttachments::syncsToOwner, GateFixation.STREAM_CODEC)
+                            .build());
+
+    /**
+     * Where a caster left the overworld from when the moon took them, saved with the player until the blue star
+     * carries them back.
+     * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
+     */
+    public static final Supplier<AttachmentType<WayHome>> WAY_HOME =
+            ATTACHMENT_TYPES.register("way_home",
+                    () -> AttachmentType.builder(() -> WayHome.NONE).serialize(WayHome.CODEC, WayHome::kept).build());
 
     /**
      * A Zap stun's wake, saved with the mob so the stun ends after an unload

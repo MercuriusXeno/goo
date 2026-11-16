@@ -56,6 +56,15 @@ public class GooParticles {
         PARTICLE_TYPES.register("slick_spray_drip", () -> new SimpleParticleType(false));
 
     /**
+     * Molten's spray drip: the mod's blocky goo drip in blaze's oranges,
+     * flying its arc until it strikes a block's top or a lava source's
+     * surface, where it splats and the molten goo lands.
+     * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> MOLTEN_SPRAY_DRIP =
+        PARTICLE_TYPES.register("molten_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
      * Dowsing's spray drip: the mod's blocky goo drip in Astral's starlight
      * and night blue, flying its arc until it strikes, where it splats and the
      * Dowsing goo lands.

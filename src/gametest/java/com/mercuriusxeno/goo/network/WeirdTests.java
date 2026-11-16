@@ -496,7 +496,7 @@ public final class WeirdTests {
             helper.setBlock(cell, Blocks.LAVA);
         }
         ServerPlayer streamer = streamerAt(helper, 0);
-        aimDripAt(helper, streamer, helper.absoluteVec(PAST_THE_LAVA));
+        DripAim.at(streamer, helper.absoluteVec(PAST_THE_LAVA));
         holdGoop(helper, streamer, () -> {
             for (BlockPos cell : LAVA_CELLS) {
                 helper.assertTrue(helper.getBlockState(cell).is(Blocks.MAGMA_BLOCK), LAVA_LEFT + cell);
@@ -587,21 +587,9 @@ public final class WeirdTests {
      */
     private static void aimDripAtTopOf(GameTestHelper helper, ServerPlayer streamer, BlockPos cell) {
         double top = (double) VolumeCellBlock.layersOf(helper.getBlockState(cell)) / VolumeCellBlock.MAX_LAYERS;
-        aimDripAt(helper, streamer, Vec3.atBottomCenterOf(helper.absolutePos(cell)).add(0, top, 0));
+        DripAim.at(streamer, Vec3.atBottomCenterOf(helper.absolutePos(cell)).add(0, top, 0));
     }
 
-    /**
-     * Aims a streamer's axis drip at a point at the live Goop's throw speed.
-     *
-     * @param helper   the gametest helper
-     * @param streamer the streaming player
-     * @param target   the point, in world space
-     */
-    private static void aimDripAt(GameTestHelper helper, ServerPlayer streamer, Vec3 target) {
-        AbilityDefinition goop = AbilityRegistry.of(helper.getLevel()).getAbility(GOOP);
-        helper.assertTrue(goop != null, ABILITY_REQUIRED);
-        DripAim.at(streamer, target, goop.delivery().throwSpeed());
-    }
     /**
      * Stands a Goop streamer at the bay's west side facing east, pitched down.
      *
