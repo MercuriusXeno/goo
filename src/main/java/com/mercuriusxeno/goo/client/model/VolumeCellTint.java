@@ -5,6 +5,7 @@ import net.minecraft.client.color.block.BlockTintSource;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.level.block.state.BlockState;
+import java.util.List;
 import java.util.function.ToIntFunction;
 
 /**
@@ -25,6 +26,13 @@ public final class VolumeCellTint implements BlockTintSource {
      * clearer world goo turns.
      */
     public static final int SHELL_ALPHA = 0x60;
+    /** The tint index a cell's slime core draws under, after the layers' own at 0. */
+    public static final int CORE_TINT_INDEX = 1;
+    /**
+     * The core's tint: the shell's alpha over its fluid sprite's own colors.
+     * slime-core-draws-translucent-at-the-shells-opacity
+     */
+    private static final BlockTintSource CORE_TINT = state -> ARGB.color(SHELL_ALPHA, 0xFFFFFF);
 
     private final ResourceKey<GooTypeDefinition> gooType;
     private final ToIntFunction<ResourceKey<GooTypeDefinition>> colorOf;
@@ -39,6 +47,19 @@ public final class VolumeCellTint implements BlockTintSource {
                           ToIntFunction<ResourceKey<GooTypeDefinition>> colorOf) {
         this.gooType = gooType;
         this.colorOf = colorOf;
+    }
+
+    /**
+     * The tints a goo type's volume cell registers, in tint index order: the
+     * layers' and drips' at 0, the core's at {@link #CORE_TINT_INDEX}.
+     *
+     * @param gooType the goo type the cell holds
+     * @param colorOf the RGB a goo type draws in, its highlight
+     * @return the tint sources
+     */
+    public static List<BlockTintSource> sources(ResourceKey<GooTypeDefinition> gooType,
+                                                ToIntFunction<ResourceKey<GooTypeDefinition>> colorOf) {
+        return List.of(new VolumeCellTint(gooType, colorOf), CORE_TINT);
     }
 
     @Override
