@@ -96,7 +96,8 @@ public final class MoltenIronTests {
 
     /**
      * Of two iron golems held still, one in lava and one in molten iron, the one in molten iron has taken more
-     * damage and carries a longer fire.
+     * damage and carries a longer fire, read once several hits have landed and waited on through the test's ticks, so
+     * a golem whose chunk starts ticking late still burns before the test reads it.
      *
      * @param helper the gametest helper
      */
@@ -107,13 +108,13 @@ public final class MoltenIronTests {
         IronGolem inLava = helper.spawnWithNoFreeWill(EntityType.IRON_GOLEM, LAVA_POOL);
         IronGolem inMolten = helper.spawnWithNoFreeWill(EntityType.IRON_GOLEM, MOLTEN_POOL);
         float full = inLava.getMaxHealth();
-        helper.runAfterDelay(BURN_TICKS, () -> {
+        helper.succeedWhen(() -> {
             float lavaTook = full - inLava.getHealth();
             float moltenTook = full - inMolten.getHealth();
+            helper.assertTrue(helper.getTick() >= BURN_TICKS, String.format(SHOULD_HURT_MORE, lavaTook, moltenTook));
             helper.assertTrue(moltenTook > lavaTook, String.format(SHOULD_HURT_MORE, lavaTook, moltenTook));
             helper.assertTrue(inMolten.getRemainingFireTicks() > inLava.getRemainingFireTicks(),
                     String.format(SHOULD_BURN_LONGER, inLava.getRemainingFireTicks(), inMolten.getRemainingFireTicks()));
-            helper.succeed();
         });
     }
 
