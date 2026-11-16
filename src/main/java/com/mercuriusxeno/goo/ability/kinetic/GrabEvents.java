@@ -244,7 +244,7 @@ public final class GrabEvents {
         release(held);
         if (held instanceof BlockHunk hunk) {
             // A thrown Gouge chunk breaks where it strikes, and holds off the next grab while it flies.
-            hunk.markThrown();
+            hunk.markThrownBy(player);
             GougeHolds.threw(player.getUUID(), player.level().getGameTime());
         }
         held.setDeltaMovement(player.getLookAngle().scale(speed));

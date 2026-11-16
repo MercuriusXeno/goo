@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.hearts;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.ability.nether.UndeadEvents;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.server.level.ServerLevel;
@@ -66,7 +67,9 @@ public final class HeartOverlayEvents {
     private static void retaliate(HeartKind kind, ServerPlayer player, Mob attacker, float shields) {
         if (kind == HeartKind.KINDLE) {
             // kindle-ember-hearts-ash-and-retaliate: retaliatory fire by the number of ember hearts
-            attacker.hurtServer(player.level(), player.damageSources().inFire(), shields);
+            // direct-goo-hit-credits-its-caster, goo-hit-keeps-its-kind-and-names-the-player-behind-it
+            attacker.hurtServer(player.level(), GooHitCredit.credit(player.damageSources().inFire(), attacker, player),
+                    shields);
             attacker.igniteForSeconds(RETALIATION_BURN_SECONDS);
         } else if (kind == HeartKind.BARKSKIN) {
             // barkskin-bark-hearts-thorn-and-burn: thorns equal to the bark heart count
