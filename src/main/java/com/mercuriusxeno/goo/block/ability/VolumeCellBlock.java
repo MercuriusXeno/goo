@@ -18,6 +18,7 @@ import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
@@ -39,6 +40,7 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -89,6 +91,8 @@ public class VolumeCellBlock extends Block {
     public static final BooleanProperty WEST = BlockStateProperties.WEST;
     /** The most layers one cell holds: a whole block of goo. */
     public static final int MAX_LAYERS = 15;
+    /** How fast a popped soul rises off Leech goo, blocks a tick, near a soul sand soul's drift. */
+    private static final double SOUL_RISE_SPEED = 0.03;
     /** The layers the cell holds, each a fifteenth of a block of goo. */
     public static final IntegerProperty LAYERS = IntegerProperty.create("layers", 1, MAX_LAYERS);
 
@@ -730,6 +734,26 @@ public class VolumeCellBlock extends Block {
         if (surface().slows()) {
             LeechGooStep.in(layingProgram(level)).ifPresent(leech -> LeechSlow.slowOnce(level, entity, leech));
         }
+    }
+
+    /**
+     * Pops vanilla's soul particle from a slowing cell's goo surface now and
+     * then, at the chance its laying ability's leech goo step names, rising
+     * slowly as a soul from soul sand does.
+     * soul-particles-pop-from-leech-goo-now-and-then
+     */
+    @Override
+    public void animateTick(@NonNull BlockState state, @NonNull Level level, @NonNull BlockPos pos,
+                            @NonNull RandomSource random) {
+        if (!surface().slows()) {
+            return;
+        }
+        LeechGooStep.in(layingProgram(level)).filter(leech -> LeechSouls.pops(random.nextDouble(),
+                leech.soulPopChance())).ifPresent(leech -> {
+                    Vec3 rise = LeechSouls.risePoint(pos, state.getValue(LAYERS), random.nextDouble(),
+                            random.nextDouble());
+                    level.addParticle(ParticleTypes.SOUL, rise.x, rise.y, rise.z, 0, SOUL_RISE_SPEED, 0);
+                });
     }
 
     /**
