@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.block.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.ability.program.LeechGooStep;
 import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.network.LeechPayload;
@@ -9,6 +10,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -53,16 +55,19 @@ public final class LeechDrain {
         DIRECT_LIVING;
 
         /**
-         * What dealt a damage source's hit.
+         * What dealt a damage source's hit, a goo hit credited to its thrower
+         * read as the uncredited hit it stands in for, as goo's own listeners
+         * read it.
          *
          * @param source the damage source
          * @return a direct living striker, an indirect one, or none
          */
         static DrainSource of(DamageSource source) {
-            if (source.getEntity() == null) {
+            Entity cause = GooHitCredit.causeOf(source);
+            if (cause == null) {
                 return NONE;
             }
-            return source.isDirect() && source.getEntity() instanceof LivingEntity ? DIRECT_LIVING : INDIRECT;
+            return source.isDirect() && cause instanceof LivingEntity ? DIRECT_LIVING : INDIRECT;
         }
     }
 
@@ -127,7 +132,7 @@ public final class LeechDrain {
     public static void onDamageDealt(LivingDamageEvent.Post event) {
         LivingEntity victim = event.getEntity();
         if (!(victim.level() instanceof ServerLevel level)
-                || !(event.getSource().getEntity() instanceof LivingEntity source) || source == victim) {
+                || !(GooHitCredit.causeOf(event.getSource()) instanceof LivingEntity source) || source == victim) {
             return;
         }
         Optional<BlockPos> cell = LeechStanding.leechCellUnder(victim);

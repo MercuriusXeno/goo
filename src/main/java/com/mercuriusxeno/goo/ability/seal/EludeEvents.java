@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.seal;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
 import com.mercuriusxeno.goo.network.AfterimagePayload;
 import com.mercuriusxeno.goo.network.AilmentPayload;
@@ -125,7 +126,7 @@ public final class EludeEvents {
      * @return true for a hit the player escapes
      */
     static boolean escapes(DamageSource source) {
-        return source.getEntity() instanceof Mob || source.getDirectEntity() instanceof Projectile;
+        return GooHitCredit.causeOf(source) instanceof Mob || source.getDirectEntity() instanceof Projectile;
     }
 
     /**
