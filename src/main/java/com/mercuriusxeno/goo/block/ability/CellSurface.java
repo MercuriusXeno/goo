@@ -5,12 +5,13 @@ package com.mercuriusxeno.goo.block.ability;
  * cells differ besides their look and their viscosity: slime breaks a fall
  * and bounces what lands on it, ramping while jump is held; slick lets a fall
  * harm as any ground does and ramps a thing trying to move on it, slippery as
- * ice; molten stands as ordinary ground. A goo type binding a world goo to
- * the cell names one.
+ * ice; molten stands as ordinary ground; rime is as slippery as ice and
+ * pushes nothing. A goo type binding a world goo to the cell names one.
  * slime-and-slick-are-one-volume-cell-tech
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
  * bounce-ramps-jump-height-while-jump-is-held
  * slick-coats-the-ground-with-kinetic-speed
+ * rime-goo-is-slippery-to-walk-on
  *
  * @see VolumeCellBlock
  */
@@ -21,7 +22,9 @@ public enum CellSurface {
     /** Slick's: as slippery as ice, it ramps a thing trying to move on it. */
     RAMP(Frictions.ICE),
     /** Molten's and Host's: ordinary ground, letting a fall harm and moving nothing on it. */
-    POOL(Frictions.ORDINARY_GROUND);
+    POOL(Frictions.ORDINARY_GROUND),
+    /** Rime's: as slippery as ice, moving nothing on it, so a thing slides as on ice with none of slick's push. */
+    GLAZE(Frictions.ICE);
 
     /** The friction a cell bound to this surface stands at, the slipperiness what moves on it meets. */
     private final float friction;
