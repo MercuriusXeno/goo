@@ -40,6 +40,20 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
      */
     public static final BlendPalette MOLTEN_BLAZE_ORANGES = new BlendPalette(
             0xFF / 255f, 0x8E / 255f, 0x28 / 255f, 0xFF / 255f, 0x66 / 255f, 0x00 / 255f);
+    /**
+     * Shatter's spray drips, from crystal's bright blue, 77E9FF, to its wheel
+     * blue, 4FC1E9, the two the crystal goo type's definition names.
+     * shatter-is-splattered-goo-and-shards-form-over-the-splatters
+     */
+    public static final BlendPalette SHATTER_CRYSTAL_BLUES = new BlendPalette(
+            0x77 / 255f, 0xE9 / 255f, 0xFF / 255f, 0x4F / 255f, 0xC1 / 255f, 0xE9 / 255f);
+    /**
+     * Host's spray drips, from deep's bright sculk cyan, 29DFEB, to its wheel
+     * teal, 0F2430, the two the deep goo type's definition names.
+     * host-is-a-sculky-slime-that-sculk-spreads-eagerly-through
+     */
+    public static final BlendPalette HOST_DEEP_TEALS = new BlendPalette(
+            0x29 / 255f, 0xDF / 255f, 0xEB / 255f, 0x0F / 255f, 0x24 / 255f, 0x30 / 255f);
 
     /**
      * The color a share of the way from the light end to the dark.

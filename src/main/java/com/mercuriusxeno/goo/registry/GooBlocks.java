@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.CellBinding;
 import com.mercuriusxeno.goo.block.ability.FungalBudBlock;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
+import com.mercuriusxeno.goo.block.ability.HostCellBlock;
 import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
@@ -14,7 +15,6 @@ import com.mercuriusxeno.goo.block.ability.ZapPulseBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
 import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlock;
-import com.mercuriusxeno.goo.block.gate.EndGateBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlock;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlock;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
@@ -212,6 +212,44 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
+     * Shatter: the volume cell bound to Crystal's shatter goo, the pale blue
+     * goo Shatter sprays onto a block's top, one to fifteen layers, ordinary
+     * ground underfoot with glass shards hanging over it, dropping the crystal
+     * goo its layers cost through VolumeCellBlock.getDrops, no loot table
+     * (decisions shatter-is-splattered-goo-and-shards-form-over-the-splatters,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VolumeCellBlock> CRYSTAL_SHATTER = BLOCKS.registerBlock(
+            "crystal_shatter", properties -> new VolumeCellBlock(properties, CellBinding.SHATTER),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.ICE)
+                    .friction(CellBinding.SHATTER.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
+     * Host: the volume cell bound to Deep's sculky slime, the dark teal goo
+     * Host sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot that squelches as sculk does, dropping the deep goo its layers
+     * cost through VolumeCellBlock.getDrops, no loot table
+     * (decisions host-is-a-sculky-slime-that-sculk-spreads-eagerly-through,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<HostCellBlock> DEEP_HOST = BLOCKS.registerBlock(
+            "deep_host", properties -> new HostCellBlock(properties, CellBinding.HOST),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_CYAN)
+                    .friction(CellBinding.HOST.surface().friction())
+                    .sound(SoundType.SCULK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
      * Prism: the milky quartz crystal Crystal's Prism grows, the host every
      * prism combo grows on (decision prism-blob-becomes-a-milky-quartz-crystal).
      */
@@ -237,15 +275,6 @@ public class GooBlocks {
                     .sound(SoundType.AMETHYST_CLUSTER)
                     .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)
                     .lightLevel(PrismBlock::lightLevel));
-    /**
-     * End gate: an end portal laid over a block for a while, carrying what
-     * steps in to its partner gate; unbreakable, uncollidable and dropping
-     * nothing (decision end-clears-blocks-and-opens-a-portal).
-     */
-    public static final DeferredBlock<EndGateBlock> END_GATE = BLOCKS.registerBlock(
-            "end_gate", EndGateBlock::new,
-            () -> BlockBehaviour.Properties.ofFullCopy(Blocks.END_PORTAL).noLootTable());
-
     /**
      * Voidstone: the unbreakable block at the center of each Zone room,
      * the one block there nothing can take away (decision

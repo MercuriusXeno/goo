@@ -17,6 +17,7 @@
     "InventoryPickupMergeMixin",
     "ItemEntityFleckMotionMixin",
     "LivingEntityHeldFallsMixin",
+    "LivingEntityHostDeathMixin",
     "LivingEntityLunarAirlessMixin",
     "LivingEntityPneumaBreathMixin",
     "LivingEntitySculkerSilenceMixin",
@@ -30,6 +31,7 @@
     "ReloadableServerResourcesGooMixin",
     "ServerGamePacketListenerRisenCellMixin",
     "ServerLevelSculkerHearingMixin",
+    "SculkVeinSparesWorldGooMixin",
     "WitchHeldDrinksNoPotionMixin",
     "WorldDimensionsGooStableMixin"
   ],

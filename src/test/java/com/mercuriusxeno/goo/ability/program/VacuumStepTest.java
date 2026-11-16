@@ -2,27 +2,41 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
-import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.network.HoldMarks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.IntSupplier;
 import java.util.function.Predicate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -58,6 +72,17 @@ class VacuumStepTest {
             assertTrue(VacuumStep.slurpPitch(4, SHIPPED_RANGE) < VacuumStep.slurpPitch(SHIPPED_RANGE, SHIPPED_RANGE));
         }
 
+        // vacuum-breaks-a-cell-the-tick-the-wave-reaches-it: the wave's ticks a block is the step's one param
+        @Test
+        void theShippedVacuumBehaviorNamesTheWavesTicksABlockAlone() {
+            JsonObject behavior = JsonParser.parseString(AbilityJson.read("void_vacuum")).getAsJsonObject()
+                    .getAsJsonArray("behaviors").asList().stream().map(JsonElement::getAsJsonObject)
+                    .filter(step -> "vacuum".equals(step.get("type").getAsString())).findFirst().orElseThrow();
+
+            assertEquals(Set.of("type", "ticks_per_block"), behavior.keySet());
+            assertEquals(behavior.get("ticks_per_block").getAsDouble(), ticksPerBlock);
+        }
+
         private static VacuumStep shippedVacuum() {
             AbilityDefinition vacuum = AbilityJson.decode("void_vacuum");
             return vacuum.behaviors().stream().filter(VacuumStep.class::isInstance).map(VacuumStep.class::cast)
@@ -66,76 +91,173 @@ class VacuumStepTest {
     }
 
     /**
-     * A reached residual decays toward nothing through the mingle noise before
-     * it breaks, its decay ending on the tick its distance sets
-     * (decision vacuumed-residuals-decay-through-mingle-noise-before-breaking).
+     * A reached residual breaks whole on the hold tick its distance from the
+     * eye sets, nearest first, with no exposure before it
+     * (decision vacuum-breaks-a-cell-the-tick-the-wave-reaches-it), throwing
+     * three break particles a layer
+     * (decision vacuum-throws-three-break-particles-a-layer).
      */
     @Nested
-    class Decay {
+    class Break {
 
-        private static final int DECAY_TICKS = 5;
+        private static final double TICKS_PER_BLOCK = 1.25;
         private static final BlockPos CELL = new BlockPos(4, 2, 0);
-        private final VacuumStep vacuum = new VacuumStep(1.25, DECAY_TICKS);
+        /** Two blocks east of the eye, on the look. */
+        private static final BlockPos NEAR = new BlockPos(2, 2, 0);
+        /** Six blocks east of the eye, on the look. */
+        private static final BlockPos FAR = new BlockPos(6, 2, 0);
+        private final VacuumStep vacuum = new VacuumStep(TICKS_PER_BLOCK);
 
         @Test
-        void aFarCellsDecayEndsOnTheTickItsDistanceSets() {
-            int breaksOn = VacuumStep.breaksOn(SHIPPED_RANGE, 1.25);
+        void eachReachedCellBreaksOnItsWaveTickNearestFirstAndNoneIsExposed() {
+            Map<BlockPos, BlockState> cells = new HashMap<>(Map.of(NEAR, WorldGooHosts.worldGoo(),
+                    FAR, WorldGooHosts.worldGoo()));
+            AtomicInteger held = new AtomicInteger();
+            ChannelHost host = WorldGooHosts.holding(cells, held::get);
+            Map<BlockPos, Integer> brokeOn = new LinkedHashMap<>();
+            doAnswer(call -> {
+                BlockPos cell = call.getArgument(0);
+                cells.remove(cell);
+                brokeOn.put(cell, held.get());
+                return null;
+            }).when(host).breakBlockQuietly(any());
+            int nearTick = VacuumStep.breaksOn(2, TICKS_PER_BLOCK);
+            int farTick = VacuumStep.breaksOn(6, TICKS_PER_BLOCK);
 
-            assertEquals(breaksOn, vacuum.decayStartsOn(SHIPPED_RANGE) + DECAY_TICKS - 1);
+            for (int tick = ChannelAim.FIRST_TICK; tick <= farTick; tick++) {
+                held.set(tick);
+                vacuum.tick(new StepContext(host, 0, 0));
+            }
+
+            assertEquals(List.of(NEAR, FAR), List.copyOf(brokeOn.keySet()));
+            assertEquals(nearTick, brokeOn.get(NEAR));
+            assertEquals(farTick, brokeOn.get(FAR));
+            verify(host, never()).exposeBlock(any(), any(), anyFloat(), anyInt());
         }
 
         @Test
-        void aNearCellDecaysFromTheHoldsFirstTick() {
-            assertEquals(ChannelAim.FIRST_TICK, vacuum.decayStartsOn(1));
-        }
-
-        @Test
-        void aReachedResidualMinglesTowardNothingAsItMeltsAway() {
-            ChannelHost host = residualHost(0.2f);
-
-            vacuum.tick(new StepContext(host, 0, 0));
-
-            verify(host).exposeBlock(CELL, Blocks.AIR.defaultBlockState(), 1f / DECAY_TICKS, BlockExposures.MELTS_AWAY);
-        }
-
-        @Test
-        void aFullyDecayedResidualBreaksAndSendsItsTransformToNothing() {
-            ChannelHost host = residualHost(1f);
+        void aBrokenResidualThrowsThreeBreakParticlesALayer() {
+            ChannelHost host = residualHost();
             BlockState residual = host.stateAt(CELL);
 
             vacuum.tick(new StepContext(host, 0, 0));
 
-            verify(host).breakBlock(CELL);
-            verify(host).sendTransform(CELL, residual, Blocks.AIR.defaultBlockState());
+            verify(host).scatterBreakParticles(CELL, residual, WorldGooHosts.LAYERS * 3,
+                    (double) WorldGooHosts.LAYERS / VolumeCellBlock.MAX_LAYERS);
         }
 
         // vacuum-sounds-a-suction-wind-and-rising-slurps
         @Test
         void aTakenResidualSlurpsAtItsCellPitchedByItsDistance() {
-            ChannelHost host = residualHost(1f);
+            ChannelHost host = residualHost();
 
             vacuum.tick(new StepContext(host, 0, 0));
 
             verify(host).slurpAt(CELL, VacuumStep.slurpPitch(4, SHIPPED_RANGE));
         }
 
-        /**
-         * A host holding one residual cell four blocks ahead of the eye, the
-         * hold old enough to have reached it, its exposure answering a share.
-         */
-        private ChannelHost residualHost(float share) {
+        private ChannelHost residualHost() {
+            return WorldGooHosts.holding(Map.of(CELL, WorldGooHosts.worldGoo()));
+        }
+    }
+
+    /**
+     * Vacuum takes every goo laid on the volume cell, whatever goo type the
+     * cell is bound to, with no list of blocks kept by hand, and passes over
+     * every other block
+     * (decision vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave).
+     */
+    @Nested
+    class Membership {
+
+        private static final BlockPos WORLD_GOO = new BlockPos(4, 2, 0);
+        /** Inside the cone beside the line to the world goo, so it blocks no line. */
+        private static final BlockPos STONE = new BlockPos(4, 2, 1);
+        private final VacuumStep vacuum = new VacuumStep(1.25);
+
+        @Test
+        void aWorldGooOnTheVolumeCellBreaksAndStoneStands() {
+            ChannelHost host = WorldGooHosts.holding(Map.of(WORLD_GOO, WorldGooHosts.worldGoo(),
+                    STONE, WorldGooHosts.stone()));
+
+            vacuum.tick(new StepContext(host, 0, 0));
+
+            verify(host).breakBlockQuietly(WORLD_GOO);
+            verify(host, never()).breakBlockQuietly(STONE);
+        }
+    }
+
+    /**
+     * Vacuum's description names every goo in the world as what it clears
+     * (decision vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave).
+     */
+    @Nested
+    class Description {
+
+        private static final String LANG = "/assets/goo/lang/en_us.json";
+        private static final String DESCRIPTION = "goo.ability.void.vacuum.description";
+
+        @Test
+        void theDescriptionNamesEveryGooInTheWorld() throws IOException {
+            String description = lang().get(DESCRIPTION).getAsString();
+
+            assertTrue(description.contains("every goo in the world"), description);
+        }
+
+        private static JsonObject lang() throws IOException {
+            try (InputStream in = VacuumStepTest.class.getResourceAsStream(LANG)) {
+                assertNotNull(in, LANG + " should be on the classpath");
+                return JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
+            }
+        }
+    }
+
+    /**
+     * Channel hosts holding a few cells ahead of the eye, every other cell
+     * open air, the hold old enough to have reached them or as old as a
+     * counter reads.
+     */
+    private static final class WorldGooHosts {
+
+        /** The layers each world goo cell holds. */
+        static final int LAYERS = 6;
+        /** A hold old enough for the wave to have crossed the reach. */
+        private static final int WAVE_CROSSED = 20;
+
+        private WorldGooHosts() {
+        }
+
+        static ChannelHost holding(Map<BlockPos, BlockState> cells) {
+            return holding(cells, () -> WAVE_CROSSED);
+        }
+
+        static ChannelHost holding(Map<BlockPos, BlockState> cells, IntSupplier held) {
             ChannelHost host = mock(ChannelHost.class);
-            BlockState residual = mock(BlockState.class);
-            Block residualBlock = mock(Block.class);
-            when(residual.getBlock()).thenReturn(residualBlock);
-            when(residual.getCollisionShape(any(), any())).thenReturn(Shapes.empty());
-            when(host.channelAim()).thenReturn(Optional.of(new ChannelAim(EYE.add(LOOK_EAST), null, CONE, 20, true)));
+            BlockState air = state(mock(Block.class), Shapes.empty());
+            when(host.channelAim()).thenAnswer(call -> Optional.of(new ChannelAim(EYE.add(LOOK_EAST), null, CONE,
+                    held.getAsInt(), true)));
             when(host.eye()).thenReturn(EYE);
             when(host.holdMarks()).thenReturn(new HoldMarks());
-            when(host.blockIn(any(), eq(VacuumStep.SLIME_RESIDUALS))).thenAnswer(call -> CELL.equals(call.getArgument(0)));
-            when(host.stateAt(any())).thenReturn(residual);
-            when(host.exposeBlock(any(), any(), anyFloat(), anyInt())).thenReturn(share);
+            when(host.stateAt(any())).thenAnswer(call -> cells.getOrDefault(call.getArgument(0), air));
             return host;
+        }
+
+        /** A goo laid on the volume cell, bound to no goo type a tag names, of a few layers. */
+        static BlockState worldGoo() {
+            BlockState goo = state(mock(VolumeCellBlock.class), Shapes.empty());
+            when(goo.getValue(VolumeCellBlock.LAYERS)).thenReturn(LAYERS);
+            return goo;
+        }
+
+        static BlockState stone() {
+            return state(mock(Block.class), Shapes.block());
+        }
+
+        private static BlockState state(Block block, VoxelShape collision) {
+            BlockState state = mock(BlockState.class);
+            when(state.getBlock()).thenReturn(block);
+            when(state.getCollisionShape(any(), any())).thenReturn(collision);
+            return state;
         }
     }
 
