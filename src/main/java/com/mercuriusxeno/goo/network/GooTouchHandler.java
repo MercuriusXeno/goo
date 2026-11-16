@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -53,15 +54,16 @@ public final class GooTouchHandler {
 
     /**
      * Whether an ability lands by touch on an entity within reach: an arc or
-     * a beam wearing the mob badge.
+     * a beam aiming as a mob ability, Dart's held javelin among them.
      * decision mob-ability-touches-at-reach
+     * decision dart-forms-on-right-click-and-throws-on-left-click
      *
      * @param delivery the ability's delivery
      * @param badge    the ability's badge
      * @return true for a mob ability that flies a line
      */
     public static boolean touchesAtReach(Delivery delivery, AbilityBadge badge) {
-        return badge == AbilityBadge.MOB && delivery.aimsALine();
+        return badge.aimsAs(delivery.kind()) == AbilityBadge.MOB && delivery.aimsALine();
     }
 
     /**
@@ -110,7 +112,10 @@ public final class GooTouchHandler {
         if (!press.gloveInHand() || target == null) {
             return false;
         }
-        return press.delivery() != null && press.badge() != null && touches(press.delivery(), press.badge(), true,
+        // dart-forms-on-right-click-and-throws-on-left-click: a held javelin's left click is its throw alone
+        return press.delivery() != null && press.badge() != null
+                && !HeldRoute.throwsOnAttack(press.delivery(), press.badge())
+                && touches(press.delivery(), press.badge(), true,
                 press.playerPosition().distanceToSqr(target.position()), press.reach());
     }
 

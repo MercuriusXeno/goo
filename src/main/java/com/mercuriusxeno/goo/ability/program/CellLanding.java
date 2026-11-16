@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.throwing.CoatRay;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import java.util.Optional;
 
@@ -54,7 +53,7 @@ final class CellLanding {
      * @param cell   the goo's volume cell block
      * @return the cell, empty where the strike lays nothing
      */
-    static Optional<BlockPos> cellFed(ChannelHost host, CoatRay.BlockStrike strike, Block cell) {
+    static Optional<BlockPos> cellFed(ChannelHost host, CoatRay.BlockStrike strike, VolumeCellBlock cell) {
         return cellFedBy(strike, new Cells() {
             @Override
             public boolean thickens(BlockPos pos) {
@@ -64,7 +63,7 @@ final class CellLanding {
 
             @Override
             public boolean takesACell(BlockPos pos) {
-                return host.airAt(pos) && VolumeCellBlock.liesOn(host.level(), pos);
+                return host.airAt(pos) && cell.liesOn(host.level(), pos);
             }
         });
     }

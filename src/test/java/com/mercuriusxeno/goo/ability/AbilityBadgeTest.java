@@ -142,10 +142,30 @@ class AbilityBadgeTest {
                     ? EnumSet.of(AbilityBadge.DURATIVE)
                     : holds ? EnumSet.of(AbilityBadge.CHANNELED, AbilityBadge.HELD) : EnumSet.of(AbilityBadge.SELF);
             // held-badge-marks-abilities-that-prepare-and-throw
-            default -> holds ? EnumSet.of(AbilityBadge.CHANNELED, AbilityBadge.HELD)
-                    : EnumSet.of(definition.hasTag(AbilityTags.ENTITY) ? AbilityBadge.MOB : AbilityBadge.WORLD,
-                            AbilityBadge.FREE, AbilityBadge.PRISM);
+            default -> holds ? EnumSet.of(AbilityBadge.CHANNELED, AbilityBadge.HELD) : releasedBadges(definition);
         };
+    }
+
+    /**
+     * The badges an ability thrown at its aim may wear: mob for one taking
+     * entities, which an arc may wear as held, formed on right click and
+     * thrown on left, and world for one taking blocks.
+     * decision dart-forms-on-right-click-and-throws-on-left-click
+     *
+     * @param definition the ability
+     * @return the badges it may wear
+     */
+    private static Set<AbilityBadge> releasedBadges(AbilityDefinition definition) {
+        Set<AbilityBadge> allowed = EnumSet.of(AbilityBadge.FREE, AbilityBadge.PRISM);
+        if (!definition.hasTag(AbilityTags.ENTITY)) {
+            allowed.add(AbilityBadge.WORLD);
+            return allowed;
+        }
+        allowed.add(AbilityBadge.MOB);
+        if (definition.delivery().kind() == DeliveryKind.ARC) {
+            allowed.add(AbilityBadge.HELD);
+        }
+        return allowed;
     }
 
     private static JsonObject writtenDelivery(Path file) {
