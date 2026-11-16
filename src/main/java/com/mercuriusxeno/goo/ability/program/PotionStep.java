@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.LingeringAppliers;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -17,7 +18,9 @@ import java.util.stream.Stream;
  * Adds a status effect to the host's target and finishes. The effect is
  * named by id and resolved when the step runs, so the step decodes without a
  * registry behind it, as
- * {@code potion effect=minecraft:levitation duration=100 amplifier=1}.
+ * {@code potion effect=minecraft:levitation duration=100 amplifier=1}. A goo
+ * effect it adds remembers the player who threw it, whom the effect's later
+ * ticks name (decision lingering-goo-effect-credits-whoever-applied-it).
  *
  * @param effect    the status effect id
  * @param duration  the duration in ticks, evaluated when the step runs
@@ -62,7 +65,13 @@ public record PotionStep(Identifier effect, Expr duration, Expr amplifier, boole
             Goo.LOGGER.warn(LOG_UNKNOWN_EFFECT, effect);
             return true;
         }
-        context.hostAs(TargetHost.class).target().addEffect(new MobEffectInstance(holder.get(), ticks, level, false, visible));
+        TargetHost host = context.hostAs(TargetHost.class);
+        if (Goo.MODID.equals(effect.getNamespace())) {
+            // lingering-goo-effect-credits-whoever-applied-it: a goo effect's later ticks, Mycosis's among them,
+            // name this thrower
+            LingeringAppliers.remember(host.target(), effect, host.thrower());
+        }
+        host.target().addEffect(new MobEffectInstance(holder.get(), ticks, level, false, visible));
         return true;
     }
 

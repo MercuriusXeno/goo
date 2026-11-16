@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.LingeringAppliers;
 import com.mercuriusxeno.goo.ability.aging.AgingBlocks;
 import com.mercuriusxeno.goo.ability.deep.Sculker;
 import com.mercuriusxeno.goo.ability.frost.Frozen;
@@ -82,6 +83,17 @@ public final class GooAttachments {
             ATTACHMENT_TYPES.register("entity_counters",
                     () -> AttachmentType.builder(() -> EntityCounters.EMPTY)
                             .serialize(EntityCounters.CODEC)
+                            .build());
+
+    /**
+     * The players who applied the lingering goo effects an afflicted entity holds, one per effect, saved with the
+     * entity while any stands so each later tick names its applier after a reload.
+     * lingering-goo-effect-credits-whoever-applied-it
+     */
+    public static final Supplier<AttachmentType<LingeringAppliers>> LINGERING_APPLIERS =
+            ATTACHMENT_TYPES.register("lingering_appliers",
+                    () -> AttachmentType.builder(() -> LingeringAppliers.NONE)
+                            .serialize(LingeringAppliers.CODEC, LingeringAppliers::stands)
                             .build());
 
     /**
