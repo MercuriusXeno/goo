@@ -718,9 +718,8 @@ public class VolumeCellBlock extends Block {
      * Catches a thing on a slowing cell by its laying ability's leech goo
      * step: slows it by the step's speed factor, as a cobweb or a berry bush
      * slows what moves through it, on both sides since the client moves its
-     * own player; and on the server lets the goo's spirits bite a living one.
+     * own player. The goo's spirits deal no damage.
      * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
-     * leech-goo-has-a-chance-to-deplete-when-the-spirits-damage
      *
      * @param level  the level the cell stands in
      * @param pos    the cell
@@ -728,15 +727,9 @@ public class VolumeCellBlock extends Block {
      * @param entity the thing caught
      */
     private void catchIn(Level level, BlockPos pos, BlockState state, Entity entity) {
-        if (!surface().slows()) {
-            return;
+        if (surface().slows()) {
+            LeechGooStep.in(layingProgram(level)).ifPresent(leech -> entity.makeStuckInBlock(state, leech.slowing()));
         }
-        LeechGooStep.in(layingProgram(level)).ifPresent(leech -> {
-            entity.makeStuckInBlock(state, leech.slowing());
-            if (level instanceof ServerLevel server && entity instanceof LivingEntity living) {
-                LeechSpirits.bite(server, pos, state, living, leech);
-            }
-        });
     }
 
     /**
