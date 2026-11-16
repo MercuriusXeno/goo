@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.end.EndDestination;
+import com.mercuriusxeno.goo.ability.end.EndGatePassage;
 import com.mercuriusxeno.goo.ability.gate.AstralGate;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.ability.zone.ConjuredDoors;
@@ -42,7 +44,8 @@ import java.util.function.Consumer;
  */
 public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<ChannelAim> channelAim, float charge,
                          PlacementPrice placementPrice)
-        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, FrostHost, ZoneHost, AstralGateHost {
+        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, FrostHost, ZoneHost, AstralGateHost,
+        EndHost {
 
     /** The share of the player's height Nova emanates from. */
     private static final double HALF_HEIGHT = 0.5;
@@ -283,7 +286,28 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
      * channeling-to-the-pocket-conjures-a-door-that-envelops-the-player). */
     @Override
     public void conjureDoor(int held, int charge) {
+        if (ConjuredDoors.conjure(player, held, charge)) {
+            ZoneRooms.loadRoomAhead(player);
+        }
+    }
+
+    /** Where End's gate takes the player (decision
+     * end-summons-a-gate-like-zone-that-takes-you-to-the-end-and-back). */
+    @Override
+    public Optional<EndDestination> endDestination() {
+        return EndDestination.from(level.dimension());
+    }
+
+    /** Conjures End's gate before the player, as Zone's door is (decision
+     * end-summons-a-gate-like-zone-that-takes-you-to-the-end-and-back). */
+    @Override
+    public void conjureEndGate(int held, int charge) {
         ConjuredDoors.conjure(player, held, charge);
+    }
+
+    @Override
+    public void carryThroughEndGate(EndDestination destination) {
+        EndGatePassage.carry(player, destination);
     }
 
     @Override
