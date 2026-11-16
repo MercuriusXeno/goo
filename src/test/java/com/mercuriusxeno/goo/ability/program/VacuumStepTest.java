@@ -120,13 +120,13 @@ class VacuumStepTest {
         }
 
         @Test
-        void aBrokenResidualThrowsOneBreakParticleALayer() {
+        void aBrokenResidualThrowsThreeBreakParticlesALayer() {
             ChannelHost host = residualHost(1f);
             BlockState residual = host.stateAt(CELL);
 
             vacuum.tick(new StepContext(host, 0, 0));
 
-            verify(host).scatterBreakParticles(CELL, residual, WorldGooHosts.LAYERS,
+            verify(host).scatterBreakParticles(CELL, residual, WorldGooHosts.LAYERS * 3,
                     (double) WorldGooHosts.LAYERS / VolumeCellBlock.MAX_LAYERS);
         }
 
