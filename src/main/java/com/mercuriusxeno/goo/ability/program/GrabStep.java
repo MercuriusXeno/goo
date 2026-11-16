@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.held.Remote;
 import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
-import com.mercuriusxeno.goo.ability.kinetic.GrabItemLock;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.GateRay;
@@ -27,10 +26,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
@@ -63,13 +59,13 @@ import java.util.stream.Stream;
  * @param pullAcceleration the speed a locked item gains toward the player's eye each channel tick, in blocks a tick
  *                         per tick
  * @param groupRadius  how far from an item Grab locks the same items with it, in blocks
- * @param meetCapMultiple how many times the pull speed a grouped item flies to the meet point at most
+ * @param streamLead   how far short of a locked item's own place along the look its stream point stands, in blocks
  * @param holdAcceleration the speed a held mob of the reference volume gains toward the hold point each tick, in
  *                         blocks a tick per tick
  * @param referenceVolume  the hitbox volume, in cubic blocks, that gains the hold acceleration whole
  */
 public record GrabStep(double range, double holdDistance, double throwSpeed, double pullSpeed, double pickCone,
-                       double pullAcceleration, double groupRadius, double meetCapMultiple,
+                       double pullAcceleration, double groupRadius, double streamLead,
                        double holdAcceleration, double referenceVolume)
         implements ReachesTheAim {
 
@@ -81,14 +77,12 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
     private static final String FIELD_PICK_CONE = "pick_cone";
     private static final String FIELD_PULL_ACCELERATION = "pull_acceleration";
     private static final String FIELD_GROUP_RADIUS = "group_radius";
-    private static final String FIELD_MEET_CAP_MULTIPLE = "meet_cap_multiple";
+    private static final String FIELD_STREAM_LEAD = "stream_lead";
     private static final String FIELD_HOLD_ACCELERATION = "hold_acceleration";
     private static final String FIELD_REFERENCE_VOLUME = "reference_volume";
     private static final double HALF = 0.5;
     /** The two of the stopping rule, speed squared is two times the deceleration times the distance. */
     private static final double STOPPING_FACTOR = 2;
-    /** The fewest items that meet on the aim line; a lone item homes at once. */
-    private static final int SMALLEST_GROUP = 2;
 
     /** Codec for the step's params. */
     public static final MapCodec<GrabStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
@@ -100,8 +94,7 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
             Codec.doubleRange(0, Double.MAX_VALUE).fieldOf(FIELD_PULL_ACCELERATION)
                     .forGetter(GrabStep::pullAcceleration),
             Codec.doubleRange(0, Double.MAX_VALUE).fieldOf(FIELD_GROUP_RADIUS).forGetter(GrabStep::groupRadius),
-            Codec.doubleRange(1, Double.MAX_VALUE).fieldOf(FIELD_MEET_CAP_MULTIPLE)
-                    .forGetter(GrabStep::meetCapMultiple),
+            Codec.doubleRange(0, Double.MAX_VALUE).fieldOf(FIELD_STREAM_LEAD).forGetter(GrabStep::streamLead),
             Codec.doubleRange(0, Double.MAX_VALUE).fieldOf(FIELD_HOLD_ACCELERATION)
                     .forGetter(GrabStep::holdAcceleration),
             Codec.doubleRange(Double.MIN_VALUE, Double.MAX_VALUE).fieldOf(FIELD_REFERENCE_VOLUME)
@@ -130,7 +123,6 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
         if (held != null) {
             holdBody(player, held);
         } else {
-            GrabEvents.combineMetGroups(player);
             GrabEvents.lockedItemsOf(player).forEach(item -> pullLocked(player, item));
         }
         return true;
@@ -153,7 +145,7 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
         boolean locksItems = GrabEvents.locksItems(player);
         List<ItemEntity> group = sent instanceof ItemEntity item && !GrabEvents.locks(player, item)
                 ? groupOf(player, item) : List.of();
-        GrabEvents.lockItems(player, group, meetFor(player, group));
+        GrabEvents.lockItems(player, group);
         if (sent == null || sent instanceof ItemEntity || locksItems) {
             return null;
         }
@@ -162,9 +154,8 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
     }
 
     /**
-     * Pulls a locked item one tick: toward its group's meet point at its own
-     * speed while the meet flies, else toward the player's eye, through a
-     * linked pair where the way runs shorter.
+     * Pulls a locked item one tick toward its stream point on the player's
+     * look line, through a linked pair where the way runs shorter.
      * decision grabbed-item-locks-in-and-homes-on-your-current-position
      * decision grabbed-item-group-converges-on-the-aim-line-then-pulls-as-one
      *
@@ -172,39 +163,28 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
      * @param item   the locked item
      */
     private void pullLocked(ServerPlayer player, ItemEntity item) {
-        Optional<GrabItemLock.Meet> meet = GrabEvents.meetOf(player, item);
-        if (meet.isPresent()) {
-            Vec3 toMeet = meet.get().point().subtract(item.position());
-            double speed = meet.get().speeds().getOrDefault(item.getId(), 0.0);
-            GrabEvents.pull(player, item, toMeet.normalize().scale(Math.min(speed, toMeet.length())));
-            return;
-        }
-        Vec3 eye = player.getEyePosition();
-        Vec3 toward = throughGates(player, item, item.position(), eye).orElse(eye);
+        Vec3 point = streamPoint(player.getEyePosition(), player.getLookAngle(), item.position());
+        Vec3 toward = throughGates(player, item, item.position(), point).orElse(point);
         GrabEvents.pull(player, item, homingVelocity(item.getDeltaMovement(), item.position(), toward));
     }
 
     /**
-     * The meet a newly locked group flies to, fixed at the tick it locks
-     * along the aim line of that tick, since a live line would never settle;
-     * a lone item has none and homes at once.
+     * Where a locked item streams in this tick: the point of the live look
+     * line at its own place along the look, less the stream lead, so it
+     * eases onto the aim line while it comes in, and the eye once it is
+     * within the lead; the point slides in as the item does, so the items
+     * flow along the line rather than meeting at its far end.
      * decision grabbed-item-group-converges-on-the-aim-line-then-pulls-as-one
      *
-     * @param player the pressing player
-     * @param group  the items this tick locks
-     * @return the group's meet, empty for one item or none
+     * @param eye  the player's eye
+     * @param look the player's look
+     * @param from the item's position
+     * @return the point the item flies for
      */
-    private Optional<GrabItemLock.Meet> meetFor(ServerPlayer player, List<ItemEntity> group) {
-        if (group.size() < SMALLEST_GROUP) {
-            return Optional.empty();
-        }
-        GroupMeet meet = meetOf(player.getEyePosition(), player.getLookAngle(),
-                group.stream().map(Entity::position).toList(), pullSpeed, meetCapMultiple);
-        Map<Integer, Double> speeds = new HashMap<>();
-        for (int member = 0; member < group.size(); member++) {
-            speeds.put(group.get(member).getId(), meet.speeds().get(member));
-        }
-        return Optional.of(new GrabItemLock.Meet(speeds, meet.point(), player.level().getGameTime() + meet.time()));
+    Vec3 streamPoint(Vec3 eye, Vec3 look, Vec3 from) {
+        Vec3 along = look.normalize();
+        double ahead = from.subtract(eye).dot(along) - streamLead;
+        return ahead > 0 ? eye.add(along.scale(ahead)) : eye;
     }
 
     /**
@@ -661,45 +641,6 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
      */
     private static double volumeOf(Entity body) {
         return body.getBbWidth() * body.getBbWidth() * body.getBbHeight();
-    }
-
-    /**
-     * Where and when a locked group meets.
-     * decision grabbed-item-group-converges-on-the-aim-line-then-pulls-as-one
-     *
-     * @param point  the meet point on the aim line
-     * @param time   how many ticks the meet takes, fractional
-     * @param speeds each member's speed to the meet point, in blocks per tick, in the members' order
-     */
-    record GroupMeet(Vec3 point, double time, List<Double> speeds) {
-    }
-
-    /**
-     * A locked group's meet: the member closest to the player flies at the
-     * pull speed straight to its nearest point on the aim line, the meet
-     * point; the meet takes the longer of that flight and the farthest
-     * member's flight at the cap; every member flies its own distance over
-     * that time, so all land on one tick, and one already at the meet point
-     * waits there.
-     * decision grabbed-item-group-converges-on-the-aim-line-then-pulls-as-one
-     * decision group-meet-caps-the-fastest-item-at-a-multiple-of-pull-speed
-     *
-     * @param eye         the player's eye at the tick the group locks
-     * @param look        the player's look at that tick
-     * @param members     the members' positions
-     * @param pullSpeed   the pull speed, in blocks per tick
-     * @param capMultiple how many times the pull speed a member flies at most
-     * @return the meet
-     */
-    static GroupMeet meetOf(Vec3 eye, Vec3 look, List<Vec3> members, double pullSpeed, double capMultiple) {
-        Vec3 along = look.normalize();
-        Vec3 closest = members.stream().min(Comparator.comparingDouble(member -> member.distanceToSqr(eye)))
-                .orElse(eye);
-        Vec3 point = eye.add(along.scale(Math.max(0, closest.subtract(eye).dot(along))));
-        double farthest = members.stream().mapToDouble(member -> member.distanceTo(point)).max().orElse(0);
-        double time = Math.max(closest.distanceTo(point) / pullSpeed, farthest / (pullSpeed * capMultiple));
-        return new GroupMeet(point, time, members.stream()
-                .map(member -> time > 0 ? member.distanceTo(point) / time : 0.0).toList());
     }
 
     @Override
