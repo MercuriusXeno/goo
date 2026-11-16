@@ -2,7 +2,10 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
+import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.network.HoldMarks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
@@ -10,19 +13,26 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -105,8 +115,19 @@ class VacuumStepTest {
 
             vacuum.tick(new StepContext(host, 0, 0));
 
-            verify(host).breakBlock(CELL);
+            verify(host).breakBlockQuietly(CELL);
             verify(host).sendTransform(CELL, residual, Blocks.AIR.defaultBlockState());
+        }
+
+        @Test
+        void aBrokenResidualThrowsThreeBreakParticlesALayer() {
+            ChannelHost host = residualHost(1f);
+            BlockState residual = host.stateAt(CELL);
+
+            vacuum.tick(new StepContext(host, 0, 0));
+
+            verify(host).scatterBreakParticles(CELL, residual, WorldGooHosts.LAYERS * 3,
+                    (double) WorldGooHosts.LAYERS / VolumeCellBlock.MAX_LAYERS);
         }
 
         // vacuum-sounds-a-suction-wind-and-rising-slurps
@@ -119,23 +140,102 @@ class VacuumStepTest {
             verify(host).slurpAt(CELL, VacuumStep.slurpPitch(4, SHIPPED_RANGE));
         }
 
-        /**
-         * A host holding one residual cell four blocks ahead of the eye, the
-         * hold old enough to have reached it, its exposure answering a share.
-         */
         private ChannelHost residualHost(float share) {
+            return WorldGooHosts.holding(Map.of(CELL, WorldGooHosts.worldGoo()), share);
+        }
+    }
+
+    /**
+     * Vacuum takes every goo laid on the volume cell, whatever goo type the
+     * cell is bound to, with no list of blocks kept by hand, and passes over
+     * every other block
+     * (decision vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave).
+     */
+    @Nested
+    class Membership {
+
+        private static final BlockPos WORLD_GOO = new BlockPos(4, 2, 0);
+        /** Inside the cone beside the line to the world goo, so it blocks no line. */
+        private static final BlockPos STONE = new BlockPos(4, 2, 1);
+        private final VacuumStep vacuum = new VacuumStep(1.25, 5);
+
+        @Test
+        void aWorldGooOnTheVolumeCellBreaksAndStoneStands() {
+            ChannelHost host = WorldGooHosts.holding(Map.of(WORLD_GOO, WorldGooHosts.worldGoo(),
+                    STONE, WorldGooHosts.stone()), 1f);
+
+            vacuum.tick(new StepContext(host, 0, 0));
+
+            verify(host).breakBlockQuietly(WORLD_GOO);
+            verify(host, never()).breakBlockQuietly(STONE);
+        }
+    }
+
+    /**
+     * Vacuum's description names every goo in the world as what it clears
+     * (decision vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave).
+     */
+    @Nested
+    class Description {
+
+        private static final String LANG = "/assets/goo/lang/en_us.json";
+        private static final String DESCRIPTION = "goo.ability.void.vacuum.description";
+
+        @Test
+        void theDescriptionNamesEveryGooInTheWorld() throws IOException {
+            String description = lang().get(DESCRIPTION).getAsString();
+
+            assertTrue(description.contains("every goo in the world"), description);
+        }
+
+        private static JsonObject lang() throws IOException {
+            try (InputStream in = VacuumStepTest.class.getResourceAsStream(LANG)) {
+                assertNotNull(in, LANG + " should be on the classpath");
+                return JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
+            }
+        }
+    }
+
+    /**
+     * Channel hosts holding a few cells ahead of the eye, every other cell
+     * open air, the hold old enough to have reached them and each exposure
+     * answering one share.
+     */
+    private static final class WorldGooHosts {
+
+        /** The layers each world goo cell holds. */
+        static final int LAYERS = 6;
+
+        private WorldGooHosts() {
+        }
+
+        static ChannelHost holding(Map<BlockPos, BlockState> cells, float share) {
             ChannelHost host = mock(ChannelHost.class);
-            BlockState residual = mock(BlockState.class);
-            Block residualBlock = mock(Block.class);
-            when(residual.getBlock()).thenReturn(residualBlock);
-            when(residual.getCollisionShape(any(), any())).thenReturn(Shapes.empty());
+            BlockState air = state(mock(Block.class), Shapes.empty());
             when(host.channelAim()).thenReturn(Optional.of(new ChannelAim(EYE.add(LOOK_EAST), null, CONE, 20, true)));
             when(host.eye()).thenReturn(EYE);
             when(host.holdMarks()).thenReturn(new HoldMarks());
-            when(host.blockIn(any(), eq(VacuumStep.SLIME_RESIDUALS))).thenAnswer(call -> CELL.equals(call.getArgument(0)));
-            when(host.stateAt(any())).thenReturn(residual);
+            when(host.stateAt(any())).thenAnswer(call -> cells.getOrDefault(call.getArgument(0), air));
             when(host.exposeBlock(any(), any(), anyFloat(), anyInt())).thenReturn(share);
             return host;
+        }
+
+        /** A goo laid on the volume cell, bound to no goo type a tag names, of a few layers. */
+        static BlockState worldGoo() {
+            BlockState goo = state(mock(VolumeCellBlock.class), Shapes.empty());
+            when(goo.getValue(VolumeCellBlock.LAYERS)).thenReturn(LAYERS);
+            return goo;
+        }
+
+        static BlockState stone() {
+            return state(mock(Block.class), Shapes.block());
+        }
+
+        private static BlockState state(Block block, VoxelShape collision) {
+            BlockState state = mock(BlockState.class);
+            when(state.getBlock()).thenReturn(block);
+            when(state.getCollisionShape(any(), any())).thenReturn(collision);
+            return state;
         }
     }
 
