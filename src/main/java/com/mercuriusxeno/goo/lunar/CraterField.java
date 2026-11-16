@@ -62,6 +62,10 @@ public record CraterField(DensityFunction.NoiseHolder noise) implements DensityF
     private static final int SIZE = 3;
     private static final int RAY_COUNT = 4;
     private static final int RAY_PHASE = 5;
+    private static final int FRESH = 6;
+    /** A crater's rays roll on their own indices from here, three to a ray. */
+    private static final int RAY_ROLLS = 7;
+    private static final double FULL_TURN = 2.0 * Math.PI;
     /** A large crater's rays reach two and a half radii, past one cell, so a ray search reads two cells around. */
     private static final int RAY_NEIGHBOUR_REACH = 2;
     /** Spreads one cell's rolls apart in the noise, so neighbouring cells and rolls read unrelated values. */
@@ -261,10 +265,14 @@ public record CraterField(DensityFunction.NoiseHolder noise) implements DensityF
         if (radius < DEEP_CRATER_RADIUS) {
             return false;
         }
+        double reach = reach(x, z, cellX, cellZ, radius, rolls);
+        if (reach < 1.0 || reach >= EjectaRays.REACH || rolls.roll(cellX, cellZ, FRESH) >= EjectaRays.FRESH_CHANCE) {
+            return false;
+        }
         return EjectaRays.isOnRayOf(x, z, (cellX + rolls.roll(cellX, cellZ, OFFSET_X)) * CELL,
                 (cellZ + rolls.roll(cellX, cellZ, OFFSET_Z)) * CELL, radius,
-                EjectaRays.rayCount(rolls.roll(cellX, cellZ, RAY_COUNT)),
-                EjectaRays.phase(rolls.roll(cellX, cellZ, RAY_PHASE)));
+                EjectaRays.rays(rolls.roll(cellX, cellZ, RAY_COUNT), rolls.roll(cellX, cellZ, RAY_PHASE) * FULL_TURN,
+                        ray -> rolls.roll(cellX, cellZ, RAY_ROLLS + ray)));
     }
 
     /**
