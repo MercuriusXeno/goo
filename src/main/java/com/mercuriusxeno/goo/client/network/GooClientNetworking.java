@@ -69,6 +69,7 @@ import com.mercuriusxeno.goo.network.RoomEdgesSyncPayload;
 import com.mercuriusxeno.goo.network.ScanWavePayload;
 import com.mercuriusxeno.goo.network.SculkerHeardPayload;
 import com.mercuriusxeno.goo.network.SculkerVibrationPayload;
+import com.mercuriusxeno.goo.network.SpiritBitePayload;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
 import com.mercuriusxeno.goo.network.StreamMotesPayload;
 import com.mercuriusxeno.goo.network.TomePayload;
@@ -167,6 +168,7 @@ public final class GooClientNetworking {
         event.register(HeldSweepPayload.TYPE, HeldSweepVisual::onPayload);
         event.register(LaserPayload.TYPE, LaserVisual::onPayload);
         event.register(LeechPayload.TYPE, LeechWisps::handle);
+        event.register(SpiritBitePayload.TYPE, LeechWisps::handleSpiritBite);
         event.register(TomePayload.TYPE, Tomes::handle);
         event.register(NovaRingPayload.TYPE, NovaRingHandler::handle);
         event.register(HeaterFlamePayload.TYPE, HeaterFlames::onPayload);

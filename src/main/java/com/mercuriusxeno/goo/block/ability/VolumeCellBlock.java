@@ -689,12 +689,12 @@ public class VolumeCellBlock extends Block {
         if (surface().ramps()) {
             SlickStep.in(layingProgram(level)).ifPresent(slick -> SlickBuild.slide(entity, slick));
         }
-        slowCaught(level, state, entity);
+        catchIn(level, pos, state, entity);
         super.stepOn(level, pos, state, entity);
     }
 
     /**
-     * Slows a thing inside a slowing cell's block space, wading in it or
+     * Catches a thing inside a slowing cell's block space, wading in it or
      * standing on a cell short of a whole block.
      * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
      */
@@ -702,23 +702,32 @@ public class VolumeCellBlock extends Block {
     protected void entityInside(@NonNull BlockState state, @NonNull Level level, @NonNull BlockPos pos,
                                 @NonNull Entity entity, @NonNull InsideBlockEffectApplier effects,
                                 boolean pastEdges) {
-        slowCaught(level, state, entity);
+        catchIn(level, pos, state, entity);
     }
 
     /**
-     * Slows a thing a slowing cell caught by the speed factor its laying
-     * ability's leech goo step names, as a cobweb or a berry bush slows what
-     * moves through it; on both sides, since the client moves its own player.
+     * Catches a thing on a slowing cell by its laying ability's leech goo
+     * step: slows it by the step's speed factor, as a cobweb or a berry bush
+     * slows what moves through it, on both sides since the client moves its
+     * own player; and on the server lets the goo's spirits bite a living one.
      * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
+     * leech-goo-has-a-chance-to-deplete-when-the-spirits-damage
      *
      * @param level  the level the cell stands in
+     * @param pos    the cell
      * @param state  the cell's state
      * @param entity the thing caught
      */
-    private void slowCaught(Level level, BlockState state, Entity entity) {
-        if (surface().slows()) {
-            LeechGooStep.in(layingProgram(level)).ifPresent(leech -> entity.makeStuckInBlock(state, leech.slowing()));
+    private void catchIn(Level level, BlockPos pos, BlockState state, Entity entity) {
+        if (!surface().slows()) {
+            return;
         }
+        LeechGooStep.in(layingProgram(level)).ifPresent(leech -> {
+            entity.makeStuckInBlock(state, leech.slowing());
+            if (level instanceof ServerLevel server && entity instanceof LivingEntity living) {
+                LeechSpirits.bite(server, pos, state, living, leech);
+            }
+        });
     }
 
     /**

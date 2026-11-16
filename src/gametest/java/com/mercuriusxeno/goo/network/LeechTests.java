@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.LeechGooStep;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
@@ -14,6 +15,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -51,6 +53,13 @@ public final class LeechTests {
             + " stands %s";
     private static final String NOT_SLOWED = "The husk on Leech goo should cover less ground in %d ticks than the"
             + " husk on bare stone: %.3f on goo, %.3f on stone";
+    private static final String SPIRITS_BITE = "leech_spirits_bite_a_mob_standing_in_the_goo";
+    /** The stone a full Leech cell stands on, in the middle of the bay. */
+    private static final BlockPos SPIRIT_FLOOR = new BlockPos(2, 1, 2);
+    /** Ticks past the spirits' cadence, so one bite has fallen whatever tick the cadence counts from. */
+    private static final int PAST_THE_CADENCE = 2;
+    private static final String NOT_BITTEN = "A pig standing in Leech goo past the spirits' cadence of %d ticks"
+            + " should have lost health: %.2f at the start, %.2f after";
 
     private LeechTests() {
     }
@@ -63,6 +72,29 @@ public final class LeechTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, LEECH_LAYS_AND_SLOWS,
                 LeechTests::leechDripLaysACellAndTheGooSlowsAWalker);
+        GooTestFunctions.registerTest(registrar, SPIRITS_BITE, LeechTests::leechSpiritsBiteAMobStandingInTheGoo);
+    }
+
+    /**
+     * A pig stands on a full Leech cell; once the spirits' cadence, as
+     * hex_leech.json ships it, has passed, its health has fallen.
+     * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
+     *
+     * @param helper the gametest helper
+     */
+    public static void leechSpiritsBiteAMobStandingInTheGoo(GameTestHelper helper) {
+        AbilityDefinition leech = AbilityRegistry.of(helper.getLevel()).getAbility(LEECH);
+        helper.assertTrue(leech != null, ABILITY_REQUIRED);
+        int cadence = LeechGooStep.in(leech.behaviors()).orElseThrow().spiritTicks();
+        helper.setBlock(SPIRIT_FLOOR, Blocks.STONE);
+        helper.setBlock(SPIRIT_FLOOR.above(), GooBlocks.HEX_LEECH.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
+        Pig pig = helper.spawnWithNoFreeWill(EntityType.PIG, SPIRIT_FLOOR.above(2));
+        float start = pig.getHealth();
+        helper.runAfterDelay(cadence + PAST_THE_CADENCE, () -> {
+            helper.assertTrue(pig.getHealth() < start, String.format(NOT_BITTEN, cadence, start, pig.getHealth()));
+            helper.succeed();
+        });
     }
 
     /**
