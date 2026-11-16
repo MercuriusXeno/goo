@@ -118,8 +118,7 @@ public final class CoatRay {
      * draw, since the area within a tilt grows as its square. The draw is
      * seeded by the hold's tick, so a tick throws the same drips wherever the
      * thrower moves.
-     * operator ruling 2026-11-14: the spray scatters each drip and thins, so slick spreads a track, not walls
-     * operator ruling 2026-11-14: stop hitting the same block, so drips spread evenly over the cone's area
+     * spray-drips-scatter-over-the-cone-and-slick-thins
      * goop-drains-per-cubic-meter-of-slime-placed: the spray's pace is how many drips land a tick, each a layer
      *
      * @param held         the hold's tick count, 1 on its first tick

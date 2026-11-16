@@ -6,7 +6,7 @@
   "highlight": "3C6CFF",
   "edge": "D8ECFF",
   "density": 1800,
-  "viscosity": 800,
+  "viscosity": 400,
   "elasticity": 0.9,
   "temperature": 300,
   "extinguishes": false,

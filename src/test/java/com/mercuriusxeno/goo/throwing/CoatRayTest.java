@@ -39,7 +39,8 @@ class CoatRayTest {
      * Drips spread evenly over the cone's area: a quarter of them land
      * inside half the cone's radius, a quarter of its area, so no cell near
      * the aim line takes more than its share, and every drip stays inside the
-     * cone (operator ruling 2026-11-14: stop hitting the same block).
+     * cone.
+     * spray-drips-scatter-over-the-cone-and-slick-thins
      */
     @Test
     void aHoldsDripsSpreadEvenlyOverTheConesArea() {
