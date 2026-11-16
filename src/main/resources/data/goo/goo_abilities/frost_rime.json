@@ -18,7 +18,7 @@
     "sound": { "id": "minecraft:block.honey_block.slide", "every": 10, "volume": 1.0, "pitch": 1.0, "pitch_spread": 0.1 }
   },
   "behaviors": [
-    { "type": "rime", "reach": 3, "chill_ticks": 20 }
+    { "type": "rime", "reach": 3, "chill_ticks": 20, "freeze_ticks": 4, "damage": 1, "damage_ticks": 20 }
   ],
   "tags": ["stream"]
 }

@@ -14,9 +14,15 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.monster.zombie.Zombie;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
@@ -53,6 +59,17 @@ public final class RimeTests {
     private static final int THAW_WAIT_TICKS = 45;
     private static final String SHOULD_ICE = "The water in the Rime cell's reach should stand as Rime ice, stands %s";
     private static final String SHOULD_OBSIDIAN = "The lava in the Rime cell's reach should stand as obsidian, stands %s";
+    private static final String RIME_FREEZES_THE_SHOELESS = "rime_freezes_and_hurts_a_barefoot_zombie";
+    /** One layer's height, where a thing standing on a one-layer cell stands. */
+    private static final double ONE_LAYER = 1.0 / VolumeCellBlock.MAX_LAYERS;
+    /** Ticks for the damage cadence to pass once, with room to spare. */
+    private static final int DAMAGE_WAIT_TICKS = 30;
+    private static final String SHOULD_FREEZE = "The barefoot zombie on Rime should be freezing, its frozen ticks stand at %s";
+    private static final String SHOULD_HURT = "The barefoot zombie on Rime should be hurt, from %s it stands at %s";
+    private static final String RIME_HOLDS_THE_FEET = "thin_rime_sets_the_friction_underfoot";
+    /** Ticks a spawned mob takes to settle onto the cell, with room to spare. */
+    private static final int SETTLE_TICKS = 5;
+    private static final String SHOULD_STAND_ON_RIME = "The zombie's friction should come from the Rime cell, comes from %s";
     private static final String SHOULD_THAW = "The Rime ice should read water once no Rime cell stands in reach, stands %s";
 
     private RimeTests() {
@@ -67,6 +84,54 @@ public final class RimeTests {
         GooTestFunctions.registerTest(registrar, RIME_DRIP_LAYS_AN_ICY_CELL, RimeTests::rimeDripLaysAnIcyCellOnStone);
         GooTestFunctions.registerTest(registrar, RIME_FREEZES_WATER_AND_LAVA, RimeTests::rimeFreezesTheWaterAndLavaInReach);
         GooTestFunctions.registerTest(registrar, RIME_ICE_THAWS, RimeTests::rimeIceThawsOnceNoRimeStandsInReach);
+        GooTestFunctions.registerTest(registrar, RIME_FREEZES_THE_SHOELESS, RimeTests::rimeFreezesAndHurtsABarefootZombie);
+        GooTestFunctions.registerTest(registrar, RIME_HOLDS_THE_FEET, RimeTests::thinRimeSetsTheFrictionUnderfoot);
+    }
+
+    /**
+     * A mob standing on a one-layer Rime cell, thinner than the fifth of a
+     * block vanilla reads under the feet, meets the cell's friction rather
+     * than the stone's under it, so the thinnest Rime is as slippery as ice.
+     * rime-goo-is-slippery-to-walk-on
+     *
+     * @param helper the gametest helper
+     */
+    public static void thinRimeSetsTheFrictionUnderfoot(GameTestHelper helper) {
+        helper.setBlock(RIME_CELL.below(), Blocks.STONE);
+        helper.setBlock(RIME_CELL, GooBlocks.FROST_RIME.get());
+        Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE,
+                Vec3.atBottomCenterOf(RIME_CELL).add(0, ONE_LAYER, 0));
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            BlockPos underfoot = zombie.getBlockPosBelowThatAffectsMyMovement();
+            helper.assertTrue(underfoot.equals(helper.absolutePos(RIME_CELL)),
+                    String.format(SHOULD_STAND_ON_RIME, helper.getLevel().getBlockState(underfoot)));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A zombie with nothing on its feet standing on a Rime cell has its
+     * frozen ticks risen and its health fallen once the damage cadence has
+     * passed. Its iron helmet keeps the sun from burning it, so only Rime
+     * can lower its health.
+     * rime-freezes-water-and-lava-and-freezes-and-damages-the-shoeless
+     *
+     * @param helper the gametest helper
+     */
+    public static void rimeFreezesAndHurtsABarefootZombie(GameTestHelper helper) {
+        helper.setBlock(RIME_CELL.below(), Blocks.STONE);
+        helper.setBlock(RIME_CELL, GooBlocks.FROST_RIME.get());
+        Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE,
+                Vec3.atBottomCenterOf(RIME_CELL).add(0, ONE_LAYER, 0));
+        zombie.setItemSlot(EquipmentSlot.FEET, ItemStack.EMPTY);
+        zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.IRON_HELMET));
+        float startingHealth = zombie.getHealth();
+        helper.runAfterDelay(DAMAGE_WAIT_TICKS, () -> {
+            helper.assertTrue(zombie.getTicksFrozen() > 0, String.format(SHOULD_FREEZE, zombie.getTicksFrozen()));
+            helper.assertTrue(zombie.getHealth() < startingHealth,
+                    String.format(SHOULD_HURT, startingHealth, zombie.getHealth()));
+            helper.succeed();
+        });
     }
 
     /**
