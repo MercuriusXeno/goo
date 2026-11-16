@@ -17,7 +17,6 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import java.util.Optional;
-import java.util.stream.Stream;
 
 /**
  * Drained life through Leech goo: damage dealt to a living thing standing
@@ -98,33 +97,6 @@ public final class LeechDrain {
     }
 
     /**
-     * The Leech cell a living thing stands in: a slowing cell filling the
-     * block its feet are in, or else one holding it up.
-     *
-     * @param living the living thing
-     * @return the cell, empty where no Leech goo caught it
-     */
-    static Optional<BlockPos> leechCellOf(LivingEntity living) {
-        return Stream.of(living.blockPosition(), living.getOnPos())
-                .filter(pos -> VolumeCellBlock.hasSurface(living.level().getBlockState(pos).getBlock(),
-                        CellSurface.SLOW))
-                .findFirst();
-    }
-
-    /**
-     * The leech goo step the ability that laid a Leech cell runs, naming its
-     * drained life fraction and its deplete chance.
-     *
-     * @param level the level
-     * @param cell  the Leech cell
-     * @return the step, empty where the cell is gone or its ability is not loaded
-     */
-    private static Optional<LeechGooStep> leechStepAt(ServerLevel level, BlockPos cell) {
-        return level.getBlockState(cell).getBlock() instanceof VolumeCellBlock leechCell
-                ? LeechGooStep.in(leechCell.layingProgram(level)) : Optional.empty();
-    }
-
-    /**
      * Rolls the deplete chance the cell's laying ability names on the Leech
      * cell a drained strike's victim stands in, taking a layer where the roll
      * falls under it and leaving air where that was the last.
@@ -158,8 +130,8 @@ public final class LeechDrain {
                 || !(event.getSource().getEntity() instanceof LivingEntity source) || source == victim) {
             return;
         }
-        Optional<BlockPos> cell = leechCellOf(victim);
-        Optional<LeechGooStep> leech = cell.flatMap(pos -> leechStepAt(level, pos));
+        Optional<BlockPos> cell = LeechStanding.leechCellUnder(victim);
+        Optional<LeechGooStep> leech = cell.flatMap(pos -> LeechStanding.stepAt(level, pos));
         float drained = drainedLife(event.getNewDamage(), leech.isPresent(), DrainSource.of(event.getSource()),
                 leech.map(LeechGooStep::drainFraction).orElse(0f));
         if (drained > 0f) {

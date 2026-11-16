@@ -1,11 +1,14 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.ability.program.LeechGooStep;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -14,6 +17,35 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * (decision drain-casts-a-filled-tornadic-miasma-vortex-along-the-look).
  */
 class LeechWispsTest {
+
+    /**
+     * A living thing sheds a hex wisp while it stands in Leech goo each time
+     * the shed interval hex_leech.json ships comes due on its tick count.
+     * hex-wisps-drift-off-mobs-standing-in-leech-goo
+     */
+    @Nested
+    class Shed {
+
+        private static final int INTERVAL = LeechGooStep.in(AbilityJson.decode("hex_leech").behaviors())
+                .orElseThrow().wispShedTicks();
+        /** A tick count the interval comes due on, a few intervals into the thing's life. */
+        private static final int DUE_TICK = 3 * INTERVAL;
+
+        @Test
+        void aMobInTheGooShedsOnADueTick() {
+            assertTrue(LeechWisps.sheds(true, DUE_TICK, INTERVAL));
+        }
+
+        @Test
+        void theSameMobShedsNoneOnATickBetween() {
+            assertFalse(LeechWisps.sheds(true, DUE_TICK + 1, INTERVAL));
+        }
+
+        @Test
+        void aMobOutsideTheGooShedsNoneOnADueTick() {
+            assertFalse(LeechWisps.sheds(false, DUE_TICK, INTERVAL));
+        }
+    }
 
     @Nested
     class Splashes {
