@@ -497,13 +497,16 @@ public final class GooAttachments {
                             .build());
     /**
      * Where a player the End gate carried to the End portalled in from,
-     * saved with the player so the gate they summon there leads back.
+     * saved with the player so the gate they summon there leads back, and
+     * synced to them, whose client grays End out in the End without it.
      * decision end-gate-in-the-end-is-free-and-returns-you-where-you-portalled-in
+     * decision end-is-grayed-out-in-the-end-unless-you-came-by-the-ability
      */
     public static final Supplier<AttachmentType<EndWayBack>> END_WAY_BACK =
             ATTACHMENT_TYPES.register("end_way_back",
                     () -> AttachmentType.builder(() -> EndWayBack.NONE)
                             .serialize(EndWayBack.CODEC.fieldOf("end_way_back"), EndWayBack::stands)
+                            .sync(GooAttachments::syncsToOwner, EndWayBack.STREAM_CODEC)
                             .build());
 
     private GooAttachments() {

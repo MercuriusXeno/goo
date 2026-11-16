@@ -2,6 +2,11 @@ package com.mercuriusxeno.goo.ability.end;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import io.netty.buffer.ByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import java.util.Optional;
 
 /**
@@ -20,6 +25,24 @@ public record EndWayBack(Optional<EndDestination> destination) {
     public static final Codec<EndWayBack> CODEC = RecordCodecBuilder.create(inst -> inst.group(
             EndDestination.CODEC.optionalFieldOf("destination").forGetter(EndWayBack::destination)
     ).apply(inst, EndWayBack::new));
+
+    /** Sends the way back to its player's client, which grays End out by it. */
+    public static final StreamCodec<ByteBuf, EndWayBack> STREAM_CODEC = StreamCodec.composite(
+            ByteBufCodecs.optional(EndDestination.STREAM_CODEC), EndWayBack::destination, EndWayBack::new);
+
+    /**
+     * The way back a player keeps once they change level: none once they
+     * leave the End by any way, so a later arrival through a stronghold
+     * portal grays End out again.
+     * decision end-is-grayed-out-in-the-end-unless-you-came-by-the-ability
+     *
+     * @param from the level they left
+     * @param to   the level they arrive in
+     * @return the way back they keep
+     */
+    public EndWayBack afterChangingDimension(ResourceKey<Level> from, ResourceKey<Level> to) {
+        return from == Level.END && to != Level.END ? NONE : this;
+    }
 
     /**
      * @return whether a way back stands, the only state worth saving
