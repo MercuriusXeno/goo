@@ -100,6 +100,26 @@ class GateTripTest {
     }
 
     @Nested
+    class StarSize {
+        @Test
+        void blueStarStandsAtItsRestingSizeAtTheStart() {
+            assertEquals(GateTrip.RESTING_STAR_HALF_TANGENT, GateTrip.starHalfTangent(0F), EXACT);
+        }
+
+        @Test
+        void blueStarCoversTheWidestViewAtTheEnd() {
+            assertTrue(GateTrip.starHalfTangent(1F) >= GateTrip.WIDEST_VIEW_HALF_TANGENT,
+                    "the swollen star's half width " + GateTrip.starHalfTangent(1F)
+                            + " should reach the widest view's half diagonal " + GateTrip.WIDEST_VIEW_HALF_TANGENT);
+        }
+
+        @Test
+        void blueStarSwellsAcrossTheFixation() {
+            assertTrue(rises(progress -> GateTrip.starHalfTangent((float) progress)));
+        }
+    }
+
+    @Nested
     class MoonSize {
         @Test
         void moonStandsAtVanillasSizeAtTheStart() {

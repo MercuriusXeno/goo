@@ -1,14 +1,17 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.gate.GateFixation;
+import com.mercuriusxeno.goo.client.zone.LunarSky;
 import net.minecraft.util.Mth;
 
 /**
  * The gate trip's curves against the fixation's progress, zero as the gate takes hold and one as it carries the
  * caster: the sky dims to the star void first, the land drops into darkness behind it, and the moon swells from
  * vanilla's size, slowly and then rushing in, until it covers the whole view; white floods the view as it does,
- * stands full over the crossing until the caster's client learns they arrived, and then clears.
+ * stands full over the crossing until the caster's client learns they arrived, and then clears. The trip home
+ * mirrors it with the blue star swelling in the moon's place under lunar's sky, already the void.
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
+ * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
  */
 final class GateTrip {
 
@@ -23,14 +26,16 @@ final class GateTrip {
     private static final double WIDEST_VERTICAL_FOV_DEGREES = 110.0;
     private static final double WIDEST_ASPECT = 21.0 / 9.0;
     /**
-     * The widest view's half diagonal, as a tangent: a square the moon's disc covers it whatever way the disc
-     * turns once its half width reaches this.
+     * The widest view's half diagonal, as a tangent: a square body, the moon's disc or the star's core, covers it
+     * whatever way it turns once its half width reaches this.
      */
     static final double WIDEST_VIEW_HALF_TANGENT = Math.tan(Math.toRadians(WIDEST_VERTICAL_FOV_DEGREES / 2))
             * Math.hypot(1.0, WIDEST_ASPECT);
     /** How far past the widest view the swollen moon reaches, so its edge never shows at the end. */
     private static final double SWOLLEN_MARGIN = 1.25;
-    private static final double SWOLLEN_MOON_HALF_TANGENT = WIDEST_VIEW_HALF_TANGENT * SWOLLEN_MARGIN;
+    private static final double SWOLLEN_HALF_TANGENT = WIDEST_VIEW_HALF_TANGENT * SWOLLEN_MARGIN;
+    /** The blue star's core half width as lunar's sky draws it, as a tangent. */
+    static final double RESTING_STAR_HALF_TANGENT = LunarSky.OVERWORLD_STAR.halfSize() / SKY_DISTANCE;
 
     /** The share of the fixation over which the sky dims to the star void. */
     private static final float SKY_DIM_START = 0F;
@@ -81,16 +86,14 @@ final class GateTrip {
     }
 
     /**
-     * The moon disc's half width as the tangent of its angle from the view's center: vanilla's size until the
-     * swell begins, then growing by an ever larger factor, so it creeps and then rushes in to cover the view.
+     * The moon disc's half width as the tangent of its angle from the view's center, vanilla's size swelling until
+     * it covers the view.
      *
      * @param progress the share of the fixation run, zero to one
      * @return the half width's tangent
      */
     static double moonHalfTangent(float progress) {
-        float swell = Mth.clamp((progress - SWELL_START) / (1F - SWELL_START), 0F, 1F);
-        return RESTING_MOON_HALF_TANGENT
-                * Math.pow(SWOLLEN_MOON_HALF_TANGENT / RESTING_MOON_HALF_TANGENT, swell * swell);
+        return swollen(progress, RESTING_MOON_HALF_TANGENT);
     }
 
     /**
@@ -117,6 +120,31 @@ final class GateTrip {
             return 1F;
         }
         return 1F - eased(ticksSinceArrival, 0F, WHITE_FADE_TICKS);
+    }
+
+    /**
+     * The blue star's core half width as a tangent, as the swell takes it on the way home: its resting size until
+     * the swell begins, then growing as the moon does until it covers the view.
+     * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
+     *
+     * @param progress the share of the fixation run, zero to one
+     * @return the half width's tangent
+     */
+    static double starHalfTangent(float progress) {
+        return swollen(progress, RESTING_STAR_HALF_TANGENT);
+    }
+
+    /**
+     * A body's half width as a tangent over the swell: its resting size until the swell begins, then growing by an
+     * ever larger factor, so it creeps and then rushes in to cover the view.
+     *
+     * @param progress the share of the fixation run, zero to one
+     * @param resting  the body's resting half width, as a tangent
+     * @return the half width's tangent
+     */
+    private static double swollen(float progress, double resting) {
+        float swell = Mth.clamp((progress - SWELL_START) / (1F - SWELL_START), 0F, 1F);
+        return resting * Math.pow(SWOLLEN_HALF_TANGENT / resting, swell * swell);
     }
 
     /**

@@ -65,13 +65,16 @@ public final class GateWhiteout {
     }
 
     /**
-     * Shows the white screen in place of vanilla's terrain loading screen for a change into lunar the gate makes.
+     * Shows the white screen in place of vanilla's terrain loading screen for a change the gate makes, into lunar
+     * by the moon and out of it by the blue star.
+     * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
      *
      * @param event the transition screen registration event
      */
     @SubscribeEvent
     public static void onRegisterTransitionScreens(RegisterDimensionTransitionScreenEvent event) {
         event.registerIncomingEffect(Lunar.LEVEL, GateWhiteout::screenFor);
+        event.registerOutgoingEffect(Lunar.LEVEL, GateWhiteout::screenFor);
     }
 
     /**

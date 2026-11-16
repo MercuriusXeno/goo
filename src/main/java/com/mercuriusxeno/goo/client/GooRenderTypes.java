@@ -850,6 +850,17 @@ public final class GooRenderTypes {
             .build();
 
     /**
+     * The gate trip home's swelling blue star: lunar's star draw passing every depth test, so the star swells over
+     * the darkened land as well as the sky.
+     * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
+     */
+    public static final RenderPipeline GATE_STAR = OVERWORLD_STAR.toBuilder()
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "gate_star"))
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+            .withCull(false)
+            .build();
+
+    /**
      * The render type voidstone's faces draw through, its texture transform
      * handing the shader the room the field wraps at.
      * decision voidstone-starfield-tiles-in-either-direction
@@ -1684,6 +1695,7 @@ public final class GooRenderTypes {
         event.registerPipeline(OVERWORLD_STAR);
         event.registerPipeline(GATE_SKY_VEIL);
         event.registerPipeline(GATE_MOON);
+        event.registerPipeline(GATE_STAR);
         event.registerPipeline(SKY_FUNNEL);
         event.registerPipeline(PETRIFY_FOG);
         event.registerPipeline(FIRE_FIELD);
