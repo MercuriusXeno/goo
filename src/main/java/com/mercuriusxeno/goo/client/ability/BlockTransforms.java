@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.network.BlockExposurePayload;
+import com.mercuriusxeno.goo.network.RedHotPayload;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jspecify.annotations.Nullable;
@@ -16,7 +17,9 @@ import java.util.Optional;
  * transform draws through (decision petrify-stone-encasement-and-calcify-map).
  * A new transform on a block replaces the one playing there. Beside them
  * stand the blocks part way to their next calcify rung, each drawing the next
- * block mingled in by its share until the share clears or stops arriving.
+ * block mingled in by its share until the share clears or stops arriving,
+ * and the blocks a Molten cell is melting, each heating to red hot over its
+ * heat's ticks (decision stone-goes-red-hot-before-molten-turns-it-to-lava).
  */
 public final class BlockTransforms {
 
@@ -55,6 +58,7 @@ public final class BlockTransforms {
     private final Map<BlockPos, Exposure> exposures = new HashMap<>();
     private final Map<BlockPos, Long> exposedSince = new HashMap<>();
     private final Map<BlockPos, BlockState> meltingFrom = new HashMap<>();
+    private final Map<BlockPos, RedHot> redHots = new HashMap<>();
 
     /**
      * The mingle seed of a block's transition begun at a tick, so each use on a
@@ -328,11 +332,77 @@ public final class BlockTransforms {
         return Optional.ofNullable(exposures.get(pos));
     }
 
+    /**
+     * A block heating to red hot as a Molten cell melts it.
+     * stone-goes-red-hot-before-molten-turns-it-to-lava
+     *
+     * @param pos   the block
+     * @param start the game tick the heat began
+     * @param ticks the ticks it heats before it becomes lava
+     */
+    public record RedHot(BlockPos pos, long start, int ticks) {
+
+        /**
+         * How far the block has heated.
+         *
+         * @param gameTime the game time including the partial tick
+         * @return the share heated, from 0 to 1
+         */
+        public float share(float gameTime) {
+            return Math.clamp((gameTime - start) / ticks, 0f, 1f);
+        }
+
+        /**
+         * The heat's mingle seed, from the block and the tick it began.
+         *
+         * @return the seed, from 0 to {@link #SEED_UNITS} less one
+         */
+        public int seed() {
+            return seedAt(pos, start);
+        }
+    }
+
+    /**
+     * Stands the red hot transition a melt beginning sends, or cools the one
+     * on its block where the melt ended.
+     * stone-goes-red-hot-before-molten-turns-it-to-lava
+     *
+     * @param payload the heat the server sent
+     * @param tick    the game tick it arrived
+     */
+    public void heat(RedHotPayload payload, long tick) {
+        if (payload.ticks() <= 0) {
+            redHots.remove(payload.pos());
+        } else {
+            redHots.put(payload.pos().immutable(), new RedHot(payload.pos().immutable(), tick, payload.ticks()));
+        }
+    }
+
+    /**
+     * @param pos the block
+     * @return the red hot transition on it, empty where none heats it
+     */
+    public Optional<RedHot> redHotAt(BlockPos pos) {
+        return Optional.ofNullable(redHots.get(pos));
+    }
+
+    /**
+     * The blocks heating to red hot, the ones whose heat has run dropped.
+     *
+     * @param tick the game tick
+     * @return the red hot transitions standing
+     */
+    public List<RedHot> heating(long tick) {
+        redHots.values().removeIf(redHot -> tick - redHot.start() >= redHot.ticks());
+        return List.copyOf(redHots.values());
+    }
+
     /** Drops every transform and exposure, as a disconnect does. */
     public void clear() {
         playing.clear();
         exposures.clear();
         exposedSince.clear();
         meltingFrom.clear();
+        redHots.clear();
     }
 }

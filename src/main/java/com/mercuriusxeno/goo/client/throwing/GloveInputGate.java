@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.throwing;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.HeldRoute;
+import com.mercuriusxeno.goo.client.ability.PalmBlobHop;
 import net.minecraft.util.RandomSource;
 import org.jspecify.annotations.Nullable;
 
@@ -14,8 +15,11 @@ import org.jspecify.annotations.Nullable;
  * streaming on every held tick with the arm held in its pose until the key
  * comes up. A durative press charges like a throw, sending its use once on
  * release. A press plays the ability's pose, its release only for a throw
- * that sent a payload; a blob thrown swings there instead.
+ * that sent a payload; a blob thrown swings there instead. A held throw,
+ * Dart's javelin, forms while the key is held, throws on the attack key once
+ * whole, and sends nothing on release.
  * decision right-click-held-previews-release-throws
+ * decision dart-forms-on-right-click-and-throws-on-left-click
  * decision durative-self-abilities-wash-over-the-view-in-place-of-eating
  * decision use-animation-only-when-goo-throws
  * decision use-key-throw-swings-no-more
@@ -52,6 +56,27 @@ public final class GloveInputGate {
          * @return true for a stream
          */
         boolean runsWhileHeld();
+
+        /**
+         * Whether the selected ability forms a javelin on right click held and
+         * throws it on left click, sending nothing on release.
+         * decision dart-forms-on-right-click-and-throws-on-left-click
+         *
+         * @return true for a held throw
+         */
+        default boolean throwsOnAttack() {
+            return false;
+        }
+
+        /**
+         * Answers a turn the press's javelin takes: it begins forming, leaves the hand, or begins reverting.
+         * decision dart-forms-on-right-click-and-throws-on-left-click
+         *
+         * @param turn the turn
+         */
+        default void javelinTurned(JavelinTurn turn) {
+            // a press throwing on release forms no javelin
+        }
     }
 
     /**
@@ -187,6 +212,50 @@ public final class GloveInputGate {
         return armed || cancelledUntilRelease;
     }
 
+    /**
+     * Throws the javelin a held press has formed, the attack key's turn for
+     * an ability formed on right click and thrown on left: a javelin whole in
+     * the hand is sent and its release plays, and with right click still held
+     * the palm blob lifts afresh to form the next. A javelin still forming,
+     * or a press throwing on release, sends nothing.
+     * decision dart-forms-on-right-click-and-throws-on-left-click
+     *
+     * @param actions the throw and arm pose the press resolves to
+     * @return true where a javelin was sent
+     */
+    public boolean throwHeld(PressActions actions) {
+        if (!holdsAJavelin(actions) || formShare() < 1f || !actions.sendThrow(heldTicks)) {
+            return false;
+        }
+        actions.releasePose();
+        heldTicks = 0;
+        actions.javelinTurned(JavelinTurn.THROWN);
+        return true;
+    }
+
+    /**
+     * Whether the live press holds a javelin forming or formed, which the
+     * attack key throws.
+     *
+     * @param actions the press's selection
+     * @return true while right click holds a held throw's press
+     */
+    public boolean holdsAJavelin(PressActions actions) {
+        return armed && previewing && actions.throwsOnAttack();
+    }
+
+    /**
+     * How far the javelin the press forms has become whole in the hand: the
+     * share the palm blob has lifted, its lift beginning the first held tick
+     * and whole once the lift's ticks have gone; none while no press previews.
+     * decision dart-forms-on-right-click-and-throws-on-left-click
+     *
+     * @return the share, 0 on the palm to 1 whole
+     */
+    public float formShare() {
+        return previewing && heldTicks > 0 ? PalmBlobHop.hopPoseAt(heldTicks - 1.0).share() : 0f;
+    }
+
     /** Drops the live press. */
     public void cancel() {
         armed = false;
@@ -225,8 +294,16 @@ public final class GloveInputGate {
             if (!previewing) {
                 actions.holdPose();
             }
+            if (heldTicks == 0 && actions.throwsOnAttack()) {
+                actions.javelinTurned(JavelinTurn.FORMS);
+            }
             previewing = true;
             heldTicks++;
+        } else if (actions.throwsOnAttack()) {
+            // dart-forms-on-right-click-and-throws-on-left-click: the release reverts the javelin, throwing nothing
+            actions.javelinTurned(JavelinTurn.REVERTS);
+            actions.dropPose();
+            cancel();
         } else {
             throwAndRelease(actions, heldTicks);
             cancel();

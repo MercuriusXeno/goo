@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
+import com.mercuriusxeno.goo.client.ability.PalmBlobHop;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -36,10 +37,29 @@ class GloveInputGateTest {
         private int poseDrops;
         private int holds;
         private int lastHeldTicks = -1;
+        private final boolean throwsOnAttack;
+        private int nextJavelins;
 
         RecordingActions(boolean payloadSent, boolean stream) {
+            this(payloadSent, stream, false);
+        }
+
+        RecordingActions(boolean payloadSent, boolean stream, boolean throwsOnAttack) {
             this.payloadSent = payloadSent;
             this.stream = stream;
+            this.throwsOnAttack = throwsOnAttack;
+        }
+
+        @Override
+        public boolean throwsOnAttack() {
+            return throwsOnAttack;
+        }
+
+        @Override
+        public void javelinTurned(JavelinTurn turn) {
+            if (turn == JavelinTurn.THROWN) {
+                nextJavelins++;
+            }
         }
 
         @Override
@@ -78,6 +98,89 @@ class GloveInputGateTest {
 
     private static RecordingActions thrown() {
         return new RecordingActions(true, false);
+    }
+
+    /**
+     * Dart's press: right click held forms one javelin in the hand over the
+     * lift, left click throws it once formed, and releasing right click
+     * reverts it, throwing nothing
+     * (decision dart-forms-on-right-click-and-throws-on-left-click).
+     */
+    @Nested
+    class AJavelin {
+
+        private final RecordingActions actions = new RecordingActions(true, false, true);
+        private final GloveInputGate gate = new GloveInputGate();
+
+        private void holdPastTheLift() {
+            for (int tick = 0; tick <= PalmBlobHop.LIFT_TICKS; tick++) {
+                gate.tick(true, actions);
+            }
+        }
+
+        @Test
+        void releasingRightClickRevertsTheFormedJavelinAndSendsNoThrow() {
+            gate.arm();
+            holdPastTheLift();
+            assertEquals(1f, gate.formShare(), "the javelin is whole past the lift");
+
+            gate.tick(false, actions);
+
+            assertEquals(0, actions.throwsSent);
+            assertEquals(0f, gate.formShare());
+            assertFalse(gate.isArmed());
+        }
+
+        @Test
+        void leftClickThrowsTheFormedJavelinOnceAndCancelsNothing() {
+            gate.arm();
+            holdPastTheLift();
+
+            assertTrue(gate.throwHeld(actions));
+
+            assertEquals(1, actions.throwsSent);
+            assertEquals(1, actions.poseReleases);
+            assertTrue(gate.isArmed(), "the throw leaves right click's press standing");
+        }
+
+        @Test
+        void leftClickBeforeTheJavelinIsWholeSendsNone() {
+            gate.arm();
+            for (int tick = 0; tick < PalmBlobHop.LIFT_TICKS; tick++) {
+                gate.tick(true, actions);
+            }
+
+            assertFalse(gate.throwHeld(actions));
+            assertEquals(0, actions.throwsSent);
+            assertTrue(gate.isArmed());
+        }
+
+        @Test
+        void rightClickStillHeldFormsTheNextJavelinWithNoNewPress() {
+            gate.arm();
+            holdPastTheLift();
+            gate.throwHeld(actions);
+
+            assertEquals(1, actions.nextJavelins);
+            assertEquals(0f, gate.formShare(), "the next javelin starts on the palm");
+            assertFalse(gate.throwHeld(actions), "nothing is formed to throw yet");
+            holdPastTheLift();
+            assertEquals(1f, gate.formShare());
+            assertTrue(gate.throwHeld(actions));
+            assertEquals(2, actions.throwsSent);
+        }
+
+        @Test
+        void anAbilityThrownOnReleaseThrowsNothingOnLeftClick() {
+            RecordingActions released = thrown();
+            gate.arm();
+            for (int tick = 0; tick <= PalmBlobHop.LIFT_TICKS; tick++) {
+                gate.tick(true, released);
+            }
+
+            assertFalse(gate.throwHeld(released));
+            assertEquals(0, released.throwsSent);
+        }
     }
 
     @Nested

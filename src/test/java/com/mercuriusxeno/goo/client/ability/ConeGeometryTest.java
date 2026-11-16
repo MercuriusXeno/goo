@@ -164,16 +164,6 @@ class ConeGeometryTest {
         assertVertices(oldDart(dir[0], dir[1], dir[2], 2.5f, 0.05f, basis), emit(cone, basis, WHITE), WHITE);
     }
 
-    @ParameterizedTest
-    @MethodSource("directions")
-    void dartRearKeepsTheFrontBasis(float[] dir) {
-        float[] frontBasis = ConeGeometry.computeBasis(dir[0], dir[1], dir[2]);
-        ConeGeometry.Cone rear = new ConeGeometry.Cone(0f, 0f, 0f, -dir[0], -dir[1], -dir[2], 0.5f, 0.09f);
-
-        assertVertices(oldDart(-dir[0], -dir[1], -dir[2], 0.5f, 0.09f, frontBasis),
-                emit(rear, frontBasis, WHITE), WHITE);
-    }
-
     @Test
     void triangleEmitsBothBaseCornersThenTheApexTwice() {
         List<Integer> corners = new ArrayList<>();

@@ -170,11 +170,6 @@ public enum HostCapability {
      */
     IGNITE(IgniteHost.class),
     /**
-     * A landing that melts the stone it struck into lava (decision
-     * melt-blob-absorbs-into-lava).
-     */
-    MOLTEN(MoltenHost.class),
-    /**
      * A spot a vibration carrying no source entity can go off at (decision
      * click-vibration-carries-no-source-entity).
      */

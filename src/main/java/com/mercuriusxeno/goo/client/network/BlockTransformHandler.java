@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.network;
 import com.mercuriusxeno.goo.client.ability.BlockTransforms;
 import com.mercuriusxeno.goo.network.BlockExposurePayload;
 import com.mercuriusxeno.goo.network.BlockTransformPayload;
+import com.mercuriusxeno.goo.network.RedHotPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -28,6 +29,22 @@ public final class BlockTransformHandler {
             if (mc.level != null) {
                 BlockTransforms.CLIENT.start(payload.pos(), Block.stateById(payload.fromState()),
                         mc.level.getGameTime());
+            }
+        });
+    }
+
+    /**
+     * Handles a Molten melt's heat on the client thread
+     * (decision stone-goes-red-hot-before-molten-turns-it-to-lava).
+     *
+     * @param payload the heat payload
+     * @param context the network context
+     */
+    public static void handleRedHot(RedHotPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.level != null) {
+                BlockTransforms.CLIENT.heat(payload, mc.level.getGameTime());
             }
         });
     }

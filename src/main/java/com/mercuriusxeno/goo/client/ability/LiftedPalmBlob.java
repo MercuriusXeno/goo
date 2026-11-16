@@ -231,6 +231,20 @@ public final class LiftedPalmBlob {
     }
 
     /**
+     * Lifts a caster's palm blob afresh from the palm, hopping, as a held
+     * javelin leaves the hand with right click still held, so the next
+     * javelin forms from the blob behind it.
+     * decision dart-forms-on-right-click-and-throws-on-left-click
+     *
+     * @param casterId  the caster's entity id
+     * @param sentGlove the glove the throw left from
+     * @param gameTime  the level's game time of the throw
+     */
+    public static void liftAfresh(int casterId, Vec3 sentGlove, long gameTime) {
+        LIFTS.put(casterId, Lift.beginning(gameTime, sentGlove));
+    }
+
+    /**
      * Marks a caster's Knives charge held at a tick, floating the blob ahead
      * of the hand: a blob resting on the palm hops off it from the tick the
      * charge began, so the lift stands from the wind-up's first tick.
