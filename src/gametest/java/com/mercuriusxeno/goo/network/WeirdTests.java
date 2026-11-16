@@ -144,6 +144,7 @@ public final class WeirdTests {
             + " or drop %d mb of weird goo; the cell holds %s and %d mb dropped";
 
     private static final String GOOP_MOUND_HOLDS_ITS_STEP = "goop_mound_holds_its_step_on_open_floor";
+    private static final String ONE_GOOP_LAYER_HOLDS = "one_goop_layer_holds_beside_a_drop";
     /** The open floor's middle cell the mound tests raise, clear of the streamer's stand. */
     private static final BlockPos MOUND_CELL = new BlockPos(3, 1, 3);
     /** The drips landed on the mound's cell. */
@@ -178,6 +179,7 @@ public final class WeirdTests {
         GooTestFunctions.registerTest(registrar, DRIPS_DRAIN_A_LAYER_EACH, WeirdTests::goopDripsDrainALayersPriceEach);
         GooTestFunctions.registerTest(registrar, FULL_CELL_SETTLES, WeirdTests::aFullCellSettlesAcrossOpenFloor);
         GooTestFunctions.registerTest(registrar, GOOP_MOUND_HOLDS_ITS_STEP, WeirdTests::goopMoundHoldsItsStepOnOpenFloor);
+        GooTestFunctions.registerTest(registrar, ONE_GOOP_LAYER_HOLDS, WeirdTests::oneGoopLayerHoldsBesideADrop);
     }
 
     /**
@@ -262,6 +264,26 @@ public final class WeirdTests {
         helper.runAfterDelay(FLOW_SETTLE_TICKS, () -> {
             List<Integer> rest = OpenFloor.layersIn(helper, OpenFloor.crossAt(MOUND_CELL));
             helper.assertTrue(rest.equals(MOUND_AT_REST), String.format(MOUND_WRONG, MOUND_AT_REST, rest));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * One Goop drip landed through the real landing on a pillar's top beside
+     * a drop keeps its layer there, since Goop's adhesion holds tops, and
+     * the foot of the drop stays open.
+     * adhesion-is-a-ladder-of-holds
+     *
+     * @param helper the gametest helper
+     */
+    public static void oneGoopLayerHoldsBesideADrop(GameTestHelper helper) {
+        LedgeDrop.lay(helper);
+        ServerPlayer caster = goopStreamerAt(helper, 0);
+        LandedDrips.landOn(helper, caster, goop(helper), LedgeDrop.ON_THE_PILLAR, 1);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        helper.runAfterDelay(FLOW_SETTLE_TICKS, () -> {
+            assertLayers(helper, LedgeDrop.ON_THE_PILLAR, 1);
+            helper.assertBlockPresent(Blocks.AIR, LedgeDrop.BELOW_THE_DROP);
             helper.succeed();
         });
     }

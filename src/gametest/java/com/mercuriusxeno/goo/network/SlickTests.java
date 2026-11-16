@@ -189,6 +189,7 @@ public final class SlickTests {
     private static final String NEVER_SETTLED = "Both crosses should stand still the last %d watched ticks: slick"
             + " changed on ticks %s, slime on ticks %s";
     private static final String SLICK_MOUND_LEVELS = "slick_mound_levels_on_open_floor";
+    private static final String ONE_SLICK_LAYER_RUNS_OFF = "one_slick_layer_runs_off_a_drop";
     /** The open floor's middle cell the mound test raises, clear of the streamer's stand. */
     private static final BlockPos MOUND_CELL = new BlockPos(3, 1, 3);
     /** The drips landed on the mound's cell. */
@@ -1009,6 +1010,27 @@ public final class SlickTests {
                 SlickTests::slickSprayedAheadKeepsASlidersMomentum);
         GooTestFunctions.registerTest(registrar, STEPS_UP_IN_THE_AIR, SlickTests::slickStepsAFallingSliderUpOntoARaisedCell);
         GooTestFunctions.registerTest(registrar, SLICK_MOUND_LEVELS, SlickTests::slickMoundLevelsOnOpenFloor);
+        GooTestFunctions.registerTest(registrar, ONE_SLICK_LAYER_RUNS_OFF, SlickTests::oneSlickLayerRunsOffADrop);
+    }
+
+    /**
+     * One Slick drip landed through the real landing on a pillar's top beside
+     * a drop runs off the ledge, since Slick's adhesion clings to nothing,
+     * and ends as one layer of Slick on the top at the foot of the drop.
+     * adhesion-is-a-ladder-of-holds
+     *
+     * @param helper the gametest helper
+     */
+    public static void oneSlickLayerRunsOffADrop(GameTestHelper helper) {
+        LedgeDrop.lay(helper);
+        ServerPlayer caster = slickStreamerAt(helper, STREAMER_POS);
+        LandedDrips.landOn(helper, caster, slick(helper), LedgeDrop.ON_THE_PILLAR, 1);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        helper.runAfterDelay(SETTLE_WATCH_TICKS, () -> {
+            helper.assertBlockPresent(Blocks.AIR, LedgeDrop.ON_THE_PILLAR);
+            assertLayers(helper, LedgeDrop.BELOW_THE_DROP, 1);
+            helper.succeed();
+        });
     }
 
     /**
@@ -1344,8 +1366,11 @@ public final class SlickTests {
      * @param helper the gametest helper
      */
     public static void slickLandsAboutEightBlocksAhead(GameTestHelper helper) {
+        // a floor one row wider than the rows read, so no film read stands beside a drop it would run off
         for (int east = 0; east <= FAR_STRIP_EAST; east++) {
-            helper.setBlock(FAR_STREAMER_POS.below().east(east), Blocks.STONE);
+            for (int off = -REACH_ROWS - 1; off <= REACH_ROWS + 1; off++) {
+                helper.setBlock(FAR_STREAMER_POS.below().east(east).south(off), Blocks.STONE);
+            }
         }
         ServerPlayer streamer = slickStreamerAt(helper, FAR_STREAMER_POS);
         streamer.setYRot(FACING_EAST);
@@ -1608,14 +1633,20 @@ public final class SlickTests {
     }
 
     /**
-     * Lays the strip of stone on bedrock the stream slicks.
+     * Lays the strip of stone on bedrock the stream slicks, ringed by a
+     * stone apron at its level, so no slick cell on the strip stands beside
+     * a drop: Slick clings to nothing and would run off one.
+     * adhesion-is-a-ladder-of-holds
      *
      * @param helper the gametest helper
      */
     private static void layStrip(GameTestHelper helper) {
-        for (int east = STRIP_WEST; east <= STRIP_EAST; east++) {
-            helper.setBlock(SLICKED_STONE.east(east).below(), Blocks.BEDROCK);
-            helper.setBlock(SLICKED_STONE.east(east), Blocks.STONE);
+        for (int east = STRIP_WEST - 1; east <= STRIP_EAST + 1; east++) {
+            for (int off = -1; off <= 1; off++) {
+                BlockPos stone = SLICKED_STONE.east(east).south(off);
+                helper.setBlock(stone.below(), Blocks.BEDROCK);
+                helper.setBlock(stone, Blocks.STONE);
+            }
         }
     }
 

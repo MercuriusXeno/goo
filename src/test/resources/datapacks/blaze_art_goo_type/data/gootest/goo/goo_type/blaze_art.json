@@ -9,6 +9,7 @@
   "viscosity": 1000,
   "elasticity": 0.1,
   "cohesion": 0,
+  "adhesion": 1,
   "temperature": 300,
   "extinguishes": false,
   "levity": 1.0,
