@@ -44,12 +44,14 @@ final class ShatterCells {
     /** The most cells drawn, the nearest kept, since each shard face casts its own reflection ray. */
     static final int MOST_DRAWN = 64;
     private static final int SECTION_SIZE = 16;
+    /** The last scan's tick before any scan has run. */
+    static final long NEVER_SCANNED = Long.MIN_VALUE;
 
     private final Map<BlockPos, Cell> cells = new HashMap<>();
     private final Set<Long> readSections = new HashSet<>();
     private final Set<BlockPos> foundLastScan = new HashSet<>();
     private final LongSupplier seeds;
-    private long lastScan = Long.MIN_VALUE;
+    private long lastScan = NEVER_SCANNED;
 
     /**
      * One cell's shards: when its goo landed and its layout.
@@ -91,6 +93,19 @@ final class ShatterCells {
     }
 
     /**
+     * Whether a scan is due: the first, one a scan interval after the last,
+     * or one after the clock ran backward. The first is asked by its sentinel
+     * rather than by a difference, since the tick minus the sentinel overflows.
+     *
+     * @param lastScan the last scan's tick, or {@link #NEVER_SCANNED}
+     * @param now      the game tick
+     * @return true where the index scans this tick
+     */
+    static boolean isDue(long lastScan, long now) {
+        return lastScan == NEVER_SCANNED || now < lastScan || now - lastScan >= SCAN_TICKS;
+    }
+
+    /**
      * The cells drawn, by position.
      *
      * @return the cells
@@ -106,7 +121,7 @@ final class ShatterCells {
         cells.clear();
         readSections.clear();
         foundLastScan.clear();
-        lastScan = Long.MIN_VALUE;
+        lastScan = NEVER_SCANNED;
     }
 
     /**
@@ -117,7 +132,7 @@ final class ShatterCells {
      * @param now   the game tick
      */
     void rescanIfDue(Level level, Vec3 eye, long now) {
-        if (now - lastScan < SCAN_TICKS && now >= lastScan) {
+        if (!isDue(lastScan, now)) {
             return;
         }
         lastScan = now;
