@@ -210,6 +210,16 @@ class AbilityLoaderTest {
         }
     }
 
+    /**
+     * Rime sprays a goo in world and so wears the residual badge, sorting in the tier that leads the fan.
+     * decision rime-wears-the-residual-badge
+     */
+    @Test
+    void rimeWearsTheResidualBadge() {
+        assertEquals(AbilityBadge.RESIDUAL,
+                shippedById().get(Identifier.fromNamespaceAndPath("goo", "frost_rime")).badge());
+    }
+
     // decision lingering-abilities-place-their-own-thing
     // decision one-proving-ability-per-kind
     @Test

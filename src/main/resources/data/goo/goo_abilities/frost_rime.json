@@ -2,7 +2,7 @@
   "gooType": "frost",
   "displayName": "goo.ability.frost.rime",
   "cost_mechanics": "goo.ability.frost.rime.cost_mechanics",
-  "badge": "channeled",
+  "badge": "residual",
   "order": 0,
   "cost": 96,
   "cost_formula": "%s/m³",
