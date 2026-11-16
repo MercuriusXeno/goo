@@ -118,6 +118,7 @@
   "block.goo.kinetic_slick": "Slick",
   "block.goo.blaze_molten": "Molten",
   "block.goo.deep_host": "Host",
+  "block.goo.hex_leech": "Leech",
 
   "goo.badge.world": "World",
   "goo.badge.mob": "Mob",
@@ -227,6 +228,9 @@
   "goo.ability.hex.enchant.description": "Enchants one book you carry at random, possibly with a curse.",
   "goo.ability.hex.fuse": "Fuse",
   "goo.ability.hex.fuse.description": "Fuses two identical enchanted books you carry into one a level higher.",
+  "goo.ability.hex.leech": "Leech",
+  "goo.ability.hex.leech.cost_mechanics": "Costs %s per block of Leech laid, a fifteenth of it per layer.",
+  "goo.ability.hex.leech.description": "Held stream sprays Leech, a soul-steeped goo that slows whatever it catches.",
   "goo.ability.hex.lifetap": "Lifetap",
   "goo.ability.hex.lifetap.description": "Damage you deal heals you, but food no longer regenerates your health.",
   "goo.ability.hex.drain": "Drain",

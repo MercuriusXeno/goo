@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.LoadedAbilityCost;
+import com.mercuriusxeno.goo.ability.program.LeechGooStep;
 import com.mercuriusxeno.goo.ability.program.MoltenStep;
 import com.mercuriusxeno.goo.ability.program.SlickStep;
 import com.mercuriusxeno.goo.ability.program.Step;
@@ -20,6 +21,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.InsideBlockEffectApplier;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -59,7 +61,8 @@ import java.util.OptionalLong;
  * sets. A layer is priced at a fifteenth of the laying ability's cost; the
  * cell stands until something destroys it, then drops its goo type worth
  * that price per layer. What it does to things on it is its surface's: slime
- * breaks a fall and bounces, slick ramps a thing trying to move at any height.
+ * breaks a fall and bounces, slick ramps a thing trying to move at any height,
+ * leech slows a thing it catches.
  * slime-and-slick-are-one-volume-cell-tech
  * each-goo-type-ships-a-world-goo-on-the-volume-cell
  * coat-is-a-green-slime-film-over-the-blocks-own-texture
@@ -71,6 +74,7 @@ import java.util.OptionalLong;
  * bounce-ramps-jump-height-while-jump-is-held
  * slick-coats-the-ground-with-kinetic-speed
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+ * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
  */
 public class VolumeCellBlock extends Block {
 
@@ -685,7 +689,36 @@ public class VolumeCellBlock extends Block {
         if (surface().ramps()) {
             SlickStep.in(layingProgram(level)).ifPresent(slick -> SlickBuild.slide(entity, slick));
         }
+        slowCaught(level, state, entity);
         super.stepOn(level, pos, state, entity);
+    }
+
+    /**
+     * Slows a thing inside a slowing cell's block space, wading in it or
+     * standing on a cell short of a whole block.
+     * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
+     */
+    @Override
+    protected void entityInside(@NonNull BlockState state, @NonNull Level level, @NonNull BlockPos pos,
+                                @NonNull Entity entity, @NonNull InsideBlockEffectApplier effects,
+                                boolean pastEdges) {
+        slowCaught(level, state, entity);
+    }
+
+    /**
+     * Slows a thing a slowing cell caught by the speed factor its laying
+     * ability's leech goo step names, as a cobweb or a berry bush slows what
+     * moves through it; on both sides, since the client moves its own player.
+     * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
+     *
+     * @param level  the level the cell stands in
+     * @param state  the cell's state
+     * @param entity the thing caught
+     */
+    private void slowCaught(Level level, BlockState state, Entity entity) {
+        if (surface().slows()) {
+            LeechGooStep.in(layingProgram(level)).ifPresent(leech -> entity.makeStuckInBlock(state, leech.slowing()));
+        }
     }
 
     /**

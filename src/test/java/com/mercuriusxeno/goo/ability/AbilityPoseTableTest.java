@@ -50,6 +50,7 @@ class AbilityPoseTableTest {
             Map.entry("hex_drain", ArmPose.HELD_OUT),
             Map.entry("hex_enchant", ArmPose.HELD_UP),
             Map.entry("hex_fuse", ArmPose.HELD_UP),
+            Map.entry("hex_leech", ArmPose.HELD_OUT),
             Map.entry("hex_lifetap", ArmPose.HELD_UP),
             Map.entry("jelly_nectar", ArmPose.SWUNG),
             Map.entry("jelly_gluttony", ArmPose.HELD_UP),
