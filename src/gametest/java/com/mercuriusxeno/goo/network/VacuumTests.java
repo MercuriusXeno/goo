@@ -16,6 +16,7 @@ import com.mercuriusxeno.goo.registry.GooSoundIds;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -132,6 +133,15 @@ public final class VacuumTests {
     private static final String NOT_WHOLE = "The far goop cell should stand whole at %d layers after an early"
             + " release, holds %s at share %.2f";
 
+    private static final String BREAKS_EVERY_WORLD_GOO = "vacuum_breaks_every_goo_on_the_volume_cell";
+    /** The ticks between one world goo's hold and the next, past the gap a hold continues across. */
+    private static final int BETWEEN_HOLDS = StreamHolds.LATEST_CONTINUING_GAP + 2;
+    private static final String NO_WORLD_GOO = "The block registry should hold a goo on the volume cell";
+    private static final String WORLD_GOO_LEFT = "%s should break under Vacuum and return %d mb of %s, the cell"
+            + " holds %s and %d mb came back";
+    private static final String WORLD_GOOS_LEFT = "Every goo on the volume cell should break and return its layers'"
+            + " goo: %s";
+
     private VacuumTests() {
     }
 
@@ -154,6 +164,61 @@ public final class VacuumTests {
                 VacuumTests::vacuumLeavesPlayersAndMobsBehindUnmoved);
         GooTestFunctions.registerTest(registrar, RETURNS_THE_LAYERS_PRICE, VacuumTests::vacuumReturnsASlimeCellsLayersPrice);
         GooTestFunctions.registerTest(registrar, RETURNS_THE_SLICKS_PRICE, VacuumTests::vacuumReturnsASlickCellsLayersPrice);
+        GooTestFunctions.registerTest(registrar, BREAKS_EVERY_WORLD_GOO, VacuumTests::vacuumBreaksEveryGooOnTheVolumeCell);
+    }
+
+    /**
+     * Vacuum held in turn over one cell of each goo on the volume cell the
+     * block registry holds, eleven layers deep beside open cells it cannot
+     * pour into, breaks each to air and returns the goo its layers cost, so a
+     * world goo shipping later joins this test with no edit here.
+     * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
+     *
+     * @param helper the gametest helper
+     */
+    public static void vacuumBreaksEveryGooOnTheVolumeCell(GameTestHelper helper) {
+        List<VolumeCellBlock> worldGoos = BuiltInRegistries.BLOCK.stream().filter(VolumeCellBlock.class::isInstance)
+                .map(VolumeCellBlock.class::cast).toList();
+        helper.assertTrue(!worldGoos.isEmpty(), NO_WORLD_GOO);
+        layTheFloor(helper);
+        helper.setBlock(laneCell(DECAYED - 1).below(), Blocks.STONE_SLAB);
+        helper.setBlock(laneCell(DECAYED + 1).below(), Blocks.STONE_SLAB);
+        ServerPlayer vacuumer = vacuumer(helper);
+        List<String> left = new ArrayList<>();
+        int turn = WAVE_HOLD + 1 + BETWEEN_HOLDS;
+        for (int i = 0; i < worldGoos.size(); i++) {
+            vacuumOneWorldGoo(helper, vacuumer, worldGoos.get(i), i * turn, left::add);
+        }
+        helper.runAfterDelay((long) worldGoos.size() * turn, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(vacuumer);
+            helper.assertTrue(left.isEmpty(), String.format(WORLD_GOOS_LEFT, left));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Lays one world goo's cell at a tick, holds Vacuum over it, and reports
+     * the cell where it stands afterward or returned other than its layers' goo.
+     */
+    private static void vacuumOneWorldGoo(GameTestHelper helper, ServerPlayer vacuumer, VolumeCellBlock worldGoo,
+                                          int from, Consumer<String> report) {
+        BlockPos cell = laneCell(DECAYED);
+        ResourceKey<GooTypeDefinition> type = worldGoo.binding().gooType();
+        int[] before = new int[1];
+        helper.runAfterDelay(from, () -> {
+            helper.setBlock(cell, worldGoo.defaultBlockState().setValue(VolumeCellBlock.LAYERS, VACUUMED_LAYERS));
+            before[0] = gooReturned(helper, vacuumer, type);
+        });
+        holdVacuum(helper, vacuumer, from, WAVE_HOLD, held -> vacuumer.doTick());
+        helper.runAfterDelay(from + WAVE_HOLD + 1, () -> {
+            BlockState stood = helper.getBlockState(cell);
+            int returned = gooReturned(helper, vacuumer, type) - before[0];
+            int owed = ResidualPrices.worldGooRefund(helper, worldGoo, VACUUMED_LAYERS);
+            if (!stood.isAir() || returned != owed) {
+                report.accept(String.format(WORLD_GOO_LEFT, BuiltInRegistries.BLOCK.getKey(worldGoo), owed,
+                        type.identifier().getPath(), stood, returned));
+            }
+        });
     }
 
     /**
@@ -587,11 +652,26 @@ public final class VacuumTests {
      * @param watch    what runs after each held tick, given the tick's count
      */
     private static void holdVacuum(GameTestHelper helper, ServerPlayer vacuumer, int ticks, Consumer<Integer> watch) {
+        holdVacuum(helper, vacuumer, 0, ticks, watch);
+    }
+
+    /**
+     * Holds Vacuum's stream one tick at a time from a tick of the test on,
+     * running a watch after each tick.
+     *
+     * @param helper   the gametest helper
+     * @param vacuumer the player holding it
+     * @param from     the test tick the hold's first tick follows
+     * @param ticks    how many ticks to hold
+     * @param watch    what runs after each held tick, given the tick's count
+     */
+    private static void holdVacuum(GameTestHelper helper, ServerPlayer vacuumer, int from, int ticks,
+                                   Consumer<Integer> watch) {
         GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.VOID), VACUUM.toString(),
                 vacuumer.getEyePosition(), vacuumer.getEyePosition());
         for (int held = 1; held <= ticks; held++) {
             int count = held;
-            helper.runAfterDelay(held, () -> {
+            helper.runAfterDelay(from + held, () -> {
                 GooStreamHandler.streamTick(vacuumer, tick);
                 watch.accept(count);
             });
