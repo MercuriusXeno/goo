@@ -37,6 +37,16 @@ final class ReflectionEasing {
     }
 
     /**
+     * Whether the easing holds a shown color for every face of a cloud of a count of faces.
+     *
+     * @param faceCount the faces the cloud shows
+     * @return true where none of them falls past what the easing holds
+     */
+    boolean covers(int faceCount) {
+        return seeded.length >= faceCount;
+    }
+
+    /**
      * Starts a frame at the given clock, fixing the share of the gap every
      * face closes this frame from the ticks elapsed since the last frame.
      * A clock that ran backwards reseeds every face at its sample.

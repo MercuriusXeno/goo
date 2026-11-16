@@ -253,7 +253,6 @@ public final class GooClientSetup {
         PrismComboStyles.register(GlowBeaconStyle.COMBO, new GlowBeaconStyle());
         PrismComboStyles.register(GlowReflectorStyle.COMBO, new GlowReflectorStyle());
         PrismComboStyles.register(HivePrismStyle.COMBO, new HivePrismStyle());
-        event.registerBlockEntityRenderer(GooBlockEntities.END_GATE.get(), EndGateRenderer::new);
         // room-door-wears-the-end-portal-starfield: the room's doorway draws as the End portal's starfield
         event.registerBlockEntityRenderer(GooBlockEntities.DIMENSION_DOOR.get(), DimensionDoorRenderer::new);
         // oculus-prism-becomes-a-hovering-eye: an oculus prism draws as the hovering eye
@@ -311,7 +310,7 @@ public final class GooClientSetup {
     @SubscribeEvent
     public static void registerBlockTintSources(RegisterColorHandlersEvent.BlockTintSources event) {
         for (VolumeCellBlock cell : List.of(GooBlocks.SLIME_COAT.get(), GooBlocks.KINETIC_SLICK.get(),
-                GooBlocks.BLAZE_MOLTEN.get())) {
+                GooBlocks.BLAZE_MOLTEN.get(), GooBlocks.CRYSTAL_SHATTER.get(), GooBlocks.DEEP_HOST.get())) {
             event.register(List.of(new VolumeCellTint(cell.binding().gooType(), ClientGooTypes::color)), cell);
         }
     }
@@ -388,6 +387,8 @@ public final class GooClientSetup {
      * splatting on a lava source's surface as its goo pools there.
      * goop-and-slick-spray-throws-goo-drips-that-splat
      * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+     * shatter-is-splattered-goo-and-shards-form-over-the-splatters
+     * host-is-a-sculky-slime-that-sculk-spreads-eagerly-through
      *
      * @param event the event instance
      */
@@ -399,6 +400,10 @@ public final class GooClientSetup {
         event.registerSpriteSet(GooParticles.MOLTEN_SPRAY_DRIP.get(),
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.MOLTEN_BLAZE_ORANGES,
                         CellBinding.MOLTEN.liesOnLava()));
+        event.registerSpriteSet(GooParticles.SHATTER_SPRAY_DRIP.get(),
+                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.SHATTER_CRYSTAL_BLUES));
+        event.registerSpriteSet(GooParticles.HOST_SPRAY_DRIP.get(),
+                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.HOST_DEEP_TEALS));
     }
 
     /**

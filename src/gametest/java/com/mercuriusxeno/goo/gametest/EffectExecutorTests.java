@@ -34,7 +34,7 @@ import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
@@ -64,18 +64,15 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 public final class EffectExecutorTests {
     private static final String FX_PROGRAM_MINE = "fx_program_proximity_mine";
     private static final String FX_PROGRAM_METAL_URCHIN = "fx_program_metal_urchin";
-    private static final String FX_PROGRAM_CRYSTAL_SHATTER = "fx_program_crystal_shatter";
     private static final String COMPRESSION_SPHERE_SPILLS_ON_TOUCH = "compression_sphere_spills_on_touch";
     private static final String LARGE_BLAST_LEAVES_A_GREEN_SPHERE = "large_blast_leaves_a_green_sphere";
     private static final String SMALL_BLAST_POPS_ITS_DROPS = "small_blast_pops_its_drops";
     private static final String GREEN_SPHERE_KEEPS_ITS_CORE = "green_sphere_keeps_its_core";
-    private static final String FX_LANDED_CRYSTAL_SHATTER = "fx_landed_crystal_shatter_live";
-    private static final String FX_CRYSTAL_SHATTER_SHREDS_PLAYER = "fx_crystal_shatter_shreds_walking_player";
     private static final String FX_LANDED_BLAST = "fx_landed_blast_explodes";
     private static final String FX_LANDED_GLOW_CRYSTAL = "fx_landed_glow_crystal_stands";
     private static final String FX_FALLEN_MARKER_KEEPS_ABILITY = "fx_fallen_marker_keeps_ability";
     private static final String FX_OTHER_ABILITY_MARKS_CRYSTAL = "fx_other_ability_marks_crystal";
-    private static final String FX_SHATTER_BLOCK_GOES = "fx_shatter_block_goes";
+    private static final String FX_URCHIN_BLOCK_GOES = "fx_urchin_block_goes";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -85,18 +82,15 @@ public final class EffectExecutorTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, FX_PROGRAM_MINE, EffectExecutorTests::programProximityMine);
         GooTestFunctions.registerTest(registrar, FX_PROGRAM_METAL_URCHIN, EffectExecutorTests::programMetalUrchin);
-        GooTestFunctions.registerTest(registrar, FX_PROGRAM_CRYSTAL_SHATTER, EffectExecutorTests::programCrystalShatter);
         GooTestFunctions.registerTest(registrar, COMPRESSION_SPHERE_SPILLS_ON_TOUCH, EffectExecutorTests::compressionSphereSpillsOnTouch);
         GooTestFunctions.registerTest(registrar, LARGE_BLAST_LEAVES_A_GREEN_SPHERE, EffectExecutorTests::largeBlastLeavesAGreenSphere);
         GooTestFunctions.registerTest(registrar, SMALL_BLAST_POPS_ITS_DROPS, EffectExecutorTests::smallBlastPopsItsDrops);
         GooTestFunctions.registerTest(registrar, GREEN_SPHERE_KEEPS_ITS_CORE, EffectExecutorTests::greenSphereKeepsItsCoreThroughASave);
-        GooTestFunctions.registerTest(registrar, FX_LANDED_CRYSTAL_SHATTER, EffectExecutorTests::crystalShatterLiveAfterLanding);
-        GooTestFunctions.registerTest(registrar, FX_CRYSTAL_SHATTER_SHREDS_PLAYER, EffectExecutorTests::crystalShatterShredsAWalkingPlayer);
         GooTestFunctions.registerTest(registrar, FX_LANDED_BLAST, EffectExecutorTests::blastExplodesAfterLanding);
         GooTestFunctions.registerTest(registrar, FX_LANDED_GLOW_CRYSTAL, EffectExecutorTests::glowCrystalStandsAfterLanding);
         GooTestFunctions.registerTest(registrar, FX_FALLEN_MARKER_KEEPS_ABILITY, EffectExecutorTests::fallenMarkerKeepsAbility);
         GooTestFunctions.registerTest(registrar, FX_OTHER_ABILITY_MARKS_CRYSTAL, EffectExecutorTests::otherAbilityMarksCrystal);
-        GooTestFunctions.registerTest(registrar, FX_SHATTER_BLOCK_GOES, EffectExecutorTests::crystalShatterBlockGoesWithItsProgram);
+        GooTestFunctions.registerTest(registrar, FX_URCHIN_BLOCK_GOES, EffectExecutorTests::urchinBlockGoesWithItsProgram);
     }
 
 
@@ -109,7 +103,6 @@ public final class EffectExecutorTests {
     private static final int NO_ENTITY = -1;
     private static final String NOT_RUNNING = "The marker's program is not running the tick after its blob landed";
     private static final String BLOCK_OUTLIVED_PROGRAM = "The lingering block stood on after its program ended";
-    private static final String FIELD_NOT_LIVE = "The field effect is not live the tick after its blob landed";
     private static final int WALL_X_MIN = 0;
     private static final int WALL_X_MAX = 5;
     private static final int WALL_Y_MAX = 3;
@@ -125,17 +118,14 @@ public final class EffectExecutorTests {
     private static final BlockPos MINE_TARGET_POS = MARKER_POS.east(2);
     private static final String ABILITY_METAL_URCHIN = "goo:metal_urchin";
     private static final String SPIKE_MISSED = "The metal trap left the walking pig unhurt";
-    private static final String ABILITY_CRYSTAL_SHATTER = "goo:crystal_shatter";
     /** Where a diamond lies: two blocks west of the marker. */
     private static final BlockPos DIAMOND_POS = MARKER_POS.west(2);
     /** Horizontal speed the moving pig is shuffled at, reversed every tick so it stays put. */
     private static final double SHUFFLE_SPEED = 0.2;
+    /** Health enough for a pig to outlast every charge an Urchin field holds. */
+    private static final float HARDY_HEALTH = 1024f;
     /** Ticks per back-and-forth of the moving pig's shuffle. */
     private static final int SHUFFLE_PERIOD = 2;
-    private static final String SHATTER_MISSED_MOVER = "The Shatter cloud left the moving pig unhurt";
-    private static final String SHATTER_MISSED_WALKER = "The Shatter cloud left the walking survival player unhurt";
-    /** Blocks a walking player covers in a tick, near vanilla's walking speed. */
-    private static final double WALK_STEP = 0.2;
     /** Blocks south of the marker the caster stands, well clear of the blast. */
     private static final int CASTER_DISTANCE = 12;
     private static final double HALF_BLOCK = 0.5;
@@ -323,19 +313,6 @@ public final class EffectExecutorTests {
             assertExploded(helper);
             helper.succeed();
         });
-    }
-
-    /**
-     * Shatter's cloud as a field-effect program: from the splat, a pig kept
-     * moving inside the cloud is shredded.
-     *
-     * @param helper the gametest helper
-     */
-    public static void programCrystalShatter(GameTestHelper helper) {
-        discardLeftoverEntities(helper);
-        placeMarkerWithAbility(helper, GooTypes.CRYSTAL, ABILITY_CRYSTAL_SHATTER);
-        Pig mover = spawnShufflingPig(helper, MINE_TARGET_POS);
-        helper.succeedWhen(() -> helper.assertTrue(mover.getHealth() < mover.getMaxHealth(), SHATTER_MISSED_MOVER));
     }
 
     /**
@@ -652,68 +629,6 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * A crystal_shatter blob's cloud is live the tick after it lands.
-     *
-     * @param helper the gametest helper
-     */
-    public static void crystalShatterLiveAfterLanding(GameTestHelper helper) {
-        landBlob(helper, GooTypes.CRYSTAL, ABILITY_CRYSTAL_SHATTER);
-        helper.runAfterDelay(TICK_AFTER_LANDING, () -> {
-            helper.assertTrue(landedMarker(helper).getFieldEffect().fieldTicks() > 0, FIELD_NOT_LIVE);
-            removeMarkerAndSucceed(helper);
-        });
-    }
-
-    /**
-     * A survival player walking inside a landed Shatter cloud is shredded. The
-     * player walks the way the server moves a real one: each tick it moves by
-     * the client's step and records that step as its known movement, its
-     * delta movement left to the server, so the cloud judges it as it judges
-     * the operator.
-     * decision diagnose-then-restore-razor-harm
-     *
-     * @param helper the gametest helper
-     */
-    public static void crystalShatterShredsAWalkingPlayer(GameTestHelper helper) {
-        discardLeftoverEntities(helper);
-        helper.setBlock(MINE_TARGET_POS.below(), Blocks.STONE);
-        ServerPlayer walker = standWalkingPlayer(helper, MINE_TARGET_POS);
-        landBlob(helper, GooTypes.CRYSTAL, ABILITY_CRYSTAL_SHATTER);
-        helper.startSequence()
-                .thenWaitUntil(() -> helper.assertTrue(walker.getHealth() < walker.getMaxHealth(),
-                        SHATTER_MISSED_WALKER + ": health " + walker.getHealth() + " of " + walker.getMaxHealth()
-                                + ", delta " + walker.getDeltaMovement() + ", known " + walker.getKnownMovement()))
-                .thenExecute(() -> {
-                    walker.discard();
-                    removeMarkerAndSucceed(helper);
-                });
-    }
-
-    /**
-     * Stands a survival server player whose client has loaded, walking back
-     * and forth on the spot: each tick it moves by its step and the step is
-     * recorded as its known movement, the path the server takes for a
-     * client's move packet.
-     *
-     * @param helper the gametest helper
-     * @param pos    the relative block position to stand on
-     * @return the player
-     */
-    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    private static ServerPlayer standWalkingPlayer(GameTestHelper helper, BlockPos pos) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        player.setGameMode(GameType.SURVIVAL);
-        player.connection.markClientLoaded();
-        player.snapTo(helper.absoluteVec(Vec3.atBottomCenterOf(pos)));
-        helper.onEachTick(() -> {
-            Vec3 step = new Vec3(helper.getTick() % SHUFFLE_PERIOD == 0 ? WALK_STEP : -WALK_STEP, 0, 0);
-            player.move(MoverType.PLAYER, step);
-            player.setKnownMovement(step);
-        });
-        return player;
-    }
-
-    /**
      * A blast blob has exploded the tick after it lands.
      *
      * @param helper the gametest helper
@@ -740,17 +655,20 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * A Shatter cloud stands its block while a moving pig draws its
-     * shreds, and the block is gone once the cloud has contracted
-     * (decision lingering-abilities-place-their-own-thing).
+     * An Urchin field stands its block while a moving pig draws its
+     * strikes, and the block is gone once the field has spent its charges
+     * and contracted (decision lingering-abilities-place-their-own-thing).
      *
      * @param helper the gametest helper
      */
-    public static void crystalShatterBlockGoesWithItsProgram(GameTestHelper helper) {
+    public static void urchinBlockGoesWithItsProgram(GameTestHelper helper) {
         discardLeftoverEntities(helper);
-        placeMarkerWithAbility(helper, GooTypes.CRYSTAL, ABILITY_CRYSTAL_SHATTER);
+        placeMarkerWithAbility(helper, GooTypes.METAL, ABILITY_METAL_URCHIN);
         helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
-        spawnShufflingPig(helper, MINE_TARGET_POS);
+        Pig pig = spawnShufflingPig(helper, MINE_TARGET_POS);
+        // a pig's ten health dies to two impalings, leaving the field charges it never spends
+        pig.getAttribute(Attributes.MAX_HEALTH).setBaseValue(HARDY_HEALTH);
+        pig.setHealth(HARDY_HEALTH);
         helper.succeedWhen(() -> helper.assertTrue(helper.getBlockState(MARKER_POS).isAir(), BLOCK_OUTLIVED_PROGRAM));
     }
 
