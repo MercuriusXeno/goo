@@ -28,8 +28,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Lunar's matter, anorthosite, regolith, the iron core, molten iron, meteoric iron, impact glass and breccia,
- * registers under the mod's id with the textures its models name, and the shipped base values answer astral and xeno for each, iron
+ * Lunar's matter, anorthosite, regolith, the iron core, molten iron, meteoric iron, impact glass, breccia and
+ * crater ice, registers under the mod's id with the textures its models name, and the shipped base values answer astral and xeno for each, iron
  * for the stone, the core, the molten iron and the meteoric iron, crystal for the regolith and the impact glass.
  * decision lunar-matter-is-anorthosite-basalt-regolith-and-an-iron-core
  * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
@@ -79,7 +79,7 @@ class LunarMatterTest {
         void lunarBlocksRegisterUnderTheModId() {
             assertTrue(registeredIds(GooBlocks.BLOCKS).containsAll(List.of(
                     goo("anorthosite"), goo("regolith"), goo("iron_core"), goo("molten_iron"), goo("meteoric_iron"),
-                    goo("impact_glass"), goo("breccia"))),
+                    goo("impact_glass"), goo("breccia"), goo("crater_ice"))),
                     String.valueOf(registeredIds(GooBlocks.BLOCKS)));
         }
 
@@ -95,7 +95,8 @@ class LunarMatterTest {
         void lunarBlocksAndTheMoltenIronBucketRegisterAsItems() {
             assertTrue(registeredIds(GooItems.ITEMS).containsAll(List.of(
                     goo("anorthosite"), goo("regolith"), goo("iron_core"), goo("molten_iron_bucket"),
-                    goo("meteoric_iron"), goo("impact_glass"), goo("breccia"))),
+                    goo("meteoric_iron"), goo("impact_glass"), goo("breccia"),
+                    goo("crater_ice"))),
                     String.valueOf(registeredIds(GooItems.ITEMS)));
         }
     }
@@ -104,7 +105,8 @@ class LunarMatterTest {
     class Textures {
 
         @ParameterizedTest
-        @ValueSource(strings = {"anorthosite", "regolith", "iron_core", "meteoric_iron", "impact_glass", "breccia"})
+        @ValueSource(strings = {"anorthosite", "regolith", "iron_core", "meteoric_iron", "impact_glass", "breccia",
+            "crater_ice"})
         void eachLunarBlockDrawsATextureOnTheClasspath(String block) throws IOException {
             String model = resourceJson("/assets/goo/blockstates/" + block + ".json").getAsJsonObject("variants")
                     .getAsJsonObject("").get("model").getAsString();
@@ -155,14 +157,14 @@ class LunarMatterTest {
 
         @ParameterizedTest
         @ValueSource(strings = {"anorthosite", "regolith", "iron_core", "molten_iron_bucket", "meteoric_iron",
-            "impact_glass", "breccia"})
+            "impact_glass", "breccia", "crater_ice"})
         void eachLunarMatterCarriesAstral(String item) throws IOException {
             assertCarries(item, GooTypes.ASTRAL);
         }
 
         @ParameterizedTest
         @ValueSource(strings = {"anorthosite", "regolith", "iron_core", "molten_iron_bucket", "meteoric_iron",
-            "impact_glass", "breccia"})
+            "impact_glass", "breccia", "crater_ice"})
         void eachLunarMatterCarriesXeno(String item) throws IOException {
             assertCarries(item, GooTypes.XENO);
         }

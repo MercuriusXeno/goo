@@ -26,6 +26,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.IceBlock;
 import net.minecraft.world.level.block.IronBarsBlock;
 import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.SoundType;
@@ -404,6 +405,14 @@ public class GooBlocks {
     public static final DeferredBlock<Block> BRECCIA = BLOCKS.registerSimpleBlock("breccia",
             () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_GRAY).requiresCorrectToolForDrops()
                     .strength(STONE_HARDNESS, STONE_RESISTANCE).sound(SoundType.TUFF));
+
+    /**
+     * Crater ice: the ice lying in the floors of lunar's deepest craters, its only water; it melts and breaks to water
+     * as vanilla ice does.
+     * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
+     */
+    public static final DeferredBlock<IceBlock> CRATER_ICE = BLOCKS.registerBlock("crater_ice", IceBlock::new,
+            () -> BlockBehaviour.Properties.ofFullCopy(Blocks.ICE));
 
     /** Molten iron's liquid block, glowing as lava does. */
     public static final DeferredBlock<LiquidBlock> MOLTEN_IRON = BLOCKS.registerBlock(GooFluids.MOLTEN_IRON_PATH,

@@ -85,6 +85,18 @@ class CraterFieldTest {
         }
 
         @Test
+        void aCraterShortOfARadiusThresholdReachesNoBand() {
+            assertFalse(CraterField.reachesBand(CENTER, CENTER, Field::rollOneCenteredCrater, 0.0, 1.0,
+                    CENTERED_RADIUS + 1.0));
+        }
+
+        @Test
+        void aCraterPastARadiusThresholdReachesItsBand() {
+            assertTrue(CraterField.reachesBand(CENTER, CENTER, Field::rollOneCenteredCrater, 0.0, 1.0,
+                    CENTERED_RADIUS - 1.0));
+        }
+
+        @Test
         void aColumnNoCraterReachesReadsAsOpenGround() {
             assertTrue(CraterField.isOpenGround(-CraterField.CELL, -CraterField.CELL, Field::rollOneCenteredCrater));
         }

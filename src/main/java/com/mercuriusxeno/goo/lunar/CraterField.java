@@ -47,6 +47,13 @@ public record CraterField(DensityFunction.NoiseHolder noise) implements DensityF
     static final double RIM_REACH = 0.6;
     /** A crater's floor reaches half its radius from its centre, the flat of the bowl where impacts melt the ground. */
     static final double FLOOR_REACH = 0.5;
+    /**
+     * The radius past which a crater is one of the deepest, whose floor holds crater ice; lunar's noise settings name
+     * it in their crater ice rule.
+     */
+    public static final double DEEP_CRATER_RADIUS = 16.0;
+    /** Crater ice fills a deep crater's floor out to this many radii from its centre, inside the impact glass. */
+    public static final double ICE_REACH = 0.35;
 
     private static final int PRESENCE = 0;
     private static final int OFFSET_X = 1;
@@ -141,11 +148,26 @@ public record CraterField(DensityFunction.NoiseHolder noise) implements DensityF
      * @return true where a crater's reach at the column falls in the band
      */
     static boolean reachesBand(int x, int z, CellRolls rolls, double minReach, double maxReach) {
+        return reachesBand(x, z, rolls, minReach, maxReach, 0.0);
+    }
+
+    /**
+     * Whether some crater of at least a radius reaches a column within a band of its radii.
+     *
+     * @param x         the column's x
+     * @param z         the column's z
+     * @param rolls     each cell's rolls
+     * @param minReach  the band's inner edge, in radii, inclusive
+     * @param maxReach  the band's outer edge, in radii, exclusive
+     * @param minRadius the least radius a crater counts at, in blocks
+     * @return true where a crater that large reaches the column within the band
+     */
+    static boolean reachesBand(int x, int z, CellRolls rolls, double minReach, double maxReach, double minRadius) {
         int cellX = Math.floorDiv(x, CELL);
         int cellZ = Math.floorDiv(z, CELL);
         for (int dx = -NEIGHBOUR_REACH; dx <= NEIGHBOUR_REACH; dx++) {
             for (int dz = -NEIGHBOUR_REACH; dz <= NEIGHBOUR_REACH; dz++) {
-                if (craterReachFallsInBand(x, z, cellX + dx, cellZ + dz, rolls, minReach, maxReach)) {
+                if (craterReachFallsInBand(x, z, cellX + dx, cellZ + dz, rolls, minReach, maxReach, minRadius)) {
                     return true;
                 }
             }
@@ -154,11 +176,15 @@ public record CraterField(DensityFunction.NoiseHolder noise) implements DensityF
     }
 
     private static boolean craterReachFallsInBand(int x, int z, int cellX, int cellZ, CellRolls rolls,
-            double minReach, double maxReach) {
+            double minReach, double maxReach, double minRadius) {
         if (rolls.roll(cellX, cellZ, PRESENCE) >= CRATER_CHANCE) {
             return false;
         }
-        double reach = reach(x, z, cellX, cellZ, radius(cellX, cellZ, rolls), rolls);
+        double radius = radius(cellX, cellZ, rolls);
+        if (radius < minRadius) {
+            return false;
+        }
+        double reach = reach(x, z, cellX, cellZ, radius, rolls);
         return reach >= minReach && reach < maxReach;
     }
 
@@ -207,6 +233,20 @@ public record CraterField(DensityFunction.NoiseHolder noise) implements DensityF
      */
     public boolean reachesBandAt(int x, int z, double minReach, double maxReach) {
         return reachesBand(x, z, this::roll, minReach, maxReach);
+    }
+
+    /**
+     * Whether some crater of at least a radius in this field reaches a column within a band of its radii.
+     *
+     * @param x         the column's x
+     * @param z         the column's z
+     * @param minReach  the band's inner edge, in radii, inclusive
+     * @param maxReach  the band's outer edge, in radii, exclusive
+     * @param minRadius the least radius a crater counts at, in blocks
+     * @return true where a crater that large reaches the column within the band
+     */
+    public boolean reachesBandAt(int x, int z, double minReach, double maxReach, double minRadius) {
+        return reachesBand(x, z, this::roll, minReach, maxReach, minRadius);
     }
 
     /**
