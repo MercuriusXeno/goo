@@ -5,6 +5,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,6 +41,17 @@ class GooHitCreditTest {
         assertSame(player, credited.getEntity());
         assertNull(credited.getDirectEntity());
         assertEquals(magic, credited.typeHolder());
+    }
+
+    /** A hunk's strike keeps the hunk as its direct entity, so vanilla pushes the mob from the hunk as before. */
+    @Test
+    void aCreditedHitKeepsTheUncreditedHitsDirectEntityAndItsCauseForGoo() {
+        Entity hunk = mock(Entity.class);
+        DamageSource credited = GooHitCredit.credit(new DamageSource(magic, hunk), cow, player);
+
+        assertSame(player, credited.getEntity());
+        assertSame(hunk, credited.getDirectEntity());
+        assertSame(hunk, GooHitCredit.causeOf(credited));
     }
 
     @Test

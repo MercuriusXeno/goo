@@ -18,6 +18,10 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageTypes;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
@@ -50,7 +54,12 @@ public final class BlastChargeTests {
                 BlastChargeTests::unchargedBlastBreaksOutToTwo);
         GooTestFunctions.registerTest(registrar, ROOTED_BLAST_EXPLODES_WHERE_THE_CHARGE_BEGAN,
                 BlastChargeTests::rootedBlastExplodesWhereTheChargeBegan);
+        GooTestFunctions.registerTest(registrar, CHARGED_BLAST_NAMES_ITS_CASTER, BlastChargeTests::blastNamesItsCaster);
     }
+
+    private static final String CHARGED_BLAST_NAMES_ITS_CASTER = "goo_caster_hit_charged_blast_names_the_player";
+    private static final String SHOULD_NAME_THE_CASTER =
+            "Blast should hurt the golem as an explosion naming its caster, last hit by %s";
 
     private static final String ROOTED_BLAST_EXPLODES_WHERE_THE_CHARGE_BEGAN =
             "rooted_blast_explodes_where_the_charge_began";
@@ -134,6 +143,24 @@ public final class BlastChargeTests {
                 "The blast should break the stone around the rooted spot");
         helper.assertTrue(helper.getBlockState(LOOKED_AT).is(Blocks.STONE),
                 "The block the caster looks at should stand");
+        helper.succeed();
+    }
+
+    /**
+     * A release with no hold, aimed at stone beside an iron golem, hurts the
+     * golem with an explosion naming the caster.
+     * decision direct-goo-hit-credits-its-caster
+     * decision goo-hit-keeps-its-kind-and-names-the-player-behind-it
+     *
+     * @param helper the gametest helper
+     */
+    public static void blastNamesItsCaster(GameTestHelper helper) {
+        Mob golem = helper.spawnWithNoFreeWill(EntityType.IRON_GOLEM, AIMED.above().east());
+        ServerPlayer[] caster = new ServerPlayer[1];
+        castBlast(helper, 0, player -> caster[0] = player);
+        DamageSource last = golem.getLastDamageSource();
+        helper.assertTrue(last != null && last.getEntity() == caster[0] && last.is(DamageTypes.EXPLOSION),
+                String.format(SHOULD_NAME_THE_CASTER, last == null ? "nothing" : last.getEntity() + " from " + last));
         helper.succeed();
     }
 
