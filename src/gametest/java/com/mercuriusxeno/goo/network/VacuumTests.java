@@ -16,8 +16,11 @@ import com.mercuriusxeno.goo.registry.GooSoundIds;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.protocol.game.ClientboundLevelEventPacket;
+import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
@@ -142,6 +145,16 @@ public final class VacuumTests {
     private static final String WORLD_GOOS_LEFT = "Every goo on the volume cell should break and return its layers'"
             + " goo: %s";
 
+    private static final String ONE_PARTICLE_PER_LAYER = "vacuum_throws_one_break_particle_per_layer";
+    private static final String PARTICLES_WRONG = "The vacuumed cell of %d layers should throw %d break particles,"
+            + " threw %d: %d through vanilla's break event, %d sent";
+    /** The vanilla break event that bursts a block's break particles on every client. */
+    private static final int BREAK_PARTICLES_EVENT = 2001;
+    /** The side of the grid vanilla's break burst lays its particles on, in blocks. */
+    private static final double BURST_GRID = 0.25;
+    /** The fewest particles vanilla's break burst lays along each side of a box. */
+    private static final int BURST_FEWEST = 2;
+
     private VacuumTests() {
     }
 
@@ -165,6 +178,55 @@ public final class VacuumTests {
         GooTestFunctions.registerTest(registrar, RETURNS_THE_LAYERS_PRICE, VacuumTests::vacuumReturnsASlimeCellsLayersPrice);
         GooTestFunctions.registerTest(registrar, RETURNS_THE_SLICKS_PRICE, VacuumTests::vacuumReturnsASlickCellsLayersPrice);
         GooTestFunctions.registerTest(registrar, BREAKS_EVERY_WORLD_GOO, VacuumTests::vacuumBreaksEveryGooOnTheVolumeCell);
+        GooTestFunctions.registerTest(registrar, ONE_PARTICLE_PER_LAYER, VacuumTests::vacuumThrowsOneBreakParticlePerLayer);
+    }
+
+    /**
+     * Vacuum held over one slime cell of eleven layers throws eleven break
+     * particles as it takes the cell, one a layer, counting both the
+     * particles sent and the burst each vanilla break event lays on a client.
+     *
+     * @param helper the gametest helper
+     */
+    public static void vacuumThrowsOneBreakParticlePerLayer(GameTestHelper helper) {
+        layTheFloor(helper);
+        helper.setBlock(laneCell(DECAYED - 1).below(), Blocks.STONE_SLAB);
+        helper.setBlock(laneCell(DECAYED + 1).below(), Blocks.STONE_SLAB);
+        BlockPos cell = laneCell(DECAYED);
+        helper.setBlock(cell, slimeOf(VACUUMED_LAYERS));
+        ServerPlayer vacuumer = vacuumer(helper);
+        PacketRecorder seen = PacketRecorder.attachTo(vacuumer);
+        holdVacuum(helper, vacuumer, WAVE_HOLD, held -> { });
+        helper.runAfterDelay(WAVE_HOLD + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(vacuumer);
+            BlockPos at = helper.absolutePos(cell);
+            int burst = seen.sentOf(ClientboundLevelEventPacket.class).stream()
+                    .filter(event -> event.getType() == BREAK_PARTICLES_EVENT && event.getPos().equals(at))
+                    .mapToInt(event -> vanillaBurstOf(helper, Block.stateById(event.getData()), at)).sum();
+            int sent = seen.sentOf(ClientboundLevelParticlesPacket.class).stream()
+                    .filter(particles -> particles.getParticle() instanceof BlockParticleOption
+                            && BlockPos.containing(particles.getX(), particles.getY(), particles.getZ()).equals(at))
+                    .mapToInt(ClientboundLevelParticlesPacket::getCount).sum();
+            helper.assertTrue(burst + sent == VACUUMED_LAYERS, String.format(PARTICLES_WRONG, VACUUMED_LAYERS,
+                    VACUUMED_LAYERS, burst + sent, burst, sent));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * The break particles vanilla's break event lays on a client for a state:
+     * a grid over each box of its shape, a quarter block apart and at least
+     * two along each side.
+     */
+    private static int vanillaBurstOf(GameTestHelper helper, BlockState state, BlockPos at) {
+        int[] particles = new int[1];
+        state.getShape(helper.getLevel(), at).forAllBoxes((minX, minY, minZ, maxX, maxY, maxZ) ->
+                particles[0] += burstAlong(maxX - minX) * burstAlong(maxY - minY) * burstAlong(maxZ - minZ));
+        return particles[0];
+    }
+
+    private static int burstAlong(double side) {
+        return Math.max(BURST_FEWEST, (int) Math.ceil(Math.min(1, side) / BURST_GRID));
     }
 
     /**
