@@ -29,9 +29,9 @@ class MarkerOrbVisualTest {
     private static final GooRenderUtil.UvRect UV = new GooRenderUtil.UvRect(0f, 0f, 1f, 1f);
     private static final int WHITE = 0xFFFFFFFF;
 
-    /** Every scale the orb modifier takes at rest and at the crystal ebb's peak. */
+    /** Every scale the orb modifier takes at rest and at a lurker's full swell. */
     private static final float[] MODIFIERS = {
-        1f, 1f + MarkerOrbVisual.CRYSTAL_EBB_AMPLITUDE,
+        1f, 1f + MarkerOrbVisual.LURKER_SWELL,
     };
 
     /**
@@ -154,9 +154,6 @@ class MarkerOrbVisualTest {
         }
     }
 
-    /** A game time far from zero, as a live level's clock reads. */
-    private static final float GAME_TIME = 48_213f;
-
     // decision splat-runs-the-program-no-fuse
     @Test
     void theOrbDrawsExactlyWhileTheMarkersProgramRuns() {
@@ -167,25 +164,5 @@ class MarkerOrbVisualTest {
 
         assertEquals(true, MarkerOrbVisual.drawsOrb(running));
         assertEquals(false, MarkerOrbVisual.drawsOrb(idle));
-    }
-
-    @Nested
-    class CrystalMarkerEbbs {
-
-        /**
-         * Over its 80-tick period the ebb swells the orb 3 percent a quarter in and shrinks it 3 percent at three
-         * quarters in.
-         */
-        @Test
-        void ebbSwingsThreePercentEitherSideAndReturnsAfterEightyTicks() {
-            assertEquals(1.03f, MarkerOrbVisual.crystalEbb(true, 20), TOLERANCE);
-            assertEquals(0.97f, MarkerOrbVisual.crystalEbb(true, 60), TOLERANCE);
-            assertEquals(1f, MarkerOrbVisual.crystalEbb(true, 80), TOLERANCE);
-        }
-
-        @Test
-        void orbRestsAtItsOwnSizeWithoutACloud() {
-            assertEquals(1f, MarkerOrbVisual.crystalEbb(false, GAME_TIME));
-        }
     }
 }

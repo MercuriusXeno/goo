@@ -35,17 +35,17 @@ class HeldDomeRendererTest {
     @Nested
     class ShowPredicate {
         @Test
-        void razorWithAnArmedPressShowsTheDome() {
-            assertTrue(shows("crystal_shatter", true));
+        void urchinWithAnArmedPressShowsTheDome() {
+            assertTrue(shows("metal_urchin", true));
         }
 
         @Test
-        void razorWithNoPressShowsNoDome() {
-            assertFalse(shows("crystal_shatter", false));
+        void urchinWithNoPressShowsNoDome() {
+            assertFalse(shows("metal_urchin", false));
         }
 
         @ParameterizedTest
-        @ValueSource(strings = {"crystal_knives", "ender_blink", "blaze_flames"})
+        @ValueSource(strings = {"crystal_knives", "ender_blink", "blaze_flames", "crystal_shatter"})
         void mobSelfAndChanneledShowNoDome(String name) {
             assertFalse(shows(name, true));
         }
@@ -97,11 +97,6 @@ class HeldDomeRendererTest {
         PipelineShaders.assertExist(GooRenderTypes.ROCK_EXPLOSION_THROUGH_BLOCKS);
         assertEquals(CompareOp.ALWAYS_PASS,
                 GooRenderTypes.ROCK_EXPLOSION_THROUGH_BLOCKS.getDepthStencilState().depthTest());
-    }
-
-    @Test
-    void razorsGhostIsTheCrystalLanding() {
-        assertSame(CrystalExplosionVisual.INSTANCE, HeldDomeRenderer.ghostOf(GooTypes.CRYSTAL));
     }
 
     /** anti-moves-from-nether-to-void: neither Void nor Nether holds a ghost. */
