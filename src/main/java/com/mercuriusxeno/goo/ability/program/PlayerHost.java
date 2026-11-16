@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.ability.zone.ZoneRooms;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.HoldMarks;
 import com.mercuriusxeno.goo.network.KnifeRainSling;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -291,11 +292,13 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
         }
     }
 
-    /** Where End's gate takes the player (decision
-     * end-summons-a-gate-like-zone-that-takes-you-to-the-end-and-back). */
+    /** Where End's gate takes the player, in the End the way back they keep (decisions
+     * end-summons-a-gate-like-zone-that-takes-you-to-the-end-and-back,
+     * end-gate-in-the-end-is-free-and-returns-you-where-you-portalled-in). */
     @Override
     public Optional<EndDestination> endDestination() {
-        return EndDestination.from(level.dimension());
+        return EndDestination.from(level.dimension(),
+                player.getData(GooAttachments.END_WAY_BACK).destination());
     }
 
     /** Conjures End's gate before the player, as Zone's door is (decision

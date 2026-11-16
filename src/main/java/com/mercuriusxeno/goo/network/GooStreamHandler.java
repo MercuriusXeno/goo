@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityPrice;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.HealReport;
@@ -232,7 +233,9 @@ public final class GooStreamHandler {
         if (ability.delivery().drainsOnPlacement()) {
             return held;
         }
-        int share = StreamHolds.shareAt(ability.cost().exactIn(GooValues.of(player.level())),
+        // decision end-gate-in-the-end-is-free-and-returns-you-where-you-portalled-in
+        AbilityPrice cost = ability.cost().forCasterIn(player.level().dimension(), ability.behaviors());
+        int share = StreamHolds.shareAt(cost.exactIn(GooValues.of(player.level())),
                 ability.delivery().ticksPerCharge(), held);
         if (!GooSourceScanner.hasEnough(player, gooType, share)) {
             return 0;

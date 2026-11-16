@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -10,9 +12,11 @@ import java.util.stream.Stream;
  * gate the hold conjures before the player, as Zone's door stands, and the
  * tick the hold reaches its charge carries them through it to where it
  * leads. A hold the gate leads nowhere from stands nothing. End is
- * {@code end charge=20}.
+ * {@code end charge=20}. In the End it costs nothing, and its gate leads
+ * back to where the player portalled in from.
  * decision end-summons-a-gate-like-zone-that-takes-you-to-the-end-and-back
  * decision end-clears-blocks-and-opens-a-portal
+ * decision end-gate-in-the-end-is-free-and-returns-you-where-you-portalled-in
  *
  * @param charge the held ticks the channel asks before it carries the caster
  */
@@ -53,6 +57,15 @@ public record EndStep(Expr charge) implements Step {
             }
         });
         return true;
+    }
+
+    /**
+     * End costs nothing in the End.
+     * decision end-gate-in-the-end-is-free-and-returns-you-where-you-portalled-in
+     */
+    @Override
+    public boolean freeIn(ResourceKey<Level> casterIn) {
+        return casterIn == Level.END;
     }
 
     @Override
