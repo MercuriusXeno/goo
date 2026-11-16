@@ -172,7 +172,7 @@ public final class BlastChargeTests {
                 Direction.UP.ordinal(), false, BLAST.toString(), player.getEyePosition(),
                 helper.absoluteVec(Vec3.atCenterOf(target).add(0, HALF_BLOCK, 0)));
         GooThrowHandler.releaseCharge(player, new GooChargePayload(GooTypes.id(GooTypes.UNSTABLE), BLAST.toString(),
-                heldTicks, 0L, Optional.of(aimed)));
+                heldTicks, Optional.of(aimed)));
         helper.getLevel().getServer().getPlayerList().remove(player);
     }
 

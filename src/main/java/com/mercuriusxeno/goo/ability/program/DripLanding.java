@@ -42,6 +42,17 @@ public interface DripLanding {
     }
 
     /**
+     * Whether the drips strike a lava source at its surface, where other
+     * drips pass through every fluid to the block under it.
+     * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+     *
+     * @return true for a landing whose goo pools on lava
+     */
+    default boolean landsOnLava() {
+        return false;
+    }
+
+    /**
      * The step a program's drips land through, the first where it carries several.
      *
      * @param program the ability's steps

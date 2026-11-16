@@ -56,12 +56,13 @@ public final class GooEventWiring {
     }
 
     /**
-     * Common setup: hands the choral gasket item the block it places.
+     * Common setup: hands the choral gasket item the block it places, and has water cool molten iron.
      *
      * @param event the common setup event
      */
     private static void commonSetup(FMLCommonSetupEvent event) {
         ChoralGasketItem.setGasketBlockSupplier(GooBlocks.CHORAL_GASKET_BLOCK::get);
+        event.enqueueWork(GooFluids::registerMoltenIronCooling);
     }
 
     /**

@@ -38,10 +38,8 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
@@ -148,7 +146,7 @@ public final class GooThrowHandler {
      * @param player    the releasing player
      * @param gooType   the ability's goo type
      * @param ability   the charged ability
-     * @param payload   the charge payload, its hold, its scatter seed and its aimed target
+     * @param payload   the charge payload, its hold and its aimed target
      */
     private static void fireCharge(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
                                    AbilityDefinition ability, GooChargePayload payload) {
@@ -158,8 +156,7 @@ public final class GooThrowHandler {
             payload.aimed().ifPresent(aimed -> GooChargedCastHandler.cast(player, gooType, ability, aimed,
                     payload.heldTicks()));
         } else if (ability.delivery().charge().slings()) {
-            KnifeRainSling.sling(player, gooType, ability, payload.heldTicks(),
-                    RandomSource.create(payload.scatterSeed()));
+            KnifeRainSling.sling(player, gooType, ability, payload.heldTicks());
         }
     }
 
@@ -234,8 +231,8 @@ public final class GooThrowHandler {
     }
 
     /**
-     * Whether the release's target refuses it: a struck block a step refuses,
-     * a face a step or a prism cannot take, or the thrower's own minion.
+     * Whether the release's target refuses it: a face a step or a prism
+     * cannot take, or the thrower's own minion.
      *
      * @param player  the throwing player
      * @param payload the throw payload data
@@ -243,7 +240,7 @@ public final class GooThrowHandler {
      * @return true when the target refuses the throw
      */
     private static boolean refusesTarget(ServerPlayer player, GooThrowPayload payload, AbilityDefinition ability) {
-        return refusesStruck(player.level(), payload, ability) || refusedAtFace(player, payload, ability)
+        return refusedAtFace(player, payload, ability)
                 || aimsAnOwnMinion(player, payload, ability) || growsNoPrismThere(player.level(), payload, ability);
     }
 
@@ -277,7 +274,8 @@ public final class GooThrowHandler {
      */
     private static boolean aimsAnOwnMinion(ServerPlayer player, GooThrowPayload payload, AbilityDefinition ability) {
         if (payload.targetEntityId() < 0
-                || !OwnMinions.sparesOwnMinions(ability.badge(), ability.hasTag(AbilityTags.HARMFUL))) {
+                || !OwnMinions.sparesOwnMinions(ability.badge(), ability.delivery().kind(),
+                        ability.hasTag(AbilityTags.HARMFUL))) {
             return false;
         }
         Entity target = player.level().getEntity(payload.targetEntityId());
@@ -307,36 +305,6 @@ public final class GooThrowHandler {
             }
         }
         return false;
-    }
-
-    /**
-     * Whether a step of the ability refuses the block a throw strikes, so the
-     * throw is dropped unpaid; the client sends none at such a block, so this
-     * meets only a throw sent past it. Molten strikes only meltable stone.
-     * melt-blob-absorbs-into-lava
-     *
-     * @param level   the level thrown in
-     * @param payload the throw payload data
-     * @param ability the thrown ability
-     * @return true when a step refuses the struck block
-     */
-    static boolean refusesStruck(ServerLevel level, GooThrowPayload payload, AbilityDefinition ability) {
-        return payload.targetEntityId() < 0
-                && refusesStruck(level.getBlockState(payload.targetPos()), ability.behaviors());
-    }
-
-    /**
-     * Whether a step of a program refuses a struck block, read alike by the
-     * server and by the client's aim.
-     * melt-blob-absorbs-into-lava
-     *
-     * @param struck    the block the throw would strike
-     * @param behaviors the thrown ability's program
-     * @return true when a step refuses it
-     */
-    public static boolean refusesStruck(BlockState struck, List<Step> behaviors) {
-        return behaviors.stream().anyMatch(step -> step instanceof TargetGatedStep gated
-                && !gated.admitsStruck(struck));
     }
 
     /**
@@ -414,9 +382,9 @@ public final class GooThrowHandler {
             GooTouchHandler.touch(player, payload, gooType);
         } else if (ability.delivery().rolls()) {
             rollGoo(player, payload, gooType, ability);
-        } else if (ability.badge().aimsAPoint()) {
+        } else if (aimedBadge(ability).aimsAPoint()) {
             throwAtPoint(player, payload, gooType);
-        } else if (!aimsNoMob(ability.badge(), payload.targetEntityId() >= 0)) {
+        } else if (!aimsNoMob(aimedBadge(ability), payload.targetEntityId() >= 0)) {
             throwFlight(player, payload, gooType);
         }
     }
@@ -479,6 +447,17 @@ public final class GooThrowHandler {
      */
     static boolean takesMob(@Nullable Entity named) {
         return named instanceof LivingEntity living && living.isAlive();
+    }
+
+    /**
+     * The badge a thrown ability aims as, Dart's held javelin aiming as a mob ability.
+     * decision dart-forms-on-right-click-and-throws-on-left-click
+     *
+     * @param ability the thrown ability
+     * @return the badge its throw reads
+     */
+    static AbilityBadge aimedBadge(AbilityDefinition ability) {
+        return ability.badge().aimsAs(ability.delivery().kind());
     }
 
     /**

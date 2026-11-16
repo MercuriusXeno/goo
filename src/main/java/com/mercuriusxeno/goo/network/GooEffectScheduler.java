@@ -223,7 +223,7 @@ public final class GooEffectScheduler {
     private static @Nullable Vec3 resolvePoint(ServerLevel level, GooThrowPayload payload,
                                                ResourceKey<GooTypeDefinition> gooType) {
         AbilityDefinition ability = GooThrowHandler.thrownAbility(level, payload.abilityId(), gooType);
-        return ability != null && ability.badge().aimsAPoint() ? payload.targetPoint() : null;
+        return ability != null && GooThrowHandler.aimedBadge(ability).aimsAPoint() ? payload.targetPoint() : null;
     }
 
     /**

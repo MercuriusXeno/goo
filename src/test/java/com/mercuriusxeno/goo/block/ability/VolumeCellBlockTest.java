@@ -6,6 +6,7 @@ import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.block.CompiledStateDefinition;
 import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.EntityBlock;
@@ -83,21 +84,29 @@ class VolumeCellBlockTest {
     class OneImplementation {
 
         @Test
-        void gooBlocksRegistersSlimeAndSlickAsTheOneVolumeCell() throws ReflectiveOperationException {
-            assertEquals(List.of(VolumeCellBlock.class, VolumeCellBlock.class),
-                    List.of(registeredBlockClass("SLIME_COAT"), registeredBlockClass("KINETIC_SLICK")));
+        void gooBlocksRegistersSlimeSlickAndMoltenAsTheOneVolumeCell() throws ReflectiveOperationException {
+            assertEquals(List.of(VolumeCellBlock.class, VolumeCellBlock.class, VolumeCellBlock.class),
+                    List.of(registeredBlockClass("SLIME_COAT"), registeredBlockClass("KINETIC_SLICK"),
+                            registeredBlockClass("BLAZE_MOLTEN")));
         }
 
         @Test
-        void slimeIsBoundToWeirdAndSlickToKinetic() {
-            assertEquals(List.of(GooTypes.WEIRD, GooTypes.KINETIC),
-                    List.of(CellBinding.SLIME.gooType(), CellBinding.SLICK.gooType()));
+        void slimeIsBoundToWeirdSlickToKineticAndMoltenToBlaze() {
+            assertEquals(List.of(GooTypes.WEIRD, GooTypes.KINETIC, GooTypes.BLAZE),
+                    List.of(CellBinding.SLIME.gooType(), CellBinding.SLICK.gooType(), CellBinding.MOLTEN.gooType()));
         }
 
         @Test
-        void slimeBouncesAndSlickRamps() {
-            assertEquals(List.of(CellSurface.BOUNCE, CellSurface.RAMP),
-                    List.of(CellBinding.SLIME.surface(), CellBinding.SLICK.surface()));
+        void slimeBouncesSlickRampsAndMoltenPools() {
+            assertEquals(List.of(CellSurface.BOUNCE, CellSurface.RAMP, CellSurface.POOL),
+                    List.of(CellBinding.SLIME.surface(), CellBinding.SLICK.surface(), CellBinding.MOLTEN.surface()));
+        }
+
+        /** molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava: Molten alone pools on lava */
+        @Test
+        void moltenAlonePoolsOnLava() {
+            assertEquals(List.of(false, false, true), List.of(CellBinding.SLIME.liesOnLava(),
+                    CellBinding.SLICK.liesOnLava(), CellBinding.MOLTEN.liesOnLava()));
         }
 
         /**
@@ -309,6 +318,57 @@ class VolumeCellBlockTest {
         @Test
         void slicksCostPricesACubicMeter() {
             assertEquals(Optional.of("%s/m³"), AbilityJson.decode("kinetic_slick").costFormula());
+        }
+    }
+
+    /**
+     * A broken Molten cell gives back blaze goo, each layer a fifteenth of
+     * Molten's cost as blaze_molten.json ships it
+     * (decision molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava).
+     */
+    @Nested
+    class MoltenReclaim {
+
+        private static final int LAYERS = 4;
+
+        @Test
+        void moltenIsLaidByBlazesMolten() {
+            assertEquals(AbilityJson.idOf("blaze_molten.json"), CellBinding.MOLTEN.layingAbility());
+        }
+
+        @Test
+        void aBrokenMoltenCellDropsBlazeGooAtFifteenthsOfMoltensCost() {
+            GooFraction cost = AbilityJson.decode("blaze_molten").cost().exactIn(GooValueTable.EMPTY);
+
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.BLAZE,
+                            cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.MOLTEN, LAYERS, cost));
+        }
+    }
+
+    /**
+     * A broken Host cell gives back deep goo, each layer a fifteenth of
+     * Host's cost as deep_host.json ships it
+     * (decision host-is-a-sculky-slime-that-sculk-spreads-eagerly-through).
+     */
+    @Nested
+    class HostReclaim {
+
+        private static final int LAYERS = 7;
+
+        @Test
+        void hostIsDeepGooLaidByDeepsHost() {
+            assertEquals(List.of(GooTypes.DEEP, AbilityJson.idOf("deep_host.json")),
+                    List.of(CellBinding.HOST.gooType(), CellBinding.HOST.layingAbility()));
+        }
+
+        @Test
+        void aBrokenHostCellDropsDeepGooAtFifteenthsOfHostsCost() {
+            GooFraction cost = AbilityJson.decode("deep_host").cost().exactIn(GooValueTable.EMPTY);
+
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.DEEP,
+                            cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.HOST, LAYERS, cost));
         }
     }
 

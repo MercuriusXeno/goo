@@ -109,7 +109,9 @@ public final class DripFlights {
             if (level == null) {
                 continue;
             }
-            DripArc.Step step = DripArc.step(flight.position(), flight.velocity(), CoatRay.clipping(level),
+            boolean landsOnLava = thrower.landing().filter(DripLanding::landsOnLava).isPresent();
+            DripArc.Step step = DripArc.step(flight.position(), flight.velocity(),
+                    CoatRay.clippingFor(level, landsOnLava),
                     thrower.strikesLiving() ? livingNear(level, thrower.casterId()) : DripArc.NO_LIVING,
                     airspaceOf(level));
             if (!step.ended()) {

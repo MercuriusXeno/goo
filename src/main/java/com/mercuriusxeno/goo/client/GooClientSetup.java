@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.ability.nether.HiveSwarm;
 import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
+import com.mercuriusxeno.goo.block.ability.CellBinding;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.client.ability.AbilityPoses;
 import com.mercuriusxeno.goo.client.ability.Afterimages;
@@ -73,6 +74,8 @@ import com.mercuriusxeno.goo.client.sound.FadingLoops;
 import com.mercuriusxeno.goo.client.throwing.GooFlightManager;
 import com.mercuriusxeno.goo.client.throwing.GooSizeProperty;
 import com.mercuriusxeno.goo.client.throwing.GooVolumeDecorator;
+import com.mercuriusxeno.goo.client.zone.LunarSky;
+import com.mercuriusxeno.goo.client.zone.LunarSkyRenderer;
 import com.mercuriusxeno.goo.client.zone.PocketStarSky;
 import com.mercuriusxeno.goo.client.zone.PocketStarSkyRenderer;
 import com.mercuriusxeno.goo.item.gasket.TunerAwaitState;
@@ -139,6 +142,10 @@ public final class GooClientSetup {
      * SuppressWarnings annotation value for unchecked casts.
      */
     private static final String SUPPRESS_UNCHECKED = "unchecked";
+    /** Molten iron's still and flowing sprites, lava's animations run hotter. */
+    private static final Identifier MOLTEN_IRON_SPRITE = Identifier.fromNamespaceAndPath(Goo.MODID, "fluid/molten_iron");
+    private static final Identifier MOLTEN_IRON_FLOW_SPRITE =
+            Identifier.fromNamespaceAndPath(Goo.MODID, "fluid/molten_iron_flow");
 
     static {
         ISidedProxy.INSTANCE[0] = new ClientProxy();
@@ -303,7 +310,8 @@ public final class GooClientSetup {
      */
     @SubscribeEvent
     public static void registerBlockTintSources(RegisterColorHandlersEvent.BlockTintSources event) {
-        for (VolumeCellBlock cell : List.of(GooBlocks.SLIME_COAT.get(), GooBlocks.KINETIC_SLICK.get())) {
+        for (VolumeCellBlock cell : List.of(GooBlocks.SLIME_COAT.get(), GooBlocks.KINETIC_SLICK.get(),
+                GooBlocks.BLAZE_MOLTEN.get(), GooBlocks.DEEP_HOST.get())) {
             event.register(List.of(new VolumeCellTint(cell.binding().gooType(), ClientGooTypes::color)), cell);
         }
     }
@@ -360,10 +368,7 @@ public final class GooClientSetup {
         event.registerSpriteSet(GooParticles.GOO_FOG.get(), GooFogParticle.Provider::new);
         event.registerSpriteSet(GooParticles.SPORE.get(), SporeParticle.Provider::new);
         event.registerSpriteSet(GooParticles.GNAT.get(), GnatParticle.Provider::new);
-        event.registerSpriteSet(GooParticles.GOOP_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.GOOP_SLIME_GREENS));
-        event.registerSpriteSet(GooParticles.SLICK_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.SLICK_SLIME_BLUES));
+        registerSprayDrips(event);
         event.registerSpriteSet(GooParticles.SNOWFLAKE.get(), SnowflakeParticle.Provider::new);
         event.registerSpriteSet(GooParticles.CLICK_WAVE.get(), ClickWaveParticle.Provider::new);
         event.registerSpriteSet(GooParticles.RESTORE_MOTE.get(), RestoreMoteParticle.Provider::new);
@@ -376,6 +381,27 @@ public final class GooClientSetup {
         event.registerSpriteSet(GooParticles.VITAL_STAR.get(), VitalStarParticle.Provider::new);
         event.registerSpecial(GooParticles.SILENT_BLAST.get(),
                 (options, level, x, y, z, dx, dy, dz, random) -> null);
+    }
+
+    /**
+     * Registers each world goo spray's drip in its goo's colors, Molten's
+     * splatting on a lava source's surface as its goo pools there.
+     * goop-and-slick-spray-throws-goo-drips-that-splat
+     * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+     * host-is-a-sculky-slime-that-sculk-spreads-eagerly-through
+     *
+     * @param event the event instance
+     */
+    private static void registerSprayDrips(RegisterParticleProvidersEvent event) {
+        event.registerSpriteSet(GooParticles.GOOP_SPRAY_DRIP.get(),
+                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.GOOP_SLIME_GREENS));
+        event.registerSpriteSet(GooParticles.SLICK_SPRAY_DRIP.get(),
+                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.SLICK_SLIME_BLUES));
+        event.registerSpriteSet(GooParticles.MOLTEN_SPRAY_DRIP.get(),
+                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.MOLTEN_BLAZE_ORANGES,
+                        CellBinding.MOLTEN.liesOnLava()));
+        event.registerSpriteSet(GooParticles.HOST_SPRAY_DRIP.get(),
+                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.HOST_DEEP_TEALS));
     }
 
     /**
@@ -467,6 +493,8 @@ public final class GooClientSetup {
     @SubscribeEvent
     public static void registerCustomSkies(RegisterCustomEnvironmentEffectRendererEvent event) {
         event.registerSkyboxRenderer(PocketStarSky.ID, new PocketStarSkyRenderer());
+        // decision astral-sky-is-the-void-with-one-bright-blue-overworld-star
+        event.registerSkyboxRenderer(LunarSky.ID, new LunarSkyRenderer());
     }
 
     /**
@@ -537,6 +565,10 @@ public final class GooClientSetup {
         GooFluidTintSource tint = new GooFluidTintSource();
         FluidModel.Unbaked model = new FluidModel.Unbaked(texture, texture, null, tint, new GooTypeFluidRenderer(tint));
         event.register(model, GooFluids.SOURCE, GooFluids.FLOWING);
+        // Opaque as lava draws, on its own still and flowing sprites.
+        event.register(new FluidModel.Unbaked(new Material(MOLTEN_IRON_SPRITE), new Material(MOLTEN_IRON_FLOW_SPRITE),
+                        null, null),
+                GooFluids.MOLTEN_IRON_SOURCE, GooFluids.MOLTEN_IRON_FLOWING);
     }
 
     /**
@@ -548,7 +580,7 @@ public final class GooClientSetup {
     @SubscribeEvent
     public static void registerClientExtensions(RegisterClientExtensionsEvent event) {
         event.registerFluidType(new IClientFluidTypeExtensions() {
-        }, GooFluidTypes.GOO.get());
+        }, GooFluidTypes.GOO.get(), GooFluidTypes.MOLTEN_IRON.get());
     }
 
     /**
