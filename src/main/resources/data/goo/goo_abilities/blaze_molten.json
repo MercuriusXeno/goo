@@ -18,7 +18,14 @@
     "sound": { "id": "minecraft:block.honey_block.slide", "every": 10, "volume": 1.0, "pitch": 1.0, "pitch_spread": 0.1 }
   },
   "behaviors": [
-    { "type": "molten", "tag": "goo:meltable", "heat_ticks": 40 }
+    {
+      "type": "molten",
+      "melts_into": {
+        "minecraft:lava": ["#goo:meltable"],
+        "goo:molten_iron": ["goo:iron_core"]
+      },
+      "heat_ticks": 40
+    }
   ],
   "tags": ["stream"]
 }

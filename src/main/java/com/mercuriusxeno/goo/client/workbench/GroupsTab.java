@@ -304,21 +304,47 @@ public final class GroupsTab {
                 .orElse(List.of());
     }
 
+    /**
+     * @param inventory      the inventory's items and tags, for each member's name
+     * @param itemlessBlocks the client's blocks with no item form, each a known member named by its block name
+     * @return the selected group's member cards, none while no group is selected
+     */
+    public List<MemberRow> memberRows(List<ValuesTab.ManagerEntry> inventory,
+                                      List<ValuesTab.ManagerEntry> itemlessBlocks) {
+        List<ValuesTab.ManagerEntry> named = new ArrayList<>(inventory);
+        named.addAll(itemlessBlocks);
+        return memberRows(named).stream().map(row -> !row.known() && listsId(itemlessBlocks, row.id())
+                ? new MemberRow(row.id(), row.name(), true, tweakNoteOf(row.id())) : row).toList();
+    }
+
+    private static boolean listsId(List<ValuesTab.ManagerEntry> entries, String id) {
+        return entries.stream().anyMatch(entry -> entry.id().equals(id));
+    }
+
     private String noteOf(Member member) {
         if (!member.known()) {
             return NOT_IN_INVENTORY;
         }
-        return tweakOf(member.id()).map(tweak -> (tweak.count() == 1 ? NO_NOTE : tweak.count() + TIMES)
+        return tweakNoteOf(member.id());
+    }
+
+    private String tweakNoteOf(String member) {
+        return tweakOf(member).map(tweak -> (tweak.count() == 1 ? NO_NOTE : tweak.count() + TIMES)
                 + (tweak.trait() == null ? NO_NOTE : TRAIT_MARK + tweak.trait())).orElse(NO_NOTE);
     }
 
     /**
-     * @param pick the item or #tag to add
+     * A pick lands right after the selected member, or last where no member is selected, so a group pairing blocks
+     * by position takes it at the position chosen.
+     * this-becomes-that-is-two-parallel-groups-in-the-goo-workbench
+     *
+     * @param pick the item, block or #tag to add
      * @return the apply request adding it to the selected group
      */
     public String addPickRequest(String pick) {
         List<String> picks = new ArrayList<>(memberIds());
-        picks.add(pick);
+        int selectedAt = picks.indexOf(selectedMember);
+        picks.add(selectedAt < 0 ? picks.size() : selectedAt + 1, pick);
         return picksRequest(picks);
     }
 

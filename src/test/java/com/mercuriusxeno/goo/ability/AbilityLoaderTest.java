@@ -16,6 +16,7 @@ import com.mercuriusxeno.goo.ability.program.GhostTrailStep;
 import com.mercuriusxeno.goo.ability.program.GluttonyStep;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
+import com.mercuriusxeno.goo.ability.program.MoltenStep;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
@@ -121,6 +122,18 @@ class AbilityLoaderTest {
             Identifier fileId = AbilityJson.idOf(file.getFileName().toString());
             assertEquals(fileId, scanned.get(fileId).id(), file.getFileName().toString());
         }
+    }
+
+    /**
+     * Molten ships its melts_into map: lava from the meltable stone tag, molten iron from iron core alone (decision
+     * molten-melts-by-a-meltable-group-and-its-parallel-melted-group).
+     */
+    @Test
+    void shippedMoltenMeltsStoneToLavaAndIronCoreToMoltenIron() {
+        AbilityDefinition molten = shippedById().get(Identifier.parse("goo:blaze_molten"));
+        assertEquals(Map.of(Identifier.parse("minecraft:lava"), List.of("#goo:meltable"),
+                        Identifier.parse("goo:molten_iron"), List.of("goo:iron_core")),
+                MoltenStep.in(molten.behaviors()).orElseThrow().meltsInto());
     }
 
     /**
