@@ -83,5 +83,16 @@ class CraterFieldTest {
         void aColumnNoCraterReachesReadsAsNoFloor() {
             assertFalse(CraterField.isFloor(-CraterField.CELL, -CraterField.CELL, Field::rollOneCenteredCrater));
         }
+
+        @Test
+        void aColumnNoCraterReachesReadsAsOpenGround() {
+            assertTrue(CraterField.isOpenGround(-CraterField.CELL, -CraterField.CELL, Field::rollOneCenteredCrater));
+        }
+
+        @Test
+        void aColumnOnACraterRimReadsAsNoOpenGround() {
+            int rim = CENTER + (int) Math.round(CENTERED_RADIUS);
+            assertFalse(CraterField.isOpenGround(rim, CENTER, Field::rollOneCenteredCrater));
+        }
     }
 }

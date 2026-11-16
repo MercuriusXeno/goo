@@ -1,10 +1,16 @@
 package com.mercuriusxeno.goo.lunar;
 
+import com.mercuriusxeno.goo.Goo;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.core.Holder;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.KeyDispatchDataCodec;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.levelgen.DensityFunction;
+import net.minecraft.world.level.levelgen.synth.NormalNoise;
 
 /**
  * The craters pocking lunar's surface, as the height in blocks they add to the ground at a column: a bowl sunk
@@ -22,6 +28,9 @@ public record CraterField(DensityFunction.NoiseHolder noise) implements DensityF
             DensityFunction.NoiseHolder.CODEC.fieldOf("noise").forGetter(CraterField::noise)
     ).apply(instance, CraterField::new));
     private static final KeyDispatchDataCodec<CraterField> CODEC = KeyDispatchDataCodec.of(DATA_CODEC);
+    /** The noise lunar's {@code goo:craters} density function rolls its cells from. */
+    public static final ResourceKey<NormalNoise.NoiseParameters> NOISE = ResourceKey.create(Registries.NOISE,
+            Identifier.fromNamespaceAndPath(Goo.MODID, "lunar_craters"));
 
     /** A cell's side in blocks; a crater's farthest reach stays under it, so a column reads its own cell's
      * neighbours alone. */
@@ -120,23 +129,23 @@ public record CraterField(DensityFunction.NoiseHolder noise) implements DensityF
     }
 
     /**
-     * Whether a column lies on a crater's floor, within half a radius of some crater's centre.
+     * Whether some crater reaches a column within a band of its radii, measured from its centre at zero; its rim's
+     * fall ends at one plus {@link #RIM_REACH}.
      * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
      *
-     * @param x     the column's x
-     * @param z     the column's z
-     * @param rolls each cell's rolls
-     * @return true on a crater floor
+     * @param x        the column's x
+     * @param z        the column's z
+     * @param rolls    each cell's rolls
+     * @param minReach the band's inner edge, in radii, inclusive
+     * @param maxReach the band's outer edge, in radii, exclusive
+     * @return true where a crater's reach at the column falls in the band
      */
-    static boolean isFloor(int x, int z, CellRolls rolls) {
+    static boolean reachesBand(int x, int z, CellRolls rolls, double minReach, double maxReach) {
         int cellX = Math.floorDiv(x, CELL);
         int cellZ = Math.floorDiv(z, CELL);
         for (int dx = -NEIGHBOUR_REACH; dx <= NEIGHBOUR_REACH; dx++) {
             for (int dz = -NEIGHBOUR_REACH; dz <= NEIGHBOUR_REACH; dz++) {
-                int neighbourX = cellX + dx;
-                int neighbourZ = cellZ + dz;
-                if (rolls.roll(neighbourX, neighbourZ, PRESENCE) < CRATER_CHANCE && reach(x, z, neighbourX, neighbourZ,
-                        radius(neighbourX, neighbourZ, rolls), rolls) < FLOOR_REACH) {
+                if (craterReachFallsInBand(x, z, cellX + dx, cellZ + dz, rolls, minReach, maxReach)) {
                     return true;
                 }
             }
@@ -144,8 +153,64 @@ public record CraterField(DensityFunction.NoiseHolder noise) implements DensityF
         return false;
     }
 
+    private static boolean craterReachFallsInBand(int x, int z, int cellX, int cellZ, CellRolls rolls,
+            double minReach, double maxReach) {
+        if (rolls.roll(cellX, cellZ, PRESENCE) >= CRATER_CHANCE) {
+            return false;
+        }
+        double reach = reach(x, z, cellX, cellZ, radius(cellX, cellZ, rolls), rolls);
+        return reach >= minReach && reach < maxReach;
+    }
+
     /**
-     * Whether a column lies on a crater's floor in the world this field's noise is seeded for.
+     * Whether a column lies on a crater's floor, within half a radius of some crater's centre.
+     *
+     * @param x     the column's x
+     * @param z     the column's z
+     * @param rolls each cell's rolls
+     * @return true on a crater floor
+     */
+    static boolean isFloor(int x, int z, CellRolls rolls) {
+        return reachesBand(x, z, rolls, 0.0, FLOOR_REACH);
+    }
+
+    /**
+     * Whether a column lies outside every crater, past each one's rim.
+     *
+     * @param x     the column's x
+     * @param z     the column's z
+     * @param rolls each cell's rolls
+     * @return true on ground no crater reaches
+     */
+    static boolean isOpenGround(int x, int z, CellRolls rolls) {
+        return !reachesBand(x, z, rolls, 0.0, 1.0 + RIM_REACH);
+    }
+
+    /**
+     * The crater field a world's seeded crater noise draws, as its random state wires {@link #NOISE}.
+     *
+     * @param noise the seeded crater noise
+     * @return the field that noise draws
+     */
+    public static CraterField seeded(NormalNoise noise) {
+        return new CraterField(new DensityFunction.NoiseHolder(Holder.direct(noise.parameters()), noise));
+    }
+
+    /**
+     * Whether some crater in this field reaches a column within a band of its radii.
+     *
+     * @param x        the column's x
+     * @param z        the column's z
+     * @param minReach the band's inner edge, in radii, inclusive
+     * @param maxReach the band's outer edge, in radii, exclusive
+     * @return true where a crater's reach at the column falls in the band
+     */
+    public boolean reachesBandAt(int x, int z, double minReach, double maxReach) {
+        return reachesBand(x, z, this::roll, minReach, maxReach);
+    }
+
+    /**
+     * Whether a column lies on a crater's floor in this field.
      *
      * @param x the column's x
      * @param z the column's z
@@ -153,6 +218,17 @@ public record CraterField(DensityFunction.NoiseHolder noise) implements DensityF
      */
     public boolean isFloorAt(int x, int z) {
         return isFloor(x, z, this::roll);
+    }
+
+    /**
+     * Whether a column lies outside every crater in this field.
+     *
+     * @param x the column's x
+     * @param z the column's z
+     * @return true on ground no crater reaches
+     */
+    public boolean isOpenGroundAt(int x, int z) {
+        return isOpenGround(x, z, this::roll);
     }
 
     /**

@@ -22,12 +22,16 @@ import com.mercuriusxeno.goo.block.statue.StatueBlock;
 import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.block.zone.DimensionDoorBlock;
 import com.mercuriusxeno.goo.fluid.GooFluidBlock;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.IronBarsBlock;
 import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.TintedGlassBlock;
 import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.material.PushReaction;
 import net.neoforged.neoforge.registries.DeferredBlock;
@@ -352,6 +356,8 @@ public class GooBlocks {
     /** An iron block's hardness and blast resistance, which the iron core mines like. */
     private static final float IRON_BLOCK_HARDNESS = 5.0F;
     private static final float IRON_BLOCK_RESISTANCE = 6.0F;
+    /** Glass's hardness, which impact glass breaks like. */
+    private static final float GLASS_HARDNESS = 0.3F;
     /** Lava's light and its blast resistance. */
     private static final int MOLTEN_IRON_LIGHT = 15;
     private static final float MOLTEN_IRON_RESISTANCE = 100.0F;
@@ -379,6 +385,17 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.of().mapColor(MapColor.RAW_IRON).requiresCorrectToolForDrops()
                     .strength(IRON_BLOCK_HARDNESS, IRON_BLOCK_RESISTANCE).sound(SoundType.METAL));
 
+    /**
+     * Impact glass: lunar's regolith melted where meteorites struck, dark glass that holds back light as tinted
+     * glass does, mined like glass.
+     * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
+     */
+    public static final DeferredBlock<TintedGlassBlock> IMPACT_GLASS = BLOCKS.registerBlock("impact_glass",
+            TintedGlassBlock::new, () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK)
+                    .strength(GLASS_HARDNESS).sound(SoundType.GLASS).noOcclusion()
+                    .isValidSpawn((state, level, pos, type) -> false).isRedstoneConductor(GooBlocks::never)
+                    .isSuffocating(GooBlocks::never).isViewBlocking(GooBlocks::never));
+
     /** Molten iron's liquid block, glowing as lava does. */
     public static final DeferredBlock<LiquidBlock> MOLTEN_IRON = BLOCKS.registerBlock(GooFluids.MOLTEN_IRON_PATH,
             p -> new LiquidBlock(GooFluids.MOLTEN_IRON_SOURCE.get(), p),
@@ -392,4 +409,16 @@ public class GooBlocks {
                     .liquid()
                     .sound(SoundType.EMPTY)
                     .lightLevel(state -> MOLTEN_IRON_LIGHT));
+
+    /**
+     * A state predicate answering false at every position, as vanilla's glass reads for its view and its weight.
+     *
+     * @param state the block state
+     * @param level the level holding it
+     * @param pos   its position
+     * @return false
+     */
+    private static boolean never(BlockState state, BlockGetter level, BlockPos pos) {
+        return false;
+    }
 }
