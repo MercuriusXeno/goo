@@ -4,8 +4,10 @@
 # exit code: 0 green, 1 red.
 #
 # Two legs. "python tests" runs the unittest suites under tools/, and "gradle check"
-# runs the Gradle check lifecycle, whose finalizer writes build/reports/digest.txt.# A changed scope runs the legs the changed paths feed: a tools/*.py edit feeds the
-# python leg, a Java, resource, config or Gradle edit feeds the gradle leg. Everything,
+# runs the Gradle check lifecycle, whose finalizer writes build/reports/digest.txt.
+# A changed scope runs the legs the changed paths feed: a tools/*.py or tools/build-slots.ps1
+# edit feeds the python leg, a Java, resource, config or Gradle edit feeds the gradle leg, and a gradlew or
+# gradlew.bat edit feeds both. Everything,
 # the scope a merge fires, runs both. Neither leg narrows, so every leg runs whole.
 #
 # The legs run one after another and none of them stops the run, so one run names
@@ -52,8 +54,12 @@ function Find-FleetConfig {
 function Get-FedLegs([string[]] $changed) {
     $fed = foreach ($path in $changed) {
         $p = $path -replace '\\', '/'
-        if ($p -match '^tools/.*\.py$') { 'python tests' }
-        elseif ($p -match '^(src|config|gradle)/' -or $p -match '^(build\.gradle|settings\.gradle|gradle\.properties|gradlew(\.bat)?)$') { 'gradle check' }
+        if ($p -match '^tools/(.*\.py|build-slots\.ps1)$') { 'python tests' }
+        elseif ($p -match '^(src|config|gradle)/' -or $p -match '^(build\.gradle|settings\.gradle|gradle\.properties|gradlew(\.bat)?)$') {
+            'gradle check'
+            # The wrappers take each run's build slot, and the python tests prove it.
+            if ($p -match '^gradlew(\.bat)?$') { 'python tests' }
+        }
     }
     @($fed | Select-Object -Unique)
 }
