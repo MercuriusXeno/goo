@@ -2,7 +2,7 @@
   "gooType": "deep",
   "displayName": "goo.ability.deep.host",
   "cost_mechanics": "goo.ability.deep.host.cost_mechanics",
-  "badge": "channeled",
+  "badge": "residual",
   "order": 0,
   "cost": 96,
   "cost_formula": "%s/m³",
