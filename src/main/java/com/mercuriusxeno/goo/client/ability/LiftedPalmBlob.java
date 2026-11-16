@@ -1,6 +1,9 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.TravelForm;
+import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.model.GloveSpecialRenderer;
 import com.mercuriusxeno.goo.client.throwing.BlobShape;
 import com.mercuriusxeno.goo.client.throwing.GloveInputGate;
@@ -81,6 +84,8 @@ public final class LiftedPalmBlob {
      * half a flying blob's width.
      */
     static final float FLIGHT_SIZE_OF_PALM_REST = 0.5f;
+    /** The blob's front as {@link #facingTheLook} turns it: along the look. */
+    private static final Vec3 ALONG_THE_LOOK = new Vec3(0, 0, 1);
     private static final double FULL_TURN = Math.PI * 2;
     private static final double HALF = 0.5;
 
@@ -201,11 +206,14 @@ public final class LiftedPalmBlob {
     /**
      * A lifted blob to draw.
      *
-     * @param place where it stands in the world
-     * @param type  its goo type, the one the caster's glove has selected
-     * @param shape its box against the palm blob's rest cube
+     * @param place   where it stands in the world
+     * @param type    its goo type, the one the caster's glove has selected
+     * @param shape   its box against the palm blob's rest cube
+     * @param form    the travel form it becomes in the hand, the blob for none
+     * @param javelin how far it has become that form, 0 the cuboid to 1 the form whole
      */
-    public record Blob(Vec3 place, ResourceKey<GooTypeDefinition> type, BlobShape shape) {
+    public record Blob(Vec3 place, ResourceKey<GooTypeDefinition> type, BlobShape shape, TravelForm form,
+                       float javelin) {
     }
 
     /**
@@ -220,6 +228,20 @@ public final class LiftedPalmBlob {
     public static void held(int casterId, Vec3 sentGlove, long gameTime) {
         LIFTS.compute(casterId, (id, lift) -> lift == null ? Lift.beginning(gameTime, sentGlove)
                 : lift.sprayedAt(gameTime, sentGlove));
+    }
+
+    /**
+     * Lifts a caster's palm blob afresh from the palm, hopping, as a held
+     * javelin leaves the hand with right click still held, so the next
+     * javelin forms from the blob behind it.
+     * decision dart-forms-on-right-click-and-throws-on-left-click
+     *
+     * @param casterId  the caster's entity id
+     * @param sentGlove the glove the throw left from
+     * @param gameTime  the level's game time of the throw
+     */
+    public static void liftAfresh(int casterId, Vec3 sentGlove, long gameTime) {
+        LIFTS.put(casterId, Lift.beginning(gameTime, sentGlove));
     }
 
     /**
@@ -495,7 +517,8 @@ public final class LiftedPalmBlob {
         PalmBlobHop.Pose pose = lift.poseAt(now);
         Vec3 palm = palmOf(mc, caster, partialTick, KnivesCharge.acrossOf(casterId, now));
         return Optional.of(new Standing(caster, placeAt(pose, palm, upOf(caster, partialTick),
-                sourceOf(casterId, lift, partialTick, now)), drawnShapeAt(lift, pose, now), swellOf(caster, now)));
+                sourceOf(casterId, lift, partialTick, now)), drawnShapeAt(lift, pose, now), swellOf(caster, now),
+                pose.share()));
     }
 
     /**
@@ -519,8 +542,9 @@ public final class LiftedPalmBlob {
      * @param place  where the blob stands in the world
      * @param shape  its box against the palm blob's rest cube, before the swell
      * @param swell  how far it swells against its lifted size
+     * @param share  the share it has lifted off the palm, 0 to 1
      */
-    private record Standing(Player caster, Vec3 place, BlobShape shape, float swell) {
+    private record Standing(Player caster, Vec3 place, BlobShape shape, float swell, float share) {
     }
 
     /**
@@ -569,9 +593,15 @@ public final class LiftedPalmBlob {
      * @return the blob, empty once it has settled back onto the palm or where the glove has no type selected
      */
     static Optional<Blob> blobOf(int casterId, float partialTick) {
-        return standingOf(casterId, partialTick).flatMap(standing -> Optional.ofNullable(
-                GooGloveItem.getSelectedType(gloveOf(standing.caster())))
-                .map(type -> new Blob(standing.place(), type, standing.shape().scaled(standing.swell()))));
+        return standingOf(casterId, partialTick).flatMap(standing -> {
+            ItemStack glove = gloveOf(standing.caster());
+            Delivery delivery = PalmJavelin.selectedDelivery(glove);
+            // shriek-bloom-portal-mitosis-and-dart-still-throw-a-blob: Dart's blob becomes the javelin as it lifts
+            float javelin = PalmJavelin.morphAt(delivery, standing.share());
+            TravelForm form = PalmJavelin.formOf(delivery);
+            return Optional.ofNullable(GooGloveItem.getSelectedType(glove)).map(type -> new Blob(standing.place(),
+                    type, standing.shape().scaled(standing.swell()), form, javelin));
+        });
     }
 
     /**
@@ -597,9 +627,24 @@ public final class LiftedPalmBlob {
      * @param stand        the center's rise above the resting palm blob's along the blob's up, in rest half-edges
      * @param facing       the turn facing the blob along the look once off the palm, in the hand pass's world
      *                     axes, or null where it turns with the glove
+     * @param form         the travel form the blob becomes in the hand, the blob for none
+     * @param javelin      how far the blob has become that form, 0 the cuboid to 1 the form whole
      */
     public record HandLift(float share, Vec3 sourceInHand, BlobShape shape, float stand,
-                           @Nullable Quaternionf facing) {
+                           @Nullable Quaternionf facing, TravelForm form, float javelin) {
+
+        /**
+         * A lift whose blob stays a cuboid.
+         *
+         * @param share        the share lifted, 0 on the palm to 1 at the source
+         * @param sourceInHand the spray source in the hand pass's camera-relative world axes
+         * @param shape        the blob's box against the palm blob's rest cube
+         * @param stand        the center's rise above the resting palm blob's along the blob's up
+         * @param facing       the turn facing the blob along the look once off the palm, or null
+         */
+        public HandLift(float share, Vec3 sourceInHand, BlobShape shape, float stand, @Nullable Quaternionf facing) {
+            this(share, sourceInHand, shape, stand, facing, TravelForm.BLOB, 0f);
+        }
     }
 
     /**
@@ -622,11 +667,27 @@ public final class LiftedPalmBlob {
         Camera camera = mc.gameRenderer.getMainCamera();
         Vec3 source = sourceOf(mc.player.getId(), lift, partial, now).subtract(camera.position());
         PalmBlobHop.Pose pose = lift.poseAt(now);
-        // knives-blob-floats-ahead-of-the-hand-and-spews-the-knives: facing forward with the look, not the hand
-        Quaternionf facing = lift.floats() ? facingTheLook(camera.xRot(), camera.yRot()) : null;
+        Delivery delivery = PalmJavelin.selectedDelivery(gloveOf(mc.player));
+        float javelin = PalmJavelin.morphAt(delivery, pose.share());
         return Optional.of(new HandLift(pose.share(), HandPassView.toHandPass(source, camera.rotation(),
                 camera.getFov(), HandPassView.frameBob(mc)), drawnShapeAt(lift, pose, now)
-                .scaled(swellOf(mc.player, now)), pose.stand(), facing));
+                .scaled(swellOf(mc.player, now)), pose.stand(), facingInView(lift, javelin, camera),
+                PalmJavelin.formOf(delivery), javelin));
+    }
+
+    /**
+     * The turn facing a lifted blob along the look in the hand pass, where
+     * it floats ahead of the hand or has begun to become Dart's javelin.
+     * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
+     * shriek-bloom-portal-mitosis-and-dart-still-throw-a-blob
+     *
+     * @param lift    the local player's lift
+     * @param javelin how far the blob has become its travel form, 0 to 1
+     * @param camera  the main camera
+     * @return the turn, or null where the blob turns with the glove
+     */
+    private static @Nullable Quaternionf facingInView(Lift lift, float javelin, Camera camera) {
+        return lift.floats() || javelin > 0f ? facingTheLook(camera.xRot(), camera.yRot()) : null;
     }
 
     /**
@@ -788,12 +849,21 @@ public final class LiftedPalmBlob {
     }
 
     private static void drawBlob(PoseStack pose, MultiBufferSource buffers, Drawn drawn, Vec3 camera, float time) {
-        Vec3 place = drawn.blob().place();
+        Blob blob = drawn.blob();
+        Vec3 place = blob.place();
         pose.pushPose();
         pose.translate(place.x - camera.x, place.y - camera.y, place.z - camera.z);
         pose.mulPose(drawn.facing());
-        GooFlightRenderer.renderBlob(pose, buffers, drawn.blob().type(), time,
-                drawn.blob().shape().scaled(FLIGHT_SIZE_OF_PALM_REST));
+        if (blob.javelin() < 1f) {
+            GooFlightRenderer.renderBlob(pose, buffers, blob.type(), time,
+                    blob.shape().scaled(FLIGHT_SIZE_OF_PALM_REST * (1f - blob.javelin())));
+        }
+        if (blob.javelin() > 0f) {
+            // shriek-bloom-portal-mitosis-and-dart-still-throw-a-blob: the javelin points along the caster's look
+            pose.scale(FLIGHT_SIZE_OF_PALM_REST, FLIGHT_SIZE_OF_PALM_REST, FLIGHT_SIZE_OF_PALM_REST);
+            GooFlightRenderer.emitTravelForm(pose.last(), buffers.getBuffer(GooSubmitter.renderType()), blob.type(),
+                    blob.form(), ALONG_THE_LOOK, blob.javelin());
+        }
         pose.popPose();
     }
 

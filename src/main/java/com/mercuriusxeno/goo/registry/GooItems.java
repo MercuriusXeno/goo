@@ -34,10 +34,12 @@ public class GooItems {
 
     /**
      * The goo, the one goo item at every volume (decision one-goo-item-at-every-amount):
-     * unstackable, uncapped volume, its type in the GOO_TYPE component.
+     * unstackable, uncapped volume, its type in the GOO_TYPE component, and
+     * fire immune, so dropped goo stands in fire and lava unburnt
+     * (decision goo-items-are-fire-immune-and-do-not-sink-in-water).
      */
     public static final DeferredItem<GooItem> GOO = ITEMS.registerItem("goo",
-            props -> new GooItem(props.stacksTo(1)));
+            props -> new GooItem(props.stacksTo(1).fireResistant()));
 
     /**
      * The one goo bucket over the generic fluid, 1000 mB, its type in the

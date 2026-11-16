@@ -5,6 +5,7 @@ import com.mojang.serialization.Codec;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
+import java.io.Serializable;
 
 /**
  * The form a thrown goo takes in flight: it stays a blob, or it morphs
@@ -16,9 +17,12 @@ import net.minecraft.network.codec.StreamCodec;
  */
 public enum TravelForm {
     /** The goo stays a blob the whole flight. */
-    BLOB(0f, 0f, 0f, 0f),
-    /** A long needle-pointed spear with a stubby butt. */
-    DART(2.5f, 0.05f, 0.5f, 0.09f);
+    BLOB(0f, 0f, Fins.NONE),
+    /**
+     * A long needle-pointed spear with flat swept fins at its tail.
+     * decision dart-flutes-draw-as-fins
+     */
+    DART(2.5f, 0.05f, new Fins(3, 0.45f, 0.16f, 0.15f, 0.18f));
 
     private static final String WHAT = "travel form";
 
@@ -31,14 +35,28 @@ public enum TravelForm {
 
     private final float frontLength;
     private final float frontRadius;
-    private final float rearLength;
-    private final float rearRadius;
+    private final Fins fins;
 
-    TravelForm(float frontLength, float frontRadius, float rearLength, float rearRadius) {
+    TravelForm(float frontLength, float frontRadius, Fins fins) {
         this.frontLength = frontLength;
         this.frontRadius = frontRadius;
-        this.rearLength = rearLength;
-        this.rearRadius = rearRadius;
+        this.fins = fins;
+    }
+
+    /**
+     * The flat vanes at a form's tail, each lying along the shaft and
+     * standing out from it, all in blocks at the form's whole size.
+     *
+     * @param count     how many fins stand evenly spaced around the shaft
+     * @param rootChord the length of the edge joining the fin to the shaft,
+     *                  running forward from the form's middle
+     * @param span      how far the fin stands out from the shaft
+     * @param sweep     how far behind the form's middle the outer edge ends
+     * @param tipChord  the length of the outer edge
+     */
+    public record Fins(int count, float rootChord, float span, float sweep, float tipChord) implements Serializable {
+        /** No fins. */
+        public static final Fins NONE = new Fins(0, 0f, 0f, 0f, 0f);
     }
 
     /**
@@ -60,13 +78,8 @@ public enum TravelForm {
         return frontRadius;
     }
 
-    /** @return the rear cone's length in blocks, whole */
-    public float rearLength() {
-        return rearLength;
-    }
-
-    /** @return the rear cone's base radius in blocks, whole */
-    public float rearRadius() {
-        return rearRadius;
+    /** @return the fins at the form's tail */
+    public Fins fins() {
+        return fins;
     }
 }

@@ -7,7 +7,6 @@ import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
-import com.mercuriusxeno.goo.client.ability.ConeGeometry;
 import com.mercuriusxeno.goo.client.ability.PortalView;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -23,6 +22,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
 import java.util.Collection;
 
@@ -107,10 +107,6 @@ public final class GooFlightRenderer {
      * Short-range threshold: a travel form starts fully formed below this.
      */
     private static final float SHORT_RANGE_THRESHOLD = 1.5f;
-    /**
-     * Number of triangular faces on dart cones.
-     */
-    private static final int DART_SIDES = 3;
     /**
      * Epsilon for near-zero length detection in beam/direction math.
      */
@@ -743,8 +739,8 @@ public final class GooFlightRenderer {
     }
 
     /**
-     * Emits a travel form's geometry: a pointed front cone and a stubby rear
-     * cone, both oriented along the velocity vector, sized by the form and
+     * Emits a travel form's geometry: a pointed front cone and flat fins at
+     * its tail, oriented along the velocity vector, sized by the form and
      * grown by the morph. Uses the goo fluid texture, so the form wears its
      * goo's look.
      *
@@ -758,48 +754,27 @@ public final class GooFlightRenderer {
     private static void emitTravelForm(PoseStack poseStack, MultiBufferSource buffers,
                                        ResourceKey<GooTypeDefinition> type, TravelForm form, Vec3 vel,
                                        float morphFrac) {
-        GooRenderUtil.UvRect uv = spriteToUv(type);
-        VertexConsumer c = buffers.getBuffer(
-                GooSubmitter.renderType());
-        PoseStack.Pose pose = poseStack.last();
-
-        Vec3 dir = vel.normalize();
-        float dx = (float) dir.x;
-        float dy = (float) dir.y;
-        float dz = (float) dir.z;
-        float[] basis = ConeGeometry.computeBasis(dx, dy, dz);
-
-        emitDartCone(pose, c, dx, dy, dz,
-                form.frontLength() * morphFrac,
-                form.frontRadius() * morphFrac,
-                basis, uv);
-        emitDartCone(pose, c, -dx, -dy, -dz,
-                form.rearLength() * morphFrac,
-                form.rearRadius() * morphFrac,
-                basis, uv);
+        emitTravelForm(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()), type, form, vel, morphFrac);
     }
 
     /**
-     * Emits a dart cone from the origin along a direction, fullbright and
-     * textured with the goo fluid sprite.
+     * Emits a travel form about the pose's origin, pointed along a direction
+     * and grown by the morph; the consumer takes {@link GooSubmitter#renderType()}
+     * geometry. The lifted palm blob draws Dart's javelin through this as the
+     * press lifts it (decision shriek-bloom-portal-mitosis-and-dart-still-throw-a-blob).
      *
-     * @param pose       the pose matrix
-     * @param c          the vertex consumer
-     * @param dirX       cone direction X
-     * @param dirY       cone direction Y
-     * @param dirZ       cone direction Z
-     * @param length     cone length
-     * @param baseRadius cone base radius
-     * @param basis      orthonormal basis {perpX,Y,Z, crossX,Y,Z}
-     * @param uv         the fluid sprite UV rectangle
+     * @param pose      the pose at the form's middle
+     * @param c         a consumer of the translucent goo render type
+     * @param type      the goo type, whose fluid sprite the form wears
+     * @param form      the travel form drawn
+     * @param vel       the direction the form points along
+     * @param morphFrac how far the form has grown, 0 to 1
      */
-    private static void emitDartCone(PoseStack.Pose pose, VertexConsumer c,
-                                     float dirX, float dirY, float dirZ,
-                                     float length, float baseRadius,
-                                     float[] basis, GooRenderUtil.UvRect uv) {
-        RenderContext dart = new RenderContext(pose, c, GooSubmitter.fullbrightLight());
-        ConeGeometry.Cone cone = new ConeGeometry.Cone(0f, 0f, 0f, dirX, dirY, dirZ, length, baseRadius);
-        ConeGeometry.emitCone(dart, cone, basis, DART_SIDES, GooRenderUtil.OPAQUE_WHITE, uv);
+    public static void emitTravelForm(PoseStack.Pose pose, VertexConsumer c, ResourceKey<GooTypeDefinition> type,
+                                      TravelForm form, Vec3 vel, float morphFrac) {
+        Vec3 dir = vel.normalize();
+        TravelFormGeometry.emit(new RenderContext(pose, c, GooSubmitter.fullbrightLight()), form,
+                new Vector3f((float) dir.x, (float) dir.y, (float) dir.z), morphFrac, spriteToUv(type));
     }
 
     /**
