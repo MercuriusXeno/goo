@@ -53,7 +53,7 @@ class StepCodecTest {
             Map.entry("freeze_blocks", new FreezeBlocksStep(Expr.literal(2))),
             Map.entry("coat", new CoatStep()),
             Map.entry("slick", new SlickStep(1.03, 1.08, 40, 1, 0.3)),
-            Map.entry("vacuum", new VacuumStep(1.25)),
+            Map.entry("vacuum", new VacuumStep(6, 30)),
             Map.entry("vacuum_pull", new VacuumPullStep(0.05, 1, 0.2, 1.5)),
             Map.entry("wobble", new WobbleStep(Expr.literal(600))),
             Map.entry("detect_ore", new DetectOreStep(TagKey.create(Registries.BLOCK,

@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * Breaks blocks over several ticks for one hold: each tick a step hands it
@@ -55,9 +56,24 @@ public final class GradualBreak {
      * @param quiet whether a completed break plays no particles or sound
      */
     public void progress(Map<BlockPos, Double> rates, BlockBreakHost host, boolean quiet) {
+        progress(rates, host, quiet ? host::breakBlockQuietly : host::breakBlock);
+    }
+
+    /**
+     * Progresses every block a step is breaking this tick, finishing each one
+     * that completes through the step's own break, in the order the rates
+     * run; Vacuum's breaks do, each its quiet break with its few particles,
+     * its break sound and its slurp.
+     * decision vacuum-breaks-a-cell-the-tick-the-wave-reaches-it
+     *
+     * @param rates  each block the step is breaking with the share of a break it gains this tick
+     * @param host   the host that cracks the blocks
+     * @param finish what breaks a block once its progress fills, given the block
+     */
+    public void progress(Map<BlockPos, Double> rates, BlockBreakHost host, Consumer<BlockPos> finish) {
         lastHost = host;
         dropUnfed(rates.keySet(), host);
-        rates.forEach((pos, rate) -> advance(pos, rate, host, quiet));
+        rates.forEach((pos, rate) -> advance(pos, rate, host, finish));
     }
 
     /**
@@ -80,17 +96,13 @@ public final class GradualBreak {
         }
     }
 
-    private void advance(BlockPos pos, double rate, BlockBreakHost host, boolean quiet) {
+    private void advance(BlockPos pos, double rate, BlockBreakHost host, Consumer<BlockPos> finish) {
         Progress before = progress.getOrDefault(pos, Progress.NONE);
         double share = before.share() + rate;
         if (share >= FULL - SUM_SLACK) {
             progress.remove(pos);
             host.crackBlock(pos, CLEARED);
-            if (quiet) {
-                host.breakBlockQuietly(pos);
-            } else {
-                host.breakBlock(pos);
-            }
+            finish.accept(pos);
             return;
         }
         int stage = stageOf(share);
