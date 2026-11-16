@@ -24,8 +24,8 @@ import java.util.function.ToIntFunction;
 /**
  * A Wisps cell shedding a wisp toward the dark near it: the cell walks the
  * air connected to it out to one block past its layers, nearest first, as Wisps' flood walked it, picks a
- * destination slightly at random among the nearest dark air no other wisp
- * has claimed, lets out a wisp that drifts there, and spends a layer by the
+ * destination slightly at random among the nearest dark air no other wisp's
+ * light and no light of its own will reach, lets out a wisp that drifts there, and spends a layer by the
  * laying step's chance, so a layer buys several wisps on average. Where no
  * dark air lies in reach the cell sheds nothing and spends nothing.
  * wisps-goo-sheds-a-wisp-toward-nearby-dark
@@ -58,7 +58,7 @@ public final class WispShed {
      */
     public static void shed(ServerLevel level, BlockPos cell, BlockState state, WispsStep wisps) {
         int layers = state.getValue(VolumeCellBlock.LAYERS);
-        Optional<BlockPos> destination = destinationFrom(level, cell, reachOf(layers));
+        Optional<BlockPos> destination = destinationFrom(level, cell, reachOf(layers), layers);
         if (destination.isEmpty()) {
             return;
         }
@@ -72,29 +72,36 @@ public final class WispShed {
     }
 
     /**
-     * The dark, unclaimed air a wisp heads for from a spot, walking the air
-     * connected to it out to a reach.
+     * The dark air a wisp heads for from a spot, walking the air connected
+     * to it out to a reach, among the spots no other wisp's light will reach
+     * and the light shining from the spot itself will not: the wisps know
+     * what will be lit before the world's light shows it.
+     * operator UAT 2026-11-16: wisps vanished arriving at spots another wisp had lit, the wisps a hive mind
      *
-     * @param level the level
-     * @param from  where the wisp starts
-     * @param reach how far off the destination may lie, in blocks
-     * @return the destination, empty where the reach holds no dark, free air
+     * @param level    the level
+     * @param from     where the wisp starts
+     * @param reach    how far off the destination may lie, in blocks
+     * @param fromLight the light shining from the spot itself, a Wisps cell's layers, 0 for none
+     * @return the destination, empty where the reach holds no dark air light will not reach
      */
-    public static Optional<BlockPos> destinationFrom(ServerLevel level, BlockPos from, int reach) {
+    public static Optional<BlockPos> destinationFrom(ServerLevel level, BlockPos from, int reach, int fromLight) {
         WispClaims claims = GooServerState.of(level.getServer()).wispClaims();
-        return destination(reachedFrom(level, from, reach), level::getMaxLocalRawBrightness,
-                GooConfig.wispsLightThreshold(), spot -> claims.claimed(level, spot), level.getRandom());
+        int threshold = GooConfig.wispsLightThreshold();
+        int litSteps = WispBlock.LIGHT - threshold;
+        return destination(reachedFrom(level, from, reach), level::getMaxLocalRawBrightness, threshold,
+                spot -> claims.foreseesLight(level, spot, litSteps) || fromLight - from.distManhattan(spot) >= threshold,
+                level.getRandom());
     }
 
     /**
      * Picks a wisp's destination among the air cells a walk reached, nearest
      * first: slightly at random among the nearest that lie under the light
-     * threshold and that no other wisp has claimed.
+     * threshold and that no light is foreseen reaching.
      *
      * @param reached   the air cells reached, nearest first
      * @param lightAt   the light level at a cell
      * @param threshold the light a cell must lie under to be dark
-     * @param claimed   whether another wisp is headed for a cell
+     * @param claimed   whether light is foreseen reaching a cell, another wisp's or the shedding cell's
      * @param random    the pick's roll
      * @return the destination, empty where no reached cell is dark and free
      */
