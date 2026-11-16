@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
+import com.mercuriusxeno.goo.ability.program.VacuumPullStep;
 import com.mercuriusxeno.goo.ability.program.VacuumStep;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
@@ -104,6 +106,23 @@ public final class VacuumTests {
     private static final String GOO_NOT_PICKED_UP = "The vacuumed goop's weird goo should land in the inventory, %d"
             + " mb did";
     private static final String MOVED = "%s should not move, was at %s, is at %s";
+    private static final String ACCELERATES_FROM_REST = "vacuum_accelerates_an_item_from_rest";
+    private static final String GRAVITY_OFF_WHILE_PULLED = "vacuum_pulls_an_item_with_its_gravity_off";
+    /** The stick near the cone's far end, still in flight a good while into a hold. */
+    private static final int ITEM_FAR = 7;
+    /** A hold that ends while the far stick is still in flight. */
+    private static final int IN_FLIGHT_HOLD = 6;
+    /** Rounding a speed may carry past the acceleration on the first pulled tick. */
+    private static final double SPEED_SLACK = 1e-6;
+    private static final String STARTS_FAST = "The stick's first pulled tick should move it toward the eye no"
+            + " faster than %.3f, speeds %s";
+    private static final String NOT_SPEEDING_UP = "The stick should speed toward the eye tick over tick, speeds %s";
+    private static final String GRAVITY_ON_TICK = "tick %d: stick in the cone no gravity %b, stick behind no gravity %b";
+    private static final String GRAVITY_WRONG = "The stick in the cone should fly with its gravity off and the stick"
+            + " behind keep it: %s";
+    private static final String NOT_IN_FLIGHT = "The stick in the cone should still be in flight after the release";
+    private static final String GRAVITY_NOT_BACK = "The stick's gravity should be on again once the pull's grace"
+            + " ran out";
     private static final String NOT_CLOSING = "The husk should close on the player each tick, distances %s";
     private static final String HURT = "The dragged husk should take no damage, had %.1f, has %.1f";
     private static final String BREAKS_ON_ITS_WAVE_TICK = "vacuum_breaks_a_cell_on_its_wave_tick";
@@ -172,6 +191,8 @@ public final class VacuumTests {
         GooTestFunctions.registerTest(registrar, RELEASED_EARLY, VacuumTests::vacuumReleasedEarlyLeavesAFarCellWhole);
         GooTestFunctions.registerTest(registrar, SLURPS, VacuumTests::vacuumSlurpsOnceAtEachCellItTakes);
         GooTestFunctions.registerTest(registrar, PULLS_ITEMS, VacuumTests::vacuumPullsItemsIntoTheInventory);
+        GooTestFunctions.registerTest(registrar, ACCELERATES_FROM_REST, VacuumTests::vacuumAcceleratesAnItemFromRest);
+        GooTestFunctions.registerTest(registrar, GRAVITY_OFF_WHILE_PULLED, VacuumTests::vacuumPullsAnItemWithItsGravityOff);
         GooTestFunctions.registerTest(registrar, DRAGS_A_MOB, VacuumTests::vacuumDragsAMobToABlockInFront);
         GooTestFunctions.registerTest(registrar, LEAVES_PLAYERS_AND_MOBS_BEHIND,
                 VacuumTests::vacuumLeavesPlayersAndMobsBehindUnmoved);
@@ -518,6 +539,68 @@ public final class VacuumTests {
     }
 
     /**
+     * Vacuum held over a stick lying at rest near the cone's far end starts it
+     * slow and speeds it up: its speed toward the player's eye on the first
+     * pulled tick is no more than the pull's acceleration, and rises tick over
+     * tick after it.
+     * vacuum-pulls-items-to-pickup-and-drags-mobs
+     *
+     * @param helper the gametest helper
+     */
+    public static void vacuumAcceleratesAnItemFromRest(GameTestHelper helper) {
+        layTheFloor(helper);
+        ItemEntity stick = lieAt(helper, ITEM_FAR);
+        ServerPlayer vacuumer = vacuumer(helper);
+        double acceleration = vacuumPullStep(helper).itemAcceleration();
+        List<Double> speeds = new ArrayList<>();
+        holdVacuum(helper, vacuumer, CLOSING_TICKS + 1, held -> speeds.add(speedTowardTheEye(stick, vacuumer)));
+        helper.runAfterDelay(CLOSING_TICKS + 2, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(vacuumer);
+            helper.assertTrue(speeds.getFirst() <= acceleration + SPEED_SLACK,
+                    String.format(STARTS_FAST, acceleration, speeds));
+            for (int i = 1; i < speeds.size(); i++) {
+                helper.assertTrue(speeds.get(i) > speeds.get(i - 1), String.format(NOT_SPEEDING_UP, speeds));
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Vacuum held over a stick in its cone and a stick behind the player
+     * turns the first stick's gravity off while the pull holds it and leaves
+     * the second stick's on; released while the first stick is still in
+     * flight, the first stick's gravity is on again once the pull's grace
+     * has run out.
+     * vacuum-pulls-items-to-pickup-and-drags-mobs
+     *
+     * @param helper the gametest helper
+     */
+    public static void vacuumPullsAnItemWithItsGravityOff(GameTestHelper helper) {
+        layTheFloor(helper);
+        ItemEntity inside = lieAt(helper, ITEM_FAR);
+        ItemEntity behind = lieAt(helper, BEHIND);
+        ServerPlayer vacuumer = vacuumer(helper);
+        List<String> wrong = new ArrayList<>();
+        holdVacuum(helper, vacuumer, IN_FLIGHT_HOLD, held -> {
+            if (!inside.isNoGravity() || behind.isNoGravity()) {
+                wrong.add(String.format(GRAVITY_ON_TICK, held, inside.isNoGravity(), behind.isNoGravity()));
+            }
+        });
+        helper.runAfterDelay(IN_FLIGHT_HOLD + GrabEvents.HOLD_GRACE_TICKS + 2, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(vacuumer);
+            helper.assertTrue(wrong.isEmpty(), String.format(GRAVITY_WRONG, wrong));
+            helper.assertTrue(inside.isAlive(), NOT_IN_FLIGHT);
+            helper.assertTrue(!inside.isNoGravity(), GRAVITY_NOT_BACK);
+            helper.succeed();
+        });
+    }
+
+    /** An item's speed toward a player's eye: its motion along the line to the eye. */
+    private static double speedTowardTheEye(ItemEntity item, ServerPlayer player) {
+        return item.getDeltaMovement().dot(player.getEyePosition().subtract(item.position()).normalize());
+    }
+
+    /**
      * Vacuum held at a husk standing in its cone drags it toward the player:
      * its distance falls tick over tick and its health stays whole.
      * vacuum-pulls-items-to-pickup-and-drags-mobs
@@ -741,6 +824,12 @@ public final class VacuumTests {
 
     private static AbilityDefinition vacuum(GameTestHelper helper) {
         return AbilityRegistry.of(helper.getLevel()).getAbility(VACUUM);
+    }
+
+    /** The live pull step, whose item acceleration the tests read rather than copy. */
+    private static VacuumPullStep vacuumPullStep(GameTestHelper helper) {
+        return vacuum(helper).behaviors().stream().filter(VacuumPullStep.class::isInstance)
+                .map(VacuumPullStep.class::cast).findFirst().orElseThrow();
     }
 
     /** The live vacuum step, whose wave pace the tests read rather than copy. */
