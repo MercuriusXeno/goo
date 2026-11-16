@@ -18,18 +18,20 @@ class AbilityPoseTableTest {
 
     /** The ruled table: each shipped ability by file name and the pose it resolves to. */
     private static final Map<String, ArmPose> RULED = Map.ofEntries(
+            Map.entry("astral_gate", ArmPose.HELD_OUT),
             Map.entry("astral_meteo", ArmPose.RESTING),
             Map.entry("astral_scry", ArmPose.HELD_UP),
             Map.entry("blaze_flames", ArmPose.HELD_OUT),
             Map.entry("blaze_ignite", ArmPose.SWUNG),
             Map.entry("blaze_kindle", ArmPose.HELD_UP),
-            Map.entry("blaze_molten", ArmPose.SWUNG),
+            Map.entry("blaze_molten", ArmPose.HELD_OUT),
             Map.entry("crystal_shatter", ArmPose.SWUNG),
             Map.entry("crystal_glimmer", ArmPose.HELD_UP),
             Map.entry("crystal_prism", ArmPose.RESTING),
             Map.entry("crystal_scales", ArmPose.HELD_UP),
             Map.entry("crystal_knives", ArmPose.SHOULDER_CAST),
             Map.entry("deep_click", ArmPose.RESTING),
+            Map.entry("deep_host", ArmPose.HELD_OUT),
             Map.entry("deep_shriek", ArmPose.SWUNG),
             Map.entry("deep_sculker", ArmPose.HELD_UP),
             Map.entry("ender_blink", ArmPose.HELD_OUT),

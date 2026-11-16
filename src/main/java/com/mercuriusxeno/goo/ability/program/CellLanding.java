@@ -107,13 +107,13 @@ final class CellLanding {
         public boolean thickens(BlockPos pos) {
             BlockState standing = host.stateAt(pos);
             // a cell of films alone takes fill only over a top that can hold it
-            boolean floored = VolumeCellBlock.layersOf(standing) > 0 || VolumeCellBlock.liesOn(host.level(), pos);
+            boolean floored = VolumeCellBlock.layersOf(standing) > 0 || cell.liesOn(host.level(), pos);
             return standing.is(cell) && VolumeCellBlock.layersOf(standing) < VolumeCellBlock.MAX_LAYERS && floored;
         }
 
         @Override
         public boolean takesACell(BlockPos pos) {
-            return host.airAt(pos) && VolumeCellBlock.liesOn(host.level(), pos);
+            return host.airAt(pos) && cell.liesOn(host.level(), pos);
         }
 
         @Override

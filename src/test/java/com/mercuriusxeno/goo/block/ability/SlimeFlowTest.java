@@ -182,13 +182,13 @@ class SlimeFlowTest {
     @Nested
     class PourPace {
 
-        private static final int KINETIC_VISCOSITY = 800;
+        private static final int KINETIC_VISCOSITY = 400;
         private static final int WEIRD_VISCOSITY = 1000;
 
         @Test
         void aThinnerGooWaitsFewerTicksBetweenPours() {
             assertTrue(SlimeFlow.pourTicks(KINETIC_VISCOSITY) < SlimeFlow.pourTicks(WEIRD_VISCOSITY),
-                    "viscosity 800 should pour sooner than 1000");
+                    "viscosity 400 should pour sooner than 1000");
         }
 
         @Test

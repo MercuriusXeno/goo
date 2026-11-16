@@ -25,7 +25,7 @@ public final class SlimeFlow {
     static final int POUR_GAP = 2;
     /**
      * The viscosity one tick between pours stands for: weird's 1000 waits
-     * three ticks, kinetic's 800 two.
+     * three ticks, kinetic's 400 one.
      */
     static final int VISCOSITY_PER_POUR_TICK = 400;
     /** Water's viscosity, the pace of a cell whose goo type's definition does not load. */

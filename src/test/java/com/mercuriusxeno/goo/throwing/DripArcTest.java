@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.throwing;
 
 import com.google.gson.JsonObject;
+import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.google.gson.JsonParser;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -33,6 +34,8 @@ class DripArcTest {
     /** How far ahead a level shot lands, in blocks. */
     private static final double LEVEL_REACH = 8;
     private static final double HALF_A_BLOCK = 0.5;
+    /** The cone Goop and Slick each spray, apex to rim, in degrees. */
+    private static final double SPRAY_CONE_DEGREES = 15;
     /** Below this the fake world holds no airspace, as below a level's build height. */
     private static final double WORLD_FLOOR = -64;
     private static final DripArc.Airspace INSIDE_THE_WORLD = point -> point.y >= WORLD_FLOOR;
@@ -150,6 +153,17 @@ class DripArcTest {
         double ahead = strike.get().point().x;
         assertTrue(ahead >= LEVEL_REACH - HALF_A_BLOCK && ahead <= LEVEL_REACH + HALF_A_BLOCK,
                 "a level shot at " + goop + " should land 7.5 to 8.5 blocks ahead, lands " + ahead + " ahead");
+    }
+
+    /**
+     * goop-and-slick-spray-cones-are-15-degrees
+     */
+    @Test
+    void goopAndSlickEachSprayAFifteenDegreeCone() {
+        assertEquals(SPRAY_CONE_DEGREES, AbilityJson.decode("weird_goop").delivery().coneDegrees(),
+                "Goop's spray cone");
+        assertEquals(SPRAY_CONE_DEGREES, AbilityJson.decode("kinetic_slick").delivery().coneDegrees(),
+                "Slick's spray cone");
     }
 
     /**

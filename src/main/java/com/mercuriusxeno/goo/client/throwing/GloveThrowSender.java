@@ -410,8 +410,7 @@ public final class GloveThrowSender {
                 reagent -> ReagentScanner.holds(player, reagent))) {
             return false;
         }
-        sendPayload(new GooChargePayload(GooTypes.id(gooType), abilityId, heldTicks, GloveUseTracker.scatterSeed(),
-                aimed));
+        sendPayload(new GooChargePayload(GooTypes.id(gooType), abilityId, heldTicks, aimed));
         unrootTheCharge();
         return true;
     }
@@ -624,8 +623,7 @@ public final class GloveThrowSender {
         ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
         // click-costs-one-mb-and-nothing-under-sculker: a throw a standing ability waives needs no goo held
         boolean waived = ability != null && ability.freeFor(player.getData(GooAttachments.HELD_EFFECTS)::holds);
-        if (payload == null || refusesStruck(player, payload, ability)
-                || !affordsAimedThrow(ability, waived, player.getUUID(), targetRally(player, payload),
+        if (payload == null || !affordsAimedThrow(ability, waived, player.getUUID(), targetRally(player, payload),
                         amount -> GooSourceScanner.hasEnough(player, gooType, amount),
                         reagent -> ReagentScanner.holds(player, reagent))) {
             return null;
@@ -666,23 +664,6 @@ public final class GloveThrowSender {
         boolean free = waived || ability != null && RallyRelease.releasesOwnRally(ability.behaviors(), caster,
                 targetRally);
         return affordsThrow(ability, amount -> free || holdsAtLeast.test(amount), holdsItem);
-    }
-
-    /**
-     * Whether the ability refuses the block the throw would strike, so the
-     * aim sends nothing and nothing is paid, as an unaffordable click does;
-     * Molten strikes only meltable stone.
-     * melt-blob-absorbs-into-lava
-     *
-     * @param player  the local player
-     * @param payload the throw the aim would send
-     * @param ability the selected ability's synced copy, or null when none synced
-     * @return true when a step of the ability refuses the struck block
-     */
-    private static boolean refusesStruck(Player player, GooThrowPayload payload, @Nullable ClientAbility ability) {
-        return ability != null && payload.targetEntityId() < 0
-                && GooThrowHandler.refusesStruck(player.level().getBlockState(payload.targetPos()),
-                ability.behaviors());
     }
 
     /**

@@ -56,6 +56,24 @@ public class GooParticles {
         PARTICLE_TYPES.register("slick_spray_drip", () -> new SimpleParticleType(false));
 
     /**
+     * Molten's spray drip: the mod's blocky goo drip in blaze's oranges,
+     * flying its arc until it strikes a block's top or a lava source's
+     * surface, where it splats and the molten goo lands.
+     * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> MOLTEN_SPRAY_DRIP =
+        PARTICLE_TYPES.register("molten_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
+     * Host's spray drip: the mod's blocky goo drip in deep's teals, flying
+     * its arc until it strikes a block's top, where it splats and the Host
+     * goo lands.
+     * host-is-a-sculky-slime-that-sculk-spreads-eagerly-through
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> HOST_SPRAY_DRIP =
+        PARTICLE_TYPES.register("host_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
      * A snowflake crystal flitting weightlessly along Cold's wind (decision
      * cold-streams-wind-lines-and-snowflakes).
      */

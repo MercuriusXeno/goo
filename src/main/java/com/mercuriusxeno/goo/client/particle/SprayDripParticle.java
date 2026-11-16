@@ -25,7 +25,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * A Goop or Slick spray drip: the mod's blocky goo drip, the trail-drip's
+ * A Goop, Slick or Molten spray drip: the mod's blocky goo drip, the trail-drip's
  * sprite in the ability's colors, thrown from the spray's source near and
  * above the glove on the arc its server drip flies, splatting where it
  * strikes as the trail-drip does and gone.
@@ -50,6 +50,8 @@ public final class SprayDripParticle extends SingleQuadParticle {
 
     private final GooRenderUtil.UvRect uv;
     private final int rgb;
+    /** Whether the drip splats on a lava source's surface, as its server drip strikes it there. */
+    private final boolean landsOnLava;
     private Source source;
     private DripArc.LivingNear living = DripArc.NO_LIVING;
     private boolean thrown;
@@ -69,8 +71,10 @@ public final class SprayDripParticle extends SingleQuadParticle {
         Vec3 at(float partialTick);
     }
 
-    private SprayDripParticle(ClientLevel level, Vec3 apex, TextureAtlasSprite sprite, SprayDrip drip) {
+    private SprayDripParticle(ClientLevel level, Vec3 apex, TextureAtlasSprite sprite, SprayDrip drip,
+                              boolean landsOnLava) {
         super(level, apex.x, apex.y, apex.z, sprite);
+        this.landsOnLava = landsOnLava;
         this.uv = GooSubmitter.spriteUv(sprite);
         this.rgb = drip.rgb();
         this.source = partialTick -> apex;
@@ -113,7 +117,7 @@ public final class SprayDripParticle extends SingleQuadParticle {
         this.zo = this.z;
         this.age++;
         SprayDrip.Step step = drip.step(new Vec3(this.x, this.y, this.z), new Vec3(this.xd, this.yd, this.zd),
-                CoatRay.clipping(this.level), living, DripFlights.airspaceOf(this.level));
+                CoatRay.clippingFor(this.level, landsOnLava), living, DripFlights.airspaceOf(this.level));
         this.setPos(step.position().x, step.position().y, step.position().z);
         this.xd = step.velocity().x;
         this.yd = step.velocity().y;
@@ -203,6 +207,7 @@ public final class SprayDripParticle extends SingleQuadParticle {
 
         private final SpriteSet sprites;
         private final BlendPalette palette;
+        private final boolean landsOnLava;
 
         /**
          * Creates a provider over the trail-drip sprite in an ability's palette.
@@ -211,8 +216,22 @@ public final class SprayDripParticle extends SingleQuadParticle {
          * @param palette the colors its drips blend between
          */
         public Provider(SpriteSet sprites, BlendPalette palette) {
+            this(sprites, palette, false);
+        }
+
+        /**
+         * Creates a provider over the trail-drip sprite in an ability's palette,
+         * its drips splatting on a lava source's surface where the ability's goo pools on lava.
+         * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+         *
+         * @param sprites     the sprite set from the spray drip's definition
+         * @param palette     the colors its drips blend between
+         * @param landsOnLava whether its drips splat on a lava source's surface
+         */
+        public Provider(SpriteSet sprites, BlendPalette palette, boolean landsOnLava) {
             this.sprites = sprites;
             this.palette = palette;
+            this.landsOnLava = landsOnLava;
         }
 
         @Override
@@ -220,7 +239,7 @@ public final class SprayDripParticle extends SingleQuadParticle {
                                                           double y, double z, double xSpeed, double ySpeed,
                                                           double zSpeed, RandomSource random) {
             return new SprayDripParticle(level, new Vec3(x, y, z), sprites.get(0, 1),
-                    SprayDrip.launch(new Vec3(xSpeed, ySpeed, zSpeed), palette, random));
+                    SprayDrip.launch(new Vec3(xSpeed, ySpeed, zSpeed), palette, random), landsOnLava);
         }
     }
 }

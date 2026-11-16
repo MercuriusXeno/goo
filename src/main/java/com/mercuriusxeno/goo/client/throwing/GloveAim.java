@@ -87,7 +87,8 @@ public final class GloveAim {
      */
     public static boolean sparesOwnMinions(Player player) {
         ClientAbility ability = selectedAbility(player);
-        return ability != null && OwnMinions.sparesOwnMinions(ability.badge(), ability.hasTag(AbilityTags.HARMFUL));
+        return ability != null && OwnMinions.sparesOwnMinions(ability.badge(), ability.delivery().kind(),
+                ability.hasTag(AbilityTags.HARMFUL));
     }
 
     private static @Nullable ClientAbility selectedAbility(Player player) {
@@ -149,7 +150,8 @@ public final class GloveAim {
      * @return the badge's hint
      */
     static TargetingHint hintOf(ClientAbility ability) {
-        return TargetingHint.of(ability.badge());
+        // dart-forms-on-right-click-and-throws-on-left-click: a held javelin aims as a mob ability
+        return TargetingHint.of(ability.badge().aimsAs(ability.delivery().kind()));
     }
 
     /**

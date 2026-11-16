@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Where the aim's marks draw, and the one line the aim pass draws.
+ * Where the aim's marks draw, and the aim pass drawing no line.
  */
 class GooTargetHighlighterTest {
 
@@ -72,17 +72,17 @@ class GooTargetHighlighterTest {
     }
 
     /**
-     * The knife lines are the only line the aim pass draws; an arc, a beam and
-     * a mob ability's arc draw none, the vanilla crosshair aiming them
+     * The aim pass draws no line: Knives, an arc, a beam and a mob ability's
+     * arc draw none, the vanilla crosshair aiming them
      * (decisions vanilla-crosshair-aims-everything-without-reticule-line-or-touch-ring,
-     * knives-aims-a-spread-fan-not-a-blob-line).
+     * knives-draws-no-aim-lines-the-vanilla-crosshair-aims-it).
      */
     @Nested
-    class TheAimPassDrawsTheKnifeLinesAlone {
+    class TheAimPassDrawsNoLine {
 
         @Test
-        void aChargingKnivesPressDrawsTheKnifeLines() {
-            assertEquals(GooTargetHighlighter.AimPassLine.KNIFE_LINES,
+        void aChargingKnivesPressDrawsNoLine() {
+            assertEquals(GooTargetHighlighter.AimPassLine.NONE,
                     GooTargetHighlighter.aimPassLine(AbilityJson.decode("crystal_knives").delivery(), true));
         }
 

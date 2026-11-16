@@ -35,7 +35,9 @@ class DeliveryTest {
     private static final double TEN_BLOCKS = 10;
     private static final float LEVITY = 0.7f;
     private static final int BASE_FLIGHT_TIME = 3;
-    private static final String TOP_SPEED = "top_speed";
+    private static final double SIXTEEN_BLOCKS = 16;
+    private static final Vec3 SIXTEEN_AWAY = START.add(0, 0, SIXTEEN_BLOCKS);
+    private static final String PEAK_SHARE = "peak_share";
 
     private static DataResult<AbilityDefinition> decode(String deliveryField) {
         return AbilityDefinition.codecFor(ID)
@@ -289,22 +291,55 @@ class DeliveryTest {
         }
 
         /**
-         * A dart thrown at a mob ten blocks off, Metal's levity and base
-         * flight time, stays in the air at least the ticks the top speed
-         * metal_dart.json names takes to cover the distance, so the eye
-         * follows it (decision dart-flies-at-a-speed-you-can-follow).
+         * The shipped dart shinks as its javelin forms and shinks lower as it
+         * reverts: one sample, the revert pitched below the form
+         * (decision dart-shinks-as-it-forms-and-pitched-down-as-it-reverts).
          */
         @Test
-        void dartFliesNoFasterThanTheSpeedItsJsonNames() {
-            JsonObject delivery = JsonParser.parseString(AbilityJson.read("metal_dart")).getAsJsonObject()
+        void dartNamesAFormShinkAndALowerRevertShinkOfOneSample() {
+            FormSounds sounds = AbilityJson.decode("metal_dart").delivery().formSounds();
+
+            assertTrue(sounds.form().isPresent(), "metal_dart.json names no form sound");
+            assertTrue(sounds.revert().isPresent(), "metal_dart.json names no revert sound");
+            assertEquals(sounds.form().get().sound(), sounds.revert().get().sound());
+            assertTrue(sounds.revert().get().pitch() < sounds.form().get().pitch(),
+                    "the revert's pitch stands at or above the form's");
+        }
+
+        /**
+         * The shipped dart flies 2.5 blocks a tick at every distance, Metal's
+         * levity and base flight time passed in
+         * (decision dart-flies-low-and-straight-at-double-speed).
+         */
+        @Test
+        void dartFliesTwoAndAHalfBlocksATickAtEveryDistance() {
+            Delivery dart = AbilityJson.decode("metal_dart").delivery();
+            assertEquals(2, dart.travelTicks(4, LEVITY, BASE_FLIGHT_TIME));
+            assertEquals(7, dart.travelTicks(SIXTEEN_BLOCKS, LEVITY, BASE_FLIGHT_TIME));
+            assertEquals(13, dart.travelTicks(32, LEVITY, BASE_FLIGHT_TIME));
+        }
+
+        /**
+         * The shipped dart flies a peak above zero and no higher than a
+         * quarter of the base peak, the share metal_dart.json names, while a
+         * bare arc keeps the base peak and its type's flight time
+         * (decision dart-flies-low-and-straight-at-double-speed).
+         */
+        @Test
+        void dartFliesALowPeakTheShareItsJsonNamesAndABareArcKeepsTheBasePeak() {
+            JsonObject json = JsonParser.parseString(AbilityJson.read("metal_dart")).getAsJsonObject()
                     .getAsJsonObject("delivery");
-            assertTrue(delivery.has(TOP_SPEED), "metal_dart.json names no " + TOP_SPEED);
-            double topSpeed = delivery.get(TOP_SPEED).getAsDouble();
-            int fewestTicks = (int) Math.ceil(TEN_BLOCKS / topSpeed);
-            int flight = AbilityJson.decode("metal_dart").delivery().travelTicks(TEN_BLOCKS, LEVITY,
-                    BASE_FLIGHT_TIME);
-            assertTrue(flight >= fewestTicks, "a ten-block dart flew " + flight + " ticks where "
-                    + topSpeed + " blocks a tick takes " + fewestTicks);
+            assertTrue(json.has(PEAK_SHARE), "metal_dart.json names no " + PEAK_SHARE);
+            double basePeak = ThrowArc.basePeak(SIXTEEN_BLOCKS);
+            double dartPeak = AbilityJson.decode("metal_dart").delivery().peak(START, SIXTEEN_AWAY, false);
+            assertEquals(basePeak * json.get(PEAK_SHARE).getAsDouble(), dartPeak, TOLERANCE);
+            assertTrue(dartPeak > 0, "the dart flies no peak");
+            assertTrue(dartPeak <= basePeak / 4, "the dart's peak " + dartPeak + " tops a quarter of " + basePeak);
+
+            Delivery bare = deliveryOf("\"delivery\": { \"kind\": \"arc\" },");
+            assertEquals(basePeak, bare.peak(START, SIXTEEN_AWAY, false), TOLERANCE);
+            assertEquals((int) ThrowArc.travelTicks(SIXTEEN_BLOCKS, LEVITY, BASE_FLIGHT_TIME),
+                    bare.travelTicks(SIXTEEN_BLOCKS, LEVITY, BASE_FLIGHT_TIME));
         }
 
         /**
@@ -333,14 +368,16 @@ class DeliveryTest {
          * goop-and-slick-coat-lands-where-each-drip-arc-strikes
          */
         @Test
-        void goopAndSlickAloneThrowDripsOnTheirArcs() {
+        void theWorldGooSpraysAloneThrowDripsOnTheirArcs() {
             Set<Identifier> throwing = AbilityJson.files().stream()
                     .filter(file -> AbilityJson.decode(file).delivery().throwsDrips())
                     .map(file -> AbilityJson.idOf(file.getFileName().toString()))
                     .collect(Collectors.toSet());
 
             assertEquals(Set.of(Identifier.fromNamespaceAndPath("goo", "weird_goop"),
-                    Identifier.fromNamespaceAndPath("goo", "kinetic_slick")), throwing);
+                    Identifier.fromNamespaceAndPath("goo", "kinetic_slick"),
+                    Identifier.fromNamespaceAndPath("goo", "blaze_molten"),
+                    Identifier.fromNamespaceAndPath("goo", "deep_host")), throwing);
         }
     }
 
@@ -357,7 +394,7 @@ class DeliveryTest {
 
         @Test
         void eachSprayLeavesFasterByTheCastersSpeed() {
-            for (String spray : Set.of("weird_goop", "kinetic_slick")) {
+            for (String spray : Set.of("weird_goop", "kinetic_slick", "blaze_molten", "deep_host")) {
                 Delivery delivery = AbilityJson.decode(spray).delivery();
 
                 assertEquals(delivery.throwSpeed() + RAMPED, delivery.exitSpeedAt(RAMPED), 1e-9, spray);

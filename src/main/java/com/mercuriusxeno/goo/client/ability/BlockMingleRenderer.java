@@ -42,6 +42,8 @@ public final class BlockMingleRenderer {
     private static final int OVERLAY_V_SHIFT = 16;
     private static final int OPAQUE_WHITE = 0xFFFFFFFF;
     private static final int OPAQUE_ALPHA = 0xFF000000;
+    /** The red hot a block a Molten cell melts heats to, tinting its own face. */
+    static final int RED_HOT = 0xFF3A10;
 
     private BlockMingleRenderer() {
     }
@@ -60,25 +62,31 @@ public final class BlockMingleRenderer {
         }
         List<BlockTransforms.Transform> live = BlockTransforms.CLIENT.live(level.getGameTime());
         List<BlockTransforms.Exposure> exposing = BlockTransforms.CLIENT.exposing(level.getGameTime());
-        if (live.isEmpty() && exposing.isEmpty()) {
+        List<BlockTransforms.RedHot> heating = BlockTransforms.CLIENT.heating(level.getGameTime());
+        if (live.isEmpty() && exposing.isEmpty() && heating.isEmpty()) {
             return;
         }
         float gameTime = level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        drawAll(event.getPoseStack(), level, live, exposing, gameTime);
+        List<Mingle> mingles = minglesOf(level, live, exposing, gameTime);
+        // stone-goes-red-hot-before-molten-turns-it-to-lava: the block's own face heats in, red hot, by the share
+        for (BlockTransforms.RedHot redHot : heating) {
+            mingles.add(new Mingle(redHot.pos(), level.getBlockState(redHot.pos()), 1f - redHot.share(gameTime),
+                    mingleColor(RED_HOT), redHot.seed()));
+        }
+        drawAll(event.getPoseStack(), mingles);
     }
 
     /**
-     * Draws the playing transforms and the partial exposures into one mingle batch.
+     * The playing transforms and the partial exposures as the states mingling over their blocks.
      *
-     * @param poseStack the level's pose stack, camera relative
      * @param level     the client level the blocks stand in
      * @param live      the transforms playing
      * @param exposing  the blocks part way to their next rung
      * @param gameTime  the game time including the partial tick
+     * @return the mingles
      */
-    private static void drawAll(PoseStack poseStack, ClientLevel level, List<BlockTransforms.Transform> live,
-                                List<BlockTransforms.Exposure> exposing, float gameTime) {
-        Minecraft mc = Minecraft.getInstance();
+    private static List<Mingle> minglesOf(ClientLevel level, List<BlockTransforms.Transform> live,
+                                          List<BlockTransforms.Exposure> exposing, float gameTime) {
         List<Mingle> mingles = new ArrayList<>();
         for (BlockTransforms.Transform transform : live) {
             mingles.add(new Mingle(transform.pos(), transform.from(), transform.progress(gameTime),
@@ -91,6 +99,17 @@ public final class BlockMingleRenderer {
             mingles.add(new Mingle(exposure.pos(), mingling.state(), mingling.dissolved(),
                     mingleColor(mingling.tint()), BlockTransforms.CLIENT.seedOf(exposure)));
         }
+        return mingles;
+    }
+
+    /**
+     * Draws the mingles into one batch.
+     *
+     * @param poseStack the level's pose stack, camera relative
+     * @param mingles   the states mingling over their blocks
+     */
+    private static void drawAll(PoseStack poseStack, List<Mingle> mingles) {
+        Minecraft mc = Minecraft.getInstance();
         Identifier atlas = mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location();
         drawPass(poseStack, mingles, GooRenderTypes.blockMingle(atlas), false);
         // coat-is-a-green-slime-film-over-the-blocks-own-texture: a translucent block mingles in see-through
