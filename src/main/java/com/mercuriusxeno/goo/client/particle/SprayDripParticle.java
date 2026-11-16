@@ -13,6 +13,7 @@ import net.minecraft.client.particle.SingleQuadParticle;
 import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.client.renderer.state.level.QuadParticleRenderState;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ColorParticleOption;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.util.ARGB;
@@ -121,8 +122,10 @@ public final class SprayDripParticle extends SingleQuadParticle {
             this.remove();
         } else if (step.splats()) {
             this.remove();
+            // the land splat reads the struck face's normal from its velocity; none lies on a top
+            Vec3 normal = step.face().map(Direction::getUnitVec3).orElse(Vec3.ZERO);
             this.level.addParticle(ColorParticleOption.create(GooParticles.TRAIL_DRIP_LAND.get(),
-                    this.rCol, this.gCol, this.bCol), this.x, this.y, this.z, 0.0, 0.0, 0.0);
+                    this.rCol, this.gCol, this.bCol), this.x, this.y, this.z, normal.x, normal.y, normal.z);
         }
     }
 
