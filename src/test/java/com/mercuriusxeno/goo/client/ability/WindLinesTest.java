@@ -3,7 +3,10 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.program.WindStep;
 import com.mercuriusxeno.goo.client.LineContext;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -351,32 +354,25 @@ class WindLinesTest {
             assertEquals(WindStep.LineColors.WIND, windOf("typhoon_gust").colors());
         }
 
+        /** vacuum-motes-fly-loose-from-the-cone-to-the-blob */
         @Test
-        void aVoidMoteLeavesFromTheLineAndEndsAtTheGlove() {
-            Vec3 glove = new Vec3(2, 64, -3);
-            WindLines.Line far = new WindLines.Line(glove, EAST, SOUTH, EAST.cross(SOUTH), STRAIGHT,
-                    WindLines.Sway.NONE, 1, 0f, false, 0L, false, true);
-            for (int age : new int[] {5, 20, 40}) {
-                WindLines.MoteFlight flight = WindLines.moteFlight(far, age);
-                Vec3 toGlove = glove.subtract(flight.from());
-
-                assertEquals(0, flight.from().distanceTo(WindLines.pathPoint(far, age)), EPSILON);
-                assertEquals(1, flight.velocity().normalize().dot(toGlove.normalize()), EPSILON);
-                double carried = (1 - Math.pow(WindLines.MOTE_FRICTION, flight.ticks())) / (1 - WindLines.MOTE_FRICTION);
-                assertEquals(0, flight.from().add(flight.velocity().scale(carried)).distanceTo(glove), 1e-6,
-                        "a mote should end its flight at the glove");
+        void aVoidMoteStartsAtARandomPointInsideTheStreamsCone() {
+            Vec3 blob = new Vec3(2, 64, -3);
+            Vec3 look = new Vec3(1, -0.3, 0.4).normalize();
+            WindLines.Gust gust = new WindLines.Gust(blob, look, 8, 40, false);
+            RandomSource random = RandomSource.create(1168L);
+            double halfAngle = Math.toRadians(gust.coneDegrees() / 2);
+            Set<Vec3> drawn = new HashSet<>();
+            for (int draw = 0; draw < 200; draw++) {
+                Vec3 start = WindLines.moteStart(gust, random);
+                Vec3 out = start.subtract(blob);
+                assertTrue(out.length() > 0 && out.length() <= gust.range() + EPSILON,
+                        "mote " + draw + " starts " + out.length() + " blocks out");
+                assertTrue(Math.acos(Math.clamp(out.normalize().dot(look), -1, 1)) <= halfAngle + EPSILON,
+                        "mote " + draw + " starts outside the cone's half angle");
+                drawn.add(start);
             }
-        }
-
-        // the operator's ruling: the violet motes were too slow
-        @Test
-        void aVoidMoteFliesToTheGloveQuickly() {
-            WindLines.Line far = new WindLines.Line(Vec3.ZERO, EAST, SOUTH, EAST.cross(SOUTH), STRAIGHT,
-                    WindLines.Sway.NONE, 1, 0f, false, 0L, false, true);
-            for (int age : new int[] {0, 20, 45}) {
-                assertTrue(WindLines.moteFlight(far, age).ticks() <= WindLines.MOTE_FLIGHT_TICKS,
-                        "a mote leaving at age " + age + " flies " + WindLines.moteFlight(far, age).ticks() + " ticks");
-            }
+            assertEquals(200, drawn.size(), "every draw should start somewhere new");
         }
 
         @Test
@@ -388,7 +384,7 @@ class WindLinesTest {
 
         private static WindLines.Line colored(float gray, WindStep.LineColors colors) {
             return new WindLines.Line(Vec3.ZERO, EAST, SOUTH, EAST.cross(SOUTH), STRAIGHT, WindLines.Sway.NONE, 1,
-                    gray, false, 0L, false, true, colors, false);
+                    gray, false, 0L, false, true, colors);
         }
 
         private static WindStep windOf(String ability) {
