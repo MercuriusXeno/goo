@@ -234,7 +234,7 @@ public class GooBlocks {
     /**
      * Host: the volume cell bound to Deep's sculky slime, the dark teal goo
      * Host sprays onto a block's top, one to fifteen layers, ordinary ground
-     * underfoot that squelches as sculk does, dropping the deep goo its layers
+     * underfoot that sounds as goo does, dropping the deep goo its layers
      * cost through VolumeCellBlock.getDrops, no loot table
      * (decisions host-is-a-sculky-slime-that-sculk-spreads-eagerly-through,
      * each-goo-type-ships-a-world-goo-on-the-volume-cell).
@@ -244,7 +244,7 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_CYAN)
                     .friction(CellBinding.HOST.surface().friction())
-                    .sound(SoundType.SCULK)
+                    .sound(SoundType.SLIME_BLOCK)
                     .instabreak()
                     .noOcclusion()
                     .replaceable()
@@ -253,7 +253,7 @@ public class GooBlocks {
     /**
      * Rime: the volume cell bound to Frost's endothermic goo, the pale blue
      * goo Rime sprays onto a block's top, one to fifteen layers, as slippery
-     * as ice underfoot and sounding as ice does, dropping the frost goo its
+     * as ice underfoot and sounding as goo does, dropping the frost goo its
      * layers cost through VolumeCellBlock.getDrops, no loot table
      * (decisions iceborn-is-dropped-for-rime-a-frost-goo-that-keeps-what-is-around-it-frozen,
      * rime-goo-is-slippery-to-walk-on, each-goo-type-ships-a-world-goo-on-the-volume-cell).
@@ -263,7 +263,7 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.ICE)
                     .friction(CellBinding.RIME.surface().friction())
-                    .sound(SoundType.GLASS)
+                    .sound(SoundType.SLIME_BLOCK)
                     .instabreak()
                     .noOcclusion()
                     .replaceable()
