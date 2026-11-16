@@ -10,17 +10,20 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jspecify.annotations.NonNull;
 
 /**
  * Frost's Rime cell: the volume cell bound to Rime's endothermic goo, which
  * on each scheduled tick freezes the water and lava sources within the reach
- * Rime's step names, for good, then ticks again after the step's chill
- * ticks, so water or lava reaching it later freezes too; a living thing
- * standing on it barefoot freezes and takes freeze damage.
+ * Rime's step names, for good, a layer of the cell for each, then ticks
+ * again after the step's chill ticks, so water or lava reaching it later
+ * freezes too until its layers run out; a living thing standing on it
+ * barefoot freezes and takes freeze damage.
  * rime-freezes-water-and-lava-and-freezes-and-damages-the-shoeless
  * rime-freezing-is-permanent-with-no-restore-on-removal
+ * rime-goo-depletes-on-freezing
  * iceborn-is-dropped-for-rime-a-frost-goo-that-keeps-what-is-around-it-frozen
  */
 public class RimeCellBlock extends VolumeCellBlock {
@@ -44,15 +47,39 @@ public class RimeCellBlock extends VolumeCellBlock {
     protected void tick(@NonNull BlockState state, @NonNull ServerLevel level, @NonNull BlockPos pos,
                         @NonNull RandomSource random) {
         super.tick(state, level, pos, random);
-        if (!level.getBlockState(pos).is(this)) {
+        BlockState poured = level.getBlockState(pos);
+        if (!poured.is(this)) {
             return;
         }
-        RimeStep.in(layingProgram(level)).ifPresent(rime -> {
-            RimeChill.freezeAround(level, pos, rime.reach());
-            if (!level.getBlockTicks().hasScheduledTick(pos, this)) {
-                level.scheduleTick(pos, this, rime.chillTicks());
-            }
-        });
+        RimeStep.in(layingProgram(level)).ifPresent(rime -> freezeReach(level, pos, poured, rime));
+    }
+
+    /**
+     * Freezes what the cell's layers pay for in its reach and stands the
+     * cell lower by what the freezes spent, gone where they spent it all, as
+     * Molten's cell stands lower by the stone it melts; a cell still standing
+     * keeps a tick coming, a pending pour's or the next chill's.
+     * rime-goo-depletes-on-freezing
+     * molten-spends-three-layers-per-stone-block-priced-at-lava-minus-mundane-block
+     *
+     * @param level the server level
+     * @param pos   the cell
+     * @param state the cell's state after its pour
+     * @param rime  Rime's step
+     */
+    private void freezeReach(ServerLevel level, BlockPos pos, BlockState state, RimeStep rime) {
+        int layers = state.getValue(LAYERS);
+        int left = RimeChill.freezeAround(level, pos, layers, rime);
+        if (left == 0) {
+            level.setBlock(pos, Blocks.AIR.defaultBlockState(), UPDATE_ALL);
+            return;
+        }
+        if (left != layers) {
+            level.setBlock(pos, state.setValue(LAYERS, left), UPDATE_ALL);
+        }
+        if (!level.getBlockTicks().hasScheduledTick(pos, this)) {
+            level.scheduleTick(pos, this, rime.chillTicks());
+        }
     }
 
     /**

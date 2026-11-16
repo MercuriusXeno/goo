@@ -215,7 +215,7 @@
   "goo.ability.frost.orb.description": "A slow orb freezes mobs, water and lava in its path, ending in a frost nova.",
   "goo.ability.frost.rime": "Rime",
   "goo.ability.frost.rime.cost_mechanics": "Costs %s per block of Rime laid, a fifteenth of it per layer.",
-  "goo.ability.frost.rime.description": "Held stream sprays Rime, a slippery endothermic goo that freezes the water and lava around it for good and freezes whatever walks on it barefoot.",
+  "goo.ability.frost.rime.description": "Held stream sprays Rime, a slippery endothermic goo that freezes the water and lava around it for good, a layer of it for each block frozen, and freezes whatever walks on it barefoot.",
   "goo.ability.glow.bulb": "Bulb",
   "goo.ability.glow.bulb.description": "Places a flat glowing crystal where its ray strikes; prisms become skyward beams.",
   "goo.ability.glow.laser": "Laser",
