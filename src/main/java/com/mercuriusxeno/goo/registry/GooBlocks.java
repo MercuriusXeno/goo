@@ -15,7 +15,6 @@ import com.mercuriusxeno.goo.block.ability.ZapPulseBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
 import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlock;
-import com.mercuriusxeno.goo.block.gate.EndGateBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlock;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlock;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
@@ -276,15 +275,6 @@ public class GooBlocks {
                     .sound(SoundType.AMETHYST_CLUSTER)
                     .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)
                     .lightLevel(PrismBlock::lightLevel));
-    /**
-     * End gate: an end portal laid over a block for a while, carrying what
-     * steps in to its partner gate; unbreakable, uncollidable and dropping
-     * nothing (decision end-clears-blocks-and-opens-a-portal).
-     */
-    public static final DeferredBlock<EndGateBlock> END_GATE = BLOCKS.registerBlock(
-            "end_gate", EndGateBlock::new,
-            () -> BlockBehaviour.Properties.ofFullCopy(Blocks.END_PORTAL).noLootTable());
-
     /**
      * Voidstone: the unbreakable block at the center of each Zone room,
      * the one block there nothing can take away (decision

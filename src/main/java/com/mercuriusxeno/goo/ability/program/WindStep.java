@@ -19,24 +19,25 @@ import java.util.stream.Stream;
  * rushing forward past the camera along the look to curl ahead, the wind
  * carrying a jet: {@code wind tailwind={range=6 cone=30}}. Where the step
  * names inward, the lines run the other way, from inside the cone into the
- * glove, as Vacuum draws its wind in: {@code wind inward=true}. The step
+ * blob, as Vacuum draws its wind in: {@code wind inward=true}. The step
  * names the pitch its held wind sounds at, the plain wind's where it names
  * none, so Vacuum's suction sounds low: {@code wind pitch=0.6}. The step
  * names the two colors its lines blend between, the wind's white and pale
- * gray where it names none, and whether void motes stream in along them:
- * {@code wind light_color=#b48ce8 dark_color=#7a52b0 void_motes=true}.
+ * gray where it names none, and whether void motes fly loose from the cone
+ * into the blob: {@code wind light_color=#b48ce8 dark_color=#7a52b0 void_motes=true}.
  * cold-streams-wind-lines-and-snowflakes
  * jet-pushes-along-the-look-while-held
  * vacuum-streaks-wind-lines-inward-to-the-glove
  * vacuum-sounds-a-suction-wind-and-rising-slurps
  * vacuum-wind-lines-run-straight-and-far-in-void-colors-with-motes
+ * vacuum-motes-fly-loose-from-the-cone-to-the-blob
  *
  * @param snowflakes whether snowflakes flit along the lines
  * @param tailwind   the tailwind the lines carry the player on, or empty to blow them from the glove
- * @param inward     whether the lines run from inside the cone into the glove rather than out of it
+ * @param inward     whether the lines run from inside the cone into the blob rather than out of it
  * @param pitch      the pitch the held wind sounds at
  * @param colors     the two colors the lines blend between
- * @param voidMotes  whether void motes stream along the lines toward the glove
+ * @param voidMotes  whether void motes fly loose from the cone into the blob
  */
 public record WindStep(boolean snowflakes, Optional<Tailwind> tailwind, boolean inward, float pitch,
                        LineColors colors, boolean voidMotes) implements TakesNoEntity {

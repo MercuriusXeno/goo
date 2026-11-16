@@ -8,6 +8,8 @@ import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.client.ability.PalmBlobHop;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -417,9 +419,11 @@ class GloveInputGateTest {
             assertFalse(GloveInputGate.runsFromPress(Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE));
         }
 
-        @Test
-        void aStreamRunsFromThePress() {
-            assertTrue(GloveInputGate.runsFromPress(Delivery.of(DeliveryKind.STREAM), AbilityBadge.CHANNELED));
+        // residual-badge-marks-the-four-goo-sprays
+        @ParameterizedTest
+        @EnumSource(value = AbilityBadge.class, names = {"CHANNELED", "RESIDUAL"})
+        void aStreamRunsFromThePress(AbilityBadge badge) {
+            assertTrue(GloveInputGate.runsFromPress(Delivery.of(DeliveryKind.STREAM), badge));
         }
 
         @Test
