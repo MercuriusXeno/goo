@@ -584,15 +584,21 @@ public final class WeirdTests {
 
     /**
      * A Goop hold aimed straight up at a bottom slab over the streamer's
-     * head, whose top holds no coat, so no cell the stream reaches can take
-     * one, lasting three sprays of the whole fan, drains no weird goo.
+     * head, clear of the bay's walls, lasting three sprays of the whole fan, over a floor of bottom
+     * slabs: its drips strike the slab's underside and drop, and no top they
+     * fall to holds a coat, so no cell takes one and the hold drains no weird goo.
      * goop-drains-per-cubic-meter-of-slime-placed
+     * drip-striking-a-ceiling-runs-down-a-wall-or-drops
      *
      * @param helper the gametest helper
      */
     public static void goopLayingNoLayerDrainsNoGoo(GameTestHelper helper) {
-        helper.setBlock(STREAMER_POS.above(OVERHEAD), Blocks.STONE_SLAB);
+        BlockPos stand = SlabFloor.CLEAR_STAND;
+        helper.setBlock(stand.above(OVERHEAD), Blocks.STONE_SLAB);
+        SlabFloor.layUnder(helper, stand);
         ServerPlayer streamer = goopStreamerAt(helper, STRAIGHT_UP);
+        Vec3 feet = Vec3.atBottomCenterOf(helper.absolutePos(stand));
+        streamer.setPos(feet.x, feet.y, feet.z);
         int before = weirdHeld(streamer);
         int held = SPRAY_HOLD_TICKS * 3;
         holdGoopFor(helper, streamer, held);

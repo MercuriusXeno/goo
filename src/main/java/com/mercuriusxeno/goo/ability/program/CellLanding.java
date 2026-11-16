@@ -7,6 +7,8 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
+import java.util.Comparator;
 import java.util.Optional;
 
 /**
@@ -17,7 +19,9 @@ import java.util.Optional;
  * layer to it, in the tick it strikes; a drip striking a block's side coats
  * that wall in the open cell beside it, a film where its goo's adhesion
  * holds it there and a runny layer running down the wall where it does not;
- * a full cell or a cell of another goo takes nothing. Each layer pays a fifteenth of the
+ * a drip striking a block's underside runs down a wall the cell under it
+ * touches or drops to the first top below; a full cell or a cell of another
+ * goo takes nothing. Each layer pays a fifteenth of the
  * laying ability's cost as it lands, and a layer the player cannot pay for
  * does not land.
  * goop-and-slick-coat-lands-where-each-drip-arc-strikes
@@ -27,6 +31,7 @@ import java.util.Optional;
  * world-goo-fills-a-block-space-in-one-to-fifteen-layers
  * drip-striking-a-side-sticks-or-runs-by-adhesion
  * adhesion-is-a-ladder-of-holds
+ * drip-striking-a-ceiling-runs-down-a-wall-or-drops
  */
 final class CellLanding {
 
@@ -63,6 +68,19 @@ final class CellLanding {
          * @return true where a cell of this goo stands in the cell below it
          */
         boolean gooBelow(BlockPos cell);
+
+        /**
+         * @param cell an open cell
+         * @param side one of its sides
+         * @return true where the block on that side has a sturdy face toward the cell, a wall
+         */
+        boolean wallAt(BlockPos cell, Direction side);
+
+        /**
+         * @param cell an open cell a layer drops through
+         * @return the cell whose fill the layer joins on the first top below, empty where it finds none
+         */
+        Optional<BlockPos> dropLanding(BlockPos cell);
     }
 
     /**
@@ -74,33 +92,52 @@ final class CellLanding {
      * @return the cell and the side fed, empty where the strike lays nothing
      */
     static Optional<CellFed> cellFed(ChannelHost host, CoatRay.BlockStrike strike, VolumeCellBlock cell) {
-        return cellFedBy(strike, cell.adhesionAt(host.level()), new Cells() {
-            @Override
-            public boolean thickens(BlockPos pos) {
-                BlockState standing = host.stateAt(pos);
-                // a cell of films alone takes fill only over a top that can hold it
-                boolean floored = VolumeCellBlock.layersOf(standing) > 0 || VolumeCellBlock.liesOn(host.level(), pos);
-                return standing.is(cell) && VolumeCellBlock.layersOf(standing) < VolumeCellBlock.MAX_LAYERS && floored;
-            }
+        return cellFedBy(strike, cell.adhesionAt(host.level()), new LevelCells(host, cell));
+    }
 
-            @Override
-            public boolean takesACell(BlockPos pos) {
-                return host.airAt(pos) && VolumeCellBlock.liesOn(host.level(), pos);
-            }
+    /**
+     * What the landing reads of the cells a strike may feed, from the caster's level.
+     *
+     * @param host the caster's host
+     * @param cell the goo's volume cell block
+     */
+    private record LevelCells(ChannelHost host, VolumeCellBlock cell) implements Cells {
 
-            @Override
-            public Optional<SideCoat> sideAt(BlockPos pos, Direction side) {
-                BlockState standing = host.stateAt(pos);
-                boolean holds = standing.isAir() || standing.is(cell);
-                return holds && VolumeCellBlock.clingsTo(host.level(), pos, side)
-                        ? Optional.of(VolumeCellBlock.coatOn(standing, side)) : Optional.empty();
-            }
+        @Override
+        public boolean thickens(BlockPos pos) {
+            BlockState standing = host.stateAt(pos);
+            // a cell of films alone takes fill only over a top that can hold it
+            boolean floored = VolumeCellBlock.layersOf(standing) > 0 || VolumeCellBlock.liesOn(host.level(), pos);
+            return standing.is(cell) && VolumeCellBlock.layersOf(standing) < VolumeCellBlock.MAX_LAYERS && floored;
+        }
 
-            @Override
-            public boolean gooBelow(BlockPos pos) {
-                return host.stateAt(pos.below()).is(cell);
-            }
-        });
+        @Override
+        public boolean takesACell(BlockPos pos) {
+            return host.airAt(pos) && VolumeCellBlock.liesOn(host.level(), pos);
+        }
+
+        @Override
+        public Optional<SideCoat> sideAt(BlockPos pos, Direction side) {
+            BlockState standing = host.stateAt(pos);
+            boolean holds = standing.isAir() || standing.is(cell);
+            return holds && VolumeCellBlock.clingsTo(host.level(), pos, side)
+                    ? Optional.of(VolumeCellBlock.coatOn(standing, side)) : Optional.empty();
+        }
+
+        @Override
+        public boolean gooBelow(BlockPos pos) {
+            return host.stateAt(pos.below()).is(cell);
+        }
+
+        @Override
+        public boolean wallAt(BlockPos pos, Direction side) {
+            return VolumeCellBlock.clingsTo(host.level(), pos, side);
+        }
+
+        @Override
+        public Optional<BlockPos> dropLanding(BlockPos pos) {
+            return cell.landingBelow(host.level(), pos);
+        }
     }
 
     /**
@@ -121,8 +158,8 @@ final class CellLanding {
         if (strike.face().getAxis().isHorizontal()) {
             return sideFedBy(strike, adhesion, cells);
         }
-        if (strike.face() != Direction.UP) {
-            return Optional.empty();
+        if (strike.face() == Direction.DOWN) {
+            return undersideFedBy(strike, cells);
         }
         BlockPos struck = strike.block();
         if (cells.thickens(struck)) {
@@ -159,6 +196,42 @@ final class CellLanding {
         BlockPos beside = strike.block().relative(strike.face());
         return cells.sideAt(beside, wall).map(standing -> sideCoatFor(adhesion, standing, cells.gooBelow(beside))
                 == SideCoat.FILM ? CellFed.film(beside, wall) : CellFed.runny(beside, wall));
+    }
+
+    /**
+     * What a strike on a block's underside lays, goo holding no ceiling: a
+     * runny layer on the wall the cell under it touches, the wall nearest
+     * the strike where it touches several, at any adhesion; where it touches
+     * none, the layer drops to the first top below and joins the fill there.
+     * drip-striking-a-ceiling-runs-down-a-wall-or-drops
+     *
+     * @param strike where the drip struck a block's underside
+     * @param cells  what the landing reads of the cells
+     * @return the cell and the side fed, empty where the layer finds no top
+     */
+    private static Optional<CellFed> undersideFedBy(CoatRay.BlockStrike strike, Cells cells) {
+        BlockPos under = strike.block().below();
+        Optional<Direction> nearest = Direction.Plane.HORIZONTAL.stream().filter(side -> cells.wallAt(under, side))
+                .min(Comparator.comparingDouble(side -> reachTo(strike.point(), under, side)));
+        if (nearest.isPresent()) {
+            return Optional.of(CellFed.runny(under, nearest.get()));
+        }
+        return cells.dropLanding(under).map(CellFed::fill);
+    }
+
+    /**
+     * How far a point stands from one side's wall of a cell, across the cell.
+     *
+     * @param point a point over the cell
+     * @param cell  the cell
+     * @param side  the side whose wall is measured to
+     * @return the distance
+     */
+    private static double reachTo(Vec3 point, BlockPos cell, Direction side) {
+        double plane = side.getAxisDirection() == Direction.AxisDirection.POSITIVE
+                ? side.getAxis().choose(cell.getX(), cell.getY(), cell.getZ()) + 1
+                : side.getAxis().choose(cell.getX(), cell.getY(), cell.getZ());
+        return Math.abs(side.getAxis().choose(point.x, point.y, point.z) - plane);
     }
 
     /**
