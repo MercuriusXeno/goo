@@ -118,6 +118,7 @@
   "block.goo.kinetic_slick": "Slick",
   "block.goo.blaze_molten": "Molten",
   "block.goo.deep_host": "Host",
+  "block.goo.frost_rime": "Rime",
 
   "goo.badge.world": "World",
   "goo.badge.mob": "Mob",
@@ -209,6 +210,9 @@
   "goo.ability.frost.cold.description": "Hold to blow cold wind that freezes mobs.",
   "goo.ability.frost.orb": "Orb",
   "goo.ability.frost.orb.description": "A slow orb freezes mobs, water and lava in its path, ending in a frost nova.",
+  "goo.ability.frost.rime": "Rime",
+  "goo.ability.frost.rime.cost_mechanics": "Costs %s per block of Rime laid, a fifteenth of it per layer.",
+  "goo.ability.frost.rime.description": "Held stream sprays Rime, a slippery endothermic goo that keeps the water and lava around it frozen and freezes whatever walks on it barefoot.",
   "goo.ability.frost.iceborn": "Iceborn",
   "goo.ability.frost.iceborn.description": "Frozen hearts take damage first but are weak to physical hits, and you become extremely endothermic.",
   "goo.ability.glow.bulb": "Bulb",

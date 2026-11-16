@@ -232,6 +232,25 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
+     * Rime: the volume cell bound to Frost's endothermic goo, the pale blue
+     * goo Rime sprays onto a block's top, one to fifteen layers, as slippery
+     * as ice underfoot and sounding as ice does, dropping the frost goo its
+     * layers cost through VolumeCellBlock.getDrops, no loot table
+     * (decisions iceborn-is-dropped-for-rime-a-frost-goo-that-keeps-what-is-around-it-frozen,
+     * rime-goo-is-slippery-to-walk-on, each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VolumeCellBlock> FROST_RIME = BLOCKS.registerBlock(
+            "frost_rime", properties -> new VolumeCellBlock(properties, CellBinding.RIME),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.ICE)
+                    .friction(CellBinding.RIME.surface().friction())
+                    .sound(SoundType.GLASS)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
      * Prism: the milky quartz crystal Crystal's Prism grows, the host every
      * prism combo grows on (decision prism-blob-becomes-a-milky-quartz-crystal).
      */

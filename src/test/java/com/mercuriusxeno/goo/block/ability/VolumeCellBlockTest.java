@@ -278,6 +278,32 @@ class VolumeCellBlockTest {
         }
     }
 
+    /**
+     * A broken Rime cell gives back frost goo, each layer a fifteenth of
+     * Rime's cost as frost_rime.json ships it
+     * (decision iceborn-is-dropped-for-rime-a-frost-goo-that-keeps-what-is-around-it-frozen).
+     */
+    @Nested
+    class RimeReclaim {
+
+        private static final int LAYERS = 7;
+
+        @Test
+        void rimeIsFrostGooLaidByFrostsRime() {
+            assertEquals(List.of(GooTypes.FROST, AbilityJson.idOf("frost_rime.json")),
+                    List.of(CellBinding.RIME.gooType(), CellBinding.RIME.layingAbility()));
+        }
+
+        @Test
+        void aBrokenRimeCellDropsFrostGooAtFifteenthsOfRimesCost() {
+            GooFraction cost = AbilityJson.decode("frost_rime").cost().exactIn(GooValueTable.EMPTY);
+
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.FROST,
+                            cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.RIME, LAYERS, cost));
+        }
+    }
+
     private static JsonObject classpathJson(String path) throws IOException {
         try (InputStream in = VolumeCellBlockTest.class.getResourceAsStream(path)) {
             assertTrue(in != null, path + " is not on the classpath");

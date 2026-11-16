@@ -74,6 +74,15 @@ public class GooParticles {
         PARTICLE_TYPES.register("host_spray_drip", () -> new SimpleParticleType(false));
 
     /**
+     * Rime's spray drip: the mod's blocky goo drip in frost's pale blues,
+     * flying its arc until it strikes a block's top, where it splats and the
+     * Rime goo lands.
+     * iceborn-is-dropped-for-rime-a-frost-goo-that-keeps-what-is-around-it-frozen
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> RIME_SPRAY_DRIP =
+        PARTICLE_TYPES.register("rime_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
      * A snowflake crystal flitting weightlessly along Cold's wind (decision
      * cold-streams-wind-lines-and-snowflakes).
      */

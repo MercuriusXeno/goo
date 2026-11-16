@@ -47,6 +47,13 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
      */
     public static final BlendPalette HOST_DEEP_TEALS = new BlendPalette(
             0x29 / 255f, 0xDF / 255f, 0xEB / 255f, 0x0F / 255f, 0x24 / 255f, 0x30 / 255f);
+    /**
+     * Rime's spray drips, from frost's bright ice white, D5FFFF, to its wheel
+     * blue, ADD8E6, the two the frost goo type's definition names.
+     * iceborn-is-dropped-for-rime-a-frost-goo-that-keeps-what-is-around-it-frozen
+     */
+    public static final BlendPalette RIME_FROST_BLUES = new BlendPalette(
+            0xD5 / 255f, 0xFF / 255f, 0xFF / 255f, 0xAD / 255f, 0xD8 / 255f, 0xE6 / 255f);
 
     /**
      * The color a share of the way from the light end to the dark.
