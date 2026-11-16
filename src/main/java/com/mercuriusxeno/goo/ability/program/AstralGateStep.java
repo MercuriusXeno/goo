@@ -7,7 +7,7 @@ import java.util.stream.Stream;
 
 /**
  * Astral's gate: fixes the caster's gaze on the moon or the blue overworld star their look holds, holding them
- * still while the view closes in, then carries them, and finishes; it places nothing. Astral's gate is
+ * still while it swells to fill their view, then carries them, and finishes; it places nothing. Astral's gate is
  * {@code astral_gate fixation=60 cost=1000}, three seconds of fixation.
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
