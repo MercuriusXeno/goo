@@ -18,7 +18,18 @@
     "sound": { "id": "minecraft:block.honey_block.slide", "every": 10, "volume": 1.0, "pitch": 1.0, "pitch_spread": 0.1 }
   },
   "behaviors": [
-    { "type": "shatter" }
+    {
+      "type": "shatter",
+      "where": ["living", "not_item", "not_sneaking", "moving"],
+      "interval": "2 - sprinting",
+      "deplete_chance": 0.02,
+      "strike": [
+        { "type": "damage", "amount": 1, "source": "cactus", "invulnerable_ticks": 1 },
+        { "type": "particles", "id": "minecraft:crit", "at": "target", "count": 3, "spread": 0.3, "speed": 0.1 },
+        { "type": "sound", "id": "minecraft:block.glass.hit", "at": "target", "source": "players", "volume": 0.6, "pitch": 1.7 },
+        { "type": "sound", "id": "minecraft:block.amethyst_cluster.hit", "at": "target", "source": "players", "volume": 0.4, "pitch": 1.9 }
+      ]
+    }
   ],
   "tags": ["stream"]
 }
