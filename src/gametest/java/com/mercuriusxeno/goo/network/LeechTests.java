@@ -24,6 +24,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.HashMap;
 import java.util.Map;
@@ -81,6 +82,20 @@ public final class LeechTests {
             + " %d layers, stands %s";
     private static final String SOURCELESS_MISSED = "The sourceless hit should land on the pig: %.2f before, %.2f after";
     private static final String SOURCELESS_DEPLETED = "Sourceless damage should leave the cell at %d layers, stands %s";
+    private static final String FALL_HARMS = "a_fall_onto_leech_goo_harms_as_on_stone";
+    /** The stone a full Leech cell lies on, a pig falling onto the cell's top. */
+    private static final BlockPos GOO_DROP_FLOOR = new BlockPos(1, 1, 1);
+    /** The stone a like pig falls onto, the cell's top's height, three blocks south. */
+    private static final BlockPos STONE_DROP_FLOOR = GOO_DROP_FLOOR.south(3).above();
+    /** The fall distance a ten block drop leaves, well past the three blocks a pig falls unharmed. */
+    private static final double FALL_DISTANCE = 10;
+    /** How far over its landing top a falling pig starts, in blocks. */
+    private static final double OVER_THE_LANDING = 0.5;
+    /** The downward speed a falling pig starts with, in blocks a tick, near a ten block drop's. */
+    private static final double FALLING_SPEED = -1.0;
+    /** Ticks long enough for a falling pig to land, with a margin. */
+    private static final int FALL_TICKS = 20;
+    private static final String FALL_UNHARMED = "A pig falling ten blocks onto %s should land hurt: %.2f of %.2f";
     private static final String BEHAVIORS = "behaviors";
     private static final String TYPE = "type";
     private static final String LEECH_GOO = "leech_goo";
@@ -109,6 +124,7 @@ public final class LeechTests {
         GooTestFunctions.registerTest(registrar, LEECH_LAYS_AND_SLOWS,
                 LeechTests::leechDripLaysACellAndTheGooSlowsAWalker);
         GooTestFunctions.registerTest(registrar, GOO_SPARES, LeechTests::leechGooSparesAMobStandingInIt);
+        GooTestFunctions.registerTest(registrar, FALL_HARMS, LeechTests::aFallOntoLeechGooHarmsAsOnStone);
         GooTestFunctions.registerTest(registrar, STRIKE_DEPLETES,
                 LeechTests::aDrainedStrikeDepletesTheCellUnderItsVictim);
         GooTestFunctions.registerTest(registrar, STRIKE_DRAINS_LIFE,
@@ -155,6 +171,48 @@ public final class LeechTests {
                     String.format(HURT_BY_THE_GOO, STANDING_TICKS, start, pig.getHealth()));
             helper.succeed();
         });
+    }
+
+    /**
+     * A pig carrying ten blocks of fall lands on a full Leech cell's top and
+     * a like pig on stone at the same height: both land hurt, the goo
+     * catching the fall no more than stone does. The bay is too low for a
+     * real ten block drop, so each pig starts just over its landing with the
+     * fall distance such a drop leaves.
+     * leech-goo-slows-the-way-soul-sand-does
+     *
+     * @param helper the gametest helper
+     */
+    public static void aFallOntoLeechGooHarmsAsOnStone(GameTestHelper helper) {
+        helper.setBlock(GOO_DROP_FLOOR, Blocks.STONE);
+        helper.setBlock(GOO_DROP_FLOOR.above(), GooBlocks.HEX_LEECH.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
+        helper.setBlock(STONE_DROP_FLOOR, Blocks.STONE);
+        Pig onGoo = fallingPig(helper, GOO_DROP_FLOOR.above(2));
+        Pig onStone = fallingPig(helper, STONE_DROP_FLOOR.above());
+        helper.runAfterDelay(FALL_TICKS, () -> {
+            helper.assertTrue(onStone.getHealth() < onStone.getMaxHealth(),
+                    String.format(FALL_UNHARMED, "stone", onStone.getHealth(), onStone.getMaxHealth()));
+            helper.assertTrue(onGoo.getHealth() < onGoo.getMaxHealth(),
+                    String.format(FALL_UNHARMED, "Leech goo", onGoo.getHealth(), onGoo.getMaxHealth()));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A pig a hair over a landing top, falling with the fall distance a ten
+     * block drop leaves.
+     *
+     * @param helper  the gametest helper
+     * @param landing the block space whose floor the pig lands on
+     * @return the falling pig
+     */
+    private static Pig fallingPig(GameTestHelper helper, BlockPos landing) {
+        Pig pig = helper.spawnWithNoFreeWill(EntityType.PIG,
+                Vec3.atBottomCenterOf(landing).add(0, OVER_THE_LANDING, 0));
+        pig.fallDistance = FALL_DISTANCE;
+        pig.setDeltaMovement(0, FALLING_SPEED, 0);
+        return pig;
     }
 
     /**
