@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.gametest;
 
+import com.mercuriusxeno.goo.lunar.LavaTubes;
 import com.mercuriusxeno.goo.lunar.Lunar;
 import com.mercuriusxeno.goo.lunar.LunarDepths;
 import com.mercuriusxeno.goo.lunar.SeaCavern;
@@ -49,8 +50,8 @@ public final class LunarSeaTests {
 
     /**
      * Samples columns on a grid across a stretch of goo:lunar's sea cavern through the seeded sea cavern; an island
-     * column reads iron core at the sea's level, standing over the sea, and a pillar column reads anorthosite from
-     * the sea floor to the roof.
+     * column reads iron core at the sea's level, standing over the sea, and a pillar column no lava tube crosses
+     * reads anorthosite from the sea floor to the roof.
      *
      * @param helper the gametest helper
      */
@@ -62,7 +63,9 @@ public final class LunarSeaTests {
                 randomState.getOrCreateNoise(SeaCavern.ROOF_NOISE), randomState.getOrCreateNoise(SeaCavern.PILLAR_NOISE));
         BlockPos island = findColumn(column -> sea.isIslandAt(column.getX(), column.getZ()));
         helper.assertTrue(island != null, String.format(NO_ISLAND, STRETCH_REACH));
-        BlockPos pillar = findColumn(column -> sea.isPillarAt(column.getX(), column.getZ()));
+        LavaTubes tubes = LavaTubes.seeded(randomState.getOrCreateNoise(LavaTubes.NOISE));
+        BlockPos pillar = findColumn(column -> sea.isPillarAt(column.getX(), column.getZ())
+                && !tubes.crossesColumnAt(column.getX(), column.getZ()));
         helper.assertTrue(pillar != null, String.format(NO_PILLAR, STRETCH_REACH));
         lunar.getChunk(island.getX() >> 4, island.getZ() >> 4);
         BlockState atSeaLevel = lunar.getBlockState(island.atY(LunarDepths.SEA_LEVEL_Y));
