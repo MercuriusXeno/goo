@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.lunar.CraterFloorFilter;
+import com.mercuriusxeno.goo.lunar.GiantCraterBoulders;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.levelgen.placement.PlacementModifierType;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -24,6 +25,14 @@ public final class GooPlacementModifiers {
      */
     public static final DeferredHolder<PlacementModifierType<?>, PlacementModifierType<CraterFloorFilter>> CRATER_FLOOR =
             PLACEMENT_MODIFIER_TYPES.register("crater_floor", () -> () -> CraterFloorFilter.CODEC);
+
+    /**
+     * {@code goo:giant_crater_boulders}, which lands a boulder on each spot a giant crater threw one to.
+     * decision lunar-surface-gains-giant-craters-mountains-rilles-and-boulder-fields
+     */
+    public static final DeferredHolder<PlacementModifierType<?>, PlacementModifierType<GiantCraterBoulders>>
+            GIANT_CRATER_BOULDERS = PLACEMENT_MODIFIER_TYPES.register("giant_crater_boulders",
+            () -> () -> GiantCraterBoulders.CODEC);
 
     private GooPlacementModifiers() {
     }

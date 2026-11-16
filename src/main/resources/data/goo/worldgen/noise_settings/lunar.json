@@ -193,22 +193,6 @@
                   {
                     "type": "minecraft:condition",
                     "if_true": {
-                      "type": "goo:crater_band",
-                      "noise": "goo:lunar_craters",
-                      "min_reach": 0.0,
-                      "max_reach": 0.35,
-                      "min_radius": 16.0
-                    },
-                    "then_run": {
-                      "type": "minecraft:block",
-                      "result_state": {
-                        "Name": "goo:crater_ice"
-                      }
-                    }
-                  },
-                  {
-                    "type": "minecraft:condition",
-                    "if_true": {
                       "type": "goo:crater_rays",
                       "noise": "goo:lunar_craters"
                     },

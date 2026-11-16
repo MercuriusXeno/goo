@@ -1,25 +1,36 @@
 {
-  "type": "minecraft:random_selector",
+  "type": "goo:boulder",
   "config": {
-    "features": [
-      {
-        "chance": 0.4,
-        "feature": {
-          "feature": "goo:anorthosite_boulder",
-          "placement": []
+    "stone": {
+      "type": "minecraft:weighted_state_provider",
+      "entries": [
+        {
+          "data": {
+            "Name": "goo:anorthosite"
+          },
+          "weight": 4
+        },
+        {
+          "data": {
+            "Name": "goo:breccia"
+          },
+          "weight": 4
+        },
+        {
+          "data": {
+            "Name": "minecraft:basalt",
+            "Properties": {
+              "axis": "y"
+            }
+          },
+          "weight": 2
         }
-      },
-      {
-        "chance": 0.5,
-        "feature": {
-          "feature": "goo:breccia_boulder",
-          "placement": []
-        }
-      }
-    ],
-    "default": {
-      "feature": "goo:basalt_boulder",
-      "placement": []
+      ]
+    },
+    "radius": {
+      "type": "minecraft:uniform",
+      "min_inclusive": 5,
+      "max_inclusive": 10
     }
   }
 }
