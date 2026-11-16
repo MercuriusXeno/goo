@@ -69,7 +69,7 @@ public final class GooTypeRegistryTests {
     private static final String CAPTURE_LACKS_SEVENTEENTH = "GooTypes.order() should hold the datapack type";
     private static final String MARKER_TYPE_LOST = "Ability block should reload with the type it saved";
     private static final BlockPos MARKER_POS = new BlockPos(1, 1, 1);
-    private static final Identifier CRYSTAL_SHATTER = Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_shatter");
+    private static final Identifier METAL_URCHIN = Identifier.fromNamespaceAndPath(Goo.MODID, "metal_urchin");
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
 
     private GooTypeRegistryTests() {
@@ -101,10 +101,10 @@ public final class GooTypeRegistryTests {
      */
     public static void abilityBlockReloadsType(GameTestHelper helper) {
         helper.setBlock(MARKER_POS.below(), Blocks.STONE);
-        AbilityDefinition crystalShatter = AbilityRegistry.of(helper.getLevel()).getAbility(CRYSTAL_SHATTER);
-        helper.assertTrue(crystalShatter != null, ABILITIES_REQUIRED);
-        AbilityImpact.land(helper.getLevel(), helper.absolutePos(MARKER_POS.below()), GooTypes.CRYSTAL, Direction.UP,
-                crystalShatter);
+        AbilityDefinition metalUrchin = AbilityRegistry.of(helper.getLevel()).getAbility(METAL_URCHIN);
+        helper.assertTrue(metalUrchin != null, ABILITIES_REQUIRED);
+        AbilityImpact.land(helper.getLevel(), helper.absolutePos(MARKER_POS.below()), GooTypes.METAL, Direction.UP,
+                metalUrchin);
         AbilityBlockEntity marker = helper.getBlockEntity(MARKER_POS, AbilityBlockEntity.class);
         CompoundTag saved = marker.getUpdateTag(helper.getLevel().registryAccess());
 
@@ -114,7 +114,7 @@ public final class GooTypeRegistryTests {
         try (var reporter = new ProblemReporter.ScopedCollector(restored.problemPath(), Goo.LOGGER)) {
             restored.loadCustomOnly(TagValueInput.create(reporter, helper.getLevel().registryAccess(), saved));
         }
-        helper.assertTrue(GooTypes.CRYSTAL.equals(restored.getGooType()), MARKER_TYPE_LOST);
+        helper.assertTrue(GooTypes.METAL.equals(restored.getGooType()), MARKER_TYPE_LOST);
         helper.succeed();
     }
 
@@ -127,11 +127,11 @@ public final class GooTypeRegistryTests {
      */
     public static void gloveSelectionReloadsItsType(GameTestHelper helper) {
         ItemStack glove = new ItemStack(GooItems.GOO_GLOVE.get());
-        GooGloveItem.setSelection(glove, GloveSelection.ofAbility(GooTypes.CRYSTAL, CRYSTAL_SHATTER));
+        GooGloveItem.setSelection(glove, GloveSelection.ofAbility(GooTypes.METAL, METAL_URCHIN));
         RegistryOps<Tag> ops = helper.getLevel().registryAccess().createSerializationContext(NbtOps.INSTANCE);
         Tag saved = ItemStack.CODEC.encodeStart(ops, glove).getOrThrow();
         GloveSelection selection = GooGloveItem.getSelection(ItemStack.CODEC.parse(ops, saved).getOrThrow());
-        helper.assertTrue(selection != null && GooTypes.CRYSTAL.equals(selection.getGooType()), SELECTION_TYPE_LOST);
+        helper.assertTrue(selection != null && GooTypes.METAL.equals(selection.getGooType()), SELECTION_TYPE_LOST);
         helper.succeed();
     }
 }

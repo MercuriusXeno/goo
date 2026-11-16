@@ -39,21 +39,21 @@ public final class BlockLandingTests {
     private static final BlockPos FACE_POS = WALL_POS.south();
     /** Marks a pending effect aimed at a block rather than an entity. */
     private static final int NO_ENTITY = -1;
-    private static final String CRYSTAL_SHATTER = "goo:crystal_shatter";
+    private static final String METAL_URCHIN = "goo:metal_urchin";
     private static final String MARKER_WRONG_ABILITY = "The landed marker does not carry the thrown ability";
 
     private BlockLandingTests() {
     }
 
     /**
-     * Lands one crystal goo on the stone wall's south face.
+     * Lands one metal goo on the stone wall's south face.
      *
      * @param helper    the gametest helper
      * @param abilityId the ability the throw names
      */
     private static void landOnWall(GameTestHelper helper, String abilityId) {
         helper.setBlock(WALL_POS, Blocks.STONE);
-        GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.CRYSTAL,
+        GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.METAL,
                 NO_ENTITY, helper.absolutePos(WALL_POS), Direction.SOUTH, abilityId));
     }
 
@@ -64,9 +64,9 @@ public final class BlockLandingTests {
      * @param helper the gametest helper
      */
     public static void abilityLandsItsMarker(GameTestHelper helper) {
-        landOnWall(helper, CRYSTAL_SHATTER);
+        landOnWall(helper, METAL_URCHIN);
         AbilityBlockEntity marker = helper.getBlockEntity(FACE_POS, AbilityBlockEntity.class);
-        helper.assertTrue(CRYSTAL_SHATTER.equals(marker.getAbilityId()), MARKER_WRONG_ABILITY);
+        helper.assertTrue(METAL_URCHIN.equals(marker.getAbilityId()), MARKER_WRONG_ABILITY);
         helper.succeed();
     }
 }
