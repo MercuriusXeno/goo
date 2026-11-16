@@ -45,6 +45,12 @@
   "block.goo.goo": "Goo",
 
   "fluid_type.goo.goo": "Goo",
+  "fluid_type.goo.molten_iron": "Molten Iron",
+  "block.goo.molten_iron": "Molten Iron",
+  "item.goo.molten_iron_bucket": "Molten Iron Bucket",
+  "block.goo.anorthosite": "Anorthosite",
+  "block.goo.regolith": "Regolith",
+  "block.goo.iron_core": "Iron Core",
 
   "block.goo.canister": "Canister",
   "block.goo.crucible": "Crucible",
@@ -164,6 +170,10 @@
   "goo.ability.crystal.prism.description": "Grows a prism where it lands, which reacts with other goo types.",
   "goo.ability.astral.meteo": "Meteo",
   "goo.ability.astral.meteo.description": "Calls a meteor down; it crashes through whatever stands above.",
+  "goo.ability.astral.gate": "Gate",
+  "goo.ability.astral.gate.description": "Look at the moon and it takes you to it; on the moon, look at the blue star to go home.",
+  "goo.ability.astral.gate.cost_mechanics": "1000 astral as your gaze fixes on the moon or the star.",
+  "goo.ability.astral.gate.refused": "Gate holds nothing there: look at the moon, or from the moon at the blue star",
   "goo.ability.astral.scry": "Scry",
   "goo.ability.astral.scry.description": "Hold to see the spaces around you.",
   "goo.ability.deep.shriek": "Shriek",

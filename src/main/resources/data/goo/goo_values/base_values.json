@@ -67,7 +67,9 @@
         "diamond": {"crystal": "12 $base", "opulent": "12 $wealth.opulent", "yore": "3 $base"},
         "mundane_trim": "7 $diamond + $mundane_block",
         "seed": "$log / 8",
-        "sculk": "$shroom + $deep + $xeno"
+        "sculk": "$shroom + $deep + $xeno",
+        "lunar": {"astral": "2 $base", "xeno": "2 $base"},
+        "iron_block": "81 $iron_nugget"
     },
     "_groups": {
         "copper": [
@@ -780,6 +782,10 @@
     "charcoal": {"blaze": "3 $fuel.blaze", "leaf": "$fuel.blaze"},
     "end_stone": {"ender": "$base", "astral": "$base"},
     "end_stone_bricks": "end_stone",
+    "goo:anorthosite": "$mundane_block + 9 $iron_nugget + $lunar",
+    "goo:regolith": "$mundane_block + $quartz + $lunar",
+    "goo:iron_core": "$iron_block + $lunar",
+    "goo:molten_iron_bucket": "$iron_block + 27 $iron_nugget + 5 $fuel + $lunar",
     "nether_wart": {"nether": "$base", "hex": "4 $base", "shroom": "2 $base"},
     "ender_pearl": {"ender": "12 $base"},
     "mossy_cobblestone": "moss_block + $mundane_block",
