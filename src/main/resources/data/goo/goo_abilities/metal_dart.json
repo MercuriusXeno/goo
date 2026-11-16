@@ -8,7 +8,7 @@
     "form_sound": { "id": "minecraft:item.axe.scrape", "volume": 0.8, "pitch": 1.5 },
     "revert_sound": { "id": "minecraft:item.axe.scrape", "volume": 0.8, "pitch": 1.0 } },
   "behaviors": [
-    { "type": "damage", "amount": 8.0, "source": "magic" }
+    { "type": "damage", "amount": 8.0, "source": "attack" }
   ],
   "tags": ["entity", "harmful"]
 }
