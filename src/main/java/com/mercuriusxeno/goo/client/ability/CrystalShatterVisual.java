@@ -36,7 +36,7 @@ import java.util.Map;
  * thin elongated pyramids, a sixth to a half of a block long and as wide as
  * a tenth of their length, each lying and spinning as its cell's seeded
  * layout draws it, at the place {@link ShatterCellShards} answers: rising
- * out of the goo and fading in while a living thing stands within 3 blocks
+ * out of the goo and fading in while a living thing stands within 4 blocks
  * of the cell, at rest whole above its surface within its column, and
  * sinking back once nothing living is near; a cell whose shards stand
  * hidden draws nothing. Each face reflects what its own ray off the camera's
@@ -231,7 +231,7 @@ public final class CrystalShatterVisual {
         }
         List<ShatterCellShards.CellShard> shards = ShatterCellShards.shardsOver(pos,
                 state.getValue(VolumeCellBlock.LAYERS), shown, cell.layout());
-        submitCell(poseStack, consumer, drawOf(pos, cell.layout(), shards, frame.clock(), frame.eye(),
+        submitCell(poseStack, consumer, drawOf(pos, cell.layout().shapes(), shards, frame.clock(), frame.eye(),
                 frame.probe()));
     }
 
