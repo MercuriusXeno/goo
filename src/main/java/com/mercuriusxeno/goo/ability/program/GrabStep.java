@@ -96,38 +96,37 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
             // decision diagnose-and-correct-grabs-left-click-throw: a throw spends the press until right click lets go
             return true;
         }
-        Entity taken = takenThisTick(player, context.hostAs(ChannelHost.class));
-        if (taken instanceof ItemEntity item) {
-            pullLocked(player, item);
-        } else if (taken != null) {
-            holdBody(player, taken);
+        Entity held = GrabEvents.heldBy(player);
+        if (held == null) {
+            held = takenThisTick(player, sentTarget(player, context.hostAs(ChannelHost.class)));
+        }
+        if (held != null) {
+            holdBody(player, held);
+        } else {
+            GrabEvents.lockedItemsOf(player).forEach(item -> pullLocked(player, item));
         }
         return true;
     }
 
     /**
-     * What the press takes this tick: the body it holds, else the item it
-     * locked, else the entity the glove outlined and the tick sent, so a
-     * locked item stays the press's item wherever the look goes.
+     * What a press holding no body takes of the entity this tick sent: an
+     * item joins the press's lock, and a mob is lifted only by a press that
+     * has locked no item; the lock stretches across the tick either way, so
+     * every locked item stays the press's wherever the look goes.
      * decision grabbed-item-locks-in-and-homes-on-your-current-position
+     * decision sweeping-grab-locks-every-item-the-highlight-passes
      *
-     * @param player  the channeling player
-     * @param channel the channel's host, carrying the tick's aim
-     * @return the entity taken, or null where the press takes none
+     * @param player the channeling player
+     * @param sent   the entity the glove outlined and Grab takes, or null
+     * @return the mob to lift, or null where the press lifts none
      */
-    private @Nullable Entity takenThisTick(ServerPlayer player, ChannelHost channel) {
-        Entity held = GrabEvents.heldBy(player);
-        if (held != null) {
-            return held;
+    private @Nullable Entity takenThisTick(ServerPlayer player, @Nullable Entity sent) {
+        boolean locksItems = GrabEvents.locksItems(player);
+        GrabEvents.lockItems(player, sent instanceof ItemEntity item ? List.of(item) : List.of());
+        if (sent == null || sent instanceof ItemEntity || locksItems) {
+            return null;
         }
-        ItemEntity locked = GrabEvents.lockedItemOf(player);
-        if (locked != null) {
-            return locked;
-        }
-        Entity sent = sentTarget(player, channel);
-        if (sent != null) {
-            GrabEvents.bindThrough(player, sent, aimedThrough(player, sent));
-        }
+        GrabEvents.bindThrough(player, sent, aimedThrough(player, sent));
         return sent;
     }
 

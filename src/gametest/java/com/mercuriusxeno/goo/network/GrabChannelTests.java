@@ -94,6 +94,114 @@ public final class GrabChannelTests {
                 GrabChannelTests::grabLockedItemHomesAfterTheLookLeaves);
         GooTestFunctions.registerTest(registrar, GRAB_LOCKED_ITEM_FLOATS_UNTIL_THE_GRACE_PASSES,
                 GrabChannelTests::grabLockedItemFloatsUntilTheGracePasses);
+        GooTestFunctions.registerTest(registrar, GRAB_SWEEP_LOCKS_EVERY_ITEM_PASSED,
+                GrabChannelTests::grabSweepLocksEveryItemPassed);
+        GooTestFunctions.registerTest(registrar, GRAB_LOCKED_ITEM_LEAVES_A_LATER_MOB_FREE,
+                GrabChannelTests::grabLockedItemLeavesALaterMobFree);
+        GooTestFunctions.registerTest(registrar, GRAB_HELD_MOB_LEAVES_A_LATER_ITEM_UNLOCKED,
+                GrabChannelTests::grabHeldMobLeavesALaterItemUnlocked);
+    }
+
+    private static final String GRAB_SWEEP_LOCKS_EVERY_ITEM_PASSED = "grab_sweep_locks_every_item_passed";
+    private static final String GRAB_LOCKED_ITEM_LEAVES_A_LATER_MOB_FREE = "grab_locked_item_leaves_a_later_mob_free";
+    private static final String GRAB_HELD_MOB_LEAVES_A_LATER_ITEM_UNLOCKED =
+            "grab_held_mob_leaves_a_later_item_unlocked";
+    /** A second item, two blocks south of ITEM_POS, the sweep's next stop. */
+    private static final Vec3 SWEPT_ITEM_POS = new Vec3(5.5, 1.2, 4.5);
+    /** A pig off the line to the item, within Grab's reach. */
+    private static final BlockPos PASSED_PIG_POS = new BlockPos(3, 1, 4);
+    /** A tick the locked item is still in flight at. */
+    private static final int IN_FLIGHT_TICK = 3;
+    /** How far a resting item may stir and still read as resting where it lay. */
+    private static final double RESTING = 0.1;
+    /** ITEM_POS laid on the bay's floor, so the item rests from its first tick rather than falls. */
+    private static final Vec3 ON_THE_FLOOR = new Vec3(5.5, 0, 2.5);
+
+    /**
+     * One press outlining two items of different kinds in turn locks both,
+     * and both land in the inventory though the look ends on neither
+     * (decision sweeping-grab-locks-every-item-the-highlight-passes).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabSweepLocksEveryItemPassed(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        ItemEntity first = restingItem(helper, ITEM_POS, Items.SLIME_BALL);
+        ItemEntity second = restingItem(helper, SWEPT_ITEM_POS, Items.BONE);
+        helper.runAfterDelay(1, () -> sweepTick(player, holdTick(player, first)));
+        helper.runAfterDelay(2, () -> sweepTick(player, holdTick(player, second)));
+        for (int tick = 3; tick <= HOMING_TICKS; tick++) {
+            helper.runAfterDelay(tick, () -> sweepTick(player, aimTick(player)));
+        }
+        helper.runAfterDelay(HOMING_TICKS + 1, () -> {
+            helper.assertTrue(!first.isAlive() && !second.isAlive()
+                            && player.getInventory().countItem(Items.SLIME_BALL) == 1
+                            && player.getInventory().countItem(Items.BONE) == 1,
+                    "Both swept items should land in the inventory, slime ball " + (first.isAlive() ? "stands" : "gone")
+                            + ", bone " + (second.isAlive() ? "stands " + helper.relativeVec(second.position())
+                            : "gone"));
+            leave(helper, player);
+        });
+    }
+
+    /**
+     * A press that locked an item leaves a pig it later outlines free, while
+     * the item homes and after it lands, until right click lets go
+     * (decision sweeping-grab-locks-every-item-the-highlight-passes).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabLockedItemLeavesALaterMobFree(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        ItemEntity item = restingItem(helper, ITEM_POS, Items.SLIME_BALL);
+        Pig pig = helper.spawn(EntityType.PIG, PASSED_PIG_POS);
+        helper.runAfterDelay(1, () -> sweepTick(player, holdTick(player, item)));
+        for (int tick = 2; tick <= HOMING_TICKS; tick++) {
+            helper.runAfterDelay(tick, () -> sweepTick(player, holdTick(player, pig)));
+        }
+        helper.runAfterDelay(IN_FLIGHT_TICK, () -> helper.assertTrue(item.isAlive() && !GrabEvents.isHeld(pig),
+                "The pig should stand free while the locked item homes, item "
+                        + (item.isAlive() ? "flies" : "gone") + ", pig " + (GrabEvents.isHeld(pig) ? "held" : "free")));
+        helper.runAfterDelay(HOMING_TICKS, () -> {
+            helper.assertTrue(!item.isAlive(), "The locked item should land in the inventory");
+            helper.assertTrue(!GrabEvents.isHeld(pig), "The pig should stand free after the locked item landed");
+            pig.discard();
+            leave(helper, player);
+        });
+    }
+
+    /**
+     * A press holding a pig leaves an item it later outlines unlocked, where
+     * it lay with its gravity on, and the pig still held
+     * (decision sweeping-grab-locks-every-item-the-highlight-passes).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabHeldMobLeavesALaterItemUnlocked(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        Pig pig = helper.spawn(EntityType.PIG, ZOMBIE_POS);
+        ItemEntity item = restingItem(helper, ON_THE_FLOOR, Items.SLIME_BALL);
+        holdFor(helper, player, pig, HOLD_TICKS);
+        AtomicReference<Vec3> lay = new AtomicReference<>();
+        helper.runAfterDelay(HOLD_TICKS, () -> lay.set(item.position()));
+        for (int tick = HOLD_TICKS + 1; tick <= HOLD_TICKS * 2; tick++) {
+            helper.runAfterDelay(tick, () -> GooStreamHandler.streamTick(player, holdTick(player, item)));
+        }
+        helper.runAfterDelay(HOLD_TICKS * 2, () -> {
+            helper.assertTrue(GrabEvents.isHeld(pig), "The pig should still be held");
+            helper.assertTrue(item.position().distanceTo(lay.get()) < RESTING && !item.isNoGravity(),
+                    "The item should rest where it lay with its gravity on, moved "
+                            + item.position().distanceTo(lay.get()) + ", gravity " + !item.isNoGravity());
+            item.discard();
+            pig.discard();
+            leave(helper, player);
+        });
+    }
+
+    /** One channel tick, then the player's own tick, which picks up an item on arrival. */
+    private static void sweepTick(ServerPlayer player, GooStreamPayload tick) {
+        GooStreamHandler.streamTick(player, tick);
+        player.doTick();
     }
 
     private static final String GRAB_LOCKED_ITEM_HOMES_AFTER_THE_LOOK_LEAVES =
@@ -175,9 +283,12 @@ public final class GrabChannelTests {
     }
 
     private static ItemEntity restingItem(GameTestHelper helper, Vec3 relative) {
+        return restingItem(helper, relative, Items.SLIME_BALL);
+    }
+
+    private static ItemEntity restingItem(GameTestHelper helper, Vec3 relative, net.minecraft.world.item.Item kind) {
         Vec3 itemAt = helper.absoluteVec(relative);
-        ItemEntity item = new ItemEntity(helper.getLevel(), itemAt.x, itemAt.y, itemAt.z,
-                new ItemStack(Items.SLIME_BALL));
+        ItemEntity item = new ItemEntity(helper.getLevel(), itemAt.x, itemAt.y, itemAt.z, new ItemStack(kind));
         item.setDeltaMovement(Vec3.ZERO);
         helper.getLevel().addFreshEntity(item);
         return item;
