@@ -138,7 +138,7 @@ public final class AimTracker {
      */
     public static void modifyEntityRenderState(Entity entity, EntityRenderState state) {
         // sweeping-grab-locks-every-item-the-highlight-passes: a locked item the aim left draws in the main frame
-        TargetResult.@Nullable Passage passage =entity == STATE.aimedMob() ? STATE.target().passage() : null;
+        TargetResult.@Nullable Passage passage = entity == STATE.aimedMob() ? STATE.target().passage() : null;
         int color = outlineIn(STATE.outlineFor(entity, GrabFlail::grabbed), PortalView.extractingView(),
                 PortalView.extractingGate(), passage);
         if (color != 0) {

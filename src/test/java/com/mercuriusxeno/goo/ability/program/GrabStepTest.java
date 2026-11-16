@@ -57,11 +57,6 @@ class GrabStepTest {
             HOLD_ACCELERATION, REFERENCE_VOLUME);
 
     /**
-     * A locked item gains speed tick over tick toward where the eye stands
-     * that tick, up to the pull speed
-     * (decision grabbed-item-locks-in-and-homes-on-your-current-position).
-     */
-    /**
      * Which neighbors join a targeted item's group: the same item within the
      * step's radius of it, whatever components the stacks carry, and none
      * while the player sneaks
@@ -219,6 +214,11 @@ class GrabStepTest {
         }
     }
 
+    /**
+     * A locked item gains speed tick over tick toward where the eye stands
+     * that tick, up to the pull speed
+     * (decision grabbed-item-locks-in-and-homes-on-your-current-position).
+     */
     @Nested
     class Homing {
 
