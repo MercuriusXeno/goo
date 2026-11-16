@@ -44,7 +44,7 @@ class AbilityPoseTableTest {
             Map.entry("frost_orb", ArmPose.SWUNG),
             Map.entry("glow_bulb", ArmPose.HELD_OUT),
             Map.entry("glow_lux", ArmPose.HELD_UP),
-            Map.entry("glow_wisps", ArmPose.HELD_UP),
+            Map.entry("glow_wisps", ArmPose.HELD_OUT),
             Map.entry("glow_laser", ArmPose.HELD_OUT),
             Map.entry("hex_charm", ArmPose.RESTING),
             Map.entry("hex_drain", ArmPose.HELD_OUT),

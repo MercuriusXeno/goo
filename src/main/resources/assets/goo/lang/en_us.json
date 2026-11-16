@@ -118,6 +118,7 @@
   "block.goo.kinetic_slick": "Slick",
   "block.goo.blaze_molten": "Molten",
   "block.goo.deep_host": "Host",
+  "block.goo.glow_wisps": "Wisps",
 
   "goo.badge.world": "World",
   "goo.badge.mob": "Mob",
@@ -218,7 +219,8 @@
   "goo.ability.glow.lux": "Lux",
   "goo.ability.glow.lux.description": "Grants night vision, and mobs you look at glow.",
   "goo.ability.glow.wisps": "Wisps",
-  "goo.ability.glow.wisps.description": "Hold to flood the dark air around you with fading wisps of light.",
+  "goo.ability.glow.wisps.cost_mechanics": "Costs %s per block of Wisps laid, a fifteenth of it per layer.",
+  "goo.ability.glow.wisps.description": "Held stream sprays Wisps, a golden goo that shines brighter the deeper it lies.",
   "block.goo.wisp": "Wisp",
   "block.goo.light_rail": "Light Rail",
   "goo.ability.hex.charm": "Charm",

@@ -82,7 +82,8 @@ class VolumeCellLookTest {
         return Stream.of(new Cell("slime_coat", CellBinding.SLIME, "goo:fluid/weird_fluid", 0x5FAE4C),
                 new Cell("kinetic_slick", CellBinding.SLICK, "goo:fluid/kinetic_fluid", 0x3C6CFF),
                 new Cell("blaze_molten", CellBinding.MOLTEN, "goo:fluid/blaze_fluid", 0xFF750F),
-                new Cell("deep_host", CellBinding.HOST, "goo:fluid/deep_fluid", 0x16303E));
+                new Cell("deep_host", CellBinding.HOST, "goo:fluid/deep_fluid", 0x16303E),
+                new Cell("glow_wisps", CellBinding.WISPS, "goo:fluid/glow_fluid", 0xFFE60F));
     }
 
     @Nested

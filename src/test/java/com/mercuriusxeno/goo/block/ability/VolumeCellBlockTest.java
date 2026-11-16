@@ -278,6 +278,32 @@ class VolumeCellBlockTest {
         }
     }
 
+    /**
+     * A broken Wisps cell gives back glow goo, each layer a fifteenth of
+     * Wisps' cost as glow_wisps.json ships it
+     * (decision glow-world-goo-is-named-wisps-and-takes-the-holds-place).
+     */
+    @Nested
+    class WispsReclaim {
+
+        private static final int LAYERS = 9;
+
+        @Test
+        void wispsIsGlowGooLaidByGlowsWisps() {
+            assertEquals(List.of(GooTypes.GLOW, AbilityJson.idOf("glow_wisps.json")),
+                    List.of(CellBinding.WISPS.gooType(), CellBinding.WISPS.layingAbility()));
+        }
+
+        @Test
+        void aBrokenWispsCellDropsGlowGooAtFifteenthsOfWispsCost() {
+            GooFraction cost = AbilityJson.decode("glow_wisps").cost().exactIn(GooValueTable.EMPTY);
+
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.GLOW,
+                            cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.WISPS, LAYERS, cost));
+        }
+    }
+
     private static JsonObject classpathJson(String path) throws IOException {
         try (InputStream in = VolumeCellBlockTest.class.getResourceAsStream(path)) {
             assertTrue(in != null, path + " is not on the classpath");
