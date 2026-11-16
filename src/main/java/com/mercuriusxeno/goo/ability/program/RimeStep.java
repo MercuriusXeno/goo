@@ -45,7 +45,7 @@ public record RimeStep(int reach, int chillTicks, int freezeTicks, float damage,
     private static final int MOST_FREEZE_TICKS = 140;
     /** The most freeze damage one cadence deals: a whole player's health. */
     private static final float MOST_DAMAGE = 20.0F;
-    /** The farthest a Rime cell's reach runs, bounding the blocks each pass and each thaw check reads. */
+    /** The farthest a Rime cell's reach runs, bounding the blocks each pass reads. */
     private static final int MOST_REACH = 8;
     /** The longest wait between a Rime cell's passes: a minute. */
     private static final int MOST_CHILL_TICKS = 1200;

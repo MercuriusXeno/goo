@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:rime_ice_thaws_once_no_rime_stands_in_reach",
+  "function": "goo:rime_ice_and_obsidian_stay_frozen_once_the_rime_is_gone",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 120,
+  "max_ticks": 160,
   "setup_ticks": 0,
   "required": true
 }
