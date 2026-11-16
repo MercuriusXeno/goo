@@ -116,7 +116,8 @@ public final class VacuumTests {
     private static final double SPEED_SLACK = 1e-6;
     private static final String STARTS_FAST = "The stick's first pulled tick should move it toward the eye no"
             + " faster than %.3f, speeds %s";
-    private static final String NOT_SPEEDING_UP = "The stick should speed toward the eye tick over tick, speeds %s";
+    private static final String NOT_SPEEDING_UP = "The stick should speed toward the eye tick over tick until the"
+            + " top speed, speeds %s";
     private static final String GRAVITY_ON_TICK = "tick %d: stick in the cone no gravity %b, stick behind no gravity %b";
     private static final String GRAVITY_WRONG = "The stick in the cone should fly with its gravity off and the stick"
             + " behind keep it: %s";
@@ -552,13 +553,15 @@ public final class VacuumTests {
         ItemEntity stick = lieAt(helper, ITEM_FAR);
         ServerPlayer vacuumer = vacuumer(helper);
         double acceleration = vacuumPullStep(helper).itemAcceleration();
+        double topSpeed = vacuumPullStep(helper).itemTopSpeed();
         List<Double> speeds = new ArrayList<>();
         holdVacuum(helper, vacuumer, CLOSING_TICKS + 1, held -> speeds.add(speedTowardTheEye(stick, vacuumer)));
         helper.runAfterDelay(CLOSING_TICKS + 2, () -> {
             helper.getLevel().getServer().getPlayerList().remove(vacuumer);
             helper.assertTrue(speeds.getFirst() <= acceleration + SPEED_SLACK,
                     String.format(STARTS_FAST, acceleration, speeds));
-            for (int i = 1; i < speeds.size(); i++) {
+            // the speed rises until the pull's top speed holds it
+            for (int i = 1; i < speeds.size() && speeds.get(i - 1) < topSpeed - SPEED_SLACK; i++) {
                 helper.assertTrue(speeds.get(i) > speeds.get(i - 1), String.format(NOT_SPEEDING_UP, speeds));
             }
             helper.succeed();
