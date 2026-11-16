@@ -55,6 +55,13 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
     public static final BlendPalette HOST_DEEP_TEALS = new BlendPalette(
             0x29 / 255f, 0xDF / 255f, 0xEB / 255f, 0x0F / 255f, 0x24 / 255f, 0x30 / 255f);
     /**
+     * Wisps' spray drips, from glow's bright yellow, FFFF28, to its wheel
+     * gold, FFD700, the two the glow goo type's definition names.
+     * glow-world-goo-is-named-wisps-and-takes-the-holds-place
+     */
+    public static final BlendPalette WISPS_GLOW_GOLDS = new BlendPalette(
+            0xFF / 255f, 0xFF / 255f, 0x28 / 255f, 0xFF / 255f, 0xD7 / 255f, 0x00 / 255f);
+    /**
      * Leech's spray drips, from hex's bright violet, 8373C8, to its wheel
      * violet, 5B4BA0, the two the hex goo type's definition names.
      * leech-goo-slows-what-it-catches-and-the-spirits-damage-it

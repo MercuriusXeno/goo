@@ -60,6 +60,7 @@ import com.mercuriusxeno.goo.client.ber.style.PulsePrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.VerdantPrismStyle;
 import com.mercuriusxeno.goo.client.entity.BlockHunkRenderer;
 import com.mercuriusxeno.goo.client.entity.CompressionSphereRenderer;
+import com.mercuriusxeno.goo.client.entity.DriftingWispRenderer;
 import com.mercuriusxeno.goo.client.entity.EldritchMonstrosityRenderer;
 import com.mercuriusxeno.goo.client.entity.MeteorRenderer;
 import com.mercuriusxeno.goo.client.entity.NectarPileRenderer;
@@ -268,6 +269,8 @@ public final class GooClientSetup {
         event.registerEntityRenderer(EntityType.ITEM, GooItemEntityRenderer::new);
         event.registerEntityRenderer(GooEntities.COMPRESSION_SPHERE.get(), CompressionSphereRenderer::new);
         event.registerEntityRenderer(GooEntities.NECTAR_PILE.get(), NectarPileRenderer::new);
+        // wisps-travel-as-entities-then-settle-as-glowy-air-blocks: a drifting wisp draws as a settled wisp's mote
+        event.registerEntityRenderer(GooEntities.DRIFTING_WISP.get(), DriftingWispRenderer::new);
         event.registerEntityRenderer(GooEntities.BLOCK_HUNK.get(), BlockHunkRenderer::new);
         // orb-carries-a-swirling-nova: RollingGooRenderer draws the ball and its swirl from the level stage
         event.registerEntityRenderer(GooEntities.ROLLING_GOO.get(), NoopRenderer::new);
@@ -311,7 +314,7 @@ public final class GooClientSetup {
     public static void registerBlockTintSources(RegisterColorHandlersEvent.BlockTintSources event) {
         for (VolumeCellBlock cell : List.of(GooBlocks.SLIME_COAT.get(), GooBlocks.KINETIC_SLICK.get(),
                 GooBlocks.BLAZE_MOLTEN.get(), GooBlocks.CRYSTAL_SHATTER.get(), GooBlocks.DEEP_HOST.get(),
-                GooBlocks.HEX_LEECH.get())) {
+                GooBlocks.GLOW_WISPS.get(), GooBlocks.HEX_LEECH.get())) {
             event.register(List.of(new VolumeCellTint(cell.binding().gooType(), ClientGooTypes::color)), cell);
         }
     }
@@ -390,6 +393,7 @@ public final class GooClientSetup {
      * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
      * shatter-is-splattered-goo-and-shards-form-over-the-splatters
      * host-is-a-sculky-slime-that-sculk-spreads-eagerly-through
+     * glow-world-goo-is-named-wisps-and-takes-the-holds-place
      * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
      *
      * @param event the event instance
@@ -406,6 +410,8 @@ public final class GooClientSetup {
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.SHATTER_CRYSTAL_BLUES));
         event.registerSpriteSet(GooParticles.HOST_SPRAY_DRIP.get(),
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.HOST_DEEP_TEALS));
+        event.registerSpriteSet(GooParticles.WISPS_SPRAY_DRIP.get(),
+                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.WISPS_GLOW_GOLDS));
         event.registerSpriteSet(GooParticles.LEECH_SPRAY_DRIP.get(),
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.LEECH_HEX_VIOLETS));
     }

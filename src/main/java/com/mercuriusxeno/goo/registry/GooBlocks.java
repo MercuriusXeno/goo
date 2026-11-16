@@ -251,6 +251,27 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
+     * Wisps: the volume cell bound to Glow's goo, the golden goo Wisps sprays
+     * onto a block's top, one to fifteen layers, ordinary ground underfoot,
+     * shining at a light level equal to its layers, dropping the glow goo its
+     * layers cost through VolumeCellBlock.getDrops, no loot table
+     * (decisions glow-world-goo-is-named-wisps-and-takes-the-holds-place,
+     * wisps-goo-glows-at-a-light-level-equal-to-its-layers,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VolumeCellBlock> GLOW_WISPS = BLOCKS.registerBlock(
+            "glow_wisps", properties -> new VolumeCellBlock(properties, CellBinding.WISPS),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.GOLD)
+                    .friction(CellBinding.WISPS.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY)
+                    .lightLevel(state -> state.getValue(VolumeCellBlock.LAYERS)));
+    /**
      * Leech: the volume cell bound to Hex's goo, the violet goo Leech sprays
      * onto a block's top, one to fifteen layers, ordinary ground underfoot
      * that slows what it catches and sounds as soul sand does, dropping the
