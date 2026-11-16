@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.hex;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.network.LeechPayload;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -38,7 +39,7 @@ public final class LifetapEvents {
      */
     @SubscribeEvent
     public static void onDamageDealt(LivingDamageEvent.Post event) {
-        if (!(event.getSource().getEntity() instanceof ServerPlayer attacker)
+        if (!(GooHitCredit.causeOf(event.getSource()) instanceof ServerPlayer attacker)
                 || !attacker.hasData(GooAttachments.LIFETAP)) {
             return;
         }
