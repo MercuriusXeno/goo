@@ -53,6 +53,10 @@ class SlimeCoreQuadsTest {
     private static final Identifier BLOCK_ATLAS = Identifier.withDefaultNamespace("textures/atlas/blocks.png");
     /** A goo type's highlight, the shell's tint, which the core never takes. */
     private static final int HIGHLIGHT = 0x3A7F22;
+    /** The core's alpha, 50% opaque. */
+    private static final int CORE_ALPHA = 0x80;
+    /** The layers' alpha, 30% opaque. */
+    private static final int SHELL_ALPHA = 0x4C;
 
     /**
      * The material SlimeCoreModel bakes a core with, over a fluid sprite on the block atlas.
@@ -105,7 +109,7 @@ class SlimeCoreQuadsTest {
 
         /** slime-core-draws-translucent-at-the-shells-opacity */
         @Test
-        void theCoreDrawsOnTheTranslucentLayerAtTheShellsAlphaFacingEverySide() {
+        void theCoreDrawsOnTheTranslucentLayerAtHalfOpacityFacingEverySide() {
             List<BakedQuad> quads = loneCore(15, mock(TextureAtlasSprite.class));
             Set<Direction> faces = quads.stream().map(BakedQuad::direction)
                     .collect(Collectors.toCollection(() -> EnumSet.noneOf(Direction.class)));
@@ -114,10 +118,12 @@ class SlimeCoreQuadsTest {
             assertEquals(EnumSet.allOf(Direction.class), faces);
             for (BakedQuad quad : quads) {
                 assertEquals(ChunkSectionLayer.TRANSLUCENT, quad.materialInfo().layer());
-                assertEquals(ARGB.color(VolumeCellTint.SHELL_ALPHA, 0xFFFFFF),
+                assertEquals(ARGB.color(CORE_ALPHA, 0xFFFFFF),
                         tints.get(quad.materialInfo().tintIndex()).color(mock(BlockState.class)),
-                        "the core draws at the shell's alpha in its sprite's own colors");
+                        "the core draws at half opacity in its sprite's own colors");
             }
+            assertEquals(ARGB.color(SHELL_ALPHA, HIGHLIGHT), tints.getFirst().color(mock(BlockState.class)),
+                    "the layers draw at 30% opacity in the goo's highlight");
         }
     }
 

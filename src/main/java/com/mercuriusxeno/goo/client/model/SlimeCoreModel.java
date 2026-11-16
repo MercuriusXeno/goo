@@ -36,7 +36,7 @@ import java.util.List;
  * slime-core-keeps-a-two-layer-gap-and-grows-with-fill
  *
  * @param shell the layered shell the cell's layers draw as
- * @param core  the core's material: the shell's fluid sprite at the shell's alpha, on the translucent layer
+ * @param core  the core's material: the shell's fluid sprite at 50% opacity, on the translucent layer
  */
 public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core) implements DynamicBlockStateModel {
 
@@ -75,7 +75,7 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core)
 
     /**
      * The material a cell's core draws with: the shell's own fluid sprite on
-     * the translucent layer, under the core's tint, the shell's alpha in the
+     * the translucent layer, under the core's tint, 50% opaque in the
      * sprite's own colors.
      * slime-core-draws-translucent-at-the-shells-opacity
      *
