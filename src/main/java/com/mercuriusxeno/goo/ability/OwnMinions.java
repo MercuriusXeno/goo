@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.hex.Charmed;
 import com.mercuriusxeno.goo.ability.zoo.Rallied;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.world.entity.Entity;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -46,6 +47,34 @@ public final class OwnMinions {
         Rallied rallied = mob.hasData(GooAttachments.RALLIED) ? mob.getData(GooAttachments.RALLIED) : Rallied.NONE;
         Charmed charmed = mob.hasData(GooAttachments.CHARMED) ? mob.getData(GooAttachments.CHARMED) : Charmed.NONE;
         return ownMinionOf(caster.getUUID(), rallied, charmed);
+    }
+
+    /**
+     * Whom a minion fights for: its rallier ahead of its charmer, since a
+     * peaceful mob, the only kind a rally takes, strikes through the rally.
+     * minion-hit-marks-the-struck-mob-as-its-players
+     * charmed-mobs-take-the-rallied-kill-rule
+     *
+     * @param rallied the rally the mob holds, {@link Rallied#NONE} for none
+     * @param charmed the charm the mob holds, {@link Charmed#NONE} for none
+     * @return the rallier's or the charmer's uuid, empty for a mob holding neither
+     */
+    public static Optional<UUID> ownerOf(Rallied rallied, Charmed charmed) {
+        if (!Rallied.NONE.caster().equals(rallied.caster())) {
+            return Optional.of(rallied.caster());
+        }
+        return Charmed.NONE.charmer().equals(charmed.charmer()) ? Optional.empty() : Optional.of(charmed.charmer());
+    }
+
+    /**
+     * Whom an entity fights for, read off its rally and its charm.
+     *
+     * @param mob the entity asked about
+     * @return the rallier's or the charmer's uuid, empty for an entity holding neither
+     */
+    public static Optional<UUID> ownerOf(Entity mob) {
+        return ownerOf(mob.hasData(GooAttachments.RALLIED) ? mob.getData(GooAttachments.RALLIED) : Rallied.NONE,
+                mob.hasData(GooAttachments.CHARMED) ? mob.getData(GooAttachments.CHARMED) : Charmed.NONE);
     }
 
     /**
