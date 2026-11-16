@@ -28,7 +28,7 @@ import java.util.Collection;
 
 /**
  * Renders goo flights as multi-layer animated projectiles.
- * Core: opaque fluid cuboid with pulsing width.
+ * Core: fluid cuboid with pulsing width, 50% opaque.
  * Shell: translucent cuboid for slime effect.
  * Tail: billboarded sprite quads behind the velocity vector.
  * Particles: drip sparks and color-tinted bubbles shed along the trail.
@@ -37,17 +37,29 @@ import java.util.Collection;
 public final class GooFlightRenderer {
 
     /**
-     * Half-width of the core cuboid (~2.5 pixels).
-     */
-    private static final float CORE_HW = 0.08f;
-    /**
      * Half-width of the shell cuboid (~5 pixels), the blob's size a morph starts from.
      */
     public static final float SHELL_HW = 0.15f;
     /**
-     * Shell alpha (translucent).
+     * The core's share of its shell on each axis, the vanilla slime's 6 px
+     * inner cube in its 8 px outer one.
+     * goo-cuboid-core-is-three-quarters-of-its-shell
      */
-    private static final int SHELL_ALPHA = 0x60;
+    private static final float CORE_SHARE_OF_SHELL = 0.75f;
+    /**
+     * Half-width of the core cuboid at rest, between pulses.
+     */
+    private static final float CORE_HW = SHELL_HW * CORE_SHARE_OF_SHELL;
+    /**
+     * Shell alpha, 30% opaque.
+     * slime-core-draws-translucent-at-the-shells-opacity
+     */
+    private static final int SHELL_ALPHA = 0x4C;
+    /**
+     * The core's color: 50% opaque over its fluid sprite's own colors.
+     * slime-core-draws-translucent-at-the-shells-opacity
+     */
+    private static final int CORE_COLOR = ARGB.color(0x80, 0xFFFFFF);
 
     /**
      * Tail quad length behind the goo.
@@ -86,9 +98,10 @@ public final class GooFlightRenderer {
 
 
     /**
-     * Billboard half-width matches the goo core size.
+     * Billboard half-width, its own size: the core's widening reaches cuboid cores alone.
+     * goo-cuboid-core-is-three-quarters-of-its-shell
      */
-    private static final float BEAM_HW = CORE_HW;
+    private static final float BEAM_HW = 0.08f;
     /**
      * ARGB color for the beam center (white-hot).
      */
@@ -264,7 +277,7 @@ public final class GooFlightRenderer {
      */
     public static void renderBlob(PoseStack poseStack, MultiBufferSource buffers,
                                   ResourceKey<GooTypeDefinition> type, float gameTime, BlobShape shape) {
-        emitCore(poseStack.last(), buffers.getBuffer(GooSubmitter.solidOnBlockAtlas()), type, gameTime, shape);
+        emitCore(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()), type, gameTime, shape);
         emitShell(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()), type, shape);
     }
 
@@ -278,8 +291,7 @@ public final class GooFlightRenderer {
      */
     private static void renderCore(PoseStack poseStack, MultiBufferSource buffers,
                                    ResourceKey<GooTypeDefinition> type, float gameTime) {
-        emitCore(poseStack.last(), buffers.getBuffer(GooSubmitter.solidOnBlockAtlas()), type, gameTime,
-                BlobShape.CUBE);
+        emitCore(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()), type, gameTime, BlobShape.CUBE);
     }
 
     /**
@@ -295,15 +307,18 @@ public final class GooFlightRenderer {
     }
 
     /**
-     * Emits the blob's core: an opaque fluid cuboid with sin-pulsing size,
+     * Emits the blob's core: a fluid cuboid 3/4 of its shell at rest,
+     * 50% opaque in its sprite's own colors, with sin-pulsing size,
      * fullbright, about the pose's origin, in the shell's shape so a pressed
      * shell keeps its core inside it. The consumer takes
-     * {@link GooSubmitter#solidOnBlockAtlas()} geometry; the glove's palm blob
-     * submits through this too (decision palm-blob-draws-as-the-charge-blob).
+     * {@link GooSubmitter#renderType()} geometry, submitted ahead of the
+     * shell; the glove's palm blob submits through this too (decision
+     * palm-blob-draws-as-the-charge-blob).
      * palm-blob-rests-pressed-and-stands-into-the-cube
+     * slime-core-draws-translucent-at-the-shells-opacity
      *
      * @param pose     the pose at the blob's center
-     * @param c        a consumer of the solid block atlas render type
+     * @param c        a consumer of the translucent goo render type
      * @param type     the goo type
      * @param gameTime the level game time in ticks, driving the pulse
      * @param shape    the blob's box against a flight's cube
@@ -311,8 +326,28 @@ public final class GooFlightRenderer {
     public static void emitCore(PoseStack.Pose pose, VertexConsumer c,
                                 ResourceKey<GooTypeDefinition> type, float gameTime, BlobShape shape) {
         float pulse = 1.0f + CORE_PULSE_AMP * Mth.sin(gameTime * CORE_PULSE_SPEED);
+        emitCoreScaled(pose, c, type, shape.scaled(CORE_HW * pulse));
+    }
+
+    /**
+     * Emits the blob's core still at its rest size, 3/4 of its shell: the
+     * goo item's core, which breathes no pulse.
+     * goo-cuboid-core-is-three-quarters-of-its-shell
+     *
+     * @param pose  the pose at the blob's center
+     * @param c     a consumer of the translucent goo render type
+     * @param type  the goo type
+     * @param shape the blob's box against a flight's cube
+     */
+    public static void emitStillCore(PoseStack.Pose pose, VertexConsumer c,
+                                     ResourceKey<GooTypeDefinition> type, BlobShape shape) {
+        emitCoreScaled(pose, c, type, shape.scaled(CORE_HW));
+    }
+
+    private static void emitCoreScaled(PoseStack.Pose pose, VertexConsumer c,
+                                       ResourceKey<GooTypeDefinition> type, BlobShape halves) {
         RenderContext ctx = new RenderContext(pose, c, GooSubmitter.fullbrightLight());
-        ctx.emitBox(boxAbout(shape.scaled(CORE_HW * pulse)), spriteToUv(type));
+        ctx.emitBox(CORE_COLOR, boxAbout(halves), spriteToUv(type));
     }
 
     /**
@@ -610,7 +645,7 @@ public final class GooFlightRenderer {
      * @param camPos  camera world position
      * @return the lateral offset, or null if degenerate
      */
-    private static @Nullable Vec3 computeGlowLateral(Vec3 tailPos,
+    static @Nullable Vec3 computeGlowLateral(Vec3 tailPos,
                                                      Vec3 beamVec, Vec3 camPos) {
         Vec3 beamMid = tailPos.add(beamVec.scale(BEAM_MIDPOINT));
         Vec3 toCamera = camPos.subtract(beamMid);

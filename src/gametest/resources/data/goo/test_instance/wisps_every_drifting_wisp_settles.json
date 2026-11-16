@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:wisps_every_drifting_wisp_settles",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 600,
+  "setup_ticks": 0,
+  "required": true
+}

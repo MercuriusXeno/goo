@@ -79,13 +79,24 @@ if ! "$cygwin" && ! "$darwin" && ! "$nonstop" ; then
     esac
 fi
 
-# Collect all arguments for the java command, stracks://developer.android.com/reference/java/lang/Runtime#addShutdownHook(java.lang.Thread)
 # For Cygwin or MSYS, switch paths to Windows format before running java
 if "$cygwin" || "$msys" ; then
     APP_HOME=$( cygpath --path --mixed "$APP_HOME" )
     CLASSPATH=$( cygpath --path --mixed "$CLASSPATH" )
     JAVACMD=$( cygpath --unix "$JAVACMD" )
 fi
+
+# Every run takes one of the machine's build slots before Gradle starts, waiting in the queue while all are held
+# (tools/build-slots.ps1). This shell holds the slot, and exec below makes it the Gradle run, so the slot frees
+# when the run ends, however it ends. MSYS and Cygwin give the shell a Windows process id beside its own.
+# Decision every-gradle-run-reserves-one-of-four-slots
+# Decision dev-instance-holds-its-slot-until-the-client-closes
+slot_holder=$$
+if [ -r "/proc/$$/winpid" ]; then slot_holder=$( cat "/proc/$$/winpid" ); fi
+# A caller already holding a slot for this run, as tools/gate.ps1 does, names itself in BUILD_SLOT_HOLDER, and the
+# reserve answers with the slot it holds. Decision gate-prints-waiting-then-running-for-its-gradle-leg
+if [ -n "$BUILD_SLOT_HOLDER" ]; then slot_holder=$BUILD_SLOT_HOLDER; fi
+BUILD_SLOT_RUNS="gradlew $*" pwsh -NoProfile -File "$APP_HOME/tools/build-slots.ps1" reserve -HolderPid "$slot_holder" || exit
 
 # Collect all arguments for the java command:
 #   * DEFAULT_JVM_OPTS, JAVA_OPTS, and GRADLE_OPTS environment variables

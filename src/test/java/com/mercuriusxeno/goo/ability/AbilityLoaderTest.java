@@ -11,12 +11,12 @@ import com.mercuriusxeno.goo.ability.program.AirbornStep;
 import com.mercuriusxeno.goo.ability.program.ChannelHost;
 import com.mercuriusxeno.goo.ability.program.CharmStep;
 import com.mercuriusxeno.goo.ability.program.CoatStep;
-import com.mercuriusxeno.goo.ability.program.CoolLavaStep;
 import com.mercuriusxeno.goo.ability.program.EntityFilter;
 import com.mercuriusxeno.goo.ability.program.GhostTrailStep;
 import com.mercuriusxeno.goo.ability.program.GluttonyStep;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
+import com.mercuriusxeno.goo.ability.program.MoltenStep;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
@@ -122,6 +122,18 @@ class AbilityLoaderTest {
             Identifier fileId = AbilityJson.idOf(file.getFileName().toString());
             assertEquals(fileId, scanned.get(fileId).id(), file.getFileName().toString());
         }
+    }
+
+    /**
+     * Molten ships its melts_into map: lava from the meltable stone tag, molten iron from iron core alone (decision
+     * molten-melts-by-a-meltable-group-and-its-parallel-melted-group).
+     */
+    @Test
+    void shippedMoltenMeltsStoneToLavaAndIronCoreToMoltenIron() {
+        AbilityDefinition molten = shippedById().get(Identifier.parse("goo:blaze_molten"));
+        assertEquals(Map.of(Identifier.parse("minecraft:lava"), List.of("#goo:meltable"),
+                        Identifier.parse("goo:molten_iron"), List.of("goo:iron_core")),
+                MoltenStep.in(molten.behaviors()).orElseThrow().meltsInto());
     }
 
     /**
@@ -674,13 +686,14 @@ class AbilityLoaderTest {
         }
 
         @Test
-        void goopStreamsCoolingLavaAndCoatingBlocksInTheBlockPass() {
+        void goopStreamsCoatingBlocksAloneInTheBlockPass() {
             AbilityDefinition goop = AbilityJson.decode("weird_goop");
             List<Step> blockPass = ChannelHost.passSteps(goop.behaviors(), true);
 
             assertEquals(DeliveryKind.STREAM, goop.delivery().kind());
             // coat-is-a-green-slime-film-over-the-blocks-own-texture
-            assertEquals(List.of(CoolLavaStep.class, CoatStep.class), blockPass.stream().map(Object::getClass).toList());
+            // goop-stops-turning-lava-into-magma
+            assertEquals(List.of(CoatStep.class), blockPass.stream().map(Object::getClass).toList());
             assertTrue(ProgramBehavior.serves(blockPass, HostKind.PLAYER), "the channeling player runs the block pass");
         }
 

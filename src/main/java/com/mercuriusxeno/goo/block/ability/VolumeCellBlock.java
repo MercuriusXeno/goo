@@ -8,6 +8,8 @@ import com.mercuriusxeno.goo.ability.program.MoltenStep;
 import com.mercuriusxeno.goo.ability.program.ShatterStep;
 import com.mercuriusxeno.goo.ability.program.SlickStep;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.WispShed;
+import com.mercuriusxeno.goo.ability.program.WispsStep;
 import com.mercuriusxeno.goo.block.ability.SlimeFlow.Side;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.item.GooStacks;
@@ -19,8 +21,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.InsideBlockEffectApplier;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -316,8 +320,10 @@ public class VolumeCellBlock extends Block {
 
     /**
      * Whether a cell can hold this world goo: the block under it has a
-     * sturdy top, or, for a goo pooling on lava, is a lava source.
+     * sturdy top, or, for a goo pooling on lava, is the source of a lava
+     * type, lava or the molten iron Molten melts iron core into.
      * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+     * molten-melts-by-a-meltable-group-and-its-parallel-melted-group
      *
      * @param level the level
      * @param pos   the cell
@@ -327,7 +333,8 @@ public class VolumeCellBlock extends Block {
         BlockPos under = pos.below();
         BlockState footing = level.getBlockState(under);
         return footing.isFaceSturdy(level, under, Direction.UP)
-                || binding.liesOnLava() && footing.is(Blocks.LAVA) && footing.getFluidState().isSource();
+                || binding.liesOnLava() && footing.getFluidState().is(FluidTags.LAVA)
+                && footing.getFluidState().isSource();
     }
 
     @Override
@@ -394,16 +401,36 @@ public class VolumeCellBlock extends Block {
     /**
      * Pours one layer into the side the flow rule picks, which places the
      * cell anew and so schedules the next pour after its goo type's
-     * viscosity's ticks, until the cell stands level.
+     * viscosity's ticks, until the cell stands level; a level cell whose
+     * laying ability sheds wisps sheds one toward the dark.
      * slime-is-a-layered-cell-that-levels-out
      * spread-decreases-the-cell-it-leaves
+     * wisps-goo-sheds-a-wisp-toward-nearby-dark
      */
     @Override
     protected void tick(@NonNull BlockState state, @NonNull ServerLevel level, @NonNull BlockPos pos,
                         @NonNull RandomSource random) {
-        if (!meltBelow(level, pos, state)) {
-            pourOnce(level, pos, state);
+        if (!meltBelow(level, pos, state) && !pourOnce(level, pos, state)) {
+            shedWisp(level, pos, state);
         }
+    }
+
+    /**
+     * Sheds a wisp from a level cell whose laying ability names a wisps
+     * step, and schedules the next shed after the step's cadence. The next
+     * shed is scheduled first: a layer the shed spends places the cell anew,
+     * whose pour tick then waits on the shed's.
+     * wisps-goo-sheds-a-wisp-toward-nearby-dark
+     *
+     * @param level the level
+     * @param pos   the cell
+     * @param state the cell's state
+     */
+    private void shedWisp(ServerLevel level, BlockPos pos, BlockState state) {
+        WispsStep.in(layingProgram(level)).ifPresent(wisps -> {
+            level.scheduleTick(pos, this, wisps.shedEvery());
+            WispShed.shed(level, pos, state, wisps);
+        });
     }
 
     /**
@@ -422,8 +449,8 @@ public class VolumeCellBlock extends Block {
      */
     private boolean meltBelow(ServerLevel level, BlockPos pos, BlockState state) {
         Optional<MoltenStep> molten = MoltenStep.in(layingProgram(level));
-        int spent = molten.map(step -> MoltenMelt.layersSpent(state.getValue(LAYERS),
-                level.getBlockState(pos.below()), step.meltable())).orElse(0);
+        Optional<BlockState> melted = molten.flatMap(step -> step.meltedFormOf(level.getBlockState(pos.below())));
+        int spent = MoltenMelt.layersSpent(state.getValue(LAYERS), melted.isPresent());
         if (spent == 0) {
             coolBelow(level, pos);
             return false;
@@ -440,23 +467,26 @@ public class VolumeCellBlock extends Block {
             level.scheduleTick(pos, this, (int) left);
         } else {
             heats.end(level, pos);
-            meltInto(level, pos, state, spent);
+            meltInto(level, pos, state, spent, melted.orElseThrow());
         }
         return true;
     }
 
     /**
-     * Turns the block under a cell into a lava source, the cell resting on it
-     * lower by the layers the melt spends and gone where that empties it.
+     * Turns the block under a cell into the source block it melts into, lava
+     * for stone and molten iron for iron core, the cell resting on it lower by
+     * the layers the melt spends and gone where that empties it.
      * molten-spends-three-layers-per-stone-block-priced-at-lava-minus-mundane-block
+     * molten-melts-by-a-meltable-group-and-its-parallel-melted-group
      *
-     * @param level the level
-     * @param pos   the cell
-     * @param state the cell's state
-     * @param spent the layers the melt spends
+     * @param level  the level
+     * @param pos    the cell
+     * @param state  the cell's state
+     * @param spent  the layers the melt spends
+     * @param melted the source block the block below melts into
      */
-    private static void meltInto(ServerLevel level, BlockPos pos, BlockState state, int spent) {
-        level.setBlock(pos.below(), Blocks.LAVA.defaultBlockState(), UPDATE_ALL);
+    private static void meltInto(ServerLevel level, BlockPos pos, BlockState state, int spent, BlockState melted) {
+        level.setBlock(pos.below(), melted, UPDATE_ALL);
         int left = state.getValue(LAYERS) - spent;
         level.setBlock(pos, left > 0 ? state.setValue(LAYERS, left) : Blocks.AIR.defaultBlockState(), UPDATE_ALL);
     }
@@ -677,10 +707,12 @@ public class VolumeCellBlock extends Block {
      * Ramps the horizontal velocity of a thing trying to move on a ramping
      * cell, the same at any height, by the ramp the laying ability's slick
      * step names; on a cutting cell, the shards over it cut a thing moving
-     * through them, on the server, by the laying ability's shatter step.
+     * through them, on the server, by the laying ability's shatter step; a
+     * smiting cell burns an undead standing on it.
      * slick-coats-the-ground-with-kinetic-speed
      * slick-is-a-layered-cell-that-flows-thinner-and-faster-than-slime
      * each-shatter-cut-has-a-chance-to-deplete-a-layer
+     * undead-touching-wisps-goo-erupt-in-flames-and-take-holy-damage-by-fill
      */
     @Override
     public void stepOn(@NonNull Level level, @NonNull BlockPos pos, @NonNull BlockState state,
@@ -692,7 +724,37 @@ public class VolumeCellBlock extends Block {
             ShatterStep.in(layingProgram(level)).ifPresent(shatter -> ShatterCut.cut(server, pos, state, entity,
                     shatter));
         }
+        smite(level, state, entity);
         super.stepOn(level, pos, state, entity);
+    }
+
+    /**
+     * Smites an undead inside a smiting cell's space, where a cell too thin
+     * to stand on as the block under its feet still touches it.
+     * undead-touching-wisps-goo-erupt-in-flames-and-take-holy-damage-by-fill
+     */
+    @Override
+    protected void entityInside(@NonNull BlockState state, @NonNull Level level, @NonNull BlockPos pos,
+                                @NonNull Entity entity, @NonNull InsideBlockEffectApplier effects,
+                                boolean pastEdges) {
+        smite(level, state, entity);
+        super.entityInside(state, level, pos, entity, effects, pastEdges);
+    }
+
+    /**
+     * Burns an undead touching a smiting cell and deals it holy damage by
+     * the cell's layers, as the laying ability's wisps step names.
+     * undead-touching-wisps-goo-erupt-in-flames-and-take-holy-damage-by-fill
+     *
+     * @param level  the level the cell stands in
+     * @param state  the cell's state
+     * @param entity the entity touching the cell
+     */
+    private void smite(Level level, BlockState state, Entity entity) {
+        if (surface().smites() && level instanceof ServerLevel server) {
+            WispsStep.in(layingProgram(level))
+                    .ifPresent(wisps -> WispsSmite.touch(server, entity, state.getValue(LAYERS), wisps));
+        }
     }
 
     /**
