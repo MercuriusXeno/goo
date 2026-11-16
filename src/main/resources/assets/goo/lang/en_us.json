@@ -243,6 +243,7 @@
   "goo.ability.jelly.nectar": "Nectar",
   "goo.ability.jelly.nectar.description": "Feeds an animal that draws nearby mobs, the hostile ones fighting over it.",
   "entity.goo.nectar_pile": "Nectar",
+  "entity.goo.drifting_wisp": "Wisp",
   "goo.ability.leaf.barkskin": "Barkskin",
   "goo.ability.leaf.barkskin.description": "Regrowing bark hearts shield yours and thorn melee attackers, but fire and axes hit them hard.",
   "goo.ability.leaf.vines": "Vines",

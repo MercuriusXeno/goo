@@ -24,7 +24,8 @@ import java.util.function.Consumer;
  * Glow's Wisps through the real landing its stream's drips take, in a
  * sealed dark stone room: a drip striking the floor lays a one-layer Wisps
  * cell shining at light 1, a full cell shines at 15, and a zombie standing
- * on a full cell burns.
+ * on a full cell burns; in a dark corridor a full cell sheds wisps that
+ * settle in its air.
  * glow-world-goo-is-named-wisps-and-takes-the-holds-place
  * wisps-goo-glows-at-a-light-level-equal-to-its-layers
  */
@@ -47,6 +48,14 @@ public final class WispsTests {
     private static final String WISPS_BURNS_A_ZOMBIE_ON_IT = "wisps_burns_a_zombie_on_it";
     private static final String ZOMBIE_UNLIT = "A zombie on a full Wisps cell should be on fire";
     private static final String ZOMBIE_UNHARMED = "A zombie on a full Wisps cell should take holy damage";
+    private static final String WISPS_SHEDS_A_WISP_INTO_THE_DARK = "wisps_sheds_a_wisp_into_the_dark";
+    /** The corridor's air runs 1 to 30 along x, 1 to 2 up, at z 3, inside the march bay. */
+    private static final int CORRIDOR_LENGTH = 30;
+    private static final int CORRIDOR_HEIGHT = 2;
+    private static final int CORRIDOR_Z = 3;
+    /** The full Wisps cell, on the floor at the corridor's near end. */
+    private static final BlockPos CORRIDOR_CELL = new BlockPos(1, 1, CORRIDOR_Z);
+    private static final String NO_WISP_SETTLED = "A wisp shed by the Wisps cell should settle in the corridor's air";
 
     private WispsTests() {
     }
@@ -60,6 +69,42 @@ public final class WispsTests {
         GooTestFunctions.registerTest(registrar, WISPS_CELL_SHINES_AT_ITS_LAYERS,
                 WispsTests::wispsCellShinesAtItsLayers);
         GooTestFunctions.registerTest(registrar, WISPS_BURNS_A_ZOMBIE_ON_IT, WispsTests::wispsBurnsAZombieOnIt);
+        GooTestFunctions.registerTest(registrar, WISPS_SHEDS_A_WISP_INTO_THE_DARK,
+                WispsTests::wispsShedsAWispIntoTheDark);
+    }
+
+    /**
+     * A full Wisps cell at one end of a sealed dark stone corridor sheds
+     * wisps that drift off down it and settle as wisp blocks in its air.
+     * wisps-goo-sheds-a-wisp-toward-nearby-dark
+     * wisps-travel-as-entities-then-settle-as-glowy-air-blocks
+     *
+     * @param helper the gametest helper
+     */
+    public static void wispsShedsAWispIntoTheDark(GameTestHelper helper) {
+        for (int x = 0; x <= CORRIDOR_LENGTH + 1; x++) {
+            for (int y = 0; y <= CORRIDOR_HEIGHT + 1; y++) {
+                for (int z = CORRIDOR_Z - 1; z <= CORRIDOR_Z + 1; z++) {
+                    boolean air = x >= 1 && x <= CORRIDOR_LENGTH && y >= 1 && y <= CORRIDOR_HEIGHT && z == CORRIDOR_Z;
+                    helper.setBlock(new BlockPos(x, y, z), air ? Blocks.AIR : Blocks.STONE);
+                }
+            }
+        }
+        helper.setBlock(CORRIDOR_CELL, GooBlocks.GLOW_WISPS.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
+        helper.succeedWhen(() -> helper.assertTrue(wispSettledInTheCorridor(helper), NO_WISP_SETTLED));
+    }
+
+    private static boolean wispSettledInTheCorridor(GameTestHelper helper) {
+        for (int x = 1; x <= CORRIDOR_LENGTH; x++) {
+            for (int y = 1; y <= CORRIDOR_HEIGHT; y++) {
+                BlockPos air = new BlockPos(x, y, CORRIDOR_Z);
+                if (!air.equals(CORRIDOR_CELL) && helper.getBlockState(air).is(GooBlocks.WISP.get())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**

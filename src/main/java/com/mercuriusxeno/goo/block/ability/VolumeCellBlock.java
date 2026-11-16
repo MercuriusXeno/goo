@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.LoadedAbilityCost;
 import com.mercuriusxeno.goo.ability.program.MoltenStep;
 import com.mercuriusxeno.goo.ability.program.SlickStep;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.WispShed;
 import com.mercuriusxeno.goo.ability.program.WispsStep;
 import com.mercuriusxeno.goo.block.ability.SlimeFlow.Side;
 import com.mercuriusxeno.goo.data.GooFraction;
@@ -395,16 +396,36 @@ public class VolumeCellBlock extends Block {
     /**
      * Pours one layer into the side the flow rule picks, which places the
      * cell anew and so schedules the next pour after its goo type's
-     * viscosity's ticks, until the cell stands level.
+     * viscosity's ticks, until the cell stands level; a level cell whose
+     * laying ability sheds wisps sheds one toward the dark.
      * slime-is-a-layered-cell-that-levels-out
      * spread-decreases-the-cell-it-leaves
+     * wisps-goo-sheds-a-wisp-toward-nearby-dark
      */
     @Override
     protected void tick(@NonNull BlockState state, @NonNull ServerLevel level, @NonNull BlockPos pos,
                         @NonNull RandomSource random) {
-        if (!meltBelow(level, pos, state)) {
-            pourOnce(level, pos, state);
+        if (!meltBelow(level, pos, state) && !pourOnce(level, pos, state)) {
+            shedWisp(level, pos, state);
         }
+    }
+
+    /**
+     * Sheds a wisp from a level cell whose laying ability names a wisps
+     * step, and schedules the next shed after the step's cadence. The next
+     * shed is scheduled first: a layer the shed spends places the cell anew,
+     * whose pour tick then waits on the shed's.
+     * wisps-goo-sheds-a-wisp-toward-nearby-dark
+     *
+     * @param level the level
+     * @param pos   the cell
+     * @param state the cell's state
+     */
+    private void shedWisp(ServerLevel level, BlockPos pos, BlockState state) {
+        WispsStep.in(layingProgram(level)).ifPresent(wisps -> {
+            level.scheduleTick(pos, this, wisps.shedEvery());
+            WispShed.shed(level, pos, state, wisps);
+        });
     }
 
     /**
