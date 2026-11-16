@@ -115,8 +115,19 @@ class VacuumStepTest {
 
             vacuum.tick(new StepContext(host, 0, 0));
 
-            verify(host).breakBlock(CELL);
+            verify(host).breakBlockQuietly(CELL);
             verify(host).sendTransform(CELL, residual, Blocks.AIR.defaultBlockState());
+        }
+
+        @Test
+        void aBrokenResidualThrowsOneBreakParticleALayer() {
+            ChannelHost host = residualHost(1f);
+            BlockState residual = host.stateAt(CELL);
+
+            vacuum.tick(new StepContext(host, 0, 0));
+
+            verify(host).scatterBreakParticles(CELL, residual, WorldGooHosts.LAYERS,
+                    (double) WorldGooHosts.LAYERS / VolumeCellBlock.MAX_LAYERS);
         }
 
         // vacuum-sounds-a-suction-wind-and-rising-slurps
@@ -155,8 +166,8 @@ class VacuumStepTest {
 
             vacuum.tick(new StepContext(host, 0, 0));
 
-            verify(host).breakBlock(WORLD_GOO);
-            verify(host, never()).breakBlock(STONE);
+            verify(host).breakBlockQuietly(WORLD_GOO);
+            verify(host, never()).breakBlockQuietly(STONE);
         }
     }
 
@@ -192,6 +203,9 @@ class VacuumStepTest {
      */
     private static final class WorldGooHosts {
 
+        /** The layers each world goo cell holds. */
+        static final int LAYERS = 6;
+
         private WorldGooHosts() {
         }
 
@@ -206,9 +220,11 @@ class VacuumStepTest {
             return host;
         }
 
-        /** A goo laid on the volume cell, bound to no goo type a tag names. */
+        /** A goo laid on the volume cell, bound to no goo type a tag names, of a few layers. */
         static BlockState worldGoo() {
-            return state(mock(VolumeCellBlock.class), Shapes.empty());
+            BlockState goo = state(mock(VolumeCellBlock.class), Shapes.empty());
+            when(goo.getValue(VolumeCellBlock.LAYERS)).thenReturn(LAYERS);
+            return goo;
         }
 
         static BlockState stone() {

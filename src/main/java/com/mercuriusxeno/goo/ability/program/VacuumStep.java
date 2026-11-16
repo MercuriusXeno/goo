@@ -140,12 +140,18 @@ public record VacuumStep(double ticksPerBlock, int decayTicks) implements TakesN
     }
 
     /**
-     * Breaks a decayed residual with its drops, slurps it up at its cell, and
-     * tells the clients it went to nothing, so the melt they drew over it ends.
+     * Breaks a decayed residual quietly with its drops, throwing one break
+     * particle a layer rather than vanilla's whole burst, plays its break
+     * sound and slurps it up at its cell, and tells the clients it went to
+     * nothing, so the melt they drew over it ends.
+     * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
      */
     private static void breakAway(ChannelHost host, BlockPos cell, BlockState residual, BlockState nothing,
                                   float slurpPitch) {
-        host.breakBlock(cell);
+        int layers = VolumeCellBlock.layersOf(residual);
+        host.breakBlockQuietly(cell);
+        host.scatterBreakParticles(cell, residual, layers, (double) layers / VolumeCellBlock.MAX_LAYERS);
+        host.playBreakSound(cell, residual);
         host.slurpAt(cell, slurpPitch);
         host.sendTransform(cell, residual, nothing);
     }
