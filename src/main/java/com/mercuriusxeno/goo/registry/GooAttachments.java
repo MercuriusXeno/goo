@@ -13,6 +13,7 @@ import com.mercuriusxeno.goo.ability.held.HeldEffects;
 import com.mercuriusxeno.goo.ability.hex.Charmed;
 import com.mercuriusxeno.goo.ability.hex.Lifetap;
 import com.mercuriusxeno.goo.ability.kinetic.GrabHold;
+import com.mercuriusxeno.goo.ability.kinetic.GrabItemLock;
 import com.mercuriusxeno.goo.ability.kinetic.Grabbed;
 import com.mercuriusxeno.goo.ability.nether.Undead;
 import com.mercuriusxeno.goo.ability.petrify.Petrification;
@@ -308,6 +309,14 @@ public final class GooAttachments {
      */
     public static final Supplier<AttachmentType<GrabHold>> GRAB_HOLD =
             ATTACHMENT_TYPES.register("grab_hold", () -> AttachmentType.builder(() -> GrabHold.NONE).build());
+
+    /**
+     * The item a player's Grab press locked, server side for the length of the press.
+     * grabbed-item-locks-in-and-homes-on-your-current-position
+     */
+    public static final Supplier<AttachmentType<GrabItemLock>> GRAB_ITEM_LOCK =
+            ATTACHMENT_TYPES.register("grab_item_lock",
+                    () -> AttachmentType.builder(() -> GrabItemLock.NONE).build());
 
     /**
      * The warp curse Seal leaves on a mob, saved with the mob while

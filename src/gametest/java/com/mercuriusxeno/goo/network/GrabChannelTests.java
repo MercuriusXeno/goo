@@ -90,6 +90,104 @@ public final class GrabChannelTests {
                 GrabChannelTests::grabDrawsAMobDownOffALedge);
         GooTestFunctions.registerTest(registrar, GRAB_REFUSES_A_SENT_PIG_BEYOND_ITS_RANGE,
                 GrabChannelTests::grabRefusesASentPigBeyondItsRange);
+        GooTestFunctions.registerTest(registrar, GRAB_LOCKED_ITEM_HOMES_AFTER_THE_LOOK_LEAVES,
+                GrabChannelTests::grabLockedItemHomesAfterTheLookLeaves);
+        GooTestFunctions.registerTest(registrar, GRAB_LOCKED_ITEM_FLOATS_UNTIL_THE_GRACE_PASSES,
+                GrabChannelTests::grabLockedItemFloatsUntilTheGracePasses);
+    }
+
+    private static final String GRAB_LOCKED_ITEM_HOMES_AFTER_THE_LOOK_LEAVES =
+            "grab_locked_item_homes_after_the_look_leaves";
+    private static final String GRAB_LOCKED_ITEM_FLOATS_UNTIL_THE_GRACE_PASSES =
+            "grab_locked_item_floats_until_the_grace_passes";
+    /** Channel ticks enough for a locked item to reach a player who walked across the bay from it. */
+    private static final int HOMING_TICKS = 25;
+    /**
+     * Where the homing test's player starts, in the bay's north-west corner, and where it walks to, the south-west
+     * corner, so an item flung once at the player's first eye lands two blocks and more from where the player went.
+     */
+    private static final Vec3 WALK_FROM = new Vec3(0.5, 1, 0.5);
+    private static final double WALK_TO_Z = 5.5;
+    /** The item, across the bay east of WALK_FROM. */
+    private static final Vec3 ACROSS_THE_BAY = new Vec3(5.5, 1.2, 0.5);
+    /** How far the player walks south each channel tick after the lock. */
+    private static final double WALK_PER_TICK = 0.4;
+    /** Channel ticks that keep an item locked, too few for it to reach the player. */
+    private static final int LOCKED_TICKS = 3;
+
+    /**
+     * An item one channel tick locked keeps flying to the player after the
+     * look turns to open air and the player walks off, and lands in the
+     * inventory, though every later tick names no entity
+     * (decision grabbed-item-locks-in-and-homes-on-your-current-position).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabLockedItemHomesAfterTheLookLeaves(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        Vec3 start = helper.absoluteVec(WALK_FROM);
+        player.setPos(start.x, start.y, start.z);
+        double walkTo = helper.absoluteVec(new Vec3(0, 0, WALK_TO_Z)).z;
+        ItemEntity item = restingItem(helper, ACROSS_THE_BAY);
+        player.lookAt(EntityAnchorArgument.Anchor.EYES, item.position());
+        helper.runAfterDelay(1, () -> {
+            GooStreamHandler.streamTick(player, holdTick(player, item));
+            player.doTick();
+        });
+        for (int tick = 2; tick <= HOMING_TICKS; tick++) {
+            helper.runAfterDelay(tick, () -> {
+                player.setYRot(FACING_WEST);
+                player.setYHeadRot(FACING_WEST);
+                player.setPos(player.getX(), player.getY(), Math.min(walkTo, player.getZ() + WALK_PER_TICK));
+                GooStreamHandler.streamTick(player, aimTick(player));
+                player.doTick();
+            });
+        }
+        helper.runAfterDelay(HOMING_TICKS + 1, () -> {
+            helper.assertTrue(!item.isAlive() && player.getInventory().countItem(Items.SLIME_BALL) == 1,
+                    "The locked item should land in the inventory after the look left it, item "
+                            + (item.isAlive() ? "still stands " + player.getEyePosition().distanceTo(item.position())
+                            + " from the eye" : "gone") + ", inventory holds "
+                            + player.getInventory().countItem(Items.SLIME_BALL));
+            leave(helper, player);
+        });
+    }
+
+    /**
+     * A locked item floats with its gravity off while channel ticks arrive,
+     * and its gravity is back once the ticks stop and the hold grace passes
+     * (decision grabbed-item-locks-in-and-homes-on-your-current-position).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabLockedItemFloatsUntilTheGracePasses(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        ItemEntity item = restingItem(helper, ITEM_POS);
+        player.lookAt(EntityAnchorArgument.Anchor.EYES, item.position());
+        holdFor(helper, player, item, LOCKED_TICKS);
+        helper.runAfterDelay(LOCKED_TICKS, () -> helper.assertTrue(item.isNoGravity(),
+                "A locked item's gravity should be off while channel ticks arrive"));
+        helper.runAfterDelay(LOCKED_TICKS + GrabEvents.HOLD_GRACE_TICKS + 2, () -> {
+            helper.assertTrue(!item.isNoGravity(), "A locked item's gravity should be back once the hold grace passed");
+            item.discard();
+            leave(helper, player);
+        });
+    }
+
+    private static ItemEntity restingItem(GameTestHelper helper, Vec3 relative) {
+        Vec3 itemAt = helper.absoluteVec(relative);
+        ItemEntity item = new ItemEntity(helper.getLevel(), itemAt.x, itemAt.y, itemAt.z,
+                new ItemStack(Items.SLIME_BALL));
+        item.setDeltaMovement(Vec3.ZERO);
+        helper.getLevel().addFreshEntity(item);
+        return item;
+    }
+
+    /** A channel tick whose glove outlines no entity. */
+    private static GooStreamPayload aimTick(ServerPlayer player) {
+        Vec3 eye = player.getEyePosition();
+        return GooStreamPayload.unplaned(GooTypes.id(GooTypes.KINETIC), KINETIC_GRAB.toString(),
+                eye, eye.add(player.getLookAngle().scale(AIM_LENGTH)));
     }
 
 
