@@ -113,9 +113,11 @@ public final class AstralGateTests {
         // The return carries the caster to where they stood and the way they faced as the moon took them.
         caster.snapTo(leftFrom.x, leftFrom.y, leftFrom.z, castYaw, castPitch);
         cast(caster);
+        long[] arrivedInLunarAt = new long[1];
         helper.runAfterDelay(PAST_THE_FIXATION, () -> {
             helper.assertTrue(caster.level().dimension() == Lunar.LEVEL, String.format(IN_LUNAR, leftFrom,
                     caster.level().dimension(), caster.position()));
+            arrivedInLunarAt[0] = caster.getData(GooAttachments.GATE_ARRIVAL).arrivedAt();
             face(caster, Lunar.OVERWORLD_STAR_DIRECTION);
             cast(caster);
         });
@@ -124,6 +126,9 @@ public final class AstralGateTests {
                     && caster.getYRot() == castYaw && caster.getXRot() == castPitch;
             helper.assertTrue(exactly, String.format(HOME, Level.OVERWORLD.identifier(), leftFrom, castYaw, castPitch,
                     caster.level().dimension().identifier(), caster.position(), caster.getYRot(), caster.getXRot()));
+            // The return leaves its own mark, set after the one lunar's arrival left.
+            helper.assertTrue(caster.getData(GooAttachments.GATE_ARRIVAL).arrivedAt() > arrivedInLunarAt[0],
+                    ARRIVAL_MARKED);
             overworld.getServer().getPlayerList().remove(caster);
             helper.succeed();
         });
