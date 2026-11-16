@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:rallied_cows_strike_marks_the_zombie_as_its_ralliers",
+  "environment": "goo:minion_kills",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

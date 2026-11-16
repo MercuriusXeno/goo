@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.LoadedAbilityCost;
 import com.mercuriusxeno.goo.ability.program.MoltenStep;
+import com.mercuriusxeno.goo.ability.program.ShatterStep;
 import com.mercuriusxeno.goo.ability.program.SlickStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.WispShed;
@@ -698,15 +699,23 @@ public class VolumeCellBlock extends Block {
     /**
      * Ramps the horizontal velocity of a thing trying to move on a ramping
      * cell, the same at any height, by the ramp the laying ability's slick
-     * step names.
+     * step names; on a cutting cell, the shards over it cut a thing moving
+     * through them, on the server, by the laying ability's shatter step; a
+     * smiting cell burns an undead standing on it.
      * slick-coats-the-ground-with-kinetic-speed
      * slick-is-a-layered-cell-that-flows-thinner-and-faster-than-slime
+     * each-shatter-cut-has-a-chance-to-deplete-a-layer
+     * undead-touching-wisps-goo-erupt-in-flames-and-take-holy-damage-by-fill
      */
     @Override
     public void stepOn(@NonNull Level level, @NonNull BlockPos pos, @NonNull BlockState state,
                        @NonNull Entity entity) {
         if (surface().ramps()) {
             SlickStep.in(layingProgram(level)).ifPresent(slick -> SlickBuild.slide(entity, slick));
+        }
+        if (surface().cuts() && level instanceof ServerLevel server) {
+            ShatterStep.in(layingProgram(level)).ifPresent(shatter -> ShatterCut.cut(server, pos, state, entity,
+                    shatter));
         }
         smite(level, state, entity);
         super.stepOn(level, pos, state, entity);

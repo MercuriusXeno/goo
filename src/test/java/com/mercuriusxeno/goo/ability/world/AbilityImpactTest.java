@@ -48,13 +48,11 @@ class AbilityImpactTest {
     }
 
     /**
-     * Shatter's cloud lingers through a field effect and never explodes, so its
-     * prism dome plays at the landing.
-     * decision diagnose-then-restore-the-razor-dome
+     * Urchin's field lingers and never explodes, so its burnout plays at the landing.
      */
     @Test
-    void theRazorCloudLingersWithoutExplodingLater() {
-        assertFalse(AbilityImpact.explodesLater(AbilityJson.decode("crystal_shatter")));
+    void aLingeringFieldNeverExplodesLater() {
+        assertFalse(AbilityImpact.explodesLater(AbilityJson.decode("metal_urchin")));
     }
 
     /**

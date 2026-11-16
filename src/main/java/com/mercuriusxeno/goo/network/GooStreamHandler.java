@@ -2,11 +2,14 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityPrice;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.HealReport;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.StreamSound;
+import com.mercuriusxeno.goo.ability.end.EndAvailability;
+import com.mercuriusxeno.goo.ability.end.EndWayBack;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.ChannelHost;
 import com.mercuriusxeno.goo.ability.program.DripLanding;
@@ -178,7 +181,8 @@ public final class GooStreamHandler {
     }
 
     /**
-     * The ability the payload names, where the player may use it and it runs while held.
+     * The ability the payload names, where the player may use it, it stands available to them and it runs while
+     * held: End grayed out in the End runs nothing and drains nothing.
      *
      * @param player  the holding player
      * @param payload the held tick
@@ -188,7 +192,11 @@ public final class GooStreamHandler {
     private static @Nullable AbilityDefinition heldAbility(ServerPlayer player, GooStreamPayload payload,
                                                             ResourceKey<GooTypeDefinition> gooType) {
         AbilityDefinition ability = GooThrowHandler.usableAbility(player, payload.abilityId(), gooType);
-        return ability != null && HeldRoute.runsWhileHeld(ability.delivery(), ability.badge()) ? ability : null;
+        // decision end-is-grayed-out-in-the-end-unless-you-came-by-the-ability
+        boolean grayedOut = ability != null && EndAvailability.graysOut(ability.behaviors(),
+                player.level().dimension(), EndWayBack.heldBy(player).stands());
+        return ability != null && !grayedOut && HeldRoute.runsWhileHeld(ability.delivery(), ability.badge())
+                ? ability : null;
     }
 
     /**
@@ -225,7 +233,9 @@ public final class GooStreamHandler {
         if (ability.delivery().drainsOnPlacement()) {
             return held;
         }
-        int share = StreamHolds.shareAt(ability.cost().exactIn(GooValues.of(player.level())),
+        // decision end-gate-in-the-end-is-free-and-returns-you-where-you-portalled-in
+        AbilityPrice cost = ability.cost().forCasterIn(player.level().dimension(), ability.behaviors());
+        int share = StreamHolds.shareAt(cost.exactIn(GooValues.of(player.level())),
                 ability.delivery().ticksPerCharge(), held);
         if (!GooSourceScanner.hasEnough(player, gooType, share)) {
             return 0;
