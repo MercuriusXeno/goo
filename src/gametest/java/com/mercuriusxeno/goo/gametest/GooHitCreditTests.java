@@ -17,8 +17,12 @@ import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.scores.PlayerTeam;
+import net.minecraft.world.scores.Scoreboard;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.function.Consumer;
@@ -37,6 +41,12 @@ public final class GooHitCreditTests {
     private static final String PUSHES_NO_FARTHER = "goo_hit_credit_naming_the_thrower_pushes_no_farther";
     private static final String OWN_RALLIED_KEEPS_ITS_RALLY = "goo_hit_credit_own_rallied_mob_keeps_its_rally";
     private static final String OWN_CHARMED_KEEPS_ITS_CHARM = "goo_hit_credit_own_charmed_mob_keeps_its_charm";
+    private static final String PVP_GOVERNS_A_PLAYERS_HIT = "goo_hit_credit_pvp_setting_governs_a_hit_on_a_player";
+    private static final String TEAM_SPARES_A_TEAMMATE = "goo_hit_credit_team_without_friendly_fire_spares_a_teammate";
+    private static final String NO_FRIENDLY_FIRE_TEAM = "goo_hit_credit_no_friendly_fire";
+    private static final String SHOULD_BE_REFUSED = "A goo hit on a player %s should land no damage, health %.1f of %.1f";
+    private static final String SHOULD_LAND_NAMING = "With PvP on a goo hit on a player should land naming the thrower, "
+            + "health %.1f of %.1f, last hit by %s";
 
     private static final BlockPos MOB_POS = new BlockPos(3, 1, 3);
     private static final BlockPos BESIDE_THE_MOB = MOB_POS.west();
@@ -65,6 +75,8 @@ public final class GooHitCreditTests {
         GooTestFunctions.registerTest(registrar, PUSHES_NO_FARTHER, GooHitCreditTests::namingTheThrowerPushesNoFarther);
         GooTestFunctions.registerTest(registrar, OWN_RALLIED_KEEPS_ITS_RALLY, GooHitCreditTests::ownRalliedKeepsItsRally);
         GooTestFunctions.registerTest(registrar, OWN_CHARMED_KEEPS_ITS_CHARM, GooHitCreditTests::ownCharmedKeepsItsCharm);
+        GooTestFunctions.registerTest(registrar, PVP_GOVERNS_A_PLAYERS_HIT, GooHitCreditTests::pvpGovernsAPlayersHit);
+        GooTestFunctions.registerTest(registrar, TEAM_SPARES_A_TEAMMATE, GooHitCreditTests::teamSparesATeammate);
     }
 
     /**
@@ -154,6 +166,74 @@ public final class GooHitCreditTests {
         helper.succeed();
     }
 
+    /**
+     * A magic damage step one survival player throws at another lands no damage with the server's PvP setting off,
+     * and with it on lands naming the thrower; vanilla's ServerPlayer.hurtServer refuses a hit whose cause is a
+     * player it cannot be harmed by. The test restores the PvP setting it found.
+     * decision goo-hit-on-a-player-obeys-pvp-and-team-rules
+     *
+     * @param helper the gametest helper
+     */
+    public static void pvpGovernsAPlayersHit(GameTestHelper helper) {
+        ServerPlayer thrower = SurvivalPlayers.placeIn(helper);
+        ServerPlayer struck = SurvivalPlayers.placeIn(helper);
+        boolean pvpFound = helper.getLevel().getGameRules().get(GameRules.PVP);
+        try {
+            allowPvp(helper, false);
+            strike(helper, struck, thrower, DamageKind.MAGIC);
+            helper.assertTrue(struck.getHealth() == struck.getMaxHealth(),
+                    String.format(SHOULD_BE_REFUSED, "with PvP off", struck.getHealth(), struck.getMaxHealth()));
+            allowPvp(helper, true);
+            strike(helper, struck, thrower, DamageKind.MAGIC);
+            DamageSource last = struck.getLastDamageSource();
+            helper.assertTrue(struck.getHealth() < struck.getMaxHealth() && last != null && last.getEntity() == thrower,
+                    String.format(SHOULD_LAND_NAMING, struck.getHealth(), struck.getMaxHealth(), causeOf(last)));
+        } finally {
+            allowPvp(helper, pvpFound);
+            removePlayers(helper, thrower, struck);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * A magic damage step one survival player throws at a teammate, on a team with friendly fire off and PvP on,
+     * lands no damage. The test removes its team and restores the PvP setting it found.
+     * decision goo-hit-on-a-player-obeys-pvp-and-team-rules
+     *
+     * @param helper the gametest helper
+     */
+    public static void teamSparesATeammate(GameTestHelper helper) {
+        ServerPlayer thrower = SurvivalPlayers.placeIn(helper);
+        ServerPlayer teammate = SurvivalPlayers.placeIn(helper);
+        boolean pvpFound = helper.getLevel().getGameRules().get(GameRules.PVP);
+        Scoreboard scoreboard = helper.getLevel().getScoreboard();
+        PlayerTeam team = scoreboard.addPlayerTeam(NO_FRIENDLY_FIRE_TEAM);
+        try {
+            team.setAllowFriendlyFire(false);
+            scoreboard.addPlayerToTeam(thrower.getScoreboardName(), team);
+            scoreboard.addPlayerToTeam(teammate.getScoreboardName(), team);
+            allowPvp(helper, true);
+            strike(helper, teammate, thrower, DamageKind.MAGIC);
+            helper.assertTrue(teammate.getHealth() == teammate.getMaxHealth(), String.format(SHOULD_BE_REFUSED,
+                    "teammate with friendly fire off", teammate.getHealth(), teammate.getMaxHealth()));
+        } finally {
+            scoreboard.removePlayerTeam(team);
+            allowPvp(helper, pvpFound);
+            removePlayers(helper, thrower, teammate);
+        }
+        helper.succeed();
+    }
+
+    private static void allowPvp(GameTestHelper helper, boolean allowed) {
+        helper.getLevel().getGameRules().set(GameRules.PVP, allowed, helper.getLevel().getServer());
+    }
+
+    private static void removePlayers(GameTestHelper helper, ServerPlayer... players) {
+        for (ServerPlayer player : players) {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+        }
+    }
+
     // Vanilla knocks a hit naming no position the way the struck mob's random rolls, so each cow rolls from one seed.
     private static Vec3 horizontalMotionAfter(GameTestHelper helper, @Nullable Entity thrower, DamageKind kind) {
         Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, MOB_POS);
@@ -164,7 +244,7 @@ public final class GooHitCreditTests {
         return new Vec3(motion.x, 0, motion.z);
     }
 
-    private static void strike(GameTestHelper helper, Mob target, @Nullable Entity thrower, DamageKind kind) {
+    private static void strike(GameTestHelper helper, LivingEntity target, @Nullable Entity thrower, DamageKind kind) {
         new DamageStep(Expr.literal(ONE_HEART), kind)
                 .tick(new StepContext(new EntityHost(helper.getLevel(), target, thrower), 0, 0));
     }

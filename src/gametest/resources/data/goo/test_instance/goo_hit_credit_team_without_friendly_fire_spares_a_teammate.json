@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:goo_hit_credit_team_without_friendly_fire_spares_a_teammate",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 20,
+  "setup_ticks": 0,
+  "required": true
+}
