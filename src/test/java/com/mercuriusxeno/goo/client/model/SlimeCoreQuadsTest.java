@@ -78,7 +78,7 @@ class SlimeCoreQuadsTest {
         void slimeAtEightLayersDrawsWeirdsFluidOverTheRulesBox() {
             TextureAtlasSprite weird = mock(TextureAtlasSprite.class);
             List<BakedQuad> quads = loneCore(8, weird);
-            assertSpans(quads, new SlimeCoreBox(15, 8, 15, 105, 56, 105));
+            assertSpans(quads, new SlimeCoreBox(15, 3, 15, 105, 61, 105));
             assertTrue(quads.stream().allMatch(quad -> quad.materialInfo().sprite() == weird));
         }
 
@@ -86,16 +86,16 @@ class SlimeCoreQuadsTest {
         void slickAtEightLayersDrawsKineticsFluidOverTheRulesBox() {
             TextureAtlasSprite kinetic = mock(TextureAtlasSprite.class);
             List<BakedQuad> quads = loneCore(8, kinetic);
-            assertSpans(quads, new SlimeCoreBox(15, 8, 15, 105, 56, 105));
+            assertSpans(quads, new SlimeCoreBox(15, 3, 15, 105, 61, 105));
             assertTrue(quads.stream().allMatch(quad -> quad.materialInfo().sprite() == kinetic));
         }
 
         /** residual-always-draws-a-core-inside-a-one-eighth-margin */
         @Test
-        void aCellAtOneLayerDrawsSixQuadsTwoPixelsInAndAnEighthOfItsLayerUpAndDown() {
+        void aCellAtOneLayerDrawsSixQuadsTwoPixelsInAndFourTenthsOfAPixelUpAndDown() {
             float layerPixels = 16f / WHOLE_LAYERS;
             assertSpansPixels(loneCore(1, mock(TextureAtlasSprite.class)),
-                    new float[] {2f, layerPixels / 8, 2f}, new float[] {14f, layerPixels * 7 / 8, 14f});
+                    new float[] {2f, 0.4f, 2f}, new float[] {14f, layerPixels - 0.4f, 14f});
         }
 
         /** slime-core-draws-translucent-at-the-shells-opacity */
@@ -166,11 +166,10 @@ class SlimeCoreQuadsTest {
 
         /** stacked-goo-cells-share-one-slime-core */
         @Test
-        void aColumnsCoreToppingInsideTheLowerCellDrawsItsTopTwoPixelsUnderTheSurface() {
-            List<BakedQuad> quads = SlimeCoreQuads.quadsOf(new SameGooCells().at(0, 0, 0, 15).at(0, 1, 0, 1),
+        void aColumnsTopCellOfOneLayerDrawsItsCoreTopFourTenthsOfAPixelUnderItsSurface() {
+            List<BakedQuad> quads = SlimeCoreQuads.quadsOf(new SameGooCells().at(0, 0, 0, 1).at(0, -1, 0, 15),
                     coreMaterial(mock(TextureAtlasSprite.class)));
-            float surface = 1f + FIFTEENTH;
-            assertTrue(quads.stream().anyMatch(inPlaneY(surface - 2 * PIXEL)
+            assertTrue(quads.stream().anyMatch(inPlaneY(FIFTEENTH - 0.4f * PIXEL)
                     .and(quad -> quad.direction() == Direction.UP)));
         }
 

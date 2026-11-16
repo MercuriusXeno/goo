@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.model;
 
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -9,16 +10,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Covers the rule turning a cell and the cells of its goo around it into
- * its slime core's boxes, in 120ths of a block: the core keeps 1/8 of its
- * goo as margin on each axis, 2 px at the sides and 1/8 of the column's
- * height above and below, never more than 2 px, and runs through that margin
- * to a neighbour whose core it would otherwise be parted from by margin alone.
+ * its slime core's boxes, in 120ths of a block: the core keeps a margin of
+ * one size at every fill, 2 px at the sides and 0.4 px under and over it,
+ * and runs through that margin to a neighbour whose core it would otherwise
+ * be parted from by margin alone.
  */
 class SlimeCoreBoxTest {
 
     private static final int BLOCK = 120;
     private static final int UNITS_PER_LAYER = 8;
     private static final int SIDE = 15;
+    /** 0.4 px, the margin under and over every core. */
+    private static final int VERTICAL = 3;
+    private static final float VERTICAL_PIXELS = 0.4f;
     private static final float PIXELS_PER_UNIT = 16f / BLOCK;
     private static final float PIXELS_PER_LAYER = 16f / 15;
     private static final float EPSILON = 1e-4f;
@@ -36,35 +40,34 @@ class SlimeCoreBoxTest {
 
         /** residual-always-draws-a-core-inside-a-one-eighth-margin */
         @Test
-        void oneLayerHoldsACoreTwelvePixelsWideAndFourFifthsOfAPixelTall() {
+        void oneLayerHoldsACoreTwelvePixelsWideFromFourTenthsOfAPixelUpToFourTenthsUnderItsSurface() {
             SlimeCoreBox core = SlimeCoreBox.of(1).orElseThrow();
 
             assertEquals(2f, px(core.minX()), EPSILON);
             assertEquals(14f, px(core.maxX()), EPSILON);
             assertEquals(2f, px(core.minZ()), EPSILON);
             assertEquals(14f, px(core.maxZ()), EPSILON);
-            assertEquals(PIXELS_PER_LAYER / 8, px(core.minY()), EPSILON);
-            assertEquals(PIXELS_PER_LAYER * 7 / 8, px(core.maxY()), EPSILON);
-            assertEquals(0.8f, px(core.maxY() - core.minY()), EPSILON);
+            assertEquals(VERTICAL_PIXELS, px(core.minY()), EPSILON);
+            assertEquals(PIXELS_PER_LAYER - VERTICAL_PIXELS, px(core.maxY()), EPSILON);
         }
 
         @Test
-        void everyFillKeepsTwoPixelsAtTheSidesAndAnEighthOfItsHeightAboveAndBelow() {
+        void everyFillKeepsTwoPixelsAtTheSidesAndFourTenthsOfAPixelUnderAndOver() {
             for (int layers = 1; layers <= 15; layers++) {
                 SlimeCoreBox core = SlimeCoreBox.of(layers).orElseThrow();
                 float height = layers * PIXELS_PER_LAYER;
 
                 assertEquals(new SlimeCoreBox(SIDE, core.minY(), SIDE, BLOCK - SIDE, core.maxY(), BLOCK - SIDE), core,
                         "the sides at " + layers + " layers");
-                assertEquals(height / 8, px(core.minY()), EPSILON, "the goo under the core at " + layers);
-                assertEquals(height - height / 8, px(core.maxY()), EPSILON, "the goo over the core at " + layers);
+                assertEquals(VERTICAL_PIXELS, px(core.minY()), EPSILON, "the goo under the core at " + layers);
+                assertEquals(height - VERTICAL_PIXELS, px(core.maxY()), EPSILON, "the goo over the core at " + layers);
             }
         }
 
         @Test
-        void aWholeBlockHoldsACoreTwoPixelsInFromEveryFace() {
-            assertEquals(Optional.of(new SlimeCoreBox(SIDE, SIDE, SIDE, BLOCK - SIDE, BLOCK - SIDE, BLOCK - SIDE)),
-                    SlimeCoreBox.of(15));
+        void aWholeBlockHoldsACoreTwoPixelsInFromEverySideAndFourTenthsFromItsFloorAndTop() {
+            assertEquals(Optional.of(new SlimeCoreBox(SIDE, VERTICAL, SIDE, BLOCK - SIDE, BLOCK - VERTICAL,
+                    BLOCK - SIDE)), SlimeCoreBox.of(15));
         }
     }
 
@@ -77,20 +80,32 @@ class SlimeCoreBoxTest {
         @Test
         void aWholeBlockBesideAWholeBlockReachesTheSharedFaceOverItsWholeCore() {
             List<SlimeCoreBox> boxes = SlimeCoreBox.boxesOf(cell(15).at(1, 0, 0, 15));
-            assertEquals(List.of(new Span(SIDE, BLOCK - SIDE)), eastReach(boxes));
+            assertEquals(List.of(new Span(VERTICAL, BLOCK - VERTICAL)), eastReach(boxes));
         }
 
         @Test
         void aWholeBlockBesideEightLayersReachesTheFaceOverTheSharedHeightAndStandsClearAbove() {
+            int eightLayerTop = 8 * UNITS_PER_LAYER - VERTICAL;
             List<SlimeCoreBox> boxes = SlimeCoreBox.boxesOf(cell(15).at(1, 0, 0, 8));
-            assertEquals(List.of(new Span(SIDE, 7 * 8)), eastReach(boxes));
-            assertTrue(boxes.stream().filter(box -> box.maxY() > 7 * 8).allMatch(box -> box.maxX() <= BLOCK - SIDE),
+            assertEquals(List.of(new Span(VERTICAL, eightLayerTop)), eastReach(boxes));
+            assertTrue(boxes.stream().filter(box -> box.maxY() > eightLayerTop)
+                    .allMatch(box -> box.maxX() <= BLOCK - SIDE),
                     "the core stands 2 px clear of the face above the shared height");
         }
 
+        /** residual-always-draws-a-core-inside-a-one-eighth-margin */
         @Test
-        void aCoreBesideOneLayerStandsClearAtEveryHeight() {
-            assertStandsClearEast(SlimeCoreBox.boxesOf(cell(15).at(1, 0, 0, 1)));
+        void everyPairOfFillsSideBySideJoinsItsCoresAtTheSharedFace() {
+            List<String> parted = new ArrayList<>();
+            for (int west = 1; west <= 15; west++) {
+                for (int east = 1; east <= 15; east++) {
+                    SameGooCells around = cell(west).at(1, 0, 0, east);
+                    if (SlimeCoreBox.boxesOf(around).stream().noneMatch(box -> box.maxX() == BLOCK)) {
+                        parted.add(west + " beside " + east);
+                    }
+                }
+            }
+            assertEquals(List.of(), parted, "these fills side by side draw cores that never meet");
         }
 
         @Test
@@ -104,7 +119,7 @@ class SlimeCoreBoxTest {
         void twoOneLayerCellsSideBySideJoinOverTheirCoresAndStandClearOfOpenSides() {
             List<SlimeCoreBox> boxes = SlimeCoreBox.boxesOf(cell(1).at(1, 0, 0, 1));
 
-            assertEquals(List.of(new Span(1, 7)), eastReach(boxes));
+            assertEquals(List.of(new Span(VERTICAL, UNITS_PER_LAYER - VERTICAL)), eastReach(boxes));
             assertTrue(boxes.stream().allMatch(box -> box.minX() >= SIDE && box.minZ() >= SIDE
                     && box.maxZ() <= BLOCK - SIDE), "the core keeps 2 px toward the open sides");
         }
@@ -121,7 +136,7 @@ class SlimeCoreBoxTest {
         void theCornerFillsWhereBothSidesAndTheDiagonalHoldCores() {
             List<SlimeCoreBox> boxes = SlimeCoreBox.boxesOf(cell(15).at(1, 0, 0, 15).at(0, 0, -1, 15)
                     .at(1, 0, -1, 15));
-            assertTrue(boxes.contains(new SlimeCoreBox(BLOCK - SIDE, SIDE, 0, BLOCK, BLOCK - SIDE, SIDE)));
+            assertTrue(boxes.contains(new SlimeCoreBox(BLOCK - SIDE, VERTICAL, 0, BLOCK, BLOCK - VERTICAL, SIDE)));
         }
 
         @Test
@@ -145,14 +160,14 @@ class SlimeCoreBoxTest {
 
         /** stacked-goo-cells-share-one-slime-core */
         @Test
-        void aTwoHighColumnKeepsTwoPixelsUnderItAndUnderItsSurfaceAtEveryUpperFill() {
+        void aTwoHighColumnKeepsFourTenthsOfAPixelUnderItAndUnderItsSurfaceAtEveryUpperFill() {
             for (int upper = 1; upper <= 15; upper++) {
                 Span lower = ownSpan(cell(15).at(0, 1, 0, upper)).orElseThrow();
                 Optional<Span> top = ownSpan(cell(upper).at(0, -1, 0, 15));
                 int columnTop = top.map(span -> BLOCK + span.top()).orElse(lower.top());
 
-                assertEquals(SIDE, lower.floor(), "the core's floor under " + upper + " layers");
-                assertEquals(BLOCK + upper * UNITS_PER_LAYER - SIDE, columnTop, "the core's top under the surface of "
+                assertEquals(VERTICAL, lower.floor(), "the core's floor under " + upper + " layers");
+                assertEquals(BLOCK + upper * UNITS_PER_LAYER - VERTICAL, columnTop, "the core's top under the surface of "
                         + upper + " layers");
                 top.ifPresent(span -> {
                     assertEquals(0, span.floor(), "the upper core's floor at the shared face");
@@ -162,9 +177,9 @@ class SlimeCoreBoxTest {
         }
 
         @Test
-        void oneLayerAboveStandsTheColumnsCoreTopInTheLowerCell() {
-            assertEquals(Optional.of(new Span(SIDE, BLOCK + UNITS_PER_LAYER - SIDE)), ownSpan(cell(15).at(0, 1, 0, 1)));
-            assertEquals(Optional.empty(), ownSpan(cell(1).at(0, -1, 0, 15)), "the upper cell draws none");
+        void oneLayerOnAFullCellHoldsTheColumnsCoreTop() {
+            assertEquals(Optional.of(new Span(VERTICAL, BLOCK)), ownSpan(cell(15).at(0, 1, 0, 1)));
+            assertEquals(Optional.of(new Span(0, UNITS_PER_LAYER - VERTICAL)), ownSpan(cell(1).at(0, -1, 0, 15)));
         }
 
         @Test
@@ -174,13 +189,14 @@ class SlimeCoreBoxTest {
 
         @Test
         void aCellOnABlockOfAnotherKindKeepsItsMarginBelow() {
-            assertEquals(Optional.of(new Span(SIDE, BLOCK - SIDE)), ownSpan(cell(15)));
+            assertEquals(Optional.of(new Span(VERTICAL, BLOCK - VERTICAL)), ownSpan(cell(15)));
         }
 
         @Test
         void theMiddleOfAStackJoinsALoneEightLayerCellOverItsCore() {
             SameGooCells around = cell(15).at(0, -1, 0, 15).at(0, 1, 0, 15).at(1, 0, 0, 8);
-            assertEquals(List.of(new Span(8, 7 * 8)), eastReach(SlimeCoreBox.boxesOf(around)));
+            assertEquals(List.of(new Span(VERTICAL, 8 * UNITS_PER_LAYER - VERTICAL)),
+                    eastReach(SlimeCoreBox.boxesOf(around)));
         }
 
         @Test
