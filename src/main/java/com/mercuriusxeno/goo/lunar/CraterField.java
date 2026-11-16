@@ -36,6 +36,8 @@ public record CraterField(DensityFunction.NoiseHolder noise) implements DensityF
     static final double RIM_PER_RADIUS = 0.12;
     /** The rim falls back to the ground at 1.6 radii. */
     static final double RIM_REACH = 0.6;
+    /** A crater's floor reaches half its radius from its centre, the flat of the bowl where impacts melt the ground. */
+    static final double FLOOR_REACH = 0.5;
 
     private static final int PRESENCE = 0;
     private static final int OFFSET_X = 1;
@@ -101,12 +103,56 @@ public record CraterField(DensityFunction.NoiseHolder noise) implements DensityF
         if (rolls.roll(cellX, cellZ, PRESENCE) >= CRATER_CHANCE) {
             return 0.0;
         }
+        double radius = radius(cellX, cellZ, rolls);
+        return profile(reach(x, z, cellX, cellZ, radius, rolls), radius);
+    }
+
+    private static double radius(int cellX, int cellZ, CellRolls rolls) {
+        double size = rolls.roll(cellX, cellZ, SIZE);
+        return MIN_RADIUS + size * size * RADIUS_SPREAD;
+    }
+
+    /** A column's distance from a cell's crater centre, in that crater's radii. */
+    private static double reach(int x, int z, int cellX, int cellZ, double radius, CellRolls rolls) {
         double centerX = (cellX + rolls.roll(cellX, cellZ, OFFSET_X)) * CELL;
         double centerZ = (cellZ + rolls.roll(cellX, cellZ, OFFSET_Z)) * CELL;
-        double size = rolls.roll(cellX, cellZ, SIZE);
-        double radius = MIN_RADIUS + size * size * RADIUS_SPREAD;
-        double reach = Math.hypot(x - centerX, z - centerZ) / radius;
-        return profile(reach, radius);
+        return Math.hypot(x - centerX, z - centerZ) / radius;
+    }
+
+    /**
+     * Whether a column lies on a crater's floor, within half a radius of some crater's centre.
+     * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
+     *
+     * @param x     the column's x
+     * @param z     the column's z
+     * @param rolls each cell's rolls
+     * @return true on a crater floor
+     */
+    static boolean isFloor(int x, int z, CellRolls rolls) {
+        int cellX = Math.floorDiv(x, CELL);
+        int cellZ = Math.floorDiv(z, CELL);
+        for (int dx = -NEIGHBOUR_REACH; dx <= NEIGHBOUR_REACH; dx++) {
+            for (int dz = -NEIGHBOUR_REACH; dz <= NEIGHBOUR_REACH; dz++) {
+                int neighbourX = cellX + dx;
+                int neighbourZ = cellZ + dz;
+                if (rolls.roll(neighbourX, neighbourZ, PRESENCE) < CRATER_CHANCE && reach(x, z, neighbourX, neighbourZ,
+                        radius(neighbourX, neighbourZ, rolls), rolls) < FLOOR_REACH) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Whether a column lies on a crater's floor in the world this field's noise is seeded for.
+     *
+     * @param x the column's x
+     * @param z the column's z
+     * @return true on a crater floor
+     */
+    public boolean isFloorAt(int x, int z) {
+        return isFloor(x, z, this::roll);
     }
 
     /**

@@ -7,7 +7,22 @@
   "effects": {
     "water_color": "#3f76e4"
   },
-  "features": [[], [], [], [], [], [], [], [], [], [], []],
+  "features": [
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [
+      "goo:ore_meteoric_iron",
+      "goo:meteoric_iron_nuggets"
+    ],
+    [],
+    [],
+    [],
+    []
+  ],
   "has_precipitation": false,
   "spawn_costs": {},
   "spawners": {

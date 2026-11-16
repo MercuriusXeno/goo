@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
@@ -20,13 +21,16 @@ import java.util.function.Consumer;
 
 /**
  * Gametests for goo:lunar's terrain: it generates from its own noise settings, and a column reads regolith at the
- * surface over anorthosite or basalt, molten iron over the iron core at depth, and bedrock at the floor.
+ * surface over anorthosite or basalt, molten iron over the iron core at depth, and bedrock at the floor; and its
+ * ground holds meteoric iron veined through the anorthosite.
  * decision lunar-generates-from-its-own-noise-and-surface-rules
  * decision lunar-matter-is-anorthosite-basalt-regolith-and-an-iron-core
+ * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
  */
 @RegistersGameTests
 public final class LunarTerrainTests {
     private static final String LUNAR_COLUMN_READS_ITS_STRATA = "lunar_column_reads_its_strata";
+    private static final String LUNAR_GROUND_HOLDS_METEORIC_IRON = "lunar_ground_holds_meteoric_iron";
 
     private static final ResourceKey<Level> LUNAR = ResourceKey.create(Registries.DIMENSION,
             Identifier.fromNamespaceAndPath(Goo.MODID, "lunar"));
@@ -44,6 +48,13 @@ public final class LunarTerrainTests {
     private static final String SURFACE = "%s should read regolith at the surface y %d, reads %s";
     private static final String BELOW_REGOLITH = "%s should read anorthosite or basalt under its regolith at y %d, reads %s";
     private static final String STRATUM = "%s should read %s at y %d, reads %s";
+    private static final String METEORIC_IRON_IN_ANORTHOSITE =
+            "The chunks around %s should hold meteoric iron touching anorthosite";
+    /** The chunks one step around a test spot's own, which a vein search scans. */
+    private static final int CHUNK_REACH = 1;
+    private static final int CHUNK_SIDE = 16;
+    /** The tallest the ground stands, which a vein search reads up to. */
+    private static final int GROUND_TOP_Y = 200;
 
     private LunarTerrainTests() {
     }
@@ -55,6 +66,8 @@ public final class LunarTerrainTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, LUNAR_COLUMN_READS_ITS_STRATA, LunarTerrainTests::lunarColumnReadsItsStrata);
+        GooTestFunctions.registerTest(registrar, LUNAR_GROUND_HOLDS_METEORIC_IRON,
+                LunarTerrainTests::lunarGroundHoldsMeteoricIron);
     }
 
     /**
@@ -102,5 +115,58 @@ public final class LunarTerrainTests {
         BlockState found = lunar.getBlockState(pos);
         helper.assertTrue(found.is(expected.getBlock()),
                 String.format(STRATUM, pos.atY(0), expected.getBlock(), pos.getY(), found));
+    }
+
+    /**
+     * The chunks around each test spot in goo:lunar hold meteoric iron touching anorthosite: the veins run through
+     * lunar's highland stone.
+     *
+     * @param helper the gametest helper
+     */
+    public static void lunarGroundHoldsMeteoricIron(GameTestHelper helper) {
+        ServerLevel lunar = helper.getLevel().getServer().getLevel(LUNAR);
+        helper.assertTrue(lunar != null, LUNAR_REQUIRED);
+        for (BlockPos spot : TEST_SPOTS) {
+            helper.assertTrue(holdsMeteoricIronInAnorthosite(lunar, spot), String.format(METEORIC_IRON_IN_ANORTHOSITE, spot));
+        }
+        helper.succeed();
+    }
+
+    private static boolean holdsMeteoricIronInAnorthosite(ServerLevel lunar, BlockPos spot) {
+        int spotChunkX = spot.getX() >> 4;
+        int spotChunkZ = spot.getZ() >> 4;
+        for (int chunkX = spotChunkX - CHUNK_REACH; chunkX <= spotChunkX + CHUNK_REACH; chunkX++) {
+            for (int chunkZ = spotChunkZ - CHUNK_REACH; chunkZ <= spotChunkZ + CHUNK_REACH; chunkZ++) {
+                lunar.getChunk(chunkX, chunkZ);
+                if (chunkHoldsMeteoricIronInAnorthosite(lunar, chunkX, chunkZ)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean chunkHoldsMeteoricIronInAnorthosite(ServerLevel lunar, int chunkX, int chunkZ) {
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int x = 0; x < CHUNK_SIDE; x++) {
+            for (int z = 0; z < CHUNK_SIDE; z++) {
+                for (int y = MOLTEN_IRON_TOP_Y + 1; y <= GROUND_TOP_Y; y++) {
+                    pos.set(chunkX * CHUNK_SIDE + x, y, chunkZ * CHUNK_SIDE + z);
+                    if (lunar.getBlockState(pos).is(GooBlocks.METEORIC_IRON.get()) && touchesAnorthosite(lunar, pos)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean touchesAnorthosite(ServerLevel lunar, BlockPos pos) {
+        for (Direction side : Direction.values()) {
+            if (lunar.getBlockState(pos.relative(side)).is(GooBlocks.ANORTHOSITE.get())) {
+                return true;
+            }
+        }
+        return false;
     }
 }
