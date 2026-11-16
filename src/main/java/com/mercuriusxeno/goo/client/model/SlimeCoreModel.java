@@ -30,7 +30,7 @@ import java.util.List;
  * inside it the goo slime core the cell holds, drawn from what the model
  * reads as the cell's section meshes, so the core adds nothing to the block
  * state. The core samples the shell's own fluid sprite, the goo type's, and
- * stands at every fill inside a margin of 1/8 of the cell's goo.
+ * stands at every fill inside a margin of one size: 2 px at the sides, 0.4 px under and over.
  * connected-goo-draws-as-one-layered-mass-with-a-core
  * residual-always-draws-a-core-inside-a-one-eighth-margin
  * slime-core-keeps-a-two-layer-gap-and-grows-with-fill

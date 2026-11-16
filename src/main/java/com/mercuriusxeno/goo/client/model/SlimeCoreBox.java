@@ -10,10 +10,10 @@ import java.util.Optional;
  * A box of a volume cell's goo slime core, in 120ths of a block, the unit
  * that holds every bound whole (a layer is 8, the side margin 15), and the
  * rule turning a cell and the cells of its goo around it into its core: the
- * core keeps 1/8 of its goo as margin wherever the goo ends, the ground, the
- * surface, an open side or a wall: 2 px at the sides, and above and below
- * 1/8 of its column's height, never more than 2 px, so a cell holds a core at
- * every fill and the core grows with each layer; and the core runs through
+ * core keeps a margin of one size wherever the goo ends, the ground, the
+ * surface, an open side or a wall: 2 px at the sides and 0.4 px under and
+ * over it, so a cell holds a core at every fill and the core grows with
+ * each layer; and the core runs through
  * its margin to the face it shares with a cell of its goo whose core stands
  * across it, over the height both cores span, since only margin parts them there.
  * connected-goo-draws-as-one-layered-mass-with-a-core
@@ -37,10 +37,17 @@ public record SlimeCoreBox(int minX, int minY, int minZ, int maxX, int maxY, int
     private static final int FULL_LAYERS = VolumeCellBlock.MAX_LAYERS;
     /** One layer, in the box's units. */
     private static final int UNITS_PER_LAYER = WHOLE / FULL_LAYERS;
-    /** The share of its goo the core keeps as margin on each axis: one part in this many. */
-    private static final int MARGIN_PARTS = 8;
-    /** The widest margin, 2 px: 1/8 of a block, kept at every side and capping the margin above and below. */
-    private static final int MARGIN = WHOLE / MARGIN_PARTS;
+    /**
+     * The margin at every side, 2 px.
+     * residual-always-draws-a-core-inside-a-one-eighth-margin
+     */
+    private static final int SIDE_MARGIN = 15;
+    /**
+     * The margin under and over every core at every fill, 0.4 px, one size
+     * so neighbouring cores of any fills share a floor and join.
+     * residual-always-draws-a-core-inside-a-one-eighth-margin
+     */
+    private static final int VERTICAL_MARGIN = 3;
     /** The offset toward the west, the north or below: the low side of an axis. */
     private static final int LOW_SIDE = -1;
     /** The offsets along one axis: the cell's own column and the cells to either side. */
@@ -165,29 +172,18 @@ public record SlimeCoreBox(int minX, int minY, int minZ, int maxX, int maxY, int
      */
     private static Optional<Span> spanAt(LayersAround around, int dx, int dz) {
         int layers = around.layersAt(dx, 0, dz);
-        boolean onItsGoo = around.layersAt(dx, LOW_SIDE, dz) == FULL_LAYERS;
+        int floor = around.layersAt(dx, LOW_SIDE, dz) == FULL_LAYERS ? 0 : VERTICAL_MARGIN;
         int above = layers == FULL_LAYERS ? around.layersAt(dx, 1, dz) : 0;
-        int columnLayers = layers + above + (onItsGoo ? FULL_LAYERS : 0);
-        int margin = marginOf(columnLayers);
-        Span span = new Span(onItsGoo ? 0 : margin,
-                layers * UNITS_PER_LAYER - Math.max(0, margin - above * UNITS_PER_LAYER));
+        Span span = new Span(floor, layers * UNITS_PER_LAYER - Math.max(0, VERTICAL_MARGIN - above * UNITS_PER_LAYER));
         return span.holdsALayer() ? Optional.of(span) : Optional.empty();
     }
 
-    /**
-     * The margin a column keeps above and below: 1/8 of its height, never more than 2 px.
-     * residual-always-draws-a-core-inside-a-one-eighth-margin
-     */
-    private static int marginOf(int columnLayers) {
-        return Math.min(MARGIN, columnLayers * UNITS_PER_LAYER / MARGIN_PARTS);
-    }
-
     private static int bandStart(int offset) {
-        return offset < 0 ? 0 : offset == 0 ? MARGIN : WHOLE - MARGIN;
+        return offset < 0 ? 0 : offset == 0 ? SIDE_MARGIN : WHOLE - SIDE_MARGIN;
     }
 
     private static int bandEnd(int offset) {
-        return offset < 0 ? MARGIN : offset == 0 ? WHOLE - MARGIN : WHOLE;
+        return offset < 0 ? SIDE_MARGIN : offset == 0 ? WHOLE - SIDE_MARGIN : WHOLE;
     }
 
     /**
