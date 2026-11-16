@@ -7,6 +7,8 @@ import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -53,6 +55,23 @@ class SprayDripTest {
             servedVelocity = arc.velocity();
         }
         throw new AssertionError("the drips should strike the floor within " + MAX_STEPS + " steps");
+    }
+
+    /**
+     * A drip striking a block answers the face it struck, so its splat lies on that face.
+     * diagnose-and-correct-the-spray-splat-lying-flat-and-z-fighting
+     */
+    @ParameterizedTest
+    @EnumSource(value = Direction.class, names = {"WEST", "UP", "DOWN"})
+    void aStrikeAnswersTheFaceItStruck(Direction face) {
+        CoatRay.BlockClip struck = (from, to) -> Optional.of(new CoatRay.BlockStrike(to, BlockPos.containing(to),
+                face));
+        SprayDrip drip = SprayDrip.launch(GOOP_LAUNCH, BlendPalette.GOOP_SLIME_GREENS, RandomSource.create(1L));
+
+        SprayDrip.Step step = drip.step(APEX, drip.velocity(), struck, DripArc.NO_LIVING, INSIDE_THE_WORLD);
+
+        assertTrue(step.splats(), "a struck drip should splat");
+        assertEquals(Optional.of(face), step.face());
     }
 
     @Test
