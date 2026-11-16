@@ -36,7 +36,7 @@ class AbilityPoseTableTest {
             Map.entry("deep_shriek", ArmPose.SWUNG),
             Map.entry("deep_sculker", ArmPose.HELD_UP),
             Map.entry("ender_blink", ArmPose.HELD_OUT),
-            Map.entry("ender_end", ArmPose.SWUNG),
+            Map.entry("ender_end", ArmPose.HELD_OUT),
             Map.entry("ender_elude", ArmPose.HELD_UP),
             Map.entry("ender_seal", ArmPose.SWUNG),
             Map.entry("frost_cold", ArmPose.HELD_OUT),

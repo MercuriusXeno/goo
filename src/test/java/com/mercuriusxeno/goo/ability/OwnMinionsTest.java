@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.Test;
+import java.util.Optional;
 import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -45,6 +46,35 @@ class OwnMinionsTest {
             assertFalse(OwnMinions.ownMinionOf(CASTER, Rallied.NONE, Charmed.NONE));
         }
 
+    }
+
+    /**
+     * Whom a minion fights for, the player its hit marks a struck mob as
+     * (decisions minion-hit-marks-the-struck-mob-as-its-players, charmed-mobs-take-the-rallied-kill-rule).
+     */
+    @Nested
+    class OwnerOf {
+
+        @Test
+        void aRalliedMobFightsForItsRallier() {
+            assertEquals(Optional.of(CASTER), OwnMinions.ownerOf(new Rallied(CASTER, STRIKE), Charmed.NONE));
+        }
+
+        @Test
+        void aCharmedMobFightsForItsCharmer() {
+            assertEquals(Optional.of(CASTER), OwnMinions.ownerOf(Rallied.NONE, new Charmed(CASTER)));
+        }
+
+        @Test
+        void aMobRalliedAndCharmedFightsForItsRallier() {
+            assertEquals(Optional.of(CASTER), OwnMinions.ownerOf(new Rallied(CASTER, STRIKE),
+                    new Charmed(OTHER_PLAYER)));
+        }
+
+        @Test
+        void aMobHoldingNeitherFightsForNoOne() {
+            assertEquals(Optional.empty(), OwnMinions.ownerOf(Rallied.NONE, Charmed.NONE));
+        }
     }
 
     @Nested
