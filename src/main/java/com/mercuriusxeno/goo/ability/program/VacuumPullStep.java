@@ -18,29 +18,37 @@ import java.util.stream.Stream;
 
 /**
  * Void Vacuum's pull, run each held tick of the stream on what stands inside
- * its cone: each item entity flies to the player and lands in the inventory
- * as a pickup, as Grab pulls an item, the goo a vacuumed residual drops
- * among them; each mob is dragged level toward the player at a steady pace
+ * its cone: each item entity speeds toward the player by acceleration with
+ * its gravity off, rather than flying off at once, and lands in the inventory
+ * as a pickup, the goo a vacuumed residual drops among them; each mob is dragged level toward the player at a steady pace
  * its knockback resistance slows, takes no damage, and stops about a block in
  * front. Bosses and players are not dragged.
  * vacuum-pulls-items-to-pickup-and-drags-mobs
  *
- * @param itemSpeed    the speed an item flies to the player at, in blocks a tick
- * @param mobSpeed     the pace a mob resisting no knockback is dragged at, in blocks a tick
- * @param stopDistance how near the player, level, a dragged mob stops, in blocks
+ * @param itemAcceleration the speed the pull adds toward the eye to an item's motion each held tick, in blocks a
+ *                         tick per tick
+ * @param itemTopSpeed     the fastest the pull flies an item, in blocks a tick
+ * @param mobSpeed         the pace a mob resisting no knockback is dragged at, in blocks a tick
+ * @param stopDistance     how near the player, level, a dragged mob stops, in blocks
  */
-public record VacuumPullStep(double itemSpeed, double mobSpeed, double stopDistance) implements TakesNoEntity {
+public record VacuumPullStep(double itemAcceleration, double itemTopSpeed, double mobSpeed, double stopDistance)
+        implements TakesNoEntity {
 
     private static final String NAME = "vacuum_pull";
-    private static final String FIELD_ITEM_SPEED = "item_speed";
+    private static final String FIELD_ITEM_ACCELERATION = "item_acceleration";
+    private static final String FIELD_ITEM_TOP_SPEED = "item_top_speed";
     private static final String FIELD_MOB_SPEED = "mob_speed";
     private static final String FIELD_STOP_DISTANCE = "stop_distance";
+    /** The share of an item's motion across the line to the eye the pull keeps each held tick. */
+    private static final double ACROSS_MOTION_KEPT = 0.5;
 
     /**
      * Codec for the step's params.
      */
     public static final MapCodec<VacuumPullStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            Codec.doubleRange(0, Double.MAX_VALUE).fieldOf(FIELD_ITEM_SPEED).forGetter(VacuumPullStep::itemSpeed),
+            Codec.doubleRange(0, Double.MAX_VALUE).fieldOf(FIELD_ITEM_ACCELERATION)
+                    .forGetter(VacuumPullStep::itemAcceleration),
+            Codec.doubleRange(0, Double.MAX_VALUE).fieldOf(FIELD_ITEM_TOP_SPEED).forGetter(VacuumPullStep::itemTopSpeed),
             Codec.doubleRange(0, Double.MAX_VALUE).fieldOf(FIELD_MOB_SPEED).forGetter(VacuumPullStep::mobSpeed),
             Codec.doubleRange(0, Double.MAX_VALUE).fieldOf(FIELD_STOP_DISTANCE)
                     .forGetter(VacuumPullStep::stopDistance)
@@ -67,7 +75,7 @@ public record VacuumPullStep(double itemSpeed, double mobSpeed, double stopDista
             Vec3 look = aim.aimPoint().subtract(eye);
             for (Entity entity : inCone(host, player, eye, look, aim.coneDegrees())) {
                 if (entity instanceof ItemEntity item) {
-                    GrabEvents.pull(player, item, itemSpeed, eye);
+                    pullItem(item, eye);
                 } else if (drags(entity)) {
                     drag((Mob) entity, player);
                 }
@@ -89,6 +97,47 @@ public record VacuumPullStep(double itemSpeed, double mobSpeed, double stopDista
         // set even when zero, so a mob at the stop halts there rather than drifting on the last tick's drag
         mob.setDeltaMovement(step.x, mob.getDeltaMovement().y, step.z);
         mob.hurtMarked = true;
+    }
+
+    /**
+     * Pulls an item one held tick toward the eye by acceleration, its gravity
+     * off while the pull holds it, so the pull is seen to draw it in; the
+     * entity tick turns its gravity back on a few ticks after the last held
+     * tick that reached it. Its pickup delay clears, so the player's own tick
+     * picks it up on arrival.
+     * vacuum-pulls-items-to-pickup-and-drags-mobs
+     */
+    private void pullItem(ItemEntity item, Vec3 eye) {
+        GrabEvents.holdAloft(item, item.level().getGameTime() + GrabEvents.HOLD_GRACE_TICKS);
+        item.setDeltaMovement(pulledVelocity(item.getDeltaMovement(), item.position(), eye, itemAcceleration,
+                itemTopSpeed));
+        item.setNoPickUpDelay();
+        item.hurtMarked = true;
+    }
+
+    /**
+     * An item's motion after one held tick of the pull: the motion it had
+     * along the line to the eye, half its motion across that line, plus the
+     * acceleration toward the eye, no faster than the top speed and no longer
+     * than the distance left, so it homes on the player rather than flying past.
+     * vacuum-pulls-items-to-pickup-and-drags-mobs
+     *
+     * @param velocity     the item's motion before the tick, in blocks a tick
+     * @param from         the item's position
+     * @param toward       the player's eye
+     * @param acceleration the speed added toward the eye, in blocks a tick
+     * @param topSpeed     the fastest the item flies, in blocks a tick
+     * @return the item's motion after the tick
+     */
+    static Vec3 pulledVelocity(Vec3 velocity, Vec3 from, Vec3 toward, double acceleration, double topSpeed) {
+        Vec3 toEye = toward.subtract(from);
+        Vec3 along = toEye.normalize();
+        Vec3 alongMotion = along.scale(velocity.dot(along));
+        // a drop's pop, kept whole with its gravity off, carries it out of the cone and over the player's head
+        Vec3 acrossMotion = velocity.subtract(alongMotion).scale(ACROSS_MOTION_KEPT);
+        Vec3 pulled = alongMotion.add(acrossMotion).add(along.scale(acceleration));
+        double cap = Math.min(topSpeed, toEye.length());
+        return pulled.length() > cap ? pulled.normalize().scale(cap) : pulled;
     }
 
     /**

@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.network.ConjuredDoorPayload;
 import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.registry.GooSounds;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
@@ -18,7 +19,8 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * The doors players channeling Zone toward the pocket have conjured,
+ * The doors players channeling Zone toward the pocket, or End toward the
+ * End, have conjured,
  * each kept while its channel holds: every held tick stands the door where
  * the hold has brought it and sends it to the caster and every player
  * tracking them, the first with a burst of void and the conjuring sound. A
@@ -42,6 +44,8 @@ public final class ConjuredDoors {
     private static final double CONJURE_SPEED = 0.4;
     private static final double DOOR_MIDDLE = 1.0;
     private static final float CONJURE_VOLUME = 0.8f;
+    /** The door's sound plays where its player stands, as loud as the door's conjuring. */
+    private static final float DOOR_VOLUME = 0.8f;
 
     /** Each caster's door and the server tick its channel last stood it. */
     private static final Map<UUID, Standing> DOORS = new ConcurrentHashMap<>();
@@ -85,19 +89,33 @@ public final class ConjuredDoors {
      * Stands a caster's door where their hold has brought it this tick and
      * sends it to them and their watchers, conjuring it the first tick.
      *
-     * @param caster the player channeling toward the pocket
+     * @param caster the player channeling
      * @param held   the hold's tick count
      * @param charge the ticks the charge takes
+     * @return true on the tick the door is first conjured
      */
-    public static void conjure(ServerPlayer caster, int held, int charge) {
+    public static boolean conjure(ServerPlayer caster, int held, int charge) {
         ServerLevel level = caster.level();
         ConjuredDoor door = ConjuredDoor.standing(caster.position(), caster.getYRot(), held, charge);
         Standing before = DOORS.put(caster.getUUID(), new Standing(door, level.getServer().getTickCount()));
         if (before == null) {
             showConjuring(level, door);
-            ZoneRooms.loadRoomAhead(caster);
         }
         sendDoor(caster, door);
+        return before == null;
+    }
+
+    /**
+     * Sends the door's own sound to the player it carries, where they stand,
+     * on their own connection, so the level change cuts no sound a level
+     * played: once as the door envelops them, once as they arrive.
+     * decision door-carries-its-own-sound-through-the-change
+     *
+     * @param player the player the door carries
+     */
+    public static void sendDoorSound(ServerPlayer player) {
+        player.connection.send(new ClientboundSoundPacket(GooSounds.ZONE_DOOR, SoundSource.PLAYERS,
+                player.getX(), player.getY(), player.getZ(), DOOR_VOLUME, 1f, player.getRandom().nextLong()));
     }
 
     /**
