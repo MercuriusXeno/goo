@@ -50,7 +50,11 @@ class GrabStepTest {
     /** An acceleration unequal to the shipped one, so the test reads the step's field. */
     private static final double PULL_ACCELERATION = 0.25;
     private static final double PULL_SPEED = 1;
-    private static final GrabStep GRAB = new GrabStep(8, HOLD_DISTANCE, 1.5, PULL_SPEED, 10, PULL_ACCELERATION, 4, 3);
+    /** A hold acceleration and reference volume unequal to the shipped ones, so the tests read the step's fields. */
+    private static final double HOLD_ACCELERATION = 0.3;
+    private static final double REFERENCE_VOLUME = 1.4;
+    private static final GrabStep GRAB = new GrabStep(8, HOLD_DISTANCE, 1.5, PULL_SPEED, 10, PULL_ACCELERATION, 4, 3,
+            HOLD_ACCELERATION, REFERENCE_VOLUME);
 
     /**
      * A locked item gains speed tick over tick toward where the eye stands
@@ -71,7 +75,8 @@ class GrabStepTest {
         private static final double RADIUS = 2.5;
         private static final double JUST_INSIDE = RADIUS - 0.01;
         private static final double JUST_OUTSIDE = RADIUS + 0.01;
-        private final GrabStep step = new GrabStep(8, HOLD_DISTANCE, 1.5, PULL_SPEED, 10, PULL_ACCELERATION, RADIUS, 3);
+        private final GrabStep step = new GrabStep(8, HOLD_DISTANCE, 1.5, PULL_SPEED, 10, PULL_ACCELERATION, RADIUS, 3,
+                HOLD_ACCELERATION, REFERENCE_VOLUME);
         private final Item cobblestone = mock(Item.class);
         private final Item dirt = mock(Item.class);
         private final ItemStack targeted = stackOf(cobblestone);
@@ -152,7 +157,8 @@ class GrabStepTest {
 
         @Test
         void theCapSetsTheMeetTimeWhereTheClosestMemberWaitsOnTheLine() {
-            GrabStep capped = new GrabStep(8, HOLD_DISTANCE, 1.5, PULL_SPEED, 10, PULL_ACCELERATION, 4, TIGHT_CAP);
+            GrabStep capped = new GrabStep(8, HOLD_DISTANCE, 1.5, PULL_SPEED, 10, PULL_ACCELERATION, 4, TIGHT_CAP,
+                    HOLD_ACCELERATION, REFERENCE_VOLUME);
             Vec3 onTheLine = new Vec3(3, 0, 0);
             List<Vec3> members = List.of(onTheLine, FARTHER, FARTHEST);
             GrabStep.GroupMeet meet = GrabStep.meetOf(EYE, LOOK, members, PULL_SPEED, capped.meetCapMultiple());
@@ -162,6 +168,48 @@ class GrabStepTest {
             assertTrue(meet.speeds().stream().allMatch(speed -> speed <= cap + EPSILON), "No member should fly past "
                     + "the cap, flies " + meet.speeds());
             assertEquals(0, meet.speeds().get(0), EPSILON, "The closest member should wait on the line");
+        }
+    }
+
+    /**
+     * A held mob gains speed toward the hold point by an acceleration its
+     * hitbox volume divides, so a bigger mob comes slower
+     * (decision grabbed-mob-accelerates-slower-the-bigger-its-hitbox).
+     */
+    @Nested
+    class HeldMobMass {
+
+        private static final Vec3 FROM = Vec3.ZERO;
+        private static final Vec3 HOLD_POINT = new Vec3(10, 0, 0);
+        /** A chicken's box, 0.4 by 0.4 by 0.7. */
+        private static final double CHICKEN = 0.4 * 0.4 * 0.7;
+        /** A ravager's box, 1.95 by 1.95 by 2.2. */
+        private static final double RAVAGER = 1.95 * 1.95 * 2.2;
+        private static final int TICKS = 5;
+
+        @Test
+        void aChickenSizedBoxTravelsFartherThanARavagerSizedOne() {
+            double chicken = travelled(CHICKEN);
+            double ravager = travelled(RAVAGER);
+            assertTrue(chicken > ravager, "The chicken-sized box should travel farther, " + chicken + " against "
+                    + ravager);
+        }
+
+        @Test
+        void doublingTheVolumeHalvesTheFirstTicksGain() {
+            double once = GRAB.heldVelocity(FROM, Vec3.ZERO, HOLD_POINT, REFERENCE_VOLUME).length();
+            double twice = GRAB.heldVelocity(FROM, Vec3.ZERO, HOLD_POINT, 2 * REFERENCE_VOLUME).length();
+            assertEquals(once / 2, twice, EPSILON);
+        }
+
+        private static double travelled(double volume) {
+            Vec3 at = FROM;
+            Vec3 velocity = Vec3.ZERO;
+            for (int tick = 0; tick < TICKS; tick++) {
+                velocity = GRAB.heldVelocity(at, velocity, HOLD_POINT, volume);
+                at = at.add(velocity);
+            }
+            return at.distanceTo(FROM);
         }
     }
 

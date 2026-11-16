@@ -149,15 +149,47 @@ public final class GrabEvents {
                 && !entity.getData(GooAttachments.GRABBED).releasedAt(entity.level().getGameTime());
     }
 
+    /**
+     * Moves a held mob one channel tick by the velocity its hold keeps, so a
+     * bigger mob is seen to gain speed toward the hold point slower.
+     * decision grabbed-mob-accelerates-slower-the-bigger-its-hitbox
+     *
+     * @param player     the holding player
+     * @param held       the held mob
+     * @param velocity   this tick's motion toward the hold point
+     * @param throwSpeed the speed a throw launches it at, in blocks per tick
+     */
+    public static void carryHeld(ServerPlayer player, Entity held, Vec3 velocity, double throwSpeed) {
+        moveHeld(player, held, velocity, throwSpeed);
+    }
+
+    /**
+     * The velocity a player's hold keeps for the entity it holds: how far
+     * the entity moved on the hold's last tick.
+     * decision grabbed-mob-accelerates-slower-the-bigger-its-hitbox
+     *
+     * @param player the holding player
+     * @param held   the held entity
+     * @return the kept velocity, zero for an entity the hold took this tick
+     */
+    public static Vec3 heldVelocity(ServerPlayer player, Entity held) {
+        GrabHold hold = player.getData(GooAttachments.GRAB_HOLD);
+        return hold.standsAt(player.level().getGameTime()) && hold.entityId() == held.getId()
+                ? hold.velocity() : Vec3.ZERO;
+    }
+
     private static void moveHeld(ServerPlayer player, Entity held, Vec3 step, double throwSpeed) {
         long until = player.level().getGameTime() + HOLD_GRACE_TICKS;
         suspend(held, until);
+        Vec3 before = held.position();
         // Moved rather than placed, so the held body collides with the blocks it is pulled against.
         held.move(MoverType.SELF, step);
         held.setDeltaMovement(Vec3.ZERO);
         held.fallDistance = 0;
         held.hurtMarked = true;
-        player.setData(GooAttachments.GRAB_HOLD, new GrabHold(held.getId(), throwSpeed, until, false));
+        // decision grabbed-mob-accelerates-slower-the-bigger-its-hitbox: a body stopped by a block keeps no speed into it
+        player.setData(GooAttachments.GRAB_HOLD,
+                new GrabHold(held.getId(), throwSpeed, until, false, held.position().subtract(before)));
         EntityVisuals.sendToWatchers(held, new AilmentPayload(held.getId(), AilmentKind.GRABBED, FLAIL_OVERLAY_TICKS));
     }
 
