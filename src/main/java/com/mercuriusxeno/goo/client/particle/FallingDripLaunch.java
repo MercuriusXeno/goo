@@ -7,7 +7,9 @@ import net.minecraft.world.phys.Vec3;
  * How the client launches the drip a falling layer draws as: from the
  * point the layer leaves, from rest, falling under the drip's gravity and
  * drag as the server reckons the fall, living the fall's ticks and the
- * tick it splats on, so it reaches the landing surface as the layer lands.
+ * tick it splats on, so it reaches the landing surface as the layer lands;
+ * a wall run's drip moves straight down at the run's steady pace instead,
+ * covering its cell in the fall's ticks.
  * goo-moving-downward-falls-as-drips
  *
  * @param start    where the drip starts
@@ -24,6 +26,7 @@ public record FallingDripLaunch(Vec3 start, Vec3 velocity, int lifetime) {
      * @return the drip's launch
      */
     public static FallingDripLaunch of(FallingDripPayload fall) {
-        return new FallingDripLaunch(fall.start(), Vec3.ZERO, fall.ticks() + SPLAT_TICK);
+        Vec3 velocity = fall.paced() ? new Vec3(0, (fall.landingY() - fall.start().y) / fall.ticks(), 0) : Vec3.ZERO;
+        return new FallingDripLaunch(fall.start(), velocity, fall.ticks() + SPLAT_TICK);
     }
 }

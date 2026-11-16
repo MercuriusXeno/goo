@@ -93,6 +93,8 @@ public class VolumeCellBlock extends Block {
     private static final int HOLDS_TOPS = 1;
     /** Half a block, the middle of a cell across. */
     private static final double HALF = 0.5;
+    /** How far a wall run's drip stands off its wall, as the runny streak stands: a tenth of a model pixel. */
+    static final double WALL_DRIP_OFF = 0.1 / 16;
     /**
      * The fill the cell holds on its floor, each layer a fifteenth of a block
      * of goo; a cell of fill 0 holds its goo in films alone.
@@ -471,7 +473,7 @@ public class VolumeCellBlock extends Block {
         GooServerState.of(level.getServer()).layerFalls().start(new LayerFalls.Fall(level.dimension(),
                 start.immutable(), this, level.getServer().getTickCount() + launch.ticks()));
         BlockVisuals.sendToWatchers(level, start, new FallingDripPayload(launch.from(), launch.landingY(),
-                launch.ticks(), colourOf(level, GooColors::highlight), colourOf(level, GooColors::bright)));
+                launch.ticks(), colourOf(level, GooColors::highlight), colourOf(level, GooColors::bright), false));
         return true;
     }
 
@@ -520,6 +522,25 @@ public class VolumeCellBlock extends Block {
             LoadedAbilityCost.of(level, binding.layingAbility()).map(cost -> reclaimed(1, cost)).filter(mb -> mb > 0)
                     .ifPresent(mb -> popResource(level, start, GooStacks.createForOutput(binding.gooType(), mb)));
         }
+    }
+
+    /**
+     * Lands a runny layer a strike placed, drawing its first drip from the
+     * cell the strike fed where its run takes it on at once from there.
+     * goo-moving-downward-falls-as-drips
+     *
+     * @param host    the caster's host
+     * @param fed     the cell the strike fed
+     * @param side    the side whose wall the layer runs down
+     * @param landing where the layer lands
+     */
+    public void placeRunny(ChannelHost host, BlockPos fed, Direction side, Placement landing) {
+        if (!landing.pos().equals(fed)) {
+            BlockState standing = host.stateAt(fed);
+            wallDripOf(stepFor(host.level(), fed, standing, side), fed, side, layersOf(host.stateAt(fed.below())))
+                    .ifPresent(drip -> drawWallDrip(host.level(), fed, drip));
+        }
+        place(host, landing);
     }
 
     /**
@@ -854,8 +875,11 @@ public class VolumeCellBlock extends Block {
     private BlockState runRunnyLayers(ServerLevel level, BlockPos pos, BlockState state) {
         BlockState left = state;
         for (Direction side : runnySides(state)) {
+            RunStep stepping = stepFor(level, pos, left, side);
             Optional<Placement> step = runFrom(level, pos, left, side);
             if (step.isPresent()) {
+                wallDripOf(stepping, pos, side, layersOf(level.getBlockState(pos.below())))
+                        .ifPresent(drip -> drawWallDrip(level, pos, drip));
                 left = stepRunnyLayer(level, pos, left, side, step.get());
             }
         }
@@ -925,14 +949,79 @@ public class VolumeCellBlock extends Block {
     private Optional<Placement> runFrom(LevelReader level, BlockPos here, BlockState state, Direction side) {
         BlockPos below = here.below();
         BlockState under = level.getBlockState(below);
-        RunStep step = runStep(liesOn(level, here), layersOf(state) >= MAX_LAYERS, belowFor(level, below, side));
-        return switch (step) {
+        return switch (stepFor(level, here, state, side)) {
             case JOIN_HERE -> thickened(state, this).map(into -> Placement.at(here, into));
             case JOIN_BELOW -> thickened(under, this).map(into -> Placement.at(below, into));
             case RUN_DOWN -> coated(under, this, side, SideCoat.RUNNY).map(into -> Placement.at(below, into));
             case FALL -> landingBelow(level, below).map(cell -> Placement.fallingFrom(below));
             case WAIT -> Optional.empty();
         };
+    }
+
+    /**
+     * The step a runny layer on a cell's side takes now.
+     * runny-goo-runs-down-the-wall-to-the-first-top-below
+     *
+     * @param level the level
+     * @param here  the cell holding the layer
+     * @param state that cell's state
+     * @param side  the side the layer runs down
+     * @return the step
+     */
+    private RunStep stepFor(LevelReader level, BlockPos here, BlockState state, Direction side) {
+        return runStep(liesOn(level, here), layersOf(state) >= MAX_LAYERS, belowFor(level, here.below(), side));
+    }
+
+    /**
+     * A drip a runny layer's step down its wall draws, from the wall face
+     * of the cell it leaves, at the top of that cell, to its end.
+     *
+     * @param from where the drip starts, set off the wall as the streak is
+     * @param toY  where it ends: the top of the cell below, or the surface of the fill it joins
+     */
+    record WallDrip(Vec3 from, double toY) {
+    }
+
+    /**
+     * The drip a runny layer's step draws: a step to the same side of the
+     * cell below ends on that face one cell down, a step into the fill of the
+     * cell below ends on that fill's surface, and any other step draws none,
+     * a fall drawing its own drip.
+     * goo-moving-downward-falls-as-drips
+     *
+     * @param step      the step
+     * @param here      the cell the layer leaves
+     * @param side      the side whose wall it runs down
+     * @param belowFill the fill the cell below holds
+     * @return the drip, empty for a step drawing none
+     */
+    static Optional<WallDrip> wallDripOf(RunStep step, BlockPos here, Direction side, int belowFill) {
+        double toY = switch (step) {
+            case RUN_DOWN -> here.getY();
+            case JOIN_BELOW -> here.getY() - 1 + (double) belowFill / MAX_LAYERS;
+            default -> Double.NaN;
+        };
+        if (Double.isNaN(toY)) {
+            return Optional.empty();
+        }
+        Vec3 middle = Vec3.atCenterOf(here);
+        double off = side.getAxisDirection() == Direction.AxisDirection.POSITIVE ? HALF - WALL_DRIP_OFF
+                : -(HALF - WALL_DRIP_OFF);
+        Vec3 onTheWall = middle.with(side.getAxis(), side.getAxis().choose(middle.x, middle.y, middle.z) + off);
+        return Optional.of(new WallDrip(new Vec3(onTheWall.x, here.getY() + 1.0, onTheWall.z), toY));
+    }
+
+    /**
+     * Sends a cell's chunk watchers the drip a runny layer's step draws, moving at the run's pace.
+     * goo-moving-downward-falls-as-drips
+     *
+     * @param level the level
+     * @param pos   the cell the layer leaves
+     * @param drip  the drip
+     */
+    private void drawWallDrip(ServerLevel level, BlockPos pos, WallDrip drip) {
+        BlockVisuals.sendToWatchers(level, pos, new FallingDripPayload(drip.from(), drip.toY(), pourTicksAt(level),
+                colourOf(level, GooColors::highlight), colourOf(level, GooColors::bright), true));
     }
 
     /**

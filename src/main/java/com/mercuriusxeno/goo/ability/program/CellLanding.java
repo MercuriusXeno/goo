@@ -302,7 +302,7 @@ final class CellLanding {
         if (coat == SideCoat.RUNNY) {
             cell.runnyLanding(host.level(), pos, side)
                     .filter(landing -> host.placementPrice().pay(VolumeCellBlock.MAX_LAYERS))
-                    .ifPresent(landing -> cell.place(host, landing));
+                    .ifPresent(landing -> cell.placeRunny(host, pos, side, landing));
             return;
         }
         VolumeCellBlock.filmed(host.stateAt(pos), cell, side)

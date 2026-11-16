@@ -20,8 +20,9 @@ import org.jspecify.annotations.NonNull;
  * @param ticks    the ticks it falls
  * @param dark     the goo's darker colour, RGB
  * @param light    the goo's lighter colour, RGB
+ * @param paced    whether the drip moves down at a wall run's steady pace rather than falling free
  */
-public record FallingDripPayload(Vec3 start, double landingY, int ticks, int dark, int light)
+public record FallingDripPayload(Vec3 start, double landingY, int ticks, int dark, int light, boolean paced)
         implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
@@ -45,10 +46,12 @@ public record FallingDripPayload(Vec3 start, double landingY, int ticks, int dar
         buf.writeVarInt(payload.ticks);
         buf.writeInt(payload.dark);
         buf.writeInt(payload.light);
+        buf.writeBoolean(payload.paced);
     }
 
     private static FallingDripPayload decode(FriendlyByteBuf buf) {
         Vec3 start = new Vec3(buf.readDouble(), buf.readDouble(), buf.readDouble());
-        return new FallingDripPayload(start, buf.readDouble(), buf.readVarInt(), buf.readInt(), buf.readInt());
+        return new FallingDripPayload(start, buf.readDouble(), buf.readVarInt(), buf.readInt(), buf.readInt(),
+                buf.readBoolean());
     }
 }
