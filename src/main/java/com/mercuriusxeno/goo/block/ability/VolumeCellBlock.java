@@ -75,6 +75,8 @@ public class VolumeCellBlock extends Block {
     public static final BooleanProperty WEST = BlockStateProperties.WEST;
     /** The most layers one cell holds: a whole block of goo. */
     public static final int MAX_LAYERS = 15;
+    /** The adhesion of a goo that holds tops, every goo's rule before adhesion was read. */
+    private static final int HOLDS_TOPS = 1;
     /** The layers the cell holds, each a fifteenth of a block of goo. */
     public static final IntegerProperty LAYERS = IntegerProperty.create("layers", 1, MAX_LAYERS);
 
@@ -402,8 +404,9 @@ public class VolumeCellBlock extends Block {
         List<Side> sides = new ArrayList<>(SIDES.stream().map(side -> sideOf(level, pos.relative(side), side))
                 .toList());
         int cohesion = cohesionAt(level);
+        int adhesion = adhesionAt(level);
         for (int tried = 0; tried < SIDES.size(); tried++) {
-            Optional<Direction> toward = SlimeFlow.pour(state.getValue(LAYERS), cohesion, sides);
+            Optional<Direction> toward = SlimeFlow.pour(state.getValue(LAYERS), cohesion, adhesion, sides);
             if (toward.isEmpty()) {
                 return false;
             }
@@ -473,6 +476,20 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
+     * The rung of the adhesion ladder this cell clings at, read from its goo
+     * type's adhesion; a cell whose goo type's definition does not load holds
+     * tops, keeping its last layer where it was laid.
+     * adhesion-is-a-ladder-of-holds
+     *
+     * @param level the level, whose registries hold the goo type
+     * @return the adhesion
+     */
+    private int adhesionAt(LevelReader level) {
+        return level.registryAccess().get(binding.gooType()).map(type -> type.value().adhesion())
+                .orElse(HOLDS_TOPS);
+    }
+
+    /**
      * Moves one whole layer from a cell toward a side: into the neighbour, an
      * open cell over a top that can hold a world goo becoming a one-layer
      * cell, or down off the ledge to the first top below it; the cell loses
@@ -494,8 +511,10 @@ public class VolumeCellBlock extends Block {
 
     /**
      * Pours one layer from a cell into the cell its layer lands in, where
-     * that cell is open or holds this goo short of a whole block.
+     * that cell is open or holds this goo short of a whole block; a cell
+     * pouring its last layer away stands open, the layer moved and never removed.
      * spread-decreases-the-cell-it-leaves
+     * adhesion-is-a-ladder-of-holds
      *
      * @param level   the level
      * @param pos     the pouring cell
@@ -510,7 +529,8 @@ public class VolumeCellBlock extends Block {
                 && !wouldRiseAroundFeet(level, landing, layersOf(taking), poured.taker())) {
             BlockState into = taking.isAir() ? defaultBlockState() : taking;
             level.setBlock(landing, into.setValue(LAYERS, poured.taker()), UPDATE_ALL);
-            level.setBlock(pos, state.setValue(LAYERS, poured.giver()), UPDATE_ALL);
+            level.setBlock(pos, poured.giver() > 0 ? state.setValue(LAYERS, poured.giver())
+                    : Blocks.AIR.defaultBlockState(), UPDATE_ALL);
         }
     }
 

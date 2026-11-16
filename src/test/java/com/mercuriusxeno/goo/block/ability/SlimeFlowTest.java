@@ -21,6 +21,8 @@ class SlimeFlowTest {
 
     /** The cohesion of a goo that levels as flat as whole layers allow. */
     private static final int RUNNY = 0;
+    /** The adhesion that holds tops, keeping a cell's last layer where it was laid. */
+    private static final int HOLDS_TOPS = 1;
 
     /**
      * A cell pours only the layers standing above its goo's cohesion step
@@ -36,24 +38,24 @@ class SlimeFlowTest {
         @Test
         void aRunnyCellPoursIntoASideTwoLayersBelow() {
             assertEquals(Optional.of(Direction.EAST),
-                    SlimeFlow.pour(CELL, RUNNY, List.of(Side.holds(Direction.EAST, CELL - 2))));
+                    SlimeFlow.pour(CELL, RUNNY, HOLDS_TOPS, List.of(Side.holds(Direction.EAST, CELL - 2))));
         }
 
         @Test
         void aCohesiveCellHoldsItsStepOverASideFiveLayersBelow() {
             assertEquals(Optional.empty(),
-                    SlimeFlow.pour(CELL, GOOP_COHESION, List.of(Side.holds(Direction.EAST, CELL - 5))));
+                    SlimeFlow.pour(CELL, GOOP_COHESION, HOLDS_TOPS, List.of(Side.holds(Direction.EAST, CELL - 5))));
         }
 
         @Test
         void aCohesiveCellPoursIntoASideSixLayersBelow() {
             assertEquals(Optional.of(Direction.EAST),
-                    SlimeFlow.pour(CELL, GOOP_COHESION, List.of(Side.holds(Direction.EAST, CELL - 6))));
+                    SlimeFlow.pour(CELL, GOOP_COHESION, HOLDS_TOPS, List.of(Side.holds(Direction.EAST, CELL - 6))));
         }
 
         @Test
         void aFirmCellNeverPours() {
-            assertEquals(Optional.empty(), SlimeFlow.pour(VolumeCellBlock.MAX_LAYERS, FIRM,
+            assertEquals(Optional.empty(), SlimeFlow.pour(VolumeCellBlock.MAX_LAYERS, FIRM, HOLDS_TOPS,
                     List.of(Side.holds(Direction.EAST, 0), Side.ledge(Direction.WEST))));
         }
     }
@@ -63,7 +65,7 @@ class SlimeFlowTest {
 
         @Test
         void levelNeighboursTakeNothing() {
-            Optional<Direction> pour = SlimeFlow.pour(4, RUNNY, List.of(Side.holds(Direction.NORTH, 4),
+            Optional<Direction> pour = SlimeFlow.pour(4, RUNNY, HOLDS_TOPS, List.of(Side.holds(Direction.NORTH, 4),
                     Side.holds(Direction.EAST, 4)));
 
             assertEquals(Optional.empty(), pour);
@@ -71,14 +73,14 @@ class SlimeFlowTest {
 
         @Test
         void aNeighbourOneLayerLowerTakesNothing() {
-            Optional<Direction> pour = SlimeFlow.pour(4, RUNNY, List.of(Side.holds(Direction.EAST, 3)));
+            Optional<Direction> pour = SlimeFlow.pour(4, RUNNY, HOLDS_TOPS, List.of(Side.holds(Direction.EAST, 3)));
 
             assertEquals(Optional.empty(), pour);
         }
 
         @Test
         void aNeighbourTwoLayersLowerTakesALayer() {
-            Optional<Direction> pour = SlimeFlow.pour(4, RUNNY, List.of(Side.holds(Direction.NORTH, 4),
+            Optional<Direction> pour = SlimeFlow.pour(4, RUNNY, HOLDS_TOPS, List.of(Side.holds(Direction.NORTH, 4),
                     Side.holds(Direction.EAST, 2)));
 
             assertEquals(Optional.of(Direction.EAST), pour);
@@ -86,7 +88,7 @@ class SlimeFlowTest {
 
         @Test
         void theLowestNeighbourTakesTheLayer() {
-            Optional<Direction> pour = SlimeFlow.pour(8, RUNNY, List.of(Side.holds(Direction.NORTH, 5),
+            Optional<Direction> pour = SlimeFlow.pour(8, RUNNY, HOLDS_TOPS, List.of(Side.holds(Direction.NORTH, 5),
                     Side.holds(Direction.EAST, 0), Side.holds(Direction.SOUTH, 3)));
 
             assertEquals(Optional.of(Direction.EAST), pour);
@@ -94,7 +96,7 @@ class SlimeFlowTest {
 
         @Test
         void aBlockedSideTakesNothing() {
-            Optional<Direction> pour = SlimeFlow.pour(8, RUNNY, List.of(Side.blocked(Direction.WEST)));
+            Optional<Direction> pour = SlimeFlow.pour(8, RUNNY, HOLDS_TOPS, List.of(Side.blocked(Direction.WEST)));
 
             assertEquals(Optional.empty(), pour);
         }
@@ -105,24 +107,45 @@ class SlimeFlowTest {
 
         @Test
         void anOpenLedgeTakesALayer() {
-            Optional<Direction> pour = SlimeFlow.pour(2, RUNNY, List.of(Side.ledge(Direction.SOUTH)));
+            Optional<Direction> pour = SlimeFlow.pour(2, RUNNY, HOLDS_TOPS, List.of(Side.ledge(Direction.SOUTH)));
 
             assertEquals(Optional.of(Direction.SOUTH), pour);
         }
 
         @Test
         void aLedgeWinsOverALowerNeighbour() {
-            Optional<Direction> pour = SlimeFlow.pour(8, RUNNY, List.of(Side.holds(Direction.NORTH, 0),
+            Optional<Direction> pour = SlimeFlow.pour(8, RUNNY, HOLDS_TOPS, List.of(Side.holds(Direction.NORTH, 0),
                     Side.ledge(Direction.WEST)));
 
             assertEquals(Optional.of(Direction.WEST), pour);
         }
 
-        @Test
-        void aOneLayerCellKeepsItsLayerAtALedge() {
-            Optional<Direction> pour = SlimeFlow.pour(1, RUNNY, List.of(Side.ledge(Direction.SOUTH)));
+    }
 
-            assertEquals(Optional.empty(), pour);
+    /**
+     * A cell's last layer stays where it was laid at adhesion 1 and up, and
+     * runs off an open ledge at adhesion 0 (decision adhesion-is-a-ladder-of-holds).
+     */
+    @Nested
+    class Adhesion {
+
+        private static final int CLINGS_TO_NOTHING = 0;
+
+        @Test
+        void aOneLayerCellPoursItsLayerOffALedgeAtAdhesionZero() {
+            assertEquals(Optional.of(Direction.SOUTH),
+                    SlimeFlow.pour(1, RUNNY, CLINGS_TO_NOTHING, List.of(Side.ledge(Direction.SOUTH))));
+        }
+
+        @Test
+        void aOneLayerCellKeepsItsLayerAtALedgeAtAdhesionOne() {
+            assertEquals(Optional.empty(), SlimeFlow.pour(1, RUNNY, HOLDS_TOPS, List.of(Side.ledge(Direction.SOUTH))));
+        }
+
+        @Test
+        void aOneLayerCellWithNoLedgeKeepsItsLayerAtAdhesionZero() {
+            assertEquals(Optional.empty(), SlimeFlow.pour(1, RUNNY, CLINGS_TO_NOTHING,
+                    List.of(Side.holds(Direction.NORTH, 0), Side.blocked(Direction.EAST))));
         }
     }
 

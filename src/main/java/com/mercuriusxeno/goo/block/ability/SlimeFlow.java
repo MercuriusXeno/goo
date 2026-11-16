@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.block.ability;
 
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.Direction;
 import java.util.Comparator;
 import java.util.List;
@@ -69,19 +70,26 @@ public final class SlimeFlow {
      * Which side neighbour takes one of a cell's layers this pour: an open
      * ledge before any neighbour, else the lowest neighbour holding at least
      * two layers plus the goo's cohesion fewer, the first listed among
-     * equals. A cell never pours its last layer, so a one-layer film stays
-     * where it was laid, dripping at its open edges.
+     * equals. A goo that holds tops never pours a cell's last layer, so a
+     * one-layer film stays where it was laid, dripping at its open edges; a
+     * goo clinging to nothing pours that last layer off an open ledge, and a
+     * cell with no ledge beside it keeps it, since a pour into a level
+     * neighbour would only swap the two.
      * slime-is-a-layered-cell-that-levels-out
      * cohesion-is-the-step-the-goo-holds
+     * adhesion-is-a-ladder-of-holds
      * coat-is-a-green-slime-film-over-the-blocks-own-texture
      *
      * @param layers   the coat layers the pouring cell holds
      * @param cohesion the step in layers the goo holds over a neighbour, 0 levelling flat
+     * @param adhesion the rung of the adhesion ladder the goo clings at, 0 clinging to nothing
      * @param sides    its side neighbours
      * @return the side that takes a layer, empty where the cell holds its step
      */
-    static Optional<Direction> pour(int layers, int cohesion, List<Side> sides) {
-        List<Side> takers = sides.stream().filter(side -> takes(layers - cohesion, side)).toList();
+    static Optional<Direction> pour(int layers, int cohesion, int adhesion, List<Side> sides) {
+        boolean lastLayerRuns = layers == 1 && adhesion == GooTypeDefinition.CLINGS_TO_NOTHING;
+        List<Side> takers = sides.stream().filter(side -> takes(layers - cohesion, side)
+                || lastLayerRuns && side.footing() == Footing.LEDGE).toList();
         Optional<Side> ledge = takers.stream().filter(side -> side.footing() == Footing.LEDGE).findFirst();
         return ledge.or(() -> takers.stream().min(Comparator.comparingInt(Side::layers))).map(Side::direction);
     }
