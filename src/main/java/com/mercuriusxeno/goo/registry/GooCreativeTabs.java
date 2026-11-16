@@ -53,6 +53,7 @@ public class GooCreativeTabs {
                 output.accept(GooItems.METEORIC_IRON.get());
                 output.accept(GooItems.IMPACT_GLASS.get());
                 output.accept(GooItems.BRECCIA.get());
+                output.accept(GooItems.CRATER_ICE.get());
                 output.accept(GooItems.MOLTEN_IRON_BUCKET.get());
                 // Equipment
                 output.accept(GooItems.GOO_GLOVE.get());
