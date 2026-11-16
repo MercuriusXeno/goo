@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.block.ability;
 
+import com.mercuriusxeno.goo.ability.frost.RimeChill;
 import com.mercuriusxeno.goo.ability.frost.RimeFeet;
-import com.mercuriusxeno.goo.ability.frost.RimeFrozenBlocks;
 import com.mercuriusxeno.goo.ability.program.RimeStep;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -16,10 +16,11 @@ import org.jspecify.annotations.NonNull;
 /**
  * Frost's Rime cell: the volume cell bound to Rime's endothermic goo, which
  * on each scheduled tick freezes the water and lava sources within the reach
- * Rime's step names, then ticks again after the step's chill ticks, so the
- * cell keeps what is around it frozen for as long as it stands; a living
- * thing standing on it barefoot freezes and takes freeze damage.
+ * Rime's step names, for good, then ticks again after the step's chill
+ * ticks, so water or lava reaching it later freezes too; a living thing
+ * standing on it barefoot freezes and takes freeze damage.
  * rime-freezes-water-and-lava-and-freezes-and-damages-the-shoeless
+ * rime-freezing-is-permanent-with-no-restore-on-removal
  * iceborn-is-dropped-for-rime-a-frost-goo-that-keeps-what-is-around-it-frozen
  */
 public class RimeCellBlock extends VolumeCellBlock {
@@ -47,7 +48,7 @@ public class RimeCellBlock extends VolumeCellBlock {
             return;
         }
         RimeStep.in(layingProgram(level)).ifPresent(rime -> {
-            RimeFrozenBlocks.freezeAround(level, pos, rime.reach());
+            RimeChill.freezeAround(level, pos, rime.reach());
             if (!level.getBlockTicks().hasScheduledTick(pos, this)) {
                 level.scheduleTick(pos, this, rime.chillTicks());
             }

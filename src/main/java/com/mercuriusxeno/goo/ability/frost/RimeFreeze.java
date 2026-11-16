@@ -6,11 +6,12 @@ import net.minecraft.world.level.block.state.BlockState;
 import java.util.Optional;
 
 /**
- * The blocks Rime goo freezes and thaws, warm and frozen: a water source
- * freezes to Rime ice and a lava source to obsidian while a Rime cell stands
- * in reach of it, and each goes back once none does.
+ * The blocks Rime goo freezes, warm and frozen: a water source freezes to
+ * Rime ice and a lava source to obsidian, and what stands frozen stays so,
+ * the change running one way, so the water or lava under someone crossing on
+ * it never comes back.
  * rime-freezes-water-and-lava-and-freezes-and-damages-the-shoeless
- * iceborn-is-dropped-for-rime-a-frost-goo-that-keeps-what-is-around-it-frozen
+ * rime-freezing-is-permanent-with-no-restore-on-removal
  */
 public enum RimeFreeze {
 
@@ -18,40 +19,22 @@ public enum RimeFreeze {
     WATER,
     /** A lava source, freezing to obsidian. */
     LAVA,
-    /** Rime ice, thawing to a water source. */
+    /** Rime ice, standing frozen for good. */
     ICE,
-    /** Obsidian Rime froze, thawing to a lava source. */
+    /** Obsidian, standing frozen for good. */
     OBSIDIAN;
 
     /**
-     * What a block becomes, given whether a Rime cell stands in reach of it:
-     * warm in reach it freezes, frozen out of reach it thaws, and otherwise
-     * it stands as it is.
+     * What a block freezes to.
      *
-     * @param rimeInReach whether a Rime cell stands in reach of the block
-     * @return the form it turns to, empty where it stands as it is
+     * @return Rime ice for water, obsidian for lava, empty for what already stands frozen
      */
-    public Optional<RimeFreeze> settled(boolean rimeInReach) {
-        return frozen() == rimeInReach ? Optional.empty() : Optional.of(counterpart());
-    }
-
-    /**
-     * @return the form this one freezes or thaws to: water and Rime ice each other's, lava and obsidian each other's
-     */
-    private RimeFreeze counterpart() {
+    public Optional<RimeFreeze> freeze() {
         return switch (this) {
-            case WATER -> ICE;
-            case ICE -> WATER;
-            case LAVA -> OBSIDIAN;
-            case OBSIDIAN -> LAVA;
+            case WATER -> Optional.of(ICE);
+            case LAVA -> Optional.of(OBSIDIAN);
+            case ICE, OBSIDIAN -> Optional.empty();
         };
-    }
-
-    /**
-     * @return true for the frozen forms, Rime ice and obsidian
-     */
-    public boolean frozen() {
-        return this == ICE || this == OBSIDIAN;
     }
 
     /**

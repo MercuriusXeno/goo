@@ -45,7 +45,7 @@ public final class RimeTests {
     private static final String LAYERS_WRONG = "The cell over the stone should hold one layer of Rime, stands %s";
     private static final String FRICTION_WRONG = "The Rime cell should stand at ice's friction %s, stands at %s";
     private static final String RIME_FREEZES_WATER_AND_LAVA = "rime_freezes_the_water_and_lava_in_reach";
-    private static final String RIME_ICE_THAWS = "rime_ice_thaws_once_no_rime_stands_in_reach";
+    private static final String RIME_STAYS_FROZEN = "rime_ice_and_obsidian_stay_frozen_once_the_rime_is_gone";
     private static final Identifier RIME_ICE = Identifier.parse("goo:rime_ice");
     /** The Rime cell, lying on the bay floor. */
     private static final BlockPos RIME_CELL = new BlockPos(2, 1, 2);
@@ -55,8 +55,8 @@ public final class RimeTests {
     private static final BlockPos LAVA_POOL = new BlockPos(3, 0, 1);
     /** Ticks a laid cell takes to tick and freeze what is in reach, with room to spare. */
     private static final int CHILL_WAIT_TICKS = 10;
-    /** Ticks a broken cell's ice takes to thaw: the thaw pass runs every second, with room to spare. */
-    private static final int THAW_WAIT_TICKS = 45;
+    /** Ticks a broken cell's ice and obsidian are watched for, five seconds. */
+    private static final int STAYS_FROZEN_WAIT_TICKS = 100;
     private static final String SHOULD_ICE = "The water in the Rime cell's reach should stand as Rime ice, stands %s";
     private static final String SHOULD_OBSIDIAN = "The lava in the Rime cell's reach should stand as obsidian, stands %s";
     private static final String RIME_FREEZES_THE_SHOELESS = "rime_freezes_and_hurts_a_barefoot_zombie";
@@ -70,7 +70,8 @@ public final class RimeTests {
     /** Ticks a spawned mob takes to settle onto the cell, with room to spare. */
     private static final int SETTLE_TICKS = 5;
     private static final String SHOULD_STAND_ON_RIME = "The zombie's friction should come from the Rime cell, comes from %s";
-    private static final String SHOULD_THAW = "The Rime ice should read water once no Rime cell stands in reach, stands %s";
+    private static final String SHOULD_STAY_ICE = "The Rime ice should stand once the Rime is gone, stands %s";
+    private static final String SHOULD_STAY_OBSIDIAN = "The obsidian should stand once the Rime is gone, stands %s";
 
     private RimeTests() {
     }
@@ -83,7 +84,7 @@ public final class RimeTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, RIME_DRIP_LAYS_AN_ICY_CELL, RimeTests::rimeDripLaysAnIcyCellOnStone);
         GooTestFunctions.registerTest(registrar, RIME_FREEZES_WATER_AND_LAVA, RimeTests::rimeFreezesTheWaterAndLavaInReach);
-        GooTestFunctions.registerTest(registrar, RIME_ICE_THAWS, RimeTests::rimeIceThawsOnceNoRimeStandsInReach);
+        GooTestFunctions.registerTest(registrar, RIME_STAYS_FROZEN, RimeTests::rimeIceAndObsidianStayFrozenOnceTheRimeIsGone);
         GooTestFunctions.registerTest(registrar, RIME_FREEZES_THE_SHOELESS, RimeTests::rimeFreezesAndHurtsABarefootZombie);
         GooTestFunctions.registerTest(registrar, RIME_HOLDS_THE_FEET, RimeTests::thinRimeSetsTheFrictionUnderfoot);
     }
@@ -150,21 +151,25 @@ public final class RimeTests {
     }
 
     /**
-     * Water a Rime cell froze reads water again once the cell is broken and
-     * the thaw pass has run, no Rime cell standing in reach of it.
-     * iceborn-is-dropped-for-rime-a-frost-goo-that-keeps-what-is-around-it-frozen
+     * The Rime ice and obsidian a Rime cell froze stand frozen after the cell
+     * is broken, so the water or lava under someone crossing on it never
+     * comes back.
+     * rime-freezing-is-permanent-with-no-restore-on-removal
      *
      * @param helper the gametest helper
      */
-    public static void rimeIceThawsOnceNoRimeStandsInReach(GameTestHelper helper) {
+    public static void rimeIceAndObsidianStayFrozenOnceTheRimeIsGone(GameTestHelper helper) {
         layRimeBesideWaterAndLava(helper);
         helper.runAfterDelay(CHILL_WAIT_TICKS, () -> {
             assertFrozen(helper);
             helper.setBlock(RIME_CELL, Blocks.AIR);
         });
-        helper.runAfterDelay(CHILL_WAIT_TICKS + THAW_WAIT_TICKS, () -> {
+        helper.runAfterDelay(CHILL_WAIT_TICKS + STAYS_FROZEN_WAIT_TICKS, () -> {
             BlockState water = helper.getBlockState(WATER_POOL);
-            helper.assertTrue(water.is(Blocks.WATER), String.format(SHOULD_THAW, water));
+            helper.assertTrue(BuiltInRegistries.BLOCK.getKey(water.getBlock()).equals(RIME_ICE),
+                    String.format(SHOULD_STAY_ICE, water));
+            BlockState lava = helper.getBlockState(LAVA_POOL);
+            helper.assertTrue(lava.is(Blocks.OBSIDIAN), String.format(SHOULD_STAY_OBSIDIAN, lava));
             helper.succeed();
         });
     }
