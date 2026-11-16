@@ -46,7 +46,7 @@ public record CraterField(DensityFunction.NoiseHolder noise) implements DensityF
     /** The rim falls back to the ground at 1.6 radii. */
     static final double RIM_REACH = 0.6;
     /** A crater's floor reaches half its radius from its centre, the flat of the bowl where impacts melt the ground. */
-    static final double FLOOR_REACH = 0.5;
+    public static final double FLOOR_REACH = 0.5;
     /**
      * The radius past which a crater is one of the deepest, whose floor holds crater ice; lunar's noise settings name
      * it in their crater ice rule.
@@ -90,6 +90,19 @@ public record CraterField(DensityFunction.NoiseHolder noise) implements DensityF
     }
 
     private double roll(int cellX, int cellZ, int roll) {
+        return rollFrom(noise, cellX, cellZ, roll);
+    }
+
+    /**
+     * Rolls one value in [0, 1) for a cell from a seeded noise, each cell and roll reading the noise apart.
+     *
+     * @param noise the seeded noise
+     * @param cellX the cell's x
+     * @param cellZ the cell's z
+     * @param roll  which of the cell's rolls
+     * @return the roll, in [0, 1)
+     */
+    static double rollFrom(DensityFunction.NoiseHolder noise, int cellX, int cellZ, int roll) {
         double value = noise.getValue(cellX * CELL_STRIDE + roll * ROLL_STRIDE, roll, cellZ * CELL_STRIDE);
         return Mth.frac(value * ROLL_SPREAD);
     }

@@ -8,11 +8,12 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.levelgen.placement.PlacementContext;
 import net.minecraft.world.level.levelgen.placement.PlacementFilter;
 import net.minecraft.world.level.levelgen.placement.PlacementModifierType;
+import net.minecraft.world.level.levelgen.synth.NormalNoise;
 
 /**
  * The {@code goo:crater_floor} placement filter: it passes a position whose column lies on a crater's floor, read
  * from the same seeded crater noise lunar's terrain sinks its craters from, so a feature it gates lands in the bowls
- * the world drew.
+ * the world drew, the giant craters' among them.
  * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
  */
 public final class CraterFloorFilter extends PlacementFilter {
@@ -27,8 +28,10 @@ public final class CraterFloorFilter extends PlacementFilter {
     @Override
     protected boolean shouldPlace(PlacementContext context, RandomSource random, BlockPos origin) {
         ServerLevel level = context.getLevel().getLevel();
-        return CraterField.seeded(level.getChunkSource().randomState().getOrCreateNoise(CraterField.NOISE))
-                .isFloorAt(origin.getX(), origin.getZ());
+        NormalNoise noise = level.getChunkSource().randomState().getOrCreateNoise(CraterField.NOISE);
+        return CraterField.seeded(noise).isFloorAt(origin.getX(), origin.getZ())
+                || GiantCraterField.seeded(noise).reachesBandAt(origin.getX(), origin.getZ(), 0.0,
+                CraterField.FLOOR_REACH, 0.0);
     }
 
     @Override
