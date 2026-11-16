@@ -396,6 +396,15 @@ public class GooBlocks {
                     .isValidSpawn((state, level, pos, type) -> false).isRedstoneConductor(GooBlocks::never)
                     .isSuffocating(GooBlocks::never).isViewBlocking(GooBlocks::never));
 
+    /**
+     * Breccia: rubble an impact fused into rock, anorthosite and basalt shards set in a dark matrix, ringing lunar's
+     * crater rims; mined like stone.
+     * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
+     */
+    public static final DeferredBlock<Block> BRECCIA = BLOCKS.registerSimpleBlock("breccia",
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_GRAY).requiresCorrectToolForDrops()
+                    .strength(STONE_HARDNESS, STONE_RESISTANCE).sound(SoundType.TUFF));
+
     /** Molten iron's liquid block, glowing as lava does. */
     public static final DeferredBlock<LiquidBlock> MOLTEN_IRON = BLOCKS.registerBlock(GooFluids.MOLTEN_IRON_PATH,
             p -> new LiquidBlock(GooFluids.MOLTEN_IRON_SOURCE.get(), p),
