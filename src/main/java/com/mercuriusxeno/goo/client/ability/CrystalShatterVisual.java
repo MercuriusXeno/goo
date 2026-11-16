@@ -1,51 +1,49 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.program.FieldEffectState;
-import com.mercuriusxeno.goo.ability.program.FieldEffectStep;
-import com.mercuriusxeno.goo.ability.program.Variables;
-import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
+import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
-import com.mercuriusxeno.goo.client.ber.AbilityBlockRenderState;
-import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.CollisionContext;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
- * Renders the crystal shard cloud as scattered glass splinters floating
- * in air within the cloud volume. Each sliver is a thin elongated pyramid,
- * a sixth to a half of a block long and as wide as a tenth of its length,
- * at a position and orientation drawn from its cloud's seed. Some tumble
- * slowly, most are still. Each shard rests where its cloud's seed puts
- * it from the first frame, and appears as the prism dome grows past it,
- * fading in and drifting to rest ({@link ShardLayering}). The cloud's
- * radius, its contract fraction, its ticks since the landing and its charge
- * density come from the crystal_shatter field effect's
- * {@link FieldEffectState} on the marker. Each cloud's shards come from
- * its own layout in {@link ShatterShardTables}.
+ * Draws the glass shards hanging over every Shatter cell near the camera as
+ * thin elongated pyramids, a sixth to a half of a block long and as wide as
+ * a tenth of their length, each lying and spinning as its cell's seeded
+ * layout draws it, at the place {@link ShatterCellShards} answers: whole
+ * above the goo's surface within the cell's column, fading in and drifting
+ * to rest as the goo lands. Each face reflects what its own ray off the
+ * camera's view meets in the world, eased across ticks. The cells come from
+ * {@link ShatterCells}, and the shards draw after the translucent blocks.
+ * shatter-is-splattered-goo-and-shards-form-over-the-splatters
+ * razor-keeps-its-look-gated-on-glass
+ * diagnose-then-ease-crystal-reflection
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class CrystalShatterVisual {
-
-    private static final float BLOCK_CENTER = 0.5f;
 
     /**
      * Full opacity alpha for ARGB packing.
@@ -77,17 +75,13 @@ public final class CrystalShatterVisual {
      */
     private static final float REFLECT_BRIGHTNESS = 1.3f;
     /**
-     * Base alpha for shards.
+     * Alpha of a shard at rest.
      */
     private static final float BASE_ALPHA = 0.8f;
     /**
      * Fallback color when raycast misses (sky blue).
      */
     private static final int SKY_COLOR = 0x87CEEB;
-    /**
-     * Minimum density floor for alpha calculation.
-     */
-    private static final float MIN_DENSITY_FLOOR = 0.2f;
     /**
      * Reflection formula coefficient (v - 2*(v.n)*n).
      */
@@ -98,36 +92,32 @@ public final class CrystalShatterVisual {
      */
     static final int MAX_FACES_PER_SLIVER = 4;
     /**
-     * Ticks a cloud may go undrawn before its eased reflections are dropped.
+     * Ticks a cell may go undrawn before its eased reflections are dropped.
      */
     private static final double STALE_EASING_TICKS = 100;
 
-    private static final ShatterShardTables TABLES = new ShatterShardTables();
-    private static @Nullable Level tablesLevel;
+    private static final ShatterCells CELLS = new ShatterCells();
+    private static @Nullable Level cellsLevel;
 
     /**
-     * Each drawn marker's eased reflections, keyed by its packed block position.
+     * Each drawn cell's eased reflections, keyed by its position.
      */
-    private static final Map<Long, ReflectionEasing> EASINGS = new HashMap<>();
+    private static final Map<BlockPos, ReflectionEasing> EASINGS = new HashMap<>();
 
     /**
-     * What one frame of one cloud draws.
+     * What one frame of one cell's shards draws.
      *
-     * @param visibleCount how many slivers show
-     * @param alpha        the vertex alpha [0-255] of a shard at rest
-     * @param time         the game time the spin reads
-     * @param radius       the radius the shards rest within, the cloud's radius scaled by its contract
-     * @param domeRadius   the prism dome's current radius, which the shards appear ahead of
-     * @param shards       the cloud's shard layout
-     * @param origin       the marker block's world corner
-     * @param camPos       the camera eye position
-     * @param probe        casts the reflection rays
-     * @param clock        the client tick with its partial tick, the clock reflections ease on
-     * @param easing       the shown reflection color of every face of this cloud
+     * @param cell   the cell's block position, the corner the shards emit from
+     * @param shards the cell's shards at their places this frame
+     * @param layout the cell's shard layout
+     * @param time   the game time the spin reads
+     * @param camPos the camera eye position
+     * @param probe  casts the reflection rays
+     * @param clock  the client tick with its partial tick, the clock reflections ease on
+     * @param easing the shown reflection color of every face of this cell
      */
-    record CloudDraw(int visibleCount, int alpha, float time, float radius, float domeRadius, ShardTable shards,
-                     Vec3 origin, Vec3 camPos, BlockColorProbe probe,
-                     double clock, ReflectionEasing easing) {
+    record CellDraw(BlockPos cell, List<ShatterCellShards.CellShard> shards, ShardTable layout, float time,
+                    Vec3 camPos, BlockColorProbe probe, double clock, ReflectionEasing easing) {
     }
 
     /**
@@ -149,172 +139,98 @@ public final class CrystalShatterVisual {
     }
 
     /**
-     * Populates {@code state} with Shatter fields: the density, the
-     * ticks since the landing and the contract progress from the marker's
-     * field-effect state,
-     * the radius and animation lengths off the field-effect step of the
-     * marker's synced ability.
-     *
-     * @param be    the ability block block entity
-     * @param state the render state to populate
-     */
-    public static void extract(AbilityBlockEntity be, AbilityBlockRenderState state) {
-        FieldEffectStep cloud = runningCloud(be);
-        if (cloud == null) {
-            TABLES.dropAt(be.getBlockPos());
-            clear(state);
-            return;
-        }
-        Variables variables = Variables.NONE;
-        int expandTicks = cloud.timing().expandTicks().evaluateInt(variables);
-        int contractTicks = cloud.timing().contractTicks().evaluateInt(variables);
-        FieldEffectState field = be.getFieldEffect();
-        if (field.density() <= 0f && !field.isAnimating(expandTicks, contractTicks)) {
-            TABLES.dropAt(be.getBlockPos());
-            clear(state);
-            return;
-        }
-        state.crystalActive = true;
-        state.crystalDensity = field.density();
-        state.crystalRadiusFraction = field.teardownTicks() > 0 ? field.radiusFraction(expandTicks, contractTicks) : 1f;
-        state.crystalFieldTicks = field.fieldTicks();
-        state.crystalRadius = cloud.radius().evaluateFloat(variables);
-        long gameTime = be.getLevel() != null ? be.getLevel().getGameTime() : 0L;
-        state.crystalAnimationTime = gameTime;
-        state.crystalReflectionClock = gameTime;
-    }
-
-    /**
-     * Finds the field-effect step a crystal marker runs, read off its
-     * synced ability.
-     *
-     * @param be the ability block block entity
-     * @return the step, or null when the marker is no running crystal field
-     */
-    private static @Nullable FieldEffectStep runningCloud(AbilityBlockEntity be) {
-        if (!GooTypes.CRYSTAL.equals(be.getGooType()) || be.getBehavior() == null) {
-            return null;
-        }
-        return SyncedSteps.first(be, FieldEffectStep.class).orElse(null);
-    }
-
-    /**
-     * Clears the Shatter fields of a marker drawing no cloud.
-     *
-     * @param state the render state to clear
-     */
-    private static void clear(AbilityBlockRenderState state) {
-        state.crystalActive = false;
-        state.crystalDensity = 0f;
-        state.crystalRadiusFraction = 0f;
-        state.crystalFieldTicks = 0;
-        state.crystalRadius = 0f;
-        state.crystalAnimationTime = 0f;
-        state.crystalReflectionClock = 0;
-    }
-
-    /**
-     * Client tick: forgets the layout of every cloud whose marker left or
-     * stopped running a crystal field, and every layout once the client
-     * leaves the level it drew them in.
+     * Client tick: rescans the Shatter cells near the camera when due, and
+     * forgets every cell once the client leaves the level it found them in.
      *
      * @param event the event instance
      */
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
-        Level level = Minecraft.getInstance().level;
-        if (level != tablesLevel) {
-            TABLES.dropAll();
-            tablesLevel = level;
-        }
-        if (level != null) {
-            TABLES.retainClouds(pos -> holdsCloud(level, pos));
-        }
-    }
-
-    /**
-     * Whether a position still holds a crystal marker running its cloud.
-     *
-     * @param level the client level
-     * @param pos   the marker position
-     * @return true while the cloud stands
-     */
-    private static boolean holdsCloud(Level level, BlockPos pos) {
-        return level.getBlockEntity(pos) instanceof AbilityBlockEntity be && runningCloud(be) != null;
-    }
-
-    /**
-     * Submits crystal shard splinters for rendering.
-     *
-     * @param state         the ability block render state
-     * @param poseStack     the pose stack
-     * @param nodeCollector the render node collector
-     */
-    public static void submit(AbilityBlockRenderState state,
-                              PoseStack poseStack, SubmitNodeCollector nodeCollector) {
-        if (state.crystalRadiusFraction <= 0f) {
-            TABLES.dropAt(state.blockPos);
-            return;
-        }
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || mc.player == null) {
-            return;
+        Level level = mc.level;
+        if (level != cellsLevel) {
+            CELLS.clear();
+            EASINGS.clear();
+            cellsLevel = level;
         }
-        CloudDraw draw = drawOf(state, mc.level, mc.player.getEyePosition(state.partialTick));
-        nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.CRYSTAL_SHARD_TYPE,
-                (pose, c) -> emitCloud(new FlatQuadContext(pose, c), draw));
+        if (level != null && mc.player != null) {
+            CELLS.rescanIfDue(level, mc.player.getEyePosition(), level.getGameTime());
+        }
     }
 
     /**
-     * What this frame of the marker's cloud draws.
+     * Draws the shards over every Shatter cell still standing, after the translucent blocks.
      *
-     * @param state  the ability block render state
-     * @param level  the client level the rays are cast in
-     * @param camPos the camera eye position
+     * @param event the level render stage event
+     */
+    @SubscribeEvent
+    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || mc.player == null || CELLS.cells().isEmpty()) {
+            return;
+        }
+        float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        double clock = mc.level.getGameTime() + (double) partialTick;
+        EASINGS.values().removeIf(e -> Math.abs(clock - e.lastClock()) > STALE_EASING_TICKS);
+        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.CRYSTAL_SHARD_TYPE);
+        Level level = mc.level;
+        BlockColorProbe probe = (origin, direction) -> raycastBlockColor(level, origin, direction);
+        for (Map.Entry<BlockPos, ShatterCells.Cell> entry : CELLS.cells().entrySet()) {
+            BlockState state = level.getBlockState(entry.getKey());
+            if (ShatterCells.isShatter(state)) {
+                submitCell(event.getPoseStack(), consumer, drawOf(entry.getKey(), entry.getValue(),
+                        state.getValue(VolumeCellBlock.LAYERS), clock, mc.player.getEyePosition(partialTick), probe));
+            }
+        }
+        buffers.endBatch(GooRenderTypes.CRYSTAL_SHARD_TYPE);
+    }
+
+    /**
+     * Emits one cell's shards about the cell's corner, offset from the camera.
+     *
+     * @param poseStack the level's pose stack, at the camera
+     * @param consumer  the shard render type's vertex consumer
+     * @param draw      what this frame of the cell draws
+     */
+    private static void submitCell(PoseStack poseStack, VertexConsumer consumer, CellDraw draw) {
+        Vec3 camera = Minecraft.getInstance().gameRenderer.getMainCamera().position();
+        poseStack.pushPose();
+        poseStack.translate(draw.cell().getX() - camera.x, draw.cell().getY() - camera.y,
+                draw.cell().getZ() - camera.z);
+        emitCell(new FlatQuadContext(poseStack.last(), consumer), draw);
+        poseStack.popPose();
+    }
+
+    /**
+     * What this frame of one cell's shards draws.
+     *
+     * @param pos    the cell's position
+     * @param cell   the cell's landing and layout
+     * @param layers the layers the cell holds
+     * @param clock  the game time with its partial tick
+     * @param eye    the camera eye position
+     * @param probe  casts the reflection rays
      * @return the frame's draw
      */
-    private static CloudDraw drawOf(AbilityBlockRenderState state, Level level, Vec3 camPos) {
-        float contractFrac = state.crystalRadiusFraction;
-        float density = state.crystalDensity;
-        double clock = state.crystalReflectionClock + state.partialTick;
-        return new CloudDraw(
-                Math.max(1, (int) (ShardTable.MAX_SLIVERS * Math.max(density, contractFrac))),
-                (int) (BASE_ALPHA * Math.max(density, MIN_DENSITY_FLOOR) * contractFrac * BYTE_SCALE),
-                state.crystalAnimationTime,
-                state.crystalRadius * contractFrac,
-                ShardLayering.domeRadius(state.crystalFieldTicks + state.partialTick, state.crystalRadius),
-                TABLES.tableAt(state.blockPos),
-                Vec3.atLowerCornerOf(state.blockPos),
-                camPos,
-                (origin, direction) -> raycastBlockColor(level, origin, direction),
-                clock,
-                easingFor(state.blockPos.asLong(), clock));
+    private static CellDraw drawOf(BlockPos pos, ShatterCells.Cell cell, int layers, double clock, Vec3 eye,
+                                   BlockColorProbe probe) {
+        float sinceLanding = (float) Math.min(ShatterCellShards.FADE_TICKS, clock - cell.landedAt());
+        return new CellDraw(pos, ShatterCellShards.shardsOver(pos, layers, sinceLanding, cell.layout()),
+                cell.layout(), (float) clock, eye, probe, clock, EASINGS.computeIfAbsent(pos,
+                        p -> new ReflectionEasing(cell.layout().size() * MAX_FACES_PER_SLIVER)));
     }
 
     /**
-     * The eased reflections of the marker at a position, dropping every
-     * cloud's that has gone undrawn long enough to have left the view.
-     *
-     * @param packedPos the marker's packed block position
-     * @param clock     this frame's clock
-     * @return the marker's eased reflections
-     */
-    private static ReflectionEasing easingFor(long packedPos, double clock) {
-        EASINGS.values().removeIf(e -> Math.abs(clock - e.lastClock()) > STALE_EASING_TICKS);
-        return EASINGS.computeIfAbsent(packedPos,
-                p -> new ReflectionEasing(ShardTable.MAX_SLIVERS * MAX_FACES_PER_SLIVER));
-    }
-
-    /**
-     * Emits every visible sliver of one cloud.
+     * Emits every shard over one cell, relative to the cell's corner.
      *
      * @param face the context the shard faces emit through
      * @param draw what this frame draws
      */
-    static void emitCloud(FlatQuadContext face, CloudDraw draw) {
+    static void emitCell(FlatQuadContext face, CellDraw draw) {
         draw.easing().beginFrame(draw.clock());
-        for (int i = 0; i < draw.visibleCount(); i++) {
-            emitSliver(face, i, draw);
+        for (ShatterCellShards.CellShard shard : draw.shards()) {
+            emitSliver(face, shard, draw);
         }
     }
 
@@ -322,78 +238,43 @@ public final class CrystalShatterVisual {
      * Emits one sliver as a pyramid over its shape's base ring.
      *
      * @param face  the context the shard faces emit through
-     * @param index the sliver index
+     * @param shard the shard and its place this frame
      * @param draw  what this frame draws
      */
-    private static void emitSliver(FlatQuadContext face, int index, CloudDraw draw) {
-        ShardLayering.ShardReveal reveal = revealOf(draw.shards(), index, draw.radius(), draw.domeRadius());
-        if (!reveal.drawn()) {
-            return;
-        }
-        ShardFrame frame = frameOf(index, draw, reveal);
-        Vec3 worldCenter = draw.origin().add(frame.center().x(), frame.center().y(), frame.center().z());
-        Vector3f apex = frame.apex(draw.shards().depthRatio(index) * frame.halfLength());
-        emitPyramid(face, baseRing(draw.shards().shape(index), frame), apex, draw,
-                new ShardPlace(worldCenter, index * MAX_FACES_PER_SLIVER, (int) (draw.alpha() * reveal.alpha())));
+    private static void emitSliver(FlatQuadContext face, ShatterCellShards.CellShard shard, CellDraw draw) {
+        int index = shard.index();
+        ShardFrame frame = frameOf(shard, draw);
+        Vec3 worldCenter = new Vec3(shard.center().x(), shard.center().y(), shard.center().z());
+        Vector3f apex = frame.apex(draw.layout().depthRatio(index) * frame.halfLength());
+        emitPyramid(face, baseRing(draw.layout().shape(index), frame), apex, draw,
+                new ShardPlace(worldCenter, index * MAX_FACES_PER_SLIVER,
+                        (int) (BASE_ALPHA * BYTE_SCALE * shard.opacity())));
     }
 
     /**
-     * Reveals one shard against the dome: its resting distance is its seeded
-     * center scaled by the radius the shards rest within.
+     * The sliver's frame this frame: its center relative to the cell's
+     * corner, its axes turned by its spin.
      *
-     * @param shards     the cloud's shard layout
-     * @param index      the sliver index
-     * @param radius     the radius the shards rest within
-     * @param domeRadius the dome's current radius
-     * @return what the shard draws this frame
-     */
-    static ShardLayering.ShardReveal revealOf(ShardTable shards, int index, float radius, float domeRadius) {
-        return ShardLayering.reveal(domeRadius, shards.center(index).length() * radius);
-    }
-
-    /**
-     * Where a shard's center draws, relative to the marker block's corner:
-     * along its seeded direction at its revealed distance, so its resting
-     * position is its seeded center scaled by the radius the shards rest
-     * within, whatever the field's expand.
-     *
-     * @param shards the cloud's shard layout
-     * @param index  the sliver index
-     * @param reveal what the shard draws this frame
-     * @return the shard's center
-     */
-    static Vector3f shardCenter(ShardTable shards, int index, ShardLayering.ShardReveal reveal) {
-        Vector3f center = shards.center(index);
-        float seededLength = center.length();
-        if (seededLength > NORMALIZE_EPSILON) {
-            center.mul(reveal.distance() / seededLength);
-        }
-        return center.add(BLOCK_CENTER, BLOCK_CENTER, BLOCK_CENTER);
-    }
-
-    /**
-     * The sliver's frame this frame: its center at its revealed distance,
-     * its axes turned by its spin.
-     *
-     * @param index  the sliver index
-     * @param draw   what this frame draws
-     * @param reveal what the shard draws this frame
+     * @param shard the shard and its place this frame
+     * @param draw  what this frame draws
      * @return the sliver's frame
      */
-    private static ShardFrame frameOf(int index, CloudDraw draw, ShardLayering.ShardReveal reveal) {
-        ShardTable shards = draw.shards();
-        float halfLen = shards.halfLength(index);
-        Vector3f center = shardCenter(shards, index, reveal);
-        Vector3f axis = shards.axis(index);
-        Vector3f perp = shards.perp(index);
-        float spinSpeed = shards.spinSpeed(index);
+    private static ShardFrame frameOf(ShatterCellShards.CellShard shard, CellDraw draw) {
+        ShardTable layout = draw.layout();
+        int index = shard.index();
+        float halfLen = layout.halfLength(index);
+        Vector3f center = new Vector3f(shard.center()).sub(draw.cell().getX(), draw.cell().getY(),
+                draw.cell().getZ());
+        Vector3f axis = layout.axis(index);
+        Vector3f perp = layout.perp(index);
+        float spinSpeed = layout.spinSpeed(index);
         if (spinSpeed > 0f) {
-            Vector3f spinAxis = shards.spinAxis(index);
+            Vector3f spinAxis = layout.spinAxis(index);
             float angle = draw.time() * spinSpeed;
             axis.rotateAxis(angle, spinAxis.x, spinAxis.y, spinAxis.z);
             perp.rotateAxis(angle, spinAxis.x, spinAxis.y, spinAxis.z);
         }
-        return new ShardFrame(center, axis, perp, halfLen, halfLen * shards.widthRatio(index));
+        return new ShardFrame(center, axis, perp, halfLen, halfLen * layout.widthRatio(index));
     }
 
     /**
@@ -420,14 +301,14 @@ public final class CrystalShatterVisual {
      * the apex, each lit by its own face normal and colored by what that
      * face reflects this frame.
      *
-     * @param face        the context the faces emit through
-     * @param ring        the base corners in winding order
-     * @param apex        the apex
-     * @param draw        what this frame draws
-     * @param place       where the shard stands and where its faces start in the cloud
+     * @param face  the context the faces emit through
+     * @param ring  the base corners in winding order
+     * @param apex  the apex
+     * @param draw  what this frame draws
+     * @param place where the shard stands and where its faces start in the cell
      */
     private static void emitPyramid(FlatQuadContext face, Vector3f[] ring, Vector3f apex,
-                                    CloudDraw draw, ShardPlace place) {
+                                    CellDraw draw, ShardPlace place) {
         for (int i = 0; i < ring.length; i++) {
             Vector3f start = ring[i];
             Vector3f end = ring[(i + 1) % ring.length];
@@ -445,11 +326,11 @@ public final class CrystalShatterVisual {
     }
 
     /**
-     * Where one shard stands and where its faces start among the cloud's faces.
+     * Where one shard stands and where its faces start among the cell's faces.
      *
      * @param worldCenter the shard's world position
-     * @param firstFace   the cloud-wide index of the shard's first face
-     * @param alpha       the shard's vertex alpha [0-255], faded by its reveal
+     * @param firstFace   the cell-wide index of the shard's first face
+     * @param alpha       the shard's vertex alpha [0-255], faded as its goo lands
      */
     private record ShardPlace(Vec3 worldCenter, int firstFace, int alpha) {
     }
@@ -465,7 +346,7 @@ public final class CrystalShatterVisual {
      * @param normal the face normal (unnormalized)
      * @return packed ARGB with the reflected block color and the shard's alpha
      */
-    private static int reflectColor(CloudDraw draw, ShardPlace place, int side, Vector3f normal) {
+    private static int reflectColor(CellDraw draw, ShardPlace place, int side, Vector3f normal) {
         Vec3 worldCenter = place.worldCenter();
         float len = normal.length();
         if (len < NORMALIZE_EPSILON) {
@@ -500,8 +381,7 @@ public final class CrystalShatterVisual {
     private static int raycastBlockColor(Level level, Vec3 origin, Vec3 dir) {
         Vec3 end = origin.add(dir.scale(RAYCAST_RANGE));
         BlockHitResult hit = level.clip(new ClipContext(
-                origin, end, ClipContext.Block.VISUAL, ClipContext.Fluid.NONE,
-                net.minecraft.world.phys.shapes.CollisionContext.empty()));
+                origin, end, ClipContext.Block.VISUAL, ClipContext.Fluid.NONE, CollisionContext.empty()));
         if (hit.getType() != HitResult.Type.BLOCK) {
             return SKY_COLOR;
         }

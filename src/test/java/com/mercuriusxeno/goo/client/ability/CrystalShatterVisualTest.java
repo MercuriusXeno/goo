@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import net.minecraft.core.BlockPos;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
@@ -25,12 +26,14 @@ class CrystalShatterVisualTest {
     private static final int VISIBLE = 40;
     private static final int FRAMES = 3;
     private static final int QUAD_VERTICES = 4;
-    private static final int ALPHA = 200;
+    /** A shard at rest draws at four fifths of a byte's alpha. */
+    private static final int ALPHA = 204;
     /** The sky-blue a face too thin to carry a normal takes without casting a ray. */
     private static final int SKY_FALLBACK = ARGB.color(ALPHA, 0x87CEEB);
-    private static final ShardTable SHARDS = ShardTable.fromSeed(7L);
-    /** A dome grown past the cloud's radius, so every shard draws at rest. */
-    private static final float GROWN_DOME = 2f;
+    private static final ShardTable SHARDS = ShardTable.fromSeed(7L, VISIBLE);
+    private static final BlockPos CELL = new BlockPos(10, 64, 10);
+    /** The layers the drawn cell holds. */
+    private static final int LAYERS = 4;
 
     /** A probe that records every ray cast and answers a color keyed to its direction. */
     private static final class RecordingProbe implements CrystalShatterVisual.BlockColorProbe {
@@ -50,23 +53,24 @@ class CrystalShatterVisualTest {
         }
     }
 
-    private static CrystalShatterVisual.CloudDraw draw(Vec3 camPos, CrystalShatterVisual.BlockColorProbe probe) {
+    private static CrystalShatterVisual.CellDraw draw(Vec3 camPos, CrystalShatterVisual.BlockColorProbe probe) {
         return draw(camPos, probe, 0, newEasing());
     }
 
-    private static CrystalShatterVisual.CloudDraw draw(Vec3 camPos, CrystalShatterVisual.BlockColorProbe probe,
-                                                     double clock, ReflectionEasing easing) {
-        return new CrystalShatterVisual.CloudDraw(VISIBLE, ALPHA, 100f, 2f, GROWN_DOME, SHARDS,
-                new Vec3(10, 64, 10), camPos, probe, clock, easing);
+    private static CrystalShatterVisual.CellDraw draw(Vec3 camPos, CrystalShatterVisual.BlockColorProbe probe,
+                                                    double clock, ReflectionEasing easing) {
+        return new CrystalShatterVisual.CellDraw(CELL,
+                ShatterCellShards.shardsOver(CELL, LAYERS, ShatterCellShards.FADE_TICKS, SHARDS), SHARDS, 100f,
+                camPos, probe, clock, easing);
     }
 
     private static ReflectionEasing newEasing() {
         return new ReflectionEasing(VISIBLE * CrystalShatterVisual.MAX_FACES_PER_SLIVER);
     }
 
-    private static List<RecordingVertexConsumer.Vertex> emitFrame(CrystalShatterVisual.CloudDraw draw) {
+    private static List<RecordingVertexConsumer.Vertex> emitFrame(CrystalShatterVisual.CellDraw draw) {
         RecordingVertexConsumer consumer = new RecordingVertexConsumer();
-        CrystalShatterVisual.emitCloud(new FlatQuadContext(new PoseStack().last(), consumer), draw);
+        CrystalShatterVisual.emitCell(new FlatQuadContext(new PoseStack().last(), consumer), draw);
         return consumer.vertices();
     }
 

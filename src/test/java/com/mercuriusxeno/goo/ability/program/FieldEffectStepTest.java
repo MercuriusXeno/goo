@@ -37,27 +37,21 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * The metal_urchin and crystal_shatter programs, decoded from their JSON,
+ * The metal_urchin program, decoded from its JSON,
  * compose the field-effect-with-controller sub-chain. Each strike body's
  * damage acts on the entity itself, which no unit test can build, so the
  * body here swaps its damage for a probe sound at the target and each
  * strike's aim is stubbed per host; the damage itself is proven by the
  * field-effect gametests (decision step-tick-holds-effect). The metal
- * field strikes what is living, alive, no item and not sneaking, and the
- * crystal field what is living, no item, not sneaking and moving; the
- * crystal strike bursts crit at the struck entity (decision
- * razor-shred-bursts-crit); a field effect stands against breaking. On a
- * Mockito marker host whose scan hands over the entities in radius: a
- * metal target spends one charge and is impaled on the strike tick, and
- * spent charges tear down once and end the program; a Shatter cloud's
- * eight shreds spend its charges, a sprinting player is shredded twice as
- * often, and the cloud expands, then contracts once its last charge is
- * spent.
+ * field strikes what is living, alive, no item and not sneaking; a field
+ * effect stands against breaking. On a Mockito marker host whose scan
+ * hands over the entities in radius: a metal target spends one charge and
+ * is impaled on the strike tick, and spent charges tear down once and end
+ * the program.
  */
 class FieldEffectStepTest {
 
     private static final String METAL_URCHIN = "/data/goo/goo_abilities/metal_urchin.json";
-    private static final String CRYSTAL_SHATTER = "/data/goo/goo_abilities/crystal_shatter.json";
     private static final int WALKER_ID = 7;
     private static final int OTHER_WALKER_ID = 9;
     private static final int IDLE_TICKS = 40;
@@ -301,12 +295,6 @@ class FieldEffectStepTest {
     }
 
     @Test
-    void theCrystalFieldStrikesWhatIsLivingNoItemNotSneakingAndMoving() {
-        assertEquals(List.of(EntityFilter.LIVING, EntityFilter.NOT_ITEM, EntityFilter.NOT_SNEAKING, EntityFilter.MOVING),
-                fieldEffectOf(program(CRYSTAL_SHATTER)).where());
-    }
-
-    @Test
     void theCooldownHoldsTheNextStrikeForItsTicks() throws IOException {
         EntityHost first = walker(WALKER_ID);
         EntityHost second = walker(OTHER_WALKER_ID);
@@ -340,14 +328,12 @@ class FieldEffectStepTest {
 
     /**
      * A field runs its expand steps on the tick it opens and its ambient steps on a tick whose roll falls under
-     * its ambient chance, so the Shatter cloud chimes as it opens and tinkles as it stands
-     * (decision razor-keeps-its-look-gated-on-glass). The sounds and the chance are built here, not read from the
-     * shipped cloud.
+     * its ambient chance. The sounds and the chance are built here, not read from the shipped field.
      */
     @Test
     void aFieldSoundsItsExpandAsItOpensAndItsAmbientOnARollUnderItsChance() {
         MarkerHost host = marker(List.of());
-        ProgramBehavior program = ProgramBehavior.forHost(withSounds(program(CRYSTAL_SHATTER)), HostKind.MARKER);
+        ProgramBehavior program = ProgramBehavior.forHost(withSounds(program(METAL_URCHIN)), HostKind.MARKER);
 
         when(host.rollFraction()).thenReturn(AMBIENT_CHANCE + ROLL_STEP);
         program.tick(host);
@@ -370,16 +356,6 @@ class FieldEffectStepTest {
 
     private static Step soundOf(Identifier sound) {
         return new SoundStep(sound, FxAnchor.HOST, SoundKind.BLOCKS, Expr.literal(1), Expr.literal(1));
-    }
-
-    // decision razor-shred-bursts-crit
-    @Test
-    void theCrystalStrikeBurstsCritAtTheStruckEntity() {
-        List<Map.Entry<Identifier, FxAnchor>> bursts = fieldEffectOf(program(CRYSTAL_SHATTER)).strike().stream()
-                .filter(ParticlesStep.class::isInstance).map(ParticlesStep.class::cast)
-                .map(particles -> Map.entry(particles.particle(), particles.at())).toList();
-
-        assertEquals(List.of(Map.entry(Identifier.withDefaultNamespace("crit"), FxAnchor.TARGET)), bursts);
     }
 
     @Test

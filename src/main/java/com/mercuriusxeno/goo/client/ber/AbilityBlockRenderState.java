@@ -58,27 +58,6 @@ public class AbilityBlockRenderState extends BlockEntityRenderState {
     /** How brightly a watching marker glows as its enemy closes, 0 at rest. */
     public float lurkerGlow;
 
-    /** True when a crystal shard cloud behavior is active. */
-    public boolean crystalActive;
-
-    /** Charge density [0-1] for Shatter cloud visual scaling. */
-    public float crystalDensity;
-
-    /** Slow cycling phase [0-1] for crystal crack drift animation. */
-    public float crystalAnimationTime;
-
-    /** The level's game time at full precision, the clock crystal reflections ease on. */
-    public double crystalReflectionClock;
-
-    /** Cloud contract fraction [0-1]: 1 until the cloud contracts, falling to 0 as it does. */
-    public float crystalRadiusFraction;
-
-    /** Ticks the cloud's field has run since its blob landed, the clock the prism dome grows on. */
-    public int crystalFieldTicks;
-
-    /** Full cloud radius in blocks, read from the field effect. */
-    public float crystalRadius;
-
     /** True when the marker is a Vines trap waiting on the ground (decision vines-unpack-root-and-thorn). */
     public boolean vinesTrap;
 
