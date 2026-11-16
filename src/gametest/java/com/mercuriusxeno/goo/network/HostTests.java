@@ -3,11 +3,13 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.HostStep;
+import com.mercuriusxeno.goo.block.ability.HostSpreaders;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -18,6 +20,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.List;
 import java.util.function.Consumer;
@@ -40,7 +43,10 @@ public final class HostTests {
     private static final String LAYERS_WRONG = "The cell over the stone should hold one layer of Host, stands %s";
     private static final String CHARGE_TURNS_THE_STONE = "host_charge_turns_the_stone_under_it";
     private static final String DEATH_ON_HOST_SPREADS = "host_death_spreads_sculk_with_no_catalyst";
-    private static final String NOT_SCULK ="The stone under the Host cell should be sculk, stands %s";
+    private static final String STRANDED_CHARGE_ENDS = "host_stranded_charge_ends";
+    private static final String CHARGE_NOT_STARTED = "The zombie's death on the Host cell should start one charge there";
+    private static final String CHARGE_HELD = "A stranded charge should end, %s still run in the bay";
+    private static final String NOT_SCULK = "The stone under the Host cell should be sculk, stands %s";
     private static final String LAYERS_LEFT_WRONG = "The Host cell should stand at %s layers, stands %s";
 
     private HostTests() {
@@ -55,6 +61,33 @@ public final class HostTests {
         GooTestFunctions.registerTest(registrar, HOST_DRIP_LAYS_A_CELL, HostTests::hostDripLaysACellOnStone);
         GooTestFunctions.registerTest(registrar, CHARGE_TURNS_THE_STONE, HostTests::chargeCrossingHostTurnsTheStoneUnderIt);
         GooTestFunctions.registerTest(registrar, DEATH_ON_HOST_SPREADS, HostTests::deathOnHostSpreadsSculkWithNoCatalyst);
+        GooTestFunctions.registerTest(registrar, STRANDED_CHARGE_ENDS, HostTests::strandedChargeEnds);
+    }
+
+    /**
+     * A charge started on a lone one-layer Host cell walled in stone, too
+     * thin to turn the stone under it and with no step off the goo, ends
+     * rather than holding its charge for as long as the server runs.
+     * sculk-charge-runs-along-host-goo-without-weakening
+     * mob-dying-on-or-near-host-goo-spreads-sculk-from-the-goo
+     *
+     * @param helper the gametest helper
+     */
+    public static void strandedChargeEnds(GameTestHelper helper) {
+        helper.setBlock(FLOOR, Blocks.STONE);
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            helper.setBlock(OVER_THE_FLOOR.relative(side), Blocks.STONE);
+        }
+        helper.setBlock(OVER_THE_FLOOR, GooBlocks.DEEP_HOST.get().defaultBlockState());
+        ServerPlayer killer = SelfDeliveryTests.invoker(helper, GooTypes.DEEP);
+        Zombie zombie = helper.spawn(EntityType.ZOMBIE, OVER_THE_FLOOR);
+        zombie.hurtServer(helper.getLevel(), helper.getLevel().damageSources().playerAttack(killer), Float.MAX_VALUE);
+        helper.getLevel().getServer().getPlayerList().remove(killer);
+        HostSpreaders spreaders = GooServerState.of(helper.getLevel().getServer()).hostSpreaders();
+        AABB bay = helper.getBounds();
+        helper.assertTrue(spreaders.chargesWithin(helper.getLevel(), bay) == 1, CHARGE_NOT_STARTED);
+        helper.succeedWhen(() -> helper.assertTrue(spreaders.chargesWithin(helper.getLevel(), bay) == 0,
+                String.format(CHARGE_HELD, spreaders.chargesWithin(helper.getLevel(), bay))));
     }
 
     /**

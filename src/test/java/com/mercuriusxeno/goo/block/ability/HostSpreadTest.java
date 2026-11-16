@@ -26,12 +26,18 @@ class HostSpreadTest {
 
         @Test
         void aChargeLeavesAHostCellAsStrongAsItEntered() {
-            assertEquals(ZOMBIES_CHARGE, HostSpread.chargeOut(ZOMBIES_CHARGE));
+            assertEquals(ZOMBIES_CHARGE, HostSpread.chargeOut(ZOMBIES_CHARGE, false));
         }
 
         @Test
         void aFullChargeLeavesAHostCellFull() {
-            assertEquals(FULL_CHARGE, HostSpread.chargeOut(FULL_CHARGE));
+            assertEquals(FULL_CHARGE, HostSpread.chargeOut(FULL_CHARGE, false));
+        }
+
+        /** A charge stranded on the goo, nothing left to turn and no step off it, ends. */
+        @Test
+        void aStrandedChargeEnds() {
+            assertEquals(0, HostSpread.chargeOut(FULL_CHARGE, true));
         }
     }
 

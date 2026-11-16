@@ -42,18 +42,42 @@ public class HostCellBlock extends VolumeCellBlock implements SculkBehaviour {
 
     /**
      * Turns the block under the cell to sculk, spending the cell's layers,
-     * and passes the charge on whole.
+     * and passes the charge on whole, ending it only where it is stranded:
+     * no Host cell it can reach turns its block and no step leads off the goo.
      */
     @Override
     public int attemptUseCharge(SculkSpreader.ChargeCursor cursor, LevelAccessor level, BlockPos originPos,
                                 RandomSource random, SculkSpreader spreader, boolean spreadVeins) {
         BlockPos pos = cursor.getPos();
-        BlockState state = level.getBlockState(pos);
-        if (state.is(this) && level instanceof Level world) {
-            HostStep.in(layingProgram(world)).ifPresent(host ->
-                    turnTheBlockUnder(world, pos, state, spreader, host.sculkLayers()));
+        if (!(level instanceof Level world) || !level.getBlockState(pos).is(this)) {
+            return cursor.getCharge();
         }
-        return HostSpread.chargeOut(cursor.getCharge());
+        int sculkLayers = HostStep.in(layingProgram(world)).map(HostStep::sculkLayers).orElse(0);
+        if (sculkLayers == 0) {
+            return cursor.getCharge();
+        }
+        turnTheBlockUnder(world, pos, spreader, sculkLayers);
+        boolean stranded = HostReach.stranded(world, pos,
+                cell -> layersSpentAt(world, cell, spreader, sculkLayers) > 0);
+        return HostSpread.chargeOut(cursor.getCharge(), stranded);
+    }
+
+    /**
+     * The layers a cell would spend turning the block under it to sculk.
+     *
+     * @param level       the level
+     * @param cell        the cell
+     * @param spreader    the spreader whose replaceable tag names the ground sculk takes
+     * @param sculkLayers the layers a block of sculk spends
+     * @return the layers spent, 0 for a cell turning nothing or for anything but a Host cell
+     */
+    private static int layersSpentAt(Level level, BlockPos cell, SculkSpreader spreader, int sculkLayers) {
+        BlockState state = level.getBlockState(cell);
+        if (!(state.getBlock() instanceof HostCellBlock)) {
+            return 0;
+        }
+        return HostSpread.layersSpent(state.getValue(LAYERS),
+                level.getBlockState(cell.below()).is(spreader.replaceableBlocks()), sculkLayers);
     }
 
     /**
@@ -63,19 +87,17 @@ public class HostCellBlock extends VolumeCellBlock implements SculkBehaviour {
      *
      * @param level       the level
      * @param pos         the cell
-     * @param state       the cell's state
      * @param spreader    the spreader whose replaceable tag names the ground sculk takes
      * @param sculkLayers the layers a block of sculk spends
      */
-    private static void turnTheBlockUnder(Level level, BlockPos pos, BlockState state, SculkSpreader spreader,
-                                          int sculkLayers) {
-        BlockPos under = pos.below();
-        int layers = state.getValue(LAYERS);
-        int spent = HostSpread.layersSpent(layers, level.getBlockState(under).is(spreader.replaceableBlocks()),
-                sculkLayers);
+    private static void turnTheBlockUnder(Level level, BlockPos pos, SculkSpreader spreader, int sculkLayers) {
+        int spent = layersSpentAt(level, pos, spreader, sculkLayers);
         if (spent == 0) {
             return;
         }
+        BlockState state = level.getBlockState(pos);
+        int layers = state.getValue(LAYERS);
+        BlockPos under = pos.below();
         level.setBlock(under, Blocks.SCULK.defaultBlockState(), UPDATE_ALL);
         level.setBlock(pos, layers > spent ? state.setValue(LAYERS, layers - spent)
                 : Blocks.AIR.defaultBlockState(), UPDATE_ALL);
