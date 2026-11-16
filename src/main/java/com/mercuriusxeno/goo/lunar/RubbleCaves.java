@@ -127,18 +127,45 @@ public record RubbleCaves(DensityFunction.NoiseHolder footprint, DensityFunction
         return roofY(floorYAt(x, z), caveDepth(footprint.getValue(x, 0.0, z)));
     }
 
+    /**
+     * Opens a cave's air between its floor and roof; solid everywhere else. Each thread keeps the last column's floor
+     * and roof, so the footprint and rubble noises read once per column rather than once per block.
+     */
     @Override
     public double compute(DensityFunction.FunctionContext context) {
         int y = context.blockY();
         if (y < LunarDepths.CAVERN_ZONE_TOP_Y || y >= LunarDepths.SHALLOW_ZONE_TOP_Y) {
             return SOLID;
         }
-        int x = context.blockX();
-        int z = context.blockZ();
-        if (!holdsCaveAt(x, z)) {
-            return SOLID;
+        LastColumn column = LAST_COLUMN.get().read(this, context.blockX(), context.blockZ());
+        return y > column.floorY && y < column.roofY ? OPEN : SOLID;
+    }
+
+    /** Each thread's last column read and the cave over it. */
+    private static final ThreadLocal<LastColumn> LAST_COLUMN = ThreadLocal.withInitial(LastColumn::new);
+
+    /**
+     * The last column a thread read, keyed by the caves it read it from: the cave's floor and roof there, or a roof
+     * under the floor where no cave spreads.
+     */
+    private static final class LastColumn {
+        private RubbleCaves caves;
+        private int x;
+        private int z;
+        private int floorY;
+        private int roofY;
+
+        LastColumn read(RubbleCaves reading, int columnX, int columnZ) {
+            if (caves != reading || x != columnX || z != columnZ) {
+                caves = reading;
+                x = columnX;
+                z = columnZ;
+                boolean cave = reading.holdsCaveAt(columnX, columnZ);
+                floorY = cave ? reading.floorYAt(columnX, columnZ) : 0;
+                roofY = cave ? reading.roofYAt(columnX, columnZ) : 0;
+            }
+            return this;
         }
-        return y > floorYAt(x, z) && y < roofYAt(x, z) ? OPEN : SOLID;
     }
 
     @Override

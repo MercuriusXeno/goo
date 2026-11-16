@@ -181,19 +181,47 @@ public record LavaTubes(DensityFunction.NoiseHolder noise) implements DensityFun
         return CraterField.rollFrom(noise, cellX, cellZ, roll);
     }
 
-    /** Opens a tube's air, negative within its radius of the helix; solid everywhere else. */
+    /**
+     * Opens a tube's air, negative within its radius of the helix; solid everywhere else. A block off the helix's ring
+     * answers solid before any distance along the helix is read, and each thread keeps the last cell's tube, so the
+     * tube noise rolls once per cell rather than once per block.
+     */
     @Override
     public double compute(DensityFunction.FunctionContext context) {
         int y = context.blockY();
         if (y > TOP_Y || y < BOTTOM_Y) {
             return SOLID;
         }
-        Optional<Tube> tube = tubeInCell(Math.floorDiv(context.blockX(), CELL), Math.floorDiv(context.blockZ(), CELL));
-        if (tube.isEmpty()) {
+        int x = context.blockX();
+        int z = context.blockZ();
+        Tube tube = LAST_CELL.get().tubeAt(this, Math.floorDiv(x, CELL), Math.floorDiv(z, CELL));
+        if (tube == null || !tube.crossesColumn(x, z)) {
             return SOLID;
         }
-        double distance = tube.get().distance(context.blockX(), y, context.blockZ());
-        return Math.min(SOLID, (distance - TUBE_RADIUS) / TUBE_RADIUS);
+        return Math.min(SOLID, (tube.distance(x, y, z) - TUBE_RADIUS) / TUBE_RADIUS);
+    }
+
+    /** Each thread's last cell read and the tube it holds. */
+    private static final ThreadLocal<LastCell> LAST_CELL = ThreadLocal.withInitial(LastCell::new);
+
+    /**
+     * The last cell a thread read, keyed by the field it read it from, and the tube that cell holds or null.
+     */
+    private static final class LastCell {
+        private LavaTubes field;
+        private int cellX;
+        private int cellZ;
+        private Tube tube;
+
+        Tube tubeAt(LavaTubes reading, int x, int z) {
+            if (field != reading || cellX != x || cellZ != z) {
+                field = reading;
+                cellX = x;
+                cellZ = z;
+                tube = reading.tubeInCell(x, z).orElse(null);
+            }
+            return tube;
+        }
     }
 
     @Override
