@@ -7,7 +7,9 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.util.StringRepresentable;
 import org.jspecify.annotations.NonNull;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
 
@@ -59,7 +61,14 @@ public enum AbilityBadge implements StringRepresentable {
      * network ordinal of every badge before it stays put.
      * decision held-badge-marks-abilities-that-prepare-and-throw
      */
-    HELD("held");
+    HELD("held"),
+
+    /**
+     * Sprays a goo in world for as long as right click is held, leaving it standing as a residue.
+     * Declared last so the network ordinal of every badge before it stays put.
+     * decision residual-badge-marks-the-four-goo-sprays
+     */
+    RESIDUAL("residual");
 
     /** Datapack codec, reading the badge by its word. */
     public static final Codec<AbilityBadge> CODEC = StringRepresentable.fromEnum(AbilityBadge::values);
@@ -73,9 +82,12 @@ public enum AbilityBadge implements StringRepresentable {
      * declaration order so the network ordinal stays put.
      * fan-sorts-badge-then-order
      * held-badge-marks-abilities-that-prepare-and-throw
+     * residual-tier-leads-the-fan
      */
     private static final List<AbilityBadge> FAN_RANK =
-            List.of(CHANNELED, HELD, MOB, WORLD, FREE, PRISM, SELF, DURATIVE);
+            List.of(RESIDUAL, CHANNELED, HELD, MOB, WORLD, FREE, PRISM, SELF, DURATIVE);
+
+    private static final Set<AbilityBadge> AIMS_A_POINT = EnumSet.of(FREE, CHANNELED, HELD, PRISM, RESIDUAL);
 
     private final String serializedName;
 
@@ -98,11 +110,12 @@ public enum AbilityBadge implements StringRepresentable {
      * mob or a block: they land and resolve at the aimed point itself.
      * aim-point-follows-the-cursor
      * held-badge-marks-abilities-that-prepare-and-throw
+     * residual-badge-marks-the-four-goo-sprays
      *
-     * @return true for free, channeled, held and prism
+     * @return true for free, channeled, held, prism and residual
      */
     public boolean aimsAPoint() {
-        return this == FREE || this == CHANNELED || this == HELD || this == PRISM;
+        return AIMS_A_POINT.contains(this);
     }
 
     /**
