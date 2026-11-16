@@ -3,12 +3,14 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.end.EndDestination;
+import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.zone.ConjuredDoors;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooStreamHandler;
 import com.mercuriusxeno.goo.network.GooStreamPayload;
 import com.mercuriusxeno.goo.network.SelfDeliveryTests;
+import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -44,6 +46,8 @@ public final class EndTests {
     private static final int ENDER_HELD = 8 * GooStacks.THOUSAND;
     private static final String ABILITY_REQUIRED = "goo:ender_end must be loaded";
     private static final String SHOULD_HOLD_THE_END = "The server should hold the End";
+    private static final String SHOULD_COUNT_NONE = "A channel of End grayed out in the End should count no hold "
+            + "tick, so the next advance reads 1, reads %d";
     private static final String SHOULD_STAND_NONE = "A channel of End grayed out in the End should stand no gate";
     private static final String SHOULD_KEEP_GOO = "A channel of End grayed out in the End should leave the goo at %d, "
             + "leaves %d";
@@ -96,8 +100,10 @@ public final class EndTests {
 
     /**
      * A caster standing in the End who came by no End gate, holding no way
-     * back, channels End for a whole charge: no gate stands for them and
-     * their goo reads as it did
+     * back, channels End for a whole charge: the server counted none of the
+     * hold's ticks, so the next advance of their hold reads a first tick
+     * where an accepted channel reads one past the charge; no gate stands for
+     * them and their goo reads as it did
      * (decision end-is-grayed-out-in-the-end-unless-you-came-by-the-ability).
      *
      * @param helper the gametest helper
@@ -118,6 +124,10 @@ public final class EndTests {
             });
         }
         helper.runAfterDelay(CHARGE_TICKS + 1, () -> {
+            // Within the continuing gap of the last tick sent, so a hold the server counted continues here.
+            int next = GooServerState.of(end.getServer()).streamHolds().advance(caster.getUUID(),
+                    end.getServer().getTickCount());
+            helper.assertTrue(next == ChannelAim.FIRST_TICK, String.format(SHOULD_COUNT_NONE, next));
             helper.assertTrue(!stood[0], SHOULD_STAND_NONE);
             helper.assertTrue(enderHeld(caster) == before,
                     String.format(SHOULD_KEEP_GOO, before, enderHeld(caster)));
