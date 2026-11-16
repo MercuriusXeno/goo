@@ -1,7 +1,7 @@
 {
   "gooType": "kinetic",
   "displayName": "goo.ability.kinetic.grab",
-  "badge": "channeled",
+  "badge": "held",
   "order": 10,
   "cost": 500,
   "delivery": { "kind": "self", "ticks_per_charge": 20 },
