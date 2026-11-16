@@ -1,13 +1,14 @@
 {
   "gooType": "ender",
   "displayName": "goo.ability.ender.end",
-  "badge": "world",
+  "badge": "channeled",
   "order": 50,
   "cost": 4000,
   "requires": ["minecraft:dragon_breath"],
-  "delivery": { "kind": "arc" },
+  "delivery": { "kind": "self", "ticks_per_charge": 20 },
   "behaviors": [
-    { "type": "end", "lifetime": 1200 }
+    { "type": "end", "charge": 20 }
   ],
-  "tags": ["portal"]
+  "tags": ["self"],
+  "pose": "held_out"
 }
