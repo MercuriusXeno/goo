@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -15,6 +16,7 @@ import net.minecraft.world.entity.animal.cow.Cow;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
@@ -45,6 +47,7 @@ public final class BoreStreamTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, BORE_CUTS_A_TUNNEL, BoreStreamTests::boreCutsATunnel);
+        GooTestFunctions.registerTest(registrar, BORE_CUTS_LUNAR_STONE, BoreStreamTests::boreCutsLunarStone);
         GooTestFunctions.registerTest(registrar, BORE_STRIKES_A_MOB, BoreStreamTests::boreStrikesAMobInTheTunnel);
         GooTestFunctions.registerTest(registrar, BORE_BREAKS_FOUR, BoreStreamTests::boreBreaksTheFourBlocksWhereFourMeet);
         GooTestFunctions.registerTest(registrar, BORE_BREAKS_FOUR_AT_A_SLANT,
@@ -81,7 +84,40 @@ public final class BoreStreamTests {
     /** How far the eye stands back from the point it aims at, along the look. */
     private static final double AIM_DISTANCE = 1.5;
 
+    private static final String BORE_CUTS_LUNAR_STONE = "bore_cuts_lunar_stone";
+    private static final String SHOULD_CUT_LUNAR = "Bore should cut lunar's %s, %d east, which still stands";
+
     private BoreStreamTests() {
+    }
+
+    /**
+     * A mock player facing east streams bore through anorthosite, regolith and iron core laid along the eye line,
+     * and cuts all three, as it cuts the overworld's stone.
+     * decision lunar-matter-is-anorthosite-basalt-regolith-and-an-iron-core
+     *
+     * @param helper the gametest helper
+     */
+    public static void boreCutsLunarStone(GameTestHelper helper) {
+        AbilityDefinition bore = AbilityRegistry.of(helper.getLevel()).getAbility(ROCK_BORE);
+        helper.assertTrue(bore != null, ABILITY_REQUIRED);
+        ServerPlayer player = borer(helper);
+        KnownRecipes.teachRequires(player, bore);
+        List<Block> lunar = List.of(GooBlocks.ANORTHOSITE.get(), GooBlocks.REGOLITH.get(), GooBlocks.IRON_CORE.get());
+        for (int east = 1; east <= lunar.size(); east++) {
+            helper.setBlock(EYE_ROW.east(east), lunar.get(east - 1));
+        }
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.ROCK), ROCK_BORE.toString(),
+                player.getEyePosition(), player.getEyePosition());
+        for (int held = 1; held <= MOST_HOLD_TICKS; held++) {
+            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
+        }
+        helper.succeedWhen(() -> {
+            for (int east = 1; east <= lunar.size(); east++) {
+                helper.assertTrue(helper.getBlockState(EYE_ROW.east(east)).isAir(),
+                        String.format(SHOULD_CUT_LUNAR, lunar.get(east - 1), east));
+            }
+            helper.getLevel().getServer().getPlayerList().remove(player);
+        });
     }
 
     /**
