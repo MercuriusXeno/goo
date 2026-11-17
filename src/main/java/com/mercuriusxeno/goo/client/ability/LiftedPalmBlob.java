@@ -700,7 +700,7 @@ public final class LiftedPalmBlob {
     public static boolean heldInView(ItemStack glove) {
         Minecraft mc = Minecraft.getInstance();
         return mc.player != null && mc.options.getCameraType().isFirstPerson()
-                && (glove == mc.player.getMainHandItem() || glove == mc.player.getOffhandItem());
+                && GooCasters.drawnInHand(mc.player, glove);
     }
 
     /**
@@ -739,7 +739,7 @@ public final class LiftedPalmBlob {
             return false;
         }
         long now = mc.level.getGameTime();
-        return mc.level.players().stream().anyMatch(player -> GooCasters.casterOf(player) == caster && standsOffThePalm(
+        return mc.level.players().stream().anyMatch(player -> GooCasters.drawnAsCaster(player, caster) && standsOffThePalm(
                 LIFTS.get(player.getId()), now));
     }
 

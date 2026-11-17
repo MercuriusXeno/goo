@@ -114,7 +114,7 @@ public final class KnivesCharge {
      */
     public static float localPalmShare(ItemStack glove) {
         LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null || glove != player.getMainHandItem() && glove != player.getOffhandItem()) {
+        if (player == null || !GooCasters.drawnInHand(player, glove)) {
             return 0f;
         }
         AbilityPoses.Posed posed = AbilityPoses.posedAt(player.getId());
