@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.ability.LurkerPulses;
 import com.mercuriusxeno.goo.client.ability.MarkerOrbVisual;
-import com.mercuriusxeno.goo.client.ability.UpdraftWind;
 import com.mercuriusxeno.goo.client.ability.UrchinVisual;
 import com.mercuriusxeno.goo.client.ability.VineTrapVisual;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -102,10 +101,6 @@ public class AbilityBlockRenderer
         state.lurkerGlow = LurkerPulses.CLIENT.glowAt(be.getBlockPos(), state.gameTime);
         UrchinVisual.extract(be, state);
         VineTrapVisual.extract(be, state);
-        // updraft-blob-stands-a-column-of-wind
-        if (state.behaviorActive && be.getLevel() != null) {
-            UpdraftWind.see(be.getBlockPos(), be.getAbilityId(), be.getLevel().getGameTime());
-        }
     }
 
     @Override

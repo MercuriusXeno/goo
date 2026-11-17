@@ -1,39 +1,53 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
+import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.throwing.CoatRay;
+import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.phys.Vec3;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Updraft's body step: each tick for the duration, a column of air standing
- * above the host carries every entity inside it upward; then the step ends
- * and the lingering blob goes with it. The streaming client draws frost's
- * wind lines rising through the column, which it sizes from this step:
- * {@code updraft radius=1 height=8 speed=0.4 duration=200}.
+ * Typhoon's Updraft block step: Typhoon's goo lands where each of the
+ * stream's drips strikes, one layer for each drip, through the volume cell's
+ * one landing, as Goop lays its slime and Rime its frost goo. The step names
+ * what an Updraft cell's column reads, its half width and the rise it
+ * carries at in blocks per tick; the column stands a block over the cell's
+ * top for each of its layers:
+ * {@code updraft half_width=0.5 rise=0.4}.
+ * updraft-is-typhoons-world-goo-that-lifts-the-entities-above-it
+ * updraft-goo-lifts-one-block-per-layer
  * updraft-blob-stands-a-column-of-wind
+ * each-goo-type-ships-a-world-goo-on-the-volume-cell
+ * drip-creates-a-volume-cell-immediately
+ * drip-on-a-standing-cell-increases-it
  *
- * @param radius   the column's half width in blocks, evaluated when the step runs
- * @param height   the column's height in blocks, evaluated when the step runs
- * @param speed    the rise it carries at, in blocks per tick, evaluated when the step runs
- * @param duration the ticks the column stands, evaluated when the step runs
+ * @param halfWidth the column's half width in blocks, around the middle of the cell
+ * @param rise      the rise the column carries at, in blocks per tick
  */
-public record UpdraftStep(Expr radius, Expr height, Expr speed, Expr duration) implements Step {
+public record UpdraftStep(double halfWidth, double rise) implements TakesNoEntity, DripLanding {
 
     private static final String NAME = "updraft";
-    private static final String FIELD_RADIUS = "radius";
-    private static final String FIELD_HEIGHT = "height";
-    private static final String FIELD_SPEED = "speed";
-    private static final String FIELD_DURATION = "duration";
+    private static final String FIELD_HALF_WIDTH = "half_width";
+    private static final String FIELD_RISE = "rise";
+    /** The widest a column stands: a block and a half each way from the cell's middle. */
+    private static final double MOST_HALF_WIDTH = 1.5;
+    /** The fastest a column carries: a block a tick. */
+    private static final double MOST_RISE = 1.0;
 
     /**
      * Codec for the step's params.
      */
     public static final MapCodec<UpdraftStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            Expr.CODEC.fieldOf(FIELD_RADIUS).forGetter(UpdraftStep::radius),
-            Expr.CODEC.fieldOf(FIELD_HEIGHT).forGetter(UpdraftStep::height),
-            Expr.CODEC.fieldOf(FIELD_SPEED).forGetter(UpdraftStep::speed),
-            Expr.CODEC.fieldOf(FIELD_DURATION).forGetter(UpdraftStep::duration)
+            Codec.doubleRange(0, MOST_HALF_WIDTH).fieldOf(FIELD_HALF_WIDTH).forGetter(UpdraftStep::halfWidth),
+            Codec.doubleRange(0, MOST_RISE).fieldOf(FIELD_RISE).forGetter(UpdraftStep::rise)
     ).apply(inst, UpdraftStep::new));
 
     /**
@@ -41,28 +55,77 @@ public record UpdraftStep(Expr radius, Expr height, Expr speed, Expr duration) i
      */
     public static final StepType<UpdraftStep> TYPE = new StepType<>(NAME, CODEC);
 
+    /**
+     * The updraft step a program carries, the first where it carries several.
+     *
+     * @param program the ability's steps
+     * @return the updraft step, empty where the program lays no Updraft goo
+     */
+    public static Optional<UpdraftStep> in(List<Step> program) {
+        return program.stream().filter(UpdraftStep.class::isInstance).map(UpdraftStep.class::cast).findFirst();
+    }
+
+    /**
+     * How far an Updraft cell's column stands over the cell's top: a block
+     * for each of its layers, so fifteen layers lift fifteen blocks.
+     * updraft-goo-lifts-one-block-per-layer
+     *
+     * @param layers the cell's layers
+     * @return the column's height over the cell's top, in blocks
+     */
+    public static double heightOver(int layers) {
+        return layers;
+    }
+
+    /**
+     * Lifts every entity whose feet stand in an Updraft cell's column: from
+     * the cell's floor, through its goo, up to {@link #heightOver} blocks
+     * over its top, as wide as the step names, at the step's rise. Lifting
+     * spends none of the cell's layers.
+     * updraft-goo-is-semi-permanent-and-does-not-deplete
+     *
+     * @param level  the server level
+     * @param cell   the Updraft cell
+     * @param layers the cell's layers
+     */
+    public void liftAbove(ServerLevel level, BlockPos cell, int layers) {
+        double goo = (double) layers / VolumeCellBlock.MAX_LAYERS;
+        EntityLift.liftInColumn(level, Vec3.atBottomCenterOf(cell), halfWidth, goo + heightOver(layers), rise);
+    }
+
     @Override
     public StepType<UpdraftStep> type() {
         return TYPE;
     }
 
+    /**
+     * Runs nothing on the hold's tick: the stream's drips lay the Updraft goo as they strike.
+     *
+     * @param context the step's context
+     * @return true, the step never fails
+     */
     @Override
     public boolean tick(StepContext context) {
-        if (context.stepTicks() >= duration.evaluateInt(context)) {
-            return true;
-        }
-        context.hostAs(EntityScanHost.class).liftEntitiesInColumn(radius.evaluate(context), height.evaluate(context),
-                speed.evaluate(context));
-        return false;
+        return true;
+    }
+
+    @Override
+    public Optional<BlockPos> cellFed(ChannelHost host, CoatRay.BlockStrike strike) {
+        return CellLanding.cellFed(host, strike, GooBlocks.TYPHOON_UPDRAFT.get());
+    }
+
+    @Override
+    public void feed(ChannelHost host, BlockPos cell) {
+        CellLanding.feed(host, cell, GooBlocks.TYPHOON_UPDRAFT.get());
     }
 
     @Override
     public Stream<Expr> expressions() {
-        return Stream.of(radius, height, speed, duration);
+        return Stream.empty();
     }
 
     @Override
     public Set<HostCapability> requires() {
-        return Set.of(HostCapability.TICKING, HostCapability.ENTITY_SCAN);
+        return Set.of(HostCapability.CHANNEL);
     }
 }

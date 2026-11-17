@@ -12,10 +12,11 @@ import java.util.function.IntPredicate;
 
 /**
  * Carries every entity standing in a column of air upward: its rise is
- * raised to the column's speed, its sideways motion kept, and its fall
- * cleared, so an entity rides up to the column's top, drops back in and is
- * carried up again, hovering there.
- * updraft-blob-stands-a-column-of-wind
+ * raised to the column's speed, eased to land on the column's top, its
+ * sideways motion kept and its fall cleared, so an entity rides up to the
+ * column's top, drops back in and is carried up again, hovering there.
+ * updraft-is-typhoons-world-goo-that-lifts-the-entities-above-it
+ * updraft-goo-lifts-one-block-per-layer
  */
 final class EntityLift {
 
@@ -38,7 +39,8 @@ final class EntityLift {
         AABB column = columnBox(base, radius, height);
         for (Entity entity : level.getEntities((Entity) null, column, entity -> !entity.isSpectator())) {
             if (inColumn(entity.position(), base, radius, height)) {
-                entity.setDeltaMovement(lifted(entity.getDeltaMovement(), speed));
+                double toTop = base.y + height - entity.getY();
+                entity.setDeltaMovement(risen(entity.getDeltaMovement(), speed, toTop));
                 entity.resetFallDistance();
                 entity.hurtMarked = true;
             }
@@ -156,6 +158,22 @@ final class EntityLift {
     static boolean inColumn(Vec3 point, Vec3 base, double radius, double height) {
         return Math.abs(point.x - base.x) <= radius && Math.abs(point.z - base.z) <= radius
                 && point.y >= base.y && point.y < base.y + height;
+    }
+
+    /**
+     * A velocity carried up a column: its rise at least the column's speed,
+     * cut to what is left of the column so the entity lands on its top
+     * rather than flying a block past it, its sideways motion kept; a faster
+     * rise is kept.
+     * updraft-goo-lifts-one-block-per-layer
+     *
+     * @param velocity the velocity now
+     * @param speed    the column's rise, in blocks per tick
+     * @param toTop    the blocks from the entity's feet up to the column's top
+     * @return the risen velocity
+     */
+    static Vec3 risen(Vec3 velocity, double speed, double toTop) {
+        return lifted(velocity, Math.min(speed, toTop));
     }
 
     /**
