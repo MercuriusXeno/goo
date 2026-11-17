@@ -100,6 +100,7 @@ public record FlamesStep(Expr damage, int every, int burnSeconds, int cookTicks,
      * decision flames-absorbs-broil-and-cooks-blocks
      * decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold
      * molten-cooks-the-block-below-it-as-flames-cooks-blocks
+     * flames-melts-obsidian-magma-and-iron-core-as-molten-does
      *
      * @param host the channel host
      * @param aim  the stream's aim
@@ -109,8 +110,10 @@ public record FlamesStep(Expr damage, int every, int burnSeconds, int cookTicks,
         BlockPos eye = BlockPos.containing(host.eye());
         boolean waterEvaporates = BlockCooking.waterEvaporatesAt(host.level(), eye);
         BlockCooking.Meltables meltables = BlockCooking.Meltables.vanilla();
-        Function<Block, Optional<Block>> melts = raw -> BlockCooking.meltedBlock(raw, meltables, waterEvaporates);
-        Function<Block, Optional<Block>> cooks = BlockCooking.heatedIntoAt(host.level(), results, eye);
+        Function<Block, Optional<Block>> moltenMelts = MoltenStep.meltsIn(host.level());
+        Function<Block, Optional<Block>> melts = raw -> moltenMelts.apply(raw)
+                .or(() -> BlockCooking.meltedBlock(raw, meltables, waterEvaporates));
+        Function<Block, Optional<Block>> cooks = BlockCooking.heatedIntoAt(host.level(), moltenMelts, results, eye);
         HoldMarks marks = host.holdMarks();
         PaintedHold.lookedAtBlock(host, aim).ifPresent(looked -> {
             if (host.blockIn(looked, burns)) {
