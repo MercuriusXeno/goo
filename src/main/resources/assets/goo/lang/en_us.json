@@ -342,7 +342,7 @@
   "goo.ability.void.zone": "Zone",
   "goo.ability.void.zone.description": "Hold to enter your own dimension and, inside, to widen it on every side; the doorway takes you back.",
   "goo.ability.void.vacuum": "Vacuum",
-  "goo.ability.void.vacuum.description": "Hold to clear every goo in the world in front of you in a wave, giving back all the goo it holds, and to draw in the items and mobs before you.",
+  "goo.ability.void.vacuum.description": "Hold to drain every goo in the world in front of you a layer at a time, giving back all the goo it holds, and to draw in the items and mobs before you.",
   "goo.ability.void.zone.cost_mechanics": "%s void to enter. Inside, holding on costs void each second, rising as the room grows.",
   "block.goo.voidstone": "Voidstone",
   "block.goo.dimension_door": "Dimension Doorway",

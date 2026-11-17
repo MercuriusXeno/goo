@@ -37,19 +37,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
 /**
- * Vacuum's break and reach: a residual cell cracks from the first tick of a
- * hold and breaks whole once the ticks its distance from the eye sets have
- * run, 4 at the eye to 8 at the reach's far end, and the hold reaches every
- * residual inside its cone that the eye sees past other residuals
+ * Vacuum's drain and reach: every residual cell in the cone loses one layer
+ * each held tick from the first tick the cone reaches it, near and far alike,
+ * and the hold reaches every residual inside its cone that the eye sees past
+ * other residuals
  * (decisions vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave,
  * vacuum-breaks-a-cell-the-tick-the-wave-reaches-it).
  */
@@ -58,8 +59,6 @@ class VacuumStepTest {
     private static final double SHIPPED_RANGE = 10;
     /** The cone's apex angle, 30 degrees each side of the look. */
     private static final double CONE = 60;
-    private static final double SHIPPED_NEAR_BREAK_TICKS = 4;
-    private static final double SHIPPED_FAR_BREAK_TICKS = 8;
     /** The eye, looking east along x across the reach. */
     private static final Vec3 EYE = new Vec3(0.5, 2.5, 0.5);
     private static final Vec3 LOOK_EAST = new Vec3(SHIPPED_RANGE, 0, 0);
@@ -67,7 +66,7 @@ class VacuumStepTest {
     private static final Vec3 LOOK_NORTH = new Vec3(0, 0, -SHIPPED_RANGE);
 
     @Nested
-    class Pace {
+    class Shipped {
 
         // vacuum-sounds-a-suction-wind-and-rising-slurps
         @Test
@@ -76,28 +75,24 @@ class VacuumStepTest {
             assertTrue(VacuumStep.slurpPitch(4, SHIPPED_RANGE) < VacuumStep.slurpPitch(SHIPPED_RANGE, SHIPPED_RANGE));
         }
 
-        // vacuum-breaks-a-cell-the-tick-the-wave-reaches-it: the break ticks at the near and far ends are the step's params
+        // vacuum-breaks-a-cell-the-tick-the-wave-reaches-it: no distance pace, so the step takes no params
         @Test
-        void theShippedVacuumBehaviorNamesTheNearAndFarBreakTicksAlone() {
+        void theShippedVacuumBehaviorIsTheBareType() {
             JsonObject behavior = shippedVacuumBehavior();
 
-            assertEquals(Set.of("type", "near_break_ticks", "far_break_ticks"), behavior.keySet());
+            assertEquals(Set.of("type"), behavior.keySet());
             assertNotNull(shippedVacuum());
         }
 
-        // vacuum-breaks-a-cell-the-tick-the-wave-reaches-it
         // vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
         @Test
-        void theShippedVacuumReachesTenBlocksInASixtyDegreeConeAndBreaksInFourToEightTicks() {
+        void theShippedVacuumReachesTenBlocksInASixtyDegreeCone() {
             AbilityDefinition shipped = AbilityJson.decode("void_vacuum");
-            VacuumStep vacuum = shippedVacuum();
 
             assertEquals(SHIPPED_RANGE, shipped.delivery().range());
             assertEquals(CONE, shipped.delivery().coneDegrees());
             assertEquals(SHIPPED_RANGE, shipped.area().size());
             assertEquals(CONE, shipped.area().angle());
-            assertEquals(SHIPPED_NEAR_BREAK_TICKS, vacuum.nearBreakTicks());
-            assertEquals(SHIPPED_FAR_BREAK_TICKS, vacuum.farBreakTicks());
         }
 
     }
@@ -116,111 +111,116 @@ class VacuumStepTest {
     }
 
     /**
-     * The hold tick a cell breaks on, counted from the tick the cone first
-     * reaches it: its break ticks, scaled evenly from the near value at the
-     * eye to the far value at the reach's far end, rounded up to a whole tick.
-     */
-    private static int breakTickAt(VacuumStep vacuum, double distance) {
-        double near = vacuum.nearBreakTicks();
-        return (int) Math.ceil(near + (vacuum.farBreakTicks() - near) * distance / SHIPPED_RANGE);
-    }
-
-    /**
-     * A reached residual cracks from the first tick of the hold and breaks
-     * whole on the tick its distance from the eye sets, nearest first, with no
-     * exposure before it; the cone turned off it clears its crack and its
-     * progress (decision vacuum-breaks-a-cell-the-tick-the-wave-reaches-it).
-     * The break throws three break particles a layer
-     * (decision vacuum-throws-three-break-particles-a-layer).
+     * A reached residual loses one layer each held tick from the hold's first
+     * tick, near the eye and far along the reach alike, with no crack drawn;
+     * each layer taken throws three break particles, and the break sound and
+     * the slurp play once, on the tick the last layer goes; the cone turned
+     * off a cell leaves it at the layers it has left
+     * (decisions vacuum-breaks-a-cell-the-tick-the-wave-reaches-it,
+     * vacuum-throws-three-break-particles-a-layer,
+     * vacuum-sounds-a-suction-wind-and-rising-slurps).
      */
     @Nested
-    class Break {
+    class Drain {
 
         /** Four blocks east of the eye, on the look. */
         private static final BlockPos CELL = new BlockPos(4, 2, 0);
         /** Two blocks east of the eye, on the look. */
         private static final BlockPos NEAR = new BlockPos(2, 2, 0);
-        /** Six blocks east of the eye, on the look. */
-        private static final BlockPos FAR = new BlockPos(6, 2, 0);
+        /** Nine blocks east of the eye, on the look, near the reach's far end. */
+        private static final BlockPos FAR = new BlockPos(9, 2, 0);
+        /** A full cell's layers. */
+        private static final int FULL = VolumeCellBlock.MAX_LAYERS;
+        /** A shallow cell's layers. */
+        private static final int SHALLOW = 3;
+        /** The layers the single cell tests lay, more than any old break pace ran ticks. */
+        private static final int DEEP = 10;
+        private static final int PARTICLES_PER_LAYER = 3;
         private final VacuumStep vacuum = shippedVacuum();
         private final AtomicInteger held = new AtomicInteger();
-        private final Map<BlockPos, Integer> brokeOn = new LinkedHashMap<>();
-        private final List<BlockPos> exposed = new ArrayList<>();
+        private final Map<BlockPos, BlockState> cells = new HashMap<>();
+        private final Map<BlockPos, Integer> emptiedOn = new LinkedHashMap<>();
 
         @Test
-        void eachReachedCellBreaksOnTheTickItsDistanceSetsNearestFirstAndNoneIsExposed() {
-            ChannelHost host = recordingBreaks(Map.of(NEAR, WorldGooHosts.worldGoo(), FAR, WorldGooHosts.worldGoo()),
-                    () -> LOOK_EAST);
-            int nearTick = breakTickAt(vacuum, 2);
-            int farTick = breakTickAt(vacuum, 6);
+        void everyReachedCellLosesOneLayerEachHeldTickNearAndFarAlike() {
+            ChannelHost host = drainingHost(Map.of(NEAR, WorldGooHosts.worldGoo(FULL),
+                    FAR, WorldGooHosts.worldGoo(SHALLOW)), () -> LOOK_EAST);
+            List<String> wrong = new ArrayList<>();
 
-            holdFor(host, farTick);
+            for (int tick = 1; tick <= FULL; tick++) {
+                holdFor(host, 1);
+                int near = Math.max(0, FULL - tick);
+                int far = Math.max(0, SHALLOW - tick);
+                if (layersAt(NEAR) != near || layersAt(FAR) != far) {
+                    wrong.add(tick + ": near " + layersAt(NEAR) + " owed " + near + ", far " + layersAt(FAR)
+                            + " owed " + far);
+                }
+            }
 
-            assertEquals(List.of(NEAR, FAR), List.copyOf(brokeOn.keySet()));
-            assertEquals(nearTick, brokeOn.get(NEAR));
-            assertEquals(farTick, brokeOn.get(FAR));
-            assertEquals(List.of(), exposed);
+            assertEquals(List.of(), wrong);
+            assertEquals(Map.of(FAR, SHALLOW, NEAR, FULL), emptiedOn);
         }
 
         @Test
-        void aReachedCellCracksAtRisingStagesFromTheFirstTickAndClearsOnTheTickItBreaks() {
-            ChannelHost host = recordingBreaks(Map.of(CELL, WorldGooHosts.worldGoo()), () -> LOOK_EAST);
-            List<int[]> cracks = recordingCracks(host);
-            int breakTick = breakTickAt(vacuum, 4);
+        void noCellReachesTheGradualBreakAndNoneCracks() {
+            ChannelHost host = drainingHost(Map.of(CELL, WorldGooHosts.worldGoo(DEEP)), () -> LOOK_EAST);
+            GradualBreak gradualBreak = mock(GradualBreak.class);
+            when(host.gradualBreak()).thenReturn(gradualBreak);
+            List<Integer> cracked = new ArrayList<>();
+            doAnswer(call -> cracked.add(held.get())).when(host).crackBlock(any(), anyInt());
 
-            holdFor(host, breakTick);
+            holdFor(host, DEEP);
 
-            assertEquals(breakTick, brokeOn.get(CELL));
-            assertEquals(ChannelAim.FIRST_TICK, cracks.getFirst()[0], "the first crack lands on the hold's first tick");
-            int[] last = cracks.getLast();
-            assertEquals(breakTick, last[0], "the crack clears on the break tick");
-            assertEquals(GradualBreak.CLEARED, last[1]);
-            List<int[]> rising = cracks.subList(0, cracks.size() - 1);
-            for (int i = 0; i < rising.size(); i++) {
-                assertTrue(rising.get(i)[1] >= 0 && (i == 0 || rising.get(i)[1] > rising.get(i - 1)[1]),
-                        "the stages drawn before the break only rise: " + stagesOf(cracks));
+            assertEquals(DEEP, emptiedOn.get(CELL));
+            verifyNoInteractions(gradualBreak);
+            assertEquals(List.of(), cracked);
+        }
+
+        @Test
+        void eachLayerTakenThrowsThreeBreakParticles() {
+            ChannelHost host = drainingHost(Map.of(CELL, WorldGooHosts.worldGoo(DEEP)), () -> LOOK_EAST);
+
+            for (int layers = DEEP; layers >= 1; layers--) {
+                BlockState taken = cells.get(CELL);
+                holdFor(host, 1);
+                verify(host).scatterBreakParticles(CELL, taken, PARTICLES_PER_LAYER,
+                        (double) layers / VolumeCellBlock.MAX_LAYERS);
             }
         }
 
         @Test
-        void aCellTheConeTurnsOffHasItsCrackClearedAndBreaksItsWholeBreakTicksAfterItIsReachedAgain() {
-            AtomicReference<Vec3> look = new AtomicReference<>(LOOK_EAST);
-            ChannelHost host = recordingBreaks(Map.of(CELL, WorldGooHosts.worldGoo()), look::get);
-            int breakTicks = breakTickAt(vacuum, 4);
+        void theBreakSoundAndTheSlurpPlayOnceOnTheTickTheLastLayerGoes() {
+            ChannelHost host = drainingHost(Map.of(CELL, WorldGooHosts.worldGoo(DEEP)), () -> LOOK_EAST);
 
-            holdFor(host, breakTicks - 1);
-            look.set(LOOK_NORTH);
+            for (int tick = 1; tick < DEEP; tick++) {
+                holdFor(host, 1);
+                verify(host, never()).playBreakSound(any(), any());
+                verify(host, never()).slurpAt(any(), anyFloat());
+            }
+            BlockState last = cells.get(CELL);
             holdFor(host, 1);
 
-            verify(host).crackBlock(CELL, GradualBreak.CLEARED);
-            assertEquals(Map.of(), brokeOn);
+            verify(host).playBreakSound(CELL, last);
+            verify(host).slurpAt(CELL, VacuumStep.slurpPitch(4, SHIPPED_RANGE));
+        }
+
+        @Test
+        void aCellTheConeTurnsOffKeepsTheLayersItHasLeftAndLosesOneATickWhenReachedAgain() {
+            AtomicReference<Vec3> look = new AtomicReference<>(LOOK_EAST);
+            ChannelHost host = drainingHost(Map.of(CELL, WorldGooHosts.worldGoo(DEEP)), look::get);
+            int partWay = 4;
+
+            holdFor(host, partWay);
+            look.set(LOOK_NORTH);
+            holdFor(host, 2);
+
+            assertEquals(DEEP - partWay, layersAt(CELL));
 
             look.set(LOOK_EAST);
             int reachedAgainOn = held.get() + 1;
-            holdFor(host, breakTicks);
+            holdFor(host, DEEP - partWay);
 
-            assertEquals(reachedAgainOn + breakTicks - 1, brokeOn.get(CELL));
-        }
-
-        @Test
-        void aBrokenResidualThrowsThreeBreakParticlesALayer() {
-            ChannelHost host = recordingBreaks(Map.of(CELL, WorldGooHosts.worldGoo()), () -> LOOK_EAST);
-            BlockState residual = host.stateAt(CELL);
-
-            holdFor(host, breakTickAt(vacuum, 4));
-
-            verify(host).scatterBreakParticles(CELL, residual, WorldGooHosts.LAYERS * 3,
-                    (double) WorldGooHosts.LAYERS / VolumeCellBlock.MAX_LAYERS);
-        }
-
-        // vacuum-sounds-a-suction-wind-and-rising-slurps
-        @Test
-        void aTakenResidualSlurpsAtItsCellPitchedByItsDistance() {
-            ChannelHost host = recordingBreaks(Map.of(CELL, WorldGooHosts.worldGoo()), () -> LOOK_EAST);
-
-            holdFor(host, breakTickAt(vacuum, 4));
-
-            verify(host).slurpAt(CELL, VacuumStep.slurpPitch(4, SHIPPED_RANGE));
+            assertEquals(reachedAgainOn + DEEP - partWay - 1, emptiedOn.get(CELL));
         }
 
         /** Ticks the hold on from the tick it last read, as many ticks as named; a verify reads the last tick's calls. */
@@ -231,38 +231,30 @@ class VacuumStepTest {
             }
         }
 
+        private int layersAt(BlockPos cell) {
+            return cells.containsKey(cell) ? VolumeCellBlock.layersOf(cells.get(cell)) : 0;
+        }
+
         /**
-         * A host over the cells whose quiet break empties the cell and records
-         * the hold tick it broke on, and which records every cell exposed.
+         * A host over the cells whose layer take leaves a cell one layer
+         * fewer, and empties a cell on its last layer, recording the hold
+         * tick it emptied on.
          */
-        private ChannelHost recordingBreaks(Map<BlockPos, BlockState> laid, Supplier<Vec3> look) {
-            Map<BlockPos, BlockState> cells = new HashMap<>(laid);
+        private ChannelHost drainingHost(Map<BlockPos, BlockState> laid, Supplier<Vec3> look) {
+            cells.putAll(laid);
             ChannelHost host = WorldGooHosts.holding(cells, held::get, look);
             doAnswer(call -> {
                 BlockPos cell = call.getArgument(0);
-                cells.remove(cell);
-                brokeOn.put(cell, held.get());
+                int left = layersAt(cell) - 1;
+                if (left > 0) {
+                    cells.put(cell, WorldGooHosts.worldGoo(left));
+                } else {
+                    cells.remove(cell);
+                    emptiedOn.put(cell, held.get());
+                }
                 return null;
-            }).when(host).breakBlockQuietly(any());
-            doAnswer(call -> {
-                exposed.add(call.getArgument(0));
-                return 0f;
-            }).when(host).exposeBlock(any(), any(), anyFloat(), anyInt());
+            }).when(host).takeLayer(any());
             return host;
-        }
-
-        /** Records each crack drawn on {@link #CELL} as the hold tick and the stage. */
-        private List<int[]> recordingCracks(ChannelHost host) {
-            List<int[]> cracks = new ArrayList<>();
-            doAnswer(call -> {
-                cracks.add(new int[] {held.get(), call.getArgument(1)});
-                return null;
-            }).when(host).crackBlock(eq(CELL), anyInt());
-            return cracks;
-        }
-
-        private static List<String> stagesOf(List<int[]> cracks) {
-            return cracks.stream().map(crack -> crack[0] + ":" + crack[1]).toList();
         }
     }
 
@@ -281,18 +273,15 @@ class VacuumStepTest {
         private final VacuumStep vacuum = shippedVacuum();
 
         @Test
-        void aWorldGooOnTheVolumeCellBreaksAndStoneStands() {
-            ChannelHost host = WorldGooHosts.holding(Map.of(WORLD_GOO, WorldGooHosts.worldGoo(),
+        void aWorldGooOnTheVolumeCellLosesALayerAndStoneStands() {
+            ChannelHost host = WorldGooHosts.holding(Map.of(WORLD_GOO, WorldGooHosts.worldGoo(WorldGooHosts.LAYERS),
                     STONE, WorldGooHosts.stone()));
-            List<BlockPos> broken = new ArrayList<>();
-            doAnswer(call -> broken.add(call.getArgument(0))).when(host).breakBlockQuietly(any());
+            List<BlockPos> taken = new ArrayList<>();
+            doAnswer(call -> taken.add(call.getArgument(0))).when(host).takeLayer(any());
 
-            // a hold as long as the reach's far end takes to break, so every cell in reach breaks within it
-            for (int tick = ChannelAim.FIRST_TICK; tick <= breakTickAt(vacuum, SHIPPED_RANGE); tick++) {
-                WorldGooHosts.tick(vacuum, host);
-            }
+            WorldGooHosts.tick(vacuum, host);
 
-            assertEquals(List.of(WORLD_GOO), broken);
+            assertEquals(List.of(WORLD_GOO), taken);
         }
     }
 
@@ -323,8 +312,8 @@ class VacuumStepTest {
 
     /**
      * Channel hosts holding a few cells ahead of the eye, every other cell
-     * open air, breaking through one hold's real gradual break, the hold as
-     * old as a counter reads and aimed along a look the test can turn.
+     * open air, the hold as old as a counter reads and aimed along a look the
+     * test can turn.
      */
     private static final class WorldGooHosts {
 
@@ -355,15 +344,14 @@ class VacuumStepTest {
                     held.getAsInt(), true)));
             when(host.eye()).thenReturn(EYE);
             when(host.holdMarks()).thenReturn(new HoldMarks());
-            when(host.gradualBreak()).thenReturn(new GradualBreak());
             when(host.stateAt(any())).thenAnswer(call -> cells.getOrDefault(call.getArgument(0), air));
             return host;
         }
 
-        /** A goo laid on the volume cell, bound to no goo type a tag names, of a few layers. */
-        static BlockState worldGoo() {
+        /** A goo laid on the volume cell, bound to no goo type a tag names, of the layers named. */
+        static BlockState worldGoo(int layers) {
             BlockState goo = state(mock(VolumeCellBlock.class), Shapes.empty());
-            when(goo.getValue(VolumeCellBlock.LAYERS)).thenReturn(LAYERS);
+            when(goo.getValue(VolumeCellBlock.LAYERS)).thenReturn(layers);
             return goo;
         }
 
