@@ -26,6 +26,7 @@ import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.entity.RollingGoo;
 import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.item.ReagentScanner;
+import com.mercuriusxeno.goo.lunar.LunarGravity;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.GateArc;
@@ -802,7 +803,9 @@ public final class GooThrowHandler {
         double distance = Math.sqrt(distSq);
         GooTypeDefinition definition = GooTypes.definition(player.level().registryAccess(), gooType);
         Delivery delivery = flightDelivery(player.level(), payload.abilityId(), gooType);
-        int travelTicks = delivery.travelTicks(distance, definition.levity(), definition.baseFlightTime());
+        // decision lunar-gravity-is-one-sixth-of-the-overworlds: the blob floats longer to the same aim in lunar
+        int travelTicks = LunarGravity.flightTicksIn(player.level().dimension(),
+                delivery.travelTicks(distance, definition.levity(), definition.baseFlightTime()));
         broadcastFlight(player, payload, delivery, travelTicks);
         GooServerState.of(player.level().getServer()).gooEffects()
                 .scheduleEffect(player, payload, gooType, delivery, travelTicks);

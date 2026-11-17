@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.ability.gate;
+package com.mercuriusxeno.goo.ability.astral;
 
 import com.mercuriusxeno.goo.ability.zone.VoidPockets;
 import com.mojang.serialization.MapCodec;
