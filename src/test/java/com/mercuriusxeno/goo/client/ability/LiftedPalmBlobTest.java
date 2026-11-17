@@ -691,12 +691,12 @@ class LiftedPalmBlobTest {
     private static final long FLOATED = NOW + PalmBlobHop.LIFT_TICKS;
     /** Part way through the lift, the hop done and the rise half way. */
     private static final long PART_WAY_UP = NOW + PalmBlobHop.HOP_TICKS + PalmBlobHop.EASE_TICKS / 2;
-    /** The tick the charge held from {@link #NOW} is released. */
-    private static final long RELEASED = NOW + 20;
-    /** The sweep's last tick, the last knife's launch. */
-    private static final long SWEPT = RELEASED + KnivesCharging.KNIVES.sweepTicks();
-    /** The tick the lift held through the sweep reads ended, a tick past the gap, and its settle begins. */
-    private static final double SETTLE_BEGINS = endedAt(SWEPT);
+    /** The tick the hold from {@link #NOW} is let go. */
+    private static final long LET_GO = NOW + 20;
+    /** The last tick the hold kept the blob afloat. */
+    private static final long LAST_HELD = LET_GO - 1;
+    /** The tick the lift held through the hold reads ended, a tick past the gap, and its settle begins. */
+    private static final double SETTLE_BEGINS = endedAt(LAST_HELD);
 
     private static SprayingClient clientOf(boolean local, ResourceKey<GooTypeDefinition> selected) {
         return local ? SprayingClient.local(selected) : SprayingClient.another(selected);
@@ -717,9 +717,9 @@ class LiftedPalmBlobTest {
      * Knives' charge lifts the blob off the palm from its first tick for the
      * local player and another alike, floats it at the float point ahead of
      * the hand facing the look, swells it with the charge, draws it as the
-     * one blob, and keeps it up through the backhand's sweep before it
-     * settles home (decisions knives-blob-floats-ahead-of-the-hand-and-spews-the-knives,
-     * charge-swells-the-palm-blob, knives-sling-then-morph-to-flechettes).
+     * one blob, and settles it home once the hold is let go (decisions
+     * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives, charge-swells-the-palm-blob,
+     * knives-form-on-right-click-and-throw-on-left-click).
      */
     @Nested
     class FloatsThroughKnivesCharge {
@@ -789,36 +789,15 @@ class LiftedPalmBlobTest {
         }
 
         @Test
-        void throughTheBackhandTheBlobTravelsWithTheHandOutPastTheGloveSide() {
+        void lettingGoSettlesTheBlobFromTheFloatPointToThePalm() {
             try (SprayingClient client = SprayingClient.another(GooTypes.CRYSTAL);
                  KnivesCharging knives = KnivesCharging.heldTo(1f)) {
-                knives.windUp(client, NOW, RELEASED - 1);
-                knives.release(client, RELEASED, RELEASED);
-                Vec3 atTheRelease = LiftedPalmBlob.blobOf(SprayingClient.CASTER, 0f).orElseThrow().place();
-                long flung = RELEASED + (long) KnifeRain.BACKHAND_OUT_TICKS;
-                knives.holdThrough(client, RELEASED + 1, flung);
-
-                Vec3 outThere = LiftedPalmBlob.blobOf(SprayingClient.CASTER, 0f).orElseThrow().place();
-
-                float from = AbilityPoses.posedAt(SprayingClient.CASTER).from();
-                assertTrue(atTheRelease.distanceTo(outThere) > 0.1, "the blob should travel out with the hand, from "
-                        + atTheRelease + " to " + outThere);
-                assertNear(floatPointAcross(KnifeRain.backhandAcross(from, KnifeRain.BACKHAND_OUT_TICKS)), outThere);
-                assertTrue(KnifeRain.backhandAcross(from, KnifeRain.BACKHAND_OUT_TICKS) < 0f, "flung, the hand "
-                        + "should stand out past the glove side");
-            }
-        }
-
-        @Test
-        void afterTheReleaseTheBlobStaysUpThroughTheSweepThenSettlesFromTheFloatPointToThePalm() {
-            try (SprayingClient client = SprayingClient.another(GooTypes.CRYSTAL);
-                 KnivesCharging knives = KnivesCharging.heldTo(1f)) {
-                knives.windUp(client, NOW, RELEASED - 1);
+                knives.windUp(client, NOW, LAST_HELD);
                 long partWayDown = (long) SETTLE_BEGINS + PalmBlobHop.EASE_TICKS / 2;
-                knives.release(client, RELEASED, partWayDown);
+                knives.letGo(client, LET_GO, partWayDown);
 
-                assertTrue(LiftedPalmBlob.standsOff(SprayingClient.CASTER, SWEPT), "the lift should stand at the "
-                        + "sweep's last tick");
+                assertTrue(LiftedPalmBlob.standsOff(SprayingClient.CASTER, LAST_HELD), "the lift should stand at the "
+                        + "hold's last tick");
                 Vec3 place = LiftedPalmBlob.blobOf(SprayingClient.CASTER, 0f).orElseThrow().place();
                 Vec3 floating = floatPointAcross(KnivesCharge.acrossOf(SprayingClient.CASTER, partWayDown));
                 Vec3 palm = KnivesCharge.handAt((Player)

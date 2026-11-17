@@ -119,8 +119,7 @@ public final class GooThrowHandler {
 
     /**
      * Fires a charged ability the player let go, when it may: a self ability
-     * on the player, a thrown one as a rain of glass knives.
-     * decision knives-sling-then-morph-to-flechettes
+     * on the player, a spontaneous cast at its aimed target.
      *
      * @param player  the releasing player
      * @param payload the charge payload
@@ -139,8 +138,7 @@ public final class GooThrowHandler {
     /**
      * Fires a released charge by its delivery: on the player for a self
      * ability, at the aimed target at the size the hold reached for a
-     * spontaneous cast sized by its charge, as a rain of glass knives for a
-     * thrown one that slings.
+     * spontaneous cast sized by its charge.
      * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
      *
      * @param player    the releasing player
@@ -155,8 +153,6 @@ public final class GooThrowHandler {
         } else if (ability.delivery().sizesByCharge()) {
             payload.aimed().ifPresent(aimed -> GooChargedCastHandler.cast(player, gooType, ability, aimed,
                     payload.heldTicks()));
-        } else if (ability.delivery().charge().slings()) {
-            KnifeRainSling.sling(player, gooType, ability, payload.heldTicks());
         }
     }
 
