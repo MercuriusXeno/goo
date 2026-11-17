@@ -19,6 +19,8 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.io.IOException;
@@ -45,7 +47,226 @@ class GrabStepTest {
 
     private static final double HOLD_DISTANCE = 4;
     private static final double EPSILON = 1e-6;
-    private static final GrabStep GRAB = new GrabStep(8, HOLD_DISTANCE, 1.5, 1, 10);
+    /** An acceleration unequal to the shipped one, so the test reads the step's field. */
+    private static final double PULL_ACCELERATION = 0.25;
+    private static final double PULL_SPEED = 1;
+    /** A hold acceleration and reference volume unequal to the shipped ones, so the tests read the step's fields. */
+    private static final double HOLD_ACCELERATION = 0.3;
+    private static final double REFERENCE_VOLUME = 1.4;
+    private static final GrabStep GRAB = new GrabStep(8, HOLD_DISTANCE, 1.5, PULL_SPEED, 10, PULL_ACCELERATION, 4, 3,
+            HOLD_ACCELERATION, REFERENCE_VOLUME);
+
+    /**
+     * Which neighbors join a targeted item's group: the same item within the
+     * step's radius of it, whatever components the stacks carry, and none
+     * while the player sneaks
+     * (decisions grab-on-one-item-grabs-every-same-item-within-four-blocks,
+     * sneaking-grab-pulls-the-single-targeted-item).
+     */
+    @Nested
+    class GroupMembership {
+
+        /** A radius unequal to the shipped 4, so the test reads the step's field. */
+        private static final double RADIUS = 2.5;
+        private static final double JUST_INSIDE = RADIUS - 0.01;
+        private static final double JUST_OUTSIDE = RADIUS + 0.01;
+        private final GrabStep step = new GrabStep(8, HOLD_DISTANCE, 1.5, PULL_SPEED, 10, PULL_ACCELERATION, RADIUS, 3,
+                HOLD_ACCELERATION, REFERENCE_VOLUME);
+        private final Item cobblestone = mock(Item.class);
+        private final Item dirt = mock(Item.class);
+        private final ItemStack targeted = stackOf(cobblestone);
+
+        @Test
+        void theSameItemJustInsideTheRadiusJoins() {
+            assertTrue(GrabStep.joinsGroup(targeted, stackOf(cobblestone), JUST_INSIDE, step.groupRadius(), false));
+        }
+
+        @Test
+        void theSameItemJustOutsideTheRadiusStaysOut() {
+            assertFalse(GrabStep.joinsGroup(targeted, stackOf(cobblestone), JUST_OUTSIDE, step.groupRadius(), false));
+        }
+
+        @Test
+        void anotherItemInsideTheRadiusStaysOut() {
+            assertFalse(GrabStep.joinsGroup(targeted, stackOf(dirt), JUST_INSIDE, step.groupRadius(), false));
+        }
+
+        @Test
+        void theSameItemCarryingOtherComponentsJoins() {
+            ItemStack renamed = stackOf(cobblestone);
+            when(renamed.getComponentsPatch()).thenReturn(mock(net.minecraft.core.component.DataComponentPatch.class));
+            assertTrue(GrabStep.joinsGroup(targeted, renamed, JUST_INSIDE, step.groupRadius(), false));
+        }
+
+        @Test
+        void sneakingAnswersFalseForEveryNeighbor() {
+            for (ItemStack neighbor : List.of(stackOf(cobblestone), stackOf(dirt))) {
+                for (double distance : new double[] {0, JUST_INSIDE, JUST_OUTSIDE}) {
+                    assertFalse(GrabStep.joinsGroup(targeted, neighbor, distance, step.groupRadius(), true));
+                }
+            }
+        }
+
+        private static ItemStack stackOf(Item item) {
+            ItemStack stack = mock(ItemStack.class);
+            when(stack.getItem()).thenReturn(item);
+            return stack;
+        }
+    }
+
+    /**
+     * Where a locked item streams in: a point on the live look line at its
+     * own place along the look less the stream lead, the eye once it is
+     * within the lead, so each item eases onto the aim line and flows in
+     * along it (decision grabbed-item-group-converges-on-the-aim-line-then-pulls-as-one).
+     */
+    @Nested
+    class Stream {
+
+        private static final Vec3 EYE = Vec3.ZERO;
+        private static final Vec3 LOOK = new Vec3(1, 0, 0);
+        /** GRAB's stream lead, unequal to the shipped 2, so the tests read the step's field. */
+        private static final double LEAD = 3;
+        private static final List<Vec3> MEMBERS = List.of(new Vec3(8, -2, 1), new Vec3(10, -1.5, -2),
+                new Vec3(6, -2.5, 0.5));
+        private static final int MOST_TICKS = 200;
+
+        @Test
+        void anItemOffTheLineFliesForThePointItsLeadShortOfItsPlaceAlongTheLook() {
+            assertEquals(LEAD, GRAB.streamLead(), EPSILON);
+            Vec3 point = GRAB.streamPoint(EYE, LOOK, new Vec3(8, -2, 1));
+            assertEquals(0, point.distanceTo(new Vec3(8 - LEAD, 0, 0)), EPSILON, "The stream point should lie on "
+                    + "the look line the lead short of the item's place along it, is " + point);
+        }
+
+        @Test
+        void anItemWithinTheLeadFliesForTheEye() {
+            assertEquals(EYE, GRAB.streamPoint(EYE, LOOK, new Vec3(LEAD - 1, -1, 0)));
+            assertEquals(EYE, GRAB.streamPoint(EYE, LOOK, new Vec3(-2, 0, 1)));
+        }
+
+        @Test
+        void aGroupEasesOntoTheLookLineAtNoMoreThanThePullSpeedAndAcceleration() {
+            for (Vec3 start : MEMBERS) {
+                Vec3 at = start;
+                Vec3 velocity = Vec3.ZERO;
+                double offTheLine = offTheLine(at);
+                for (int tick = 0; tick < MOST_TICKS && at.distanceTo(EYE) > EPSILON; tick++) {
+                    Vec3 next = GRAB.homingVelocity(velocity, at, GRAB.streamPoint(EYE, LOOK, at));
+                    assertTrue(next.length() <= PULL_SPEED + EPSILON, "Tick " + tick + " flies " + next.length());
+                    assertTrue(next.length() - velocity.length() <= PULL_ACCELERATION + EPSILON, "Tick " + tick
+                            + " gains " + (next.length() - velocity.length()));
+                    velocity = next;
+                    at = at.add(velocity);
+                    double nowOff = offTheLine(at);
+                    assertTrue(nowOff <= offTheLine + EPSILON, "The member from " + start + " should come no "
+                            + "farther off the line, " + offTheLine + " then " + nowOff);
+                    offTheLine = nowOff;
+                }
+                assertEquals(0, at.distanceTo(EYE), EPSILON, "The member from " + start + " should reach the eye");
+            }
+        }
+
+        private static double offTheLine(Vec3 at) {
+            return at.subtract(LOOK.scale(at.dot(LOOK))).length();
+        }
+    }
+
+    /**
+     * A held mob gains speed toward the hold point by an acceleration its
+     * hitbox volume divides, so a bigger mob comes slower
+     * (decision grabbed-mob-accelerates-slower-the-bigger-its-hitbox).
+     */
+    @Nested
+    class HeldMobMass {
+
+        private static final Vec3 FROM = Vec3.ZERO;
+        private static final Vec3 HOLD_POINT = new Vec3(10, 0, 0);
+        /** A chicken's box, 0.4 by 0.4 by 0.7. */
+        private static final double CHICKEN = 0.4 * 0.4 * 0.7;
+        /** A ravager's box, 1.95 by 1.95 by 2.2. */
+        private static final double RAVAGER = 1.95 * 1.95 * 2.2;
+        private static final int TICKS = 5;
+
+        @Test
+        void aChickenSizedBoxTravelsFartherThanARavagerSizedOne() {
+            double chicken = travelled(CHICKEN);
+            double ravager = travelled(RAVAGER);
+            assertTrue(chicken > ravager, "The chicken-sized box should travel farther, " + chicken + " against "
+                    + ravager);
+        }
+
+        @Test
+        void doublingTheVolumeHalvesTheFirstTicksGain() {
+            double once = GRAB.heldVelocity(FROM, Vec3.ZERO, HOLD_POINT, REFERENCE_VOLUME).length();
+            double twice = GRAB.heldVelocity(FROM, Vec3.ZERO, HOLD_POINT, 2 * REFERENCE_VOLUME).length();
+            assertEquals(once / 2, twice, EPSILON);
+        }
+
+        private static double travelled(double volume) {
+            Vec3 at = FROM;
+            Vec3 velocity = Vec3.ZERO;
+            for (int tick = 0; tick < TICKS; tick++) {
+                velocity = GRAB.heldVelocity(at, velocity, HOLD_POINT, volume);
+                at = at.add(velocity);
+            }
+            return at.distanceTo(FROM);
+        }
+    }
+
+    /**
+     * A locked item gains speed tick over tick toward where the eye stands
+     * that tick, up to the pull speed
+     * (decision grabbed-item-locks-in-and-homes-on-your-current-position).
+     */
+    @Nested
+    class Homing {
+
+        private static final Vec3 EYE = new Vec3(0, 1.62, 0);
+        private static final Vec3 ITEM_AT = new Vec3(12, 0.2, 0);
+        /** Where the eye stands once the player moves, off the item's first line to it. */
+        private static final Vec3 MOVED_EYE = new Vec3(4, 1.62, 6);
+        private static final int TICKS = 30;
+
+        @Test
+        void theFirstTickFromRestGainsTheAcceleration() {
+            Vec3 velocity = GRAB.homingVelocity(Vec3.ZERO, ITEM_AT, EYE);
+            assertEquals(PULL_ACCELERATION, velocity.length(), EPSILON);
+        }
+
+        @Test
+        void aLaterTickFliesFasterThanTheFirst() {
+            Vec3 first = GRAB.homingVelocity(Vec3.ZERO, ITEM_AT, EYE);
+            Vec3 second = GRAB.homingVelocity(first, ITEM_AT.add(first), EYE);
+            assertTrue(second.length() > first.length(), "The second tick should fly faster, " + first.length()
+                    + " then " + second.length());
+        }
+
+        @Test
+        void theMotionAfterTheEyeMovesPointsAtTheEyesNewPosition() {
+            Vec3 at = ITEM_AT;
+            Vec3 velocity = Vec3.ZERO;
+            for (int tick = 0; tick < 3; tick++) {
+                velocity = GRAB.homingVelocity(velocity, at, EYE);
+                at = at.add(velocity);
+            }
+            Vec3 turned = GRAB.homingVelocity(velocity, at, MOVED_EYE);
+            Vec3 toMovedEye = MOVED_EYE.subtract(at).normalize();
+            assertEquals(1, turned.normalize().dot(toMovedEye), EPSILON, "The motion should point at the eye's new "
+                    + "position, moves " + turned + " from " + at);
+        }
+
+        @Test
+        void noTickFliesFasterThanThePullSpeed() {
+            Vec3 at = ITEM_AT;
+            Vec3 velocity = Vec3.ZERO;
+            for (int tick = 0; tick < TICKS; tick++) {
+                velocity = GRAB.homingVelocity(velocity, at, EYE);
+                assertTrue(velocity.length() <= PULL_SPEED + EPSILON, "Tick " + tick + " flies " + velocity.length());
+                at = at.add(velocity);
+            }
+        }
+    }
 
     /**
      * Where Grab hangs a held body's middle: against the first block the look

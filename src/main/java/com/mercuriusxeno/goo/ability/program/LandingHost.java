@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.aging.Aging;
-import com.mercuriusxeno.goo.ability.gate.EndGateOpening;
 import com.mercuriusxeno.goo.ability.hole.HoleOpening;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
@@ -60,7 +59,7 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
                           ResourceKey<GooTypeDefinition> gooType, String abilityId, Vec3 anchor, double size,
                           @Nullable UUID caster)
         implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost,
-        SporeHost, FloorScanHost, GateHost, PowerPulseHost, MobSpawnHost, FrostHost, MeteorHost, AgingHost,
+        SporeHost, FloorScanHost, PowerPulseHost, MobSpawnHost, FrostHost, MeteorHost, AgingHost,
         WormholeHost, PortalHost, IgniteHost, HoleHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
@@ -104,15 +103,6 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     @Override
     public Direction placedFace() {
         return face;
-    }
-
-    /**
-     * Opens the gate over the block the blob struck, the one behind the cell.
-     * decision end-clears-blocks-and-opens-a-portal
-     */
-    @Override
-    public boolean openEndGate(int lifetime) {
-        return EndGateOpening.open(level, cell.relative(face.getOpposite()), face, lifetime);
     }
 
     /**
@@ -179,11 +169,16 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     /**
      * Explodes at the anchor with Goo's explosion in the look the step
      * wrote, beside the landing's burnout its goo type draws (decision
-     * elemental-explosion-per-type).
+     * elemental-explosion-per-type), each hit naming the caster where the
+     * caster stands on the server.
+     * direct-goo-hit-credits-its-caster
+     * goo-hit-keeps-its-kind-and-names-the-player-behind-it
      */
     @Override
     public void explode(float power, double reach, boolean gathers, ExplosionMode mode, ExplosionLook look) {
-        GooExplosion.detonate(level, anchor(), power, new GooExplosion.Cut(reach, gathers), mode, look.shown());
+        ServerPlayer player = caster == null ? null : level.getServer().getPlayerList().getPlayer(caster);
+        GooExplosion.detonate(level, anchor(), power, new GooExplosion.Cut(reach, gathers), mode, look.shown(),
+                player);
     }
 
     @Override

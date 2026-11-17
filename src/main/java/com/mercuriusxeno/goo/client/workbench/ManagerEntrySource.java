@@ -28,6 +28,15 @@ public interface ManagerEntrySource {
     }
 
     /**
+     * One block with no item form, such as lava or molten iron, which a group pairing blocks by position names.
+     *
+     * @param id   the block's namespaced id
+     * @param name the block's display name
+     */
+    record BlockName(String id, String name) {
+    }
+
+    /**
      * @return every item, in sorted key order
      */
     List<ItemName> items();
@@ -36,4 +45,13 @@ public interface ManagerEntrySource {
      * @return every item tag, sorted by id
      */
     List<ItemTag> itemTags();
+
+    /**
+     * this-becomes-that-is-two-parallel-groups-in-the-goo-workbench
+     *
+     * @return every block with no item form, which the Groups tab's member picker offers beside the items
+     */
+    default List<BlockName> itemlessBlocks() {
+        return List.of();
+    }
 }

@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.zoo;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.ability.Minions;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.resources.Identifier;
@@ -166,7 +167,7 @@ public final class RallyEvents {
                 || !mob.hasData(GooAttachments.RALLIED)) {
             return;
         }
-        Entity attacker = event.getSource().getEntity();
+        Entity attacker = GooHitCredit.causeOf(event.getSource());
         if (mob.getData(GooAttachments.RALLIED).brokenBy(attacker == null ? null : attacker.getUUID())) {
             event.setCanceled(true);
             endRally(mob);
@@ -348,7 +349,7 @@ public final class RallyEvents {
     @SubscribeEvent
     public static void onRallierHurt(LivingDamageEvent.Post event) {
         if (event.getEntity() instanceof ServerPlayer rallier
-                && event.getSource().getEntity() instanceof Player attacker && attacker != rallier) {
+                && GooHitCredit.causeOf(event.getSource()) instanceof Player attacker && attacker != rallier) {
             UUID attackerId = attacker.getUUID();
             for (Mob mob : ralliedBy(rallier)) {
                 mob.setData(GooAttachments.RALLIED, mob.getData(GooAttachments.RALLIED).withAttacker(attackerId));

@@ -11,11 +11,16 @@ import java.util.List;
  * listing every required item and crossing off the learned ones.
  * decision locked-petal-stays-on-the-wheel
  * decision locked-petal-lists-the-unlearned-items
+ * End in the End, for a player who came by no End gate, is grayed out: its
+ * petal takes the locked petal's dimmed look, no panel draws for it and the
+ * key release refuses it.
+ * decision end-is-grayed-out-in-the-end-unless-you-came-by-the-ability
  *
- * @param ability  the synced ability
- * @param required every item the ability requires, in the order it names them
+ * @param ability   the synced ability
+ * @param required  every item the ability requires, in the order it names them
+ * @param grayedOut whether the ability stands grayed out where the player stands
  */
-public record OfferedAbility(ClientAbility ability, List<RequiredItem> required) {
+public record OfferedAbility(ClientAbility ability, List<RequiredItem> required, boolean grayedOut) {
 
     /**
      * One item an ability requires, and whether the player has learned it.
@@ -29,11 +34,22 @@ public record OfferedAbility(ClientAbility ability, List<RequiredItem> required)
     /**
      * Freezes the required items.
      *
-     * @param ability  the synced ability
-     * @param required every item the ability requires
+     * @param ability   the synced ability
+     * @param required  every item the ability requires
+     * @param grayedOut whether the ability stands grayed out where the player stands
      */
     public OfferedAbility {
         required = List.copyOf(required);
+    }
+
+    /**
+     * An ability standing available wherever the player stands.
+     *
+     * @param ability  the synced ability
+     * @param required every item the ability requires
+     */
+    public OfferedAbility(ClientAbility ability, List<RequiredItem> required) {
+        this(ability, required, false);
     }
 
     /**
@@ -43,5 +59,14 @@ public record OfferedAbility(ClientAbility ability, List<RequiredItem> required)
      */
     public boolean locked() {
         return required.stream().anyMatch(item -> !item.learned());
+    }
+
+    /**
+     * Whether the radial refuses the ability: locked, or grayed out where the player stands.
+     *
+     * @return true where the key release refuses it and no panel draws for it
+     */
+    public boolean refused() {
+        return locked() || grayedOut;
     }
 }

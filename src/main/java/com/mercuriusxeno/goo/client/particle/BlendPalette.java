@@ -41,6 +41,41 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
     public static final BlendPalette MOLTEN_BLAZE_ORANGES = new BlendPalette(
             0xFF / 255f, 0x8E / 255f, 0x28 / 255f, 0xFF / 255f, 0x66 / 255f, 0x00 / 255f);
     /**
+     * Shatter's spray drips, from crystal's bright blue, 77E9FF, to its wheel
+     * blue, 4FC1E9, the two the crystal goo type's definition names.
+     * shatter-is-splattered-goo-and-shards-form-over-the-splatters
+     */
+    public static final BlendPalette SHATTER_CRYSTAL_BLUES = new BlendPalette(
+            0x77 / 255f, 0xE9 / 255f, 0xFF / 255f, 0x4F / 255f, 0xC1 / 255f, 0xE9 / 255f);
+    /**
+     * Host's spray drips, from deep's bright sculk cyan, 29DFEB, to its wheel
+     * teal, 0F2430, the two the deep goo type's definition names.
+     * host-is-a-sculky-slime-that-sculk-spreads-eagerly-through
+     */
+    public static final BlendPalette HOST_DEEP_TEALS = new BlendPalette(
+            0x29 / 255f, 0xDF / 255f, 0xEB / 255f, 0x0F / 255f, 0x24 / 255f, 0x30 / 255f);
+    /**
+     * Rime's spray drips, from frost's bright ice white, D5FFFF, to its wheel
+     * blue, ADD8E6, the two the frost goo type's definition names.
+     * iceborn-is-dropped-for-rime-a-frost-goo-that-keeps-what-is-around-it-frozen
+     */
+    public static final BlendPalette RIME_FROST_BLUES = new BlendPalette(
+            0xD5 / 255f, 0xFF / 255f, 0xFF / 255f, 0xAD / 255f, 0xD8 / 255f, 0xE6 / 255f);
+    /**
+     * Wisps' spray drips, from glow's bright yellow, FFFF28, to its wheel
+     * gold, FFD700, the two the glow goo type's definition names.
+     * glow-world-goo-is-named-wisps-and-takes-the-holds-place
+     */
+    public static final BlendPalette WISPS_GLOW_GOLDS = new BlendPalette(
+            0xFF / 255f, 0xFF / 255f, 0x28 / 255f, 0xFF / 255f, 0xD7 / 255f, 0x00 / 255f);
+    /**
+     * Leech's spray drips, from hex's bright violet, 8373C8, to its wheel
+     * violet, 5B4BA0, the two the hex goo type's definition names.
+     * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
+     */
+    public static final BlendPalette LEECH_HEX_VIOLETS = new BlendPalette(
+            0x83 / 255f, 0x73 / 255f, 0xC8 / 255f, 0x5B / 255f, 0x4B / 255f, 0xA0 / 255f);
+    /**
      * Dowsing's spray drips, from Astral's starlight, its bright FFF4B0, to
      * its night blue, its highlight 2A3C9A.
      * astral-world-goo-is-dowsing-an-x-ray-of-ore

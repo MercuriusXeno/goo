@@ -75,20 +75,6 @@ public enum HeartKind {
         }
     },
     /**
-     * Iceborn's frozen hearts: over present hearts, worth half a heart against
-     * a physical hit, crawling over each further present heart at bark's pace
-     * while held, and thawed all at once by fire, which ends the effect.
-     * Appended last, since ordinals are synced.
-     * iceborn-frozen-hearts-thaw-on-fire
-     */
-    ICEBORN(1.0f, false) {
-        @Override
-        long regrowInterval(int shieldHalves) {
-            // heart-effects-crawl-while-held: frost crawls at bark's pace, a frozen heart every 5 seconds
-            return (long) BARK_REGROW_SECONDS * TICKS_PER_SECOND / HALVES_PER_HEART;
-        }
-    },
-    /**
      * Crystal Scales: crystal over present hearts, crawling over each further
      * present heart at bark's pace while held, taking every hit at a heart's
      * worth before real health. Crystal is diamond skin, with no weakness by

@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:wisps_holy_damage_hurts_a_wither_skeleton",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}
