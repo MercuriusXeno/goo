@@ -109,6 +109,25 @@ public class GooItem extends Item implements IGooItemInteraction, GooCarrierItem
     }
 
     /**
+     * Replays the equip animation only for goo of another type in the hand or
+     * a changed slot: a bare-handed cast drains the held stack every tick it
+     * runs, and a drained stack replaying the equip would flicker the palm
+     * blob, as a glove's stack, never drained, does not.
+     * decision raw-goo-items-work-bare-handed-for-the-held-type
+     *
+     * @param oldStack    the stack the hand held
+     * @param newStack    the stack the hand holds now
+     * @param slotChanged whether the selected slot changed
+     * @return true where the equip animation replays
+     */
+    @Override
+    public boolean shouldCauseReequipAnimation(@NonNull ItemStack oldStack, @NonNull ItemStack newStack,
+            boolean slotChanged) {
+        return slotChanged || !(newStack.getItem() instanceof GooItem)
+                || GooStacks.keyOf(oldStack) != GooStacks.keyOf(newStack);
+    }
+
+    /**
      * Returns the volume stored in the given goo stack.
      *
      * @param stack the goo item stack
