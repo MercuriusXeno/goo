@@ -158,7 +158,6 @@ class StepCodecTest {
             Map.entry("age", LeafSteps.AGE.step(Unit.INSTANCE)),
             Map.entry("metronome", new MetronomeStep()),
             Map.entry("relay", new RelayStep()),
-            Map.entry("extend", new ExtendStep()),
             Map.entry("stun", LeafSteps.STUN.step(Expr.literal(60))),
             Map.entry("signal_wave", new SignalWaveStep(Expr.literal(8), Expr.literal(40))),
             Map.entry("tick_toggle", new TickToggleStep(Expr.literal(4))),
