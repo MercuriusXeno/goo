@@ -97,6 +97,7 @@ public final class GoopArcTests {
     private static final String WALL_OVER_OPEN_AIR_HOLDS = "goop_sprayed_at_a_wall_over_open_air_holds_what_stuck";
     private static final String BLOCK_FALLS_WHOLE = "goop_block_falls_whole_when_its_last_wall_breaks";
     private static final String HELD_BLOCK_FALLS_WHOLE = "goop_block_holding_its_walls_layers_falls_whole";
+    private static final String CEILING_BLOCK_FALLS_WHOLE = "goop_on_a_ceiling_falls_whole_when_its_ceiling_breaks";
     /** The lowest face of the wall over open air, a block over the floor cells at its foot. */
     private static final int OPEN_AIR_WALL_BOTTOM = 2;
     /** A wall standing over open air, three blocks east of the streamer. */
@@ -204,6 +205,8 @@ public final class GoopArcTests {
         GooTestFunctions.registerTest(registrar, WALL_OVER_OPEN_AIR_HOLDS,
                 GoopArcTests::goopSprayedAtAWallOverOpenAirHoldsWhatStuck);
         GooTestFunctions.registerTest(registrar, BLOCK_FALLS_WHOLE, GoopArcTests::goopBlockFallsWholeWhenItsLastWallBreaks);
+        GooTestFunctions.registerTest(registrar, CEILING_BLOCK_FALLS_WHOLE,
+                GoopArcTests::goopOnACeilingFallsWholeWhenItsCeilingBreaks);
         GooTestFunctions.registerTest(registrar, HELD_BLOCK_FALLS_WHOLE,
                 GoopArcTests::goopBlockHoldingItsWallsLayersFallsWhole);
         GooTestFunctions.registerTest(registrar, GLASS_RING_KEEPS_EVERY_LAYER,
@@ -840,6 +843,30 @@ public final class GoopArcTests {
             boolean held = !attached.isEmpty() && attached.stream().allMatch(volume -> volume <= holds)
                     && attached.contains(holds);
             helper.assertTrue(held && atTheFoot > 0, String.format(STUCK_WRONG, holds, attached, atTheFoot));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A block of Goop of volume 3 attached to the underside of a stone block
+     * hung three blocks over a stone floor: once the stone is broken nothing
+     * holds the block, so its whole volume falls and stands as fill on the
+     * floor under it.
+     * goo-cell-holds-a-fill-and-a-state-per-side
+     * drip-striking-a-ceiling-runs-down-a-wall-or-drops
+     *
+     * @param helper the gametest helper
+     */
+    public static void goopOnACeilingFallsWholeWhenItsCeilingBreaks(GameTestHelper helper) {
+        BlockPos floor = TallDrop.layOverOpenAir(helper, TallDrop.OVERHANG, Direction.DOWN);
+        BlockPos block = TallDrop.OVERHANG.below();
+        helper.setBlock(block, GooBlocks.SLIME_COAT.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, FALLING_VOLUME).setValue(VolumeCellBlock.CEILING, true));
+        helper.runAfterDelay(1, () -> helper.getLevel().destroyBlock(helper.absolutePos(TallDrop.OVERHANG), false));
+        helper.runAfterDelay(FALL_WATCH_TICKS, () -> {
+            helper.assertBlockPresent(Blocks.AIR, block);
+            int landed = VolumeCellBlock.layersOf(helper.getBlockState(floor));
+            helper.assertTrue(landed == FALLING_VOLUME, String.format(FELL_WRONG, FALLING_VOLUME, landed));
             helper.succeed();
         });
     }

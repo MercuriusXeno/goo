@@ -147,8 +147,8 @@ class VolumeCellBlockTest {
             List<String> side = List.of("bare", "attached", "runny");
             List<String> fills = IntStream.rangeClosed(1, FIFTEEN).mapToObj(Integer::toString).toList();
 
-            assertEquals(Map.of("north", side, "east", side, "south", side, "west", side, "layers", fills),
-                    CompiledStateDefinition.of(VolumeCellBlock.class));
+            assertEquals(Map.of("north", side, "east", side, "south", side, "west", side, "ceiling",
+                    List.of("true", "false"), "layers", fills), CompiledStateDefinition.of(VolumeCellBlock.class));
         }
 
         @Test
@@ -383,6 +383,21 @@ class VolumeCellBlockTest {
         }
 
         private static final int HELD_VOLUME = 6;
+
+        /**
+         * A block attached to a ceiling holds its volume, the ceiling keeping no
+         * layer of its own (decision goo-cell-holds-a-fill-and-a-state-per-side).
+         */
+        @Test
+        void aBlockAttachedToACeilingHoldsItsVolume() {
+            BlockState block = mock(BlockState.class);
+            when(block.getValue(VolumeCellBlock.LAYERS)).thenReturn(CEILING_VOLUME);
+            when(block.getValue(VolumeCellBlock.CEILING)).thenReturn(true);
+
+            assertEquals(CEILING_VOLUME, VolumeCellBlock.layersHeld(block));
+        }
+
+        private static final int CEILING_VOLUME = 3;
 
         @Test
         void aBrokenCellReturnsAFifteenthOfTheCostPerLayer() {

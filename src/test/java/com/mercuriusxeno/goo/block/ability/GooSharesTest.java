@@ -64,6 +64,18 @@ class GooSharesTest {
         assertEquals(floor, shares.floor(), SAME);
     }
 
+    /**
+     * A ceiling a block is attached to takes a share as a side does: alone it
+     * takes the whole volume, and beside one wall with no floor half
+     * (decision attached-goo-draws-per-attachment-and-divides-its-volume).
+     */
+    @Test
+    void anAttachedCeilingTakesAShareAsASideDoes() {
+        assertEquals(Map.of(Direction.UP, 6.0), GooShares.of(6, false, Set.of(Direction.UP), 0).sides());
+        assertEquals(Map.of(Direction.UP, 4.0, Direction.EAST, 4.0),
+                GooShares.of(8, false, Set.of(Direction.UP, Direction.EAST), 0).sides());
+    }
+
     @Test
     void theSharesSumToTheVolume() {
         for (int volume = 1; volume <= 15; volume++) {

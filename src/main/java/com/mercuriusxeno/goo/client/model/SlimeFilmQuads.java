@@ -112,15 +112,27 @@ public final class SlimeFilmQuads {
      * @return the corner
      */
     private static Vector3fc slabCorner(Direction wall, boolean high, float slab) {
-        boolean wallOnHigh = wall.getAxisDirection() == Direction.AxisDirection.POSITIVE;
         float across = high ? WHOLE : 0f;
-        float depth;
-        if (wallOnHigh) {
-            depth = high ? WHOLE : WHOLE - slab;
-        } else {
-            depth = high ? slab : 0f;
+        float depth = depthAlong(wall, high, slab);
+        return switch (wall.getAxis()) {
+            case X -> new Vector3f(depth, across, across);
+            case Y -> new Vector3f(across, depth, across);
+            case Z -> new Vector3f(across, across, depth);
+        };
+    }
+
+    /**
+     * Where a slab's corner stands along its wall's axis, in model pixels.
+     *
+     * @param wall the side whose wall the goo clings to
+     * @param high the corner toward the positive end of the axis, else the one toward the negative
+     * @param slab the slab's depth from the wall, in model pixels
+     * @return the corner's coordinate on the wall's axis
+     */
+    private static float depthAlong(Direction wall, boolean high, float slab) {
+        if (wall.getAxisDirection() == Direction.AxisDirection.POSITIVE) {
+            return high ? WHOLE : WHOLE - slab;
         }
-        return wall.getAxis() == Direction.Axis.X ? new Vector3f(depth, across, across)
-                : new Vector3f(across, across, depth);
+        return high ? slab : 0f;
     }
 }

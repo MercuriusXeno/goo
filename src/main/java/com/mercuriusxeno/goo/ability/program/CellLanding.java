@@ -210,7 +210,7 @@ final class CellLanding {
             return sideFedBy(strike, adhesion, cells);
         }
         if (strike.face() == Direction.DOWN) {
-            return undersideFedBy(strike, cells);
+            return undersideFedBy(strike, adhesion, cells);
         }
         BlockPos struck = strike.block();
         if (cells.thickens(struck)) {
@@ -280,19 +280,32 @@ final class CellLanding {
     }
 
     /**
-     * What a strike on a block's underside lays, goo holding no ceiling: a
+     * What a strike on a block's underside lays: at adhesion 4 its layer
+     * joins the volume of the block under the struck block, its ceiling
+     * attached, while that block holds fewer than its hold; past that, and
+     * for goo below 4, which holds no ceiling, a
      * runny layer on the wall the cell under it touches, the wall nearest
      * the strike where it touches several, at any adhesion; where it touches
      * none, the layer falls from that cell to the first top below and joins
      * the fill there when its drip arrives.
      * drip-striking-a-ceiling-runs-down-a-wall-or-drops
      *
-     * @param strike where the drip struck a block's underside
+     * @param strike   where the drip struck a block's underside
+     * @param adhesion the rung of the adhesion ladder the goo clings at
      * @param cells  what the landing reads of the cells
      * @return the cell and the side fed, empty where the layer finds no top
      */
-    private static Optional<CellFed> undersideFedBy(CoatRay.BlockStrike strike, Cells cells) {
+    private static Optional<CellFed> undersideFedBy(CoatRay.BlockStrike strike, int adhesion, Cells cells) {
         BlockPos under = strike.block().below();
+        if (adhesion >= GooTypeDefinition.HOLDS_AN_UNDERSIDE) {
+            // adhesion-is-a-ladder-of-holds: at 4 the underside holds the layer, as a held wall does
+            Optional<CellFed> held = cells.sideAt(under, Direction.UP)
+                    .map(ceiling -> fedBeside(under, Direction.UP, adhesion, ceiling, cells))
+                    .filter(fed -> fed.coat() == SideCoat.ATTACHED);
+            if (held.isPresent()) {
+                return held;
+            }
+        }
         Optional<Direction> nearest = Direction.Plane.HORIZONTAL.stream().filter(side -> cells.wallAt(under, side))
                 .min(Comparator.comparingDouble(side -> reachTo(strike.point(), under, side)));
         if (nearest.isPresent()) {

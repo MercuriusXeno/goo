@@ -40,6 +40,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.storage.loot.LootParams;
@@ -95,6 +96,12 @@ public class VolumeCellBlock extends Block {
     public static final EnumProperty<SideCoat> SOUTH = EnumProperty.create("south", SideCoat.class);
     /** What the cell holds against its west wall. */
     public static final EnumProperty<SideCoat> WEST = EnumProperty.create("west", SideCoat.class);
+    /**
+     * Whether the block's goo is attached to the underside of the block above
+     * it, its ceiling, keeping no layer of its own.
+     * goo-cell-holds-a-fill-and-a-state-per-side
+     */
+    public static final BooleanProperty CEILING = BooleanProperty.create("ceiling");
     /** The most layers one cell holds: a whole block of goo. */
     public static final int MAX_LAYERS = 15;
     /** The adhesion of a goo that holds tops, every goo's rule before adhesion was read. */
@@ -115,6 +122,9 @@ public class VolumeCellBlock extends Block {
             Direction.EAST, EAST, Direction.SOUTH, SOUTH, Direction.WEST, WEST);
     private static final List<Direction> SIDES = List.of(Direction.NORTH, Direction.EAST, Direction.SOUTH,
             Direction.WEST);
+    /** The surfaces a block's goo attaches to: its four sides and its ceiling. */
+    private static final List<Direction> ATTACHABLE = List.of(Direction.NORTH, Direction.EAST, Direction.SOUTH,
+            Direction.WEST, Direction.UP);
     /** Each fill's box, indexed by the fill, none at 0. */
     private static final VoxelShape[] LAYER_BOXES = new VoxelShape[MAX_LAYERS + 1];
 
@@ -138,7 +148,8 @@ public class VolumeCellBlock extends Block {
         super(properties);
         this.binding = binding;
         registerDefaultState(stateDefinition.any().setValue(NORTH, SideCoat.BARE).setValue(EAST, SideCoat.BARE)
-                .setValue(SOUTH, SideCoat.BARE).setValue(WEST, SideCoat.BARE).setValue(LAYERS, 1));
+                .setValue(SOUTH, SideCoat.BARE).setValue(WEST, SideCoat.BARE).setValue(CEILING, false)
+                .setValue(LAYERS, 1));
     }
 
     /**
@@ -160,7 +171,26 @@ public class VolumeCellBlock extends Block {
      * @return the side's coat, bare for anything but a volume cell
      */
     public static SideCoat coatOn(BlockState state, Direction side) {
-        return state.getBlock() instanceof VolumeCellBlock ? state.getValue(coatProperty(side)) : SideCoat.BARE;
+        if (!(state.getBlock() instanceof VolumeCellBlock)) {
+            return SideCoat.BARE;
+        }
+        if (side == Direction.UP) {
+            return Boolean.TRUE.equals(state.getValue(CEILING)) ? SideCoat.ATTACHED : SideCoat.BARE;
+        }
+        return state.getValue(coatProperty(side));
+    }
+
+    /**
+     * A block's state with one surface coated: a side by its coat, the ceiling attached or bare.
+     *
+     * @param state the block's state
+     * @param side  a horizontal side, or UP for the ceiling
+     * @param coat  what the surface holds
+     * @return the coated state
+     */
+    static BlockState withCoat(BlockState state, Direction side, SideCoat coat) {
+        return side == Direction.UP ? state.setValue(CEILING, coat == SideCoat.ATTACHED)
+                : state.setValue(coatProperty(side), coat);
     }
 
     /**
@@ -207,12 +237,12 @@ public class VolumeCellBlock extends Block {
      */
     public static Optional<BlockState> stuck(BlockState standing, Block cell, Direction side) {
         if (standing.isAir()) {
-            return Optional.of(cell.defaultBlockState().setValue(LAYERS, volumeOnceStuck(0))
-                    .setValue(coatProperty(side), SideCoat.ATTACHED));
+            return Optional.of(withCoat(cell.defaultBlockState().setValue(LAYERS, volumeOnceStuck(0)), side,
+                    SideCoat.ATTACHED));
         }
         return standing.is(cell) && standing.getValue(LAYERS) < MAX_LAYERS
-                ? Optional.of(standing.setValue(LAYERS, volumeOnceStuck(standing.getValue(LAYERS)))
-                .setValue(coatProperty(side), SideCoat.ATTACHED)) : Optional.empty();
+                ? Optional.of(withCoat(standing.setValue(LAYERS, volumeOnceStuck(standing.getValue(LAYERS))), side,
+                SideCoat.ATTACHED)) : Optional.empty();
     }
 
     /**
@@ -291,7 +321,7 @@ public class VolumeCellBlock extends Block {
      * @return each side holding a film
      */
     static List<Direction> filmedSides(BlockState state) {
-        return SIDES.stream().filter(side -> coatOn(state, side) == SideCoat.ATTACHED).toList();
+        return ATTACHABLE.stream().filter(side -> coatOn(state, side) == SideCoat.ATTACHED).toList();
     }
 
     /**
@@ -783,7 +813,7 @@ public class VolumeCellBlock extends Block {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(NORTH, EAST, SOUTH, WEST, LAYERS);
+        builder.add(NORTH, EAST, SOUTH, WEST, CEILING, LAYERS);
     }
 
     /**
@@ -814,6 +844,7 @@ public class VolumeCellBlock extends Block {
             case NORTH -> Shapes.box(0, 0, 0, 1, 1, depth);
             case SOUTH -> Shapes.box(0, 0, 1 - depth, 1, 1, 1);
             case WEST -> Shapes.box(0, 0, 0, depth, 1, 1);
+            case UP -> Shapes.box(0, 1 - depth, 0, 1, 1, 1);
             default -> Shapes.box(1 - depth, 0, 0, 1, 1, 1);
         };
     }
@@ -1240,7 +1271,7 @@ public class VolumeCellBlock extends Block {
         List<Direction> loose = filmedSides(state).stream().filter(side -> !clingsTo(level, pos, side)).toList();
         BlockState shed = state;
         for (Direction side : loose) {
-            shed = shed.setValue(coatProperty(side), SideCoat.BARE);
+            shed = withCoat(shed, side, SideCoat.BARE);
         }
         if (loose.isEmpty()) {
             return state;

@@ -78,6 +78,117 @@ class CellLandingTest {
     };
 
     /**
+     * Adhesion 4 holds a block's underside where the drip strikes: the drip
+     * joins the volume of the block under the struck block and marks its
+     * ceiling attached; below 4 the strike takes the route goo holding no
+     * ceiling takes, and 4 keeps the side holds below it (decisions
+     * adhesion-is-a-ladder-of-holds, drip-striking-a-ceiling-runs-down-a-wall-or-drops).
+     */
+    @Nested
+    class AdhesionFour {
+
+        private static final int HOLDS_AN_UNDERSIDE = 4;
+
+        @ParameterizedTest
+        @ValueSource(ints = {0, 1, 2, 3, 4})
+        void onlyAdhesionFourHoldsAnUnderside(int adhesion) {
+            BlockPos overhang = UNDER_THE_OVERHANG.above();
+            CoatRay.BlockStrike nearTheEast = new CoatRay.BlockStrike(
+                    new Vec3(overhang.getX() + 0.9, overhang.getY(), overhang.getZ() + 0.5), overhang, Direction.DOWN);
+            Optional<CellFed> fed = CellLanding.cellFedBy(nearTheEast, adhesion, cells);
+            Optional<CellFed> open = CellLanding.cellFedBy(strike(OPEN_OVERHANG, Direction.DOWN), adhesion, cells);
+
+            if (adhesion == HOLDS_AN_UNDERSIDE) {
+                assertEquals(Optional.of(CellFed.film(UNDER_THE_OVERHANG, Direction.UP)), fed);
+                assertEquals(Optional.of(CellFed.film(OPEN_OVERHANG.below(), Direction.UP)), open);
+            } else {
+                assertEquals(Optional.of(CellFed.runny(UNDER_THE_OVERHANG, Direction.EAST)), fed);
+                assertEquals(Optional.of(CellFed.falling(OPEN_OVERHANG.below())), open);
+            }
+        }
+
+        /**
+         * A block attached to a ceiling alone, with no floor, holds one layer
+         * plus its goo's cohesion; the strike past that takes the route
+         * below 4, down the nearest wall or falling to the first top below.
+         */
+        @ParameterizedTest
+        @ValueSource(ints = {0, 4})
+        void aCeilingHoldsALayerPerPointOfCohesionThenSendsTheRestOn(int cohesion) {
+            for (int volume = 1; volume <= 1 + cohesion; volume++) {
+                CellLanding.Cells holding = ceilingHolding(volume - 1, cohesion, true);
+                assertEquals(Optional.of(CellFed.film(UNDER_THE_OVERHANG, Direction.UP)),
+                        CellLanding.cellFedBy(strike(UNDER_THE_OVERHANG.above(), Direction.DOWN), HOLDS_AN_UNDERSIDE,
+                                holding), "strike " + volume + " at cohesion " + cohesion);
+            }
+            assertEquals(Optional.of(CellFed.runny(UNDER_THE_OVERHANG, Direction.EAST)),
+                    CellLanding.cellFedBy(strike(UNDER_THE_OVERHANG.above(), Direction.DOWN), HOLDS_AN_UNDERSIDE,
+                            ceilingHolding(1 + cohesion, cohesion, true)));
+            assertEquals(Optional.of(CellFed.falling(UNDER_THE_OVERHANG)),
+                    CellLanding.cellFedBy(strike(UNDER_THE_OVERHANG.above(), Direction.DOWN), HOLDS_AN_UNDERSIDE,
+                            ceilingHolding(1 + cohesion, cohesion, false)));
+        }
+
+        @Test
+        void adhesionFourHoldsASideWhereItStrikes() {
+            assertEquals(SideCoat.ATTACHED, CellLanding.sideCoatFor(HOLDS_AN_UNDERSIDE, SideCoat.BARE, false));
+        }
+
+        /**
+         * The block under the overhang, attached to its ceiling alone and
+         * holding a volume, with a wall to its east or none.
+         */
+        private CellLanding.Cells ceilingHolding(int volume, int cohesion, boolean walled) {
+            return new CellLanding.Cells() {
+                @Override
+                public boolean thickens(BlockPos pos) {
+                    return false;
+                }
+
+                @Override
+                public boolean takesACell(BlockPos pos) {
+                    return true;
+                }
+
+                @Override
+                public Optional<SideCoat> sideAt(BlockPos cell, Direction side) {
+                    return Optional.of(volume > 0 && side == Direction.UP ? SideCoat.ATTACHED : SideCoat.BARE);
+                }
+
+                @Override
+                public boolean gooBelow(BlockPos cell) {
+                    return false;
+                }
+
+                @Override
+                public boolean wallAt(BlockPos cell, Direction side) {
+                    return walled && side == Direction.EAST;
+                }
+
+                @Override
+                public Optional<BlockPos> dropLanding(BlockPos cell) {
+                    return Optional.of(DROP_FLOOR.above());
+                }
+
+                @Override
+                public int volumeAt(BlockPos cell) {
+                    return volume;
+                }
+
+                @Override
+                public int attachedAt(BlockPos cell) {
+                    return volume > 0 ? 1 : 0;
+                }
+
+                @Override
+                public int cohesion() {
+                    return cohesion;
+                }
+            };
+        }
+    }
+
+    /**
      * Goo holds no ceiling: a drip striking a block's underside runs down a
      * wall the cell under it touches, the nearest, at any adhesion, and
      * where it touches none drops to the first top below
