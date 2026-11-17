@@ -48,6 +48,8 @@ public final class BoreStreamTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, BORE_CUTS_A_TUNNEL, BoreStreamTests::boreCutsATunnel);
         GooTestFunctions.registerTest(registrar, BORE_CUTS_LUNAR_STONE, BoreStreamTests::boreCutsLunarStone);
+        GooTestFunctions.registerTest(registrar, BORE_CUTS_LUNAR_CRATER_MATTER, BoreStreamTests::boreCutsLunarCraterMatter);
+        GooTestFunctions.registerTest(registrar, BORE_CUTS_LUNAR_BASALT_AND_ICE, BoreStreamTests::boreCutsLunarBasaltAndIce);
         GooTestFunctions.registerTest(registrar, BORE_STRIKES_A_MOB, BoreStreamTests::boreStrikesAMobInTheTunnel);
         GooTestFunctions.registerTest(registrar, BORE_BREAKS_FOUR, BoreStreamTests::boreBreaksTheFourBlocksWhereFourMeet);
         GooTestFunctions.registerTest(registrar, BORE_BREAKS_FOUR_AT_A_SLANT,
@@ -85,6 +87,8 @@ public final class BoreStreamTests {
     private static final double AIM_DISTANCE = 1.5;
 
     private static final String BORE_CUTS_LUNAR_STONE = "bore_cuts_lunar_stone";
+    private static final String BORE_CUTS_LUNAR_CRATER_MATTER = "bore_cuts_lunar_crater_matter";
+    private static final String BORE_CUTS_LUNAR_BASALT_AND_ICE = "bore_cuts_lunar_basalt_and_ice";
     private static final String SHOULD_CUT_LUNAR = "Bore should cut lunar's %s, %d east, which still stands";
 
     private BoreStreamTests() {
@@ -98,11 +102,40 @@ public final class BoreStreamTests {
      * @param helper the gametest helper
      */
     public static void boreCutsLunarStone(GameTestHelper helper) {
+        boreCutsAlongTheEyeLine(helper, List.of(GooBlocks.ANORTHOSITE.get(), GooBlocks.REGOLITH.get(),
+                GooBlocks.IRON_CORE.get()));
+    }
+
+    /**
+     * A mock player facing east streams bore through meteoric iron, breccia and impact glass laid along the eye line,
+     * and cuts all three: lunar's crater matter yields to bore as its stone does (operator ruling 2026-11-15: bore
+     * must work on the lunar blocks).
+     * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
+     *
+     * @param helper the gametest helper
+     */
+    public static void boreCutsLunarCraterMatter(GameTestHelper helper) {
+        boreCutsAlongTheEyeLine(helper, List.of(GooBlocks.METEORIC_IRON.get(), GooBlocks.BRECCIA.get(),
+                GooBlocks.IMPACT_GLASS.get()));
+    }
+
+    /**
+     * A mock player facing east streams bore through basalt, lunar's basin rock, and crater ice laid along the eye
+     * line, and cuts both.
+     * decision lunar-matter-is-anorthosite-basalt-regolith-and-an-iron-core
+     * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
+     *
+     * @param helper the gametest helper
+     */
+    public static void boreCutsLunarBasaltAndIce(GameTestHelper helper) {
+        boreCutsAlongTheEyeLine(helper, List.of(Blocks.BASALT, GooBlocks.CRATER_ICE.get()));
+    }
+
+    private static void boreCutsAlongTheEyeLine(GameTestHelper helper, List<Block> lunar) {
         AbilityDefinition bore = AbilityRegistry.of(helper.getLevel()).getAbility(ROCK_BORE);
         helper.assertTrue(bore != null, ABILITY_REQUIRED);
         ServerPlayer player = borer(helper);
         KnownRecipes.teachRequires(player, bore);
-        List<Block> lunar = List.of(GooBlocks.ANORTHOSITE.get(), GooBlocks.REGOLITH.get(), GooBlocks.IRON_CORE.get());
         for (int east = 1; east <= lunar.size(); east++) {
             helper.setBlock(EYE_ROW.east(east), lunar.get(east - 1));
         }

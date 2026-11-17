@@ -57,7 +57,7 @@ final class AbilityExplanationPanel {
             return;
         }
         OfferedAbility offered = frame.abilities().get(wheel.selectedType()).get(hovered);
-        if (offered.locked()) {
+        if (offered.refused()) {
             return;
         }
         int left = panelLeft(frame);

@@ -20,6 +20,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -147,36 +148,143 @@ public final class GrabEvents {
                 && !entity.getData(GooAttachments.GRABBED).releasedAt(entity.level().getGameTime());
     }
 
+    /**
+     * Moves a held mob one channel tick by the velocity its hold keeps, so a
+     * bigger mob is seen to gain speed toward the hold point slower.
+     * decision grabbed-mob-accelerates-slower-the-bigger-its-hitbox
+     *
+     * @param player     the holding player
+     * @param held       the held mob
+     * @param velocity   this tick's motion toward the hold point
+     * @param throwSpeed the speed a throw launches it at, in blocks per tick
+     */
+    public static void carryHeld(ServerPlayer player, Entity held, Vec3 velocity, double throwSpeed) {
+        moveHeld(player, held, velocity, throwSpeed);
+    }
+
+    /**
+     * The velocity a player's hold keeps for the entity it holds: how far
+     * the entity moved on the hold's last tick.
+     * decision grabbed-mob-accelerates-slower-the-bigger-its-hitbox
+     *
+     * @param player the holding player
+     * @param held   the held entity
+     * @return the kept velocity, zero for an entity the hold took this tick
+     */
+    public static Vec3 heldVelocity(ServerPlayer player, Entity held) {
+        GrabHold hold = player.getData(GooAttachments.GRAB_HOLD);
+        return hold.standsAt(player.level().getGameTime()) && hold.entityId() == held.getId()
+                ? hold.velocity() : Vec3.ZERO;
+    }
+
     private static void moveHeld(ServerPlayer player, Entity held, Vec3 step, double throwSpeed) {
         long until = player.level().getGameTime() + HOLD_GRACE_TICKS;
         suspend(held, until);
+        Vec3 before = held.position();
         // Moved rather than placed, so the held body collides with the blocks it is pulled against.
         held.move(MoverType.SELF, step);
         held.setDeltaMovement(Vec3.ZERO);
         held.fallDistance = 0;
         held.hurtMarked = true;
-        player.setData(GooAttachments.GRAB_HOLD, new GrabHold(held.getId(), throwSpeed, until, false));
+        // decision grabbed-mob-accelerates-slower-the-bigger-its-hitbox: a body stopped by a block keeps no speed into it
+        player.setData(GooAttachments.GRAB_HOLD,
+                new GrabHold(held.getId(), throwSpeed, until, false, held.position().subtract(before)));
         EntityVisuals.sendToWatchers(held, new AilmentPayload(held.getId(), AilmentKind.GRABBED, FLAIL_OVERLAY_TICKS));
     }
 
     /**
-     * Pulls an item entity toward a player's eye this channel tick, by its
-     * motion rather than its position, so the client interpolates the flight,
-     * and clears its pickup delay so the player's own tick picks it up on
-     * arrival. The item stands under no hold, so a left click throws nothing.
-     * decision grab-pulls-an-item-to-you-and-picks-it-up
+     * Whether a player's press has locked an item, the items it delivered
+     * included, so it takes no mob until right click lets go.
+     * decision sweeping-grab-locks-every-item-the-highlight-passes
      *
-     * @param player    the pulling player
-     * @param item      the item entity
-     * @param pullSpeed the speed the item flies at, in blocks per tick
-     * @param toward    where the item flies for: the eye, or the eye as seen through a linked pair the way runs
+     * @param player the pressing player
+     * @return true while the press's item lock stands
      */
-    public static void pull(ServerPlayer player, ItemEntity item, double pullSpeed, Vec3 toward) {
-        Vec3 toEye = toward.subtract(item.position());
-        // Capped at the distance left, so the last tick lands on the player rather than past it.
-        item.setDeltaMovement(toEye.normalize().scale(Math.min(pullSpeed, toEye.length())));
+    public static boolean locksItems(ServerPlayer player) {
+        return player.getData(GooAttachments.GRAB_ITEM_LOCK).standsAt(player.level().getGameTime());
+    }
+
+    /**
+     * Whether a player's standing press already locked an item.
+     * decision sweeping-grab-locks-every-item-the-highlight-passes
+     *
+     * @param player the pressing player
+     * @param item   the item
+     * @return true where the press's lock holds it
+     */
+    public static boolean locks(ServerPlayer player, ItemEntity item) {
+        GrabItemLock lock = player.getData(GooAttachments.GRAB_ITEM_LOCK);
+        return lock.standsAt(player.level().getGameTime()) && lock.itemIds().contains(item.getId());
+    }
+
+    /**
+     * Stretches a player's item lock across this channel tick and adds the
+     * items this tick locks; a player locking none and holding no lock stays unlocked.
+     * decision sweeping-grab-locks-every-item-the-highlight-passes
+     *
+     * @param player the pressing player
+     * @param adding the items this tick locks
+     */
+    public static void lockItems(ServerPlayer player, List<ItemEntity> adding) {
+        long now = player.level().getGameTime();
+        GrabItemLock lock = player.getData(GooAttachments.GRAB_ITEM_LOCK);
+        if (adding.isEmpty() && !lock.standsAt(now)) {
+            return;
+        }
+        player.setData(GooAttachments.GRAB_ITEM_LOCK,
+                lock.stretched(adding.stream().map(Entity::getId).toList(), now, now + HOLD_GRACE_TICKS));
+    }
+
+    /**
+     * The item entities a player's press locked that still stand, in the order it locked them.
+     * decision sweeping-grab-locks-every-item-the-highlight-passes
+     *
+     * @param player the pressing player
+     * @return the locked items, empty where the press locks none
+     */
+    public static List<ItemEntity> lockedItemsOf(ServerPlayer player) {
+        GrabItemLock lock = player.getData(GooAttachments.GRAB_ITEM_LOCK);
+        if (!lock.standsAt(player.level().getGameTime())) {
+            return List.of();
+        }
+        return lock.itemIds().stream().map(player.level()::getEntity)
+                .filter(entity -> entity instanceof ItemEntity && entity.isAlive()).map(ItemEntity.class::cast)
+                .toList();
+    }
+
+    /**
+     * Pulls a locked item entity toward a player this channel tick: suspends
+     * its gravity across the hold grace, sets its motion, so the client
+     * interpolates the flight, tells its watchers it is locked, so the glove
+     * outlines it, and clears its pickup delay so the player's own tick picks
+     * it up on arrival. The item stands under no hold, so a left click throws nothing.
+     * decision grab-pulls-an-item-to-you-and-picks-it-up
+     * decision grabbed-item-locks-in-and-homes-on-your-current-position
+     * decision sweeping-grab-locks-every-item-the-highlight-passes
+     *
+     * @param player   the pulling player
+     * @param item     the locked item entity
+     * @param velocity the item's motion this tick, in blocks per tick
+     */
+    public static void pull(ServerPlayer player, ItemEntity item, Vec3 velocity) {
+        suspend(item, player.level().getGameTime() + HOLD_GRACE_TICKS);
+        item.setDeltaMovement(velocity);
         item.setNoPickUpDelay();
         item.hurtMarked = true;
+        EntityVisuals.sendToWatchers(item, new AilmentPayload(item.getId(), AilmentKind.GRABBED, FLAIL_OVERLAY_TICKS));
+    }
+
+    /**
+     * Turns an item's gravity off until a game time, as a hold suspends a
+     * held entity, the entity tick after that time turning it back on as it
+     * stood; a later call stretches the end.
+     * vacuum-pulls-items-to-pickup-and-drags-mobs
+     *
+     * @param item  the pulled item
+     * @param until the last game time its gravity stays off
+     */
+    public static void holdAloft(ItemEntity item, long until) {
+        suspend(item, until);
     }
 
     private static void suspend(Entity held, long until) {
@@ -231,7 +339,7 @@ public final class GrabEvents {
         release(held);
         if (held instanceof BlockHunk hunk) {
             // A thrown Gouge chunk breaks where it strikes, and holds off the next grab while it flies.
-            hunk.markThrown();
+            hunk.markThrownBy(player);
             GougeHolds.threw(player.getUUID(), player.level().getGameTime());
         }
         held.setDeltaMovement(player.getLookAngle().scale(speed));

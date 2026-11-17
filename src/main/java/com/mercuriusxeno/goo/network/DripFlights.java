@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.program.ChannelHost;
 import com.mercuriusxeno.goo.ability.program.DripLanding;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
+import com.mercuriusxeno.goo.block.ability.FluidFooting;
 import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mercuriusxeno.goo.throwing.DripArc;
 import net.minecraft.core.SectionPos;
@@ -109,10 +110,10 @@ public final class DripFlights {
             if (level == null) {
                 continue;
             }
-            boolean landsOnLava = thrower.landing().filter(DripLanding::landsOnLava).isPresent();
+            FluidFooting footing = thrower.landing().map(DripLanding::fluidFooting).orElse(FluidFooting.NONE);
             // decision lunar-gravity-is-one-sixth-of-the-overworlds: a drip falls under its dimension's gravity
             DripArc.Step step = DripArc.step(flight.position(), flight.velocity(), new DripArc.Flight(
-                    CoatRay.clippingFor(level, landsOnLava),
+                    CoatRay.clippingFor(level, footing),
                     thrower.strikesLiving() ? livingNear(level, thrower.casterId()) : DripArc.NO_LIVING,
                     airspaceOf(level), DripArc.gravityIn(level.dimension())));
             if (!step.ended()) {

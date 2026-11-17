@@ -10,11 +10,15 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -150,10 +154,12 @@ class AimStateTest {
             assertEquals(0f, aimingAt(slime).markFor(bystander, NOW).strength());
         }
 
-        @Test
-        void aMobTheChanneledAimLocksCarriesTheMark() {
+        // residual-badge-marks-the-four-goo-sprays
+        @ParameterizedTest
+        @EnumSource(value = AbilityBadge.class, names = {"CHANNELED", "RESIDUAL"})
+        void aMobTheChanneledAimLocksCarriesTheMark(AbilityBadge badge) {
             AimState aim = new AimState();
-            aim.update(seed -> AimTargets.resolveFor(TargetingHint.of(AbilityBadge.CHANNELED),
+            aim.update(seed -> AimTargets.resolveFor(TargetingHint.of(badge),
                     new LockedSources(slime)), OUTLINE);
 
             assertTrue(aim.markFor(slime, NOW).strength() > 0f);
@@ -194,6 +200,62 @@ class AimStateTest {
             return entity.getBoundingBox().getCenter();
         }
     }
+
+    /**
+     * Every item a Grab press locked draws the glove outline while its lock
+     * stands, the aim resting elsewhere; once its lock ends, it draws the
+     * outline only while the aim rests on it
+     * (decision sweeping-grab-locks-every-item-the-highlight-passes).
+     */
+    @Nested
+    class LockedItemOutline {
+
+        private final ItemEntity first = mock(ItemEntity.class);
+        private final ItemEntity second = mock(ItemEntity.class);
+        private final Mob aimedAt = mob(new AABB(0, 0, 0, 1, 1, 1));
+
+        @Test
+        void twoLockedItemsAreOutlinedWithTheAimOnNeither() {
+            Set<Entity> locked = Set.of(first, second);
+            Set<Entity> outlined = java.util.stream.Stream.of(first, second, aimedAt)
+                    .filter(entity -> AimState.outlines(entity, aimedAt, locked::contains, NONE_PAINTED))
+                    .collect(java.util.stream.Collectors.toSet());
+            assertEquals(Set.of(first, second, aimedAt), outlined);
+        }
+
+        @Test
+        void anItemWhoseLockEndedIsOutlinedOnlyWhileTheAimRestsOnIt() {
+            Set<Entity> locked = Set.of();
+            assertTrue(AimState.outlines(first, first, locked::contains, NONE_PAINTED));
+            assertFalse(AimState.outlines(first, aimedAt, locked::contains, NONE_PAINTED));
+            assertFalse(AimState.outlines(first, null, locked::contains, NONE_PAINTED));
+        }
+    }
+
+    /**
+     * Every mob a Knives hold has painted draws the glove outline while the
+     * hold stands, the aim resting on neither
+     * (decision knives-paint-mobs-by-hovering-while-forming).
+     */
+    @Nested
+    class PaintedMobOutline {
+
+        private final Mob firstPainted = mob(new AABB(0, 0, 0, 1, 1, 1));
+        private final Mob secondPainted = mob(new AABB(3, 0, 0, 4, 1, 1));
+        private final Mob unpainted = mob(new AABB(6, 0, 0, 7, 1, 1));
+
+        @Test
+        void twoPaintedMobsAreOutlinedWithTheAimOnNeither() {
+            Set<Entity> painted = Set.of(firstPainted, secondPainted);
+            Set<Entity> outlined = java.util.stream.Stream.of(firstPainted, secondPainted, unpainted)
+                    .filter(entity -> AimState.outlines(entity, null, NONE_LOCKED, painted::contains))
+                    .collect(java.util.stream.Collectors.toSet());
+            assertEquals(Set.of(firstPainted, secondPainted), outlined);
+        }
+    }
+
+    private static final java.util.function.Predicate<Entity> NONE_PAINTED = entity -> false;
+    private static final java.util.function.Predicate<Entity> NONE_LOCKED = entity -> false;
 
     private static AimState.Resolution picking(Entity mob) {
         return new AimState.Resolution(TargetResult.entity(mob, mob.getBoundingBox().getCenter()),

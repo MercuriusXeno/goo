@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:rime_drip_lays_an_icy_cell_on_stone",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 80,
+  "setup_ticks": 0,
+  "required": true
+}

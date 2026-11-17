@@ -121,43 +121,4 @@ public record Rallied(UUID caster, float damage, Optional<UUID> attacker, RallyA
     public Rallied withoutAttacker() {
         return new Rallied(caster, damage, Optional.empty(), armor, rallyOrder);
     }
-
-    /**
-     * The attacker a second rally on a mob carries: the standing rally's, and
-     * none where the mob holds no rally.
-     * rallied-mobs-turn-on-a-player-who-attacks-their-rallier
-     *
-     * @param standing the rally the mob holds, null for none
-     * @return the attacker, empty for none
-     */
-    public static Optional<UUID> attackerAfter(@Nullable Rallied standing) {
-        return standing != null ? standing.attacker() : Optional.empty();
-    }
-
-    /**
-     * The rally order a rally reaching a mob carries: the standing rally's,
-     * so a second caster's rally keeps the mob's slot, and the stamp where
-     * the mob holds no rally.
-     * slots-follow-rally-order-size-and-count
-     *
-     * @param standing the rally the mob holds, null for none
-     * @param stamp    when this rally lands, such as the level's game time
-     * @return the rally order
-     */
-    public static long rallyOrderAfter(@Nullable Rallied standing, long stamp) {
-        return standing != null ? standing.rallyOrder() : stamp;
-    }
-
-    /**
-     * Whom a mob fights for once a rally reaches it: the first rallier while
-     * that rally stands, the caller where the mob holds no rally.
-     * rally-remembers-the-first-rallier
-     *
-     * @param standing the rally the mob holds, null for none
-     * @param caller   the caster whose rally reaches the mob
-     * @return the rallier's UUID
-     */
-    public static UUID rallierAfter(@Nullable Rallied standing, UUID caller) {
-        return standing != null ? standing.caster() : caller;
-    }
 }

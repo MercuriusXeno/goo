@@ -1,56 +1,55 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.crystal.KnifeRain;
+import com.mercuriusxeno.goo.network.GlassKnifePayload;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A glass knife on the client flies the server's arc tick by tick to the
- * end the server found, point first along its path, its kunai laid square
- * to its heading (decision knives-sling-then-morph-to-flechettes).
+ * A glass knife on the client homes on its mob tick by tick, ending on its
+ * mob, in a block it meets, or spent where its gone mob last stood, point
+ * first along its path, its kunai laid square to its heading (decisions
+ * knives-sling-then-morph-to-flechettes, knives-home-on-their-painted-mob).
  */
 class GlassKnivesTest {
 
     private static final double TOLERANCE = 1e-9;
-    private static final Vec3 START = new Vec3(0, 2, 0);
-    private static final Vec3 VELOCITY = new Vec3(0, 0.2, 1);
+    private static final AABB MOB = new AABB(-0.3, 0, 4.7, 0.3, 1.8, 5.3);
+    private static final Vec3 LAST_KNOWN = new Vec3(0, 0.9, 5);
 
     @Test
-    void theClientPathFollowsTheServersArcAndEndsWhereTheServerSaid() {
-        Vec3 end = new Vec3(0.1, 0.5, 6.2);
-        List<Vec3> path = GlassKnives.pathOf(START, VELOCITY, 7, end, KnifeRain.GRAVITY);
+    void aStepReachingTheMobsBoxStrikesIt() {
+        assertEquals(Optional.of(GlassKnifePayload.Ending.STRUCK), GlassKnives.endingOf(new Vec3(0, 0.9, 3.8),
+                new Vec3(0, 0.9, 5.3), MOB, LAST_KNOWN, false, 3));
+    }
 
-        assertEquals(8, path.size());
-        assertEquals(START, path.getFirst());
-        assertEquals(0, KnifeRain.positionAt(START, VELOCITY, 6).distanceTo(path.get(6)), TOLERANCE);
-        assertEquals(end, path.getLast());
+    @Test
+    void aStepMeetingABlockSticks() {
+        assertEquals(Optional.of(GlassKnifePayload.Ending.STUCK), GlassKnives.endingOf(Vec3.ZERO,
+                new Vec3(0, 0, 1.5), MOB, LAST_KNOWN, true, 1));
+    }
+
+    @Test
+    void aKnifeWhoseMobIsGoneShattersWhereTheMobLastStood() {
+        assertEquals(Optional.empty(), GlassKnives.endingOf(Vec3.ZERO, new Vec3(0, 0.27, 1.47), null, LAST_KNOWN,
+                false, 1), "short of the last place it flies on");
+        assertEquals(Optional.of(GlassKnifePayload.Ending.SPENT), GlassKnives.endingOf(new Vec3(0, 0.9, 4),
+                LAST_KNOWN, null, LAST_KNOWN, false, 4));
     }
 
     @Test
     void aKnifeLiesBetweenItsTickPointsHeadingAlongItsPath() {
-        List<Vec3> path = GlassKnives.pathOf(START, VELOCITY, 12, KnifeRain.positionAt(START, VELOCITY, 12),
-                KnifeRain.GRAVITY);
+        List<Vec3> path = List.of(Vec3.ZERO, new Vec3(0, 0, 1.5), new Vec3(0.3, 0, 3));
 
         GlassKnives.Placement half = GlassKnives.placementAt(path, 1.5);
         assertEquals(0, path.get(1).lerp(path.get(2), 0.5).distanceTo(half.point()), TOLERANCE);
         assertEquals(0, path.get(2).subtract(path.get(1)).normalize().distanceTo(half.heading()), TOLERANCE);
         assertEquals(path.getLast(), GlassKnives.placementAt(path, 99).point());
-        assertTrue(GlassKnives.placementAt(path, 11.5).heading().y < 0, "the knife points down as it falls");
-    }
-
-    @Test
-    void aKnifeFliesAsAGooFleckThenTurnsToGlassBeforeItLands() {
-        assertEquals(0f, GlassKnives.glassAt(0, 20), 1e-6f);
-        assertEquals(0f, GlassKnives.glassAt(GlassKnives.FLECK_TICKS, 20), 1e-6f);
-        assertEquals(0.5f, GlassKnives.glassAt(GlassKnives.FLECK_TICKS + GlassKnives.MORPH_TICKS / 2, 20), 1e-6f);
-        assertEquals(1f, GlassKnives.glassAt(GlassKnives.FLECK_TICKS + GlassKnives.MORPH_TICKS, 20), 1e-6f);
-        assertEquals(0f, GlassKnives.glassAt(1.9, 4), 1e-6f, "a short flight flies half its way as a fleck");
-        assertTrue(GlassKnives.glassAt(2.5, 4) > 0f);
-        assertEquals(1f, GlassKnives.glassAt(4, 4), 1e-6f, "a knife lands as glass");
     }
 
     @Test

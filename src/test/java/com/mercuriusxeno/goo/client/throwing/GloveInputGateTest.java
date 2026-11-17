@@ -7,7 +7,11 @@ import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.client.ability.PalmBlobHop;
 import org.junit.jupiter.api.Nested;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -37,7 +41,11 @@ class GloveInputGateTest {
         private int holds;
         private int lastHeldTicks = -1;
         private final boolean throwsOnAttack;
+        private boolean formsKnives;
+        private boolean knifeInTheFan = true;
+        private int knivesThrows;
         private int nextJavelins;
+        private final List<JavelinTurn> turns = new ArrayList<>();
 
         RecordingActions(boolean payloadSent, boolean stream) {
             this(payloadSent, stream, false);
@@ -55,7 +63,19 @@ class GloveInputGateTest {
         }
 
         @Override
+        public boolean formsKnives() {
+            return formsKnives;
+        }
+
+        @Override
+        public boolean throwKnives() {
+            knivesThrows++;
+            return knifeInTheFan;
+        }
+
+        @Override
         public void javelinTurned(JavelinTurn turn) {
+            turns.add(turn);
             if (turn == JavelinTurn.THROWN) {
                 nextJavelins++;
             }
@@ -97,6 +117,59 @@ class GloveInputGateTest {
 
     private static RecordingActions thrown() {
         return new RecordingActions(true, false);
+    }
+
+    /**
+     * Knives' press: right click held turns the hold's first tick into a
+     * hold begun, left click throws the knives formed with the press still
+     * armed, and letting go ends the hold, throwing nothing
+     * (decision knives-form-on-right-click-and-throw-on-left-click).
+     */
+    @Nested
+    class KnivesForming {
+
+        private final RecordingActions actions = new RecordingActions(true, false, true);
+        private final GloveInputGate gate = new GloveInputGate();
+
+        @Test
+        void leftClickWithAKnifeInTheFanThrowsTheKnivesAndLeavesThePressArmed() {
+            actions.formsKnives = true;
+            gate.arm();
+            for (int tick = 0; tick <= LONG_HOLD_TICKS; tick++) {
+                gate.tick(true, actions);
+            }
+
+            assertTrue(gate.throwHeld(actions));
+            assertEquals(1, actions.knivesThrows);
+            assertEquals(0, actions.throwsSent, "a knives throw sends no javelin");
+            assertTrue(gate.isArmed(), "the throw leaves right click's press standing");
+            assertEquals(List.of(JavelinTurn.FORMS), actions.turns);
+        }
+
+        @Test
+        void leftClickWithAnEmptyFanThrowsNothing() {
+            actions.formsKnives = true;
+            actions.knifeInTheFan = false;
+            gate.arm();
+            gate.tick(true, actions);
+
+            assertFalse(gate.throwHeld(actions));
+            assertTrue(gate.isArmed());
+        }
+
+        @Test
+        void lettingGoEndsTheHoldThrowingNothing() {
+            actions.formsKnives = true;
+            gate.arm();
+            gate.tick(true, actions);
+
+            gate.tick(false, actions);
+
+            assertEquals(List.of(JavelinTurn.FORMS, JavelinTurn.REVERTS), actions.turns);
+            assertEquals(0, actions.throwsSent);
+            assertEquals(1, actions.poseDrops);
+            assertFalse(gate.isArmed());
+        }
     }
 
     /**
@@ -417,9 +490,11 @@ class GloveInputGateTest {
             assertFalse(GloveInputGate.runsFromPress(Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE));
         }
 
-        @Test
-        void aStreamRunsFromThePress() {
-            assertTrue(GloveInputGate.runsFromPress(Delivery.of(DeliveryKind.STREAM), AbilityBadge.CHANNELED));
+        // residual-badge-marks-the-four-goo-sprays
+        @ParameterizedTest
+        @EnumSource(value = AbilityBadge.class, names = {"CHANNELED", "RESIDUAL"})
+        void aStreamRunsFromThePress(AbilityBadge badge) {
+            assertTrue(GloveInputGate.runsFromPress(Delivery.of(DeliveryKind.STREAM), badge));
         }
 
         @Test

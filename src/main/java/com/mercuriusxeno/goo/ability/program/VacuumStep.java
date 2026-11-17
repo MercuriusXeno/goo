@@ -1,22 +1,16 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
-import com.mercuriusxeno.goo.network.HoldMarks;
+import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.throwing.StreamCone;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
-import net.minecraft.tags.TagKey;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -24,32 +18,31 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
- * Void Vacuum's block step, run each held tick of the stream: every slime
- * residual cell inside the cone, goop or slick, breaks whole with its drops,
- * so goop gives back every layer's weird goo and slick its film's kinetic goo;
- * the step converts nothing itself. The cone is the whole volume within the
+ * Void Vacuum's block step, run each held tick of the stream: every world goo
+ * cell inside the cone, any goo laid on the volume cell, breaks whole with its
+ * drops, so each gives back the goo its layers cost; the step converts
+ * nothing itself. The cone is the whole volume within the
  * reach and the cone's angle of the look, not the stream's sampled rays, so a
  * held aim takes every residual in front of it; a cell needs a clear line
- * from the eye that only other residuals cross. The break runs as a wave: a
- * cell breaks once the hold is as many ticks old as its distance from the eye
- * sets, nearest first. Before it breaks, a cell decays away through the
- * mingle noise over the wave's last ticks before its own, so the decay fits
- * inside the wave; a cell the wave never reached keeps standing.
+ * from the eye that only other residuals cross. Every reached cell shows
+ * vanilla's break lines from the tick the cone reaches it and breaks whole
+ * once the ticks its distance sets have run, the near value beside the eye
+ * to the far value at the reach's far end, so nearer cells break first;
+ * releasing, or turning the cone off a cell, clears its break lines and it
+ * stands whole.
  * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
- * vacuumed-residuals-decay-through-mingle-noise-before-breaking
+ * vacuum-breaks-a-cell-the-tick-the-wave-reaches-it
  *
- * @param ticksPerBlock the hold ticks the wave takes to cross one block, so the reach's far end breaks this many
- *                      ticks a block in
- * @param decayTicks    the hold ticks a residual decays over before it breaks
+ * @param nearBreakTicks the ticks a cell at the eye takes to break
+ * @param farBreakTicks  the ticks a cell at the reach's far end takes to break
  */
-public record VacuumStep(double ticksPerBlock, int decayTicks) implements TakesNoEntity {
+public record VacuumStep(double nearBreakTicks, double farBreakTicks) implements TakesNoEntity {
 
-    /** The blocks Vacuum takes, goop and slick, so a later residual joins by data. */
-    public static final TagKey<Block> SLIME_RESIDUALS =
-            TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath(Goo.MODID, "slime_residuals"));
     private static final String NAME = "vacuum";
-    private static final String FIELD_TICKS_PER_BLOCK = "ticks_per_block";
-    private static final String FIELD_DECAY_TICKS = "decay_ticks";
+    /** The break particles a taken cell throws for each layer it held. */
+    private static final int BREAK_PARTICLES_PER_LAYER = 3;
+    private static final String FIELD_NEAR_BREAK_TICKS = "near_break_ticks";
+    private static final String FIELD_FAR_BREAK_TICKS = "far_break_ticks";
     /** The pitch a residual taken at the eye slurps at. */
     private static final double SLURP_LOW_PITCH = 0.8;
     /** The pitch a residual taken at the reach's far end slurps at. */
@@ -61,8 +54,10 @@ public record VacuumStep(double ticksPerBlock, int decayTicks) implements TakesN
      * Codec for the step's params.
      */
     public static final MapCodec<VacuumStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            Codec.doubleRange(0, Double.MAX_VALUE).fieldOf(FIELD_TICKS_PER_BLOCK).forGetter(VacuumStep::ticksPerBlock),
-            Codec.intRange(1, Integer.MAX_VALUE).fieldOf(FIELD_DECAY_TICKS).forGetter(VacuumStep::decayTicks)
+            Codec.doubleRange(1, Double.MAX_VALUE).fieldOf(FIELD_NEAR_BREAK_TICKS)
+                    .forGetter(VacuumStep::nearBreakTicks),
+            Codec.doubleRange(1, Double.MAX_VALUE).fieldOf(FIELD_FAR_BREAK_TICKS)
+                    .forGetter(VacuumStep::farBreakTicks)
     ).apply(inst, VacuumStep::new));
 
     /**
@@ -78,88 +73,71 @@ public record VacuumStep(double ticksPerBlock, int decayTicks) implements TakesN
     @Override
     public boolean tick(StepContext context) {
         ChannelHost host = context.hostAs(ChannelHost.class);
-        host.channelAim().ifPresent(aim -> {
-            Vec3 eye = host.eye();
-            HoldMarks marks = host.holdMarks();
-            if (aim.reaching()) {
-                paintReached(host, aim, eye, marks);
-            }
-            decayPainted(host, eye, aim.aimPoint().distanceTo(eye), marks);
-        });
+        host.channelAim().filter(ChannelAim::reaching).ifPresent(aim -> breakReached(host, aim, host.eye()));
         return true;
     }
 
     /**
-     * Paints each residual in the cone the wave has reached, so its decay starts.
+     * Hands the hold's gradual break every residual in the cone this tick,
+     * nearest first, each gaining the share of a break its distance sets, so
+     * each cracks from the tick the cone reaches it and breaks away once its
+     * progress fills; a residual the cone turned off loses its cracks and its
+     * progress.
+     * vacuum-breaks-a-cell-the-tick-the-wave-reaches-it
      *
-     * @param host  the channel host
-     * @param aim   the hold's aim this tick
-     * @param eye   the channeling player's eye
-     * @param marks the hold's marks
+     * @param host the channel host
+     * @param aim  the hold's aim this tick
+     * @param eye  the channeling player's eye
      */
-    private void paintReached(ChannelHost host, ChannelAim aim, Vec3 eye, HoldMarks marks) {
-        List<BlockPos> reached = residualsInCone(eye, aim.aimPoint().subtract(eye), aim.coneDegrees(),
-                pos -> host.blockIn(pos, SLIME_RESIDUALS), pos -> passable(host, pos));
-        for (BlockPos cell : reached) {
-            if (aim.held() >= decayStartsOn(middleOf(cell).distanceTo(eye))) {
-                marks.paint(cell, host.stateAt(cell));
-            }
+    private void breakReached(ChannelHost host, ChannelAim aim, Vec3 eye) {
+        double reach = aim.aimPoint().distanceTo(eye);
+        List<BlockPos> inCone = residualsInCone(eye, aim.aimPoint().subtract(eye), aim.coneDegrees(),
+                pos -> worldGoo(host.stateAt(pos)), pos -> passable(host, pos));
+        Map<BlockPos, Double> rates = new LinkedHashMap<>();
+        for (BlockPos cell : inCone) {
+            rates.put(cell, 1 / breakTicks(middleOf(cell).distanceTo(eye), reach));
         }
+        host.gradualBreak().progress(rates, host, cell -> breakAway(host, cell, host.stateAt(cell),
+                slurpPitch(middleOf(cell).distanceTo(eye), reach)));
     }
 
     /**
-     * Decays each painted residual one tick toward nothing, the clients eating
-     * it away through the mingle noise as a melt is eaten away, and breaks it
-     * with its drops once its decay fills. A cell past nine tenths finishes
-     * alone after the hold ends; one short of it cools back and stands whole.
-     * vacuumed-residuals-decay-through-mingle-noise-before-breaking
+     * The ticks a residual takes to break: the near value at the eye, rising
+     * evenly with its distance to the far value at the reach's far end.
+     * vacuum-breaks-a-cell-the-tick-the-wave-reaches-it
      *
-     * @param host  the channel host
-     * @param eye   the channeling player's eye
-     * @param reach the stream's reach, which the slurps' pitch rises along
-     * @param marks the hold's marks
+     * @param distance the cell's middle's distance from the eye, in blocks
+     * @param reach    the stream's reach, in blocks
+     * @return the break ticks, from the near value to the far value
      */
-    private void decayPainted(ChannelHost host, Vec3 eye, double reach, HoldMarks marks) {
-        BlockState nothing = Blocks.AIR.defaultBlockState();
-        for (Map.Entry<BlockPos, BlockState> painted : marks.painted().entrySet()) {
-            BlockPos cell = painted.getKey();
-            BlockState residual = painted.getValue();
-            // a cleared cell is unpainted rather than stepped, so goop flowing back into it is taken too
-            if (host.stateAt(cell).getBlock() != residual.getBlock()) {
-                marks.unpaint(cell);
-                continue;
-            }
-            if (host.finishingAlone(cell)) {
-                continue;
-            }
-            double distance = middleOf(cell).distanceTo(eye);
-            float rate = 1f / decayTicksAt(distance);
-            float pitch = slurpPitch(distance, reach);
-            Runnable breakAway = () -> breakAway(host, cell, residual, nothing, pitch);
-            float share = host.exposeBlock(cell, nothing, rate, BlockExposures.MELTS_AWAY);
-            if (share >= 1f) {
-                breakAway.run();
-                marks.unpaint(cell);
-            } else if (share > PaintedHold.FINISHES_ALONE) {
-                host.finishBlockAlone(cell, rate, breakAway);
-            }
-        }
+    double breakTicks(double distance, double reach) {
+        return nearBreakTicks + (farBreakTicks - nearBreakTicks) * alongTheReach(distance, reach);
+    }
+
+    /** How far along the reach a distance stands, 0 at the eye to 1 at the far end. */
+    private static double alongTheReach(double distance, double reach) {
+        return reach <= 0 ? 1 : Math.clamp(distance / reach, 0, 1);
     }
 
     /**
-     * Breaks a decayed residual with its drops, slurps it up at its cell, and
-     * tells the clients it went to nothing, so the melt they drew over it ends.
+     * Breaks a residual whose break filled quietly with its drops, throwing
+     * three break particles a layer rather than vanilla's whole burst, plays
+     * its break sound and slurps it up at its cell.
+     * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
+     * vacuum-throws-three-break-particles-a-layer
      */
-    private static void breakAway(ChannelHost host, BlockPos cell, BlockState residual, BlockState nothing,
-                                  float slurpPitch) {
-        host.breakBlock(cell);
+    private static void breakAway(ChannelHost host, BlockPos cell, BlockState residual, float slurpPitch) {
+        int layers = VolumeCellBlock.layersOf(residual);
+        host.breakBlockQuietly(cell);
+        host.scatterBreakParticles(cell, residual, layers * BREAK_PARTICLES_PER_LAYER,
+                (double) layers / VolumeCellBlock.MAX_LAYERS);
+        host.playBreakSound(cell, residual);
         host.slurpAt(cell, slurpPitch);
-        host.sendTransform(cell, residual, nothing);
     }
 
     /**
      * The pitch a taken residual slurps at: low at the eye, rising evenly
-     * along the wave to high at the reach's far end.
+     * with its distance to high at the reach's far end.
      * vacuum-sounds-a-suction-wind-and-rising-slurps
      *
      * @param distance the cell's middle's distance from the eye, in blocks
@@ -167,45 +145,7 @@ public record VacuumStep(double ticksPerBlock, int decayTicks) implements TakesN
      * @return the pitch
      */
     static float slurpPitch(double distance, double reach) {
-        double along = reach <= 0 ? 1 : Math.clamp(distance / reach, 0, 1);
-        return (float) (SLURP_LOW_PITCH + (SLURP_HIGH_PITCH - SLURP_LOW_PITCH) * along);
-    }
-
-    /**
-     * The hold tick a residual's decay starts on, so the decay ends on the
-     * tick its distance sets to break on: the decay's ticks come out of the
-     * wave's delay rather than on top of it.
-     * vacuumed-residuals-decay-through-mingle-noise-before-breaking
-     *
-     * @param distance the cell's middle's distance from the eye, in blocks
-     * @return the hold tick, no earlier than the hold's first
-     */
-    int decayStartsOn(double distance) {
-        return breaksOn(distance, ticksPerBlock) - decayTicksAt(distance) + 1;
-    }
-
-    /**
-     * The ticks a residual takes to decay: the step's decay, shortened for a
-     * cell so near the wave reaches it before a whole decay could run.
-     *
-     * @param distance the cell's middle's distance from the eye, in blocks
-     * @return the decay's ticks, at least one
-     */
-    private int decayTicksAt(double distance) {
-        return Math.max(1, Math.min(decayTicks, breaksOn(distance, ticksPerBlock)));
-    }
-
-    /**
-     * The hold tick a residual cell breaks on: its distance from the eye times
-     * the wave's ticks a block, so the wave runs from the player outward.
-     * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
-     *
-     * @param distance      the cell's middle's distance from the eye, in blocks
-     * @param ticksPerBlock the hold ticks the wave takes to cross one block
-     * @return the hold tick it breaks on, counting the hold's first tick as 1
-     */
-    static int breaksOn(double distance, double ticksPerBlock) {
-        return (int) Math.ceil(distance * ticksPerBlock);
+        return (float) (SLURP_LOW_PITCH + (SLURP_HIGH_PITCH - SLURP_LOW_PITCH) * alongTheReach(distance, reach));
     }
 
     /**
@@ -252,6 +192,18 @@ public record VacuumStep(double ticksPerBlock, int decayTicks) implements TakesN
             }
         }
         return true;
+    }
+
+    /**
+     * Whether a state is a world goo Vacuum takes: any goo laid on the volume
+     * cell, so a world goo shipping later is taken the moment it registers.
+     * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
+     *
+     * @param state the state standing in a cell
+     * @return true for a volume cell of any goo type
+     */
+    static boolean worldGoo(BlockState state) {
+        return state.getBlock() instanceof VolumeCellBlock;
     }
 
     private static boolean passable(BlockBreakHost host, BlockPos pos) {

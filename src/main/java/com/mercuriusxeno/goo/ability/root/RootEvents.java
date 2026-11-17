@@ -1,9 +1,11 @@
 package com.mercuriusxeno.goo.ability.root;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.LingeringAppliers;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
@@ -42,6 +44,9 @@ public final class RootEvents {
     /** How far off the root a mob stands before the vines count it moving, thorn it and drag it back. */
     public static final double SLACK_BLOCKS = 0.25;
 
+    /** The id the vines' thorns remember their rooter under, among a mob's lingering appliers. */
+    static final Identifier THORNS = Identifier.fromNamespaceAndPath(Goo.MODID, "root_thorns");
+
     /** The share of the way back onto the root the vines drag a mob each tick it stands off it. */
     static final double PULL_SHARE = 0.3;
 
@@ -59,15 +64,19 @@ public final class RootEvents {
 
     /**
      * Latches a throw of vines onto a living entity, with the rustle of
-     * vines taking hold.
+     * vines taking hold, and remembers the player who threw them, whom the
+     * vines' later thorns name.
+     * lingering-goo-effect-credits-whoever-applied-it
      *
      * @param target the entity the vines root
      * @param thrown the throw's strength
+     * @param rooter the entity who threw the vines, or null for none
      */
-    public static void latch(LivingEntity target, Rooted.Throw thrown) {
+    public static void latch(LivingEntity target, Rooted.Throw thrown, @Nullable Entity rooter) {
         long now = target.level().getGameTime();
         Rooted standing = target.getData(GooAttachments.ROOTED);
         target.setData(GooAttachments.ROOTED, standing.latch(thrown, target.position(), now));
+        LingeringAppliers.remember(target, THORNS, rooter);
         rustle(target, SoundEvents.VINE_PLACE, LATCH_VOLUME, LATCH_PITCH);
     }
 
@@ -196,7 +205,9 @@ public final class RootEvents {
         }
         living.hurtMarked = true;
         if (living.level() instanceof ServerLevel level) {
-            living.hurtServer(level, level.damageSources().sweetBerryBush(), rooted.thorns());
+            // lingering-goo-effect-credits-whoever-applied-it, goo-hit-keeps-its-kind-and-names-the-player-behind-it
+            living.hurtServer(level, LingeringAppliers.credit(level, level.damageSources().sweetBerryBush(), living,
+                    THORNS), rooted.thorns());
         }
     }
 

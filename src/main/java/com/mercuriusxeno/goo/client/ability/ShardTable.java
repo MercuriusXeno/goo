@@ -4,9 +4,8 @@ import org.joml.Vector3f;
 import java.util.Random;
 
 /**
- * One Shatter cloud's shard layout, drawn from a seed: where each shard sits
- * in the unit sphere, how it lies, its shape and size, and how it spins
- * (decision cloud-seed-per-client-ephemeral).
+ * One Shatter shard layout, drawn from a seed: where each shard sits in
+ * the unit sphere, how it lies, its shape and size, and how it spins.
  */
 final class ShardTable {
 
@@ -97,15 +96,36 @@ final class ShardTable {
     }
 
     /**
+     * How many shards the layout holds.
+     *
+     * @return the shard count
+     */
+    int size() {
+        return data.length / SLIVER_STRIDE;
+    }
+
+    /**
      * Draws a cloud's shard layout from a seed; one seed always draws one layout.
      *
      * @param seed the seed the layout is drawn from
      * @return the layout
      */
     static ShardTable fromSeed(long seed) {
+        return fromSeed(seed, MAX_SLIVERS);
+    }
+
+    /**
+     * Draws a layout of a given count of shards from a seed; one seed and
+     * count always draw one layout.
+     *
+     * @param seed  the seed the layout is drawn from
+     * @param count the shards the layout holds
+     * @return the layout
+     */
+    static ShardTable fromSeed(long seed, int count) {
         Random rng = new Random(seed);
-        float[] data = new float[MAX_SLIVERS * SLIVER_STRIDE];
-        for (int i = 0; i < MAX_SLIVERS; i++) {
+        float[] data = new float[count * SLIVER_STRIDE];
+        for (int i = 0; i < count; i++) {
             buildOneSliver(rng, data, i * SLIVER_STRIDE);
         }
         return new ShardTable(data);

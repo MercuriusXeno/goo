@@ -4,10 +4,14 @@ import com.mercuriusxeno.goo.ability.frost.GlacialFields;
 import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
 import com.mercuriusxeno.goo.ability.program.MorphBirths;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
+import com.mercuriusxeno.goo.block.ability.HostFreeCells;
+import com.mercuriusxeno.goo.block.ability.HostSpreaders;
 import com.mercuriusxeno.goo.block.ability.MoltenHeats;
+import com.mercuriusxeno.goo.block.ability.WispClaims;
 import com.mercuriusxeno.goo.network.DripFlights;
-import com.mercuriusxeno.goo.network.FleckLaunches;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
+import com.mercuriusxeno.goo.network.HomingKnives;
+import com.mercuriusxeno.goo.network.KnifeHolds;
 import com.mercuriusxeno.goo.network.ScanWaves;
 import com.mercuriusxeno.goo.network.StreamHolds;
 import net.minecraft.server.MinecraftServer;
@@ -23,7 +27,8 @@ import org.jspecify.annotations.Nullable;
 public final class GooServerState {
 
     private final GooEffectScheduler gooEffects = new GooEffectScheduler();
-    private final FleckLaunches fleckLaunches = new FleckLaunches();
+    private final KnifeHolds knifeHolds = new KnifeHolds();
+    private final HomingKnives homingKnives = new HomingKnives();
     private final MorphBirths morphBirths = new MorphBirths();
     private final BlockExposures blockExposures = new BlockExposures();
     private final AbilityBlockFallScheduler markerFalls = new AbilityBlockFallScheduler();
@@ -32,6 +37,9 @@ public final class GooServerState {
     private final ScanWaves scanWaves = new ScanWaves();
     private final DripFlights dripFlights = new DripFlights();
     private final MoltenHeats moltenHeats = new MoltenHeats();
+    private final HostSpreaders hostSpreaders = new HostSpreaders();
+    private final HostFreeCells hostFreeCells = new HostFreeCells();
+    private final WispClaims wispClaims = new WispClaims();
 
     /**
      * Answers the state the server holds.
@@ -71,10 +79,22 @@ public final class GooServerState {
     }
 
     /**
-     * @return the slung flecks yet to leave the hand
+     * Each player's Knives hold and the knives it has formed
+     * (decision knives-form-in-fibonacci-stages-to-twelve).
+     *
+     * @return the Knives holds
      */
-    public FleckLaunches fleckLaunches() {
-        return fleckLaunches;
+    public KnifeHolds knifeHolds() {
+        return knifeHolds;
+    }
+
+    /**
+     * Knives' thrown knives in flight (decision knives-home-on-their-painted-mob).
+     *
+     * @return the homing knives
+     */
+    public HomingKnives homingKnives() {
+        return homingKnives;
     }
 
     /**
@@ -134,6 +154,36 @@ public final class GooServerState {
     }
 
     /**
+     * The sculk charges Host goo started from deaths near it
+     * (decision mob-dying-on-or-near-host-goo-spreads-sculk-from-the-goo).
+     *
+     * @return the Host spreaders
+     */
+    public HostSpreaders hostSpreaders() {
+        return hostSpreaders;
+    }
+
+    /**
+     * The Host cells a recent walk found free of a stranded charge
+     * (decision sculk-charge-runs-along-host-goo-without-weakening).
+     *
+     * @return the free Host cells
+     */
+    public HostFreeCells hostFreeCells() {
+        return hostFreeCells;
+    }
+
+    /**
+     * The spots drifting wisps are headed for
+     * (decision wisps-travel-as-entities-then-settle-as-glowy-air-blocks).
+     *
+     * @return the wisp claims
+     */
+    public WispClaims wispClaims() {
+        return wispClaims;
+    }
+
+    /**
      * @return how long each player has held a stream
      */
     public StreamHolds streamHolds() {
@@ -147,9 +197,6 @@ public final class GooServerState {
      */
     public void drainArrived(MinecraftServer server) {
         int currentTick = server.getTickCount();
-        if (fleckLaunches.hasPending()) {
-            fleckLaunches.drainArrived(currentTick);
-        }
         if (gooEffects.hasPending()) {
             gooEffects.drainArrivedEffects(currentTick);
         }
@@ -165,6 +212,8 @@ public final class GooServerState {
         morphBirths.bearArrived(currentTick);
         blockExposures.decay(server);
         streamHolds.releaseLapsed(currentTick);
+        knifeHolds.tick(currentTick);
+        homingKnives.tick(currentTick);
     }
 
     /**
@@ -172,7 +221,8 @@ public final class GooServerState {
      */
     public void clear() {
         gooEffects.clear();
-        fleckLaunches.clear();
+        knifeHolds.clear();
+        homingKnives.clear();
         blockExposures.clear();
         markerFalls.clear();
         streamHolds.clear();
@@ -181,5 +231,8 @@ public final class GooServerState {
         scanWaves.clear();
         dripFlights.clear();
         moltenHeats.clear();
+        hostSpreaders.clear();
+        hostFreeCells.clear();
+        wispClaims.clear();
     }
 }

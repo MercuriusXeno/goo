@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:rime_and_molten_drip_clips_stop_at_their_fluids",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 120,
+  "setup_ticks": 0,
+  "required": true
+}

@@ -48,7 +48,8 @@ public final class GooChargedCastHandler {
         GooSourceScanner.deplete(player, gooType, cost);
         GooThrowHandler.consumeReagents(player, aimed.abilityId(), gooType);
         Direction face = GooThrowHandler.directionFromOrdinal(aimed.targetFace());
+        // direct-goo-hit-credits-its-caster: the landing names its caster, so a charged Blast's hits name them
         AbilityImpact.land(player.level(), aimed.targetPos(), gooType, face == null ? Direction.UP : face, ability,
-                aimed.targetPoint(), size);
+                aimed.targetPoint(), size, player.getUUID());
     }
 }

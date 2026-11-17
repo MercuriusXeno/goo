@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:charmed_skeletons_arrow_marks_the_zombie_as_its_charmers",
+  "environment": "goo:minion_kills",
+  "structure": "goo:test_bay",
+  "max_ticks": 40,
+  "setup_ticks": 0,
+  "required": true
+}

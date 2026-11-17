@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:grab_locked_item_floats_until_the_grace_passes",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}

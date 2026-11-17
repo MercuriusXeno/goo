@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.client.TargetResult;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.item.ItemEntity;
 import org.jspecify.annotations.Nullable;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -36,9 +37,7 @@ final class HeldPick {
             pinned = null;
             return fresh.get();
         }
-        if (pinned == null || !pinned.isAlive() || !heldNow.test(pinned)) {
-            pinned = outlinedThisPress.stream().filter(Entity::isAlive).filter(heldNow).findFirst().orElse(null);
-        }
+        pinned = stillPinned(heldNow) ? pinned : heldOfThisPress(heldNow);
         if (pinned != null) {
             return new AimState.Resolution(TargetResult.entity(pinned, pinned.getBoundingBox().getCenter()),
                     new AimAssistResolver.AimHit.EntityHit(pinned));
@@ -48,6 +47,24 @@ final class HeldPick {
             outlinedThisPress.add(outlined.entity());
         }
         return frame;
+    }
+
+    private boolean stillPinned(Predicate<Entity> heldNow) {
+        return pinned != null && pinned.isAlive() && heldNow.test(pinned);
+    }
+
+    /**
+     * The first mob this press outlined that a Grab holds now; a locked item
+     * wears the same ailment and is passed over, so the aim stays free to
+     * pick the next item.
+     * decision sweeping-grab-locks-every-item-the-highlight-passes
+     *
+     * @param heldNow whether an entity is held by a Grab now
+     * @return the held mob, or null where this press holds none
+     */
+    private @Nullable Entity heldOfThisPress(Predicate<Entity> heldNow) {
+        return outlinedThisPress.stream().filter(Entity::isAlive).filter(entity -> !(entity instanceof ItemEntity))
+                .filter(heldNow).findFirst().orElse(null);
     }
 
     /**

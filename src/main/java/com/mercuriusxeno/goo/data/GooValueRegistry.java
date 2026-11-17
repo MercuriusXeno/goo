@@ -181,6 +181,7 @@ public class GooValueRegistry {
         GooValueLoader.applyMergedLayers(layers, state);
         postConversions = state.postConversions;
         lastMergedBaseValues = state.lastMergedBaseValues;
+        GooGroups.hold(lastMergedBaseValues);
         rootItems = List.copyOf(state.rootItems);
         adoptWaiting(state);
         publishEffectiveValues(loadedEffective);
@@ -265,6 +266,7 @@ public class GooValueRegistry {
         GooValueLoader.applyMergedLayers(layers, state);
         postConversions = state.postConversions;
         lastMergedBaseValues = state.lastMergedBaseValues;
+        GooGroups.hold(lastMergedBaseValues);
         rootItems = List.copyOf(state.rootItems);
         adoptWaiting(state);
     }

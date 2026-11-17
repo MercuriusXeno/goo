@@ -108,4 +108,35 @@ class GroupsJsonTest {
             assertEquals(2, described.size(), described.toString());
         }
     }
+
+    /**
+     * A group pairing blocks by position keeps its members in the order picked through a save and a read back
+     * (decision this-becomes-that-is-two-parallel-groups-in-the-goo-workbench).
+     */
+    @Nested
+    class PickedOrder {
+
+        @Test
+        void savedGroupReadsBackItsMembersInTheOrderPicked() {
+            BaseValuesModel layout = BaseValuesModel.parse("""
+                    {
+                        "_groups": {
+                            "molten_blocks": ["lava", "goo:molten_iron"]
+                        }
+                    }
+                    """);
+            JsonObject sent = com.google.gson.JsonParser.parseString(ModelJson.toJson(layout, "posted"))
+                    .getAsJsonObject();
+            sent.addProperty("group", "molten_blocks");
+            JsonArray picks = new JsonArray();
+            List.of("goo:molten_iron", "pack:molten_gold", "minecraft:lava").forEach(picks::add);
+            sent.add("picks", picks);
+            JsonObject answer = com.google.gson.JsonParser.parseString(GroupsJson.applied(sent.toString(), layout,
+                    INVENTORY)).getAsJsonObject();
+            String saved = ModelJson.merged(layout, answer.getAsJsonObject("model").toString()).serialize();
+            assertEquals(List.of("goo:molten_iron", "pack:molten_gold", "minecraft:lava"),
+                    memberIds(rowNamed(GroupsJson.described(BaseValuesModel.parse(saved), INVENTORY),
+                            "molten_blocks")));
+        }
+    }
 }

@@ -46,9 +46,10 @@ public final class MoltenTests {
     private static final int FIVE_LAYERS = 5;
     /** The layers melting one block spends, stated here so the test checks the cell rather than echoing it. */
     private static final int MELT_LAYERS = 3;
-    private static final String NOT_MELTED = "Five layers of Molten should melt the stone to a lava source, stands %s";
-    private static final String MELTED_EARLY = "Half way through the heat the stone should stand under five layers,"
+    private static final String NOT_MELTED = "Five layers of Molten should melt %s to a %s source, stands %s";
+    private static final String MELTED_EARLY = "Half way through the heat %s should stand under five layers,"
             + " stands %s under %s";
+    private static final String MOLTEN_MELTS_IRON_CORE = "molten_over_iron_core_melts_it_to_molten_iron";
     private static final String LAYERS_LEFT_WRONG ="The Molten cell should rest on the lava at two layers, stands %s";
 
     private MoltenTests() {
@@ -63,6 +64,7 @@ public final class MoltenTests {
         GooTestFunctions.registerTest(registrar, MOLTEN_DRIP_LAYS_A_CELL, MoltenTests::moltenDripLaysACellOnStone);
         GooTestFunctions.registerTest(registrar, MOLTEN_POOLS_ON_LAVA, MoltenTests::moltenDripPoolsOnLava);
         GooTestFunctions.registerTest(registrar, MOLTEN_MELTS_STONE, MoltenTests::moltenOverStoneMeltsItForThreeLayers);
+        GooTestFunctions.registerTest(registrar, MOLTEN_MELTS_IRON_CORE, MoltenTests::moltenOverIronCoreMeltsItToMoltenIron);
     }
 
     /**
@@ -107,7 +109,24 @@ public final class MoltenTests {
      * @param helper the gametest helper
      */
     public static void moltenOverStoneMeltsItForThreeLayers(GameTestHelper helper) {
-        walledIn(helper, Blocks.STONE);
+        meltsForThreeLayers(helper, Blocks.STONE, Blocks.LAVA);
+    }
+
+    /**
+     * Five layers of Molten over iron core heat it red hot and then melt it
+     * into a molten iron source, spending the three layers a stone block
+     * spends (decision molten-melts-by-a-meltable-group-and-its-parallel-melted-group).
+     *
+     * @param helper the gametest helper
+     */
+    public static void moltenOverIronCoreMeltsItToMoltenIron(GameTestHelper helper) {
+        meltsForThreeLayers(helper, GooBlocks.IRON_CORE.get(), GooBlocks.MOLTEN_IRON.get());
+    }
+
+    // Five layers over the floor block heat it for the heat's ticks, then leave the melted block's source under the
+    // cell, two layers left.
+    private static void meltsForThreeLayers(GameTestHelper helper, Block floor, Block meltedInto) {
+        walledIn(helper, floor);
         for (Direction side : Direction.Plane.HORIZONTAL) {
             helper.setBlock(OVER_THE_FLOOR.relative(side), Blocks.STONE);
         }
@@ -121,12 +140,12 @@ public final class MoltenTests {
             BlockState cell = helper.getBlockState(OVER_THE_FLOOR);
             boolean fiveLayers = cell.is(GooBlocks.BLAZE_MOLTEN.get())
                     && cell.getValue(VolumeCellBlock.LAYERS) == FIVE_LAYERS;
-            helper.assertTrue(heating.is(Blocks.STONE) && fiveLayers, String.format(MELTED_EARLY, heating, cell));
+            helper.assertTrue(heating.is(floor) && fiveLayers, String.format(MELTED_EARLY, floor, heating, cell));
         });
         helper.runAfterDelay(heatTicks + PAST_THE_POUR, () -> {
             BlockState melted = helper.getBlockState(FLOOR);
-            helper.assertTrue(melted.is(Blocks.LAVA) && melted.getFluidState().isSource(),
-                    String.format(NOT_MELTED, melted));
+            helper.assertTrue(melted.is(meltedInto) && melted.getFluidState().isSource(),
+                    String.format(NOT_MELTED, floor, meltedInto, melted));
             BlockState cell = helper.getBlockState(OVER_THE_FLOOR);
             boolean twoLayers = cell.is(GooBlocks.BLAZE_MOLTEN.get())
                     && cell.getValue(VolumeCellBlock.LAYERS) == FIVE_LAYERS - MELT_LAYERS;

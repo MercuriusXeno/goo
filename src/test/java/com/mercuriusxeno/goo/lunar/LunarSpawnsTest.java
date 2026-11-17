@@ -16,12 +16,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The lunar biome spawns each eldritch mob the overworld spawns, at a weight above its overworld weight, so the
- * eldritch gather on lunar more than anywhere else.
+ * eldritch gather on lunar more than anywhere else; and its warrens spawn the monstrosity in larger groups than its
+ * surface does.
  * decision eldritch-spawn-in-higher-volumes-on-lunar
+ * decision lunar-underground-changes-by-depth-down-to-a-molten-iron-sea
  */
 class LunarSpawnsTest {
 
     private static final String LUNAR_BIOME = "/data/goo/worldgen/biome/lunar.json";
+    private static final String WARREN_BIOME = "/data/goo/worldgen/biome/lunar_warrens.json";
+    private static final String MONSTROSITY = "goo:eldritch_monstrosity";
     /** The biome modifier adding the eldritch mobs to every overworld biome. */
     private static final String OVERWORLD_ELDRITCH = "/data/goo/neoforge/biome_modifier/eldritch_monstrosity_spawns.json";
 
@@ -39,6 +43,28 @@ class LunarSpawnsTest {
             weights.put(entry.get("type").getAsString(), entry.get("weight").getAsInt());
         }
         return weights;
+    }
+
+    private static JsonObject monstrosityIn(String biome) throws IOException {
+        for (JsonElement spawner : resourceJson(biome).getAsJsonObject("spawners").getAsJsonArray("monster")) {
+            if (MONSTROSITY.equals(spawner.getAsJsonObject().get("type").getAsString())) {
+                return spawner.getAsJsonObject();
+            }
+        }
+        throw new AssertionError(biome + " spawns no " + MONSTROSITY);
+    }
+
+    /** A monstrosity group in the warrens runs larger than on the surface, at no lesser weight. */
+    @Test
+    void theWarrensSpawnTheMonstrosityInLargerGroupsThanTheSurface() throws IOException {
+        JsonObject surface = monstrosityIn(LUNAR_BIOME);
+        JsonObject warrens = monstrosityIn(WARREN_BIOME);
+        assertTrue(warrens.get("maxCount").getAsInt() > surface.get("maxCount").getAsInt(),
+                "the warrens spawn up to " + warrens.get("maxCount") + ", the surface up to " + surface.get("maxCount"));
+        assertTrue(warrens.get("minCount").getAsInt() > surface.get("minCount").getAsInt(),
+                "the warrens spawn at least " + warrens.get("minCount") + ", the surface " + surface.get("minCount"));
+        assertTrue(warrens.get("weight").getAsInt() >= surface.get("weight").getAsInt(),
+                "the warrens weigh " + warrens.get("weight") + ", the surface " + surface.get("weight"));
     }
 
     @Test
