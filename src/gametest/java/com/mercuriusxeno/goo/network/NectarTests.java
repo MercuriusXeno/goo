@@ -51,6 +51,7 @@ public final class NectarTests {
     private static final String COATS_A_WALL_AND_CLIMBS = "nectar_drip_on_a_wall_coats_it_and_climbs";
     private static final String WALL_COAT_STAYS = "nectar_on_a_wall_stays_on_it";
     private static final String COATS_A_CLIMBABLE_COLUMN = "nectar_coats_a_wall_column_to_climb";
+    private static final String COAT_OVER_FLOOR_GOO_STAYS = "nectar_on_a_wall_over_floor_goo_stays_on_it";
     private static final String DRAWS_A_COW_FROM_RANGE = "nectar_goo_draws_an_adult_cow_from_range_for_a_layer";
     private static final String DRAWS_ZOMBIES_FROM_RANGE = "nectar_goo_draws_two_zombies_from_range_to_fight";
     private static final Identifier NECTAR = Identifier.parse("goo:jelly_nectar");
@@ -77,6 +78,10 @@ public final class NectarTests {
     private static final int COLUMN_HEIGHT = 3;
     /** The drips the column test lands on each face, bottom face first. */
     private static final int DRIPS_PER_FACE = 2;
+    /** The over-floor test's stone floor, its wall standing on it two blocks tall, the floor goo at its foot. */
+    private static final BlockPos FLOOR_UNDER_WALL = new BlockPos(2, 1, 2);
+    /** The floor goo's layers at the wall's foot, short of a whole block so it has room. */
+    private static final int FOOT_LAYERS = 3;
     /** The range tests' pen, six blocks across, its cell in one corner of the floor inside the rim. */
     private static final int RANGE_PEN_SPAN = 6;
     private static final BlockPos RANGE_CELL = new BlockPos(1, 2, 1);
@@ -100,6 +105,8 @@ public final class NectarTests {
             + " there stands %s";
     private static final String COLUMN_GAP = "Every face of the wall should keep Nectar attached so the run can"
             + " be climbed; the cells in front, bottom first, stand %s";
+    private static final String COAT_DRAINED = "The coat on the wall over floor goo should keep %d layers, the"
+            + " block there stands %s, the floor goo under it %s";
     private static final String STARTS_IN_REACH = "The mob should start past the feeding reach %.1f and inside"
             + " the reach %.1f, starts %.2f off";
     private static final String CALF_NOT_FED = "A struck calf should grow to an adult, the drip spent: baby %b, under it %s";
@@ -120,6 +127,7 @@ public final class NectarTests {
         GooTestFunctions.registerTest(registrar, COATS_A_WALL_AND_CLIMBS, NectarTests::coatsAWallAndClimbs);
         GooTestFunctions.registerTest(registrar, WALL_COAT_STAYS, NectarTests::wallCoatStaysOnIt);
         GooTestFunctions.registerTest(registrar, COATS_A_CLIMBABLE_COLUMN, NectarTests::coatsAWallColumnToClimb);
+        GooTestFunctions.registerTest(registrar, COAT_OVER_FLOOR_GOO_STAYS, NectarTests::coatOverFloorGooStays);
         GooTestFunctions.registerTest(registrar, DRAWS_A_COW_FROM_RANGE, NectarTests::drawsAnAdultCowFromRange);
         GooTestFunctions.registerTest(registrar, DRAWS_ZOMBIES_FROM_RANGE, NectarTests::drawsTwoZombiesFromRange);
     }
@@ -285,6 +293,43 @@ public final class NectarTests {
             }
             helper.assertTrue(cells.stream().allMatch(cell -> cell.is(GooBlocks.JELLY_NECTAR.get())
                     && cell.getValue(VolumeCellBlock.WEST) == SideCoat.ATTACHED), String.format(COLUMN_GAP, cells));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Nectar coating a wall's face over floor goo at the wall's foot stays on
+     * the wall: five drips struck on the face above the floor goo leave the
+     * block there holding the two layers one wall holds of jelly's goo,
+     * attached, the floor goo under it taking only what slips past that hold.
+     * drip-striking-a-side-sticks-or-runs-by-adhesion
+     *
+     * @param helper the gametest helper
+     */
+    public static void coatOverFloorGooStays(GameTestHelper helper) {
+        helper.setBlock(FLOOR_UNDER_WALL, Blocks.STONE);
+        helper.setBlock(FLOOR_UNDER_WALL.east(), Blocks.STONE);
+        BlockPos wallFoot = FLOOR_UNDER_WALL.above();
+        BlockPos wallFace = wallFoot.above();
+        helper.setBlock(wallFoot, Blocks.STONE);
+        helper.setBlock(wallFace, Blocks.STONE);
+        BlockPos footGoo = wallFoot.east();
+        BlockPos coated = wallFace.east();
+        helper.setBlock(footGoo, GooBlocks.JELLY_NECTAR.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, FOOT_LAYERS));
+        helper.setBlock(coated, Blocks.AIR);
+        AbilityDefinition nectar = AbilityRegistry.of(helper.getLevel()).getAbility(NECTAR);
+        helper.assertTrue(nectar != null, ABILITY_REQUIRED);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.JELLY);
+        KnownRecipes.teachRequires(caster, nectar);
+        LandedDrips.landOnSide(helper, caster, nectar, wallFace, Direction.EAST, WALL_DRIPS);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        helper.runAfterDelay(WALL_SETTLE_TICKS, () -> {
+            BlockState cell = helper.getBlockState(coated);
+            helper.assertTrue(cell.is(GooBlocks.JELLY_NECTAR.get())
+                    && cell.getValue(VolumeCellBlock.WEST) == SideCoat.ATTACHED
+                    && cell.getValue(VolumeCellBlock.LAYERS) == ONE_WALL_HOLDS,
+                    String.format(COAT_DRAINED, ONE_WALL_HOLDS, cell, helper.getBlockState(footGoo)));
             helper.succeed();
         });
     }

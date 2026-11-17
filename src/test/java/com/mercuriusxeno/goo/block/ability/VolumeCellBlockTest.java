@@ -658,6 +658,43 @@ class VolumeCellBlockTest {
     }
 
     /**
+     * How much a block drains into goo of its type below: a block no wall
+     * holds drains whole, as far as the room below goes; one a wall holds
+     * keeps its hold there and drains only what slips past it.
+     * drip-striking-a-side-sticks-or-runs-by-adhesion
+     */
+    @Nested
+    class DrainDown {
+
+        private static final int LAYERS = 5;
+        private static final int NOTHING_HELD = 0;
+        /** Jelly's hold on one wall: a layer plus one for its cohesion of 1. */
+        private static final int ONE_WALL_HOLD = 2;
+        private static final int ROOMY = 12;
+        private static final int TIGHT = 1;
+
+        @Test
+        void aBlockNoWallHoldsDrainsWhole() {
+            assertEquals(LAYERS, VolumeCellBlock.layersDrained(LAYERS, NOTHING_HELD, ROOMY));
+        }
+
+        @Test
+        void aBlockAWallHoldsKeepsItsHoldAndDrainsTheRest() {
+            assertEquals(LAYERS - ONE_WALL_HOLD, VolumeCellBlock.layersDrained(LAYERS, ONE_WALL_HOLD, ROOMY));
+        }
+
+        @Test
+        void aBlockWithinItsHoldDrainsNothing() {
+            assertEquals(0, VolumeCellBlock.layersDrained(ONE_WALL_HOLD, ONE_WALL_HOLD, ROOMY));
+        }
+
+        @Test
+        void theDrainStopsAtTheRoomBelow() {
+            assertEquals(TIGHT, VolumeCellBlock.layersDrained(LAYERS, NOTHING_HELD, TIGHT));
+        }
+    }
+
+    /**
      * A broken Nectar cell gives back jelly goo, each layer a fifteenth of
      * Nectar's cost as jelly_nectar.json ships it.
      * nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob
