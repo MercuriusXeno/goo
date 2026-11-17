@@ -20,6 +20,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.attribute.EnvironmentAttributes;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -42,6 +43,9 @@ public final class AstralLunarTests {
             "lunar_let_go_early_leaves_you_where_you_stood";
     private static final String LUNAR_ON_THE_BLUE_STAR_RETURNS_YOU_EXACTLY = "lunar_on_the_blue_star_returns_you_exactly";
     private static final String LUNAR_ON_NEITHER_REFUSES = "lunar_on_neither_refuses";
+    private static final String LUNAR_ON_THE_HIDDEN_PLANET_REFUSES = "lunar_on_the_hidden_planet_refuses";
+    /** Where the hidden planet test stands its caster on lunar, high over the ground. */
+    private static final Vec3 ON_LUNAR = new Vec3(0.5, 160, 0.5);
 
     private static final Identifier ASTRAL_LUNAR = Identifier.parse("goo:astral_lunar");
     /** astral_lunar.json's fixation, the held ticks a full pull takes. */
@@ -80,6 +84,9 @@ public final class AstralLunarTests {
     private static final String UNPAID = "A caster who let go should keep their astral, held %d, now %d";
     private static final String STAYED_ON_LUNAR = "A caster who let go of the star should stay on lunar, stands in %s";
     private static final String WAY_HOME_KEPT = "A caster who let go of the star should keep their way home";
+    private static final String HIDDEN_UNPAID = "A caster refused the hidden planet should keep their astral, held %d,"
+            + " now %d";
+    private static final String HIDDEN_HELD = "Lunar held toward the hidden planet should hold no fixation";
     private static final String REFUSED = "Lunar held looking at neither moon nor star should hold no fixation";
     private static final String REFUSED_ONCE = "A press held %d ticks at neither moon nor star should show the refusal"
             + " once, showed it %d times";
@@ -103,6 +110,8 @@ public final class AstralLunarTests {
         GooTestFunctions.registerTest(registrar, LUNAR_ON_THE_BLUE_STAR_RETURNS_YOU_EXACTLY,
                 AstralLunarTests::lunarOnTheBlueStarReturnsYouExactly);
         GooTestFunctions.registerTest(registrar, LUNAR_ON_NEITHER_REFUSES, AstralLunarTests::lunarOnNeitherRefuses);
+        GooTestFunctions.registerTest(registrar, LUNAR_ON_THE_HIDDEN_PLANET_REFUSES,
+                AstralLunarTests::lunarOnTheHiddenPlanetRefuses);
     }
 
     /**
@@ -157,7 +166,8 @@ public final class AstralLunarTests {
             helper.assertTrue(caster.level() == overworld && caster.position().distanceTo(steppedTo) < SAME_SPOT,
                     String.format(STAYED_HOME, steppedTo, caster.level().dimension(), caster.position()));
             helper.assertFalse(caster.getData(GooAttachments.LUNAR_FIXATION).stands(), NO_FIXATION);
-            helper.assertTrue(astral(caster) == astralBefore, String.format(UNPAID, astralBefore, astral(caster)));
+            helper.assertTrue(astral(caster) == astralBefore,
+                    String.format(HIDDEN_UNPAID, astralBefore, astral(caster)));
             overworld.getServer().getPlayerList().remove(caster);
             helper.succeed();
         });
@@ -209,6 +219,34 @@ public final class AstralLunarTests {
             helper.assertTrue(caster.getData(GooAttachments.LUNAR_ARRIVAL).arrivedAt() > arrivedInLunarAt[0],
                     ARRIVAL_MARKED);
             overworld.getServer().getPlayerList().remove(caster);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * On lunar by a night the planet stands dark, the overworld's moon full, a caster holding the cast where the
+     * planet stands stays on lunar, holds no fixation, keeps every drop of their astral and is shown the refusal.
+     * decision lunar-refuses-the-return-while-the-blue-star-is-hidden
+     *
+     * @param helper the gametest helper
+     */
+    public static void lunarOnTheHiddenPlanetRefuses(GameTestHelper helper) {
+        ServerPlayer caster = caster(helper);
+        ServerLevel lunar = helper.getLevel().getServer().getLevel(Lunar.LEVEL);
+        helper.assertTrue(lunar != null, LUNAR_REQUIRED);
+        caster.teleport(new TeleportTransition(lunar, ON_LUNAR, Vec3.ZERO, 0F, 0F, TeleportTransition.DO_NOTHING));
+        face(caster, moonFrom(caster));
+        int astralBefore = astral(caster);
+        refusalsSentTo(caster);
+        holdFor(helper, caster, 1, LET_GO_AFTER);
+        helper.runAfterDelay(LET_GO_AFTER, () -> {
+            helper.assertTrue(caster.level().dimension() == Lunar.LEVEL,
+                    String.format(STAYED_ON_LUNAR, caster.level().dimension()));
+            helper.assertFalse(caster.getData(GooAttachments.LUNAR_FIXATION).stands(), HIDDEN_HELD);
+            helper.assertTrue(astral(caster) == astralBefore, String.format(UNPAID, astralBefore, astral(caster)));
+            int refusals = refusalsSentTo(caster);
+            helper.assertTrue(refusals == 1, String.format(REFUSED_ONCE, LET_GO_AFTER, refusals));
+            helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.succeed();
         });
     }

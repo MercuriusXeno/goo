@@ -8,11 +8,13 @@ import net.minecraft.world.phys.Vec3;
 import java.util.Optional;
 
 /**
- * What Lunar finds along a caster's look: the moon, from the overworld while it stands above the horizon,
- * or the blue planet, from lunar, standing in the moon's place; anything else Lunar refuses.
+ * What Lunar finds along a caster's look: the moon, from the overworld while it stands above the horizon, or the blue
+ * planet, from lunar, standing in the moon's place, while it stands above the horizon on a lit phase; anything else
+ * Lunar refuses.
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
  * decision blue-star-takes-the-moons-place-with-the-opposite-phase
+ * decision lunar-refuses-the-return-while-the-blue-star-is-hidden
  */
 public final class LunarSight {
 
@@ -70,22 +72,34 @@ public final class LunarSight {
     }
 
     /**
-     * What a look finds in a dimension's sky.
+     * What a look finds in a dimension's sky: the moon while it stands above the horizon, and the blue planet while it
+     * stands above the horizon and its phase lights it, so the way home waits on the planet showing.
+     * decision lunar-refuses-the-return-while-the-blue-star-is-hidden
      *
      * @param dimension        the caster's dimension
      * @param look             the caster's look, any length
      * @param moonAngleDegrees the dimension's moon angle, in degrees
+     * @param planetPhase      the blue planet's phase, which the overworld's moon leaves unread
      * @return the moon or the blue planet the look holds, empty where it holds neither
      */
-    public static Optional<Sky> skyAt(ResourceKey<Level> dimension, Vec3 look, float moonAngleDegrees) {
+    public static Optional<Sky> skyAt(ResourceKey<Level> dimension, Vec3 look, float moonAngleDegrees,
+            MoonPhase planetPhase) {
         Vec3 moon = moonDirection(moonAngleDegrees);
-        if (Level.OVERWORLD.equals(dimension)) {
-            return moon.y() > 0.0 && holds(look, moon, LOOK_REACH_COSINE) ? Optional.of(Sky.MOON) : Optional.empty();
+        if (moon.y() <= 0.0) {
+            return Optional.empty();
         }
-        if (Lunar.LEVEL.equals(dimension) && holds(look, moon, PLANET_REACH_COSINE)) {
-            return Optional.of(Sky.BLUE_PLANET);
+        if (Level.OVERWORLD.equals(dimension)) {
+            return heldOrNone(Sky.MOON, holds(look, moon, LOOK_REACH_COSINE));
+        }
+        if (Lunar.LEVEL.equals(dimension)) {
+            return heldOrNone(Sky.BLUE_PLANET, planetPhase != MoonPhase.NEW_MOON
+                    && holds(look, moon, PLANET_REACH_COSINE));
         }
         return Optional.empty();
+    }
+
+    private static Optional<Sky> heldOrNone(Sky sky, boolean held) {
+        return held ? Optional.of(sky) : Optional.empty();
     }
 
     private static boolean holds(Vec3 look, Vec3 target, double reachCosine) {
