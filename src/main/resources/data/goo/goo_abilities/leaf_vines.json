@@ -1,35 +1,24 @@
 {
   "gooType": "leaf",
   "displayName": "goo.ability.leaf.vines",
-  "badge": "mob",
+  "cost_mechanics": "goo.ability.leaf.vines.cost_mechanics",
+  "badge": "residual",
   "order": 0,
   "cost": 1000,
+  "cost_formula": "%s/m³",
   "requires": ["minecraft:vine"],
-  "delivery": { "kind": "arc" },
+  "delivery": {
+    "kind": "stream",
+    "drains_on_placement": true,
+    "throw_speed": 0.84,
+    "drips_per_tick": 1,
+    "cone": 16,
+    "ticks_per_charge": 20,
+    "particle": "goo:vines_spray_drip",
+    "sound": { "id": "minecraft:block.honey_block.slide", "every": 10, "volume": 1.0, "pitch": 1.0, "pitch_spread": 0.1 }
+  },
   "behaviors": [
-    {
-      "type": "hit_or_miss",
-      "hit": [
-        { "type": "root", "duration": 300, "hits": 4, "thorns": 1.0, "fire_factor": 1.5 }
-      ],
-      "miss": [
-        {
-          "type": "linger",
-          "steps": [
-            { "type": "await_entity", "shape": "sphere", "radius": 1.0, "where": ["mob", "alive"] },
-            {
-              "type": "entities",
-              "shape": "sphere",
-              "radius": 1.0,
-              "where": ["mob", "alive"],
-              "steps": [
-                { "type": "root", "duration": 300, "hits": 4, "thorns": 1.0, "fire_factor": 1.5 }
-              ]
-            }
-          ]
-        }
-      ]
-    }
+    { "type": "vines" }
   ],
-  "tags": ["entity", "trap", "harmful"]
+  "tags": ["stream"]
 }

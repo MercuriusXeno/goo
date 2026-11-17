@@ -1,16 +1,14 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.ability.AbilityJson;
 import org.junit.jupiter.api.Test;
 import java.util.List;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The hit_or_miss split: each host kind runs and is held at load to the
- * branch it serves, so Vines loads on the struck mob and on the landing
- * (decision vines-unpack-root-and-thorn).
+ * branch it serves, so one program loads on the struck mob and on the
+ * landing.
  */
 class HitOrMissStepTest {
 
@@ -32,11 +30,5 @@ class HitOrMissStepTest {
     @Test
     void aHostThatIsNeitherRunsNothing() {
         assertTrue(SPLIT.branchFor(HostKind.SURFACE).isEmpty());
-    }
-
-    @Test
-    void vinesLoadsForTheLandingItsMissLingersOn() {
-        assertDoesNotThrow(() -> ProgramBehavior.forHost(AbilityJson.decode("leaf_vines").behaviors(),
-                HostKind.LANDING));
     }
 }
