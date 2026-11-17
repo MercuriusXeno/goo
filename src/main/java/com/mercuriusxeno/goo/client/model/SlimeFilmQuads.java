@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.model;
 
+import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mojang.math.Quadrant;
 import net.minecraft.client.renderer.block.dispatch.BlockModelRotation;
 import net.minecraft.client.resources.model.cuboid.FaceBakery;
@@ -25,7 +26,7 @@ public final class SlimeFilmQuads {
     /** Model pixels across a whole block. */
     private static final float WHOLE = 16f;
     /** Model pixels to one fifteenth of a block, a film's thickness. */
-    private static final float ONE_LAYER = WHOLE / SlimeCoreBox.WHOLE;
+    private static final float ONE_LAYER = WHOLE / VolumeCellBlock.MAX_LAYERS;
     /** How far a streak stands out from its wall, in model pixels: the edge drips' hair, clear of the wall. */
     private static final float STREAK_OUT = 0.1f;
     /** Each strip of a streak, its span across the wall in model pixels. */

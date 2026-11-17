@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.block.ability.FluidFooting;
 import com.mercuriusxeno.goo.throwing.CoatRay;
 import java.util.List;
 import java.util.Optional;
@@ -42,14 +43,15 @@ public interface DripLanding {
     }
 
     /**
-     * Whether the drips strike a lava source at its surface, where other
-     * drips pass through every fluid to the block under it.
+     * The fluid sources the drips strike at their surface, where other drips
+     * pass through every fluid to the block under it.
      * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+     * rime-drips-stop-at-a-water-or-lava-surface
      *
-     * @return true for a landing whose goo pools on lava
+     * @return the fluids the landing's goo lies on, none for most
      */
-    default boolean landsOnLava() {
-        return false;
+    default FluidFooting fluidFooting() {
+        return FluidFooting.NONE;
     }
 
     /**

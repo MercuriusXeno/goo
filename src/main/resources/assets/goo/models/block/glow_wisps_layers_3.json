@@ -1,0 +1,6 @@
+{
+  "parent": "goo:block/volume_cell_layers_3",
+  "textures": {
+    "goo": {"sprite": "goo:fluid/glow_fluid", "force_translucent": true}
+  }
+}

@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.block.ability.HostFreeCells;
 import com.mercuriusxeno.goo.block.ability.HostSpreaders;
 import com.mercuriusxeno.goo.block.ability.LayerFalls;
 import com.mercuriusxeno.goo.block.ability.MoltenHeats;
+import com.mercuriusxeno.goo.block.ability.WispClaims;
 import com.mercuriusxeno.goo.network.DripFlights;
 import com.mercuriusxeno.goo.network.FleckLaunches;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
@@ -38,6 +39,7 @@ public final class GooServerState {
     private final LayerFalls layerFalls = new LayerFalls();
     private final HostSpreaders hostSpreaders = new HostSpreaders();
     private final HostFreeCells hostFreeCells = new HostFreeCells();
+    private final WispClaims wispClaims = new WispClaims();
 
     /**
      * Answers the state the server holds.
@@ -167,6 +169,16 @@ public final class GooServerState {
     }
 
     /**
+     * The spots drifting wisps are headed for
+     * (decision wisps-travel-as-entities-then-settle-as-glowy-air-blocks).
+     *
+     * @return the wisp claims
+     */
+    public WispClaims wispClaims() {
+        return wispClaims;
+    }
+
+    /**
      * @return how long each player has held a stream
      */
     public StreamHolds streamHolds() {
@@ -217,5 +229,6 @@ public final class GooServerState {
         moltenHeats.clear();
         hostSpreaders.clear();
         hostFreeCells.clear();
+        wispClaims.clear();
     }
 }

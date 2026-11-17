@@ -1,87 +1,60 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.GooConfig;
-import com.mercuriusxeno.goo.block.ability.WispBlock;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.Vec3;
-import org.jspecify.annotations.Nullable;
-import java.util.Map;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 /**
- * Glow's Wisps: leaves wisps of light in dark air, each fading out after
- * its life. The channel floods ({@link WispFlood}): from the holder's eyes
- * out through the connected air they see, nearest first, a budget of cells
- * a tick, a wisp by a chance, the density, in each dark cell no wisp
- * already lights, so the wisps scatter rather than fall on a grid, the flood
- * starting over when the hold starts, and carried on from where the holder
- * moves to, its reach and its wisps kept, as they walk. Without a
- * flood the step tries the one cell above the host, a wisp there when it is
- * dark air.
- * decision radiant-wisps-where-light-is-low
- * decision radiant-scatters-wisps-at-random-among-the-dark
- * operator rulings 2026-10-10: wisps flood out from the eyes nearest first to 64 blocks, the edge at 16 blocks a second
+ * Glow's Wisps block step: glow's goo lands where each of the stream's
+ * drips strikes, one layer for each drip, through the volume cell's one
+ * landing, as Goop lays its slime and Host its sculky slime, and the cell
+ * shines at its layers. The step names the holy damage a Wisps cell deals
+ * an undead touching it for each layer it holds, and the ticks between two
+ * of those hits; and how a Wisps cell sheds wisps toward the dark: the
+ * ticks between two sheds, the chance a shed wisp spends a layer of the
+ * cell, and the ticks a settled wisp lasts: {@code wisps holy_per_layer=0.5
+ * holy_every=20 shed_every=40 shed_spend_chance=0.25 wisp_life=1200}. How
+ * far off a wisp's destination may lie follows the cell's fill
+ * ({@link WispShed#reachOf}).
+ * glow-world-goo-is-named-wisps-and-takes-the-holds-place
+ * wisps-goo-glows-at-a-light-level-equal-to-its-layers
+ * undead-touching-wisps-goo-erupt-in-flames-and-take-holy-damage-by-fill
+ * wisps-goo-sheds-a-wisp-toward-nearby-dark
+ * wisps-travel-as-entities-then-settle-as-glowy-air-blocks
+ * each-goo-type-ships-a-world-goo-on-the-volume-cell
+ * drip-creates-a-volume-cell-immediately
+ * drip-on-a-standing-cell-increases-it
  *
- * @param radius how far from the host a cell may be, in blocks; zero for the host's own cell
- * @param count  how many cells to walk each run
- * @param life   how many ticks a wisp lasts
- * @param above  how many blocks above the host the tried cell sits
- * @param flood  whether the step floods out from the holder's eyes; otherwise it tries the host's own cell
- * @param growth  how many blocks the flood's edge grows each tick; zero reaches the radius at once
- * @param density the chance, from 0 to 1, that a dark, sighted cell the flood reaches takes a wisp
+ * @param holyPerLayer    the holy damage a Wisps cell deals an undead touching it, for each layer it holds
+ * @param holyEvery       the ticks between two holy hits on an undead touching the goo
+ * @param shedEvery       the ticks between two sheds of a cell standing level
+ * @param shedSpendChance the chance, from 0 to 1, that a shed wisp spends a layer of the cell
+ * @param wispLife        the ticks a settled wisp lasts before it is gone
  */
-public record WispsStep(double radius, int count, int life, int above, boolean flood, double growth,
-        double density) implements TakesNoEntity {
+public record WispsStep(double holyPerLayer, int holyEvery, int shedEvery, double shedSpendChance, int wispLife) implements TakesNoEntity, DripLanding {
 
     private static final String NAME = "wisps";
-    private static final String FIELD_RADIUS = "radius";
-    private static final String FIELD_COUNT = "count";
-    private static final String FIELD_LIFE = "life";
-    private static final String FIELD_ABOVE = "above";
-    private static final String FIELD_FLOOD = "flood";
-    private static final String FIELD_GROWTH = "growth";
-    private static final String FIELD_DENSITY = "density";
-    /** The density a flood scatters its wisps at when the step names none: about one dark cell in four. */
-    static final double SCATTERED_DENSITY = 0.25;
-    private static final float CHIME_VOLUME = 0.4f;
-    private static final float CHIME_PITCH = 1.6f;
-    private static final float CHIME_PITCH_SPREAD = 0.4f;
-    /** The most wisps that chime in one tick, so a flood placing many rings a few. */
-    private static final int CHIMES_PER_TICK = 3;
-    /** How far the holder's eyes may move from a flood's origin, in blocks, before it starts over. */
-    static final int RESTART_STEPS = 2;
-    /** Ticks a flood stays remembered after it last walked, before a later flood drops it. */
-    static final int FORGET_AFTER_TICKS = 20;
-    /** Each holder's flood under way. */
-    private static final Map<UUID, WispFlood> FLOODS = new ConcurrentHashMap<>();
+    private static final String FIELD_HOLY_PER_LAYER = "holy_per_layer";
+    private static final String FIELD_HOLY_EVERY = "holy_every";
+    private static final String FIELD_SHED_EVERY = "shed_every";
+    private static final String FIELD_SHED_SPEND_CHANCE = "shed_spend_chance";
+    private static final String FIELD_WISP_LIFE = "wisp_life";
 
     /**
      * Codec for the step's params.
      */
     public static final MapCodec<WispsStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            Codec.DOUBLE.fieldOf(FIELD_RADIUS).forGetter(WispsStep::radius),
-            Codec.intRange(1, Integer.MAX_VALUE).fieldOf(FIELD_COUNT).forGetter(WispsStep::count),
-            Codec.intRange(1, Integer.MAX_VALUE).fieldOf(FIELD_LIFE).forGetter(WispsStep::life),
-            Codec.INT.optionalFieldOf(FIELD_ABOVE, 0).forGetter(WispsStep::above),
-            Codec.BOOL.optionalFieldOf(FIELD_FLOOD, false).forGetter(WispsStep::flood),
-            Codec.DOUBLE.optionalFieldOf(FIELD_GROWTH, 0.0).forGetter(WispsStep::growth),
-            Codec.doubleRange(0, 1).optionalFieldOf(FIELD_DENSITY, SCATTERED_DENSITY).forGetter(WispsStep::density)
+            Codec.doubleRange(0, Double.MAX_VALUE).fieldOf(FIELD_HOLY_PER_LAYER).forGetter(WispsStep::holyPerLayer),
+            Codec.intRange(1, Integer.MAX_VALUE).fieldOf(FIELD_HOLY_EVERY).forGetter(WispsStep::holyEvery),
+            Codec.intRange(1, Integer.MAX_VALUE).fieldOf(FIELD_SHED_EVERY).forGetter(WispsStep::shedEvery),
+            Codec.doubleRange(0, 1).fieldOf(FIELD_SHED_SPEND_CHANCE).forGetter(WispsStep::shedSpendChance),
+            Codec.intRange(1, Integer.MAX_VALUE).fieldOf(FIELD_WISP_LIFE).forGetter(WispsStep::wispLife)
     ).apply(inst, WispsStep::new));
 
     /**
@@ -89,113 +62,40 @@ public record WispsStep(double radius, int count, int life, int above, boolean f
      */
     public static final StepType<WispsStep> TYPE = new StepType<>(NAME, CODEC);
 
+    /**
+     * The wisps step a program carries, the first where it carries several.
+     *
+     * @param program the ability's steps
+     * @return the wisps step, empty where the program lays no Wisps goo
+     */
+    public static Optional<WispsStep> in(List<Step> program) {
+        return program.stream().filter(WispsStep.class::isInstance).map(WispsStep.class::cast).findFirst();
+    }
+
     @Override
     public StepType<WispsStep> type() {
         return TYPE;
     }
 
+    /**
+     * Runs nothing on the hold's tick: the stream's drips lay the Wisps goo as they strike.
+     *
+     * @param context the step's context
+     * @return true, the step never fails
+     */
     @Override
     public boolean tick(StepContext context) {
-        BlockBreakHost host = context.hostAs(BlockBreakHost.class);
-        ServerLevel level = host.level();
-        if (flood && context.host() instanceof TargetHost holder) {
-            floodFrom(level, holder.target(), heldTicks(context));
-        } else {
-            BlockPos cell = host.position().above(above);
-            if (takesAWisp(level, cell)) {
-                placeWisp(level, cell, true);
-            }
-        }
         return true;
     }
 
-    private void floodFrom(ServerLevel level, LivingEntity holder, int heldTicks) {
-        BlockPos eyes = BlockPos.containing(holder.getEyePosition());
-        WispFlood under = FLOODS.get(holder.getUUID());
-        if (startsOver(under, eyes, heldTicks)) {
-            long now = level.getGameTime();
-            FLOODS.values().removeIf(stale -> now - stale.lastWalked() > FORGET_AFTER_TICKS);
-            // a wisp's light keeps a cell lit until it drops to the threshold, one level a step
-            under = floodFor(under, eyes, heldTicks, WispBlock.LIGHT - GooConfig.wispsLightThreshold());
-            FLOODS.put(holder.getUUID(), under);
-        }
-        under.walkedAt(level.getGameTime());
-        under.walk(count, new LevelCells(level, holder), level.getRandom());
+    @Override
+    public Optional<CellFed> cellFed(ChannelHost host, CoatRay.BlockStrike strike) {
+        return CellLanding.cellFed(host, strike, GooBlocks.GLOW_WISPS.get());
     }
 
-    /**
-     * Whether a holder's flood starts over: none under way, the hold just
-     * begun, or the eyes moved on from where it started.
-     *
-     * @param under     the flood under way, or null
-     * @param eyes      the holder's eye cell
-     * @param heldTicks the hold's age, 1 on its first tick
-     * @return true to start a new flood
-     */
-    static boolean startsOver(@Nullable WispFlood under, BlockPos eyes, int heldTicks) {
-        return under == null || heldTicks == ChannelAim.FIRST_TICK
-                || under.origin().distManhattan(eyes) > RESTART_STEPS;
-    }
-
-    /**
-     * The flood a holder's eyes start: a fresh one as the hold begins or
-     * where none is under way, otherwise one from where the eyes moved to.
-     *
-     * @param under     the flood under way, or null
-     * @param eyes      the holder's eye cell
-     * @param heldTicks the hold's age, 1 on its first tick
-     * @param litSteps  how many steps out a placed wisp's light keeps a cell lit
-     * @return the flood to walk
-     */
-    WispFlood floodFor(@Nullable WispFlood under, BlockPos eyes, int heldTicks, int litSteps) {
-        return under == null || heldTicks == ChannelAim.FIRST_TICK ? new WispFlood(eyes, radius, growth, litSteps, density)
-                : under.movedTo(eyes);
-    }
-
-    private static int heldTicks(StepContext context) {
-        return context.host() instanceof ChannelHost channel
-                ? channel.channelAim().map(ChannelAim::held).orElse(ChannelAim.FIRST_TICK)
-                : ChannelAim.FIRST_TICK;
-    }
-
-    private static boolean takesAWisp(ServerLevel level, BlockPos cell) {
-        return level.getBlockState(cell).isAir()
-                && isDark(level.getMaxLocalRawBrightness(cell), GooConfig.wispsLightThreshold());
-    }
-
-    private void placeWisp(ServerLevel level, BlockPos cell, boolean chimes) {
-        level.setBlock(cell, GooBlocks.WISP.get().defaultBlockState(), Block.UPDATE_ALL);
-        level.scheduleTick(cell, GooBlocks.WISP.get(), WispBlock.ticksBeforeFading(life));
-        if (chimes) {
-            // operator ruling 2026-10-09: each wisp chimes as it appears
-            RandomSource random = level.getRandom();
-            level.playSound(null, cell, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, CHIME_VOLUME,
-                    CHIME_PITCH + random.nextFloat() * CHIME_PITCH_SPREAD);
-        }
-    }
-
-    /**
-     * Whether the viewer's eyes see a cell's center, no block's collision between.
-     *
-     * @param level  the level
-     * @param viewer the entity looking
-     * @param cell   the cell
-     * @return true when the line is clear
-     */
-    static boolean inSight(ServerLevel level, LivingEntity viewer, BlockPos cell) {
-        return level.clip(new ClipContext(viewer.getEyePosition(), Vec3.atCenterOf(cell), ClipContext.Block.COLLIDER,
-                ClipContext.Fluid.NONE, viewer)).getType() == HitResult.Type.MISS;
-    }
-
-    /**
-     * Whether a light level is dark enough for a wisp.
-     *
-     * @param light     the cell's light level
-     * @param threshold the configured threshold
-     * @return true under the threshold
-     */
-    static boolean isDark(int light, int threshold) {
-        return light < threshold;
+    @Override
+    public void feed(ChannelHost host, CellFed fed) {
+        CellLanding.feed(host, fed, GooBlocks.GLOW_WISPS.get());
     }
 
     @Override
@@ -205,43 +105,6 @@ public record WispsStep(double radius, int count, int life, int above, boolean f
 
     @Override
     public Set<HostCapability> requires() {
-        return Set.of(HostCapability.BREAK_BLOCKS);
-    }
-
-    /** The level's cells as a flood asks them, from one holder's eyes. */
-    private final class LevelCells implements WispFlood.Cells {
-
-        private final ServerLevel level;
-        private final LivingEntity holder;
-        private int chimed;
-
-        LevelCells(ServerLevel level, LivingEntity holder) {
-            this.level = level;
-            this.holder = holder;
-        }
-
-        @Override
-        public boolean open(BlockPos cell) {
-            if (!level.isLoaded(cell)) {
-                return false;
-            }
-            BlockState state = level.getBlockState(cell);
-            return state.isAir() || state.is(GooBlocks.WISP.get());
-        }
-
-        @Override
-        public boolean dark(BlockPos cell) {
-            return takesAWisp(level, cell);
-        }
-
-        @Override
-        public boolean seen(BlockPos cell) {
-            return inSight(level, holder, cell);
-        }
-
-        @Override
-        public void place(BlockPos cell) {
-            placeWisp(level, cell, chimed++ < CHIMES_PER_TICK);
-        }
+        return Set.of(HostCapability.CHANNEL);
     }
 }
