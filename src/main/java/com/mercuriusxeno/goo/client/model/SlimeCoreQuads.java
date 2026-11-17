@@ -61,11 +61,66 @@ public final class SlimeCoreQuads {
         for (SlimeCoreBox box : core) {
             for (Direction face : Direction.values()) {
                 for (SlimeCoreBox shown : shownParts(box, face, around, core)) {
-                    quads.add(faceOf(shown, face, material));
+                    piecesOf(shown, face).forEach(piece -> quads.add(faceOf(piece, face, material)));
                 }
             }
         }
         return quads;
+    }
+
+    /**
+     * The pieces a side of a box draws in: its top cut under the shell's
+     * patches, any other side whole.
+     *
+     * @param box  a part of a core box whose side draws
+     * @param face the side
+     * @return the pieces
+     */
+    private static List<SlimeCoreBox> piecesOf(SlimeCoreBox box, Direction face) {
+        return face == Direction.UP ? piecesUnderTheShell(box) : List.of(box);
+    }
+
+    /**
+     * A core box's top cut where the shell's top splits into patches, so
+     * each piece stands under a shell patch of its own extent and the
+     * translucent sort, farthest centre first, draws the core before the
+     * shell over it from any view above.
+     * slime-core-draws-translucent-at-the-shells-opacity
+     *
+     * @param box a box of the core
+     * @return the box cut at each of the shell's splits it spans
+     */
+    private static List<SlimeCoreBox> piecesUnderTheShell(SlimeCoreBox box) {
+        List<SlimeCoreBox> pieces = new ArrayList<>();
+        List<Integer> alongX = cutsWithin(box.minX(), box.maxX());
+        List<Integer> alongZ = cutsWithin(box.minZ(), box.maxZ());
+        for (int x = 0; x + 1 < alongX.size(); x++) {
+            for (int z = 0; z + 1 < alongZ.size(); z++) {
+                pieces.add(new SlimeCoreBox(alongX.get(x), box.minY(), alongZ.get(z), alongX.get(x + 1), box.maxY(),
+                        alongZ.get(z + 1)));
+            }
+        }
+        return pieces;
+    }
+
+    /**
+     * A span's bounds with each of the shell's splits inside it.
+     *
+     * @param min the span's low bound, in the core box's units
+     * @param max its high bound
+     * @return the bounds and each split between them, in order
+     */
+    private static List<Integer> cutsWithin(int min, int max) {
+        List<Integer> cuts = new ArrayList<>();
+        cuts.add(min);
+        for (float cut : SlimeTopQuads.CUTS) {
+            int unit = Math.round(cut / PIXELS_PER_UNIT);
+            if (unit > min && unit < max) {
+                cuts.add(unit);
+            }
+        }
+        cuts.add(max);
+        return cuts;
     }
 
     /**
@@ -95,32 +150,6 @@ public final class SlimeCoreQuads {
      * @param material the core's material
      * @return the side's quad
      */
-    /**
-     * A shell's top cut into the bands a core's plan splits into, so each
-     * core top piece stands under a shell piece of its own extent and the
-     * translucent sort, farthest centre first, draws the core before the
-     * shell over it from any view above.
-     * slime-core-draws-translucent-at-the-shells-opacity
-     *
-     * @param top the shell's top, spanning its whole block
-     * @return the top's nine pieces, in its material
-     */
-    static List<BakedQuad> bandedTop(BakedQuad top) {
-        float height = top.position(0).y() * SlimeCoreBox.WHOLE;
-        int[] edges = SlimeCoreBox.BAND_EDGES;
-        List<BakedQuad> pieces = new ArrayList<>();
-        for (int x = 0; x + 1 < edges.length; x++) {
-            for (int z = 0; z + 1 < edges.length; z++) {
-                Vector3fc from = new Vector3f(edges[x], height, edges[z]).mul(PIXELS_PER_UNIT);
-                Vector3fc to = new Vector3f(edges[x + 1], height, edges[z + 1]).mul(PIXELS_PER_UNIT);
-                pieces.add(FaceBakery.bakeQuad(UNSHARED, from, to, FaceBakery.defaultFaceUV(from, to, Direction.UP),
-                        Quadrant.R0, top.materialInfo(), Direction.UP, BlockModelRotation.IDENTITY, null,
-                        ExtraFaceData.DEFAULT));
-            }
-        }
-        return pieces;
-    }
-
     static BakedQuad faceOf(SlimeCoreBox box, Direction face, BakedQuad.MaterialInfo material) {
         Vector3fc from = new Vector3f(box.minX(), box.minY(), box.minZ()).mul(PIXELS_PER_UNIT);
         Vector3fc to = new Vector3f(box.maxX(), box.maxY(), box.maxZ()).mul(PIXELS_PER_UNIT);

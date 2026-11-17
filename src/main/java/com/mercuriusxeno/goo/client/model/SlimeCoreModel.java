@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.model;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.block.ability.GooShares;
 import com.mercuriusxeno.goo.block.ability.SideCoat;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mojang.blaze3d.platform.Transparency;
@@ -33,25 +34,27 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * The model every volume cell's layers draw through, for slime, slick and
- * every later world goo alike: the layered shell its variant names, and
- * inside it the goo slime core the cell holds, drawn from what the model
- * reads as the cell's section meshes, so the core adds nothing to the block
- * state. The core samples the shell's own fluid sprite, the goo type's, and
- * stands at every fill inside a margin of one size: 2 px at the sides, 0.4 px under and over.
- * The model also draws the cell's films, one slab on each wall a side holds
- * a film against, read from the block state, and its fill's drips over the
- * edge of the block under it on each side no cell of its goo continues,
- * read from the level as the core is, so the drips add nothing to the
- * block state either.
+ * The model every volume cell's goo draws through, for slime, slick and
+ * every later world goo alike: the goo on its floor as a top sloped to the
+ * average with the blocks around it and a rim down each side no goo of its
+ * type continues past, both built from the level as the block meshes, and
+ * inside it the goo slime core the cell holds, so neither adds anything to
+ * the block state. The core samples the shell's own fluid sprite, the goo
+ * type's, and stands at every fill inside a margin of one size: 2 px at the
+ * sides, 0.4 px under and over. The model also draws each slab of goo a
+ * block clings to a wall or a ceiling with, read from the block state, and
+ * its fill's drips over the edge of the block under it on each side no cell
+ * of its goo continues.
  * connected-goo-draws-as-one-layered-mass-with-a-core
  * residual-always-draws-a-core-inside-a-one-eighth-margin
  * slime-core-keeps-a-two-layer-gap-and-grows-with-fill
  * goo-cell-holds-a-fill-and-a-state-per-side
+ * goo-block-top-slopes-to-the-average-with-the-adjoining-block
  *
- * @param shell the layered shell the cell's layers draw as
+ * @param shell the shell's model, naming the goo's material and the particle it breaks into
  * @param core  the core's material: the shell's fluid sprite at 50% opacity, on the translucent layer
- * @param film  the films' material: the shell's fluid sprite, under the shell tint, translucent
+ * @param film  the material the top, its rims and the slabs draw in: the shell's fluid sprite, under the shell
+ *              tint, translucent
  * @param drips the fill's drips over each side's edge, keyed by the side, empty for a cell drawing none
  */
 public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core, BakedQuad.MaterialInfo film,
@@ -68,20 +71,45 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core,
     @Override
     public void collectParts(BlockAndTintGetter level, BlockPos pos, BlockState state, RandomSource random,
                              List<BlockStateModelPart> parts) {
-        List<BakedQuad> coats = new ArrayList<>();
+        LayersAround around = layersAround(level, pos, state);
+        List<BakedQuad> drawn = new ArrayList<>();
+        Map<Direction, List<BakedQuad>> rims = new EnumMap<>(Direction.class);
+        if (around.floorShareAt(0, 0, 0) > 0) {
+            // goo-block-top-slopes-to-the-average-with-the-adjoining-block
+            SlimeTop top = SlimeTop.of(around);
+            drawn.addAll(SlimeTopQuads.topOf(top, film));
+            rims.putAll(SlimeTopQuads.rimsOf(top, film));
+        }
         if (VolumeCellBlock.attachedSidesOf(state) == 0) {
-            collectFill(level, pos, state, random, parts);
+            collectDrips(level, pos, state, random, parts);
+            List<BakedQuad> inside = SlimeCoreQuads.quadsOf(around, core);
+            if (!inside.isEmpty()) {
+                parts.add(new CorePart(inside, shell.particleMaterial(level, pos, state)));
+            }
         } else {
             // attached-goo-draws-per-attachment-and-divides-its-volume: the volume divides between its surfaces
-            VolumeCellBlock goo = state.getBlock() instanceof VolumeCellBlock cell ? cell : null;
-            boolean onAFloor = goo != null && goo.onAFloor(level, pos);
-            int cohesion = goo == null ? 0 : goo.cohesionIn(clientLevel());
-            coats.addAll(SlimeFilmQuads.quadsOf(VolumeCellBlock.sharesOf(state, onAFloor, cohesion), film));
+            GooShares shares = sharesOf(level, pos, state);
+            drawn.addAll(SlimeFilmQuads.quadsOf(new GooShares(0, shares.sides()), film));
         }
-        coats.addAll(SlimeFilmQuads.streaksOf(sidesHolding(state, SideCoat.RUNNY), film));
-        if (!coats.isEmpty()) {
-            parts.add(new CorePart(coats, shell.particleMaterial(level, pos, state)));
+        drawn.addAll(SlimeFilmQuads.streaksOf(sidesHolding(state, SideCoat.RUNNY), film));
+        if (!drawn.isEmpty() || !rims.isEmpty()) {
+            parts.add(new ShellPart(drawn, rims, shell.particleMaterial(level, pos, state)));
         }
+    }
+
+    /**
+     * How an attached block's volume divides between its floor and the surfaces it clings to.
+     *
+     * @param level the level the section meshes from
+     * @param pos   the block
+     * @param state the block's state
+     * @return each surface's share
+     */
+    private static GooShares sharesOf(BlockGetter level, BlockPos pos, BlockState state) {
+        VolumeCellBlock goo = state.getBlock() instanceof VolumeCellBlock cell ? cell : null;
+        boolean onAFloor = goo != null && goo.onAFloor(level, pos);
+        int cohesion = goo == null ? 0 : goo.cohesionIn(clientLevel());
+        return VolumeCellBlock.sharesOf(state, onAFloor, cohesion);
     }
 
     /**
@@ -95,8 +123,7 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core,
     }
 
     /**
-     * Draws a block attached to no side as its fill: the layered shell, the
-     * drips over each edge no block of its goo continues, and the core inside.
+     * Draws a block's drips over each edge no block of its goo continues past.
      *
      * @param level  the level the section meshes from
      * @param pos    the block
@@ -104,20 +131,13 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core,
      * @param random the random source
      * @param parts  the parts drawn
      */
-    private void collectFill(BlockAndTintGetter level, BlockPos pos, BlockState state, RandomSource random,
-                             List<BlockStateModelPart> parts) {
-        List<BlockStateModelPart> layers = new ArrayList<>();
-        shell.collectParts(level, pos, state, random, layers);
-        layers.forEach(part -> parts.add(new BandedShellPart(part)));
+    private void collectDrips(BlockAndTintGetter level, BlockPos pos, BlockState state, RandomSource random,
+                              List<BlockStateModelPart> parts) {
         drips.forEach((side, drip) -> {
             if (!level.getBlockState(pos.relative(side)).is(state.getBlock())) {
                 drip.collectParts(level, pos, state, random, parts);
             }
         });
-        List<BakedQuad> quads = SlimeCoreQuads.quadsOf(layersAround(level, pos, state), core);
-        if (!quads.isEmpty()) {
-            parts.add(new CorePart(quads, shell.particleMaterial(level, pos, state)));
-        }
     }
 
     private static List<Direction> sidesHolding(BlockState state, SideCoat coat) {
@@ -138,10 +158,44 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core,
      * @return the neighbourhood the core rule reads
      */
     static LayersAround layersAround(BlockGetter level, BlockPos pos, BlockState state) {
-        return (dx, dy, dz) -> {
-            BlockState beside = dx == 0 && dy == 0 && dz == 0 ? state : level.getBlockState(pos.offset(dx, dy, dz));
+        return new LevelCells(level, pos, state);
+    }
+
+    /**
+     * The cells around a block read from the level as its section meshes.
+     *
+     * @param level the level the section meshes from
+     * @param pos   the block
+     * @param state the block's state
+     */
+    private record LevelCells(BlockGetter level, BlockPos pos, BlockState state) implements LayersAround {
+
+        @Override
+        public int layersAt(int dx, int dy, int dz) {
+            BlockState beside = stateAt(dx, dy, dz);
             return beside.is(state.getBlock()) ? VolumeCellBlock.layersOf(beside) : 0;
-        };
+        }
+
+        @Override
+        public boolean solidAt(int dx, int dy, int dz) {
+            BlockState beside = stateAt(dx, dy, dz);
+            return !(beside.getBlock() instanceof VolumeCellBlock)
+                    && beside.isCollisionShapeFullBlock(level, pos.offset(dx, dy, dz));
+        }
+
+        @Override
+        public double floorShareAt(int dx, int dy, int dz) {
+            BlockState beside = stateAt(dx, dy, dz);
+            if (!beside.is(state.getBlock())) {
+                return 0;
+            }
+            return VolumeCellBlock.attachedSidesOf(beside) == 0 ? VolumeCellBlock.layersOf(beside)
+                    : sharesOf(level, pos.offset(dx, dy, dz), beside).floor();
+        }
+
+        private BlockState stateAt(int dx, int dy, int dz) {
+            return dx == 0 && dy == 0 && dz == 0 ? state : level.getBlockState(pos.offset(dx, dy, dz));
+        }
     }
 
     /**
@@ -167,7 +221,7 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core,
     @Override
     @Deprecated
     public int materialFlags() {
-        return shell.materialFlags() | core.flags();
+        return shell.materialFlags() | core.flags() | film.flags();
     }
 
     /**
@@ -202,40 +256,46 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core,
     }
 
     /**
-     * The shell's layers with their top cut into the core's bands.
-     * slime-core-draws-translucent-at-the-shells-opacity
+     * The shell built from the level: the sloped top, the films and the
+     * streaks drawn whatever the neighbours, and each rim under its side, so
+     * a neighbour hiding that side culls it as a block model's side face is.
+     * goo-block-top-slopes-to-the-average-with-the-adjoining-block
      *
-     * @param layers the shell's own part
+     * @param quads    the top, the films and the streaks
+     * @param rims     each rim side's quads
+     * @param particle the shell's particle material
      */
-    private record BandedShellPart(BlockStateModelPart layers) implements BlockStateModelPart {
+    private record ShellPart(List<BakedQuad> quads, Map<Direction, List<BakedQuad>> rims, Material.Baked particle)
+            implements BlockStateModelPart {
 
         @Override
         public List<BakedQuad> getQuads(@Nullable Direction direction) {
-            List<BakedQuad> quads = new ArrayList<>();
-            for (BakedQuad quad : layers.getQuads(direction)) {
-                if (quad.direction() == Direction.UP) {
-                    quads.addAll(SlimeCoreQuads.bandedTop(quad));
-                } else {
-                    quads.add(quad);
-                }
-            }
-            return quads;
+            return direction == null ? quads : rims.getOrDefault(direction, List.of());
         }
 
         @Override
         @Deprecated
         public boolean useAmbientOcclusion() {
-            return layers.useAmbientOcclusion();
+            return false;
         }
 
         @Override
         public Material.Baked particleMaterial() {
-            return layers.particleMaterial();
+            return particle;
         }
 
         @Override
         public int materialFlags() {
-            return layers.materialFlags();
+            int flags = 0;
+            for (BakedQuad quad : quads) {
+                flags |= quad.materialInfo().flags();
+            }
+            for (List<BakedQuad> side : rims.values()) {
+                for (BakedQuad quad : side) {
+                    flags |= quad.materialInfo().flags();
+                }
+            }
+            return flags;
         }
     }
 

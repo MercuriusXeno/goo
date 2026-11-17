@@ -85,18 +85,12 @@ class SlimeCoreModelTest {
         });
         BakedQuad.MaterialInfo layers = new BakedQuad.MaterialInfo(mock(TextureAtlasSprite.class),
                 ChunkSectionLayer.TRANSLUCENT, null, 0, true, 0, false);
-        BakedQuad shellTop = SlimeCoreQuads.faceOf(new SlimeCoreBox(0, 0, 0, 120, 8, 120), Direction.UP, layers);
         BlockStateModel shell = mock(BlockStateModel.class);
-        BlockStateModelPart shellPart = mock(BlockStateModelPart.class);
-        when(shellPart.getQuads(any())).thenReturn(List.of());
-        when(shellPart.getQuads(null)).thenReturn(List.of(shellTop));
-        doAnswer(call -> call.<List<BlockStateModelPart>>getArgument(4).add(shellPart))
-                .when(shell).collectParts(any(), any(), any(), any(), any());
         BakedQuad.MaterialInfo core = new BakedQuad.MaterialInfo(mock(TextureAtlasSprite.class),
                 ChunkSectionLayer.TRANSLUCENT, null, VolumeCellTint.CORE_TINT_INDEX, true, 0, false);
         List<BlockStateModelPart> parts = new ArrayList<>();
 
-        new SlimeCoreModel(shell, core, core, Map.of()).collectParts(level, CELL, cell, RandomSource.create(0), parts);
+        new SlimeCoreModel(shell, core, layers, Map.of()).collectParts(level, CELL, cell, RandomSource.create(0), parts);
 
         List<BakedQuad> tops = new ArrayList<>();
         for (BlockStateModelPart part : parts) {

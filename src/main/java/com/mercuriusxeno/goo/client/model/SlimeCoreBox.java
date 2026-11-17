@@ -49,8 +49,6 @@ public record SlimeCoreBox(int minX, int minY, int minZ, int maxX, int maxY, int
      * residual-always-draws-a-core-inside-a-one-eighth-margin
      */
     private static final int VERTICAL_MARGIN = 3;
-    /** Where a cell's plan splits along each axis: the margin toward each side and the middle. */
-    static final int[] BAND_EDGES = {0, SIDE_MARGIN, WHOLE - SIDE_MARGIN, WHOLE};
     /** The offset toward the west, the north or below: the low side of an axis. */
     private static final int LOW_SIDE = -1;
     /** The offsets along one axis: the cell's own column and the cells to either side. */
