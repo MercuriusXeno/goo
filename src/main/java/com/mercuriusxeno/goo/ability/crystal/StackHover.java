@@ -27,8 +27,12 @@ public final class StackHover {
     public static final double KNIFE_HALF_HEIGHT = 0.012;
     /** Blocks a javelin stands above and below its slot's height. */
     public static final double JAVELIN_HALF_HEIGHT = 0.02;
-    /** The full cube's edge, in blocks. */
-    static final double FULL_EDGE = 0.3;
+    /**
+     * The full cube's edge, in blocks: the lifted palm blob's greatest drawn edge,
+     * twice the flight shell's 0.15 half width at the palm rest's half flight size
+     * and the lifted beat's greatest 0.9, so the stack stands over the cube drawn.
+     */
+    static final double FULL_EDGE = 2 * 0.15 * 0.5 * 0.9;
     /** Blocks between the cube's top and the lowest point of the row standing over it. */
     static final double CLEARANCE = 0.03;
     /** Blocks between neighbouring knives along a row. */

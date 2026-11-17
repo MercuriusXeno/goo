@@ -378,21 +378,30 @@ public final class LiftedPalmBlob {
 
     /**
      * The cube a caster's held stack leaves standing, against its full size:
-     * a step smaller for each knife or javelin the server counts held, gone once
-     * the stack is full, and whole for a caster holding none.
+     * a step smaller for each knife or javelin the server counts held, easing
+     * to each smaller step over the ticks the one forming takes to rise, gone
+     * once the stack is full, and whole for a caster holding none.
      * decision knives-blob-shrinks-per-knife-and-vanishes-on-the-last
      * decision dart-javelins-hover-over-the-shrinking-blob-cube
      *
      * @param casterId the caster's entity id
+     * @param now      the game time, with the frame's partial tick
      * @return the share of the full cube
      */
-    static float stackShareOf(int casterId) {
-        int knives = HoveringKnives.formedBy(casterId);
-        if (knives > 0) {
-            return StackHover.cubeShareAt(knives, StackHover.KNIVES);
+    static float stackShareOf(int casterId, double now) {
+        HoveringKnives.Fan fan = HoveringKnives.fanOf(casterId);
+        if (fan != null) {
+            return easedShare(fan.previous(), fan.count(), StackHover.KNIVES, now - fan.changedAt());
         }
-        int javelins = HeldJavelins.formedBy(casterId);
-        return javelins > 0 ? StackHover.cubeShareAt(javelins, StackHover.JAVELINS) : 1f;
+        HeldJavelins.Stack stack = HeldJavelins.stackOf(casterId);
+        return stack == null ? 1f
+                : easedShare(stack.previous(), stack.count(), StackHover.JAVELINS, now - stack.changedAt());
+    }
+
+    // The cube's share eased from the count before the stack's last change to the count after, as one rises.
+    private static float easedShare(int previous, int count, int stack, double age) {
+        return Mth.lerp(HoveringKnives.easedAt(age), StackHover.cubeShareAt(previous, stack),
+                StackHover.cubeShareAt(count, stack));
     }
 
     /**
@@ -485,7 +494,8 @@ public final class LiftedPalmBlob {
         PalmBlobHop.Pose pose = lift.poseAt(now);
         Vec3 palm = palmOf(mc, caster, partialTick);
         return Optional.of(new Standing(caster, placeAt(pose, palm, upOf(caster, partialTick),
-                sourceOf(casterId, lift, partialTick, now)), drawnShapeAt(pose, now).scaled(stackShareOf(casterId)),
+                sourceOf(casterId, lift, partialTick, now)),
+                drawnShapeAt(pose, now).scaled(stackShareOf(casterId, now)),
                 pose.share()));
     }
 
@@ -627,7 +637,7 @@ public final class LiftedPalmBlob {
         float javelin = PalmJavelin.morphAt(delivery, pose.share());
         return Optional.of(new HandLift(pose.share(), HandPassView.toHandPass(source, camera.rotation(),
                 camera.getFov(), HandPassView.frameBob(mc)),
-                drawnShapeAt(pose, now).scaled(stackShareOf(mc.player.getId())), pose.stand(),
+                drawnShapeAt(pose, now).scaled(stackShareOf(mc.player.getId(), now)), pose.stand(),
                 facingInView(javelin, camera), PalmJavelin.formOf(delivery), javelin));
     }
 
