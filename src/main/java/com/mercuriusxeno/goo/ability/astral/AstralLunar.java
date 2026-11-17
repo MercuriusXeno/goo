@@ -38,7 +38,10 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class AstralLunar {
 
-    /** The tell a cast looking at neither the moon nor the star shows. */
+    /**
+     * The tell a cast looking at neither the moon nor the star shows, "That's no moon!", once a press.
+     * decision lunar-refusal-says-thats-no-moon
+     */
     static final String TELL_REFUSED = "goo.ability.astral.lunar.refused";
     /** How far a held caster may drift from where they cast before the server sets them back, in blocks. */
     private static final double DRIFT = 1e-3;

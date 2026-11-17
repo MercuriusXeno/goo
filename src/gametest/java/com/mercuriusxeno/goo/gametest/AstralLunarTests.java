@@ -11,7 +11,10 @@ import com.mercuriusxeno.goo.network.GooStreamPayload;
 import com.mercuriusxeno.goo.network.SelfDeliveryTests;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypes;
+import io.netty.channel.embedded.EmbeddedChannel;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.chat.contents.TranslatableContents;
+import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -78,7 +81,11 @@ public final class AstralLunarTests {
     private static final String STAYED_ON_LUNAR = "A caster who let go of the star should stay on lunar, stands in %s";
     private static final String WAY_HOME_KEPT = "A caster who let go of the star should keep their way home";
     private static final String REFUSED = "Lunar held looking at neither moon nor star should hold no fixation";
-    private static final String STAYED = "A refused Lunar should leave the caster where they stood, %s, stands %s";
+    private static final String REFUSED_ONCE = "A press held %d ticks at neither moon nor star should show the refusal"
+            + " once, showed it %d times";
+    /** The lang key Lunar's refusal reads, the one AstralLunar.TELL_REFUSED names. */
+    private static final String REFUSAL_KEY = "goo.ability.astral.lunar.refused";
+    private static final String STAYED ="A refused Lunar should leave the caster where they stood, %s, stands %s";
 
     private AstralLunarTests() {
     }
@@ -207,7 +214,9 @@ public final class AstralLunarTests {
     }
 
     /**
-     * A caster holding the cast looking at the ground holds no fixation and stays where they stood.
+     * A caster holding the cast looking at the ground holds no fixation, stays where they stood, and is shown the
+     * refusal once for the whole press, not once a held tick.
+     * decision lunar-refusal-says-thats-no-moon
      *
      * @param helper the gametest helper
      */
@@ -215,15 +224,39 @@ public final class AstralLunarTests {
         ServerPlayer caster = caster(helper);
         face(caster, new Vec3(0, -1, 0));
         Vec3 stood = caster.position();
+        refusalsSentTo(caster);
         holdFor(helper, caster, 1, LET_GO_AFTER);
-        helper.runAfterDelay(LET_GO_AFTER, () -> helper.assertFalse(
-                caster.getData(GooAttachments.LUNAR_FIXATION).stands(), REFUSED));
+        helper.runAfterDelay(LET_GO_AFTER, () -> {
+            helper.assertFalse(caster.getData(GooAttachments.LUNAR_FIXATION).stands(), REFUSED);
+            int refusals = refusalsSentTo(caster);
+            helper.assertTrue(refusals == 1, String.format(REFUSED_ONCE, LET_GO_AFTER, refusals));
+        });
         helper.runAfterDelay(PAST_THE_FIXATION, () -> {
             helper.assertTrue(caster.level() == helper.getLevel() && caster.position().distanceTo(stood) < SAME_SPOT,
                     String.format(STAYED, stood, caster.position()));
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.succeed();
         });
+    }
+
+    /**
+     * Counts, and drains, the action bar lines carrying Lunar's refusal the server has sent the caster since the
+     * last count: the mock connection's embedded channel keeps every packet sent through it.
+     *
+     * @param caster the caster
+     * @return the refusals sent
+     */
+    private static int refusalsSentTo(ServerPlayer caster) {
+        EmbeddedChannel channel = (EmbeddedChannel) caster.connection.getConnection().channel();
+        int refusals = 0;
+        for (Object sent = channel.readOutbound(); sent != null; sent = channel.readOutbound()) {
+            if (sent instanceof ClientboundSystemChatPacket line && line.overlay()
+                    && line.content().getContents() instanceof TranslatableContents said
+                    && REFUSAL_KEY.equals(said.getKey())) {
+                refusals++;
+            }
+        }
+        return refusals;
     }
 
     private static ServerPlayer caster(GameTestHelper helper) {
