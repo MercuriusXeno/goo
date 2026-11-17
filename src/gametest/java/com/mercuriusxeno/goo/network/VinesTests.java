@@ -21,8 +21,10 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
@@ -31,11 +33,13 @@ import java.util.function.Consumer;
  * striking stone's top lays a one-layer Vines cell there, and a husk walking
  * across a full Vines cell is held in place on it; a hit on a held zombie
  * ends every vine and eats a layer of the cell that rooted it, and a zombie
- * struggling against its vines until they let go takes no harm from them.
+ * struggling against its vines until they let go takes no harm from them;
+ * a player under Barkskin standing on a full cell takes no vines from it.
  * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
  * vines-root-is-volume-based-one-to-five-vines-by-layers
  * vines-deal-no-thorn-damage-and-attacking-the-mob-frees-it
  * entangled-mob-taking-damage-eats-a-layer-of-vines-goo
+ * barkskin-makes-you-immune-to-vines
  */
 @RegistersGameTests
 public final class VinesTests {
@@ -71,6 +75,13 @@ public final class VinesTests {
     private static final String SHOULD_BE_FREED = "The hit should end every vine on the zombie, it holds %s";
     private static final String SHOULD_TAKE_THE_HIT = "The zombie should take the hit's %.1f, its health fell from %.2f to %.2f";
     private static final String SHOULD_EAT_A_LAYER = "The cell that rooted the zombie should stand at 14 layers, stands %s";
+    private static final String BARKSKIN_SPARES = "vines_spare_a_player_under_barkskin";
+    private static final Identifier LEAF_BARKSKIN = Identifier.parse("goo:leaf_barkskin");
+    /** A second full cell set into the lane, two blocks east of the first, where the bare player stands. */
+    private static final BlockPos SECOND_FULL_CELL = FULL_CELL.east(2);
+    private static final String BARE_SHOULD_BE_HELD = "The player without Barkskin should be held by the cell's vines, "
+            + "holds %s";
+    private static final String BARKED_SHOULD_BE_SPARED = "The player under Barkskin should hold no vines, holds %s";
     private static final String SHOULD_BE_UNHARMED = "The zombie should end its root at the health it began with, %.2f, "
             + "stands at %.2f";
 
@@ -88,6 +99,7 @@ public final class VinesTests {
         GooTestFunctions.registerTest(registrar, HIT_ENDS_THE_ROOT, VinesTests::vinesHitEndsTheRootAndEatsALayer);
         GooTestFunctions.registerTest(registrar, ROOT_RUNS_OUT_HARMLESS,
                 VinesTests::vinesRootRunsOutAndLeavesItsMobUnharmed);
+        GooTestFunctions.registerTest(registrar, BARKSKIN_SPARES, VinesTests::vinesSpareAPlayerUnderBarkskin);
     }
 
     /**
@@ -185,6 +197,42 @@ public final class VinesTests {
             helper.assertTrue(zombie.getHealth() == start, String.format(SHOULD_BE_UNHARMED, start,
                     zombie.getHealth()));
         });
+    }
+
+    /**
+     * A mock player who cast Barkskin and a bare mock player each stand on a
+     * fifteen layer Vines cell for a few of their own ticks: the bare player
+     * is held by the cell's vines and the barkskinned player holds none.
+     *
+     * @param helper the gametest helper
+     */
+    public static void vinesSpareAPlayerUnderBarkskin(GameTestHelper helper) {
+        layLane(helper);
+        layCell(helper, FULL_CELL, VolumeCellBlock.MAX_LAYERS);
+        layCell(helper, SECOND_FULL_CELL, VolumeCellBlock.MAX_LAYERS);
+        ServerPlayer barked = HeartOverlayTests.selfInvoked(helper, GooTypes.LEAF, LEAF_BARKSKIN);
+        ServerPlayer bare = SelfDeliveryTests.invoker(helper, GooTypes.LEAF);
+        // the mock player helper makes a creative player; a survival one is what the vines reach
+        bare.setGameMode(GameType.SURVIVAL);
+        bare.connection.markClientLoaded();
+        standOn(helper, barked, FULL_CELL);
+        standOn(helper, bare, SECOND_FULL_CELL);
+        SelfDeliveryTests.tickFor(helper, barked, SETTLE_TICKS);
+        SelfDeliveryTests.tickFor(helper, bare, SETTLE_TICKS);
+        helper.runAfterDelay(SETTLE_TICKS + 1, () -> {
+            Rooted onBare = bare.getData(GooAttachments.ROOTED);
+            Rooted onBarked = barked.getData(GooAttachments.ROOTED);
+            helper.getLevel().getServer().getPlayerList().remove(barked);
+            helper.getLevel().getServer().getPlayerList().remove(bare);
+            helper.assertTrue(onBare.vines() == VineHold.MOST_VINES, String.format(BARE_SHOULD_BE_HELD, onBare));
+            helper.assertTrue(onBarked.vines() == 0, String.format(BARKED_SHOULD_BE_SPARED, onBarked));
+            helper.succeed();
+        });
+    }
+
+    private static void standOn(GameTestHelper helper, ServerPlayer player, BlockPos cell) {
+        Vec3 top = Vec3.atBottomCenterOf(helper.absolutePos(cell.above()));
+        player.setPos(top.x, top.y, top.z);
     }
 
     /**
