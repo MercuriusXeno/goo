@@ -1,52 +1,115 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.ability.TravelForm;
+import com.mercuriusxeno.goo.ability.crystal.StackHover;
+import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
+import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.client.throwing.JavelinTurn;
+import com.mercuriusxeno.goo.network.KnifeRainSling;
 import com.mercuriusxeno.goo.network.StackFormedPayload;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+import org.jspecify.annotations.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
  * Dart's stacked javelins on this client, as the server counts them for each
- * caster: the local player's left click throws only while one stands formed,
- * and the shink plays as each of the local player's javelins forms.
+ * caster: they hover side by side over the caster's lifted blob cube, each
+ * pointing along the look, each new one spawning at the cube's top and
+ * growing as it rises to its slot. The local player's left click throws only
+ * while one stands formed, and the shink plays as each of the local player's
+ * javelins forms.
  * decision dart-stacks-three-javelins-one-per-ten-ticks
+ * decision dart-javelins-hover-over-the-shrinking-blob-cube
  * decision dart-shinks-as-it-forms-and-pitched-down-as-it-reverts
+ * decision dart-flutes-draw-as-fins
  */
+@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class HeldJavelins {
 
-    /** Each caster's javelins formed, by entity id. */
-    private static final Map<Integer, Integer> FORMED = new HashMap<>();
+    /** Ticks a javelin takes to rise from the cube's top to its slot. */
+    static final double EASE_TICKS = HoveringKnives.EASE_TICKS;
+
+    /** Each caster's stack, by entity id. */
+    private static final Map<Integer, Stack> STACKS = new HashMap<>();
 
     private HeldJavelins() {
     }
 
     /**
-     * Takes the count the server sent for a caster.
+     * A caster's stack: the javelins formed, the count before the last
+     * change, and the game time it changed.
+     *
+     * @param count     the javelins formed
+     * @param previous  the javelins formed before the change
+     * @param changedAt the game time of the change
+     */
+    record Stack(int count, int previous, long changedAt) {
+    }
+
+    /**
+     * Takes the count the server sent for a caster, shinking for each new
+     * javelin of the local player's.
      *
      * @param payload the formed count
      * @param context the network context
      */
     public static void onPayload(StackFormedPayload payload, IPayloadContext context) {
-        context.enqueueWork(() -> formed(payload.casterId(), payload.formed()));
+        context.enqueueWork(() -> {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.level == null) {
+                return;
+            }
+            int before = formedBy(payload.casterId());
+            formed(payload.casterId(), payload.formed(), mc.level.getGameTime());
+            LocalPlayer local = mc.player;
+            if (local != null && local.getId() == payload.casterId() && payload.formed() > before) {
+                GloveUseTracker.shink(local, JavelinTurn.FORMS);
+            }
+        });
     }
 
     /**
-     * Records a caster's formed count, shinking for each new javelin of the local player's.
+     * Records a caster's formed count at a game time: 0 drops the stack.
      *
      * @param casterId the caster's entity id
-     * @param formed   the javelins formed, 0 once the hold ends
+     * @param formed   the javelins formed
+     * @param now      the game time
      */
-    static void formed(int casterId, int formed) {
-        Integer was = formed > 0 ? FORMED.put(casterId, formed) : FORMED.remove(casterId);
-        int before = was == null ? 0 : was;
-        LocalPlayer local = Minecraft.getInstance().player;
-        if (local != null && local.getId() == casterId && formed > before) {
-            GloveUseTracker.shink(local, JavelinTurn.FORMS);
+    static void formed(int casterId, int formed, long now) {
+        if (formed <= 0) {
+            STACKS.remove(casterId);
+            return;
         }
+        Stack was = STACKS.get(casterId);
+        STACKS.put(casterId, new Stack(formed, was == null ? 0 : was.count(), now));
+    }
+
+    /**
+     * A caster's stack.
+     *
+     * @param casterId the caster's entity id
+     * @return the stack, or null where the caster holds no javelins
+     */
+    static @Nullable Stack stackOf(int casterId) {
+        return STACKS.get(casterId);
     }
 
     /**
@@ -56,11 +119,95 @@ public final class HeldJavelins {
      * @return the javelins, 0 for a caster holding none
      */
     public static int formedBy(int casterId) {
-        return FORMED.getOrDefault(casterId, 0);
+        Stack stack = STACKS.get(casterId);
+        return stack == null ? 0 : stack.count();
     }
 
-    /** Drops every count, as a disconnect does. */
+    /**
+     * Where a javelin of the stack stands an age after its last change over
+     * the cube: at its slot for one formed before the change, and for one the
+     * change formed, rising from the cube's top as it forms to its slot.
+     *
+     * @param stack the stack
+     * @param index the javelin's index
+     * @param cube  the lifted blob cube's center
+     * @param xRot  the caster's view pitch in degrees
+     * @param yRot  the caster's view yaw in degrees
+     * @param age   ticks since the change, with the partial tick
+     * @return the javelin's point
+     */
+    static Vec3 javelinAt(Stack stack, int index, Vec3 cube, float xRot, float yRot, double age) {
+        Vec3 slot = StackHover.pointOf(cube, xRot, yRot, StackHover.javelinSlot(index));
+        if (index < stack.previous()) {
+            return slot;
+        }
+        Vec3 spawn = StackHover.pointOf(cube, xRot, yRot, StackHover.spawnSlot(index, StackHover.JAVELINS));
+        return spawn.lerp(slot, HoveringKnives.easedAt(age));
+    }
+
+    /**
+     * The heading every javelin of a stack points along: the caster's look.
+     *
+     * @param xRot the caster's view pitch in degrees
+     * @param yRot the caster's view yaw in degrees
+     * @return the unit heading
+     */
+    static Vec3 headingOf(float xRot, float yRot) {
+        return Vec3.directionFromRotation(xRot, yRot);
+    }
+
+    /** Drops every stack, as a disconnect does. */
     public static void clear() {
-        FORMED.clear();
+        STACKS.clear();
+    }
+
+    /**
+     * Draws every caster's stack after translucent blocks, each javelin as
+     * the dart form in its caster's goo, pointing along the caster's look.
+     *
+     * @param event the level render stage event
+     */
+    @SubscribeEvent
+    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || STACKS.isEmpty()) {
+            return;
+        }
+        float partial = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        double now = mc.level.getGameTime() + partial;
+        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        for (Map.Entry<Integer, Stack> entry : STACKS.entrySet()) {
+            if (mc.level.getEntity(entry.getKey()) instanceof Player caster) {
+                drawStack(event.getPoseStack(), buffers, caster, entry.getValue(), now, partial, camera);
+            }
+        }
+        buffers.endBatch(GooSubmitter.renderType());
+    }
+
+    private static void drawStack(PoseStack poseStack, MultiBufferSource buffers, Player caster, Stack stack,
+                                  double now, float partial, Vec3 camera) {
+        float xRot = caster.getViewXRot(partial);
+        float yRot = caster.getViewYRot(partial);
+        Vec3 cube = LiftedPalmBlob.blobOf(caster.getId(), partial).map(LiftedPalmBlob.Blob::place)
+                .orElseGet(() -> StackHover.cubeCenterInView(caster.getEyePosition(partial), xRot, yRot,
+                        KnifeRainSling.gloveOnTheRight(caster)));
+        double age = now - stack.changedAt();
+        for (int index = 0; index < stack.count(); index++) {
+            Vec3 at = javelinAt(stack, index, cube, xRot, yRot, age).subtract(camera);
+            poseStack.pushPose();
+            poseStack.translate(at.x, at.y, at.z);
+            GooFlightRenderer.emitTravelForm(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()),
+                    gooTypeOf(caster), TravelForm.DART, headingOf(xRot, yRot),
+                    index < stack.previous() ? 1f : HoveringKnives.easedAt(age));
+            poseStack.popPose();
+        }
+    }
+
+    // The goo a caster's javelins draw in: the glove's selected type, Metal's where it names none.
+    private static ResourceKey<GooTypeDefinition> gooTypeOf(Player caster) {
+        GloveSelection selection = GloveThrowSender.heldSelection(caster);
+        ResourceKey<GooTypeDefinition> type = selection == null ? null : selection.getGooType();
+        return type == null ? GooTypes.METAL : type;
     }
 }

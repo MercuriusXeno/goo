@@ -148,7 +148,7 @@ public final class HoveringKnives {
         return index < fan.previous() ? 1f : easedAt(age);
     }
 
-    private static float easedAt(double age) {
+    static float easedAt(double age) {
         float share = (float) Math.clamp(age / EASE_TICKS, 0.0, 1.0);
         return share * share * (SMOOTH_SQUARE - SMOOTH_CUBE * share);
     }
