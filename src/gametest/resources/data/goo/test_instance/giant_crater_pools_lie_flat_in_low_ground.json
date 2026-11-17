@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:giant_crater_pools_lie_flat_in_low_ground",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 400,
+  "setup_ticks": 0,
+  "required": true
+}

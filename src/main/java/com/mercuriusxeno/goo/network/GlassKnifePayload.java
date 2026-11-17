@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
-import net.minecraft.network.FriendlyByteBuf;
+import io.netty.buffer.ByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
@@ -9,18 +10,17 @@ import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.NonNull;
 
 /**
- * Server-to-client payload: one of Knives' glass knives left the hand, for
- * every client watching to fly along the same arc to where it ends
- * (decision knives-sling-then-morph-to-flechettes).
+ * Server-to-client payload: one of Knives' glass knives left its fan slot
+ * homing on its mob, for every client watching to fly it the same way, each
+ * tick turning toward where the mob stands on that client.
+ * decision knives-sling-then-morph-to-flechettes
+ * decision knives-home-on-their-painted-mob
  *
- * @param start    where it left the hand
- * @param velocity its velocity leaving the hand, in blocks a tick
- * @param ticks    the ticks it flies before it ends
- * @param end      where it ends: in a block, in a mob, or in the air once spent
- * @param ending   how it ends, a {@link Ending} ordinal
+ * @param start     where it left its fan slot
+ * @param mobId     the entity id of the mob it homes on
+ * @param lastKnown where the mob stood as the knife left, which the knife flies to should the mob be gone
  */
-public record GlassKnifePayload(Vec3 start, Vec3 velocity, int ticks, Vec3 end, int ending)
-        implements CustomPacketPayload {
+public record GlassKnifePayload(Vec3 start, int mobId, Vec3 lastKnown) implements CustomPacketPayload {
 
     /** How a knife's flight ends. */
     public enum Ending {
@@ -28,7 +28,7 @@ public record GlassKnifePayload(Vec3 start, Vec3 velocity, int ticks, Vec3 end, 
         STUCK,
         /** It strikes a mob and shatters. */
         STRUCK,
-        /** It flew its whole flight and shatters in the air. */
+        /** Its mob was gone, or its flight ran out, and it shatters in the air. */
         SPENT
     }
 
@@ -37,33 +37,14 @@ public record GlassKnifePayload(Vec3 start, Vec3 velocity, int ticks, Vec3 end, 
             new Type<>(Identifier.fromNamespaceAndPath(Goo.MODID, "glass_knife"));
 
     /** Stream codec for encoding/decoding. */
-    public static final StreamCodec<FriendlyByteBuf, GlassKnifePayload> STREAM_CODEC =
-            StreamCodec.of(GlassKnifePayload::encode, GlassKnifePayload::decode);
+    public static final StreamCodec<ByteBuf, GlassKnifePayload> STREAM_CODEC = StreamCodec.composite(
+            Vec3.STREAM_CODEC, GlassKnifePayload::start,
+            ByteBufCodecs.VAR_INT, GlassKnifePayload::mobId,
+            Vec3.STREAM_CODEC, GlassKnifePayload::lastKnown,
+            GlassKnifePayload::new);
 
     @Override
     public @NonNull Type<? extends CustomPacketPayload> type() {
         return TYPE;
-    }
-
-    private static void encode(FriendlyByteBuf buf, GlassKnifePayload payload) {
-        buf.writeDouble(payload.start.x);
-        buf.writeDouble(payload.start.y);
-        buf.writeDouble(payload.start.z);
-        buf.writeDouble(payload.velocity.x);
-        buf.writeDouble(payload.velocity.y);
-        buf.writeDouble(payload.velocity.z);
-        buf.writeVarInt(payload.ticks);
-        buf.writeDouble(payload.end.x);
-        buf.writeDouble(payload.end.y);
-        buf.writeDouble(payload.end.z);
-        buf.writeVarInt(payload.ending);
-    }
-
-    private static GlassKnifePayload decode(FriendlyByteBuf buf) {
-        Vec3 start = new Vec3(buf.readDouble(), buf.readDouble(), buf.readDouble());
-        Vec3 velocity = new Vec3(buf.readDouble(), buf.readDouble(), buf.readDouble());
-        int ticks = buf.readVarInt();
-        Vec3 end = new Vec3(buf.readDouble(), buf.readDouble(), buf.readDouble());
-        return new GlassKnifePayload(start, velocity, ticks, end, buf.readVarInt());
     }
 }

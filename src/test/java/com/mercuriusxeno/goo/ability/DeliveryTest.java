@@ -117,12 +117,11 @@ class DeliveryTest {
             assertEquals(60, delivery.chargeTicks());
         }
 
-        // knives-sling-then-morph-to-flechettes
-        // knives-cone-five-to-forty-five-and-three-to-twenty-seven-knives
+        // knives-form-in-fibonacci-stages-to-twelve
         @Test
-        void crystalKnivesChargesARainOfKnives() {
+        void crystalKnivesFormsItsKnivesInStages() {
             Delivery knives = AbilityJson.decode("crystal_knives").delivery();
-            assertTrue(knives.charge().slings());
+            assertTrue(knives.charge().formsInStages());
         }
 
         // knives-aims-a-spread-fan-not-a-blob-line
