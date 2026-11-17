@@ -184,7 +184,7 @@ public final class GooStreamHandler {
             SoundPlays.playExcept(player.level(), player, player.getEyePosition(), cue);
         } else {
             // diagnose-and-correct-the-spray-squelch-playing-in-one-ear
-            SoundPlays.playAtListener(player, player.getEyePosition(), cue);
+            SoundPlays.playAtListener(player.level(), player, player.getEyePosition(), cue);
         }
     }
 

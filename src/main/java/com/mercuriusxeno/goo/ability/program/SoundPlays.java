@@ -61,21 +61,41 @@ public final class SoundPlays {
      * diagnose-and-correct-the-spray-squelch-playing-in-one-ear
      * goo-sound-at-the-listener-reaches-both-ears
      *
+     * @param level    the level everyone else hears it in
      * @param listener the player at whose head the sound plays
      * @param at       the point everyone else hears it at
      * @param cue      the evaluated sound
      */
-    public static void playAtListener(ServerPlayer listener, Vec3 at, SoundCue cue) {
+    public static void playAtListener(ServerLevel level, ServerPlayer listener, Vec3 at, SoundCue cue) {
         ListenerSoundPayload atEars = new ListenerSoundPayload(cue);
         // a connection that never negotiated the payload hears the positioned play rather than nothing
         boolean hearsAtEars = listener.connection.hasChannel(atEars);
         resolved(cue.sound()).ifPresent(holder -> {
-            listener.level().playSound(hearsAtEars ? listener : null, at.x(), at.y(), at.z(), holder,
-                    sourceOf(cue.source()), cue.volume(), cue.pitch());
+            level.playSound(hearsAtEars ? listener : null, at.x(), at.y(), at.z(), holder, sourceOf(cue.source()),
+                    cue.volume(), cue.pitch());
             if (hearsAtEars) {
                 PacketDistributor.sendToPlayer(listener, atEars);
             }
         });
+    }
+
+    /**
+     * Plays the cue at a point on or beside a body: at the listener for a
+     * player, as {@link #playAtListener} plays it, and at the point for
+     * everyone where the body is no player.
+     * goo-sound-at-the-listener-reaches-both-ears
+     *
+     * @param level the level to play in
+     * @param body  the body the sound sits on or beside
+     * @param at    the point the sound plays at
+     * @param cue   the evaluated sound
+     */
+    public static void playAtHeadOf(ServerLevel level, Entity body, Vec3 at, SoundCue cue) {
+        if (body instanceof ServerPlayer player) {
+            playAtListener(level, player, at, cue);
+        } else {
+            play(level, at, cue);
+        }
     }
 
     /**
