@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.throwing;
 
+import com.mercuriusxeno.goo.lunar.LunarGravity;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
@@ -24,11 +27,21 @@ public final class DripArc {
     public static final double GRAVITY = 0.03;
     /** The share of a drip's velocity air keeps each tick, a thrown projectile's inertia out of water. */
     public static final double DRAG = 0.99F;
-    private static final Vec3 PULL = new Vec3(0, -GRAVITY, 0);
     /** The living near a drip that strikes no living thing: none. */
     public static final LivingNear NO_LIVING = (from, to) -> List.of();
 
     private DripArc() {
+    }
+
+    /**
+     * The pull gravity puts on a drip's velocity each tick in a dimension: one sixth of the overworld's in lunar.
+     * decision lunar-gravity-is-one-sixth-of-the-overworlds
+     *
+     * @param dimension the dimension the drip flies in
+     * @return the pull, blocks per tick per tick
+     */
+    public static double gravityIn(ResourceKey<Level> dimension) {
+        return GRAVITY * LunarGravity.scaleIn(dimension);
     }
 
     /**
@@ -133,8 +146,33 @@ public final class DripArc {
      */
     public static Step step(Vec3 position, Vec3 launched, CoatRay.BlockClip clip, LivingNear living,
                             Airspace airspace) {
-        Vec3 velocity = launched.add(PULL).scale(DRAG);
-        return moveAlong(position, position.add(velocity), velocity, clip, living, airspace);
+        return step(position, launched, new Flight(clip, living, airspace, GRAVITY));
+    }
+
+    /**
+     * What a drip's flight runs against: the blocks and the living it may meet, where it may fly, and the gravity
+     * pulling it.
+     *
+     * @param clip     the blocks its segment may meet
+     * @param living   the living its segment may meet
+     * @param airspace where it may fly
+     * @param gravity  the pull on the drip each tick, {@link #gravityIn} the dimension it flies in
+     */
+    public record Flight(CoatRay.BlockClip clip, LivingNear living, Airspace airspace, double gravity) {
+    }
+
+    /**
+     * One tick of a drip's flight under its flight's gravity, as {@link #step} steps it.
+     *
+     * @param position where the drip stands
+     * @param launched its velocity before the tick, blocks per tick
+     * @param flight   what the flight runs against
+     * @return where the tick leaves it
+     */
+    public static Step step(Vec3 position, Vec3 launched, Flight flight) {
+        Vec3 velocity = launched.add(0, -flight.gravity(), 0).scale(DRAG);
+        return moveAlong(position, position.add(velocity), velocity, flight.clip(), flight.living(),
+                flight.airspace());
     }
 
     /**
@@ -208,9 +246,21 @@ public final class DripArc {
      * @return the step that ends it: its strike, or where it left the airspace unstruck
      */
     public static Step flyToItsEnd(Vec3 position, Vec3 velocity, CoatRay.BlockClip clip, Airspace airspace) {
-        Step step = step(position, velocity, clip, airspace);
+        return flyToItsEnd(position, velocity, new Flight(clip, NO_LIVING, airspace, GRAVITY));
+    }
+
+    /**
+     * Flies a drip from its launch to its end under its flight's gravity.
+     *
+     * @param position where the drip leaves
+     * @param velocity its launch velocity, blocks per tick
+     * @param flight   what the flight runs against
+     * @return the step that ends it: its strike, or where it left the airspace unstruck
+     */
+    public static Step flyToItsEnd(Vec3 position, Vec3 velocity, Flight flight) {
+        Step step = step(position, velocity, flight);
         while (!step.ended()) {
-            step = step(step.position(), step.velocity(), clip, airspace);
+            step = step(step.position(), step.velocity(), flight);
         }
         return step;
     }
