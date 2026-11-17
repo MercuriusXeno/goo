@@ -14,6 +14,8 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -150,10 +152,12 @@ class AimStateTest {
             assertEquals(0f, aimingAt(slime).markFor(bystander, NOW).strength());
         }
 
-        @Test
-        void aMobTheChanneledAimLocksCarriesTheMark() {
+        // residual-badge-marks-the-four-goo-sprays
+        @ParameterizedTest
+        @EnumSource(value = AbilityBadge.class, names = {"CHANNELED", "RESIDUAL"})
+        void aMobTheChanneledAimLocksCarriesTheMark(AbilityBadge badge) {
             AimState aim = new AimState();
-            aim.update(seed -> AimTargets.resolveFor(TargetingHint.of(AbilityBadge.CHANNELED),
+            aim.update(seed -> AimTargets.resolveFor(TargetingHint.of(badge),
                     new LockedSources(slime)), OUTLINE);
 
             assertTrue(aim.markFor(slime, NOW).strength() > 0f);

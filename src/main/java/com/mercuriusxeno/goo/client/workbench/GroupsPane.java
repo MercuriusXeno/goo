@@ -667,7 +667,7 @@ final class GroupsPane {
                 Palette.MUTED);
         BuilderOverlays.control(graphics, font, ADD_MEMBER, null,
                 detail.left() + font.width(MEMBERS_LABEL) + BuilderOverlays.GAP, top, targets,
-                at -> overlays.openDropdown(at, SearchDropdown.overMembers(values.entries()),
+                at -> overlays.openDropdown(at, SearchDropdown.overMembers(values.entries(), values.itemlessBlocks()),
                         choice -> apply(groups.addPickRequest(choice.id()))));
         return top + ROW_HEIGHT;
     }
@@ -726,7 +726,7 @@ final class GroupsPane {
     // a custom group's, numbers each member and draws its rail (decision custom-group-members-drag-by-numbered-rails).
     private int drawCards(GuiGraphicsExtractor graphics, Font font, Bounds detail, int top, boolean railed,
                           ClickTargets targets) {
-        List<GroupsTab.MemberRow> members = groups.memberRows(values.entries());
+        List<GroupsTab.MemberRow> members = groups.memberRows(values.entries(), values.itemlessBlocks());
         String selected = groups.selectedMember().orElse(NO_TEXT);
         memberRails.layList(top, members.size());
         for (int index = 0; index < members.size(); index++) {

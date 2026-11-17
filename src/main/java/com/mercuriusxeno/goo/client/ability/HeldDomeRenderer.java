@@ -49,7 +49,6 @@ public final class HeldDomeRenderer {
     /** The ghost each goo type holds; a type with none draws no dome. */
     private static final Map<ResourceKey<GooTypeDefinition>, HeldGhostVisual> GHOSTS = Map.ofEntries(
             Map.entry(GooTypes.ASTRAL, MeteoBlastZone.INSTANCE),
-            Map.entry(GooTypes.CRYSTAL, CrystalExplosionVisual.INSTANCE),
             Map.entry(GooTypes.LEAF, LeafHeldGhost.INSTANCE),
             Map.entry(GooTypes.FROST, FrostExplosionVisual.INSTANCE),
             Map.entry(GooTypes.JELLY, MoteCloudGhost.JELLY),

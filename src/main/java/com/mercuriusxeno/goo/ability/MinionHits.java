@@ -27,7 +27,7 @@ public final class MinionHits {
     @SubscribeEvent
     public static void onIncomingDamage(LivingIncomingDamageEvent event) {
         if (!event.getEntity().level().isClientSide()
-                && cancels(Minions.isMinion(event.getSource().getEntity()), Minions.isMinion(event.getEntity()))) {
+                && cancels(Minions.isMinion(GooHitCredit.causeOf(event.getSource())), Minions.isMinion(event.getEntity()))) {
             event.setCanceled(true);
         }
     }

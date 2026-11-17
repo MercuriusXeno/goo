@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.ability.blockmap.BlockMaps;
 import com.mercuriusxeno.goo.ability.quantum.PortalChoice;
 import com.mercuriusxeno.goo.command.GooCommand;
 import com.mercuriusxeno.goo.command.ValuesManagers;
+import com.mercuriusxeno.goo.data.GooGroups;
 import com.mercuriusxeno.goo.data.GooReactionLoader;
 import com.mercuriusxeno.goo.data.GooReactionSource;
 import com.mercuriusxeno.goo.data.GooValues;
@@ -81,6 +82,8 @@ public final class GooEventWiring {
         event.addListener(BlockMaps.LISTENER_ID, new BlockMaps());
         // old-blob-ages-valuables-slowly: the table an aging throw is priced and refused by
         event.addListener(AgingTable.LISTENER_ID, new AgingTable());
+        // this-becomes-that-is-two-parallel-groups-in-the-goo-workbench: the groups an ability pairs by position
+        event.addListener(GooGroups.LISTENER_ID, new GooGroups());
     }
 
     /**
@@ -118,6 +121,7 @@ public final class GooEventWiring {
         GooServerState.of(event.getServer()).clear();
         BlockMaps.clear();
         AgingTable.clear();
+        GooGroups.clear();
         Aging.clear();
     }
 

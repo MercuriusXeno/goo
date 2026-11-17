@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.ability;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -17,10 +19,16 @@ class HeldRouteTest {
     private static final Delivery SELF = Delivery.of(DeliveryKind.SELF);
     private static final Delivery STREAM = Delivery.of(DeliveryKind.STREAM);
 
-    @Test
-    void streamRunsWhileHeldButIsNoChannel() {
-        assertTrue(HeldRoute.runsWhileHeld(STREAM, AbilityBadge.CHANNELED));
-        assertFalse(HeldRoute.channelsOnSelf(STREAM, AbilityBadge.CHANNELED));
+    /**
+     * decision residual-badge-marks-the-four-goo-sprays
+     *
+     * @param badge the stream's badge
+     */
+    @ParameterizedTest
+    @EnumSource(value = AbilityBadge.class, names = {"CHANNELED", "RESIDUAL"})
+    void streamRunsWhileHeldButIsNoChannel(AbilityBadge badge) {
+        assertTrue(HeldRoute.runsWhileHeld(STREAM, badge));
+        assertFalse(HeldRoute.channelsOnSelf(STREAM, badge));
     }
 
     @Test
