@@ -1,5 +1,10 @@
 {
   "variants": {
-    "": { "model": "goo:block/anorthosite" }
+    "": [
+      { "model": "goo:block/anorthosite" },
+      { "model": "goo:block/anorthosite_2" },
+      { "model": "goo:block/anorthosite_3" },
+      { "model": "goo:block/anorthosite_4" }
+    ]
   }
 }

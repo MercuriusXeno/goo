@@ -2,17 +2,19 @@ package com.mercuriusxeno.goo.ability.quantum;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
+import com.mercuriusxeno.goo.ability.program.SoundCue;
+import com.mercuriusxeno.goo.ability.program.SoundKind;
+import com.mercuriusxeno.goo.ability.program.SoundPlays;
 import com.mercuriusxeno.goo.ability.zone.RoomEdges;
 import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.network.GateCarriedPayload;
-import com.mercuriusxeno.goo.registry.GooSounds;
+import com.mercuriusxeno.goo.registry.GooSoundIds;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Pose;
@@ -91,6 +93,8 @@ public final class GatePassage {
     private static final float DEGREES = (float) (180.0 / Math.PI);
     /** The whoosh's loudness: soft. */
     private static final float WHOOSH_VOLUME = 0.6f;
+    /** The whoosh a body crossing a linked pair plays at each end. */
+    private static final SoundCue WHOOSH = new SoundCue(GooSoundIds.PORTAL_CROSS, SoundKind.BLOCKS, WHOOSH_VOLUME, 1f);
 
     private static volatile List<Pair> serverPairs = List.of();
     private static volatile List<Pair> clientPairs = List.of();
@@ -511,7 +515,7 @@ public final class GatePassage {
         // stepping-through-plays-a-soft-whoosh-at-both-ends: players and mobs alone; a thrown blob, a projectile
         // or an item crosses silently
         if (entity instanceof LivingEntity && entity.level() instanceof ServerLevel from) {
-            whoosh(from, way.one(), target, way.other());
+            whoosh(from, way.one(), target, way.other(), entity);
         }
         entity.teleport(new TeleportTransition(target, landing.feet(), landing.motion(), landing.yaw(),
                 landing.pitch(), Set.of(), TeleportTransition.DO_NOTHING));
@@ -554,28 +558,26 @@ public final class GatePassage {
         player.setDeltaMovement(landing.motion());
         player.resetFallDistance();
         player.connection.resetPosition();
-        whoosh(player.level(), near, player.level(), far.get());
+        whoosh(player.level(), near, player.level(), far.get(), player);
     }
 
     /**
      * Plays the whoosh at the centre of the gate a body went in by and of the
-     * one it came out of, to everyone near either, the body too.
+     * one it came out of, to everyone near either, the body too: a player
+     * coming out stands at the exit's centre and hears its whoosh at the listener.
      * stepping-through-plays-a-soft-whoosh-at-both-ends
      * wormhole-mouths-take-the-whoosh-and-the-hum
+     * goo-sound-at-the-listener-reaches-both-ears
      *
      * @param inLevel  the level the gate gone in by stands in
      * @param in       the gate gone in by
      * @param outLevel the level the gate come out of stands in
      * @param out      the gate come out of
+     * @param crosser  the body crossing
      */
-    private static void whoosh(ServerLevel inLevel, Gate in, ServerLevel outLevel, Gate out) {
-        whooshAt(inLevel, in);
-        whooshAt(outLevel, out);
-    }
-
-    private static void whooshAt(ServerLevel level, Gate gate) {
-        Vec3 at = gate.center();
-        level.playSound(null, at.x(), at.y(), at.z(), GooSounds.PORTAL_CROSS, SoundSource.BLOCKS, WHOOSH_VOLUME, 1f);
+    private static void whoosh(ServerLevel inLevel, Gate in, ServerLevel outLevel, Gate out, Entity crosser) {
+        SoundPlays.play(inLevel, in.center(), WHOOSH);
+        SoundPlays.playAtHeadOf(outLevel, crosser, out.center(), WHOOSH);
     }
 
     /**
