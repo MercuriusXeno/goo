@@ -125,6 +125,18 @@ class LunarTextureMarksTest {
         assertTrue(shared.isEmpty(), "both blocks mark the same place: " + shared);
     }
 
+    static Stream<String> regolithSprites() {
+        return LunarPaletteTest.variantsOf("regolith").stream();
+    }
+
+    /** Regolith is speckless dust, anorthosite's pale parts ground down, so it shares no speck pattern with it. */
+    @ParameterizedTest
+    @MethodSource("regolithSprites")
+    void regolithDrawsNoDarkMark(String sprite) throws IOException {
+        Set<Texel> marks = darkMarksOf(gooBlock(sprite));
+        assertTrue(marks.isEmpty(), sprite + " draws dark marks at " + marks);
+    }
+
     static Stream<String> groundSprites() {
         return LunarPaletteTest.GROUND_SPRITES.stream();
     }
