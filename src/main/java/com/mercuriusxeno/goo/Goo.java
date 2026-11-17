@@ -71,6 +71,11 @@ public class Goo {
         GooCreativeTabs.TABS.register(modEventBus);
         GooRecipeSerializers.RECIPE_SERIALIZERS.register(modEventBus);
         GooDensityFunctions.DENSITY_FUNCTION_TYPES.register(modEventBus);
+        GooPlacementModifiers.PLACEMENT_MODIFIER_TYPES.register(modEventBus);
+        GooSurfaceRules.CONDITION_TYPES.register(modEventBus);
+        GooStructures.STRUCTURE_TYPES.register(modEventBus);
+        GooFeatures.FEATURES.register(modEventBus);
+        GooStructures.PIECE_TYPES.register(modEventBus);
     }
 
     /**

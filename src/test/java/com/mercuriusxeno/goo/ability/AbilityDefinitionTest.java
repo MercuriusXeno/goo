@@ -285,30 +285,30 @@ class AbilityDefinitionTest {
         }
 
         // crystal-shards-becomes-crystal-knives-everywhere
-        // knives-wears-the-free-badge
+        // held-badge-marks-abilities-that-prepare-and-throw
         @Test
-        void knivesDecodesAsTheFreeCrystalAbilityNamedKnives() {
+        void knivesDecodesAsTheHeldCrystalAbilityNamedKnives() {
             AbilityDefinition knives = AbilityJson.decode("crystal_knives");
             assertEquals("goo.ability.crystal.knives", knives.displayName());
-            assertEquals(AbilityBadge.FREE, knives.badge());
+            assertEquals(AbilityBadge.HELD, knives.badge());
         }
 
-        // knives-wears-the-free-badge
+        // held-badge-marks-abilities-that-prepare-and-throw
         @Test
-        void knivesStandsInTheCrystalFansFreeTierAfterEveryChanneledMobAndWorldAbility() {
+        void knivesStandsInTheCrystalFansHeldTierAfterEveryResidualAndChanneledAbility() {
             List<AbilityDefinition> fan = AbilityJson.files().stream().map(AbilityJson::decode)
                     .filter(ability -> ability.gooType().equals(GooTypes.CRYSTAL))
                     .sorted(AbilityBadge.fanOrder(AbilityDefinition::badge, AbilityDefinition::order)).toList();
             int knives = fan.indexOf(AbilityJson.decode("crystal_knives"));
             assertTrue(knives >= 0, "the crystal fan should hold Knives");
-            List<AbilityBadge> before = List.of(AbilityBadge.CHANNELED, AbilityBadge.MOB, AbilityBadge.WORLD);
+            List<AbilityBadge> before = List.of(AbilityBadge.RESIDUAL, AbilityBadge.CHANNELED);
             for (AbilityDefinition after : fan.subList(knives + 1, fan.size())) {
                 assertFalse(before.contains(after.badge()), after.id() + " badged " + after.badge()
                         + " should stand before Knives in the fan");
             }
         }
 
-        // knives-wears-the-free-badge: Knives slings knives and throws no blob, so it keeps no area
+        // knives-emerge-from-the-blob-and-hover-in-a-fan: Knives forms knives and throws no blob, so it keeps no area
         @Test
         void knivesKeepsTheAreaItsFileWroteNone() {
             assertEquals(AbilityArea.Shape.NONE, AbilityJson.decode("crystal_knives").area().shape());

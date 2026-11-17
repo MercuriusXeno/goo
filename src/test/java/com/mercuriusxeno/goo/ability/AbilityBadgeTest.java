@@ -172,9 +172,8 @@ class AbilityBadgeTest {
             case SELF -> definition.upkeep().in(GooValueTable.EMPTY) > AbilityDefinition.NO_UPKEEP
                     ? EnumSet.of(AbilityBadge.DURATIVE)
                     : holds ? EnumSet.of(AbilityBadge.CHANNELED, AbilityBadge.HELD) : EnumSet.of(AbilityBadge.SELF);
-            // knives-wears-the-free-badge: a charge slinging knives is a free cast
-            // held-badge-marks-abilities-that-prepare-and-throw
-            default -> definition.delivery().charge().slings() ? EnumSet.of(AbilityBadge.FREE)
+            // held-badge-marks-abilities-that-prepare-and-throw: a charge forming knives prepares and throws
+            default -> definition.delivery().charge().formsInStages() ? EnumSet.of(AbilityBadge.HELD)
                     : holds ? EnumSet.of(AbilityBadge.CHANNELED, AbilityBadge.HELD) : releasedBadges(definition);
         };
     }

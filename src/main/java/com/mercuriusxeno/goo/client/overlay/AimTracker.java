@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.client.ability.GrabFlail;
 import com.mercuriusxeno.goo.client.ability.PortalView;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
+import com.mercuriusxeno.goo.client.throwing.KnivesHoldSender;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -139,7 +140,8 @@ public final class AimTracker {
     public static void modifyEntityRenderState(Entity entity, EntityRenderState state) {
         // sweeping-grab-locks-every-item-the-highlight-passes: a locked item the aim left draws in the main frame
         TargetResult.@Nullable Passage passage = entity == STATE.aimedMob() ? STATE.target().passage() : null;
-        int color = outlineIn(STATE.outlineFor(entity, GrabFlail::grabbed), PortalView.extractingView(),
+        int color = outlineIn(STATE.outlineFor(entity, GrabFlail::grabbed, KnivesHoldSender::paints),
+                PortalView.extractingView(),
                 PortalView.extractingGate(), passage);
         if (color != 0) {
             state.outlineColor = color;

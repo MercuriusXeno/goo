@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:goop_poured_off_a_ledge_lands_when_its_drip_arrives",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}
