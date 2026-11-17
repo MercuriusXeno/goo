@@ -12,6 +12,7 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
@@ -21,8 +22,10 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
@@ -51,6 +54,13 @@ public final class SpikesTests {
     private static final int LANE_EAST = 5;
     /** The Spikes cell's offset east of the lane's start, sunk in the lane so its top lies flush with the stone. */
     private static final int CELL_EAST = 2;
+    private static final String SPIKES_IMPALE_A_STANDER = "spikes_impale_a_player_standing_still_on_them";
+    /** The standing player's cell, sunk in stone in the middle of the bay. */
+    private static final BlockPos STAND_FLOOR = new BlockPos(2, 1, 3);
+    /** Ticks the player stands still on the goo: past a joining player's 60 ticks of spawn immunity, and a cooldown more. */
+    private static final int STANDING_TICKS = 100;
+    private static final String NOT_IMPALED_STANDING = "A player standing still on a full Spikes cell for %d ticks"
+            + " should have lost at least %.2f health: %.2f at the start, %.2f now";
     private static final String NOT_CROSSED = "The zombie has not crossed the Spikes cell yet";
     private static final String NOT_IMPALED = "A zombie that crossed a full Spikes cell should have lost at least %.2f"
             + " health: %.2f at the start, %.2f now";
@@ -66,6 +76,8 @@ public final class SpikesTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, SPIKES_DRIP_LAYS_A_CELL, SpikesTests::spikesDripLaysAMetalCellOfOneLayer);
         GooTestFunctions.registerTest(registrar, SPIKES_IMPALE_A_WALKER, SpikesTests::spikesImpaleAZombieWalkingAcrossThem);
+        GooTestFunctions.registerTest(registrar, SPIKES_IMPALE_A_STANDER,
+                SpikesTests::spikesImpaleAPlayerStandingStillOnThem);
     }
 
     /**
@@ -120,6 +132,52 @@ public final class SpikesTests {
             helper.assertTrue(zombie.getHealth() <= started - strikeDamage,
                     String.format(NOT_IMPALED, strikeDamage, started, zombie.getHealth()));
         });
+    }
+
+    /**
+     * A survival player stands still on a full Spikes cell sunk in stone, sending no
+     * movement, as a player standing in the game does between its client's
+     * moves; after a while past the strike's cooldown its health reads lower
+     * than it started by at least the strike's damage, so the goo impales
+     * what stands on it as well as what walks.
+     *
+     * @param helper the gametest helper
+     */
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    public static void spikesImpaleAPlayerStandingStillOnThem(GameTestHelper helper) {
+        AbilityDefinition spikes = AbilityRegistry.of(helper.getLevel()).getAbility(SPIKES);
+        helper.assertTrue(spikes != null, ABILITY_REQUIRED);
+        float strikeDamage = strikeDamageOf(spikes);
+        BlockPos cell = STAND_FLOOR;
+        sinkInStone(helper, cell);
+        helper.setBlock(cell, GooBlocks.METAL_SPIKES.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        player.setGameMode(GameType.SURVIVAL);
+        Vec3 onTheGoo = Vec3.atBottomCenterOf(helper.absolutePos(cell.above()));
+        player.setPos(onTheGoo.x, onTheGoo.y, onTheGoo.z);
+        float started = player.getHealth();
+        helper.runAfterDelay(STANDING_TICKS, () -> {
+            float now = player.getHealth();
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(now <= started - strikeDamage,
+                    String.format(NOT_IMPALED_STANDING, STANDING_TICKS, strikeDamage, started, now));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Rings a cell with stone on bedrock, so a full cell set there has no
+     * neighbour to pour into and its top lies flush with the stone around it.
+     *
+     * @param helper the gametest helper
+     * @param cell   the cell, relative to the test
+     */
+    private static void sinkInStone(GameTestHelper helper, BlockPos cell) {
+        helper.setBlock(cell.below(), Blocks.BEDROCK);
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            helper.setBlock(cell.relative(side), Blocks.STONE);
+        }
     }
 
     /**

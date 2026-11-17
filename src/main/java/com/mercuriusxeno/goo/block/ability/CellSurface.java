@@ -81,17 +81,15 @@ public enum CellSurface {
      * Whether the cell, rather than the block under it, takes the step and
      * the ground friction of a thing standing on it at any height, a thin
      * cell's top lying above the depth vanilla reads them at: slick's ramp,
-     * shatter's cut, rime's slide and cold, and spikes' strike reach what
-     * stands on it.
+     * shatter's cut, and rime's slide and cold reach what stands on it.
      * slick-coats-the-ground-with-kinetic-speed
      * each-shatter-cut-has-a-chance-to-deplete-a-layer
      * rime-goo-is-slippery-to-walk-on
-     * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
      *
-     * @return true where the cell ramps, cuts, glazes or impales what stands on it
+     * @return true where the cell ramps, cuts or glazes what stands on it
      */
     public boolean takesTheStepAtAnyHeight() {
-        return ramps() || cuts() || this == GLAZE || this == IMPALE;
+        return ramps() || cuts() || this == GLAZE;
     }
 
     /**
