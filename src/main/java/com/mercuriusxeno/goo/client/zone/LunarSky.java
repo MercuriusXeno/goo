@@ -2,11 +2,14 @@ package com.mercuriusxeno.goo.client.zone;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.astral.LunarSight;
+import com.mercuriusxeno.goo.lunar.PlanetFace;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.ARGB;
 import net.minecraft.world.level.MoonPhase;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
 
@@ -34,16 +37,15 @@ public final class LunarSky {
      */
     public static final float PLANET_HALF_SIZE = (float) (LunarSight.PLANET_DISC_HALF_TANGENT
             * PocketStarSkyRenderer.SKY_DISTANCE);
-    /** The planet's face is a square of pixels this many wide, its disc inscribed in it. */
-    public static final int FACE_SIZE = 32;
+    /** The planet's face is a square of pixels this many wide, its disc inscribed in it, the server's face map's. */
+    public static final int FACE_SIZE = PlanetFace.SIZE;
 
     /** A celestial quad before its turn: a unit square lying flat, as vanilla builds its sun and moon quads. */
     public static final List<Vector3f> FLAT_QUAD = List.of(new Vector3f(-1F, 0F, -1F), new Vector3f(1F, 0F, -1F),
             new Vector3f(1F, 0F, 1F), new Vector3f(-1F, 0F, 1F));
 
-    /** The plain face's sea, and the deeper blue its rim darkens to, as vanilla's moon darkens toward its edge. */
-    private static final int PLAIN_SEA = 0xFF3A6EE0;
-    private static final int PLAIN_RIM = 0xFF24479E;
+    /** How bright the disc's rim draws against its middle, as vanilla's moon darkens toward its edge. */
+    private static final float RIM_BRIGHTNESS = 0.65F;
     /** How far out a face pixel stands, as a share of the disc's radius squared, before it reads as the rim. */
     private static final double RIM_FROM = 0.8;
     /** A pixel's center stands half a pixel in from its edge. */
@@ -147,13 +149,28 @@ public final class LunarSky {
     }
 
     /**
-     * The planet's plain face: blue sea on every pixel of the disc, deepening toward its rim, and nothing off it.
+     * The planet's plain face, the one it shows before the server's face map arrives: sea on every pixel of the disc.
      *
      * @return the face's colors, ARGB, indexed as facePixels indexes them
      */
     public static int[] plainFace() {
+        int[] sea = new int[FACE_SIZE * FACE_SIZE];
+        Arrays.fill(sea, PlanetFace.SEA);
+        return shadedFace(sea);
+    }
+
+    /**
+     * A face map as the disc shows it: each pixel of the disc in its color, darkening toward the rim, and nothing off
+     * the disc.
+     * decision planet-face-is-procgen-from-the-overworlds-biomes
+     *
+     * @param colors the face map's colors, ARGB, indexed as facePixels indexes them
+     * @return the disc's colors, ARGB, clear off the disc
+     */
+    public static int[] shadedFace(int[] colors) {
         int[] face = new int[FACE_SIZE * FACE_SIZE];
-        facePixels().stream().forEach(pixel -> face[pixel] = radiusSquared(pixel) < RIM_FROM ? PLAIN_SEA : PLAIN_RIM);
+        facePixels().stream().forEach(pixel -> face[pixel] = radiusSquared(pixel) < RIM_FROM ? colors[pixel]
+                : ARGB.scaleRGB(colors[pixel], RIM_BRIGHTNESS));
         return face;
     }
 

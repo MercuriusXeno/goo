@@ -26,6 +26,7 @@ import com.mercuriusxeno.goo.client.ability.VitalityVisual;
 import com.mercuriusxeno.goo.client.hole.ClientPortableHoles;
 import com.mercuriusxeno.goo.client.model.GooJoins;
 import com.mercuriusxeno.goo.client.sound.ListenerSounds;
+import com.mercuriusxeno.goo.client.zone.BluePlanetRenderer;
 import com.mercuriusxeno.goo.client.zone.ClientConjuredDoors;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.network.AfterimagePayload;
@@ -65,6 +66,7 @@ import com.mercuriusxeno.goo.network.OreRevealPayload;
 import com.mercuriusxeno.goo.network.PalmBlobLiftPayload;
 import com.mercuriusxeno.goo.network.PartnerChunkPayload;
 import com.mercuriusxeno.goo.network.PartnerChunksDropPayload;
+import com.mercuriusxeno.goo.network.PlanetFacePayload;
 import com.mercuriusxeno.goo.network.PortableHolesSyncPayload;
 import com.mercuriusxeno.goo.network.PortalsSyncPayload;
 import com.mercuriusxeno.goo.network.ReapSlashPayload;
@@ -121,6 +123,7 @@ public final class GooClientNetworking {
         event.register(PartnerChunkPayload.TYPE, PartnerView::handle);
         event.register(PartnerChunksDropPayload.TYPE, PartnerView::handleDrop);
         event.register(PortableHolesSyncPayload.TYPE, ClientPortableHoles::handle);
+        event.register(PlanetFacePayload.TYPE, BluePlanetRenderer::handle);
         registerAbilityVisualHandlers(event);
     }
 

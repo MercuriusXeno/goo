@@ -55,6 +55,7 @@ public final class GooNetworking {
         r.playToClient(PartnerChunkPayload.TYPE, PartnerChunkPayload.STREAM_CODEC);
         r.playToClient(PartnerChunksDropPayload.TYPE, PartnerChunksDropPayload.STREAM_CODEC);
         r.playToClient(PortableHolesSyncPayload.TYPE, PortableHolesSyncPayload.STREAM_CODEC);
+        r.playToClient(PlanetFacePayload.TYPE, PlanetFacePayload.STREAM_CODEC);
         registerAbilityVisualPayloads(r);
     }
 
