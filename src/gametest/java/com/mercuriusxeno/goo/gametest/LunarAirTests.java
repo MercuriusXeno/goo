@@ -58,6 +58,8 @@ public final class LunarAirTests {
     private static final int UPDRAFT_SITE_Z = 8;
     private static final int UPDRAFT_SITE_UNDER_THE_TOP = 32;
     private static final int UPDRAFT_LAYERS = 6;
+    /** The chunks each way of the site that stand loaded before its own chunk's entities tick. */
+    private static final int ENTITY_TICKING_REACH = 2;
     /** How far east of the cell the player outside the column stands. */
     private static final int OUTSIDE_OFFSET = 5;
     private static final String COLUMN_REFILLS = "In lunar the player the Updraft cell lifts should gain air and the one"
@@ -122,8 +124,10 @@ public final class LunarAirTests {
      * The test lays its own stone and a six-layer Updraft cell high in lunar, reading no terrain height, and stands
      * one survival player on the cell and one beside the column: over the same ticks the first gains air and the
      * second loses it. The site's chunk is forced so the cell ticks, and the players breathe through their own base
-     * tick, as the drain test runs them. The air is read only from the tick the site's entities tick: under a full
-     * suite a freshly forced lunar chunk loads its entities late, and until then the cell's scan sees no player.
+     * tick, as the drain test runs them. The site's chunk ticks its entities only once the chunks around it stand,
+     * which under a full suite took some three hundred ticks to generate, the cell's scan seeing no player all that
+     * while; so the test generates them before it builds, and reads the air only from the tick the site's entities
+     * tick.
      * decision updraft-refills-the-air-of-entities-it-propels
      *
      * @param helper the gametest helper
@@ -134,6 +138,11 @@ public final class LunarAirTests {
         int chunkX = UPDRAFT_SITE_X >> 4;
         int chunkZ = UPDRAFT_SITE_Z >> 4;
         lunar.setChunkForced(chunkX, chunkZ, true);
+        for (int dx = -ENTITY_TICKING_REACH; dx <= ENTITY_TICKING_REACH; dx++) {
+            for (int dz = -ENTITY_TICKING_REACH; dz <= ENTITY_TICKING_REACH; dz++) {
+                lunar.getChunk(chunkX + dx, chunkZ + dz);
+            }
+        }
         BlockPos cell = new BlockPos(UPDRAFT_SITE_X, lunar.getMaxY() - UPDRAFT_SITE_UNDER_THE_TOP, UPDRAFT_SITE_Z);
         layWalledCell(lunar, cell);
         Vec3 onTheGoo = Vec3.atBottomCenterOf(cell).add(0, (double) UPDRAFT_LAYERS / VolumeCellBlock.MAX_LAYERS, 0);
