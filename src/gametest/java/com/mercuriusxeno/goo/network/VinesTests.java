@@ -2,8 +2,11 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.VinesStep;
 import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.ability.root.VineHold;
+import com.mercuriusxeno.goo.block.ability.GoologgedSides;
+import com.mercuriusxeno.goo.block.ability.SideCoat;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
@@ -12,6 +15,7 @@ import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
@@ -34,12 +38,14 @@ import java.util.function.Consumer;
  * across a full Vines cell is held in place on it; a hit on a held zombie
  * ends every vine and eats a layer of the cell that rooted it, and a zombie
  * struggling against its vines until they let go takes no harm from them;
- * a player under Barkskin standing on a full cell takes no vines from it.
+ * a player under Barkskin standing on a full cell takes no vines from it;
+ * Vines goo sprayed onto a wall's side grows a goologged vine there.
  * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
  * vines-root-is-volume-based-one-to-five-vines-by-layers
  * vines-deal-no-thorn-damage-and-attacking-the-mob-frees-it
  * entangled-mob-taking-damage-eats-a-layer-of-vines-goo
  * barkskin-makes-you-immune-to-vines
+ * vines-goo-on-walls-places-goologged-vines-and-depletes
  */
 @RegistersGameTests
 public final class VinesTests {
@@ -53,11 +59,11 @@ public final class VinesTests {
     private static final String ABILITY_REQUIRED = "The ability registry must hold leaf_vines";
     private static final String LAYERS_WRONG = "The cell over the stone should hold one layer of Vines, stands %s";
     private static final String FULL_CELL_HOLDS_A_WALKER = "vines_full_cell_holds_a_walker_in_place";
-    /** The lane's westmost stone, where its walker starts; the lane runs east across the bay. */
+    /** The lane's westmost block, where its walker starts; the lane runs east across the bay. */
     private static final BlockPos LANE = new BlockPos(0, 1, 2);
     /** How far east the lane runs from its start. */
     private static final int LANE_EAST = 5;
-    /** The full Vines cell set into the lane, its top level with the stone beside it. */
+    /** The full Vines cell set into the lane, its top level with the path beside it. */
     private static final BlockPos FULL_CELL = LANE.east(2);
     /** Two seconds, how long after reaching the cell the walker is read. */
     private static final int HELD_TICKS = 40;
@@ -65,7 +71,7 @@ public final class VinesTests {
             + "reaching it, stands at x %.3f";
     private static final String HIT_ENDS_THE_ROOT = "vines_hit_ends_the_root_and_eats_a_layer";
     private static final String ROOT_RUNS_OUT_HARMLESS = "vines_root_runs_out_and_leaves_its_mob_unharmed";
-    /** A one-layer Vines cell lying on the lane's stone, giving one vine, so the mob it holds still moves. */
+    /** A one-layer Vines cell lying on the lane, giving one vine, so the mob it holds still moves. */
     private static final BlockPos THIN_CELL = LANE.east(2).above();
     /** Ticks a mob spawned on the cell takes to settle and be held, with room to spare. */
     private static final int SETTLE_TICKS = 5;
@@ -82,6 +88,17 @@ public final class VinesTests {
     private static final String BARE_SHOULD_BE_HELD = "The player without Barkskin should be held by the cell's vines, "
             + "holds %s";
     private static final String BARKED_SHOULD_BE_SPARED = "The player under Barkskin should hold no vines, holds %s";
+    private static final String WALL_GROWS_A_VINE = "vines_on_a_wall_grow_a_goologged_vine";
+    /** The stone wall the drips strike, standing on the bay floor. */
+    private static final BlockPos WALL = new BlockPos(3, 2, 2);
+    /** The nook beside the wall's west face, on the floor, where the drips' goo lands. */
+    private static final BlockPos NOOK = WALL.west();
+    /** The drips sprayed at the wall. */
+    private static final int WALL_DRIPS = 4;
+    /** Ticks for the nook's cell to tick and grow its vine, with room to spare. */
+    private static final int GROW_TICKS = 20;
+    private static final String SHOULD_GROW_A_VINE = "The nook should hold Vines goo attached to the wall with a vine "
+            + "hanging on it and %d layers, stands %s";
     private static final String SHOULD_BE_UNHARMED = "The zombie should end its root at the health it began with, %.2f, "
             + "stands at %.2f";
 
@@ -100,6 +117,7 @@ public final class VinesTests {
         GooTestFunctions.registerTest(registrar, ROOT_RUNS_OUT_HARMLESS,
                 VinesTests::vinesRootRunsOutAndLeavesItsMobUnharmed);
         GooTestFunctions.registerTest(registrar, BARKSKIN_SPARES, VinesTests::vinesSpareAPlayerUnderBarkskin);
+        GooTestFunctions.registerTest(registrar, WALL_GROWS_A_VINE, VinesTests::vinesOnAWallGrowAGoologgedVine);
     }
 
     /**
@@ -124,7 +142,7 @@ public final class VinesTests {
     }
 
     /**
-     * A husk walking east along a stone lane three blocks wide toward its
+     * A husk walking east along a dirt path lane three blocks wide toward its
      * far end crosses a fifteen layer Vines cell set into the lane's middle, and two seconds after its
      * center first stands over the cell it still stands over it.
      *
@@ -185,6 +203,8 @@ public final class VinesTests {
      */
     public static void vinesRootRunsOutAndLeavesItsMobUnharmed(GameTestHelper helper) {
         layLane(helper);
+        // a thin cell lies only on a sturdy top, which the path's lowered top is not
+        helper.setBlock(THIN_CELL.below(), Blocks.STONE);
         layCell(helper, THIN_CELL, 1);
         Mob zombie = helmeted(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, LANE.above()));
         helper.walkTo(zombie, LANE.east(LANE_EAST).above(), 1f);
@@ -230,25 +250,66 @@ public final class VinesTests {
         });
     }
 
+    /**
+     * Four Vines drips sprayed at a stone wall's west face land in the nook
+     * beside it, on the floor, closed in on its other sides by iron bars,
+     * which hold no vine and take no pour; once the cell has ticked, a vine
+     * hangs on the wall's side in the cell's own space and the cell holds
+     * four layers less the vines step's layers a vine.
+     *
+     * @param helper the gametest helper
+     */
+    public static void vinesOnAWallGrowAGoologgedVine(GameTestHelper helper) {
+        for (int x = 1; x <= 3; x++) {
+            for (int z = 1; z <= 3; z++) {
+                helper.setBlock(new BlockPos(x, 1, z), Blocks.STONE);
+            }
+        }
+        helper.setBlock(WALL, Blocks.STONE);
+        helper.setBlock(NOOK, Blocks.AIR);
+        for (Direction side : new Direction[] {Direction.NORTH, Direction.SOUTH, Direction.WEST}) {
+            helper.setBlock(NOOK.relative(side), Blocks.IRON_BARS);
+        }
+        AbilityDefinition vines = AbilityRegistry.of(helper.getLevel()).getAbility(VINES);
+        helper.assertTrue(vines != null, ABILITY_REQUIRED);
+        int perVine = VinesStep.in(vines.behaviors()).orElseThrow().layersPerVine();
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.LEAF);
+        KnownRecipes.teachRequires(caster, vines);
+        LandedDrips.landOnSide(helper, caster, vines, WALL, Direction.WEST, WALL_DRIPS);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        int left = WALL_DRIPS - perVine;
+        helper.runAfterDelay(GROW_TICKS, () -> {
+            BlockState nook = helper.getBlockState(NOOK);
+            boolean grown = nook.is(GooBlocks.LEAF_VINES.get())
+                    && VolumeCellBlock.coatOn(nook, Direction.EAST) == SideCoat.ATTACHED
+                    && GoologgedSides.plantedOn(nook, Direction.EAST)
+                    && nook.getValue(VolumeCellBlock.LAYERS) == left;
+            helper.assertTrue(grown, String.format(SHOULD_GROW_A_VINE, left, nook));
+            helper.succeed();
+        });
+    }
+
     private static void standOn(GameTestHelper helper, ServerPlayer player, BlockPos cell) {
         Vec3 top = Vec3.atBottomCenterOf(helper.absolutePos(cell.above()));
         player.setPos(top.x, top.y, top.z);
     }
 
     /**
-     * Lays a stone lane three blocks wide on bedrock from its start east
-     * across the bay, open air over it; the stone either side of a cell set
-     * into the lane's middle closes it in, so it pours none of its layers away.
+     * Lays a dirt path lane three blocks wide on bedrock from its start east
+     * across the bay, open air over it. The path beside a cell set into the
+     * lane's middle closes it in, so it pours none of its layers away, and
+     * its side, short of a full block, holds no goo and bears no vine, so the
+     * cell keeps every layer.
      *
      * @param helper the gametest helper
      */
     private static void layLane(GameTestHelper helper) {
         for (int east = 0; east <= LANE_EAST; east++) {
             for (int across = -1; across <= 1; across++) {
-                BlockPos stone = LANE.east(east).south(across);
-                helper.setBlock(stone.below(), Blocks.BEDROCK);
-                helper.setBlock(stone, Blocks.STONE);
-                helper.setBlock(stone.above(), Blocks.AIR);
+                BlockPos path = LANE.east(east).south(across);
+                helper.setBlock(path.below(), Blocks.BEDROCK);
+                helper.setBlock(path, Blocks.DIRT_PATH);
+                helper.setBlock(path.above(), Blocks.AIR);
             }
         }
     }

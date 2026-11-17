@@ -195,7 +195,8 @@ class VolumeCellLookTest {
 
     /**
      * The models a block state applies at a height: its body's shell, or the
-     * drips the slime core model turns to each side no cell of its goo continues.
+     * drips the slime core model turns to each side no cell of its goo continues;
+     * a goologged plant's parts stand apart from the height.
      */
     private static List<String> partsAt(String blockId, int layers, boolean drips) {
         List<String> models = new ArrayList<>();
@@ -203,7 +204,9 @@ class VolumeCellLookTest {
         for (JsonElement part : read(BLOCKSTATE.formatted(blockId)).getAsJsonArray("multipart")) {
             JsonObject when = part.getAsJsonObject().getAsJsonObject("when");
             JsonObject apply = part.getAsJsonObject().getAsJsonObject("apply");
-            if (String.valueOf(layers).equals(when.get("layers").getAsString()) && apply.has(key)) {
+            // a goologged plant's part keys on its side's flag, not on the height
+            if (when.has("layers") && String.valueOf(layers).equals(when.get("layers").getAsString())
+                    && apply.has(key)) {
                 models.add(apply.getAsJsonObject(key).get("model").getAsString());
             }
         }

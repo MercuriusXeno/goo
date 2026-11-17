@@ -80,7 +80,7 @@ class StepCodecTest {
             Map.entry("host", new HostStep(3, 8)),
             Map.entry("rime", new RimeStep(3, 20, 1, 4, 1.0F, 20)),
             Map.entry("leech_goo", new LeechGooStep(0.5, 0.3f, 0.1, 0.01, 10)),
-            Map.entry("vines", new VinesStep(1.5f)),
+            Map.entry("vines", new VinesStep(1.5f, 1)),
             Map.entry("entities", new EntitiesStep(SelectionShape.SPHERE, Expr.literal(2.5),
                     List.of(EntityFilter.LIVING, EntityFilter.NOT_FIRE_IMMUNE),
                     List.of(LeafSteps.IGNITE.step(Expr.literal(5))))),
