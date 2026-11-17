@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.crystal;
 
+import com.mercuriusxeno.goo.ability.TravelForm;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -10,8 +11,9 @@ import net.minecraft.world.phys.Vec3;
  * pyramid over the hand, rows of 4, 3, 2 and 1 from the top down, filled by
  * diagonals and the pile held centered over the cube at every count; each row
  * stands just clear of the cube's top at the count its first knife forms at,
- * so the cube has shrunk clear of each row by the time a knife takes it. Dart's three javelins hover side by side
- * at one height just clear of the full cube. Each one spawns at the cube's top.
+ * so the cube has shrunk clear of each row by the time a knife takes it.
+ * Dart's three javelins hover in a triangle, 1 and 2 over 3, spaced by the
+ * dart's size and centered the same way. Each one spawns at the cube's top.
  * decision knives-hover-in-an-upside-down-bowling-pin-pyramid
  * decision knives-hover-above-the-blob-cube-over-the-hand
  * decision knives-blob-shrinks-per-knife-and-vanishes-on-the-last
@@ -22,8 +24,6 @@ public final class StackHover {
 
     /** Blocks a knife stands above and below its slot's height. */
     public static final double KNIFE_HALF_HEIGHT = 0.012;
-    /** Blocks a javelin stands above and below its slot's height. */
-    public static final double JAVELIN_HALF_HEIGHT = 0.02;
     /**
      * The full cube's edge, in blocks: the lifted palm blob's greatest drawn edge,
      * twice the flight shell's 0.15 half width at the palm rest's half flight size
@@ -34,8 +34,10 @@ public final class StackHover {
     static final double CLEARANCE = 0.03;
     /** Blocks between neighbouring knives along a row. */
     static final double KNIFE_SPACING = 0.09;
-    /** Blocks between neighbouring javelins. */
-    static final double JAVELIN_SPACING = 0.1;
+    /** How far apart two javelins stand against the width across their fins: a quarter of a width clear. */
+    static final double JAVELIN_SPACING_PER_WIDTH = 1.25;
+    /** An equilateral triangle's height against its side, which the javelins' rows stand apart by. */
+    private static final double TRIANGLE_HEIGHT_PER_SIDE = Math.sqrt(3) / 2;
     /** The knives the pyramid holds. */
     public static final int KNIVES = 10;
     /** The javelins the row holds. */
@@ -110,15 +112,53 @@ public final class StackHover {
         }
         return (least + greatest) * HALF;
     }
+
     /**
-     * A javelin's slot: the three side by side, left to right, just clear of the full cube.
+     * A javelin's slot, at the size Dart's javelins draw at: see
+     * {@link #javelinSlot(int, int, double)}.
      *
      * @param index the javelin's index, 0 the first formed
+     * @param held  the javelins held
      * @return its slot
      */
-    public static Slot javelinSlot(int index) {
-        return new Slot((index - (JAVELINS - 1) * HALF) * JAVELIN_SPACING,
-                cubeTopAt(0, JAVELINS) + CLEARANCE + JAVELIN_HALF_HEIGHT);
+    public static Slot javelinSlot(int index, int held) {
+        return javelinSlot(index, held, TravelForm.DART.widthAcrossFins());
+    }
+
+    /**
+     * A javelin's slot in a triangle spaced by the javelin's size: javelins 1
+     * and 2 side by side in the upper row, javelin 3 under them midway
+     * between, every two a fixed share of the width across the fins apart, so
+     * retuning the dart's size moves the spacing with it. The lower row
+     * stands just clear of the cube's top as javelin 3 forms, at 2 held, the
+     * upper row a triangle's height above it, and the pile held stands
+     * centered over the cube at every count.
+     * decision dart-javelins-hover-over-the-shrinking-blob-cube
+     *
+     * @param index the javelin's index, 0 the first formed
+     * @param held  the javelins held
+     * @param width the javelin's drawn width across its fins, in blocks
+     * @return its slot
+     */
+    public static Slot javelinSlot(int index, int held, double width) {
+        double apart = width * JAVELIN_SPACING_PER_WIDTH;
+        double lower = cubeTopAt(JAVELINS - 1, JAVELINS) + CLEARANCE + javelinHalfHeight(width);
+        int javelin = Math.clamp(index, 0, JAVELINS - 1);
+        // the upper pair stand half the spacing either side of the middle, a lone first javelin on it
+        double pileShift = Math.clamp(held, javelin + 1, JAVELINS) == 1 ? apart * HALF : 0;
+        return javelin == JAVELINS - 1 ? new Slot(0, lower)
+                : new Slot((javelin - HALF) * apart + pileShift, lower + apart * TRIANGLE_HEIGHT_PER_SIDE);
+    }
+
+    /**
+     * How far a javelin stands above and below its slot's height: half its
+     * width across the fins, which stand out on every side of the shaft.
+     *
+     * @param width the javelin's drawn width across its fins, in blocks
+     * @return the half height, in blocks
+     */
+    public static double javelinHalfHeight(double width) {
+        return width * HALF;
     }
 
     /**
@@ -130,7 +170,7 @@ public final class StackHover {
      * @return its slot
      */
     public static Slot slotOf(int index, int held, boolean javelins) {
-        return javelins ? javelinSlot(index) : knifeSlot(index, held);
+        return javelins ? javelinSlot(index, held) : knifeSlot(index, held);
     }
 
     /**

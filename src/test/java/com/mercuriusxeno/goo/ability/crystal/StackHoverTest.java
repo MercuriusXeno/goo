@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.crystal;
 
+import com.mercuriusxeno.goo.ability.TravelForm;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -86,21 +87,62 @@ class StackHoverTest {
     @Nested
     class DartRow {
 
+        private final double width = TravelForm.DART.widthAcrossFins();
+
         @Test
-        void threeJavelinsHoverSideBySideAtOneHeightAboveTheCube() {
-            double height = StackHover.javelinSlot(0).up();
-            for (int javelin = 0; javelin < JAVELINS; javelin++) {
-                StackHover.Slot slot = StackHover.javelinSlot(javelin);
-                assertEquals(height, slot.up(), DELTA, "the javelins share one height");
-                if (javelin > 0) {
-                    assertTrue(slot.right() > StackHover.javelinSlot(javelin - 1).right(), "side by side");
+        void threeJavelinsStandInATriangleOneAndTwoOverThreeMidwayBetween() {
+            StackHover.Slot first = StackHover.javelinSlot(0, JAVELINS);
+            StackHover.Slot second = StackHover.javelinSlot(1, JAVELINS);
+            StackHover.Slot third = StackHover.javelinSlot(2, JAVELINS);
+            assertEquals(first.up(), second.up(), DELTA, "javelins 1 and 2 share the upper height");
+            assertTrue(second.right() > first.right(), "javelin 2 stands right of javelin 1");
+            assertTrue(third.up() < first.up(), "javelin 3 stands under them");
+            assertEquals((first.right() + second.right()) / 2, third.right(), DELTA, "javelin 3 midway between");
+        }
+
+        @Test
+        void thePileIsCenteredOverTheHandAtEveryCount() {
+            for (int held = 1; held <= JAVELINS; held++) {
+                double least = Double.MAX_VALUE;
+                double greatest = -Double.MAX_VALUE;
+                for (int index = 0; index < held; index++) {
+                    double right = StackHover.javelinSlot(index, held).right();
+                    least = Math.min(least, right);
+                    greatest = Math.max(greatest, right);
                 }
-                for (int held = 0; held <= JAVELINS; held++) {
-                    assertTrue(slot.up() - StackHover.JAVELIN_HALF_HEIGHT > StackHover.cubeTopAt(held, JAVELINS),
-                            "a javelin should hover above the cube at " + held + " held");
+                assertEquals(0, (least + greatest) / 2, CENTERED, "the pile of " + held + " should be centered");
+            }
+        }
+
+        @Test
+        void theSpacingFollowsTheDartsSize() {
+            for (int one = 0; one < JAVELINS; one++) {
+                for (int other = one + 1; other < JAVELINS; other++) {
+                    double apart = distance(StackHover.javelinSlot(one, JAVELINS, width),
+                            StackHover.javelinSlot(other, JAVELINS, width));
+                    assertTrue(apart >= width, "javelins " + one + " and " + other + " should stand a width "
+                            + width + " apart, stand " + apart);
+                    double doubled = distance(StackHover.javelinSlot(one, JAVELINS, 2 * width),
+                            StackHover.javelinSlot(other, JAVELINS, 2 * width));
+                    assertEquals(2 * apart, doubled, DELTA, "a dart twice as large stands them twice as far");
                 }
             }
-            assertEquals(StackHover.cubeTopAt(1, JAVELINS), StackHover.spawnSlot(1, JAVELINS).up(), DELTA);
+        }
+
+        @Test
+        void eachJavelinHoversAboveTheCubeAndSpawnsAtItsTop() {
+            for (int javelin = 1; javelin <= JAVELINS; javelin++) {
+                double lowest = StackHover.javelinSlot(javelin - 1, javelin).up()
+                        - StackHover.javelinHalfHeight(width);
+                double top = StackHover.cubeTopAt(javelin - 1, JAVELINS);
+                assertTrue(lowest > top, "javelin " + javelin + "'s lowest drawn point should clear the cube's top "
+                        + top + ", lowest at " + lowest);
+                assertEquals(top, StackHover.spawnSlot(javelin - 1, JAVELINS).up(), DELTA);
+            }
+        }
+
+        private static double distance(StackHover.Slot one, StackHover.Slot other) {
+            return Math.hypot(one.right() - other.right(), one.up() - other.up());
         }
 
         @Test

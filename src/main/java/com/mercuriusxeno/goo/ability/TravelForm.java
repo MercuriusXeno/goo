@@ -25,6 +25,8 @@ public enum TravelForm {
     DART(2.5f, 0.05f, new Fins(3, 0.45f, 0.16f, 0.15f, 0.18f));
 
     private static final String WHAT = "travel form";
+    /** The fins stand out on both sides of the shaft across any width taken through it. */
+    private static final int SIDES_OF_THE_SHAFT = 2;
 
     /** Codec reading the lower-case name. */
     public static final Codec<TravelForm> CODEC = LowerCaseEnumCodec.of(TravelForm.class, WHAT);
@@ -66,6 +68,18 @@ public enum TravelForm {
      */
     public boolean morphs() {
         return this != BLOB;
+    }
+
+    /**
+     * How wide the form stands across its fins at its whole size: each fin
+     * stands its span out from the shaft, so twice the span; none for a form
+     * with no fins. Dart's hovering javelins space by it.
+     * decision dart-javelins-hover-over-the-shrinking-blob-cube
+     *
+     * @return the width in blocks
+     */
+    public float widthAcrossFins() {
+        return SIDES_OF_THE_SHAFT * fins.span();
     }
 
     /** @return the forward cone's length in blocks, whole */
