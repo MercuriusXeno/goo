@@ -374,7 +374,7 @@ public final class GooRenderTypes {
     public static final RenderType METAL_EXPLOSION_TYPE = burnoutType(METAL_EXPLOSION);
 
     /**
-     * Urchin's chrome on a landed trap, its spines and spears: the metal
+     * The metal spike trap's chrome on a landed trap, its spines and spears: the metal
      * explosion shader writing depth, since they draw opaque, so the
      * translucent goo blob drawn after them stays behind the parts in front
      * of it rather than blending over them.
@@ -383,7 +383,7 @@ public final class GooRenderTypes {
     public static final RenderPipeline METAL_CHROME = shaderPairPipeline("metal_chrome", "metal_explosion",
             BlendFunction.TRANSLUCENT, DefaultVertexFormat.POSITION_COLOR_NORMAL, DepthStencilState.DEFAULT);
 
-    /** RenderType for Urchin's depth-writing chrome. */
+    /** RenderType for the metal spike trap's depth-writing chrome. */
     public static final RenderType METAL_CHROME_TYPE = burnoutType(METAL_CHROME);
 
     /**

@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.ability.SpikeTrapFixture;
 import com.mercuriusxeno.goo.ability.ChargeSize;
 import com.mercuriusxeno.goo.item.GooFormat;
 import org.junit.jupiter.api.Test;
@@ -19,23 +20,26 @@ class HeldGhostTest {
     private static final int BLAST_COST = 1000;
 
     private static HeldGhost ghostOf(HeldGhostVisual visual, String name) {
-        AbilityDefinition definition = AbilityJson.decode(name);
+        return ghostOf(visual, AbilityJson.decode(name));
+    }
+
+    private static HeldGhost ghostOf(HeldGhostVisual visual, AbilityDefinition definition) {
         return visual.ghost(definition.area(), definition.behaviors());
     }
 
     /** prismatic-voronoi-code-stays-and-is-unplugged-from-shatter: the unplugged prism dome still ghosts a field */
     @Test
     void thePrismDomeRingsOutwardToAFieldsDome() {
-        HeldGhost ghost = ghostOf(CrystalExplosionVisual.INSTANCE, "metal_urchin");
-        float synced = (float) AbilityJson.decode("metal_urchin").area().size();
+        HeldGhost ghost = ghostOf(CrystalExplosionVisual.INSTANCE, SpikeTrapFixture.definition());
+        float synced = (float) SpikeTrapFixture.definition().area().size();
         assertEquals(synced, ghost.domeRadius(), TOLERANCE);
         assertEquals(ghost.domeRadius(), ghost.ringRadius(), TOLERANCE);
     }
 
     @Test
-    void urchinRingsOutwardToItsDome() {
-        HeldGhost ghost = ghostOf(MetalExplosionVisual.INSTANCE, "metal_urchin");
-        assertEquals((float) AbilityJson.decode("metal_urchin").area().size(), ghost.domeRadius(), TOLERANCE);
+    void theSpikeTrapRingsOutwardToItsDome() {
+        HeldGhost ghost = ghostOf(MetalExplosionVisual.INSTANCE, SpikeTrapFixture.definition());
+        assertEquals((float) SpikeTrapFixture.definition().area().size(), ghost.domeRadius(), TOLERANCE);
         assertEquals(ghost.domeRadius(), ghost.ringRadius(), TOLERANCE);
     }
 

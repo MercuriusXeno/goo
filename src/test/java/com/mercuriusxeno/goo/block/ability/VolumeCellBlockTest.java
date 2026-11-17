@@ -658,6 +658,32 @@ class VolumeCellBlockTest {
         }
     }
 
+    /**
+     * A broken Spikes cell gives back metal goo, each layer a fifteenth of
+     * Spikes' cost as metal_spikes.json ships it.
+     * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
+     */
+    @Nested
+    class SpikesReclaim {
+
+        private static final int LAYERS = 11;
+
+        @Test
+        void spikesIsMetalGooLaidByMetalsSpikes() {
+            assertEquals(List.of(GooTypes.METAL, AbilityJson.idOf("metal_spikes.json")),
+                    List.of(CellBinding.SPIKES.gooType(), CellBinding.SPIKES.layingAbility()));
+        }
+
+        @Test
+        void aBrokenSpikesCellDropsMetalGooAtFifteenthsOfSpikesCost() {
+            GooFraction cost = AbilityJson.decode("metal_spikes").cost().exactIn(GooValueTable.EMPTY);
+
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.METAL,
+                            cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.SPIKES, LAYERS, cost));
+        }
+    }
+
     private static JsonObject classpathJson(String path) throws IOException {
         try (InputStream in = VolumeCellBlockTest.class.getResourceAsStream(path)) {
             assertTrue(in != null, path + " is not on the classpath");

@@ -82,6 +82,13 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
      */
     public static final BlendPalette UPDRAFT_TYPHOON_GREENS = new BlendPalette(
             0xFD / 255f, 0xFF / 255f, 0xFF / 255f, 0xD5 / 255f, 0xF5 / 255f, 0xE3 / 255f);
+    /**
+     * Spikes' spray drips, from metal's bright silver, E8E8E8, to its wheel
+     * silver, C0C0C0, the two the metal goo type's definition names.
+     * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
+     */
+    public static final BlendPalette SPIKES_METAL_SILVERS = new BlendPalette(
+            0xE8 / 255f, 0xE8 / 255f, 0xE8 / 255f, 0xC0 / 255f, 0xC0 / 255f, 0xC0 / 255f);
 
     /**
      * The color a share of the way from the light end to the dark.

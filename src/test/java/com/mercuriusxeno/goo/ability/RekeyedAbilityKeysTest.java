@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 /**
  * Each rekeyed ability ships under the key its shown name spells, with its lang entry and icon, and its old key ships nothing.
  * decision eighteen-divergent-keys-follow-their-shown-names
+ * decision metal-world-goo-is-named-spikes
  */
 class RekeyedAbilityKeysTest {
 
@@ -52,7 +53,7 @@ class RekeyedAbilityKeysTest {
                 Arguments.of("rock_level", "Level"),
                 Arguments.of("rock_gouge", "Gouge"),
                 Arguments.of("metal_dart", "Dart"),
-                Arguments.of("metal_urchin", "Urchin"),
+                Arguments.of("metal_spikes", "Spikes"),
                 Arguments.of("pulse_extend", "Extend"),
                 Arguments.of("pulse_tick", "Tick"),
                 Arguments.of("kinetic_remote", "Remote"),
@@ -65,7 +66,7 @@ class RekeyedAbilityKeysTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"glow_crystal", "glow_radiant", "glow_sunbeam",
-            "rock_flatten", "rock_terrakinesis", "metal_javelin", "metal_spikes",
+            "rock_flatten", "rock_terrakinesis", "metal_javelin", "metal_urchin",
             "pulse_extender", "pulse_pulser", "kinetic_telekinesis", "ender_shifter",
             "shroom_colonize", "shroom_fungal_shift", "unstable_explode", "xeno_eldritch"})
     void oldKeyShipsNoAbility(String oldId) {
