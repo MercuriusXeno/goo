@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.MoltenStep;
 import com.mercuriusxeno.goo.block.ability.MoltenHeats;
+import com.mercuriusxeno.goo.block.ability.SideCoat;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
@@ -80,6 +81,32 @@ public final class MoltenTests {
             + " charcoal and keep one layer, stands %s with %s charcoal and %s layers";
     private static final String DIRT_SPENT_GOO = "Fifteen layers of Molten should stand whole on dirt, stands %s"
             + " under %s";
+    private static final String MOLTEN_CLINGS_TO_A_WALL = "molten_drip_on_a_wall_attaches_to_it";
+    private static final String MOLTEN_CLINGS_TO_A_CEILING = "molten_drip_under_a_ceiling_attaches_to_it";
+    private static final String MOLTEN_PILES_ITS_STEP = "molten_stands_its_step_over_an_open_neighbour";
+    /** A stone block hung in open air, two blocks over the floor, whose west face and underside drips strike. */
+    private static final BlockPos HUNG_BLOCK = new BlockPos(3, 4, 2);
+    /** The open cell west of the hung block, beside its struck face. */
+    private static final BlockPos BESIDE_THE_HUNG_BLOCK = HUNG_BLOCK.west();
+    /** The open cell under the hung block, below its struck underside. */
+    private static final BlockPos UNDER_THE_HUNG_BLOCK = HUNG_BLOCK.below();
+    /** The open cell east of the pile test's tall cell, the two walled in on every other side. */
+    private static final BlockPos BESIDE_THE_FLOOR = OVER_THE_FLOOR.east();
+    /** The layers past Molten's step the pile test's tall cell is raised by, so it pours. */
+    private static final int PAST_THE_STEP = 4;
+    /** The layers an open neighbour takes from a cell standing four layers past its step. */
+    private static final int TAKEN_PAST_THE_STEP = 2;
+    /** Ticks a pile is watched, past several of a blaze cell's waits between pours. */
+    private static final int PILE_SETTLE_TICKS = PAST_THE_POUR * 3;
+    private static final String NOT_ON_THE_WALL = "A Molten drip striking a wall's side should leave a cell attached"
+            + " to it, stands %s";
+    private static final String NOT_ON_THE_CEILING = "A Molten drip striking a block's underside should leave a cell"
+            + " attached to that ceiling, stands %s";
+    private static final String NO_STEP = "Molten should pile a step over its neighbour, its cohesion reads %d";
+    private static final String STEP_POURED ="A Molten cell %d layers over an open neighbour should hold them,"
+            + " holds %d beside %d";
+    private static final String STEP_NOT_POURED = "A Molten cell %d layers over an open neighbour should pour"
+            + " until it holds %d beside %d, holds %d beside %d";
 
     private MoltenTests() {
     }
@@ -102,6 +129,114 @@ public final class MoltenTests {
         GooTestFunctions.registerTest(registrar, MOLTEN_COOKS_COBBLESTONE, MoltenTests::moltenOverCobblestoneCooksItToSmoothStone);
         GooTestFunctions.registerTest(registrar, MOLTEN_COOKS_AN_OAK_LOG, MoltenTests::moltenOverAnOakLogCooksItToCharcoal);
         GooTestFunctions.registerTest(registrar, MOLTEN_PERSISTS_ON_DIRT, MoltenTests::moltenOverDirtPersistsWhole);
+        GooTestFunctions.registerTest(registrar, MOLTEN_CLINGS_TO_A_WALL, MoltenTests::moltenDripOnAWallAttachesToIt);
+        GooTestFunctions.registerTest(registrar, MOLTEN_CLINGS_TO_A_CEILING,
+                MoltenTests::moltenDripUnderACeilingAttachesToIt);
+        GooTestFunctions.registerTest(registrar, MOLTEN_PILES_ITS_STEP,
+                MoltenTests::moltenStandsItsStepOverAnOpenNeighbour);
+    }
+
+    /**
+     * One Molten drip striking the west face of a stone block hung in open
+     * air leaves a blaze cell beside that face, attached to it, since
+     * Molten's adhesion holds an underside and every rung below it.
+     * blaze-goo-is-adhesion-four-and-cohesion-five
+     * drip-striking-a-side-sticks-or-runs-by-adhesion
+     *
+     * @param helper the gametest helper
+     */
+    public static void moltenDripOnAWallAttachesToIt(GameTestHelper helper) {
+        hangABlock(helper);
+        landOneDripOnSide(helper, Direction.WEST);
+        BlockState cell = helper.getBlockState(BESIDE_THE_HUNG_BLOCK);
+        boolean attached = cell.is(GooBlocks.BLAZE_MOLTEN.get())
+                && VolumeCellBlock.coatOn(cell, Direction.EAST) == SideCoat.ATTACHED;
+        helper.assertTrue(attached, String.format(NOT_ON_THE_WALL, cell));
+        helper.succeed();
+    }
+
+    /**
+     * One Molten drip striking the underside of a stone block hung in open
+     * air leaves a blaze cell under it, attached to that ceiling.
+     * blaze-goo-is-adhesion-four-and-cohesion-five
+     * drip-striking-a-ceiling-runs-down-a-wall-or-drops
+     *
+     * @param helper the gametest helper
+     */
+    public static void moltenDripUnderACeilingAttachesToIt(GameTestHelper helper) {
+        hangABlock(helper);
+        landOneDripOnSide(helper, Direction.DOWN);
+        BlockState cell = helper.getBlockState(UNDER_THE_HUNG_BLOCK);
+        boolean attached = cell.is(GooBlocks.BLAZE_MOLTEN.get()) && cell.getValue(VolumeCellBlock.CEILING);
+        helper.assertTrue(attached, String.format(NOT_ON_THE_CEILING, cell));
+        helper.succeed();
+    }
+
+    /**
+     * A Molten cell standing Molten's step in layers over an open dirt
+     * neighbour, the two walled in on every other side, holds every layer
+     * while its pours come due; raised four layers past the step, it pours
+     * until it stands the step over the neighbour again, two layers having
+     * crossed. Molten's step is read from the goo type registry, since its
+     * cohesion is dialed by feel.
+     * blaze-goo-is-adhesion-four-and-cohesion-five
+     * cohesion-is-the-step-the-goo-holds
+     *
+     * @param helper the gametest helper
+     */
+    public static void moltenStandsItsStepOverAnOpenNeighbour(GameTestHelper helper) {
+        int step = helper.getLevel().registryAccess().get(GooTypes.BLAZE).map(type -> type.value().cohesion())
+                .orElse(0);
+        helper.assertTrue(step > 0, String.format(NO_STEP, step));
+        helper.setBlock(FLOOR, Blocks.DIRT);
+        helper.setBlock(FLOOR.east(), Blocks.DIRT);
+        for (Direction side : List.of(Direction.NORTH, Direction.SOUTH)) {
+            helper.setBlock(OVER_THE_FLOOR.relative(side), Blocks.STONE);
+            helper.setBlock(BESIDE_THE_FLOOR.relative(side), Blocks.STONE);
+        }
+        helper.setBlock(OVER_THE_FLOOR.west(), Blocks.STONE);
+        helper.setBlock(BESIDE_THE_FLOOR.east(), Blocks.STONE);
+        helper.setBlock(BESIDE_THE_FLOOR, Blocks.AIR);
+        helper.setBlock(OVER_THE_FLOOR, moltenOf(step));
+        helper.runAfterDelay(PILE_SETTLE_TICKS, () -> {
+            int tall = layersAt(helper, OVER_THE_FLOOR);
+            int beside = layersAt(helper, BESIDE_THE_FLOOR);
+            helper.assertTrue(tall == step && beside == 0, String.format(STEP_POURED, step, tall, beside));
+            helper.setBlock(OVER_THE_FLOOR, moltenOf(step + PAST_THE_STEP));
+        });
+        helper.runAfterDelay(PILE_SETTLE_TICKS * 2, () -> {
+            int tall = layersAt(helper, OVER_THE_FLOOR);
+            int beside = layersAt(helper, BESIDE_THE_FLOOR);
+            int heldTall = step + PAST_THE_STEP - TAKEN_PAST_THE_STEP;
+            helper.assertTrue(tall == heldTall && beside == TAKEN_PAST_THE_STEP, String.format(STEP_NOT_POURED,
+                    step + PAST_THE_STEP, heldTall, TAKEN_PAST_THE_STEP, tall, beside));
+            helper.succeed();
+        });
+    }
+
+    private static BlockState moltenOf(int layers) {
+        return GooBlocks.BLAZE_MOLTEN.get().defaultBlockState().setValue(VolumeCellBlock.LAYERS, layers);
+    }
+
+    // Hangs a stone block in open air: the cells beside its west face and under it, and the column down to the
+    // floor, stand open.
+    private static void hangABlock(GameTestHelper helper) {
+        helper.setBlock(HUNG_BLOCK, Blocks.STONE);
+        for (int y = 1; y < HUNG_BLOCK.getY(); y++) {
+            helper.setBlock(new BlockPos(HUNG_BLOCK.getX(), y, HUNG_BLOCK.getZ()), Blocks.AIR);
+            helper.setBlock(new BlockPos(BESIDE_THE_HUNG_BLOCK.getX(), y, HUNG_BLOCK.getZ()), Blocks.AIR);
+        }
+        helper.setBlock(BESIDE_THE_HUNG_BLOCK, Blocks.AIR);
+    }
+
+    // Lands one Molten drip on a face of the hung block from a blaze-holding caster, who pays for its layer.
+    private static void landOneDripOnSide(GameTestHelper helper, Direction face) {
+        AbilityDefinition molten = AbilityRegistry.of(helper.getLevel()).getAbility(MOLTEN);
+        helper.assertTrue(molten != null, ABILITY_REQUIRED);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.BLAZE);
+        KnownRecipes.teachRequires(caster, molten);
+        LandedDrips.landOnSide(helper, caster, molten, HUNG_BLOCK, face, 1);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
     }
 
     /**

@@ -59,6 +59,8 @@ class GooTypeDefinitionTest {
     private static final int WEIRD_COHESION = 4;
     private static final int WEIRD_ADHESION = 3;
     private static final int GLOW_ADHESION = 4;
+    private static final int BLAZE_COHESION = 5;
+    private static final int BLAZE_ADHESION = 4;
     private static final int COMMON_ADHESION = 1;
 
     static Stream<ResourceKey<GooTypeDefinition>> bundledKeys() {
@@ -272,26 +274,29 @@ class GooTypeDefinitionTest {
     }
 
     /**
-     * Every bundled type states a cohesion: weird holds a step of 4 and every other type, kinetic among them, 0.
+     * Every bundled type states a cohesion: weird holds a step of 4, blaze a step of 5, and every other type,
+     * kinetic among them, 0.
      * cohesion-is-the-step-the-goo-holds
+     * blaze-goo-is-adhesion-four-and-cohesion-five
      */
     @ParameterizedTest
     @MethodSource("bundledKeys")
     void bundledCohesionMatchesDecision(ResourceKey<GooTypeDefinition> key) throws Exception {
-        int expected = key == GooTypes.WEIRD ? WEIRD_COHESION : 0;
+        int expected = key == GooTypes.WEIRD ? WEIRD_COHESION : key == GooTypes.BLAZE ? BLAZE_COHESION : 0;
         assertEquals(expected, decodeBundled(key).cohesion(), key::toString);
     }
 
     /**
      * Every bundled type states an adhesion: kinetic clings to nothing, weird holds a side where it
-     * strikes, and every other type holds tops.
+     * strikes, glow and blaze hold an underside, and every other type holds tops.
      * adhesion-is-a-ladder-of-holds
+     * blaze-goo-is-adhesion-four-and-cohesion-five
      */
     @ParameterizedTest
     @MethodSource("bundledKeys")
     void bundledAdhesionMatchesDecision(ResourceKey<GooTypeDefinition> key) throws Exception {
         int expected = key == GooTypes.KINETIC ? 0 : key == GooTypes.WEIRD ? WEIRD_ADHESION
-                : key == GooTypes.GLOW ? GLOW_ADHESION : COMMON_ADHESION;
+                : key == GooTypes.GLOW ? GLOW_ADHESION : key == GooTypes.BLAZE ? BLAZE_ADHESION : COMMON_ADHESION;
         assertEquals(expected, decodeBundled(key).adhesion(), key::toString);
     }
 
