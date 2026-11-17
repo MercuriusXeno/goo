@@ -64,8 +64,6 @@ public final class HeartOverlayHud {
     private static final Identifier STONE_HALF = sprite("stone_half");
     private static final Identifier NETHER_FULL = sprite("nether_full");
     private static final Identifier NETHER_HALF = sprite("nether_half");
-    private static final Identifier ICE_FULL = sprite("ice_full");
-    private static final Identifier ICE_HALF = sprite("ice_half");
     private static final Identifier CRYSTAL_FULL = sprite("crystal_full");
     private static final Identifier CRYSTAL_HALF = sprite("crystal_half");
     private static final Identifier ANCIENT_FULL = sprite("ancient_full");
@@ -284,8 +282,7 @@ public final class HeartOverlayHud {
     /**
      * The half and full sprites of a kind whose shields lie over present
      * hearts only and leave the rest to vanilla's red heart: bark for
-     * Barkskin (barkskin-bark-hearts-thorn-and-burn), frost for Iceborn
-     * (iceborn-frozen-hearts-thaw-on-fire) and crystal for Scales
+     * Barkskin (barkskin-bark-hearts-thorn-and-burn) and crystal for Scales
      * (scales-crystal-hearts-diamond-blue-overlay).
      *
      * @param kind the overlay's kind
@@ -294,7 +291,6 @@ public final class HeartOverlayHud {
     static Optional<Identifier[]> overPresentSprites(HeartKind kind) {
         return switch (kind) {
             case BARKSKIN -> Optional.of(new Identifier[]{BARK_HALF, BARK_FULL});
-            case ICEBORN -> Optional.of(new Identifier[]{ICE_HALF, ICE_FULL});
             case SCALES -> Optional.of(new Identifier[]{CRYSTAL_HALF, CRYSTAL_FULL});
             default -> Optional.empty();
         };
@@ -635,7 +631,7 @@ public final class HeartOverlayHud {
     }
     /**
      * The sprite a crawl paints over a heart: stone for Stoneskin, nether for
-     * Undead, frost for Iceborn, bark otherwise (decision heart-effects-crawl-while-held).
+     * Undead, crystal for Scales, bark otherwise (decision heart-effects-crawl-while-held).
      *
      * @param kind the overlay's kind
      * @return the sprite
@@ -643,7 +639,6 @@ public final class HeartOverlayHud {
     static Identifier crawlSprite(HeartKind kind) {
         return switch (kind) {
             case STONESKIN, UNDEAD -> missingFull(kind);
-            case ICEBORN -> ICE_FULL;
             case SCALES -> CRYSTAL_FULL;
             default -> BARK_FULL;
         };

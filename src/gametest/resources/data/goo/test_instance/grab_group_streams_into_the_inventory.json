@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:iceborn_thaws_on_fire",
+  "function": "goo:grab_group_streams_into_the_inventory",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 20,
+  "max_ticks": 60,
   "setup_ticks": 0,
   "required": true
 }

@@ -90,6 +90,421 @@ public final class GrabChannelTests {
                 GrabChannelTests::grabDrawsAMobDownOffALedge);
         GooTestFunctions.registerTest(registrar, GRAB_REFUSES_A_SENT_PIG_BEYOND_ITS_RANGE,
                 GrabChannelTests::grabRefusesASentPigBeyondItsRange);
+        GooTestFunctions.registerTest(registrar, GRAB_LOCKED_ITEM_HOMES_AFTER_THE_LOOK_LEAVES,
+                GrabChannelTests::grabLockedItemHomesAfterTheLookLeaves);
+        GooTestFunctions.registerTest(registrar, GRAB_LOCKED_ITEM_FLOATS_UNTIL_THE_GRACE_PASSES,
+                GrabChannelTests::grabLockedItemFloatsUntilTheGracePasses);
+        GooTestFunctions.registerTest(registrar, GRAB_SWEEP_LOCKS_EVERY_ITEM_PASSED,
+                GrabChannelTests::grabSweepLocksEveryItemPassed);
+        GooTestFunctions.registerTest(registrar, GRAB_LOCKED_ITEM_LEAVES_A_LATER_MOB_FREE,
+                GrabChannelTests::grabLockedItemLeavesALaterMobFree);
+        GooTestFunctions.registerTest(registrar, GRAB_HELD_MOB_LEAVES_A_LATER_ITEM_UNLOCKED,
+                GrabChannelTests::grabHeldMobLeavesALaterItemUnlocked);
+        GooTestFunctions.registerTest(registrar, GRAB_LOCKS_THE_SAME_ITEMS_WITHIN_FOUR_BLOCKS,
+                GrabChannelTests::grabLocksTheSameItemsWithinFourBlocks);
+        GooTestFunctions.registerTest(registrar, GRAB_SNEAKING_LOCKS_THE_TARGETED_ITEM_ALONE,
+                GrabChannelTests::grabSneakingLocksTheTargetedItemAlone);
+        GooTestFunctions.registerTest(registrar, GRAB_GROUP_STREAMS_INTO_THE_INVENTORY,
+                GrabChannelTests::grabGroupStreamsIntoTheInventory);
+        GooTestFunctions.registerTest(registrar, GRAB_HEAVIER_MOB_COMES_SLOWER_AND_SETTLES,
+                GrabChannelTests::grabHeavierMobComesSlowerAndSettles);
+    }
+
+    private static final String GRAB_HEAVIER_MOB_COMES_SLOWER_AND_SETTLES =
+            "grab_heavier_mob_comes_slower_and_settles";
+    /** Where each mob starts from its own hold point: 1.5 blocks south of it, level, so both start equally far. */
+    private static final Vec3 SOUTH_OF_THE_HOLD = new Vec3(0, 0, 1.5);
+    /** Channel ticks after which the two mobs' distances to the hold point are compared. */
+    private static final int EARLY_TICKS = 3;
+    /** Channel ticks after which each mob should rest at the hold point, enough for a ravager-sized box. */
+    private static final int SETTLE_HOLD_TICKS = 40;
+    /** How near the hold point a settled mob's feet stand. */
+    private static final double SETTLED = 0.1;
+    /** How far a settled mob may move in one tick and still read as still. */
+    private static final double STILL = 1.0E-3;
+
+    /**
+     * A pig and, in a second run of the same arrangement, a ravager are each
+     * grabbed from the same distance: the pig stands nearer the hold point
+     * after the same few ticks, and each comes to rest at the hold point,
+     * moving no more (decision grabbed-mob-accelerates-slower-the-bigger-its-hitbox).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabHeavierMobComesSlowerAndSettles(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        java.util.List<Double> early = new java.util.ArrayList<>();
+        int pigRun = 1;
+        int ravagerRun = pigRun + SETTLE_HOLD_TICKS + 2;
+        heldFromTheSouth(helper, player, EntityType.PIG, pigRun, early);
+        heldFromTheSouth(helper, player, EntityType.RAVAGER, ravagerRun, early);
+        helper.runAfterDelay(ravagerRun + SETTLE_HOLD_TICKS + 1, () -> {
+            helper.assertTrue(early.get(0) < early.get(1), "The pig should stand nearer the hold point after "
+                    + EARLY_TICKS + " ticks, the pig " + early.get(0) + " off, the ravager " + early.get(1) + " off");
+            leave(helper, player);
+        });
+    }
+
+    /**
+     * Spawns a mob south of its hold point from a tick on, holds it, records
+     * its distance to the hold point after EARLY_TICKS, and checks it rests
+     * at the hold point after SETTLE_HOLD_TICKS, then frees it.
+     */
+    private static void heldFromTheSouth(GameTestHelper helper, ServerPlayer player,
+            EntityType<? extends net.minecraft.world.entity.Mob> type, int from, java.util.List<Double> early) {
+        AtomicReference<net.minecraft.world.entity.Mob> held = new AtomicReference<>();
+        AtomicReference<Vec3> lastFeet = new AtomicReference<>();
+        helper.runAfterDelay(from, () -> {
+            net.minecraft.world.entity.Mob mob = helper.spawnWithNoFreeWill(type, BlockPos.ZERO);
+            Vec3 start = heldFeet(helper, player, mob).add(SOUTH_OF_THE_HOLD);
+            mob.setNoGravity(true);
+            mob.setPos(start.x, start.y, start.z);
+            mob.setDeltaMovement(Vec3.ZERO);
+            held.set(mob);
+        });
+        for (int tick = 1; tick <= SETTLE_HOLD_TICKS; tick++) {
+            int at = tick;
+            helper.runAfterDelay(from + tick, () -> {
+                net.minecraft.world.entity.Mob mob = held.get();
+                lastFeet.set(mob.position());
+                GooStreamHandler.streamTick(player, holdTick(player, mob));
+                if (at == EARLY_TICKS) {
+                    early.add(mob.position().distanceTo(heldFeet(helper, player, mob)));
+                }
+            });
+        }
+        helper.runAfterDelay(from + SETTLE_HOLD_TICKS + 1, () -> {
+            net.minecraft.world.entity.Mob mob = held.get();
+            double off = mob.position().distanceTo(heldFeet(helper, player, mob));
+            double moved = mob.position().distanceTo(lastFeet.get());
+            helper.assertTrue(off < SETTLED && moved < STILL, "The held " + mob.getType() + " should rest at the hold "
+                    + "point, stands " + off + " off it, moved " + moved + " in its last tick");
+            mob.discard();
+        });
+    }
+
+    /** Where Grab holds a mob's feet for a level look in open air: its middle the hold distance along the look. */
+    private static Vec3 heldFeet(GameTestHelper helper, ServerPlayer player, Entity mob) {
+        return player.getEyePosition().add(player.getLookAngle().normalize().scale(holdDistance(helper)))
+                .subtract(0, mob.getBbHeight() * HALF, 0);
+    }
+
+    private static final String GRAB_GROUP_STREAMS_INTO_THE_INVENTORY =
+            "grab_group_streams_into_the_inventory";
+    /** The targeted stack, below the level look east of the player. */
+    private static final Vec3 STREAM_TARGETED = new Vec3(5.5, 0, 2.5);
+    /** A stack two blocks north of the targeted one. */
+    private static final Vec3 STREAM_NORTH = new Vec3(5.5, 0, 0.5);
+    /** A stack closer to the player, south-west of the targeted one. */
+    private static final Vec3 STREAM_SOUTH_WEST = new Vec3(4.0, 0, 4.0);
+    private static final int STACK = 8;
+    private static final int STACKS = 3;
+
+    /**
+     * Three stacks of 8 cobblestone Grab locks as a group all stream into
+     * the player, who ends holding 24, joined on the way or not
+     * (decision grabbed-item-group-converges-on-the-aim-line-then-pulls-as-one).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabGroupStreamsIntoTheInventory(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        ItemEntity targeted = restingItem(helper, STREAM_TARGETED, new ItemStack(Items.COBBLESTONE, STACK));
+        restingItem(helper, STREAM_NORTH, new ItemStack(Items.COBBLESTONE, STACK));
+        restingItem(helper, STREAM_SOUTH_WEST, new ItemStack(Items.COBBLESTONE, STACK));
+        for (int tick = 1; tick <= HOMING_TICKS; tick++) {
+            helper.runAfterDelay(tick, () -> sweepTick(player, targeted.isAlive() ? holdTick(player, targeted)
+                    : aimTick(player)));
+        }
+        helper.runAfterDelay(HOMING_TICKS + 1, () -> {
+            int held = player.getInventory().countItem(Items.COBBLESTONE);
+            helper.assertTrue(held == STACK * STACKS, "The player should hold " + STACK * STACKS + ", holds " + held);
+            leave(helper, player);
+        });
+    }
+
+    private static final String GRAB_LOCKS_THE_SAME_ITEMS_WITHIN_FOUR_BLOCKS =
+            "grab_locks_the_same_items_within_four_blocks";
+    private static final String GRAB_SNEAKING_LOCKS_THE_TARGETED_ITEM_ALONE =
+            "grab_sneaking_locks_the_targeted_item_alone";
+    /** The targeted cobblestone, on the floor in the bay's north-east corner. */
+    private static final Vec3 TARGETED_COBBLE = new Vec3(5.5, 0, 0.5);
+    /** Cobblestone 2 blocks south of the targeted one. */
+    private static final Vec3 COBBLE_TWO_AWAY = new Vec3(5.5, 0, 2.5);
+    /** Cobblestone 3.5 blocks west of the targeted one. */
+    private static final Vec3 COBBLE_THREE_AND_A_HALF_AWAY = new Vec3(2.0, 0, 0.5);
+    /** Cobblestone about 6 blocks south-west of the targeted one, clear of the player's pickup reach. */
+    private static final Vec3 COBBLE_SIX_AWAY = new Vec3(1.5, 0, 5.0);
+    /** Dirt 2 blocks west of the targeted cobblestone. */
+    private static final Vec3 DIRT_TWO_AWAY = new Vec3(3.5, 0, 0.5);
+    /** The near cobblestone, the targeted one and its two neighbors within 4 blocks, one apiece. */
+    private static final int NEAR_COBBLE = 3;
+
+    /**
+     * Grab on one cobblestone locks every cobblestone within 4 blocks of it,
+     * and they land in the inventory with it, while cobblestone 6 blocks off
+     * and dirt beside it rest where they lay
+     * (decision grab-on-one-item-grabs-every-same-item-within-four-blocks).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabLocksTheSameItemsWithinFourBlocks(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        ItemEntity targeted = restingItem(helper, TARGETED_COBBLE, Items.COBBLESTONE);
+        restingItem(helper, COBBLE_TWO_AWAY, Items.COBBLESTONE);
+        restingItem(helper, COBBLE_THREE_AND_A_HALF_AWAY, Items.COBBLESTONE);
+        ItemEntity far = restingItem(helper, COBBLE_SIX_AWAY, Items.COBBLESTONE);
+        ItemEntity dirt = restingItem(helper, DIRT_TWO_AWAY, Items.DIRT);
+        Vec3 farLay = far.position();
+        Vec3 dirtLay = dirt.position();
+        for (int tick = 1; tick <= HOMING_TICKS; tick++) {
+            helper.runAfterDelay(tick, () -> sweepTick(player, targeted.isAlive() ? holdTick(player, targeted)
+                    : aimTick(player)));
+        }
+        helper.runAfterDelay(HOMING_TICKS + 1, () -> {
+            int held = player.getInventory().countItem(Items.COBBLESTONE);
+            helper.assertTrue(held == NEAR_COBBLE, "The three near cobblestone should land in the inventory, holds "
+                    + held);
+            helper.assertTrue(far.isAlive() && far.position().distanceTo(farLay) < RESTING,
+                    "The cobblestone 6 blocks off should rest where it lay, stands at " + helper.relativeVec(
+                            far.position()));
+            helper.assertTrue(dirt.isAlive() && dirt.position().distanceTo(dirtLay) < RESTING,
+                    "The dirt should rest where it lay, stands at " + helper.relativeVec(dirt.position()));
+            far.discard();
+            dirt.discard();
+            leave(helper, player);
+        });
+    }
+
+    /**
+     * A sneaking player's Grab locks the targeted cobblestone alone: it lands
+     * in the inventory and the cobblestone 2 blocks from it rests where it
+     * lay, its gravity on (decision sneaking-grab-pulls-the-single-targeted-item).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabSneakingLocksTheTargetedItemAlone(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        player.setShiftKeyDown(true);
+        ItemEntity targeted = restingItem(helper, TARGETED_COBBLE, Items.COBBLESTONE);
+        ItemEntity neighbor = restingItem(helper, COBBLE_TWO_AWAY, Items.COBBLESTONE);
+        Vec3 neighborLay = neighbor.position();
+        for (int tick = 1; tick <= HOMING_TICKS; tick++) {
+            helper.runAfterDelay(tick, () -> sweepTick(player, targeted.isAlive() ? holdTick(player, targeted)
+                    : aimTick(player)));
+        }
+        helper.runAfterDelay(HOMING_TICKS + 1, () -> {
+            int held = player.getInventory().countItem(Items.COBBLESTONE);
+            helper.assertTrue(held == 1, "The targeted cobblestone alone should land in the inventory, holds " + held);
+            helper.assertTrue(neighbor.isAlive() && neighbor.position().distanceTo(neighborLay) < RESTING
+                    && !neighbor.isNoGravity(), "The neighbor should rest where it lay with its gravity on, stands at "
+                    + helper.relativeVec(neighbor.position()) + ", gravity " + !neighbor.isNoGravity());
+            neighbor.discard();
+            leave(helper, player);
+        });
+    }
+
+    private static final String GRAB_SWEEP_LOCKS_EVERY_ITEM_PASSED = "grab_sweep_locks_every_item_passed";
+    private static final String GRAB_LOCKED_ITEM_LEAVES_A_LATER_MOB_FREE = "grab_locked_item_leaves_a_later_mob_free";
+    private static final String GRAB_HELD_MOB_LEAVES_A_LATER_ITEM_UNLOCKED =
+            "grab_held_mob_leaves_a_later_item_unlocked";
+    /** A second item, two blocks south of ITEM_POS, the sweep's next stop. */
+    private static final Vec3 SWEPT_ITEM_POS = new Vec3(5.5, 1.2, 4.5);
+    /** A pig off the line to the item, within Grab's reach. */
+    private static final BlockPos PASSED_PIG_POS = new BlockPos(3, 1, 4);
+    /** A tick the locked item is still in flight at. */
+    private static final int IN_FLIGHT_TICK = 3;
+    /** How far a resting item may stir and still read as resting where it lay. */
+    private static final double RESTING = 0.1;
+    /** ITEM_POS laid on the bay's floor, so the item rests from its first tick rather than falls. */
+    private static final Vec3 ON_THE_FLOOR = new Vec3(5.5, 0, 2.5);
+
+    /**
+     * One press outlining two items of different kinds in turn locks both,
+     * and both land in the inventory though the look ends on neither
+     * (decision sweeping-grab-locks-every-item-the-highlight-passes).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabSweepLocksEveryItemPassed(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        ItemEntity first = restingItem(helper, ITEM_POS, Items.SLIME_BALL);
+        ItemEntity second = restingItem(helper, SWEPT_ITEM_POS, Items.BONE);
+        helper.runAfterDelay(1, () -> sweepTick(player, holdTick(player, first)));
+        helper.runAfterDelay(2, () -> sweepTick(player, holdTick(player, second)));
+        for (int tick = 3; tick <= HOMING_TICKS; tick++) {
+            helper.runAfterDelay(tick, () -> sweepTick(player, aimTick(player)));
+        }
+        helper.runAfterDelay(HOMING_TICKS + 1, () -> {
+            helper.assertTrue(!first.isAlive() && !second.isAlive()
+                            && player.getInventory().countItem(Items.SLIME_BALL) == 1
+                            && player.getInventory().countItem(Items.BONE) == 1,
+                    "Both swept items should land in the inventory, slime ball " + (first.isAlive() ? "stands" : "gone")
+                            + ", bone " + (second.isAlive() ? "stands " + helper.relativeVec(second.position())
+                            : "gone"));
+            leave(helper, player);
+        });
+    }
+
+    /**
+     * A press that locked an item leaves a pig it later outlines free, while
+     * the item homes and after it lands, until right click lets go
+     * (decision sweeping-grab-locks-every-item-the-highlight-passes).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabLockedItemLeavesALaterMobFree(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        ItemEntity item = restingItem(helper, ITEM_POS, Items.SLIME_BALL);
+        Pig pig = helper.spawn(EntityType.PIG, PASSED_PIG_POS);
+        helper.runAfterDelay(1, () -> sweepTick(player, holdTick(player, item)));
+        for (int tick = 2; tick <= HOMING_TICKS; tick++) {
+            helper.runAfterDelay(tick, () -> sweepTick(player, holdTick(player, pig)));
+        }
+        helper.runAfterDelay(IN_FLIGHT_TICK, () -> helper.assertTrue(item.isAlive() && !GrabEvents.isHeld(pig),
+                "The pig should stand free while the locked item homes, item "
+                        + (item.isAlive() ? "flies" : "gone") + ", pig " + (GrabEvents.isHeld(pig) ? "held" : "free")));
+        helper.runAfterDelay(HOMING_TICKS, () -> {
+            helper.assertTrue(!item.isAlive(), "The locked item should land in the inventory");
+            helper.assertTrue(!GrabEvents.isHeld(pig), "The pig should stand free after the locked item landed");
+            pig.discard();
+            leave(helper, player);
+        });
+    }
+
+    /**
+     * A press holding a pig leaves an item it later outlines unlocked, where
+     * it lay with its gravity on, and the pig still held
+     * (decision sweeping-grab-locks-every-item-the-highlight-passes).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabHeldMobLeavesALaterItemUnlocked(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        Pig pig = helper.spawn(EntityType.PIG, ZOMBIE_POS);
+        ItemEntity item = restingItem(helper, ON_THE_FLOOR, Items.SLIME_BALL);
+        holdFor(helper, player, pig, HOLD_TICKS);
+        AtomicReference<Vec3> lay = new AtomicReference<>();
+        helper.runAfterDelay(HOLD_TICKS, () -> lay.set(item.position()));
+        for (int tick = HOLD_TICKS + 1; tick <= HOLD_TICKS * 2; tick++) {
+            helper.runAfterDelay(tick, () -> GooStreamHandler.streamTick(player, holdTick(player, item)));
+        }
+        helper.runAfterDelay(HOLD_TICKS * 2, () -> {
+            helper.assertTrue(GrabEvents.isHeld(pig), "The pig should still be held");
+            helper.assertTrue(item.position().distanceTo(lay.get()) < RESTING && !item.isNoGravity(),
+                    "The item should rest where it lay with its gravity on, moved "
+                            + item.position().distanceTo(lay.get()) + ", gravity " + !item.isNoGravity());
+            item.discard();
+            pig.discard();
+            leave(helper, player);
+        });
+    }
+
+    /** One channel tick, then the player's own tick, which picks up an item on arrival. */
+    private static void sweepTick(ServerPlayer player, GooStreamPayload tick) {
+        GooStreamHandler.streamTick(player, tick);
+        player.doTick();
+    }
+
+    private static final String GRAB_LOCKED_ITEM_HOMES_AFTER_THE_LOOK_LEAVES =
+            "grab_locked_item_homes_after_the_look_leaves";
+    private static final String GRAB_LOCKED_ITEM_FLOATS_UNTIL_THE_GRACE_PASSES =
+            "grab_locked_item_floats_until_the_grace_passes";
+    /** Channel ticks enough for a locked item to reach a player who walked across the bay from it. */
+    private static final int HOMING_TICKS = 25;
+    /**
+     * Where the homing test's player starts, in the bay's north-west corner, and where it walks to, the south-west
+     * corner, so an item flung once at the player's first eye lands two blocks and more from where the player went.
+     */
+    private static final Vec3 WALK_FROM = new Vec3(0.5, 1, 0.5);
+    private static final double WALK_TO_Z = 5.5;
+    /** The item, across the bay east of WALK_FROM. */
+    private static final Vec3 ACROSS_THE_BAY = new Vec3(5.5, 1.2, 0.5);
+    /** How far the player walks south each channel tick after the lock. */
+    private static final double WALK_PER_TICK = 0.4;
+    /** Channel ticks that keep an item locked, too few for it to reach the player. */
+    private static final int LOCKED_TICKS = 3;
+
+    /**
+     * An item one channel tick locked keeps flying to the player after the
+     * look turns to open air and the player walks off, and lands in the
+     * inventory, though every later tick names no entity
+     * (decision grabbed-item-locks-in-and-homes-on-your-current-position).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabLockedItemHomesAfterTheLookLeaves(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        Vec3 start = helper.absoluteVec(WALK_FROM);
+        player.setPos(start.x, start.y, start.z);
+        double walkTo = helper.absoluteVec(new Vec3(0, 0, WALK_TO_Z)).z;
+        ItemEntity item = restingItem(helper, ACROSS_THE_BAY);
+        player.lookAt(EntityAnchorArgument.Anchor.EYES, item.position());
+        helper.runAfterDelay(1, () -> {
+            GooStreamHandler.streamTick(player, holdTick(player, item));
+            player.doTick();
+        });
+        for (int tick = 2; tick <= HOMING_TICKS; tick++) {
+            helper.runAfterDelay(tick, () -> {
+                player.setYRot(FACING_WEST);
+                player.setYHeadRot(FACING_WEST);
+                player.setPos(player.getX(), player.getY(), Math.min(walkTo, player.getZ() + WALK_PER_TICK));
+                GooStreamHandler.streamTick(player, aimTick(player));
+                player.doTick();
+            });
+        }
+        helper.runAfterDelay(HOMING_TICKS + 1, () -> {
+            helper.assertTrue(!item.isAlive() && player.getInventory().countItem(Items.SLIME_BALL) == 1,
+                    "The locked item should land in the inventory after the look left it, item "
+                            + (item.isAlive() ? "still stands " + player.getEyePosition().distanceTo(item.position())
+                            + " from the eye" : "gone") + ", inventory holds "
+                            + player.getInventory().countItem(Items.SLIME_BALL));
+            leave(helper, player);
+        });
+    }
+
+    /**
+     * A locked item floats with its gravity off while channel ticks arrive,
+     * and its gravity is back once the ticks stop and the hold grace passes
+     * (decision grabbed-item-locks-in-and-homes-on-your-current-position).
+     *
+     * @param helper the gametest helper
+     */
+    public static void grabLockedItemFloatsUntilTheGracePasses(GameTestHelper helper) {
+        ServerPlayer player = grabber(helper);
+        ItemEntity item = restingItem(helper, ITEM_POS);
+        player.lookAt(EntityAnchorArgument.Anchor.EYES, item.position());
+        holdFor(helper, player, item, LOCKED_TICKS);
+        helper.runAfterDelay(LOCKED_TICKS, () -> helper.assertTrue(item.isNoGravity(),
+                "A locked item's gravity should be off while channel ticks arrive"));
+        helper.runAfterDelay(LOCKED_TICKS + GrabEvents.HOLD_GRACE_TICKS + 2, () -> {
+            helper.assertTrue(!item.isNoGravity(), "A locked item's gravity should be back once the hold grace passed");
+            item.discard();
+            leave(helper, player);
+        });
+    }
+
+    private static ItemEntity restingItem(GameTestHelper helper, Vec3 relative) {
+        return restingItem(helper, relative, Items.SLIME_BALL);
+    }
+
+    private static ItemEntity restingItem(GameTestHelper helper, Vec3 relative, net.minecraft.world.item.Item kind) {
+        return restingItem(helper, relative, new ItemStack(kind));
+    }
+
+    private static ItemEntity restingItem(GameTestHelper helper, Vec3 relative, ItemStack stack) {
+        Vec3 itemAt = helper.absoluteVec(relative);
+        ItemEntity item = new ItemEntity(helper.getLevel(), itemAt.x, itemAt.y, itemAt.z, stack);
+        item.setDeltaMovement(Vec3.ZERO);
+        helper.getLevel().addFreshEntity(item);
+        return item;
+    }
+
+    /** A channel tick whose glove outlines no entity. */
+    private static GooStreamPayload aimTick(ServerPlayer player) {
+        Vec3 eye = player.getEyePosition();
+        return GooStreamPayload.unplaned(GooTypes.id(GooTypes.KINETIC), KINETIC_GRAB.toString(),
+                eye, eye.add(player.getLookAngle().scale(AIM_LENGTH)));
     }
 
 
@@ -98,7 +513,7 @@ public final class GrabChannelTests {
     /** Several blocks east of the player, on the floor, so the pull takes ticks to arrive. */
     private static final Vec3 ITEM_POS = new Vec3(5.5, 1.2, 2.5);
     /** Channel ticks enough for a pull from ITEM_POS to arrive at the pull speed. */
-    private static final int PULL_TICKS = 12;
+    private static final int PULL_TICKS = 20;
     /** Yaw looking east, along +x. */
     private static final float FACING_EAST = -90f;
     private static final float LEVEL = 0f;
@@ -753,6 +1168,11 @@ public final class GrabChannelTests {
     private static final int LEDGE_TOP = 4;
     /** Where the pig stands on the ledge, a block and a half back from its edge. */
     private static final BlockPos ON_THE_LEDGE = new BlockPos(LEDGE_FACE_X + 1, LEDGE_TOP, 2);
+    /**
+     * Channel ticks enough for the held pig to slide off the ledge and come down, the hold gaining speed tick
+     * over tick rather than snapping there (decision grabbed-mob-accelerates-slower-the-bigger-its-hitbox).
+     */
+    private static final int OFF_THE_LEDGE_TICKS = 15;
 
     /**
      * A pig standing on a ledge three blocks above the player, held by a
@@ -773,8 +1193,8 @@ public final class GrabChannelTests {
             }
         }
         Pig pig = helper.spawn(EntityType.PIG, ON_THE_LEDGE);
-        holdFor(helper, player, pig, HOLD_TICKS);
-        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
+        holdFor(helper, player, pig, OFF_THE_LEDGE_TICKS);
+        helper.runAfterDelay(OFF_THE_LEDGE_TICKS + 1, () -> {
             AABB box = pig.getBoundingBox();
             double ledgeTop = helper.absolutePos(ON_THE_LEDGE).getY();
             helper.assertTrue(GrabEvents.heldBy(player) == pig, "The pig on the ledge should be held, held "

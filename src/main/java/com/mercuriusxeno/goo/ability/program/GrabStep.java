@@ -17,6 +17,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
@@ -24,6 +25,7 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
@@ -38,10 +40,11 @@ import java.util.stream.Stream;
  * A left click while held
  * throws it at the throw speed (GrabEvents.throwHeld), and the press lifts
  * nothing more until right click lets go. An outlined item entity is
- * pulled to the player at the pull speed each tick instead, unheld, and
- * picked up on arrival.
+ * locked instead, unheld: it homes on the player each tick wherever the
+ * look goes, gaining speed up to the pull speed, and is picked up on arrival.
  * decision grab-holds-and-throws-a-physics-body
  * decision grab-pulls-an-item-to-you-and-picks-it-up
+ * decision grabbed-item-locks-in-and-homes-on-your-current-position
  * decision outlined-target-is-the-one-pick
  * decision grab-holds-the-mob-against-the-surface-you-look-at
  * decision grab-holds-slightly-closer-in-open-space
@@ -50,11 +53,20 @@ import java.util.stream.Stream;
  * @param range        how far the look reaches for an entity to lift, in blocks, which Remote doubles while it holds
  * @param holdDistance how far from the eye the held entity hangs where the look meets no block
  * @param throwSpeed   the speed a throw launches the held entity at, in blocks per tick
- * @param pullSpeed    the speed a pulled item entity flies to the player at, in blocks per tick
+ * @param pullSpeed    the top speed a locked item entity flies to the player at, in blocks per tick
  * @param pickCone     the half-angle, in degrees, of the cone the glove picks Grab's target in, wider than the
  *                     shared one so a look passing close to a mob still picks it
+ * @param pullAcceleration the speed a locked item gains toward the player's eye each channel tick, in blocks a tick
+ *                         per tick
+ * @param groupRadius  how far from an item Grab locks the same items with it, in blocks
+ * @param streamLead   how far short of a locked item's own place along the look its stream point stands, in blocks
+ * @param holdAcceleration the speed a held mob of the reference volume gains toward the hold point each tick, in
+ *                         blocks a tick per tick
+ * @param referenceVolume  the hitbox volume, in cubic blocks, that gains the hold acceleration whole
  */
-public record GrabStep(double range, double holdDistance, double throwSpeed, double pullSpeed, double pickCone)
+public record GrabStep(double range, double holdDistance, double throwSpeed, double pullSpeed, double pickCone,
+                       double pullAcceleration, double groupRadius, double streamLead,
+                       double holdAcceleration, double referenceVolume)
         implements ReachesTheAim {
 
     private static final String NAME = "grab";
@@ -63,7 +75,14 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
     private static final String FIELD_THROW_SPEED = "throw_speed";
     private static final String FIELD_PULL_SPEED = "pull_speed";
     private static final String FIELD_PICK_CONE = "pick_cone";
+    private static final String FIELD_PULL_ACCELERATION = "pull_acceleration";
+    private static final String FIELD_GROUP_RADIUS = "group_radius";
+    private static final String FIELD_STREAM_LEAD = "stream_lead";
+    private static final String FIELD_HOLD_ACCELERATION = "hold_acceleration";
+    private static final String FIELD_REFERENCE_VOLUME = "reference_volume";
     private static final double HALF = 0.5;
+    /** The two of the stopping rule, speed squared is two times the deceleration times the distance. */
+    private static final double STOPPING_FACTOR = 2;
 
     /** Codec for the step's params. */
     public static final MapCodec<GrabStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
@@ -71,7 +90,15 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
             Codec.DOUBLE.fieldOf(FIELD_HOLD_DISTANCE).forGetter(GrabStep::holdDistance),
             Codec.DOUBLE.fieldOf(FIELD_THROW_SPEED).forGetter(GrabStep::throwSpeed),
             Codec.DOUBLE.fieldOf(FIELD_PULL_SPEED).forGetter(GrabStep::pullSpeed),
-            Codec.DOUBLE.fieldOf(FIELD_PICK_CONE).forGetter(GrabStep::pickCone)
+            Codec.DOUBLE.fieldOf(FIELD_PICK_CONE).forGetter(GrabStep::pickCone),
+            Codec.doubleRange(0, Double.MAX_VALUE).fieldOf(FIELD_PULL_ACCELERATION)
+                    .forGetter(GrabStep::pullAcceleration),
+            Codec.doubleRange(0, Double.MAX_VALUE).fieldOf(FIELD_GROUP_RADIUS).forGetter(GrabStep::groupRadius),
+            Codec.doubleRange(0, Double.MAX_VALUE).fieldOf(FIELD_STREAM_LEAD).forGetter(GrabStep::streamLead),
+            Codec.doubleRange(0, Double.MAX_VALUE).fieldOf(FIELD_HOLD_ACCELERATION)
+                    .forGetter(GrabStep::holdAcceleration),
+            Codec.doubleRange(Double.MIN_VALUE, Double.MAX_VALUE).fieldOf(FIELD_REFERENCE_VOLUME)
+                    .forGetter(GrabStep::referenceVolume)
     ).apply(inst, GrabStep::new));
 
     /** The registered type. */
@@ -91,30 +118,97 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
         }
         Entity held = GrabEvents.heldBy(player);
         if (held == null) {
-            held = sentTarget(player, context.hostAs(ChannelHost.class));
-            if (held != null) {
-                GrabEvents.bindThrough(player, held, aimedThrough(player, held));
-            }
+            held = takenThisTick(player, sentTarget(player, context.hostAs(ChannelHost.class)));
         }
-        if (held instanceof ItemEntity item) {
-            Vec3 eye = player.getEyePosition();
-            GrabEvents.pull(player, item, pullSpeed, throughGates(player, item, item.position(), eye).orElse(eye));
-        } else if (held != null) {
-            Vec3 middle = held.getBoundingBox().getCenter();
-            Vec3 lift = new Vec3(0, held.getBbHeight() * HALF, 0);
-            Vec3 hold = holdPoint(player, held);
-            Entity body = held;
-            Optional<Vec3> gate = boundGate(player, body).map(GateRay::intoGate)
-                    .or(() -> throughGates(player, body, middle, hold.add(lift)));
-            if (gate.isPresent()) {
-                Vec3 toGate = gate.get().subtract(middle);
-                GrabEvents.drawToward(player, held, toGate.normalize().scale(Math.min(pullSpeed, toGate.length())),
-                        throwSpeed);
-            } else {
-                GrabEvents.hold(player, held, hold, throwSpeed);
-            }
+        if (held != null) {
+            holdBody(player, held);
+        } else {
+            GrabEvents.lockedItemsOf(player).forEach(item -> pullLocked(player, item));
         }
         return true;
+    }
+
+    /**
+     * What a press holding no body takes of the entity this tick sent: an
+     * item joins the press's lock, and a mob is lifted only by a press that
+     * has locked no item; the lock stretches across the tick either way, so
+     * every locked item stays the press's wherever the look goes.
+     * decision grabbed-item-locks-in-and-homes-on-your-current-position
+     * decision sweeping-grab-locks-every-item-the-highlight-passes
+     * decision grab-on-one-item-grabs-every-same-item-within-four-blocks
+     *
+     * @param player the channeling player
+     * @param sent   the entity the glove outlined and Grab takes, or null
+     * @return the mob to lift, or null where the press lifts none
+     */
+    private @Nullable Entity takenThisTick(ServerPlayer player, @Nullable Entity sent) {
+        boolean locksItems = GrabEvents.locksItems(player);
+        List<ItemEntity> group = sent instanceof ItemEntity item && !GrabEvents.locks(player, item)
+                ? groupOf(player, item) : List.of();
+        GrabEvents.lockItems(player, group);
+        if (sent == null || sent instanceof ItemEntity || locksItems) {
+            return null;
+        }
+        GrabEvents.bindThrough(player, sent, aimedThrough(player, sent));
+        return sent;
+    }
+
+    /**
+     * Pulls a locked item one tick toward its stream point on the player's
+     * look line, through a linked pair where the way runs shorter.
+     * decision grabbed-item-locks-in-and-homes-on-your-current-position
+     * decision grabbed-item-group-converges-on-the-aim-line-then-pulls-as-one
+     *
+     * @param player the pulling player
+     * @param item   the locked item
+     */
+    private void pullLocked(ServerPlayer player, ItemEntity item) {
+        Vec3 point = streamPoint(player.getEyePosition(), player.getLookAngle(), item.position());
+        Vec3 toward = throughGates(player, item, item.position(), point).orElse(point);
+        GrabEvents.pull(player, item, homingVelocity(item.getDeltaMovement(), item.position(), toward));
+    }
+
+    /**
+     * Where a locked item streams in this tick: the point of the live look
+     * line at its own place along the look, less the stream lead, so it
+     * eases onto the aim line while it comes in, and the eye once it is
+     * within the lead; the point slides in as the item does, so the items
+     * flow along the line rather than meeting at its far end.
+     * decision grabbed-item-group-converges-on-the-aim-line-then-pulls-as-one
+     *
+     * @param eye  the player's eye
+     * @param look the player's look
+     * @param from the item's position
+     * @return the point the item flies for
+     */
+    Vec3 streamPoint(Vec3 eye, Vec3 look, Vec3 from) {
+        Vec3 along = look.normalize();
+        double ahead = from.subtract(eye).dot(along) - streamLead;
+        return ahead > 0 ? eye.add(along.scale(ahead)) : eye;
+    }
+
+    /**
+     * Holds a body one tick at the hold point, or draws it a step toward the
+     * linked gate its way runs through.
+     * aim-and-shots-carry-through-linked-gates
+     *
+     * @param player the holding player
+     * @param body   the held body
+     */
+    private void holdBody(ServerPlayer player, Entity body) {
+        Vec3 middle = body.getBoundingBox().getCenter();
+        Vec3 lift = new Vec3(0, body.getBbHeight() * HALF, 0);
+        Vec3 hold = holdPoint(player, body);
+        Optional<Vec3> gate = boundGate(player, body).map(GateRay::intoGate)
+                .or(() -> throughGates(player, body, middle, hold.add(lift)));
+        if (gate.isPresent()) {
+            Vec3 toGate = gate.get().subtract(middle);
+            GrabEvents.drawToward(player, body, toGate.normalize().scale(Math.min(pullSpeed, toGate.length())),
+                    throwSpeed);
+        } else {
+            Vec3 velocity = heldVelocity(body.position(), GrabEvents.heldVelocity(player, body), hold, volumeOf(body));
+            GrabEvents.carryHeld(player, body, velocity, throwSpeed);
+        }
     }
 
     /**
@@ -227,6 +321,27 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
      */
     static double reachedLength(double straight, boolean seen, Optional<Double> route) {
         return seen ? straight : Math.min(straight, route.orElse(straight));
+    }
+
+    /**
+     * A locked item's motion after one channel tick: the speed it already
+     * had toward where the player stands this tick, plus the acceleration,
+     * all of it aimed at that point, so the item turns as the player moves
+     * rather than flying on past; no faster than the pull speed and no
+     * longer than the distance left, so the last tick lands on the player.
+     * decision grabbed-item-locks-in-and-homes-on-your-current-position
+     *
+     * @param velocity the item's motion before the tick, in blocks per tick
+     * @param from     the item's position
+     * @param toward   where it homes: the eye, or the eye as seen through a linked pair the way runs
+     * @return the item's motion this tick
+     */
+    Vec3 homingVelocity(Vec3 velocity, Vec3 from, Vec3 toward) {
+        Vec3 toEye = toward.subtract(from);
+        Vec3 along = toEye.normalize();
+        // Motion away from the player counts as none, so a turn starts the item from rest rather than backwards.
+        double speed = Math.max(0, velocity.dot(along)) + pullAcceleration;
+        return along.scale(Math.min(speed, Math.min(pullSpeed, toEye.length())));
     }
 
     /**
@@ -446,6 +561,86 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
             return null;
         }
         return takesSent(sent, reachedSquared(player, sent), Remote.entityReachLaid(player)) ? sent : null;
+    }
+
+    /**
+     * Whether a neighbor joins the group of an item Grab locks: the same
+     * item, whatever components either stack carries, within the radius of
+     * the targeted item; a sneaking player's Grab takes the targeted item alone.
+     * decision grab-on-one-item-grabs-every-same-item-within-four-blocks
+     * decision sneaking-grab-pulls-the-single-targeted-item
+     *
+     * @param targeted  the targeted item entity's stack
+     * @param candidate the neighbor's stack
+     * @param distance  how far the neighbor stands from the targeted item, in blocks
+     * @param radius    the group radius, in blocks
+     * @param sneaking  whether the player sneaks at the tick the item locks
+     * @return true where the neighbor locks with the targeted item
+     */
+    static boolean joinsGroup(ItemStack targeted, ItemStack candidate, double distance, double radius,
+            boolean sneaking) {
+        return !sneaking && distance <= radius && candidate.getItem() == targeted.getItem();
+    }
+
+    /**
+     * The items a newly targeted item locks with: itself, and every live item
+     * entity that joins its group and no earlier group of the press holds,
+     * so the items a later sweep locks form their own group.
+     * decision grab-on-one-item-grabs-every-same-item-within-four-blocks
+     * decision sneaking-grab-pulls-the-single-targeted-item
+     *
+     * @param player   the pressing player
+     * @param targeted the item the glove outlined
+     * @return the targeted item first, then its group
+     */
+    private List<ItemEntity> groupOf(ServerPlayer player, ItemEntity targeted) {
+        boolean sneaking = player.isShiftKeyDown();
+        List<ItemEntity> group = new ArrayList<>(List.of(targeted));
+        group.addAll(targeted.level().getEntitiesOfClass(ItemEntity.class,
+                targeted.getBoundingBox().inflate(groupRadius), neighbor -> neighbor != targeted && neighbor.isAlive()
+                        && !GrabEvents.locks(player, neighbor) && joinsGroup(targeted.getItem(), neighbor.getItem(),
+                        neighbor.position().distanceTo(targeted.position()), groupRadius, sneaking)));
+        return group;
+    }
+
+    /**
+     * A held mob's motion this tick: the speed it already had toward the
+     * hold point plus the hold acceleration over its hitbox volume against
+     * the reference volume, so a bigger mob gains speed slower; damped to the
+     * speed it can still shed over the distance left at that same rate, so
+     * it settles at the hold point rather than overshooting it. Each axis
+     * moves at that speed at most and no farther than its own distance left,
+     * the way a move resolves blocks axis by axis, so a mob pressed against a
+     * floor still slides the short way off a ledge and drops.
+     * decision grabbed-mob-accelerates-slower-the-bigger-its-hitbox
+     *
+     * @param position  the mob's feet
+     * @param velocity  the motion the hold kept from the last tick
+     * @param holdPoint where the hold puts its feet
+     * @param volume    the mob's hitbox volume, in cubic blocks
+     * @return this tick's motion
+     */
+    Vec3 heldVelocity(Vec3 position, Vec3 velocity, Vec3 holdPoint, double volume) {
+        Vec3 toHold = holdPoint.subtract(position);
+        double left = toHold.length();
+        Vec3 along = toHold.normalize();
+        double gain = holdAcceleration * referenceVolume / Math.max(volume, Double.MIN_VALUE);
+        // The fastest speed from which the same gain, spent braking, still stops at the hold point.
+        double braking = Math.sqrt(STOPPING_FACTOR * gain * left);
+        double speed = Math.min(Math.max(0, velocity.dot(along)) + gain, braking);
+        return new Vec3(Math.clamp(toHold.x, -speed, speed), Math.clamp(toHold.y, -speed, speed),
+                Math.clamp(toHold.z, -speed, speed));
+    }
+
+    /**
+     * A mob's mass as Grab weighs it: its hitbox volume.
+     * decision grabbed-mob-accelerates-slower-the-bigger-its-hitbox
+     *
+     * @param body the held mob
+     * @return its width squared times its height, in cubic blocks
+     */
+    private static double volumeOf(Entity body) {
+        return body.getBbWidth() * body.getBbWidth() * body.getBbHeight();
     }
 
     @Override
