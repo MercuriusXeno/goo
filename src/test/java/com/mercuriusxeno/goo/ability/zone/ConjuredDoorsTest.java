@@ -186,9 +186,10 @@ class ConjuredDoorsTest {
         when(caster.getId()).thenReturn(CASTER_ID);
         ConjuredDoor door = ConjuredDoor.standing(FEET, FACING_SOUTH, CHARGE / 2, CHARGE);
         try (MockedStatic<EntityVisuals> visuals = mockStatic(EntityVisuals.class)) {
-            ConjuredDoors.sendDoor(caster, door);
+            ConjuredDoors.sendDoor(caster, door, GateLook.NETHER_PORTAL);
 
-            visuals.verify(() -> EntityVisuals.sendToWatchers(caster, new ConjuredDoorPayload(CASTER_ID, door)));
+            visuals.verify(() -> EntityVisuals.sendToWatchers(caster,
+                    new ConjuredDoorPayload(CASTER_ID, door, GateLook.NETHER_PORTAL)));
         }
     }
 }
