@@ -97,9 +97,10 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
     public static final CellBinding UPDRAFT = new CellBinding(GooTypes.TYPHOON, UPDRAFT_ABILITY, CellSurface.POOL,
             FluidFooting.NONE);
     /**
-     * Metal's goo: Spikes lays it, and it stands as ordinary ground.
+     * Metal's goo: Spikes lays it, it stands as ordinary ground, and it
+     * impales what walks on it.
      * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
      */
-    public static final CellBinding SPIKES = new CellBinding(GooTypes.METAL, SPIKES_ABILITY, CellSurface.POOL,
+    public static final CellBinding SPIKES = new CellBinding(GooTypes.METAL, SPIKES_ABILITY, CellSurface.IMPALE,
             FluidFooting.NONE);
 }

@@ -17,7 +17,19 @@
     "sound": { "id": "minecraft:block.honey_block.slide", "every": 10, "volume": 1.0, "pitch": 1.0, "pitch_spread": 0.1 }
   },
   "behaviors": [
-    { "type": "spikes" }
+    {
+      "type": "spikes",
+      "where": ["living", "alive", "not_item", "not_sneaking"],
+      "cooldown": 10,
+      "spend_chance": 0.25,
+      "strike": [
+        { "type": "damage", "amount": 6, "source": "stalagmite", "knockback": false },
+        { "type": "particles", "id": "minecraft:crit", "at": "target", "count": 8, "spread": 0.4, "speed": 0.15 },
+        { "type": "sound", "id": "minecraft:item.axe.scrape", "at": "target", "source": "blocks", "volume": 0.8, "pitch": 1.5 }
+      ],
+      "retract_shink": { "id": "minecraft:item.axe.scrape", "source": "blocks", "volume": 0.8, "pitch": 1.0 },
+      "retract_frame": 3
+    }
   ],
   "tags": ["stream"]
 }

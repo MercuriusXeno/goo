@@ -1,0 +1,54 @@
+package com.mercuriusxeno.goo.block.ability;
+
+import com.mercuriusxeno.goo.ability.program.SpikesStep;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+import org.jspecify.annotations.NonNull;
+
+/**
+ * Metal's Spikes cell: the volume cell bound to Metal's goo, lying flat at
+ * rest and forming spikes to impale a living thing walking on it, by the
+ * strike, cooldown and spend chance Spikes' step names. The cell takes the
+ * step of what stands on it at any height, so a one-layer coat strikes as a
+ * full one does. The strike names the player who placed the cell.
+ * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
+ * urchin-rests-bristled-and-spears
+ * standing-goo-thing-credits-whoever-placed-it
+ */
+public class SpikesCellBlock extends VolumeCellBlock {
+
+    /**
+     * Creates a Spikes cell.
+     *
+     * @param properties the block properties
+     * @param binding    the Spikes binding
+     */
+    public SpikesCellBlock(Properties properties, CellBinding binding) {
+        super(properties, binding);
+    }
+
+    /**
+     * A Spikes cell's strike hurts, so the cell remembers who placed it.
+     * standing-goo-thing-credits-whoever-placed-it
+     */
+    @Override
+    protected boolean creditsItsPlacer() {
+        return true;
+    }
+
+    /**
+     * Impales a living thing walking on the cell, on the server.
+     */
+    @Override
+    public void stepOn(@NonNull Level level, @NonNull BlockPos pos, @NonNull BlockState state,
+                       @NonNull Entity entity) {
+        if (level instanceof ServerLevel server) {
+            SpikesStep.in(layingProgram(level)).ifPresent(spikes -> SpikesImpale.impale(server, pos, state, entity,
+                    spikes, creditedPlayerAt(server, pos)));
+        }
+        super.stepOn(level, pos, state, entity);
+    }
+}
