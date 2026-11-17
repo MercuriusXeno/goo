@@ -186,7 +186,7 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
     /**
      * Explodes at the entity with vanilla's look whatever the step wrote, the
      * look an entity's explosion always showed: Blast alone takes the written look.
-     * Each hit names the thrower.
+     * Each hit names the thrower, or a standing field's placer.
      * blast-alone-takes-the-new-explosion-look
      * direct-goo-hit-credits-its-caster
      * goo-hit-keeps-its-kind-and-names-the-player-behind-it
@@ -194,7 +194,7 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
     @Override
     public void explode(float power, double reach, boolean gathers, ExplosionMode mode, ExplosionLook look) {
         GooExplosion.detonate(level, target.position(), power, new GooExplosion.Cut(reach, gathers), mode,
-                GooExplosion.Look.vanilla(), thrower);
+                GooExplosion.Look.vanilla(), creditedTo());
     }
 
     @Override

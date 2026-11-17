@@ -75,8 +75,10 @@ public record ToxinStep(Identifier effect, Expr sharePerSecond, Expr duration, i
         int amplifier = amplifierOver(target.getEffect(holder.get()), maxAmplitude);
         target.setData(GooAttachments.ENTITY_COUNTERS, target.getData(GooAttachments.ENTITY_COUNTERS)
                 .withValue(BioToxinEffect.SHARE_PER_SECOND, sharePerSecond.evaluate(context)));
-        // lingering-goo-effect-credits-whoever-applied-it: each later tick of the toxin names this thrower
-        LingeringAppliers.remember(target, effect, host.thrower());
+        // each later tick of the toxin names this thrower or the field's placer
+        // lingering-goo-effect-credits-whoever-applied-it
+        // standing-goo-thing-credits-whoever-placed-it
+        LingeringAppliers.remember(target, effect, host.creditedTo());
         target.addEffect(new MobEffectInstance(holder.get(), duration.evaluateInt(context), amplifier));
         return true;
     }
