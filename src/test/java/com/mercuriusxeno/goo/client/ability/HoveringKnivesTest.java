@@ -37,21 +37,40 @@ class HoveringKnivesTest {
         Vec3 top = StackHover.pointOf(CUBE, PITCH, YAW, StackHover.spawnSlot(3, 10));
         assertEquals(0, top.distanceTo(HoveringKnives.knifeAt(fan, 3, CUBE, PITCH, YAW, 0)), WITHIN);
         assertEquals(0f, HoveringKnives.knifeScaleAt(fan, 3, 0), 1e-6f, "the knife grows out of the cube");
-        Vec3 slot = StackHover.pointOf(CUBE, PITCH, YAW, StackHover.knifeSlot(3));
+        Vec3 slot = StackHover.pointOf(CUBE, PITCH, YAW, StackHover.knifeSlot(3, 4));
         assertEquals(0, slot.distanceTo(HoveringKnives.knifeAt(fan, 3, CUBE, PITCH, YAW,
                 HoveringKnives.EASE_TICKS)), WITHIN);
         assertEquals(1f, HoveringKnives.knifeScaleAt(fan, 3, HoveringKnives.EASE_TICKS), 1e-6f);
     }
 
     @Test
-    void aKnifeFormedBeforeTheChangeStandsWholeAtItsSlot() {
+    void aKnifeFormedBeforeTheChangeStaysWholeAndEasesSidewaysAsThePileWidens() {
         HoveringKnives.formed(CASTER, 2, 0);
         HoveringKnives.formed(CASTER, 4, 12);
         HoveringKnives.Fan fan = HoveringKnives.fanOf(CASTER);
 
-        Vec3 slot = StackHover.pointOf(CUBE, PITCH, YAW, StackHover.knifeSlot(1));
-        assertEquals(0, slot.distanceTo(HoveringKnives.knifeAt(fan, 1, CUBE, PITCH, YAW, 0)), WITHIN);
+        Vec3 before = StackHover.pointOf(CUBE, PITCH, YAW, StackHover.knifeSlot(1, 2));
+        Vec3 after = StackHover.pointOf(CUBE, PITCH, YAW, StackHover.knifeSlot(1, 4));
+        assertEquals(0, before.distanceTo(HoveringKnives.knifeAt(fan, 1, CUBE, PITCH, YAW, 0)), WITHIN);
+        assertEquals(0, after.distanceTo(HoveringKnives.knifeAt(fan, 1, CUBE, PITCH, YAW,
+                HoveringKnives.EASE_TICKS)), WITHIN);
         assertEquals(1f, HoveringKnives.knifeScaleAt(fan, 1, 0), 1e-6f, "a knife already formed stays whole");
+    }
+
+    // knives-hover-above-the-blob-cube-over-the-hand: the server throws each knife from the slot it hovers at
+    @Test
+    void eachKnifeIsThrownFromTheSlotItHoversAt() {
+        Vec3 eye = new Vec3(4.5, 66.62, -1.5);
+        Vec3 cube = StackHover.cubeCenterInView(eye, PITCH, YAW, true);
+        for (int held = 1; held <= 10; held++) {
+            HoveringKnives.formed(CASTER, held, held);
+            HoveringKnives.formed(CASTER, held, held + 1);
+            Vec3 drawn = HoveringKnives.knifeAt(HoveringKnives.fanOf(CASTER), held - 1, cube, PITCH, YAW,
+                    HoveringKnives.EASE_TICKS);
+            Vec3 launched = com.mercuriusxeno.goo.ability.crystal.ThrownKnife.launchPointOf(eye, PITCH, YAW, true,
+                    held, false);
+            assertEquals(0, drawn.distanceTo(launched), WITHIN, "the knife leaving at " + held + " held");
+        }
     }
 
     @Test

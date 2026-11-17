@@ -19,29 +19,43 @@ class StackHoverTest {
     private static final double DELTA = 1e-9;
     private static final int KNIVES = 10;
     private static final int JAVELINS = 3;
+    private static final double CENTERED = 1e-4;
 
     @Nested
     class KnivesPyramid {
 
+        /** The knives, numbered from 1, in each row from the top down, left to right: the diagonal fill. */
+        private final int[][] rows = {{1, 2, 4, 7}, {3, 5, 8}, {6, 9}, {10}};
+
         @Test
-        void tenSlotsStandInRowsOfFourThreeTwoAndOneFromTheTopDown() {
-            int[][] rows = {{0, 1, 2, 3}, {4, 5, 6}, {7, 8}, {9}};
+        void tenKnivesFillTheRowsByDiagonalsLeftToRight() {
             double above = Double.MAX_VALUE;
             for (int[] row : rows) {
-                double height = StackHover.knifeSlot(row[0]).up();
+                double height = StackHover.knifeSlot(row[0] - 1, KNIVES).up();
                 assertTrue(height < above, "each row should stand below the one before");
-                double midpoint = 0;
                 for (int col = 0; col < row.length; col++) {
-                    StackHover.Slot slot = StackHover.knifeSlot(row[col]);
-                    assertEquals(height, slot.up(), DELTA, "a row's slots share one height");
+                    StackHover.Slot slot = StackHover.knifeSlot(row[col] - 1, KNIVES);
+                    assertEquals(height, slot.up(), DELTA, "knife " + row[col] + " should share its row's height");
                     if (col > 0) {
-                        assertTrue(slot.right() > StackHover.knifeSlot(row[col - 1]).right(),
-                                "a row fills left to right");
+                        assertTrue(slot.right() > StackHover.knifeSlot(row[col - 1] - 1, KNIVES).right(),
+                                "knife " + row[col] + " should stand right of knife " + row[col - 1]);
                     }
-                    midpoint += slot.right() / row.length;
                 }
-                assertEquals(0, midpoint, DELTA, "each row is centered over the cube");
                 above = height;
+            }
+        }
+
+        @Test
+        void thePileIsCenteredOverTheHandAtEveryCount() {
+            for (int held = 1; held <= KNIVES; held++) {
+                double least = Double.MAX_VALUE;
+                double greatest = -Double.MAX_VALUE;
+                for (int index = 0; index < held; index++) {
+                    double right = StackHover.knifeSlot(index, held).right();
+                    least = Math.min(least, right);
+                    greatest = Math.max(greatest, right);
+                }
+                assertEquals(0, (least + greatest) / 2, CENTERED, "the pile of " + held + " should be centered");
             }
         }
 
@@ -58,7 +72,7 @@ class StackHoverTest {
         void eachKnifeHoversAboveTheCubeAndSpawnsAtItsTop() {
             for (int knife = 1; knife <= KNIVES; knife++) {
                 int heldBefore = knife - 1;
-                double lowest = StackHover.knifeSlot(knife - 1).up() - StackHover.KNIFE_HALF_HEIGHT;
+                double lowest = StackHover.knifeSlot(knife - 1, knife).up() - StackHover.KNIFE_HALF_HEIGHT;
                 double top = StackHover.cubeTopAt(heldBefore, KNIVES);
                 assertTrue(lowest > top, "knife " + knife + "'s slot should clear the cube's top " + top
                         + ", lowest at " + lowest);

@@ -7,12 +7,10 @@ import net.minecraft.world.phys.Vec3;
  * throws each one from its slot and the client that draws it. The cube rests
  * straight above where the hand rests and shrinks a step for each one held,
  * gone once the stack is full. Knives' ten knives hover in an upside-down
- * pyramid over the hand, rows of 4, 3, 2 and 1 from the top down, each row
- * centered over the cube, filling the top row left to right first and ending
- * on the single slot nearest the cube; each row stands just clear of the
- * cube's top at the count its first knife forms at, so the full cube sits
- * just under the top row and the cube has shrunk clear of each next row by
- * the time the row above it fills. Dart's three javelins hover side by side
+ * pyramid over the hand, rows of 4, 3, 2 and 1 from the top down, filled by
+ * diagonals and the pile held centered over the cube at every count; each row
+ * stands just clear of the cube's top at the count its first knife forms at,
+ * so the cube has shrunk clear of each row by the time a knife takes it. Dart's three javelins hover side by side
  * at one height just clear of the full cube. Each one spawns at the cube's top.
  * decision knives-hover-in-an-upside-down-bowling-pin-pyramid
  * decision knives-hover-above-the-blob-cube-over-the-hand
@@ -54,6 +52,12 @@ public final class StackHover {
     static final double REST_BELOW = 0.15;
     /** The knives in the pyramid's rows, the top row first. */
     private static final int[] ROW_WIDTHS = {4, 3, 2, 1};
+    /** The row each knife fills by diagonals, the top row 0: knives 1 2 4 7, 3 5 8, 6 9 and 10. */
+    private static final int[] KNIFE_ROW = {0, 0, 1, 0, 1, 2, 0, 1, 2, 3};
+    /** Each knife's place in its row, left to right. */
+    private static final int[] KNIFE_PLACE = {0, 1, 0, 2, 1, 0, 3, 2, 1, 0};
+    /** The index of the first knife each row takes. */
+    private static final int[] ROW_FIRST_KNIFE = {0, 2, 5, 9};
     private static final double HALF = 0.5;
     private static final float QUARTER_TURN = 90f;
 
@@ -70,24 +74,42 @@ public final class StackHover {
     }
 
     /**
-     * A knife's slot in the pyramid: the top row's four left to right, then
-     * the three, the two and the one nearest the cube.
+     * A knife's slot in the pyramid, filled by diagonals: knives 1 2 4 7 in
+     * the top row, 3 5 8 under them, then 6 9 and 10 nearest the cube, each
+     * the next place right in its row. The pile, the knives held now, stands
+     * centered over the cube at every count, so a standing knife shifts
+     * sideways as the pile widens. Each row stands just clear of the cube's
+     * top at the count its first knife forms at, 0, 2, 5 and 9 held.
+     * decision knives-hover-in-an-upside-down-bowling-pin-pyramid
+     * decision knives-cube-shrinks-clear-of-each-next-layer
      *
      * @param index the knife's index, 0 the first formed
+     * @param held  the knives held
      * @return its slot
      */
-    public static Slot knifeSlot(int index) {
-        int first = 0;
-        for (int width : ROW_WIDTHS) {
-            if (index < first + width) {
-                double height = cubeTopAt(first, KNIVES) + CLEARANCE + KNIFE_HALF_HEIGHT;
-                return new Slot((index - first - (width - 1) * HALF) * KNIFE_SPACING, height);
-            }
-            first += width;
-        }
-        return knifeSlot(KNIVES - 1);
+    public static Slot knifeSlot(int index, int held) {
+        int knife = Math.clamp(index, 0, KNIVES - 1);
+        int row = KNIFE_ROW[knife];
+        double height = cubeTopAt(ROW_FIRST_KNIFE[row], KNIVES) + CLEARANCE + KNIFE_HALF_HEIGHT;
+        return new Slot(pyramidRight(knife) - pileMiddle(Math.clamp(held, knife + 1, KNIVES)), height);
     }
 
+    // A knife's place across the full pyramid, each row centered under the top row's middle.
+    private static double pyramidRight(int knife) {
+        int width = ROW_WIDTHS[KNIFE_ROW[knife]];
+        return (KNIFE_PLACE[knife] - (width - 1) * HALF) * KNIFE_SPACING;
+    }
+
+    // The middle of the pile the first knives held span across the full pyramid.
+    private static double pileMiddle(int held) {
+        double least = Double.MAX_VALUE;
+        double greatest = -Double.MAX_VALUE;
+        for (int knife = 0; knife < held; knife++) {
+            least = Math.min(least, pyramidRight(knife));
+            greatest = Math.max(greatest, pyramidRight(knife));
+        }
+        return (least + greatest) * HALF;
+    }
     /**
      * A javelin's slot: the three side by side, left to right, just clear of the full cube.
      *
@@ -103,11 +125,12 @@ public final class StackHover {
      * The slot the one formed at an index hovers at.
      *
      * @param index    its index, 0 the first formed
+     * @param held     the count held
      * @param javelins whether the stack is Dart's javelins rather than Knives' knives
      * @return its slot
      */
-    public static Slot slotOf(int index, boolean javelins) {
-        return javelins ? javelinSlot(index) : knifeSlot(index);
+    public static Slot slotOf(int index, int held, boolean javelins) {
+        return javelins ? javelinSlot(index) : knifeSlot(index, held);
     }
 
     /**
