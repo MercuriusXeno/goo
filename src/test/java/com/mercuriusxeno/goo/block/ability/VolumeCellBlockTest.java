@@ -658,6 +658,32 @@ class VolumeCellBlockTest {
         }
     }
 
+    /**
+     * A broken Signal cell gives back pulse goo, each layer a fifteenth of
+     * Signal's cost as pulse_signal.json ships it.
+     * extend-is-dropped-for-signal-an-in-world-pulse-goo
+     */
+    @Nested
+    class SignalReclaim {
+
+        private static final int LAYERS = 11;
+
+        @Test
+        void signalIsPulseGooLaidByPulsesSignal() {
+            assertEquals(List.of(GooTypes.PULSE, AbilityJson.idOf("pulse_signal.json")),
+                    List.of(CellBinding.SIGNAL.gooType(), CellBinding.SIGNAL.layingAbility()));
+        }
+
+        @Test
+        void aBrokenSignalCellDropsPulseGooAtFifteenthsOfSignalsCost() {
+            GooFraction cost = AbilityJson.decode("pulse_signal").cost().exactIn(GooValueTable.EMPTY);
+
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.PULSE,
+                            cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.SIGNAL, LAYERS, cost));
+        }
+    }
+
     private static JsonObject classpathJson(String path) throws IOException {
         try (InputStream in = VolumeCellBlockTest.class.getResourceAsStream(path)) {
             assertTrue(in != null, path + " is not on the classpath");
