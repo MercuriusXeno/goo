@@ -35,15 +35,19 @@ public final class SlimeTop {
     /** The step toward the low end of an axis. */
     private static final int LOW_SIDE = -1;
 
+    private final LayersAround around;
     private final Plane plane;
     private final double[] heights;
     private final Set<Direction> rims;
+    private final Set<Direction> joins;
     private final boolean covered;
 
-    private SlimeTop(Plane plane, double[] heights, Set<Direction> rims, boolean covered) {
+    private SlimeTop(LayersAround around, Plane plane, double[] heights, Edges edges, boolean covered) {
+        this.around = around;
         this.plane = plane;
         this.heights = heights;
-        this.rims = rims;
+        this.rims = edges.rims();
+        this.joins = edges.joins();
         this.covered = covered;
     }
 
@@ -88,13 +92,28 @@ public final class SlimeTop {
                         : Math.max(0, heightOf(around, plane, own, column, stepAt(a), stepAt(b)));
             }
         }
+        return new SlimeTop(around, plane, heights, edgesOf(around, plane, column), covered);
+    }
+
+    /**
+     * Sorts a slab's edges by what meets them.
+     *
+     * @param around the cells around the block
+     * @param plane  the slab's surface and axes
+     * @param column whether the block's floor slab stands on a full block of its goo
+     * @return the edges drawing a rim and the edges joining a slab round an outside edge
+     */
+    private static Edges edgesOf(LayersAround around, Plane plane, boolean column) {
         Set<Direction> rims = EnumSet.noneOf(Direction.class);
+        Set<Direction> joins = EnumSet.noneOf(Direction.class);
         for (Direction edge : plane.edges()) {
-            if (!continuesAcross(around, plane, column, edge.getUnitVec3i())) {
+            if (joinsRound(around, plane, edge)) {
+                joins.add(edge);
+            } else if (!continuesAcross(around, plane, column, edge.getUnitVec3i())) {
                 rims.add(edge);
             }
         }
-        return new SlimeTop(plane, heights, rims, covered);
+        return new Edges(rims, joins);
     }
 
     /**
@@ -135,6 +154,29 @@ public final class SlimeTop {
      */
     public Set<Direction> rims() {
         return rims;
+    }
+
+    /**
+     * @return the edges a slab of the block's goo on the next face of the same solid block joins round
+     */
+    public Set<Direction> joins() {
+        return joins;
+    }
+
+    /**
+     * The slab joining this one round an outside edge, read from the same
+     * cells: it stands in the space diagonal to this block across that edge,
+     * on the face of the solid block this slab clings to that the edge turns onto.
+     * attached-goo-draws-per-attachment-and-divides-its-volume
+     *
+     * @param edge an edge this slab joins round
+     * @return the slab across it, its heights read in its own block
+     */
+    public SlimeTop across(Direction edge) {
+        Vec3i diagonal = edge.getUnitVec3i().offset(plane.surface().getUnitVec3i());
+        LayersAround theirs = around.shiftedBy(diagonal.getX(), diagonal.getY(), diagonal.getZ());
+        Direction surface = edge.getOpposite();
+        return surface == Direction.DOWN ? of(theirs) : onSurface(theirs, surface);
     }
 
     /**
@@ -179,14 +221,32 @@ public final class SlimeTop {
         double sum = own;
         int count = 1;
         for (Vec3i offset : plane.meetingAt(stepA, stepB)) {
-            Neighbour across = plane.surface() == Direction.DOWN ? floorNeighbourAt(around, column, offset)
-                    : slabNeighbourAt(around, plane.surface(), offset);
+            Neighbour across = neighbourAt(around, plane, column, offset);
             if (!across.solid()) {
                 sum += across.top();
                 count++;
             }
         }
         return sum / count;
+    }
+
+    /**
+     * What stands across an edge or a corner of a slab, the slab round an
+     * outside edge standing in for nothing across that edge.
+     *
+     * @param around the cells around the block
+     * @param plane  the slab's surface and axes
+     * @param column whether the block's floor slab stands on a full block of its goo
+     * @param offset the block across
+     * @return what stands there
+     */
+    private static Neighbour neighbourAt(LayersAround around, Plane plane, boolean column, Vec3i offset) {
+        Neighbour across = plane.surface() == Direction.DOWN ? floorNeighbourAt(around, column, offset)
+                : slabNeighbourAt(around, plane.surface(), offset);
+        Direction edge = Direction.getNearest(offset.getX(), offset.getY(), offset.getZ(), null);
+        boolean nothing = !across.solid() && across.top() == 0;
+        return edge != null && nothing && joinsRound(around, plane, edge)
+                ? new Neighbour(false, roundTheEdge(around, plane, edge)) : across;
     }
 
     /**
@@ -245,6 +305,43 @@ public final class SlimeTop {
             return around.floorShareAt(dx, LOW_SIDE, dz) - FULL;
         }
         return around.solidAt(dx, LOW_SIDE, dz) ? 0 : -FULL;
+    }
+
+    /**
+     * Whether a slab of the block's goo on the next face of the solid block
+     * this slab clings to joins it round an edge: the space across the edge
+     * is open, and the space diagonal to the block across it holds goo of
+     * its type clinging to that next face.
+     * attached-goo-draws-per-attachment-and-divides-its-volume
+     *
+     * @param around the cells around the block
+     * @param plane  the slab's surface and axes
+     * @param edge   the edge, in the slab's plane
+     * @return true where the two slabs join round the edge
+     */
+    private static boolean joinsRound(LayersAround around, Plane plane, Direction edge) {
+        Vec3i across = edge.getUnitVec3i();
+        Vec3i holding = plane.surface().getUnitVec3i();
+        boolean open = around.layersAt(across.getX(), across.getY(), across.getZ()) == 0
+                && !around.solidAt(across.getX(), across.getY(), across.getZ());
+        return open && around.solidAt(holding.getX(), holding.getY(), holding.getZ())
+                && roundTheEdge(around, plane, edge) > 0;
+    }
+
+    /**
+     * The share the slab round an outside edge holds on the next face.
+     *
+     * @param around the cells around the block
+     * @param plane  the slab's surface and axes
+     * @param edge   the edge, in the slab's plane
+     * @return its layers, 0 where none stands there
+     */
+    private static double roundTheEdge(LayersAround around, Plane plane, Direction edge) {
+        Vec3i diagonal = edge.getUnitVec3i().offset(plane.surface().getUnitVec3i());
+        int dx = diagonal.getX();
+        int dy = diagonal.getY();
+        int dz = diagonal.getZ();
+        return around.layersAt(dx, dy, dz) > 0 ? around.shareOn(dx, dy, dz, edge.getOpposite()) : 0;
     }
 
     /**
@@ -334,6 +431,15 @@ public final class SlimeTop {
                 case Z -> pixels.z();
             };
         }
+    }
+
+    /**
+     * A slab's edges by what meets them.
+     *
+     * @param rims  the edges nothing continues past, each drawing a rim
+     * @param joins the edges a slab round an outside edge joins
+     */
+    private record Edges(Set<Direction> rims, Set<Direction> joins) {
     }
 
     /**

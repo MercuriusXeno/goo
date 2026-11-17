@@ -4,6 +4,7 @@ import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.Direction;
+import org.joml.Vector3f;
 import org.joml.Vector3fc;
 import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
@@ -121,6 +122,78 @@ class SlimeTopQuadsTest {
         assertEquals(4 * ONE_LAYER, northDeepest, EPSILON, "the north slab's deepest point");
         assertEquals(4 * ONE_LAYER, southDeepest, EPSILON, "the south slab's deepest point");
         assertEquals(7 * ONE_LAYER, southMiddle - northMiddle, EPSILON, "the slabs' middles apart");
+    }
+
+    /**
+     * A block of 8 on top of a pillar and a block of 4 attached to the
+     * pillar's east face beside it, with no floor: both slabs' edges at the
+     * pillar's top edge stand at 6 layers, one sloped face spans from the
+     * top slab's edge to the side slab's, and neither draws a rim there.
+     * attached-goo-draws-per-attachment-and-divides-its-volume
+     */
+    @Test
+    void gooOnTopAndGooOnTheSideJoinRoundTheEdge() {
+        SameGooCells cells = new SameGooCells().at(0, 0, 0, 8).solid(0, -1, 0).at(1, -1, 0, 4)
+                .share(1, -1, 0, Direction.DOWN, 0).share(1, -1, 0, Direction.WEST, 4);
+        SlimeTop top = SlimeTop.of(cells);
+        SlimeTop side = SlimeTop.onSurface(cells.shiftedBy(1, -1, 0), Direction.WEST);
+
+        for (int along : new int[] {1, 2}) {
+            assertEquals(6, top.heightAt(3, along), EPSILON, "the top slab's east edge");
+            assertEquals(6, side.heightAt(along, 3), EPSILON, "the side slab's top edge");
+        }
+        assertFalse(top.rims().contains(Direction.EAST), "the top slab draws a rim on the joined edge");
+        assertFalse(side.rims().contains(Direction.UP), "the side slab draws a rim on the joined edge");
+        List<BakedQuad> joins = new ArrayList<>(SlimeTopQuads.joinsOf(top, SHELL));
+        joins.addAll(SlimeTopQuads.joinsOf(side, SHELL));
+        assertTrue(joins.stream().anyMatch(quad -> spans(quad, new Vector3f(1, 6 * ONE_LAYER, 0.25f),
+                        new Vector3f(1 + 6 * ONE_LAYER, 0, 0.25f))),
+                "one face should span from the top slab's edge to the side slab's");
+    }
+
+    /**
+     * Blocks of 6 and 3 attached to the east and south faces of one pillar
+     * join round its upright corner at 4.5 layers; a block of 4 attached to
+     * a block's east face and a block of 2 under that block join round its
+     * bottom edge at 3; each pair by one sloped face.
+     * attached-goo-draws-per-attachment-and-divides-its-volume
+     */
+    @Test
+    void gooOnTwoFacesOfOneBlockJoinsRoundTheEdgeBetweenThem() {
+        SameGooCells pillar = new SameGooCells().solid(0, 0, 0).at(1, 0, 0, 6).share(1, 0, 0, Direction.DOWN, 0)
+                .share(1, 0, 0, Direction.WEST, 6).at(0, 0, 1, 3).share(0, 0, 1, Direction.DOWN, 0)
+                .share(0, 0, 1, Direction.NORTH, 3);
+        SlimeTop east = SlimeTop.onSurface(pillar.shiftedBy(1, 0, 0), Direction.WEST);
+        SlimeTop south = SlimeTop.onSurface(pillar.shiftedBy(0, 0, 1), Direction.NORTH);
+        for (int along : new int[] {1, 2}) {
+            assertEquals(4.5, east.heightAt(3, along), EPSILON, "the east slab's south edge");
+            assertEquals(4.5, south.heightAt(3, along), EPSILON, "the south slab's east edge");
+        }
+        assertFalse(SlimeTopQuads.joinsOf(east, SHELL).isEmpty() && SlimeTopQuads.joinsOf(south, SHELL).isEmpty(),
+                "the corner should draw a joining face");
+
+        SameGooCells ledge = new SameGooCells().solid(0, 0, 0).at(1, 0, 0, 4).share(1, 0, 0, Direction.DOWN, 0)
+                .share(1, 0, 0, Direction.WEST, 4).at(0, -1, 0, 2).share(0, -1, 0, Direction.DOWN, 0)
+                .share(0, -1, 0, Direction.UP, 2);
+        SlimeTop wall = SlimeTop.onSurface(ledge.shiftedBy(1, 0, 0), Direction.WEST);
+        SlimeTop under = SlimeTop.onSurface(ledge.shiftedBy(0, -1, 0), Direction.UP);
+        for (int along : new int[] {1, 2}) {
+            assertEquals(3, wall.heightAt(along, 0), EPSILON, "the wall slab's foot");
+            assertEquals(3, under.heightAt(3, along), EPSILON, "the ceiling slab's east edge");
+        }
+        assertFalse(SlimeTopQuads.joinsOf(wall, SHELL).isEmpty() && SlimeTopQuads.joinsOf(under, SHELL).isEmpty(),
+                "the edge should draw a joining face");
+    }
+
+    /** Whether a quad has a vertex at each of two points, in block units. */
+    private static boolean spans(BakedQuad quad, Vector3fc one, Vector3fc other) {
+        boolean meetsOne = false;
+        boolean meetsOther = false;
+        for (int vertex = 0; vertex < BakedQuad.VERTEX_COUNT; vertex++) {
+            meetsOne |= quad.position(vertex).distance(one) < EPSILON;
+            meetsOther |= quad.position(vertex).distance(other) < EPSILON;
+        }
+        return meetsOne && meetsOther;
     }
 
     /** Whether a vertex stands at the middle of a wall slab's plan, 8 texels across and up. */
