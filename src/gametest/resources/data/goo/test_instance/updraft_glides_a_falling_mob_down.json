@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:updraft_glides_a_falling_mob_down",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 80,
+  "setup_ticks": 0,
+  "required": true,
+  "sky_access": true
+}

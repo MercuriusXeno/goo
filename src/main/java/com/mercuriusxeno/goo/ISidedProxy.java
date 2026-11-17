@@ -78,6 +78,17 @@ public interface ISidedProxy {
     }
 
     /**
+     * Notes an Updraft cell the client draws, so its wind blows up its
+     * column each tick it stands. Server: does nothing, since only the client
+     * draws wind.
+     * updraft-blob-stands-a-column-of-wind
+     *
+     * @param cell the Updraft cell
+     */
+    default void seeUpdraftCell(BlockPos cell) {
+    }
+
+    /**
      * Keeps a client loop sounding one more tick at a point, starting it when
      * none sounds for the key; a loop left unfed fades out. Server: does
      * nothing, since only the client plays sound
