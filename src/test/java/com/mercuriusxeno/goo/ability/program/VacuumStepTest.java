@@ -52,7 +52,7 @@ import static org.mockito.Mockito.withSettings;
 
 /**
  * Vacuum's drain and reach: every residual cell in the cone loses one layer
- * each time the ticks its distance sets have run, 3 at the eye rising to 6 at
+ * each time the ticks its distance sets have run, 4 at the eye rising to 8 at
  * the reach's far end, and the hold reaches every residual inside its cone
  * that the eye sees past other residuals
  * (decisions vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave,
@@ -60,9 +60,9 @@ import static org.mockito.Mockito.withSettings;
  */
 class VacuumStepTest {
 
-    private static final double SHIPPED_RANGE = 10;
-    /** The cone's apex angle, 30 degrees each side of the look. */
-    private static final double CONE = 60;
+    private static final double SHIPPED_RANGE = 8;
+    /** The cone's apex angle, 22.5 degrees each side of the look. */
+    private static final double CONE = 45;
     /** The eye, looking east along x across the reach. */
     private static final Vec3 EYE = new Vec3(0.5, 2.5, 0.5);
     private static final Vec3 LOOK_EAST = new Vec3(SHIPPED_RANGE, 0, 0);
@@ -84,25 +84,25 @@ class VacuumStepTest {
         void theShippedVacuumBehaviorNamesThePaceAndTheMemory() {
             JsonObject behavior = shippedVacuumBehavior();
 
-            assertEquals(3, behavior.get("near_layer_ticks").getAsInt());
-            assertEquals(6, behavior.get("far_layer_ticks").getAsInt());
+            assertEquals(4, behavior.get("near_layer_ticks").getAsInt());
+            assertEquals(8, behavior.get("far_layer_ticks").getAsInt());
             assertEquals(20, behavior.get("count_memory_ticks").getAsInt());
-            assertEquals(new VacuumStep(3, 6, 20), shippedVacuum());
+            assertEquals(new VacuumStep(4, 8, 20), shippedVacuum());
         }
 
         // vacuum-breaks-a-cell-the-tick-the-wave-reaches-it
         @Test
-        void aLayerTakesThreeTicksAtTheEyeSixAtTheReachAndFourHalfWayFloored() {
+        void aLayerTakesFourTicksAtTheEyeEightAtTheReachAndSixHalfWay() {
             VacuumStep vacuum = shippedVacuum();
 
-            assertEquals(3, vacuum.layerTicks(0, SHIPPED_RANGE));
-            assertEquals(6, vacuum.layerTicks(SHIPPED_RANGE, SHIPPED_RANGE));
-            assertEquals(4, vacuum.layerTicks(SHIPPED_RANGE / 2, SHIPPED_RANGE));
+            assertEquals(4, vacuum.layerTicks(0, SHIPPED_RANGE));
+            assertEquals(8, vacuum.layerTicks(SHIPPED_RANGE, SHIPPED_RANGE));
+            assertEquals(6, vacuum.layerTicks(SHIPPED_RANGE / 2, SHIPPED_RANGE));
         }
 
         // vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
         @Test
-        void theShippedVacuumReachesTenBlocksInASixtyDegreeCone() {
+        void theShippedVacuumReachesEightBlocksInAFortyFiveDegreeCone() {
             AbilityDefinition shipped = AbilityJson.decode("void_vacuum");
 
             assertEquals(SHIPPED_RANGE, shipped.delivery().range());
@@ -140,15 +140,15 @@ class VacuumStepTest {
     @Nested
     class Drain {
 
-        /** Four blocks east of the eye, on the look, where a layer takes 4 ticks. */
+        /** Four blocks east of the eye, on the look, where a layer takes 6 ticks. */
         private static final BlockPos CELL = new BlockPos(4, 2, 0);
-        private static final int CELL_PACE = 4;
-        /** Two blocks east of the eye, on the look, where a layer takes 3 ticks. */
+        private static final int CELL_PACE = 6;
+        /** Two blocks east of the eye, on the look, where a layer takes 5 ticks. */
         private static final BlockPos NEAR = new BlockPos(2, 2, 0);
-        private static final int NEAR_PACE = 3;
-        /** Nine blocks east of the eye, on the look, near the reach's far end, where a layer takes 5 ticks. */
-        private static final BlockPos FAR = new BlockPos(9, 2, 0);
-        private static final int FAR_PACE = 5;
+        private static final int NEAR_PACE = 5;
+        /** Seven blocks east of the eye, on the look, near the reach's far end, where a layer takes 7 ticks. */
+        private static final BlockPos FAR = new BlockPos(7, 2, 0);
+        private static final int FAR_PACE = 7;
         /** A full cell's layers. */
         private static final int FULL = VolumeCellBlock.MAX_LAYERS;
         /** A shallow cell's layers. */
@@ -329,7 +329,7 @@ class VacuumStepTest {
         private final VacuumStep vacuum = shippedVacuum();
 
         /** The ticks a layer of the world goo four blocks out takes. */
-        private static final int PACE = 4;
+        private static final int PACE = 6;
 
         @Test
         void aWorldGooOnTheVolumeCellLosesALayerAndStoneStands() {
@@ -457,13 +457,14 @@ class VacuumStepTest {
 
         @Test
         void aResidualPastTheReachIsNotReached() {
-            assertEquals(List.of(), reached(Set.of(new BlockPos(11, 2, 0)), Set.of()));
+            // its middle 8.5 blocks out, just past the 8 block reach
+            assertEquals(List.of(), reached(Set.of(new BlockPos(9, 2, 0)), Set.of()));
         }
 
         @Test
         void aResidualOutsideTheConesAngleIsNotReached() {
-            // four ahead and three aside stands near 37 degrees off the look, past the cone's 30
-            assertEquals(List.of(), reached(Set.of(new BlockPos(4, 2, 3)), Set.of()));
+            // four ahead and two aside stands near 27 degrees off the look, past the cone's 22.5
+            assertEquals(List.of(), reached(Set.of(new BlockPos(4, 2, 2)), Set.of()));
         }
 
         @Test
