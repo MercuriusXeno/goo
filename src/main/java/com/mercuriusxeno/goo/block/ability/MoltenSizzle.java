@@ -17,8 +17,11 @@ public final class MoltenSizzle {
         FLAME(0.03),
         /** A puff of smoke rising from the surface. */
         SMOKE(0.04),
-        /** A short hiss, as lava fizzling out. */
-        SIZZLE(0.01);
+        /**
+         * A short hiss, as lava fizzling out, the rarest of the three.
+         * operator UAT 2026-11-17: the sizzling is too frequent
+         */
+        SIZZLE(0.0025);
 
         private final double rate;
 
