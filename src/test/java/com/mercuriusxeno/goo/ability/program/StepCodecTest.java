@@ -74,7 +74,7 @@ class StepCodecTest {
             Map.entry("light_fire", LeafSteps.LIGHT_FIRE.step(Unit.INSTANCE)),
             Map.entry("detonate_explosive", LeafSteps.DETONATE_EXPLOSIVE.step(Expr.literal(2.5))),
             Map.entry("molten", new MoltenStep(Map.of(Identifier.fromNamespaceAndPath("minecraft", "lava"),
-                    List.of("minecraft:obsidian")), 40)),
+                    List.of("minecraft:obsidian")), 40, 4f, 15)),
             Map.entry("shatter", new ShatterStep(List.of(EntityFilter.LIVING), Expr.literal(1), List.of(),
                     Expr.literal(0.02))),
             Map.entry("host", new HostStep(3, 8)),
