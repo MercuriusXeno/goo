@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
@@ -135,6 +136,15 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
     @Override
     public Entity thrower() {
         return player;
+    }
+
+    /**
+     * The player whose stream feeds a goo cell is the cell's placer.
+     * standing-goo-thing-credits-whoever-placed-it
+     */
+    @Override
+    public UUID placingPlayer() {
+        return player.getUUID();
     }
 
     /**

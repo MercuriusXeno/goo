@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.block.ability;
 
+import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.EntityScan;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
@@ -22,8 +23,10 @@ import java.util.Set;
  * each cut rolls the step's deplete chance of taking one layer from the cell
  * under the shards, the cell gone with its last layer. A cut whose roll
  * misses leaves the goo whole; the damage is rapid, so a layer spent on
- * every cut would leave the goo gone in an instant.
+ * every cut would leave the goo gone in an instant. A cut credits the
+ * player who placed the cell, and nobody where no player did.
  * each-shatter-cut-has-a-chance-to-deplete-a-layer
+ * standing-goo-thing-credits-whoever-placed-it
  * shatter-is-splattered-goo-and-shards-form-over-the-splatters
  */
 final class ShatterCut {
@@ -45,7 +48,9 @@ final class ShatterCut {
         if (!(entity instanceof LivingEntity living) || !EntityScan.passes(living, Set.copyOf(step.where()), null)) {
             return;
         }
-        EntityHost host = new EntityHost(level, living, null);
+        // standing-goo-thing-credits-whoever-placed-it
+        EntityHost host = EntityHost.struckByField(level, living,
+                GooHitCredit.placerOf(level, CellPlacers.of(level).placerAt(pos).orElse(null)));
         StepContext onTheThing = new StepContext(host, 0, 0);
         if (level.getGameTime() % Math.max(1, step.interval().evaluateInt(onTheThing)) != 0) {
             return;

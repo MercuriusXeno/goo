@@ -25,6 +25,7 @@ import net.minecraft.world.level.storage.ValueOutput;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Ticking block entity a lingering ability stands where its blob lands
@@ -124,13 +125,16 @@ public class AbilityBlockEntity extends GooSyncedBlockEntity implements MarkerAn
      * @param steps     the body of the ability's linger step
      * @param size      the size the cast was dragged to, which the program reads,
      *                  zero for one naming none (decision black-hole-leaves-a-compression-sphere)
+     * @param placer    the player whose cast stood the block, whom its field's hits credit, or null for none
+     *                  (decision standing-goo-thing-credits-whoever-placed-it)
      */
     public void stand(ResourceKey<GooTypeDefinition> type, Direction face, String ability, List<Step> steps,
-                      double size) {
+                      double size, @Nullable UUID placer) {
         this.gooType = type;
         this.placedFace = face;
         this.abilityId = ability;
         programState.setCastSize(size);
+        programState.setPlacer(placer);
         if (!(level instanceof ServerLevel server)) {
             return;
         }
@@ -177,6 +181,11 @@ public class AbilityBlockEntity extends GooSyncedBlockEntity implements MarkerAn
     @Override
     public MarkerProgramState programState() {
         return programState;
+    }
+
+    @Override
+    public @Nullable UUID placer() {
+        return programState.placer();
     }
 
     /**
