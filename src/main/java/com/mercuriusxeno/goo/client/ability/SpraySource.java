@@ -60,11 +60,26 @@ public final class SpraySource {
      * @return the source
      */
     static Vec3 inView(Vec3 eye, float xRot, float yRot, boolean gloveRight) {
+        return inView(eye, xRot, yRot, gloveRight, RISE_ABOVE_THE_PALM);
+    }
+
+    /**
+     * The point a rise straight above the palm stands at in a view at the
+     * default field of view, at vanilla's place for the hand.
+     *
+     * @param eye        the viewer's eye
+     * @param xRot       the view's pitch in degrees, negative looking up
+     * @param yRot       the view's yaw in degrees
+     * @param gloveRight whether the glove is in the right hand
+     * @param rise       how far up the view above the palm, in blocks
+     * @return the point
+     */
+    static Vec3 inView(Vec3 eye, float xRot, float yRot, boolean gloveRight, double rise) {
         Vector3fc palm = palmAtVanillasPlace(gloveRight);
         Vec3 ahead = Vec3.directionFromRotation(xRot, yRot);
         Vec3 up = Vec3.directionFromRotation(xRot - QUARTER_TURN, yRot);
         Vec3 right = Vec3.directionFromRotation(0f, yRot + QUARTER_TURN);
-        return eye.add(right.scale(palm.x())).add(up.scale(palm.y() + RISE_ABOVE_THE_PALM))
+        return eye.add(right.scale(palm.x())).add(up.scale(palm.y() + rise))
                 .subtract(ahead.scale(palm.z()));
     }
 
@@ -103,9 +118,13 @@ public final class SpraySource {
      * @return the source in the hand pass's camera-relative world axes
      */
     static Vec3 aboveTheRestingPalmInHand(Quaternionfc cameraRotation, boolean gloveRight) {
+        return aboveTheRestingPalmInHand(cameraRotation, gloveRight, RISE_ABOVE_THE_PALM);
+    }
+
+    private static Vec3 aboveTheRestingPalmInHand(Quaternionfc cameraRotation, boolean gloveRight, double rise) {
         Vector3fc recorded = restingPalmInView;
         Vector3fc palm = recorded == null ? palmAtVanillasPlace(gloveRight) : recorded;
-        return HandPassView.outOfTheStillView(new Vector3f(palm).add(0f, (float) RISE_ABOVE_THE_PALM, 0f),
+        return HandPassView.outOfTheStillView(new Vector3f(palm).add(0f, (float) rise, 0f),
                 cameraRotation);
     }
 
@@ -121,6 +140,20 @@ public final class SpraySource {
      * @return the source
      */
     public static Vec3 of(int casterId, Vec3 sentGlove, float partialTick) {
+        return of(casterId, sentGlove, partialTick, RISE_ABOVE_THE_PALM);
+    }
+
+    /**
+     * A point a rise straight above the caster's resting palm this frame,
+     * carried as {@link #of(int, Vec3, float)} carries the spray source.
+     *
+     * @param casterId    the caster's entity id
+     * @param sentGlove   the glove the server sent with the stream's tick
+     * @param partialTick the frame's partial tick
+     * @param rise        how far up the view above the palm, in blocks
+     * @return the point
+     */
+    static Vec3 of(int casterId, Vec3 sentGlove, float partialTick, double rise) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || !(mc.level.getEntity(casterId) instanceof Player caster)) {
             return sentGlove;
@@ -129,9 +162,9 @@ public final class SpraySource {
         if (caster == mc.player && mc.options.getCameraType().isFirstPerson()) {
             Camera camera = mc.gameRenderer.getMainCamera();
             return camera.position().add(HandPassView.fromHandPass(aboveTheRestingPalmInHand(camera.rotation(),
-                    gloveRight), camera.rotation(), camera.getFov(), HandPassView.frameBob(mc)));
+                    gloveRight, rise), camera.rotation(), camera.getFov(), HandPassView.frameBob(mc)));
         }
         return inView(caster.getEyePosition(partialTick), caster.getViewXRot(partialTick),
-                caster.getViewYRot(partialTick), gloveRight);
+                caster.getViewYRot(partialTick), gloveRight, rise);
     }
 }

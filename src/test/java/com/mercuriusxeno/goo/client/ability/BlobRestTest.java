@@ -71,4 +71,18 @@ class BlobRestTest {
         assertEquals(SpraySource.inView(EYE, PITCH, YAW, true),
                 BlobRest.inView(EYE, PITCH, YAW, true, BlobRest.Rest.ABOVE_THE_HAND));
     }
-}
+
+    // knives-hover-above-the-blob-cube-over-the-hand: the knife pile's cube stands one cube edge over the palm
+    @Test
+    void aKnivesBlobRestsOneCubeEdgeOverThePalm() {
+        com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility knives =
+                org.mockito.Mockito.mock(com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility.class);
+        org.mockito.Mockito.when(knives.delivery())
+                .thenReturn(com.mercuriusxeno.goo.ability.AbilityJson.decode("crystal_knives").delivery());
+        assertEquals(BlobRest.Rest.OVER_THE_PALM, BlobRest.Rest.of(knives));
+
+        double overTheHand = BlobRest.inView(EYE, PITCH, YAW, true, BlobRest.Rest.ABOVE_THE_HAND).subtract(EYE).dot(up());
+        double overThePalm = BlobRest.inView(EYE, PITCH, YAW, true, BlobRest.Rest.OVER_THE_PALM).subtract(EYE).dot(up());
+        assertEquals(SpraySource.RISE_ABOVE_THE_PALM - 2 * 0.15 * 0.5 * 0.9, overTheHand - overThePalm, SINE_TABLE,
+                "the knives' cube should stand one cube edge over the palm, the spray source's rise less");
+    }}

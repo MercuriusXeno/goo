@@ -29,6 +29,14 @@ class StackHoverTest {
         private final int[][] rows = {{1, 2, 4, 7}, {3, 5, 8}, {6, 9}, {10}};
 
         @Test
+        void neighbouringKnivesStandTwoBladeWidthsApart() {
+            StackHover.Slot first = StackHover.knifeSlot(0, 2);
+            StackHover.Slot second = StackHover.knifeSlot(1, 2);
+            assertEquals(2 * StackHover.KNIFE_WIDTH, second.right() - first.right(), DELTA,
+                    "a knife should stand a blade's width clear of its neighbour");
+        }
+
+        @Test
         void tenKnivesFillTheRowsByDiagonalsLeftToRight() {
             double above = Double.MAX_VALUE;
             for (int[] row : rows) {

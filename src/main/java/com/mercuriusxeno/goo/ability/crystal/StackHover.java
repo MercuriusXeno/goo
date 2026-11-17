@@ -36,10 +36,12 @@ public final class StackHover {
     public static final double KNIFE_LENGTH = 0.6;
     /** A knife's blade width at its widest, in blocks, which the knives' spacing follows. */
     public static final double KNIFE_WIDTH = 0.15;
-    /** How far apart two knives or two javelins stand against their width: a quarter of a width clear. */
+    /** How far apart two javelins stand against their width: a quarter of a width clear. */
     static final double SPACING_PER_WIDTH = 1.25;
+    /** How far apart two knives stand against a blade's width: a whole blade's width clear. */
+    static final double KNIFE_SPACING_PER_WIDTH = 2;
     /** Blocks between neighbouring knives along a row. */
-    static final double KNIFE_SPACING = KNIFE_WIDTH * SPACING_PER_WIDTH;
+    static final double KNIFE_SPACING = KNIFE_WIDTH * KNIFE_SPACING_PER_WIDTH;
     /** An equilateral triangle's height against its side, which the javelins' rows stand apart by. */
     private static final double TRIANGLE_HEIGHT_PER_SIDE = Math.sqrt(3) / 2;
     /** The knives the pyramid holds. */
@@ -56,6 +58,16 @@ public final class StackHover {
     static final double REST_TO_THE_GLOVE_SIDE = 0.56;
     /** How far below the look the cube rests: the client's rise above that palm, 0.371 below the look. */
     static final double REST_BELOW = 0.15;
+    /** How far below the look the first-person glove's palm rests at the default field of view. */
+    static final double PALM_BELOW_THE_LOOK = 0.37104167;
+    /**
+     * How far up the view the knife pile's cube stands above the drawn palm:
+     * one full cube edge, the cube clear of the palm it lifted from, so the
+     * knives rise from the hand and point up at the crosshair.
+     */
+    public static final double KNIFE_RISE_ABOVE_THE_PALM = FULL_EDGE;
+    /** How far below the look the knife pile's cube rests: that rise above the palm. */
+    static final double KNIVES_REST_BELOW = PALM_BELOW_THE_LOOK - KNIFE_RISE_ABOVE_THE_PALM;
     /** The knives in the pyramid's rows, the top row first. */
     private static final int[] ROW_WIDTHS = {4, 3, 2, 1};
     /** The row each knife fills by diagonals, the top row 0: knives 1 2 4 7, 3 5 8, 6 9 and 10. */
@@ -232,13 +244,14 @@ public final class StackHover {
      * @param xRot       the view's pitch in degrees
      * @param yRot       the view's yaw in degrees
      * @param gloveRight whether the glove is in the right hand
+     * @param javelins   whether the stack is Dart's javelins, whose cube stands higher than Knives'
      * @return the center
      */
-    public static Vec3 cubeCenterInView(Vec3 eye, float xRot, float yRot, boolean gloveRight) {
+    public static Vec3 cubeCenterInView(Vec3 eye, float xRot, float yRot, boolean gloveRight, boolean javelins) {
         Vec3 ahead = Vec3.directionFromRotation(xRot, yRot);
         return eye.add(ahead.scale(REST_AHEAD))
                 .add(rightOf(yRot).scale(gloveRight ? REST_TO_THE_GLOVE_SIDE : -REST_TO_THE_GLOVE_SIDE))
-                .subtract(upOf(xRot, yRot).scale(REST_BELOW));
+                .subtract(upOf(xRot, yRot).scale(javelins ? REST_BELOW : KNIVES_REST_BELOW));
     }
 
     /**

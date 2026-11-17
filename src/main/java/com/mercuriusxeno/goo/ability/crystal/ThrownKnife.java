@@ -42,7 +42,7 @@ public final class ThrownKnife {
      */
     public static Vec3 launchPointOf(Vec3 eye, float xRot, float yRot, boolean gloveRight, int held,
                                      boolean javelins) {
-        return StackHover.pointOf(StackHover.cubeCenterInView(eye, xRot, yRot, gloveRight), xRot, yRot,
+        return StackHover.pointOf(StackHover.cubeCenterInView(eye, xRot, yRot, gloveRight, javelins), xRot, yRot,
                 StackHover.slotOf(held - 1, held, javelins));
     }
 
