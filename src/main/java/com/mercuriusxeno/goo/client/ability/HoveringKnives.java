@@ -161,6 +161,10 @@ public final class HoveringKnives {
      */
     @SubscribeEvent
     public static void onAfterLevel(RenderLevelStageEvent.AfterLevel event) {
+        LevelOverlayView.inView(event, () -> drawEvery(event));
+    }
+
+    private static void drawEvery(RenderLevelStageEvent.AfterLevel event) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || FANS.isEmpty()) {
             return;
