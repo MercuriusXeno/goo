@@ -41,7 +41,8 @@ class SprayDripTest {
         Vec3 served = APEX;
         Vec3 servedVelocity = GOOP_LAUNCH;
         for (int flown = 0; flown < MAX_STEPS; flown++) {
-            SprayDrip.Step step = drip.step(drawn, drawnVelocity, FLOOR, DripArc.NO_LIVING, INSIDE_THE_WORLD);
+            SprayDrip.Step step = drip.step(drawn, drawnVelocity,
+                    new DripArc.Flight(FLOOR, DripArc.NO_LIVING, INSIDE_THE_WORLD, DripArc.GRAVITY));
             DripArc.Step arc = DripArc.step(served, servedVelocity, FLOOR, INSIDE_THE_WORLD);
             assertEquals(arc.position(), step.position(), "tick " + flown + " should leave both drips on one point");
             assertEquals(arc.strike().isPresent(), step.splats(), "the drawn drip should splat on the tick the"
@@ -68,7 +69,8 @@ class SprayDripTest {
                 face));
         SprayDrip drip = SprayDrip.launch(GOOP_LAUNCH, BlendPalette.GOOP_SLIME_GREENS, RandomSource.create(1L));
 
-        SprayDrip.Step step = drip.step(APEX, drip.velocity(), struck, DripArc.NO_LIVING, INSIDE_THE_WORLD);
+        SprayDrip.Step step = drip.step(APEX, drip.velocity(),
+                new DripArc.Flight(struck, DripArc.NO_LIVING, INSIDE_THE_WORLD, DripArc.GRAVITY));
 
         assertTrue(step.splats(), "a struck drip should splat");
         assertEquals(Optional.of(face), step.face());
