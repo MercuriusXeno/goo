@@ -82,6 +82,13 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
      */
     public static final BlendPalette UPDRAFT_TYPHOON_GREENS = new BlendPalette(
             0xFD / 255f, 0xFF / 255f, 0xFF / 255f, 0xD5 / 255f, 0xF5 / 255f, 0xE3 / 255f);
+    /**
+     * Signal's spray drips, from pulse's bright red, F42828, to its wheel
+     * red, CC0000, the two the pulse goo type's definition names.
+     * extend-is-dropped-for-signal-an-in-world-pulse-goo
+     */
+    public static final BlendPalette SIGNAL_PULSE_REDS = new BlendPalette(
+            0xF4 / 255f, 0x28 / 255f, 0x28 / 255f, 0xCC / 255f, 0x00 / 255f, 0x00 / 255f);
 
     /**
      * The color a share of the way from the light end to the dark.
