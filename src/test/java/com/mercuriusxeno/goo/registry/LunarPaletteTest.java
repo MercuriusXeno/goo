@@ -34,8 +34,7 @@ class LunarPaletteTest {
     }
 
     /**
-     * Pale to dark: anorthosite's body sits at the pale end, regolith's dust in the middle, the iron core at the dark
-     * end. A landform sprite joining the palette draws from this ramp, or adds a named color beside it.
+     * Pale to dark: anorthosite's body sits at the pale end, regolith's dust in the middle, the dark end below. A landform sprite joining the palette draws from this ramp, or adds a named color beside it.
      */
     static final List<PaletteColor> LUNAR_PALETTE = List.of(
             new PaletteColor(0xe9e9e9, "diorite"),
@@ -51,8 +50,12 @@ class LunarPaletteTest {
             new PaletteColor(0x2f2f37, "deepslate"),
             new PaletteColor(0x1b2632, "smooth_basalt"));
 
-    /** The sprites under assets/goo/textures/block/ held to the palette. */
-    static final List<String> LUNAR_SPRITES = List.of("anorthosite", "regolith", "iron_core");
+    /**
+     * The sprites under assets/goo/textures/block/ held to the palette. Iron core stands outside it on its vanilla-palette
+     * repaint until its color is picked on the shared palette.
+     * decision iron-core-returns-to-its-vanilla-palette-repaint
+     */
+    static final List<String> LUNAR_SPRITES = List.of("anorthosite", "regolith");
 
     private static BufferedImage image(String path) throws IOException {
         try (InputStream stream = LunarPaletteTest.class.getResourceAsStream(path)) {
