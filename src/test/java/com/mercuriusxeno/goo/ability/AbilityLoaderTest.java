@@ -220,6 +220,27 @@ class AbilityLoaderTest {
             assertEquals(Set.of("void_cancel", "void_hole", "void_zone", "void_vacuum"),
                     shippedPathsOf(GooTypes.VOID));
         }
+
+        /**
+         * decision iceborn-is-dropped-for-rime-a-frost-goo-that-keeps-what-is-around-it-frozen
+         * decision goo-type-ships-without-a-durative-ability
+         */
+        @Test
+        void frostShipsNovaColdOrbAndRimeAndNoDurative() {
+            assertEquals(Set.of("frost_nova", "frost_cold", "frost_orb", "frost_rime"),
+                    shippedPathsOf(GooTypes.FROST));
+            assertNull(new AbilityRegistry(shippedById()).durativeAbilityFor(GooTypes.FROST));
+        }
+    }
+
+    /**
+     * Rime sprays a goo in world and so wears the residual badge, sorting in the tier that leads the fan.
+     * decision rime-wears-the-residual-badge
+     */
+    @Test
+    void rimeWearsTheResidualBadge() {
+        assertEquals(AbilityBadge.RESIDUAL,
+                shippedById().get(Identifier.fromNamespaceAndPath("goo", "frost_rime")).badge());
     }
 
     // decision lingering-abilities-place-their-own-thing

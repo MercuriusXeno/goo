@@ -4,8 +4,6 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.frost.FrostCurve;
 import com.mercuriusxeno.goo.ability.frost.FrozenEvents;
-import com.mercuriusxeno.goo.ability.hearts.HeartKind;
-import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.program.FreezeBlocksStep;
 import com.mercuriusxeno.goo.ability.program.NovaStep;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
@@ -31,7 +29,6 @@ import net.minecraft.world.entity.monster.Witch;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LiquidBlock;
@@ -48,7 +45,7 @@ import java.util.function.Consumer;
  * glove would and reads the frozen gauges and the world it leaves.
  * Decisions nova-ring-grows-with-the-hold,
  * cold-streams-wind-lines-and-snowflakes, orb-carries-a-swirling-nova,
- * glacial-prism-holds-the-area-frozen, iceborn-frozen-hearts-thaw-on-fire.
+ * glacial-prism-holds-the-area-frozen.
  */
 @RegistersGameTests
 public final class FrostAbilityTests {
@@ -63,8 +60,6 @@ public final class FrostAbilityTests {
     private static final String ORB_ENDS_AT_ITS_RANGE = "orb_ends_at_its_range";
     private static final String GLACIAL_HOLDS_THE_GAUGE = "glacial_holds_the_gauge";
     private static final String GLACIAL_SURVIVES_A_RELOAD = "glacial_survives_a_reload";
-    private static final String ICEBORN_FREEZES_SURROUNDINGS = "iceborn_freezes_surroundings";
-    private static final String ICEBORN_THAWS_ON_FIRE = "iceborn_thaws_on_fire";
     private static final String FROZEN_WITCH_DRINKS_NO_POTION = "frozen_witch_drinks_no_potion";
     private static final String FROZEN_WITCH_FALLS_AND_THAWS = "frozen_witch_falls_and_thaws";
 
@@ -89,8 +84,6 @@ public final class FrostAbilityTests {
         GooTestFunctions.registerTest(registrar, ORB_ENDS_AT_ITS_RANGE, FrostAbilityTests::orbEndsAtItsRange);
         GooTestFunctions.registerTest(registrar, GLACIAL_HOLDS_THE_GAUGE, FrostAbilityTests::glacialHoldsTheGauge);
         GooTestFunctions.registerTest(registrar, GLACIAL_SURVIVES_A_RELOAD, FrostAbilityTests::glacialSurvivesAReload);
-        GooTestFunctions.registerTest(registrar, ICEBORN_FREEZES_SURROUNDINGS, FrostAbilityTests::icebornFreezesSurroundings);
-        GooTestFunctions.registerTest(registrar, ICEBORN_THAWS_ON_FIRE, FrostAbilityTests::icebornThawsOnFire);
         GooTestFunctions.registerTest(registrar, FROZEN_WITCH_DRINKS_NO_POTION, FrostAbilityTests::frozenWitchDrinksNoPotion);
         GooTestFunctions.registerTest(registrar, FROZEN_WITCH_FALLS_AND_THAWS, FrostAbilityTests::frozenWitchFallsAndThaws);
     }
@@ -217,20 +210,6 @@ public final class FrostAbilityTests {
     private static final BlockPos GLACIAL_MOLTEN_IRON_POS = new BlockPos(1, 0, 2);
     private static final String SHOULD_IRON_CORE_INSIDE = "Molten iron inside the glacial field should cool to iron core";
     private static final String SHOULD_THAW_OUTSIDE = "The zombie past the glacial field should thaw, stands %s";
-    private static final BlockPos ICEBORN_POS = new BlockPos(1, 1, 1);
-    /** Still lava and water in the floor and a burning zombie, all within Iceborn's reach of 3. */
-    private static final BlockPos ICEBORN_LAVA_POS = new BlockPos(3, 0, 1);
-    private static final BlockPos ICEBORN_WATER_POS = new BlockPos(1, 0, 3);
-    /** frost_iceborn.json's leech passes every five ticks; ten ticks see two. */
-    private static final int LEECH_TICKS = 10;
-    /** Past two of the Iceborn ice's one-second checks after the player leaves. */
-    private static final int THAW_AFTER_LEAVING_TICKS = 45;
-    private static final float FIRE_DAMAGE = 1f;
-    private static final String SHOULD_OBSIDIAN = "Lava near an Iceborn player should freeze to obsidian";
-    private static final String SHOULD_RIME = "Water near an Iceborn player should freeze to Iceborn ice";
-    private static final String SHOULD_THAW_ICE = "Iceborn ice should thaw back to water once the player has gone";
-    private static final String SHOULD_MELT_OBSIDIAN = "Iceborn obsidian should melt back to lava once the player has gone";
-    private static final String SHOULD_THAW_HEARTS = "Fire should thaw every frozen heart and end Iceborn, stands %s";
     private static final String ABILITY_REQUIRED = "Ability registry must hold frost_nova";
     private static final String SHOULD_FREEZE = "A full Nova should freeze the %s zombie, stands %s";
     private static final String SHOULD_HURT = "Nova's ring should hurt the %s zombie it crosses";
@@ -579,75 +558,6 @@ public final class FrostAbilityTests {
     }
 
     /**
-     * An Iceborn player leeches heat: still lava beside them freezes to
-     * obsidian and still water to Iceborn ice, and once they have gone the level's record sends the ice back to water
-     * and the obsidian back to lava.
-     *
-     * @param helper the gametest helper
-     */
-    public static void icebornFreezesSurroundings(GameTestHelper helper) {
-        basin(helper, ICEBORN_LAVA_POS, Blocks.LAVA);
-        basin(helper, ICEBORN_WATER_POS, Blocks.WATER);
-        ServerPlayer player = iceborn(helper);
-        for (int tick = 1; tick <= LEECH_TICKS; tick++) {
-            helper.runAfterDelay(tick, player::doTick);
-        }
-        helper.runAfterDelay(LEECH_TICKS + 1, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(helper.getBlockState(ICEBORN_LAVA_POS).is(Blocks.OBSIDIAN), SHOULD_OBSIDIAN);
-            helper.assertTrue(helper.getBlockState(ICEBORN_WATER_POS).is(GooBlocks.ICEBORN_ICE.get()), SHOULD_RIME);
-        });
-        helper.runAfterDelay(LEECH_TICKS + 1 + THAW_AFTER_LEAVING_TICKS, () -> {
-            helper.assertTrue(helper.getBlockState(ICEBORN_WATER_POS).is(Blocks.WATER), SHOULD_THAW_ICE);
-            helper.assertTrue(helper.getBlockState(ICEBORN_LAVA_POS).is(Blocks.LAVA), SHOULD_MELT_OBSIDIAN);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Fire reaching an Iceborn player thaws every frozen heart at once and ends Iceborn.
-     *
-     * @param helper the gametest helper
-     */
-    public static void icebornThawsOnFire(GameTestHelper helper) {
-        ServerPlayer player = iceborn(helper);
-        player.setGameMode(GameType.SURVIVAL);
-        player.connection.markClientLoaded();
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            HeartOverlayTests.hurt(helper, player, player.damageSources().onFire(), FIRE_DAMAGE);
-            HeartOverlay after = player.getData(GooAttachments.HEART_OVERLAY);
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertFalse(after.stands(), String.format(SHOULD_THAW_HEARTS, after));
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Sets a still fluid in a one-block stone basin, so once it melts back it
-     * stays where it was rather than flowing off the bay's open floor.
-     *
-     * @param helper the gametest helper
-     * @param pos    where the fluid stands
-     * @param fluid  the fluid's block
-     */
-    private static void basin(GameTestHelper helper, BlockPos pos, Block fluid) {
-        helper.setBlock(pos.below(), Blocks.STONE);
-        for (Direction side : Direction.Plane.HORIZONTAL) {
-            helper.setBlock(pos.relative(side), Blocks.STONE);
-        }
-        helper.setBlock(pos, fluid);
-    }
-
-    private static ServerPlayer iceborn(GameTestHelper helper) {
-        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.FROST);
-        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(ICEBORN_POS));
-        player.setPos(stand.x, stand.y, stand.z);
-        player.setData(GooAttachments.HEART_OVERLAY, HeartOverlay.NONE.hold(HeartKind.ICEBORN, player.getHealth(),
-                player.getMaxHealth(), HeartOverlay.WHOLE_HIT, helper.getLevel().getGameTime()));
-        return player;
-    }
-
-    /**
      * A glacial prism saved and loaded back the way a chunk loads it, its
      * block entity read before it has a level, keeps running its combo: its
      * field still holds the ground frozen and its program still ticks.
@@ -786,6 +696,22 @@ public final class FrostAbilityTests {
     private static void release(ServerPlayer caster, int heldTicks) {
         GooThrowHandler.releaseCharge(caster,
                 new GooChargePayload(GooTypes.id(GooTypes.FROST), FROST_NOVA.toString(), heldTicks));
+    }
+
+    /**
+     * Sets a still fluid in a one-block stone basin, so it stays where it was
+     * rather than flowing off the bay's open floor.
+     *
+     * @param helper the gametest helper
+     * @param pos    where the fluid stands
+     * @param fluid  the fluid's block
+     */
+    private static void basin(GameTestHelper helper, BlockPos pos, Block fluid) {
+        helper.setBlock(pos.below(), Blocks.STONE);
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            helper.setBlock(pos.relative(side), Blocks.STONE);
+        }
+        helper.setBlock(pos, fluid);
     }
 
     private static ServerPlayer caster(GameTestHelper helper) {

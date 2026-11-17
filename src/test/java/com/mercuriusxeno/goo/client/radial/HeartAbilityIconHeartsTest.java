@@ -99,8 +99,6 @@ class HeartAbilityIconHeartsTest {
                         halfOver(sprite("ash_half"), empty()))),
                 Arguments.of("crystal_scales", List.of(whole(sprite("crystal_full")),
                         halfOver(sprite("crystal_half"), red()), halfOver(redHalf(), empty()))),
-                Arguments.of("frost_iceborn", List.of(whole(sprite("ice_full")),
-                        halfOver(sprite("ice_half"), red()), halfOver(redHalf(), empty()))),
                 Arguments.of("leaf_barkskin", List.of(whole(sprite("bark_full")),
                         halfOver(sprite("bark_half"), red()), halfOver(redHalf(), empty()))),
                 Arguments.of("nether_undead", List.of(whole(sprite("zombie_full")), whole(sprite("nether_full")),
