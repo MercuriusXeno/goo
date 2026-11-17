@@ -130,7 +130,7 @@ public record FreezeBlocksStep(Expr radius, boolean lasting) implements TakesNoE
      * @param liquid the lava type's block id
      * @return the cooled block's id, empty where the molten group holds no such liquid or no partner stands for it
      */
-    static Optional<Identifier> cooledFormOf(Map<String, List<Identifier>> groups, Identifier liquid) {
+    public static Optional<Identifier> cooledFormOf(Map<String, List<Identifier>> groups, Identifier liquid) {
         return GooGroups.pairedMember(groups, MOLTEN_BLOCKS, MOLTEN_COOLED_BLOCKS, liquid);
     }
 
