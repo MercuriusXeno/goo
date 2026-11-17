@@ -1,17 +1,16 @@
 package com.mercuriusxeno.goo.block.ability;
 
 /**
- * How many layers a Molten cell spends melting the block below it: three, a
- * fifth of a block, where the cell holds at least three and the block melts
- * into something under the molten step's melts_into map; none otherwise, so
- * the goo stays pooled.
- * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+ * How many layers a Molten cell spends melting the block below it: one,
+ * where the block melts into something under the molten step's melts_into
+ * map; none otherwise, so the goo stays pooled.
+ * molten-melts-only-obsidian-magma-and-iron-core-one-layer-each
  * molten-spends-three-layers-per-stone-block-priced-at-lava-minus-mundane-block
  */
 public final class MoltenMelt {
 
-    /** The layers melting one block spends, a fifth of a block of molten goo. */
-    public static final int LAYERS_PER_BLOCK = 3;
+    /** The layers melting one block spends. */
+    public static final int LAYERS_PER_BLOCK = 1;
 
     private MoltenMelt() {
     }

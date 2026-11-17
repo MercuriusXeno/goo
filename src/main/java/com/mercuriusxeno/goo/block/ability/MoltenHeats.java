@@ -10,7 +10,7 @@ import java.util.OptionalLong;
 /**
  * The Molten cells melting the block below them on one server, each by the
  * game tick its heat began: the block stands red hot until the heat has run,
- * then becomes lava.
+ * then becomes the source block it melts into.
  * stone-goes-red-hot-before-molten-turns-it-to-lava
  */
 public final class MoltenHeats {
