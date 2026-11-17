@@ -20,12 +20,15 @@ import java.util.stream.Stream;
  * guided throw, an aim passing a mob within the guide radius of the look
  * ray, inside the guide reach, throwing the drips onto that mob; the reach
  * out to which a Nectar cell draws the animals and hostiles about it; and
- * the ticks hostiles reaching it together fight over it:
- * {@code nectar_goo guide_radius=2 guide_reach=16 reach=12 fight_ticks=100}.
+ * the ticks hostiles reaching it together fight over it; and the shares of
+ * its jump and of its speed a thing touching Nectar keeps, as honey's
+ * factors read:
+ * {@code nectar_goo guide_radius=2 guide_reach=16 reach=12 fight_ticks=100 jump_factor=0.5 speed_factor=0.4}.
  * A drip ends on an animal or a slime it strikes, which the nectar step
  * feeds, and passes through any other living thing.
  * nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob
  * nectar-goo-keeps-feeds-effects-as-a-universal-food
+ * nectar-is-the-sticky-goo-you-climb-that-nerfs-jumping-and-speed
  * each-goo-type-ships-a-world-goo-on-the-volume-cell
  * drip-creates-a-volume-cell-immediately
  * drip-on-a-standing-cell-increases-it
@@ -34,8 +37,11 @@ import java.util.stream.Stream;
  * @param guideReach  the blocks along the look ray out to which a mob takes the guide
  * @param reach       the blocks out to which a Nectar cell draws the animals and hostiles about it
  * @param fightTicks  the ticks hostiles reaching a Nectar cell together fight over it
+ * @param jumpFactor  the share of its jump a thing touching Nectar keeps
+ * @param speedFactor the share of its horizontal speed a thing touching Nectar keeps
  */
-public record NectarGooStep(double guideRadius, double guideReach, double reach, int fightTicks)
+public record NectarGooStep(double guideRadius, double guideReach, double reach, int fightTicks,
+                            double jumpFactor, double speedFactor)
         implements TakesNoEntity, DripLanding {
 
     private static final String NAME = "nectar_goo";
@@ -43,6 +49,10 @@ public record NectarGooStep(double guideRadius, double guideReach, double reach,
     private static final String FIELD_GUIDE_REACH = "guide_reach";
     private static final String FIELD_REACH = "reach";
     private static final String FIELD_FIGHT_TICKS = "fight_ticks";
+    private static final String FIELD_JUMP_FACTOR = "jump_factor";
+    private static final String FIELD_SPEED_FACTOR = "speed_factor";
+    /** The least share of its jump or speed a touching thing keeps, so the goo slows and never pins. */
+    private static final double LEAST_FACTOR = 0.01;
     /** The farthest a cell draws a mob from. */
     private static final double MOST_REACH = 32;
     /** The longest a fight over a cell lasts, a minute. */
@@ -59,7 +69,9 @@ public record NectarGooStep(double guideRadius, double guideReach, double reach,
             Codec.doubleRange(0, MOST_GUIDE_RADIUS).fieldOf(FIELD_GUIDE_RADIUS).forGetter(NectarGooStep::guideRadius),
             Codec.doubleRange(0, MOST_GUIDE_REACH).fieldOf(FIELD_GUIDE_REACH).forGetter(NectarGooStep::guideReach),
             Codec.doubleRange(0, MOST_REACH).fieldOf(FIELD_REACH).forGetter(NectarGooStep::reach),
-            Codec.intRange(0, MOST_FIGHT_TICKS).fieldOf(FIELD_FIGHT_TICKS).forGetter(NectarGooStep::fightTicks)
+            Codec.intRange(0, MOST_FIGHT_TICKS).fieldOf(FIELD_FIGHT_TICKS).forGetter(NectarGooStep::fightTicks),
+            Codec.doubleRange(LEAST_FACTOR, 1.0).fieldOf(FIELD_JUMP_FACTOR).forGetter(NectarGooStep::jumpFactor),
+            Codec.doubleRange(LEAST_FACTOR, 1.0).fieldOf(FIELD_SPEED_FACTOR).forGetter(NectarGooStep::speedFactor)
     ).apply(inst, NectarGooStep::new));
 
     /**
