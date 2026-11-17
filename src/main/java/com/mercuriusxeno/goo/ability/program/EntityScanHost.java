@@ -45,13 +45,15 @@ public interface EntityScanHost extends StepHost {
 
     /**
      * Carries every entity standing in a column of air above the anchor
-     * upward (decision updraft-blob-stands-a-column-of-wind).
+     * upward, refilling the air of each living one
+     * (decisions updraft-blob-stands-a-column-of-wind, updraft-refills-the-air-of-entities-it-propels).
      *
      * @param radius the column's half width in blocks
      * @param height the column's height in blocks
      * @param speed  the rise the column carries at, in blocks per tick
+     * @param air    the air the column refills each living entity it carries, per tick
      */
-    void liftEntitiesInColumn(double radius, double height, double speed);
+    void liftEntitiesInColumn(double radius, double height, double speed, int air);
 
     /**
      * Rides every entity standing in the one-block shaft rising from the

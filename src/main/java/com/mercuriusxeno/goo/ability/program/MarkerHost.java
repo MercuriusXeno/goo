@@ -181,8 +181,8 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     }
 
     @Override
-    public void liftEntitiesInColumn(double radius, double height, double speed) {
-        EntityLift.liftInColumn(level, Vec3.atBottomCenterOf(pos), radius, height, speed);
+    public void liftEntitiesInColumn(double radius, double height, double speed, int air) {
+        EntityLift.liftInColumn(level, Vec3.atBottomCenterOf(pos), radius, height, speed, air);
     }
 
     @Override
