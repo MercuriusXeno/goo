@@ -76,9 +76,7 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core,
         Map<Direction, List<BakedQuad>> rims = new EnumMap<>(Direction.class);
         if (around.floorShareAt(0, 0, 0) > 0) {
             // goo-block-top-slopes-to-the-average-with-the-adjoining-block
-            SlimeTop top = SlimeTop.of(around);
-            drawn.addAll(SlimeTopQuads.topOf(top, film));
-            rims.putAll(SlimeTopQuads.rimsOf(top, film));
+            addSlab(SlimeTop.of(around), drawn, rims);
         }
         if (VolumeCellBlock.attachedSidesOf(state) == 0) {
             collectDrips(level, pos, state, random, parts);
@@ -87,14 +85,27 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core,
                 parts.add(new CorePart(inside, shell.particleMaterial(level, pos, state)));
             }
         } else {
-            // attached-goo-draws-per-attachment-and-divides-its-volume: the volume divides between its surfaces
-            GooShares shares = sharesOf(level, pos, state);
-            drawn.addAll(SlimeFilmQuads.quadsOf(new GooShares(0, shares.sides()), film));
+            // attached-goo-draws-per-attachment-and-divides-its-volume: each surface draws its share as a slab
+            sharesOf(level, pos, state).sides().keySet()
+                    .forEach(surface -> addSlab(SlimeTop.onSurface(around, surface), drawn, rims));
         }
         drawn.addAll(SlimeFilmQuads.streaksOf(sidesHolding(state, SideCoat.RUNNY), film));
         if (!drawn.isEmpty() || !rims.isEmpty()) {
             parts.add(new ShellPart(drawn, rims, shell.particleMaterial(level, pos, state)));
         }
+    }
+
+    /**
+     * Adds one sloped slab's patches and rims to what the shell draws.
+     *
+     * @param slab  the slab's heights
+     * @param drawn the quads the shell draws whatever its neighbours
+     * @param rims  the rims the shell draws under each side
+     */
+    private void addSlab(SlimeTop slab, List<BakedQuad> drawn, Map<Direction, List<BakedQuad>> rims) {
+        drawn.addAll(SlimeTopQuads.topOf(slab, film));
+        SlimeTopQuads.rimsOf(slab, film).forEach((side, quads) ->
+                rims.computeIfAbsent(side, any -> new ArrayList<>()).addAll(quads));
     }
 
     /**
@@ -191,6 +202,18 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core,
             }
             return VolumeCellBlock.attachedSidesOf(beside) == 0 ? VolumeCellBlock.layersOf(beside)
                     : sharesOf(level, pos.offset(dx, dy, dz), beside).floor();
+        }
+
+        @Override
+        public double shareOn(int dx, int dy, int dz, Direction surface) {
+            if (surface == Direction.DOWN) {
+                return floorShareAt(dx, dy, dz);
+            }
+            BlockState beside = stateAt(dx, dy, dz);
+            if (!beside.is(state.getBlock()) || VolumeCellBlock.attachedSidesOf(beside) == 0) {
+                return 0;
+            }
+            return sharesOf(level, pos.offset(dx, dy, dz), beside).sides().getOrDefault(surface, 0.0);
         }
 
         private BlockState stateAt(int dx, int dy, int dz) {
