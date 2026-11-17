@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.VinesStep;
+import com.mercuriusxeno.goo.ability.root.RootEvents;
 import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.ability.root.VineHold;
 import com.mercuriusxeno.goo.block.ability.GoologgedSides;
@@ -22,6 +23,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -38,7 +40,8 @@ import java.util.function.Consumer;
  * across a full Vines cell is held in place on it; a hit on a held zombie
  * ends every vine and eats a layer of the cell that rooted it, and a zombie
  * struggling against its vines until they let go takes no harm from them;
- * a player under Barkskin standing on a full cell takes no vines from it;
+ * a player under Barkskin standing on a full cell takes no vines from it,
+ * and a held player's vines end as Barkskin begins on them;
  * Vines goo sprayed onto a wall's side grows a goologged vine there.
  * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
  * vines-root-is-volume-based-one-to-five-vines-by-layers
@@ -88,6 +91,9 @@ public final class VinesTests {
     private static final String BARE_SHOULD_BE_HELD = "The player without Barkskin should be held by the cell's vines, "
             + "holds %s";
     private static final String BARKED_SHOULD_BE_SPARED = "The player under Barkskin should hold no vines, holds %s";
+    private static final String BARKSKIN_ENDS_HELD_VINES = "vines_held_end_as_barkskin_begins";
+    private static final String HELD_VINES_SHOULD_END = "The held player's vines should end the tick after Barkskin "
+            + "begins, holds %s with its slow modifier %s";
     private static final String WALL_GROWS_A_VINE = "vines_on_a_wall_grow_a_goologged_vine";
     /** The stone wall the drips strike, standing on the bay floor. */
     private static final BlockPos WALL = new BlockPos(3, 2, 2);
@@ -118,6 +124,7 @@ public final class VinesTests {
                 VinesTests::vinesRootRunsOutAndLeavesItsMobUnharmed);
         GooTestFunctions.registerTest(registrar, BARKSKIN_SPARES, VinesTests::vinesSpareAPlayerUnderBarkskin);
         GooTestFunctions.registerTest(registrar, WALL_GROWS_A_VINE, VinesTests::vinesOnAWallGrowAGoologgedVine);
+        GooTestFunctions.registerTest(registrar, BARKSKIN_ENDS_HELD_VINES, VinesTests::vinesHeldEndAsBarkskinBegins);
     }
 
     /**
@@ -285,6 +292,38 @@ public final class VinesTests {
                     && GoologgedSides.plantedOn(nook, Direction.EAST)
                     && nook.getValue(VolumeCellBlock.LAYERS) == left;
             helper.assertTrue(grown, String.format(SHOULD_GROW_A_VINE, left, nook));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A bare mock player standing on a fifteen layer Vines cell is held by
+     * five vines; once it casts Barkskin through the real self delivery, the
+     * tick after holds no vines and its speed carries no vines slow.
+     *
+     * @param helper the gametest helper
+     */
+    public static void vinesHeldEndAsBarkskinBegins(GameTestHelper helper) {
+        layLane(helper);
+        layCell(helper, FULL_CELL, VolumeCellBlock.MAX_LAYERS);
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.LEAF);
+        // the mock player helper makes a creative player; a survival one is what the vines reach
+        player.setGameMode(GameType.SURVIVAL);
+        player.connection.markClientLoaded();
+        standOn(helper, player, FULL_CELL);
+        SelfDeliveryTests.tickFor(helper, player, SETTLE_TICKS);
+        // every callback is scheduled here, at the top: one scheduled from inside another runs again
+        helper.runAfterDelay(SETTLE_TICKS + 1, () -> {
+            Rooted held = player.getData(GooAttachments.ROOTED);
+            helper.assertTrue(held.vines() == VineHold.MOST_VINES, String.format(BARE_SHOULD_BE_HELD, held));
+            HeartOverlayTests.invoke(player, GooTypes.LEAF, LEAF_BARKSKIN);
+        });
+        helper.runAfterDelay(SETTLE_TICKS + 2, () -> {
+            Rooted after = player.getData(GooAttachments.ROOTED);
+            boolean slowed = player.getAttribute(Attributes.MOVEMENT_SPEED).getModifier(RootEvents.SLOW_ID) != null;
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(!after.holds(helper.getLevel().getGameTime()) && !slowed,
+                    String.format(HELD_VINES_SHOULD_END, after, slowed ? "standing" : "gone"));
             helper.succeed();
         });
     }

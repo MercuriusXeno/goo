@@ -49,7 +49,7 @@ import org.jspecify.annotations.Nullable;
 public final class RootEvents {
 
     /** The id of the speed modifier the vines hold a thing with. */
-    static final Identifier SLOW_ID = Identifier.fromNamespaceAndPath(Goo.MODID, "vines_slow");
+    public static final Identifier SLOW_ID = Identifier.fromNamespaceAndPath(Goo.MODID, "vines_slow");
 
     private static final float LATCH_VOLUME = 1.0f;
     private static final float LATCH_PITCH = 0.8f;
