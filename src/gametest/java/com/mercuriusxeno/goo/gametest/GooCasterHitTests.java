@@ -3,8 +3,6 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GooHitCredit;
-import com.mercuriusxeno.goo.ability.hearts.HeartKind;
-import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.hex.Charmed;
 import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
 import com.mercuriusxeno.goo.ability.program.GougeStep;
@@ -37,9 +35,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.projectile.throwableitemprojectile.Snowball;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -47,8 +43,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.Consumer;
 
 /**
- * Gametests for the goo hits a player causes directly: Flames' burn, Nova's ring, an Iceborn snowball's ice,
- * Kindle's retaliation, a goo explosion and a hucked Gouge hunk, each driven through its shipped path by a mock
+ * Gametests for the goo hits a player causes directly: Flames' burn, Nova's ring, Kindle's retaliation, a goo explosion and a hucked Gouge hunk, each driven through its shipped path by a mock
  * player at a mob, each hurt with its own damage type naming that player as its cause
  * (decisions direct-goo-hit-credits-its-caster, goo-hit-keeps-its-kind-and-names-the-player-behind-it). Each
  * hit driven the same way at a mob the player rallied and a mob the player charmed lands on both and leaves the
@@ -58,15 +53,12 @@ import java.util.function.Consumer;
 public final class GooCasterHitTests {
     private static final String FLAMES_NAMES_THE_PLAYER = "goo_caster_hit_flames_names_the_player";
     private static final String NOVA_NAMES_THE_PLAYER = "goo_caster_hit_nova_names_the_player";
-    private static final String ICEBORN_SNOWBALL_NAMES_THE_PLAYER = "goo_caster_hit_iceborn_snowball_names_the_player";
     private static final String KINDLE_RETALIATION_NAMES_THE_PLAYER =
             "goo_caster_hit_kindle_retaliation_names_the_player";
     private static final String GOO_EXPLOSION_NAMES_THE_PLAYER = "goo_caster_hit_goo_explosion_names_the_player";
     private static final String BLOCK_HUNK_NAMES_THE_PLAYER = "goo_caster_hit_block_hunk_names_the_player";
     private static final String FLAMES_KEEPS_RALLY_AND_CHARM = "goo_caster_hit_flames_keeps_rally_and_charm";
     private static final String NOVA_KEEPS_RALLY_AND_CHARM = "goo_caster_hit_nova_keeps_rally_and_charm";
-    private static final String ICEBORN_SNOWBALL_KEEPS_RALLY_AND_CHARM =
-            "goo_caster_hit_iceborn_snowball_keeps_rally_and_charm";
     private static final String KINDLE_RETALIATION_KEEPS_RALLY_AND_CHARM =
             "goo_caster_hit_kindle_retaliation_keeps_rally_and_charm";
     private static final String BLOCK_HUNK_KEEPS_RALLY_AND_CHARM = "goo_caster_hit_block_hunk_keeps_rally_and_charm";
@@ -84,8 +76,6 @@ public final class GooCasterHitTests {
     private static final BlockPos MOB_POS = CASTER_POS.east(3);
     /** Two blocks past the first mob along the caster's look, still inside Flames' reach and a full Nova's ring. */
     private static final BlockPos MOB_BEHIND_POS = MOB_POS.east(2);
-    /** Beside the first mob, south of the caster's row, where a second snowball flies into it alone. */
-    private static final BlockPos MOB_BESIDE_POS = MOB_POS.south();
     /** Beside the Kindle player, at melee reach. */
     private static final BlockPos ATTACKER_POS = new BlockPos(2, 1, 3);
     /** A second attacker beside the Kindle player, at melee reach too. */
@@ -116,9 +106,6 @@ public final class GooCasterHitTests {
     private static final int CASTER_GOO = 100 * GooStacks.THOUSAND;
     /** Through Gouge's wind-up, then long enough for the hunk to rise out of its hole and reach the hold. */
     private static final int GOUGE_HOLD_TICKS = GougeStep.WINDUP_TICKS + 14;
-    /** The snowball starts this far west of the mob's middle, flying east into it. */
-    private static final double SNOWBALL_LEAD = 1.5;
-    private static final float SNOWBALL_SPEED = 1.5f;
     private static final float RALLY_DAMAGE = 6f;
     private static final String RALLY = "rally";
     private static final String CHARM = "charm";
@@ -142,8 +129,6 @@ public final class GooCasterHitTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, FLAMES_NAMES_THE_PLAYER, GooCasterHitTests::flamesNamesThePlayer);
         GooTestFunctions.registerTest(registrar, NOVA_NAMES_THE_PLAYER, GooCasterHitTests::novaNamesThePlayer);
-        GooTestFunctions.registerTest(registrar, ICEBORN_SNOWBALL_NAMES_THE_PLAYER,
-                GooCasterHitTests::icebornSnowballNamesThePlayer);
         GooTestFunctions.registerTest(registrar, KINDLE_RETALIATION_NAMES_THE_PLAYER,
                 GooCasterHitTests::kindleRetaliationNamesThePlayer);
         GooTestFunctions.registerTest(registrar, GOO_EXPLOSION_NAMES_THE_PLAYER,
@@ -152,8 +137,6 @@ public final class GooCasterHitTests {
         GooTestFunctions.registerTest(registrar, FLAMES_KEEPS_RALLY_AND_CHARM,
                 GooCasterHitTests::flamesKeepsRallyAndCharm);
         GooTestFunctions.registerTest(registrar, NOVA_KEEPS_RALLY_AND_CHARM, GooCasterHitTests::novaKeepsRallyAndCharm);
-        GooTestFunctions.registerTest(registrar, ICEBORN_SNOWBALL_KEEPS_RALLY_AND_CHARM,
-                GooCasterHitTests::icebornSnowballKeepsRallyAndCharm);
         GooTestFunctions.registerTest(registrar, KINDLE_RETALIATION_KEEPS_RALLY_AND_CHARM,
                 GooCasterHitTests::kindleRetaliationKeepsRallyAndCharm);
         GooTestFunctions.registerTest(registrar, BLOCK_HUNK_KEEPS_RALLY_AND_CHARM,
@@ -188,20 +171,6 @@ public final class GooCasterHitTests {
                     new GooChargePayload(GooTypes.id(GooTypes.FROST), FROST_NOVA.toString(), fullHold));
             assertNamesThePlayer(helper, player, husk, "Nova", DamageTypes.FREEZE);
         });
-    }
-
-    /**
-     * A snowball an Iceborn mock player threw strikes a husk, whose ice hurts it with freeze naming the player.
-     *
-     * @param helper the gametest helper
-     */
-    public static void icebornSnowballNamesThePlayer(GameTestHelper helper) {
-        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_POS);
-        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.FROST);
-        standFacingEast(helper, player, CASTER_POS);
-        makeIceborn(helper, player);
-        throwSnowballAt(helper, player, husk);
-        succeedOnceHit(helper, player, husk, "An Iceborn snowball", DamageTypes.FREEZE);
     }
 
     /**
@@ -284,36 +253,6 @@ public final class GooCasterHitTests {
             GooThrowHandler.releaseCharge(player,
                     new GooChargePayload(GooTypes.id(GooTypes.FROST), FROST_NOVA.toString(), fullHold));
             assertKeptAndLeave(helper, player, "Nova", DamageTypes.FREEZE, rallied, charmed);
-        });
-    }
-
-    /**
-     * Snowballs an Iceborn mock player threw strike a husk it rallied and a husk it charmed, whose ice hurts both
-     * with freeze, leaves the charm standing and reaches the rallied husk as a hit naming no one, so
-     * RallyEvents.onRalliedHurt lets it land and ends no rally. The snowball's own vanilla hit, thrown naming the
-     * player, lands after the ice and ends the rally whatever the ice's credit, so the rally itself is not asserted.
-     *
-     * @param helper the gametest helper
-     */
-    public static void icebornSnowballKeepsRallyAndCharm(GameTestHelper helper) {
-        Mob rallied = helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_POS);
-        Mob charmed = helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_BESIDE_POS);
-        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.FROST);
-        standFacingEast(helper, player, CASTER_POS);
-        makeIceborn(helper, player);
-        makeOwn(player, rallied, charmed);
-        throwSnowballAt(helper, player, rallied);
-        throwSnowballAt(helper, player, charmed);
-        String hit = "An Iceborn snowball";
-        DamageSource[] ralliedLatest = {null};
-        DamageSource[] charmedLatest = {null};
-        helper.succeedWhen(() -> {
-            ralliedLatest[0] = latestHit(rallied, ralliedLatest[0]);
-            charmedLatest[0] = latestHit(charmed, charmedLatest[0]);
-            assertReadAsNoOnes(helper, hit, DamageTypes.FREEZE, rallied, ralliedLatest[0]);
-            assertKept(helper, hit, DamageTypes.FREEZE, charmed, CHARM, charmed.hasData(GooAttachments.CHARMED),
-                    charmedLatest[0]);
-            helper.getLevel().getServer().getPlayerList().remove(player);
         });
     }
 
@@ -448,26 +387,6 @@ public final class GooCasterHitTests {
     private static @Nullable DamageSource latestHit(LivingEntity mob, @Nullable DamageSource held) {
         DamageSource now = mob.getLastDamageSource();
         return now != null ? now : held;
-    }
-
-    private static void makeIceborn(GameTestHelper helper, ServerPlayer player) {
-        player.setData(GooAttachments.HEART_OVERLAY, HeartOverlay.NONE.hold(HeartKind.ICEBORN, player.getHealth(),
-                player.getMaxHealth(), HeartOverlay.WHOLE_HIT, helper.getLevel().getGameTime()));
-    }
-
-    /**
-     * Throws the player's snowball from just west of the mob's middle, flying east into it.
-     *
-     * @param helper the gametest helper
-     * @param player the player who throws it
-     * @param mob    the mob it flies into
-     */
-    private static void throwSnowballAt(GameTestHelper helper, ServerPlayer player, LivingEntity mob) {
-        Snowball snowball = new Snowball(helper.getLevel(), player, new ItemStack(Items.SNOWBALL));
-        Vec3 middle = mob.getBoundingBox().getCenter();
-        snowball.setPos(middle.x - SNOWBALL_LEAD, middle.y, middle.z);
-        snowball.shoot(1, 0, 0, SNOWBALL_SPEED, 0f);
-        helper.getLevel().addFreshEntity(snowball);
     }
 
     private static void layGougeSlab(GameTestHelper helper) {

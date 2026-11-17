@@ -72,10 +72,11 @@ class AbilityBadgeTest {
 
     /**
      * Grab and Gouge prepare on right click and throw on left click, so they wear held; Flames,
-     * Gust and Cold stay channeled; Goop, Slick, Molten and Host spray a goo in world and wear
-     * residual.
+     * Gust and Cold stay channeled; Goop, Slick, Molten, Host and Rime spray a goo in world and
+     * wear residual.
      * decision held-badge-marks-abilities-that-prepare-and-throw
      * decision residual-badge-marks-the-four-goo-sprays
+     * decision rime-wears-the-residual-badge
      *
      * @param ability the shipped ability's file name
      * @param badge   the badge it wears
@@ -83,18 +84,22 @@ class AbilityBadgeTest {
     @ParameterizedTest
     @CsvSource({"kinetic_grab, HELD", "rock_gouge, HELD", "blaze_flames, CHANNELED", "typhoon_gust, CHANNELED",
             "frost_cold, CHANNELED", "weird_goop, RESIDUAL", "kinetic_slick, RESIDUAL", "blaze_molten, RESIDUAL",
-            "deep_host, RESIDUAL", "hex_leech, RESIDUAL"})
+            "deep_host, RESIDUAL", "frost_rime, RESIDUAL", "hex_leech, RESIDUAL"})
     void shippedAbilityWearsItsControlBadge(String ability, AbilityBadge badge) {
         assertEquals(badge, AbilityJson.decode(ability).badge(), ability);
     }
 
-    /** decision residual-badge-marks-the-four-goo-sprays */
+    /**
+     * decision residual-badge-marks-the-four-goo-sprays
+     * decision rime-wears-the-residual-badge
+     */
     @Test
     void residualIsWornByExactlyTheGooSprays() {
         Set<String> wearers = AbilityJson.files().stream().map(AbilityJson::decode)
                 .filter(definition -> definition.badge() == AbilityBadge.RESIDUAL)
                 .map(definition -> definition.id().getPath()).collect(Collectors.toSet());
-        assertEquals(Set.of("weird_goop", "kinetic_slick", "blaze_molten", "deep_host", "hex_leech"), wearers);
+        assertEquals(Set.of("weird_goop", "kinetic_slick", "blaze_molten", "deep_host", "frost_rime", "hex_leech"),
+                wearers);
     }
 
     /** decision self-badge-becomes-instant-with-a-noita-trigger-star */
