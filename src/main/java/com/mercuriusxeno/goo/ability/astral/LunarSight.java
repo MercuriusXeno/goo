@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.ability.gate;
+package com.mercuriusxeno.goo.ability.astral;
 
 import com.mercuriusxeno.goo.lunar.Lunar;
 import net.minecraft.resources.ResourceKey;
@@ -7,18 +7,18 @@ import net.minecraft.world.phys.Vec3;
 import java.util.Optional;
 
 /**
- * What Astral's gate finds along a caster's look: the moon, from the overworld while it stands above the horizon,
- * or the blue overworld star, from lunar; anything else the gate refuses.
+ * What Lunar finds along a caster's look: the moon, from the overworld while it stands above the horizon,
+ * or the blue overworld star, from lunar; anything else Lunar refuses.
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
  */
-public final class GateSight {
+public final class LunarSight {
 
     /** How far off the moon's or the star's center a look may stray and still hold it, in degrees. */
     static final double LOOK_REACH_DEGREES = 8.0;
     private static final double LOOK_REACH_COSINE = Math.cos(Math.toRadians(LOOK_REACH_DEGREES));
 
-    /** What the gate fixates on. */
+    /** What Lunar fixates on. */
     public enum Sky {
         /** The overworld's moon, which carries the caster to lunar. */
         MOON,
@@ -26,7 +26,7 @@ public final class GateSight {
         OVERWORLD_STAR
     }
 
-    private GateSight() {
+    private LunarSight() {
     }
 
     /**

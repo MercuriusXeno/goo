@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.particle;
 
 import com.mercuriusxeno.goo.client.GooRenderUtil;
+import com.mercuriusxeno.goo.lunar.LunarGravity;
 import com.mercuriusxeno.goo.throwing.DripFall;
 import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -75,7 +76,8 @@ public abstract class DripParticle extends SingleQuadParticle {
     private DripParticle(ClientLevel level, double x, double y, double z, DripLook look, Layer layer) {
         super(level, x, y, z, look.sprite());
         this.setSize(DRIP_SIZE, DRIP_SIZE);
-        this.gravity = DRIP_GRAVITY;
+        // decision lunar-gravity-is-one-sixth-of-the-overworlds: a drip falls under its level's gravity
+        this.gravity = DRIP_GRAVITY * (float) LunarGravity.scaleIn(level.dimension());
         this.layer = layer;
         this.uv = look.uv();
         this.rCol = ARGB.redFloat(look.rgb());
