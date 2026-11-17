@@ -5,16 +5,17 @@ import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.CellBinding;
 import com.mercuriusxeno.goo.block.ability.FungalBudBlock;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
+import com.mercuriusxeno.goo.block.ability.HostCellBlock;
 import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
+import com.mercuriusxeno.goo.block.ability.RimeCellBlock;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.block.ability.WispBlock;
 import com.mercuriusxeno.goo.block.ability.ZapPulseBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
 import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlock;
-import com.mercuriusxeno.goo.block.gate.EndGateBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlock;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlock;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
@@ -22,6 +23,7 @@ import com.mercuriusxeno.goo.block.statue.StatueBlock;
 import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.block.zone.DimensionDoorBlock;
 import com.mercuriusxeno.goo.fluid.GooFluidBlock;
+import com.mercuriusxeno.goo.fluid.MoltenIronBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.IronBarsBlock;
@@ -212,6 +214,103 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
+     * Shatter: the volume cell bound to Crystal's shatter goo, the pale blue
+     * goo Shatter sprays onto a block's top, one to fifteen layers, ordinary
+     * ground underfoot with glass shards hanging over it, dropping the crystal
+     * goo its layers cost through VolumeCellBlock.getDrops, no loot table
+     * (decisions shatter-is-splattered-goo-and-shards-form-over-the-splatters,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VolumeCellBlock> CRYSTAL_SHATTER = BLOCKS.registerBlock(
+            "crystal_shatter", properties -> new VolumeCellBlock(properties, CellBinding.SHATTER),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.ICE)
+                    .friction(CellBinding.SHATTER.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
+     * Host: the volume cell bound to Deep's sculky slime, the dark teal goo
+     * Host sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot that sounds as goo does, dropping the deep goo its layers
+     * cost through VolumeCellBlock.getDrops, no loot table
+     * (decisions host-is-a-sculky-slime-that-sculk-spreads-eagerly-through,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<HostCellBlock> DEEP_HOST = BLOCKS.registerBlock(
+            "deep_host", properties -> new HostCellBlock(properties, CellBinding.HOST),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_CYAN)
+                    .friction(CellBinding.HOST.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
+     * Rime: the volume cell bound to Frost's endothermic goo, the pale blue
+     * goo Rime sprays onto a block's top, one to fifteen layers, as slippery
+     * as ice underfoot and sounding as goo does, dropping the frost goo its
+     * layers cost through VolumeCellBlock.getDrops, no loot table
+     * (decisions iceborn-is-dropped-for-rime-a-frost-goo-that-keeps-what-is-around-it-frozen,
+     * rime-goo-is-slippery-to-walk-on, each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<RimeCellBlock> FROST_RIME = BLOCKS.registerBlock(
+            "frost_rime", properties -> new RimeCellBlock(properties, CellBinding.RIME),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.ICE)
+                    .friction(CellBinding.RIME.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
+     * Wisps: the volume cell bound to Glow's goo, the golden goo Wisps sprays
+     * onto a block's top, one to fifteen layers, ordinary ground underfoot,
+     * shining at a light level equal to its layers, dropping the glow goo its
+     * layers cost through VolumeCellBlock.getDrops, no loot table
+     * (decisions glow-world-goo-is-named-wisps-and-takes-the-holds-place,
+     * wisps-goo-glows-at-a-light-level-equal-to-its-layers,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VolumeCellBlock> GLOW_WISPS = BLOCKS.registerBlock(
+            "glow_wisps", properties -> new VolumeCellBlock(properties, CellBinding.WISPS),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.GOLD)
+                    .friction(CellBinding.WISPS.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY)
+                    .lightLevel(state -> state.getValue(VolumeCellBlock.LAYERS)));
+    /**
+     * Leech: the volume cell bound to Hex's goo, the violet goo Leech sprays
+     * onto a block's top, one to fifteen layers, ordinary ground underfoot
+     * that slows what it catches and sounds as goo does, dropping the
+     * hex goo its layers cost through VolumeCellBlock.getDrops, no loot table
+     * (decisions leech-goo-slows-what-it-catches-and-the-spirits-damage-it,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VolumeCellBlock> HEX_LEECH = BLOCKS.registerBlock(
+            "hex_leech", properties -> new VolumeCellBlock(properties, CellBinding.LEECH),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_PURPLE)
+                    .friction(CellBinding.LEECH.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
      * Dowsing: the volume cell bound to Astral's Dowsing goo, the starry blue
      * goo Dowsing lays on a block's top, one to fifteen layers, ordinary
      * ground underfoot, dropping the astral goo its layers cost through
@@ -257,15 +356,6 @@ public class GooBlocks {
                     .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)
                     .lightLevel(PrismBlock::lightLevel));
     /**
-     * End gate: an end portal laid over a block for a while, carrying what
-     * steps in to its partner gate; unbreakable, uncollidable and dropping
-     * nothing (decision end-clears-blocks-and-opens-a-portal).
-     */
-    public static final DeferredBlock<EndGateBlock> END_GATE = BLOCKS.registerBlock(
-            "end_gate", EndGateBlock::new,
-            () -> BlockBehaviour.Properties.ofFullCopy(Blocks.END_PORTAL).noLootTable());
-
-    /**
      * Voidstone: the unbreakable block at the center of each Zone room,
      * the one block there nothing can take away (decision
      * outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform).
@@ -296,12 +386,13 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.ofFullCopy(Blocks.ICE)
                     .overrideLootTable(Blocks.ICE.getLootTable()));
     /**
-     * Iceborn's ice: magicked ice an Iceborn player leaves on water, its own
-     * block so the level's record knows it still stands frozen when it sends
-     * it back to water (decision iceborn-frozen-hearts-thaw-on-fire).
+     * Rime ice: magicked ice Rime goo leaves on the water in its reach, its
+     * own block so the level's record knows it still stands frozen when it
+     * sends it back to water once no Rime goo stands in reach
+     * (decision rime-freezes-water-and-lava-and-freezes-and-damages-the-shoeless).
      */
-    public static final DeferredBlock<MagickedIceBlock> ICEBORN_ICE = BLOCKS.registerBlock(
-            "iceborn_ice", MagickedIceBlock::new,
+    public static final DeferredBlock<MagickedIceBlock> RIME_ICE = BLOCKS.registerBlock(
+            "rime_ice", MagickedIceBlock::new,
             () -> BlockBehaviour.Properties.ofFullCopy(Blocks.ICE)
                     .overrideLootTable(Blocks.ICE.getLootTable()));
     /**
@@ -392,7 +483,7 @@ public class GooBlocks {
 
     /** Molten iron's liquid block, glowing as lava does. */
     public static final DeferredBlock<LiquidBlock> MOLTEN_IRON = BLOCKS.registerBlock(GooFluids.MOLTEN_IRON_PATH,
-            p -> new LiquidBlock(GooFluids.MOLTEN_IRON_SOURCE.get(), p),
+            p -> new MoltenIronBlock(GooFluids.MOLTEN_IRON_SOURCE.get(), p),
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.FIRE)
                     .replaceable()

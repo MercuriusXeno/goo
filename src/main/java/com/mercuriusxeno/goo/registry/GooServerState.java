@@ -4,7 +4,10 @@ import com.mercuriusxeno.goo.ability.frost.GlacialFields;
 import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
 import com.mercuriusxeno.goo.ability.program.MorphBirths;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
+import com.mercuriusxeno.goo.block.ability.HostFreeCells;
+import com.mercuriusxeno.goo.block.ability.HostSpreaders;
 import com.mercuriusxeno.goo.block.ability.MoltenHeats;
+import com.mercuriusxeno.goo.block.ability.WispClaims;
 import com.mercuriusxeno.goo.network.DripFlights;
 import com.mercuriusxeno.goo.network.FleckLaunches;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
@@ -32,6 +35,9 @@ public final class GooServerState {
     private final ScanWaves scanWaves = new ScanWaves();
     private final DripFlights dripFlights = new DripFlights();
     private final MoltenHeats moltenHeats = new MoltenHeats();
+    private final HostSpreaders hostSpreaders = new HostSpreaders();
+    private final HostFreeCells hostFreeCells = new HostFreeCells();
+    private final WispClaims wispClaims = new WispClaims();
 
     /**
      * Answers the state the server holds.
@@ -134,6 +140,36 @@ public final class GooServerState {
     }
 
     /**
+     * The sculk charges Host goo started from deaths near it
+     * (decision mob-dying-on-or-near-host-goo-spreads-sculk-from-the-goo).
+     *
+     * @return the Host spreaders
+     */
+    public HostSpreaders hostSpreaders() {
+        return hostSpreaders;
+    }
+
+    /**
+     * The Host cells a recent walk found free of a stranded charge
+     * (decision sculk-charge-runs-along-host-goo-without-weakening).
+     *
+     * @return the free Host cells
+     */
+    public HostFreeCells hostFreeCells() {
+        return hostFreeCells;
+    }
+
+    /**
+     * The spots drifting wisps are headed for
+     * (decision wisps-travel-as-entities-then-settle-as-glowy-air-blocks).
+     *
+     * @return the wisp claims
+     */
+    public WispClaims wispClaims() {
+        return wispClaims;
+    }
+
+    /**
      * @return how long each player has held a stream
      */
     public StreamHolds streamHolds() {
@@ -181,5 +217,8 @@ public final class GooServerState {
         scanWaves.clear();
         dripFlights.clear();
         moltenHeats.clear();
+        hostSpreaders.clear();
+        hostFreeCells.clear();
+        wispClaims.clear();
     }
 }

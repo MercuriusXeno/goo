@@ -45,7 +45,7 @@ public final class GloveRecollectTests {
 
     private static final String REMOVAL = "removal";
     private static final BlockPos MARKER_POS = new BlockPos(1, 1, 1);
-    private static final Identifier CRYSTAL_SHATTER = Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_shatter");
+    private static final Identifier METAL_URCHIN = Identifier.fromNamespaceAndPath(Goo.MODID, "metal_urchin");
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
     private static final String NOT_SUCCESS = "Shift-click with the glove on a marker should succeed";
     private static final String GOO_MISSING = "Shift-click recollect should give the marker's stacked goo to the player";
@@ -62,12 +62,12 @@ public final class GloveRecollectTests {
     @SuppressWarnings(REMOVAL) // vanilla marks the mock server player helper for removal and names no replacement
     public static void shiftClickRecollectsMarker(GameTestHelper helper) {
         helper.setBlock(MARKER_POS.below(), Blocks.STONE);
-        AbilityDefinition crystalShatter = AbilityRegistry.of(helper.getLevel()).getAbility(CRYSTAL_SHATTER);
-        helper.assertTrue(crystalShatter != null, ABILITIES_REQUIRED);
-        AbilityImpact.land(helper.getLevel(), helper.absolutePos(MARKER_POS.below()), GooTypes.CRYSTAL, Direction.UP,
-                crystalShatter);
+        AbilityDefinition metalUrchin = AbilityRegistry.of(helper.getLevel()).getAbility(METAL_URCHIN);
+        helper.assertTrue(metalUrchin != null, ABILITIES_REQUIRED);
+        AbilityImpact.land(helper.getLevel(), helper.absolutePos(MARKER_POS.below()), GooTypes.METAL, Direction.UP,
+                metalUrchin);
         helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
-        ItemStack expected = GooStacks.createForOutput(GooTypes.CRYSTAL, GooStacks.THOUSAND);
+        ItemStack expected = GooStacks.createForOutput(GooTypes.METAL, GooStacks.THOUSAND);
 
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         ItemStack glove = new ItemStack(GooItems.GOO_GLOVE.get());

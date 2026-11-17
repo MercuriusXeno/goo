@@ -11,8 +11,9 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
- * Lifetap's look, which Drain shares: life drawn from a victim to the one it
- * heals as hex wisps. Lifetap splashes once per point of health healed, each
+ * Drained life's look, which Drain and Leech goo share: life drawn from a
+ * victim to the one it heals as hex wisps. A strike on a victim in Leech goo
+ * splashes once per point of health healed, each
  * splash a burst of wisps scattering off the victim before they curl home,
  * the splashes a beat apart; Drain streams its wisps from the drained mob's
  * chest into the player in one tight, steady stream, and bursts a few on the
@@ -20,6 +21,7 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
  * lifetap-trades-regen-for-leech
  * drain-field-heals-with-the-lifetap-visuals
  * drained-mobs-show-stream-burst-and-tether
+ * damage-dealt-to-a-mob-in-leech-goo-becomes-drained-life-for-its-source
  */
 public final class LeechWisps {
 
@@ -47,6 +49,14 @@ public final class LeechWisps {
     private static final int BASE_FLIGHT = 14;
     private static final int FLIGHT_VARIANCE = 10;
     private static final double BODY_CENTER = 0.5;
+    /** How fast a shed wisp sets off upward at the least, blocks a tick; it sets off up to twice this. */
+    private static final double SHED_RISE = 0.04;
+    /** How far a shed wisp sways aside as it rises, blocks a tick, a gaussian's spread. */
+    private static final double SHED_SWAY = 0.01;
+    /** The fewest ticks a shed wisp drifts before it has faded. */
+    private static final int SHED_TICKS = 14;
+    /** The ticks beyond the fewest a shed wisp may drift. */
+    private static final int SHED_VARIANCE = 8;
     private static final double CHEST = 0.7;
     private static final double SPAWN_SPREAD = 0.3;
 
@@ -124,6 +134,39 @@ public final class LeechWisps {
                 burst(mc, level.getRandom(), victim);
             }
         });
+    }
+
+    /**
+     * Whether a living thing sheds a hex wisp this tick: where it stands in
+     * Leech goo and the shed interval comes due on its tick count.
+     * hex-wisps-drift-off-mobs-standing-in-leech-goo
+     *
+     * @param standsInLeech whether the thing stands in Leech goo
+     * @param tickCount     the thing's tick count
+     * @param interval      the ticks between the wisps it sheds
+     * @return true where it sheds a wisp this tick
+     */
+    static boolean sheds(boolean standsInLeech, int tickCount, int interval) {
+        return standsInLeech && tickCount % interval == 0;
+    }
+
+    /**
+     * Sheds one hex wisp off a living thing standing in Leech goo, from a
+     * point on its body, drifting up and fading as it rises.
+     * hex-wisps-drift-off-mobs-standing-in-leech-goo
+     *
+     * @param mc     the client
+     * @param random the random source
+     * @param living the thing standing in the goo
+     */
+    static void shed(Minecraft mc, RandomSource random, Entity living) {
+        Vec3 at = living.position().add((random.nextDouble() - BODY_CENTER) * living.getBbWidth(),
+                random.nextDouble() * living.getBbHeight(), (random.nextDouble() - BODY_CENTER) * living.getBbWidth());
+        if (mc.particleEngine.createParticle(GooParticles.HEX_WISP.get(), at.x, at.y, at.z, 0, 0, 0)
+                instanceof HexWispParticle wisp) {
+            wisp.burst(new Vec3(random.nextGaussian() * SHED_SWAY, SHED_RISE + random.nextDouble() * SHED_RISE,
+                    random.nextGaussian() * SHED_SWAY), SHED_TICKS + random.nextInt(SHED_VARIANCE));
+        }
     }
 
     /**

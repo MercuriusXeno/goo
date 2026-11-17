@@ -14,6 +14,7 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.phys.Vec3;
@@ -33,6 +34,18 @@ public interface BlockBreakHost extends StepHost {
     double DEBRIS_SPREAD = 0.3;
     /** How fast its debris flies out. */
     double DEBRIS_SPEED = 0.3;
+    /** How far from a cell's middle a quiet break's particles scatter across it, each way: a quarter block. */
+    double BREAK_SPREAD = 0.25;
+    /** The share of a broken state's height its break particles center at: its middle. */
+    double BREAK_MIDDLE_SHARE = 0.5;
+    /** The share of a broken state's height its break particles scatter up and down from the middle. */
+    double BREAK_RISE_SHARE = 0.25;
+    /** The share of a block's sound pitch vanilla plays its break sound at. */
+    float BREAK_PITCH = 0.8f;
+    /** Vanilla plays a break sound at its sound type's volume lifted by this, then shared by the next. */
+    float BREAK_VOLUME_LIFT = 1f;
+    /** The share of the lifted volume vanilla plays a break sound at. */
+    float BREAK_VOLUME_SHARE = 0.5f;
     /** The highest breaker id a block's cracks travel under, below every entity's id. */
     int HIGHEST_CRACKER_ID = -1;
 
@@ -116,6 +129,35 @@ public interface BlockBreakHost extends StepHost {
         level().sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, level().getBlockState(pos)),
                 center.x, center.y, center.z, DEBRIS_CHUNKS, DEBRIS_SPREAD, DEBRIS_SPREAD, DEBRIS_SPREAD,
                 DEBRIS_SPEED);
+    }
+
+    /**
+     * Scatters a few break particles of a state over the lower part of its
+     * cell, where a block broken quietly stood, seen by every player near.
+     *
+     * @param pos    the cell
+     * @param state  the state whose texture the particles take
+     * @param count  how many particles
+     * @param height how high the state stood in its cell, in blocks
+     */
+    default void scatterBreakParticles(BlockPos pos, BlockState state, int count, double height) {
+        Vec3 floor = Vec3.atBottomCenterOf(pos);
+        level().sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, state), floor.x,
+                floor.y + height * BREAK_MIDDLE_SHARE, floor.z, count, BREAK_SPREAD, height * BREAK_RISE_SHARE,
+                BREAK_SPREAD, 0);
+    }
+
+    /**
+     * Plays a state's own break sound at its cell, as vanilla does when the
+     * block breaks, heard by everyone near.
+     *
+     * @param pos   the cell
+     * @param state the state broken there
+     */
+    default void playBreakSound(BlockPos pos, BlockState state) {
+        SoundType sound = state.getSoundType(level(), pos, breaker());
+        level().playSound(null, pos, sound.getBreakSound(), SoundSource.BLOCKS,
+                (sound.getVolume() + BREAK_VOLUME_LIFT) * BREAK_VOLUME_SHARE, sound.getPitch() * BREAK_PITCH);
     }
 
     /**
@@ -204,20 +246,6 @@ public interface BlockBreakHost extends StepHost {
      */
     static int crackerId(BlockPos pos) {
         return HIGHEST_CRACKER_ID - (Long.hashCode(pos.asLong()) & Integer.MAX_VALUE);
-    }
-
-    /**
-     * Tells the watching clients a block stepped from one state to another,
-     * as a transform does, for a step that set the block some other way; a
-     * cell the clients drew melting away stops drawing the melt.
-     * vacuumed-residuals-decay-through-mingle-noise-before-breaking
-     *
-     * @param pos  the block
-     * @param from the state it was
-     * @param to   the state it is now
-     */
-    default void sendTransform(BlockPos pos, BlockState from, BlockState to) {
-        new BlockTransformPayload(pos, Block.getId(from), Block.getId(to)).sendToTracking(level());
     }
 
     /**

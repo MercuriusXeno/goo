@@ -368,7 +368,7 @@ class DeliveryTest {
          * goop-and-slick-coat-lands-where-each-drip-arc-strikes
          */
         @Test
-        void theWorldGooStreamsAloneThrowDripsOnTheirArcs() {
+        void theWorldGooSpraysAloneThrowDripsOnTheirArcs() {
             Set<Identifier> throwing = AbilityJson.files().stream()
                     .filter(file -> AbilityJson.decode(file).delivery().throwsDrips())
                     .map(file -> AbilityJson.idOf(file.getFileName().toString()))
@@ -377,6 +377,11 @@ class DeliveryTest {
             assertEquals(Set.of(Identifier.fromNamespaceAndPath("goo", "weird_goop"),
                     Identifier.fromNamespaceAndPath("goo", "kinetic_slick"),
                     Identifier.fromNamespaceAndPath("goo", "blaze_molten"),
+                    Identifier.fromNamespaceAndPath("goo", "crystal_shatter"),
+                    Identifier.fromNamespaceAndPath("goo", "deep_host"),
+                    Identifier.fromNamespaceAndPath("goo", "frost_rime"),
+                    Identifier.fromNamespaceAndPath("goo", "glow_wisps"),
+                    Identifier.fromNamespaceAndPath("goo", "hex_leech"),
                     Identifier.fromNamespaceAndPath("goo", "astral_dowsing")), throwing);
         }
     }
@@ -394,7 +399,8 @@ class DeliveryTest {
 
         @Test
         void eachSprayLeavesFasterByTheCastersSpeed() {
-            for (String spray : Set.of("weird_goop", "kinetic_slick", "blaze_molten")) {
+            for (String spray : Set.of("weird_goop", "kinetic_slick", "blaze_molten", "crystal_shatter",
+                    "deep_host", "frost_rime", "glow_wisps", "hex_leech")) {
                 Delivery delivery = AbilityJson.decode(spray).delivery();
 
                 assertEquals(delivery.throwSpeed() + RAMPED, delivery.exitSpeedAt(RAMPED), 1e-9, spray);
