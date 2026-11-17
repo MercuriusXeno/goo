@@ -12,20 +12,22 @@ import org.joml.Vector3f;
  */
 public final class GlassKunai {
 
+    /** The kunai's size against its first drawing, two thirds, so it is 0.4 blocks point to butt. */
+    private static final float SIZE = 2f / 3f;
     /** The blade's length from the point to its widest, in blocks at full size. */
-    static final float POINT_LENGTH = 0.34f;
+    static final float POINT_LENGTH = 0.34f * SIZE;
     /** The blade's length from its widest back to the grip. */
-    static final float HEEL_LENGTH = 0.1f;
+    static final float HEEL_LENGTH = 0.1f * SIZE;
     /** The grip's length behind the blade. */
-    static final float GRIP_LENGTH = 0.16f;
+    static final float GRIP_LENGTH = 0.16f * SIZE;
     /** The kunai's whole length, point to butt, in blocks at full size. */
     static final float WHOLE_LENGTH = POINT_LENGTH + HEEL_LENGTH + GRIP_LENGTH;
     /** The blade's half-width at its widest, across its flat. */
-    private static final float BLADE_HALF_WIDTH = 0.075f;
+    private static final float BLADE_HALF_WIDTH = 0.075f * SIZE;
     /** The blade's half-thickness at its widest. */
-    private static final float BLADE_HALF_THICKNESS = 0.022f;
+    private static final float BLADE_HALF_THICKNESS = 0.022f * SIZE;
     /** The grip's half-width. */
-    private static final float GRIP_HALF_WIDTH = 0.02f;
+    private static final float GRIP_HALF_WIDTH = 0.02f * SIZE;
     /** The blade's glass: pale, faintly blue, mostly clear. */
     static final int BLADE_COLOR = 0xC0DDF4FF;
     /** The grip's glass: a deeper teal, less clear. */

@@ -65,7 +65,7 @@ class StackInViewTest {
 
     @Test
     void everyKnifeOfAFullPyramidHoversAtFullSizeItsPointInViewAndItsButtInFront() {
-        Vec3 cube = StackHover.cubeCenterInView(EYE, PITCH, YAW, true, false);
+        Vec3 cube = StackHover.cubeCenterInView(EYE, PITCH, YAW, true);
         HoveringKnives.formed(CASTER, StackHover.KNIVES, 0);
         HoveringKnives.Fan fan = HoveringKnives.fanOf(CASTER);
         for (int index = 0; index < StackHover.KNIVES; index++) {
@@ -83,7 +83,7 @@ class StackInViewTest {
 
     @Test
     void everyJavelinOfAFullTriangleHoversWholeAtFullSizePointingAtTheCrosshair() {
-        Vec3 cube = StackHover.cubeCenterInView(EYE, PITCH, YAW, true, true);
+        Vec3 cube = StackHover.cubeCenterInView(EYE, PITCH, YAW, true);
         HeldJavelins.formed(CASTER, StackHover.JAVELINS, 0);
         HeldJavelins.Stack stack = HeldJavelins.stackOf(CASTER);
         for (int index = 0; index < StackHover.JAVELINS; index++) {

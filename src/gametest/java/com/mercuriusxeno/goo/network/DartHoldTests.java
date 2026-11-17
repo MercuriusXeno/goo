@@ -218,7 +218,7 @@ public final class DartHoldTests {
         holding(caster, true);
 
         helper.runAfterDelay(ONE_JAVELIN_TICKS, () -> {
-            crosshair[0] = ThrownKnife.crosshairPointOf(caster, 1f);
+            crosshair[0] = ThrownKnife.aimPointOf(caster, 1f);
             throwDart(caster);
             List<ThrownKnives.Flight> flying = state.thrownKnives().flyingFrom(caster);
             launched[0] = flying.size() == 1 ? flying.getFirst() : null;

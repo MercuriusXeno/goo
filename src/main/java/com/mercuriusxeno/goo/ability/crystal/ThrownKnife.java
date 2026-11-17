@@ -4,9 +4,6 @@ import com.mercuriusxeno.goo.ability.TravelForm;
 import com.mercuriusxeno.goo.throwing.ProjectileFlight;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.projectile.ProjectileUtil;
-import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -22,8 +19,8 @@ public final class ThrownKnife {
 
     /** The most ticks a knife or javelin flies before it is spent. */
     public static final int MOST_FLIGHT_TICKS = 100;
-    /** How far the crosshair's ray reaches for a block or mob to rest on, in blocks. */
-    public static final double CROSSHAIR_REACH = 64;
+    /** How far straight ahead along the look each knife and javelin aims, in blocks: a point on the horizon. */
+    public static final double AIM_AHEAD = 64;
     /** A knives throw takes one of every two knives held. */
     private static final int HALVES = 2;
 
@@ -62,7 +59,7 @@ public final class ThrownKnife {
      */
     public static Vec3 launchPointOf(Vec3 eye, float xRot, float yRot, boolean gloveRight, int index, int held,
                                      boolean javelins) {
-        return StackHover.pointOf(StackHover.cubeCenterInView(eye, xRot, yRot, gloveRight, javelins), xRot, yRot,
+        return StackHover.pointOf(StackHover.cubeCenterInView(eye, xRot, yRot, gloveRight), xRot, yRot,
                 StackHover.slotOf(index, held, javelins));
     }
 
@@ -95,28 +92,6 @@ public final class ThrownKnife {
     }
 
     /**
-     * Where a player's crosshair rests: the first block or mob the look meets
-     * within the crosshair's reach, or the point that far along the look where
-     * it meets none. Each hovering knife and javelin points at it and each
-     * throw heads at it.
-     * decision knives-hover-above-the-blob-cube-over-the-hand
-     *
-     * @param player  the player
-     * @param partial the partial tick, 1 on the server
-     * @return the point
-     */
-    public static Vec3 crosshairPointOf(Player player, float partial) {
-        Vec3 eye = player.getEyePosition(partial);
-        Vec3 reach = player.getViewVector(partial).scale(CROSSHAIR_REACH);
-        Vec3 end = player.level().clip(new ClipContext(eye, eye.add(reach), ClipContext.Block.COLLIDER,
-                ClipContext.Fluid.NONE, player)).getLocation();
-        EntityHitResult mob = ProjectileUtil.getEntityHitResult(player, eye, end,
-                player.getBoundingBox().expandTowards(reach).inflate(1), entity -> !entity.isSpectator()
-                        && entity.isPickable(), eye.distanceToSqr(end));
-        return mob == null ? end : mob.getLocation();
-    }
-
-    /**
      * The heading from a slot at the crosshair's point, which a hovering one
      * points along and a thrown one leaves along.
      *
@@ -142,5 +117,19 @@ public final class ThrownKnife {
     public static Vec3 drawnFromOf(Vec3 slot, Vec3 heading, boolean javelins, float scale) {
         double lead = javelins ? TravelForm.DART.fins().sweep() : StackHover.KNIFE_LENGTH;
         return slot.add(heading.scale(lead * scale));
+    }
+
+    /**
+     * The point each knife and javelin aims at: a point far straight ahead
+     * along the look, no block or mob in the way consulted, so every one faces
+     * forward and a throw flies straight ahead from where it hovered.
+     * decision knives-hover-above-the-blob-cube-over-the-hand
+     *
+     * @param player  the player
+     * @param partial the partial tick, 1 on the server
+     * @return the point
+     */
+    public static Vec3 aimPointOf(Player player, float partial) {
+        return player.getEyePosition(partial).add(player.getViewVector(partial).scale(AIM_AHEAD));
     }
 }

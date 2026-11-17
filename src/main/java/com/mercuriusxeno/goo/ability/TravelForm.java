@@ -22,7 +22,7 @@ public enum TravelForm {
      * A long needle-pointed spear with flat swept fins at its tail.
      * decision dart-flutes-draw-as-fins
      */
-    DART(2.5f, 0.05f, new Fins(3, 0.45f, 0.16f, 0.15f, 0.18f));
+    DART(1.25f, 0.025f, new Fins(3, 0.225f, 0.08f, 0.075f, 0.09f));
 
     private static final String WHAT = "travel form";
     /** The fins stand out on both sides of the shaft across any width taken through it. */

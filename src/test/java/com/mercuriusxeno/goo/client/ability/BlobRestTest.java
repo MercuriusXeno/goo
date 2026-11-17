@@ -85,4 +85,14 @@ class BlobRestTest {
         double overThePalm = BlobRest.inView(EYE, PITCH, YAW, true, BlobRest.Rest.OVER_THE_PALM).subtract(EYE).dot(up());
         assertEquals(SpraySource.RISE_ABOVE_THE_PALM - 2 * 0.15 * 0.5 * 0.9, overTheHand - overThePalm, SINE_TABLE,
                 "the knives' cube should stand one cube edge over the palm, the spray source's rise less");
+    }
+
+    // dart-javelins-hover-over-the-shrinking-blob-cube: Dart's cube rests as low as Knives'
+    @Test
+    void dartsBlobRestsOverThePalmAsKnivesDoes() {
+        com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility dart =
+                org.mockito.Mockito.mock(com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility.class);
+        org.mockito.Mockito.when(dart.delivery())
+                .thenReturn(com.mercuriusxeno.goo.ability.AbilityJson.decode("metal_dart").delivery());
+        assertEquals(BlobRest.Rest.OVER_THE_PALM, BlobRest.Rest.of(dart));
     }}
