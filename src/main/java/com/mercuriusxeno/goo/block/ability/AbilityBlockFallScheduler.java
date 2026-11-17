@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.block.ability;
 
+import com.mercuriusxeno.goo.lunar.LunarGravity;
 import com.mercuriusxeno.goo.network.ChunkWatchers;
 import com.mercuriusxeno.goo.network.GooFlightPayload;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
@@ -57,7 +58,9 @@ public final class AbilityBlockFallScheduler {
                                     Block markerBlock, AbilityBlockSnapshot snapshot) {
         double distance = oldPos.distManhattan(landingPos);
         GooTypeDefinition definition = GooTypes.definition(level.registryAccess(), snapshot.gooType());
-        int travelTicks = (int) ThrowArc.travelTicks(distance, definition.levity(), definition.baseFlightTime());
+        // decision lunar-gravity-is-one-sixth-of-the-overworlds: a block falling in lunar floats down longer
+        int travelTicks = LunarGravity.flightTicksIn(level.dimension(),
+                (int) ThrowArc.travelTicks(distance, definition.levity(), definition.baseFlightTime()));
 
         broadcastFlight(level, oldPos, landingPos, snapshot, travelTicks);
 

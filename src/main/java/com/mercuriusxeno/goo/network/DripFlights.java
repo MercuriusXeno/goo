@@ -110,10 +110,11 @@ public final class DripFlights {
                 continue;
             }
             boolean landsOnLava = thrower.landing().filter(DripLanding::landsOnLava).isPresent();
-            DripArc.Step step = DripArc.step(flight.position(), flight.velocity(),
+            // decision lunar-gravity-is-one-sixth-of-the-overworlds: a drip falls under its dimension's gravity
+            DripArc.Step step = DripArc.step(flight.position(), flight.velocity(), new DripArc.Flight(
                     CoatRay.clippingFor(level, landsOnLava),
                     thrower.strikesLiving() ? livingNear(level, thrower.casterId()) : DripArc.NO_LIVING,
-                    airspaceOf(level));
+                    airspaceOf(level), DripArc.gravityIn(level.dimension())));
             if (!step.ended()) {
                 flying.add(flight.after(step));
             }

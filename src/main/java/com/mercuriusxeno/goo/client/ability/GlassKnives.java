@@ -91,16 +91,17 @@ public final class GlassKnives {
      * @param velocity its velocity leaving the hand
      * @param ticks    the ticks it flies
      * @param end      where it ends
+     * @param gravity  the pull on the knife each tick, the gravity of the level it flies in
      * @return ticks plus one points, the first the start and the last the end
      */
-    static List<Vec3> pathOf(Vec3 start, Vec3 velocity, int ticks, Vec3 end) {
+    static List<Vec3> pathOf(Vec3 start, Vec3 velocity, int ticks, Vec3 end, double gravity) {
         List<Vec3> path = new ArrayList<>(ticks + 1);
         Vec3 position = start;
         Vec3 moving = velocity;
         for (int tick = 0; tick < ticks; tick++) {
             path.add(position);
             position = position.add(moving);
-            moving = KnifeRain.nextVelocity(moving);
+            moving = KnifeRain.nextVelocity(moving, gravity);
         }
         path.add(end);
         return path;
@@ -116,7 +117,8 @@ public final class GlassKnives {
         context.enqueueWork(() -> {
             ClientLevel level = Minecraft.getInstance().level;
             if (level != null) {
-                LIVE.add(new Knife(pathOf(payload.start(), payload.velocity(), payload.ticks(), payload.end()),
+                LIVE.add(new Knife(pathOf(payload.start(), payload.velocity(), payload.ticks(), payload.end(),
+                        KnifeRain.gravityIn(level.dimension())),
                         GlassKnifePayload.Ending.values()[payload.ending()], level.getGameTime(), new boolean[1]));
             }
         });

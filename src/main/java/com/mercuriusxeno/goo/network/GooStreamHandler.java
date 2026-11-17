@@ -348,7 +348,8 @@ public final class GooStreamHandler {
             // the living in its cone
             // diagnose-and-correct-the-spray-landing-off-the-aim: the drips leave the hand aimed through the
             // crosshair's point, and the drawn drips fly the same axis
-            Vec3 dripAxis = dripAxis(apex, axis, dripTarget(player), exitSpeedOf(player, delivery));
+            Vec3 dripAxis = dripAxis(apex, axis, dripTarget(player), exitSpeedOf(player, delivery),
+                    DripArc.gravityIn(player.level().dimension()));
             runBlockPass(cast, apex, dripAxis, delivery, ability, held, true);
             boolean strikesLiving = throwDrips(player, apex, dripAxis, ability, held);
             sprayParticles(player, apex, dripAxis, delivery, 0, strikesLiving);
@@ -428,10 +429,11 @@ public final class GooStreamHandler {
      * @param look      the player's look
      * @param target    the crosshair's point, empty where it meets no block
      * @param exitSpeed the drips' exit speed, blocks per tick
+     * @param gravity   the pull on the drips each tick, the gravity of the dimension they fly in
      * @return the unit axis the server's drips and the drawn drips launch about
      */
-    static Vec3 dripAxis(Vec3 apex, Vec3 look, Optional<Vec3> target, double exitSpeed) {
-        return target.map(point -> DripArc.axisToward(apex, point, look, exitSpeed)).orElse(look);
+    static Vec3 dripAxis(Vec3 apex, Vec3 look, Optional<Vec3> target, double exitSpeed, double gravity) {
+        return target.map(point -> DripArc.axisToward(apex, point, look, exitSpeed, gravity)).orElse(look);
     }
 
     /**
@@ -482,8 +484,8 @@ public final class GooStreamHandler {
         }
         ServerLevel level = player.level();
         return DripArc.flyToItsEnd(apex, DripArc.launch(axis, delivery.coneDegrees(), CoatRay.coneFan().getFirst(),
-                exitSpeedOf(player, delivery)), CoatRay.clipping(level), DripFlights.airspaceOf(level))
-                .position();
+                exitSpeedOf(player, delivery)), new DripArc.Flight(CoatRay.clipping(level), DripArc.NO_LIVING,
+                DripFlights.airspaceOf(level), DripArc.gravityIn(level.dimension()))).position();
     }
 
 

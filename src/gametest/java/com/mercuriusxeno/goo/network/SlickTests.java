@@ -1444,7 +1444,8 @@ public final class SlickTests {
             // diagnose-and-correct-the-spray-landing-off-the-aim: the drips leave aimed through the crosshair's
             // point at the tick's exit speed
             Vec3 aimed = GooStreamHandler.dripAxis(streamer.getEyePosition(), streamer.getLookAngle(),
-                    GooStreamHandler.dripTarget(streamer), exitSpeed);
+                    GooStreamHandler.dripTarget(streamer), exitSpeed,
+                    DripArc.gravityIn(streamer.level().dimension()));
             List<Vec3> atRest = CoatRay.scatteredShares(2, drips).stream()
                     .map(share -> DripArc.launch(aimed, delivery.coneDegrees(), share, exitSpeed))
                     .toList();

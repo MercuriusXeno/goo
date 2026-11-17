@@ -22,7 +22,7 @@ class GlassKnivesTest {
     @Test
     void theClientPathFollowsTheServersArcAndEndsWhereTheServerSaid() {
         Vec3 end = new Vec3(0.1, 0.5, 6.2);
-        List<Vec3> path = GlassKnives.pathOf(START, VELOCITY, 7, end);
+        List<Vec3> path = GlassKnives.pathOf(START, VELOCITY, 7, end, KnifeRain.GRAVITY);
 
         assertEquals(8, path.size());
         assertEquals(START, path.getFirst());
@@ -32,7 +32,8 @@ class GlassKnivesTest {
 
     @Test
     void aKnifeLiesBetweenItsTickPointsHeadingAlongItsPath() {
-        List<Vec3> path = GlassKnives.pathOf(START, VELOCITY, 12, KnifeRain.positionAt(START, VELOCITY, 12));
+        List<Vec3> path = GlassKnives.pathOf(START, VELOCITY, 12, KnifeRain.positionAt(START, VELOCITY, 12),
+                KnifeRain.GRAVITY);
 
         GlassKnives.Placement half = GlassKnives.placementAt(path, 1.5);
         assertEquals(0, path.get(1).lerp(path.get(2), 0.5).distanceTo(half.point()), TOLERANCE);
