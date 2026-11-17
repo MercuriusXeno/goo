@@ -104,5 +104,10 @@ public final class GooSounds {
         SOUND_EVENTS.register("effects.vacuum_slurp",
             () -> SoundEvent.createVariableRangeEvent(GooSoundIds.VACUUM_SLURP));
 
+    /** Astral's gate rising tone (decision gate-fixates-your-view-on-the-moon-until-it-takes-you). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> LUNAR_TONE =
+        SOUND_EVENTS.register("effects.lunar_tone",
+            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.LUNAR_TONE));
+
     private GooSounds() {}
 }

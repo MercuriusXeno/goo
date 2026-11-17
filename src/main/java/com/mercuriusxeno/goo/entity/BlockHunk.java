@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.entity;
 
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.GooHitCredit;
+import com.mercuriusxeno.goo.lunar.LunarGravity;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooEntities;
 import com.mojang.serialization.Codec;
@@ -910,6 +911,11 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         atSeatTicks = 0;
     }
 
+    @Override
+    protected double getDefaultGravity() {
+        return GRAVITY;
+    }
+
     /**
      * One tick of a let-go hunk moving on to its seat (SeatSlide), by its own
      * blocks against the world, becoming its blocks once there; held fast
@@ -919,7 +925,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
      */
     private void seatTick(ServerLevel level) {
         Vec3 there = Vec3.atBottomCenterOf(seat);
-        seatFall = Math.min(seatFall + GRAVITY, MOST_SEAT_FALL);
+        seatFall = Math.min(seatFall + GRAVITY * LunarGravity.scaleIn(level.dimension()), MOST_SEAT_FALL);
         Vec3 wanted = SeatSlide.step(position(), there, seatFall).subtract(position());
         Vec3 moved = allowedMove(position(), wanted);
         setPos(position().add(moved));
@@ -984,9 +990,8 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
      * @param level the server level
      */
     private void fly(ServerLevel level) {
-        if (!isNoGravity()) {
-            setDeltaMovement(getDeltaMovement().add(0, -GRAVITY, 0));
-        }
+        // decision lunar-gravity-is-one-sixth-of-the-overworlds: getGravity answers one sixth in lunar
+        setDeltaMovement(getDeltaMovement().add(0, -getGravity(), 0));
         Vec3 motion = getDeltaMovement();
         moveByItsBlocks(motion);
         boolean thrown = entityData.get(THROWN);

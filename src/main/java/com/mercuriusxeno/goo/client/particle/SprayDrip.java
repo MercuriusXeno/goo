@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.particle;
 
-import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mercuriusxeno.goo.throwing.DripArc;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
@@ -37,14 +36,11 @@ public record SprayDrip(int rgb, Vec3 velocity) {
      *
      * @param position where the drip stands
      * @param velocity the drip's velocity, blocks per tick
-     * @param clip     the blocks its segment may meet
-     * @param living   the living its segment may meet
-     * @param airspace where it may fly
+     * @param flight   what its flight runs against, the gravity of the level it flies in among it
      * @return where the drip stands after the tick, and whether it splats there or is lost
      */
-    Step step(Vec3 position, Vec3 velocity, CoatRay.BlockClip clip, DripArc.LivingNear living,
-              DripArc.Airspace airspace) {
-        DripArc.Step arc = DripArc.step(position, velocity, clip, living, airspace);
+    Step step(Vec3 position, Vec3 velocity, DripArc.Flight flight) {
+        DripArc.Step arc = DripArc.step(position, velocity, flight);
         return new Step(arc.position(), arc.velocity(), arc.strike().isPresent() || arc.living().isPresent(),
                 arc.lost());
     }
