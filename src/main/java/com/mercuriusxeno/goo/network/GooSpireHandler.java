@@ -67,7 +67,7 @@ public final class GooSpireHandler {
      */
     public static void cast(ServerPlayer player, GooSpirePayload payload) {
         ResourceKey<GooTypeDefinition> gooType = GooTypes.known(payload.gooTypeId());
-        if (gooType == null || !withinReach(player, payload.footprint())) {
+        if (gooType == null || !withinReach(player, gooType, payload.footprint())) {
             return;
         }
         AbilityDefinition ability = GooThrowHandler.usableAbility(player, payload.abilityId(), gooType);
@@ -77,16 +77,18 @@ public final class GooSpireHandler {
     }
 
     /**
-     * Whether the submit is one the player can make: a glove held, the
+     * Whether the submit is one the player can make: a caster held that casts the type, the
      * footprint within its caps, and both corners within the throw range of
      * the player's eye.
      *
      * @param player    the casting player
+     * @param gooType   the spire's goo type
      * @param footprint the footprint as submitted
      * @return true for a submit in reach
      */
-    private static boolean withinReach(ServerPlayer player, SpireFootprint footprint) {
-        return GooThrowHandler.validateGlove(player) && footprint.withinCaps()
+    private static boolean withinReach(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
+                                       SpireFootprint footprint) {
+        return GooThrowHandler.validateCaster(player, gooType) && footprint.withinCaps()
                 && inRange(player, footprint.corner()) && inRange(player, footprint.opposite());
     }
 

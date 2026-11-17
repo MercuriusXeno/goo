@@ -188,7 +188,7 @@ public final class KnifeHolds {
 
     /**
      * Ticks every hold: a hold whose player has left or no longer holds a
-     * glove ends, refunded, and a count that changed goes to the watchers.
+     * caster of its type ends, refunded, and a count that changed goes to the watchers.
      *
      * @param now the server tick
      */
@@ -196,7 +196,7 @@ public final class KnifeHolds {
         Iterator<Map.Entry<UUID, Hold>> live = holds.entrySet().iterator();
         while (live.hasNext()) {
             Hold hold = live.next().getValue();
-            if (hold.player.isRemoved() || !GooThrowHandler.validateGlove(hold.player)) {
+            if (hold.player.isRemoved() || !GooThrowHandler.validateCaster(hold.player, hold.held.gooType())) {
                 live.remove();
                 hold.refund();
                 syncCount(hold.player, 0);

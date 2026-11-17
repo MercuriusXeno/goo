@@ -5,7 +5,7 @@ import com.mercuriusxeno.goo.ability.program.BoreDrillShape;
 import com.mercuriusxeno.goo.ability.program.BorePoint;
 import com.mercuriusxeno.goo.ability.program.BoreStep;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
-import com.mercuriusxeno.goo.network.KnifeRainSling;
+import com.mercuriusxeno.goo.item.GooCasters;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -126,7 +126,7 @@ public final class BoreContactSpray {
     private static void spitAtContact(ClientLevel level, LocalPlayer player, BoreStep step, double reach) {
         Minecraft mc = Minecraft.getInstance();
         CameraEye.Sight sight = CameraEye.of(mc, player, 1f);
-        boolean gloveRight = KnifeRainSling.gloveOnTheRight(player);
+        boolean gloveRight = GooCasters.casterOnTheRight(player);
         Optional<BorePoint> landing = BoreDrill.landingAhead(level, sight, step, gloveRight, reach);
         if (landing.isEmpty()) {
             return;

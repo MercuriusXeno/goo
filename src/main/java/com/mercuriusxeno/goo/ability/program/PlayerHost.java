@@ -8,9 +8,9 @@ import com.mercuriusxeno.goo.ability.gate.AstralGate;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.ability.zone.ConjuredDoors;
 import com.mercuriusxeno.goo.ability.zone.ZoneRooms;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.HoldMarks;
-import com.mercuriusxeno.goo.network.KnifeRainSling;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -225,7 +225,7 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
 
     @Override
     public boolean gloveOnTheRight() {
-        return KnifeRainSling.gloveOnTheRight(player);
+        return GooCasters.casterOnTheRight(player);
     }
 
     @Override

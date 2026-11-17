@@ -117,7 +117,7 @@ public final class GooStreamHandler {
      */
     public static void streamTick(ServerPlayer player, GooStreamPayload payload) {
         ResourceKey<GooTypeDefinition> gooType = GooTypes.known(payload.gooTypeId());
-        if (gooType == null || !GooThrowHandler.validateGlove(player)) {
+        if (gooType == null || !GooThrowHandler.validateCaster(player, gooType)) {
             return;
         }
         AbilityDefinition ability = heldAbility(player, payload, gooType);
