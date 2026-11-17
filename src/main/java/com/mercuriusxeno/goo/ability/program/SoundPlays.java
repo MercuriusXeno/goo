@@ -1,14 +1,17 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.network.ListenerSoundPayload;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.network.PacketDistributor;
 import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 import java.util.function.Function;
@@ -45,13 +48,68 @@ public final class SoundPlays {
      * @param cue    the evaluated sound
      */
     public static void playExcept(ServerLevel level, @Nullable Entity except, Vec3 at, SoundCue cue) {
-        Optional<Holder<SoundEvent>> holder = holderOf(cue.sound());
-        if (holder.isEmpty()) {
-            Goo.LOGGER.warn(LOG_UNKNOWN_SOUND, cue.sound());
-            return;
+        resolved(cue.sound()).ifPresent(holder -> level.playSound(except, at.x(), at.y(), at.z(), holder,
+                sourceOf(cue.source()), cue.volume(), cue.pitch()));
+    }
+
+    /**
+     * Plays the cue at a point beside a player's head: that player's client
+     * plays it at the listener, unpanned and unattenuated, and everyone else in
+     * range hears it at the point. A sound packet rounds its point to an
+     * eighth of a block, so a source placed at the hearer's own head sits a
+     * fraction of a block off the ears and pans wholly to one side.
+     * diagnose-and-correct-the-spray-squelch-playing-in-one-ear
+     * goo-sound-at-the-listener-reaches-both-ears
+     *
+     * @param level    the level everyone else hears it in
+     * @param listener the player at whose head the sound plays
+     * @param at       the point everyone else hears it at
+     * @param cue      the evaluated sound
+     */
+    public static void playAtListener(ServerLevel level, ServerPlayer listener, Vec3 at, SoundCue cue) {
+        ListenerSoundPayload atEars = new ListenerSoundPayload(cue);
+        // a connection that never negotiated the payload hears the positioned play rather than nothing
+        boolean hearsAtEars = listener.connection.hasChannel(atEars);
+        resolved(cue.sound()).ifPresent(holder -> {
+            level.playSound(hearsAtEars ? listener : null, at.x(), at.y(), at.z(), holder, sourceOf(cue.source()),
+                    cue.volume(), cue.pitch());
+            if (hearsAtEars) {
+                PacketDistributor.sendToPlayer(listener, atEars);
+            }
+        });
+    }
+
+    /**
+     * Plays the cue at a point on or beside a body: at the listener for a
+     * player, as {@link #playAtListener} plays it, and at the point for
+     * everyone where the body is no player.
+     * goo-sound-at-the-listener-reaches-both-ears
+     *
+     * @param level the level to play in
+     * @param body  the body the sound sits on or beside
+     * @param at    the point the sound plays at
+     * @param cue   the evaluated sound
+     */
+    public static void playAtHeadOf(ServerLevel level, Entity body, Vec3 at, SoundCue cue) {
+        if (body instanceof ServerPlayer player) {
+            playAtListener(level, player, at, cue);
+        } else {
+            play(level, at, cue);
         }
-        level.playSound(except, at.x(), at.y(), at.z(), holder.get(), source(cue.source()), cue.volume(),
-                cue.pitch());
+    }
+
+    /**
+     * The sound an id names, logging an id no registry holds.
+     *
+     * @param id the sound's id
+     * @return the sound, or none where it is unknown
+     */
+    private static Optional<Holder<SoundEvent>> resolved(Identifier id) {
+        Optional<Holder<SoundEvent>> holder = holderOf(id);
+        if (holder.isEmpty()) {
+            Goo.LOGGER.warn(LOG_UNKNOWN_SOUND, id);
+        }
+        return holder;
     }
 
     /**
@@ -76,7 +134,7 @@ public final class SoundPlays {
      * @param kind the kind the step named
      * @return the sound source
      */
-    private static SoundSource source(SoundKind kind) {
+    public static SoundSource sourceOf(SoundKind kind) {
         return switch (kind) {
             case BLOCKS -> SoundSource.BLOCKS;
             case HOSTILE -> SoundSource.HOSTILE;

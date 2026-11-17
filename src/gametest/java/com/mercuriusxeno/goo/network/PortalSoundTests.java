@@ -119,7 +119,7 @@ public final class PortalSoundTests {
      * A player whose client says it crossed a linked pair's entry, a crossing
      * the server finds true, plays the whoosh once at each end, heard by an
      * onlooker between them, and the crossing player, standing at the exit,
-     * hears the exit's; a crossing the server refuses, its feet beyond the
+     * hears the exit's at the listener; a crossing the server refuses, its feet beyond the
      * step the server trusts, plays nothing.
      *
      * @param helper the gametest helper
@@ -128,7 +128,7 @@ public final class PortalSoundTests {
         ServerPlayer onlooker = standingAway(helper);
         PacketRecorder onlookerHeard = PacketRecorder.attachTo(onlooker);
         ServerPlayer player = standingAway(helper);
-        PacketRecorder crosserHeard = PacketRecorder.attachTo(player);
+        PacketRecorder crosserHeard = PacketRecorder.attachClaiming(player, ListenerSoundPayload.class);
         Portal entry = wallAt(helper, FIRST, Direction.SOUTH);
         Portal exit = wallAt(helper, SECOND, Direction.NORTH);
         PortalChoice.place(helper.getLevel(), player.getUUID(), entry);
@@ -144,9 +144,13 @@ public final class PortalSoundTests {
             GatePassage.announced(player, entry.gate(), player.position(), Vec3.ZERO, player.getYRot(),
                     player.getXRot());
             assertWhooshedAtBothEnds(helper, onlookerHeard, entry, exit, "A player's crossing the server accepts");
-            helper.assertTrue(HeardSounds.at(crosserHeard, GooSoundIds.PORTAL_CROSS, exit.gate().center()) == 1,
-                    "The crossing player should hear the whoosh at the exit it stands before, hears "
-                            + HeardSounds.describe(HeardSounds.of(crosserHeard, GooSoundIds.PORTAL_CROSS)));
+            // goo-sound-at-the-listener-reaches-both-ears: the exit's whoosh sits at the crosser's head
+            long atListener = crosserHeard.payloadsOf(ListenerSoundPayload.class).stream()
+                    .filter(payload -> payload.cue().sound().equals(GooSoundIds.PORTAL_CROSS)).count();
+            long atExit = HeardSounds.at(crosserHeard, GooSoundIds.PORTAL_CROSS, exit.gate().center());
+            helper.assertTrue(atListener == 1 && atExit == 0, "The crossing player should hear the exit's whoosh "
+                    + "once at the listener and not at the exit it stands before, hears " + atListener + " at the "
+                    + "listener and " + HeardSounds.describe(HeardSounds.of(crosserHeard, GooSoundIds.PORTAL_CROSS)));
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.getLevel().getServer().getPlayerList().remove(onlooker);
             helper.succeed();
