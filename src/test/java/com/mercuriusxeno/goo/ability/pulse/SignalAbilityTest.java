@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.ability.pulse;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.ability.AbilityBadge;
+import com.mercuriusxeno.goo.ability.AbilityJson;
 import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,8 +15,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * Pulse's world goo ships as pulse_signal.json under the display key
- * goo.ability.pulse.signal, which en_us.json reads as Signal with a description.
+ * goo.ability.pulse.signal, which en_us.json reads as Signal with a description,
+ * and wears the residual badge every goo spray wears.
  * extend-is-dropped-for-signal-an-in-world-pulse-goo
+ * every-residual-goo-ability-wears-the-residual-badge-and-takes-the-residual-icon
  */
 class SignalAbilityTest {
 
@@ -31,6 +35,11 @@ class SignalAbilityTest {
         assertEquals("Signal", lang.get(SIGNAL_KEY).getAsString());
         assertNotNull(lang.get(DESCRIPTION_KEY), DESCRIPTION_KEY);
         assertFalse(lang.get(DESCRIPTION_KEY).getAsString().isBlank(), DESCRIPTION_KEY);
+    }
+
+    @Test
+    void signalWearsTheResidualBadge() {
+        assertEquals(AbilityBadge.RESIDUAL, AbilityJson.decode("pulse_signal").badge());
     }
 
     @Test
