@@ -206,7 +206,7 @@ class GloveInputGateTest {
 
             gate.tick(false, actions);
 
-            assertEquals(0, actions.throwsSent);
+            assertEquals(0, actions.knivesThrows);
             assertEquals(0f, gate.formShare());
             assertFalse(gate.isArmed());
         }
@@ -218,7 +218,7 @@ class GloveInputGateTest {
 
             assertTrue(gate.throwHeld(actions));
 
-            assertEquals(1, actions.throwsSent);
+            assertEquals(1, actions.knivesThrows);
             assertEquals(1, actions.poseReleases);
             assertTrue(gate.isArmed(), "the throw leaves right click's press standing");
         }
@@ -232,7 +232,7 @@ class GloveInputGateTest {
             }
 
             assertFalse(gate.throwHeld(actions));
-            assertEquals(0, actions.throwsSent);
+            assertEquals(0, actions.knivesThrows);
             assertTrue(gate.isArmed());
         }
 
@@ -249,7 +249,7 @@ class GloveInputGateTest {
             actions.javelinsFormed = 1;
             assertEquals(1f, gate.formShare());
             assertTrue(gate.throwHeld(actions));
-            assertEquals(2, actions.throwsSent);
+            assertEquals(2, actions.knivesThrows);
         }
 
         @Test

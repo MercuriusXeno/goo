@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.crystal.ThrownKnife;
+import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
@@ -10,11 +12,13 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
  * Server-side handler for a Knives throw: during a standing hold with a knife
  * held, the knife formed last leaves its hover slot along the thrower's look
  * as a projectile, aimed at no mob, and leaves the hold, its price spent, so
- * a held left click empties the hold in the reverse of its fill.
+ * a held left click empties the hold in the reverse of its fill. Dart's
+ * javelin leaves the same way on its own flight, its cost paid as it leaves.
  * decision knives-form-on-right-click-and-throw-on-left-click
  * decision knives-throw-one-per-two-ticks-while-left-click-is-held
  * decision knives-and-dart-function-as-projectiles
  * decision knives-do-not-seek-you-just-throw-them
+ * decision dart-does-not-seek-or-highlight
  */
 public final class KnivesThrowHandler {
 
@@ -61,13 +65,16 @@ public final class KnivesThrowHandler {
         KnifeHolds holds = state.knifeHolds();
         holds.heldBy(player).ifPresent(held -> {
             int inTheHold = holds.formed(player);
-            if (inTheHold <= 0) {
+            Delivery delivery = held.ability().delivery();
+            // dart-stacks-three-javelins-one-per-ten-ticks: a javelin's cost is spent as it is thrown
+            if (inTheHold <= 0 || delivery.stacksJavelins() && !AbilityCharges.charge(player, held.gooType(),
+                    held.ability().cost().exactIn(GooValues.of(player.level())))) {
                 return;
             }
             Vec3 look = player.getViewVector(1f);
             state.thrownKnives().launch(player, held.gooType(), held.ability().id().toString(),
                     ThrownKnife.launchPointOf(player.getEyePosition(), look, inTheHold),
-                    ThrownKnife.launchVelocityAlong(look));
+                    ThrownKnife.launchVelocityAlong(look, delivery.throwSpeed()), delivery.stacksJavelins());
             holds.threw(player, 1);
         });
     }

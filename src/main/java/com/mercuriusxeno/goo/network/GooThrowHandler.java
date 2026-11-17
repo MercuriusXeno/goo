@@ -208,31 +208,11 @@ public final class GooThrowHandler {
         if (payload.gate().isPresent() && hopOf(player, payload).isEmpty()) {
             return;
         }
-        if (cleared(player, payload, ability) && takesAFormedJavelin(player, ability)) {
+        if (!ability.delivery().stacksJavelins() && cleared(player, payload, ability)) {
             deliver(player, payload, gooType, ability);
         }
     }
 
-    /**
-     * Whether a throw may go: any throw but Dart's goes, and Dart's takes a
-     * javelin the player's hold has formed, refused while it holds none.
-     * decision dart-stacks-three-javelins-one-per-ten-ticks
-     *
-     * @param player  the throwing player
-     * @param ability the thrown ability
-     * @return true where the throw goes
-     */
-    private static boolean takesAFormedJavelin(ServerPlayer player, AbilityDefinition ability) {
-        if (!ability.delivery().stacksJavelins()) {
-            return true;
-        }
-        KnifeHolds holds = GooServerState.of(player.level().getServer()).knifeHolds();
-        if (holds.formed(player) <= 0) {
-            return false;
-        }
-        holds.threw(player, 1);
-        return true;
-    }
 
     /**
      * Whether a throw goes ahead: the ability is throwable and no step of it

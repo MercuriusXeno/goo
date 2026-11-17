@@ -785,10 +785,10 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
      * reaching however far the arcs carry them, rather than reaching by its range.
      * goop-and-slick-coat-lands-where-each-drip-arc-strikes
      *
-     * @return true for a delivery naming a throw speed
+     * @return true for a stream naming a throw speed
      */
     public boolean throwsDrips() {
-        return throwSpeed > NO_THROW_SPEED;
+        return kind == DeliveryKind.STREAM && throwSpeed > NO_THROW_SPEED;
     }
 
     /**

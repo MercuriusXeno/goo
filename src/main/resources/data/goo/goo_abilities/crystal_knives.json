@@ -8,6 +8,7 @@
   "requires": ["minecraft:amethyst_shard"],
   "delivery": {
     "kind": "arc",
+    "throw_speed": 1.5,
     "charge": { "max_ticks": 30, "stack": 10, "stack_ticks": 3 }
   },
   "behaviors": [

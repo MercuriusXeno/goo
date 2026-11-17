@@ -244,7 +244,8 @@ public final class GloveInputGate {
         if (holdsAJavelin(actions) && actions.formsKnives()) {
             return actions.throwKnives();
         }
-        if (!holdsAJavelin(actions) || !actions.holdsAFormedJavelin() || !actions.sendThrow(heldTicks)) {
+        // knives-and-dart-function-as-projectiles: Dart's javelin leaves on the held throw Knives' knives leave on
+        if (!holdsAJavelin(actions) || !actions.holdsAFormedJavelin() || !actions.throwKnives()) {
             return false;
         }
         actions.releasePose();

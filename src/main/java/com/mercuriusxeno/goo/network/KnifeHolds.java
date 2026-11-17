@@ -218,7 +218,7 @@ public final class KnifeHolds {
      */
     public void leftClick(ServerPlayer player, boolean down) {
         Hold hold = holds.get(player.getUUID());
-        if (hold != null) {
+        if (hold != null && !hold.held.ability().delivery().stacksJavelins()) {
             hold.throwingSince = down ? player.level().getServer().getTickCount() : NOT_THROWING;
         }
     }

@@ -10,7 +10,7 @@ import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.NonNull;
 
 /**
- * Server-to-client payload: one of Knives' glass knives left its hover slot,
+ * Server-to-client payload: one of Knives' glass knives, or Dart's javelin, left its hover slot,
  * for every client watching to fly it along the same projectile flight the
  * server flies it on.
  * decision knives-sling-then-morph-to-flechettes
@@ -19,8 +19,13 @@ import org.jspecify.annotations.NonNull;
  * @param throwerId the thrower's entity id, whom the knife passes through
  * @param start     where it left its hover slot
  * @param velocity  its launch velocity, blocks per tick
+ * @param javelinType the goo type id of Dart's javelin, which draws in that goo, or {@link #GLASS} for a glass knife
  */
-public record GlassKnifePayload(int throwerId, Vec3 start, Vec3 velocity) implements CustomPacketPayload {
+public record GlassKnifePayload(int throwerId, Vec3 start, Vec3 velocity, String javelinType)
+        implements CustomPacketPayload {
+
+    /** The javelin type of a glass knife, which is no javelin. */
+    public static final String GLASS = "";
 
     /** How a knife's flight ends. */
     public enum Ending {
@@ -41,6 +46,7 @@ public record GlassKnifePayload(int throwerId, Vec3 start, Vec3 velocity) implem
             ByteBufCodecs.VAR_INT, GlassKnifePayload::throwerId,
             Vec3.STREAM_CODEC, GlassKnifePayload::start,
             Vec3.STREAM_CODEC, GlassKnifePayload::velocity,
+            ByteBufCodecs.STRING_UTF8, GlassKnifePayload::javelinType,
             GlassKnifePayload::new);
 
     @Override

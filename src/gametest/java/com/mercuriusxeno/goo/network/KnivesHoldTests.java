@@ -4,7 +4,6 @@ import com.google.gson.JsonObject;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.crystal.ThrownKnife;
 import com.mercuriusxeno.goo.ability.program.DamageStep;
 import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.data.GooFraction;
@@ -17,9 +16,6 @@ import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.registry.GooCapabilities;
 import com.mercuriusxeno.goo.registry.GooServerState;
-import com.mercuriusxeno.goo.throwing.CoatRay;
-import com.mercuriusxeno.goo.throwing.DripArc;
-import com.mercuriusxeno.goo.throwing.ProjectileFlight;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
@@ -36,7 +32,6 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
@@ -118,11 +113,8 @@ public final class KnivesHoldTests {
     /** The middle of a fence's lower rail, 6 to 9 pixels up. */
     private static final double ON_THE_LOWER_RAIL = 7.5 * PIXEL;
     private static final double HALF_A_BLOCK = 0.5;
-    private static final float LOOK_UP_MOST = -45f;
-    private static final float LOOK_DOWN_MOST = 60f;
-    private static final int AIM_HALVINGS = 40;
-    private static final int MOST_AIM_TICKS = 20;
-    private static final CoatRay.BlockClip OPEN_AIR = (from, to) -> Optional.empty();
+    /** A knife's speed as it leaves, in blocks a tick (crystal_knives.json). */
+    private static final double KNIFE_SPEED = 1.5;
     private static final String KNIVES_THROW_ONE_PER_TWO_TICKS_WHILE_LEFT_CLICK_IS_HELD =
             "knives_throw_one_per_two_ticks_while_left_click_is_held";
     private static final String KNIVES_TWO_TICKS_APART_BOTH_DAMAGE_ONE_MOB =
@@ -409,39 +401,10 @@ public final class KnivesHoldTests {
         });
     }
 
-    // Pitches the caster's look so the knife the hold formed last crosses a plane of z at a height.
+    // Pitches the caster's look so the knife the hold formed last crosses a plane of z at a height, straight ahead.
     private static void aimThrough(GooServerState state, ServerPlayer caster, double planeZ, double height) {
-        int held = state.knifeHolds().formed(caster);
-        float up = LOOK_UP_MOST;
-        float down = LOOK_DOWN_MOST;
-        for (int halving = 0; halving < AIM_HALVINGS; halving++) {
-            float pitch = (up + down) / 2;
-            if (crossingHeight(caster.getEyePosition(), pitch, held, planeZ) > height) {
-                up = pitch;
-            } else {
-                down = pitch;
-            }
-        }
-        caster.setXRot((up + down) / 2);
-        caster.xRotO = caster.getXRot();
-    }
-
-    // The height a knife thrown at a pitch crosses a plane of z at, flown as the server flies it.
-    private static double crossingHeight(Vec3 eye, float pitch, int held, double planeZ) {
-        Vec3 look = Vec3.directionFromRotation(pitch, FACING_SOUTH);
-        Vec3 position = ThrownKnife.launchPointOf(eye, look, held);
-        Vec3 velocity = ThrownKnife.launchVelocityAlong(look);
-        for (int tick = 0; tick < MOST_AIM_TICKS; tick++) {
-            DripArc.Step step = ProjectileFlight.step(position, velocity, ProjectileFlight.ARROW, OPEN_AIR,
-                    DripArc.NO_LIVING, point -> true);
-            if (step.position().z >= planeZ) {
-                double share = (planeZ - position.z) / (step.position().z - position.z);
-                return position.y + (step.position().y - position.y) * share;
-            }
-            position = step.position();
-            velocity = step.velocity();
-        }
-        return position.y;
+        ThrowAim.aimAt(caster, new Vec3(caster.getEyePosition().x, height, planeZ), state.knifeHolds().formed(caster),
+                KNIFE_SPEED);
     }
 
     // The headings of the caster's knives in flight.
