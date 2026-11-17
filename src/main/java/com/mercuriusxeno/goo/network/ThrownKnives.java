@@ -1,11 +1,13 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.OwnMinions;
 import com.mercuriusxeno.goo.ability.crystal.ThrownKnife;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.DripArc;
 import com.mercuriusxeno.goo.throwing.FenceRails;
 import com.mercuriusxeno.goo.throwing.ProjectileFlight;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -20,7 +22,10 @@ import java.util.Optional;
  * as a projectile: it keeps the path it was thrown on whatever the mobs do,
  * dropping like an arrow; a knife meeting a block stops there, passing
  * between a fence's rails, a knife meeting a mob runs the ability's program
- * on it, and a knife whose flight runs out or leaves the world is spent.
+ * on it, and a knife whose flight runs out or leaves the world is spent. Dart's
+ * javelins fly the same flight, and both pass through the thrower's own
+ * rallied and charmed mobs.
+ * decision dart-does-not-seek-or-highlight
  * decision knives-and-dart-function-as-projectiles
  * decision knives-do-not-seek-you-just-throw-them
  * decision knives-and-javelins-drop-like-an-arrow
@@ -51,11 +56,13 @@ public final class ThrownKnives {
      * @param abilityId the ability the knife lands
      * @param start     where it leaves
      * @param velocity  its launch velocity, blocks per tick
+     * @param javelin   whether it is Dart's javelin rather than a knife, which watching clients draw
      */
     public void launch(ServerPlayer thrower, ResourceKey<GooTypeDefinition> gooType, String abilityId, Vec3 start,
-                       Vec3 velocity) {
+                       Vec3 velocity, boolean javelin) {
         flying.add(new Flight(thrower, gooType, abilityId, start, velocity, 0));
-        EntityVisuals.sendToWatchers(thrower, new GlassKnifePayload(thrower.getId(), start, velocity));
+        EntityVisuals.sendToWatchers(thrower, new GlassKnifePayload(thrower.getId(), start, velocity,
+                javelin ? GooTypes.id(gooType) : GlassKnifePayload.GLASS));
     }
 
     /**
@@ -87,7 +94,7 @@ public final class ThrownKnives {
     private static Optional<Flight> fly(Flight flight, int now) {
         ServerLevel level = flight.thrower().level();
         DripArc.Step step = ProjectileFlight.step(flight.position(), flight.velocity(), ProjectileFlight.ARROW,
-                FenceRails.clipping(level), DripFlights.livingNear(level, flight.thrower().getId()),
+                FenceRails.clipping(level), livingNear(level, flight.thrower()),
                 DripFlights.airspaceOf(level));
         step.living().ifPresent(struck -> strike(flight, struck, now));
         if (step.ended() || flight.ticks() + 1 >= ThrownKnife.MOST_FLIGHT_TICKS) {
@@ -95,6 +102,13 @@ public final class ThrownKnives {
         }
         return Optional.of(new Flight(flight.thrower(), flight.gooType(), flight.abilityId(),
                 step.position(), step.velocity(), flight.ticks() + 1));
+    }
+
+    // The living a flight may meet: any but the thrower and the thrower's own rallied or charmed mobs.
+    private static DripArc.LivingNear livingNear(ServerLevel level, ServerPlayer thrower) {
+        DripArc.LivingNear near = DripFlights.livingNear(level, thrower.getId());
+        return (from, to) -> near.along(from, to).stream().filter(box -> !(level.getEntity(box.entityId())
+                instanceof LivingEntity living && OwnMinions.ownMinionOf(thrower, living))).toList();
     }
 
     /**

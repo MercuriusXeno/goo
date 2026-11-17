@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.ability.AbilityBadge;
+import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.throwing.TargetingHint;
 import java.util.ArrayList;
@@ -250,6 +251,21 @@ class AimStateTest {
         @Test
         void theMobUnderTheCrosshairDrawsItsOutlineUnderAnAbilityThatTargetsAMob() {
             assertTrue(AimState.outlines(underTheCrosshair, underTheCrosshair, NONE_LOCKED, TARGETS_A_MOB));
+        }
+
+        // dart-does-not-seek-or-highlight
+        @Test
+        void theMobUnderTheCrosshairDrawsNoOutlineWhileDartOrKnivesIsHeld() {
+            assertFalse(AimState.outlines(underTheCrosshair, underTheCrosshair, NONE_LOCKED,
+                    AimState.mobsOutlineFor(AbilityJson.decode("metal_dart").delivery())));
+            assertFalse(AimState.outlines(underTheCrosshair, underTheCrosshair, NONE_LOCKED,
+                    AimState.mobsOutlineFor(AbilityJson.decode("crystal_knives").delivery())));
+        }
+
+        @Test
+        void theMobUnderTheCrosshairDrawsItsOutlineUnderAShippedAbilityThatTargetsAMob() {
+            assertTrue(AimState.outlines(underTheCrosshair, underTheCrosshair, NONE_LOCKED,
+                    AimState.mobsOutlineFor(AbilityJson.decode("frost_orb").delivery())));
         }
 
         @Test

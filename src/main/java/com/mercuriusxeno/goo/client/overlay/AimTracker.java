@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.program.GrabStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
@@ -9,8 +10,8 @@ import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.ability.GrabFlail;
 import com.mercuriusxeno.goo.client.ability.PortalView;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
+import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
-import com.mercuriusxeno.goo.client.throwing.KnivesHoldSender;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -65,10 +66,16 @@ public final class AimTracker {
                 GloveAim.aimRange(player, AimState.MAX_RANGE));
         List<Step> behaviors = GloveAim.selectedBehaviors(player);
         boolean grabPressed = GloveUseTracker.showsArea() && behaviors.stream().anyMatch(GrabStep.class::isInstance);
-        // knives-do-not-highlight-mobs: a held Knives outlines no mob, the one under the crosshair included
+        // knives-do-not-highlight-mobs, dart-does-not-seek-or-highlight: Knives and Dart outline no mob
         STATE.update(seed -> HELD.resolve(grabPressed, GrabFlail::grabbed,
                 () -> AimTargets.resolve(player, ray, seed, GloveAim.targetingHint(player), behaviors)),
-                entityOutline, !KnivesHoldSender.selectedFormsKnives(player));
+                entityOutline, outlinesMobs(player));
+    }
+
+    // Whether the glove's held selection outlines the mob its aim rests on.
+    private static boolean outlinesMobs(Player player) {
+        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        return selection == null || AimState.mobsOutlineFor(GloveThrowSender.selectedDelivery(selection.abilityId()));
     }
 
     /**

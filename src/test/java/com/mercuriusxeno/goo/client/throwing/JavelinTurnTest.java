@@ -69,6 +69,11 @@ class JavelinTurnTest {
         public boolean holdsAFormedJavelin() {
             return true;
         }
+
+        @Override
+        public boolean throwKnives() {
+            return true;
+        }
     }
 
     private static void holdPastTheLift(GloveInputGate gate, TurningActions actions) {

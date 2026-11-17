@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.overlay;
 
+import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.client.TargetResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -139,6 +140,19 @@ public final class AimState {
     static boolean outlines(Entity entity, @Nullable Entity aimed, Predicate<Entity> lockedNow,
                             boolean mobsOutline) {
         return mobsOutline && entity == aimed || entity instanceof ItemEntity && lockedNow.test(entity);
+    }
+
+    /**
+     * Whether a held ability's aim outlines the mob it rests on: a held throw
+     * that stacks, Knives' or Dart's, outlines none.
+     * decision knives-do-not-highlight-mobs
+     * decision dart-does-not-seek-or-highlight
+     *
+     * @param delivery the held ability's delivery
+     * @return true where the aimed mob draws the outline
+     */
+    static boolean mobsOutlineFor(Delivery delivery) {
+        return !delivery.charge().stacks();
     }
 
     /**

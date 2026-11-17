@@ -1,17 +1,24 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.TravelForm;
 import com.mercuriusxeno.goo.ability.crystal.ThrownKnife;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.network.DripFlights;
 import com.mercuriusxeno.goo.network.GlassKnifePayload;
 import com.mercuriusxeno.goo.throwing.DripArc;
 import com.mercuriusxeno.goo.throwing.FenceRails;
 import com.mercuriusxeno.goo.throwing.ProjectileFlight;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -70,6 +77,8 @@ public final class GlassKnives {
         private final List<Vec3> path = new ArrayList<>();
         private final int throwerId;
         private final long startTick;
+        /** The goo a javelin draws in, null for a glass knife. */
+        private final @Nullable ResourceKey<GooTypeDefinition> javelin;
         private Vec3 velocity;
         private GlassKnifePayload.@Nullable Ending ending;
 
@@ -78,6 +87,8 @@ public final class GlassKnives {
             this.throwerId = thrown.throwerId();
             this.velocity = thrown.velocity();
             this.startTick = startTick;
+            this.javelin = GlassKnifePayload.GLASS.equals(thrown.javelinType()) ? null
+                    : GooTypes.known(thrown.javelinType());
         }
 
         int ticks() {
@@ -97,7 +108,7 @@ public final class GlassKnives {
                 return ending != null && ending != GlassKnifePayload.Ending.STUCK;
             }
             boolean gone = now - startTick >= ticks() + STUCK_TICKS;
-            if (gone) {
+            if (gone && javelin == null) {
                 shatter(level, path.getLast(), SoundEvents.GLASS_BREAK, SHATTER_VOLUME);
             }
             return gone;
@@ -111,7 +122,9 @@ public final class GlassKnives {
             velocity = step.velocity();
             endingOf(step, ticks()).ifPresent(ended -> {
                 ending = ended;
-                land(level, ended, path.getLast());
+                if (javelin == null) {
+                    land(level, ended, path.getLast());
+                }
             });
         }
     }
@@ -209,10 +222,15 @@ public final class GlassKnives {
         FlatQuadContext quads = new FlatQuadContext(event.getPoseStack().last(),
                 buffers.getBuffer(GooRenderTypes.CRYSTAL_SHARD_TYPE));
         for (Knife knife : LIVE) {
-            drawKnife(quads, knife, now - knife.startTick - 1, camera);
+            if (knife.javelin == null) {
+                drawKnife(quads, knife, now - knife.startTick - 1, camera);
+            } else {
+                drawJavelin(event.getPoseStack(), buffers, knife, now - knife.startTick - 1, camera);
+            }
         }
         SLIVERS.draw(quads, now, camera);
         buffers.endBatch(GooRenderTypes.CRYSTAL_SHARD_TYPE);
+        buffers.endBatch(GooSubmitter.renderType());
     }
 
     /**
@@ -231,6 +249,28 @@ public final class GlassKnives {
         Vec3 point = stuck ? placement.point().add(placement.heading().scale(SINK)) : placement.point();
         GlassKunai.emit(quads, point.subtract(camera), placement.heading(),
                 (float) Math.min(Math.max(0, age), knife.ticks()) * ROLL_PER_TICK, 1f);
+    }
+
+    /**
+     * Draws one of Dart's javelins an age into its flight as the dart form, in
+     * its goo, point first along its path, held at its end once there.
+     * decision knives-and-dart-function-as-projectiles
+     *
+     * @param poseStack the pose stack
+     * @param buffers   the buffer source
+     * @param knife     the javelin
+     * @param age       ticks into its flight, with the partial tick
+     * @param camera    the camera's position
+     */
+    private static void drawJavelin(PoseStack poseStack, MultiBufferSource buffers, Knife knife, double age,
+                                    Vec3 camera) {
+        Placement placement = placementAt(knife.path, Math.max(0, age));
+        Vec3 at = placement.point().subtract(camera);
+        poseStack.pushPose();
+        poseStack.translate(at.x, at.y, at.z);
+        GooFlightRenderer.emitTravelForm(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()),
+                knife.javelin, TravelForm.DART, placement.heading(), 1f);
+        poseStack.popPose();
     }
 
     /**
