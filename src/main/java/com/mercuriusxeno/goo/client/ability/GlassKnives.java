@@ -212,6 +212,10 @@ public final class GlassKnives {
      */
     @SubscribeEvent
     public static void onAfterLevel(RenderLevelStageEvent.AfterLevel event) {
+        LevelOverlayView.inView(event, () -> drawEvery(event));
+    }
+
+    private static void drawEvery(RenderLevelStageEvent.AfterLevel event) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || LIVE.isEmpty() && SLIVERS.isEmpty()) {
             return;
