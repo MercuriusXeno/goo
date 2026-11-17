@@ -526,7 +526,7 @@ public final class VacuumTests {
      * Vacuum held over a full goop cell beside the player and a shallow one
      * near the reach's far end takes a layer from each every time the ticks
      * its distance sets have run, the first once they have run: the full cell
-     * loses one on ticks 3, 6 and on to 45, and the far cell one on each
+     * loses one on ticks 4, 8 and on to 60, and the far cell one on each
      * multiple of its slower pace, each on no other tick.
      * vacuum-breaks-a-cell-the-tick-the-wave-reaches-it
      * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
