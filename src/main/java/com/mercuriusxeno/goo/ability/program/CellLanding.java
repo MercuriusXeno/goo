@@ -106,9 +106,7 @@ final class CellLanding {
         @Override
         public boolean thickens(BlockPos pos) {
             BlockState standing = host.stateAt(pos);
-            // a cell of films alone takes fill only over a top that can hold it
-            boolean floored = VolumeCellBlock.layersOf(standing) > 0 || cell.liesOn(host.level(), pos);
-            return standing.is(cell) && VolumeCellBlock.layersOf(standing) < VolumeCellBlock.MAX_LAYERS && floored;
+            return standing.is(cell) && VolumeCellBlock.layersOf(standing) < VolumeCellBlock.MAX_LAYERS;
         }
 
         @Override
@@ -195,7 +193,7 @@ final class CellLanding {
         }
         BlockPos beside = strike.block().relative(strike.face());
         return cells.sideAt(beside, wall).map(standing -> sideCoatFor(adhesion, standing, cells.gooBelow(beside))
-                == SideCoat.FILM ? CellFed.film(beside, wall) : CellFed.runny(beside, wall));
+                == SideCoat.ATTACHED ? CellFed.film(beside, wall) : CellFed.runny(beside, wall));
     }
 
     /**
@@ -254,7 +252,7 @@ final class CellLanding {
             return SideCoat.RUNNY;
         }
         boolean holdsOverGoo = adhesion == GooTypeDefinition.HOLDS_WHERE_IT_STRIKES - 1 && gooBelow;
-        return adhesion >= GooTypeDefinition.HOLDS_WHERE_IT_STRIKES || holdsOverGoo ? SideCoat.FILM : SideCoat.RUNNY;
+        return adhesion >= GooTypeDefinition.HOLDS_WHERE_IT_STRIKES || holdsOverGoo ? SideCoat.ATTACHED : SideCoat.RUNNY;
     }
 
     /**

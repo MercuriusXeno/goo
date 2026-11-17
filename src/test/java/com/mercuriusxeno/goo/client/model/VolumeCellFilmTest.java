@@ -13,6 +13,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.state.BlockState;
 import org.joml.Vector3fc;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import java.util.ArrayList;
@@ -38,6 +39,8 @@ class VolumeCellFilmTest {
     private static final float EPSILON = 1e-5f;
     /** How near its wall a streak lies: within the edge drips' hair, a fraction of a layer. */
     private static final float STREAK_REACH = 0.25f / 16f;
+    /** The block's volume a test draws; a lone attached side with no floor draws all of it. */
+    private int volume = 1;
 
     private final BakedQuad.MaterialInfo film = new BakedQuad.MaterialInfo(mock(TextureAtlasSprite.class),
             ChunkSectionLayer.TRANSLUCENT, null, 0, true, 0, false);
@@ -88,26 +91,48 @@ class VolumeCellFilmTest {
         }
     }
 
+    /**
+     * A block of volume 8 with no floor attached to its north and south walls
+     * draws each wall's half, four layers, as a slab standing four layers'
+     * depth from its wall (decision attached-goo-draws-per-attachment-and-divides-its-volume).
+     */
+    @Test
+    void aBlockWithNoFloorDrawsEachWallsShareOfItsVolume() {
+        volume = 8;
+        List<BakedQuad> quads = quadsOf(List.of(Direction.NORTH, Direction.SOUTH), SideCoat.ATTACHED);
+
+        assertTrue(quads.stream().anyMatch(quad -> quad.direction() == Direction.SOUTH
+                        && Math.abs(quad.position(0).z() - 4 * ONE_LAYER) < EPSILON),
+                "the north wall's slab should face out four layers from its wall");
+    }
+
     private List<BakedQuad> filmQuadsOf(Direction wall) {
-        return quadsOf(wall, SideCoat.FILM);
+        return quadsOf(wall, SideCoat.ATTACHED);
     }
 
     private List<BakedQuad> quadsOf(Direction wall, SideCoat coat) {
+        return quadsOf(List.of(wall), coat);
+    }
+
+    private List<BakedQuad> quadsOf(List<Direction> walls, SideCoat coat) {
         VolumeCellBlock goo = mock(VolumeCellBlock.class);
         BlockState state = mock(BlockState.class);
         when(state.getBlock()).thenReturn(goo);
         when(state.is(goo)).thenReturn(true);
-        when(state.getValue(VolumeCellBlock.LAYERS)).thenReturn(0);
+        when(state.getValue(VolumeCellBlock.LAYERS)).thenReturn(volume);
         for (Direction side : Direction.Plane.HORIZONTAL) {
-            when(state.getValue(VolumeCellBlock.coatProperty(side))).thenReturn(side == wall ? coat
+            when(state.getValue(VolumeCellBlock.coatProperty(side))).thenReturn(walls.contains(side) ? coat
                     : SideCoat.BARE);
         }
         BlockAndTintGetter level = mock(BlockAndTintGetter.class);
         when(level.getBlockState(any())).thenReturn(mock(BlockState.class));
-        SlimeCoreModel model = new SlimeCoreModel(mock(BlockStateModel.class), film, film, Map.of());
+        BakedQuad.MaterialInfo core = new BakedQuad.MaterialInfo(mock(TextureAtlasSprite.class),
+                ChunkSectionLayer.TRANSLUCENT, null, 1, true, 0, false);
+        SlimeCoreModel model = new SlimeCoreModel(mock(BlockStateModel.class), core, film, Map.of());
         List<BlockStateModelPart> parts = new ArrayList<>();
         model.collectParts(level, CELL, state, RandomSource.create(1L), parts);
-        return parts.stream().flatMap(part -> part.getQuads(null).stream()).toList();
+        return parts.stream().flatMap(part -> part.getQuads(null).stream())
+                .filter(quad -> quad.materialInfo() == film).toList();
     }
 
     private static float coordinateOn(Direction.Axis axis, Vector3fc position) {

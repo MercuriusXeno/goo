@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.model;
 
+import com.mercuriusxeno.goo.block.ability.GooShares;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mojang.math.Quadrant;
 import net.minecraft.client.renderer.block.dispatch.BlockModelRotation;
@@ -36,24 +37,39 @@ public final class SlimeFilmQuads {
     }
 
     /**
-     * The quads a cell's films draw as.
+     * The quads a block's attached goo draws as: each attached side's share
+     * of its volume as a slab standing out from that wall by that share, and
+     * the floor's share as a fill on its floor.
+     * attached-goo-draws-per-attachment-and-divides-its-volume
      *
-     * @param walls    the sides holding a film
-     * @param material the film's material: the goo type's fluid sprite, under the shell tint, translucent
-     * @return two faces for each film
+     * @param shares   how the block's volume divides between its surfaces
+     * @param material the goo's material: the goo type's fluid sprite, under the shell tint, translucent
+     * @return two faces for each side's slab, and the floor fill's top and sides
      */
-    public static List<BakedQuad> quadsOf(List<Direction> walls, BakedQuad.MaterialInfo material) {
+    public static List<BakedQuad> quadsOf(GooShares shares, BakedQuad.MaterialInfo material) {
         List<BakedQuad> quads = new ArrayList<>();
-        for (Direction wall : walls) {
-            Vector3fc from = slabCorner(wall, false);
-            Vector3fc to = slabCorner(wall, true);
+        shares.sides().forEach((wall, share) -> {
+            float depth = (float) (share * ONE_LAYER);
+            Vector3fc from = slabCorner(wall, false, depth);
+            Vector3fc to = slabCorner(wall, true, depth);
             for (Direction face : List.of(wall, wall.getOpposite())) {
-                quads.add(FaceBakery.bakeQuad(SlimeCoreQuads.UNSHARED, from, to,
-                        FaceBakery.defaultFaceUV(from, to, face), Quadrant.R0, material, face,
-                        BlockModelRotation.IDENTITY, null, ExtraFaceData.DEFAULT));
+                quads.add(faceOf(from, to, face, material));
+            }
+        });
+        if (shares.floor() > 0) {
+            Vector3fc from = new Vector3f(0, 0, 0);
+            Vector3fc to = new Vector3f(WHOLE, (float) (shares.floor() * ONE_LAYER), WHOLE);
+            for (Direction face : List.of(Direction.UP, Direction.NORTH, Direction.EAST, Direction.SOUTH,
+                    Direction.WEST)) {
+                quads.add(faceOf(from, to, face, material));
             }
         }
         return quads;
+    }
+
+    private static BakedQuad faceOf(Vector3fc from, Vector3fc to, Direction face, BakedQuad.MaterialInfo material) {
+        return FaceBakery.bakeQuad(SlimeCoreQuads.UNSHARED, from, to, FaceBakery.defaultFaceUV(from, to, face),
+                Quadrant.R0, material, face, BlockModelRotation.IDENTITY, null, ExtraFaceData.DEFAULT);
     }
 
     /**
@@ -87,21 +103,22 @@ public final class SlimeFilmQuads {
     }
 
     /**
-     * A corner of a film's slab, in model pixels: the slab spans the whole
-     * wall and one layer out from it.
+     * A corner of an attached side's slab, in model pixels: the slab spans
+     * the whole wall and its depth out from it.
      *
-     * @param wall the side whose wall the film clings to
+     * @param wall the side whose wall the goo clings to
      * @param high the corner toward positive x, y and z, else the one toward negative
+     * @param slab the slab's depth from the wall, in model pixels
      * @return the corner
      */
-    private static Vector3fc slabCorner(Direction wall, boolean high) {
+    private static Vector3fc slabCorner(Direction wall, boolean high, float slab) {
         boolean wallOnHigh = wall.getAxisDirection() == Direction.AxisDirection.POSITIVE;
         float across = high ? WHOLE : 0f;
         float depth;
         if (wallOnHigh) {
-            depth = high ? WHOLE : WHOLE - ONE_LAYER;
+            depth = high ? WHOLE : WHOLE - slab;
         } else {
-            depth = high ? ONE_LAYER : 0f;
+            depth = high ? slab : 0f;
         }
         return wall.getAxis() == Direction.Axis.X ? new Vector3f(depth, across, across)
                 : new Vector3f(across, across, depth);
