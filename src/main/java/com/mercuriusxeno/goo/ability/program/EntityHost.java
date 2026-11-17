@@ -231,7 +231,8 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
 
     @Override
     public void playSound(SoundCue cue) {
-        SoundPlays.play(level, new Vec3(target.getX(), target.getY(BODY_CENTER), target.getZ()), cue);
+        // goo-sound-at-the-listener-reaches-both-ears: a player's body centre sits under their eye
+        SoundPlays.playAtHeadOf(level, target, new Vec3(target.getX(), target.getY(BODY_CENTER), target.getZ()), cue);
     }
 
 

@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.phys.AABB;
@@ -18,9 +19,12 @@ import java.util.function.IntPredicate;
  * column's top, drops back in and is carried up again, hovering there; over
  * the column a glide zone slows a fall to its cap, so dropping from a tall
  * column to a short one glides down onto it. A player's own client moves
- * it, so the server only clears a player's fall.
+ * it, so the server only clears a player's fall. Every living entity in
+ * either zone regains air, a player included, faster than airless lunar
+ * drains it.
  * updraft-is-typhoons-world-goo-that-lifts-the-entities-above-it
  * updraft-goo-lifts-one-block-per-layer
+ * updraft-refills-the-air-of-entities-it-propels
  * operator ruling 2026-11-17: a tall zone above the push smooths transitions with slow fall and air control
  */
 final class EntityLift {
@@ -33,9 +37,9 @@ final class EntityLift {
 
     /**
      * Carries every entity whose feet stand inside the column or the glide
-     * zone over it, spectators aside: each one's fall clears, and each but a
-     * player, whose own client moves it, rises in the column and falls no
-     * faster than the cap over it.
+     * zone over it, spectators aside: each one's fall clears, each living
+     * one regains air, and each but a player, whose own client moves it,
+     * rises in the column and falls no faster than the cap over it.
      * operator report 2026-11-17: moving over updraft goo stalled and hitched the player
      *
      * @param level       the level to scan
@@ -45,9 +49,10 @@ final class EntityLift {
      * @param glideHeight the glide zone's height over the column's top, in blocks
      * @param speed       the rise the column carries at, in blocks per tick
      * @param fallCap     the fastest a fall in the glide zone runs, in blocks per tick
+     * @param airRefill   the air each living entity in either zone regains a tick
      */
     static void liftInColumn(ServerLevel level, Vec3 base, double radius, double height, double glideHeight,
-                             double speed, double fallCap) {
+                             double speed, double fallCap, int airRefill) {
         double reach = height + glideHeight;
         AABB column = columnBox(base, radius, reach);
         for (Entity entity : level.getEntities((Entity) null, column, entity -> !entity.isSpectator())) {
@@ -55,6 +60,9 @@ final class EntityLift {
                 continue;
             }
             entity.resetFallDistance();
+            if (entity instanceof LivingEntity living) {
+                living.setAirSupply(refilled(living.getAirSupply(), living.getMaxAirSupply(), airRefill));
+            }
             if (entity instanceof Player) {
                 continue;
             }
@@ -65,6 +73,19 @@ final class EntityLift {
                 entity.hurtMarked = true;
             }
         }
+    }
+
+    /**
+     * An air supply refilled by a column: raised by the refill, at most the
+     * entity's full air, never lowered.
+     *
+     * @param supply the air now
+     * @param full   the entity's full air
+     * @param refill the air the column refills a tick
+     * @return the refilled air
+     */
+    static int refilled(int supply, int full, int refill) {
+        return Math.max(supply, Math.min(full, supply + refill));
     }
 
     /**

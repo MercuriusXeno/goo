@@ -1,5 +1,10 @@
 {
   "variants": {
-    "": { "model": "goo:block/regolith" }
+    "": [
+      { "model": "goo:block/regolith" },
+      { "model": "goo:block/regolith_2" },
+      { "model": "goo:block/regolith_3" },
+      { "model": "goo:block/regolith_4" }
+    ]
   }
 }
