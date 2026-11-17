@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
+import com.mercuriusxeno.goo.ability.crystal.StackHover;
 import com.mercuriusxeno.goo.client.throwing.BlobShape;
 import com.mercuriusxeno.goo.client.throwing.GloveInputGate;
 import com.mercuriusxeno.goo.network.PalmBlobLiftPayload;
@@ -725,5 +726,56 @@ class LiftedPalmBlobTest {
         assertTrue(along > DELTA && along < 1 - DELTA, point + " should lie strictly between " + from + " and "
                 + to + ", " + along + " of the way");
         assertNear(from.add(line.scale(along)), point);
+    }
+
+    /**
+     * The cube a held stack shrinks is the cube the palm blob draws: the cube
+     * the stack's slots stand over has the drawn lifted cube's greatest edge,
+     * and the drawn cube eases a step smaller as each knife or javelin forms,
+     * over the ticks the one forming takes to rise, rather than snapping to it
+     * (decisions knives-blob-shrinks-per-knife-and-vanishes-on-the-last,
+     * dart-javelins-hover-over-the-shrinking-blob-cube).
+     */
+    @Nested
+    class StackCube {
+
+        private static final int CASTER = 31;
+
+        @org.junit.jupiter.api.AfterEach
+        void clearTheStacks() {
+            HoveringKnives.clear();
+            HeldJavelins.clear();
+        }
+
+        @Test
+        void theCubeTheStackHoversOverIsTheDrawnLiftedCube() {
+            double drawn = 2 * com.mercuriusxeno.goo.client.throwing.GooFlightRenderer.SHELL_HW
+                    * LiftedPalmBlob.FLIGHT_SIZE_OF_PALM_REST * LiftedPalmBlob.LIFTED_GREATEST;
+            assertEquals(drawn, StackHover.cubeEdgeAt(0, StackHover.KNIVES), DELTA);
+            assertEquals(drawn, StackHover.cubeEdgeAt(0, StackHover.JAVELINS), DELTA);
+        }
+
+        @Test
+        void theCubeEasesASizeSmallerAsAKnifeFormsRatherThanSnapping() {
+            HoveringKnives.formed(CASTER, 3, NOW);
+            HoveringKnives.formed(CASTER, 4, NOW + 10);
+            float before = StackHover.cubeShareAt(3, StackHover.KNIVES);
+            float after = StackHover.cubeShareAt(4, StackHover.KNIVES);
+
+            assertEquals(before, LiftedPalmBlob.stackShareOf(CASTER, NOW + 10), DELTA);
+            float midway = LiftedPalmBlob.stackShareOf(CASTER, NOW + 10 + HoveringKnives.EASE_TICKS / 2);
+            assertTrue(midway < before && midway > after, "midway the cube should stand between, at " + midway);
+            assertEquals(after, LiftedPalmBlob.stackShareOf(CASTER, NOW + 10 + HoveringKnives.EASE_TICKS), DELTA);
+        }
+
+        @Test
+        void theCubeEasesASizeSmallerAsAJavelinFormsRatherThanSnapping() {
+            HeldJavelins.formed(CASTER, 1, NOW);
+            float before = StackHover.cubeShareAt(0, StackHover.JAVELINS);
+
+            assertEquals(before, LiftedPalmBlob.stackShareOf(CASTER, NOW), DELTA);
+            assertEquals(StackHover.cubeShareAt(1, StackHover.JAVELINS),
+                    LiftedPalmBlob.stackShareOf(CASTER, NOW + HoveringKnives.EASE_TICKS), DELTA);
+        }
     }
 }
