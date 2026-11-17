@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.zone;
 
+import com.mercuriusxeno.goo.network.PlanetFacePayload;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
@@ -15,6 +16,7 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.world.level.MoonPhase;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
@@ -24,11 +26,12 @@ import java.util.OptionalDouble;
 import java.util.OptionalInt;
 
 /**
- * Draws the blue planet's disc: its face, lit by its phase as LunarSky lights it, on a texture the disc's quad lays
- * as vanilla's sky lays its moon sprite. Lunar's sky and the Lunar trip home draw the one planet through it, so the
- * disc that swells is the disc the sky showed.
+ * Draws the blue planet's disc: its face, the overworld's biomes as the server sampled them, lit by its phase as
+ * LunarSky lights it, on a texture the disc's quad lays as vanilla's sky lays its moon sprite. Lunar's sky and the
+ * Lunar trip home draw the one planet through it, so the disc that swells is the disc the sky showed.
  * decision blue-star-is-a-planet-four-moons-wide-drawn-in-phases
  * decision blue-star-takes-the-moons-place-with-the-opposite-phase
+ * decision planet-face-is-procgen-from-the-overworlds-biomes
  */
 public final class BluePlanetRenderer {
 
@@ -41,12 +44,37 @@ public final class BluePlanetRenderer {
     /** The texture corners the flat quad's corners take, turned as vanilla lays its moon sprite. */
     private static final float[][] CORNER_UVS = {{1F, 1F}, {0F, 1F}, {0F, 0F}, {1F, 0F}};
 
-    private static final int[] FACE = LunarSky.plainFace();
+    /** The face the disc shows: the plain sea until the server sends the overworld's own. */
+    private static int[] face = LunarSky.plainFace();
     private static @Nullable DynamicTexture texture;
     private static @Nullable MoonPhase shownPhase;
     private static @Nullable GpuBuffer quad;
 
     private BluePlanetRenderer() {
+    }
+
+    /**
+     * Takes the face the server sampled from the overworld's biomes, so the disc shows this world's continents.
+     * decision planet-face-is-procgen-from-the-overworlds-biomes
+     *
+     * @param payload the face payload
+     * @param context the network context
+     */
+    public static void handle(PlanetFacePayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> showFace(payload.colors()));
+    }
+
+    /**
+     * Shows a face map on the disc, in the sky and on the trip home alike, under the phase shading.
+     *
+     * @param colors the face map's colors, ARGB, row by row from the north
+     */
+    static void showFace(int[] colors) {
+        if (colors.length != LunarSky.FACE_SIZE * LunarSky.FACE_SIZE) {
+            return;
+        }
+        face = LunarSky.shadedFace(colors);
+        shownPhase = null;
     }
 
     /**
@@ -94,7 +122,7 @@ public final class BluePlanetRenderer {
         }
         if (shownPhase != planetPhase) {
             NativeImage pixels = built.getPixels();
-            int[] shown = LunarSky.litFace(FACE, planetPhase);
+            int[] shown = LunarSky.litFace(face, planetPhase);
             for (int pixel = 0; pixel < shown.length; pixel++) {
                 pixels.setPixel(pixel % LunarSky.FACE_SIZE, pixel / LunarSky.FACE_SIZE, shown[pixel]);
             }
