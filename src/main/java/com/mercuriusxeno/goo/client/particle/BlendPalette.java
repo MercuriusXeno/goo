@@ -68,6 +68,13 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
      */
     public static final BlendPalette WISPS_GLOW_GOLDS = new BlendPalette(
             0xFF / 255f, 0xFF / 255f, 0x28 / 255f, 0xFF / 255f, 0xD7 / 255f, 0x00 / 255f);
+    /**
+     * Leech's spray drips, from hex's bright violet, 8373C8, to its wheel
+     * violet, 5B4BA0, the two the hex goo type's definition names.
+     * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
+     */
+    public static final BlendPalette LEECH_HEX_VIOLETS = new BlendPalette(
+            0x83 / 255f, 0x73 / 255f, 0xC8 / 255f, 0x5B / 255f, 0x4B / 255f, 0xA0 / 255f);
 
     /**
      * The color a share of the way from the light end to the dark.

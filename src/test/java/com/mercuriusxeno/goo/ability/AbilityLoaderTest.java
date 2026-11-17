@@ -204,6 +204,17 @@ class AbilityLoaderTest {
             assertNull(new AbilityRegistry(shippedById()).durativeAbilityFor(GooTypes.UNSTABLE));
         }
 
+        /**
+         * lifetap-leaves-and-hex-loses-its-durative-ability
+         * goo-type-ships-without-a-durative-ability
+         */
+        @Test
+        void hexShipsCharmEnchantFuseDrainAndLeechAndNoDurative() {
+            assertEquals(Set.of("hex_charm", "hex_enchant", "hex_fuse", "hex_drain", "hex_leech"),
+                    shippedPathsOf(GooTypes.HEX));
+            assertNull(new AbilityRegistry(shippedById()).durativeAbilityFor(GooTypes.HEX));
+        }
+
         @Test
         void voidShipsCancelHoleZoneAndVacuum() {
             assertEquals(Set.of("void_cancel", "void_hole", "void_zone", "void_vacuum"),
