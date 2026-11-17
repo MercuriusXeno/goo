@@ -27,6 +27,7 @@ import com.mercuriusxeno.goo.client.ability.GhostTrails;
 import com.mercuriusxeno.goo.client.ability.GlassKnives;
 import com.mercuriusxeno.goo.client.ability.GrabFlail;
 import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
+import com.mercuriusxeno.goo.client.ability.HoveringKnives;
 import com.mercuriusxeno.goo.client.ability.KinOutline;
 import com.mercuriusxeno.goo.client.ability.LiftWind;
 import com.mercuriusxeno.goo.client.ability.MeteorScorches;
@@ -630,12 +631,13 @@ public final class GooClientSetup {
         ViewportRipples.CLIENT.clear();
     }
 
-    /** Clears Crystal's glass knives, ore sightings, held sweeps, Meteo's scorches, arm poses and forming prisms. */
+    /** Clears Crystal's glass knives in flight and hovering, ore sightings, held sweeps, Meteo's scorches, arm poses and forming prisms. */
     private static void clearCrystalVisuals() {
         OreSightings.CLIENT.clear();
         HeldSweepVisual.clear();
         MeteorScorches.clear();
         GlassKnives.clear();
+        HoveringKnives.clear();
         AbilityPoses.clear();
         PrismFormingSounds.CLIENT.clear();
     }

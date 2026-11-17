@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:knives_fractional_cost_banks_its_half",
+  "function": "goo:lunar_ranges_rise_over_the_basins",
   "environment": "minecraft:default",
-  "structure": "goo:light_bay",
-  "max_ticks": 20,
+  "structure": "goo:test_bay",
+  "max_ticks": 400,
   "setup_ticks": 0,
   "required": true
 }
