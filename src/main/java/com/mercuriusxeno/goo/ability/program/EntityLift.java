@@ -1,16 +1,11 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.phys.shapes.VoxelShape;
-import java.util.function.IntPredicate;
 
 /**
  * Carries every entity standing in a column of air upward: its rise is
@@ -28,9 +23,6 @@ import java.util.function.IntPredicate;
  * operator ruling 2026-11-17: a tall zone above the push smooths transitions with slow fall and air control
  */
 final class EntityLift {
-
-    /** A shaft is one block wide. */
-    static final double SHAFT_HALF_WIDTH = 0.5;
 
     private EntityLift() {
     }
@@ -104,92 +96,6 @@ final class EntityLift {
             return risen(velocity, speed, toTop);
         }
         return new Vec3(velocity.x, Math.max(velocity.y, -fallCap), velocity.z);
-    }
-
-    /**
-     * Rides every entity whose feet stand in the one-block shaft rising from
-     * a floor block up to the first block that stops movement: each rises at
-     * the shaft's pace, or sinks gently while sneaking, its fall cleared
-     * either way; stepping sideways out of the shaft steps off it.
-     * lift-prism-levitates-the-block-above
-     *
-     * @param level the level to scan
-     * @param floor the shaft's lowest block
-     * @param cap   the tallest the shaft runs, in blocks
-     * @param rise  the rise it carries at, in blocks per tick
-     * @param sink  the pace a sneaking rider sinks at, in blocks per tick
-     */
-    static void rideShaft(ServerLevel level, BlockPos floor, int cap, double rise, double sink) {
-        int height = shaftHeight(level, floor, cap);
-        BlockPos below = floor.below();
-        double sunk = standingDepth(level.getBlockState(below).getCollisionShape(level, below));
-        Vec3 base = Vec3.atBottomCenterOf(floor).subtract(0, sunk, 0);
-        AABB shaft = columnBox(base, SHAFT_HALF_WIDTH, height);
-        for (Entity entity : level.getEntities((Entity) null, shaft, entity -> !entity.isSpectator())) {
-            if (inColumn(entity.position(), base, SHAFT_HALF_WIDTH, height)) {
-                entity.setDeltaMovement(ridden(entity.getDeltaMovement(), entity.isShiftKeyDown(), rise, sink));
-                entity.resetFallDistance();
-                entity.hurtMarked = true;
-            }
-        }
-    }
-
-    /**
-     * How far below the shaft's floor block an entity standing on the block
-     * under it has its feet: a prism's column stands short of a full block,
-     * so a rider on it stands inside the prism's own cell, and the shaft
-     * reaches down to that top to carry it.
-     * lift-prism-levitates-the-block-above
-     *
-     * @param belowShape the collision shape of the block under the shaft
-     * @return the depth in blocks, zero under a full or open block
-     */
-    static double standingDepth(VoxelShape belowShape) {
-        return belowShape.isEmpty() ? 0 : Math.max(0, 1 - belowShape.max(Direction.Axis.Y));
-    }
-
-    /**
-     * A shaft's height in a world: the open blocks from its floor up before
-     * the first whose collision shape stops movement, at most the cap.
-     *
-     * @param level the world
-     * @param floor the shaft's lowest block
-     * @param cap   the tallest the shaft runs
-     * @return the shaft's height in blocks
-     */
-    static int shaftHeight(BlockGetter level, BlockPos floor, int cap) {
-        return shaftHeight(up -> level.getBlockState(floor.above(up)).getCollisionShape(level, floor.above(up))
-                .isEmpty(), cap);
-    }
-
-    /**
-     * How many open blocks stand in a row from a shaft's floor up, the floor
-     * included, before the first that stops movement, at most the cap.
-     *
-     * @param opensAt whether the block that many above the floor lets an entity through
-     * @param cap     the tallest the shaft runs
-     * @return the shaft's height in blocks
-     */
-    static int shaftHeight(IntPredicate opensAt, int cap) {
-        int height = 0;
-        while (height < cap && opensAt.test(height)) {
-            height++;
-        }
-        return height;
-    }
-
-    /**
-     * A rider's velocity in a shaft: rising at the shaft's pace, or sinking
-     * gently while sneaking, its sideways motion kept.
-     *
-     * @param velocity the velocity now
-     * @param sneaking whether the rider sneaks
-     * @param rise     the shaft's rise
-     * @param sink     the sneaking rider's sink
-     * @return the ridden velocity
-     */
-    static Vec3 ridden(Vec3 velocity, boolean sneaking, double rise, double sink) {
-        return sneaking ? new Vec3(velocity.x, -sink, velocity.z) : lifted(velocity, rise);
     }
 
     /**

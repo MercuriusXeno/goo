@@ -42,15 +42,4 @@ public interface EntityScanHost extends StepHost {
      * @param body     what to run on the host bound to the entity
      */
     void forEntity(int entityId, Consumer<TargetHost> body);
-
-    /**
-     * Rides every entity standing in the one-block shaft rising from the
-     * block above the host's own, up to the first block that stops movement
-     * (decision lift-prism-levitates-the-block-above).
-     *
-     * @param cap  the tallest the shaft runs, in blocks
-     * @param rise the rise it carries at, in blocks per tick
-     * @param sink the pace a sneaking rider sinks at, in blocks per tick
-     */
-    void rideShaftAbove(int cap, double rise, double sink);
 }
