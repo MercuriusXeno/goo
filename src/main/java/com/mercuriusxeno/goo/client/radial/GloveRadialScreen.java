@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.ClientAbilities;
 import com.mercuriusxeno.goo.client.network.OfferedAbility;
 import com.mercuriusxeno.goo.data.KnownItems;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
@@ -26,11 +27,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
@@ -64,12 +63,13 @@ public final class GloveRadialScreen extends Screen {
     /** The petals' pulse traces, kept while this wheel stands open, so a reopened wheel remembers no old end. */
     private final Afterglows<Identifier, Identifier> pulseGlows = new Afterglows<>();
 
-    private GloveRadialScreen(Map<ResourceKey<GooTypeDefinition>, Integer> available) {
+    private GloveRadialScreen(Map<ResourceKey<GooTypeDefinition>, Integer> available,
+                              List<ResourceKey<GooTypeDefinition>> castable) {
         super(Component.empty());
         ClientAbilities synced = ClientAbilities.current();
         KnownItems known = ClientKnownItems.current();
         // wheel-shows-only-held-types-with-abilities
-        this.types = RadialWheel.shownTypes(GooTypes.order(), type -> synced.offeredForType(type, known),
+        this.types = RadialWheel.shownTypes(castable, type -> synced.offeredForType(type, known),
                 type -> available.getOrDefault(type, 0));
         Predicate<ClientAbility> grayedOut = grayedOutWhereThePlayerStands();
         this.abilities = types.stream().map(type -> synced.offeredForType(type, known, grayedOut)).toList();
@@ -95,7 +95,10 @@ public final class GloveRadialScreen extends Screen {
     }
 
     /**
-     * Opens the wheel, snapshotting the goo the player holds.
+     * Opens the wheel, snapshotting the goo the player holds, over the types
+     * the player's caster casts: every type from a glove, the held goo's
+     * alone from raw goo held bare handed.
+     * decision raw-goo-items-work-bare-handed-for-the-held-type
      */
     public static void open() {
         Minecraft mc = Minecraft.getInstance();
@@ -103,7 +106,8 @@ public final class GloveRadialScreen extends Screen {
         if (player == null || GooTypes.order().isEmpty()) {
             return;
         }
-        mc.setScreen(new GloveRadialScreen(GooSourceScanner.aggregateAvailable(player)));
+        mc.setScreen(new GloveRadialScreen(GooSourceScanner.aggregateAvailable(player), RadialWheel.castableTypes(
+                GooTypes.order(), GooCasters.castsFromAGlove(player), GooCasters.bareHandedType(player))));
     }
 
     @Override
@@ -256,30 +260,17 @@ public final class GloveRadialScreen extends Screen {
     }
 
     private static void selectAbility(ResourceKey<GooTypeDefinition> type, ClientAbility ability) {
-        ItemStack glove = findGloveStack();
-        if (glove == null) {
+        Player player = Minecraft.getInstance().player;
+        ItemStack caster = player == null ? null : GooCasters.casterOf(player);
+        if (caster == null) {
             return;
         }
         GloveSelection selection = GloveSelection.ofAbility(type, ability.id());
-        GooGloveItem.setSelection(glove, selection);
+        GooGloveItem.setSelection(caster, selection);
         var connection = Minecraft.getInstance().getConnection();
         if (connection != null) {
             connection.send(new ServerboundCustomPayloadPacket(
                     new GloveSelectPayload(selection.gooTypeId(), selection.abilityId())));
         }
-    }
-
-    private static @Nullable ItemStack findGloveStack() {
-        Player player = Minecraft.getInstance().player;
-        if (player == null) {
-            return null;
-        }
-        for (InteractionHand hand : InteractionHand.values()) {
-            ItemStack held = player.getItemInHand(hand);
-            if (held.getItem() instanceof GooGloveItem) {
-                return held;
-            }
-        }
-        return null;
     }
 }

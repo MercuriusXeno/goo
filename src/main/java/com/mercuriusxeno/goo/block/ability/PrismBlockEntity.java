@@ -215,6 +215,15 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     }
 
     /**
+     * The player whose goo set the combo stood the prism's field, so its hits credit that player.
+     * standing-goo-thing-credits-whoever-placed-it
+     */
+    @Override
+    public @Nullable UUID placer() {
+        return caster;
+    }
+
+    /**
      * Drops the program once it ends, then saves and syncs the prism.
      */
     private void settle() {

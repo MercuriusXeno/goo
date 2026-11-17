@@ -5,9 +5,11 @@ import com.mercuriusxeno.goo.ability.Charge;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
+import com.mercuriusxeno.goo.item.GooCasters;
 import org.mockito.MockedStatic;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
@@ -25,14 +27,16 @@ public final class KnivesCharging implements AutoCloseable {
     public static final Charge KNIVES = new Charge(60, 5, 12);
 
     private final MockedStatic<GloveThrowSender> sender;
+    private final MockedStatic<GooCasters> casters;
 
     private KnivesCharging(float share) {
         Delivery knives = mock(Delivery.class);
         when(knives.charge()).thenReturn(KNIVES);
         when(knives.chargeShare(anyInt())).thenReturn(share);
-        sender = mockStatic(GloveThrowSender.class);
-        sender.when(() -> GloveThrowSender.heldSelection(any()))
+        casters = mockStatic(GooCasters.class, CALLS_REAL_METHODS);
+        casters.when(() -> GooCasters.heldSelection(any()))
                 .thenReturn(new GloveSelection("goo:crystal", "goo:crystal_knives"));
+        sender = mockStatic(GloveThrowSender.class);
         sender.when(() -> GloveThrowSender.selectedDelivery(any())).thenReturn(knives);
     }
 
@@ -91,6 +95,7 @@ public final class KnivesCharging implements AutoCloseable {
     @Override
     public void close() {
         sender.close();
+        casters.close();
         AbilityPoses.clear();
     }
 }

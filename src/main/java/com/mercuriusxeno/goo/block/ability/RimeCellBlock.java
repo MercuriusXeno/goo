@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.block.ability;
 
+import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.ability.frost.RimeChill;
 import com.mercuriusxeno.goo.ability.frost.RimeFeet;
 import com.mercuriusxeno.goo.ability.program.RimeStep;
@@ -13,6 +14,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Frost's Rime cell: the volume cell bound to Rime's endothermic goo, which
@@ -83,18 +85,29 @@ public class RimeCellBlock extends VolumeCellBlock {
     }
 
     /**
+     * A Rime cell's freeze hurts, so the cell remembers who placed it.
+     * standing-goo-thing-credits-whoever-placed-it
+     */
+    @Override
+    protected boolean creditsItsPlacer() {
+        return true;
+    }
+
+    /**
      * Freezes a living thing standing on the cell with nothing on its feet,
      * as powder snow freezes it, by the frozen ticks Rime's step names each
-     * tick, and hurts it with freeze damage on the step's cadence; anything
-     * worn on its feet spares it.
+     * tick, and hurts it with freeze damage on the step's cadence, crediting
+     * the player who placed the cell; anything worn on its feet spares it.
      * rime-freezes-water-and-lava-and-freezes-and-damages-the-shoeless
+     * standing-goo-thing-credits-whoever-placed-it
      */
     @Override
     public void stepOn(@NonNull Level level, @NonNull BlockPos pos, @NonNull BlockState state,
                        @NonNull Entity entity) {
         if (level instanceof ServerLevel server && entity instanceof LivingEntity living
                 && RimeFeet.of(living.getItemBySlot(EquipmentSlot.FEET)) == RimeFeet.FROZEN) {
-            RimeStep.in(layingProgram(level)).ifPresent(rime -> chill(server, living, rime));
+            RimeStep.in(layingProgram(level)).ifPresent(rime -> chill(server, living, rime,
+                    creditedPlayerAt(server, pos)));
         }
         super.stepOn(level, pos, state, entity);
     }
@@ -106,12 +119,14 @@ public class RimeCellBlock extends VolumeCellBlock {
      * @param level  the server level
      * @param living the living thing standing on Rime
      * @param rime   Rime's step, naming the freeze and the damage
+     * @param placer the player who placed the cell, or null for none
      */
-    private static void chill(ServerLevel level, LivingEntity living, RimeStep rime) {
+    private static void chill(ServerLevel level, LivingEntity living, RimeStep rime, @Nullable Entity placer) {
         living.setTicksFrozen(Math.min(living.getTicksRequiredToFreeze(),
                 living.getTicksFrozen() + rime.freezeTicks()));
         if (living.tickCount % rime.damageTicks() == 0) {
-            living.hurtServer(level, level.damageSources().freeze(), rime.damage());
+            living.hurtServer(level, GooHitCredit.credit(level.damageSources().freeze(), living, placer),
+                    rime.damage());
         }
     }
 }
