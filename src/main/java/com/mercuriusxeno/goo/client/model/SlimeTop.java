@@ -59,8 +59,9 @@ public final class SlimeTop {
      * @return its heights, its rims and whether goo of its type covers it
      */
     public static SlimeTop of(LayersAround around) {
-        return build(around, Plane.of(Direction.DOWN), around.layersAt(0, LOW_SIDE, 0) == FULL,
-                around.layersAt(0, 1, 0) > 0);
+        // stacked-goo-cells-share-one-slime-core: only a full block under goo of its type is a column's inside
+        boolean covered = around.layersAt(0, 0, 0) == FULL && around.layersAt(0, 1, 0) > 0;
+        return build(around, Plane.of(Direction.DOWN), around.layersAt(0, LOW_SIDE, 0) == FULL, covered);
     }
 
     /**

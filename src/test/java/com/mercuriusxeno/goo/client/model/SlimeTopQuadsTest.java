@@ -202,6 +202,20 @@ class SlimeTopQuadsTest {
                 && at.y() < 0.75f + EPSILON;
     }
 
+    /**
+     * Only a full block under goo of its type is the inside of a column: a
+     * block of 8 with goo of its type hanging above it still draws its top,
+     * so no hole opens in the pile under that goo.
+     * stacked-goo-cells-share-one-slime-core
+     */
+    @Test
+    void aBlockShortOfFullDrawsItsTopUnderGooAboveIt() {
+        SlimeTop partial = SlimeTop.of(new SameGooCells().at(0, 0, 0, 8).at(0, 1, 0, 3));
+
+        assertFalse(SlimeTopQuads.topOf(partial, SHELL).isEmpty(), "the block of 8 draws no top");
+        assertEquals(4, partial.heightAt(3, 1), EPSILON, "its edge to air slopes to half its volume");
+    }
+
     private static List<BakedQuad> quadsOf(SlimeTop top) {
         List<BakedQuad> quads = new ArrayList<>(SlimeTopQuads.topOf(top, SHELL));
         SlimeTopQuads.rimsOf(top, SHELL).values().forEach(quads::addAll);

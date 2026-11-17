@@ -74,12 +74,13 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core,
         LayersAround around = layersAround(level, pos, state);
         List<BakedQuad> drawn = new ArrayList<>();
         Map<Direction, List<BakedQuad>> rims = new EnumMap<>(Direction.class);
+        SlimeTop floor = SlimeTop.of(around);
         if (around.floorShareAt(0, 0, 0) > 0) {
             // goo-block-top-slopes-to-the-average-with-the-adjoining-block
-            addSlab(SlimeTop.of(around), drawn, rims);
+            addSlab(floor, drawn, rims);
         }
         if (VolumeCellBlock.attachedSidesOf(state) == 0) {
-            collectDrips(level, pos, state, random, parts);
+            collectDrips(new Placement(level, pos, state, random), floor, parts);
             List<BakedQuad> inside = SlimeCoreQuads.quadsOf(around, core);
             if (!inside.isEmpty()) {
                 parts.add(new CorePart(inside, shell.particleMaterial(level, pos, state)));
@@ -135,21 +136,81 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core,
     }
 
     /**
-     * Draws a block's drips over each edge no block of its goo continues past.
+     * Draws a block's drips over each edge no block of its goo continues
+     * past, each hanging from the sloped top's edge on its side: the drips'
+     * model stands at the block's flat layer height, so it drops by what the
+     * slope leaves that edge short of it.
+     * goo-block-top-slopes-to-the-average-with-the-adjoining-block
+     *
+     * @param at    the block being drawn
+     * @param floor the block's floor slab's heights
+     * @param parts the parts drawn
+     */
+    private void collectDrips(Placement at, SlimeTop floor, List<BlockStateModelPart> parts) {
+        float layers = VolumeCellBlock.layersOf(at.state());
+        drips.forEach((side, drip) -> {
+            if (!at.level().getBlockState(at.pos().relative(side)).is(at.state().getBlock())) {
+                List<BlockStateModelPart> hung = new ArrayList<>();
+                drip.collectParts(at.level(), at.pos(), at.state(), at.random(), hung);
+                float drop = (float) (edgeOf(floor, side) - layers) / VolumeCellBlock.MAX_LAYERS;
+                hung.forEach(part -> parts.add(new LoweredPart(part, drop)));
+            }
+        });
+    }
+
+    /**
+     * @param floor a floor slab's heights
+     * @param side  a side of the block
+     * @return the slab's height along the middle of that side's edge, in layers
+     */
+    private static double edgeOf(SlimeTop floor, Direction side) {
+        return switch (side) {
+            case NORTH -> floor.heightAt(1, 0);
+            case SOUTH -> floor.heightAt(1, SlimeTop.GRID.length - 1);
+            case WEST -> floor.heightAt(0, 1);
+            default -> floor.heightAt(SlimeTop.GRID.length - 1, 1);
+        };
+    }
+
+    /**
+     * The block a model draws, with what it is read through.
      *
      * @param level  the level the section meshes from
      * @param pos    the block
      * @param state  the block's state
      * @param random the random source
-     * @param parts  the parts drawn
      */
-    private void collectDrips(BlockAndTintGetter level, BlockPos pos, BlockState state, RandomSource random,
-                              List<BlockStateModelPart> parts) {
-        drips.forEach((side, drip) -> {
-            if (!level.getBlockState(pos.relative(side)).is(state.getBlock())) {
-                drip.collectParts(level, pos, state, random, parts);
-            }
-        });
+    private record Placement(BlockAndTintGetter level, BlockPos pos, BlockState state, RandomSource random) {
+    }
+
+    /**
+     * A part drawn moved up or down.
+     *
+     * @param part the part
+     * @param rise how far it moves up, in blocks, down where below 0
+     */
+    private record LoweredPart(BlockStateModelPart part, float rise) implements BlockStateModelPart {
+
+        @Override
+        public List<BakedQuad> getQuads(@Nullable Direction direction) {
+            return part.getQuads(direction).stream().map(quad -> SlimeTopQuads.risen(quad, rise)).toList();
+        }
+
+        @Override
+        @Deprecated
+        public boolean useAmbientOcclusion() {
+            return part.useAmbientOcclusion();
+        }
+
+        @Override
+        public Material.Baked particleMaterial() {
+            return part.particleMaterial();
+        }
+
+        @Override
+        public int materialFlags() {
+            return part.materialFlags();
+        }
     }
 
     private static List<Direction> sidesHolding(BlockState state, SideCoat coat) {
