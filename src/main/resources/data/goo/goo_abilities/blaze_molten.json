@@ -11,7 +11,7 @@
     "kind": "stream",
     "drains_on_placement": true,
     "throw_speed": 0.84,
-    "drips_per_tick": 1,
+    "drips_per_tick": 6,
     "cone": 16,
     "ticks_per_charge": 20,
     "particle": "goo:molten_spray_drip",
