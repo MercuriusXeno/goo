@@ -48,7 +48,7 @@ import static org.mockito.Mockito.withSettings;
 /**
  * Vacuum's break and reach: a residual cell cracks from the first tick of a
  * hold and breaks whole once the ticks its distance from the eye sets have
- * run, 3 at the eye to 6 at the reach's far end, and the hold reaches every
+ * run, 4 at the eye to 8 at the reach's far end, and the hold reaches every
  * residual inside its cone that the eye sees past other residuals
  * (decisions vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave,
  * vacuum-breaks-a-cell-the-tick-the-wave-reaches-it).
@@ -58,8 +58,8 @@ class VacuumStepTest {
     private static final double SHIPPED_RANGE = 10;
     /** The cone's apex angle, 30 degrees each side of the look. */
     private static final double CONE = 60;
-    private static final double SHIPPED_NEAR_BREAK_TICKS = 3;
-    private static final double SHIPPED_FAR_BREAK_TICKS = 6;
+    private static final double SHIPPED_NEAR_BREAK_TICKS = 4;
+    private static final double SHIPPED_FAR_BREAK_TICKS = 8;
     /** The eye, looking east along x across the reach. */
     private static final Vec3 EYE = new Vec3(0.5, 2.5, 0.5);
     private static final Vec3 LOOK_EAST = new Vec3(SHIPPED_RANGE, 0, 0);
@@ -88,7 +88,7 @@ class VacuumStepTest {
         // vacuum-breaks-a-cell-the-tick-the-wave-reaches-it
         // vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
         @Test
-        void theShippedVacuumReachesTenBlocksInASixtyDegreeConeAndBreaksInThreeToSixTicks() {
+        void theShippedVacuumReachesTenBlocksInASixtyDegreeConeAndBreaksInFourToEightTicks() {
             AbilityDefinition shipped = AbilityJson.decode("void_vacuum");
             VacuumStep vacuum = shippedVacuum();
 

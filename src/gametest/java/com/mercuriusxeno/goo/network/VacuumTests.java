@@ -139,9 +139,9 @@ public final class VacuumTests {
     /** The far goop cell the distance tick test lays, 9 blocks out, so it breaks ticks after the near. */
     private static final int TIMED_FAR = 9;
     /** The ticks a cell at the eye takes to break. */
-    private static final double NEAR_BREAK_TICKS = 3;
+    private static final double NEAR_BREAK_TICKS = 4;
     /** The ticks a cell at the reach's far end takes to break. */
-    private static final double FAR_BREAK_TICKS = 6;
+    private static final double FAR_BREAK_TICKS = 8;
     /** The reach, in blocks, along which the break ticks rise from the near value to the far. */
     private static final double REACH = 10;
     private static final int TIMED_LAYERS = 3;
@@ -460,7 +460,7 @@ public final class VacuumTests {
      * Vacuum held over the lane breaks its cells nearest first: no cell turns
      * to air on an earlier tick than the cell nearer the player, and the
      * farthest turns on a later tick than the nearest; cells a block or two
-     * apart share a tick, the break running 3 ticks to 6 over the reach.
+     * apart share a tick, the break running 4 ticks to 8 over the reach.
      * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
      *
      * @param helper the gametest helper
@@ -862,7 +862,7 @@ public final class VacuumTests {
 
     /**
      * The hold tick a lane cell breaks on, counted from the hold's first
-     * tick: 3 ticks at the eye rising evenly to 6 at the 10 block reach,
+     * tick: 4 ticks at the eye rising evenly to 8 at the 10 block reach,
      * rounded up to a whole tick, the pace the decision sets rather than the
      * live step's, so a shipped pace drifting from it fails here.
      * vacuum-breaks-a-cell-the-tick-the-wave-reaches-it
