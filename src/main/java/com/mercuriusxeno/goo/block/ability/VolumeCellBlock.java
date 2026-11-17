@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.LoadedAbilityCost;
+import com.mercuriusxeno.goo.ability.program.LeechGooStep;
 import com.mercuriusxeno.goo.ability.program.MoltenStep;
 import com.mercuriusxeno.goo.ability.program.ShatterStep;
 import com.mercuriusxeno.goo.ability.program.SlickStep;
@@ -63,7 +64,8 @@ import java.util.OptionalLong;
  * sets. A layer is priced at a fifteenth of the laying ability's cost; the
  * cell stands until something destroys it, then drops its goo type worth
  * that price per layer. What it does to things on it is its surface's: slime
- * breaks a fall and bounces, slick ramps a thing trying to move at any height.
+ * breaks a fall and bounces, slick ramps a thing trying to move at any height,
+ * leech slows a thing it catches.
  * slime-and-slick-are-one-volume-cell-tech
  * each-goo-type-ships-a-world-goo-on-the-volume-cell
  * coat-is-a-green-slime-film-over-the-blocks-own-texture
@@ -75,6 +77,7 @@ import java.util.OptionalLong;
  * bounce-ramps-jump-height-while-jump-is-held
  * slick-coats-the-ground-with-kinetic-speed
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+ * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
  */
 public class VolumeCellBlock extends Block {
 
@@ -706,11 +709,13 @@ public class VolumeCellBlock extends Block {
      * cell, the same at any height, by the ramp the laying ability's slick
      * step names; on a cutting cell, the shards over it cut a thing moving
      * through them, on the server, by the laying ability's shatter step; a
-     * smiting cell burns an undead standing on it.
+     * smiting cell burns an undead standing on it; a slowing cell catches
+     * what stands on it.
      * slick-coats-the-ground-with-kinetic-speed
      * slick-is-a-layered-cell-that-flows-thinner-and-faster-than-slime
      * each-shatter-cut-has-a-chance-to-deplete-a-layer
      * undead-touching-wisps-goo-erupt-in-flames-and-take-holy-damage-by-fill
+     * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
      */
     @Override
     public void stepOn(@NonNull Level level, @NonNull BlockPos pos, @NonNull BlockState state,
@@ -723,19 +728,24 @@ public class VolumeCellBlock extends Block {
                     shatter));
         }
         smite(level, state, entity);
+        catchIn(level, entity);
         super.stepOn(level, pos, state, entity);
     }
 
     /**
      * Smites an undead inside a smiting cell's space, where a cell too thin
-     * to stand on as the block under its feet still touches it.
+     * to stand on as the block under its feet still touches it, and catches a
+     * thing inside a slowing cell's block space, wading in it or standing on
+     * a cell short of a whole block.
      * undead-touching-wisps-goo-erupt-in-flames-and-take-holy-damage-by-fill
+     * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
      */
     @Override
     protected void entityInside(@NonNull BlockState state, @NonNull Level level, @NonNull BlockPos pos,
                                 @NonNull Entity entity, @NonNull InsideBlockEffectApplier effects,
                                 boolean pastEdges) {
         smite(level, state, entity);
+        catchIn(level, entity);
         super.entityInside(state, level, pos, entity, effects, pastEdges);
     }
 
@@ -752,6 +762,24 @@ public class VolumeCellBlock extends Block {
         if (surface().smites() && level instanceof ServerLevel server) {
             WispsStep.in(layingProgram(level))
                     .ifPresent(wisps -> WispsSmite.touch(server, entity, state.getValue(LAYERS), wisps));
+        }
+    }
+
+    /**
+     * Catches a thing on a slowing cell by its laying ability's leech goo
+     * step: slows its horizontal motion by the step's speed factor once a
+     * tick, as soul sand does, momentum carried and a fall harming as on any
+     * block, on both sides since the client moves its own player. The goo's
+     * spirits deal no damage.
+     * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
+     * leech-goo-slows-the-way-soul-sand-does
+     *
+     * @param level  the level the cell stands in
+     * @param entity the thing caught
+     */
+    private void catchIn(Level level, Entity entity) {
+        if (surface().slows()) {
+            LeechGooStep.in(layingProgram(level)).ifPresent(leech -> LeechSlow.slowOnce(level, entity, leech));
         }
     }
 

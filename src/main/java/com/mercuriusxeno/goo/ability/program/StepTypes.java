@@ -82,6 +82,7 @@ public final class StepTypes {
         register(ShatterStep.TYPE);
         register(HostStep.TYPE);
         register(RimeStep.TYPE);
+        register(LeechGooStep.TYPE);
         register(EntitiesStep.TYPE);
         register(ParticlesStep.TYPE);
         register(SoundStep.TYPE);
@@ -163,7 +164,6 @@ public final class StepTypes {
         register(FuseBooksStep.TYPE);
         register(SlimeTransmuteStep.TYPE);
         register(RallyStep.TYPE);
-        register(LifetapStep.TYPE);
         register(LeechStep.TYPE);
         register(TomeStep.TYPE);
         register(FloatStep.TYPE);
