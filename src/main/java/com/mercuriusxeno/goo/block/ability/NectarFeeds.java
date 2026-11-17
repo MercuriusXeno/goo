@@ -31,12 +31,14 @@ import java.util.Optional;
  * each-feeding-eats-a-layer-of-nectar
  * slimes-grow-on-jelly-feed
  */
-final class NectarFeeds {
+public final class NectarFeeds {
 
     /** Blocks from the goo's top a mob reaches it within. */
-    static final double REACH = 1.5;
+    public static final double REACH = 1.5;
     /** Hostiles that must reach the goo together before they fight over it. */
     private static final int FIGHTERS_TO_FIGHT = 2;
+    /** How near the cell a lured mob's path may end and still reach it: beside it, inside the feeding reach. */
+    private static final int BESIDE_THE_CELL = 1;
     /** The speed a lured mob walks toward the goo at, its navigation's own multiple. */
     private static final double LURE_SPEED = 1.0;
 
@@ -55,7 +57,7 @@ final class NectarFeeds {
     static void feedAround(ServerLevel level, BlockPos cell, BlockState state, NectarGooStep nectar) {
         Vec3 top = Vec3.atBottomCenterOf(cell)
                 .add(0, (double) VolumeCellBlock.layersOf(state) / VolumeCellBlock.MAX_LAYERS, 0);
-        lure(level, top, nectar.reach());
+        lure(level, cell, top, nectar.reach());
         NectarFights fights = GooServerState.of(level.getServer()).nectarFights();
         Optional<NectarFights.Fight> fight = fights.over(level, cell);
         long now = level.getGameTime();
@@ -76,11 +78,36 @@ final class NectarFeeds {
         return mob instanceof Enemy && !(mob instanceof Slime);
     }
 
-    private static void lure(ServerLevel level, Vec3 top, double reach) {
+    /**
+     * Walks each craving, free mob in reach toward the cell, where its path
+     * there reaches the cell; a mob already walking to a Nectar cell it
+     * reaches is left on its way, so two cells in reach of one mob never
+     * take its path back and forth, and a cell behind a wall never draws it
+     * from one it can reach.
+     *
+     * @param level the server level
+     * @param cell  the Nectar cell
+     * @param top   the goo's top
+     * @param reach the blocks out to which the cell draws mobs
+     */
+    private static void lure(ServerLevel level, BlockPos cell, Vec3 top, double reach) {
         for (Mob mob : level.getEntitiesOfClass(Mob.class, new AABB(top, top).inflate(reach), Mob::isAlive)) {
-            if (craves(mob) && isFree(mob) && !headsTo(mob, top)) {
-                mob.getNavigation().moveTo(top.x, top.y, top.z, LURE_SPEED);
+            if (craves(mob) && isFree(mob) && !headsToNectar(level, mob)) {
+                walkToward(mob, cell);
             }
+        }
+    }
+
+    /**
+     * Sets a mob walking to beside the cell, where its path there reaches it.
+     *
+     * @param mob  the lured mob
+     * @param cell the Nectar cell
+     */
+    private static void walkToward(Mob mob, BlockPos cell) {
+        Path there = mob.getNavigation().createPath(cell, BESIDE_THE_CELL);
+        if (there != null && there.canReach()) {
+            mob.getNavigation().moveTo(there, LURE_SPEED);
         }
     }
 
@@ -101,16 +128,17 @@ final class NectarFeeds {
     }
 
     /**
-     * Whether a mob's path already ends at the goo, so the lure leaves it
-     * be; a path another goal laid since is taken back.
+     * Whether a mob is already walking to a Nectar cell it reaches, so the
+     * lure leaves it be; a path another goal laid since is taken back.
      *
-     * @param mob a mob within the reach
-     * @param top the goo's top
-     * @return true when its path ends within reach of the goo
+     * @param level the server level
+     * @param mob   a mob within the reach
+     * @return true when its path reaches a Nectar cell
      */
-    private static boolean headsTo(Mob mob, Vec3 top) {
+    private static boolean headsToNectar(ServerLevel level, Mob mob) {
         Path path = mob.getNavigation().getPath();
-        return path != null && !path.isDone() && path.getTarget().getCenter().closerThan(top, REACH + 1);
+        return path != null && !path.isDone() && path.canReach()
+                && level.getBlockState(path.getTarget()).getBlock() instanceof NectarCellBlock;
     }
 
     private static boolean eats(Mob mob, BlockState state) {
