@@ -828,34 +828,34 @@ public final class GooRenderTypes {
             .build();
 
     /**
-     * The gate trip's veil over the overworld's sky: black quads round the camera, alpha blended at the sky's dim
+     * The Lunar trip's veil over the overworld's sky: black quads round the camera, alpha blended at the sky's dim
      * through vanilla's position-color shader, passing every depth test, so the day sky fades to the star void.
      * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
      */
-    public static final RenderPipeline GATE_SKY_VEIL = RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "gate_sky_veil"))
+    public static final RenderPipeline LUNAR_SKY_VEIL = RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "lunar_sky_veil"))
             .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(false)
             .build();
 
     /**
-     * The gate trip's swelling moon: vanilla's celestial draw, the moon sprite added onto the frame, passing every
+     * The Lunar trip's swelling moon: vanilla's celestial draw, the moon sprite added onto the frame, passing every
      * depth test, so the moon swells over the darkened land as well as the sky.
      * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
      */
-    public static final RenderPipeline GATE_MOON = RenderPipelines.CELESTIAL.toBuilder()
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "gate_moon"))
+    public static final RenderPipeline LUNAR_MOON = RenderPipelines.CELESTIAL.toBuilder()
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "lunar_moon"))
             .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(false)
             .build();
 
     /**
-     * The gate trip home's swelling blue star: lunar's star draw passing every depth test, so the star swells over
+     * The Lunar trip home's swelling blue star: lunar's star draw passing every depth test, so the star swells over
      * the darkened land as well as the sky.
      * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
      */
-    public static final RenderPipeline GATE_STAR = OVERWORLD_STAR.toBuilder()
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "gate_star"))
+    public static final RenderPipeline LUNAR_STAR = OVERWORLD_STAR.toBuilder()
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "lunar_star"))
             .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(false)
             .build();
@@ -1693,9 +1693,9 @@ public final class GooRenderTypes {
         event.registerPipeline(VOIDSTONE);
         event.registerPipeline(POCKET_SKY);
         event.registerPipeline(OVERWORLD_STAR);
-        event.registerPipeline(GATE_SKY_VEIL);
-        event.registerPipeline(GATE_MOON);
-        event.registerPipeline(GATE_STAR);
+        event.registerPipeline(LUNAR_SKY_VEIL);
+        event.registerPipeline(LUNAR_MOON);
+        event.registerPipeline(LUNAR_STAR);
         event.registerPipeline(SKY_FUNNEL);
         event.registerPipeline(PETRIFY_FOG);
         event.registerPipeline(FIRE_FIELD);

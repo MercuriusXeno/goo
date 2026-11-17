@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.gate.AstralGate;
+import com.mercuriusxeno.goo.ability.astral.AstralLunar;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.ability.zone.ConjuredDoors;
 import com.mercuriusxeno.goo.ability.zone.ZoneRooms;
@@ -42,7 +42,7 @@ import java.util.function.Consumer;
  */
 public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<ChannelAim> channelAim, float charge,
                          PlacementPrice placementPrice)
-        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, FrostHost, ZoneHost, AstralGateHost {
+        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, FrostHost, ZoneHost, AstralLunarHost {
 
     /** The share of the player's height Nova emanates from. */
     private static final double HALF_HEIGHT = 0.5;
@@ -311,11 +311,11 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
     @Override
     public void fixateOnTheSky(int fixation, int cost) {
         if (channelAim.map(ChannelAim::held).orElse(1) > 1) {
-            AstralGate.keepHeld(player);
-        } else if (!AstralGate.findsTheSky(player)) {
-            AstralGate.refuse(player);
+            AstralLunar.keepHeld(player);
+        } else if (!AstralLunar.findsTheSky(player)) {
+            AstralLunar.refuse(player);
         } else {
-            AstralGate.begin(player, fixation, cost);
+            AstralLunar.begin(player, fixation, cost);
         }
     }
 

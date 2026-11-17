@@ -39,7 +39,7 @@ public final class LunarSkyRenderer implements CustomSkyboxRenderer {
 
     /**
      * Builds the blue overworld star's core and halos at the sky's distance along its direction, as lunar's sky
-     * draws it; the gate trip home draws the same star swelling.
+     * draws it; the Lunar trip home draws the same star swelling.
      * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
      *
      * @param label the buffer's debug label

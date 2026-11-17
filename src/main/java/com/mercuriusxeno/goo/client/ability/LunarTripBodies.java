@@ -30,16 +30,16 @@ import java.util.OptionalDouble;
 import java.util.OptionalInt;
 
 /**
- * The bodies the gate trip swells over the frame: vanilla's moon, its sprite on its quad as vanilla's sky lays it,
+ * The bodies the Lunar trip swells over the frame: vanilla's moon, its sprite on its quad as vanilla's sky lays it,
  * and lunar's blue star, its core and halos as lunar's sky lays them, each grown about its own center, passing every
  * depth test so it swells over the darkened land as well as the sky.
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
  */
-final class GateTripBodies {
+final class LunarTripBodies {
 
-    private static final String MOON_LABEL = "goo_gate_moon";
-    private static final String STAR_LABEL = "goo_gate_star";
+    private static final String MOON_LABEL = "goo_lunar_moon";
+    private static final String STAR_LABEL = "goo_lunar_star";
     private static final int CORNERS = 4;
     private static final int QUAD_INDICES = 6;
     private static final float FULL = 1F;
@@ -54,7 +54,7 @@ final class GateTripBodies {
     private static @Nullable GpuTextureView moonPhasesAtlas;
     private static PocketStarSkyRenderer.@Nullable SkyQuads star;
 
-    private GateTripBodies() {
+    private LunarTripBodies() {
     }
 
     /**
@@ -69,7 +69,7 @@ final class GateTripBodies {
     static void drawMoon(Matrix4fc view, Vec3 direction, MoonPhase phase, double discHalfTangent, float brightness) {
         TextureAtlas atlas = Minecraft.getInstance().getAtlasManager().getAtlasOrThrow(AtlasIds.CELESTIALS);
         GpuBuffer phases = moonPhasesOn(atlas);
-        float quadHalfWidth = (float) (discHalfTangent / GateTrip.MOON_DISC_SHARE);
+        float quadHalfWidth = (float) (discHalfTangent / LunarTrip.MOON_DISC_SHARE);
         // Vanilla's moon: a quarter turn about y, then the moon angle about x, a unit quad lying a unit off.
         float moonAngle = (float) Math.atan2(-direction.x(), direction.y());
         Matrix4f moon = new Matrix4f(view).rotateY(-QUARTER_TURN).rotateX(moonAngle)
@@ -82,7 +82,7 @@ final class GateTripBodies {
         GpuTextureView depth = Minecraft.getInstance().getMainRenderTarget().getDepthTextureView();
         try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder()
                 .createRenderPass(() -> MOON_LABEL, color, OptionalInt.empty(), depth, OptionalDouble.empty())) {
-            pass.setPipeline(GooRenderTypes.GATE_MOON);
+            pass.setPipeline(GooRenderTypes.LUNAR_MOON);
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform(DYNAMIC_TRANSFORMS, transforms);
             pass.bindTexture(MOON_SAMPLER, atlas.getTextureView(), atlas.getSampler());
@@ -106,10 +106,10 @@ final class GateTripBodies {
         Vec3 along = LunarSky.OVERWORLD_STAR.direction();
         Vector3f center = new Vector3f((float) along.x(), (float) along.y(), (float) along.z())
                 .mul(PocketStarSkyRenderer.SKY_DISTANCE);
-        float growth = (float) (coreHalfTangent / GateTrip.RESTING_STAR_HALF_TANGENT);
+        float growth = (float) (coreHalfTangent / LunarTrip.RESTING_STAR_HALF_TANGENT);
         Matrix4f grown = new Matrix4f(view).scale(FULL / PocketStarSkyRenderer.SKY_DISTANCE)
                 .translate(center).scale(growth).translate(center.negate(new Vector3f()));
-        PocketStarSkyRenderer.drawQuads(GooRenderTypes.GATE_STAR, star, grown, STAR_LABEL,
+        PocketStarSkyRenderer.drawQuads(GooRenderTypes.LUNAR_STAR, star, grown, STAR_LABEL,
                 new Vector4f(FULL, FULL, FULL, FULL));
     }
 

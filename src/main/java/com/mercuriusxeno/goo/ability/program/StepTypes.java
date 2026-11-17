@@ -142,7 +142,7 @@ public final class StepTypes {
         register(EndStep.TYPE);
         register(HoleOpenStep.TYPE);
         register(ZoneStep.TYPE);
-        register(AstralGateStep.TYPE);
+        register(AstralLunarStep.TYPE);
         register(MeteorStep.TYPE);
         register(WormholeStep.TYPE);
         register(RootStep.TYPE);

@@ -219,12 +219,12 @@
       }
     ]
   },
-  "effects.gate_tone": {
+  "effects.lunar_tone": {
     "category": "players",
-    "subtitle": "subtitles.goo.gate_tone",
+    "subtitle": "subtitles.goo.lunar_tone",
     "sounds": [
       {
-        "name": "goo:effects/gate_tone",
+        "name": "goo:effects/lunar_tone",
         "stream": false
       }
     ]

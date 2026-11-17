@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.gate.GateArrival;
-import com.mercuriusxeno.goo.ability.gate.GateFixation;
+import com.mercuriusxeno.goo.ability.astral.LunarArrival;
+import com.mercuriusxeno.goo.ability.astral.LunarFixation;
 import com.mercuriusxeno.goo.lunar.Lunar;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooSoundIds;
@@ -24,15 +24,15 @@ import net.neoforged.neoforge.client.event.RegisterDimensionTransitionScreenEven
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 
 /**
- * The white the gate trip floods the caster's view with, by GateTrip's white curve: rising as the moon nears
- * covering the view, standing full over the crossing, with GateWhiteScreen in place of vanilla's terrain loading
+ * The white the Lunar trip floods the caster's view with, by LunarTrip's white curve: rising as the moon nears
+ * covering the view, standing full over the crossing, with LunarWhiteScreen in place of vanilla's terrain loading
  * screen, until the arrival mark reaches the client, then clearing with the caster standing at the far end.
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
-public final class GateWhiteout {
+public final class LunarWhiteout {
 
-    private static final Identifier LAYER_ID = Identifier.fromNamespaceAndPath(Goo.MODID, "gate_white");
+    private static final Identifier LAYER_ID = Identifier.fromNamespaceAndPath(Goo.MODID, "lunar_white");
     /** The ticks a crossing waits on its arrival mark, outside a loading screen, before it clears anyway. */
     private static final int ARRIVAL_GIVE_UP_TICKS = 100;
     private static final int OPAQUE = 255;
@@ -55,7 +55,7 @@ public final class GateWhiteout {
     private static long markTaken;
     private static int ticksInStage;
 
-    private GateWhiteout() {
+    private LunarWhiteout() {
     }
 
     /**
@@ -67,7 +67,7 @@ public final class GateWhiteout {
     }
 
     /**
-     * Shows the white screen in place of vanilla's terrain loading screen for a change the gate makes, into lunar
+     * Shows the white screen in place of vanilla's terrain loading screen for a change Lunar makes, into lunar
      * by the moon and out of it by the blue star.
      * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
      *
@@ -75,8 +75,8 @@ public final class GateWhiteout {
      */
     @SubscribeEvent
     public static void onRegisterTransitionScreens(RegisterDimensionTransitionScreenEvent event) {
-        event.registerIncomingEffect(Lunar.LEVEL, GateWhiteout::screenFor);
-        event.registerOutgoingEffect(Lunar.LEVEL, GateWhiteout::screenFor);
+        event.registerIncomingEffect(Lunar.LEVEL, LunarWhiteout::screenFor);
+        event.registerOutgoingEffect(Lunar.LEVEL, LunarWhiteout::screenFor);
     }
 
     /**
@@ -86,7 +86,7 @@ public final class GateWhiteout {
      */
     @SubscribeEvent
     public static void onRegisterGuiLayers(RegisterGuiLayersEvent event) {
-        event.registerAboveAll(LAYER_ID, GateWhiteout::drawWhite);
+        event.registerAboveAll(LAYER_ID, LunarWhiteout::drawWhite);
     }
 
     /**
@@ -102,7 +102,7 @@ public final class GateWhiteout {
         if (player == null) {
             return;
         }
-        GateFixation fixation = player.getData(GooAttachments.GATE_FIXATION);
+        LunarFixation fixation = player.getData(GooAttachments.LUNAR_FIXATION);
         if (fixation.stands()) {
             fixated = true;
             enter(Stage.CLEAR);
@@ -112,7 +112,7 @@ public final class GateWhiteout {
             // decision holding-right-click-pulls-the-moon-and-early-release-cancels: let go early, the trip runs
             // back with no crossing, and the tone stops.
             fixated = false;
-            mc.getSoundManager().stop(GooSoundIds.GATE_TONE, SoundSource.PLAYERS);
+            mc.getSoundManager().stop(GooSoundIds.LUNAR_TONE, SoundSource.PLAYERS);
             enter(Stage.CLEAR);
             return;
         }
@@ -125,14 +125,14 @@ public final class GateWhiteout {
             ticksInStage++;
         }
         if (stage == Stage.CROSSING) {
-            GateArrival mark = player.hasData(GooAttachments.GATE_ARRIVAL)
-                    ? player.getData(GooAttachments.GATE_ARRIVAL) : GateArrival.NONE;
+            LunarArrival mark = player.hasData(GooAttachments.LUNAR_ARRIVAL)
+                    ? player.getData(GooAttachments.LUNAR_ARRIVAL) : LunarArrival.NONE;
             boolean fresh = mark.stands() && mark.arrivedAt() != markTaken;
             if (!loading && (fresh || ticksInStage > ARRIVAL_GIVE_UP_TICKS)) {
                 markTaken = mark.arrivedAt();
                 enter(Stage.ARRIVED);
             }
-        } else if (stage == Stage.ARRIVED && ticksInStage > GateTrip.WHITE_FADE_TICKS) {
+        } else if (stage == Stage.ARRIVED && ticksInStage > LunarTrip.WHITE_FADE_TICKS) {
             enter(Stage.CLEAR);
         }
     }
@@ -154,7 +154,7 @@ public final class GateWhiteout {
     }
 
     private static LevelLoadingScreen screenFor(LevelLoadTracker tracker, LevelLoadingScreen.Reason reason) {
-        return covering() ? new GateWhiteScreen(tracker, reason) : new LevelLoadingScreen(tracker, reason);
+        return covering() ? new LunarWhiteScreen(tracker, reason) : new LevelLoadingScreen(tracker, reason);
     }
 
     /**
@@ -168,13 +168,13 @@ public final class GateWhiteout {
         if (mc.player == null || mc.level == null) {
             return 0F;
         }
-        GateFixation fixation = mc.player.getData(GooAttachments.GATE_FIXATION);
+        LunarFixation fixation = mc.player.getData(GooAttachments.LUNAR_FIXATION);
         if (fixation.stands() || fixation.released()) {
-            return GateTrip.whiteBeforeCarry(GateTrip.progress(fixation, mc.level.getGameTime(), partial));
+            return LunarTrip.whiteBeforeCarry(LunarTrip.progress(fixation, mc.level.getGameTime(), partial));
         }
         return switch (stage) {
-            case CROSSING -> GateTrip.whiteAfterCarry(false, 0F);
-            case ARRIVED -> GateTrip.whiteAfterCarry(true, ticksInStage + partial);
+            case CROSSING -> LunarTrip.whiteAfterCarry(false, 0F);
+            case ARRIVED -> LunarTrip.whiteAfterCarry(true, ticksInStage + partial);
             case CLEAR -> 0F;
         };
     }

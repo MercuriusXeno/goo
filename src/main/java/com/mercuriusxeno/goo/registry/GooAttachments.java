@@ -2,11 +2,11 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.aging.AgingBlocks;
+import com.mercuriusxeno.goo.ability.astral.LunarArrival;
+import com.mercuriusxeno.goo.ability.astral.LunarFixation;
+import com.mercuriusxeno.goo.ability.astral.WayHome;
 import com.mercuriusxeno.goo.ability.deep.Sculker;
 import com.mercuriusxeno.goo.ability.frost.Frozen;
-import com.mercuriusxeno.goo.ability.gate.GateArrival;
-import com.mercuriusxeno.goo.ability.gate.GateFixation;
-import com.mercuriusxeno.goo.ability.gate.WayHome;
 import com.mercuriusxeno.goo.ability.gluttony.Gluttony;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
@@ -232,26 +232,26 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The fixation Astral's gate holds a caster in, synced to the caster's client, which holds the look and brings
+     * The fixation Lunar holds a caster in, synced to the caster's client, which holds the look and brings
      * the moon or the star to the caster; a fixation an unload interrupts is dropped, and the caster stays where
      * they stood.
      * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
      */
-    public static final Supplier<AttachmentType<GateFixation>> GATE_FIXATION =
-            ATTACHMENT_TYPES.register("gate_fixation",
-                    () -> AttachmentType.builder(() -> GateFixation.NONE)
-                            .sync(GooAttachments::syncsToOwner, GateFixation.STREAM_CODEC)
+    public static final Supplier<AttachmentType<LunarFixation>> LUNAR_FIXATION =
+            ATTACHMENT_TYPES.register("lunar_fixation",
+                    () -> AttachmentType.builder(() -> LunarFixation.NONE)
+                            .sync(GooAttachments::syncsToOwner, LunarFixation.STREAM_CODEC)
                             .build());
 
     /**
-     * The mark Astral's gate leaves on a caster it carried, once they stand at the far end, synced to the caster's
+     * The mark Lunar leaves on a caster it carried, once they stand at the far end, synced to the caster's
      * client, whose white flood holds over the crossing until the mark arrives and then clears; never saved.
      * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
      */
-    public static final Supplier<AttachmentType<GateArrival>> GATE_ARRIVAL =
-            ATTACHMENT_TYPES.register("gate_arrival",
-                    () -> AttachmentType.builder(() -> GateArrival.NONE)
-                            .sync(GooAttachments::syncsToOwner, GateArrival.STREAM_CODEC)
+    public static final Supplier<AttachmentType<LunarArrival>> LUNAR_ARRIVAL =
+            ATTACHMENT_TYPES.register("lunar_arrival",
+                    () -> AttachmentType.builder(() -> LunarArrival.NONE)
+                            .sync(GooAttachments::syncsToOwner, LunarArrival.STREAM_CODEC)
                             .build());
 
     /**
