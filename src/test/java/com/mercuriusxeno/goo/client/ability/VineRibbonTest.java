@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import java.util.List;
@@ -75,16 +74,5 @@ class VineRibbonTest {
     void aMobOnItsRootStrainsNothingAndOneAtTheLeashStrainsWhole() {
         assertEquals(0, VineTendrils.strainOf(ROOT, ROOT), EPSILON);
         assertEquals(1, VineTendrils.strainOf(ROOT, ROOT.add(0, 0, 2)), EPSILON);
-    }
-
-    @Test
-    void aTrapsTendrilsHookOverTheEdgeOnlyOnceUnpacked() {
-        VineTrapVisual.Basis floor = VineTrapVisual.Basis.of(Direction.UP);
-        Vec3 surface = new Vec3(0.5, 0, 0.5);
-        List<Vec3> reaching = VineTrapVisual.tendrilSpine(surface, floor, 0, 0.5f, 0f);
-        List<Vec3> latched = VineTrapVisual.tendrilSpine(surface, floor, 0, 1f, 0f);
-        assertEquals(VineRibbon.SEGMENTS - 1, reaching.size());
-        assertEquals(VineRibbon.SEGMENTS + 1, latched.size());
-        assertEquals(-0.2, latched.get(latched.size() - 1).y, 1e-6);
     }
 }

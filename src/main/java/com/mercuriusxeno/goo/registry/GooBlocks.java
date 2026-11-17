@@ -337,6 +337,24 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
+     * Vines: the volume cell bound to Leaf's goo, the green goo Vines sprays
+     * onto a block's top, one to fifteen layers, ordinary ground underfoot
+     * and sounding as goo does
+     * (decisions vines-is-sprayed-slime-that-entangles-what-tries-to-cross,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VolumeCellBlock> LEAF_VINES = BLOCKS.registerBlock(
+            "leaf_vines", properties -> new VolumeCellBlock(properties, CellBinding.VINES),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.PLANT)
+                    .friction(CellBinding.VINES.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
      * Prism: the milky quartz crystal Crystal's Prism grows, the host every
      * prism combo grows on (decision prism-blob-becomes-a-milky-quartz-crystal).
      */

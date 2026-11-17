@@ -1,0 +1,19 @@
+{
+  "multipart": [
+    {"when": {"layers": "1"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/leaf_vines_shell"}, "layers": 1, "drips": {"model": "goo:block/leaf_vines_drips_1"}}},
+    {"when": {"layers": "2"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/leaf_vines_shell"}, "layers": 2, "drips": {"model": "goo:block/leaf_vines_drips_2"}}},
+    {"when": {"layers": "3"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/leaf_vines_shell"}, "layers": 3, "drips": {"model": "goo:block/leaf_vines_drips_3"}}},
+    {"when": {"layers": "4"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/leaf_vines_shell"}, "layers": 4, "drips": {"model": "goo:block/leaf_vines_drips_4"}}},
+    {"when": {"layers": "5"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/leaf_vines_shell"}, "layers": 5, "drips": {"model": "goo:block/leaf_vines_drips_5"}}},
+    {"when": {"layers": "6"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/leaf_vines_shell"}, "layers": 6, "drips": {"model": "goo:block/leaf_vines_drips_6"}}},
+    {"when": {"layers": "7"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/leaf_vines_shell"}, "layers": 7, "drips": {"model": "goo:block/leaf_vines_drips_7"}}},
+    {"when": {"layers": "8"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/leaf_vines_shell"}, "layers": 8, "drips": {"model": "goo:block/leaf_vines_drips_8"}}},
+    {"when": {"layers": "9"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/leaf_vines_shell"}, "layers": 9, "drips": {"model": "goo:block/leaf_vines_drips_9"}}},
+    {"when": {"layers": "10"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/leaf_vines_shell"}, "layers": 10, "drips": {"model": "goo:block/leaf_vines_drips_10"}}},
+    {"when": {"layers": "11"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/leaf_vines_shell"}, "layers": 11, "drips": {"model": "goo:block/leaf_vines_drips_11"}}},
+    {"when": {"layers": "12"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/leaf_vines_shell"}, "layers": 12, "drips": {"model": "goo:block/leaf_vines_drips_12"}}},
+    {"when": {"layers": "13"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/leaf_vines_shell"}, "layers": 13, "drips": {"model": "goo:block/leaf_vines_drips_13"}}},
+    {"when": {"layers": "14"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/leaf_vines_shell"}, "layers": 14, "drips": {"model": "goo:block/leaf_vines_drips_14"}}},
+    {"when": {"layers": "15"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/leaf_vines_shell"}, "layers": 15, "drips": {"model": "goo:block/leaf_vines_drips_15"}}}
+  ]
+}

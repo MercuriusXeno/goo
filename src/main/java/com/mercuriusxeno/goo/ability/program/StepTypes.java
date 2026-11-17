@@ -83,6 +83,7 @@ public final class StepTypes {
         register(HostStep.TYPE);
         register(RimeStep.TYPE);
         register(LeechGooStep.TYPE);
+        register(VinesStep.TYPE);
         register(EntitiesStep.TYPE);
         register(ParticlesStep.TYPE);
         register(SoundStep.TYPE);

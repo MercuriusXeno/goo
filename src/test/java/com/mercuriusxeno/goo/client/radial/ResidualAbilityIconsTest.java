@@ -31,7 +31,7 @@ class ResidualAbilityIconsTest {
     // updraft-icon-is-a-floating-slime-with-up-arrows
     /** The icons drawing the residual style; a later residual joins by its icon's name. */
     static final List<String> RESIDUAL_ICONS = List.of("weird_goop", "kinetic_slick", "blaze_molten", "deep_host",
-            "crystal_shatter", "hex_leech", "typhoon_updraft");
+            "crystal_shatter", "hex_leech", "typhoon_updraft", "leaf_vines");
 
     private static final String SHATTER = "crystal_shatter";
     private static final String ABILITY_ICONS = "/assets/goo/textures/goo/ability/";

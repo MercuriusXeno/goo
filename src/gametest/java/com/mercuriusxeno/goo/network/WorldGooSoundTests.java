@@ -35,7 +35,7 @@ public final class WorldGooSoundTests {
     }
 
     /**
-     * Goop's, Slick's, Molten's, Shatter's, Host's, Rime's, Wisps', Leech's and Updraft's cells each sound as the slime
+     * Goop's, Slick's, Molten's, Shatter's, Host's, Rime's, Wisps', Leech's, Updraft's and Vines' cells each sound as the slime
      * block.
      *
      * @param helper the gametest helper
@@ -45,7 +45,7 @@ public final class WorldGooSoundTests {
         for (Block cell : List.of(GooBlocks.SLIME_COAT.get(), GooBlocks.KINETIC_SLICK.get(),
                 GooBlocks.BLAZE_MOLTEN.get(), GooBlocks.CRYSTAL_SHATTER.get(), GooBlocks.DEEP_HOST.get(),
                 GooBlocks.FROST_RIME.get(), GooBlocks.GLOW_WISPS.get(), GooBlocks.HEX_LEECH.get(),
-                GooBlocks.TYPHOON_UPDRAFT.get())) {
+                GooBlocks.TYPHOON_UPDRAFT.get(), GooBlocks.LEAF_VINES.get())) {
             SoundType sound = cell.defaultBlockState().getSoundType(helper.getLevel(), anywhere, null);
             helper.assertTrue(sound == SoundType.SLIME_BLOCK, String.format(SHOULD_SOUND_AS_GOO, cell));
         }
