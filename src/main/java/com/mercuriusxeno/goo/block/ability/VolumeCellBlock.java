@@ -931,7 +931,7 @@ public class VolumeCellBlock extends Block {
         if (!shed.is(this)) {
             return;
         }
-        BlockState held = runRunnyLayers(level, pos, shed);
+        BlockState held = runRunnyLayers(level, pos, adhereToWalls(level, pos, shed));
         if (!held.is(this)) {
             return;
         }
@@ -1258,6 +1258,53 @@ public class VolumeCellBlock extends Block {
             return Below.WALL_ENDS;
         }
         return coatOn(under, side) == SideCoat.BARE ? Below.WALL_GOES_ON : Below.SIDE_TAKEN;
+    }
+
+    /**
+     * Attaches the block's goo to each wall beside it its adhesion holds, as
+     * a drip striking that wall would: at 3 and up every side with a face to
+     * hold it, at 2 only over goo of its type, and at 4 its ceiling too, so
+     * goo resting against a wall clings to it in place of lying beside it.
+     * operator UAT 2026-11-17: the wall has horizontally laying goo instead of vertically adhered goo
+     * drip-striking-a-side-sticks-or-runs-by-adhesion
+     * adhesion-is-a-ladder-of-holds
+     *
+     * @param level the level
+     * @param pos   the block
+     * @param state the block's state
+     * @return the block's state with each held wall attached
+     */
+    private BlockState adhereToWalls(ServerLevel level, BlockPos pos, BlockState state) {
+        int adhesion = adhesionAt(level);
+        boolean overItsGoo = level.getBlockState(pos.below()).is(this);
+        BlockState adhered = state;
+        for (Direction side : ATTACHABLE) {
+            boolean bare = coatOn(adhered, side) == SideCoat.BARE;
+            if (bare && holdsTheSide(adhesion, side, overItsGoo) && clingsTo(level, pos, side)) {
+                adhered = withCoat(adhered, side, SideCoat.ATTACHED);
+            }
+        }
+        if (adhered != state) {
+            level.setBlock(pos, adhered, UPDATE_ALL);
+        }
+        return adhered;
+    }
+
+    /**
+     * Whether the adhesion ladder holds a block's surface.
+     * adhesion-is-a-ladder-of-holds
+     *
+     * @param adhesion   the rung the goo clings at
+     * @param side       a horizontal side, or UP for the ceiling
+     * @param overItsGoo whether goo of its type stands in the cell below
+     * @return true where the goo clings there
+     */
+    static boolean holdsTheSide(int adhesion, Direction side, boolean overItsGoo) {
+        if (side == Direction.UP) {
+            return adhesion >= GooTypeDefinition.HOLDS_AN_UNDERSIDE;
+        }
+        boolean holdsOverGoo = adhesion == GooTypeDefinition.HOLDS_WHERE_IT_STRIKES - 1 && overItsGoo;
+        return adhesion >= GooTypeDefinition.HOLDS_WHERE_IT_STRIKES || holdsOverGoo;
     }
 
     /**

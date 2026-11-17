@@ -75,7 +75,8 @@ class SlimeTopQuadsTest {
 
     /**
      * A block a block of its goo stands on is the column's inside: it draws
-     * no top, and its rims stand flat at its volume.
+     * no top, and its rims rise to the column's slope, 10.5 layers at an
+     * edge to air under a block of 6, the average of the column's 21 and nothing.
      * stacked-goo-cells-share-one-slime-core
      */
     @Test
@@ -83,7 +84,7 @@ class SlimeTopQuadsTest {
         SlimeTop under = SlimeTop.of(new SameGooCells().at(0, 0, 0, 15).at(0, 1, 0, 6));
 
         assertTrue(SlimeTopQuads.topOf(under, SHELL).isEmpty());
-        assertEquals(15, under.heightAt(3, 1), EPSILON);
+        assertEquals(10.5, under.heightAt(3, 1), EPSILON);
     }
 
     /**

@@ -221,14 +221,17 @@ public final class SlimeCoreQuads {
 
         /**
          * The core's top at a point: 7/8 of the shell's height there, the
-         * whole block where goo of its type covers it and the column runs on up.
+         * whole block where goo of its type covers it and the column's surface
+         * stands over the block, so the column's core runs on up.
          *
          * @param x model pixels east of the block's west side
          * @param z model pixels south of its north side
          * @return the top, in blocks above the block's floor
          */
         private float topAt(float x, float z) {
-            return top.covered() ? 1 : shellAt(x, z) * CORE_TOP;
+            float shell = shellAt(x, z);
+            // stacked-goo-cells-share-one-slime-core: where the column runs on up its core does too
+            return top.covered() && shell >= 1 - ROOM_SLACK ? 1 : shell * CORE_TOP;
         }
 
         /**
@@ -246,10 +249,10 @@ public final class SlimeCoreQuads {
         /**
          * @param x model pixels east of the block's west side
          * @param z model pixels south of its north side
-         * @return the shell's height there, in blocks, a whole block where goo of its type covers it
+         * @return the shell's height there, in blocks
          */
         private float shellAt(float x, float z) {
-            return top.covered() ? 1 : (float) top.heightAtPixel(x, z) / VolumeCellBlock.MAX_LAYERS;
+            return (float) top.heightAtPixel(x, z) / VolumeCellBlock.MAX_LAYERS;
         }
 
         private boolean roomAt(float x, float z) {
