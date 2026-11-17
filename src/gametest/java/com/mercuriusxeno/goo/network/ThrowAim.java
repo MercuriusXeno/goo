@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.crystal.ThrownKnife;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mercuriusxeno.goo.throwing.DripArc;
 import com.mercuriusxeno.goo.throwing.ProjectileFlight;
@@ -42,7 +43,7 @@ final class ThrowAim {
      * @param speed  the throw's speed, blocks a tick
      */
     static void aimAt(ServerPlayer caster, Vec3 target, int held, double speed) {
-        Stack stack = new Stack(held, speed > KNIFE_SPEED, KnifeRainSling.gloveOnTheRight(caster));
+        Stack stack = new Stack(held, speed > KNIFE_SPEED, GooCasters.casterOnTheRight(caster));
         Vec3 eye = caster.getEyePosition();
         float yaw = yawToward(eye, target);
         float pitch = 0f;

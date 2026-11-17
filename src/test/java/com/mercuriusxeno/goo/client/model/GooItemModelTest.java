@@ -17,9 +17,12 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * The goo item's model, read from assets/goo/items/goo.json through the
- * classpath: the in-world display contexts draw the goo cuboid's special
- * model and the GUI keeps the sprite tiers dispatched on goo:goo_size
- * (decision goo-item-in-world-draws-as-the-palm-cuboid).
+ * classpath: dropped and framed it draws the goo cuboid's special model
+ * (decision goo-item-in-world-draws-as-the-palm-cuboid), held in either hand,
+ * first or third person, it draws through the glove's renderer on the glove's
+ * own placement, the glove without its model part (decision
+ * raw-goo-items-work-bare-handed-for-the-held-type), and the GUI keeps the
+ * sprite tiers dispatched on goo:goo_size.
  */
 class GooItemModelTest {
 
@@ -27,9 +30,21 @@ class GooItemModelTest {
     private static final int SPRITE_TIERS = 4;
 
     @ParameterizedTest
-    @ValueSource(strings = {"ground", "fixed", "firstperson_lefthand", "firstperson_righthand",
-            "thirdperson_lefthand", "thirdperson_righthand"})
-    void anInWorldContextDrawsTheGooCuboid(String context) throws IOException {
+    @ValueSource(strings = {"firstperson_lefthand", "firstperson_righthand", "thirdperson_lefthand",
+            "thirdperson_righthand"})
+    void aHeldContextDrawsThroughTheGlovesRendererOnTheGlovesPlacement(String context) throws IOException {
+        JsonObject model = modelFor(context);
+
+        assertEquals("minecraft:special", model.get("type").getAsString(), context + " should draw a special model");
+        assertEquals("goo:glove_goo", model.getAsJsonObject("model").get("type").getAsString(),
+                context + " should draw through the glove's renderer");
+        assertEquals("goo:item/goo_glove", model.get("base").getAsString(),
+                context + " should stand where the glove stands");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"ground", "fixed"})
+    void aLevelContextDrawsTheGooCuboid(String context) throws IOException {
         JsonObject model = modelFor(context);
 
         assertEquals("minecraft:special", model.get("type").getAsString(), context + " should draw a special model");

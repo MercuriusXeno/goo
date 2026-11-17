@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.model.FirstPersonSwing;
-import com.mercuriusxeno.goo.network.KnifeRainSling;
+import com.mercuriusxeno.goo.item.GooCasters;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
@@ -125,7 +125,7 @@ public final class SpraySource {
         if (mc.level == null || !(mc.level.getEntity(casterId) instanceof Player caster)) {
             return sentGlove;
         }
-        boolean gloveRight = KnifeRainSling.gloveOnTheRight(caster);
+        boolean gloveRight = GooCasters.casterOnTheRight(caster);
         if (caster == mc.player && mc.options.getCameraType().isFirstPerson()) {
             Camera camera = mc.gameRenderer.getMainCamera();
             return camera.position().add(HandPassView.fromHandPass(aboveTheRestingPalmInHand(camera.rotation(),

@@ -7,9 +7,8 @@ import com.mercuriusxeno.goo.ability.TravelForm;
 import com.mercuriusxeno.goo.ability.crystal.StackHover;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.client.GooSubmitter;
-import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
-import com.mercuriusxeno.goo.network.KnifeRainSling;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.network.StackFormedPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -220,7 +219,7 @@ public final class HeldJavelins {
         float yRot = caster.getViewYRot(partial);
         Vec3 cube = LiftedPalmBlob.blobOf(caster.getId(), partial).map(LiftedPalmBlob.Blob::place)
                 .orElseGet(() -> StackHover.cubeCenterInView(caster.getEyePosition(partial), xRot, yRot,
-                        KnifeRainSling.gloveOnTheRight(caster)));
+                        GooCasters.casterOnTheRight(caster)));
         double age = now - stack.changedAt();
         for (int index = 0; index < stack.count(); index++) {
             Vec3 at = javelinAt(stack, index, cube, xRot, yRot, age).subtract(camera);
@@ -235,7 +234,7 @@ public final class HeldJavelins {
 
     // The goo a caster's javelins draw in: the glove's selected type, Metal's where it names none.
     private static ResourceKey<GooTypeDefinition> gooTypeOf(Player caster) {
-        GloveSelection selection = GloveThrowSender.heldSelection(caster);
+        GloveSelection selection = GooCasters.heldSelection(caster);
         ResourceKey<GooTypeDefinition> type = selection == null ? null : selection.getGooType();
         return type == null ? GooTypes.METAL : type;
     }

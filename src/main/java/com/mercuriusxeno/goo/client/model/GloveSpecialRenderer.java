@@ -14,7 +14,10 @@ import com.mercuriusxeno.goo.client.throwing.BlobShape;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.client.zone.RoomBodyCopyRenderer;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.item.GooGloveItem;
+import com.mercuriusxeno.goo.item.GooItem;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -22,13 +25,17 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.QuadInstance;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.special.SpecialModelRenderer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.client.resources.model.geometry.QuadCollection;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.entity.HumanoidArm;
+import net.minecraft.world.entity.player.PlayerModelType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
@@ -48,6 +55,10 @@ import java.util.function.Consumer;
  * Special item renderer for glove items. Renders the glove body model
  * (arm sheath) and draws the charge blob in the palm area when a goo
  * type is selected. Shared by glove, glove_netherite, and glove_exorite tiers.
+ * Raw goo held in a hand draws through it too, as the glove without its
+ * model part: the palm blob in the goo's own type on the glove's palm, over
+ * the player's bare arm in first person and the body's own arm in third.
+ * decision raw-goo-items-work-bare-handed-for-the-held-type
  */
 public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRenderer.GloveData> {
 
@@ -200,6 +211,71 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
                         c.putBakedQuad(pose, quad, qi);
                     }
                 });
+    }
+
+    /**
+     * Submits the local player's own arm where the glove body stands, for raw
+     * goo held in first person, where vanilla draws no arm under a held item:
+     * the skin's arm and sleeve, its hand end at the glove's fingers and its
+     * width filling the glove body's, so the palm blob rests on the palm as it
+     * does on the glove. In third person the body's own arm already holds it.
+     * decision raw-goo-items-work-bare-handed-for-the-held-type
+     *
+     * @param data          the held goo's render data
+     * @param poseStack     the pose stack, at the item's model
+     * @param nodeCollector the render node collector
+     * @param packedLight   packed light value
+     */
+    private static void submitBareArm(@Nullable GloveData data, PoseStack poseStack, SubmitNodeCollector nodeCollector,
+                                      int packedLight) {
+        LocalPlayer player = data == null ? null : bareArmHolder(data);
+        if (player == null) {
+            return;
+        }
+        var skin = player.getSkin();
+        GloveArmLayer.BareArm arm = GloveArmLayer.bareArm(data.handArm(), skin.model() == PlayerModelType.SLIM);
+        // phased-things-draw-as-a-ghostly-image: a phased player's own bare arm draws under the phase fade
+        boolean ghost = PhasedHands.ghosting();
+        Identifier texture = skin.body().texturePath();
+        RenderType type = bareArmType(texture, ghost);
+        int tint = ghost ? PhaseLook.bodyTint(COLOR_WHITE) : COLOR_WHITE;
+        poseStack.pushPose();
+        arm.standInGloveBody(poseStack);
+        nodeCollector.submitModelPart(arm.arm(), poseStack, type, packedLight, OverlayTexture.NO_OVERLAY, null, tint,
+                null);
+        nodeCollector.submitModelPart(arm.sleeve(), poseStack, type, packedLight, OverlayTexture.NO_OVERLAY, null,
+                tint, null);
+        poseStack.popPose();
+    }
+
+    /**
+     * The render type the bare arm submits on: cutout on the skin, opaque, so
+     * the hand pass draws it with the solid geometry before any translucent
+     * face, as the glove body does; on a translucent type the lifted blob,
+     * beating between two sizes, sorted ahead of the sleeve on some frames and
+     * hid it (decision diagnose-and-correct-the-palm-core-cull). A phased arm
+     * keeps the phase fade.
+     *
+     * @param skin  the skin's texture
+     * @param ghost whether the arm draws under the phase fade
+     * @return the render type
+     */
+    static RenderType bareArmType(Identifier skin, boolean ghost) {
+        return ghost ? PhaseLook.bodyType(skin) : GooSubmitter.cutoutOn(skin);
+    }
+
+    /**
+     * The local player whose bare arm held raw goo draws on: only before the
+     * eyes in first person, and in no portal view or body copy.
+     *
+     * @param data the held goo's render data
+     * @return the local player, or null where no bare arm draws
+     */
+    private static @Nullable LocalPlayer bareArmHolder(GloveData data) {
+        if (!data.heldInView() || PortalView.drawing() || RoomBodyCopyRenderer.drawingCopies()) {
+            return null;
+        }
+        return Minecraft.getInstance().player;
     }
 
     /**
@@ -559,6 +635,9 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      */
     @Override
     public @Nullable GloveData extractArgument(ItemStack stack) {
+        if (stack.getItem() instanceof GooItem) {
+            return heldGooOf(stack);
+        }
         if (!(stack.getItem() instanceof GooGloveItem)) {
             return null;
         }
@@ -570,6 +649,25 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         return new GloveData(stack.getItem(), type, channelGlowOf(type, stack), 1f,
                 // palm-blob-lifts-as-the-spray-source
                 type != null && LiftedPalmBlob.liftedFrom(stack), LiftedPalmBlob.heldInView(stack));
+    }
+
+    /**
+     * The render data of raw goo held in a hand: its own type always shows
+     * on the palm, lifted while a cast held from it stands.
+     * decision raw-goo-items-work-bare-handed-for-the-held-type
+     *
+     * @param stack the raw goo stack
+     * @return the render data, its type null for a stack carrying none
+     */
+    private static GloveData heldGooOf(ItemStack stack) {
+        ResourceKey<GooTypeDefinition> type = GooStacks.keyOf(stack);
+        LocalPlayer player = Minecraft.getInstance().player;
+        HumanoidArm handArm = HumanoidArm.RIGHT;
+        if (player != null) {
+            handArm = GooCasters.drawnInMainHand(player, stack) ? player.getMainArm() : player.getMainArm().getOpposite();
+        }
+        return new GloveData(stack.getItem(), type, channelGlowOf(type, stack), 1f,
+                type != null && LiftedPalmBlob.liftedFrom(stack), LiftedPalmBlob.heldInView(stack), handArm);
     }
 
     /**
@@ -602,7 +700,11 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         poseStack.pushPose();
 
         Item gloveItem = data != null ? data.item() : GooItems.GOO_GLOVE.get();
-        submitGloveBody(poseStack, nodeCollector, packedLight, gloveItem);
+        if (gloveItem instanceof GooItem) {
+            submitBareArm(data, poseStack, nodeCollector, packedLight);
+        } else {
+            submitGloveBody(poseStack, nodeCollector, packedLight, gloveItem);
+        }
 
         if (data != null && data.selectedType() != null) {
             submitPalm(data, poseStack, nodeCollector);
@@ -662,9 +764,25 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * @param palmLifted   whether the palm blob stands lifted at the holder's spray source, leaving the palm none
      * @param heldInView   whether the local player holds this glove before the eyes in first person, so the
      *                     hand's pass draws its lifted blob
+     * @param handArm      the arm whose hand holds the stack before the eyes, which held raw goo draws bare
      */
     public record GloveData(Item item, @Nullable ResourceKey<GooTypeDefinition> selectedType, float channelGlow,
-                            float blobScale, boolean palmLifted, boolean heldInView) {
+                            float blobScale, boolean palmLifted, boolean heldInView, HumanoidArm handArm) {
+
+        /**
+         * Render data for a stack held in the right hand.
+         *
+         * @param item         the glove item instance
+         * @param selectedType the selected goo type, or null if none selected
+         * @param channelGlow  how strongly the light around the held goo glows
+         * @param blobScale    the palm blob's size against its rest size
+         * @param palmLifted   whether the palm blob stands lifted
+         * @param heldInView   whether the local player holds this glove before the eyes in first person
+         */
+        public GloveData(Item item, @Nullable ResourceKey<GooTypeDefinition> selectedType, float channelGlow,
+                         float blobScale, boolean palmLifted, boolean heldInView) {
+            this(item, selectedType, channelGlow, blobScale, palmLifted, heldInView, HumanoidArm.RIGHT);
+        }
     }
 
 

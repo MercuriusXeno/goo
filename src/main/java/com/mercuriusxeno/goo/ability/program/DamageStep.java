@@ -132,7 +132,7 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
             target.invulnerableTime = 0;
         }
         Vec3 before = target.getDeltaMovement();
-        target.hurtServer((ServerLevel) target.level(), damageSource(target, context.hostAs(TargetHost.class).thrower()),
+        target.hurtServer((ServerLevel) target.level(), damageSource(target, causeOf(context.hostAs(TargetHost.class))),
                 amount.evaluateFloat(context));
         if (!knockback) {
             // An attacker's hit knocks back on the server, so no knockback restores the motion the hit found.
@@ -161,6 +161,21 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
             return true;
         }
         return UndeadInversion.sparesCaster(target, context.hostAs(TargetHost.class).thrower());
+    }
+
+    /**
+     * The entity the step's hit names: the player a hit of its kind credits,
+     * a standing field's placer among them, or, for an attack, the thrower
+     * alone, since an attack naming a placer would turn a generic hit into
+     * that player's attack.
+     * standing-goo-thing-credits-whoever-placed-it
+     * goo-hit-keeps-its-kind-and-names-the-player-behind-it
+     *
+     * @param host the host bound to the target
+     * @return the entity behind the hit, or null for none
+     */
+    private @Nullable Entity causeOf(TargetHost host) {
+        return source == DamageKind.ATTACK ? host.thrower() : host.creditedTo();
     }
 
     /**

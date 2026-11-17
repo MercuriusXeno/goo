@@ -24,7 +24,7 @@ import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.entity.RollingGoo;
-import com.mercuriusxeno.goo.item.GooGloveItem;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.item.ReagentScanner;
 import com.mercuriusxeno.goo.lunar.LunarGravity;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -70,7 +70,7 @@ public final class GooThrowHandler {
     private static final double BLOCK_CENTER = 0.5;
 
     /** Log: player not holding glove. */
-    private static final String LOG_NO_GLOVE = "Throw rejected: player {} not holding glove";
+    private static final String LOG_NO_CASTER = "Throw rejected: player {} holds no glove, nor raw goo of type {}";
     /** Log: unknown goo type. */
     private static final String LOG_BAD_TYPE = "Throw rejected: unknown goo type '{}'";
     /** Log: target out of range. */
@@ -127,7 +127,7 @@ public final class GooThrowHandler {
      */
     public static void releaseCharge(ServerPlayer player, GooChargePayload payload) {
         ResourceKey<GooTypeDefinition> gooType = GooTypes.known(payload.gooTypeId());
-        if (!validateGlove(player) || gooType == null) {
+        if (gooType == null || !validateCaster(player, gooType)) {
             return;
         }
         AbilityDefinition ability = usableAbility(player, payload.abilityId(), gooType);
@@ -169,9 +169,9 @@ public final class GooThrowHandler {
      */
     public static void handleGlovePose(GlovePosePayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
-            if (context.player() instanceof ServerPlayer player && validateGlove(player)) {
+            if (context.player() instanceof ServerPlayer player && validateCaster(player)) {
                 EntityVisuals.sendToTrackers(player, new ArmPosePayload(player.getId(), payload.frame(),
-                        KnifeRainSling.gloveOnTheRight(player)));
+                        GooCasters.casterOnTheRight(player)));
             }
         });
     }
@@ -195,9 +195,8 @@ public final class GooThrowHandler {
      * @param payload the throw payload data
      */
     public static void execute(ServerPlayer player, GooThrowPayload payload) {
-        if (!validateGlove(player)) { return; }
         ResourceKey<GooTypeDefinition> gooType = validateGooType(payload);
-        if (gooType == null) { return; }
+        if (gooType == null || !validateCaster(player, gooType)) { return; }
         AbilityDefinition ability = usableAbility(player, payload.abilityId(), gooType);
         if (ability == null) {
             if (Goo.LOGGER.isDebugEnabled()) {
@@ -616,16 +615,31 @@ public final class GooThrowHandler {
                 CastDart.wave(castOrigin, payload.targetPoint(), visual)));
     }
 
-    /** Validates glove is held, logging rejection if not.
+    /**
+     * Validates a caster is held, a glove or raw goo, for a step following a
+     * cast whose type it does not carry.
      *
-     * @param player the throwing player
-     * @return true if valid
+     * @param player the casting player
+     * @return true where the player holds a caster
      */
-    static boolean validateGlove(ServerPlayer player) {
-        boolean held = player.getMainHandItem().getItem() instanceof GooGloveItem
-            || player.getOffhandItem().getItem() instanceof GooGloveItem;
-        if (held) { return true; }
-        if (Goo.LOGGER.isDebugEnabled()) { Goo.LOGGER.debug(LOG_NO_GLOVE, player.getName().getString()); }
+    static boolean validateCaster(ServerPlayer player) {
+        return GooCasters.holdsCaster(player);
+    }
+
+    /**
+     * Validates the player's caster casts the type, logging rejection if not:
+     * a glove casts any type, raw goo held bare handed only its own.
+     * decision raw-goo-items-work-bare-handed-for-the-held-type
+     *
+     * @param player  the casting player
+     * @param gooType the cast's goo type
+     * @return true where the cast may go ahead
+     */
+    static boolean validateCaster(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType) {
+        if (GooCasters.castsType(player, gooType)) { return true; }
+        if (Goo.LOGGER.isDebugEnabled()) {
+            Goo.LOGGER.debug(LOG_NO_CASTER, player.getName().getString(), GooTypes.id(gooType));
+        }
         return false;
     }
 

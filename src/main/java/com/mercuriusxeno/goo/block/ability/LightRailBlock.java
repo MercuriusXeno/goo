@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.block.ability;
 
+import com.mercuriusxeno.goo.ability.GooHitCredit;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -73,8 +74,20 @@ public class LightRailBlock extends Block {
     }
 
     /**
+     * Forgets the player who laid a rail once the rail goes.
+     * standing-goo-thing-credits-whoever-placed-it
+     */
+    @Override
+    protected void affectNeighborsAfterRemoval(@NonNull BlockState state, @NonNull ServerLevel level,
+                                               @NonNull BlockPos pos, boolean movedByPiston) {
+        CellPlacers.of(level).forget(pos);
+        super.affectNeighborsAfterRemoval(state, level, pos, movedByPiston);
+    }
+
+    /**
      * Burns an undead crossing the rail with a Laser's radiant hit, at most
-     * once per its own hurt immunity.
+     * once per its own hurt immunity, crediting the player whose reflector laid the rail.
+     * standing-goo-thing-credits-whoever-placed-it
      *
      * @param state   the rail's state
      * @param level   the level
@@ -89,7 +102,9 @@ public class LightRailBlock extends Block {
                                 boolean pastEdges) {
         if (level instanceof ServerLevel server && entity instanceof LivingEntity living
                 && living.isInvertedHealAndHarm() && living.invulnerableTime == 0) {
-            living.hurtServer(server, living.damageSources().magic(), RADIANT_DAMAGE);
+            Entity placer = GooHitCredit.placerOf(server, CellPlacers.of(server).placerAt(pos).orElse(null));
+            living.hurtServer(server, GooHitCredit.credit(living.damageSources().magic(), living, placer),
+                    RADIANT_DAMAGE);
             living.igniteForSeconds(BURN_SECONDS);
         }
     }

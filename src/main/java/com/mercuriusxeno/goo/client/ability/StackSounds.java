@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.FormSounds;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
+import com.mercuriusxeno.goo.item.GooCasters;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
@@ -31,7 +32,7 @@ final class StackSounds {
      * @return the sounds, none for a player selecting none
      */
     static FormSounds selectedBy(@Nullable Player player) {
-        GloveSelection selection = player == null ? null : GloveThrowSender.heldSelection(player);
+        GloveSelection selection = player == null ? null : GooCasters.heldSelection(player);
         return selection == null ? FormSounds.NONE
                 : GloveThrowSender.selectedDelivery(selection.abilityId()).formSounds();
     }
