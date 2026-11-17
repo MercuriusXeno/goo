@@ -9,7 +9,6 @@ import com.mercuriusxeno.goo.block.ability.HostSpreaders;
 import com.mercuriusxeno.goo.block.ability.MoltenHeats;
 import com.mercuriusxeno.goo.block.ability.WispClaims;
 import com.mercuriusxeno.goo.network.DripFlights;
-import com.mercuriusxeno.goo.network.FleckLaunches;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
 import com.mercuriusxeno.goo.network.HomingKnives;
 import com.mercuriusxeno.goo.network.KnifeHolds;
@@ -28,7 +27,6 @@ import org.jspecify.annotations.Nullable;
 public final class GooServerState {
 
     private final GooEffectScheduler gooEffects = new GooEffectScheduler();
-    private final FleckLaunches fleckLaunches = new FleckLaunches();
     private final KnifeHolds knifeHolds = new KnifeHolds();
     private final HomingKnives homingKnives = new HomingKnives();
     private final MorphBirths morphBirths = new MorphBirths();
@@ -78,13 +76,6 @@ public final class GooServerState {
      */
     public ScanWaves scanWaves() {
         return scanWaves;
-    }
-
-    /**
-     * @return the slung flecks yet to leave the hand
-     */
-    public FleckLaunches fleckLaunches() {
-        return fleckLaunches;
     }
 
     /**
@@ -206,9 +197,6 @@ public final class GooServerState {
      */
     public void drainArrived(MinecraftServer server) {
         int currentTick = server.getTickCount();
-        if (fleckLaunches.hasPending()) {
-            fleckLaunches.drainArrived(currentTick);
-        }
         if (gooEffects.hasPending()) {
             gooEffects.drainArrivedEffects(currentTick);
         }
@@ -233,7 +221,6 @@ public final class GooServerState {
      */
     public void clear() {
         gooEffects.clear();
-        fleckLaunches.clear();
         knifeHolds.clear();
         homingKnives.clear();
         blockExposures.clear();
