@@ -9,7 +9,7 @@ import com.mercuriusxeno.goo.client.particle.SprayDripParticle;
 import com.mercuriusxeno.goo.network.GooStreamHandler;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.type.GooTypes;
-import com.mercuriusxeno.goo.network.KnifeRainSling;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.network.StreamMotesPayload;
 import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mercuriusxeno.goo.throwing.DripArc;
@@ -327,7 +327,7 @@ class StreamMotesTest {
              MockedStatic<SimpleParticles> particles = mockStatic(SimpleParticles.class);
              MockedStatic<CoatRay> rays = mockStatic(CoatRay.class, CALLS_REAL_METHODS);
              MockedStatic<DripArc> arcs = mockStatic(DripArc.class, CALLS_REAL_METHODS);
-             MockedStatic<KnifeRainSling> sling = mockStatic(KnifeRainSling.class);
+             MockedStatic<GooCasters> casters = mockStatic(GooCasters.class, CALLS_REAL_METHODS);
              MockedStatic<GooGloveItem> gloves = mockStatic(GooGloveItem.class)) {
             mc.when(Minecraft::getInstance).thenReturn(minecraft);
             gloves.when(() -> GooGloveItem.getSelectedType(any())).thenReturn(GooTypes.ZOO);
@@ -338,7 +338,7 @@ class StreamMotesTest {
                 launches.add(launch);
                 return launch;
             });
-            sling.when(() -> KnifeRainSling.gloveOnTheRight(any())).thenReturn(true);
+            casters.when(() -> GooCasters.casterOnTheRight(any())).thenReturn(true);
             body.run();
         }
     }

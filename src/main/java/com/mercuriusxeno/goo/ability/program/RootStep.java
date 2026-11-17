@@ -54,8 +54,10 @@ public record RootStep(Expr duration, Expr hits, Expr thorns, Expr fireFactor) i
         Rooted.Throw thrown = new Rooted.Throw(hits.evaluateInt(context), (float) thorns.evaluate(context),
                 (float) fireFactor.evaluate(context), duration.evaluateInt(context));
         TargetHost host = context.hostAs(TargetHost.class);
-        // lingering-goo-effect-credits-whoever-applied-it: the vines' later thorns name this thrower
-        RootEvents.latch(host.target(), thrown, host.thrower());
+        // the vines' later thorns name this thrower, or the player who stood the vines a field roots through
+        // lingering-goo-effect-credits-whoever-applied-it
+        // standing-goo-thing-credits-whoever-placed-it
+        RootEvents.latch(host.target(), thrown, host.creditedTo());
         return true;
     }
 

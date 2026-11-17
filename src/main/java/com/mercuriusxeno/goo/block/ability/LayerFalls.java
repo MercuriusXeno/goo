@@ -4,8 +4,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * The layers of world goo a server carries while they fall through open
@@ -28,8 +30,23 @@ public final class LayerFalls {
      * @param start     the open cell it falls from, whose first top below it lands on
      * @param cell      the goo's volume cell block, whose fill it joins
      * @param arrivesAt the server tick its drip arrives
+     * @param placer    the player who placed the layer, whom the cell it lands in credits, or null for none
+     *                  (decision standing-goo-thing-credits-whoever-placed-it)
      */
-    public record Fall(ResourceKey<Level> dimension, BlockPos start, VolumeCellBlock cell, long arrivesAt) {
+    public record Fall(ResourceKey<Level> dimension, BlockPos start, VolumeCellBlock cell, long arrivesAt,
+                       @Nullable UUID placer) {
+
+        /**
+         * A layer no player placed, falling.
+         *
+         * @param dimension the level it falls in
+         * @param start     the open cell it falls from
+         * @param cell      the goo's volume cell block
+         * @param arrivesAt the server tick its drip arrives
+         */
+        public Fall(ResourceKey<Level> dimension, BlockPos start, VolumeCellBlock cell, long arrivesAt) {
+            this(dimension, start, cell, arrivesAt, null);
+        }
     }
 
     /**

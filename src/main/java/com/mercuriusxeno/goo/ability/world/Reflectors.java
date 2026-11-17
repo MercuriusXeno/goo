@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.world;
 
+import com.mercuriusxeno.goo.block.ability.CellPlacers;
 import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.block.ability.RailLine;
@@ -8,6 +9,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -16,6 +18,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.WeakHashMap;
 
 /**
@@ -60,9 +63,23 @@ public final class Reflectors {
         clearBrokenLinks(level, self, prism.getLinks(), partners);
         Set<BlockPos> network = networkOf(level, self, known);
         int light = networkLight(level, network);
+        // rail this refresh newly lays credits the player whose goo set the refreshing reflector
+        // standing-goo-thing-credits-whoever-placed-it
+        Laying laying = new Laying(light, prism.caster());
         for (BlockPos member : network) {
-            lightMember(level, member, member.equals(self) ? partners : partnersOf(level, member, known), light);
+            lightMember(level, member, member.equals(self) ? partners : partnersOf(level, member, known), laying);
         }
+    }
+
+    /**
+     * What a refresh lays its rails with: the network's light and the player
+     * whose goo set the refreshing reflector, whom a rail it newly lays credits.
+     * operator ruling 2026-11-17: when two players place, the last player overrides
+     *
+     * @param light  the light the rails carry
+     * @param placer the player a newly laid rail credits, or null for none
+     */
+    private record Laying(int light, @Nullable UUID placer) {
     }
 
     private static void clearBrokenLinks(ServerLevel level, BlockPos self, List<BlockPos> linked,
@@ -74,12 +91,12 @@ public final class Reflectors {
         }
     }
 
-    private static void lightMember(ServerLevel level, BlockPos member, List<BlockPos> links, int light) {
+    private static void lightMember(ServerLevel level, BlockPos member, List<BlockPos> links, Laying laying) {
         for (BlockPos partner : links) {
-            layRail(level, RailLine.between(member, partner), light);
+            layRail(level, RailLine.between(member, partner), laying);
         }
         if (level.getBlockEntity(member) instanceof PrismBlockEntity linked) {
-            linked.setLinks(links, light);
+            linked.setLinks(links, laying.light());
         }
     }
 
@@ -172,11 +189,26 @@ public final class Reflectors {
         return true;
     }
 
-    private static void layRail(ServerLevel level, List<BlockPos> line, int light) {
-        BlockState rail = GooBlocks.LIGHT_RAIL.get().defaultBlockState().setValue(LightRailBlock.LEVEL, light);
+    /**
+     * Lays rail along a line at the laying's light; a cell that held no rail
+     * before credits the laying's player, and a cell already rail keeps the
+     * player who laid it.
+     * standing-goo-thing-credits-whoever-placed-it
+     *
+     * @param level  the server level
+     * @param line   the cells between two linked reflectors
+     * @param laying the light and the player the rail is laid with
+     */
+    private static void layRail(ServerLevel level, List<BlockPos> line, Laying laying) {
+        BlockState rail = GooBlocks.LIGHT_RAIL.get().defaultBlockState().setValue(LightRailBlock.LEVEL, laying.light());
         for (BlockPos cell : line) {
-            if (!level.getBlockState(cell).equals(rail)) {
-                level.setBlock(cell, rail, Block.UPDATE_ALL);
+            BlockState standing = level.getBlockState(cell);
+            if (standing.equals(rail)) {
+                continue;
+            }
+            level.setBlock(cell, rail, Block.UPDATE_ALL);
+            if (laying.placer() != null && !standing.is(GooBlocks.LIGHT_RAIL.get())) {
+                CellPlacers.of(level).place(cell, laying.placer());
             }
         }
     }
