@@ -100,6 +100,18 @@ public record Charge(int maxTicks, int stages, int stageTicks, double minSize, d
     }
 
     /**
+     * The knives the fan holds some ticks after a throw.
+     * decision knives-refill-from-the-stage-the-fan-rounds-up-to
+     *
+     * @param left       the knives the throw left in the fan
+     * @param sinceThrow the ticks since the throw
+     * @return the knives in the fan
+     */
+    public int knivesSinceThrow(int left, int sinceThrow) {
+        return KnifeStages.formedSinceThrow(left, sinceThrow, stages, stageTicks);
+    }
+
+    /**
      * Whether the hold sizes the cast.
      *
      * @return true for a charge naming a largest size

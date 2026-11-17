@@ -50,6 +50,7 @@ public final class KnivesHoldTests {
     private static final String KNIVES_HOME_ON_A_MOB_THAT_MOVES = "knives_home_on_a_mob_that_moves";
     private static final String KNIVES_THROWN_STAY_PAID_AND_THE_FAN_REFUNDS =
             "knives_thrown_stay_paid_and_the_fan_refunds";
+    private static final String KNIVES_REFILL_A_STAGE_AFTER_A_THROW = "knives_refill_a_stage_after_a_throw";
 
     private static final Identifier CRYSTAL_KNIVES = Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_knives");
     /** Two stages of twelve ticks: the first knife, then the second. */
@@ -86,6 +87,13 @@ public final class KnivesHoldTests {
     private static final int FLIGHT_TICKS = 20;
     private static final float DAMAGE_WITHIN = 1e-3f;
     private static final float ONE_AND_A_HALF_KNIVES = 1.5f;
+    private static final String SHOULD_WAIT = "The 11 ticks after throwing 1 of 4 knives should hold 3, held %s";
+    private static final String SHOULD_REFILL = "The 12th tick after the throw should fill the fan to 7 and pay 4 more"
+            + " prices, %s mB; held %s and paid %s mB";
+    private static final int THREE_LEFT = 3;
+    private static final int SEVEN_REFILLED = 7;
+    private static final int FOUR_REFILLED = 4;
+    private static final float HALF_A_KNIFE = 0.5f;
     private static final String FIELD_COST = "cost";
     /** A cost of 12 1/2 mB, written as the decimal an ability file may write. */
     private static final double TWELVE_AND_A_HALF = 12.5;
@@ -113,6 +121,8 @@ public final class KnivesHoldTests {
                 KnivesHoldTests::knivesHomeOnAMobThatMoves);
         GooTestFunctions.registerTest(registrar, KNIVES_THROWN_STAY_PAID_AND_THE_FAN_REFUNDS,
                 KnivesHoldTests::thrownKnivesStayPaidAndTheFanRefunds);
+        GooTestFunctions.registerTest(registrar, KNIVES_REFILL_A_STAGE_AFTER_A_THROW,
+                KnivesHoldTests::knivesRefillAStageAfterAThrow);
     }
 
     /**
@@ -268,6 +278,53 @@ public final class KnivesHoldTests {
                     String.format(SHOULD_LEAVE_TWO, left));
             helper.assertTrue(end == expected, String.format(SHOULD_REFUND, expected, start, end));
             helper.succeed();
+        });
+    }
+
+    /**
+     * A mock player forms 4 knives and throws 1 at a painted husk needing 1:
+     * the fan holds 3 through the 11 ticks after the throw, and on the 12th it
+     * fills to 7, paying for the 4 knives refilled.
+     * decision knives-refill-from-the-stage-the-fan-rounds-up-to
+     * decision knives-stage-takes-twelve-ticks-with-no-cooldown
+     *
+     * @param helper the gametest helper
+     */
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    public static void knivesRefillAStageAfterAThrow(GameTestHelper helper) {
+        layTheFloor(helper);
+        AbilityDefinition knives = knives(helper);
+        int price = knives.cost().exactIn(GooValues.of(helper.getLevel())).ceiling();
+        ServerPlayer caster = helper.makeMockServerPlayerInLevel();
+        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(CASTER_POS));
+        caster.snapTo(stand.x, stand.y, stand.z, FACING_SOUTH, 0f);
+        caster.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
+        caster.getInventory().add(GooStacks.createForOutput(GooTypes.CRYSTAL, PLENTY_OF_PRICES * price));
+        KnownRecipes.teachRequires(caster, knives);
+        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, HUSK_POS);
+        husk.setHealth(damageOf(knives).landedOn(husk, caster) * HALF_A_KNIFE);
+        GooServerState state = GooServerState.of(helper.getLevel().getServer());
+        holding(caster, true);
+        List<Integer> waiting = new java.util.ArrayList<>();
+        int[] atTheThrow = new int[1];
+
+        helper.runAfterDelay(THREE_STAGES, () -> {
+            state.knifeHolds().formed(caster);
+            KnivesThrowHandler.throwKnives(caster, new KnivesThrowPayload(List.of(husk.getId())));
+            atTheThrow[0] = crystalHeld(caster);
+            for (int tick = 1; tick < ONE_STAGE; tick++) {
+                helper.runAfterDelay(tick, () -> waiting.add(state.knifeHolds().formed(caster)));
+            }
+            helper.runAfterDelay(ONE_STAGE, () -> {
+                int refilled = state.knifeHolds().formed(caster);
+                int paid = atTheThrow[0] - crystalHeld(caster);
+                helper.getLevel().getServer().getPlayerList().remove(caster);
+                helper.assertTrue(waiting.stream().allMatch(held -> held == THREE_LEFT), String.format(SHOULD_WAIT,
+                        waiting));
+                helper.assertTrue(refilled == SEVEN_REFILLED && paid == FOUR_REFILLED * price,
+                        String.format(SHOULD_REFILL, FOUR_REFILLED * price, refilled, paid));
+                helper.succeed();
+            });
         });
     }
 
