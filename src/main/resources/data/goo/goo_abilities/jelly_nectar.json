@@ -18,7 +18,7 @@
   },
   "behaviors": [
     { "type": "nectar_goo", "guide_radius": 2, "guide_reach": 16, "reach": 12, "fight_ticks": 100,
-      "jump_factor": 0.5, "speed_factor": 0.4, "climb_speed": 0.2 },
+      "jump_factor": 0.5, "speed_factor": 0.6, "climb_speed": 0.2 },
     { "type": "nectar" }
   ],
   "tags": ["stream"]

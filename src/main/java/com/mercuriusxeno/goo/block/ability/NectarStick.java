@@ -35,6 +35,13 @@ public final class NectarStick {
     private static final Identifier STUCK = Identifier.fromNamespaceAndPath(Goo.MODID, "nectar_stuck");
     /** The share of its gravity taken from a stuck thing: all of it. */
     private static final double NO_GRAVITY = -1.0;
+    /**
+     * A walking thing's speed in blocks a tick for each point of its movement
+     * speed: a player at 0.1 walks 0.2158 blocks a tick on ordinary ground.
+     */
+    private static final double WALK_PER_SPEED = 2.158;
+    /** The share of its horizontal motion a thing in the air keeps each tick, which the wall's motion makes up. */
+    private static final double AIR_DRAG = 0.91;
 
     private NectarStick() {
     }
@@ -72,6 +79,45 @@ public final class NectarStick {
     }
 
     /**
+     * The speed a thing stuck on a Nectar coated wall climbs or sinks at:
+     * the step's climb speed nerfed by the same share as its walking.
+     * operator ruling 2026-11-17: climbing is nerfed to match the speed nerf
+     *
+     * @param nectar Nectar's step
+     * @return the climb speed, blocks per tick
+     */
+    public static double wallClimbSpeed(NectarGooStep nectar) {
+        return nectar.climbSpeed() * nectar.speedFactor();
+    }
+
+    /**
+     * A stuck thing's horizontal motion along a Nectar coated wall: its
+     * movement keys turned by its facing, at its walking speed nerfed by
+     * Nectar's speed share, as it would walk on Nectar underfoot; a
+     * diagonal goes no faster than straight.
+     * operator ruling 2026-11-17: on the wall you move at walking speed, nerfed by the speed factor alone
+     *
+     * @param strafe      the thing's sideways input, left positive
+     * @param forward     its forward input
+     * @param yaw         its facing, in degrees
+     * @param walkSpeed   its walking speed, blocks per tick
+     * @param speedFactor the share of its speed Nectar leaves it
+     * @return its horizontal motion along the wall
+     */
+    public static Vec3 wallMotion(double strafe, double forward, float yaw, double walkSpeed, double speedFactor) {
+        Vec3 input = new Vec3(strafe, 0, forward);
+        if (input.lengthSqr() == 0) {
+            return Vec3.ZERO;
+        }
+        Vec3 heading = input.lengthSqr() > 1 ? input.normalize() : input;
+        double radians = Math.toRadians(yaw);
+        double sin = Math.sin(radians);
+        double cos = Math.cos(radians);
+        Vec3 turned = new Vec3(heading.x * cos - heading.z * sin, 0, heading.z * cos + heading.x * sin);
+        return turned.scale(walkSpeed * speedFactor);
+    }
+
+    /**
      * Sticks a living thing to a Nectar coated wall it stands in, once a
      * tick: its gravity off, its fall forgotten, and its vertical motion the
      * climb its jump or sneak asks for, hanging where it is otherwise; on
@@ -93,9 +139,11 @@ public final class NectarStick {
             gravity.addTransientModifier(new AttributeModifier(STUCK, NO_GRAVITY, Operation.ADD_MULTIPLIED_TOTAL));
         }
         living.resetFallDistance();
-        Vec3 motion = living.getDeltaMovement();
-        living.setDeltaMovement(motion.x, climbVelocity(living.jumping, living.isShiftKeyDown(),
-                nectar.climbSpeed()), motion.z);
+        // operator ruling 2026-11-17: on the wall you move at walking speed and climb, nerfed by the speed factor alone
+        Vec3 along = wallMotion(living.xxa, living.zza, living.getYRot(), living.getSpeed() * WALK_PER_SPEED,
+                nectar.speedFactor()).scale(1 / AIR_DRAG);
+        living.setDeltaMovement(along.x, climbVelocity(living.jumping, living.isShiftKeyDown(),
+                wallClimbSpeed(nectar)), along.z);
     }
 
     /**
