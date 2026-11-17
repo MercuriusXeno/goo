@@ -53,7 +53,7 @@ class StepCodecTest {
             Map.entry("freeze_blocks", new FreezeBlocksStep(Expr.literal(2))),
             Map.entry("coat", new CoatStep()),
             Map.entry("slick", new SlickStep(1.03, 1.08, 40, 1, 0.3)),
-            Map.entry("vacuum", new VacuumStep(6, 30)),
+            Map.entry("vacuum", new VacuumStep(3, 6, 20)),
             Map.entry("vacuum_pull", new VacuumPullStep(0.05, 1, 0.2, 1.5)),
             Map.entry("wobble", new WobbleStep(Expr.literal(600))),
             Map.entry("detect_ore", new DetectOreStep(TagKey.create(Registries.BLOCK,
@@ -209,7 +209,6 @@ class StepCodecTest {
                     List.of(new AilmentOverlayStep(AilmentKind.HEX, Expr.literal(60))))),
             Map.entry("tome", new TomeStep(TomeKind.FUSE)),
             Map.entry("float", new FloatStep(Expr.literal(100), Expr.literal(1))),
-            Map.entry("lift", new LiftStep(Expr.literal(0.3), Expr.literal(0.2), Expr.literal(32))),
             Map.entry("updraft", new UpdraftStep(0.5, 0.4, 16, 0.15, 0.35, 0.15, 10)),
             Map.entry("airborn", new AirbornStep(Expr.literal(0.6), Expr.literal(0.4), Expr.literal(0.2),
                     Expr.literal(0.4), Expr.literal(0.5), Expr.literal(1.2), Expr.literal(0.05))),
@@ -377,6 +376,12 @@ class StepCodecTest {
         String json = "[{\"type\": \"cool_lava\"}, {\"type\": \"coat\"}]";
         List<Step> steps = StepTypes.LIST_CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(json)).getOrThrow();
         assertEquals(List.of(new CoatStep()), steps);
+    }
+
+    // floatstone-lift-leaves-the-mod
+    @Test
+    void aStepTypedLiftRefusesAsUnknown() {
+        assertTrue(decode("{\"type\": \"lift\", \"rise\": 0.3, \"sink\": 0.2, \"cap\": 32}").isError());
     }
 
     @Test

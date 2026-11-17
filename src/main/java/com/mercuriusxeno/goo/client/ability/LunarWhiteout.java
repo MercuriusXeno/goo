@@ -22,6 +22,7 @@ import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterDimensionTransitionScreenEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The white the Lunar trip floods the caster's view with, by LunarTrip's white curve: rising as the moon nears
@@ -39,7 +40,7 @@ public final class LunarWhiteout {
     private static final int WHITE = 0xFFFFFF;
 
     /** Where the white stands once no fixation holds the caster. */
-    private enum Stage {
+    enum Stage {
         /** No trip: the view is clear. */
         CLEAR,
         /** Carried and awaiting the arrival mark: the white stands full. */
@@ -99,41 +100,68 @@ public final class LunarWhiteout {
     public static void onClientTick(ClientTickEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
-        if (player == null) {
+        if (player == null || followFixation(mc, player.getData(GooAttachments.LUNAR_FIXATION))) {
             return;
-        }
-        LunarFixation fixation = player.getData(GooAttachments.LUNAR_FIXATION);
-        if (fixation.stands()) {
-            fixated = true;
-            enter(Stage.CLEAR);
-            return;
-        }
-        if (fixated && fixation.released()) {
-            // decision holding-right-click-pulls-the-moon-and-early-release-cancels: let go early, the trip runs
-            // back with no crossing, and the tone stops.
-            fixated = false;
-            mc.getSoundManager().stop(GooSoundIds.LUNAR_TONE, SoundSource.PLAYERS);
-            enter(Stage.CLEAR);
-            return;
-        }
-        if (fixated) {
-            fixated = false;
-            enter(Stage.CROSSING);
         }
         boolean loading = mc.screen instanceof LevelLoadingScreen;
         if (!loading) {
             ticksInStage++;
         }
+        followStage(player, loading);
+    }
+
+    /**
+     * Moves the white on from where it stands once no fixation holds the caster: the crossing awaits its arrival
+     * mark, and the fade after it runs out to clear.
+     *
+     * @param player  the caster
+     * @param loading whether a loading screen stands
+     */
+    private static void followStage(LocalPlayer player, boolean loading) {
         if (stage == Stage.CROSSING) {
-            LunarArrival mark = player.hasData(GooAttachments.LUNAR_ARRIVAL)
-                    ? player.getData(GooAttachments.LUNAR_ARRIVAL) : LunarArrival.NONE;
-            boolean fresh = mark.stands() && mark.arrivedAt() != markTaken;
-            if (!loading && (fresh || ticksInStage > ARRIVAL_GIVE_UP_TICKS)) {
-                markTaken = mark.arrivedAt();
-                enter(Stage.ARRIVED);
-            }
+            awaitArrival(player, loading);
         } else if (stage == Stage.ARRIVED && ticksInStage > LunarTrip.WHITE_FADE_TICKS) {
             enter(Stage.CLEAR);
+        }
+    }
+
+    /**
+     * Follows the fixation the caster's client holds this tick into the stage it sets, stopping the tone of one
+     * the caster let go of.
+     *
+     * @param mc       the client
+     * @param fixation the fixation the caster's client holds this tick
+     * @return true where the fixation cleared the white, which ends the tick
+     */
+    private static boolean followFixation(Minecraft mc, LunarFixation fixation) {
+        boolean wasFixated = fixated;
+        fixated = fixation.stands();
+        Stage set = stageTheFixationSets(fixation, wasFixated);
+        if (set == null) {
+            return false;
+        }
+        enter(set);
+        if (wasFixated && fixation.released()) {
+            // decision holding-right-click-pulls-the-moon-and-early-release-cancels
+            // Let go early, the trip runs back with no crossing, and the tone stops.
+            mc.getSoundManager().stop(GooSoundIds.LUNAR_TONE, SoundSource.PLAYERS);
+        }
+        return set == Stage.CLEAR;
+    }
+
+    /**
+     * Ends the crossing on a fresh arrival mark outside a loading screen, or once the crossing has waited too long.
+     *
+     * @param player  the caster
+     * @param loading whether a loading screen stands
+     */
+    private static void awaitArrival(LocalPlayer player, boolean loading) {
+        LunarArrival mark = player.hasData(GooAttachments.LUNAR_ARRIVAL)
+                ? player.getData(GooAttachments.LUNAR_ARRIVAL) : LunarArrival.NONE;
+        boolean fresh = mark.stands() && mark.arrivedAt() != markTaken;
+        if (!loading && (fresh || ticksInStage > ARRIVAL_GIVE_UP_TICKS)) {
+            markTaken = mark.arrivedAt();
+            enter(Stage.ARRIVED);
         }
     }
 
@@ -146,6 +174,26 @@ public final class LunarWhiteout {
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         fixated = false;
         enter(Stage.CLEAR);
+    }
+
+    /**
+     * The stage a client tick's fixation sets: clear while it stands, clear once the caster let go of it, the
+     * crossing once a fixation that held the caster at the last tick has ended otherwise, and none where no
+     * fixation held them, leaving the stage to the arrival mark and the fade.
+     * decision holding-right-click-pulls-the-moon-and-early-release-cancels
+     *
+     * @param fixation the fixation the caster's client holds this tick
+     * @param fixated  whether a fixation held the caster at the last tick
+     * @return the stage set, or null where the fixation sets none
+     */
+    static @Nullable Stage stageTheFixationSets(LunarFixation fixation, boolean fixated) {
+        if (fixation.stands()) {
+            return Stage.CLEAR;
+        }
+        if (!fixated) {
+            return null;
+        }
+        return fixation.released() ? Stage.CLEAR : Stage.CROSSING;
     }
 
     private static void enter(Stage next) {
@@ -168,10 +216,35 @@ public final class LunarWhiteout {
         if (mc.player == null || mc.level == null) {
             return 0F;
         }
-        LunarFixation fixation = mc.player.getData(GooAttachments.LUNAR_FIXATION);
+        return whiteAt(mc.player.getData(GooAttachments.LUNAR_FIXATION), fixated, stage, ticksInStage,
+                mc.level.getGameTime(), partial);
+    }
+
+    /**
+     * How white the view stands at a frame, from the fixation the client holds and where the white stands: the
+     * before-carry curve while the fixation stands or runs back, full once a fixation that held the caster at the
+     * last tick has gone, and the stage's white otherwise.
+     *
+     * @param fixation     the fixation the caster's client holds this frame
+     * @param fixated      whether a fixation held the caster at the last client tick
+     * @param stage        where the white stands
+     * @param ticksInStage the client ticks the stage has stood
+     * @param gameTime     the client's game time
+     * @param partial      the frame's partial tick
+     * @return none to full
+     */
+    static float whiteAt(LunarFixation fixation, boolean fixated, Stage stage, int ticksInStage, long gameTime,
+            float partial) {
         if (fixation.stands() || fixation.released()) {
-            return LunarTrip.whiteBeforeCarry(LunarTrip.progress(fixation, mc.level.getGameTime(), partial));
+            return LunarTrip.whiteBeforeCarry(LunarTrip.progress(fixation, gameTime, partial));
         }
+        // decision diagnose-and-correct-the-whiteout-blink-before-the-carry
+        // The server removes the fixation before the carry, and Minecraft draws frames between taking that packet
+        // and the next client tick, which alone starts the crossing; the white stands full over that gap.
+        return fixated ? LunarTrip.whiteAfterCarry(false, 0F) : stageWhite(stage, ticksInStage, partial);
+    }
+
+    private static float stageWhite(Stage stage, int ticksInStage, float partial) {
         return switch (stage) {
             case CROSSING -> LunarTrip.whiteAfterCarry(false, 0F);
             case ARRIVED -> LunarTrip.whiteAfterCarry(true, ticksInStage + partial);
