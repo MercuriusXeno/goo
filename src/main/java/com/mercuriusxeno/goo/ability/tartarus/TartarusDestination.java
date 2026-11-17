@@ -12,6 +12,9 @@ import java.util.Optional;
  * the overworld.
  * decision tartarus-summons-a-gate-to-the-nether-like-end-and-zone
  * decision tartarus-sets-you-on-the-nearest-safe-floor-at-the-scaled-spot-or-refuses
+ * From the nether, however the player came there, the overworld at their X
+ * and Z times eight, at the height mirrored the same way back.
+ * decision tartarus-in-the-nether-takes-you-to-the-overworld-at-eight-times-your-spot
  *
  * @param dimension the level the gate leads to
  * @param start     where the search for a floor starts
@@ -28,7 +31,10 @@ public record TartarusDestination(ResourceKey<Level> dimension, BlockPos start) 
      * @return the level the gate leads to, empty where it leads nowhere
      */
     public static Optional<ResourceKey<Level>> targetOf(ResourceKey<Level> standingIn) {
-        return standingIn == Level.OVERWORLD ? Optional.of(Level.NETHER) : Optional.empty();
+        if (standingIn == Level.OVERWORLD) {
+            return Optional.of(Level.NETHER);
+        }
+        return standingIn == Level.NETHER ? Optional.of(Level.OVERWORLD) : Optional.empty();
     }
 
     /**
@@ -43,7 +49,17 @@ public record TartarusDestination(ResourceKey<Level> dimension, BlockPos start) 
     public static Optional<TartarusDestination> from(ResourceKey<Level> standingIn, BlockPos feet, HeightSpan here,
                                                      HeightSpan there) {
         return targetOf(standingIn).map(target -> new TartarusDestination(target, new BlockPos(
-                Math.floorDiv(feet.getX(), NETHER_SCALE), here.mirroredInto(feet.getY(), there),
-                Math.floorDiv(feet.getZ(), NETHER_SCALE))));
+                scaled(feet.getX(), target), here.mirroredInto(feet.getY(), there), scaled(feet.getZ(), target))));
+    }
+
+    /**
+     * A coordinate across X or Z carried into a level: an eighth into the nether, eight times out of it.
+     *
+     * @param coordinate the coordinate where the player stands
+     * @param target     the level the gate leads to
+     * @return the coordinate there
+     */
+    private static int scaled(int coordinate, ResourceKey<Level> target) {
+        return target == Level.NETHER ? Math.floorDiv(coordinate, NETHER_SCALE) : coordinate * NETHER_SCALE;
     }
 }
