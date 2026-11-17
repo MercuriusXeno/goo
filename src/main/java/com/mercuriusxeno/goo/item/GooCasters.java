@@ -105,10 +105,18 @@ public final class GooCasters {
      * @return true where the drawn stack is the held one
      */
     static boolean drawnAs(ItemStack drawn, ItemStack held, ItemStack otherHand) {
-        if (drawn == held) {
-            return true;
-        }
-        return drawn != otherHand && drawn.getItem() instanceof GooItem && held.getItem() instanceof GooItem
+        return drawn == held || drawn != otherHand && sameRawGoo(drawn, held);
+    }
+
+    /**
+     * Whether two stacks are raw goo of one type.
+     *
+     * @param drawn the stack being drawn
+     * @param held  the stack held in the hand
+     * @return true for raw goo of the same type
+     */
+    private static boolean sameRawGoo(ItemStack drawn, ItemStack held) {
+        return drawn.getItem() instanceof GooItem && held.getItem() instanceof GooItem
                 && Objects.equals(GooStacks.keyOf(drawn), GooStacks.keyOf(held));
     }
 
