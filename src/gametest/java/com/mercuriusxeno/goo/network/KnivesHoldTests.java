@@ -27,6 +27,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -140,6 +141,20 @@ public final class KnivesHoldTests {
     private static final String SHOULD_CHARGE = "Payment %s of a 12 1/2 mB cost should take %s mB and bank %s,"
             + " took %s and banked %s";
 
+    private static final String KNIVES_FLY_FROM_THEIR_SLOT_TO_THE_CROSSHAIR =
+            "knives_fly_from_their_slot_to_the_crosshair";
+    /** The wall the crosshair rests on, 5 blocks south of the caster, across the bay's middle. */
+    private static final int WALL_Z = 6;
+    private static final int WALL_WEST = 5;
+    private static final int WALL_EAST = 11;
+    private static final int WALL_TOP = 3;
+    /** How far the crosshair's ray reaches for a block to rest on. */
+    private static final double CROSSHAIR_REACH = 64;
+    /** The cosine a launch must clear against the line from its slot to the crosshair's point. */
+    private static final double AT_THE_CROSSHAIR = 0.99999;
+    private static final String SHOULD_HEAD_AT_THE_CROSSHAIR = "A knife should leave its slot %s heading at the"
+            + " crosshair's point %s, along %s; it left along %s";
+
     private KnivesHoldTests() {
     }
 
@@ -165,6 +180,8 @@ public final class KnivesHoldTests {
                 KnivesHoldTests::knivesThrowOnePerThreeTicksWhileLeftClickIsHeld);
         GooTestFunctions.registerTest(registrar, KNIVES_THREE_TICKS_APART_BOTH_DAMAGE_ONE_MOB,
                 KnivesHoldTests::knivesThreeTicksApartBothDamageOneMob);
+        GooTestFunctions.registerTest(registrar, KNIVES_FLY_FROM_THEIR_SLOT_TO_THE_CROSSHAIR,
+                KnivesHoldTests::knivesFlyFromTheirSlotToTheCrosshair);
     }
 
     /**
@@ -231,6 +248,43 @@ public final class KnivesHoldTests {
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.assertTrue(Math.abs(lost - 2 * oneKnife) < DAMAGE_WITHIN,
                     String.format(SHOULD_BOTH_DAMAGE, 2 * oneKnife, oneKnife, lost));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A mock player facing a stone wall 5 blocks south throws one knife: it
+     * leaves the slot it hovered at heading at the point on the wall the
+     * crosshair rests on, not along the look beside it.
+     * decision knives-hover-above-the-blob-cube-over-the-hand
+     *
+     * @param helper the gametest helper
+     */
+    public static void knivesFlyFromTheirSlotToTheCrosshair(GameTestHelper helper) {
+        layTheFloor(helper);
+        for (int x = WALL_WEST; x <= WALL_EAST; x++) {
+            for (int y = 1; y <= WALL_TOP; y++) {
+                helper.setBlock(new BlockPos(x, y, WALL_Z), Blocks.STONE);
+            }
+        }
+        ServerPlayer caster = casterHolding(helper, TWELVE_PRICES);
+        standAt(helper, caster, Vec3.atBottomCenterOf(CASTER_POS), 0f);
+        GooServerState state = GooServerState.of(helper.getLevel().getServer());
+        holding(caster, true);
+
+        helper.runAfterDelay(ONE_KNIFE_TICKS, () -> {
+            Vec3 eye = caster.getEyePosition();
+            Vec3 crosshair = helper.getLevel().clip(new ClipContext(eye, eye.add(caster.getViewVector(1f)
+                    .scale(CROSSHAIR_REACH)), ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, caster)).getLocation();
+            KnivesThrowHandler.throwKnife(caster);
+            List<ThrownKnives.Flight> flying = state.thrownKnives().flyingFrom(caster);
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(flying.size() == 1, String.format(SHOULD_FLY, caster.getViewVector(1f), 0, flying));
+            Vec3 slot = flying.getFirst().position();
+            Vec3 toTheCrosshair = crosshair.subtract(slot).normalize();
+            Vec3 heading = flying.getFirst().velocity().normalize();
+            helper.assertTrue(heading.dot(toTheCrosshair) > AT_THE_CROSSHAIR,
+                    String.format(SHOULD_HEAD_AT_THE_CROSSHAIR, slot, crosshair, toTheCrosshair, heading));
             helper.succeed();
         });
     }

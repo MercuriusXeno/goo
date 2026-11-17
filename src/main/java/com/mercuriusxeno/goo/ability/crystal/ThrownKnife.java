@@ -16,6 +16,8 @@ public final class ThrownKnife {
 
     /** The most ticks a knife or javelin flies before it is spent. */
     public static final int MOST_FLIGHT_TICKS = 100;
+    /** How far the crosshair's ray reaches for a block or mob to rest on, in blocks. */
+    public static final double CROSSHAIR_REACH = 64;
 
     private ThrownKnife() {
     }
@@ -40,13 +42,17 @@ public final class ThrownKnife {
     }
 
     /**
-     * The velocity a throw leaves with.
+     * The velocity a throw leaves its slot with: heading from the slot at the
+     * point the thrower's crosshair rests on, so it flies to the crosshair
+     * rather than beside it.
+     * decision knives-hover-above-the-blob-cube-over-the-hand
      *
-     * @param look  the thrower's look, any length
-     * @param speed the delivery's throw speed, blocks per tick
+     * @param slot      where it leaves
+     * @param crosshair the point the crosshair rests on
+     * @param speed     the delivery's throw speed, blocks per tick
      * @return the velocity, blocks per tick
      */
-    public static Vec3 launchVelocityAlong(Vec3 look, double speed) {
-        return ProjectileFlight.launch(look, speed);
+    public static Vec3 launchVelocityToward(Vec3 slot, Vec3 crosshair, double speed) {
+        return ProjectileFlight.launch(crosshair.subtract(slot), speed);
     }
 }

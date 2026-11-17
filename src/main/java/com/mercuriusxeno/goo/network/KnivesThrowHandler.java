@@ -6,12 +6,15 @@ import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
  * Server-side handler for a Knives throw: during a standing hold with a knife
- * held, the knife formed last leaves its hover slot along the thrower's look
+ * held, the knife formed last leaves its hover slot heading at the point the thrower's crosshair rests on
  * as a projectile, aimed at no mob, and leaves the hold, its price spent, so
  * a held left click empties the hold in the reverse of its fill. Dart's
  * javelin leaves the same way on its own flight, its cost paid as it leaves.
@@ -57,7 +60,7 @@ public final class KnivesThrowHandler {
     }
 
     /**
-     * Throws one knife of the player's standing hold along its look.
+     * Throws one knife of the player's standing hold from its slot at the crosshair's point.
      *
      * @param player the throwing player
      */
@@ -72,13 +75,33 @@ public final class KnivesThrowHandler {
                     held.ability().cost().exactIn(GooValues.of(player.level())))) {
                 return;
             }
-            Vec3 look = player.getViewVector(1f);
-            state.thrownKnives().launch(player, held.gooType(), held.ability().id().toString(),
-                    ThrownKnife.launchPointOf(player.getEyePosition(), player.getViewXRot(1f), player.getViewYRot(1f),
-                            GooCasters.casterOnTheRight(player), inTheHold, delivery.stacksJavelins()),
-                    ThrownKnife.launchVelocityAlong(look, delivery.throwSpeed()), delivery.stacksJavelins(),
+            Vec3 slot = ThrownKnife.launchPointOf(player.getEyePosition(), player.getViewXRot(1f),
+                    player.getViewYRot(1f), GooCasters.casterOnTheRight(player), inTheHold, delivery.stacksJavelins());
+            state.thrownKnives().launch(player, held.gooType(), held.ability().id().toString(), slot,
+                    ThrownKnife.launchVelocityToward(slot, crosshairPointOf(player), delivery.throwSpeed()),
+                    delivery.stacksJavelins(),
                     delivery.formSounds().thrownWith(player.getRandom()));
             holds.threw(player, 1);
         });
+    }
+
+    /**
+     * Where the thrower's crosshair rests: the first block or mob its look
+     * meets within the crosshair's reach, or the point that far along the
+     * look where it meets none, which each throw heads at from its slot.
+     * decision knives-hover-above-the-blob-cube-over-the-hand
+     *
+     * @param player the thrower
+     * @return the point
+     */
+    static Vec3 crosshairPointOf(ServerPlayer player) {
+        Vec3 eye = player.getEyePosition();
+        Vec3 reach = player.getViewVector(1f).scale(ThrownKnife.CROSSHAIR_REACH);
+        Vec3 end = player.level().clip(new ClipContext(eye, eye.add(reach), ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.NONE, player)).getLocation();
+        EntityHitResult mob = ProjectileUtil.getEntityHitResult(player, eye, end,
+                player.getBoundingBox().expandTowards(reach).inflate(1), entity -> !entity.isSpectator()
+                        && entity.isPickable(), eye.distanceToSqr(end));
+        return mob == null ? end : mob.getLocation();
     }
 }
