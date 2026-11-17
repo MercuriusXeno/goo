@@ -8,7 +8,6 @@ import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
@@ -130,13 +129,13 @@ public record MoltenStep(Map<Identifier, List<String>> meltsInto, int heatTicks)
     }
 
     @Override
-    public Optional<BlockPos> cellFed(ChannelHost host, CoatRay.BlockStrike strike) {
+    public Optional<CellFed> cellFed(ChannelHost host, CoatRay.BlockStrike strike) {
         return CellLanding.cellFed(host, strike, GooBlocks.BLAZE_MOLTEN.get());
     }
 
     @Override
-    public void feed(ChannelHost host, BlockPos cell) {
-        CellLanding.feed(host, cell, GooBlocks.BLAZE_MOLTEN.get());
+    public void feed(ChannelHost host, CellFed fed) {
+        CellLanding.feed(host, fed, GooBlocks.BLAZE_MOLTEN.get());
     }
 
     /**

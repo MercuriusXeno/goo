@@ -75,6 +75,13 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
      */
     public static final BlendPalette LEECH_HEX_VIOLETS = new BlendPalette(
             0x83 / 255f, 0x73 / 255f, 0xC8 / 255f, 0x5B / 255f, 0x4B / 255f, 0xA0 / 255f);
+    /**
+     * Updraft's spray drips, from typhoon's bright white, FDFFFF, to its
+     * wheel green, D5F5E3, the two the typhoon goo type's definition names.
+     * updraft-is-typhoons-world-goo-that-lifts-the-entities-above-it
+     */
+    public static final BlendPalette UPDRAFT_TYPHOON_GREENS = new BlendPalette(
+            0xFD / 255f, 0xFF / 255f, 0xFF / 255f, 0xD5 / 255f, 0xF5 / 255f, 0xE3 / 255f);
 
     /**
      * The color a share of the way from the light end to the dark.

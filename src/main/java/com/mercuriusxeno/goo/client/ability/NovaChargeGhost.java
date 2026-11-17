@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
+import com.mercuriusxeno.goo.item.GooCasters;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
@@ -181,7 +182,7 @@ public final class NovaChargeGhost {
      */
     private static Optional<Charging> charging(LocalPlayer player) {
         int held = GloveUseTracker.heldTicks();
-        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        GloveSelection selection = GooCasters.heldSelection(player);
         if (held <= 0 || selection == null) {
             return Optional.empty();
         }
