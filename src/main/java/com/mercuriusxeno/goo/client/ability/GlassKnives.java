@@ -205,13 +205,13 @@ public final class GlassKnives {
     }
 
     /**
-     * Draws every knife after translucent blocks: in flight between its
-     * tick points, or stuck at its end.
+     * Draws every knife after the level, clouds included, so no cloud shows
+     * through it: in flight between its tick points, or stuck at its end.
      *
      * @param event the level render stage event
      */
     @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void onAfterLevel(RenderLevelStageEvent.AfterLevel event) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || LIVE.isEmpty() && SLIVERS.isEmpty()) {
             return;

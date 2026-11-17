@@ -154,13 +154,13 @@ public final class HoveringKnives {
     }
 
     /**
-     * Draws every caster's fan after translucent blocks, each knife pointing
-     * along its caster's look.
+     * Draws every caster's pyramid after the level, clouds included, so no
+     * cloud shows through a knife, each knife pointing along its caster's look.
      *
      * @param event the level render stage event
      */
     @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void onAfterLevel(RenderLevelStageEvent.AfterLevel event) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || FANS.isEmpty()) {
             return;
