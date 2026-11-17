@@ -657,6 +657,32 @@ class VolumeCellBlockTest {
         }
     }
 
+    /**
+     * A broken Nectar cell gives back jelly goo, each layer a fifteenth of
+     * Nectar's cost as jelly_nectar.json ships it.
+     * nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob
+     */
+    @Nested
+    class NectarReclaim {
+
+        private static final int LAYERS = 5;
+
+        @Test
+        void nectarIsJellyGooLaidByJellysNectar() {
+            assertEquals(List.of(GooTypes.JELLY, AbilityJson.idOf("jelly_nectar.json")),
+                    List.of(CellBinding.NECTAR.gooType(), CellBinding.NECTAR.layingAbility()));
+        }
+
+        @Test
+        void aBrokenNectarCellDropsJellyGooAtFifteenthsOfNectarsCost() {
+            GooFraction cost = AbilityJson.decode("jelly_nectar").cost().exactIn(GooValueTable.EMPTY);
+
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.JELLY,
+                            cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.NECTAR, LAYERS, cost));
+        }
+    }
+
     private static JsonObject classpathJson(String path) throws IOException {
         try (InputStream in = VolumeCellBlockTest.class.getResourceAsStream(path)) {
             assertTrue(in != null, path + " is not on the classpath");

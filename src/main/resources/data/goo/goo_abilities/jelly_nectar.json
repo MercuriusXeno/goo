@@ -1,14 +1,23 @@
 {
   "gooType": "jelly",
   "displayName": "goo.ability.jelly.nectar",
-  "badge": "free",
+  "cost_mechanics": "goo.ability.jelly.nectar.cost_mechanics",
+  "badge": "channeled",
   "order": 40,
-  "cost": 1000,
-  "delivery": { "kind": "arc" },
-  "area": { "shape": "sphere", "size": 12.0 },
+  "cost": 96,
+  "cost_formula": "%s/m³",
+  "delivery": {
+    "kind": "stream",
+    "drains_on_placement": true,
+    "throw_speed": 0.84,
+    "drips_per_tick": 1,
+    "cone": 15,
+    "ticks_per_charge": 20,
+    "particle": "goo:nectar_spray_drip",
+    "sound": { "id": "minecraft:block.honey_block.slide", "every": 10, "volume": 1.0, "pitch": 1.0, "pitch_spread": 0.1 }
+  },
   "behaviors": [
-    { "type": "nectar", "radius": 12, "fight_ticks": 100 },
-    { "type": "sound", "id": "minecraft:entity.generic.eat", "at": "host", "source": "players", "volume": 0.8, "pitch": 1.2 }
+    { "type": "nectar_goo", "guide_radius": 2, "guide_reach": 16 }
   ],
-  "tags": ["entity"]
+  "tags": ["stream"]
 }

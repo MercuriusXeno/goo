@@ -316,7 +316,7 @@ public final class GooClientSetup {
         for (VolumeCellBlock cell : List.of(GooBlocks.SLIME_COAT.get(), GooBlocks.KINETIC_SLICK.get(),
                 GooBlocks.BLAZE_MOLTEN.get(), GooBlocks.CRYSTAL_SHATTER.get(), GooBlocks.DEEP_HOST.get(),
                 GooBlocks.FROST_RIME.get(), GooBlocks.GLOW_WISPS.get(), GooBlocks.HEX_LEECH.get(),
-                GooBlocks.TYPHOON_UPDRAFT.get())) {
+                GooBlocks.TYPHOON_UPDRAFT.get(), GooBlocks.JELLY_NECTAR.get())) {
             event.register(VolumeCellTint.sources(cell.binding().gooType(), ClientGooTypes::color), cell);
         }
     }
@@ -398,6 +398,7 @@ public final class GooClientSetup {
      * iceborn-is-dropped-for-rime-a-frost-goo-that-keeps-what-is-around-it-frozen
      * glow-world-goo-is-named-wisps-and-takes-the-holds-place
      * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
+     * nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob
      *
      * @param event the event instance
      */
@@ -422,6 +423,8 @@ public final class GooClientSetup {
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.LEECH_HEX_VIOLETS));
         event.registerSpriteSet(GooParticles.UPDRAFT_SPRAY_DRIP.get(),
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.UPDRAFT_TYPHOON_GREENS));
+        event.registerSpriteSet(GooParticles.NECTAR_SPRAY_DRIP.get(),
+                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.NECTAR_JELLY_ORANGES));
     }
 
     /**
