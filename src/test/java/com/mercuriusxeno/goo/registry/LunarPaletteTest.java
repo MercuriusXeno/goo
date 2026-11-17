@@ -3,18 +3,16 @@ package com.mercuriusxeno.goo.registry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-import java.awt.color.ColorSpace;
 import java.awt.image.BufferedImage;
-import java.awt.image.Raster;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.imageio.ImageIO;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static com.mercuriusxeno.goo.registry.SpritePixels.gooBlock;
+import static com.mercuriusxeno.goo.registry.SpritePixels.image;
+import static com.mercuriusxeno.goo.registry.SpritePixels.storedArgb;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -51,35 +49,20 @@ class LunarPaletteTest {
             new PaletteColor(0x1b2632, "smooth_basalt"));
 
     /**
+     * A ground block's sprites: its own and the variants its blockstate picks among per block, sharing one border band.
+     * decision lunar-repaints-are-picked-from-drafts-on-a-page
+     */
+    static List<String> variantsOf(String block) {
+        return List.of(block, block + "_2", block + "_3", block + "_4");
+    }
+
+    /**
      * The sprites under assets/goo/textures/block/ held to the palette. Iron core stands outside it on its vanilla-palette
      * repaint until its color is picked on the shared palette.
      * decision iron-core-returns-to-its-vanilla-palette-repaint
      */
-    static final List<String> LUNAR_SPRITES = List.of("anorthosite", "regolith");
-
-    private static BufferedImage image(String path) throws IOException {
-        try (InputStream stream = LunarPaletteTest.class.getResourceAsStream(path)) {
-            assertNotNull(stream, path + " is not on the classpath");
-            BufferedImage image = ImageIO.read(stream);
-            assertNotNull(image, path + " is no image");
-            return image;
-        }
-    }
-
-    /**
-     * The pixel as the file stores it. getRGB reads a greyscale PNG's grey as linear light and brightens it, so stone's
-     * 0x7f reads as 0xbb; a grey pixel is read from the raster instead.
-     */
-    private static int storedArgb(BufferedImage image, int x, int y) {
-        if (image.getColorModel().getColorSpace().getType() != ColorSpace.TYPE_GRAY) {
-            return image.getRGB(x, y);
-        }
-        Raster raster = image.getRaster();
-        int max = (1 << raster.getSampleModel().getSampleSize(0)) - 1;
-        int grey = raster.getSample(x, y, 0) * 0xff / max;
-        int alpha = raster.getNumBands() > 1 ? raster.getSample(x, y, 1) * 0xff / max : 0xff;
-        return alpha << 24 | grey << 16 | grey << 8 | grey;
-    }
+    static final List<String> LUNAR_SPRITES = Stream.of("anorthosite", "regolith")
+            .flatMap(block -> variantsOf(block).stream()).toList();
 
     private static Set<Integer> opaqueColorsOf(BufferedImage image) {
         Set<Integer> colors = new TreeSet<>();
@@ -95,7 +78,7 @@ class LunarPaletteTest {
     }
 
     private static Set<Integer> lunarSpriteColors(String sprite) throws IOException {
-        return opaqueColorsOf(image("/assets/goo/textures/block/" + sprite + ".png"));
+        return opaqueColorsOf(gooBlock(sprite));
     }
 
     private static String hex(Set<Integer> colors) {
@@ -113,7 +96,7 @@ class LunarPaletteTest {
     @ParameterizedTest
     @MethodSource("lunarSprites")
     void everyPixelOfTheSpriteIsAPaletteColor(String sprite) throws IOException {
-        BufferedImage image = image("/assets/goo/textures/block/" + sprite + ".png");
+        BufferedImage image = gooBlock(sprite);
         Set<Integer> palette = LUNAR_PALETTE.stream().map(PaletteColor::rgb).collect(Collectors.toSet());
         Set<Integer> offPalette = new TreeSet<>();
         for (int y = 0; y < image.getHeight(); y++) {
@@ -131,9 +114,13 @@ class LunarPaletteTest {
     /** Regolith is anorthosite ground to dust, so it draws no color anorthosite does not. */
     @Test
     void regolithDrawsOnlyAnorthositesColors() throws IOException {
-        Set<Integer> regolith = lunarSpriteColors("regolith");
-        Set<Integer> foreign = new TreeSet<>(regolith);
-        foreign.removeAll(lunarSpriteColors("anorthosite"));
+        Set<Integer> foreign = new TreeSet<>();
+        for (String sprite : variantsOf("regolith")) {
+            foreign.addAll(lunarSpriteColors(sprite));
+        }
+        for (String sprite : variantsOf("anorthosite")) {
+            foreign.removeAll(lunarSpriteColors(sprite));
+        }
         assertTrue(foreign.isEmpty(), "regolith draws colors anorthosite does not: " + hex(foreign));
     }
 
