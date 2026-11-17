@@ -1,10 +1,13 @@
 package com.mercuriusxeno.goo.ability;
 
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import org.jspecify.annotations.Nullable;
+import java.util.UUID;
 
 /**
  * Names the player behind a goo hit on the hit's damage source, keeping the
@@ -41,6 +44,19 @@ public final class GooHitCredit {
             return uncredited;
         }
         return new CreditedGooHit(uncredited, player);
+    }
+
+    /**
+     * The player a standing goo thing credits: whoever placed it, while that
+     * player is on the server.
+     * standing-goo-thing-credits-whoever-placed-it
+     *
+     * @param level  the level the thing stands in
+     * @param placer the player who placed it, or null where no player did
+     * @return the player, or null where no player placed it or that player is not on the server
+     */
+    public static @Nullable ServerPlayer placerOf(ServerLevel level, @Nullable UUID placer) {
+        return placer == null ? null : level.getServer().getPlayerList().getPlayer(placer);
     }
 
     /**

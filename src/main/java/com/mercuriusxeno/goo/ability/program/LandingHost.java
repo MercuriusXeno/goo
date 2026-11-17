@@ -210,7 +210,7 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
         level.setBlock(cell, GooBlocks.ABILITY_BLOCK.get().defaultBlockState()
                 .setValue(AbilityBlock.WATERLOGGED, waterlogged), Block.UPDATE_ALL);
         if (level.getBlockEntity(cell) instanceof AbilityBlockEntity be) {
-            be.stand(gooType, face, abilityId, steps, size);
+            be.stand(gooType, face, abilityId, steps, size, caster);
         }
     }
 

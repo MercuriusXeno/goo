@@ -43,12 +43,12 @@ public interface AnchoredWorldHost extends EntityScanHost {
     @Override
     default void forEachEntityWithin(SelectionShape shape, double radius, Set<EntityFilter> filters,
                                      Consumer<TargetHost> body) {
-        BlockAnchoredActions.forEachEntityWithin(level(), anchor(), shape, radius, filters, body);
+        BlockAnchoredActions.forEachEntityWithin(level(), anchor(), shape, radius, filters, null, body);
     }
 
     @Override
     default void forEntity(int entityId, Consumer<TargetHost> body) {
-        BlockAnchoredActions.forEntity(level(), entityId, body);
+        BlockAnchoredActions.forEntity(level(), entityId, null, body);
     }
 
     @Override
