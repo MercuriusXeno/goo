@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.client.throwing;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
-import com.mercuriusxeno.goo.client.ability.HoveringKnives;
 import com.mercuriusxeno.goo.network.KnivesHoldPayload;
 import com.mercuriusxeno.goo.network.KnivesThrowPayload;
 import net.minecraft.world.entity.player.Player;
@@ -20,6 +19,8 @@ public final class KnivesHoldSender {
 
     /** The selection whose hold the server was told began, or null where none stands. */
     private static @Nullable GloveSelection begun;
+    /** Whether the server was told left click went down and not yet that it lifted. */
+    private static boolean throwing;
 
     private KnivesHoldSender() {
     }
@@ -56,24 +57,40 @@ public final class KnivesHoldSender {
     }
 
     /**
-     * Throws a knife of the local player's hold along its look; the server
-     * launches it, aimed at no mob.
-     * decision knives-form-on-right-click-and-throw-on-left-click
+     * Tells the server left click went down during the local player's hold,
+     * which throws a knife at once and one every 2 ticks after until it lifts;
+     * the server launches each, aimed at no mob.
+     * decision knives-throw-one-per-two-ticks-while-left-click-is-held
      * decision knives-do-not-seek-you-just-throw-them
      *
-     * @param player the local player
-     * @return true where a hold stood with a knife held
+     * @return true where a hold stood
      */
-    static boolean throwKnives(Player player) {
-        if (begun == null || HoveringKnives.formedBy(player.getId()) <= 0) {
+    static boolean throwKnives() {
+        if (begun == null) {
             return false;
         }
-        GloveThrowSender.sendPayload(KnivesThrowPayload.INSTANCE);
+        GloveThrowSender.sendPayload(new KnivesThrowPayload(true));
+        throwing = true;
         return true;
+    }
+
+    /**
+     * Tells the server left click lifted, once the attack key the throw went
+     * down with is up.
+     * decision knives-throw-one-per-two-ticks-while-left-click-is-held
+     *
+     * @param attackDown whether the attack key is down this tick
+     */
+    static void watchTheLeftClick(boolean attackDown) {
+        if (throwing && !attackDown) {
+            GloveThrowSender.sendPayload(new KnivesThrowPayload(false));
+            throwing = false;
+        }
     }
 
     /** Tells the server the hold it was told of ends, its knives gone and none thrown. */
     static void end() {
+        throwing = false;
         if (begun != null) {
             GloveThrowSender.sendPayload(new KnivesHoldPayload(false, begun.gooTypeId(), begun.abilityId()));
             begun = null;

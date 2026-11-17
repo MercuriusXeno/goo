@@ -19,8 +19,10 @@ import java.util.UUID;
  * the clock forms is paid as it forms, and a knife the player cannot cover
  * does not form. Each tick a count that changed goes to the caster and the
  * players watching. A throw takes knives out of the hold, their prices spent,
- * and restarts the clock from the knives left, which form back up to the
- * charge's most at its rate, each refilled knife paid as it forms.
+ * and the clock runs on beneath it, forming knives back up to the charge's
+ * most at its rate, each refilled knife paid as it forms. Left click held
+ * throws a knife as it goes down and one every 2 ticks after, while a knife
+ * is held, until it lifts.
  * A hold ends when the client lets go, the player leaves, or the glove leaves
  * the hand, refunding the price of every knife still held, and its end sends
  * a count of 0.
@@ -28,9 +30,13 @@ import java.util.UUID;
  * decision knives-form-on-right-click-and-throw-on-left-click
  * decision knives-pay-per-knife-as-each-forms
  * decision knives-refill-from-the-stage-the-fan-rounds-up-to
+ * decision knives-throw-one-per-two-ticks-while-left-click-is-held
  */
 public final class KnifeHolds {
 
+    /** The ticks between the knives a held left click throws. */
+    static final int THROW_TICKS = 2;
+    private static final int NOT_THROWING = -1;
     private final Map<UUID, Hold> holds = new HashMap<>();
 
     /**
@@ -50,10 +56,12 @@ public final class KnifeHolds {
         private int paid;
         private int thrown;
         private int synced;
-        /** The server tick the clock counts from: the hold's start, then each throw. */
+        /** The server tick the knife forming now began at; the cap stops the clock, holding it at the tick. */
         private int clockedFrom;
-        /** The knives held as the clock started, which it forms on from. */
-        private int heldAtClock;
+        /** The knives the clock has formed, less those thrown. */
+        private int clocked;
+        /** The server tick left click went down, NOT_THROWING while it is up. */
+        private int throwingSince = NOT_THROWING;
 
         Hold(ServerPlayer player, int beganAt, Held held, GooFraction price) {
             this.player = player;
@@ -74,7 +82,7 @@ public final class KnifeHolds {
          * @return the knives in the fan, every one paid for
          */
         int settle(int now) {
-            int clocked = charge().knivesSinceThrow(heldAtClock, now - clockedFrom);
+            runTheClock(now);
             while (paid - thrown < clocked && AbilityCharges.charge(player, held.gooType(), price)) {
                 paid++;
             }
@@ -82,8 +90,25 @@ public final class KnifeHolds {
         }
 
         /**
-         * Takes thrown knives out of the hold and restarts the clock from the
-         * knives left.
+         * Forms each knife whose ticks have gone by since the last one,
+         * keeping the ticks the next has run; at the cap the clock stands
+         * still, so the knife after a throw from a full hold starts at the throw.
+         * decision knives-throw-one-per-two-ticks-while-left-click-is-held: charging runs on beneath the throw
+         *
+         * @param now the server tick
+         */
+        private void runTheClock(int now) {
+            int reached = charge().knivesSinceThrow(clocked, now - clockedFrom);
+            if (reached >= charge().knives()) {
+                clockedFrom = now;
+            } else {
+                clockedFrom += (reached - clocked) * charge().knifeTicks();
+            }
+            clocked = reached;
+        }
+
+        /**
+         * Takes thrown knives out of the hold, the knife forming now running on.
          *
          * @param knives the knives thrown
          * @param now    the server tick
@@ -92,9 +117,22 @@ public final class KnifeHolds {
             if (knives <= 0) {
                 return;
             }
+            settle(now);
             thrown += Math.min(knives, paid - thrown);
-            heldAtClock = paid - thrown;
-            clockedFrom = now;
+            clocked = paid - thrown;
+        }
+
+        /**
+         * Whether the held left click throws a knife this tick: every 2
+         * ticks after the press, the press's own throw landing as it went down.
+         * decision knives-throw-one-per-two-ticks-while-left-click-is-held
+         *
+         * @param now the server tick
+         * @return true on a tick the held throw throws
+         */
+        boolean throwsAt(int now) {
+            int since = now - throwingSince;
+            return throwingSince != NOT_THROWING && since > 0 && since % THROW_TICKS == 0;
         }
 
         /**
@@ -172,6 +210,31 @@ public final class KnifeHolds {
     }
 
     /**
+     * Records left click going down or lifting during the player's hold.
+     * decision knives-throw-one-per-two-ticks-while-left-click-is-held
+     *
+     * @param player the player
+     * @param down   true as it goes down, false as it lifts
+     */
+    public void leftClick(ServerPlayer player, boolean down) {
+        Hold hold = holds.get(player.getUUID());
+        if (hold != null) {
+            hold.throwingSince = down ? player.level().getServer().getTickCount() : NOT_THROWING;
+        }
+    }
+
+    /**
+     * The knives the player's standing hold has thrown.
+     *
+     * @param player the player
+     * @return the knives thrown, 0 for a player holding none
+     */
+    public int thrownBy(ServerPlayer player) {
+        Hold hold = holds.get(player.getUUID());
+        return hold == null ? 0 : hold.thrown;
+    }
+
+    /**
      * The knives in the player's fan now, each paid for.
      *
      * @param player the player
@@ -184,7 +247,8 @@ public final class KnifeHolds {
 
     /**
      * Ticks every hold: a hold whose player has left or no longer holds a
-     * glove ends, refunded, and a count that changed goes to the watchers.
+     * glove ends, refunded, a held left click throws on its beat, and a count
+     * that changed goes to the watchers.
      *
      * @param now the server tick
      */
@@ -197,6 +261,9 @@ public final class KnifeHolds {
                 hold.refund();
                 syncCount(hold.player, 0);
                 continue;
+            }
+            if (hold.throwsAt(now)) {
+                KnivesThrowHandler.throwKnife(hold.player);
             }
             int formed = hold.settle(now);
             if (hold.syncs(formed)) {

@@ -277,6 +277,8 @@ public final class GloveUseTracker {
         }
         GloveInputGate.PressActions actions = pressActions(player);
         PRESS.tick(mc.options.keyUse.isDown(), actions);
+        // knives-throw-one-per-two-ticks-while-left-click-is-held: the held throw stops as left click lifts
+        KnivesHoldSender.watchTheLeftClick(mc.options.keyAttack.isDown());
         if (selectedEnvelops(player)) {
             // charm-like-abilities-lock-the-highlighted-mob-on-right-click
             CHARM_LIKE.tick(PRESS, actions);
@@ -366,7 +368,7 @@ public final class GloveUseTracker {
 
         @Override
         public boolean throwKnives() {
-            return KnivesHoldSender.throwKnives(player);
+            return KnivesHoldSender.throwKnives();
         }
 
         @Override

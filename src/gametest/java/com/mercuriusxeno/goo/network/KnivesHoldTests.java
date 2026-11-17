@@ -5,6 +5,8 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.crystal.ThrownKnife;
+import com.mercuriusxeno.goo.ability.program.DamageStep;
+import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
@@ -121,6 +123,25 @@ public final class KnivesHoldTests {
     private static final int AIM_HALVINGS = 40;
     private static final int MOST_AIM_TICKS = 20;
     private static final CoatRay.BlockClip OPEN_AIR = (from, to) -> Optional.empty();
+    private static final String KNIVES_THROW_ONE_PER_TWO_TICKS_WHILE_LEFT_CLICK_IS_HELD =
+            "knives_throw_one_per_two_ticks_while_left_click_is_held";
+    private static final String KNIVES_TWO_TICKS_APART_BOTH_DAMAGE_ONE_MOB =
+            "knives_two_ticks_apart_both_damage_one_mob";
+    /** The read a tick past the 4th after the press, which sees the throw the 4th tick's server tick lands. */
+    private static final int READ_FOUR_TICKS_ON = 5;
+    private static final int SIX_TICKS = 6;
+    private static final int THREE_THROWN = 3;
+    private static final String SHOULD_THROW_ON_THE_HOLD = "Holding left click should throw 1 knife on the press,"
+            + " 3 by 4 ticks later, and none more in the 6 ticks after it lifts; thrown %s";
+    /** 10 held, 3 thrown, and the 1 the clock formed 3 ticks after the first throw left a full hold. */
+    private static final int HELD_BENEATH_THE_THROW = 8;
+    private static final String SHOULD_CHARGE_BENEATH = "The charge should run on beneath the throw, 8 held"
+            + " 4 ticks on; held %s";
+    /** An unarmored pig 3 blocks ahead, in the knives' path. */
+    private static final BlockPos PIG_POS = new BlockPos(8, 1, 4);
+    private static final float DAMAGE_WITHIN = 1e-3f;
+    private static final String SHOULD_BOTH_DAMAGE = "Two knives 2 ticks apart should take %s from the pig,"
+            + " twice one knife's %s; it lost %s";
     private static final String FIELD_COST = "cost";
     /** A cost of 12 1/2 mB, written as the decimal an ability file may write. */
     private static final double TWELVE_AND_A_HALF = 12.5;
@@ -148,6 +169,88 @@ public final class KnivesHoldTests {
                 KnivesHoldTests::knivesDoNotTurnTowardAMobThatMoves);
         GooTestFunctions.registerTest(registrar, KNIVES_PASS_BETWEEN_FENCE_RAILS_AND_STOP_ON_A_RAIL,
                 KnivesHoldTests::knivesPassBetweenFenceRailsAndStopOnARail);
+        GooTestFunctions.registerTest(registrar, KNIVES_THROW_ONE_PER_TWO_TICKS_WHILE_LEFT_CLICK_IS_HELD,
+                KnivesHoldTests::knivesThrowOnePerTwoTicksWhileLeftClickIsHeld);
+        GooTestFunctions.registerTest(registrar, KNIVES_TWO_TICKS_APART_BOTH_DAMAGE_ONE_MOB,
+                KnivesHoldTests::knivesTwoTicksApartBothDamageOneMob);
+    }
+
+    /**
+     * A mock player holding 10 knives, the charge stopped at its cap, holds
+     * left click: the hold has thrown 1 knife on the press and 3 by 4 ticks
+     * later, the server's tick landing the 4th tick's throw before the 5th
+     * tick reads, the charge running on beneath the throw to hold 8 then;
+     * once left click lifts, it throws none in the 6 ticks after.
+     * decision knives-throw-one-per-two-ticks-while-left-click-is-held
+     *
+     * @param helper the gametest helper
+     */
+    public static void knivesThrowOnePerTwoTicksWhileLeftClickIsHeld(GameTestHelper helper) {
+        ServerPlayer caster = casterHolding(helper, TWELVE_PRICES);
+        standAt(helper, caster, Vec3.atBottomCenterOf(CASTER_POS), 0f);
+        GooServerState state = GooServerState.of(helper.getLevel().getServer());
+        List<Integer> thrown = new ArrayList<>();
+        holding(caster, true);
+
+        helper.runAfterDelay(TEN_KNIVES_TICKS, () -> {
+            pressLeftClick(caster, true);
+            thrown.add(state.knifeHolds().thrownBy(caster));
+        });
+        int[] heldFourTicksOn = new int[1];
+        helper.runAfterDelay(TEN_KNIVES_TICKS + READ_FOUR_TICKS_ON, () -> {
+            thrown.add(state.knifeHolds().thrownBy(caster));
+            heldFourTicksOn[0] = state.knifeHolds().formed(caster);
+            pressLeftClick(caster, false);
+        });
+        helper.runAfterDelay(TEN_KNIVES_TICKS + READ_FOUR_TICKS_ON + SIX_TICKS, () -> {
+            thrown.add(state.knifeHolds().thrownBy(caster));
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(thrown.equals(List.of(1, THREE_THROWN, THREE_THROWN)),
+                    String.format(SHOULD_THROW_ON_THE_HOLD, thrown));
+            helper.assertTrue(heldFourTicksOn[0] == HELD_BENEATH_THE_THROW,
+                    String.format(SHOULD_CHARGE_BENEATH, heldFourTicksOn[0]));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A mock player holding 2 knives holds left click at an unarmored pig in
+     * the path: both knives strike it 2 ticks apart, and it loses twice one
+     * knife's damage, the second knife landing through the first's i-frames.
+     * decision knives-throw-one-per-two-ticks-while-left-click-is-held
+     *
+     * @param helper the gametest helper
+     */
+    public static void knivesTwoTicksApartBothDamageOneMob(GameTestHelper helper) {
+        layTheFloor(helper);
+        Mob pig = helper.spawnWithNoFreeWill(EntityType.PIG, PIG_POS);
+        ServerPlayer caster = casterHolding(helper, TWO_PRICES);
+        standAt(helper, caster, Vec3.atBottomCenterOf(CASTER_POS), 0f);
+        GooServerState state = GooServerState.of(helper.getLevel().getServer());
+        float oneKnife = damageOf(knives(helper)).amount().evaluateFloat(Variables.NONE);
+        holding(caster, true);
+
+        helper.runAfterDelay(TWO_KNIVES_TICKS, () -> {
+            aimThrough(state, caster, pig.getZ(), pig.getBoundingBox().getCenter().y);
+            pressLeftClick(caster, true);
+        });
+        helper.runAfterDelay(TWO_KNIVES_TICKS + FLIGHT_TICKS, () -> {
+            float lost = pig.getMaxHealth() - pig.getHealth();
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(Math.abs(lost - 2 * oneKnife) < DAMAGE_WITHIN,
+                    String.format(SHOULD_BOTH_DAMAGE, 2 * oneKnife, oneKnife, lost));
+            helper.succeed();
+        });
+    }
+
+    // Presses or lifts left click during the caster's hold, as the client tells the server.
+    private static void pressLeftClick(ServerPlayer caster, boolean down) {
+        KnivesThrowHandler.leftClick(caster, down);
+    }
+
+    private static DamageStep damageOf(AbilityDefinition knives) {
+        return knives.behaviors().stream().filter(DamageStep.class::isInstance).map(DamageStep.class::cast)
+                .findFirst().orElseThrow();
     }
 
     /**
