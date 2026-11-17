@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.root;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.ability.CellSurface;
+import com.mercuriusxeno.goo.block.ability.VinesCellBlock;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.core.BlockPos;
@@ -66,14 +67,16 @@ public final class RootEvents {
     /**
      * Entangles a living thing whose center crosses a Vines cell: the cell
      * gives it vines by its layers, with the rustle of vines taking hold; a
-     * thing under Barkskin takes none.
+     * thing under Barkskin, and the player who placed the goo, take none.
      * barkskin-makes-you-immune-to-vines
+     * operator ruling 2026-11-17: the caster is spared their own goo
      *
      * @param entity the thing touching the cell
      * @param touch  what the cell gives
+     * @param placer the player who placed the goo, or null for none
      */
-    public static void entangle(Entity entity, Rooted.Touch touch) {
-        if (!(entity instanceof LivingEntity living) || !takesVines(living, touch)) {
+    public static void entangle(Entity entity, Rooted.Touch touch, @Nullable Entity placer) {
+        if (!(entity instanceof LivingEntity living) || living == placer || !takesVines(living, touch)) {
             return;
         }
         Rooted standing = living.getData(GooAttachments.ROOTED);
@@ -208,7 +211,9 @@ public final class RootEvents {
     }
 
     /**
-     * Leaves a Vines cell holding the layers it keeps, air where it keeps none.
+     * Leaves a Vines cell holding the layers it keeps; one keeping none leaves
+     * its goologged vines hanging alone, or air where it bore none.
+     * vines-goo-on-walls-places-goologged-vines-and-depletes
      *
      * @param level  the level
      * @param cell   the cell
@@ -219,8 +224,8 @@ public final class RootEvents {
         if (layers == 0 || kept == layers) {
             return;
         }
-        BlockState left = kept > 0 ? level.getBlockState(cell).setValue(VolumeCellBlock.LAYERS, kept)
-                : Blocks.AIR.defaultBlockState();
+        BlockState standing = level.getBlockState(cell);
+        BlockState left = kept > 0 ? standing.setValue(VolumeCellBlock.LAYERS, kept) : VinesCellBlock.spent(standing);
         level.setBlock(cell, left, Block.UPDATE_ALL);
     }
 
