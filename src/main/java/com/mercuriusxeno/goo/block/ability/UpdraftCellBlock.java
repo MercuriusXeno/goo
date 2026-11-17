@@ -1,9 +1,11 @@
 package com.mercuriusxeno.goo.block.ability;
 
+import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.program.UpdraftStep;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jspecify.annotations.NonNull;
 
@@ -13,7 +15,8 @@ import org.jspecify.annotations.NonNull;
  * block over its top for each of its layers, as wide and as fast as
  * Updraft's step names, then ticks again on the next tick. Lifting spends no
  * layer: Goop, Slick and Updraft move you for free, where the goos that
- * spend their layers do something permanent.
+ * spend their layers do something permanent. The client blows frost's wind
+ * lines rising up the column of each cell it draws.
  * updraft-is-typhoons-world-goo-that-lifts-the-entities-above-it
  * updraft-goo-lifts-one-block-per-layer
  * updraft-goo-is-semi-permanent-and-does-not-deplete
@@ -50,5 +53,16 @@ public class UpdraftCellBlock extends VolumeCellBlock {
         if (!level.getBlockTicks().hasScheduledTick(pos, this)) {
             level.scheduleTick(pos, this, LIFT_TICKS);
         }
+    }
+
+    /**
+     * Tells the client drawing the cell that it stands, so its wind blows up
+     * its column each tick from then on.
+     * updraft-blob-stands-a-column-of-wind
+     */
+    @Override
+    public void animateTick(@NonNull BlockState state, @NonNull Level level, @NonNull BlockPos pos,
+                            @NonNull RandomSource random) {
+        ISidedProxy.get().seeUpdraftCell(pos);
     }
 }
