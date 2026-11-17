@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.crystal.ThrownKnife;
 import com.mercuriusxeno.goo.data.GooValues;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
@@ -74,7 +75,7 @@ public final class KnivesThrowHandler {
             Vec3 look = player.getViewVector(1f);
             state.thrownKnives().launch(player, held.gooType(), held.ability().id().toString(),
                     ThrownKnife.launchPointOf(player.getEyePosition(), player.getViewXRot(1f), player.getViewYRot(1f),
-                            KnifeRainSling.gloveOnTheRight(player), inTheHold, delivery.stacksJavelins()),
+                            GooCasters.casterOnTheRight(player), inTheHold, delivery.stacksJavelins()),
                     ThrownKnife.launchVelocityAlong(look, delivery.throwSpeed()), delivery.stacksJavelins(),
                     delivery.formSounds().thrown());
             holds.threw(player, 1);

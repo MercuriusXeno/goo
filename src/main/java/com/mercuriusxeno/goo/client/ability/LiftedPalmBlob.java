@@ -9,8 +9,7 @@ import com.mercuriusxeno.goo.client.model.GloveSpecialRenderer;
 import com.mercuriusxeno.goo.client.throwing.BlobShape;
 import com.mercuriusxeno.goo.client.throwing.GloveInputGate;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
-import com.mercuriusxeno.goo.item.GooGloveItem;
-import com.mercuriusxeno.goo.network.KnifeRainSling;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.network.PalmBlobLiftPayload;
 import com.mercuriusxeno.goo.network.StreamHolds;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -551,21 +550,22 @@ public final class LiftedPalmBlob {
     }
 
     /**
-     * The blob a caster shows off the palm this frame, in the glove's
-     * selected goo type.
+     * The blob a caster shows off the palm this frame, in the selected goo
+     * type of the caster's glove, or of the raw goo held bare handed.
+     * decision raw-goo-items-work-bare-handed-for-the-held-type
      *
      * @param casterId    the caster's entity id
      * @param partialTick the frame's partial tick
-     * @return the blob, empty once it has settled back onto the palm or where the glove has no type selected
+     * @return the blob, empty once it has settled back onto the palm or where the caster has no type selected
      */
     static Optional<Blob> blobOf(int casterId, float partialTick) {
         return standingOf(casterId, partialTick).flatMap(standing -> {
-            ItemStack glove = gloveOf(standing.caster());
-            Delivery delivery = PalmJavelin.selectedDelivery(glove);
+            ItemStack caster = GooCasters.casterOf(standing.caster());
+            Delivery delivery = PalmJavelin.selectedDelivery(caster);
             // shriek-bloom-portal-mitosis-and-dart-still-throw-a-blob: Dart's blob becomes the javelin as it lifts
             float javelin = PalmJavelin.morphAt(delivery, standing.share());
             TravelForm form = PalmJavelin.formOf(delivery);
-            return Optional.ofNullable(GooGloveItem.getSelectedType(glove)).map(type -> new Blob(standing.place(),
+            return Optional.ofNullable(GooCasters.selectedTypeOf(caster)).map(type -> new Blob(standing.place(),
                     type, standing.shape(), form, javelin));
         });
     }
@@ -633,7 +633,7 @@ public final class LiftedPalmBlob {
         Camera camera = mc.gameRenderer.getMainCamera();
         Vec3 source = sourceOf(mc.player.getId(), lift, partial, now).subtract(camera.position());
         PalmBlobHop.Pose pose = lift.poseAt(now);
-        Delivery delivery = PalmJavelin.selectedDelivery(gloveOf(mc.player));
+        Delivery delivery = PalmJavelin.selectedDelivery(GooCasters.casterOf(mc.player));
         float javelin = PalmJavelin.morphAt(delivery, pose.share());
         return Optional.of(new HandLift(pose.share(), HandPassView.toHandPass(source, camera.rotation(),
                 camera.getFov(), HandPassView.frameBob(mc)),
@@ -663,7 +663,8 @@ public final class LiftedPalmBlob {
      */
     public static boolean heldInView(ItemStack glove) {
         Minecraft mc = Minecraft.getInstance();
-        return mc.player != null && mc.options.getCameraType().isFirstPerson() && glove == gloveOf(mc.player);
+        return mc.player != null && mc.options.getCameraType().isFirstPerson()
+                && GooCasters.drawnAsCaster(mc.player, glove);
     }
 
     /**
@@ -683,41 +684,30 @@ public final class LiftedPalmBlob {
             return camera.position().add(HandPassView.fromHandPass(drawn, camera.rotation(), camera.getFov(),
                     HandPassView.frameBob(mc)));
         }
-        return KnivesCharge.handAt(caster, KnifeRainSling.gloveOnTheRight(caster), partialTick);
+        return KnivesCharge.handAt(caster, GooCasters.casterOnTheRight(caster), partialTick);
     }
 
     /**
-     * Whether a glove's palm blob is off the palm: a player in the level
-     * holds this glove and that player's blob has not settled back.
+     * Whether a caster's palm blob is off the palm: a player in the level
+     * casts from this stack, a glove or raw goo held bare handed, and that
+     * player's blob has not settled back.
      * charge-swells-the-palm-blob: the palm blob is the one blob the glove ever shows
      *
-     * @param glove the glove being drawn
+     * @param caster the caster stack being drawn
      * @return true where the palm draws no blob
      */
-    public static boolean liftedFrom(ItemStack glove) {
+    public static boolean liftedFrom(ItemStack caster) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || LIFTS.isEmpty()) {
             return false;
         }
         long now = mc.level.getGameTime();
-        return mc.level.players().stream().anyMatch(player -> gloveOf(player) == glove && standsOffThePalm(
+        return mc.level.players().stream().anyMatch(player -> GooCasters.drawnAsCaster(player, caster) && standsOffThePalm(
                 LIFTS.get(player.getId()), now));
     }
 
     private static boolean standsOffThePalm(@Nullable Lift lift, double now) {
         return lift != null && lift.standsAt(now);
-    }
-
-    /**
-     * The glove a player holds: the main hand's, or the off hand's where the
-     * main hand holds none.
-     *
-     * @param player the player
-     * @return the glove stack, or the off hand's stack where neither hand holds a glove
-     */
-    private static ItemStack gloveOf(Player player) {
-        ItemStack main = player.getMainHandItem();
-        return main.getItem() instanceof GooGloveItem ? main : player.getOffhandItem();
     }
 
     /**

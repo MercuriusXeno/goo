@@ -6,7 +6,7 @@ import com.mercuriusxeno.goo.ability.crystal.StackHover;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
-import com.mercuriusxeno.goo.network.KnifeRainSling;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.network.StackFormedPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -221,7 +221,7 @@ public final class HoveringKnives {
         float yRot = caster.getViewYRot(partial);
         Vec3 cube = LiftedPalmBlob.blobOf(caster.getId(), partial).map(LiftedPalmBlob.Blob::place)
                 .orElseGet(() -> StackHover.cubeCenterInView(caster.getEyePosition(partial), xRot, yRot,
-                        KnifeRainSling.gloveOnTheRight(caster)));
+                        GooCasters.casterOnTheRight(caster)));
         for (int index = 0; index < fan.count(); index++) {
             GlassKunai.emit(quads, knifeAt(fan, index, cube, xRot, yRot, age).subtract(camera), look, 0f,
                     knifeScaleAt(fan, index, age));

@@ -12,6 +12,7 @@ import com.mercuriusxeno.goo.client.ability.PortalView;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -74,7 +75,7 @@ public final class AimTracker {
 
     // Whether the glove's held selection outlines the mob its aim rests on.
     private static boolean outlinesMobs(Player player) {
-        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        GloveSelection selection = GooCasters.heldSelection(player);
         return selection == null || AimState.mobsOutlineFor(GloveThrowSender.selectedDelivery(selection.abilityId()));
     }
 

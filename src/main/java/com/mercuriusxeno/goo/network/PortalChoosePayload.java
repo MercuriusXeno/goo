@@ -45,7 +45,7 @@ public record PortalChoosePayload(Optional<Portal> portal) implements CustomPack
      */
     public static void handle(PortalChoosePayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
-            if (context.player() instanceof ServerPlayer player && GooThrowHandler.validateGlove(player)) {
+            if (context.player() instanceof ServerPlayer player && GooThrowHandler.validateCaster(player)) {
                 PortalChoice.choose(player, payload.portal());
             }
         });
