@@ -50,6 +50,10 @@ public final class DartHoldTests {
             "dart_throw_with_no_mob_ahead_flies_a_javelin";
     private static final String DART_DOES_NOT_FOLLOW_A_MOB_THAT_MOVES = "dart_does_not_follow_a_mob_that_moves";
     private static final String DART_PASSES_BETWEEN_FENCE_RAILS = "dart_passes_between_fence_rails";
+    private static final String DART_ONE_PRESS_TOLD_TWICE_THROWS_ONE_JAVELIN =
+            "dart_one_press_told_twice_throws_one_javelin";
+    private static final String SHOULD_THROW_ONE_PER_PRESS = "One left click press the server is told of twice"
+            + " should throw 1 javelin, threw %s";
     private static final String DART_THROWS_ONE_JAVELIN_PER_FIVE_TICKS_WHILE_LEFT_CLICK_IS_HELD =
             "dart_throws_one_javelin_per_five_ticks_while_left_click_is_held";
     /** The read a tick past the 5th after the press, which sees the throw the 5th tick's server tick lands. */
@@ -133,6 +137,32 @@ public final class DartHoldTests {
                 DartHoldTests::dartPassesBetweenFenceRails);
         GooTestFunctions.registerTest(registrar, DART_THROWS_ONE_JAVELIN_PER_FIVE_TICKS_WHILE_LEFT_CLICK_IS_HELD,
                 DartHoldTests::dartThrowsOneJavelinPerFiveTicksWhileLeftClickIsHeld);
+        GooTestFunctions.registerTest(registrar, DART_ONE_PRESS_TOLD_TWICE_THROWS_ONE_JAVELIN,
+                DartHoldTests::dartOnePressToldTwiceThrowsOneJavelin);
+    }
+
+    /**
+     * A mock player holding three javelins presses left click, and the
+     * server hears that the press went down twice before it lifts, as a
+     * client's repeated attack event sends it: one javelin is thrown, not two.
+     * decision dart-throws-one-javelin-per-five-ticks-while-left-click-is-held
+     *
+     * @param helper the gametest helper
+     */
+    public static void dartOnePressToldTwiceThrowsOneJavelin(GameTestHelper helper) {
+        layTheFloor(helper);
+        ServerPlayer caster = casterHolding(helper);
+        GooServerState state = GooServerState.of(helper.getLevel().getServer());
+        holding(caster, true);
+
+        helper.runAfterDelay(THREE_JAVELINS_TICKS, () -> {
+            KnivesThrowHandler.leftClick(caster, true);
+            KnivesThrowHandler.leftClick(caster, true);
+            int thrown = state.knifeHolds().thrownBy(caster);
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(thrown == 1, String.format(SHOULD_THROW_ONE_PER_PRESS, thrown));
+            helper.succeed();
+        });
     }
 
     /**

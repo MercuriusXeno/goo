@@ -81,8 +81,11 @@ public final class KnivesHoldSender {
         if (begun == null) {
             return false;
         }
-        GloveThrowSender.sendPayload(new KnivesThrowPayload(true));
-        throwing = true;
+        // dart-throws-one-javelin-per-five-ticks-while-left-click-is-held: a press already told is told once
+        if (!throwing) {
+            GloveThrowSender.sendPayload(new KnivesThrowPayload(true));
+            throwing = true;
+        }
         return true;
     }
 
