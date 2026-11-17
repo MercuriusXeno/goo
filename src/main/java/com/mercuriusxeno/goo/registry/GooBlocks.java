@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.block.ability.HostCellBlock;
 import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
+import com.mercuriusxeno.goo.block.ability.MoltenCellBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.RimeCellBlock;
 import com.mercuriusxeno.goo.block.ability.UpdraftCellBlock;
@@ -204,13 +205,15 @@ public class GooBlocks {
     /**
      * Molten: the volume cell bound to Blaze's molten goo, the orange goo
      * Molten sprays onto a block's top or a lava source's surface, one to
-     * fifteen layers, ordinary ground underfoot, dropping the blaze goo its
-     * layers cost through VolumeCellBlock.getDrops, no loot table
+     * fifteen layers, ordinary ground underfoot that burns a living thing
+     * touching it as lava does, dropping the blaze goo its layers cost through
+     * VolumeCellBlock.getDrops, no loot table
      * (decisions molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava,
+     * molten-burns-mobs-as-hard-as-lava-and-a-hit-spends-a-layer,
      * each-goo-type-ships-a-world-goo-on-the-volume-cell).
      */
-    public static final DeferredBlock<VolumeCellBlock> BLAZE_MOLTEN = BLOCKS.registerBlock(
-            "blaze_molten", properties -> new VolumeCellBlock(properties, CellBinding.MOLTEN),
+    public static final DeferredBlock<MoltenCellBlock> BLAZE_MOLTEN = BLOCKS.registerBlock(
+            "blaze_molten", properties -> new MoltenCellBlock(properties, CellBinding.MOLTEN),
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.FIRE)
                     .friction(CellBinding.MOLTEN.surface().friction())
