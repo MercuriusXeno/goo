@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.throwing;
 
+import com.mercuriusxeno.goo.lunar.LunarGravity;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
@@ -25,7 +28,6 @@ public final class DripArc {
     public static final double GRAVITY = 0.03;
     /** The share of a drip's velocity air keeps each tick, a thrown projectile's inertia out of water. */
     public static final double DRAG = 0.99F;
-    private static final Vec3 PULL = new Vec3(0, -GRAVITY, 0);
     /** The living near a drip that strikes no living thing: none. */
     public static final LivingNear NO_LIVING = (from, to) -> List.of();
     /** Under this a target stands on the apex, or straight over or under it. */
@@ -42,6 +44,17 @@ public final class DripArc {
     private static final double HALF = 0.5;
 
     private DripArc() {
+    }
+
+    /**
+     * The pull gravity puts on a drip's velocity each tick in a dimension: one sixth of the overworld's in lunar.
+     * decision lunar-gravity-is-one-sixth-of-the-overworlds
+     *
+     * @param dimension the dimension the drip flies in
+     * @return the pull, blocks per tick per tick
+     */
+    public static double gravityIn(ResourceKey<Level> dimension) {
+        return GRAVITY * LunarGravity.scaleIn(dimension);
     }
 
     /**
@@ -133,6 +146,20 @@ public final class DripArc {
      * @return the unit launch axis
      */
     public static Vec3 axisToward(Vec3 apex, Vec3 target, Vec3 look, double exitSpeed) {
+        return axisToward(apex, target, look, exitSpeed, GRAVITY);
+    }
+
+    /**
+     * The launch axis that flies a drip through a target point under a gravity, as {@link #axisToward} finds it.
+     *
+     * @param apex      where the drip leaves, the glove hand
+     * @param target    the point the drip should pass through, where the crosshair lands
+     * @param look      the axis where no launch at the exit speed reaches the target
+     * @param exitSpeed the drip's exit speed, blocks per tick
+     * @param gravity   the pull on the drip each tick, {@link #gravityIn} the dimension it flies in
+     * @return the unit launch axis
+     */
+    public static Vec3 axisToward(Vec3 apex, Vec3 target, Vec3 look, double exitSpeed, double gravity) {
         Vec3 line = target.subtract(apex);
         double across = line.horizontalDistance();
         if (exitSpeed <= 0 || line.lengthSqr() < MIN_AIM_LENGTH_SQUARED) {
@@ -140,9 +167,9 @@ public final class DripArc {
         }
         if (across < MIN_AIM_LENGTH) {
             // straight over or under the hand, gravity bends no drip off the line
-            return line.y > peakOf(exitSpeed) ? look : line.normalize();
+            return line.y > peakOf(exitSpeed, gravity) ? look : line.normalize();
         }
-        OptionalDouble pitch = lowestPitchThrough(across, line.y, exitSpeed);
+        OptionalDouble pitch = lowestPitchThrough(new Throw(across, line.y, exitSpeed, gravity));
         if (pitch.isEmpty()) {
             return look;
         }
@@ -151,18 +178,28 @@ public final class DripArc {
     }
 
     /**
-     * The lowest launch pitch whose free arc stands at a height as it passes a distance across the ground.
+     * A throw an aim solves for: a target across the ground and its height over the launch, at a launch speed
+     * under a gravity.
      *
      * @param across    the distance across the ground, blocks
      * @param rise      the height over the launch the arc should stand at there, blocks
      * @param exitSpeed the launch speed, blocks per tick
+     * @param gravity   the pull on the drip each tick
+     */
+    private record Throw(double across, double rise, double exitSpeed, double gravity) {
+    }
+
+    /**
+     * The lowest launch pitch whose free arc stands at a height as it passes a distance across the ground.
+     *
+     * @param aim the throw the pitch is solved for
      * @return the pitch, radians above level, empty where no pitch short of straight up reaches
      */
-    private static OptionalDouble lowestPitchThrough(double across, double rise, double exitSpeed) {
+    private static OptionalDouble lowestPitchThrough(Throw aim) {
         // gravity only pulls a drip below its line, so the lowest arc reaching the target leaves above that line
-        double low = Math.atan2(rise, across);
+        double low = Math.atan2(aim.rise(), aim.across());
         double high = low;
-        while (heightOver(across, rise, high, exitSpeed) < rise) {
+        while (heightOver(aim, high) < aim.rise()) {
             if (high >= STEEPEST_PITCH) {
                 return OptionalDouble.empty();
             }
@@ -171,7 +208,7 @@ public final class DripArc {
         }
         for (int i = 0; i < PITCH_BISECTIONS; i++) {
             double mid = (low + high) * HALF;
-            if (heightOver(across, rise, mid, exitSpeed) < rise) {
+            if (heightOver(aim, mid) < aim.rise()) {
                 low = mid;
             } else {
                 high = mid;
@@ -184,13 +221,14 @@ public final class DripArc {
      * How high a drip thrown straight up climbs before it falls, stepped as {@link #step} steps it.
      *
      * @param exitSpeed the launch speed, blocks per tick
+     * @param gravity   the pull on the drip each tick
      * @return the height of its peak over its launch, blocks
      */
-    private static double peakOf(double exitSpeed) {
+    private static double peakOf(double exitSpeed, double gravity) {
         double height = 0;
         double upSpeed = exitSpeed;
         while (true) {
-            upSpeed = (upSpeed - GRAVITY) * DRAG;
+            upSpeed = (upSpeed - gravity) * DRAG;
             if (upSpeed <= 0) {
                 return height;
             }
@@ -199,30 +237,28 @@ public final class DripArc {
     }
 
     /**
-     * How high over its launch a free drip stands as it passes a distance
-     * across the ground, stepped as {@link #step} steps it with nothing to strike.
+     * How high over its launch a free drip stands as it passes the throw's distance across the ground, stepped as
+     * {@link #step} steps it with nothing to strike.
      *
-     * @param across    the distance across the ground, blocks
-     * @param floor     the height under which a falling drip can never climb back to the target, blocks
-     * @param pitch     the launch pitch, radians above level
-     * @param exitSpeed the launch speed, blocks per tick
+     * @param aim   the throw, whose rise is the height under which a falling drip can never climb back to the target
+     * @param pitch the launch pitch, radians above level
      * @return the height over the launch as the drip passes, or negative infinity where it falls under the
      *         target's height first or stalls short of it
      */
-    private static double heightOver(double across, double floor, double pitch, double exitSpeed) {
+    private static double heightOver(Throw aim, double pitch) {
         double ground = 0;
         double height = 0;
-        double groundSpeed = Math.cos(pitch) * exitSpeed;
-        double upSpeed = Math.sin(pitch) * exitSpeed;
+        double groundSpeed = Math.cos(pitch) * aim.exitSpeed();
+        double upSpeed = Math.sin(pitch) * aim.exitSpeed();
         for (int tick = 0; tick < MOST_AIM_TICKS; tick++) {
             groundSpeed *= DRAG;
-            upSpeed = (upSpeed - GRAVITY) * DRAG;
+            upSpeed = (upSpeed - aim.gravity()) * DRAG;
             double nextGround = ground + groundSpeed;
             double nextHeight = height + upSpeed;
-            if (nextGround >= across) {
-                return height + (nextHeight - height) * (across - ground) / (nextGround - ground);
+            if (nextGround >= aim.across()) {
+                return height + (nextHeight - height) * (aim.across() - ground) / (nextGround - ground);
             }
-            if (nextHeight < floor && upSpeed < 0) {
+            if (nextHeight < aim.rise() && upSpeed < 0) {
                 return Double.NEGATIVE_INFINITY;
             }
             ground = nextGround;
@@ -261,7 +297,34 @@ public final class DripArc {
      */
     public static Step step(Vec3 position, Vec3 launched, CoatRay.BlockClip clip, LivingNear living,
                             Airspace airspace) {
-        Vec3 velocity = launched.add(PULL).scale(DRAG);
+        return step(position, launched, new Flight(clip, living, airspace, GRAVITY));
+    }
+
+    /**
+     * What a drip's flight runs against: the blocks and the living it may meet, where it may fly, and the gravity
+     * pulling it.
+     *
+     * @param clip     the blocks its segment may meet
+     * @param living   the living its segment may meet
+     * @param airspace where it may fly
+     * @param gravity  the pull on the drip each tick, {@link #gravityIn} the dimension it flies in
+     */
+    public record Flight(CoatRay.BlockClip clip, LivingNear living, Airspace airspace, double gravity) {
+    }
+
+    /**
+     * One tick of a drip's flight under its flight's gravity, as {@link #step} steps it.
+     *
+     * @param position where the drip stands
+     * @param launched its velocity before the tick, blocks per tick
+     * @param flight   what the flight runs against
+     * @return where the tick leaves it
+     */
+    public static Step step(Vec3 position, Vec3 launched, Flight flight) {
+        CoatRay.BlockClip clip = flight.clip();
+        LivingNear living = flight.living();
+        Airspace airspace = flight.airspace();
+        Vec3 velocity = launched.add(0, -flight.gravity(), 0).scale(DRAG);
         Vec3 next = position.add(velocity);
         // the airspace is read before the clip, so no segment reaches into a chunk the world holds unloaded
         if (!airspace.holds(next)) {
@@ -319,9 +382,21 @@ public final class DripArc {
      * @return the step that ends it: its strike, or where it left the airspace unstruck
      */
     public static Step flyToItsEnd(Vec3 position, Vec3 velocity, CoatRay.BlockClip clip, Airspace airspace) {
-        Step step = step(position, velocity, clip, airspace);
+        return flyToItsEnd(position, velocity, new Flight(clip, NO_LIVING, airspace, GRAVITY));
+    }
+
+    /**
+     * Flies a drip from its launch to its end under its flight's gravity.
+     *
+     * @param position where the drip leaves
+     * @param velocity its launch velocity, blocks per tick
+     * @param flight   what the flight runs against
+     * @return the step that ends it: its strike, or where it left the airspace unstruck
+     */
+    public static Step flyToItsEnd(Vec3 position, Vec3 velocity, Flight flight) {
+        Step step = step(position, velocity, flight);
         while (!step.ended()) {
-            step = step(step.position(), step.velocity(), clip, airspace);
+            step = step(step.position(), step.velocity(), flight);
         }
         return step;
     }

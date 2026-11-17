@@ -122,7 +122,8 @@ class GooStreamHandlerTest {
         @Test
         void theDrawnDripsLaunchAlongTheAxisTheServersDripsLaunchAlong() {
             double exitSpeed = goop.exitSpeedAt(0);
-            Vec3 axis = GooStreamHandler.dripAxis(HAND, LOOK, Optional.of(CROSSHAIR), exitSpeed);
+            Vec3 axis = GooStreamHandler.dripAxis(HAND, LOOK, Optional.of(CROSSHAIR), exitSpeed,
+                    DripArc.GRAVITY);
             StreamMotesPayload drawn = GooStreamHandler.motesOf(1, HAND, axis, DRIP, goop, 0, exitSpeed, false);
 
             assertTrue(axis.distanceTo(LOOK) > TOLERANCE, "a hand off the sight line should aim off the look");
@@ -136,7 +137,8 @@ class GooStreamHandlerTest {
 
         @Test
         void aCrosshairMeetingNoBlockLeavesTheAxisOnTheLook() {
-            assertEquals(LOOK, GooStreamHandler.dripAxis(HAND, LOOK, Optional.empty(), goop.exitSpeedAt(0)));
+            assertEquals(LOOK, GooStreamHandler.dripAxis(HAND, LOOK, Optional.empty(),
+                    goop.exitSpeedAt(0), DripArc.GRAVITY));
         }
     }
 

@@ -1,6 +1,9 @@
 package com.mercuriusxeno.goo.ability.crystal;
 
 import com.mercuriusxeno.goo.ability.Charge;
+import com.mercuriusxeno.goo.lunar.LunarGravity;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
@@ -255,22 +258,34 @@ public final class KnifeRain {
         Vec3 moving = velocity;
         for (int tick = 0; tick < ticks; tick++) {
             position = position.add(moving);
-            moving = nextVelocity(moving);
+            moving = nextVelocity(moving, GRAVITY);
         }
         return position;
     }
 
     /**
-     * A knife's velocity a number of ticks into its flight.
+     * A knife's velocity a number of ticks into its flight in the overworld.
      *
      * @param velocity its velocity leaving the hand
      * @param ticks    ticks into the flight
      * @return its velocity then
      */
     public static Vec3 velocityAt(Vec3 velocity, int ticks) {
+        return velocityAt(velocity, ticks, GRAVITY);
+    }
+
+    /**
+     * A knife's velocity a number of ticks into its flight under a gravity.
+     *
+     * @param velocity its velocity leaving the hand
+     * @param ticks    ticks into the flight
+     * @param gravity  the pull on the knife each tick, {@link #gravityIn} the dimension it flies in
+     * @return its velocity then
+     */
+    public static Vec3 velocityAt(Vec3 velocity, int ticks, double gravity) {
         Vec3 moving = velocity;
         for (int tick = 0; tick < ticks; tick++) {
-            moving = nextVelocity(moving);
+            moving = nextVelocity(moving, gravity);
         }
         return moving;
     }
@@ -279,9 +294,21 @@ public final class KnifeRain {
      * A knife's velocity a tick on: slowed by the air and pulled down.
      *
      * @param velocity its velocity now
+     * @param gravity  the pull on the knife each tick
      * @return its velocity a tick on
      */
-    public static Vec3 nextVelocity(Vec3 velocity) {
-        return velocity.scale(DRAG).subtract(0, GRAVITY, 0);
+    public static Vec3 nextVelocity(Vec3 velocity, double gravity) {
+        return velocity.scale(DRAG).subtract(0, gravity, 0);
+    }
+
+    /**
+     * The pull gravity puts on a knife each tick in a dimension: one sixth of the overworld's in lunar.
+     * decision lunar-gravity-is-one-sixth-of-the-overworlds
+     *
+     * @param dimension the dimension the knife flies in
+     * @return the pull, blocks per tick per tick
+     */
+    public static double gravityIn(ResourceKey<Level> dimension) {
+        return GRAVITY * LunarGravity.scaleIn(dimension);
     }
 }

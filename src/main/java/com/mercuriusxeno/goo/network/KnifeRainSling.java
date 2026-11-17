@@ -165,7 +165,8 @@ public final class KnifeRainSling {
             GooServerState.of(level.getServer()).gooEffects().enqueue(new GooEffectScheduler.PendingEffect(
                     level.getServer().getTickCount() + flight.ticks(), level, player, release.gooType(),
                     struck.getId(), struck.blockPosition(), null, release.ability().id().toString(),
-                    new GooEffectScheduler.Aim(start, KnifeRain.velocityAt(velocity, flight.ticks()).normalize())));
+                    new GooEffectScheduler.Aim(start, KnifeRain.velocityAt(velocity, flight.ticks(),
+                            KnifeRain.gravityIn(level.dimension())).normalize())));
         }
     }
 
@@ -181,6 +182,8 @@ public final class KnifeRainSling {
     static Flight fly(ServerPlayer player, Vec3 start, Vec3 velocity) {
         Vec3 position = start;
         Vec3 moving = velocity;
+        // decision lunar-gravity-is-one-sixth-of-the-overworlds: a knife falls under its dimension's gravity
+        double gravity = KnifeRain.gravityIn(player.level().dimension());
         for (int tick = 1; tick <= KnifeRain.MOST_FLIGHT_TICKS; tick++) {
             Vec3 next = position.add(moving);
             BlockHitResult wall = player.level().clip(new ClipContext(position, next, ClipContext.Block.COLLIDER,
@@ -195,7 +198,7 @@ public final class KnifeRainSling {
                 return new Flight(tick, stop, GlassKnifePayload.Ending.STUCK, null);
             }
             position = next;
-            moving = KnifeRain.nextVelocity(moving);
+            moving = KnifeRain.nextVelocity(moving, gravity);
         }
         return new Flight(KnifeRain.MOST_FLIGHT_TICKS, position, GlassKnifePayload.Ending.SPENT, null);
     }
