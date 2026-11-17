@@ -364,8 +364,8 @@ public final class GloveUseTracker {
         }
 
         @Override
-        public boolean formsKnives() {
-            return KnivesHoldSender.selectedFormsKnives(player);
+        public boolean throwsFromTheHold() {
+            return KnivesHoldSender.selectedThrowsFromTheHold(player);
         }
 
         @Override
