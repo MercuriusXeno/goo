@@ -4,9 +4,9 @@ import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
-import com.mercuriusxeno.goo.client.ability.HandPassView;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
 import com.mercuriusxeno.goo.client.ability.PalmBlobHop;
+import com.mercuriusxeno.goo.client.ability.SpraySource;
 import com.mercuriusxeno.goo.client.ability.SprayingClient;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
@@ -245,7 +245,7 @@ class GloveSpecialRendererTest {
     }
 
     @Test
-    void aLiftAtTheEasesEndDrawsTheCoreInTheHandsPassWhereTheSprayingSourceShows() {
+    void aLiftAtTheEasesEndDrawsTheCoreInTheHandsPassStraightAboveWhereThePalmBlobRests() {
         try (SprayingClient client = SprayingClient.local(GooTypes.ZOO);
              MockedStatic<GloveBodyModels> models = bodiless()) {
             long eased = SPRAYED + PalmBlobHop.LIFT_TICKS;
@@ -255,11 +255,14 @@ class GloveSpecialRendererTest {
             }
 
             Vec3 lifted = coreDrawnAt(new GloveSpecialRenderer.GloveData(null, GooTypes.ZOO, 0f, 1f, true, true));
+            Vec3 resting = coreDrawnAt(new GloveSpecialRenderer.GloveData(null, GooTypes.ZOO, 0f, 1f, false, true));
 
-            Vec3 shown = HandPassView.toHandPass(SprayingClient.sourceOffTheEye(), client.camera().rotation(),
-                    SprayingClient.WORLD_FOV, new Matrix4f());
-            assertEquals(0, lifted.distanceTo(shown), WITHIN, "the eased blob should draw where the spray source "
-                    + "shows, " + shown + ", drawn at " + lifted);
+            Vec3 off = lifted.subtract(resting);
+            Vec3 up = client.viewUp();
+            assertEquals(SpraySource.RISE_ABOVE_THE_PALM, off.dot(up), WITHIN, "the eased blob should draw the rise "
+                    + "above where the palm blob rests, " + resting + ", drawn at " + lifted);
+            assertEquals(0, off.subtract(up.scale(off.dot(up))).length(), WITHIN, "the eased blob should draw "
+                    + "straight above where the palm blob rests, " + resting + ", drawn at " + lifted);
         }
     }
 

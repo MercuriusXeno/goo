@@ -1,38 +1,57 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.GloveRest;
+import com.mercuriusxeno.goo.client.model.FirstPersonSwing;
 import com.mercuriusxeno.goo.network.KnifeRainSling;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4fc;
+import org.joml.Quaternionfc;
+import org.joml.Vector3f;
+import org.joml.Vector3fc;
+import org.jspecify.annotations.Nullable;
 
 /**
- * Where a Goop or Slick spray's drips appear: a point held still in the
- * caster's view, near and above the glove, a set way ahead of the eye, out
- * to the glove's side and below the eye. It moves and turns with the caster
- * and never bobs or swings with the hand, so the spray keeps one steady
- * source. The local player's source stands in the camera's view; another
- * player's in that player's eye and look as this client draws them.
+ * Where a lifted blob outside the centered abilities and Bore stands, and so
+ * where a Goop or Slick spray's drips appear: a still place in the caster's
+ * view straight above where the glove's palm rests, never bobbing or swinging
+ * with the hand. The local first-person player's stands above the palm the
+ * hand's pass last drew, its bob and swing taken out, so it stays over the
+ * hand at any field of view; every other caster's stands where the default
+ * field of view puts it, above the palm at vanilla's place for the hand.
  * goop-and-slick-spray-emanates-from-the-glove
+ * palm-blob-lifts-as-the-spray-source
  */
 public final class SpraySource {
 
-    /** How far ahead of the eye the source stands, along the look. */
-    static final double AHEAD = GloveRest.AHEAD;
-    /** How far out to the glove's side of the look the source stands. */
-    static final double TO_THE_GLOVE_SIDE = GloveRest.TO_THE_GLOVE_SIDE;
-    /** How far below the look the source stands, a little above the glove's palm. */
-    static final double BELOW = GloveRest.BELOW;
+    /**
+     * Where the first-person glove's palm rests in the view for a glove in
+     * the right hand, no ability posing the hand: ItemInHandRenderer's arm
+     * place (0.56, -0.52, -0.72), then goo_glove.json's first-person display
+     * turn and scale, carrying the resting palm blob's center
+     * (GloveSpecialRenderer.palmCenter) to here. A left-hand glove mirrors it across.
+     */
+    static final Vector3fc RESTING_PALM_IN_VIEW = new Vector3f(0.56f, -0.37104167f, -0.7159375f);
+    /**
+     * How far up the view the lifted blob stands above the resting palm: the
+     * height today's glove rest, 0.15 below the look, stood above that palm
+     * at the default field of view, for the operator to judge at the playtest.
+     */
+    public static final double RISE_ABOVE_THE_PALM = 0.22104167;
     /** A quarter turn, in degrees. */
     private static final float QUARTER_TURN = 90f;
+
+    /** Where the local first-person glove's palm last rested in the view, unbobbed and unswung. */
+    private static volatile @Nullable Vector3fc restingPalmInView;
 
     private SpraySource() {
     }
 
     /**
-     * The source in a view: ahead of the eye along the look, out to the
-     * glove's side and down, each square to the others.
+     * The source in a view at the default field of view: the rise straight
+     * above the palm at vanilla's place for the hand, carried by the view's
+     * look, up and right.
      *
      * @param eye        the viewer's eye
      * @param xRot       the view's pitch in degrees, negative looking up
@@ -41,17 +60,60 @@ public final class SpraySource {
      * @return the source
      */
     static Vec3 inView(Vec3 eye, float xRot, float yRot, boolean gloveRight) {
+        Vector3fc palm = palmAtVanillasPlace(gloveRight);
         Vec3 ahead = Vec3.directionFromRotation(xRot, yRot);
         Vec3 up = Vec3.directionFromRotation(xRot - QUARTER_TURN, yRot);
         Vec3 right = Vec3.directionFromRotation(0f, yRot + QUARTER_TURN);
-        return eye.add(ahead.scale(AHEAD)).add(right.scale(gloveRight ? TO_THE_GLOVE_SIDE : -TO_THE_GLOVE_SIDE))
-                .subtract(up.scale(BELOW));
+        return eye.add(right.scale(palm.x())).add(up.scale(palm.y() + RISE_ABOVE_THE_PALM))
+                .subtract(ahead.scale(palm.z()));
+    }
+
+    private static Vector3fc palmAtVanillasPlace(boolean gloveRight) {
+        return gloveRight ? RESTING_PALM_IN_VIEW
+                : new Vector3f(-RESTING_PALM_IN_VIEW.x(), RESTING_PALM_IN_VIEW.y(), RESTING_PALM_IN_VIEW.z());
     }
 
     /**
-     * The caster's spray source this frame: in the camera's view for the
-     * local player in first person, in the caster's own view otherwise, and
-     * the glove the server sent for a caster this client does not hold.
+     * Records where the local first-person glove's palm rests as the hand's
+     * pass draws it: the swing and the frame's bob taken out, so the blob
+     * above it stands still while the hand swings and bobs.
+     *
+     * @param gloveToHandPass the glove's model onto the hand pass's camera-relative world axes
+     * @param palmInModel     the resting palm blob's center in the glove's model
+     */
+    public static void recordRestingPalm(Matrix4fc gloveToHandPass, Vector3fc palmInModel) {
+        Minecraft mc = Minecraft.getInstance();
+        Vector3f unswung = FirstPersonSwing.unswung(gloveToHandPass).transformPosition(palmInModel, new Vector3f());
+        restingPalmInView = HandPassView.intoTheStillView(new Vec3(unswung),
+                mc.gameRenderer.getMainCamera().rotation(), HandPassView.frameBob(mc));
+    }
+
+    /** Forgets the recorded palm, as a test's end does. */
+    static void forgetRestingPalm() {
+        restingPalmInView = null;
+    }
+
+    /**
+     * The local first-person player's source in the hand pass: the rise up
+     * the view above the resting palm, or above the palm at vanilla's place
+     * before the glove has drawn.
+     *
+     * @param cameraRotation the camera's rotation, from its view onto the world
+     * @param gloveRight     whether the glove is in the right hand
+     * @return the source in the hand pass's camera-relative world axes
+     */
+    static Vec3 aboveTheRestingPalmInHand(Quaternionfc cameraRotation, boolean gloveRight) {
+        Vector3fc recorded = restingPalmInView;
+        Vector3fc palm = recorded == null ? palmAtVanillasPlace(gloveRight) : recorded;
+        return HandPassView.outOfTheStillView(new Vector3f(palm).add(0f, (float) RISE_ABOVE_THE_PALM, 0f),
+                cameraRotation);
+    }
+
+    /**
+     * The caster's spray source this frame: above the resting palm the hand's
+     * pass draws, carried into the level, for the local player in first
+     * person, in the caster's own view at the default field of view
+     * otherwise, and the glove the server sent for a caster this client does not hold.
      *
      * @param casterId    the caster's entity id
      * @param sentGlove   the glove the server sent with the stream's tick
@@ -66,7 +128,8 @@ public final class SpraySource {
         boolean gloveRight = KnifeRainSling.gloveOnTheRight(caster);
         if (caster == mc.player && mc.options.getCameraType().isFirstPerson()) {
             Camera camera = mc.gameRenderer.getMainCamera();
-            return inView(camera.position(), camera.xRot(), camera.yRot(), gloveRight);
+            return camera.position().add(HandPassView.fromHandPass(aboveTheRestingPalmInHand(camera.rotation(),
+                    gloveRight), camera.rotation(), camera.getFov(), HandPassView.frameBob(mc)));
         }
         return inView(caster.getEyePosition(partialTick), caster.getViewXRot(partialTick),
                 caster.getViewYRot(partialTick), gloveRight);

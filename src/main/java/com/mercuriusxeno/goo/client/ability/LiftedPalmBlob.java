@@ -38,9 +38,9 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * The palm blob lifted off the glove while its caster holds any ability: as
  * a stream or a channel runs, or a release ability charges with right click
- * held, the blob hops off the palm to its rest point (BlobRest): the
- * steady point by the glove, or the center line below the crosshair for a
- * centered ability, shrinking from the pancake spread over the palm into a
+ * held, the blob hops off the palm to its rest point (BlobRest): straight
+ * above where the hand rests, the glove rest for Bore, or the center line
+ * below the crosshair for a centered ability, shrinking from the pancake spread over the palm into a
  * smaller cube as it goes, and stands there in the goo type the glove has selected, beating
  * between two sizes below the pancake's while the cast is held. Once the
  * held ticks stop for longer than a stream's gap it comes back down and
@@ -656,15 +656,14 @@ public final class LiftedPalmBlob {
 
     /**
      * Whether a glove is the one the local player holds before the eyes in
-     * first person, whose lifted blob the hand's pass draws.
+     * first person, whose lifted blob the hand's pass draws above its palm.
      *
      * @param glove the glove being drawn
-     * @return true for either hand's stack of the local player in first person
+     * @return true for the local player's glove in first person, the main hand's where both hands hold one
      */
     public static boolean heldInView(ItemStack glove) {
         Minecraft mc = Minecraft.getInstance();
-        return mc.player != null && mc.options.getCameraType().isFirstPerson()
-                && (glove == mc.player.getMainHandItem() || glove == mc.player.getOffhandItem());
+        return mc.player != null && mc.options.getCameraType().isFirstPerson() && glove == gloveOf(mc.player);
     }
 
     /**
