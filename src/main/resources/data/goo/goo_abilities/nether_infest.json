@@ -17,7 +17,7 @@
     "sound": { "id": "minecraft:block.honey_block.slide", "every": 10, "volume": 1.0, "pitch": 1.0, "pitch_spread": 0.1 }
   },
   "behaviors": [
-    { "type": "infest" }
+    { "type": "infest", "map": "goo:decay", "gnaw_ticks": 20, "damage": 2, "deplete_chance": 0.1 }
   ],
   "tags": ["stream"]
 }

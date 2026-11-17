@@ -284,7 +284,7 @@
   "goo.ability.nether.decay.description": "Hold to spray nether motes that gnaw away whatever they touch.",
   "goo.ability.nether.infest": "Infest",
   "goo.ability.nether.infest.cost_mechanics": "Costs %s per block of Infest laid, a fifteenth of it per layer.",
-  "goo.ability.nether.infest.description": "Held stream sprays Infest, a festering nether goo that settles where it lands.",
+  "goo.ability.nether.infest.description": "Held stream sprays Infest, a festering nether goo that gnaws away the blocks it lies on and bites whatever stands in it, healing the undead; each gnaw and bite may wear away a layer.",
   "goo.ability.nether.undead": "Undead",
   "goo.ability.nether.undead.description": "Fast-regenerating nether hearts fill your missing ones, but you count as undead and burn in sunlight.",
   "goo.ability.pulse.extend": "Extend",
