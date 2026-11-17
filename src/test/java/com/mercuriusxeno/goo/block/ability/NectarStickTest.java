@@ -25,6 +25,9 @@ class NectarStickTest {
     /** A walking player's speed, blocks per tick. */
     private static final double WALK = 0.2158;
     private static final double SAME = 1e-9;
+    private static final double FEET = 64.0;
+    /** A player's step height. */
+    private static final double STEP = 0.6;
 
     @Test
     void anEntityTouchingNectarJumpsAndMovesAtTheShippedFactors() {
@@ -69,6 +72,15 @@ class NectarStickTest {
         assertEquals(0, beside.distanceTo(new Vec3(moved, 0, 0)), SAME);
         assertEquals(moved, diagonal.length(), SAME);
         assertEquals(Vec3.ZERO, still);
+    }
+
+    /**
+     * operator UAT 2026-11-17: touching the side of Nectar goo taller than a step counts as Nectar on a wall
+     */
+    @Test
+    void gooRisingPastAStepOverTheFeetCountsAsAWallAndThinGooUnderfootDoesNot() {
+        assertEquals(List.of(true, false), List.of(NectarStick.towersOverStep(FEET + 1.0, FEET, STEP),
+                NectarStick.towersOverStep(FEET + 0.5, FEET, STEP)));
     }
 
     @Test

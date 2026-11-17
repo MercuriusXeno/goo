@@ -52,6 +52,9 @@ public final class NectarTests {
     private static final String DRIP_FEEDS_A_STRUCK_CALF = "nectar_drip_feeds_a_struck_calf";
     private static final String COATS_A_WALL_AND_HOLDS = "nectar_drip_on_a_wall_coats_it_and_holds_what_hangs_there";
     private static final String LEAVING_GIVES_GRAVITY_BACK = "nectar_leaving_a_wall_coat_gives_gravity_back";
+    private static final String SNEAKING_SINKS_DOWN_THE_COAT = "nectar_sneaking_sinks_down_a_wall_coat";
+    private static final String SNEAKING_SINKS_PRESSED_TO_THE_WALL = "nectar_sneaking_sinks_pressed_against_a_wall";
+    private static final String PILLAR_HOLDS_WHAT_PRESSES_IT = "nectar_pillar_holds_what_presses_against_it";
     private static final String WALL_COAT_STAYS = "nectar_on_a_wall_stays_on_it";
     private static final String COATS_A_CLIMBABLE_COLUMN = "nectar_coats_a_wall_column_to_climb";
     private static final String COAT_OVER_FLOOR_GOO_STAYS = "nectar_on_a_wall_over_floor_goo_stays_on_it";
@@ -122,6 +125,24 @@ public final class NectarTests {
     /** The ticks the zombie is watched after it leaves the coat, its gravity back and falling. */
     private static final int LEFT_TICKS = 10;
     private static final String NEVER_STUCK = "A zombie hanging in the coat should wear goo:nectar_stuck";
+    /** The coated wall the sneak test sinks down, three blocks tall over open air. */
+    private static final BlockPos TALL_WALL_FOOT = new BlockPos(2, 3, 2);
+    private static final int TALL_WALL_HEIGHT = 3;
+    /** The ticks the sneak test watches a sneaking zombie sink. */
+    private static final int SNEAK_TICKS = 5;
+    /** The least a sneaking zombie sinks in the watched ticks: half the nerfed climb's five ticks. */
+    private static final double LEAST_SINK = 0.3;
+    /** The stone block a column of Nectar stands on, in a slot walled west, north and south, open east over air. */
+    private static final BlockPos PILLAR_FOOT = new BlockPos(2, 2, 2);
+    private static final int PILLAR_HEIGHT = 3;
+    /** How far east of the pillar's face a zombie pressed against it stands: half its width and a hair. */
+    private static final double PRESSED_TO_THE_PILLAR = 0.3 + 0.01;
+    private static final String FELL_OFF_THE_PILLAR = "A zombie pressed against a pillar of Nectar should hang there,"
+            + " dropped %.2f in %d ticks, the pillar beside it %s";
+    /** How far off the wall a zombie pressed to a one-layer coat stands, its box against the coat's face. */
+    private static final double PRESSED_TO_A_THIN_COAT = 1.0 / 15 + 0.3 + 0.01;
+    private static final String NOT_SINKING = "A sneaking zombie stuck on a coated wall should sink, still stuck %b,"
+            + " sank %.2f in %d ticks";
     private static final String STILL_FLOATING = "A zombie that left the coat should have its gravity back and fall:"
             + " still stuck %b, dropped %.2f in %d ticks";
     private static final String WALL_COAT_RAN = "The wall should keep %d of the %d layers landed on it, the cell"
@@ -151,6 +172,10 @@ public final class NectarTests {
         GooTestFunctions.registerTest(registrar, DRIP_FEEDS_A_STRUCK_CALF, NectarTests::dripFeedsAStruckCalf);
         GooTestFunctions.registerTest(registrar, COATS_A_WALL_AND_HOLDS, NectarTests::coatsAWallAndHoldsWhatHangsThere);
         GooTestFunctions.registerTest(registrar, LEAVING_GIVES_GRAVITY_BACK, NectarTests::leavingAWallCoatGivesGravityBack);
+        GooTestFunctions.registerTest(registrar, SNEAKING_SINKS_DOWN_THE_COAT, NectarTests::sneakingSinksDownAWallCoat);
+        GooTestFunctions.registerTest(registrar, SNEAKING_SINKS_PRESSED_TO_THE_WALL,
+                NectarTests::sneakingSinksPressedAgainstAWall);
+        GooTestFunctions.registerTest(registrar, PILLAR_HOLDS_WHAT_PRESSES_IT, NectarTests::pillarHoldsWhatPressesAgainstIt);
         GooTestFunctions.registerTest(registrar, WALL_COAT_STAYS, NectarTests::wallCoatStaysOnIt);
         GooTestFunctions.registerTest(registrar, COATS_A_CLIMBABLE_COLUMN, NectarTests::coatsAWallColumnToClimb);
         GooTestFunctions.registerTest(registrar, COAT_OVER_FLOOR_GOO_STAYS, NectarTests::coatOverFloorGooStays);
@@ -299,6 +324,113 @@ public final class NectarTests {
                         String.format(STILL_FLOATING, stuck(zombie), dropped, LEFT_TICKS));
                 helper.succeed();
             });
+        });
+    }
+
+    /**
+     * A zombie stuck high on a three-high coated wall over open air sinks
+     * while it sneaks, still stuck to the coat.
+     * operator UAT 2026-11-17: sneaking descends
+     *
+     * @param helper the gametest helper
+     */
+    public static void sneakingSinksDownAWallCoat(GameTestHelper helper) {
+        for (int up = 0; up < TALL_WALL_HEIGHT; up++) {
+            helper.setBlock(TALL_WALL_FOOT.above(up), Blocks.STONE);
+            helper.setBlock(TALL_WALL_FOOT.above(up).east(), Blocks.AIR);
+        }
+        AbilityDefinition nectar = AbilityRegistry.of(helper.getLevel()).getAbility(NECTAR);
+        helper.assertTrue(nectar != null, ABILITY_REQUIRED);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.JELLY);
+        KnownRecipes.teachRequires(caster, nectar);
+        for (int up = 0; up < TALL_WALL_HEIGHT; up++) {
+            LandedDrips.landOnSide(helper, caster, nectar, TALL_WALL_FOOT.above(up), Direction.EAST, ONE_DRIP);
+        }
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        BlockPos top = TALL_WALL_FOOT.above(TALL_WALL_HEIGHT - 1).east();
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, Vec3.atBottomCenterOf(top).add(0, 0.2, 0));
+        helper.runAfterDelay(STUCK_TICKS, () -> {
+            helper.assertTrue(stuck(zombie), NEVER_STUCK);
+            zombie.setShiftKeyDown(true);
+            double sneakFrom = zombie.getY();
+            helper.runAfterDelay(SNEAK_TICKS, () -> {
+                double sank = sneakFrom - zombie.getY();
+                helper.assertTrue(stuck(zombie) && sank >= LEAST_SINK,
+                        String.format(NOT_SINKING, stuck(zombie), sank, SNEAK_TICKS));
+                helper.succeed();
+            });
+        });
+    }
+
+    /**
+     * A zombie pressed against the wall in a thin coat, a thicker coat on
+     * the wall below it, sinks while it sneaks, as a player pressing into the
+     * wall does.
+     * operator UAT 2026-11-17: sneaking descends
+     *
+     * @param helper the gametest helper
+     */
+    public static void sneakingSinksPressedAgainstAWall(GameTestHelper helper) {
+        for (int up = 0; up < TALL_WALL_HEIGHT; up++) {
+            helper.setBlock(TALL_WALL_FOOT.above(up), Blocks.STONE);
+            helper.setBlock(TALL_WALL_FOOT.above(up).east(), Blocks.AIR);
+        }
+        AbilityDefinition nectar = AbilityRegistry.of(helper.getLevel()).getAbility(NECTAR);
+        helper.assertTrue(nectar != null, ABILITY_REQUIRED);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.JELLY);
+        KnownRecipes.teachRequires(caster, nectar);
+        for (int up = 0; up < TALL_WALL_HEIGHT; up++) {
+            int drips = up == TALL_WALL_HEIGHT - 1 ? ONE_DRIP : ONE_WALL_HOLDS;
+            LandedDrips.landOnSide(helper, caster, nectar, TALL_WALL_FOOT.above(up), Direction.EAST, drips);
+        }
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        BlockPos top = TALL_WALL_FOOT.above(TALL_WALL_HEIGHT - 1).east();
+        Vec3 pressed = new Vec3(top.getX() + PRESSED_TO_A_THIN_COAT, top.getY() + 0.2, top.getZ() + 0.5);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, pressed);
+        helper.runAfterDelay(STUCK_TICKS, () -> {
+            helper.assertTrue(stuck(zombie), NEVER_STUCK);
+            zombie.setShiftKeyDown(true);
+            double sneakFrom = zombie.getY();
+            helper.runAfterDelay(SNEAK_TICKS, () -> {
+                double sank = sneakFrom - zombie.getY();
+                helper.assertTrue(stuck(zombie) && sank >= LEAST_SINK,
+                        String.format(NOT_SINKING, stuck(zombie), sank, SNEAK_TICKS) + " pressed at x "
+                                + zombie.getX() + " states " + helper.getBlockState(top) + " / "
+                                + helper.getBlockState(top.below()));
+                helper.succeed();
+            });
+        });
+    }
+
+    /**
+     * A zombie pressed against the open side of a column of whole Nectar
+     * blocks standing in a stone slot, over open air, hangs there: goo
+     * standing taller than a step beside a thing counts as Nectar on a wall.
+     * operator UAT 2026-11-17: touching the side of Nectar goo taller than a step counts as Nectar on a wall
+     *
+     * @param helper the gametest helper
+     */
+    public static void pillarHoldsWhatPressesAgainstIt(GameTestHelper helper) {
+        helper.setBlock(PILLAR_FOOT, Blocks.STONE);
+        for (int up = 1; up <= PILLAR_HEIGHT; up++) {
+            BlockPos goo = PILLAR_FOOT.above(up);
+            helper.setBlock(goo.west(), Blocks.STONE);
+            helper.setBlock(goo.north(), Blocks.STONE);
+            helper.setBlock(goo.south(), Blocks.STONE);
+            helper.setBlock(goo.east(), Blocks.AIR);
+            helper.setBlock(goo, GooBlocks.JELLY_NECTAR.get().defaultBlockState()
+                    .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
+        }
+        helper.setBlock(PILLAR_FOOT.east(), Blocks.AIR);
+        BlockPos beside = PILLAR_FOOT.above(2).east();
+        Vec3 pressed = new Vec3(beside.getX() + PRESSED_TO_THE_PILLAR, beside.getY() + 0.2, beside.getZ() + 0.5);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, pressed);
+        double hungAt = zombie.getY();
+        helper.runAfterDelay(HANG_TICKS, () -> {
+            double dropped = hungAt - zombie.getY();
+            helper.assertTrue(Math.abs(dropped) <= HANG_SLACK, String.format(FELL_OFF_THE_PILLAR, dropped, HANG_TICKS,
+                    helper.getBlockState(PILLAR_FOOT.above(2))));
+            helper.succeed();
         });
     }
 

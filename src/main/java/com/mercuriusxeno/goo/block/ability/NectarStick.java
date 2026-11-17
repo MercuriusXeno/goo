@@ -3,7 +3,9 @@ package com.mercuriusxeno.goo.block.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.NectarGooStep;
 import com.mercuriusxeno.goo.registry.GooAttachments;
+import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -11,7 +13,10 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.CollisionContext;
 
 /**
  * Nectar's nerf, the sticky goo's: a thing touching it, on a wall or on a
@@ -33,6 +38,8 @@ public final class NectarStick {
     private static final long STUCK_TOUCH_TICKS = 1;
     /** The gravity modifier a thing stuck on a Nectar coated wall wears. */
     private static final Identifier STUCK = Identifier.fromNamespaceAndPath(Goo.MODID, "nectar_stuck");
+    /** How far past its sides a thing reaches for Nectar goo to stick to: a hair. */
+    private static final double TOUCH = 0.02;
     /** The share of its gravity taken from a stuck thing: all of it. */
     private static final double NO_GRAVITY = -1.0;
     /**
@@ -144,6 +151,57 @@ public final class NectarStick {
                 nectar.speedFactor()).scale(1 / AIR_DRAG);
         living.setDeltaMovement(along.x, climbVelocity(living.jumping, living.isShiftKeyDown(),
                 wallClimbSpeed(nectar)), along.z);
+    }
+
+    /**
+     * Whether Nectar goo beside a thing counts as a wall it sticks to: goo
+     * rising more than a step over its feet does, so a thin layer it walks
+     * onto never sticks it.
+     * operator UAT 2026-11-17: touching the side of Nectar goo taller than a step counts as Nectar on a wall
+     *
+     * @param gooTop     the top of a block of Nectar goo beside a thing
+     * @param feet       the thing's feet
+     * @param stepHeight the height the thing steps up
+     * @return true where the goo counts as a wall
+     */
+    public static boolean towersOverStep(double gooTop, double feet, double stepHeight) {
+        return gooTop > feet + stepHeight;
+    }
+
+    /**
+     * Sticks a living thing whose sides touch Nectar goo rising more than a
+     * step over its feet, as a coat on a wall sticks it: a column of Nectar
+     * blocks is climbed as a coated wall is.
+     * operator UAT 2026-11-17: touching the side of Nectar goo taller than a step counts as Nectar on a wall
+     *
+     * @param level  the level it stands in
+     * @param living the living thing
+     */
+    public static void stickToTallGoo(Level level, LivingEntity living) {
+        AABB sides = living.getBoundingBox().inflate(TOUCH, 0, TOUCH);
+        for (BlockPos pos : BlockPos.betweenClosed(Mth.floor(sides.minX), Mth.floor(sides.minY), Mth.floor(sides.minZ),
+                Mth.floor(sides.maxX), Mth.floor(sides.maxY), Mth.floor(sides.maxZ))) {
+            BlockState state = level.getBlockState(pos);
+            if (state.getBlock() instanceof NectarCellBlock cell && towersBeside(level, pos, state, sides, living)) {
+                cell.nectarIn(level).ifPresent(nectar -> stick(level, living, nectar));
+                return;
+            }
+        }
+    }
+
+    private static boolean towersBeside(Level level, BlockPos pos, BlockState state, AABB sides, LivingEntity living) {
+        return state.getCollisionShape(level, pos, CollisionContext.empty()).toAabbs().stream()
+                .map(part -> part.move(pos))
+                .anyMatch(part -> part.intersects(sides) && towersOverStep(part.maxY, living.getY(), living.maxUpStep()));
+    }
+
+    /**
+     * @param living a living thing
+     * @return true while it is stuck on Nectar, its gravity off
+     */
+    public static boolean isStuck(LivingEntity living) {
+        AttributeInstance gravity = living.getAttribute(Attributes.GRAVITY);
+        return gravity != null && gravity.hasModifier(STUCK);
     }
 
     /**
