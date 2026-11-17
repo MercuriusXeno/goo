@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.network.BlockTransformPayload;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.registry.GooSounds;
@@ -287,6 +288,23 @@ public interface BlockBreakHost extends StepHost {
         Block.dropResources(state, level, pos, level.getBlockEntity(pos), breaker, new ItemStack(Items.IRON_PICKAXE));
         level.setBlock(pos, level.getFluidState(pos).createLegacyBlock(), Block.UPDATE_ALL);
         level.gameEvent(GameEvent.BLOCK_DESTROY, pos, GameEvent.Context.of(breaker, state));
+    }
+
+    /**
+     * Takes one layer off the world goo cell at a position, dropping the goo
+     * that layer gives back; a cell on its last layer, or a block holding no
+     * layers, breaks quietly with its drops.
+     * vacuum-breaks-a-cell-the-tick-the-wave-reaches-it
+     *
+     * @param pos the cell
+     */
+    default void takeLayer(BlockPos pos) {
+        BlockState state = stateAt(pos);
+        if (state.getBlock() instanceof VolumeCellBlock cell && VolumeCellBlock.layersOf(state) > 1) {
+            cell.takeTopLayer(level(), pos, state);
+        } else {
+            breakBlockQuietly(pos);
+        }
     }
 
     /**
