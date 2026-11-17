@@ -9,8 +9,10 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 /**
  * Server-side handler for a Knives throw: during a standing hold with a knife
  * held, the knife formed last leaves its hover slot along the thrower's look
- * as a projectile, aimed at no mob, and leaves the hold, its price spent.
+ * as a projectile, aimed at no mob, and leaves the hold, its price spent, so
+ * a held left click empties the hold in the reverse of its fill.
  * decision knives-form-on-right-click-and-throw-on-left-click
+ * decision knives-throw-one-per-two-ticks-while-left-click-is-held
  * decision knives-and-dart-function-as-projectiles
  * decision knives-do-not-seek-you-just-throw-them
  */
@@ -28,9 +30,25 @@ public final class KnivesThrowHandler {
     public static void handle(KnivesThrowPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             if (context.player() instanceof ServerPlayer player) {
-                throwKnife(player);
+                leftClick(player, payload.down());
             }
         });
+    }
+
+    /**
+     * Left click goes down or lifts during the player's hold: going down it
+     * throws a knife at once, and the hold throws one every 2 ticks after
+     * until it lifts.
+     * decision knives-throw-one-per-two-ticks-while-left-click-is-held
+     *
+     * @param player the player
+     * @param down   true as left click goes down, false as it lifts
+     */
+    public static void leftClick(ServerPlayer player, boolean down) {
+        GooServerState.of(player.level().getServer()).knifeHolds().leftClick(player, down);
+        if (down) {
+            throwKnife(player);
+        }
     }
 
     /**

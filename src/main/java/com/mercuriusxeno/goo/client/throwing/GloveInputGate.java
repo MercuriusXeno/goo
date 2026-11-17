@@ -82,10 +82,11 @@ public final class GloveInputGate {
         }
 
         /**
-         * Throws the knives a Knives hold has formed at the mobs it painted.
-         * decision knives-form-on-right-click-and-throw-on-left-click
+         * Begins a Knives hold's held throw, a knife as left click goes down
+         * and one every 2 ticks after until it lifts.
+         * decision knives-throw-one-per-two-ticks-while-left-click-is-held
          *
-         * @return true where a knife stood in the fan to throw
+         * @return true where a Knives hold stood to throw from
          */
         default boolean throwKnives() {
             return false;
