@@ -71,13 +71,15 @@ public final class GloveInputGate {
         }
 
         /**
-         * Whether the selected held throw forms Knives' knives in stages
-         * rather than one javelin.
+         * Whether the selected held throw throws from the hold the server
+         * keeps, Knives' knives or Dart's javelins, which stands through each
+         * throw and forms on beneath it.
          * decision knives-form-on-right-click-and-throw-on-left-click
+         * decision dart-throws-one-javelin-per-five-ticks-while-left-click-is-held
          *
-         * @return true for a held throw forming knives
+         * @return true for a held throw stacking on the server's hold
          */
-        default boolean formsKnives() {
+        default boolean throwsFromTheHold() {
             return false;
         }
 
@@ -241,7 +243,7 @@ public final class GloveInputGate {
      * @return true where a javelin was sent
      */
     public boolean throwHeld(PressActions actions) {
-        if (holdsAJavelin(actions) && actions.formsKnives()) {
+        if (holdsAJavelin(actions) && actions.throwsFromTheHold()) {
             return actions.throwKnives();
         }
         // knives-and-dart-function-as-projectiles: Dart's javelin leaves on the held throw Knives' knives leave on

@@ -65,7 +65,7 @@ class GloveInputGateTest {
         }
 
         @Override
-        public boolean formsKnives() {
+        public boolean throwsFromTheHold() {
             return formsKnives;
         }
 

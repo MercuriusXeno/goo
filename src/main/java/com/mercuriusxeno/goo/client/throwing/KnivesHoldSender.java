@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.throwing;
 
+import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
@@ -29,22 +30,28 @@ public final class KnivesHoldSender {
     }
 
     /**
-     * Whether a player's glove selection forms knives on a held press.
+     * Whether a player's selection throws from the hold the server keeps,
+     * Knives' or Dart's.
      *
      * @param player the player
-     * @return true for a held throw whose charge forms knives
+     * @return true for a held throw whose charge stacks
      */
-    public static boolean selectedFormsKnives(Player player) {
+    public static boolean selectedThrowsFromTheHold(Player player) {
         GloveSelection selection = GooCasters.heldSelection(player);
-        return selection != null && stacksOnAHeldPress(selection)
-                && GloveThrowSender.selectedDelivery(selection.abilityId()).formsKnives();
+        return selection != null && throwsFromTheHold(GloveThrowSender.selectedDelivery(selection.abilityId()),
+                GloveThrowSender.selectedBadge(selection.abilityId()));
     }
 
-    // A held throw whose charge stacks what it throws, Knives' or Dart's.
-    private static boolean stacksOnAHeldPress(GloveSelection selection) {
-        Delivery delivery = GloveThrowSender.selectedDelivery(selection.abilityId());
-        return HeldRoute.throwsOnAttack(delivery, GloveThrowSender.selectedBadge(selection.abilityId()))
-                && delivery.charge().stacks();
+    /**
+     * Whether a left click throws from the hold the server keeps, which stays
+     * standing through each throw and forms on beneath it.
+     *
+     * @param delivery the selected ability's delivery
+     * @param badge    the selected ability's badge
+     * @return true where the left click throws from the server's hold
+     */
+    static boolean throwsFromTheHold(Delivery delivery, @Nullable AbilityBadge badge) {
+        return HeldRoute.throwsOnAttack(delivery, badge) && delivery.charge().stacks();
     }
 
     /**
@@ -54,7 +61,7 @@ public final class KnivesHoldSender {
      */
     static void begin(Player player) {
         GloveSelection selection = GooCasters.heldSelection(player);
-        if (selection == null || selection.getGooType() == null || !stacksOnAHeldPress(selection)) {
+        if (selection == null || selection.getGooType() == null || !selectedThrowsFromTheHold(player)) {
             return;
         }
         GloveThrowSender.sendPayload(new KnivesHoldPayload(true, selection.gooTypeId(), selection.abilityId()));
