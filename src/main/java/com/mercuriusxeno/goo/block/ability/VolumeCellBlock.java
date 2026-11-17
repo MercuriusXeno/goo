@@ -1103,7 +1103,7 @@ public class VolumeCellBlock extends Block {
             return Optional.of(() -> level.setBlock(below, melted.get(), UPDATE_ALL));
         }
         Function<Item, Optional<ItemStack>> results = BlockCooking.resultsIn(level);
-        return BlockCooking.heatedIntoAt(level, results, below).apply(raw.getBlock()).map(into ->
+        return BlockCooking.heatedIntoAt(level, molten.melts(), results, below).apply(raw.getBlock()).map(into ->
                 () -> BlockCooking.finishHeatedAt(() -> level, below, raw.getBlock(), into, results));
     }
 

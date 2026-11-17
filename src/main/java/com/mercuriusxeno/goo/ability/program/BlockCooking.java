@@ -56,36 +56,42 @@ public final class BlockCooking {
     }
 
     /**
-     * The block a block in the heat becomes under a level's live recipes,
-     * vanilla's meltables and the evaporation at a position.
+     * The block a block in the heat becomes under Molten's melts, a level's
+     * live recipes, vanilla's meltables and the evaporation at a position.
      *
-     * @param level   the server level
-     * @param results the furnace result of an item, empty where no recipe smelts it
-     * @param at      the position whose evaporation a melt of ice reads
+     * @param level       the server level
+     * @param moltenMelts the block Molten melts a block into, empty where Molten melts nothing of it
+     * @param results     the furnace result of an item, empty where no recipe smelts it
+     * @param at          the position whose evaporation a melt of ice reads
      * @return the block each block becomes, empty where it neither melts nor cooks
      */
     public static Function<Block, Optional<Block>> heatedIntoAt(ServerLevel level,
+                                                                Function<Block, Optional<Block>> moltenMelts,
                                                                 Function<Item, Optional<ItemStack>> results,
                                                                 BlockPos at) {
-        return heatedInto(Meltables.vanilla(), waterEvaporatesAt(level, at),
+        return heatedInto(moltenMelts, Meltables.vanilla(), waterEvaporatesAt(level, at),
                 item -> results.apply(item).map(ItemStack::getItem), Blocks.AIR);
     }
 
     /**
-     * The block a block in the heat becomes: its melt where it melts, its
-     * furnace result otherwise.
+     * The block a block in the heat becomes: Molten's melt where Molten melts
+     * it, its vanilla melt where it melts, its furnace result otherwise.
      * decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold
      * molten-cooks-the-block-below-it-as-flames-cooks-blocks
+     * flames-melts-obsidian-magma-and-iron-core-as-molten-does
      *
+     * @param moltenMelts     the block Molten melts a block into, empty where Molten melts nothing of it
      * @param meltables       the blocks that melt and what they melt into
      * @param waterEvaporates whether the dimension evaporates water
      * @param smelt           the furnace result of an item, empty where no recipe smelts it
      * @param emptied         the block left where a block cooks into an item, air in play
      * @return the block each block becomes, empty where it neither melts nor cooks
      */
-    static Function<Block, Optional<Block>> heatedInto(Meltables meltables, boolean waterEvaporates,
+    static Function<Block, Optional<Block>> heatedInto(Function<Block, Optional<Block>> moltenMelts,
+                                                       Meltables meltables, boolean waterEvaporates,
                                                        Function<Item, Optional<Item>> smelt, Block emptied) {
-        return raw -> meltedBlock(raw, meltables, waterEvaporates).or(() -> cookedBlock(raw, smelt, emptied));
+        return raw -> moltenMelts.apply(raw).or(() -> meltedBlock(raw, meltables, waterEvaporates))
+                .or(() -> cookedBlock(raw, smelt, emptied));
     }
 
     /**

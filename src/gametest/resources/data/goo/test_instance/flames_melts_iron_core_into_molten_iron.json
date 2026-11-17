@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:flames_melts_iron_core_into_molten_iron",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 80,
+  "setup_ticks": 0,
+  "required": true
+}

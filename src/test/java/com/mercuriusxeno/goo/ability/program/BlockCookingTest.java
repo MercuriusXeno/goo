@@ -143,7 +143,7 @@ class BlockCookingTest {
         }
 
         private Optional<Block> heated(Block raw) {
-            return BlockCooking.heatedInto(meltables, false, item -> {
+            return BlockCooking.heatedInto(block -> Optional.empty(), meltables, false, item -> {
                 if (item == cobblestone.asItem()) {
                     return Optional.of(stoneItem);
                 }

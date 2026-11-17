@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageSources;
@@ -13,6 +15,9 @@ import net.minecraft.world.level.block.state.BlockState;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.function.Function;
@@ -105,7 +110,7 @@ class FlamesStepTest {
             when(ice.asItem()).thenReturn(mock(Item.class));
             when(sand.asItem()).thenReturn(sandItem);
             when(glassItem.getBlock()).thenReturn(glass);
-            heats = BlockCooking.heatedInto(meltables, false,
+            heats = BlockCooking.heatedInto(raw -> Optional.empty(), meltables, false,
                     item -> item == sandItem ? Optional.of(glassItem) : Optional.empty(), air);
         }
 
@@ -142,4 +147,59 @@ class FlamesStepTest {
         }
     }
 
+    /**
+     * Flames heats every block Molten's melts_into names into the block it names as Molten melts it, read from the
+     * map itself, so a map with another pair melts that pair too
+     * (decision flames-melts-obsidian-magma-and-iron-core-as-molten-does).
+     */
+    @Nested
+    class MeltsAsMoltenDoes {
+
+        private final Map<Identifier, Block> blocks = new HashMap<>();
+        private final BlockCooking.Meltables meltables = new BlockCooking.Meltables(mock(Block.class),
+                mock(Block.class), mock(Block.class), mock(Block.class), mock(Block.class));
+
+        private Block blockOf(Identifier id) {
+            return blocks.computeIfAbsent(id, unused -> {
+                Block block = mock(Block.class);
+                when(block.asItem()).thenReturn(mock(Item.class));
+                return block;
+            });
+        }
+
+        private Identifier idOf(Block block) {
+            return blocks.entrySet().stream().filter(entry -> entry.getValue() == block).map(Map.Entry::getKey)
+                    .findFirst().orElseThrow();
+        }
+
+        private Function<Block, Optional<Block>> flamesHeatsUnder(Map<Identifier, List<String>> meltsInto) {
+            Function<Block, Optional<Block>> moltenMelts = MoltenStep.meltsOf(meltsInto, this::idOf,
+                    (block, tag) -> false, Map.of(), id -> Optional.of(blockOf(id)));
+            return BlockCooking.heatedInto(moltenMelts, meltables, false, item -> Optional.empty(),
+                    meltables.air());
+        }
+
+        private void assertHeatsEveryPair(Map<Identifier, List<String>> meltsInto) {
+            Function<Block, Optional<Block>> heats = flamesHeatsUnder(meltsInto);
+            meltsInto.forEach((key, named) -> named.forEach(raw -> assertEquals(
+                    Optional.of(blockOf(key)), heats.apply(blockOf(Identifier.parse(raw))), raw)));
+        }
+
+        @Test
+        void flamesMeltsEveryBlockTheShippedMoltenMeltsIntoTheSameBlock() {
+            Map<Identifier, List<String>> shipped =
+                    MoltenStep.in(AbilityJson.decode("blaze_molten").behaviors()).orElseThrow().meltsInto();
+
+            assertHeatsEveryPair(shipped);
+        }
+
+        @Test
+        void flamesMeltsAPairAddedToMoltensMap() {
+            Map<Identifier, List<String>> withAPair = new HashMap<>(
+                    MoltenStep.in(AbilityJson.decode("blaze_molten").behaviors()).orElseThrow().meltsInto());
+            withAPair.put(Identifier.parse("pack:hot_slag"), List.of("pack:slag"));
+
+            assertHeatsEveryPair(withAPair);
+        }
+    }
 }
