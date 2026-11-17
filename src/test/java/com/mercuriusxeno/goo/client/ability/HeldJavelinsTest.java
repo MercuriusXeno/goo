@@ -52,7 +52,7 @@ class HeldJavelinsTest {
     @Test
     void eachJavelinIsThrownFromTheSlotItHoversAt() {
         Vec3 eye = new Vec3(4.5, 66.62, -1.5);
-        Vec3 cube = StackHover.cubeCenterInView(eye, PITCH, YAW, true, true);
+        Vec3 cube = StackHover.cubeCenterInView(eye, PITCH, YAW, true);
         for (int held = 1; held <= StackHover.JAVELINS; held++) {
             HeldJavelins.formed(CASTER, held, held);
             HeldJavelins.formed(CASTER, held, held + 1);

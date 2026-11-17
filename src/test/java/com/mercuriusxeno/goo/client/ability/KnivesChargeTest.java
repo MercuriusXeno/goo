@@ -36,16 +36,12 @@ class KnivesChargeTest {
     class StandsAtOnePlaceOnTheServerAndTheClient {
 
         @Test
-        void theCubeCenterStackHoverAnswersIsTheRestANonCenteredBlobLiftsTo() {
+        void theCubeCenterStackHoverAnswersIsTheRestAStackingBlobLiftsTo() {
             for (boolean gloveRight : new boolean[] {true, false}) {
                 assertNear(BlobRest.inView(SprayingClient.EYE, SprayingClient.PITCH, SprayingClient.YAW, gloveRight,
                                 BlobRest.Rest.OVER_THE_PALM),
                         StackHover.cubeCenterInView(SprayingClient.EYE, SprayingClient.PITCH, SprayingClient.YAW,
-                                gloveRight, false), "the server's knife cube center, glove right " + gloveRight + ",");
-                assertNear(BlobRest.inView(SprayingClient.EYE, SprayingClient.PITCH, SprayingClient.YAW, gloveRight,
-                                BlobRest.Rest.ABOVE_THE_HAND),
-                        StackHover.cubeCenterInView(SprayingClient.EYE, SprayingClient.PITCH, SprayingClient.YAW,
-                                gloveRight, true), "the server's javelin cube center, glove right " + gloveRight + ",");
+                                gloveRight), "the server's cube center, glove right " + gloveRight + ",");
             }
         }
 
@@ -62,7 +58,7 @@ class KnivesChargeTest {
                         BlobRest.Rest.OVER_THE_PALM);
                 assertNear(rest, place, "the cube");
                 assertNear(StackHover.cubeCenterInView(SprayingClient.EYE, SprayingClient.PITCH, SprayingClient.YAW,
-                        true, false), place, "the cube");
+                        true), place, "the cube");
             }
         }
     }

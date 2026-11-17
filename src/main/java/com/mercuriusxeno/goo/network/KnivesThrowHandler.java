@@ -73,7 +73,7 @@ public final class KnivesThrowHandler {
                 return;
             }
             int count = ThrownKnife.thrownAtOnce(inTheHold, delivery.stacksJavelins());
-            Vec3 crosshair = ThrownKnife.crosshairPointOf(player, 1f);
+            Vec3 crosshair = ThrownKnife.aimPointOf(player, 1f);
             for (int leaving = 0; leaving < count; leaving++) {
                 Vec3 slot = ThrownKnife.launchPointOf(player.getEyePosition(), player.getViewXRot(1f),
                         player.getViewYRot(1f), GooCasters.casterOnTheRight(player), inTheHold - 1 - leaving,

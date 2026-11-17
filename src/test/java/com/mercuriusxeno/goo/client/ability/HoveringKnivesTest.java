@@ -61,7 +61,7 @@ class HoveringKnivesTest {
     @Test
     void eachKnifeIsThrownFromTheSlotItHoversAt() {
         Vec3 eye = new Vec3(4.5, 66.62, -1.5);
-        Vec3 cube = StackHover.cubeCenterInView(eye, PITCH, YAW, true, false);
+        Vec3 cube = StackHover.cubeCenterInView(eye, PITCH, YAW, true);
         for (int held = 1; held <= 10; held++) {
             HoveringKnives.formed(CASTER, held, held);
             HoveringKnives.formed(CASTER, held, held + 1);

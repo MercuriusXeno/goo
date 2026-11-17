@@ -253,8 +253,8 @@ public final class HoveringKnives {
                                 Vec3 camera) {
         float xRot = caster.getViewXRot(partial);
         float yRot = caster.getViewYRot(partial);
-        Vec3 cube = StackAnchor.cubeOf(caster, partial, false);
-        Vec3 crosshair = ThrownKnife.crosshairPointOf(caster, partial);
+        Vec3 cube = StackAnchor.cubeOf(caster, partial);
+        Vec3 crosshair = ThrownKnife.aimPointOf(caster, partial);
         List<Vec3> butts = new ArrayList<>();
         List<Vec3> middles = new ArrayList<>();
         for (int index = 0; index < fan.count(); index++) {

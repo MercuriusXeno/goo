@@ -21,6 +21,8 @@ final class ThrowAim {
     private static final float LOOK_DOWN_MOST = 60f;
     private static final int AIM_HALVINGS = 40;
     private static final int MOST_AIM_TICKS = 40;
+    /** Turns of the look toward the target from the slot the throw leaves from, each closing the gap. */
+    private static final int AIM_TURNS = 6;
     private static final CoatRay.BlockClip OPEN_AIR = (from, to) -> Optional.empty();
     /** A knife's speed, which a javelin's tops (crystal_knives.json, metal_dart.json). */
     private static final double KNIFE_SPEED = 1.5;
@@ -43,9 +45,30 @@ final class ThrowAim {
     static void aimAt(ServerPlayer caster, Vec3 target, int held, double speed) {
         Stack stack = new Stack(held, speed > KNIFE_SPEED, GooCasters.casterOnTheRight(caster));
         float yaw = yawToward(caster.getEyePosition(), target);
-        // the throw heads from its slot at the crosshair's point, so the crosshair turns onto the target
-        float pitch = pitchThrough(caster, yaw, stack, speed, target);
+        float pitch = 0f;
+        // the throw heads from its slot beside the eye at a point far straight ahead, so the look turns until that
+        // path runs over the target, each turn closing the gap
+        for (int turn = 0; turn < AIM_TURNS; turn++) {
+            pitch = pitchThrough(caster, yaw, stack, speed, target);
+            yaw += yawToward(launchOf(caster, pitch, yaw, stack), target) - headingYawOf(caster, pitch, yaw, stack);
+        }
+        pitch = pitchThrough(caster, yaw, stack, speed, target);
         look(caster, pitch, yaw);
+    }
+
+    // Where the throw leaves at a look: the point its slot draws from.
+    private static Vec3 launchOf(ServerPlayer caster, float pitch, float yaw, Stack stack) {
+        look(caster, pitch, yaw);
+        Vec3 slot = ThrownKnife.launchPointOf(caster.getEyePosition(), pitch, yaw, stack.gloveRight(), stack.held(),
+                stack.javelins());
+        return ThrownKnife.drawnFromOf(slot, ThrownKnife.headingFrom(slot, ThrownKnife.aimPointOf(caster, 1f)),
+                stack.javelins(), 1f);
+    }
+
+    // The yaw the throw heads along across the ground at a look.
+    private static float headingYawOf(ServerPlayer caster, float pitch, float yaw, Stack stack) {
+        Vec3 launch = launchOf(caster, pitch, yaw, stack);
+        return yawToward(launch, ThrownKnife.aimPointOf(caster, 1f));
     }
 
     private static void look(ServerPlayer caster, float pitch, float yaw) {
@@ -83,7 +106,7 @@ final class ThrowAim {
         look(caster, pitch, yaw);
         Vec3 slot = ThrownKnife.launchPointOf(caster.getEyePosition(), pitch, yaw, stack.gloveRight(), stack.held(),
                 stack.javelins());
-        Vec3 crosshair = ThrownKnife.crosshairPointOf(caster, 1f);
+        Vec3 crosshair = ThrownKnife.aimPointOf(caster, 1f);
         Vec3 position = ThrownKnife.drawnFromOf(slot, ThrownKnife.headingFrom(slot, crosshair), stack.javelins(), 1f);
         Vec3 across = new Vec3(target.x - position.x, 0, target.z - position.z);
         Vec3 ground = across.normalize();

@@ -219,8 +219,8 @@ public final class HeldJavelins {
                                   double now, float partial, Vec3 camera) {
         float xRot = caster.getViewXRot(partial);
         float yRot = caster.getViewYRot(partial);
-        Vec3 cube = StackAnchor.cubeOf(caster, partial, true);
-        Vec3 crosshair = ThrownKnife.crosshairPointOf(caster, partial);
+        Vec3 cube = StackAnchor.cubeOf(caster, partial);
+        Vec3 crosshair = ThrownKnife.aimPointOf(caster, partial);
         double age = now - stack.changedAt();
         for (int index = 0; index < stack.count(); index++) {
             Vec3 tail = javelinAt(stack, index, cube, xRot, yRot, age);

@@ -42,7 +42,7 @@ public final class BlobRest {
         CENTER_LINE,
         /** At the glove rest, for Bore, whose drill extends from that hand. */
         BY_THE_GLOVE,
-        /** Just over the palm, for Knives, whose knives rise from the hand and point up at the crosshair. */
+        /** Just over the palm, for Knives and Dart, whose stacks stand over the hand. */
         OVER_THE_PALM,
         /** Straight above where the hand rests, for every other ability. */
         ABOVE_THE_HAND;
@@ -60,7 +60,7 @@ public final class BlobRest {
             if (ability.hasTag(AbilityTags.CENTERED)) {
                 return CENTER_LINE;
             }
-            if (ability.delivery() != null && ability.delivery().formsKnives()) {
+            if (ability.delivery() != null && ability.delivery().charge().stacks()) {
                 return OVER_THE_PALM;
             }
             // decision bore-blob-lifts-by-the-glove-and-the-drill-extends-from-that-hand
