@@ -36,12 +36,14 @@ import org.jspecify.annotations.Nullable;
  * not at all, fire damage to a thing that is not fire immune is multiplied
  * while they hold, any damage it takes ends every vine and eats a layer of
  * the cell that last gave it vines, and they release when their time runs
- * out, falling away before they go.
+ * out, falling away before they go. A thing under Barkskin takes no vines,
+ * and its held vines end as Barkskin begins.
  * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
  * vines-root-is-volume-based-one-to-five-vines-by-layers
  * vines-roots-last-three-seconds-plus-one-per-stack-and-each-vine-refreshes
  * vines-deal-no-thorn-damage-and-attacking-the-mob-frees-it
  * entangled-mob-taking-damage-eats-a-layer-of-vines-goo
+ * barkskin-makes-you-immune-to-vines
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class RootEvents {
@@ -63,14 +65,15 @@ public final class RootEvents {
 
     /**
      * Entangles a living thing whose center crosses a Vines cell: the cell
-     * gives it vines by its layers, with the rustle of vines taking hold.
+     * gives it vines by its layers, with the rustle of vines taking hold; a
+     * thing under Barkskin takes none.
+     * barkskin-makes-you-immune-to-vines
      *
      * @param entity the thing touching the cell
      * @param touch  what the cell gives
      */
     public static void entangle(Entity entity, Rooted.Touch touch) {
-        if (entity.level().isClientSide() || !(entity instanceof LivingEntity living)
-                || !over(touch.cell(), living.position())) {
+        if (!(entity instanceof LivingEntity living) || !takesVines(living, touch)) {
             return;
         }
         Rooted standing = living.getData(GooAttachments.ROOTED);
@@ -80,6 +83,20 @@ public final class RootEvents {
         }
         living.setData(GooAttachments.ROOTED, after);
         rustle(living, SoundEvents.VINE_PLACE, LATCH_VOLUME, LATCH_PITCH);
+    }
+
+    /**
+     * Whether a living thing touching a Vines cell takes its vines: on the
+     * server, its center over the cell, and Barkskin not standing on it.
+     * barkskin-makes-you-immune-to-vines
+     *
+     * @param living the thing touching the cell
+     * @param touch  what the cell gives
+     * @return true where the cell gives it vines
+     */
+    private static boolean takesVines(LivingEntity living, Rooted.Touch touch) {
+        return !living.level().isClientSide() && over(touch.cell(), living.position())
+                && !VineImmunity.spares(living);
     }
 
     /**
@@ -95,9 +112,8 @@ public final class RootEvents {
     }
 
     /**
-     * Slows each held thing, releases one whose hold has run
-     * out, and lets the vines go once they have fallen away and the thing
-     * has left the cell that last gave it vines.
+     * Slows each held thing, and lets go of one whose hold has run out or on
+     * whom Barkskin has begun.
      *
      * @param event the entity tick event
      */
@@ -110,9 +126,21 @@ public final class RootEvents {
         Rooted rooted = living.getData(GooAttachments.ROOTED);
         long now = living.level().getGameTime();
         slowBy(living, rooted.speedAt(now));
-        if (rooted.holds(now)) {
-            return;
+        if (!rooted.holds(now) || VineImmunity.spares(living)) {
+            letGo(living, rooted, now);
         }
+    }
+
+    /**
+     * Releases vines still held, and lets released vines go once they have
+     * fallen away and the thing has left the cell that last gave it vines,
+     * so it is not rooted again where it stands.
+     *
+     * @param living the thing the vines stand on
+     * @param rooted its vines
+     * @param now    the game time
+     */
+    private static void letGo(LivingEntity living, Rooted rooted, long now) {
         if (rooted.vines() > 0) {
             release(living, rooted.releasedAt(now));
         } else if (rooted.fadedBy(now) && !over(rooted.lastCell(), living.position())) {
