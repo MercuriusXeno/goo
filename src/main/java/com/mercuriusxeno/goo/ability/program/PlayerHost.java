@@ -1,16 +1,16 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.astral.AstralLunar;
 import com.mercuriusxeno.goo.ability.end.EndDestination;
 import com.mercuriusxeno.goo.ability.end.EndGatePassage;
 import com.mercuriusxeno.goo.ability.end.EndWayBack;
-import com.mercuriusxeno.goo.ability.gate.AstralGate;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.ability.zone.ConjuredDoors;
 import com.mercuriusxeno.goo.ability.zone.ZoneRooms;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.HoldMarks;
-import com.mercuriusxeno.goo.network.KnifeRainSling;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
@@ -45,7 +46,7 @@ import java.util.function.Consumer;
  */
 public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<ChannelAim> channelAim, float charge,
                          PlacementPrice placementPrice)
-        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, FrostHost, ZoneHost, AstralGateHost,
+        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, FrostHost, ZoneHost, AstralLunarHost,
         EndHost {
 
     /** The share of the player's height Nova emanates from. */
@@ -138,6 +139,15 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
     }
 
     /**
+     * The player whose stream feeds a goo cell is the cell's placer.
+     * standing-goo-thing-credits-whoever-placed-it
+     */
+    @Override
+    public UUID placingPlayer() {
+        return player.getUUID();
+    }
+
+    /**
      * Sets the player moving and clears the fall it has built up, so a
      * propelled player is not killed by the landing.
      *
@@ -199,11 +209,6 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
     }
 
     @Override
-    public void liftEntitiesInColumn(double radius, double height, double speed) {
-        asEntity().liftEntitiesInColumn(radius, height, speed);
-    }
-
-    @Override
     public void rideShaftAbove(int cap, double rise, double sink) {
         asEntity().rideShaftAbove(cap, rise, sink);
     }
@@ -225,7 +230,7 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
 
     @Override
     public boolean gloveOnTheRight() {
-        return KnifeRainSling.gloveOnTheRight(player);
+        return GooCasters.casterOnTheRight(player);
     }
 
     @Override
@@ -331,14 +336,18 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
         }
     }
 
-    /** Fixes the player's gaze on the moon or the blue star (decisions
-     * gate-fixates-your-view-on-the-moon-until-it-takes-you, gate-on-the-blue-star-returns-you-exactly-where-you-left). */
+    /** Fixes the player's gaze on the moon or the blue star on a press's first held tick and keeps the pull on each
+     * tick after (decisions gate-fixates-your-view-on-the-moon-until-it-takes-you,
+     * gate-on-the-blue-star-returns-you-exactly-where-you-left,
+     * holding-right-click-pulls-the-moon-and-early-release-cancels). */
     @Override
     public void fixateOnTheSky(int fixation, int cost) {
-        if (!AstralGate.findsTheSky(player)) {
-            AstralGate.refuse(player);
-        } else if (GooSourceScanner.hasEnough(player, GooTypes.ASTRAL, cost) && AstralGate.begin(player, fixation)) {
-            GooSourceScanner.deplete(player, GooTypes.ASTRAL, cost);
+        if (channelAim.map(ChannelAim::held).orElse(1) > 1) {
+            AstralLunar.keepHeld(player);
+        } else if (!AstralLunar.findsTheSky(player)) {
+            AstralLunar.refuse(player);
+        } else {
+            AstralLunar.begin(player, fixation, cost);
         }
     }
 

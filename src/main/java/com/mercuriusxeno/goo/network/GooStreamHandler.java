@@ -117,7 +117,7 @@ public final class GooStreamHandler {
      */
     public static void streamTick(ServerPlayer player, GooStreamPayload payload) {
         ResourceKey<GooTypeDefinition> gooType = GooTypes.known(payload.gooTypeId());
-        if (gooType == null || !GooThrowHandler.validateGlove(player)) {
+        if (gooType == null || !GooThrowHandler.validateCaster(player, gooType)) {
             return;
         }
         AbilityDefinition ability = heldAbility(player, payload, gooType);
@@ -455,8 +455,8 @@ public final class GooStreamHandler {
         }
         ServerLevel level = player.level();
         return DripArc.flyToItsEnd(apex, DripArc.launch(axis, delivery.coneDegrees(), CoatRay.coneFan().getFirst(),
-                exitSpeedOf(player, delivery)), CoatRay.clipping(level), DripFlights.airspaceOf(level))
-                .position();
+                exitSpeedOf(player, delivery)), new DripArc.Flight(CoatRay.clipping(level), DripArc.NO_LIVING,
+                DripFlights.airspaceOf(level), DripArc.gravityIn(level.dimension()))).position();
     }
 
 

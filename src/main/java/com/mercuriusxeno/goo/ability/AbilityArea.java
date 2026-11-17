@@ -11,17 +11,14 @@ import org.jspecify.annotations.NonNull;
 /**
  * The area an ability affects, which the glove draws at the aim point while
  * right click is held, in place of chain marker overlays: a sphere around the
- * point, a line from the hand to it, a cone from the hand toward it, or a
- * column standing on the aimed face (decision updraft-blob-stands-a-column-of-wind).
+ * point, a line from the hand to it, or a cone from the hand toward it.
  * right-click-held-previews-release-throws
  *
  * @param shape the area's shape
- * @param size  the sphere's radius, the cone's length or the column's height, in blocks; a line runs from the
- *              hand to the point
+ * @param size  the sphere's radius or the cone's length, in blocks; a line runs from the hand to the point
  * @param angle the cone's half-angle in degrees, 0 for every other shape
- * @param width the column's half width in blocks, 0 for every other shape
  */
-public record AbilityArea(Shape shape, double size, double angle, double width) {
+public record AbilityArea(Shape shape, double size, double angle) {
 
     /** An ability with no area, which shows the reticule alone. */
     public static final AbilityArea NONE = new AbilityArea(Shape.NONE, 0, 0);
@@ -29,14 +26,12 @@ public record AbilityArea(Shape shape, double size, double angle, double width) 
     private static final String FIELD_SHAPE = "shape";
     private static final String FIELD_SIZE = "size";
     private static final String FIELD_ANGLE = "angle";
-    private static final String FIELD_WIDTH = "width";
 
     /** Datapack codec for an ability JSON's area block. */
     public static final Codec<AbilityArea> CODEC = RecordCodecBuilder.create(inst -> inst.group(
             Shape.CODEC.fieldOf(FIELD_SHAPE).forGetter(AbilityArea::shape),
             Codec.DOUBLE.optionalFieldOf(FIELD_SIZE, 0.0).forGetter(AbilityArea::size),
-            Codec.DOUBLE.optionalFieldOf(FIELD_ANGLE, 0.0).forGetter(AbilityArea::angle),
-            Codec.DOUBLE.optionalFieldOf(FIELD_WIDTH, 0.0).forGetter(AbilityArea::width)
+            Codec.DOUBLE.optionalFieldOf(FIELD_ANGLE, 0.0).forGetter(AbilityArea::angle)
     ).apply(inst, AbilityArea::new));
 
     /** Network codec, so the client draws the area from the synced ability. */
@@ -44,19 +39,7 @@ public record AbilityArea(Shape shape, double size, double angle, double width) 
             Shape.STREAM_CODEC, AbilityArea::shape,
             ByteBufCodecs.DOUBLE, AbilityArea::size,
             ByteBufCodecs.DOUBLE, AbilityArea::angle,
-            ByteBufCodecs.DOUBLE, AbilityArea::width,
             AbilityArea::new);
-
-    /**
-     * An area with no width: every shape but the column.
-     *
-     * @param shape the area's shape
-     * @param size  the sphere's radius or the cone's length, in blocks
-     * @param angle the cone's half-angle in degrees, 0 for every other shape
-     */
-    public AbilityArea(Shape shape, double size, double angle) {
-        this(shape, size, angle, 0);
-    }
 
     /** The shapes an area takes. */
     public enum Shape implements StringRepresentable {
@@ -67,9 +50,7 @@ public record AbilityArea(Shape shape, double size, double angle, double width) 
         /** A line from the hand to the aim point. */
         LINE("line"),
         /** A cone from the hand toward the aim point. */
-        CONE("cone"),
-        /** A column standing on the aimed face, its height the size and its half width the width. */
-        COLUMN("column");
+        CONE("cone");
 
         /** Datapack codec, reading the shape by its word. */
         public static final Codec<Shape> CODEC = StringRepresentable.fromEnum(Shape::values);

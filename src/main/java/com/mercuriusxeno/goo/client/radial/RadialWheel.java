@@ -86,6 +86,24 @@ public final class RadialWheel {
     }
 
     /**
+     * The types a caster may cast, in list order: every type for a glove,
+     * the held goo's alone for raw goo held bare handed, none with neither.
+     * decision raw-goo-items-work-bare-handed-for-the-held-type
+     *
+     * @param order      every type in list order
+     * @param gloveHeld  whether the player's caster is a glove
+     * @param bareHanded the type of the raw goo held bare handed, or null for none
+     * @param <T>        the type's key
+     * @return the castable types
+     */
+    static <T> List<T> castableTypes(List<T> order, boolean gloveHeld, @Nullable T bareHanded) {
+        if (gloveHeld) {
+            return order;
+        }
+        return bareHanded == null ? List.of() : order.stream().filter(bareHanded::equals).toList();
+    }
+
+    /**
      * The types the wheel shows, in list order: each offering at least one
      * ability, locked or not, and held above zero.
      * decision wheel-shows-only-held-types-with-abilities

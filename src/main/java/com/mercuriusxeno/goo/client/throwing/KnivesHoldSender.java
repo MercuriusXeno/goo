@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.client.ability.HoveringKnives;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.network.KnivesHoldPayload;
 import com.mercuriusxeno.goo.network.KnivesThrowPayload;
 import net.minecraft.world.entity.Entity;
@@ -39,7 +40,7 @@ public final class KnivesHoldSender {
      * @return true for a held throw whose charge forms knives
      */
     public static boolean selectedFormsKnives(Player player) {
-        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        GloveSelection selection = GooCasters.heldSelection(player);
         return selection != null && formsKnives(selection);
     }
 
@@ -55,7 +56,7 @@ public final class KnivesHoldSender {
      * @param player the local player
      */
     static void begin(Player player) {
-        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        GloveSelection selection = GooCasters.heldSelection(player);
         if (selection == null || selection.getGooType() == null || !formsKnives(selection)) {
             return;
         }

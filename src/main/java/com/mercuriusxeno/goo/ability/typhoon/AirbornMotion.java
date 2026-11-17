@@ -57,7 +57,7 @@ public final class AirbornMotion {
      * @param yaw   the yaw in degrees
      * @return the horizontal direction, unnormalized
      */
-    static Vec3 heading(Vec3 input, float yaw) {
+    public static Vec3 heading(Vec3 input, float yaw) {
         double radians = Math.toRadians(yaw);
         double sin = Math.sin(radians);
         double cos = Math.cos(radians);

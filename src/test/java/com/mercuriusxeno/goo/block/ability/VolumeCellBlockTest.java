@@ -8,11 +8,19 @@ import com.mercuriusxeno.goo.block.CompiledStateDefinition;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.type.GooTypes;
+import com.mercuriusxeno.goo.throwing.DripFall;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.ParameterizedTest;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -28,7 +36,9 @@ import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -57,6 +67,56 @@ class VolumeCellBlockTest {
     class Faces {
 
         private final VolumeCellBlock slime = mock(VolumeCellBlock.class, CALLS_REAL_METHODS);
+        private static final BlockPos AT = new BlockPos(0, 64, 0);
+
+        /**
+         * The sloped top is drawing only: a block of 12 collides as the box
+         * twelve fifteenths of a block tall across the whole block, with a
+         * block of 6 beside it and alone
+         * (decision goo-block-top-slopes-to-the-average-with-the-adjoining-block).
+         */
+        @Test
+        void aBlocksCollisionStaysTheFlatBoxAtItsVolume() {
+            BlockState twelve = mock(BlockState.class);
+            when(twelve.getValue(VolumeCellBlock.LAYERS)).thenReturn(12);
+            BlockState six = mock(BlockState.class);
+            when(six.is(slime)).thenReturn(true);
+            when(six.getValue(VolumeCellBlock.LAYERS)).thenReturn(6);
+            BlockGetter beside = mock(BlockGetter.class);
+            when(beside.getBlockState(any())).thenReturn(mock(BlockState.class));
+            when(beside.getBlockState(AT.east())).thenReturn(six);
+            BlockGetter alone = mock(BlockGetter.class);
+            when(alone.getBlockState(any())).thenReturn(mock(BlockState.class));
+
+            doReturn(true).when(slime).onAFloor(any(), any());
+
+            for (BlockGetter level : List.of(beside, alone)) {
+                AABB box = slime.getCollisionShape(twelve, level, AT, CollisionContext.empty()).bounds();
+                assertEquals(new AABB(0, 0, 0, 1, 12 / 15.0, 1), box);
+            }
+        }
+
+        /**
+         * Goo is no wall: a full block of goo has a sturdy face, yet goo
+         * clings to it no more than to air, so no goo hangs beside other goo
+         * over a void; a stone block's face holds it.
+         * drip-striking-a-side-sticks-or-runs-by-adhesion
+         */
+        @Test
+        void gooClingsToNoGooButToAStoneFace() {
+            BlockState fullGoo = mock(BlockState.class);
+            when(fullGoo.getBlock()).thenReturn(mock(VolumeCellBlock.class));
+            when(fullGoo.isFaceSturdy(any(), any(), any())).thenReturn(true);
+            BlockState stone = mock(BlockState.class);
+            when(stone.isFaceSturdy(any(), any(), any())).thenReturn(true);
+            BlockGetter besideGoo = mock(BlockGetter.class);
+            when(besideGoo.getBlockState(AT.east())).thenReturn(fullGoo);
+            BlockGetter besideStone = mock(BlockGetter.class);
+            when(besideStone.getBlockState(AT.east())).thenReturn(stone);
+
+            assertFalse(VolumeCellBlock.clingsTo(besideGoo, AT, Direction.EAST), "goo clings to a full block of goo");
+            assertTrue(VolumeCellBlock.clingsTo(besideStone, AT, Direction.EAST), "goo lets go of a stone face");
+        }
 
         @Test
         void aCellContinuesIntoACellOfItsGoo() {
@@ -132,18 +192,170 @@ class VolumeCellBlockTest {
     @Nested
     class PlainBlockState {
 
+        /**
+         * The state holds a volume of 1 to 15 layers and each of four sides bare,
+         * attached or runny; no state holds a volume of 0
+         * (decision goo-cell-holds-a-fill-and-a-state-per-side).
+         */
         @Test
-        void theStateHoldsFifteenLayerCountsAndASideFlagEach() {
-            List<String> flag = List.of("true", "false");
-            List<String> layerCounts = IntStream.rangeClosed(1, FIFTEEN).mapToObj(Integer::toString).toList();
+        void theStateHoldsAVolumeAndAStatePerSide() {
+            List<String> side = List.of("bare", "attached", "runny");
+            List<String> fills = IntStream.rangeClosed(1, FIFTEEN).mapToObj(Integer::toString).toList();
 
-            assertEquals(Map.of("north", flag, "east", flag, "south", flag, "west", flag, "layers", layerCounts),
-                    CompiledStateDefinition.of(VolumeCellBlock.class));
+            assertEquals(Map.of("north", side, "east", side, "south", side, "west", side, "ceiling",
+                    List.of("true", "false"), "layers", fills), CompiledStateDefinition.of(VolumeCellBlock.class));
         }
 
         @Test
         void theCellHoldsNoBlockEntity() {
             assertFalse(EntityBlock.class.isAssignableFrom(VolumeCellBlock.class));
+        }
+    }
+
+    /**
+     * A block on a floor stands; a block with no floor stands on the walls it
+     * is attached to, each with a face to hold it, and while a runny layer
+     * passes through it (decision goo-cell-holds-a-fill-and-a-state-per-side).
+     */
+    @Nested
+    class Standing {
+
+        @Test
+        void aBlockOnAFloorStands() {
+            assertTrue(VolumeCellBlock.stands(true, List.of(), false));
+            assertTrue(VolumeCellBlock.stands(true, List.of(false), false));
+        }
+
+        @Test
+        void aBlockWithNoFloorStandsOnAWallItIsAttachedTo() {
+            assertTrue(VolumeCellBlock.stands(false, List.of(true), false));
+        }
+
+        @Test
+        void aBlockWithNoFloorStandsWhileARunnyLayerPassesThroughIt() {
+            assertTrue(VolumeCellBlock.stands(false, List.of(), true));
+        }
+
+        @Test
+        void aBlockWithNoFloorFallsWhenAWallItIsAttachedToIsGone() {
+            assertFalse(VolumeCellBlock.stands(false, List.of(true, false), false));
+            assertFalse(VolumeCellBlock.stands(false, List.of(), false));
+        }
+    }
+
+    /**
+     * A layer starting a fall hands the visuals one launch: from the middle
+     * of the cell it falls from at the height it leaves, to the surface of
+     * the fill it lands on, over the ticks a drip takes to fall that far
+     * (decisions goo-moving-downward-falls-as-drips, falling-layer-lands-when-its-drip-arrives).
+     */
+    @Nested
+    class FallStart {
+
+        private static final BlockPos FALLS_FROM = new BlockPos(6, 70, -4);
+        private static final BlockPos LANDS_IN = new BlockPos(6, 64, -4);
+        private static final double LEAVES_AT = 70.4;
+        private static final int LANDING_FILL = 3;
+
+        private final VolumeCellBlock.FallStart start = VolumeCellBlock.fallStart(FALLS_FROM, LEAVES_AT, LANDS_IN,
+                LANDING_FILL);
+
+        @Test
+        void theLaunchLeavesTheMiddleOfTheCellAtTheHeightTheLayerLeaves() {
+            assertEquals(new Vec3(6.5, LEAVES_AT, -3.5), start.from());
+        }
+
+        @Test
+        void theLaunchEndsOnTheSurfaceOfTheFillItLandsOn() {
+            assertEquals(64 + (double) LANDING_FILL / FIFTEEN, start.landingY(), 1e-9);
+        }
+
+        @Test
+        void theLaunchTakesTheTicksADripTakesToFallThatFar() {
+            assertEquals(DripFall.ticksToFall(LEAVES_AT - start.landingY()), start.ticks());
+        }
+    }
+
+    /**
+     * Each step a runny layer takes down its wall hands the visuals one drip
+     * launch, on the wall face of the cell it leaves, set off the wall as the
+     * streak is, ending on that face in the cell it enters or on the surface
+     * of the fill it joins; a step into its own cell's fill draws none
+     * (decision goo-moving-downward-falls-as-drips).
+     */
+    @Nested
+    class WallDrips {
+
+        private static final BlockPos HERE = new BlockPos(6, 70, -4);
+        private static final int BELOW_FILL = 3;
+        private final Vec3 onTheEastWall = new Vec3(7 - VolumeCellBlock.WALL_DRIP_OFF, 71, -3.5);
+
+        @Test
+        void aStepToTheCellBelowDrawsADripDownTheWallOneCell() {
+            Optional<VolumeCellBlock.WallDrip> drip = VolumeCellBlock.wallDripOf(VolumeCellBlock.RunStep.RUN_DOWN,
+                    HERE, Direction.EAST, BELOW_FILL);
+
+            assertEquals(Optional.of(new VolumeCellBlock.WallDrip(onTheEastWall, 70)), drip);
+        }
+
+        @Test
+        void aStepIntoTheFillBelowDrawsADripDownToItsSurface() {
+            Optional<VolumeCellBlock.WallDrip> drip = VolumeCellBlock.wallDripOf(VolumeCellBlock.RunStep.JOIN_BELOW,
+                    HERE, Direction.EAST, BELOW_FILL);
+
+            assertEquals(Optional.of(new VolumeCellBlock.WallDrip(onTheEastWall,
+                    69 + (double) BELOW_FILL / FIFTEEN)), drip);
+        }
+
+        @Test
+        void aStepIntoItsOwnCellsFillDrawsNone() {
+            assertEquals(Optional.empty(), VolumeCellBlock.wallDripOf(VolumeCellBlock.RunStep.JOIN_HERE, HERE,
+                    Direction.EAST, BELOW_FILL));
+        }
+    }
+
+    /**
+     * A runny layer moves down its wall a cell each step and ends as fill on
+     * the first top below, so every layer paid for stands as fill or film
+     * (decision runny-goo-runs-down-the-wall-to-the-first-top-below).
+     */
+    @Nested
+    class RunnyStep {
+
+        @Test
+        void aRunnyLayerInACellOnATopJoinsThatCellsFill() {
+            assertEquals(VolumeCellBlock.RunStep.JOIN_HERE,
+                    VolumeCellBlock.runStep(true, false, VolumeCellBlock.Below.BLOCKED));
+        }
+
+        @Test
+        void aRunnyLayerWaitsOverAFullCellOnATop() {
+            assertEquals(VolumeCellBlock.RunStep.WAIT,
+                    VolumeCellBlock.runStep(true, true, VolumeCellBlock.Below.BLOCKED));
+        }
+
+        @Test
+        void aRunnyLayerJoinsTheFillOfTheCellBelow() {
+            assertEquals(VolumeCellBlock.RunStep.JOIN_BELOW,
+                    VolumeCellBlock.runStep(false, false, VolumeCellBlock.Below.FILL_ROOM));
+        }
+
+        @Test
+        void aRunnyLayerWaitsOverAFullCellBelow() {
+            assertEquals(VolumeCellBlock.RunStep.WAIT,
+                    VolumeCellBlock.runStep(false, false, VolumeCellBlock.Below.FILL_FULL));
+        }
+
+        @Test
+        void aRunnyLayerMovesDownWhileTheWallGoesOn() {
+            assertEquals(VolumeCellBlock.RunStep.RUN_DOWN,
+                    VolumeCellBlock.runStep(false, false, VolumeCellBlock.Below.WALL_GOES_ON));
+        }
+
+        @Test
+        void aRunnyLayerFallsWhereTheWallEnds() {
+            assertEquals(VolumeCellBlock.RunStep.FALL,
+                    VolumeCellBlock.runStep(false, false, VolumeCellBlock.Below.WALL_ENDS));
         }
     }
 
@@ -205,6 +417,42 @@ class VolumeCellBlockTest {
         void aRetunedCostRetunesTheLayersPrice() {
             assertEquals(GooFraction.of(160).dividedBy(FIFTEEN), VolumeCellBlock.layerPrice(RETUNED_COST));
         }
+
+        /**
+         * The block's volume is all the goo it holds, whichever sides are
+         * attached or runny: no side keeps layers of its own
+         * (decision goo-cell-holds-a-fill-and-a-state-per-side).
+         */
+        @ParameterizedTest
+        @ValueSource(ints = {0, 1, 4})
+        void theVolumeIsAllTheGooWhicheverSidesAreAttached(int attachedSides) {
+            BlockState block = mock(BlockState.class);
+            when(block.getValue(VolumeCellBlock.LAYERS)).thenReturn(HELD_VOLUME);
+            List<Direction> sides = List.of(Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST);
+            for (int side = 0; side < sides.size(); side++) {
+                when(block.getValue(VolumeCellBlock.coatProperty(sides.get(side))))
+                        .thenReturn(side < attachedSides ? SideCoat.ATTACHED : SideCoat.RUNNY);
+            }
+
+            assertEquals(HELD_VOLUME, VolumeCellBlock.layersHeld(block));
+        }
+
+        private static final int HELD_VOLUME = 6;
+
+        /**
+         * A block attached to a ceiling holds its volume, the ceiling keeping no
+         * layer of its own (decision goo-cell-holds-a-fill-and-a-state-per-side).
+         */
+        @Test
+        void aBlockAttachedToACeilingHoldsItsVolume() {
+            BlockState block = mock(BlockState.class);
+            when(block.getValue(VolumeCellBlock.LAYERS)).thenReturn(CEILING_VOLUME);
+            when(block.getValue(VolumeCellBlock.CEILING)).thenReturn(true);
+
+            assertEquals(CEILING_VOLUME, VolumeCellBlock.layersHeld(block));
+        }
+
+        private static final int CEILING_VOLUME = 3;
 
         @Test
         void aBrokenCellReturnsAFifteenthOfTheCostPerLayer() {
@@ -328,6 +576,32 @@ class VolumeCellBlockTest {
             assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.FROST,
                             cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
                     VolumeCellBlock.reclaimedBy(CellBinding.RIME, LAYERS, cost));
+        }
+    }
+
+    /**
+     * A broken Updraft cell gives back typhoon goo, each layer a fifteenth of
+     * Updraft's cost as typhoon_updraft.json ships it.
+     * updraft-is-typhoons-world-goo-that-lifts-the-entities-above-it
+     */
+    @Nested
+    class UpdraftReclaim {
+
+        private static final int LAYERS = 7;
+
+        @Test
+        void updraftIsTyphoonGooLaidByTyphoonsUpdraft() {
+            assertEquals(List.of(GooTypes.TYPHOON, AbilityJson.idOf("typhoon_updraft.json")),
+                    List.of(CellBinding.UPDRAFT.gooType(), CellBinding.UPDRAFT.layingAbility()));
+        }
+
+        @Test
+        void aBrokenUpdraftCellDropsTyphoonGooAtFifteenthsOfUpdraftsCost() {
+            GooFraction cost = AbilityJson.decode("typhoon_updraft").cost().exactIn(GooValueTable.EMPTY);
+
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.TYPHOON,
+                            cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.UPDRAFT, LAYERS, cost));
         }
     }
 

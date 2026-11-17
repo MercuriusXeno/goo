@@ -57,7 +57,7 @@ public final class KnivesHoldHandler {
             return;
         }
         ResourceKey<GooTypeDefinition> gooType = GooTypes.known(payload.gooTypeId());
-        if (gooType != null && GooThrowHandler.validateGlove(player)) {
+        if (gooType != null && GooThrowHandler.validateCaster(player, gooType)) {
             begin(player, holds, gooType, GooThrowHandler.usableAbility(player, payload.abilityId(), gooType));
         }
     }

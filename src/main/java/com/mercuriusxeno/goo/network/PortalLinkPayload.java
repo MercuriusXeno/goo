@@ -49,7 +49,7 @@ public record PortalLinkPayload(Portal target) implements CustomPacketPayload {
      */
     public static void handle(PortalLinkPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
-            if (context.player() instanceof ServerPlayer player && GooThrowHandler.validateGlove(player)) {
+            if (context.player() instanceof ServerPlayer player && GooThrowHandler.validateCaster(player)) {
                 linkPaid(player, payload.target());
             }
         });

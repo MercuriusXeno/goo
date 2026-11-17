@@ -10,6 +10,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.state.BlockState;
@@ -104,16 +105,30 @@ public record HeaterStep(double radius, Expr damage, int every, int burnSeconds,
         int flamed = FLAMING.merge(key, 1, Integer::sum);
         Vec3 axis = target.getBoundingBox().getCenter().subtract(tip).normalize();
         if (flamed % every == 0) {
-            float amount = damage.evaluateFloat(context);
-            List<Mob> inReach = level.getEntitiesOfClass(Mob.class, new AABB(tip, tip).inflate(radius), Mob::isAlive);
-            List<FlameRays.Ray> rays = FlameRays.spray(tip, axis, cone, radius, level.getRandom(),
-                    FlameRays.clipIn(level));
-            for (Mob mob : FlameRays.crossed(rays, inReach, Mob::getBoundingBox)) {
-                FlamesStep.burn(level, mob, amount, burnSeconds, null);
-            }
+            burnSprayed(host, tip, axis, damage.evaluateFloat(context));
         }
         EntityVisuals.sendToWatchersOf(level, tip, new HeaterFlamePayload(prism, tip, axis));
         return false;
+    }
+
+    /**
+     * Burns every mob a spray of Flames' rays from the tip crosses, each burn
+     * crediting the player whose goo set the prism's combo.
+     * standing-goo-thing-credits-whoever-placed-it
+     *
+     * @param host   the prism's host
+     * @param tip    the prism's tip the spray leaves from
+     * @param axis   the spray's direction
+     * @param amount the fire damage each burn deals
+     */
+    private void burnSprayed(MarkerHost host, Vec3 tip, Vec3 axis, float amount) {
+        ServerLevel level = host.level();
+        List<Mob> inReach = level.getEntitiesOfClass(Mob.class, new AABB(tip, tip).inflate(radius), Mob::isAlive);
+        List<FlameRays.Ray> rays = FlameRays.spray(tip, axis, cone, radius, level.getRandom(), FlameRays.clipIn(level));
+        ServerPlayer placer = host.placer();
+        for (Mob mob : FlameRays.crossed(rays, inReach, Mob::getBoundingBox)) {
+            FlamesStep.burn(level, mob, amount, burnSeconds, placer);
+        }
     }
 
     /**

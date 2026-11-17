@@ -5,9 +5,11 @@ import com.mercuriusxeno.goo.network.HoldMarks;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
@@ -33,6 +35,16 @@ public interface ChannelHost extends BlockBreakHost {
         return behaviors.stream()
                 .filter(step -> step.requires().contains(HostCapability.CHANNEL) == blockPass)
                 .toList();
+    }
+
+    /**
+     * The player whose goo the host places, whom a goo cell it feeds credits.
+     * standing-goo-thing-credits-whoever-placed-it
+     *
+     * @return the player's id, or null where no player places it
+     */
+    default @Nullable UUID placingPlayer() {
+        return null;
     }
 
     /**
