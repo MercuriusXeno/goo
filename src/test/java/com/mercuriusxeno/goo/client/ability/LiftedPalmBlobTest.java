@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.crystal.StackHover;
+import com.mercuriusxeno.goo.client.model.FirstPersonSwing;
 import com.mercuriusxeno.goo.client.throwing.BlobShape;
 import com.mercuriusxeno.goo.client.throwing.GloveInputGate;
 import com.mercuriusxeno.goo.network.PalmBlobLiftPayload;
@@ -13,7 +14,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
 import org.joml.Vector3f;
+import org.joml.Vector3fc;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -107,8 +111,7 @@ class LiftedPalmBlobTest {
 
                 LiftedPalmBlob.Blob blob = LiftedPalmBlob.blobOf(SprayingClient.CASTER, 0f).orElseThrow();
 
-                assertNear(SpraySource.inView(SprayingClient.EYE, SprayingClient.PITCH, SprayingClient.YAW, true),
-                        blob.place());
+                assertNear(SpraySource.of(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, 0f), blob.place());
                 assertEquals(GooTypes.ZOO, blob.type());
             }
         }
@@ -124,6 +127,115 @@ class LiftedPalmBlobTest {
                 assertNear(SpraySource.inView(SprayingClient.EYE, SprayingClient.PITCH, SprayingClient.YAW, true),
                         blob.place());
                 assertEquals(GooTypes.FROST, blob.type());
+            }
+        }
+    }
+
+    /**
+     * Outside the centered abilities and Bore, the local first-person blob
+     * lifts to a still place straight above the resting palm, the palm with
+     * no bob and no swing, at any field of view, and a Goop or Slick drip
+     * first shows there.
+     * operator ruling: every ability outside the eight centered ones and Bore lifts its blob straight above
+     * where the hand rests, never bobbing or swinging
+     * palm-blob-lifts-as-the-spray-source
+     */
+    @Nested
+    class RisesStillAboveTheHand {
+
+        /** Where the resting palm stands in the view: down, out to the right and ahead. */
+        private static final Vector3fc PALM_IN_VIEW = new Vector3f(0.5f, -0.4f, -0.75f);
+        /** The palm at the glove model's origin. */
+        private static final Vector3fc PALM_IN_MODEL = new Vector3f();
+        /** How far across the view's up the blob may stand off the resting palm. */
+        private static final double ACROSS = 1e-3;
+        /** How far two places a float pose stack carries may stray and still be one place. */
+        private static final double SAME_PLACE = 1e-5;
+        private static final Matrix4fc NO_BOB = new Matrix4f();
+        /** The hand's pose down to the palm before any swing, turned some way. */
+        private static final Matrix4fc BEFORE_THE_SWING = new Matrix4f().translation(PALM_IN_VIEW)
+                .rotateXYZ(0.3f, -0.6f, 0.1f);
+        /** A swing part way through: the hand carried across and down and tipped, as ItemInHandRenderer.swingArm. */
+        private static final Matrix4fc THE_SWING = new Matrix4f().translation(-0.15f, 0.12f, -0.1f)
+                .rotateXYZ(-0.9f, 0.4f, -0.3f);
+
+        /** A walking view's bob as GameRenderer.bobView turns it: down and aside, rolled and pitched. */
+        private static Matrix4f walkingBob() {
+            return new Matrix4f().translate(0.04f, -0.08f, 0f).rotateZ((float) Math.toRadians(2.4))
+                    .rotateX((float) Math.toRadians(3.5));
+        }
+
+        @org.junit.jupiter.api.AfterEach
+        void forgetTheSwing() {
+            FirstPersonSwing.forgetSwing();
+        }
+
+        /** The fully lifted blob's place in the hand pass, its glove drawn under a bob down to the palm. */
+        private static Vec3 liftedUnder(SprayingClient client, Matrix4fc bob, Matrix4fc handToPalm) {
+            client.bobbing(bob);
+            SpraySource.recordRestingPalm(client.gloveDrawnUnder(bob, handToPalm), PALM_IN_MODEL);
+            client.at(EASED);
+            sprayEveryTickThroughTheEase();
+            LiftedPalmBlob.HandLift lift = LiftedPalmBlob.liftHeldInView().orElseThrow();
+            assertEquals(1f, lift.share(), DELTA, "the blob should be fully lifted");
+            return lift.sourceInHand();
+        }
+
+        private static void assertStraightAbove(Vec3 palm, Vec3 place, Vec3 up) {
+            Vec3 off = place.subtract(palm);
+            assertTrue(off.dot(up) > 0, "the blob " + place + " should stand above the resting palm " + palm);
+            assertEquals(0, off.subtract(up.scale(off.dot(up))).length(), ACROSS, "the blob " + place
+                    + " should stand straight above the resting palm " + palm + ", off it by " + off);
+        }
+
+        @ParameterizedTest
+        @ValueSource(floats = {70f, 110f})
+        void theFullyLiftedBlobStandsStraightAboveTheRestingPalm(float fov) {
+            try (SprayingClient client = SprayingClient.local(GooTypes.ZOO)) {
+                client.viewedAt(fov);
+
+                Vec3 place = liftedUnder(client, NO_BOB, BEFORE_THE_SWING);
+
+                assertStraightAbove(client.inTheHandPass(PALM_IN_VIEW), place, client.viewUp());
+            }
+        }
+
+        @Test
+        void theFullyLiftedBlobHoldsOnePlaceInTheViewUnderEveryBob() {
+            try (SprayingClient client = SprayingClient.local(GooTypes.ZOO)) {
+                Vec3 still = liftedUnder(client, NO_BOB, BEFORE_THE_SWING);
+                Vec3 walking = liftedUnder(client, walkingBob(), BEFORE_THE_SWING);
+
+                assertEquals(0, still.distanceTo(walking), SAME_PLACE, "the blob should stand at " + still
+                        + " under a walking bob, stands at " + walking);
+            }
+        }
+
+        @Test
+        void theFullyLiftedBlobHoldsOnePlaceInTheViewThroughASwing() {
+            try (SprayingClient client = SprayingClient.local(GooTypes.ZOO)) {
+                Vec3 unswung = liftedUnder(client, NO_BOB, BEFORE_THE_SWING);
+                FirstPersonSwing.recordSwing(client.gloveDrawnUnder(NO_BOB, BEFORE_THE_SWING),
+                        client.gloveDrawnUnder(NO_BOB, new Matrix4f(BEFORE_THE_SWING).mul(THE_SWING)));
+                Vec3 swung = liftedUnder(client, NO_BOB, new Matrix4f(BEFORE_THE_SWING).mul(THE_SWING));
+
+                assertEquals(0, unswung.distanceTo(swung), SAME_PLACE, "the blob should stand at " + unswung
+                        + " through a swing, stands at " + swung);
+            }
+        }
+
+        @Test
+        void aGoopDripFirstShowsAtTheLiftedBlobStraightAboveTheRestingPalm() {
+            try (SprayingClient client = SprayingClient.local(GooTypes.WEIRD)) {
+                liftedUnder(client, NO_BOB, BEFORE_THE_SWING);
+
+                Vec3 place = LiftedPalmBlob.placeOf(SprayingClient.CASTER, 0f).orElseThrow();
+                Vec3 drip = LiftedPalmBlob.dripLeavesFrom(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, 0f);
+
+                assertNear(place, drip);
+                Vec3 palm = SprayingClient.EYE.add(HandPassView.fromHandPass(client.inTheHandPass(PALM_IN_VIEW),
+                        client.camera().rotation(), SprayingClient.WORLD_FOV, NO_BOB));
+                assertStraightAbove(palm, place, client.viewUp());
             }
         }
     }

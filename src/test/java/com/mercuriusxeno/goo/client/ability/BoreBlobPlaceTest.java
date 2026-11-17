@@ -1,9 +1,15 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.ability.GloveRest;
 import com.mercuriusxeno.goo.ability.program.BoreDrillShape;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -30,8 +36,49 @@ class BoreBlobPlaceTest {
     private static final Vec3 LOOK = Vec3.directionFromRotation(PITCH, YAW);
     private static final Vec3 UP = new Vec3(0, 1, 0);
 
+    private static final float QUARTER_TURN = 90f;
+    /** Bore's ability file. */
+    private static final String BORE = "rock_bore";
+
+    /**
+     * The glove rest in a view, from GloveRest's numbers: ahead of the eye,
+     * out to the glove's side and below the look.
+     *
+     * @param eye        the eye
+     * @param xRot       the view's pitch in degrees
+     * @param yRot       the view's yaw in degrees
+     * @param gloveRight whether the glove is in the right hand
+     * @return the glove rest
+     */
+    static Vec3 gloveRestIn(Vec3 eye, float xRot, float yRot, boolean gloveRight) {
+        Vec3 right = Vec3.directionFromRotation(0f, yRot + QUARTER_TURN);
+        Vec3 up = Vec3.directionFromRotation(xRot - QUARTER_TURN, yRot);
+        double side = gloveRight ? GloveRest.TO_THE_GLOVE_SIDE : -GloveRest.TO_THE_GLOVE_SIDE;
+        return eye.add(Vec3.directionFromRotation(xRot, yRot).scale(GloveRest.AHEAD)).add(right.scale(side))
+                .subtract(up.scale(GloveRest.BELOW));
+    }
+
+    /** @return Bore's ability as the client holds its synced copy */
+    static ClientAbility syncedBore() {
+        AbilityDefinition bore = AbilityJson.decode(BORE);
+        return ClientAbility.fromEntry(AbilitySyncPayload.gloveEntries(bore.gooType(), List.of(bore)).getFirst());
+    }
+
     private static Vec3 restFor(boolean gloveRight) {
-        return SpraySource.inView(EYE, PITCH, YAW, gloveRight);
+        return gloveRestIn(EYE, PITCH, YAW, gloveRight);
+    }
+
+    /**
+     * Bore's blob lifts to the glove rest, which it eases forward from
+     * (decision bore-blob-lifts-by-the-glove-and-the-drill-extends-from-that-hand).
+     */
+    @Test
+    void boresBlobLiftsToTheGloveRest() {
+        for (boolean gloveRight : new boolean[] {true, false}) {
+            Vec3 rest = BlobRest.inView(EYE, PITCH, YAW, gloveRight, BlobRest.Rest.of(syncedBore()));
+            assertEquals(0, restFor(gloveRight).distanceTo(rest), SLACK, "Bore's rest, glove right " + gloveRight
+                    + ", should be the glove rest " + restFor(gloveRight) + ", is " + rest);
+        }
     }
 
     private static double degreesOffTheLook(Vec3 from, Vec3 to) {

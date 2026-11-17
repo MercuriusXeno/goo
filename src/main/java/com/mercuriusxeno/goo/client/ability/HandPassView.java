@@ -9,6 +9,7 @@ import org.joml.Matrix4fc;
 import org.joml.Quaternionf;
 import org.joml.Quaternionfc;
 import org.joml.Vector3f;
+import org.joml.Vector3fc;
 
 /**
  * Carries a point between the level's view and the first-person hand's
@@ -64,6 +65,34 @@ public final class HandPassView {
         float across = spread(worldFov) / spread(HAND_FOV);
         Vector3f view = intoTheView(inHand, cameraRotation).mul(across, across, 1f);
         return outOfTheView(viewBob.invert(new Matrix4f()).transformPosition(view), cameraRotation);
+    }
+
+    /**
+     * Where a point the hand's pass draws stands in the view once the
+     * frame's bob is taken out, which the hand pass's pose lays on every
+     * point it draws through the glove.
+     * palm-blob-lifts-as-the-spray-source: the blob stands still in the view while the hand bobs
+     *
+     * @param inHand         the point in the hand pass's camera-relative world axes
+     * @param cameraRotation the camera's rotation, from its view onto the world
+     * @param viewBob        the frame's hurt and walking bob, in view space
+     * @return the point in view space, unbobbed
+     */
+    public static Vector3f intoTheStillView(Vec3 inHand, Quaternionfc cameraRotation, Matrix4fc viewBob) {
+        return viewBob.invert(new Matrix4f()).transformPosition(intoTheView(inHand, cameraRotation));
+    }
+
+    /**
+     * Where a point of the view stands in the hand pass's camera-relative
+     * world axes, drawn at that spot of the hand pass whatever the bob, as
+     * the lifted blob is.
+     *
+     * @param view           the point in view space
+     * @param cameraRotation the camera's rotation, from its view onto the world
+     * @return the point in the hand pass's camera-relative world axes
+     */
+    public static Vec3 outOfTheStillView(Vector3fc view, Quaternionfc cameraRotation) {
+        return outOfTheView(new Vector3f(view), cameraRotation);
     }
 
     /**

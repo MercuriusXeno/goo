@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.AbilityTags;
+import com.mercuriusxeno.goo.ability.GloveRest;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -17,10 +18,12 @@ import java.util.Optional;
 /**
  * Where a caster's lifted palm blob rests, chosen by the selected ability's
  * data: on the center line ahead of the eye, settled below the crosshair so
- * it never covers it, for an ability tagged centered, and at the steady
- * point by the glove that Goop and Slick use for every other ability. Each
- * point moves and turns with the caster's view and never bobs with the hand.
+ * it never covers it, for an ability tagged centered; at the glove rest for
+ * Bore, which eases forward from there; and for every other ability at the
+ * spray source Goop and Slick drip from, straight above where the hand rests.
+ * Each point moves and turns with the caster's view and never bobs with the hand.
  * centered-abilities-float-the-blob-below-the-crosshair
+ * palm-blob-lifts-as-the-spray-source
  */
 public final class BlobRest {
 
@@ -34,29 +37,61 @@ public final class BlobRest {
     private BlobRest() {
     }
 
+    /** The rests a lifted blob takes. */
+    enum Rest {
+        /** On the center line below the crosshair, for an ability tagged centered. */
+        CENTER_LINE,
+        /** At the glove rest, for Bore, whose drill extends from that hand. */
+        BY_THE_GLOVE,
+        /** Straight above where the hand rests, for every other ability. */
+        ABOVE_THE_HAND;
+
+        /**
+         * The rest an ability's blob lifts to.
+         *
+         * @param ability the synced copy of the selected ability, or null with none
+         * @return the rest
+         */
+        static Rest of(@Nullable ClientAbility ability) {
+            if (ability == null) {
+                return ABOVE_THE_HAND;
+            }
+            if (ability.hasTag(AbilityTags.CENTERED)) {
+                return CENTER_LINE;
+            }
+            // decision bore-blob-lifts-by-the-glove-and-the-drill-extends-from-that-hand
+            return BoreDrill.stepOf(ability).isPresent() ? BY_THE_GLOVE : ABOVE_THE_HAND;
+        }
+    }
+
     /**
-     * The rest point in a view.
+     * The rest point in a view, at the default field of view.
      *
      * @param eye        the viewer's eye
      * @param xRot       the view's pitch in degrees, negative looking up
      * @param yRot       the view's yaw in degrees
      * @param gloveRight whether the glove is in the right hand
-     * @param centered   whether the selected ability is tagged centered
+     * @param rest       the rest the selected ability lifts its blob to
      * @return the rest point
      */
-    static Vec3 inView(Vec3 eye, float xRot, float yRot, boolean gloveRight, boolean centered) {
-        if (!centered) {
-            return SpraySource.inView(eye, xRot, yRot, gloveRight);
-        }
+    static Vec3 inView(Vec3 eye, float xRot, float yRot, boolean gloveRight, Rest rest) {
         Vec3 ahead = Vec3.directionFromRotation(xRot, yRot);
         Vec3 up = Vec3.directionFromRotation(xRot - QUARTER_TURN, yRot);
-        return eye.add(ahead.scale(CENTER_AHEAD)).subtract(up.scale(CENTER_BELOW));
+        return switch (rest) {
+            case CENTER_LINE -> eye.add(ahead.scale(CENTER_AHEAD)).subtract(up.scale(CENTER_BELOW));
+            case BY_THE_GLOVE -> eye.add(ahead.scale(GloveRest.AHEAD))
+                    .add(Vec3.directionFromRotation(0f, yRot + QUARTER_TURN)
+                            .scale(gloveRight ? GloveRest.TO_THE_GLOVE_SIDE : -GloveRest.TO_THE_GLOVE_SIDE))
+                    .subtract(up.scale(GloveRest.BELOW));
+            case ABOVE_THE_HAND -> SpraySource.inView(eye, xRot, yRot, gloveRight);
+        };
     }
 
     /**
      * A caster's rest point this frame: in the camera's view for the local
-     * player in first person, in the caster's own view otherwise, and the
-     * glove the server sent for a caster this client does not hold.
+     * player in first person, in the caster's own view otherwise, the spray
+     * source above the hand where the selected ability lifts its blob there,
+     * and the glove the server sent for a caster this client does not hold.
      *
      * @param casterId    the caster's entity id
      * @param sentGlove   the glove the held tick came with
@@ -64,8 +99,12 @@ public final class BlobRest {
      * @return the rest point
      */
     public static Vec3 of(int casterId, Vec3 sentGlove, float partialTick) {
-        return viewOf(casterId, partialTick).map(view -> inView(view.eye(), view.xRot(), view.yRot(),
-                KnifeRainSling.gloveOnTheRight(view.caster()), selectsCentered(view.caster()))).orElse(sentGlove);
+        return viewOf(casterId, partialTick).map(view -> {
+            Rest rest = Rest.of(selectedAbility(view.caster()));
+            return rest == Rest.ABOVE_THE_HAND ? SpraySource.of(casterId, sentGlove, partialTick)
+                    : inView(view.eye(), view.xRot(), view.yRot(), KnifeRainSling.gloveOnTheRight(view.caster()),
+                    rest);
+        }).orElse(sentGlove);
     }
 
     /**
@@ -91,17 +130,6 @@ public final class BlobRest {
         }
         return Optional.of(new View(caster, caster.getEyePosition(partialTick), caster.getViewXRot(partialTick),
                 caster.getViewYRot(partialTick)));
-    }
-
-    /**
-     * Whether the ability a caster's glove selects is tagged centered.
-     *
-     * @param caster the caster
-     * @return true for a centered selection, false with none or no synced copy
-     */
-    private static boolean selectsCentered(Player caster) {
-        ClientAbility ability = selectedAbility(caster);
-        return ability != null && ability.hasTag(AbilityTags.CENTERED);
     }
 
     /**

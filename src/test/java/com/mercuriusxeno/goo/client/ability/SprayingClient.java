@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.DeltaTracker;
@@ -17,12 +18,18 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
 import org.joml.Quaternionf;
+import org.joml.Vector3f;
+import org.joml.Vector3fc;
 import org.mockito.MockedStatic;
 import java.lang.reflect.Field;
 import java.util.List;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyFloat;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
@@ -54,6 +61,7 @@ public final class SprayingClient implements AutoCloseable {
     private final Minecraft minecraft;
     private final ClientLevel level;
     private final Camera camera;
+    private final GameRenderer renderer;
     private final ItemStack glove;
     private final MockedStatic<Minecraft> client;
     private final MockedStatic<GooGloveItem> gloves;
@@ -85,7 +93,7 @@ public final class SprayingClient implements AutoCloseable {
         DeltaTracker frames = mock(DeltaTracker.class);
         when(frames.getGameTimeDeltaPartialTick(anyBoolean())).thenReturn(0f);
         when(minecraft.getDeltaTracker()).thenReturn(frames);
-        GameRenderer renderer = mock(GameRenderer.class);
+        renderer = mock(GameRenderer.class);
         when(renderer.getMainCamera()).thenReturn(camera);
         setRenderState(renderer);
         Options options = mock(Options.class);
@@ -130,9 +138,54 @@ public final class SprayingClient implements AutoCloseable {
         when(level.getGameTime()).thenReturn(gameTime);
     }
 
-    /** @return where the spraying player's spray source stands from the eye */
-    public static Vec3 sourceOffTheEye() {
-        return SpraySource.inView(EYE, PITCH, YAW, true).subtract(EYE);
+    /**
+     * Sets the level's field of view, the hand pass keeping its own 70 degrees.
+     *
+     * @param fov the field of view, in degrees
+     */
+    public void viewedAt(float fov) {
+        when(camera.getFov()).thenReturn(fov);
+    }
+
+    /**
+     * Bobs each frame's view, as GameRenderer.bobView lays a walking bob on
+     * the level's projection and the hand pass's pose alike.
+     *
+     * @param bob the bob, in view space
+     */
+    public void bobbing(Matrix4fc bob) {
+        renderer.gameRenderState.optionsRenderState.bobView = true;
+        doAnswer(call -> {
+            call.<PoseStack>getArgument(1).last().pose().mul(bob);
+            return null;
+        }).when(renderer).bobView(any(), any());
+    }
+
+    /**
+     * Draws the glove before the eyes as the hand pass does: the camera's turn
+     * undone, the frame's bob, and the hand's own pose down to the palm.
+     *
+     * @param bob         the frame's bob, in view space
+     * @param handToPalm  the hand's pose from the view to the palm, swing included
+     * @return the glove's model onto the hand pass's camera-relative world axes, the palm at its origin
+     */
+    public Matrix4f gloveDrawnUnder(Matrix4fc bob, Matrix4fc handToPalm) {
+        return new Matrix4f().rotation(camera.rotation()).mul(bob).mul(handToPalm);
+    }
+
+    /**
+     * Where a point of the view stands in the hand pass's camera-relative world axes.
+     *
+     * @param view the point in view space
+     * @return the point in the hand pass
+     */
+    public Vec3 inTheHandPass(Vector3fc view) {
+        return new Vec3(new Vector3f(view).rotate(camera.rotation()));
+    }
+
+    /** @return the view's up in the hand pass's camera-relative world axes */
+    public Vec3 viewUp() {
+        return inTheHandPass(new Vector3f(0f, 1f, 0f));
     }
 
     /** @return the camera the level and the hand are drawn from */
@@ -175,5 +228,6 @@ public final class SprayingClient implements AutoCloseable {
         gloves.close();
         client.close();
         LiftedPalmBlob.forgetEverySpray();
+        SpraySource.forgetRestingPalm();
     }
 }

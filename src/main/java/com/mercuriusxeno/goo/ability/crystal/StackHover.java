@@ -1,12 +1,11 @@
 package com.mercuriusxeno.goo.ability.crystal;
 
-import com.mercuriusxeno.goo.ability.GloveRest;
 import net.minecraft.world.phys.Vec3;
 
 /**
  * Where a held stack hovers over its blob cube, shared by the server that
  * throws each one from its slot and the client that draws it. The cube rests
- * at the steady point by the glove and shrinks a step for each one held,
+ * straight above where the hand rests and shrinks a step for each one held,
  * gone once the stack is full. Knives' ten knives hover in an upside-down
  * pyramid over the hand, rows of 4, 3, 2 and 1 from the top down, each row
  * centered over the cube, filling the top row left to right first and ending
@@ -43,6 +42,16 @@ public final class StackHover {
     public static final int KNIVES = 10;
     /** The javelins the row holds. */
     public static final int JAVELINS = 3;
+    /**
+     * How far ahead of the eye the cube rests, along the look: as far as the
+     * first-person glove's palm rests at the default field of view, which the
+     * cube stands straight above.
+     */
+    static final double REST_AHEAD = 0.7159375;
+    /** How far out to the glove's side of the look the cube rests, as far as that palm. */
+    static final double REST_TO_THE_GLOVE_SIDE = 0.56;
+    /** How far below the look the cube rests: the client's rise above that palm, 0.371 below the look. */
+    static final double REST_BELOW = 0.15;
     /** The knives in the pyramid's rows, the top row first. */
     private static final int[] ROW_WIDTHS = {4, 3, 2, 1};
     private static final double HALF = 0.5;
@@ -147,8 +156,10 @@ public final class StackHover {
     }
 
     /**
-     * The cube's center in a view: the steady point by the glove, ahead of
-     * the eye, to the glove's side and below the look.
+     * The cube's center in a view: the rest a non-centered blob lifts to at
+     * the default field of view, straight above where the hand rests, ahead
+     * of the eye, to the glove's side and below the look.
+     * palm-blob-lifts-as-the-spray-source
      *
      * @param eye        the eye
      * @param xRot       the view's pitch in degrees
@@ -158,9 +169,9 @@ public final class StackHover {
      */
     public static Vec3 cubeCenterInView(Vec3 eye, float xRot, float yRot, boolean gloveRight) {
         Vec3 ahead = Vec3.directionFromRotation(xRot, yRot);
-        return eye.add(ahead.scale(GloveRest.AHEAD))
-                .add(rightOf(yRot).scale(gloveRight ? GloveRest.TO_THE_GLOVE_SIDE : -GloveRest.TO_THE_GLOVE_SIDE))
-                .subtract(upOf(xRot, yRot).scale(GloveRest.BELOW));
+        return eye.add(ahead.scale(REST_AHEAD))
+                .add(rightOf(yRot).scale(gloveRight ? REST_TO_THE_GLOVE_SIDE : -REST_TO_THE_GLOVE_SIDE))
+                .subtract(upOf(xRot, yRot).scale(REST_BELOW));
     }
 
     /**
