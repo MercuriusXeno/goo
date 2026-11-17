@@ -84,7 +84,7 @@ class HoveringKnivesTest {
 
     // knives-and-javelins-sound-as-each-forms-and-is-thrown
     @Test
-    void eachKnifeFormingForTheLocalPlayerChimesOnce() {
+    void eachKnifeFormingForTheLocalPlayerClinksOnce() {
         com.mercuriusxeno.goo.ability.FormSounds knives =
                 com.mercuriusxeno.goo.ability.AbilityJson.decode("crystal_knives").delivery().formSounds();
         java.util.List<com.mercuriusxeno.goo.ability.program.SoundCue> played = new java.util.ArrayList<>();
@@ -94,9 +94,9 @@ class HoveringKnivesTest {
         HoveringKnives.counted(CASTER, 1, 5, CASTER, knives, played::add);
         HoveringKnives.counted(CASTER + 1, 1, 6, CASTER, knives, played::add);
 
-        assertEquals(2, played.size(), "two knives formed for the local player should chime twice, " + played);
-        played.forEach(cue -> assertEquals("minecraft:block.amethyst_block.chime", cue.sound().toString()));
-        played.forEach(cue -> assertEquals(1f, cue.volume(), 1e-6f, "the chime should play at full volume, heard clearly"));
+        assertEquals(2, played.size(), "two knives formed for the local player should clink twice, " + played);
+        played.forEach(cue -> assertEquals("minecraft:block.amethyst_cluster.place", cue.sound().toString()));
+        played.forEach(cue -> assertEquals(1f, cue.volume(), 1e-6f, "the clink should play at full volume, heard clearly"));
     }
 
     // knives-hover-above-the-blob-cube-over-the-hand: the clear glass of a nearer knife lays over a farther one
