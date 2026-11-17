@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.particle.HexWispParticle;
+import com.mercuriusxeno.goo.client.sound.ListenerSounds;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -27,6 +28,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.EnchantTableRenderer;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
@@ -208,18 +210,18 @@ public final class Tomes {
         if (mc.level == null || player == null || mc.isPaused()) {
             return;
         }
-        fadeHeld(mc.level, player);
+        fadeHeld(player);
         runShows(mc, mc.level);
     }
 
-    private static void fadeHeld(ClientLevel level, LocalPlayer player) {
+    private static void fadeHeld(LocalPlayer player) {
         TomeKind held = SHOWS.containsKey(player.getId()) ? null : heldTome(player);
         if (held == null) {
             holdFade = Math.max(0f, holdFade - WHOLE / HOLD_FADE_OUT_TICKS);
             return;
         }
         if (holdFade <= 0f) {
-            playAt(level, player, anchorOf(player, 1f), SoundEvents.BOOK_PAGE_TURN, HOLD_PAGE_VOLUME, WHOLE);
+            playAt(player, anchorOf(player, 1f), SoundEvents.BOOK_PAGE_TURN, HOLD_PAGE_VOLUME, WHOLE);
         }
         heldKind = held;
         holdFade = Math.min(WHOLE, holdFade + WHOLE / HOLD_FADE_IN_TICKS);
@@ -248,14 +250,14 @@ public final class Tomes {
         ClientLevel level = mc.level;
         Vec3 anchor = anchorOf(caster, 1f);
         if (turnsAPage(kind, elapsed)) {
-            playAt(level, caster, anchor, SoundEvents.BOOK_PAGE_TURN, PAGE_VOLUME, WHOLE);
+            playAt(caster, anchor, SoundEvents.BOOK_PAGE_TURN, PAGE_VOLUME, WHOLE);
         }
         int burstAt = kind == TomeKind.ENCHANT ? SNAP_AT : MERGE_AT;
         if (elapsed > OPENING_TICKS && elapsed < burstAt) {
             spawnGlyphs(mc, level.getRandom(), anchor);
         }
         if (elapsed == burstAt) {
-            sealWith(level, caster, anchor, kind);
+            sealWith(caster, anchor, kind);
             burst(mc, level.getRandom(), anchor, caster);
         }
     }
@@ -268,22 +270,39 @@ public final class Tomes {
      * Plays the choreography's seal: the table's chime, and for Fuse a
      * muffled anvil ring beneath it.
      *
-     * @param level  the client level
      * @param caster the player the tome floats before
      * @param anchor where the tome floats
      * @param kind   Enchant's or Fuse's
      */
-    private static void sealWith(ClientLevel level, Player caster, Vec3 anchor, TomeKind kind) {
-        playAt(level, caster, anchor, SoundEvents.ENCHANTMENT_TABLE_USE, CHIME_VOLUME, WHOLE);
+    private static void sealWith(Player caster, Vec3 anchor, TomeKind kind) {
+        playAt(caster, anchor, SoundEvents.ENCHANTMENT_TABLE_USE, CHIME_VOLUME, WHOLE);
         if (kind == TomeKind.FUSE) {
-            playAt(level, caster, anchor, SoundEvents.ANVIL_LAND, RING_VOLUME, RING_PITCH);
+            playAt(caster, anchor, SoundEvents.ANVIL_LAND, RING_VOLUME, RING_PITCH);
         }
     }
 
-    private static void playAt(ClientLevel level, Entity caster, Vec3 at, SoundEvent sound, float volume,
-                               float pitch) {
-        level.playLocalSound(at.x, at.y, at.z, sound, SoundSource.PLAYERS, volume,
-                pitch * (WHOLE + (caster.getRandom().nextFloat() - HALF_SHARE) * PITCH_WOBBLE), false);
+    private static void playAt(Entity caster, Vec3 at, SoundEvent sound, float volume, float pitch) {
+        ListenerSounds.play(tomeSoundOf(sound, at, volume,
+                pitch * (WHOLE + (caster.getRandom().nextFloat() - HALF_SHARE) * PITCH_WOBBLE),
+                caster == Minecraft.getInstance().player));
+    }
+
+    /**
+     * One of a tome's sounds where the tome floats, a hand ahead of its
+     * caster's eye: at the listener for a caster who is the local player, and
+     * at the tome for anyone else.
+     * goo-sound-at-the-listener-reaches-both-ears
+     *
+     * @param sound         the sound
+     * @param at            where the tome floats
+     * @param volume        its volume
+     * @param pitch         its pitch
+     * @param castByLocal   whether the local player cast the tome
+     * @return the sound
+     */
+    static SimpleSoundInstance tomeSoundOf(SoundEvent sound, Vec3 at, float volume, float pitch,
+                                           boolean castByLocal) {
+        return ListenerSounds.heardAt(sound, SoundSource.PLAYERS, volume, pitch, at, castByLocal);
     }
 
     private static void spawnGlyphs(Minecraft mc, RandomSource random, Vec3 into) {
