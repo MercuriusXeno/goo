@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.block.ability.HostFreeCells;
 import com.mercuriusxeno.goo.block.ability.HostSpreaders;
 import com.mercuriusxeno.goo.block.ability.LayerFalls;
 import com.mercuriusxeno.goo.block.ability.MoltenHeats;
+import com.mercuriusxeno.goo.block.ability.NectarFights;
 import com.mercuriusxeno.goo.block.ability.WispClaims;
 import com.mercuriusxeno.goo.network.DripFlights;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
@@ -38,6 +39,7 @@ public final class GooServerState {
     private final ScanWaves scanWaves = new ScanWaves();
     private final DripFlights dripFlights = new DripFlights();
     private final MoltenHeats moltenHeats = new MoltenHeats();
+    private final NectarFights nectarFights = new NectarFights();
     private final LayerFalls layerFalls = new LayerFalls();
     private final HostSpreaders hostSpreaders = new HostSpreaders();
     private final HostFreeCells hostFreeCells = new HostFreeCells();
@@ -163,6 +165,16 @@ public final class GooServerState {
     }
 
     /**
+     * The fights over Nectar cells
+     * (decision nectar-goo-keeps-feeds-effects-as-a-universal-food).
+     *
+     * @return the nectar fights
+     */
+    public NectarFights nectarFights() {
+        return nectarFights;
+    }
+
+    /**
      * The sculk charges Host goo started from deaths near it
      * (decision mob-dying-on-or-near-host-goo-spreads-sculk-from-the-goo).
      *
@@ -241,6 +253,7 @@ public final class GooServerState {
         dripFlights.clear();
         layerFalls.clear();
         moltenHeats.clear();
+        nectarFights.clear();
         hostSpreaders.clear();
         hostFreeCells.clear();
         wispClaims.clear();
