@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.client.ability.PhaseLook;
 import com.mercuriusxeno.goo.client.ability.PhasedHands;
 import com.mercuriusxeno.goo.client.ability.PortalView;
 import com.mercuriusxeno.goo.client.ability.SpraySource;
+import com.mercuriusxeno.goo.client.ability.StackInHand;
 import com.mercuriusxeno.goo.client.throwing.BlobShape;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
@@ -729,6 +730,8 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         if (beforeTheEyes) {
             // palm-blob-lifts-as-the-spray-source: the lifted blob stands straight above where this palm rests
             SpraySource.recordRestingPalm(poseStack.last().pose(), palm);
+            // knives-hover-above-the-blob-cube-over-the-hand: the stack draws in this pass, with the blob it hovers over
+            StackInHand.submit(poseStack, nodeCollector);
         }
         if (data.palmLifted()) {
             captureGooCenter(poseStack, palm.x(), palm.y(), palm.z());

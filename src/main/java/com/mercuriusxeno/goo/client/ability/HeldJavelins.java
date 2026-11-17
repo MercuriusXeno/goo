@@ -17,6 +17,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
@@ -208,15 +209,48 @@ public final class HeldJavelins {
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         for (Map.Entry<Integer, Stack> entry : STACKS.entrySet()) {
-            if (mc.level.getEntity(entry.getKey()) instanceof Player caster) {
-                drawStack(event.getPoseStack(), buffers, caster, entry.getValue(), now, partial, camera);
+            if (mc.level.getEntity(entry.getKey()) instanceof Player caster && HoveringKnives.drawsInTheLevel(caster)) {
+                ResourceKey<GooTypeDefinition> type = gooTypeOf(caster);
+                layStack(event.getPoseStack(), caster, entry.getValue(), now, partial, camera,
+                        (at, heading, scale) -> GooFlightRenderer.emitTravelForm(at.last(),
+                                buffers.getBuffer(GooSubmitter.renderType()), type, TravelForm.DART, heading, scale));
             }
         }
         buffers.endBatch(GooSubmitter.renderType());
     }
 
-    private static void drawStack(PoseStack poseStack, MultiBufferSource buffers, Player caster, Stack stack,
-                                  double now, float partial, Vec3 camera) {
+    /**
+     * Submits the local first-person player's javelins in the hand's pass,
+     * with the lifted blob, laid out as the level would lay them and carried
+     * onto the same spot of the screen.
+     *
+     * @param poseStack the pose stack, its pose set onto the hand pass's camera-relative world axes
+     * @param collector the hand pass's node collector
+     * @param caster    the local player
+     * @param partial   the frame's partial tick
+     * @param camera    the camera's position
+     */
+    static void submitInHand(PoseStack poseStack, SubmitNodeCollector collector, Player caster, float partial,
+                             Vec3 camera) {
+        Stack stack = STACKS.get(caster.getId());
+        if (stack == null || caster.level() == null) {
+            return;
+        }
+        ResourceKey<GooTypeDefinition> type = gooTypeOf(caster);
+        layStack(poseStack, caster, stack, caster.level().getGameTime() + partial, partial, camera,
+                (at, heading, scale) -> collector.submitCustomGeometry(at, GooSubmitter.renderType(),
+                        (pose, consumer) -> GooFlightRenderer.emitTravelForm(pose, consumer, type, TravelForm.DART,
+                                heading, scale)));
+    }
+
+    /** Draws one javelin about the pose's origin, pointed along a heading at a size. */
+    @FunctionalInterface
+    private interface JavelinDraw {
+        void draw(PoseStack at, Vec3 heading, float scale);
+    }
+
+    private static void layStack(PoseStack poseStack, Player caster, Stack stack, double now, float partial,
+                                 Vec3 camera, JavelinDraw draw) {
         float xRot = caster.getViewXRot(partial);
         float yRot = caster.getViewYRot(partial);
         Vec3 cube = StackAnchor.cubeOf(caster, partial);
@@ -229,8 +263,7 @@ public final class HeldJavelins {
             Vec3 at = ThrownKnife.drawnFromOf(tail, heading, true, scale).subtract(camera);
             poseStack.pushPose();
             poseStack.translate(at.x, at.y, at.z);
-            GooFlightRenderer.emitTravelForm(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()),
-                    gooTypeOf(caster), TravelForm.DART, heading, scale);
+            draw.draw(poseStack, heading, scale);
             poseStack.popPose();
         }
     }

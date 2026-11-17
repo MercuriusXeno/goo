@@ -8,9 +8,11 @@ import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.network.StackFormedPayload;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
@@ -213,6 +215,19 @@ public final class HoveringKnives {
         return order;
     }
 
+    /**
+     * Whether a caster's stack draws in the level's pass: every caster's but
+     * the local player's in first person, whose stack the hand's pass draws
+     * with the lifted blob.
+     *
+     * @param caster the caster
+     * @return true where the level draws it
+     */
+    static boolean drawsInTheLevel(Player caster) {
+        Minecraft mc = Minecraft.getInstance();
+        return caster != mc.player || !mc.options.getCameraType().isFirstPerson();
+    }
+
     static float easedAt(double age) {
         float share = (float) Math.clamp(age / EASE_TICKS, 0.0, 1.0);
         return share * share * (SMOOTH_SQUARE - SMOOTH_CUBE * share);
@@ -242,11 +257,33 @@ public final class HoveringKnives {
         FlatQuadContext quads = new FlatQuadContext(event.getPoseStack().last(),
                 buffers.getBuffer(GooRenderTypes.CRYSTAL_SHARD_TYPE));
         for (Map.Entry<Integer, Fan> entry : FANS.entrySet()) {
-            if (mc.level.getEntity(entry.getKey()) instanceof Player caster) {
+            if (mc.level.getEntity(entry.getKey()) instanceof Player caster && drawsInTheLevel(caster)) {
                 drawFan(quads, caster, entry.getValue(), now - entry.getValue().changedAt(), partial, camera);
             }
         }
         buffers.endBatch(GooRenderTypes.CRYSTAL_SHARD_TYPE);
+    }
+
+    /**
+     * Submits the local first-person player's pyramid in the hand's pass,
+     * with the lifted blob, laid out as the level would lay it and carried
+     * onto the same spot of the screen.
+     *
+     * @param poseStack the pose stack, its pose set onto the hand pass's camera-relative world axes
+     * @param collector the hand pass's node collector
+     * @param caster    the local player
+     * @param partial   the frame's partial tick
+     * @param camera    the camera's position
+     */
+    static void submitInHand(PoseStack poseStack, SubmitNodeCollector collector, Player caster, float partial,
+                             Vec3 camera) {
+        Fan fan = FANS.get(caster.getId());
+        if (fan == null || caster.level() == null) {
+            return;
+        }
+        double age = caster.level().getGameTime() + partial - fan.changedAt();
+        collector.submitCustomGeometry(poseStack, GooRenderTypes.CRYSTAL_SHARD_TYPE,
+                (pose, consumer) -> drawFan(new FlatQuadContext(pose, consumer), caster, fan, age, partial, camera));
     }
 
     private static void drawFan(FlatQuadContext quads, Player caster, Fan fan, double age, float partial,

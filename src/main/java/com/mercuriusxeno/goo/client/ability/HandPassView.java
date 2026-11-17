@@ -53,6 +53,22 @@ public final class HandPassView {
     }
 
     /**
+     * The transform {@link #toHandPass} carries a camera-relative point by,
+     * as one matrix, so geometry laid out in the level's camera-relative
+     * world axes draws in the hand's pass on the same spot of the screen.
+     *
+     * @param cameraRotation the camera's rotation, from its view onto the world
+     * @param worldFov       the level's field of view, in degrees
+     * @param viewBob        the frame's hurt and walking bob, in view space
+     * @return the matrix onto the hand pass's camera-relative world axes
+     */
+    public static Matrix4f toHandPassMatrix(Quaternionfc cameraRotation, float worldFov, Matrix4fc viewBob) {
+        float across = spread(HAND_FOV) / spread(worldFov);
+        return new Matrix4f().rotate(cameraRotation).scale(across, across, 1f).mul(viewBob)
+                .rotate(new Quaternionf(cameraRotation).conjugate());
+    }
+
+    /**
      * Where a point the hand's pass draws stands in the level, the frame's bob taken back out.
      *
      * @param inHand         the point in the hand pass's camera-relative world axes
