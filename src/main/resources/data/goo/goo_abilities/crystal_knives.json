@@ -9,9 +9,10 @@
   "delivery": {
     "kind": "arc",
     "throw_speed": 1.5,
-    "charge": { "max_ticks": 30, "stack": 10, "stack_ticks": 3, "throw_ticks": 2 },
-    "form_sound": { "id": "minecraft:block.amethyst_block.chime", "volume": 0.6, "pitch": 1.2 },
-    "throw_sound": { "id": "minecraft:entity.arrow.shoot", "volume": 0.5, "pitch": 1.6 }
+    "charge": { "max_ticks": 30, "stack": 10, "stack_ticks": 6, "throw_ticks": 3 },
+    "form_sound": { "id": "minecraft:block.amethyst_block.chime", "volume": 1.0, "pitch": 1.2 },
+    "throw_sound": { "id": "minecraft:entity.snowball.throw", "volume": 0.5, "pitch": 0.4167 },
+    "throw_pitch_spread": 0.0833
   },
   "behaviors": [
     { "type": "damage", "amount": 2, "source": "attack", "knockback": false },

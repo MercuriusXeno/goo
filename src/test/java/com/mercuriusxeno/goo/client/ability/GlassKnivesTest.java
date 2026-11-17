@@ -93,12 +93,11 @@ class GlassKnivesTest {
 
     // knives-and-javelins-sound-as-each-forms-and-is-thrown
     @Test
-    void eachKnifeThrownPlaysTheArrowsShotPitchedUpOnce() {
+    void eachKnifeThrownPlaysTheSnowballsThrowOnce() {
         java.util.List<com.mercuriusxeno.goo.ability.program.SoundCue> played =
                 thrownAs("crystal_knives", GlassKnifePayload.GLASS);
         assertEquals(1, played.size(), "a knife leaving should sound once, " + played);
-        assertEquals("minecraft:entity.arrow.shoot", played.getFirst().sound().toString());
-        assertTrue(played.getFirst().pitch() > 1f, "the shot should be pitched up, " + played.getFirst().pitch());
+        assertEquals("minecraft:entity.snowball.throw", played.getFirst().sound().toString());
     }
 
     // knives-and-javelins-sound-as-each-forms-and-is-thrown

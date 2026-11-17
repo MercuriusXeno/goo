@@ -445,13 +445,14 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
             Codec.DOUBLE.optionalFieldOf("throw_speed", NO_THROW_SPEED).forGetter(Delivery::throwSpeed),
             CodecTail.CODEC.forGetter(delivery -> new CodecTail(delivery.dripsPerTick(), delivery.spew(),
                     delivery.reachesBlockReach(), delivery.peakShare(), delivery.formSounds().form(),
-                    delivery.formSounds().revert(), delivery.formSounds().thrown()))
+                    delivery.formSounds().revert(), delivery.formSounds().thrown(),
+                    delivery.formSounds().throwPitchSpread()))
     ).apply(inst, (kind, blocksPerTick, range, coneDegrees, ticksPerCharge, grannyAllowed, particle, transformAt,
                    sound, charge, form, arcSpeed, seekRange, drainsOnPlacement, throwSpeed, tail) -> new Delivery(
             kind, blocksPerTick, range, coneDegrees, ticksPerCharge, grannyAllowed, particle, transformAt, sound,
             charge, form, arcSpeed, seekRange, drainsOnPlacement, throwSpeed, tail.dripsPerTick(), tail.spew(),
             tail.reachesBlockReach(), tail.peakShare(), new FormSounds(tail.formSound(), tail.revertSound(),
-            tail.throwSound()))));
+            tail.throwSound(), tail.throwPitchSpread()))));
 
     /**
      * The delivery block's last fields as one, since a record codec groups at most sixteen; their keys stay
@@ -464,10 +465,11 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
      * @param formSound         the sound a form formed in the hand makes as it begins forming
      * @param revertSound       the sound a form formed in the hand makes as it begins reverting
      * @param throwSound        the sound each one of a held throw's stack makes as it is thrown
+     * @param throwPitchSpread  how far either side of its pitch each throw's sound may play
      */
     private record CodecTail(int dripsPerTick, Spew spew, boolean reachesBlockReach, double peakShare,
                              Optional<SoundCue> formSound, Optional<SoundCue> revertSound,
-                             Optional<SoundCue> throwSound) {
+                             Optional<SoundCue> throwSound, float throwPitchSpread) {
 
         private static final MapCodec<CodecTail> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
                 // goop-drains-per-cubic-meter-of-slime-placed: the spray's pace is how many drips land a tick
@@ -483,7 +485,8 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
                 SoundCue.CODEC.optionalFieldOf("form_sound").forGetter(CodecTail::formSound),
                 SoundCue.CODEC.optionalFieldOf("revert_sound").forGetter(CodecTail::revertSound),
                 // knives-and-javelins-sound-as-each-forms-and-is-thrown
-                SoundCue.CODEC.optionalFieldOf("throw_sound").forGetter(CodecTail::throwSound)
+                SoundCue.CODEC.optionalFieldOf("throw_sound").forGetter(CodecTail::throwSound),
+                Codec.FLOAT.optionalFieldOf("throw_pitch_spread", 0f).forGetter(CodecTail::throwPitchSpread)
         ).apply(inst, CodecTail::new));
     }
 
