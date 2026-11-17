@@ -75,7 +75,8 @@ public final class KnivesThrowHandler {
             state.thrownKnives().launch(player, held.gooType(), held.ability().id().toString(),
                     ThrownKnife.launchPointOf(player.getEyePosition(), player.getViewXRot(1f), player.getViewYRot(1f),
                             KnifeRainSling.gloveOnTheRight(player), inTheHold, delivery.stacksJavelins()),
-                    ThrownKnife.launchVelocityAlong(look, delivery.throwSpeed()), delivery.stacksJavelins());
+                    ThrownKnife.launchVelocityAlong(look, delivery.throwSpeed()), delivery.stacksJavelins(),
+                    delivery.formSounds().thrown());
             holds.threw(player, 1);
         });
     }
