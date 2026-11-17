@@ -62,8 +62,10 @@ public final class ClientConjuredDoors {
      * @param unzipped how far it has unzipped from the doorway's head, 0 for a pixel to 1 for a slash on the floor
      * @param widened  how far it has widened, 0 for a pixel wide to 1 for the doorway's full width
      * @param look     what it is drawn with
+     * @param phase    where it stands in its life, as the server last sent it
      */
-    public record Drawn(Vec3 at, float yaw, double unzipped, double widened, GateLook look) {
+    public record Drawn(Vec3 at, float yaw, double unzipped, double widened, GateLook look,
+                        ConjuredDoor.Phase phase) {
 
         /**
          * A door drawn with the starfield, as Zone's and End's are.
@@ -74,7 +76,7 @@ public final class ClientConjuredDoors {
          * @param widened  how far it has widened
          */
         public Drawn(Vec3 at, float yaw, double unzipped, double widened) {
-            this(at, yaw, unzipped, widened, GateLook.STARFIELD);
+            this(at, yaw, unzipped, widened, GateLook.STARFIELD, ConjuredDoor.Phase.GROWING);
         }
     }
 
@@ -186,7 +188,8 @@ public final class ClientConjuredDoors {
             return Optional.empty();
         }
         ConjuredDoor door = ConjuredDoor.releasing(look.feet(), look.yaw(), tick);
-        return Optional.of(new Drawn(door.at(), look.yaw(), door.unzipped(), door.widened(), localRelease.look()));
+        return Optional.of(new Drawn(door.at(), look.yaw(), door.unzipped(), door.widened(), localRelease.look(),
+                door.phase()));
     }
 
     /**
@@ -270,7 +273,7 @@ public final class ClientConjuredDoors {
         double crossed = Mth.lerp(step, seen.before().crossed(), seen.now().crossed());
         Vec3 at = ConjuredDoor.placedAt(look.feet(), look.yaw(), crossed);
         return sharesAt(seen, since).map(shares -> new Drawn(at, look.yaw(), shares.unzipped(), shares.widened(),
-                seen.look()));
+                seen.look(), seen.now().phase()));
     }
 
     /**
@@ -291,7 +294,7 @@ public final class ClientConjuredDoors {
         Vec3 at = before.at().lerp(now.at(), step);
         float yaw = Mth.rotLerp((float) step, before.yaw(), now.yaw());
         return sharesAt(seen, since).map(shares -> new Drawn(at, yaw, shares.unzipped(), shares.widened(),
-                seen.look()));
+                seen.look(), seen.now().phase()));
     }
 
     /**
