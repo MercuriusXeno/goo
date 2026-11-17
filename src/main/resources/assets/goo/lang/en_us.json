@@ -128,6 +128,7 @@
   "block.goo.glow_wisps": "Wisps",
   "block.goo.hex_leech": "Leech",
   "block.goo.typhoon_updraft": "Updraft",
+  "block.goo.quantum_phase": "Phase",
 
   "goo.badge.world": "World",
   "goo.badge.mob": "Mob",
@@ -215,6 +216,9 @@
   "goo.ability.quantum.phase_self.description": "Puts you out of phase: mobs lose you, and only same-phase creatures can trade hits.",
   "goo.ability.quantum.phase_other": "Phase Other",
   "goo.ability.quantum.phase_other.description": "Puts a struck mob out of phase, so it hits and targets only its own side.",
+  "goo.ability.quantum.phase": "Phase",
+  "goo.ability.quantum.phase.cost_mechanics": "Costs %s per block of Phase laid, a fifteenth of it per layer.",
+  "goo.ability.quantum.phase.description": "Held stream sprays Phase, a flickering goo that puts whatever stands in it out of phase, lingering a while after for each layer.",
   "goo.ability.quantum.tunnel": "Tunnel",
   "goo.ability.quantum.tunnel.description": "Opens a wormhole from the struck wall to the opening beyond, up to 32 blocks, for thirty seconds.",
   "goo.ability.quantum.portal": "Portal",

@@ -65,8 +65,9 @@ class InventoryRenamedAbilitiesTest {
                 Arguments.of("zoo_kin", "Kin"));
     }
 
+    // quantum_phase names the Phase goo (decision phase-goo-puts-what-stands-in-it-out-of-phase).
     @ParameterizedTest
-    @ValueSource(strings = {"ender_zone", "quantum_phase", "quantum_phase_shift"})
+    @ValueSource(strings = {"ender_zone", "quantum_phase_shift"})
     void oldKeyShipsNoAbility(String oldId) {
         assertNull(InventoryRenamedAbilitiesTest.class.getResource(ABILITY_JSON.formatted(oldId)), oldId + " json");
         assertNull(InventoryRenamedAbilitiesTest.class.getResource(ABILITY_ICON.formatted(oldId)), oldId + " icon");

@@ -340,6 +340,26 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
+     * Phase: the volume cell bound to Quantum's goo, the blue goo Phase
+     * sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot and sounding as goo does, putting what stands in it out of
+     * phase, dropping the quantum goo its layers cost through
+     * VolumeCellBlock.getDrops, no loot table
+     * (decisions phase-goo-puts-what-stands-in-it-out-of-phase,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VolumeCellBlock> QUANTUM_PHASE = BLOCKS.registerBlock(
+            "quantum_phase", properties -> new VolumeCellBlock(properties, CellBinding.PHASE),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_PURPLE)
+                    .friction(CellBinding.PHASE.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
      * Prism: the milky quartz crystal Crystal's Prism grows, the host every
      * prism combo grows on (decision prism-blob-becomes-a-milky-quartz-crystal).
      */
