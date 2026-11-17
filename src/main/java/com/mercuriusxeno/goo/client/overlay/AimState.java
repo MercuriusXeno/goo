@@ -24,6 +24,7 @@ public final class AimState {
     private TargetResult target = TargetResult.NONE;
     private AimAssistResolver.@Nullable AimHit hit;
     private int outlineColor;
+    private boolean mobsOutline = true;
 
     /**
      * Resolves one frame's aim from the previous frame's aim-assist hit.
@@ -69,11 +70,25 @@ public final class AimState {
      * @param entityOutlineColor the outline an aimed-at entity takes, 0 for none
      */
     void update(AimResolver resolver, int entityOutlineColor) {
+        update(resolver, entityOutlineColor, true);
+    }
+
+    /**
+     * Stores one frame's aim, resolved from the last frame's hit, for a held
+     * ability that may outline no mob.
+     * decision knives-do-not-highlight-mobs
+     *
+     * @param resolver           resolves the aim
+     * @param entityOutlineColor the outline an aimed-at entity takes, 0 for none
+     * @param mobsOutline        whether the held ability outlines the mob its aim rests on; Knives outlines none
+     */
+    void update(AimResolver resolver, int entityOutlineColor, boolean mobsOutline) {
         Resolution resolution = resolver.resolve(hit);
         target = resolution.target();
         hit = resolution.hit();
         // A locked item keeps its outline while the aim rests on a block, so the color stands whatever the target.
         outlineColor = entityOutlineColor;
+        this.mobsOutline = mobsOutline;
     }
 
     /**
@@ -86,15 +101,14 @@ public final class AimState {
     }
 
     /**
-     * The outline an entity takes: the aimed-at one's, a locked item's, or a painted mob's.
+     * The outline an entity takes: the aimed-at one's or a locked item's.
      *
      * @param entity    the entity being rendered
      * @param lockedNow whether a Grab locks an entity now, as this client sees its ailment
-     * @param painted   whether a Knives hold has painted an entity
      * @return the opaque outline color, or 0 when the glove outlines the entity not
      */
-    int outlineFor(Entity entity, Predicate<Entity> lockedNow, Predicate<Entity> painted) {
-        return outlines(entity, aimedMob(), lockedNow, painted) ? outlineColor : 0;
+    int outlineFor(Entity entity, Predicate<Entity> lockedNow) {
+        return outlines(entity, aimedMob(), lockedNow, mobsOutline) ? outlineColor : 0;
     }
 
     /**
@@ -109,22 +123,22 @@ public final class AimState {
     }
 
     /**
-     * Whether the glove outlines an entity: the one the aim rests on, every
-     * item a Grab press locked while its lock stands, so a sweep shows each
-     * item it took though the aim moved on, and every mob a Knives hold has
-     * painted, though the aim left it.
+     * Whether the glove outlines an entity: the one the aim rests on, under a
+     * held ability that outlines mobs, and every item a Grab press locked
+     * while its lock stands, so a sweep shows each item it took though the
+     * aim moved on.
      * decision sweeping-grab-locks-every-item-the-highlight-passes
-     * decision knives-paint-mobs-by-hovering-while-forming
+     * decision knives-do-not-highlight-mobs
      *
-     * @param entity    the entity being rendered
-     * @param aimed     the entity the aim rests on, or null
-     * @param lockedNow whether a Grab locks an entity now
-     * @param painted   whether a Knives hold has painted an entity
+     * @param entity      the entity being rendered
+     * @param aimed       the entity the aim rests on, or null
+     * @param lockedNow   whether a Grab locks an entity now
+     * @param mobsOutline whether the held ability outlines the mob its aim rests on
      * @return true where the glove outlines it
      */
     static boolean outlines(Entity entity, @Nullable Entity aimed, Predicate<Entity> lockedNow,
-                            Predicate<Entity> painted) {
-        return entity == aimed || entity instanceof ItemEntity && lockedNow.test(entity) || painted.test(entity);
+                            boolean mobsOutline) {
+        return mobsOutline && entity == aimed || entity instanceof ItemEntity && lockedNow.test(entity);
     }
 
     /**
@@ -137,6 +151,6 @@ public final class AimState {
      */
     AimedMobMark markFor(Entity entity, float gameTime) {
         Entity aimed = aimedMob();
-        return AimedMobMark.at(aimed != null && aimed == entity, gameTime);
+        return AimedMobMark.at(mobsOutline && aimed != null && aimed == entity, gameTime);
     }
 }

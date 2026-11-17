@@ -10,17 +10,17 @@ import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.NonNull;
 
 /**
- * Server-to-client payload: one of Knives' glass knives left its fan slot
- * homing on its mob, for every client watching to fly it the same way, each
- * tick turning toward where the mob stands on that client.
+ * Server-to-client payload: one of Knives' glass knives left its hover slot,
+ * for every client watching to fly it along the same projectile flight the
+ * server flies it on.
  * decision knives-sling-then-morph-to-flechettes
- * decision knives-home-on-their-painted-mob
+ * decision knives-and-dart-function-as-projectiles
  *
- * @param start     where it left its fan slot
- * @param mobId     the entity id of the mob it homes on
- * @param lastKnown where the mob stood as the knife left, which the knife flies to should the mob be gone
+ * @param throwerId the thrower's entity id, whom the knife passes through
+ * @param start     where it left its hover slot
+ * @param velocity  its launch velocity, blocks per tick
  */
-public record GlassKnifePayload(Vec3 start, int mobId, Vec3 lastKnown) implements CustomPacketPayload {
+public record GlassKnifePayload(int throwerId, Vec3 start, Vec3 velocity) implements CustomPacketPayload {
 
     /** How a knife's flight ends. */
     public enum Ending {
@@ -28,7 +28,7 @@ public record GlassKnifePayload(Vec3 start, int mobId, Vec3 lastKnown) implement
         STUCK,
         /** It strikes a mob and shatters. */
         STRUCK,
-        /** Its mob was gone, or its flight ran out, and it shatters in the air. */
+        /** Its flight ran out, or it left the world, and it shatters in the air. */
         SPENT
     }
 
@@ -38,9 +38,9 @@ public record GlassKnifePayload(Vec3 start, int mobId, Vec3 lastKnown) implement
 
     /** Stream codec for encoding/decoding. */
     public static final StreamCodec<ByteBuf, GlassKnifePayload> STREAM_CODEC = StreamCodec.composite(
+            ByteBufCodecs.VAR_INT, GlassKnifePayload::throwerId,
             Vec3.STREAM_CODEC, GlassKnifePayload::start,
-            ByteBufCodecs.VAR_INT, GlassKnifePayload::mobId,
-            Vec3.STREAM_CODEC, GlassKnifePayload::lastKnown,
+            Vec3.STREAM_CODEC, GlassKnifePayload::velocity,
             GlassKnifePayload::new);
 
     @Override

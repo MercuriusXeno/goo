@@ -218,7 +218,7 @@ class AimStateTest {
         void twoLockedItemsAreOutlinedWithTheAimOnNeither() {
             Set<Entity> locked = Set.of(first, second);
             Set<Entity> outlined = java.util.stream.Stream.of(first, second, aimedAt)
-                    .filter(entity -> AimState.outlines(entity, aimedAt, locked::contains, NONE_PAINTED))
+                    .filter(entity -> AimState.outlines(entity, aimedAt, locked::contains, TARGETS_A_MOB))
                     .collect(java.util.stream.Collectors.toSet());
             assertEquals(Set.of(first, second, aimedAt), outlined);
         }
@@ -226,35 +226,44 @@ class AimStateTest {
         @Test
         void anItemWhoseLockEndedIsOutlinedOnlyWhileTheAimRestsOnIt() {
             Set<Entity> locked = Set.of();
-            assertTrue(AimState.outlines(first, first, locked::contains, NONE_PAINTED));
-            assertFalse(AimState.outlines(first, aimedAt, locked::contains, NONE_PAINTED));
-            assertFalse(AimState.outlines(first, null, locked::contains, NONE_PAINTED));
+            assertTrue(AimState.outlines(first, first, locked::contains, TARGETS_A_MOB));
+            assertFalse(AimState.outlines(first, aimedAt, locked::contains, TARGETS_A_MOB));
+            assertFalse(AimState.outlines(first, null, locked::contains, TARGETS_A_MOB));
         }
     }
 
     /**
-     * Every mob a Knives hold has painted draws the glove outline while the
-     * hold stands, the aim resting on neither
-     * (decision knives-paint-mobs-by-hovering-while-forming).
+     * While Knives is the held ability no mob draws the glove outline, the
+     * mob under the crosshair included, and the aimed mob draws it under an
+     * ability that targets a mob (decision knives-do-not-highlight-mobs).
      */
     @Nested
-    class PaintedMobOutline {
+    class KnivesOutlinesNoMob {
 
-        private final Mob firstPainted = mob(new AABB(0, 0, 0, 1, 1, 1));
-        private final Mob secondPainted = mob(new AABB(3, 0, 0, 4, 1, 1));
-        private final Mob unpainted = mob(new AABB(6, 0, 0, 7, 1, 1));
+        private final Mob underTheCrosshair = mob(new AABB(0, 0, 0, 1, 1, 1));
 
         @Test
-        void twoPaintedMobsAreOutlinedWithTheAimOnNeither() {
-            Set<Entity> painted = Set.of(firstPainted, secondPainted);
-            Set<Entity> outlined = java.util.stream.Stream.of(firstPainted, secondPainted, unpainted)
-                    .filter(entity -> AimState.outlines(entity, null, NONE_LOCKED, painted::contains))
-                    .collect(java.util.stream.Collectors.toSet());
-            assertEquals(Set.of(firstPainted, secondPainted), outlined);
+        void theMobUnderTheCrosshairDrawsNoOutlineWhileKnivesIsHeld() {
+            assertFalse(AimState.outlines(underTheCrosshair, underTheCrosshair, NONE_LOCKED, KNIVES_HELD));
+        }
+
+        @Test
+        void theMobUnderTheCrosshairDrawsItsOutlineUnderAnAbilityThatTargetsAMob() {
+            assertTrue(AimState.outlines(underTheCrosshair, underTheCrosshair, NONE_LOCKED, TARGETS_A_MOB));
+        }
+
+        @Test
+        void theAimedMobCarriesNoMarkWhileKnivesIsHeld() {
+            AimState aim = new AimState();
+            aim.update(seed -> picking(underTheCrosshair), 1, KNIVES_HELD);
+            assertEquals(0, aim.outlineFor(underTheCrosshair, NONE_LOCKED));
+            assertEquals(0f, aim.markFor(underTheCrosshair, 0f).strength());
         }
     }
 
-    private static final java.util.function.Predicate<Entity> NONE_PAINTED = entity -> false;
+    /** Whether the held ability outlines mobs: Knives outlines none. */
+    private static final boolean KNIVES_HELD = false;
+    private static final boolean TARGETS_A_MOB = true;
     private static final java.util.function.Predicate<Entity> NONE_LOCKED = entity -> false;
 
     private static AimState.Resolution picking(Entity mob) {

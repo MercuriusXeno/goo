@@ -6,28 +6,20 @@ import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.client.ability.HoveringKnives;
 import com.mercuriusxeno.goo.network.KnivesHoldPayload;
 import com.mercuriusxeno.goo.network.KnivesThrowPayload;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import org.jspecify.annotations.Nullable;
-import java.util.OptionalInt;
-import java.util.function.IntPredicate;
 
 /**
  * Tells the server when the local player's Knives hold begins and ends, so
  * the server's clock forms the knives: a hold begins with the press's
- * first held tick and ends as right click comes up or the press drops. While
- * the hold stands, each mob the outline picks is painted, and letting go
- * clears the paint.
+ * first held tick and ends as right click comes up or the press drops.
  * decision knives-form-on-right-click-and-throw-on-left-click
  * decision knives-charge-one-per-three-ticks-up-to-ten
- * decision knives-paint-mobs-by-hovering-while-forming
  */
 public final class KnivesHoldSender {
 
     /** The selection whose hold the server was told began, or null where none stands. */
     private static @Nullable GloveSelection begun;
-    /** The mobs the standing hold has painted. */
-    private static final PaintedMobs PAINTED = new PaintedMobs();
 
     private KnivesHoldSender() {
     }
@@ -64,49 +56,24 @@ public final class KnivesHoldSender {
     }
 
     /**
-     * Paints the mob the outline picks this tick while a hold stands, first
-     * dropping each painted mob no longer standing.
-     *
-     * @param hovered the outlined mob's entity id, empty for none
-     * @param stands  whether the mob of an id still stands on this client
-     */
-    static void paint(OptionalInt hovered, IntPredicate stands) {
-        if (begun != null) {
-            PAINTED.dropGone(stands);
-            PAINTED.hovered(hovered);
-        }
-    }
-
-    /**
-     * Throws the knives in the local player's fan at the mobs the hold
-     * painted, in painted order, and clears the paint; the server splits them.
+     * Throws a knife of the local player's hold along its look; the server
+     * launches it, aimed at no mob.
      * decision knives-form-on-right-click-and-throw-on-left-click
+     * decision knives-do-not-seek-you-just-throw-them
      *
      * @param player the local player
-     * @return true where a hold stood with a knife in its fan
+     * @return true where a hold stood with a knife held
      */
     static boolean throwKnives(Player player) {
         if (begun == null || HoveringKnives.formedBy(player.getId()) <= 0) {
             return false;
         }
-        GloveThrowSender.sendPayload(new KnivesThrowPayload(PAINTED.painted()));
-        PAINTED.thrown();
+        GloveThrowSender.sendPayload(KnivesThrowPayload.INSTANCE);
         return true;
     }
 
-    /**
-     * Whether the standing hold has painted an entity, which wears the outlined mob's highlight.
-     *
-     * @param entity the entity
-     * @return true for a painted mob while the hold stands
-     */
-    public static boolean paints(Entity entity) {
-        return begun != null && PAINTED.paints(entity.getId());
-    }
-
-    /** Tells the server the hold it was told of ends, its knives gone and none thrown, its paint cleared. */
+    /** Tells the server the hold it was told of ends, its knives gone and none thrown. */
     static void end() {
-        PAINTED.dismissed();
         if (begun != null) {
             GloveThrowSender.sendPayload(new KnivesHoldPayload(false, begun.gooTypeId(), begun.abilityId()));
             begun = null;
