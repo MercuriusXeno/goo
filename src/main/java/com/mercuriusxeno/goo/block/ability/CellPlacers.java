@@ -15,10 +15,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * The player who placed each goo cell whose hit credits its placer, by the
- * cell's position, since a cell is a plain block with no block entity to
- * remember one. Saved in each level's data, so a cell keeps its placer
- * through unloads and restarts.
+ * The player who placed each standing goo block whose hit credits its
+ * placer, a goo cell or a light rail cell, by the block's position, since
+ * each is a plain block with no block entity to remember one. Saved in each
+ * level's data, so a block keeps its placer through unloads and restarts.
  * standing-goo-thing-credits-whoever-placed-it
  */
 public class CellPlacers extends SavedData {
