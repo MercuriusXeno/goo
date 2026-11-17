@@ -9,7 +9,6 @@ import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
 import com.mercuriusxeno.goo.ability.program.KinStep;
 import com.mercuriusxeno.goo.ability.program.LowerCaseEnumCodec;
 import com.mercuriusxeno.goo.ability.program.LuxStep;
-import com.mercuriusxeno.goo.ability.program.PhaseStep;
 import com.mercuriusxeno.goo.ability.program.RemoteStep;
 import com.mercuriusxeno.goo.ability.program.SculkerStep;
 import com.mercuriusxeno.goo.ability.program.SightStep;
@@ -53,7 +52,11 @@ public enum LaidState {
     UNVEIL,
     /** Ancient's floor of half a heart and its aged overlay (decision ancient-makes-the-player-immortal). */
     ANCIENT,
-    /** Standing out of phase (decision phase-shares-a-plane-between-the-phased). */
+    /**
+     * Standing out of phase, laid by no step, Phase goo phasing what stands in
+     * it (decision phase-goo-puts-what-stands-in-it-out-of-phase); it stands so
+     * a saved held effect naming it still loads and steps its player back into phase.
+     */
     PHASE,
     /**
      * Laid by no step, Rally being a mob ability (decision rally-is-a-mob-effect-on-one-target);
@@ -102,7 +105,6 @@ public enum LaidState {
             Map.entry(RemoteStep.class, REMOTE),
             Map.entry(UnveilStep.class, UNVEIL),
             Map.entry(AncientStep.class, ANCIENT),
-            Map.entry(PhaseStep.class, PHASE),
             Map.entry(SculkerStep.class, SCULKER),
             Map.entry(KinStep.class, KIN));
 

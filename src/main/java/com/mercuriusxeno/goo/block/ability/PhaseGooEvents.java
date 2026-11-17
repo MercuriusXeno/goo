@@ -20,9 +20,9 @@ import java.util.stream.Stream;
  * phase reaches a tick past this one, so it stands while the thing stands
  * there, plus the linger the laying ability's step names for the cell's
  * layers, so it fades that long after the thing steps off. A phase already
- * standing longer is kept. The phase is the one Phase Self and Phase Other
- * lay, with all it means: mobs lose the phased, only the phased trade hits
- * with them, and they draw as a ghostly image.
+ * standing longer is kept. The phase is the out-of-phase state, with all it
+ * means: mobs lose the phased, only the phased trade hits with them, and
+ * they draw as a ghostly image.
  * phase-goo-puts-what-stands-in-it-out-of-phase
  * phase-shares-a-plane-between-the-phased
  */

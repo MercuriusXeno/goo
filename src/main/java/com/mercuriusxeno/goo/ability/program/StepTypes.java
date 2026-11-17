@@ -159,7 +159,6 @@ public final class StepTypes {
         register(HastenRegrowStep.TYPE);
         register(SlashStep.TYPE);
         register(CharmStep.TYPE);
-        register(PhaseStep.TYPE);
         register(PortalStep.TYPE);
         register(LeafSteps.ENCHANT_BOOK.type());
         register(FuseBooksStep.TYPE);

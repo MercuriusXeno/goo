@@ -28,7 +28,6 @@ class AbilityReleaseSwingTest {
             Map.entry("deep_click", ArmPoseKind.NONE),
             Map.entry("rock_spire", ArmPoseKind.NONE),
             Map.entry("hex_charm", ArmPoseKind.NONE),
-            Map.entry("quantum_phase_other", ArmPoseKind.NONE),
             Map.entry("typhoon_shulk", ArmPoseKind.NONE),
             Map.entry("yore_rewind", ArmPoseKind.NONE),
             Map.entry("zoo_rally", ArmPoseKind.NONE),
