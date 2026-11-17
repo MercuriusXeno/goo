@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.RimeCellBlock;
 import com.mercuriusxeno.goo.block.ability.UpdraftCellBlock;
+import com.mercuriusxeno.goo.block.ability.VinesCellBlock;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.block.ability.WispBlock;
 import com.mercuriusxeno.goo.block.ability.ZapPulseBlock;
@@ -338,13 +339,15 @@ public class GooBlocks {
                     .pushReaction(PushReaction.DESTROY));
     /**
      * Vines: the volume cell bound to Leaf's goo, the green goo Vines sprays
-     * onto a block's top, one to fifteen layers, ordinary ground underfoot
-     * and sounding as goo does
+     * onto a block's top or a wall, one to fifteen layers, ordinary ground
+     * underfoot and sounding as goo does, entangling what crosses it and
+     * growing goologged vines on the walls it coats
      * (decisions vines-is-sprayed-slime-that-entangles-what-tries-to-cross,
+     * vines-goo-on-walls-places-goologged-vines-and-depletes,
      * each-goo-type-ships-a-world-goo-on-the-volume-cell).
      */
-    public static final DeferredBlock<VolumeCellBlock> LEAF_VINES = BLOCKS.registerBlock(
-            "leaf_vines", properties -> new VolumeCellBlock(properties, CellBinding.VINES),
+    public static final DeferredBlock<VinesCellBlock> LEAF_VINES = BLOCKS.registerBlock(
+            "leaf_vines", properties -> new VinesCellBlock(properties, CellBinding.VINES),
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.PLANT)
                     .friction(CellBinding.VINES.surface().friction())

@@ -14,6 +14,10 @@
     {"when": {"layers": "12"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/leaf_vines_shell"}, "layers": 12, "drips": {"model": "goo:block/leaf_vines_drips_12"}}},
     {"when": {"layers": "13"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/leaf_vines_shell"}, "layers": 13, "drips": {"model": "goo:block/leaf_vines_drips_13"}}},
     {"when": {"layers": "14"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/leaf_vines_shell"}, "layers": 14, "drips": {"model": "goo:block/leaf_vines_drips_14"}}},
-    {"when": {"layers": "15"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/leaf_vines_shell"}, "layers": 15, "drips": {"model": "goo:block/leaf_vines_drips_15"}}}
+    {"when": {"layers": "15"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/leaf_vines_shell"}, "layers": 15, "drips": {"model": "goo:block/leaf_vines_drips_15"}}},
+    {"when": {"plant_north": "true"}, "apply": {"model": "minecraft:block/vine"}},
+    {"when": {"plant_east": "true"}, "apply": {"model": "minecraft:block/vine", "uvlock": true, "y": 90}},
+    {"when": {"plant_south": "true"}, "apply": {"model": "minecraft:block/vine", "uvlock": true, "y": 180}},
+    {"when": {"plant_west": "true"}, "apply": {"model": "minecraft:block/vine", "uvlock": true, "y": 270}}
   ]
 }
