@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.model;
 
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
+import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mercuriusxeno.goo.client.ability.SprayingClient;
 import com.mercuriusxeno.goo.item.GooItem;
@@ -11,6 +12,7 @@ import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.geometry.QuadCollection;
+import net.minecraft.resources.Identifier;
 import org.joml.Quaternionf;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
@@ -43,6 +45,18 @@ class HeldRawGooRenderTest {
 
         assertFalse(glove.isEmpty(), "the held glove should draw its palm cube");
         assertEquals(glove, goo, "held raw goo should draw the glove's palm cube, core and shell, vertex for vertex");
+    }
+
+    /**
+     * The bare arm draws with the solid geometry, before any translucent face, as the glove body does: on a translucent
+     * type the pulsing lifted blob sorted ahead of the sleeve every other frame and hid it
+     * (decision diagnose-and-correct-the-palm-core-cull).
+     */
+    @Test
+    void theBareArmSubmitsOnTheCutoutSkinType() {
+        Identifier skin = Identifier.withDefaultNamespace("textures/entity/player/wide/steve.png");
+
+        assertEquals(GooSubmitter.cutoutOn(skin), GloveSpecialRenderer.bareArmType(skin, false));
     }
 
     @Test
