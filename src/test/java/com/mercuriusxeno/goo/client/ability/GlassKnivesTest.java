@@ -115,4 +115,15 @@ class GlassKnivesTest {
                 java.util.Optional.empty()), 0, played::add);
         assertTrue(played.isEmpty());
     }
-}
+
+    // knives-hover-above-the-blob-cube-over-the-hand: a thrown one leaves at its hover size and grows to its flight size
+    @Test
+    void aThrownKnifeOrJavelinLeavesAtItsHoverSizeAndGrowsToItsFlightSize() {
+        for (boolean javelin : new boolean[]{false, true}) {
+            float hover = GlassKnives.hoverShareOf(javelin);
+            assertTrue(hover > 0f && hover < 1f, "the hover size should be a share of the flight size, " + hover);
+            assertEquals(hover, GlassKnives.flightScaleAt(0, javelin), 1e-6f);
+            assertTrue(GlassKnives.flightScaleAt(GlassKnives.GROW_TICKS / 2, javelin) > hover);
+            assertEquals(1f, GlassKnives.flightScaleAt(GlassKnives.GROW_TICKS, javelin), 1e-6f);
+        }
+    }}

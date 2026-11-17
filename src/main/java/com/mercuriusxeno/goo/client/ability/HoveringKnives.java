@@ -179,6 +179,33 @@ public final class HoveringKnives {
         return index < fan.previous() ? 1f : easedAt(age);
     }
 
+    /**
+     * Where a hovering knife's point is drawn.
+     *
+     * @param fan   the pyramid's count
+     * @param index the knife's index
+     * @param cube  the lifted blob cube's center
+     * @param xRot  the caster's view pitch in degrees
+     * @param yRot  the caster's view yaw in degrees
+     * @param age   ticks since the change, with the partial tick
+     * @return the knife's point
+     */
+    static Vec3 knifePointAt(Fan fan, int index, Vec3 cube, float xRot, float yRot, double age) {
+        return knifeAt(fan, index, cube, xRot, yRot, age);
+    }
+
+    /**
+     * The size a hovering knife is drawn at against a thrown knife's.
+     *
+     * @param fan   the pyramid's count
+     * @param index the knife's index
+     * @param age   ticks since the change, with the partial tick
+     * @return the drawn size, 1 a thrown knife's
+     */
+    static float knifeDrawnScaleAt(Fan fan, int index, double age) {
+        return knifeScaleAt(fan, index, age) * GlassKnives.hoverShareOf(false);
+    }
+
     static float easedAt(double age) {
         float share = (float) Math.clamp(age / EASE_TICKS, 0.0, 1.0);
         return share * share * (SMOOTH_SQUARE - SMOOTH_CUBE * share);
@@ -223,8 +250,8 @@ public final class HoveringKnives {
                 .orElseGet(() -> StackHover.cubeCenterInView(caster.getEyePosition(partial), xRot, yRot,
                         GooCasters.casterOnTheRight(caster)));
         for (int index = 0; index < fan.count(); index++) {
-            GlassKunai.emit(quads, knifeAt(fan, index, cube, xRot, yRot, age).subtract(camera), look, 0f,
-                    knifeScaleAt(fan, index, age));
+            GlassKunai.emit(quads, knifePointAt(fan, index, cube, xRot, yRot, age).subtract(camera), look, 0f,
+                    knifeDrawnScaleAt(fan, index, age));
         }
     }
 }

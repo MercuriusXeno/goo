@@ -34,6 +34,13 @@ public final class StackHover {
     static final double CLEARANCE = 0.03;
     /** Blocks between neighbouring knives along a row. */
     static final double KNIFE_SPACING = 0.09;
+    /**
+     * A hovering knife's length, point to butt, in blocks: small enough that
+     * the whole pyramid stands in the view over the hand.
+     */
+    public static final double KNIFE_HOVER_LENGTH = 0.12;
+    /** A hovering javelin's length, in blocks, small enough that the whole triangle stands in the view. */
+    public static final double JAVELIN_HOVER_LENGTH = 0.25;
     /** How far apart two javelins stand against the width across their fins: a quarter of a width clear. */
     static final double JAVELIN_SPACING_PER_WIDTH = 1.25;
     /** An equilateral triangle's height against its side, which the javelins' rows stand apart by. */
@@ -114,7 +121,7 @@ public final class StackHover {
     }
 
     /**
-     * A javelin's slot, at the size Dart's javelins draw at: see
+     * A javelin's slot, at the size Dart's javelins hover at: see
      * {@link #javelinSlot(int, int, double)}.
      *
      * @param index the javelin's index, 0 the first formed
@@ -122,7 +129,17 @@ public final class StackHover {
      * @return its slot
      */
     public static Slot javelinSlot(int index, int held) {
-        return javelinSlot(index, held, TravelForm.DART.widthAcrossFins());
+        return javelinSlot(index, held, TravelForm.DART.widthAcrossFins() * javelinHoverShare());
+    }
+
+    /**
+     * The size a hovering javelin draws at against a thrown one's: its hover
+     * length over the dart's whole length.
+     *
+     * @return the share of the flight size
+     */
+    public static double javelinHoverShare() {
+        return JAVELIN_HOVER_LENGTH / TravelForm.DART.frontLength();
     }
 
     /**

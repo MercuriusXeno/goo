@@ -87,7 +87,8 @@ class StackHoverTest {
     @Nested
     class DartRow {
 
-        private final double width = TravelForm.DART.widthAcrossFins();
+        /** The width across a hovering javelin's fins, the size it hovers at. */
+        private final double width = TravelForm.DART.widthAcrossFins() * StackHover.javelinHoverShare();
 
         @Test
         void threeJavelinsStandInATriangleOneAndTwoOverThreeMidwayBetween() {

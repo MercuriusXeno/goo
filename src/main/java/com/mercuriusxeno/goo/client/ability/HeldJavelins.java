@@ -169,6 +169,18 @@ public final class HeldJavelins {
     }
 
     /**
+     * The size a hovering javelin is drawn at against a thrown javelin's, about its middle.
+     *
+     * @param stack the stack
+     * @param index the javelin's index
+     * @param age   ticks since the change, with the partial tick
+     * @return the drawn size, 1 a thrown javelin's
+     */
+    static float javelinDrawnScaleAt(Stack stack, int index, double age) {
+        return (index < stack.previous() ? 1f : HoveringKnives.easedAt(age)) * GlassKnives.hoverShareOf(true);
+    }
+
+    /**
      * The heading every javelin of a stack points along: the caster's look.
      *
      * @param xRot the caster's view pitch in degrees
@@ -226,8 +238,7 @@ public final class HeldJavelins {
             poseStack.pushPose();
             poseStack.translate(at.x, at.y, at.z);
             GooFlightRenderer.emitTravelForm(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()),
-                    gooTypeOf(caster), TravelForm.DART, headingOf(xRot, yRot),
-                    index < stack.previous() ? 1f : HoveringKnives.easedAt(age));
+                    gooTypeOf(caster), TravelForm.DART, headingOf(xRot, yRot), javelinDrawnScaleAt(stack, index, age));
             poseStack.popPose();
         }
     }

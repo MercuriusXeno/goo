@@ -18,6 +18,8 @@ public final class GlassKunai {
     static final float HEEL_LENGTH = 0.1f;
     /** The grip's length behind the blade. */
     static final float GRIP_LENGTH = 0.16f;
+    /** The kunai's whole length, point to butt, in blocks at full size. */
+    static final float WHOLE_LENGTH = POINT_LENGTH + HEEL_LENGTH + GRIP_LENGTH;
     /** The blade's half-width at its widest, across its flat. */
     private static final float BLADE_HALF_WIDTH = 0.075f;
     /** The blade's half-thickness at its widest. */
