@@ -18,6 +18,8 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.animal.cow.Cow;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -49,6 +51,7 @@ public final class NectarTests {
     private static final String SETS_TWO_ZOMBIES_FIGHTING = "nectar_goo_sets_two_zombies_fighting";
     private static final String DRIP_FEEDS_A_STRUCK_CALF = "nectar_drip_feeds_a_struck_calf";
     private static final String COATS_A_WALL_AND_HOLDS = "nectar_drip_on_a_wall_coats_it_and_holds_what_hangs_there";
+    private static final String LEAVING_GIVES_GRAVITY_BACK = "nectar_leaving_a_wall_coat_gives_gravity_back";
     private static final String WALL_COAT_STAYS = "nectar_on_a_wall_stays_on_it";
     private static final String COATS_A_CLIMBABLE_COLUMN = "nectar_coats_a_wall_column_to_climb";
     private static final String COAT_OVER_FLOOR_GOO_STAYS = "nectar_on_a_wall_over_floor_goo_stays_on_it";
@@ -112,6 +115,15 @@ public final class NectarTests {
     private static final int HANG_TICKS = 20;
     /** How far a hanging zombie may drift and still read as stuck: a fraction of a ladder slide's first tick. */
     private static final double HANG_SLACK = 0.05;
+    /** The gravity modifier a thing stuck on a Nectar coated wall wears. */
+    private static final Identifier NECTAR_STUCK = Identifier.parse("goo:nectar_stuck");
+    /** The ticks a zombie hangs in the coat before it is moved off it, enough to be stuck. */
+    private static final int STUCK_TICKS = 3;
+    /** The ticks the zombie is watched after it leaves the coat, its gravity back and falling. */
+    private static final int LEFT_TICKS = 10;
+    private static final String NEVER_STUCK = "A zombie hanging in the coat should wear goo:nectar_stuck";
+    private static final String STILL_FLOATING = "A zombie that left the coat should have its gravity back and fall:"
+            + " still stuck %b, dropped %.2f in %d ticks";
     private static final String WALL_COAT_RAN = "The wall should keep %d of the %d layers landed on it, the cell"
             + " there stands %s";
     private static final String COLUMN_GAP = "Every face of the wall should keep Nectar attached so the run can"
@@ -138,6 +150,7 @@ public final class NectarTests {
         GooTestFunctions.registerTest(registrar, SETS_TWO_ZOMBIES_FIGHTING, NectarTests::setsTwoZombiesFighting);
         GooTestFunctions.registerTest(registrar, DRIP_FEEDS_A_STRUCK_CALF, NectarTests::dripFeedsAStruckCalf);
         GooTestFunctions.registerTest(registrar, COATS_A_WALL_AND_HOLDS, NectarTests::coatsAWallAndHoldsWhatHangsThere);
+        GooTestFunctions.registerTest(registrar, LEAVING_GIVES_GRAVITY_BACK, NectarTests::leavingAWallCoatGivesGravityBack);
         GooTestFunctions.registerTest(registrar, WALL_COAT_STAYS, NectarTests::wallCoatStaysOnIt);
         GooTestFunctions.registerTest(registrar, COATS_A_CLIMBABLE_COLUMN, NectarTests::coatsAWallColumnToClimb);
         GooTestFunctions.registerTest(registrar, COAT_OVER_FLOOR_GOO_STAYS, NectarTests::coatOverFloorGooStays);
@@ -253,6 +266,45 @@ public final class NectarTests {
             helper.assertTrue(Math.abs(dropped) <= HANG_SLACK, String.format(DROPPED_OFF_THE_WALL, dropped, HANG_TICKS));
             helper.succeed();
         });
+    }
+
+    /**
+     * A zombie hanging in a Nectar wall coat over open air wears the stuck
+     * gravity modifier; moved one block out from the coat over open air, it
+     * gets its gravity back and falls.
+     * operator UAT 2026-11-17: moving off the wall gets you down
+     *
+     * @param helper the gametest helper
+     */
+    public static void leavingAWallCoatGivesGravityBack(GameTestHelper helper) {
+        helper.setBlock(WALL, Blocks.STONE);
+        BlockPos coated = WALL.east();
+        helper.setBlock(coated, Blocks.AIR);
+        helper.setBlock(coated.east(), Blocks.AIR);
+        AbilityDefinition nectar = AbilityRegistry.of(helper.getLevel()).getAbility(NECTAR);
+        helper.assertTrue(nectar != null, ABILITY_REQUIRED);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.JELLY);
+        KnownRecipes.teachRequires(caster, nectar);
+        LandedDrips.landOnSide(helper, caster, nectar, WALL, Direction.EAST, ONE_DRIP);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, Vec3.atBottomCenterOf(coated).add(0, 0.2, 0));
+        helper.runAfterDelay(STUCK_TICKS, () -> {
+            helper.assertTrue(stuck(zombie), NEVER_STUCK);
+            Vec3 out = helper.absoluteVec(Vec3.atBottomCenterOf(coated.east()).add(0, 0.2, 0));
+            zombie.teleportTo(out.x, out.y, out.z);
+            double leftAt = zombie.getY();
+            helper.runAfterDelay(LEFT_TICKS, () -> {
+                double dropped = leftAt - zombie.getY();
+                helper.assertTrue(!stuck(zombie) && dropped > HANG_SLACK,
+                        String.format(STILL_FLOATING, stuck(zombie), dropped, LEFT_TICKS));
+                helper.succeed();
+            });
+        });
+    }
+
+    private static boolean stuck(Mob mob) {
+        AttributeInstance gravity = mob.getAttribute(Attributes.GRAVITY);
+        return gravity != null && gravity.hasModifier(NECTAR_STUCK);
     }
 
     /**
