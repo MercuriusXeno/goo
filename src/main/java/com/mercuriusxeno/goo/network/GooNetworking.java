@@ -113,7 +113,7 @@ public final class GooNetworking {
         r.playToClient(OreRevealPayload.TYPE, OreRevealPayload.STREAM_CODEC);
         r.playToClient(MeteorScorchPayload.TYPE, MeteorScorchPayload.STREAM_CODEC);
         r.playToClient(GlassKnifePayload.TYPE, GlassKnifePayload.STREAM_CODEC);
-        r.playToClient(KnivesFormedPayload.TYPE, KnivesFormedPayload.STREAM_CODEC);
+        r.playToClient(StackFormedPayload.TYPE, StackFormedPayload.STREAM_CODEC);
         r.playToClient(ArmPosePayload.TYPE, ArmPosePayload.STREAM_CODEC);
         r.playToClient(PalmBlobLiftPayload.TYPE, PalmBlobLiftPayload.STREAM_CODEC);
     }

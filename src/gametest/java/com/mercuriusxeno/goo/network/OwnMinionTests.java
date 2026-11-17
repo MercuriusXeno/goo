@@ -36,7 +36,8 @@ public final class OwnMinionTests {
     private static final BlockPos MOB_POS = new BlockPos(3, 1, 3);
     /** Two blocks west of the mob, inside a player's reach of three. */
     private static final BlockPos PLAYER_POS = MOB_POS.west(2);
-    private static final int SETTLE_TICKS = 1;
+    /** The ticks Dart's hold takes to form its first javelin, which a throw takes. */
+    private static final int ONE_JAVELIN_TICKS = 10;
     private static final int NO_ENTITY = -1;
     private static final int HELD_GOO = 4;
     private static final float RALLY_DAMAGE = 6f;
@@ -89,7 +90,8 @@ public final class OwnMinionTests {
     public static void dartStrikesUnownedMob(GameTestHelper helper) {
         Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, MOB_POS);
         ServerPlayer player = thrower(helper, GooTypes.METAL);
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
+        formAJavelin(player);
+        helper.runAfterDelay(ONE_JAVELIN_TICKS, () -> {
             float before = cow.getHealth();
             GooThrowHandler.execute(player, payload(GooTypes.METAL, METAL_DART, player, cow));
             helper.getLevel().getServer().getPlayerList().remove(player);
@@ -105,7 +107,8 @@ public final class OwnMinionTests {
      */
     private static void assertSpared(GameTestHelper helper, ServerPlayer player, Mob mob, String kind,
             Runnable makeOwn) {
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
+        formAJavelin(player);
+        helper.runAfterDelay(ONE_JAVELIN_TICKS, () -> {
             makeOwn.run();
             float before = mob.getHealth();
             GooThrowHandler.execute(player, payload(GooTypes.METAL, METAL_DART, player, mob));
@@ -113,6 +116,11 @@ public final class OwnMinionTests {
             helper.assertTrue(mob.getHealth() == before, String.format(SHOULD_SPARE, kind, before, mob.getHealth()));
             helper.succeed();
         });
+    }
+
+    // Begins a Dart hold, which forms the javelin a throw takes (dart-stacks-three-javelins-one-per-ten-ticks).
+    private static void formAJavelin(ServerPlayer player) {
+        KnivesHoldHandler.hold(player, new KnivesHoldPayload(true, GooTypes.id(GooTypes.METAL), METAL_DART));
     }
 
     private static void rally(GameTestHelper helper, Mob mob, ServerPlayer caster) {

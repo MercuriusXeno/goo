@@ -121,7 +121,7 @@ class DeliveryTest {
         @Test
         void crystalKnivesFormsKnives() {
             Delivery knives = AbilityJson.decode("crystal_knives").delivery();
-            assertTrue(knives.charge().formsKnives());
+            assertTrue(knives.formsKnives());
         }
 
         // knives-aims-a-spread-fan-not-a-blob-line

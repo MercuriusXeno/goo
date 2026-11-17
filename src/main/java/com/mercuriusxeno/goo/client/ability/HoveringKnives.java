@@ -4,7 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.crystal.KnifeFan;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
-import com.mercuriusxeno.goo.network.KnivesFormedPayload;
+import com.mercuriusxeno.goo.network.StackFormedPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.world.entity.player.Player;
@@ -62,7 +62,7 @@ public final class HoveringKnives {
      * @param payload the formed count
      * @param context the network context
      */
-    public static void onPayload(KnivesFormedPayload payload, IPayloadContext context) {
+    public static void onPayload(StackFormedPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.level != null) {

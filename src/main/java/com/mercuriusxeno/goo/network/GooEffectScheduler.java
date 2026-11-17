@@ -257,6 +257,16 @@ public final class GooEffectScheduler {
     }
 
     /**
+     * Whether a thrower has an effect in flight, landing later.
+     *
+     * @param thrower the thrower
+     * @return true while an effect the thrower threw waits to land
+     */
+    public boolean hasPendingFrom(ServerPlayer thrower) {
+        return pendingEffects.stream().anyMatch(effect -> effect.thrower() == thrower);
+    }
+
+    /**
      * Counts the pending effects, so a caller sharing the scheduler can read
      * what one act added.
      *

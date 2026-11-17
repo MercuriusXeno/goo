@@ -29,6 +29,7 @@ public final class KnivesCharging implements AutoCloseable {
     private KnivesCharging(float share) {
         Delivery knives = mock(Delivery.class);
         when(knives.charge()).thenReturn(KNIVES);
+        when(knives.formsKnives()).thenReturn(true);
         when(knives.chargeShare(anyInt())).thenReturn(share);
         sender = mockStatic(GloveThrowSender.class);
         sender.when(() -> GloveThrowSender.heldSelection(any()))

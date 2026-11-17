@@ -9,11 +9,13 @@ import net.minecraft.world.entity.player.Player;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Tells the server when the local player's Knives hold begins and ends, so
- * the server's clock forms the knives: a hold begins with the press's
- * first held tick and ends as right click comes up or the press drops.
+ * Tells the server when the local player's stacking hold begins and ends,
+ * Knives' knives or Dart's javelins, so the server's clock forms the stack: a
+ * hold begins with the press's first held tick and ends as right click comes
+ * up or the press drops.
  * decision knives-form-on-right-click-and-throw-on-left-click
  * decision knives-charge-one-per-three-ticks-up-to-ten
+ * decision dart-stacks-three-javelins-one-per-ten-ticks
  */
 public final class KnivesHoldSender {
 
@@ -33,23 +35,25 @@ public final class KnivesHoldSender {
      */
     public static boolean selectedFormsKnives(Player player) {
         GloveSelection selection = GloveThrowSender.heldSelection(player);
-        return selection != null && formsKnives(selection);
+        return selection != null && stacksOnAHeldPress(selection)
+                && GloveThrowSender.selectedDelivery(selection.abilityId()).formsKnives();
     }
 
-    private static boolean formsKnives(GloveSelection selection) {
+    // A held throw whose charge stacks what it throws, Knives' or Dart's.
+    private static boolean stacksOnAHeldPress(GloveSelection selection) {
         Delivery delivery = GloveThrowSender.selectedDelivery(selection.abilityId());
         return HeldRoute.throwsOnAttack(delivery, GloveThrowSender.selectedBadge(selection.abilityId()))
-                && delivery.charge().formsKnives();
+                && delivery.charge().stacks();
     }
 
     /**
-     * Tells the server a hold begins, for a selection forming knives.
+     * Tells the server a hold begins, for a selection whose charge stacks.
      *
      * @param player the local player
      */
     static void begin(Player player) {
         GloveSelection selection = GloveThrowSender.heldSelection(player);
-        if (selection == null || selection.getGooType() == null || !formsKnives(selection)) {
+        if (selection == null || selection.getGooType() == null || !stacksOnAHeldPress(selection)) {
             return;
         }
         GloveThrowSender.sendPayload(new KnivesHoldPayload(true, selection.gooTypeId(), selection.abilityId()));
