@@ -126,7 +126,7 @@ class LunarTextureMarksTest {
     }
 
     static Stream<String> groundSprites() {
-        return LunarPaletteTest.LUNAR_SPRITES.stream();
+        return LunarPaletteTest.GROUND_SPRITES.stream();
     }
 
     @ParameterizedTest
@@ -136,23 +136,37 @@ class LunarTextureMarksTest {
         assertTrue(repeats.isEmpty(), sprite + " repeats a mark: " + repeats);
     }
 
-    @Test
-    void twoDashesOfOneShapeReadAsARepeat() {
+    private static BufferedImage paleTileMarkedAt(List<Texel> darkTexels) {
         BufferedImage image = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
         for (int y = 0; y < 16; y++) {
             for (int x = 0; x < 16; x++) {
                 image.setRGB(x, y, 0xffbebfc1);
             }
         }
-        for (Texel dark : List.of(new Texel(15, 2), new Texel(0, 3), new Texel(6, 10), new Texel(7, 11))) {
+        for (Texel dark : darkTexels) {
             image.setRGB(dark.x(), dark.y(), 0xff515151);
         }
-        assertTrue(repeatedClustersOf(image).size() == 1, "the wrapped dash and its copy read as one repeat");
+        return image;
+    }
+
+    @Test
+    void twoThreeTexelMarksOfOneShapeReadAsARepeat() {
+        BufferedImage image = paleTileMarkedAt(List.of(new Texel(15, 2), new Texel(0, 3), new Texel(1, 3),
+                new Texel(6, 10), new Texel(7, 11), new Texel(8, 11)));
+        assertTrue(repeatedClustersOf(image).size() == 1, "the wrapped mark and its copy read as one repeat");
+    }
+
+    /** Salt-and-pepper rock repeats its one- and two-texel specks; the operator ruled those no repeat. */
+    @Test
+    void twoTexelSpecksOfOneShapeReadAsNoRepeat() {
+        BufferedImage image = paleTileMarkedAt(List.of(new Texel(2, 2), new Texel(2, 3), new Texel(9, 11),
+                new Texel(9, 12)));
+        assertTrue(repeatedClustersOf(image).isEmpty(), "two-texel specks read as pepper");
     }
 
     private static List<String> repeatedClustersOf(BufferedImage image) {
         List<Set<Texel>> clusters = clustersOf(darkMarksOf(image), image.getWidth(), image.getHeight()).stream()
-                .filter(cluster -> cluster.size() > 1).toList();
+                .filter(cluster -> cluster.size() >= 3).toList();
         List<String> repeats = new ArrayList<>();
         for (int i = 0; i < clusters.size(); i++) {
             for (int j = i + 1; j < clusters.size(); j++) {
