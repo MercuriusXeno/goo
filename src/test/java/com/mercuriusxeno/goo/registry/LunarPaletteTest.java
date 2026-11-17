@@ -16,8 +16,9 @@ import static com.mercuriusxeno.goo.registry.SpritePixels.storedArgb;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The lunar palette: one grey ramp, pale rock to blue-black, each color picked from a vanilla block texture, which every
- * lunar sprite draws from alone, with regolith drawing only anorthosite's own colors.
+ * The lunar palette: clay's cool blue-grey for the ground over deepslate's dark greys for the iron core, each color
+ * picked from a vanilla block texture, which every lunar sprite draws from alone, with regolith drawing only
+ * anorthosite's own colors.
  * decision lunar-blocks-are-repainted-from-one-shared-palette
  * decision lunar-textures-are-repainted-by-hand-from-vanilla-palettes
  */
@@ -32,21 +33,22 @@ class LunarPaletteTest {
     }
 
     /**
-     * Pale to dark: anorthosite's body sits at the pale end, regolith's dust in the middle, the dark end below. A landform sprite joining the palette draws from this ramp, or adds a named color beside it.
+     * Pale to dark, the colors the operator picked from drafts: the four ground tones anorthosite and regolith draw, then
+     * the iron core's seven. A landform sprite joining the palette draws from this ramp, or adds a named color beside it.
+     * decision lunar-textures-get-form-and-texture-before-color
      */
     static final List<PaletteColor> LUNAR_PALETTE = List.of(
-            new PaletteColor(0xe9e9e9, "diorite"),
-            new PaletteColor(0xcececf, "diorite"),
-            new PaletteColor(0xbebfc1, "diorite"),
-            new PaletteColor(0xb0b0b0, "smooth_stone"),
-            new PaletteColor(0xa3a3a3, "smooth_stone"),
-            new PaletteColor(0x8f8f8f, "stone"),
-            new PaletteColor(0x7f7f7f, "stone"),
-            new PaletteColor(0x686868, "stone"),
-            new PaletteColor(0x515151, "deepslate"),
-            new PaletteColor(0x3d3d43, "deepslate"),
-            new PaletteColor(0x2f2f37, "deepslate"),
-            new PaletteColor(0x1b2632, "smooth_basalt"));
+            new PaletteColor(0xacaebd, "clay"),
+            new PaletteColor(0xa1a7b1, "clay"),
+            new PaletteColor(0x9ca1ac, "clay"),
+            new PaletteColor(0x9499a4, "clay"),
+            new PaletteColor(0x7a7a7a, "cobbled_deepslate"),
+            new PaletteColor(0x696969, "cobbled_deepslate"),
+            new PaletteColor(0x5a5a5a, "cobbled_deepslate"),
+            new PaletteColor(0x4a4a4f, "cobbled_deepslate"),
+            new PaletteColor(0x3f3f45, "cobbled_deepslate"),
+            new PaletteColor(0x353539, "cobbled_deepslate"),
+            new PaletteColor(0x2f2f37, "deepslate"));
 
     /**
      * A ground block's sprites: its own and the variants its blockstate picks among per block, sharing one border band.
@@ -56,12 +58,12 @@ class LunarPaletteTest {
         return List.of(block, block + "_2", block + "_3", block + "_4");
     }
 
-    /**
-     * The sprites under assets/goo/textures/block/ held to the palette. Iron core stands outside it on its vanilla-palette
-     * repaint until its color is picked on the shared palette.
-     * decision iron-core-returns-to-its-vanilla-palette-repaint
-     */
-    static final List<String> LUNAR_SPRITES = Stream.of("anorthosite", "regolith")
+    /** The sprites under assets/goo/textures/block/ held to the palette: both ground blocks' variants and the iron core. */
+    static final List<String> LUNAR_SPRITES = Stream.concat(Stream.of("anorthosite", "regolith")
+            .flatMap(block -> variantsOf(block).stream()), Stream.of("iron_core")).toList();
+
+    /** The ground blocks' variants alone, which the mark tests read. */
+    static final List<String> GROUND_SPRITES = Stream.of("anorthosite", "regolith")
             .flatMap(block -> variantsOf(block).stream()).toList();
 
     private static Set<Integer> opaqueColorsOf(BufferedImage image) {
