@@ -128,9 +128,11 @@ public final class HoveringKnives {
      * @return the knife's point
      */
     static Vec3 knifeAt(Fan fan, int index, Vec3 cube, float xRot, float yRot, double age) {
-        Vec3 slot = StackHover.pointOf(cube, xRot, yRot, StackHover.knifeSlot(index));
+        Vec3 slot = StackHover.pointOf(cube, xRot, yRot, StackHover.knifeSlot(index, fan.count()));
         if (index < fan.previous()) {
-            return slot;
+            // knives-hover-in-an-upside-down-bowling-pin-pyramid: a standing knife shifts as the centered pile widens
+            Vec3 was = StackHover.pointOf(cube, xRot, yRot, StackHover.knifeSlot(index, fan.previous()));
+            return was.lerp(slot, easedAt(age));
         }
         Vec3 spawn = StackHover.pointOf(cube, xRot, yRot, StackHover.spawnSlot(index, KNIVES));
         return spawn.lerp(slot, easedAt(age));
