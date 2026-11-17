@@ -108,9 +108,7 @@ public final class SlimeTopQuads {
     }
 
     /**
-     * A flat quad with its vertices raised to the top's heights: every
-     * vertex of a patch, or a rim's upper vertices, its lower ones kept on
-     * the floor and its texture following each vertex's height.
+     * A flat quad standing on the top's heights.
      *
      * @param flat the quad baked flat
      * @param top  the top's heights
@@ -118,12 +116,26 @@ public final class SlimeTopQuads {
      * @return the quad standing on the top
      */
     private static BakedQuad standOn(BakedQuad flat, SlimeTop top, boolean rim) {
+        return raised(flat, (x, z) -> (float) top.heightAtPixel(x, z) / LAYERS_TALL, rim);
+    }
+
+    /**
+     * A flat quad with its vertices raised to a height field: every vertex
+     * of a horizontal patch, or a side's upper vertices, baked at the
+     * block's top, its lower ones kept where they were baked and its
+     * texture following each vertex's height.
+     *
+     * @param flat    the quad baked flat
+     * @param heights the height over each point, in blocks
+     * @param side    true for a side baked up to the block's top, false for a horizontal patch
+     * @return the raised quad
+     */
+    static BakedQuad raised(BakedQuad flat, HeightField heights, boolean side) {
         List<Vertex> raised = new ArrayList<>();
         for (int vertex = 0; vertex < BakedQuad.VERTEX_COUNT; vertex++) {
             Vector3fc at = flat.position(vertex);
-            float height = (float) top.heightAtPixel(at.x() * WHOLE, at.z() * WHOLE) / LAYERS_TALL;
-            float y = !rim || at.y() > 0 ? height : 0;
-            long uv = rim ? UVPair.pack(UVPair.unpackU(flat.packedUV(vertex)),
+            float y = !side || at.y() >= 1 ? heights.heightAt(at.x() * WHOLE, at.z() * WHOLE) : at.y();
+            long uv = side ? UVPair.pack(UVPair.unpackU(flat.packedUV(vertex)),
                     flat.materialInfo().sprite().getV(Math.clamp(1 - y, 0f, 1f))) : flat.packedUV(vertex);
             raised.add(new Vertex(new Vector3f(at.x(), y, at.z()), uv));
         }
@@ -137,6 +149,20 @@ public final class SlimeTopQuads {
     }
 
     /**
+     * A height over each point of a block's plan.
+     */
+    @FunctionalInterface
+    interface HeightField {
+
+        /**
+         * @param x model pixels east of the block's west side
+         * @param z model pixels south of its north side
+         * @return the height there, in blocks above the block's floor
+         */
+        float heightAt(float x, float z);
+    }
+
+    /**
      * One vertex of a quad standing on the top.
      *
      * @param position where it stands, in block units
@@ -145,7 +171,11 @@ public final class SlimeTopQuads {
     private record Vertex(Vector3fc position, long uv) {
     }
 
-    private static float tallestOf(BakedQuad quad) {
+    /**
+     * @param quad a quad
+     * @return the height of its highest vertex, in blocks
+     */
+    static float tallestOf(BakedQuad quad) {
         float tallest = 0;
         for (int vertex = 0; vertex < BakedQuad.VERTEX_COUNT; vertex++) {
             tallest = Math.max(tallest, quad.position(vertex).y());
