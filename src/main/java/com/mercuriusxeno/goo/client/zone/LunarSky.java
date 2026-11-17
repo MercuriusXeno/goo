@@ -1,15 +1,17 @@
 package com.mercuriusxeno.goo.client.zone;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.astral.LunarSight;
 import com.mercuriusxeno.goo.lunar.Lunar;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Lunar's sky: the void, PocketStarSky's sea of dim stars with no sun or moon, and one bright blue star standing
- * fixed high in the south east, larger and brighter than any star of the sea, as Venus stands in our sky but bigger.
- * That star is the overworld, and Astral's gate home looks at it.
+ * Lunar's sky: the void, PocketStarSky's sea of dim stars, a sun crossing it on the overworld's clock, and one bright
+ * blue star standing fixed high in the south east, larger and brighter than any star of the sea, as Venus stands in
+ * our sky but bigger. That star is the overworld, and Astral's gate home looks at it.
  * decision astral-sky-is-the-void-with-one-bright-blue-overworld-star
+ * decision lunar-has-a-day-and-night-and-a-sun-on-the-overworlds-clock
  */
 public final class LunarSky {
 
@@ -40,5 +42,18 @@ public final class LunarSky {
             Lunar.OVERWORLD_STAR_DIRECTION, RED, GREEN, BLUE, HALF_SIZE);
 
     private LunarSky() {
+    }
+
+    /**
+     * The sun's direction from the camera at a sun angle, as vanilla's sky turns it: overhead at noon's angle, on the
+     * eastern horizon at sunrise's, on the western at sunset's and underfoot at midnight's. Vanilla turns its sun and
+     * its moon the same way, each by its own angle.
+     * decision lunar-has-a-day-and-night-and-a-sun-on-the-overworlds-clock
+     *
+     * @param sunAngleDegrees the sun angle attribute, in degrees
+     * @return the unit direction
+     */
+    public static Vec3 sunDirection(float sunAngleDegrees) {
+        return LunarSight.moonDirection(sunAngleDegrees);
     }
 }
