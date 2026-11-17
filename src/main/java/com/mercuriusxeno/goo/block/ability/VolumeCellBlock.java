@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.block.ability;
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.ability.LoadedAbilityCost;
 import com.mercuriusxeno.goo.ability.program.ChannelHost;
 import com.mercuriusxeno.goo.ability.program.LeechGooStep;
@@ -26,6 +27,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.InsideBlockEffectApplier;
@@ -695,13 +697,26 @@ public class VolumeCellBlock extends Block {
 
     /**
      * Whether a hit this cell deals credits whoever placed it, so the cell
-     * remembers its placer: a cutting cell's shards.
+     * remembers its placer: a cutting cell's shards and a smiting cell's
+     * holy fire; a cell that hurts nothing remembers none.
      * standing-goo-thing-credits-whoever-placed-it
      *
      * @return true where the cell remembers its placer
      */
-    private boolean creditsItsPlacer() {
-        return surface().cuts();
+    protected boolean creditsItsPlacer() {
+        return surface().cuts() || surface().smites();
+    }
+
+    /**
+     * The player a hit this cell deals credits: whoever placed it, while that player is on the server.
+     * standing-goo-thing-credits-whoever-placed-it
+     *
+     * @param level the level
+     * @param pos   the cell
+     * @return the player, or null where no player placed it, the cell credits no placer or the player is away
+     */
+    protected @Nullable ServerPlayer creditedPlayerAt(ServerLevel level, BlockPos pos) {
+        return GooHitCredit.placerOf(level, placerAt(level, pos));
     }
 
     /**
@@ -1768,7 +1783,7 @@ public class VolumeCellBlock extends Block {
             ShatterStep.in(layingProgram(level)).ifPresent(shatter -> ShatterCut.cut(server, pos, state, entity,
                     shatter));
         }
-        smite(level, state, entity);
+        smite(level, pos, state, entity);
         catchIn(level, entity);
         super.stepOn(level, pos, state, entity);
     }
@@ -1785,24 +1800,27 @@ public class VolumeCellBlock extends Block {
     protected void entityInside(@NonNull BlockState state, @NonNull Level level, @NonNull BlockPos pos,
                                 @NonNull Entity entity, @NonNull InsideBlockEffectApplier effects,
                                 boolean pastEdges) {
-        smite(level, state, entity);
+        smite(level, pos, state, entity);
         catchIn(level, entity);
         super.entityInside(state, level, pos, entity, effects, pastEdges);
     }
 
     /**
      * Burns an undead touching a smiting cell and deals it holy damage by
-     * the cell's layers, as the laying ability's wisps step names.
+     * the cell's layers, as the laying ability's wisps step names, crediting
+     * the player who placed the cell.
      * undead-touching-wisps-goo-erupt-in-flames-and-take-holy-damage-by-fill
+     * standing-goo-thing-credits-whoever-placed-it
      *
      * @param level  the level the cell stands in
+     * @param pos    the cell
      * @param state  the cell's state
      * @param entity the entity touching the cell
      */
-    private void smite(Level level, BlockState state, Entity entity) {
+    private void smite(Level level, BlockPos pos, BlockState state, Entity entity) {
         if (surface().smites() && level instanceof ServerLevel server) {
-            WispsStep.in(layingProgram(level))
-                    .ifPresent(wisps -> WispsSmite.touch(server, entity, state.getValue(LAYERS), wisps));
+            WispsStep.in(layingProgram(level)).ifPresent(wisps -> WispsSmite.touch(server, entity,
+                    state.getValue(LAYERS), wisps, creditedPlayerAt(server, pos)));
         }
     }
 
