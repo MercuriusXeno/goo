@@ -335,7 +335,10 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
-     * Whether a side's wall can hold a film: the block beside has a sturdy face toward the cell.
+     * Whether a side's wall can hold a film: the block beside has a sturdy
+     * face toward the cell and is no goo, since goo clings to goo no more
+     * than to air and flows on to it.
+     * drip-striking-a-side-sticks-or-runs-by-adhesion
      *
      * @param level the level
      * @param pos   the cell
@@ -344,7 +347,8 @@ public class VolumeCellBlock extends Block {
      */
     public static boolean clingsTo(BlockGetter level, BlockPos pos, Direction side) {
         BlockPos wall = pos.relative(side);
-        return level.getBlockState(wall).isFaceSturdy(level, wall, side.getOpposite());
+        BlockState beside = level.getBlockState(wall);
+        return !(beside.getBlock() instanceof VolumeCellBlock) && beside.isFaceSturdy(level, wall, side.getOpposite());
     }
 
     /**

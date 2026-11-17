@@ -71,6 +71,14 @@ final class CellLanding {
 
         /**
          * @param cell a cell
+         * @return true where a block of any goo stands there, which no goo clings to
+         */
+        default boolean gooAt(BlockPos cell) {
+            return false;
+        }
+
+        /**
+         * @param cell a cell
          * @return the volume a block of this goo there holds, 0 for any other
          */
         default int volumeAt(BlockPos cell) {
@@ -156,6 +164,11 @@ final class CellLanding {
         @Override
         public boolean gooBelow(BlockPos pos) {
             return host.stateAt(pos.below()).is(cell);
+        }
+
+        @Override
+        public boolean gooAt(BlockPos pos) {
+            return host.stateAt(pos).getBlock() instanceof VolumeCellBlock;
         }
 
         @Override
@@ -246,6 +259,10 @@ final class CellLanding {
             return Optional.of(CellFed.fill(strike.block()));
         }
         BlockPos beside = strike.block().relative(strike.face());
+        if (cells.gooAt(strike.block())) {
+            // drip-striking-a-side-sticks-or-runs-by-adhesion: goo is no wall, so the drip falls past it
+            return cells.dropLanding(beside).map(landing -> CellFed.falling(beside));
+        }
         return cells.sideAt(beside, wall).map(standing -> fedBeside(beside, wall, adhesion, standing, cells));
     }
 

@@ -39,6 +39,8 @@ class CellLandingTest {
     /** The floor an open overhang's drip drops to. */
     private static final BlockPos DROP_FLOOR = new BlockPos(20, 0, 20);
     private static final int HOLDS_TOPS = 1;
+    /** A full block of goo standing in open air, no wall. */
+    private static final BlockPos GOO_WALL = new BlockPos(3, 1, 15);
 
     /** Open cells stand over every top but the cell's and the slab's; the standing cell alone thickens. */
     private final CellLanding.Cells cells = new CellLanding.Cells() {
@@ -54,7 +56,7 @@ class CellLandingTest {
 
         @Override
         public Optional<SideCoat> sideAt(BlockPos cell, Direction side) {
-            if (cell.equals(WALL) || cell.equals(FILMED_WALL) || cell.equals(CELL)) {
+            if (cell.equals(WALL) || cell.equals(FILMED_WALL) || cell.equals(CELL) || cell.equals(GOO_WALL)) {
                 return Optional.empty();
             }
             boolean filmed = cell.equals(FILMED_WALL.west()) && side == Direction.EAST;
@@ -75,7 +77,25 @@ class CellLandingTest {
         public Optional<BlockPos> dropLanding(BlockPos cell) {
             return Optional.of(DROP_FLOOR.above());
         }
+
+        @Override
+        public boolean gooAt(BlockPos cell) {
+            return cell.equals(GOO_WALL);
+        }
     };
+
+    /**
+     * Goo is no wall: a drip striking the side of a block of goo it cannot
+     * join clings to nothing there, at any adhesion, and falls past it to the
+     * first top below, so it flows on to the goo there (decision
+     * drip-striking-a-side-sticks-or-runs-by-adhesion).
+     */
+    @ParameterizedTest
+    @ValueSource(ints = {0, 3, 4})
+    void aDripStrikingTheSideOfGooFallsPastIt(int adhesion) {
+        assertEquals(Optional.of(CellFed.falling(GOO_WALL.west())),
+                CellLanding.cellFedBy(strike(GOO_WALL, Direction.WEST), adhesion, cells));
+    }
 
     /**
      * Adhesion 4 holds a block's underside where the drip strikes: the drip

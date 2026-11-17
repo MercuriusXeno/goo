@@ -96,6 +96,28 @@ class VolumeCellBlockTest {
             }
         }
 
+        /**
+         * Goo is no wall: a full block of goo has a sturdy face, yet goo
+         * clings to it no more than to air, so no goo hangs beside other goo
+         * over a void; a stone block's face holds it.
+         * drip-striking-a-side-sticks-or-runs-by-adhesion
+         */
+        @Test
+        void gooClingsToNoGooButToAStoneFace() {
+            BlockState fullGoo = mock(BlockState.class);
+            when(fullGoo.getBlock()).thenReturn(mock(VolumeCellBlock.class));
+            when(fullGoo.isFaceSturdy(any(), any(), any())).thenReturn(true);
+            BlockState stone = mock(BlockState.class);
+            when(stone.isFaceSturdy(any(), any(), any())).thenReturn(true);
+            BlockGetter besideGoo = mock(BlockGetter.class);
+            when(besideGoo.getBlockState(AT.east())).thenReturn(fullGoo);
+            BlockGetter besideStone = mock(BlockGetter.class);
+            when(besideStone.getBlockState(AT.east())).thenReturn(stone);
+
+            assertFalse(VolumeCellBlock.clingsTo(besideGoo, AT, Direction.EAST), "goo clings to a full block of goo");
+            assertTrue(VolumeCellBlock.clingsTo(besideStone, AT, Direction.EAST), "goo lets go of a stone face");
+        }
+
         @Test
         void aCellContinuesIntoACellOfItsGoo() {
             BlockState sameGoo = mock(BlockState.class);
