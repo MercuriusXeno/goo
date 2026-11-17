@@ -117,7 +117,8 @@ public final class SprayDripParticle extends SingleQuadParticle {
         this.zo = this.z;
         this.age++;
         SprayDrip.Step step = drip.step(new Vec3(this.x, this.y, this.z), new Vec3(this.xd, this.yd, this.zd),
-                CoatRay.clippingFor(this.level, footing), living, DripFlights.airspaceOf(this.level));
+                new DripArc.Flight(CoatRay.clippingFor(this.level, footing), living,
+                        DripFlights.airspaceOf(this.level), DripArc.gravityIn(this.level.dimension())));
         this.setPos(step.position().x, step.position().y, step.position().z);
         this.xd = step.velocity().x;
         this.yd = step.velocity().y;
@@ -141,7 +142,8 @@ public final class SprayDripParticle extends SingleQuadParticle {
      */
     private void throwFromTheSource() {
         Vec3 from = source.at(0f);
-        DripArc.Step aTickOn = DripArc.step(from, drip.velocity(), OPEN_AIR, ANYWHERE);
+        DripArc.Step aTickOn = DripArc.step(from, drip.velocity(), new DripArc.Flight(OPEN_AIR, DripArc.NO_LIVING,
+                ANYWHERE, DripArc.gravityIn(this.level.dimension())));
         Vec3 at = from.lerp(aTickOn.position(), lead);
         Vec3 velocity = drip.velocity().lerp(aTickOn.velocity(), lead);
         this.setPos(at.x, at.y, at.z);

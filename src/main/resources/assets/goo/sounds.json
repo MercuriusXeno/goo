@@ -218,5 +218,15 @@
         "stream": false
       }
     ]
+  },
+  "effects.lunar_tone": {
+    "category": "players",
+    "subtitle": "subtitles.goo.lunar_tone",
+    "sounds": [
+      {
+        "name": "goo:effects/lunar_tone",
+        "stream": false
+      }
+    ]
   }
 }
