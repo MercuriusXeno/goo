@@ -20,6 +20,8 @@ final class ThrowAim {
     private static final float LOOK_DOWN_MOST = 60f;
     private static final int AIM_HALVINGS = 40;
     private static final int MOST_AIM_TICKS = 40;
+    /** Turns of the look toward the target from the slot the throw leaves from, each closing the gap. */
+    private static final int AIM_TURNS = 6;
     private static final CoatRay.BlockClip OPEN_AIR = (from, to) -> Optional.empty();
     /** A knife's speed, which a javelin's tops (crystal_knives.json, metal_dart.json). */
     private static final double KNIFE_SPEED = 1.5;
@@ -40,22 +42,16 @@ final class ThrowAim {
      * @param speed  the throw's speed, blocks a tick
      */
     static void aimAt(ServerPlayer caster, Vec3 target, int held, double speed) {
-        boolean javelins = speed > KNIFE_SPEED;
-        boolean gloveRight = KnifeRainSling.gloveOnTheRight(caster);
+        Stack stack = new Stack(held, speed > KNIFE_SPEED, KnifeRainSling.gloveOnTheRight(caster));
         Vec3 eye = caster.getEyePosition();
-        Vec3 across = new Vec3(target.x - eye.x, 0, target.z - eye.z);
-        float yaw = (float) Math.toDegrees(Math.atan2(-across.x, across.z));
-        float up = LOOK_UP_MOST;
-        float down = LOOK_DOWN_MOST;
-        for (int halving = 0; halving < AIM_HALVINGS; halving++) {
-            float pitch = (up + down) / 2;
-            if (crossingHeight(eye, pitch, yaw, new Stack(held, javelins, gloveRight), speed, across) > target.y) {
-                up = pitch;
-            } else {
-                down = pitch;
-            }
+        float yaw = yawToward(eye, target);
+        float pitch = 0f;
+        // the throw leaves from its hover slot beside the eye, so the look turns until that slot's path runs over the target
+        for (int turn = 0; turn < AIM_TURNS; turn++) {
+            yaw = yawToward(ThrownKnife.launchPointOf(eye, pitch, yaw, stack.gloveRight(), stack.held(),
+                    stack.javelins()), target);
+            pitch = pitchThrough(eye, yaw, stack, speed, target);
         }
-        float pitch = (up + down) / 2;
         caster.setYRot(yaw);
         caster.yRotO = yaw;
         caster.setYHeadRot(yaw);
@@ -64,18 +60,40 @@ final class ThrowAim {
         caster.xRotO = pitch;
     }
 
-    // The height a throw at a look crosses the target's distance across the ground at.
-    private static double crossingHeight(Vec3 eye, float pitch, float yaw, Stack stack, double speed, Vec3 across) {
+    // The yaw whose look runs across the ground from a point toward the target.
+    private static float yawToward(Vec3 from, Vec3 target) {
+        return (float) Math.toDegrees(Math.atan2(-(target.x - from.x), target.z - from.z));
+    }
+
+    // The pitch whose throw at a yaw crosses the target's height above the target.
+    private static float pitchThrough(Vec3 eye, float yaw, Stack stack, double speed, Vec3 target) {
+        float up = LOOK_UP_MOST;
+        float down = LOOK_DOWN_MOST;
+        for (int halving = 0; halving < AIM_HALVINGS; halving++) {
+            float pitch = (up + down) / 2;
+            if (crossingHeight(eye, pitch, yaw, stack, speed, target) > target.y) {
+                up = pitch;
+            } else {
+                down = pitch;
+            }
+        }
+        return (up + down) / 2;
+    }
+
+    // The height a throw at a look crosses the target's distance across the ground from its launch at.
+    private static double crossingHeight(Vec3 eye, float pitch, float yaw, Stack stack, double speed, Vec3 target) {
         Vec3 look = Vec3.directionFromRotation(pitch, yaw);
+        Vec3 position = ThrownKnife.launchPointOf(eye, pitch, yaw, stack.gloveRight(), stack.held(), stack.javelins());
+        Vec3 across = new Vec3(target.x - position.x, 0, target.z - position.z);
         Vec3 ground = across.normalize();
         double reach = across.length();
-        Vec3 position = ThrownKnife.launchPointOf(eye, pitch, yaw, stack.gloveRight(), stack.held(), stack.javelins());
+        Vec3 launch = position;
         Vec3 velocity = ProjectileFlight.launch(look, speed);
         for (int tick = 0; tick < MOST_AIM_TICKS; tick++) {
             DripArc.Step step = ProjectileFlight.step(position, velocity, ProjectileFlight.ARROW, OPEN_AIR,
                     DripArc.NO_LIVING, point -> true);
-            double from = position.subtract(eye).dot(ground);
-            double to = step.position().subtract(eye).dot(ground);
+            double from = position.subtract(launch).dot(ground);
+            double to = step.position().subtract(launch).dot(ground);
             if (to >= reach) {
                 double share = (reach - from) / (to - from);
                 return position.y + (step.position().y - position.y) * share;
