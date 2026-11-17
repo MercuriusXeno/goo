@@ -17,6 +17,8 @@ import com.mercuriusxeno.goo.registry.GooSoundIds;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import com.mercuriusxeno.goo.block.ability.SideCoat;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -57,6 +59,12 @@ public final class VacuumTests {
     private static final Identifier VACUUM = Identifier.parse("goo:void_vacuum");
     private static final String SPENDS_VOID_WHILE_HELD = "vacuum_spends_void_while_held";
     private static final String RETURNS_THE_GOO = "vacuum_breaks_residuals_and_returns_their_goo";
+    private static final String RETURNS_THE_VOLUME = "vacuum_returns_an_attached_blocks_whole_volume";
+    /** The lane cell the attached block stands in, inside the vacuum's reach. */
+    private static final int ATTACHED_EAST = 3;
+    private static final int ATTACHED_VOLUME = 6;
+    private static final String VOLUME_OWED = "Vacuuming the attached block should return %d mb of weird goo,"
+            + " returned %d";
     private static final String BREAKS_IN_A_WAVE = "vacuum_breaks_residuals_nearest_first";
     private static final String LEAVES_THE_REST = "vacuum_leaves_what_is_outside_its_reach";
     private static final String BREAKS_INSIDE_ITS_CONE = "vacuum_breaks_inside_its_sixty_degree_cone";
@@ -216,6 +224,7 @@ public final class VacuumTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, SPENDS_VOID_WHILE_HELD, VacuumTests::vacuumSpendsVoidWhileHeld);
         GooTestFunctions.registerTest(registrar, RETURNS_THE_GOO, VacuumTests::vacuumBreaksResidualsAndReturnsTheirGoo);
+        GooTestFunctions.registerTest(registrar, RETURNS_THE_VOLUME, VacuumTests::vacuumReturnsAnAttachedBlocksWholeVolume);
         GooTestFunctions.registerTest(registrar, BREAKS_IN_A_WAVE, VacuumTests::vacuumBreaksResidualsNearestFirst);
         GooTestFunctions.registerTest(registrar, LEAVES_THE_REST, VacuumTests::vacuumLeavesWhatIsOutsideItsReach);
         GooTestFunctions.registerTest(registrar, BREAKS_INSIDE_ITS_CONE,
@@ -452,6 +461,40 @@ public final class VacuumTests {
             assertDropped(helper, vacuumer, GooTypes.WEIRD);
             assertDropped(helper, vacuumer, GooTypes.KINETIC);
             helper.getLevel().getServer().getPlayerList().remove(vacuumer);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A block of Goop of volume 6 attached to the stone wall north of it,
+     * walled in by stone and, on the vacuum's side, a slick cell, so nothing
+     * pours, is vacuumed, and the goo returned is six
+     * layers' worth: the volume is all the goo the block holds.
+     * goo-cell-holds-a-fill-and-a-state-per-side
+     * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
+     *
+     * @param helper the gametest helper
+     */
+    public static void vacuumReturnsAnAttachedBlocksWholeVolume(GameTestHelper helper) {
+        layTheFloor(helper);
+        BlockPos block = laneCell(ATTACHED_EAST);
+        helper.setBlock(block.north(), Blocks.STONE);
+        helper.setBlock(block.south(), Blocks.STONE);
+        helper.setBlock(block.east(), Blocks.STONE);
+        // a slick cell on the vacuum's side takes no pour from goop, and stands in the cone's way of nothing
+        helper.setBlock(block.west(), GooBlocks.KINETIC_SLICK.get());
+        helper.setBlock(block, GooBlocks.SLIME_COAT.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, ATTACHED_VOLUME)
+                .setValue(VolumeCellBlock.coatProperty(Direction.NORTH), SideCoat.ATTACHED));
+        ServerPlayer vacuumer = vacuumer(helper);
+        int before = gooReturned(helper, vacuumer, GooTypes.WEIRD);
+        int hold = fullBreakHold(helper);
+        holdVacuum(helper, vacuumer, hold, held -> vacuumer.doTick());
+        helper.runAfterDelay(hold + 1, () -> {
+            int returned = gooReturned(helper, vacuumer, GooTypes.WEIRD) - before;
+            helper.getLevel().getServer().getPlayerList().remove(vacuumer);
+            int owed = ResidualPrices.layersRefund(helper, ATTACHED_VOLUME);
+            helper.assertTrue(returned == owed, String.format(VOLUME_OWED, owed, returned));
             helper.succeed();
         });
     }
