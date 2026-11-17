@@ -1,14 +1,14 @@
 {
   "gooType": "astral",
-  "displayName": "goo.ability.astral.gate",
-  "cost_mechanics": "goo.ability.astral.gate.cost_mechanics",
+  "displayName": "goo.ability.astral.lunar",
+  "cost_mechanics": "goo.ability.astral.lunar.cost_mechanics",
   "badge": "channeled",
   "order": 30,
   "cost": 0,
   "cost_formula": "1000",
   "delivery": { "kind": "self", "ticks_per_charge": 20 },
   "behaviors": [
-    { "type": "astral_gate", "fixation": 100, "cost": 1000 }
+    { "type": "astral_lunar", "fixation": 100, "cost": 1000 }
   ],
   "tags": ["self"],
   "pose": "held_out"

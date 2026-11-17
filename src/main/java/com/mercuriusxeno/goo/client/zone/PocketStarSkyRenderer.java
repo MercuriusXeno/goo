@@ -79,7 +79,7 @@ public final class PocketStarSkyRenderer implements CustomSkyboxRenderer {
     }
 
     /**
-     * Draws the sea of dim stars under the view's rotation, every star scaled by one brightness; the gate trip fades
+     * Draws the sea of dim stars under the view's rotation, every star scaled by one brightness; the Lunar trip fades
      * them in over the overworld's sky with it.
      * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
      *

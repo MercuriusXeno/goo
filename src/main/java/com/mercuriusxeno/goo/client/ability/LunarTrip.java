@@ -1,11 +1,11 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.gate.GateFixation;
+import com.mercuriusxeno.goo.ability.astral.LunarFixation;
 import com.mercuriusxeno.goo.client.zone.LunarSky;
 import net.minecraft.util.Mth;
 
 /**
- * The gate trip's curves against the fixation's progress, zero as the gate takes hold and one as it carries the
+ * The Lunar trip's curves against the fixation's progress, zero as Lunar takes hold and one as it carries the
  * caster: the sky dims to the star void first, the land drops into darkness behind it, and the moon swells from
  * vanilla's size, slowly and then rushing in, until it covers the whole view; white floods the view as it does,
  * stands full over the crossing until the caster's client learns they arrived, and then clears. The trip home
@@ -13,7 +13,7 @@ import net.minecraft.util.Mth;
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
  */
-final class GateTrip {
+final class LunarTrip {
 
     /** How far off vanilla's sky draws the moon, and the moon quad's half width there. */
     static final float SKY_DISTANCE = 100F;
@@ -52,7 +52,7 @@ final class GateTrip {
     /** The ticks the white takes to clear once the caster stands at the far end. */
     static final float WHITE_FADE_TICKS = 30F;
 
-    private GateTrip() {
+    private LunarTrip() {
     }
 
     /**
@@ -64,7 +64,7 @@ final class GateTrip {
      * @param partial  the frame's partial tick
      * @return the trip's progress, zero to one
      */
-    static float progress(GateFixation fixation, long gameTime, float partial) {
+    static float progress(LunarFixation fixation, long gameTime, float partial) {
         if (fixation.released()) {
             float reached = fixation.progress(fixation.releasedAt());
             return progressRunningBack(reached, fixation.duration(), gameTime - fixation.releasedAt() + partial);
@@ -105,7 +105,7 @@ final class GateTrip {
 
     /**
      * How far white has flooded the view over the fixation: clear until the moon has nearly covered it, then
-     * rising to stand full at the tick the gate carries the caster.
+     * rising to stand full at the tick Lunar carries the caster.
      *
      * @param progress the share of the fixation run, zero to one
      * @return none to full
@@ -115,7 +115,7 @@ final class GateTrip {
     }
 
     /**
-     * How white the view stands once the gate has carried the caster: full while the client awaits the arrival
+     * How white the view stands once Lunar has carried the caster: full while the client awaits the arrival
      * mark, so the dimension change shows no cut, then clearing over a short fade once the mark has landed.
      *
      * @param arrived           whether the arrival mark has reached the client

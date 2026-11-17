@@ -13,11 +13,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Astral's gate rising tone: GooSounds registers it under the id GooSoundIds holds, and sounds.json names that id,
+ * Lunar's rising tone: GooSounds registers it under the id GooSoundIds holds, and sounds.json names that id,
  * resolving to an ogg the mod ships, under a subtitle en_us.json names.
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  */
-class GateToneSoundTest {
+class LunarToneSoundTest {
 
     private static final String SOUNDS_JSON = "/assets/goo/sounds.json";
     private static final String EN_US_JSON = "/assets/goo/lang/en_us.json";
@@ -27,19 +27,19 @@ class GateToneSoundTest {
 
     @Test
     void soundRegistryHoldsTheToneUnderItsId() {
-        assertEquals(GooSoundIds.GATE_TONE, GooSounds.GATE_TONE.getId());
+        assertEquals(GooSoundIds.LUNAR_TONE, GooSounds.LUNAR_TONE.getId());
     }
 
     @Test
     void soundsJsonNamesTheToneResolvingToAShippedOgg() throws IOException {
         JsonObject entry = toneEntry();
         JsonArray variations = entry.getAsJsonArray("sounds");
-        assertTrue(variations != null && !variations.isEmpty(), "the gate tone names no sound");
+        assertTrue(variations != null && !variations.isEmpty(), "the Lunar tone names no sound");
         for (int index = 0; index < variations.size(); index++) {
             String name = variations.get(index).getAsJsonObject().get("name").getAsString();
-            assertTrue(name.startsWith(GOO_NAMESPACE), "the gate tone plays " + name + ", no sound the mod ships");
+            assertTrue(name.startsWith(GOO_NAMESPACE), "the Lunar tone plays " + name + ", no sound the mod ships");
             String resource = "/assets/goo/sounds/" + name.substring(GOO_NAMESPACE.length()) + ".ogg";
-            try (InputStream in = GateToneSoundTest.class.getResourceAsStream(resource)) {
+            try (InputStream in = LunarToneSoundTest.class.getResourceAsStream(resource)) {
                 assertNotNull(in, resource + " is not on the classpath");
                 assertEquals(OGG_CAPTURE, new String(in.readNBytes(OGG_CAPTURE.length()), StandardCharsets.US_ASCII),
                         resource + " is no Ogg stream");
@@ -50,20 +50,20 @@ class GateToneSoundTest {
     @Test
     void soundsJsonGivesTheToneASubtitleEnUsNames() throws IOException {
         JsonObject entry = toneEntry();
-        assertTrue(entry.has("subtitle"), "the gate tone carries no subtitle");
+        assertTrue(entry.has("subtitle"), "the Lunar tone carries no subtitle");
         String subtitle = entry.get("subtitle").getAsString();
         assertTrue(readJson(EN_US_JSON).has(subtitle), "en_us.json names no " + subtitle);
     }
 
     private static JsonObject toneEntry() throws IOException {
         JsonObject sounds = readJson(SOUNDS_JSON);
-        String path = GooSoundIds.GATE_TONE.getPath();
+        String path = GooSoundIds.LUNAR_TONE.getPath();
         assertTrue(sounds.has(path), "sounds.json names no " + path);
         return sounds.getAsJsonObject(path);
     }
 
     private static JsonObject readJson(String resource) throws IOException {
-        try (InputStream in = GateToneSoundTest.class.getResourceAsStream(resource)) {
+        try (InputStream in = LunarToneSoundTest.class.getResourceAsStream(resource)) {
             assertNotNull(in, resource + " is not on the classpath");
             return JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
         }

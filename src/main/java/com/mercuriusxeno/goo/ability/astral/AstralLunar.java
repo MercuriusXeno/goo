@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.ability.gate;
+package com.mercuriusxeno.goo.ability.astral;
 
 import com.mercuriusxeno.goo.ability.zone.VoidPockets;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -25,21 +25,21 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Astral's gate on the server, a hold. Held looking at the moon in the overworld, or at the blue overworld star in
+ * Lunar on the server, a hold. Held looking at the moon in the overworld, or at the blue overworld star in
  * lunar, it fixes the caster's gaze, sends them its rising tone, and holds them still where they stand while the moon
  * or the star swells to fill their view; held until the fixation runs out, the moon carries them to lunar over the
  * column they stood on, keeping where they left from, and the star carries them back to exactly that place and
  * facing, each taking the astral then and leaving the arrival mark their client's white clears on. Let go early, it
- * releases them where they stand and takes nothing. Held looking at neither, it refuses with a tell. The gate places
+ * releases them where they stand and takes nothing. Held looking at neither, it refuses with a tell. Lunar places
  * nothing.
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
  * decision holding-right-click-pulls-the-moon-and-early-release-cancels
  */
-public final class AstralGate {
+public final class AstralLunar {
 
     /** The tell a cast looking at neither the moon nor the star shows. */
-    static final String TELL_REFUSED = "goo.ability.astral.gate.refused";
+    static final String TELL_REFUSED = "goo.ability.astral.lunar.refused";
     /** How far a held caster may drift from where they cast before the server sets them back, in blocks. */
     private static final double DRIFT = 1e-3;
     private static final float TONE_VOLUME = 1F;
@@ -50,7 +50,7 @@ public final class AstralGate {
     /** Each holding caster's last held tick and the cost their carry takes. */
     private static final Map<UUID, Hold> HOLDS = new ConcurrentHashMap<>();
 
-    private AstralGate() {
+    private AstralLunar() {
     }
 
     /**
@@ -72,16 +72,16 @@ public final class AstralGate {
      * @return true when the fixation began
      */
     public static boolean begin(ServerPlayer caster, int duration, int cost) {
-        if (caster.getData(GooAttachments.GATE_FIXATION).stands()) {
+        if (caster.getData(GooAttachments.LUNAR_FIXATION).stands()) {
             return false;
         }
         float moonAngle = moonAngleAt(caster);
-        Optional<GateSight.Sky> sky = GateSight.skyAt(caster.level().dimension(), caster.getLookAngle(), moonAngle);
+        Optional<LunarSight.Sky> sky = LunarSight.skyAt(caster.level().dimension(), caster.getLookAngle(), moonAngle);
         if (sky.isEmpty()) {
             return false;
         }
-        caster.setData(GooAttachments.GATE_FIXATION, GateFixation.held(sky.get(),
-                GateSight.directionOf(sky.get(), moonAngle), caster.position(), caster.level().getGameTime(), duration));
+        caster.setData(GooAttachments.LUNAR_FIXATION, LunarFixation.held(sky.get(),
+                LunarSight.directionOf(sky.get(), moonAngle), caster.position(), caster.level().getGameTime(), duration));
         HOLDS.put(caster.getUUID(), new Hold(caster.level().getServer().getTickCount(), cost));
         sendTone(caster);
         return true;
@@ -99,13 +99,13 @@ public final class AstralGate {
     }
 
     /**
-     * Sends the gate's rising tone to the caster alone, where they stand, to rise over the fixation and peak as the
+     * Sends Lunar's rising tone to the caster alone, where they stand, to rise over the fixation and peak as the
      * white floods their view.
      *
      * @param caster the caster
      */
     private static void sendTone(ServerPlayer caster) {
-        caster.connection.send(new ClientboundSoundPacket(GooSounds.GATE_TONE, SoundSource.PLAYERS, caster.getX(),
+        caster.connection.send(new ClientboundSoundPacket(GooSounds.LUNAR_TONE, SoundSource.PLAYERS, caster.getX(),
                 caster.getY(), caster.getZ(), TONE_VOLUME, TONE_PITCH, caster.getRandom().nextLong()));
     }
 
@@ -116,12 +116,12 @@ public final class AstralGate {
      * @return true when the look holds either
      */
     public static boolean findsTheSky(ServerPlayer caster) {
-        return GateSight.skyAt(caster.level().dimension(), caster.getLookAngle(), moonAngleAt(caster))
+        return LunarSight.skyAt(caster.level().dimension(), caster.getLookAngle(), moonAngleAt(caster))
                 .isPresent();
     }
 
     /**
-     * Shows the caster the gate's refusal.
+     * Shows the caster Lunar's refusal.
      *
      * @param caster the caster
      */
@@ -142,17 +142,17 @@ public final class AstralGate {
         for (ServerPlayer caster : players) {
             // Read only where a fixation was laid: reading creates the attachment, which every dimension change
             // would then sync.
-            if (!caster.hasData(GooAttachments.GATE_FIXATION)) {
+            if (!caster.hasData(GooAttachments.LUNAR_FIXATION)) {
                 continue;
             }
-            GateFixation fixation = caster.getData(GooAttachments.GATE_FIXATION);
+            LunarFixation fixation = caster.getData(GooAttachments.LUNAR_FIXATION);
             if (fixation.stands()) {
                 tick(caster, fixation, server.getTickCount());
             }
         }
     }
 
-    private static void tick(ServerPlayer caster, GateFixation fixation, int now) {
+    private static void tick(ServerPlayer caster, LunarFixation fixation, int now) {
         Hold hold = HOLDS.get(caster.getUUID());
         if (hold == null || now - hold.heldAt() > HOLD_OUTLASTS) {
             release(caster, fixation);
@@ -161,8 +161,8 @@ public final class AstralGate {
         } else if (GooSourceScanner.hasEnough(caster, GooTypes.ASTRAL, hold.cost())) {
             HOLDS.remove(caster.getUUID());
             // Removed, not set to none, so the dimension change ahead carries no synced fixation or mark.
-            caster.removeData(GooAttachments.GATE_FIXATION);
-            caster.removeData(GooAttachments.GATE_ARRIVAL);
+            caster.removeData(GooAttachments.LUNAR_FIXATION);
+            caster.removeData(GooAttachments.LUNAR_ARRIVAL);
             if (carry(caster, fixation.sky())) {
                 GooSourceScanner.deplete(caster, GooTypes.ASTRAL, hold.cost());
             }
@@ -178,9 +178,9 @@ public final class AstralGate {
      * @param caster   the caster
      * @param fixation the fixation they held
      */
-    private static void release(ServerPlayer caster, GateFixation fixation) {
+    private static void release(ServerPlayer caster, LunarFixation fixation) {
         HOLDS.remove(caster.getUUID());
-        caster.setData(GooAttachments.GATE_FIXATION, fixation.releaseAt(caster.level().getGameTime()));
+        caster.setData(GooAttachments.LUNAR_FIXATION, fixation.releaseAt(caster.level().getGameTime()));
     }
 
     private static void hold(ServerPlayer caster, Vec3 anchor) {
@@ -197,9 +197,9 @@ public final class AstralGate {
      * @param sky    what carries them
      * @return true when the carry changed their level
      */
-    private static boolean carry(ServerPlayer caster, GateSight.Sky sky) {
+    private static boolean carry(ServerPlayer caster, LunarSight.Sky sky) {
         Level from = caster.level();
-        if (sky == GateSight.Sky.MOON) {
+        if (sky == LunarSight.Sky.MOON) {
             toLunar(caster);
         } else {
             toHome(caster);
@@ -208,7 +208,7 @@ public final class AstralGate {
             return false;
         }
         // The caster's client holds its white over the crossing until this mark reaches it.
-        caster.setData(GooAttachments.GATE_ARRIVAL, new GateArrival(caster.level().getGameTime()));
+        caster.setData(GooAttachments.LUNAR_ARRIVAL, new LunarArrival(caster.level().getGameTime()));
         return true;
     }
 

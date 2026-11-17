@@ -173,7 +173,7 @@ class StepCodecTest {
             Map.entry("hole_open", new HoleOpenStep(Expr.literal(240), Expr.literal(120))),
             Map.entry("zone", new ZoneStep(Expr.literal(20), Expr.literal(6), Expr.literal(40),
                     Expr.literal(10), Expr.literal(1))),
-            Map.entry("astral_gate", new AstralGateStep(Expr.literal(60), Expr.literal(1000))),
+            Map.entry("astral_lunar", new AstralLunarStep(Expr.literal(60), Expr.literal(1000))),
             Map.entry("meteor", new MeteorStep(Expr.literal(4), 40)),
             Map.entry("bloom", new BloomStep(Expr.literal(4), Expr.literal(8), Expr.literal(64))),
             Map.entry("tick_plants", new TickPlantsStep()),

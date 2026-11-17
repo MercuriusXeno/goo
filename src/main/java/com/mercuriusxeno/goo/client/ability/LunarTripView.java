@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.gate.GateFixation;
-import com.mercuriusxeno.goo.ability.gate.GateSight;
+import com.mercuriusxeno.goo.ability.astral.LunarFixation;
+import com.mercuriusxeno.goo.ability.astral.LunarSight;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.zone.PocketStarSkyRenderer;
 import com.mercuriusxeno.goo.lunar.Lunar;
@@ -26,7 +26,7 @@ import org.joml.Vector4f;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Draws the gate trip on the caster's client while a fixation holds them, by GateTrip's curves. Out from the
+ * Draws the Lunar trip on the caster's client while a fixation holds them, by LunarTrip's curves. Out from the
  * overworld: the sky dims to the star void under a black veil the pocket's stars fade in over, the land drops into
  * darkness as the fog closes to black around them, and the moon itself swells along the fixation until it covers
  * the view; vanilla's own moon is turned behind the caster, so the moon that swells is the one moon. Home from
@@ -36,9 +36,9 @@ import org.jspecify.annotations.Nullable;
  * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
-public final class GateTripView {
+public final class LunarTripView {
 
-    private static final String VEIL_LABEL = "goo_gate_sky_veil";
+    private static final String VEIL_LABEL = "goo_lunar_sky_veil";
     /** The six axis directions a cube of veil quads stands along round the camera. */
     private static final Vec3[] VEIL_FACES = {
         new Vec3(1, 0, 0), new Vec3(-1, 0, 0), new Vec3(0, 1, 0), new Vec3(0, -1, 0), new Vec3(0, 0, 1),
@@ -55,7 +55,7 @@ public final class GateTripView {
     private static final PocketStarSkyRenderer VOID_STARS = new PocketStarSkyRenderer();
     private static PocketStarSkyRenderer.@Nullable SkyQuads veil;
 
-    private GateTripView() {
+    private LunarTripView() {
     }
 
     /**
@@ -65,7 +65,7 @@ public final class GateTripView {
      * @param fixation  the fixation holding them
      * @param progress  the share of it run, zero to one
      */
-    private record Trip(GateSight.Sky sky, GateFixation fixation, float progress) {
+    private record Trip(LunarSight.Sky sky, LunarFixation fixation, float progress) {
     }
 
     /**
@@ -81,17 +81,17 @@ public final class GateTripView {
         if (player == null || mc.level == null) {
             return null;
         }
-        GateFixation fixation = player.getData(GooAttachments.GATE_FIXATION);
+        LunarFixation fixation = player.getData(GooAttachments.LUNAR_FIXATION);
         if (!(fixation.stands() || fixation.released()) || mc.level.dimension() != homeOf(fixation.sky())) {
             return null;
         }
-        float progress = GateTrip.progress(fixation, mc.level.getGameTime(),
+        float progress = LunarTrip.progress(fixation, mc.level.getGameTime(),
                 mc.getDeltaTracker().getGameTimeDeltaPartialTick(false));
         return fixation.released() && progress <= 0F ? null : new Trip(fixation.sky(), fixation, progress);
     }
 
-    private static ResourceKey<Level> homeOf(GateSight.Sky sky) {
-        return sky == GateSight.Sky.MOON ? Level.OVERWORLD : Lunar.LEVEL;
+    private static ResourceKey<Level> homeOf(LunarSight.Sky sky) {
+        return sky == LunarSight.Sky.MOON ? Level.OVERWORLD : Lunar.LEVEL;
     }
 
     /**
@@ -107,7 +107,7 @@ public final class GateTripView {
             return;
         }
         LevelRenderState state = event.getRenderState();
-        if (trip.sky() == GateSight.Sky.MOON) {
+        if (trip.sky() == LunarSight.Sky.MOON) {
             SkyRenderState sky = state.skyRenderState;
             sky.moonAngle += HALF_TURN;
         } else {
@@ -124,10 +124,10 @@ public final class GateTripView {
     @SubscribeEvent
     public static void onAfterSky(RenderLevelStageEvent.AfterSky event) {
         Trip trip = trip();
-        if (trip == null || trip.sky() != GateSight.Sky.MOON) {
+        if (trip == null || trip.sky() != LunarSight.Sky.MOON) {
             return;
         }
-        float dim = GateTrip.skyDim(trip.progress());
+        float dim = LunarTrip.skyDim(trip.progress());
         if (dim <= 0F) {
             return;
         }
@@ -138,7 +138,7 @@ public final class GateTripView {
                 }
             });
         }
-        PocketStarSkyRenderer.drawQuads(GooRenderTypes.GATE_SKY_VEIL, veil, event.getModelViewMatrix(), VEIL_LABEL,
+        PocketStarSkyRenderer.drawQuads(GooRenderTypes.LUNAR_SKY_VEIL, veil, event.getModelViewMatrix(), VEIL_LABEL,
                 new Vector4f(FULL, FULL, FULL, dim));
         VOID_STARS.drawStars(event.getModelViewMatrix(), dim);
     }
@@ -154,7 +154,7 @@ public final class GateTripView {
         if (trip == null) {
             return;
         }
-        float dark = GateTrip.landDark(trip.progress());
+        float dark = LunarTrip.landDark(trip.progress());
         event.setNearPlaneDistance(Mth.lerp(dark, event.getNearPlaneDistance(), 0F));
         event.setFarPlaneDistance(Mth.lerp(dark, event.getFarPlaneDistance(), DARK_REACH));
         event.getFogData().cloudEnd = Mth.lerp(dark, event.getFogData().cloudEnd, 0F);
@@ -171,7 +171,7 @@ public final class GateTripView {
         if (trip == null) {
             return;
         }
-        float lit = FULL - GateTrip.landDark(trip.progress());
+        float lit = FULL - LunarTrip.landDark(trip.progress());
         event.setRed(event.getRed() * lit);
         event.setGreen(event.getGreen() * lit);
         event.setBlue(event.getBlue() * lit);
@@ -188,14 +188,14 @@ public final class GateTripView {
         if (trip == null || PortalView.drawing()) {
             return;
         }
-        if (trip.sky() == GateSight.Sky.MOON) {
+        if (trip.sky() == LunarSight.Sky.MOON) {
             SkyRenderState sky = event.getLevelRenderState().skyRenderState;
             // The moon brightens from vanilla's rain-dimmed moon to full as the sky gives way to the void.
-            float brightness = Mth.lerp(GateTrip.skyDim(trip.progress()), sky.rainBrightness, FULL);
-            GateTripBodies.drawMoon(event.getModelViewMatrix(), trip.fixation().direction(), sky.moonPhase,
-                    GateTrip.moonHalfTangent(trip.progress()), brightness);
+            float brightness = Mth.lerp(LunarTrip.skyDim(trip.progress()), sky.rainBrightness, FULL);
+            LunarTripBodies.drawMoon(event.getModelViewMatrix(), trip.fixation().direction(), sky.moonPhase,
+                    LunarTrip.moonHalfTangent(trip.progress()), brightness);
         } else {
-            GateTripBodies.drawStar(event.getModelViewMatrix(), GateTrip.starHalfTangent(trip.progress()));
+            LunarTripBodies.drawStar(event.getModelViewMatrix(), LunarTrip.starHalfTangent(trip.progress()));
         }
     }
 }

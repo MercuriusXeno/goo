@@ -1,8 +1,8 @@
-"""Synthesizes Astral's gate tone, one mono take: a swelling drone with no pitch glide.
+"""Synthesizes Lunar's tone, one mono take: a swelling drone with no pitch glide.
 
 Decision gate-fixates-your-view-on-the-moon-until-it-takes-you: the screen floods white on a rising tone. The server
-sends the tone to the caster as the fixation begins; it rises over the whole fixation, astral_gate.json's 100 ticks,
-and peaks as the white stands full and the gate carries the caster. The level change then stops every sound the
+sends the tone to the caster as the fixation begins; it rises over the whole fixation, astral_lunar.json's 100 ticks,
+and peaks as the white stands full and Lunar carries the caster. The level change then stops every sound the
 client plays, so the tone is built to be cut at its peak, with a short release past it in case the cut comes late.
 
 The operator heard a first take, a chord gliding up three octaves, as a slide whistle, and chose a swelling drone
@@ -11,8 +11,8 @@ its octave, each voice a stack of harmonics a hair detuned so it beats slowly, o
 trip runs, while an airy roar of noise swells beneath it and brightens from a low rumble to a wide rush.
 
 Run from the repository root:
-    python tools/gate_tone.py                 # writes the shipped take
-    python tools/gate_tone.py --take DIR      # writes the take to DIR to listen to
+    python tools/lunar_tone.py                 # writes the shipped take
+    python tools/lunar_tone.py --take DIR      # writes the take to DIR to listen to
 Needs numpy and soundfile (libsndfile with Ogg Vorbis).
 """
 
@@ -26,9 +26,9 @@ SAMPLE_RATE = 44100
 SEED = 20261116
 PEAK = 0.85
 SOUNDS = pathlib.Path("src/main/resources/assets/goo/sounds/effects")
-SHIPPED = "gate_tone.ogg"
+SHIPPED = "lunar_tone.ogg"
 
-# The fixation's length: astral_gate.json's fixation of 100 ticks at 20 ticks a second.
+# The fixation's length: astral_lunar.json's fixation of 100 ticks at 20 ticks a second.
 RISE_SECONDS = 5.0
 # A short fall past the peak, heard only where the level change lands late.
 RELEASE_SECONDS = 0.25
@@ -61,10 +61,10 @@ def drone(share):
     for ratio, level in VOICES:
         for harmonic in range(1, HARMONICS + 1):
             # A harmonic fades in once the opening passes it, softly over one harmonic's width.
-            gate = np.clip(open_harmonics - harmonic + 1.0, 0.0, 1.0)
+            opened = np.clip(open_harmonics - harmonic + 1.0, 0.0, 1.0)
             for detune in (-DETUNE, DETUNE):
                 pitch = ROOT_HZ * ratio * harmonic * (1.0 + detune)
-                signal += level * gate / harmonic * np.sin(2.0 * np.pi * pitch * seconds)
+                signal += level * opened / harmonic * np.sin(2.0 * np.pi * pitch * seconds)
     return signal / np.max(np.abs(signal))
 
 

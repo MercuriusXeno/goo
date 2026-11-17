@@ -7,12 +7,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The gate trip's curves: over a moon fixation the sky dims and the land darkens from none to full, and the moon
+ * The Lunar trip's curves: over a moon fixation the sky dims and the land darkens from none to full, and the moon
  * swells from vanilla's size to cover the whole view; white floods in to stand full at the carry, holds while the
  * arrival mark is awaited, and clears after it lands.
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  */
-class GateTripTest {
+class LunarTripTest {
 
     private static final int SAMPLES = 200;
     private static final double EXACT = 1e-6;
@@ -39,13 +39,13 @@ class GateTripTest {
     class SkyDim {
         @Test
         void skyStandsUndimmedAtTheStartAndFullyDimAtTheEnd() {
-            assertEquals(0.0, GateTrip.skyDim(0F), EXACT);
-            assertEquals(1.0, GateTrip.skyDim(1F), EXACT);
+            assertEquals(0.0, LunarTrip.skyDim(0F), EXACT);
+            assertEquals(1.0, LunarTrip.skyDim(1F), EXACT);
         }
 
         @Test
         void skyDimRisesAcrossTheFixation() {
-            assertTrue(rises(progress -> GateTrip.skyDim((float) progress)));
+            assertTrue(rises(progress -> LunarTrip.skyDim((float) progress)));
         }
     }
 
@@ -53,13 +53,13 @@ class GateTripTest {
     class LandDark {
         @Test
         void landStandsLitAtTheStartAndFullyDarkAtTheEnd() {
-            assertEquals(0.0, GateTrip.landDark(0F), EXACT);
-            assertEquals(1.0, GateTrip.landDark(1F), EXACT);
+            assertEquals(0.0, LunarTrip.landDark(0F), EXACT);
+            assertEquals(1.0, LunarTrip.landDark(1F), EXACT);
         }
 
         @Test
         void landDarkRisesAcrossTheFixation() {
-            assertTrue(rises(progress -> GateTrip.landDark((float) progress)));
+            assertTrue(rises(progress -> LunarTrip.landDark((float) progress)));
         }
     }
 
@@ -70,32 +70,32 @@ class GateTripTest {
 
         @Test
         void viewStandsClearBeforeTheFlood() {
-            assertEquals(0.0, GateTrip.whiteBeforeCarry(BEFORE_THE_FLOOD), EXACT);
+            assertEquals(0.0, LunarTrip.whiteBeforeCarry(BEFORE_THE_FLOOD), EXACT);
         }
 
         @Test
         void whiteStandsFullAtTheCarry() {
-            assertEquals(1.0, GateTrip.whiteBeforeCarry(1F), EXACT);
+            assertEquals(1.0, LunarTrip.whiteBeforeCarry(1F), EXACT);
         }
 
         @Test
         void whiteHoldsFullWhileTheArrivalMarkIsAwaited() {
-            assertEquals(1.0, GateTrip.whiteAfterCarry(false, PAST_THE_FADE), EXACT);
+            assertEquals(1.0, LunarTrip.whiteAfterCarry(false, PAST_THE_FADE), EXACT);
         }
 
         @Test
         void whiteHoldsFullAsTheArrivalMarkLands() {
-            assertEquals(1.0, GateTrip.whiteAfterCarry(true, 0F), EXACT);
+            assertEquals(1.0, LunarTrip.whiteAfterCarry(true, 0F), EXACT);
         }
 
         @Test
         void whiteClearsOnceTheFadeAfterArrivalRuns() {
-            assertEquals(0.0, GateTrip.whiteAfterCarry(true, PAST_THE_FADE), EXACT);
+            assertEquals(0.0, LunarTrip.whiteAfterCarry(true, PAST_THE_FADE), EXACT);
         }
 
         @Test
         void whiteFloodRisesAcrossTheFixation() {
-            assertTrue(rises(progress -> GateTrip.whiteBeforeCarry((float) progress)));
+            assertTrue(rises(progress -> LunarTrip.whiteBeforeCarry((float) progress)));
         }
     }
 
@@ -107,26 +107,26 @@ class GateTripTest {
 
         @Test
         void runBackStartsFromTheProgressReachedAtRelease() {
-            assertEquals(REACHED, GateTrip.progressRunningBack(REACHED, FIXATION_TICKS, 0F), EXACT);
+            assertEquals(REACHED, LunarTrip.progressRunningBack(REACHED, FIXATION_TICKS, 0F), EXACT);
         }
 
         @Test
         void runBackStandsPartwayBetweenTheReachAndNoneMidway() {
-            float midway = GateTrip.runBackTicks(REACHED, FIXATION_TICKS) / 2F;
-            float progress = GateTrip.progressRunningBack(REACHED, FIXATION_TICKS, midway);
+            float midway = LunarTrip.runBackTicks(REACHED, FIXATION_TICKS) / 2F;
+            float progress = LunarTrip.progressRunningBack(REACHED, FIXATION_TICKS, midway);
             assertTrue(progress > 0F && progress < REACHED, "midway through the run back the trip stands at "
                     + progress + ", not between none and " + REACHED);
         }
 
         @Test
         void runBackEndsAtNone() {
-            float end = GateTrip.runBackTicks(REACHED, FIXATION_TICKS);
-            assertEquals(0.0, GateTrip.progressRunningBack(REACHED, FIXATION_TICKS, end), EXACT);
+            float end = LunarTrip.runBackTicks(REACHED, FIXATION_TICKS);
+            assertEquals(0.0, LunarTrip.progressRunningBack(REACHED, FIXATION_TICKS, end), EXACT);
         }
 
         @Test
         void runBackTakesSeveralTicksYetFewerThanTheRise() {
-            float runBack = GateTrip.runBackTicks(REACHED, FIXATION_TICKS);
+            float runBack = LunarTrip.runBackTicks(REACHED, FIXATION_TICKS);
             assertTrue(runBack > 1F && runBack < RISE_TICKS,
                     "the run back takes " + runBack + " ticks against a rise of " + RISE_TICKS);
         }
@@ -136,19 +136,19 @@ class GateTripTest {
     class StarSize {
         @Test
         void blueStarStandsAtItsRestingSizeAtTheStart() {
-            assertEquals(GateTrip.RESTING_STAR_HALF_TANGENT, GateTrip.starHalfTangent(0F), EXACT);
+            assertEquals(LunarTrip.RESTING_STAR_HALF_TANGENT, LunarTrip.starHalfTangent(0F), EXACT);
         }
 
         @Test
         void blueStarCoversTheWidestViewAtTheEnd() {
-            assertTrue(GateTrip.starHalfTangent(1F) >= GateTrip.WIDEST_VIEW_HALF_TANGENT,
-                    "the swollen star's half width " + GateTrip.starHalfTangent(1F)
-                            + " should reach the widest view's half diagonal " + GateTrip.WIDEST_VIEW_HALF_TANGENT);
+            assertTrue(LunarTrip.starHalfTangent(1F) >= LunarTrip.WIDEST_VIEW_HALF_TANGENT,
+                    "the swollen star's half width " + LunarTrip.starHalfTangent(1F)
+                            + " should reach the widest view's half diagonal " + LunarTrip.WIDEST_VIEW_HALF_TANGENT);
         }
 
         @Test
         void blueStarSwellsAcrossTheFixation() {
-            assertTrue(rises(progress -> GateTrip.starHalfTangent((float) progress)));
+            assertTrue(rises(progress -> LunarTrip.starHalfTangent((float) progress)));
         }
     }
 
@@ -156,19 +156,19 @@ class GateTripTest {
     class MoonSize {
         @Test
         void moonStandsAtVanillasSizeAtTheStart() {
-            assertEquals(GateTrip.RESTING_MOON_HALF_TANGENT, GateTrip.moonHalfTangent(0F), EXACT);
+            assertEquals(LunarTrip.RESTING_MOON_HALF_TANGENT, LunarTrip.moonHalfTangent(0F), EXACT);
         }
 
         @Test
         void moonCoversTheWidestViewAtTheEnd() {
-            assertTrue(GateTrip.moonHalfTangent(1F) >= GateTrip.WIDEST_VIEW_HALF_TANGENT,
-                    "the swollen moon's half width " + GateTrip.moonHalfTangent(1F)
-                            + " should reach the widest view's half diagonal " + GateTrip.WIDEST_VIEW_HALF_TANGENT);
+            assertTrue(LunarTrip.moonHalfTangent(1F) >= LunarTrip.WIDEST_VIEW_HALF_TANGENT,
+                    "the swollen moon's half width " + LunarTrip.moonHalfTangent(1F)
+                            + " should reach the widest view's half diagonal " + LunarTrip.WIDEST_VIEW_HALF_TANGENT);
         }
 
         @Test
         void moonSwellsAcrossTheFixation() {
-            assertTrue(rises(progress -> GateTrip.moonHalfTangent((float) progress)));
+            assertTrue(rises(progress -> LunarTrip.moonHalfTangent((float) progress)));
         }
     }
 }
