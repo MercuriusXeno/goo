@@ -351,9 +351,12 @@ public final class GooStreamHandler {
             // the living in its cone
             // goo-spray-scatters-in-a-cone-around-the-look-vector: the drips, the block pass and the drawn drips
             // all leave the hand about the look, whatever block the crosshair meets
-            runBlockPass(cast, apex, axis, delivery, ability, held, true);
-            boolean strikesLiving = throwDrips(player, apex, axis, ability, held);
-            sprayDrips(player, apex, axis, delivery, strikesLiving);
+            // nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob: an aim near a mob throws them onto it
+            Vec3 thrown = NectarThrows.axisFor(player, apex, axis, channelSteps(ability.behaviors(), true),
+                    exitSpeedOf(player, delivery));
+            runBlockPass(cast, apex, thrown, delivery, ability, held, true);
+            boolean strikesLiving = throwDrips(player, apex, thrown, ability, held);
+            sprayDrips(player, apex, thrown, delivery, strikesLiving);
             return List.of();
         }
         // decay-gnats-degrade-each-block-once: what the stream strikes follows the look; only its motes

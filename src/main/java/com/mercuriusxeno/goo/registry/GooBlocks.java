@@ -337,6 +337,25 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
+     * Nectar: the volume cell bound to Jelly's goo, the orange goo Nectar
+     * sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot and sounding as goo does, dropping the jelly goo its layers
+     * cost through VolumeCellBlock.getDrops, no loot table
+     * (decisions nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VolumeCellBlock> JELLY_NECTAR = BLOCKS.registerBlock(
+            "jelly_nectar", properties -> new VolumeCellBlock(properties, CellBinding.NECTAR),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_ORANGE)
+                    .friction(CellBinding.NECTAR.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
      * Prism: the milky quartz crystal Crystal's Prism grows, the host every
      * prism combo grows on (decision prism-blob-becomes-a-milky-quartz-crystal).
      */
