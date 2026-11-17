@@ -65,22 +65,26 @@ public final class VacuumTests {
     private static final int ATTACHED_VOLUME = 6;
     private static final String VOLUME_OWED = "Vacuuming the attached block should return %d mb of weird goo,"
             + " returned %d";
-    private static final String BREAKS_IN_A_WAVE = "vacuum_breaks_residuals_nearest_first";
+    private static final String TAKES_A_LAYER_EACH_PACE = "vacuum_takes_a_layer_each_time_its_pace_runs";
     private static final String LEAVES_THE_REST = "vacuum_leaves_what_is_outside_its_reach";
-    private static final String BREAKS_INSIDE_ITS_CONE = "vacuum_breaks_inside_its_sixty_degree_cone";
+    private static final String BREAKS_INSIDE_ITS_CONE = "vacuum_breaks_inside_its_forty_five_degree_cone";
     /** Where the player stands, the lane running east from it across the light bay. */
     private static final BlockPos STAND = new BlockPos(3, 1, 8);
     private static final float FACING_EAST = -90f;
-    /** Pitched down so the cone, 30 degrees each side of the look, spans the lane one to ten blocks out. */
-    private static final float AT_THE_LANE = 20f;
+    /**
+     * Pitched down so the cone, 22.5 degrees each side of the look, spans the lane from the cell beside the
+     * player, near 48 degrees below level from the eye, to the cell 7 blocks out, near 9 degrees below, and
+     * reaches the middle of the husk the drag test stands 6 blocks out, near 6 degrees below.
+     */
+    private static final float AT_THE_LANE = 27f;
     /** Each lane cell east of the player and what it holds: slick, or goop of that many layers. */
     private static final Map<Integer, Integer> LANE = laneOfResiduals();
     /** A slick film, in the lane's map, against a goop cell's layer count. */
     private static final int SLICK = 0;
-    /** The lane's goop cell 9 blocks out, inside the 10 block reach. */
-    private static final int NINE_OUT = 9;
-    /** The slick past the reach, its middle just over 10 blocks from the eye, east of the lane's last goop cell. */
-    private static final int PAST_THE_REACH = 10;
+    /** The lane's goop cell 7 blocks out, inside the 8 block reach. */
+    private static final int SEVEN_OUT = 7;
+    /** The slick past the reach, its middle just over 8 blocks from the eye, east of the lane's last goop cell. */
+    private static final int PAST_THE_REACH = 8;
     /** A standing player's eye height over its feet. */
     private static final double EYE_HEIGHT = 1.62;
     /** The goop cell behind the player. */
@@ -90,8 +94,6 @@ public final class VacuumTests {
     private static final String NOT_CHARGED = "A hold of %d ticks should spend void goo, spent %d";
     private static final String NOT_CLEARED = "The lane cell %d east should be air after the hold, holds %s";
     private static final String GOO_OWED = "The lane should drop %s goo, dropped %d in %s";
-    private static final String OUT_OF_ORDER = "The lane's cells should turn to air nearest first, %s";
-    private static final String NEVER_BROKE = "Every lane cell should turn to air within the hold, %s";
     private static final String NOT_STANDING = "%s should still stand after the hold, holds %s";
     private static final String PULLS_ITEMS = "vacuum_pulls_items_into_the_inventory";
     private static final String DRAGS_A_MOB = "vacuum_drags_a_mob_to_a_block_in_front";
@@ -116,10 +118,10 @@ public final class VacuumTests {
     private static final String MOVED = "%s should not move, was at %s, is at %s";
     private static final String ACCELERATES_FROM_REST = "vacuum_accelerates_an_item_from_rest";
     private static final String GRAVITY_OFF_WHILE_PULLED = "vacuum_pulls_an_item_with_its_gravity_off";
-    /** The stick 9 blocks out, near the cone's far end, still in flight a good while into a hold. */
-    private static final int ITEM_FAR = 9;
-    /** Where the husk the drag test pulls stands, 9 blocks out near the cone's far end. */
-    private static final int MOB_FAR = 9;
+    /** The stick 7 blocks out, near the cone's far end, still in flight a good while into a hold. */
+    private static final int ITEM_FAR = 7;
+    /** Where the husk the drag test pulls stands, 6 blocks out toward the cone's far end. */
+    private static final int MOB_FAR = 6;
     /** A hold that ends while the far stick is still in flight. */
     private static final int IN_FLIGHT_HOLD = 6;
     /** Rounding a speed may carry past the acceleration on the first pulled tick. */
@@ -138,21 +140,30 @@ public final class VacuumTests {
             + " ran out";
     private static final String NOT_CLOSING = "The husk should close on the player each tick, distances %s";
     private static final String HURT = "The dragged husk should take no damage, had %.1f, has %.1f";
-    private static final String BREAKS_ON_ITS_DISTANCE_TICK = "vacuum_breaks_each_cell_on_the_tick_its_distance_sets";
-    private static final String RELEASED_PART_WAY = "vacuum_released_part_way_starts_the_cell_over";
+    private static final String RELEASED_PART_WAY = "vacuum_released_part_way_keeps_its_count";
+    private static final String RELEASED_PAST_THE_MEMORY = "vacuum_released_past_the_memory_counts_from_zero";
     /** The lane cell six blocks out that the single cell tests lay their goo in. */
     private static final int DECAYED = 6;
-    /** The near goop cell the distance tick test lays, its middle within 2 blocks of the eye. */
-    private static final int TIMED_NEAR = 1;
-    /** The far goop cell the distance tick test lays, 9 blocks out, so it breaks ticks after the near. */
-    private static final int TIMED_FAR = 9;
-    /** The ticks a cell at the eye takes to break. */
-    private static final double NEAR_BREAK_TICKS = 4;
-    /** The ticks a cell at the reach's far end takes to break. */
-    private static final double FAR_BREAK_TICKS = 8;
-    /** The reach, in blocks, along which the break ticks rise from the near value to the far. */
-    private static final double REACH = 10;
-    private static final int TIMED_LAYERS = 3;
+    /** The full goop cell the pace test lays beside the player, its middle within 2 blocks of the eye. */
+    private static final int BESIDE = 1;
+    /** The shallow goop cell the pace test lays 7 blocks out, near the reach's far end. */
+    private static final int NEAR_THE_END = 7;
+    /** A full cell's layers. */
+    private static final int FULL = VolumeCellBlock.MAX_LAYERS;
+    /** A shallow cell's layers. */
+    private static final int SHALLOW = 3;
+    /** The ticks a layer beside the player takes, the near end's pace. */
+    private static final int BESIDE_PACE = 4;
+    /** The deepest lane cell's layers, which the lane's holds wait out at the slowest pace. */
+    private static final int LANE_DEEPEST = 5;
+    /** The ticks the release tests hold before letting go: one layer taken and a tick counted on. */
+    private static final int PART_WAY = 5;
+    /** The ticks of its pace a cell beside the player has left to run once the first hold lets go. */
+    private static final int TICKS_LEFT = 2 * BESIDE_PACE - PART_WAY;
+    /** The ticks after the first hold's last that the release test inside the memory holds again. */
+    private static final int BACK_INSIDE_THE_MEMORY = 10;
+    /** The ticks after the first hold's last that the release test past the memory holds again. */
+    private static final int BACK_PAST_THE_MEMORY = 30;
     private static final String RETURNS_THE_LAYERS_PRICE = "vacuum_returns_a_slime_cells_layers_price";
     /** Past the eight layers a cell held before a cell held fifteen. */
     private static final int VACUUMED_LAYERS = 11;
@@ -165,26 +176,32 @@ public final class VacuumTests {
     /** The two goop cells the slurp test lays, near and far along the reach. */
     private static final int SLURPED_NEAR = 3;
     private static final int SLURPED_FAR = 6;
+    /** The layers each slurped cell holds, so each slurps on the tick its last layer goes and on no earlier one. */
+    private static final int SLURPED_LAYERS = 4;
     private static final String NOT_SLURPED = "One slurp should play at %s, %d did; slurps played at %s";
-    private static final String TIMED_STATE = "hold tick %d: %d east holds %s, owed to break on %d";
-    private static final String NOT_ON_ITS_DISTANCE_TICK = "Each goop cell should stand as laid before the hold tick"
-            + " its distance sets and be air on it: %s";
-    private static final String NOT_FARTHEST_LAST = "The lane's farthest cell should turn to air on a later tick than"
-            + " its nearest, %s";
-    private static final String NEAR_NOT_FIRST = "The near cell's break tick %d should come before the far cell's %d";
-    private static final String NOT_WHOLE = "The goop cell should stand whole at %d layers after a release part way,"
-            + " holds %s";
-    private static final String NOT_STARTED_OVER = "The second hold should break the goop cell on its own hold tick"
-            + " %d, as if the first hold never ran: %s";
-    /** The cone test's goop cell inside the cone, its middle 25 degrees off the look. */
+    private static final String LAYER_STATE = "hold tick %d: %d east holds %s, owed %d layers";
+    private static final String NOT_ON_ITS_PACE = "Each goop cell should lose one layer on each multiple of its pace,"
+            + " the near cell's %d and the far cell's %d, and on no other tick: %s";
+    private static final String PACE_WRONG = "A layer should take %d ticks beside the player and more than that near"
+            + " the reach's end, take %d and %d";
+    private static final String NOT_LEFT = "The goop cell should stand at %d layers after a release part way, holds %s";
+    private static final String TAKEN_NOT_RETURNED = "The layer taken before the release should return %d mb of weird"
+            + " goo, returned %d";
+    private static final String COUNT_NOT_KEPT = "Held again inside the memory, the cell should lose its next layer"
+            + " once the ticks left of its pace run: %s";
+    private static final String COUNT_KEPT = "Held again past the memory, the cell should count from zero: %s";
+    /** The cone test's goop cell inside the cone, its middle 15 degrees off the look. */
     private static final BlockPos INSIDE_THE_CONE = new BlockPos(8, 1, 11);
-    /** The cone test's goop cell outside the cone, mirrored across the lane, near 35 degrees off the look. */
-    private static final BlockPos OUTSIDE_THE_CONE = new BlockPos(8, 1, 5);
-    private static final double INSIDE_DEGREES = 25;
+    /**
+     * The cone test's goop cell outside the cone, across the lane, near 26 degrees off the look: past the 45
+     * degree cone's 22.5 and inside the 30 a 60 degree cone reached.
+     */
+    private static final BlockPos OUTSIDE_THE_CONE = new BlockPos(8, 1, 7);
+    private static final double INSIDE_DEGREES = 15;
     /** The open floor's reach north and south of the stand, past the slabs beside the cone test's cells. */
     private static final int OPEN_FLOOR_HALF_WIDTH = 4;
-    /** The cone's half angle, 30 degrees each side of the look; the cell outside it must stand past this. */
-    private static final double HALF_CONE_DEGREES = 30;
+    /** The cone's half angle, 22.5 degrees each side of the look; the cell outside it must stand past this. */
+    private static final double HALF_CONE_DEGREES = 22.5;
     private static final String NOT_OFF_THE_LOOK = "The cells should stand %.0f and over %.0f degrees off the look,"
             + " stand %.2f and %.2f";
     private static final String INSIDE_STANDS = "The goop cell %.2f degrees off the look should be air after the"
@@ -225,13 +242,14 @@ public final class VacuumTests {
         GooTestFunctions.registerTest(registrar, SPENDS_VOID_WHILE_HELD, VacuumTests::vacuumSpendsVoidWhileHeld);
         GooTestFunctions.registerTest(registrar, RETURNS_THE_GOO, VacuumTests::vacuumBreaksResidualsAndReturnsTheirGoo);
         GooTestFunctions.registerTest(registrar, RETURNS_THE_VOLUME, VacuumTests::vacuumReturnsAnAttachedBlocksWholeVolume);
-        GooTestFunctions.registerTest(registrar, BREAKS_IN_A_WAVE, VacuumTests::vacuumBreaksResidualsNearestFirst);
+        GooTestFunctions.registerTest(registrar, TAKES_A_LAYER_EACH_PACE,
+                VacuumTests::vacuumTakesALayerEachTimeItsPaceRuns);
         GooTestFunctions.registerTest(registrar, LEAVES_THE_REST, VacuumTests::vacuumLeavesWhatIsOutsideItsReach);
         GooTestFunctions.registerTest(registrar, BREAKS_INSIDE_ITS_CONE,
-                VacuumTests::vacuumBreaksInsideItsSixtyDegreeCone);
-        GooTestFunctions.registerTest(registrar, BREAKS_ON_ITS_DISTANCE_TICK,
-                VacuumTests::vacuumBreaksEachCellOnTheTickItsDistanceSets);
-        GooTestFunctions.registerTest(registrar, RELEASED_PART_WAY, VacuumTests::vacuumReleasedPartWayStartsTheCellOver);
+                VacuumTests::vacuumBreaksInsideItsFortyFiveDegreeCone);
+        GooTestFunctions.registerTest(registrar, RELEASED_PART_WAY, VacuumTests::vacuumReleasedPartWayKeepsItsCount);
+        GooTestFunctions.registerTest(registrar, RELEASED_PAST_THE_MEMORY,
+                VacuumTests::vacuumReleasedPastTheMemoryCountsFromZero);
         GooTestFunctions.registerTest(registrar, SLURPS, VacuumTests::vacuumSlurpsOnceAtEachCellItTakes);
         GooTestFunctions.registerTest(registrar, PULLS_ITEMS, VacuumTests::vacuumPullsItemsIntoTheInventory);
         GooTestFunctions.registerTest(registrar, ACCELERATES_FROM_REST, VacuumTests::vacuumAcceleratesAnItemFromRest);
@@ -248,8 +266,8 @@ public final class VacuumTests {
 
     /**
      * Vacuum held over one slime cell of eleven layers throws three break
-     * particles a layer as it takes the cell, counting both the particles
-     * sent and the burst each vanilla break event lays on a client.
+     * particles for each layer it takes, counting both the particles sent and
+     * the burst each vanilla break event lays on a client.
      *
      * @param helper the gametest helper
      */
@@ -261,8 +279,9 @@ public final class VacuumTests {
         helper.setBlock(cell, slimeOf(VACUUMED_LAYERS));
         ServerPlayer vacuumer = vacuumer(helper);
         PacketRecorder seen = PacketRecorder.attachTo(vacuumer);
-        holdVacuum(helper, vacuumer, fullBreakHold(helper), held -> { });
-        helper.runAfterDelay(fullBreakHold(helper) + 1, () -> {
+        int hold = drainHold(helper, DECAYED, VACUUMED_LAYERS);
+        holdVacuum(helper, vacuumer, hold, held -> { });
+        helper.runAfterDelay(hold + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(vacuumer);
             BlockPos at = helper.absolutePos(cell);
             int burst = seen.sentOf(ClientboundLevelEventPacket.class).stream()
@@ -313,7 +332,7 @@ public final class VacuumTests {
         helper.setBlock(laneCell(DECAYED + 1).below(), Blocks.STONE_SLAB);
         ServerPlayer vacuumer = vacuumer(helper);
         List<String> left = new ArrayList<>();
-        int turn = fullBreakHold(helper) + 1 + BETWEEN_HOLDS;
+        int turn = drainHold(helper, DECAYED, VACUUMED_LAYERS) + 1 + BETWEEN_HOLDS;
         for (int i = 0; i < worldGoos.size(); i++) {
             vacuumOneWorldGoo(helper, vacuumer, worldGoos.get(i), i * turn, left::add);
         }
@@ -337,8 +356,9 @@ public final class VacuumTests {
             helper.setBlock(cell, worldGoo.defaultBlockState().setValue(VolumeCellBlock.LAYERS, VACUUMED_LAYERS));
             before[0] = gooReturned(helper, vacuumer, type);
         });
-        holdVacuum(helper, vacuumer, from, fullBreakHold(helper), held -> vacuumer.doTick());
-        helper.runAfterDelay(from + fullBreakHold(helper) + 1, () -> {
+        int hold = drainHold(helper, DECAYED, VACUUMED_LAYERS);
+        holdVacuum(helper, vacuumer, from, hold, held -> vacuumer.doTick());
+        helper.runAfterDelay(from + hold + 1, () -> {
             BlockState stood = helper.getBlockState(cell);
             int returned = gooReturned(helper, vacuumer, type) - before[0];
             int owed = ResidualPrices.worldGooRefund(helper, worldGoo, VACUUMED_LAYERS);
@@ -351,8 +371,9 @@ public final class VacuumTests {
 
     /**
      * Vacuum held over one slick cell of eleven layers, beside open cells it
-     * cannot pour into, returns, lying or pulled into the inventory, the
-     * kinetic goo eleven layers cost, each a fifteenth of Slick's cost.
+     * cannot pour into, takes it a layer at a time and returns, lying or pulled
+     * into the inventory, the kinetic goo eleven layers cost, each a
+     * fifteenth of Slick's cost, as breaking the cell whole returns.
      * breaking-slick-drops-kinetic-goo-worth-its-film
      *
      * @param helper the gametest helper
@@ -366,8 +387,9 @@ public final class VacuumTests {
         helper.setBlock(laneCell(DECAYED), GooBlocks.KINETIC_SLICK.get().defaultBlockState()
                 .setValue(VolumeCellBlock.LAYERS, VACUUMED_LAYERS));
         ServerPlayer vacuumer = vacuumer(helper);
-        holdVacuum(helper, vacuumer, fullBreakHold(helper), held -> vacuumer.doTick());
-        helper.runAfterDelay(fullBreakHold(helper) + 1, () -> {
+        int hold = drainHold(helper, DECAYED, VACUUMED_LAYERS);
+        holdVacuum(helper, vacuumer, hold, held -> vacuumer.doTick());
+        helper.runAfterDelay(hold + 1, () -> {
             int returned = gooReturned(helper, vacuumer, GooTypes.KINETIC);
             helper.getLevel().getServer().getPlayerList().remove(vacuumer);
             int owed = ResidualPrices.slickLayersRefund(helper, VACUUMED_LAYERS);
@@ -378,9 +400,10 @@ public final class VacuumTests {
 
     /**
      * Vacuum held over one slime cell of eleven layers, beside open cells it
-     * cannot pour into, returns, lying or
-     * pulled into the inventory, the weird goo eleven layers cost, each a
-     * fifteenth of Goop's cost.
+     * cannot pour into, takes it a layer at a time and returns, lying or pulled
+     * into the inventory, the weird goo eleven layers cost, each a fifteenth
+     * of Goop's cost: a layer's price is fractional, so the layers sum to
+     * what breaking the cell whole returns only where no layer's mb is lost.
      * breaking-slime-drops-weird-goo-worth-its-layers
      *
      * @param helper the gametest helper
@@ -393,8 +416,9 @@ public final class VacuumTests {
         helper.setBlock(laneCell(DECAYED + 1).below(), Blocks.STONE_SLAB);
         helper.setBlock(laneCell(DECAYED), slimeOf(VACUUMED_LAYERS));
         ServerPlayer vacuumer = vacuumer(helper);
-        holdVacuum(helper, vacuumer, fullBreakHold(helper), held -> vacuumer.doTick());
-        helper.runAfterDelay(fullBreakHold(helper) + 1, () -> {
+        int hold = drainHold(helper, DECAYED, VACUUMED_LAYERS);
+        holdVacuum(helper, vacuumer, hold, held -> vacuumer.doTick());
+        helper.runAfterDelay(hold + 1, () -> {
             int returned = gooReturned(helper, vacuumer, GooTypes.WEIRD);
             helper.getLevel().getServer().getPlayerList().remove(vacuumer);
             int owed = ResidualPrices.layersRefund(helper, VACUUMED_LAYERS);
@@ -411,9 +435,7 @@ public final class VacuumTests {
         lane.put(4, SLICK);
         lane.put(5, 5);
         lane.put(6, SLICK);
-        lane.put(7, 1);
-        lane.put(8, SLICK);
-        lane.put(NINE_OUT, 1);
+        lane.put(SEVEN_OUT, 1);
         return lane;
     }
 
@@ -448,9 +470,9 @@ public final class VacuumTests {
     public static void vacuumBreaksResidualsAndReturnsTheirGoo(GameTestHelper helper) {
         layTheLane(helper);
         ServerPlayer vacuumer = vacuumer(helper);
-        // a slick cell breaks before the farther goop beside it, which pours a layer into the emptied cell, and that
-        // layer starts a break of its own, so the hold runs two far end breaks long
-        int hold = 2 * fullBreakHold(helper);
+        // a slick cell empties before the goop beside it, which pours a layer into the emptied cell, and that
+        // layer is taken in its turn, so the hold runs two lane holds long
+        int hold = 2 * laneHold(helper);
         // the player ticks as its connection would, so the pull's goo lands in the inventory rather than flying on past
         holdVacuum(helper, vacuumer, hold, held -> vacuumer.doTick());
         helper.runAfterDelay(hold + 1, () -> {
@@ -468,8 +490,8 @@ public final class VacuumTests {
     /**
      * A block of Goop of volume 6 attached to the stone wall north of it,
      * walled in by stone and, on the vacuum's side, an open cell over a
-     * bottom slab, so nothing pours, is vacuumed, and the goo returned is six
-     * layers' worth: the volume is all the goo the block holds.
+     * bottom slab, so nothing pours, is vacuumed a layer at a time, and the goo
+     * returned is six layers' worth: the volume is all the goo the block holds.
      * goo-cell-holds-a-fill-and-a-state-per-side
      * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
      *
@@ -489,7 +511,7 @@ public final class VacuumTests {
                 .setValue(VolumeCellBlock.coatProperty(Direction.NORTH), SideCoat.ATTACHED));
         ServerPlayer vacuumer = vacuumer(helper);
         int before = gooReturned(helper, vacuumer, GooTypes.WEIRD);
-        int hold = fullBreakHold(helper);
+        int hold = drainHold(helper, ATTACHED_EAST, ATTACHED_VOLUME);
         holdVacuum(helper, vacuumer, hold, held -> vacuumer.doTick());
         helper.runAfterDelay(hold + 1, () -> {
             int returned = gooReturned(helper, vacuumer, GooTypes.WEIRD) - before;
@@ -501,42 +523,52 @@ public final class VacuumTests {
     }
 
     /**
-     * Vacuum held over the lane breaks its cells nearest first: no cell turns
-     * to air on an earlier tick than the cell nearer the player, and the
-     * farthest turns on a later tick than the nearest; cells a block or two
-     * apart share a tick, the break running 4 ticks to 8 over the reach.
+     * Vacuum held over a full goop cell beside the player and a shallow one
+     * near the reach's far end takes a layer from each every time the ticks
+     * its distance sets have run, the first once they have run: the full cell
+     * loses one on ticks 4, 8 and on to 60, and the far cell one on each
+     * multiple of its slower pace, each on no other tick.
+     * vacuum-breaks-a-cell-the-tick-the-wave-reaches-it
      * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
      *
      * @param helper the gametest helper
      */
-    public static void vacuumBreaksResidualsNearestFirst(GameTestHelper helper) {
-        layTheLane(helper);
+    public static void vacuumTakesALayerEachTimeItsPaceRuns(GameTestHelper helper) {
+        layTheFloor(helper);
+        // open cells east and west of each goop cell over bottom slabs keep its layers in their cell and leave
+        // the line clear
+        for (int east : List.of(BESIDE - 1, BESIDE + 1, NEAR_THE_END - 1, NEAR_THE_END + 1)) {
+            helper.setBlock(laneCell(east).below(), Blocks.STONE_SLAB);
+        }
+        int nearPace = paceAt(helper, BESIDE);
+        int farPace = paceAt(helper, NEAR_THE_END);
+        helper.assertTrue(nearPace == BESIDE_PACE && farPace > BESIDE_PACE,
+                String.format(PACE_WRONG, BESIDE_PACE, nearPace, farPace));
+        Map<Integer, Integer> laid = new LinkedHashMap<>();
+        laid.put(BESIDE, FULL);
+        laid.put(NEAR_THE_END, SHALLOW);
+        Map<Integer, Integer> paces = Map.of(BESIDE, nearPace, NEAR_THE_END, farPace);
+        laid.forEach((east, layers) -> helper.setBlock(laneCell(east), slimeOf(layers)));
         ServerPlayer vacuumer = vacuumer(helper);
-        Map<Integer, Integer> brokeOn = new LinkedHashMap<>();
-        List<Integer> inReach = laneInReach(helper);
-        holdVacuum(helper, vacuumer, fullBreakHold(helper), held -> {
-            for (int east : inReach) {
-                if (!brokeOn.containsKey(east) && helper.getBlockState(laneCell(east)).isAir()) {
-                    brokeOn.put(east, held);
-                }
+        List<String> wrong = new ArrayList<>();
+        int hold = FULL * nearPace;
+        holdVacuum(helper, vacuumer, hold, held -> laid.forEach((east, layers) -> {
+            int owed = Math.max(0, layers - held / paces.get(east));
+            BlockState stood = helper.getBlockState(laneCell(east));
+            if (owed == 0 ? !stood.isAir() : VolumeCellBlock.layersOf(stood) != owed) {
+                wrong.add(String.format(LAYER_STATE, held, east, stood, owed));
             }
-        });
-        helper.runAfterDelay(fullBreakHold(helper) + 1, () -> {
+        }));
+        helper.runAfterDelay(hold + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(vacuumer);
-            helper.assertTrue(brokeOn.size() == inReach.size(), String.format(NEVER_BROKE, brokeOn));
-            List<Integer> ticks = new ArrayList<>();
-            inReach.forEach(east -> ticks.add(brokeOn.get(east)));
-            for (int i = 1; i < ticks.size(); i++) {
-                helper.assertTrue(ticks.get(i) >= ticks.get(i - 1), String.format(OUT_OF_ORDER, brokeOn));
-            }
-            helper.assertTrue(ticks.getLast() > ticks.getFirst(), String.format(NOT_FARTHEST_LAST, brokeOn));
+            helper.assertTrue(wrong.isEmpty(), String.format(NOT_ON_ITS_PACE, nearPace, farPace, wrong));
             helper.succeed();
         });
     }
 
     /**
-     * Vacuum held over the lane breaks the goop cell 9 blocks out and leaves
-     * a goop cell behind the player, a slick cell just over 10 blocks out
+     * Vacuum held over the lane breaks the goop cell 7 blocks out and leaves
+     * a goop cell behind the player, a slick cell just over 8 blocks out
      * and a stone block inside the cone as they stood.
      * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
      *
@@ -545,11 +577,11 @@ public final class VacuumTests {
     public static void vacuumLeavesWhatIsOutsideItsReach(GameTestHelper helper) {
         layTheLane(helper);
         ServerPlayer vacuumer = vacuumer(helper);
-        holdVacuum(helper, vacuumer, fullBreakHold(helper), held -> { });
-        helper.runAfterDelay(fullBreakHold(helper) + 1, () -> {
+        holdVacuum(helper, vacuumer, laneHold(helper), held -> { });
+        helper.runAfterDelay(laneHold(helper) + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(vacuumer);
-            BlockState nineOut = helper.getBlockState(laneCell(NINE_OUT));
-            helper.assertTrue(nineOut.isAir(), String.format(NOT_CLEARED, NINE_OUT, nineOut));
+            BlockState sevenOut = helper.getBlockState(laneCell(SEVEN_OUT));
+            helper.assertTrue(sevenOut.isAir(), String.format(NOT_CLEARED, SEVEN_OUT, sevenOut));
             BlockState behind = helper.getBlockState(laneCell(BEHIND));
             helper.assertTrue(VolumeCellBlock.layersOf(behind) == 1,
                     String.format(NOT_STANDING, "The goop behind the player", behind));
@@ -562,19 +594,19 @@ public final class VacuumTests {
     }
 
     /**
-     * Vacuum held with its look turned 25 degrees off one goop cell, toward
-     * a second goop cell mirrored across the lane, breaks the first,
-     * inside the cone's 30 degrees each side of the look, and leaves the
-     * second, near 35 degrees off, as laid; both cells stand in the reach in
-     * clear sight of the eye.
+     * Vacuum held with its look turned 15 degrees off one goop cell, toward
+     * a second goop cell across the lane, breaks the first, inside the
+     * cone's 22.5 degrees each side of the look, and leaves the second, near
+     * 26 degrees off, as laid; both cells stand in the reach in clear sight
+     * of the eye.
      * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
      *
      * @param helper the gametest helper
      */
-    public static void vacuumBreaksInsideItsSixtyDegreeCone(GameTestHelper helper) {
+    public static void vacuumBreaksInsideItsFortyFiveDegreeCone(GameTestHelper helper) {
         List<BlockPos> cells = List.of(INSIDE_THE_CONE, OUTSIDE_THE_CONE);
         layAnOpenFloorUnder(helper, cells);
-        BlockState laid = slimeOf(TIMED_LAYERS);
+        BlockState laid = slimeOf(SHALLOW);
         cells.forEach(cell -> helper.setBlock(cell, laid));
         ServerPlayer vacuumer = vacuumer(helper);
         Vec3 eye = vacuumer.getEyePosition();
@@ -585,8 +617,8 @@ public final class VacuumTests {
         double outsideOff = degreesBetween(vacuumer.getLookAngle(), outside);
         helper.assertTrue(Math.abs(insideOff - INSIDE_DEGREES) < 1 && outsideOff > HALF_CONE_DEGREES + 1,
                 String.format(NOT_OFF_THE_LOOK, INSIDE_DEGREES, HALF_CONE_DEGREES, insideOff, outsideOff));
-        holdVacuum(helper, vacuumer, fullBreakHold(helper), held -> { });
-        helper.runAfterDelay(fullBreakHold(helper) + 1, () -> {
+        holdVacuum(helper, vacuumer, laneHold(helper), held -> { });
+        helper.runAfterDelay(laneHold(helper) + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(vacuumer);
             BlockState insideNow = helper.getBlockState(INSIDE_THE_CONE);
             helper.assertTrue(insideNow.isAir(), String.format(INSIDE_STANDS, insideOff, insideNow));
@@ -774,7 +806,7 @@ public final class VacuumTests {
     }
 
     /**
-     * Vacuum held at a husk standing 9 blocks out in its cone drags it toward
+     * Vacuum held at a husk standing 6 blocks out in its cone drags it toward
      * the player: its distance falls tick over tick and its health stays whole.
      * vacuum-pulls-items-to-pickup-and-drags-mobs
      *
@@ -827,93 +859,97 @@ public final class VacuumTests {
     }
 
     /**
-     * Vacuum held over a near and a far goop cell leaves each standing as
-     * laid on every hold tick before the one its distance from the eye sets,
-     * and each is air from that tick on, the far cell standing on the near
-     * cell's break tick.
+     * Vacuum held 5 ticks over a full goop cell beside the player, where a
+     * layer takes 4 ticks, and released leaves the cell standing at 14 layers
+     * with the weird goo of the layer taken returned; held again 10 ticks
+     * later, inside the count's 20 ticks of memory, it keeps the count's 1
+     * tick: the cell stands at 14 through the second hold's tick 2 and holds
+     * 13 on its tick 3.
      * vacuum-breaks-a-cell-the-tick-the-wave-reaches-it
      *
      * @param helper the gametest helper
      */
-    public static void vacuumBreaksEachCellOnTheTickItsDistanceSets(GameTestHelper helper) {
-        layTheFloor(helper);
-        // open cells east and west of each goop cell over bottom slabs keep its layers in their cell and leave
-        // the line clear
-        for (int east : List.of(TIMED_NEAR - 1, TIMED_NEAR + 1, TIMED_FAR - 1, TIMED_FAR + 1)) {
-            helper.setBlock(laneCell(east).below(), Blocks.STONE_SLAB);
-        }
-        BlockState laid = slimeOf(TIMED_LAYERS);
-        Map<Integer, Integer> owedOn = new LinkedHashMap<>();
-        for (int east : List.of(TIMED_NEAR, TIMED_FAR)) {
-            helper.setBlock(laneCell(east), laid);
-            owedOn.put(east, breakTickOf(helper, east));
-        }
-        int nearTick = owedOn.get(TIMED_NEAR);
-        int farTick = owedOn.get(TIMED_FAR);
-        helper.assertTrue(nearTick < farTick, String.format(NEAR_NOT_FIRST, nearTick, farTick));
+    public static void vacuumReleasedPartWayKeepsItsCount(GameTestHelper helper) {
+        BlockPos cell = layAFullCellBesideThePlayer(helper);
         ServerPlayer vacuumer = vacuumer(helper);
+        holdVacuum(helper, vacuumer, PART_WAY, held -> vacuumer.doTick());
+        helper.runAfterDelay(PART_WAY + 1, () -> {
+            BlockState stood = helper.getBlockState(cell);
+            helper.assertTrue(stood.is(GooBlocks.SLIME_COAT.get()) && VolumeCellBlock.layersOf(stood) == FULL - 1,
+                    String.format(NOT_LEFT, FULL - 1, stood));
+            int returned = gooReturned(helper, vacuumer, GooTypes.WEIRD);
+            int owed = ResidualPrices.layersRefund(helper, FULL) - ResidualPrices.layersRefund(helper, FULL - 1);
+            helper.assertTrue(returned == owed, String.format(TAKEN_NOT_RETURNED, owed, returned));
+        });
         List<String> wrong = new ArrayList<>();
-        holdVacuum(helper, vacuumer, farTick, held -> owedOn.forEach((east, owed) -> {
-            BlockState stood = helper.getBlockState(laneCell(east));
-            if (held < owed ? !standsAsLaid(stood, laid) : !stood.isAir()) {
-                wrong.add(String.format(TIMED_STATE, held, east, stood, owed));
+        holdVacuum(helper, vacuumer, PART_WAY + BACK_INSIDE_THE_MEMORY, TICKS_LEFT, held -> {
+            int owed = held < TICKS_LEFT ? FULL - 1 : FULL - 2;
+            BlockState stood = helper.getBlockState(cell);
+            if (VolumeCellBlock.layersOf(stood) != owed) {
+                wrong.add(String.format(LAYER_STATE, held, BESIDE, stood, owed));
             }
-        }));
-        helper.runAfterDelay(farTick + 1, () -> {
+        });
+        helper.runAfterDelay(PART_WAY + BACK_INSIDE_THE_MEMORY + TICKS_LEFT + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(vacuumer);
-            helper.assertTrue(wrong.isEmpty(), String.format(NOT_ON_ITS_DISTANCE_TICK, wrong));
+            helper.assertTrue(wrong.isEmpty(), String.format(COUNT_NOT_KEPT, wrong));
             helper.succeed();
         });
     }
 
     /**
-     * Vacuum released part way to a goop cell's break leaves the cell whole,
-     * and a second hold breaks it on the hold tick its distance sets counted
-     * from the second hold's first tick, the first hold's progress gone.
+     * Vacuum held 5 ticks over a full goop cell beside the player and held
+     * again 30 ticks later, past the count's 20 ticks of memory, counts from
+     * zero: the cell stands at 14 layers through the second hold's tick 3 and
+     * holds 13 on its tick 4.
      * vacuum-breaks-a-cell-the-tick-the-wave-reaches-it
      *
      * @param helper the gametest helper
      */
-    public static void vacuumReleasedPartWayStartsTheCellOver(GameTestHelper helper) {
-        layTheFloor(helper);
-        helper.setBlock(laneCell(DECAYED - 1).below(), Blocks.STONE_SLAB);
-        helper.setBlock(laneCell(DECAYED + 1).below(), Blocks.STONE_SLAB);
-        BlockPos cell = laneCell(DECAYED);
-        BlockState laid = slimeOf(TIMED_LAYERS);
-        helper.setBlock(cell, laid);
-        int breakTick = breakTickOf(helper, DECAYED);
-        int partWay = breakTick / 2;
-        int secondHoldFrom = partWay + BETWEEN_HOLDS;
+    public static void vacuumReleasedPastTheMemoryCountsFromZero(GameTestHelper helper) {
+        BlockPos cell = layAFullCellBesideThePlayer(helper);
         ServerPlayer vacuumer = vacuumer(helper);
-        holdVacuum(helper, vacuumer, partWay, held -> { });
-        helper.runAfterDelay(secondHoldFrom, () -> {
-            BlockState stood = helper.getBlockState(cell);
-            helper.assertTrue(standsAsLaid(stood, laid), String.format(NOT_WHOLE, TIMED_LAYERS, stood));
-        });
+        holdVacuum(helper, vacuumer, PART_WAY, held -> { });
         List<String> wrong = new ArrayList<>();
-        holdVacuum(helper, vacuumer, secondHoldFrom, breakTick, held -> {
+        holdVacuum(helper, vacuumer, PART_WAY + BACK_PAST_THE_MEMORY, BESIDE_PACE, held -> {
+            int owed = held < BESIDE_PACE ? FULL - 1 : FULL - 2;
             BlockState stood = helper.getBlockState(cell);
-            if (held < breakTick ? !standsAsLaid(stood, laid) : !stood.isAir()) {
-                wrong.add(String.format(TIMED_STATE, held, DECAYED, stood, breakTick));
+            if (VolumeCellBlock.layersOf(stood) != owed) {
+                wrong.add(String.format(LAYER_STATE, held, BESIDE, stood, owed));
             }
         });
-        helper.runAfterDelay(secondHoldFrom + breakTick + 1, () -> {
+        helper.runAfterDelay(PART_WAY + BACK_PAST_THE_MEMORY + BESIDE_PACE + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(vacuumer);
-            helper.assertTrue(wrong.isEmpty(), String.format(NOT_STARTED_OVER, breakTick, wrong));
+            helper.assertTrue(wrong.isEmpty(), String.format(COUNT_KEPT, wrong));
             helper.succeed();
         });
     }
 
     /**
-     * The hold tick a lane cell breaks on, counted from the hold's first
-     * tick: 4 ticks at the eye rising evenly to 8 at the 10 block reach,
-     * rounded up to a whole tick, the pace the decision sets rather than the
-     * live step's, so a shipped pace drifting from it fails here.
-     * vacuum-breaks-a-cell-the-tick-the-wave-reaches-it
+     * Lays the lane's floor and a full goop cell beside the player, over open
+     * cells on bottom slabs east and west of it that take no pour.
      */
-    private static int breakTickOf(GameTestHelper helper, int east) {
-        double along = fromTheEye(helper, east) / REACH;
-        return (int) Math.ceil(NEAR_BREAK_TICKS + (FAR_BREAK_TICKS - NEAR_BREAK_TICKS) * along);
+    private static BlockPos layAFullCellBesideThePlayer(GameTestHelper helper) {
+        layTheFloor(helper);
+        helper.setBlock(laneCell(BESIDE - 1).below(), Blocks.STONE_SLAB);
+        helper.setBlock(laneCell(BESIDE + 1).below(), Blocks.STONE_SLAB);
+        BlockPos cell = laneCell(BESIDE);
+        helper.setBlock(cell, slimeOf(FULL));
+        return cell;
+    }
+
+    /** The ticks a layer of the lane cell takes, as the live step paces it from the stand's eye. */
+    private static int paceAt(GameTestHelper helper, int east) {
+        return vacuumStep(helper).layerTicks(fromTheEye(helper, east), vacuum(helper).delivery().range());
+    }
+
+    /** A hold long enough for the live step to take every layer of a lane cell holding that many. */
+    private static int drainHold(GameTestHelper helper, int east, int layers) {
+        return layers * paceAt(helper, east);
+    }
+
+    /** A hold long enough for the live step to take the lane's deepest cell at its slowest pace. */
+    private static int laneHold(GameTestHelper helper) {
+        return LANE_DEEPEST * vacuumStep(helper).farLayerTicks() + 1;
     }
 
     /** Whether a cell holds the block laid there at the layers laid, whatever faces it joins its neighbors on. */
@@ -921,13 +957,9 @@ public final class VacuumTests {
         return stood.is(laid.getBlock()) && VolumeCellBlock.layersOf(stood) == VolumeCellBlock.layersOf(laid);
     }
 
-    /** A hold long enough for a cell at the live reach's far end to break, read from the live step. */
-    private static int fullBreakHold(GameTestHelper helper) {
-        return (int) Math.ceil(vacuumStep(helper).farBreakTicks()) + 1;
-    }
-
     /**
-     * Vacuum held over two goop cells plays one slurp at each cell as it takes it.
+     * Vacuum held over two goop cells of four layers plays one slurp at each
+     * cell, on the tick it takes the cell's last layer.
      * vacuum-sounds-a-suction-wind-and-rising-slurps
      *
      * @param helper the gametest helper
@@ -935,11 +967,15 @@ public final class VacuumTests {
     public static void vacuumSlurpsOnceAtEachCellItTakes(GameTestHelper helper) {
         layTheFloor(helper);
         List<BlockPos> cells = List.of(laneCell(SLURPED_NEAR), laneCell(SLURPED_FAR));
-        cells.forEach(cell -> helper.setBlock(cell, slimeOf(1)));
+        // open cells east and west over bottom slabs keep each cell's layers in it
+        for (int east : List.of(SLURPED_NEAR - 1, SLURPED_NEAR + 1, SLURPED_FAR - 1, SLURPED_FAR + 1)) {
+            helper.setBlock(laneCell(east).below(), Blocks.STONE_SLAB);
+        }
+        cells.forEach(cell -> helper.setBlock(cell, slimeOf(SLURPED_LAYERS)));
         ServerPlayer vacuumer = vacuumer(helper);
         PacketRecorder heard = PacketRecorder.attachTo(vacuumer);
-        holdVacuum(helper, vacuumer, fullBreakHold(helper), held -> { });
-        helper.runAfterDelay(fullBreakHold(helper) + 1, () -> {
+        holdVacuum(helper, vacuumer, laneHold(helper), held -> { });
+        helper.runAfterDelay(laneHold(helper) + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(vacuumer);
             for (BlockPos cell : cells) {
                 Vec3 middle = Vec3.atCenterOf(helper.absolutePos(cell));
@@ -1029,16 +1065,16 @@ public final class VacuumTests {
         return AbilityRegistry.of(helper.getLevel()).getAbility(VACUUM);
     }
 
+    /** The live vacuum step, whose pace the tests read rather than copy. */
+    private static VacuumStep vacuumStep(GameTestHelper helper) {
+        return vacuum(helper).behaviors().stream().filter(VacuumStep.class::isInstance).map(VacuumStep.class::cast)
+                .findFirst().orElseThrow();
+    }
+
     /** The live pull step, whose item acceleration the tests read rather than copy. */
     private static VacuumPullStep vacuumPullStep(GameTestHelper helper) {
         return vacuum(helper).behaviors().stream().filter(VacuumPullStep.class::isInstance)
                 .map(VacuumPullStep.class::cast).findFirst().orElseThrow();
-    }
-
-    /** The live vacuum step, whose break ticks the tests read rather than copy. */
-    private static VacuumStep vacuumStep(GameTestHelper helper) {
-        return vacuum(helper).behaviors().stream().filter(VacuumStep.class::isInstance).map(VacuumStep.class::cast)
-                .findFirst().orElseThrow();
     }
 
     /** How far a lane cell's middle stands from the eye of a player at the stand. */
