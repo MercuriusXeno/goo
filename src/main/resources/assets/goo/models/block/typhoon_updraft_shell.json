@@ -1,5 +1,5 @@
 {
-  "parent": "goo:block/volume_cell_layers_6",
+  "parent": "goo:block/volume_cell_shell",
   "textures": {
     "goo": {"sprite": "goo:fluid/typhoon_fluid", "force_translucent": true}
   }

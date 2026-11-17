@@ -110,13 +110,13 @@ public record UpdraftStep(double halfWidth, double rise) implements TakesNoEntit
     }
 
     @Override
-    public Optional<BlockPos> cellFed(ChannelHost host, CoatRay.BlockStrike strike) {
+    public Optional<CellFed> cellFed(ChannelHost host, CoatRay.BlockStrike strike) {
         return CellLanding.cellFed(host, strike, GooBlocks.TYPHOON_UPDRAFT.get());
     }
 
     @Override
-    public void feed(ChannelHost host, BlockPos cell) {
-        CellLanding.feed(host, cell, GooBlocks.TYPHOON_UPDRAFT.get());
+    public void feed(ChannelHost host, CellFed fed) {
+        CellLanding.feed(host, fed, GooBlocks.TYPHOON_UPDRAFT.get());
     }
 
     @Override
