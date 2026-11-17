@@ -86,14 +86,35 @@ public final class SlimeTop {
      */
     private static SlimeTop build(LayersAround around, Plane plane, boolean column, boolean covered) {
         double own = around.shareOn(0, 0, 0, plane.surface());
+        // stacked-goo-cells-share-one-slime-core: a column's top slopes on down past its floor, the block under it
+        double lowest = column ? -FULL : 0;
         double[] heights = new double[GRID.length * GRID.length];
         for (int a = 0; a < GRID.length; a++) {
             for (int b = 0; b < GRID.length; b++) {
-                heights[a * GRID.length + b] = covered ? own
-                        : Math.max(0, heightOf(around, plane, own, column, stepAt(a), stepAt(b)));
+                heights[a * GRID.length + b] = Math.max(lowest, heightOf(around, plane, own, column, stepAt(a),
+                        stepAt(b)));
             }
         }
+        if (covered) {
+            fillUnder(of(around.shiftedBy(0, 1, 0)), heights);
+        }
         return new SlimeTop(around, plane, heights, edgesOf(around, plane, column), covered);
+    }
+
+    /**
+     * A full block under goo of its type stands inside a column, whose
+     * surface the top block's slope draws: the block's own heights are that
+     * surface's, from its own floor, up to its top where the surface stands
+     * over it.
+     * stacked-goo-cells-share-one-slime-core
+     *
+     * @param above   the slope of the block above
+     * @param heights this block's heights, replaced
+     */
+    private static void fillUnder(SlimeTop above, double[] heights) {
+        for (int at = 0; at < heights.length; at++) {
+            heights[at] = Math.clamp(above.heights[at] + FULL, 0, FULL);
+        }
     }
 
     /**

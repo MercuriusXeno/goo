@@ -163,6 +163,25 @@ class SlimeTopTest {
         assertEquals(1, west.heightAt(NORTH, 1), EPSILON, "the west slab where the walls meet");
     }
 
+    /**
+     * A column draws as one pile: a block of 5 on a full block of its goo,
+     * air beside both, slopes from its middle down past its own floor to the
+     * column's edge, 10 layers over the column's base, and the full block
+     * under it rises at that edge to the same 10, so no gap stands between.
+     * stacked-goo-cells-share-one-slime-core
+     */
+    @Test
+    void aColumnSlopesAsOnePileAcrossBothItsBlocks() {
+        SameGooCells column = new SameGooCells().at(0, 0, 0, 5).at(0, -1, 0, 15);
+        SlimeTop top = SlimeTop.of(column);
+        SlimeTop under = SlimeTop.of(column.shiftedBy(0, -1, 0));
+
+        assertMiddle(top, 5);
+        assertEdge(top, EAST, -5, "the column top's edge, under its own floor");
+        assertEdge(under, EAST, 10, "the full block's edge, where the column's slope meets it");
+        assertMiddle(under, 15);
+    }
+
     private static void assertMiddle(SlimeTop top, double expected) {
         for (int x : MIDDLE) {
             for (int z : MIDDLE) {

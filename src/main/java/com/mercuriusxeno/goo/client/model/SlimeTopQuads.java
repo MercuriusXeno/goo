@@ -115,7 +115,24 @@ public final class SlimeTopQuads {
         Vector3f low = acrossFirst ? pointOn(plane, at, from, 0) : pointOn(plane, from, at, 0);
         Vector3f high = acrossFirst ? pointOn(plane, at, to, WHOLE) : pointOn(plane, to, at, WHOLE);
         BakedQuad flat = faceOf(lowCorner(low, high), highCorner(low, high), edge, material);
-        return reshaped(flat, corner -> onTheSurface(corner, plane) ? corner : standOut(corner, top));
+        return reshaped(flat, corner -> onTheSurface(corner, plane) ? corner : standOutOver(corner, top));
+    }
+
+    /**
+     * A rim's outer vertex moved out to the slab's height at its place, kept
+     * on the surface where the slope stands under it, as a column's top does
+     * where the block under it draws the rest.
+     *
+     * @param at  the vertex, in model pixels
+     * @param top the slab's heights
+     * @return the vertex at the slab's height, never behind its surface
+     */
+    private static Vector3f standOutOver(Vector3fc at, SlimeTop top) {
+        SlimeTop.Plane plane = top.plane();
+        float first = plane.firstOf(at);
+        float second = plane.secondOf(at);
+        float height = (float) Math.max(0, top.heightAtPixel(first, second));
+        return pointOn(plane, first, second, height * PIXELS_PER_LAYER);
     }
 
     /**

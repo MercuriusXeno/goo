@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.block.ability.SideCoat;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mojang.blaze3d.platform.Transparency;
 import com.mojang.math.Quadrant;
+import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.client.Minecraft;
@@ -26,6 +27,7 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.client.model.DynamicBlockStateModel;
 import net.neoforged.neoforge.client.model.block.CustomUnbakedBlockStateModel;
+import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -55,18 +57,57 @@ import java.util.Optional;
  * @param core  the core's material: the shell's fluid sprite at 50% opacity, on the translucent layer
  * @param film  the material the top, its rims and the slabs draw in: the shell's fluid sprite, under the shell
  *              tint, translucent
- * @param drips the fill's drips over each side's edge, keyed by the side, empty for a cell drawing none
+ * @param drips  the fill's drips over each side's edge, keyed by the side, empty for a cell drawing none
+ * @param layers the volume its block state names, the box the break lines draw over, 0 where none is named
  */
 public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core, BakedQuad.MaterialInfo film,
-                             Map<Direction, BlockStateModel> drips) implements DynamicBlockStateModel {
+                             Map<Direction, BlockStateModel> drips, int layers) implements DynamicBlockStateModel {
 
     /** The type a block state file names to draw a cell's layers through this model. */
     public static final Identifier TYPE = Identifier.fromNamespaceAndPath(Goo.MODID, "slime_core");
+    /** Model pixels across a whole block. */
+    private static final float BLOCK_PIXELS = 16f;
     /** The tint index the shell, its drips and its films draw under. */
     static final int SHELL_TINT = 0;
     /** Each side's drips' turn about the vertical, the north drips' model turned to face it. */
     private static final Map<Direction, Quadrant> DRIP_TURNS = Map.of(Direction.NORTH, Quadrant.R0,
             Direction.EAST, Quadrant.R90, Direction.SOUTH, Quadrant.R180, Direction.WEST, Quadrant.R270);
+
+    /**
+     * The model naming no volume.
+     *
+     * @param shell the shell's model
+     * @param core  the core's material
+     * @param film  the slabs' material
+     * @param drips the fill's drips over each side's edge
+     */
+    public SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core, BakedQuad.MaterialInfo film,
+                          Map<Direction, BlockStateModel> drips) {
+        this(shell, core, film, drips, 0);
+    }
+
+    /**
+     * The block read with no level, as vanilla reads it to draw the break
+     * lines over a block being broken: the box its volume fills, so the
+     * cracks stand on the goo.
+     *
+     * @param random the random source
+     * @param parts  the parts drawn
+     */
+    @Override
+    @Deprecated
+    public void collectParts(RandomSource random, List<BlockStateModelPart> parts) {
+        if (layers <= 0) {
+            return;
+        }
+        Vector3f from = new Vector3f(0, 0, 0);
+        Vector3f to = new Vector3f(BLOCK_PIXELS, layers * BLOCK_PIXELS / VolumeCellBlock.MAX_LAYERS, BLOCK_PIXELS);
+        List<BakedQuad> box = new ArrayList<>();
+        for (Direction face : Direction.values()) {
+            box.add(SlimeCoreQuads.faceOf(from, to, face, film));
+        }
+        parts.add(new ShellPart(box, Map.of(), shell.particleMaterial()));
+    }
 
     @Override
     public void collectParts(BlockAndTintGetter level, BlockPos pos, BlockState state, RandomSource random,
@@ -137,7 +178,8 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core,
 
     /**
      * Draws a block's drips over each edge no block of its goo continues
-     * past, each hanging from the sloped top's edge on its side: the drips'
+     * past, none for a block on goo of its type, whose goo runs on down the
+     * column, each hanging from the sloped top's edge on its side: the drips'
      * model stands at the block's flat layer height, so it drops by what the
      * slope leaves that edge short of it.
      * goo-block-top-slopes-to-the-average-with-the-adjoining-block
@@ -149,7 +191,8 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core,
     private void collectDrips(Placement at, SlimeTop floor, List<BlockStateModelPart> parts) {
         float layers = VolumeCellBlock.layersOf(at.state());
         drips.forEach((side, drip) -> {
-            if (!at.level().getBlockState(at.pos().relative(side)).is(at.state().getBlock())) {
+            boolean onItsGoo = at.level().getBlockState(at.pos().below()).is(at.state().getBlock());
+            if (!onItsGoo && !at.level().getBlockState(at.pos().relative(side)).is(at.state().getBlock())) {
                 List<BlockStateModelPart> hung = new ArrayList<>();
                 drip.collectParts(at.level(), at.pos(), at.state(), at.random(), hung);
                 float drop = (float) (edgeOf(floor, side) - layers) / VolumeCellBlock.MAX_LAYERS;
@@ -389,15 +432,17 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core,
      * layers the core sits inside, and the north drips' variant the fill's
      * drips turn from, left out for a cell of fill 0.
      *
-     * @param shell the shell's variant
-     * @param drips the drips' variant over the north edge
+     * @param shell  the shell's variant
+     * @param drips  the drips' variant over the north edge
+     * @param layers the volume the block state names, 0 where it names none
      */
-    public record Unbaked(Variant shell, Optional<Variant> drips) implements CustomUnbakedBlockStateModel {
+    public record Unbaked(Variant shell, Optional<Variant> drips, int layers) implements CustomUnbakedBlockStateModel {
 
-        /** Reads {@code {"type": "goo:slime_core", "shell": {"model": ...}, "drips": {"model": ...}}}. */
+        /** Reads {@code {"type": "goo:slime_core", "shell": {"model": ...}, "drips": {"model": ...}, "layers": n}}. */
         public static final MapCodec<Unbaked> MAP_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
                 Variant.CODEC.fieldOf("shell").forGetter(Unbaked::shell),
-                Variant.CODEC.optionalFieldOf("drips").forGetter(Unbaked::drips)
+                Variant.CODEC.optionalFieldOf("drips").forGetter(Unbaked::drips),
+                Codec.intRange(0, VolumeCellBlock.MAX_LAYERS).optionalFieldOf("layers", 0).forGetter(Unbaked::layers)
         ).apply(instance, Unbaked::new));
 
         @Override
@@ -416,7 +461,7 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core,
             Map<Direction, BlockStateModel> turned = new EnumMap<>(Direction.class);
             drips.ifPresent(north -> DRIP_TURNS.forEach((side, turn) ->
                     turned.put(side, new SingleVariant.Unbaked(north.withYRot(turn)).bake(baker))));
-            return new SlimeCoreModel(layers, core, film, turned);
+            return new SlimeCoreModel(layers, core, film, turned, this.layers);
         }
 
         @Override

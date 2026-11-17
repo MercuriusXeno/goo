@@ -97,6 +97,11 @@ public final class GoopArcTests {
     private static final String WALL_OVER_OPEN_AIR_HOLDS = "goop_sprayed_at_a_wall_over_open_air_holds_what_stuck";
     private static final String BLOCK_FALLS_WHOLE = "goop_block_falls_whole_when_its_last_wall_breaks";
     private static final String HELD_BLOCK_FALLS_WHOLE = "goop_block_holding_its_walls_layers_falls_whole";
+    private static final String RESTING_BESIDE_A_WALL_ADHERES = "goop_resting_beside_a_wall_adheres_to_it";
+    /** The layers a block of Goop resting beside a wall holds, under Goop's pour gap so it stays put. */
+    private static final int RESTING_VOLUME = 4;
+    /** Ticks a resting block's first tick comes within. */
+    private static final int ADHERE_TICKS = 20;
     private static final String CEILING_BLOCK_FALLS_WHOLE = "goop_on_a_ceiling_falls_whole_when_its_ceiling_breaks";
     /** The lowest face of the wall over open air, a block over the floor cells at its foot. */
     private static final int OPEN_AIR_WALL_BOTTOM = 2;
@@ -207,6 +212,8 @@ public final class GoopArcTests {
         GooTestFunctions.registerTest(registrar, BLOCK_FALLS_WHOLE, GoopArcTests::goopBlockFallsWholeWhenItsLastWallBreaks);
         GooTestFunctions.registerTest(registrar, CEILING_BLOCK_FALLS_WHOLE,
                 GoopArcTests::goopOnACeilingFallsWholeWhenItsCeilingBreaks);
+        GooTestFunctions.registerTest(registrar, RESTING_BESIDE_A_WALL_ADHERES,
+                GoopArcTests::goopRestingBesideAWallAdheresToIt);
         GooTestFunctions.registerTest(registrar, HELD_BLOCK_FALLS_WHOLE,
                 GoopArcTests::goopBlockHoldingItsWallsLayersFallsWhole);
         GooTestFunctions.registerTest(registrar, GLASS_RING_KEEPS_EVERY_LAYER,
@@ -813,6 +820,30 @@ public final class GoopArcTests {
      *
      * @param helper the gametest helper
      */
+    /**
+     * Goop resting on a floor beside a stone wall adheres to it, as Goop
+     * striking the wall does: its side toward the wall stands attached, so
+     * goo against a wall clings to it in place of lying beside it.
+     * operator UAT 2026-11-17: the wall has horizontally laying goo instead of vertically adhered goo
+     * drip-striking-a-side-sticks-or-runs-by-adhesion
+     *
+     * @param helper the gametest helper
+     */
+    public static void goopRestingBesideAWallAdheresToIt(GameTestHelper helper) {
+        BlockPos block = new BlockPos(OPEN_AIR_WALL_EAST - 1, 1, LEVEL_STREAMER_POS.getZ());
+        helper.setBlock(block.below(), Blocks.STONE);
+        helper.setBlock(block.east(), Blocks.STONE);
+        helper.setBlock(block, GooBlocks.SLIME_COAT.get().defaultBlockState().setValue(VolumeCellBlock.LAYERS,
+                RESTING_VOLUME));
+        helper.runAfterDelay(ADHERE_TICKS, () -> {
+            BlockState resting = helper.getBlockState(block);
+            helper.assertTrue(resting.is(GooBlocks.SLIME_COAT.get())
+                            && VolumeCellBlock.coatOn(resting, Direction.EAST) == SideCoat.ATTACHED,
+                    "Goop resting beside a stone wall should adhere to it, found " + resting);
+            helper.succeed();
+        });
+    }
+
     public static void goopSprayedAtAWallOverOpenAirHoldsWhatStuck(GameTestHelper helper) {
         int z0 = LEVEL_STREAMER_POS.getZ();
         for (int z = z0 - 2; z <= z0 + 2; z++) {

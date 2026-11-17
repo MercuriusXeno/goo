@@ -25,6 +25,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -144,6 +146,53 @@ class SlimeCoreModelTest {
             }
         }
         assertEquals(4f / 15, top, EPSILON, "the drips' top should stand at the edge's 4 layers");
+    }
+
+    /**
+     * A block on a full block of its goo is a column's top: its goo runs on
+     * down the column, so it hangs no drips over its edges.
+     * stacked-goo-cells-share-one-slime-core
+     */
+    @Test
+    void aColumnsTopHangsNoDrips() {
+        Block goo = mock(VolumeCellBlock.class);
+        BlockState cell = cellOf(goo, 5);
+        BlockState full = cellOf(goo, 15);
+        BlockAndTintGetter level = mock(BlockAndTintGetter.class);
+        when(level.getBlockState(any())).thenReturn(mock(BlockState.class));
+        when(level.getBlockState(CELL.below())).thenReturn(full);
+        BlockStateModel drips = mock(BlockStateModel.class);
+        BakedQuad.MaterialInfo film = new BakedQuad.MaterialInfo(mock(TextureAtlasSprite.class),
+                ChunkSectionLayer.TRANSLUCENT, null, 0, true, 0, false);
+
+        new SlimeCoreModel(mock(BlockStateModel.class), film, film, Map.of(Direction.NORTH, drips))
+                .collectParts(level, CELL, cell, RandomSource.create(0), new ArrayList<>());
+
+        verify(drips, never()).collectParts(any(), any(), any(), any(), any());
+    }
+
+    /**
+     * The break lines vanilla draws over a block being broken, as the vacuum
+     * breaks a goo block, read the model with no level: there the model
+     * draws its block's box at the volume its block state names, so the
+     * cracks stand on the goo.
+     */
+    // vanilla's break lines read the model through the deprecated level-less overload, the path under test
+    @SuppressWarnings("deprecation")
+    @Test
+    void theBreakLinesFindTheBlocksBox() {
+        BakedQuad.MaterialInfo film = new BakedQuad.MaterialInfo(mock(TextureAtlasSprite.class),
+                ChunkSectionLayer.TRANSLUCENT, null, 0, true, 0, false);
+        List<BlockStateModelPart> parts = new ArrayList<>();
+
+        new SlimeCoreModel(mock(BlockStateModel.class), film, film, Map.of(), 8)
+                .collectParts(RandomSource.create(0), parts);
+
+        List<BakedQuad> quads = parts.stream().flatMap(part -> part.getQuads(null).stream()).toList();
+        assertTrue(quads.stream().anyMatch(quad -> quad.direction() == Direction.UP
+                        && Math.abs(quad.position(0).y() - 8f / 15) < EPSILON),
+                "the break lines should find a top at the block's 8 layers");
+        assertEquals(6, quads.stream().map(BakedQuad::direction).distinct().count(), "every face of the box");
     }
 
     private static boolean sameExtentAbove(BakedQuad shell, BakedQuad core) {
