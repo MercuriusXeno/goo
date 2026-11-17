@@ -283,8 +283,11 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
-     * How a block's volume divides between the surfaces it is attached to.
+     * How a block's volume divides between the surfaces it is attached to,
+     * or, where it is attached to none and stands on no floor, between the
+     * walls its goo runs down, so running goo never draws as a floor in midair.
      * attached-goo-draws-per-attachment-and-divides-its-volume
+     * runny-goo-runs-down-the-wall-to-the-first-top-below
      *
      * @param state    the block's state
      * @param onAFloor whether it stands on a floor
@@ -292,7 +295,13 @@ public class VolumeCellBlock extends Block {
      * @return each surface's share
      */
     public static GooShares sharesOf(BlockState state, boolean onAFloor, int cohesion) {
-        return GooShares.of(state.getValue(LAYERS), onAFloor, Set.copyOf(filmedSides(state)), cohesion);
+        Set<Direction> attached = Set.copyOf(filmedSides(state));
+        List<Direction> running = runnySides(state);
+        if (attached.isEmpty() && !onAFloor && !running.isEmpty()) {
+            // operator UAT 2026-11-17: goo running down a wall in midair is not sitting on a block
+            return GooShares.runningDown(state.getValue(LAYERS), Set.copyOf(running));
+        }
+        return GooShares.of(state.getValue(LAYERS), onAFloor, attached, cohesion);
     }
 
     /**

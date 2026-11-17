@@ -52,6 +52,7 @@ public final class NectarTests {
     private static final String WALL_COAT_STAYS = "nectar_on_a_wall_stays_on_it";
     private static final String COATS_A_CLIMBABLE_COLUMN = "nectar_coats_a_wall_column_to_climb";
     private static final String COAT_OVER_FLOOR_GOO_STAYS = "nectar_on_a_wall_over_floor_goo_stays_on_it";
+    private static final String HANGING_COAT_DRAWS_NO_FLOOR = "nectar_coating_a_hanging_wall_draws_no_floor";
     private static final String DRAWS_A_COW_FROM_RANGE = "nectar_goo_draws_an_adult_cow_from_range_for_a_layer";
     private static final String DRAWS_ZOMBIES_FROM_RANGE = "nectar_goo_draws_two_zombies_from_range_to_fight";
     private static final Identifier NECTAR = Identifier.parse("goo:jelly_nectar");
@@ -82,6 +83,11 @@ public final class NectarTests {
     private static final BlockPos FLOOR_UNDER_WALL = new BlockPos(2, 1, 2);
     /** The floor goo's layers at the wall's foot, short of a whole block so it has room. */
     private static final int FOOT_LAYERS = 3;
+    /** The hanging wall's lowest block, over open air, so no block in front of the wall has a floor. */
+    private static final BlockPos HANGING_WALL_FOOT = new BlockPos(2, 2, 2);
+    private static final int HANGING_WALL_HEIGHT = 4;
+    /** The drips the hanging wall test lands on each face, past one wall's hold, so the goo runs and piles. */
+    private static final int DRIPS_ON_EACH_HANGING_FACE = 6;
     /** The range tests' pen, six blocks across, its cell in one corner of the floor inside the rim. */
     private static final int RANGE_PEN_SPAN = 6;
     private static final BlockPos RANGE_CELL = new BlockPos(1, 2, 1);
@@ -107,6 +113,8 @@ public final class NectarTests {
             + " be climbed; the cells in front, bottom first, stand %s";
     private static final String COAT_DRAINED = "The coat on the wall over floor goo should keep %d layers, the"
             + " block there stands %s, the floor goo under it %s";
+    private static final String FLOOR_IN_MIDAIR = "No block coating a wall over open air should draw a floor;"
+            + " bottom first, each block's state, floor flag and floor share: %s";
     private static final String STARTS_IN_REACH = "The mob should start past the feeding reach %.1f and inside"
             + " the reach %.1f, starts %.2f off";
     private static final String CALF_NOT_FED = "A struck calf should grow to an adult, the drip spent: baby %b, under it %s";
@@ -128,6 +136,7 @@ public final class NectarTests {
         GooTestFunctions.registerTest(registrar, WALL_COAT_STAYS, NectarTests::wallCoatStaysOnIt);
         GooTestFunctions.registerTest(registrar, COATS_A_CLIMBABLE_COLUMN, NectarTests::coatsAWallColumnToClimb);
         GooTestFunctions.registerTest(registrar, COAT_OVER_FLOOR_GOO_STAYS, NectarTests::coatOverFloorGooStays);
+        GooTestFunctions.registerTest(registrar, HANGING_COAT_DRAWS_NO_FLOOR, NectarTests::hangingCoatDrawsNoFloor);
         GooTestFunctions.registerTest(registrar, DRAWS_A_COW_FROM_RANGE, NectarTests::drawsAnAdultCowFromRange);
         GooTestFunctions.registerTest(registrar, DRAWS_ZOMBIES_FROM_RANGE, NectarTests::drawsTwoZombiesFromRange);
     }
@@ -330,6 +339,53 @@ public final class NectarTests {
                     && cell.getValue(VolumeCellBlock.WEST) == SideCoat.ATTACHED
                     && cell.getValue(VolumeCellBlock.LAYERS) == ONE_WALL_HOLDS,
                     String.format(COAT_DRAINED, ONE_WALL_HOLDS, cell, helper.getBlockState(footGoo)));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Nectar coating a wall that hangs over open air draws no floor in midair:
+     * six drips landed on each face of a four-high wall whose foot stands
+     * over air, once the goo has run, leave no block in front of the wall
+     * drawing a floor share, since nothing solid stands under any of them.
+     * goo-cell-holds-a-fill-and-a-state-per-side
+     * attached-goo-draws-per-attachment-and-divides-its-volume
+     *
+     * @param helper the gametest helper
+     */
+    public static void hangingCoatDrawsNoFloor(GameTestHelper helper) {
+        for (int up = -1; up < HANGING_WALL_HEIGHT; up++) {
+            helper.setBlock(HANGING_WALL_FOOT.above(up).east(), Blocks.AIR);
+        }
+        for (int up = 0; up < HANGING_WALL_HEIGHT; up++) {
+            helper.setBlock(HANGING_WALL_FOOT.above(up), Blocks.STONE);
+        }
+        AbilityDefinition nectar = AbilityRegistry.of(helper.getLevel()).getAbility(NECTAR);
+        helper.assertTrue(nectar != null, ABILITY_REQUIRED);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.JELLY);
+        KnownRecipes.teachRequires(caster, nectar);
+        for (int up = 0; up < HANGING_WALL_HEIGHT; up++) {
+            LandedDrips.landOnSide(helper, caster, nectar, HANGING_WALL_FOOT.above(up), Direction.EAST,
+                    DRIPS_ON_EACH_HANGING_FACE);
+        }
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        helper.runAfterDelay(WALL_SETTLE_TICKS, () -> {
+            VolumeCellBlock nectarCell = GooBlocks.JELLY_NECTAR.get();
+            List<String> blocks = new ArrayList<>();
+            boolean anyFloor = false;
+            for (int up = 0; up < HANGING_WALL_HEIGHT; up++) {
+                BlockPos cell = helper.absolutePos(HANGING_WALL_FOOT.above(up).east());
+                BlockState state = helper.getLevel().getBlockState(cell);
+                if (!state.is(nectarCell)) {
+                    blocks.add(state.toString());
+                    continue;
+                }
+                boolean floor = nectarCell.onAFloor(helper.getLevel(), cell);
+                double share = VolumeCellBlock.sharesOf(state, floor, nectarCell.cohesionIn(helper.getLevel())).floor();
+                anyFloor |= share > 0;
+                blocks.add(state + " floor " + floor + " share " + share);
+            }
+            helper.assertTrue(!anyFloor, String.format(FLOOR_IN_MIDAIR, blocks));
             helper.succeed();
         });
     }

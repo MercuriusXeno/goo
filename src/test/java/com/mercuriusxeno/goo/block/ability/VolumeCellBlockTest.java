@@ -658,6 +658,46 @@ class VolumeCellBlockTest {
     }
 
     /**
+     * How a block running down a wall divides its volume: goo running down
+     * a wall with nothing under it draws on that wall, never as a floor in
+     * midair; the same block over a floor keeps its fill on the floor.
+     * runny-goo-runs-down-the-wall-to-the-first-top-below
+     * attached-goo-draws-per-attachment-and-divides-its-volume
+     */
+    @Nested
+    class RunnyShares {
+
+        private static final int LAYERS = 3;
+        private static final int NO_COHESION = 0;
+
+        private BlockState runningDownTheWestWall() {
+            BlockState state = mock(BlockState.class);
+            when(state.getBlock()).thenReturn(mock(VolumeCellBlock.class));
+            when(state.getValue(VolumeCellBlock.LAYERS)).thenReturn(LAYERS);
+            when(state.getValue(VolumeCellBlock.NORTH)).thenReturn(SideCoat.BARE);
+            when(state.getValue(VolumeCellBlock.EAST)).thenReturn(SideCoat.BARE);
+            when(state.getValue(VolumeCellBlock.SOUTH)).thenReturn(SideCoat.BARE);
+            when(state.getValue(VolumeCellBlock.WEST)).thenReturn(SideCoat.RUNNY);
+            when(state.getValue(VolumeCellBlock.CEILING)).thenReturn(false);
+            return state;
+        }
+
+        @Test
+        void gooRunningDownAWallInMidairDrawsOnTheWallAndNoFloor() {
+            GooShares shares = VolumeCellBlock.sharesOf(runningDownTheWestWall(), false, NO_COHESION);
+
+            assertEquals(new GooShares(0, Map.of(Direction.WEST, (double) LAYERS)), shares);
+        }
+
+        @Test
+        void gooRunningDownAWallOntoAFloorKeepsItsFillOnTheFloor() {
+            GooShares shares = VolumeCellBlock.sharesOf(runningDownTheWestWall(), true, NO_COHESION);
+
+            assertEquals(new GooShares(LAYERS, Map.of()), shares);
+        }
+    }
+
+    /**
      * How much a block drains into goo of its type below: a block no wall
      * holds drains whole, as far as the room below goes; one a wall holds
      * keeps its hold there and drains only what slips past it.
