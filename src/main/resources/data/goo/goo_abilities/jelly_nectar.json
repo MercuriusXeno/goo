@@ -17,7 +17,8 @@
     "sound": { "id": "minecraft:block.honey_block.slide", "every": 10, "volume": 1.0, "pitch": 1.0, "pitch_spread": 0.1 }
   },
   "behaviors": [
-    { "type": "nectar_goo", "guide_radius": 2, "guide_reach": 16 }
+    { "type": "nectar_goo", "guide_radius": 2, "guide_reach": 16, "reach": 12, "fight_ticks": 100 },
+    { "type": "nectar" }
   ],
   "tags": ["stream"]
 }

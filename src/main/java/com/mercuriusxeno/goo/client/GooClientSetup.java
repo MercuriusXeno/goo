@@ -64,7 +64,6 @@ import com.mercuriusxeno.goo.client.entity.CompressionSphereRenderer;
 import com.mercuriusxeno.goo.client.entity.DriftingWispRenderer;
 import com.mercuriusxeno.goo.client.entity.EldritchMonstrosityRenderer;
 import com.mercuriusxeno.goo.client.entity.MeteorRenderer;
-import com.mercuriusxeno.goo.client.entity.NectarPileRenderer;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -269,7 +268,6 @@ public final class GooClientSetup {
         // decision flecks-move-by-flexible-goo-physics-and-stay-items: a dropped goo item draws as its cuboid, still
         event.registerEntityRenderer(EntityType.ITEM, GooItemEntityRenderer::new);
         event.registerEntityRenderer(GooEntities.COMPRESSION_SPHERE.get(), CompressionSphereRenderer::new);
-        event.registerEntityRenderer(GooEntities.NECTAR_PILE.get(), NectarPileRenderer::new);
         // wisps-travel-as-entities-then-settle-as-glowy-air-blocks: a drifting wisp draws as a settled wisp's mote
         event.registerEntityRenderer(GooEntities.DRIFTING_WISP.get(), DriftingWispRenderer::new);
         event.registerEntityRenderer(GooEntities.BLOCK_HUNK.get(), BlockHunkRenderer::new);

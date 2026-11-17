@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.block.ability.HostCellBlock;
 import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
+import com.mercuriusxeno.goo.block.ability.NectarCellBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.RimeCellBlock;
 import com.mercuriusxeno.goo.block.ability.UpdraftCellBlock;
@@ -339,13 +340,15 @@ public class GooBlocks {
     /**
      * Nectar: the volume cell bound to Jelly's goo, the orange goo Nectar
      * sprays onto a block's top, one to fifteen layers, ordinary ground
-     * underfoot and sounding as goo does, dropping the jelly goo its layers
-     * cost through VolumeCellBlock.getDrops, no loot table
+     * underfoot and sounding as goo does, a food the mobs about it eat a
+     * layer at a time or fight over, dropping the jelly goo its layers cost
+     * through VolumeCellBlock.getDrops, no loot table
      * (decisions nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob,
+     * nectar-goo-keeps-feeds-effects-as-a-universal-food,
      * each-goo-type-ships-a-world-goo-on-the-volume-cell).
      */
-    public static final DeferredBlock<VolumeCellBlock> JELLY_NECTAR = BLOCKS.registerBlock(
-            "jelly_nectar", properties -> new VolumeCellBlock(properties, CellBinding.NECTAR),
+    public static final DeferredBlock<NectarCellBlock> JELLY_NECTAR = BLOCKS.registerBlock(
+            "jelly_nectar", properties -> new NectarCellBlock(properties, CellBinding.NECTAR),
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_ORANGE)
                     .friction(CellBinding.NECTAR.surface().friction())
