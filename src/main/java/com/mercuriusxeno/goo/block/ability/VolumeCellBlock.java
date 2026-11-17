@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.block.ability;
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.ability.LoadedAbilityCost;
 import com.mercuriusxeno.goo.ability.program.ChannelHost;
 import com.mercuriusxeno.goo.ability.program.LeechGooStep;
@@ -26,6 +27,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.InsideBlockEffectApplier;
@@ -57,6 +59,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.ToIntFunction;
 
 /**
@@ -624,19 +627,20 @@ public class VolumeCellBlock extends Block {
      * falling-layer-lands-when-its-drip-arrives
      * goo-moving-downward-falls-as-drips
      *
-     * @param level the level
-     * @param start the open cell the layer falls from
-     * @param fromY the height it leaves at
+     * @param level  the level
+     * @param start  the open cell the layer falls from
+     * @param fromY  the height it leaves at
+     * @param placer the player who placed the layer, whom the cell it lands in credits, or null for none
      * @return true where the fall started
      */
-    public boolean beginFall(ServerLevel level, BlockPos start, double fromY) {
+    public boolean beginFall(ServerLevel level, BlockPos start, double fromY, @Nullable UUID placer) {
         Optional<BlockPos> landing = landingBelow(level, start);
         if (landing.isEmpty()) {
             return false;
         }
         FallStart launch = fallStart(start, fromY, landing.get(), layersOf(level.getBlockState(landing.get())));
         GooServerState.of(level.getServer()).layerFalls().start(new LayerFalls.Fall(level.dimension(),
-                start.immutable(), this, level.getServer().getTickCount() + launch.ticks()));
+                start.immutable(), this, level.getServer().getTickCount() + launch.ticks(), placer));
         BlockVisuals.sendToWatchers(level, start, new FallingDripPayload(launch.from(), launch.landingY(),
                 launch.ticks(), colourOf(level, GooColors::highlight), colourOf(level, GooColors::bright), false));
         return true;
@@ -659,15 +663,17 @@ public class VolumeCellBlock extends Block {
      * and spreads the cell it joins as a landed drip does.
      * falling-layer-lands-when-its-drip-arrives
      *
-     * @param level the level
-     * @param start the open cell the layer fell from
+     * @param level  the level
+     * @param start  the open cell the layer fell from
+     * @param placer the player who placed the layer, or null for none
      * @return true where the layer joined a fill, false where it found no room
      */
-    public boolean landFall(ServerLevel level, BlockPos start) {
+    public boolean landFall(ServerLevel level, BlockPos start, @Nullable UUID placer) {
         Optional<Placement> landing = landingBelow(level, start)
                 .flatMap(cell -> thickened(level.getBlockState(cell), this).map(into -> Placement.at(cell, into)));
         landing.ifPresent(placed -> {
             level.setBlock(placed.pos(), placed.state().orElseThrow(), UPDATE_ALL);
+            creditPlacer(level, placed.pos(), placer);
             spreadAtOnce(level, placed.pos());
         });
         return landing.isPresent();
@@ -679,11 +685,12 @@ public class VolumeCellBlock extends Block {
      * so the layer is never lost.
      * falling-layer-lands-when-its-drip-arrives
      *
-     * @param level the level
-     * @param start the open cell the layer fell from
+     * @param level  the level
+     * @param start  the open cell the layer fell from
+     * @param placer the player who placed the layer, or null for none
      */
-    public void landFallNow(ServerLevel level, BlockPos start) {
-        if (!landFall(level, start)) {
+    public void landFallNow(ServerLevel level, BlockPos start, @Nullable UUID placer) {
+        if (!landFall(level, start, placer)) {
             LoadedAbilityCost.of(level, binding.layingAbility()).map(cost -> reclaimed(1, cost)).filter(mb -> mb > 0)
                     .ifPresent(mb -> popResource(level, start, GooStacks.createForOutput(binding.gooType(), mb)));
         }
@@ -716,8 +723,74 @@ public class VolumeCellBlock extends Block {
      * @param landing where the layer lands
      */
     public void place(ChannelHost host, Placement landing) {
-        landing.state().ifPresentOrElse(state -> host.transformBlock(landing.pos(), state),
-                () -> beginFall(host.level(), landing.pos(), landing.pos().getY() + 1.0));
+        landing.state().ifPresentOrElse(state -> {
+            host.transformBlock(landing.pos(), state);
+            creditPlacer(host.level(), landing.pos(), host.placingPlayer());
+        }, () -> beginFall(host.level(), landing.pos(), landing.pos().getY() + 1.0, host.placingPlayer()));
+    }
+
+    /**
+     * Whether a hit this cell deals credits whoever placed it, so the cell
+     * remembers its placer: a cutting cell's shards and a smiting cell's
+     * holy fire; a cell that hurts nothing remembers none.
+     * standing-goo-thing-credits-whoever-placed-it
+     *
+     * @return true where the cell remembers its placer
+     */
+    protected boolean creditsItsPlacer() {
+        return surface().cuts() || surface().smites();
+    }
+
+    /**
+     * The player a hit this cell deals credits: whoever placed it, while that player is on the server.
+     * standing-goo-thing-credits-whoever-placed-it
+     *
+     * @param level the level
+     * @param pos   the cell
+     * @return the player, or null where no player placed it, the cell credits no placer or the player is away
+     */
+    protected @Nullable ServerPlayer creditedPlayerAt(ServerLevel level, BlockPos pos) {
+        return GooHitCredit.placerOf(level, placerAt(level, pos));
+    }
+
+    /**
+     * Records the player who placed goo in a cell that credits its placer;
+     * the last player to place there is the one it credits.
+     * standing-goo-thing-credits-whoever-placed-it
+     *
+     * @param level  the level
+     * @param pos    the cell
+     * @param player the player, or null where no player placed it
+     */
+    public void creditPlacer(ServerLevel level, BlockPos pos, @Nullable UUID player) {
+        if (player != null && creditsItsPlacer()) {
+            CellPlacers.of(level).place(pos, player);
+        }
+    }
+
+    /**
+     * The player a cell that credits its placer credits.
+     *
+     * @param level the level
+     * @param pos   the cell
+     * @return the player's id, or null where no player placed it or the cell credits no placer
+     */
+    private @Nullable UUID placerAt(ServerLevel level, BlockPos pos) {
+        return creditsItsPlacer() ? CellPlacers.of(level).placerAt(pos).orElse(null) : null;
+    }
+
+    /**
+     * Hands the cell a moving layer lands in the placer of the cell it left.
+     * operator ruling 2026-11-17: a poured cell inherits its source's placer
+     *
+     * @param level the level
+     * @param from  the cell the layer leaves
+     * @param to    the cell the layer lands in
+     */
+    private void carryPlacer(ServerLevel level, BlockPos from, BlockPos to) {
+        if (creditsItsPlacer()) {
+            CellPlacers.of(level).carry(from, to);
+        }
     }
 
     /** What a runny layer does on its cell's step. */
@@ -1089,6 +1162,9 @@ public class VolumeCellBlock extends Block {
     protected void affectNeighborsAfterRemoval(@NonNull BlockState state, @NonNull ServerLevel level,
                                                @NonNull BlockPos pos, boolean movedByPiston) {
         coolBelow(level, pos);
+        if (creditsItsPlacer()) {
+            CellPlacers.of(level).forget(pos);
+        }
         super.affectNeighborsAfterRemoval(state, level, pos, movedByPiston);
     }
 
@@ -1141,9 +1217,11 @@ public class VolumeCellBlock extends Block {
         }
         if (landing.state().isEmpty()) {
             // falling-layer-lands-when-its-drip-arrives: where the wall ends the layer falls, landing on arrival
-            return beginFall(level, landing.pos(), landing.pos().getY() + 1.0) ? lessALayer(bare) : state;
+            return beginFall(level, landing.pos(), landing.pos().getY() + 1.0, placerAt(level, pos))
+                    ? lessALayer(bare) : state;
         }
         level.setBlock(landing.pos(), landing.state().get(), UPDATE_ALL);
+        carryPlacer(level, pos, landing.pos());
         return lessALayer(bare);
     }
 
@@ -1424,9 +1502,10 @@ public class VolumeCellBlock extends Block {
         if (!(level instanceof ServerLevel server)) {
             return;
         }
+        @Nullable UUID placer = placerAt(server, pos);
         level.setBlock(pos, Blocks.AIR.defaultBlockState(), UPDATE_ALL);
         for (int layer = 0; layer < layersHeld(state); layer++) {
-            if (!beginFall(server, pos, pos.getY() + HALF)) {
+            if (!beginFall(server, pos, pos.getY() + HALF, placer)) {
                 LoadedAbilityCost.of(server, binding.layingAbility()).map(cost -> reclaimed(1, cost))
                         .filter(mb -> mb > 0)
                         .ifPresent(mb -> popResource(server, pos, GooStacks.createForOutput(binding.gooType(), mb)));
@@ -1620,8 +1699,9 @@ public class VolumeCellBlock extends Block {
             return;
         }
         int layers = state.getValue(LAYERS);
+        @Nullable UUID placer = placerAt(level, pos);
         level.setBlock(pos, lessALayer(state), UPDATE_ALL);
-        beginFall(level, ledge, pos.getY() + (double) layers / MAX_LAYERS);
+        beginFall(level, ledge, pos.getY() + (double) layers / MAX_LAYERS, placer);
     }
 
     /**
@@ -1643,6 +1723,7 @@ public class VolumeCellBlock extends Block {
         if (takesThePour(level, landing, taking, poured)) {
             BlockState into = taking.isAir() ? defaultBlockState() : taking;
             level.setBlock(landing, into.setValue(LAYERS, poured.taker()), UPDATE_ALL);
+            carryPlacer(level, pos, landing);
             level.setBlock(pos, lessALayer(state), UPDATE_ALL);
         }
     }
@@ -1736,7 +1817,7 @@ public class VolumeCellBlock extends Block {
             ShatterStep.in(layingProgram(level)).ifPresent(shatter -> ShatterCut.cut(server, pos, state, entity,
                     shatter));
         }
-        smite(level, state, entity);
+        smite(level, pos, state, entity);
         catchIn(level, entity);
         super.stepOn(level, pos, state, entity);
     }
@@ -1753,24 +1834,27 @@ public class VolumeCellBlock extends Block {
     protected void entityInside(@NonNull BlockState state, @NonNull Level level, @NonNull BlockPos pos,
                                 @NonNull Entity entity, @NonNull InsideBlockEffectApplier effects,
                                 boolean pastEdges) {
-        smite(level, state, entity);
+        smite(level, pos, state, entity);
         catchIn(level, entity);
         super.entityInside(state, level, pos, entity, effects, pastEdges);
     }
 
     /**
      * Burns an undead touching a smiting cell and deals it holy damage by
-     * the cell's layers, as the laying ability's wisps step names.
+     * the cell's layers, as the laying ability's wisps step names, crediting
+     * the player who placed the cell.
      * undead-touching-wisps-goo-erupt-in-flames-and-take-holy-damage-by-fill
+     * standing-goo-thing-credits-whoever-placed-it
      *
      * @param level  the level the cell stands in
+     * @param pos    the cell
      * @param state  the cell's state
      * @param entity the entity touching the cell
      */
-    private void smite(Level level, BlockState state, Entity entity) {
+    private void smite(Level level, BlockPos pos, BlockState state, Entity entity) {
         if (surface().smites() && level instanceof ServerLevel server) {
-            WispsStep.in(layingProgram(level))
-                    .ifPresent(wisps -> WispsSmite.touch(server, entity, state.getValue(LAYERS), wisps));
+            WispsStep.in(layingProgram(level)).ifPresent(wisps -> WispsSmite.touch(server, entity,
+                    state.getValue(LAYERS), wisps, creditedPlayerAt(server, pos)));
         }
     }
 

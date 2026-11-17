@@ -1,6 +1,10 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.item.GooGloveItem;
+import com.mercuriusxeno.goo.item.GooItem;
+import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.Camera;
 import net.minecraft.client.CameraType;
@@ -15,9 +19,11 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.state.GameRenderState;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.HumanoidArm;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
+import org.jspecify.annotations.Nullable;
 import org.mockito.MockedStatic;
 import java.lang.reflect.Field;
 import java.util.List;
@@ -32,7 +38,9 @@ import static org.mockito.Mockito.when;
  * looking south and thirty degrees down, the local player in first person or
  * another player, the glove's selected goo type stubbed through
  * {@link GooGloveItem#getSelectedType}, each frame drawn at partial tick 0
- * with a 90 degree field of view. Close it to restore the statics it swaps.
+ * with a 90 degree field of view. The right hand may hold raw goo in place of
+ * the glove, its selection naming {@link #BARE_HAND_ABILITY} of its own type,
+ * or nothing. Close it to restore the statics it swaps.
  */
 public final class SprayingClient implements AutoCloseable {
 
@@ -50,6 +58,13 @@ public final class SprayingClient implements AutoCloseable {
     public static final float YAW = 20f;
     /** Where the server said the glove stood with the stream's tick. */
     public static final Vec3 SENT_GLOVE = new Vec3(3.3, 65.2, -1.4);
+    /** The ability a bare hand's raw goo selects. */
+    public static final String BARE_HAND_ABILITY = "goo:bare_hand_cast";
+
+    /** What the caster's right hand holds. */
+    private enum Holding {
+        GLOVE, RAW_GOO, NOTHING
+    }
 
     private final Minecraft minecraft;
     private final ClientLevel level;
@@ -57,8 +72,10 @@ public final class SprayingClient implements AutoCloseable {
     private final ItemStack glove;
     private final MockedStatic<Minecraft> client;
     private final MockedStatic<GooGloveItem> gloves;
+    /** The goo stacks' statics, swapped only for a hand holding raw goo. */
+    private final @Nullable MockedStatic<GooStacks> stacks;
 
-    private SprayingClient(boolean local, ResourceKey<GooTypeDefinition> selected) {
+    private SprayingClient(boolean local, Holding holding, @Nullable ResourceKey<GooTypeDefinition> selected) {
         minecraft = mock(Minecraft.class);
         level = mock(ClientLevel.class);
         minecraft.level = level;
@@ -72,7 +89,7 @@ public final class SprayingClient implements AutoCloseable {
         when(caster.getMainArm()).thenReturn(HumanoidArm.RIGHT);
         when(caster.getPosition(anyFloat())).thenReturn(EYE.subtract(0, EYE_HEIGHT, 0));
         glove = mock(ItemStack.class);
-        when(glove.getItem()).thenReturn(mock(GooGloveItem.class));
+        when(glove.getItem()).thenReturn(itemFor(holding));
         when(caster.getMainHandItem()).thenReturn(glove);
         when(caster.getOffhandItem()).thenReturn(mock(ItemStack.class));
         camera = mock(Camera.class);
@@ -99,6 +116,22 @@ public final class SprayingClient implements AutoCloseable {
         client.when(Minecraft::getInstance).thenReturn(minecraft);
         gloves = mockStatic(GooGloveItem.class);
         gloves.when(() -> GooGloveItem.getSelectedType(glove)).thenReturn(selected);
+        if (holding == Holding.RAW_GOO && selected != null) {
+            gloves.when(() -> GooGloveItem.getSelection(glove))
+                    .thenReturn(new GloveSelection(GooTypes.id(selected), BARE_HAND_ABILITY));
+            stacks = mockStatic(GooStacks.class);
+            stacks.when(() -> GooStacks.keyOf(glove)).thenReturn(selected);
+        } else {
+            stacks = null;
+        }
+    }
+
+    private static Item itemFor(Holding holding) {
+        return switch (holding) {
+            case GLOVE -> mock(GooGloveItem.class);
+            case RAW_GOO -> mock(GooItem.class);
+            case NOTHING -> mock(Item.class);
+        };
     }
 
     /**
@@ -108,7 +141,7 @@ public final class SprayingClient implements AutoCloseable {
      * @return the client
      */
     public static SprayingClient local(ResourceKey<GooTypeDefinition> selected) {
-        return new SprayingClient(true, selected);
+        return new SprayingClient(true, Holding.GLOVE, selected);
     }
 
     /**
@@ -118,7 +151,29 @@ public final class SprayingClient implements AutoCloseable {
      * @return the client
      */
     public static SprayingClient another(ResourceKey<GooTypeDefinition> selected) {
-        return new SprayingClient(false, selected);
+        return new SprayingClient(false, Holding.GLOVE, selected);
+    }
+
+    /**
+     * A client drawing the local player in first person with no glove, raw
+     * goo of a type in the right hand, its selection naming
+     * {@link #BARE_HAND_ABILITY} of that type.
+     *
+     * @param held the raw goo's type
+     * @return the client
+     */
+    public static SprayingClient bareHanded(ResourceKey<GooTypeDefinition> held) {
+        return new SprayingClient(true, Holding.RAW_GOO, held);
+    }
+
+    /**
+     * A client drawing the local player in first person holding neither a
+     * glove nor raw goo.
+     *
+     * @return the client
+     */
+    public static SprayingClient emptyHanded() {
+        return new SprayingClient(true, Holding.NOTHING, null);
     }
 
     /**
@@ -172,6 +227,9 @@ public final class SprayingClient implements AutoCloseable {
 
     @Override
     public void close() {
+        if (stacks != null) {
+            stacks.close();
+        }
         gloves.close();
         client.close();
         LiftedPalmBlob.forgetEverySpray();
