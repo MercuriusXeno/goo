@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.root;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.LingeringAppliers;
 import com.mercuriusxeno.goo.registry.GooAttachments;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.Identifier;
@@ -12,43 +13,40 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Runs the vines rooting a mob: each tick they stop its pathing, and a mob
- * that has moved off the root is thorned and dragged back onto it, never
- * standing past the leash; fire damage to a
- * mob that is not fire immune is multiplied while they hold, every other
- * hit spends one of theirs, and they release at their last hit or when
- * their hold runs out, falling away before they go.
- * vines-unpack-root-and-thorn
+ * Runs the vines Vines goo holds a living thing with: a cell it crosses
+ * gives it vines, each tick the vines slow it by their count and thorn it
+ * for moving, fire damage to a thing that is not fire immune is multiplied
+ * while they hold, and they release when their time runs out, falling away
+ * before they go.
+ * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
+ * vines-root-is-volume-based-one-to-five-vines-by-layers
+ * vines-roots-last-three-seconds-plus-one-per-stack-and-each-vine-refreshes
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class RootEvents {
 
-    /** How far from the root, across the ground, a rooted mob strains before the vines pull it back. */
-    public static final double LEASH_BLOCKS = 1.0;
-
-    /** How far off the root a mob stands before the vines count it moving, thorn it and drag it back. */
-    public static final double SLACK_BLOCKS = 0.25;
-
-    /** The id the vines' thorns remember their rooter under, among a mob's lingering appliers. */
+    /** The id the vines' thorns remember the player who placed the goo under, among a thing's lingering appliers. */
     static final Identifier THORNS = Identifier.fromNamespaceAndPath(Goo.MODID, "root_thorns");
 
-    /** The share of the way back onto the root the vines drag a mob each tick it stands off it. */
-    static final double PULL_SHARE = 0.3;
+    /** The id of the speed modifier the vines hold a thing with. */
+    static final Identifier SLOW_ID = Identifier.fromNamespaceAndPath(Goo.MODID, "vines_slow");
+
+    /** How far across the ground a held thing moves in a tick before the vines count it moving. */
+    static final double MOVED_BLOCKS = 0.01;
 
     private static final float LATCH_VOLUME = 1.0f;
     private static final float LATCH_PITCH = 0.8f;
@@ -63,26 +61,47 @@ public final class RootEvents {
     }
 
     /**
-     * Latches a throw of vines onto a living entity, with the rustle of
-     * vines taking hold, and remembers the player who threw them, whom the
-     * vines' later thorns name.
-     * lingering-goo-effect-credits-whoever-applied-it
+     * Entangles a living thing whose center crosses a Vines cell: the cell
+     * gives it vines by its layers, with the rustle of vines taking hold,
+     * and the player who placed the goo is remembered, whom the vines' later
+     * thorns name.
+     * standing-goo-thing-credits-whoever-placed-it
      *
-     * @param target the entity the vines root
-     * @param thrown the throw's strength
-     * @param rooter the entity who threw the vines, or null for none
+     * @param entity the thing touching the cell
+     * @param touch  what the cell gives
+     * @param placer the player who placed the goo, or null for none
      */
-    public static void latch(LivingEntity target, Rooted.Throw thrown, @Nullable Entity rooter) {
-        long now = target.level().getGameTime();
-        Rooted standing = target.getData(GooAttachments.ROOTED);
-        target.setData(GooAttachments.ROOTED, standing.latch(thrown, target.position(), now));
-        LingeringAppliers.remember(target, THORNS, rooter);
-        rustle(target, SoundEvents.VINE_PLACE, LATCH_VOLUME, LATCH_PITCH);
+    public static void entangle(Entity entity, Rooted.Touch touch, @Nullable Entity placer) {
+        if (entity.level().isClientSide() || !(entity instanceof LivingEntity living)
+                || !over(touch.cell(), living.position())) {
+            return;
+        }
+        Rooted standing = living.getData(GooAttachments.ROOTED);
+        Rooted after = standing.touched(touch, living.position(), living.level().getGameTime());
+        if (after.equals(standing)) {
+            return;
+        }
+        living.setData(GooAttachments.ROOTED, after);
+        LingeringAppliers.remember(living, THORNS, placer);
+        rustle(living, SoundEvents.VINE_PLACE, LATCH_VOLUME, LATCH_PITCH);
     }
 
     /**
-     * Holds each rooted mob at its root, releases one whose hold has run
-     * out, and lets the vines go once they have fallen away.
+     * Whether a thing standing at a point stands over a cell, its center
+     * inside the cell's column: what crossing the goo is.
+     *
+     * @param cell     the cell
+     * @param position where the thing stands
+     * @return true where the point lies over the cell
+     */
+    static boolean over(BlockPos cell, Vec3 position) {
+        return (int) Math.floor(position.x) == cell.getX() && (int) Math.floor(position.z) == cell.getZ();
+    }
+
+    /**
+     * Slows and thorns each held thing, releases one whose hold has run
+     * out, and lets the vines go once they have fallen away and the thing
+     * has left the cell that last gave it vines.
      *
      * @param event the entity tick event
      */
@@ -94,17 +113,18 @@ public final class RootEvents {
         }
         Rooted rooted = living.getData(GooAttachments.ROOTED);
         long now = living.level().getGameTime();
+        slowBy(living, rooted.speedAt(now));
         if (rooted.holds(now)) {
-            holdAtRoot(living, rooted);
-        } else if (rooted.hitsLeft() > 0) {
+            thornIfMoved(living, rooted);
+        } else if (rooted.vines() > 0) {
             release(living, rooted.releasedAt(now));
-        } else if (rooted.fadedBy(now)) {
+        } else if (rooted.fadedBy(now) && !over(rooted.lastCell(), living.position())) {
             living.removeData(GooAttachments.ROOTED);
         }
     }
 
     /**
-     * Multiplies fire damage to a rooted mob that is not fire immune.
+     * Multiplies fire damage to a held thing that is not fire immune.
      *
      * @param event the incoming damage event
      */
@@ -117,31 +137,6 @@ public final class RootEvents {
         Rooted rooted = living.getData(GooAttachments.ROOTED);
         if (rooted.holds(living.level().getGameTime()) && feedsFire(living, event.getSource())) {
             event.setAmount(event.getAmount() * rooted.fireFactor());
-        }
-    }
-
-    /**
-     * Spends one of the vines' hits for each hit a rooted mob takes, past
-     * their own thorns; the last one releases it.
-     *
-     * @param event the damage event, after the damage landed
-     */
-    @SubscribeEvent
-    public static void onDamage(LivingDamageEvent.Post event) {
-        LivingEntity living = rootedOnServer(event.getEntity());
-        if (living == null || event.getNewDamage() <= 0f || isThorn(event.getSource())) {
-            return;
-        }
-        Rooted rooted = living.getData(GooAttachments.ROOTED);
-        long now = living.level().getGameTime();
-        if (!rooted.holds(now)) {
-            return;
-        }
-        Rooted after = rooted.struck(now);
-        if (after.holds(now)) {
-            living.setData(GooAttachments.ROOTED, after);
-        } else {
-            release(living, after);
         }
     }
 
@@ -159,7 +154,7 @@ public final class RootEvents {
     }
 
     /**
-     * Whether damage is fire the vines feed: fire damage to a mob that is
+     * Whether damage is fire the vines feed: fire damage to a thing that is
      * not fire immune.
      *
      * @param living the damaged entity
@@ -171,92 +166,51 @@ public final class RootEvents {
     }
 
     /**
-     * Whether damage is the vines' own thorns, which spend none of their hits.
+     * Holds a thing at the share of its speed the vines leave it, through a
+     * speed modifier its client reads too; a whole share takes the modifier off.
      *
-     * @param source the damage source
-     * @return true for the thorn damage the vines deal
+     * @param living the held entity
+     * @param speed  the share of its speed it keeps
      */
-    static boolean isThorn(DamageSource source) {
-        return source.is(DamageTypes.SWEET_BERRY_BUSH);
+    private static void slowBy(LivingEntity living, double speed) {
+        AttributeInstance movement = living.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (movement == null) {
+            return;
+        }
+        if (speed >= 1.0) {
+            movement.removeModifier(SLOW_ID);
+        } else {
+            movement.addOrUpdateTransientModifier(new AttributeModifier(SLOW_ID, speed - 1.0,
+                    AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
+        }
     }
 
     /**
-     * Holds a rooted mob at its root: its pathing stops, a mob that has
-     * moved off the root is thorned and dragged a share of the way back onto
-     * it, and none stands past the leash's edge.
+     * Thorns a held thing that moved across the ground this tick, naming the
+     * player who placed the goo.
+     * standing-goo-thing-credits-whoever-placed-it
      *
-     * @param living the rooted entity
+     * @param living the held entity
      * @param rooted its vines
      */
-    private static void holdAtRoot(LivingEntity living, Rooted rooted) {
-        if (living instanceof Mob mob) {
-            mob.getNavigation().stop();
-        }
-        Vec3 pull = springPull(rooted.anchor(), living.position());
-        if (pull == null) {
-            return;
-        }
-        Vec3 motion = living.getDeltaMovement();
-        living.setDeltaMovement(0, Math.min(0, motion.y), 0);
-        living.move(MoverType.SELF, pull);
-        Vec3 leashed = pulledToLeash(rooted.anchor(), living.position());
-        if (leashed != null) {
-            living.setPos(leashed);
-        }
-        living.hurtMarked = true;
-        if (living.level() instanceof ServerLevel level) {
-            // lingering-goo-effect-credits-whoever-applied-it, goo-hit-keeps-its-kind-and-names-the-player-behind-it
+    private static void thornIfMoved(LivingEntity living, Rooted rooted) {
+        double moved = Math.hypot(living.getX() - living.xo, living.getZ() - living.zo);
+        if (moved > MOVED_BLOCKS && living.level() instanceof ServerLevel level) {
             living.hurtServer(level, LingeringAppliers.credit(level, level.damageSources().sweetBerryBush(), living,
                     THORNS), rooted.thorns());
         }
     }
 
     /**
-     * How far the vines drag a mob back toward the root this tick: none
-     * while it stands on the root, and a share of the way across the ground
-     * once it has moved off it.
-     *
-     * @param anchor   the root
-     * @param position where the mob stands
-     * @return the drag across the ground, or null for a mob standing on the root
-     */
-    static @Nullable Vec3 springPull(Vec3 anchor, Vec3 position) {
-        double dx = anchor.x - position.x;
-        double dz = anchor.z - position.z;
-        if (Math.sqrt(dx * dx + dz * dz) <= SLACK_BLOCKS) {
-            return null;
-        }
-        return new Vec3(dx * PULL_SHARE, 0, dz * PULL_SHARE);
-    }
-
-    /**
-     * Where the vines pull a mob standing past the leash: back toward the
-     * root across the ground to the leash's edge, at the height it stands.
-     *
-     * @param anchor   the root
-     * @param position where the mob stands
-     * @return the point on the leash's edge, or null for a mob within the leash
-     */
-    static @Nullable Vec3 pulledToLeash(Vec3 anchor, Vec3 position) {
-        double dx = position.x - anchor.x;
-        double dz = position.z - anchor.z;
-        double across = Math.sqrt(dx * dx + dz * dz);
-        if (across <= LEASH_BLOCKS) {
-            return null;
-        }
-        double scale = LEASH_BLOCKS / across;
-        return new Vec3(anchor.x + dx * scale, position.y, anchor.z + dz * scale);
-    }
-
-    /**
-     * Releases a rooted mob: the vines snap with a burst of torn vine and
+     * Releases a held thing: the vines snap with a burst of torn vine and
      * start to fall away.
      *
-     * @param living   the rooted entity
+     * @param living   the held entity
      * @param released the vines as they let go
      */
     private static void release(LivingEntity living, Rooted released) {
         living.setData(GooAttachments.ROOTED, released);
+        slowBy(living, 1.0);
         rustle(living, SoundEvents.VINE_BREAK, SNAP_VOLUME, SNAP_PITCH);
         if (living.level() instanceof ServerLevel level) {
             level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.VINE.defaultBlockState()),

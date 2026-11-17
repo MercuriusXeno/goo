@@ -8,8 +8,9 @@ package com.mercuriusxeno.goo.block.ability;
  * ice; molten stands as ordinary ground, and so does shatter under the
  * shards hanging over it, which cut what moves through them; rime is as
  * slippery as ice and pushes nothing; wisps stands as ordinary ground and
- * smites the undead touching it; leech slows a thing caught in it. A goo
- * type binding a world goo to the cell names one.
+ * smites the undead touching it; leech slows a thing caught in it; vines
+ * stands as ordinary ground and entangles what crosses it. A goo type
+ * binding a world goo to the cell names one.
  * slime-and-slick-are-one-volume-cell-tech
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
  * shatter-is-splattered-goo-and-shards-form-over-the-splatters
@@ -18,6 +19,7 @@ package com.mercuriusxeno.goo.block.ability;
  * slick-coats-the-ground-with-kinetic-speed
  * rime-goo-is-slippery-to-walk-on
  * undead-touching-wisps-goo-erupt-in-flames-and-take-holy-damage-by-fill
+ * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
  *
  * @see VolumeCellBlock
  */
@@ -36,7 +38,9 @@ public enum CellSurface {
     /** Wisps': ordinary ground that sets the undead touching it on fire and deals them holy damage. */
     SMITE(Frictions.ORDINARY_GROUND),
     /** Leech's: ordinary ground underfoot, it slows a thing caught in it. */
-    SLOW(Frictions.ORDINARY_GROUND);
+    SLOW(Frictions.ORDINARY_GROUND),
+    /** Vines': ordinary ground underfoot, it entangles a thing crossing it in vines by its layers. */
+    ENTANGLE(Frictions.ORDINARY_GROUND);
 
     /** The friction a cell bound to this surface stands at, the slipperiness what moves on it meets. */
     private final float friction;
@@ -100,6 +104,13 @@ public enum CellSurface {
      */
     public boolean slows() {
         return this == SLOW;
+    }
+
+    /**
+     * @return true where the cell entangles a thing crossing it
+     */
+    public boolean entangles() {
+        return this == ENTANGLE;
     }
 
     /** The frictions the surfaces stand at, held apart so the constants above can read them. */

@@ -12,8 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class HitOrMissStepTest {
 
-    private static final Step HIT = new RootStep(Expr.literal(60), Expr.literal(4), Expr.literal(1),
-            Expr.literal(1.5));
+    private static final Step HIT = LeafSteps.IGNITE.step(Expr.literal(5));
     private static final Step MISS = new LingerStep(List.of());
     private static final HitOrMissStep SPLIT = new HitOrMissStep(List.of(HIT), List.of(MISS));
 
