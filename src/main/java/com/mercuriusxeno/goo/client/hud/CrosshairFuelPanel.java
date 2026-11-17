@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.AffordedCount;
 import com.mercuriusxeno.goo.client.network.StandingUpkeep;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -178,7 +179,7 @@ public final class CrosshairFuelPanel {
     }
 
     private static void renderFor(GuiGraphicsExtractor graphics, Font font, LocalPlayer player) {
-        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        GloveSelection selection = GooCasters.heldSelection(player);
         ResourceKey<GooTypeDefinition> type = selection == null ? null : selection.getGooType();
         ClientAbility ability = selection == null ? null : AbilitySyncHandler.findAbility(selection.abilityId());
         Optional<String> cost = GloveThrowSender.aimedCostLabel(player);

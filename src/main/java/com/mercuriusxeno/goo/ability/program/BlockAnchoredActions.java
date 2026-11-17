@@ -5,11 +5,13 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -18,7 +20,7 @@ import java.util.function.Consumer;
 /**
  * The world actions a host anchored at a block shares whatever block it
  * is, such as the ability block: entity scans handing each body
- * an entity host with no thrower, and particle bursts spread along the
+ * an entity host with no thrower crediting the anchor's placer, and particle bursts spread along the
  * anchor's axis.
  */
 final class BlockAnchoredActions {
@@ -56,32 +58,36 @@ final class BlockAnchoredActions {
 
     /**
      * Hands the body an entity host for each living entity in the volume
-     * that every filter keeps.
+     * that every filter keeps, naming no thrower and crediting the anchor's placer.
+     * standing-goo-thing-credits-whoever-placed-it
      *
      * @param level   the server level
      * @param center  the volume's center
      * @param shape   the volume shape
      * @param radius  the volume radius
      * @param filters the filters an entity must pass
+     * @param placer  the player who placed the anchor's field, or null for none
      * @param body    what to run on each entity's host
      */
     static void forEachEntityWithin(ServerLevel level, Vec3 center, SelectionShape shape, double radius,
-                                    Set<EntityFilter> filters, Consumer<TargetHost> body) {
+                                    Set<EntityFilter> filters, @Nullable Entity placer, Consumer<TargetHost> body) {
         EntityScan.forEachLivingWithin(level, center, shape, radius, filters, null,
-                living -> body.accept(new EntityHost(level, living, null)));
+                living -> body.accept(EntityHost.struckByField(level, living, placer)));
     }
 
     /**
      * Hands the body an entity host for the living entity with this id, when
-     * one still stands in the level.
+     * one still stands in the level, naming no thrower and crediting the anchor's placer.
+     * standing-goo-thing-credits-whoever-placed-it
      *
      * @param level    the server level
      * @param entityId the entity's id
+     * @param placer   the player who placed the anchor's field, or null for none
      * @param body     what to run on the entity's host
      */
-    static void forEntity(ServerLevel level, int entityId, Consumer<TargetHost> body) {
+    static void forEntity(ServerLevel level, int entityId, @Nullable Entity placer, Consumer<TargetHost> body) {
         if (level.getEntity(entityId) instanceof LivingEntity living && living.isAlive()) {
-            body.accept(new EntityHost(level, living, null));
+            body.accept(EntityHost.struckByField(level, living, placer));
         }
     }
 

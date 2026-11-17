@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.block.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.ability.program.UndeadInversion;
 import com.mercuriusxeno.goo.ability.program.WispsStep;
 import net.minecraft.core.registries.Registries;
@@ -11,6 +12,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import org.jspecify.annotations.Nullable;
 
 /**
  * What a Wisps cell does to an undead touching it: sets it on fire and, once
@@ -39,14 +41,17 @@ public final class WispsSmite {
 
     /**
      * Sets an undead touching a Wisps cell on fire and deals it the cell's
-     * holy damage when the cadence comes round; anything else is spared.
+     * holy damage when the cadence comes round, crediting the player who
+     * placed the cell; anything else is spared.
+     * standing-goo-thing-credits-whoever-placed-it
      *
      * @param level  the level the cell stands in
      * @param entity the entity touching the cell
      * @param layers the layers the cell holds
      * @param wisps  the laying step, naming the damage per layer and the cadence
+     * @param placer the player who placed the cell, or null for none
      */
-    public static void touch(ServerLevel level, Entity entity, int layers, WispsStep wisps) {
+    public static void touch(ServerLevel level, Entity entity, int layers, WispsStep wisps, @Nullable Entity placer) {
         if (!(entity instanceof LivingEntity living) || !smites(living)) {
             return;
         }
@@ -54,7 +59,8 @@ public final class WispsSmite {
         if (level.getGameTime() % wisps.holyEvery() == 0) {
             DamageSource holy = new DamageSource(level.registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE)
                     .getOrThrow(HOLY));
-            living.hurtServer(level, holy, (float) holyDamage(layers, wisps.holyPerLayer()));
+            living.hurtServer(level, GooHitCredit.credit(holy, living, placer),
+                    (float) holyDamage(layers, wisps.holyPerLayer()));
         }
     }
 
