@@ -61,6 +61,17 @@ class GooCastersDrawnTest {
         assertTrue(GooCasters.drawnInHand(player, drawnAstral));
     }
 
+    /** The arm drawn under held goo is the main hand's for the drawn copy, so the skin's arm never swaps sides. */
+    @Test
+    void theDrawnCopyOfDrainedGooStandsForTheMainHand() {
+        assertTrue(GooCasters.drawnInMainHand(player, drawnAstral));
+    }
+
+    @Test
+    void theOffHandsGooNeverStandsForTheMainHand() {
+        assertFalse(GooCasters.drawnInMainHand(player, offHandZoo));
+    }
+
     @Test
     void theOffHandsGooNeverStandsForTheCaster() {
         assertFalse(GooCasters.drawnAsCaster(player, offHandZoo));

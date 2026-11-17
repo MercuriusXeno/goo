@@ -14,6 +14,7 @@ import com.mercuriusxeno.goo.client.throwing.BlobShape;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.client.zone.RoomBodyCopyRenderer;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooItem;
 import com.mercuriusxeno.goo.item.GooStacks;
@@ -664,7 +665,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         LocalPlayer player = Minecraft.getInstance().player;
         HumanoidArm handArm = HumanoidArm.RIGHT;
         if (player != null) {
-            handArm = stack == player.getMainHandItem() ? player.getMainArm() : player.getMainArm().getOpposite();
+            handArm = GooCasters.drawnInMainHand(player, stack) ? player.getMainArm() : player.getMainArm().getOpposite();
         }
         return new GloveData(stack.getItem(), type, channelGlowOf(type, stack),
                 KnivesCharge.palmScaleAt(KnivesCharge.localPalmShare(stack)),

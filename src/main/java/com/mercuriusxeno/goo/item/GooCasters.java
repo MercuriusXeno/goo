@@ -75,6 +75,19 @@ public final class GooCasters {
     }
 
     /**
+     * Whether a stack drawn for a hand is the stack the player holds in the main hand, the drawn copy of drained raw
+     * goo included, so the arm drawn under it never swaps sides while a cast drains it.
+     * decision raw-goo-items-work-bare-handed-for-the-held-type
+     *
+     * @param player the player
+     * @param drawn  the stack being drawn
+     * @return true where the drawn stack stands for the main hand's
+     */
+    public static boolean drawnInMainHand(Player player, ItemStack drawn) {
+        return drawnAs(drawn, player.getMainHandItem(), player.getOffhandItem());
+    }
+
+    /**
      * Whether a stack drawn for a hand is the stack the player casts from.
      *
      * @param player the player
