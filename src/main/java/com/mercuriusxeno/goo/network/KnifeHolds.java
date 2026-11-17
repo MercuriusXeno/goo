@@ -34,8 +34,6 @@ import java.util.UUID;
  */
 public final class KnifeHolds {
 
-    /** The ticks between the knives a held left click throws. */
-    static final int THROW_TICKS = 2;
     private static final int NOT_THROWING = -1;
     private final Map<UUID, Hold> holds = new HashMap<>();
 
@@ -123,16 +121,19 @@ public final class KnifeHolds {
         }
 
         /**
-         * Whether the held left click throws a knife this tick: every 2
-         * ticks after the press, the press's own throw landing as it went down.
+         * Whether the held left click throws this tick: every beat its charge
+         * names after the press, 2 ticks for Knives and 5 for Dart, the press's own
+         * throw landing as it went down.
          * decision knives-throw-one-per-two-ticks-while-left-click-is-held
+         * decision dart-throws-one-javelin-per-five-ticks-while-left-click-is-held
          *
          * @param now the server tick
          * @return true on a tick the held throw throws
          */
         boolean throwsAt(int now) {
             int since = now - throwingSince;
-            return throwingSince != NOT_THROWING && since > 0 && since % THROW_TICKS == 0;
+            int beat = charge().throwTicks();
+            return throwingSince != NOT_THROWING && beat > 0 && since > 0 && since % beat == 0;
         }
 
         /**
@@ -218,7 +219,7 @@ public final class KnifeHolds {
      */
     public void leftClick(ServerPlayer player, boolean down) {
         Hold hold = holds.get(player.getUUID());
-        if (hold != null && !hold.held.ability().delivery().stacksJavelins()) {
+        if (hold != null) {
             hold.throwingSince = down ? player.level().getServer().getTickCount() : NOT_THROWING;
         }
     }

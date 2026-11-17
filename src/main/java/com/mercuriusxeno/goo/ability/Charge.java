@@ -9,21 +9,24 @@ import net.minecraft.network.codec.StreamCodec;
 /**
  * A delivery's charge block: how long a hold takes to charge fully, and, for
  * a held throw that stacks what it throws while held, Knives' knives or
- * Dart's javelins, the most the hold stacks and the ticks each takes to form.
+ * Dart's javelins, the most the hold stacks, the ticks each takes to form and
  * A charge naming a largest size grows the cast's size with the hold, from
  * the smallest a cast opens at to that cap.
  * decision nova-ring-grows-with-the-hold
  * decision knives-charge-one-per-three-ticks-up-to-ten
  * decision dart-stacks-three-javelins-one-per-ten-ticks
+ * decision knives-throw-one-per-two-ticks-while-left-click-is-held
+ * decision dart-throws-one-javelin-per-five-ticks-while-left-click-is-held
  * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
  *
  * @param maxTicks   the ticks of hold a full charge takes, 0 for a delivery that does not charge
  * @param stack      the most the hold stacks, 0 for a charge stacking nothing
  * @param stackTicks the ticks each one stacked takes to form
+ * @param throwTicks the ticks between the throws a held left click makes, 0 for a hold throwing one per press
  * @param minSize    the size a charge opens at with no hold, in blocks, never under the smallest a cast opens at
  * @param maxSize    the size a full charge reaches, in blocks, {@link #NO_SIZE} for a charge sizing nothing
  */
-public record Charge(int maxTicks, int stack, int stackTicks, double minSize, double maxSize) {
+public record Charge(int maxTicks, int stack, int stackTicks, int throwTicks, double minSize, double maxSize) {
 
     /** The largest size of a charge that sizes nothing. */
     public static final double NO_SIZE = 0;
@@ -33,11 +36,12 @@ public record Charge(int maxTicks, int stack, int stackTicks, double minSize, do
     /** A delivery that does not charge. */
     public static final Charge NONE = new Charge(0, 0, 0);
 
-    /** Codec for the charge block, {@code "charge": {"max_ticks": 30, "stack": 10, "stack_ticks": 3}}. */
+    /** Codec for the charge block, {@code "charge": {"max_ticks": 30, "stack": 10, "stack_ticks": 3, "throw_ticks": 2}}. */
     public static final Codec<Charge> CODEC = RecordCodecBuilder.create(inst -> inst.group(
             Codec.INT.fieldOf("max_ticks").forGetter(Charge::maxTicks),
             Codec.INT.optionalFieldOf("stack", 0).forGetter(Charge::stack),
             Codec.INT.optionalFieldOf("stack_ticks", 0).forGetter(Charge::stackTicks),
+            Codec.INT.optionalFieldOf("throw_ticks", 0).forGetter(Charge::throwTicks),
             // blast-charges-from-two-to-seven-blocks: a sizing charge names the size it opens at
             Codec.DOUBLE.optionalFieldOf("min_size", ChargeSize.MIN_RADIUS).forGetter(Charge::minSize),
             Codec.DOUBLE.optionalFieldOf("max_size", NO_SIZE).forGetter(Charge::maxSize)
@@ -52,6 +56,7 @@ public record Charge(int maxTicks, int stack, int stackTicks, double minSize, do
             ByteBufCodecs.VAR_INT, Charge::maxTicks,
             ByteBufCodecs.VAR_INT, Charge::stack,
             ByteBufCodecs.VAR_INT, Charge::stackTicks,
+            ByteBufCodecs.VAR_INT, Charge::throwTicks,
             ByteBufCodecs.DOUBLE, Charge::minSize,
             ByteBufCodecs.DOUBLE, Charge::maxSize,
             Charge::new);
@@ -62,9 +67,10 @@ public record Charge(int maxTicks, int stack, int stackTicks, double minSize, do
      * @param maxTicks   the ticks of hold a full charge takes
      * @param stack      the most the hold stacks
      * @param stackTicks the ticks each one stacked takes to form
+ * @param throwTicks the ticks between the throws a held left click makes, 0 for a hold throwing one per press
      */
     public Charge(int maxTicks, int stack, int stackTicks) {
-        this(maxTicks, stack, stackTicks, ChargeSize.MIN_RADIUS, NO_SIZE);
+        this(maxTicks, stack, stackTicks, 0, ChargeSize.MIN_RADIUS, NO_SIZE);
     }
 
     /**

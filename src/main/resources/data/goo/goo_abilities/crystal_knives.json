@@ -9,7 +9,7 @@
   "delivery": {
     "kind": "arc",
     "throw_speed": 1.5,
-    "charge": { "max_ticks": 30, "stack": 10, "stack_ticks": 3 }
+    "charge": { "max_ticks": 30, "stack": 10, "stack_ticks": 3, "throw_ticks": 2 }
   },
   "behaviors": [
     { "type": "damage", "amount": 2, "source": "attack", "knockback": false },

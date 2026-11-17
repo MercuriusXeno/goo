@@ -49,6 +49,13 @@ public final class DartHoldTests {
             "dart_throw_with_no_mob_ahead_flies_a_javelin";
     private static final String DART_DOES_NOT_FOLLOW_A_MOB_THAT_MOVES = "dart_does_not_follow_a_mob_that_moves";
     private static final String DART_PASSES_BETWEEN_FENCE_RAILS = "dart_passes_between_fence_rails";
+    private static final String DART_THROWS_ONE_JAVELIN_PER_FIVE_TICKS_WHILE_LEFT_CLICK_IS_HELD =
+            "dart_throws_one_javelin_per_five_ticks_while_left_click_is_held";
+    /** The read a tick past the 5th after the press, which sees the throw the 5th tick's server tick lands. */
+    private static final int READ_FIVE_TICKS_ON = 6;
+    private static final int TEN_TICKS = 10;
+    private static final String SHOULD_THROW_ON_THE_HOLD = "Holding left click should throw 1 javelin on the press,"
+            + " 2 by 5 ticks later, and none more in the 10 ticks after it lifts, thrown %s, spending %s mB, spent %s";
     /** A javelin's speed as it leaves, in blocks a tick (metal_dart.json). */
     private static final double JAVELIN_SPEED = 2.5;
     private static final double SPEED_WITHIN = 1e-6;
@@ -123,6 +130,44 @@ public final class DartHoldTests {
                 DartHoldTests::dartDoesNotFollowAMobThatMoves);
         GooTestFunctions.registerTest(registrar, DART_PASSES_BETWEEN_FENCE_RAILS,
                 DartHoldTests::dartPassesBetweenFenceRails);
+        GooTestFunctions.registerTest(registrar, DART_THROWS_ONE_JAVELIN_PER_FIVE_TICKS_WHILE_LEFT_CLICK_IS_HELD,
+                DartHoldTests::dartThrowsOneJavelinPerFiveTicksWhileLeftClickIsHeld);
+    }
+
+    /**
+     * A mock player holding 3 javelins holds left click: the hold has thrown
+     * 1 javelin on the press and 2 by 5 ticks later, the server's tick
+     * landing the 5th tick's throw before the 6th tick reads; once left
+     * click lifts, it throws none in the 10 ticks after, and the goo spent is
+     * twice Dart's cost, one cost a javelin thrown.
+     * decision dart-throws-one-javelin-per-five-ticks-while-left-click-is-held
+     *
+     * @param helper the gametest helper
+     */
+    public static void dartThrowsOneJavelinPerFiveTicksWhileLeftClickIsHeld(GameTestHelper helper) {
+        ServerPlayer caster = casterHolding(helper);
+        GooServerState state = GooServerState.of(helper.getLevel().getServer());
+        int price = dart(helper).cost().exactIn(GooValues.of(helper.getLevel())).ceiling();
+        int start = metalHeld(caster);
+        List<Integer> thrown = new ArrayList<>();
+        holding(caster, true);
+
+        helper.runAfterDelay(THREE_JAVELINS_TICKS, () -> {
+            KnivesThrowHandler.leftClick(caster, true);
+            thrown.add(state.knifeHolds().thrownBy(caster));
+        });
+        helper.runAfterDelay(THREE_JAVELINS_TICKS + READ_FIVE_TICKS_ON, () -> {
+            thrown.add(state.knifeHolds().thrownBy(caster));
+            KnivesThrowHandler.leftClick(caster, false);
+        });
+        helper.runAfterDelay(THREE_JAVELINS_TICKS + READ_FIVE_TICKS_ON + TEN_TICKS, () -> {
+            thrown.add(state.knifeHolds().thrownBy(caster));
+            int spent = start - metalHeld(caster);
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(thrown.equals(List.of(1, 2, 2)) && spent == 2 * price,
+                    String.format(SHOULD_THROW_ON_THE_HOLD, thrown, 2 * price, spent));
+            helper.succeed();
+        });
     }
 
     /**
