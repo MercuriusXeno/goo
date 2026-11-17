@@ -62,10 +62,25 @@ public final class ClientConjuredDoors {
      * @param unzipped how far it has unzipped from the doorway's head, 0 for a pixel to 1 for a slash on the floor
      * @param widened  how far it has widened, 0 for a pixel wide to 1 for the doorway's full width
      * @param look     what it is drawn with
-     * @param phase    where it stands in its life, as the server last sent it
+     * @param phase     where it stands in its life, as the server last sent it
+     * @param collapsed how far it has collapsed since its updates stopped, 0 while they come to 1 gone
      */
     public record Drawn(Vec3 at, float yaw, double unzipped, double widened, GateLook look,
-                        ConjuredDoor.Phase phase) {
+                        ConjuredDoor.Phase phase, double collapsed) {
+
+        /**
+         * A door its updates still stand.
+         *
+         * @param at       the middle of its foot
+         * @param yaw      the way its caster faced, in degrees
+         * @param unzipped how far it has unzipped
+         * @param widened  how far it has widened
+         * @param look     what it is drawn with
+         * @param phase    where it stands in its life
+         */
+        public Drawn(Vec3 at, float yaw, double unzipped, double widened, GateLook look, ConjuredDoor.Phase phase) {
+            this(at, yaw, unzipped, widened, look, phase, 0);
+        }
 
         /**
          * A door drawn with the starfield, as Zone's and End's are.
@@ -86,7 +101,7 @@ public final class ClientConjuredDoors {
      * @param unzipped how far it has unzipped
      * @param widened  how far it has widened
      */
-    private record Shares(double unzipped, double widened) {
+    private record Shares(double unzipped, double widened, double collapsed) {
     }
 
     /**
@@ -273,7 +288,7 @@ public final class ClientConjuredDoors {
         double crossed = Mth.lerp(step, seen.before().crossed(), seen.now().crossed());
         Vec3 at = ConjuredDoor.placedAt(look.feet(), look.yaw(), crossed);
         return sharesAt(seen, since).map(shares -> new Drawn(at, look.yaw(), shares.unzipped(), shares.widened(),
-                seen.look(), seen.now().phase()));
+                seen.look(), seen.now().phase(), shares.collapsed()));
     }
 
     /**
@@ -294,7 +309,7 @@ public final class ClientConjuredDoors {
         Vec3 at = before.at().lerp(now.at(), step);
         float yaw = Mth.rotLerp((float) step, before.yaw(), now.yaw());
         return sharesAt(seen, since).map(shares -> new Drawn(at, yaw, shares.unzipped(), shares.widened(),
-                seen.look(), seen.now().phase()));
+                seen.look(), seen.now().phase(), shares.collapsed()));
     }
 
     /**
@@ -320,9 +335,10 @@ public final class ClientConjuredDoors {
         if (since <= OUTLASTS) {
             double step = stepBetween(since);
             return Optional.of(new Shares(Mth.lerp(step, seen.before().unzipped(), now.unzipped()),
-                    Mth.lerp(step, seen.before().widened(), now.widened())));
+                    Mth.lerp(step, seen.before().widened(), now.widened()), 0));
         }
         double left = 1 - (since - OUTLASTS) / COLLAPSE_TICKS;
-        return left <= 0 ? Optional.empty() : Optional.of(new Shares(now.unzipped() * left, now.widened() * left));
+        return left <= 0 ? Optional.empty()
+                : Optional.of(new Shares(now.unzipped() * left, now.widened() * left, 1 - left));
     }
 }

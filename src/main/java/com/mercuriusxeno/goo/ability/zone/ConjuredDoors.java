@@ -188,8 +188,9 @@ public final class ConjuredDoors {
     }
 
     /**
-     * Bursts void, or a nether portal's motes for Tartarus' gate, where a
-     * door is conjured and plays the conjuring sound.
+     * Bursts void where a starfield door is conjured, and plays the conjuring
+     * sound for every door; Tartarus' rift gives off its own embers instead.
+     * decision tartarus-draws-its-own-portal-with-the-nether-portal-texture
      *
      * @param level the caster's level
      * @param door  the door, at its start
@@ -197,8 +198,10 @@ public final class ConjuredDoors {
      */
     private static void showConjuring(ServerLevel level, ConjuredDoor door, GateLook look) {
         Vec3 middle = door.at().add(0, DOOR_MIDDLE, 0);
-        level.sendParticles(look == GateLook.NETHER_PORTAL ? ParticleTypes.PORTAL : ParticleTypes.REVERSE_PORTAL, middle.x, middle.y, middle.z, CONJURE_PARTICLES,
-                CONJURE_SPREAD, CONJURE_TALL, CONJURE_SPREAD, CONJURE_SPEED);
+        if (look == GateLook.STARFIELD) {
+            level.sendParticles(ParticleTypes.REVERSE_PORTAL, middle.x, middle.y, middle.z, CONJURE_PARTICLES,
+                    CONJURE_SPREAD, CONJURE_TALL, CONJURE_SPREAD, CONJURE_SPEED);
+        }
         level.playSound(null, middle.x, middle.y, middle.z, GooSounds.ZONE_CONJURE.get(), SoundSource.PLAYERS,
                 CONJURE_VOLUME, 1f);
     }

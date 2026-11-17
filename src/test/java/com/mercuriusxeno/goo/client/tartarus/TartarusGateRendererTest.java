@@ -35,8 +35,8 @@ class TartarusGateRendererTest {
     private static final GooRenderUtil.UvRect PORTAL_UV = new GooRenderUtil.UvRect(0.25f, 0.5f, 0.3125f, 0.5625f);
     private static final GooRenderUtil.UvRect RIM_UV = new GooRenderUtil.UvRect(0.5f, 0.5f, 0.5625f, 0.5625f);
     private static final float EXACT = 1.0E-4f;
-    /** The rift's head room past two blocks: its flicker and its swell. */
-    private static final double TALLEST = 2.15 * 1.15 + 0.08 + EXACT;
+    /** The rift's head room past two blocks: its flicker and its swell, and a cell of rounding. */
+    private static final double TALLEST = 2.15 * 1.15 + 0.08 + 1.0 / 64 + EXACT;
 
     @Nested
     class Dispatch {
@@ -65,9 +65,9 @@ class TartarusGateRendererTest {
 
         @Test
         void aFullyOpenRiftStandsOnTheFeetAndRisesPastTwoBlocksWithinAHalfBlockEachSide() {
-            List<RecordingVertexConsumer.Vertex> vertices = submit(drawn(1, 0, ConjuredDoor.Phase.ENVELOPING));
+            List<RecordingVertexConsumer.Vertex> vertices = membrane(submit(drawn(1, 0, ConjuredDoor.Phase.ENVELOPING)));
 
-            assertFalse(vertices.isEmpty(), "the rift emitted vertices");
+            assertFalse(vertices.isEmpty(), "the rift emitted its membrane");
             double highest = vertices.stream().mapToDouble(RecordingVertexConsumer.Vertex::y).max().orElseThrow();
             double lowest = vertices.stream().mapToDouble(RecordingVertexConsumer.Vertex::y).min().orElseThrow();
             assertEquals(0, lowest, EXACT, "standing on the feet");
@@ -87,6 +87,28 @@ class TartarusGateRendererTest {
             assertTrue(vertices.stream().allMatch(v -> within(PORTAL_UV, v) || within(RIM_UV, v)), "nothing else");
         }
 
+        /** The artifact draft drew the rift's edges on a grid of 64 cells a block, four to each texel. */
+        @Test
+        void everyEdgeStandsOnTheDraftsQuarterTexelGrid() {
+            for (double time : new double[] {0, 3.3, 7.9}) {
+                for (RecordingVertexConsumer.Vertex vertex : submit(drawn(1, 0, ConjuredDoor.Phase.ENVELOPING), time)) {
+                    assertEquals(0, offGrid(vertex.x()), EXACT, "x on the grid at tick " + time + ": " + vertex.x());
+                    assertEquals(0, offGrid(vertex.y()), EXACT, "y on the grid at tick " + time + ": " + vertex.y());
+                }
+            }
+        }
+
+        /** The artifact draft's rim is flat hot orange, not a texture. */
+        @Test
+        void theRimIsFlatHotOrange() {
+            List<RecordingVertexConsumer.Vertex> rim = submit(drawn(1, 0, ConjuredDoor.Phase.ENVELOPING), 0).stream()
+                    .filter(v -> within(RIM_UV, v)).toList();
+
+            assertFalse(rim.isEmpty(), "a rim drawn");
+            assertTrue(rim.stream().anyMatch(v -> ((v.color() >> 16) & 0xFF) == 255 && (v.color() & 0xFF) == 50),
+                    "flat hot orange, red full and blue low, over a white texel: " + rim.getFirst().color());
+        }
+
         @Test
         void aRiftNotYetOpenDrawsNothing() {
             assertTrue(submit(drawn(0, 0, ConjuredDoor.Phase.GROWING)).isEmpty());
@@ -94,8 +116,8 @@ class TartarusGateRendererTest {
 
         @Test
         void aClosingRiftSinksLowerThanAnOpenOne() {
-            double open = tallest(submit(drawn(1, 0, ConjuredDoor.Phase.RELEASING)));
-            double sinking = tallest(submit(drawn(0.4, 0, ConjuredDoor.Phase.RELEASING)));
+            double open = tallest(membrane(submit(drawn(1, 0, ConjuredDoor.Phase.RELEASING))));
+            double sinking = tallest(membrane(submit(drawn(0.4, 0, ConjuredDoor.Phase.RELEASING))));
 
             assertTrue(sinking < open, sinking + " sinks below " + open);
         }
@@ -106,6 +128,10 @@ class TartarusGateRendererTest {
                 && vertex.v() <= uv.v1() + EXACT;
     }
 
+    private static List<RecordingVertexConsumer.Vertex> membrane(List<RecordingVertexConsumer.Vertex> vertices) {
+        return vertices.stream().filter(v -> within(PORTAL_UV, v)).toList();
+    }
+
     private static double tallest(List<RecordingVertexConsumer.Vertex> vertices) {
         return vertices.stream().mapToDouble(RecordingVertexConsumer.Vertex::y).max().orElse(0);
     }
@@ -114,8 +140,17 @@ class TartarusGateRendererTest {
         return new ClientConjuredDoors.Drawn(FEET, 0f, unzipped, widened, GateLook.NETHER_PORTAL, phase);
     }
 
-    /** Submits one rift seen from its own feet and records the vertices it emitted. */
+    private static double offGrid(double blocks) {
+        double cells = blocks * 64;
+        return Math.abs(cells - Math.rint(cells)) / 64;
+    }
+
     private static List<RecordingVertexConsumer.Vertex> submit(ClientConjuredDoors.Drawn door) {
+        return submit(door, 0);
+    }
+
+    /** Submits one rift seen from its own feet and records the vertices it emitted. */
+    private static List<RecordingVertexConsumer.Vertex> submit(ClientConjuredDoors.Drawn door, double time) {
         RecordingVertexConsumer vertices = new RecordingVertexConsumer();
         SubmitNodeCollector collector = mock(SubmitNodeCollector.class);
         doAnswer(call -> {
@@ -125,7 +160,7 @@ class TartarusGateRendererTest {
             return null;
         }).when(collector).submitCustomGeometry(any(PoseStack.class), any(RenderType.class), any());
 
-        TartarusGateRenderer.submitWith(collector, new PoseStack(), door, FEET, 0, PORTAL_UV, RIM_UV);
+        TartarusGateRenderer.submitWith(collector, new PoseStack(), door, FEET, time, PORTAL_UV, RIM_UV);
         return vertices.vertices();
     }
 }
