@@ -199,8 +199,8 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
     }
 
     @Override
-    public void liftEntitiesInColumn(double radius, double height, double speed, int air) {
-        asEntity().liftEntitiesInColumn(radius, height, speed, air);
+    public void liftEntitiesInColumn(double radius, double height, double speed) {
+        asEntity().liftEntitiesInColumn(radius, height, speed);
     }
 
     @Override
