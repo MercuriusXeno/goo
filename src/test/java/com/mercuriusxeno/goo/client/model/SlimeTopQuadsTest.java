@@ -85,6 +85,50 @@ class SlimeTopQuadsTest {
         assertEquals(15, under.heightAt(3, 1), EPSILON);
     }
 
+    /**
+     * A block of 8 attached to its north and south walls with no floor
+     * divides its goo between the two slabs: no vertex of either stands more
+     * than 4 layers out from its own wall, and their middles stand 7 layers apart.
+     * attached-goo-draws-per-attachment-and-divides-its-volume
+     */
+    @Test
+    void opposingSlabsDivideTheBlocksGooBetweenThem() {
+        SameGooCells block = new SameGooCells().at(0, 0, 0, 8).share(0, 0, 0, Direction.DOWN, 0)
+                .share(0, 0, 0, Direction.NORTH, 4).share(0, 0, 0, Direction.SOUTH, 4);
+        List<BakedQuad> north = SlimeTopQuads.topOf(SlimeTop.onSurface(block, Direction.NORTH), SHELL);
+        List<BakedQuad> south = SlimeTopQuads.topOf(SlimeTop.onSurface(block, Direction.SOUTH), SHELL);
+
+        assertFalse(north.isEmpty());
+        assertFalse(south.isEmpty());
+        float northDeepest = 0;
+        float southDeepest = 0;
+        float northMiddle = 0;
+        float southMiddle = 0;
+        for (BakedQuad quad : north) {
+            for (int vertex = 0; vertex < BakedQuad.VERTEX_COUNT; vertex++) {
+                Vector3fc at = quad.position(vertex);
+                northDeepest = Math.max(northDeepest, at.z());
+                northMiddle = isMiddle(at) ? at.z() : northMiddle;
+            }
+        }
+        for (BakedQuad quad : south) {
+            for (int vertex = 0; vertex < BakedQuad.VERTEX_COUNT; vertex++) {
+                Vector3fc at = quad.position(vertex);
+                southDeepest = Math.max(southDeepest, 1 - at.z());
+                southMiddle = isMiddle(at) ? at.z() : southMiddle;
+            }
+        }
+        assertEquals(4 * ONE_LAYER, northDeepest, EPSILON, "the north slab's deepest point");
+        assertEquals(4 * ONE_LAYER, southDeepest, EPSILON, "the south slab's deepest point");
+        assertEquals(7 * ONE_LAYER, southMiddle - northMiddle, EPSILON, "the slabs' middles apart");
+    }
+
+    /** Whether a vertex stands at the middle of a wall slab's plan, 8 texels across and up. */
+    private static boolean isMiddle(Vector3fc at) {
+        return at.x() > 0.25f - EPSILON && at.x() < 0.75f + EPSILON && at.y() > 0.25f - EPSILON
+                && at.y() < 0.75f + EPSILON;
+    }
+
     private static List<BakedQuad> quadsOf(SlimeTop top) {
         List<BakedQuad> quads = new ArrayList<>(SlimeTopQuads.topOf(top, SHELL));
         SlimeTopQuads.rimsOf(top, SHELL).values().forEach(quads::addAll);

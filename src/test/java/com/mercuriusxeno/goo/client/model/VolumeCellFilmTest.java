@@ -58,16 +58,16 @@ class VolumeCellFilmTest {
         boolean outerFace = false;
         for (BakedQuad quad : quads) {
             assertEquals(film, quad.materialInfo(), "the film draws in the goo's layer texture");
-            float along = coordinateOn(wall.getAxis(), quad.position(0));
             for (int vertex = 0; vertex < 4; vertex++) {
                 float at = coordinateOn(wall.getAxis(), quad.position(vertex));
-                assertEquals(along, at, EPSILON, wall + " quad should lie flat against its wall");
-                assertTrue(Math.abs(at - plane) < EPSILON || Math.abs(at - out) < EPSILON,
-                        wall + " quad at " + at + " should lie on the wall's plane " + plane + " or one layer out");
+                assertTrue(Math.abs(at - plane) <= ONE_LAYER + EPSILON,
+                        wall + " quad at " + at + " should stand within one layer of the wall's plane " + plane);
             }
-            outerFace |= Math.abs(along - out) < EPSILON && quad.direction() == wall.getOpposite();
+            boolean faceOnTheMiddle = quad.direction() == wall.getOpposite()
+                    && Math.abs(coordinateOn(wall.getAxis(), quad.position(0)) - out) < EPSILON;
+            outerFace |= faceOnTheMiddle;
         }
-        assertTrue(outerFace, wall + " film should face out of its wall one layer out");
+        assertTrue(outerFace, wall + " film should face out of its wall one layer out at its middle");
     }
 
     /**
