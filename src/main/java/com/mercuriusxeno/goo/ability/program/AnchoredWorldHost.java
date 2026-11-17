@@ -52,11 +52,6 @@ public interface AnchoredWorldHost extends EntityScanHost {
     }
 
     @Override
-    default void liftEntitiesInColumn(double radius, double height, double speed) {
-        EntityLift.liftInColumn(level(), anchor(), radius, height, speed);
-    }
-
-    @Override
     default void rideShaftAbove(int cap, double rise, double sink) {
         EntityLift.rideShaft(level(), BlockPos.containing(anchor()).above(), cap, rise, sink);
     }
