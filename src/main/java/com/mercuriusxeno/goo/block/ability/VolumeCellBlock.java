@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.ability.LoadedAbilityCost;
+import com.mercuriusxeno.goo.ability.program.BlockCooking;
 import com.mercuriusxeno.goo.ability.program.ChannelHost;
 import com.mercuriusxeno.goo.ability.program.LeechGooStep;
 import com.mercuriusxeno.goo.ability.program.MoltenStep;
@@ -35,6 +36,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.InsideBlockEffectApplier;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
@@ -63,6 +65,7 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.function.ToIntFunction;
 
 /**
@@ -998,7 +1001,7 @@ public class VolumeCellBlock extends Block {
     @Override
     protected void tick(@NonNull BlockState state, @NonNull ServerLevel level, @NonNull BlockPos pos,
                         @NonNull RandomSource random) {
-        if (meltBelow(level, pos, state)) {
+        if (heatBelow(level, pos, state)) {
             return;
         }
         shedLooseFilms(level, pos, state);
@@ -1051,29 +1054,74 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
-     * Melts the block under a cell whose laying ability names a meltable tag,
-     * where the melt would spend layers of it: the block heats red hot over
-     * the molten step's heat, the cell resting still meanwhile, then becomes
-     * a lava source; a cell the melt spends nothing of stays pooled, and one
-     * whose block stopped melting part way cools it as it was.
+     * Melts or cooks the block under a cell whose laying ability carries a
+     * molten step: a block the step's melts_into map names melts into its
+     * source block, and any other block Flames would heat cooks one furnace
+     * step, by the rule Flames reads. The block heats red hot over the molten
+     * step's heat, the cell resting still meanwhile, then melts or cooks; a
+     * cell over a block that does neither stays pooled, and one whose block
+     * stopped heating part way cools it as it was.
      * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+     * molten-cooks-the-block-below-it-as-flames-cooks-blocks
      * stone-goes-red-hot-before-molten-turns-it-to-lava
      *
      * @param level the level
      * @param pos   the cell
      * @param state the cell's state
-     * @return true where the block under the cell is heating or melted
+     * @return true where the block under the cell is heating, melted or cooked
      */
-    private boolean meltBelow(ServerLevel level, BlockPos pos, BlockState state) {
+    private boolean heatBelow(ServerLevel level, BlockPos pos, BlockState state) {
         Optional<MoltenStep> molten = MoltenStep.in(layingProgram(level));
-        Optional<BlockState> melted = molten.flatMap(step -> step.meltedFormOf(level.getBlockState(pos.below())));
-        int spent = MoltenMelt.layersSpent(state.getValue(LAYERS), melted.isPresent());
+        Optional<Runnable> finish = molten.flatMap(step -> heatFinishBelow(level, pos, step));
+        int spent = MoltenMelt.layersSpent(state.getValue(LAYERS), finish.isPresent());
         if (spent == 0) {
             coolBelow(level, pos);
             return false;
         }
+        if (stillHeating(level, pos, molten.orElseThrow().heatTicks())) {
+            return true;
+        }
+        finish.orElseThrow().run();
+        spendLayers(level, pos, state, spent);
+        return true;
+    }
+
+    /**
+     * What the block under a Molten cell becomes once its heat has run: the
+     * source block the molten step's melts_into map names for it, or the
+     * block or item Flames' heat would leave of it.
+     * molten-cooks-the-block-below-it-as-flames-cooks-blocks
+     * molten-melts-by-a-meltable-group-and-its-parallel-melted-group
+     *
+     * @param level  the level
+     * @param pos    the cell
+     * @param molten the cell's laying ability's molten step
+     * @return the finish that melts or cooks the block, empty where it does neither
+     */
+    private static Optional<Runnable> heatFinishBelow(ServerLevel level, BlockPos pos, MoltenStep molten) {
+        BlockPos below = pos.below();
+        BlockState raw = level.getBlockState(below);
+        Optional<BlockState> melted = molten.meltedFormOf(raw);
+        if (melted.isPresent()) {
+            return Optional.of(() -> level.setBlock(below, melted.get(), UPDATE_ALL));
+        }
+        Function<Item, Optional<ItemStack>> results = BlockCooking.resultsIn(level);
+        return BlockCooking.heatedIntoAt(level, molten.melts(), results, below).apply(raw.getBlock()).map(into ->
+                () -> BlockCooking.finishHeatedAt(() -> level, below, raw.getBlock(), into, results));
+    }
+
+    /**
+     * Runs a cell's heat on the block below it: the heat starts red hot the
+     * first tick, and the cell ticks again when it is due to end.
+     * stone-goes-red-hot-before-molten-turns-it-to-lava
+     *
+     * @param level     the level
+     * @param pos       the cell
+     * @param heatTicks the ticks the heat runs
+     * @return true while the heat has ticks left, false the tick it ends
+     */
+    private boolean stillHeating(ServerLevel level, BlockPos pos, int heatTicks) {
         MoltenHeats heats = GooServerState.of(level.getServer()).moltenHeats();
-        int heatTicks = molten.orElseThrow().heatTicks();
         OptionalLong started = heats.startedAt(level, pos);
         if (started.isEmpty()) {
             heats.start(level, pos, level.getGameTime());
@@ -1082,28 +1130,25 @@ public class VolumeCellBlock extends Block {
         long left = started.orElse(level.getGameTime()) + heatTicks - level.getGameTime();
         if (left > 0) {
             level.scheduleTick(pos, this, (int) left);
-        } else {
-            heats.end(level, pos);
-            meltInto(level, pos, state, spent, melted.orElseThrow());
+            return true;
         }
-        return true;
+        heats.end(level, pos);
+        return false;
     }
 
     /**
-     * Turns the block under a cell into the source block it melts into, lava
-     * for stone and molten iron for iron core, the cell resting on it lower by
-     * the layers the melt spends and gone where that empties it.
+     * Stands a cell lower by the layer a melt or a cook step of the block
+     * below it spent, gone where that empties it; a cell left over a block it
+     * emptied falls as every world goo cell falls.
      * molten-spends-three-layers-per-stone-block-priced-at-lava-minus-mundane-block
-     * molten-melts-by-a-meltable-group-and-its-parallel-melted-group
+     * molten-melts-only-obsidian-magma-and-iron-core-one-layer-each
      *
-     * @param level  the level
-     * @param pos    the cell
-     * @param state  the cell's state
-     * @param spent  the layers the melt spends
-     * @param melted the source block the block below melts into
+     * @param level the level
+     * @param pos   the cell
+     * @param state the cell's state
+     * @param spent the layers the melt or cook spent
      */
-    private static void meltInto(ServerLevel level, BlockPos pos, BlockState state, int spent, BlockState melted) {
-        level.setBlock(pos.below(), melted, UPDATE_ALL);
+    private static void spendLayers(ServerLevel level, BlockPos pos, BlockState state, int spent) {
         int left = state.getValue(LAYERS) - spent;
         level.setBlock(pos, left > 0 ? state.setValue(LAYERS, left) : Blocks.AIR.defaultBlockState(), UPDATE_ALL);
     }
