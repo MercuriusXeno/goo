@@ -6,7 +6,7 @@ import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
-import com.mercuriusxeno.goo.item.GooGloveItem;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.PalmBlobChargePayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -20,7 +20,6 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.neoforged.api.distmarker.Dist;
@@ -147,7 +146,7 @@ public final class GloveUseTracker {
      * @return true for an envelop delivery
      */
     private static boolean selectedEnvelops(Player player) {
-        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        GloveSelection selection = GooCasters.heldSelection(player);
         return selection != null && GloveThrowSender.selectedDelivery(selection.abilityId()).envelops();
     }
 
@@ -190,7 +189,7 @@ public final class GloveUseTracker {
      * @param player the local player, or null where none stands
      */
     private static void rootASizedCharge(@Nullable LocalPlayer player) {
-        GloveSelection selection = player == null ? null : GloveThrowSender.heldSelection(player);
+        GloveSelection selection = player == null ? null : GooCasters.heldSelection(player);
         if (selection != null && GloveThrowSender.selectedSizesByCharge(selection.abilityId())) {
             GloveThrowSender.rootTheCharge();
         }
@@ -260,13 +259,15 @@ public final class GloveUseTracker {
 
     /**
      * Advances the glove press off the held use key; a screen or a hand
-     * that no longer holds the glove drops it.
+     * that no longer holds the player's caster, the glove or raw goo held
+     * bare handed, drops it.
+     * decision raw-goo-items-work-bare-handed-for-the-held-type
      *
      * @param mc     the client
      * @param player the local player
      */
     private static void trackGloveHold(Minecraft mc, LocalPlayer player) {
-        if (mc.screen != null || !(player.getItemInHand(pressHand).getItem() instanceof GooGloveItem)) {
+        if (mc.screen != null || GooCasters.casterHand(player) != pressHand) {
             if (PRESS.isArmed()) {
                 GlovePoses.drop(player);
             }
@@ -396,7 +397,7 @@ public final class GloveUseTracker {
      * @param turn   the javelin's turn
      */
     private static void shink(LocalPlayer player, JavelinTurn turn) {
-        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        GloveSelection selection = GooCasters.heldSelection(player);
         if (selection == null) {
             return;
         }
@@ -415,7 +416,7 @@ public final class GloveUseTracker {
      * @return true for a held throw
      */
     private static boolean selectedThrowsOnAttack(LocalPlayer player) {
-        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        GloveSelection selection = GooCasters.heldSelection(player);
         return selection != null && HeldRoute.throwsOnAttack(GloveThrowSender.selectedDelivery(selection.abilityId()),
                 GloveThrowSender.selectedBadge(selection.abilityId()));
     }
@@ -449,7 +450,7 @@ public final class GloveUseTracker {
      * @return true for a held selection
      */
     private static boolean selectedRunsWhileHeld(LocalPlayer player) {
-        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        GloveSelection selection = GooCasters.heldSelection(player);
         return selection != null && GloveInputGate.runsFromPress(GloveThrowSender.selectedDelivery(selection.abilityId()),
                 GloveThrowSender.selectedBadge(selection.abilityId()));
     }
@@ -556,20 +557,12 @@ public final class GloveUseTracker {
     }
 
     /**
-     * Reads the selected goo type from whichever hand holds a glove.
+     * Reads the selected goo type off the player's caster.
      *
      * @param player the interacting player
-     * @return the selected goo type, or null if no glove is held or no type is selected
+     * @return the selected goo type, or null if no caster is held or no type is selected
      */
     private static @Nullable ResourceKey<GooTypeDefinition> readSelectedType(LocalPlayer player) {
-        ItemStack main = player.getMainHandItem();
-        if (main.getItem() instanceof GooGloveItem) {
-            return GooGloveItem.getSelectedType(main);
-        }
-        ItemStack off = player.getOffhandItem();
-        if (off.getItem() instanceof GooGloveItem) {
-            return GooGloveItem.getSelectedType(off);
-        }
-        return null;
+        return GooCasters.selectedTypeOf(GooCasters.casterOf(player));
     }
 }
