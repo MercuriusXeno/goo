@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.ability.root;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.LingeringAppliers;
+import com.mercuriusxeno.goo.block.ability.CellSurface;
+import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
@@ -18,35 +19,35 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
  * Runs the vines Vines goo holds a living thing with: a cell it crosses
- * gives it vines, each tick the vines slow it by their count and thorn it
- * for moving, fire damage to a thing that is not fire immune is multiplied
- * while they hold, and they release when their time runs out, falling away
- * before they go.
+ * gives it vines, each tick the vines slow it by their count and harm it
+ * not at all, fire damage to a thing that is not fire immune is multiplied
+ * while they hold, any damage it takes ends every vine and eats a layer of
+ * the cell that last gave it vines, and they release when their time runs
+ * out, falling away before they go.
  * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
  * vines-root-is-volume-based-one-to-five-vines-by-layers
  * vines-roots-last-three-seconds-plus-one-per-stack-and-each-vine-refreshes
+ * vines-deal-no-thorn-damage-and-attacking-the-mob-frees-it
+ * entangled-mob-taking-damage-eats-a-layer-of-vines-goo
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class RootEvents {
 
-    /** The id the vines' thorns remember the player who placed the goo under, among a thing's lingering appliers. */
-    static final Identifier THORNS = Identifier.fromNamespaceAndPath(Goo.MODID, "root_thorns");
-
     /** The id of the speed modifier the vines hold a thing with. */
     static final Identifier SLOW_ID = Identifier.fromNamespaceAndPath(Goo.MODID, "vines_slow");
-
-    /** How far across the ground a held thing moves in a tick before the vines count it moving. */
-    static final double MOVED_BLOCKS = 0.01;
 
     private static final float LATCH_VOLUME = 1.0f;
     private static final float LATCH_PITCH = 0.8f;
@@ -62,16 +63,12 @@ public final class RootEvents {
 
     /**
      * Entangles a living thing whose center crosses a Vines cell: the cell
-     * gives it vines by its layers, with the rustle of vines taking hold,
-     * and the player who placed the goo is remembered, whom the vines' later
-     * thorns name.
-     * standing-goo-thing-credits-whoever-placed-it
+     * gives it vines by its layers, with the rustle of vines taking hold.
      *
      * @param entity the thing touching the cell
      * @param touch  what the cell gives
-     * @param placer the player who placed the goo, or null for none
      */
-    public static void entangle(Entity entity, Rooted.Touch touch, @Nullable Entity placer) {
+    public static void entangle(Entity entity, Rooted.Touch touch) {
         if (entity.level().isClientSide() || !(entity instanceof LivingEntity living)
                 || !over(touch.cell(), living.position())) {
             return;
@@ -82,7 +79,6 @@ public final class RootEvents {
             return;
         }
         living.setData(GooAttachments.ROOTED, after);
-        LingeringAppliers.remember(living, THORNS, placer);
         rustle(living, SoundEvents.VINE_PLACE, LATCH_VOLUME, LATCH_PITCH);
     }
 
@@ -99,7 +95,7 @@ public final class RootEvents {
     }
 
     /**
-     * Slows and thorns each held thing, releases one whose hold has run
+     * Slows each held thing, releases one whose hold has run
      * out, and lets the vines go once they have fallen away and the thing
      * has left the cell that last gave it vines.
      *
@@ -115,8 +111,9 @@ public final class RootEvents {
         long now = living.level().getGameTime();
         slowBy(living, rooted.speedAt(now));
         if (rooted.holds(now)) {
-            thornIfMoved(living, rooted);
-        } else if (rooted.vines() > 0) {
+            return;
+        }
+        if (rooted.vines() > 0) {
             release(living, rooted.releasedAt(now));
         } else if (rooted.fadedBy(now) && !over(rooted.lastCell(), living.position())) {
             living.removeData(GooAttachments.ROOTED);
@@ -135,9 +132,68 @@ public final class RootEvents {
             return;
         }
         Rooted rooted = living.getData(GooAttachments.ROOTED);
-        if (rooted.holds(living.level().getGameTime()) && feedsFire(living, event.getSource())) {
-            event.setAmount(event.getAmount() * rooted.fireFactor());
+        if (rooted.holds(living.level().getGameTime())) {
+            event.setAmount(RootStrike.of(rooted.vines(), event.getAmount(), feedsFire(living, event.getSource()),
+                    rooted.fireFactor(), 0).damage());
         }
+    }
+
+    /**
+     * Ends every vine on a held thing that took damage, the thing taking the
+     * damage, and eats a layer of the Vines cell that last gave it vines
+     * where that cell still stands.
+     * vines-deal-no-thorn-damage-and-attacking-the-mob-frees-it
+     * entangled-mob-taking-damage-eats-a-layer-of-vines-goo
+     *
+     * @param event the damage event, after the damage landed
+     */
+    @SubscribeEvent
+    public static void onDamage(LivingDamageEvent.Post event) {
+        LivingEntity living = rootedOnServer(event.getEntity());
+        if (living == null || !(living.level() instanceof ServerLevel level)) {
+            return;
+        }
+        Rooted rooted = living.getData(GooAttachments.ROOTED);
+        long now = level.getGameTime();
+        if (!rooted.holds(now)) {
+            return;
+        }
+        int layers = vinesLayersAt(level, rooted.lastCell());
+        RootStrike strike = RootStrike.of(rooted.vines(), event.getNewDamage(), false, rooted.fireFactor(), layers);
+        if (strike.vinesLeft() == 0) {
+            release(living, rooted.releasedAt(now));
+            leaveLayers(level, rooted.lastCell(), layers, strike.layersKept());
+        }
+    }
+
+    /**
+     * The layers a Vines cell holds.
+     *
+     * @param level the level
+     * @param cell  the cell
+     * @return its layers, none where no Vines cell stands there
+     */
+    private static int vinesLayersAt(ServerLevel level, BlockPos cell) {
+        BlockState standing = level.getBlockState(cell);
+        return VolumeCellBlock.hasSurface(standing.getBlock(), CellSurface.ENTANGLE)
+                ? standing.getValue(VolumeCellBlock.LAYERS) : 0;
+    }
+
+    /**
+     * Leaves a Vines cell holding the layers it keeps, air where it keeps none.
+     *
+     * @param level  the level
+     * @param cell   the cell
+     * @param layers the layers it holds, none where no Vines cell stands there
+     * @param kept   the layers it keeps
+     */
+    private static void leaveLayers(ServerLevel level, BlockPos cell, int layers, int kept) {
+        if (layers == 0 || kept == layers) {
+            return;
+        }
+        BlockState left = kept > 0 ? level.getBlockState(cell).setValue(VolumeCellBlock.LAYERS, kept)
+                : Blocks.AIR.defaultBlockState();
+        level.setBlock(cell, left, Block.UPDATE_ALL);
     }
 
     /**
@@ -182,22 +238,6 @@ public final class RootEvents {
         } else {
             movement.addOrUpdateTransientModifier(new AttributeModifier(SLOW_ID, speed - 1.0,
                     AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
-        }
-    }
-
-    /**
-     * Thorns a held thing that moved across the ground this tick, naming the
-     * player who placed the goo.
-     * standing-goo-thing-credits-whoever-placed-it
-     *
-     * @param living the held entity
-     * @param rooted its vines
-     */
-    private static void thornIfMoved(LivingEntity living, Rooted rooted) {
-        double moved = Math.hypot(living.getX() - living.xo, living.getZ() - living.zo);
-        if (moved > MOVED_BLOCKS && living.level() instanceof ServerLevel level) {
-            living.hurtServer(level, LingeringAppliers.credit(level, level.damageSources().sweetBerryBush(), living,
-                    THORNS), rooted.thorns());
         }
     }
 

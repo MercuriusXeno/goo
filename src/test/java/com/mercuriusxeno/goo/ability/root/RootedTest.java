@@ -27,7 +27,7 @@ class RootedTest {
     private static final float EPSILON = 1e-6f;
 
     private static Rooted.Touch touch(BlockPos cell, int layers) {
-        return new Rooted.Touch(cell, layers, 1f, 1.5f);
+        return new Rooted.Touch(cell, layers, 1.5f);
     }
 
     private static Rooted latched(int layers) {

@@ -707,7 +707,7 @@ public class VolumeCellBlock extends Block {
      * @return true where the cell remembers its placer
      */
     protected boolean creditsItsPlacer() {
-        return surface().cuts() || surface().smites() || surface().entangles();
+        return surface().cuts() || surface().smites();
     }
 
     /**
@@ -1853,10 +1853,8 @@ public class VolumeCellBlock extends Block {
     /**
      * Entangles a living thing crossing an entangling cell in the vines its
      * layers give, by its laying ability's vines step, on the server, whose
-     * speed modifier reaches the client too; the player who placed the cell
-     * is credited.
+     * speed modifier reaches the client too.
      * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
-     * standing-goo-thing-credits-whoever-placed-it
      *
      * @param level  the level the cell stands in
      * @param pos    the cell
@@ -1865,9 +1863,8 @@ public class VolumeCellBlock extends Block {
      */
     private void entangle(Level level, BlockPos pos, BlockState state, Entity entity) {
         if (surface().entangles() && level instanceof ServerLevel server) {
-            VinesStep.in(layingProgram(level)).ifPresent(vines -> RootEvents.entangle(entity,
-                    new Rooted.Touch(pos, state.getValue(LAYERS), vines.thorns(), vines.fireFactor()),
-                    creditedPlayerAt(server, pos)));
+            VinesStep.in(layingProgram(server)).ifPresent(vines -> RootEvents.entangle(entity,
+                    new Rooted.Touch(pos, state.getValue(LAYERS), vines.fireFactor())));
         }
     }
 

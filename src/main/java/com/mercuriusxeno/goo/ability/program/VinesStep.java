@@ -14,25 +14,22 @@ import java.util.stream.Stream;
  * Leaf's Vines block step: Leaf's goo lands where each of the stream's
  * drips strikes, one layer for each drip, through the volume cell's one
  * landing, as Goop lays its slime and Leech its hex goo. A living thing
- * crossing the goo is held by its vines; the step names the thorn damage a
- * held thing takes each tick it moves and what fire damage to it is
- * multiplied by: {@code vines thorns=1 fire_factor=1.5}.
+ * crossing the goo is held by its vines, which deal it no damage; the step
+ * names what fire damage to a held thing is multiplied by:
+ * {@code vines fire_factor=1.5}.
  * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
+ * vines-deal-no-thorn-damage-and-attacking-the-mob-frees-it
  * vines-unpack-root-and-thorn
  * each-goo-type-ships-a-world-goo-on-the-volume-cell
  * drip-creates-a-volume-cell-immediately
  * drip-on-a-standing-cell-increases-it
  *
- * @param thorns     the thorn damage a held thing takes each tick it moves
  * @param fireFactor what fire damage to a held thing that is not fire immune is multiplied by
  */
-public record VinesStep(float thorns, float fireFactor) implements TakesNoEntity, DripLanding {
+public record VinesStep(float fireFactor) implements TakesNoEntity, DripLanding {
 
     private static final String NAME = "vines";
-    private static final String FIELD_THORNS = "thorns";
     private static final String FIELD_FIRE_FACTOR = "fire_factor";
-    /** The most thorn damage a tick deals: a whole player's health. */
-    private static final float MOST_THORNS = 20.0F;
     /** The most fire damage is multiplied by. */
     private static final float MOST_FIRE_FACTOR = 10.0F;
 
@@ -40,7 +37,6 @@ public record VinesStep(float thorns, float fireFactor) implements TakesNoEntity
      * Codec for the step's params.
      */
     public static final MapCodec<VinesStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            Codec.floatRange(0, MOST_THORNS).fieldOf(FIELD_THORNS).forGetter(VinesStep::thorns),
             Codec.floatRange(1, MOST_FIRE_FACTOR).fieldOf(FIELD_FIRE_FACTOR).forGetter(VinesStep::fireFactor)
     ).apply(inst, VinesStep::new));
 
