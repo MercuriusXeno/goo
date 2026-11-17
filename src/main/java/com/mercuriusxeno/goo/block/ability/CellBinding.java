@@ -97,9 +97,10 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
     public static final CellBinding UPDRAFT = new CellBinding(GooTypes.TYPHOON, UPDRAFT_ABILITY, CellSurface.POOL,
             FluidFooting.NONE);
     /**
-     * Leaf's goo: Vines lays it, and it stands as ordinary ground.
+     * Leaf's goo: Vines lays it, it stands as ordinary ground, and it
+     * entangles what crosses it.
      * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
      */
-    public static final CellBinding VINES = new CellBinding(GooTypes.LEAF, VINES_ABILITY, CellSurface.POOL,
+    public static final CellBinding VINES = new CellBinding(GooTypes.LEAF, VINES_ABILITY, CellSurface.ENTANGLE,
             FluidFooting.NONE);
 }

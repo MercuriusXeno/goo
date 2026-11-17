@@ -149,7 +149,6 @@ public final class StepTypes {
         register(AstralLunarStep.TYPE);
         register(MeteorStep.TYPE);
         register(WormholeStep.TYPE);
-        register(RootStep.TYPE);
         register(HitOrMissStep.TYPE);
         register(BloomStep.TYPE);
         register(TickPlantsStep.TYPE);
