@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.program.MorphBirths;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
 import com.mercuriusxeno.goo.block.ability.HostFreeCells;
 import com.mercuriusxeno.goo.block.ability.HostSpreaders;
+import com.mercuriusxeno.goo.block.ability.LayerFalls;
 import com.mercuriusxeno.goo.block.ability.MoltenHeats;
 import com.mercuriusxeno.goo.block.ability.WispClaims;
 import com.mercuriusxeno.goo.network.DripFlights;
@@ -37,6 +38,7 @@ public final class GooServerState {
     private final ScanWaves scanWaves = new ScanWaves();
     private final DripFlights dripFlights = new DripFlights();
     private final MoltenHeats moltenHeats = new MoltenHeats();
+    private final LayerFalls layerFalls = new LayerFalls();
     private final HostSpreaders hostSpreaders = new HostSpreaders();
     private final HostFreeCells hostFreeCells = new HostFreeCells();
     private final WispClaims wispClaims = new WispClaims();
@@ -144,6 +146,13 @@ public final class GooServerState {
     }
 
     /**
+     * @return the layers of world goo falling through open air on this server
+     */
+    public LayerFalls layerFalls() {
+        return layerFalls;
+    }
+
+    /**
      * The Molten cells melting the block below them
      * (decision stone-goes-red-hot-before-molten-turns-it-to-lava).
      *
@@ -230,6 +239,7 @@ public final class GooServerState {
         glacialFields.clear();
         scanWaves.clear();
         dripFlights.clear();
+        layerFalls.clear();
         moltenHeats.clear();
         hostSpreaders.clear();
         hostFreeCells.clear();
