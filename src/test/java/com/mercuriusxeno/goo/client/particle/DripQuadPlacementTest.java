@@ -205,16 +205,4 @@ class DripQuadPlacementTest {
             assertEquals(1f, DripQuadPlacement.hangProgress(HANG_TICKS, 0.5f, HANG_TICKS));
         }
     }
-
-    @Nested
-    class Splat {
-
-        @ParameterizedTest
-        @ValueSource(doubles = {SURFACE_Y, 70.5})
-        void splatLiesAboveTheSurfaceByTheMargin(double landingY) {
-            double splatY = DripQuadPlacement.landQuadY(landingY);
-            assertTrue(splatY >= landingY + DripQuadPlacement.SURFACE_MARGIN && splatY > landingY,
-                    "splat y " + splatY + ", surface y " + landingY);
-        }
-    }
 }

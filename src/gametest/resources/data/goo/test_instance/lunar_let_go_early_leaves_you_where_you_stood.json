@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:lunar_let_go_early_leaves_you_where_you_stood",
+  "environment": "goo:astral_night",
+  "structure": "goo:test_bay",
+  "max_ticks": 200,
+  "setup_ticks": 0,
+  "required": true
+}

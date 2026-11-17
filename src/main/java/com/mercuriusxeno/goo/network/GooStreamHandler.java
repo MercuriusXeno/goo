@@ -455,8 +455,8 @@ public final class GooStreamHandler {
         }
         ServerLevel level = player.level();
         return DripArc.flyToItsEnd(apex, DripArc.launch(axis, delivery.coneDegrees(), CoatRay.coneFan().getFirst(),
-                exitSpeedOf(player, delivery)), CoatRay.clipping(level), DripFlights.airspaceOf(level))
-                .position();
+                exitSpeedOf(player, delivery)), new DripArc.Flight(CoatRay.clipping(level), DripArc.NO_LIVING,
+                DripFlights.airspaceOf(level), DripArc.gravityIn(level.dimension()))).position();
     }
 
 

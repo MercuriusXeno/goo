@@ -111,10 +111,11 @@ public final class DripFlights {
                 continue;
             }
             FluidFooting footing = thrower.landing().map(DripLanding::fluidFooting).orElse(FluidFooting.NONE);
-            DripArc.Step step = DripArc.step(flight.position(), flight.velocity(),
+            // decision lunar-gravity-is-one-sixth-of-the-overworlds: a drip falls under its dimension's gravity
+            DripArc.Step step = DripArc.step(flight.position(), flight.velocity(), new DripArc.Flight(
                     CoatRay.clippingFor(level, footing),
                     thrower.strikesLiving() ? livingNear(level, thrower.casterId()) : DripArc.NO_LIVING,
-                    airspaceOf(level));
+                    airspaceOf(level), DripArc.gravityIn(level.dimension())));
             if (!step.ended()) {
                 flying.add(flight.after(step));
             }
@@ -142,7 +143,7 @@ public final class DripFlights {
         DripLanding landing = thrower.landing().get();
         ChannelHost host = PlayerHost.landing(level, caster, GooStreamHandler.placementPrice(caster,
                 thrower.ability()));
-        landing.cellFed(host, strike).ifPresent(cell -> landing.feed(host, cell));
+        landing.cellFed(host, strike).ifPresent(fed -> landing.feed(host, fed));
     }
 
     /**
