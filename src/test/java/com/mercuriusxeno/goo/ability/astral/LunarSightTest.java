@@ -2,17 +2,24 @@ package com.mercuriusxeno.goo.ability.astral;
 
 import com.mercuriusxeno.goo.lunar.Lunar;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.MoonPhase;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import java.util.Optional;
+import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Lunar looks for the moon in the overworld and for the blue overworld star in lunar, and finds neither
- * where the look strays, where the moon has set, or in any other dimension.
+ * Lunar looks for the moon in the overworld and for the blue planet in the moon's place in lunar, and finds neither
+ * where the look strays, where the moon has set, or in any other dimension; the planet shows the moon's opposite
+ * phase.
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
+ * decision blue-star-takes-the-moons-place-with-the-opposite-phase
  */
 class LunarSightTest {
 
@@ -69,23 +76,68 @@ class LunarSightTest {
         }
     }
 
+    /**
+     * decision blue-star-takes-the-moons-place-with-the-opposite-phase
+     * decision blue-star-is-a-planet-four-moons-wide-drawn-in-phases
+     */
     @Nested
-    class TheOverworldStar {
+    class TheBluePlanet {
 
-        @Test
-        void aLookAtTheBlueStarInLunarFindsIt() {
-            assertEquals(Optional.of(LunarSight.Sky.OVERWORLD_STAR),
-                    LunarSight.skyAt(Lunar.LEVEL, Lunar.OVERWORLD_STAR_DIRECTION, MIDNIGHT));
+        /** Inside the planet's disc, past the look reach a smaller body holds: its half width is near 11.3 degrees. */
+        private static final double ON_THE_DISC_EDGE_DEGREES = 11.0;
+        /** Just past the disc's edge. */
+        private static final double PAST_THE_DISC_DEGREES = 12.0;
+
+        private Vec3 offTheZenith(double degrees) {
+            double angle = Math.toRadians(degrees);
+            return new Vec3(0, Math.cos(angle), Math.sin(angle));
         }
 
         @Test
-        void aLookAwayFromTheBlueStarInLunarFindsNothing() {
+        void aLookAlongTheMoonsPlaceInLunarFindsThePlanet() {
+            assertEquals(Optional.of(LunarSight.Sky.BLUE_PLANET),
+                    LunarSight.skyAt(Lunar.LEVEL, LunarSight.moonDirection(MOONSET / 2), MOONSET / 2));
+        }
+
+        @Test
+        void aLookAtTheDiscsEdgeFindsThePlanet() {
+            assertEquals(Optional.of(LunarSight.Sky.BLUE_PLANET),
+                    LunarSight.skyAt(Lunar.LEVEL, offTheZenith(ON_THE_DISC_EDGE_DEGREES), MIDNIGHT));
+        }
+
+        @Test
+        void aLookPastTheDiscsEdgeFindsNothing() {
+            assertEquals(Optional.empty(), LunarSight.skyAt(Lunar.LEVEL, offTheZenith(PAST_THE_DISC_DEGREES), MIDNIGHT));
+        }
+
+        @Test
+        void aLookAwayFromThePlanetInLunarFindsNothing() {
             assertEquals(Optional.empty(), LunarSight.skyAt(Lunar.LEVEL, DOWN, MIDNIGHT));
         }
+    }
 
-        @Test
-        void lunarShowsNoMoon() {
-            assertEquals(Optional.empty(), LunarSight.skyAt(Lunar.LEVEL, UP, MIDNIGHT));
+    /**
+     * decision blue-star-takes-the-moons-place-with-the-opposite-phase
+     */
+    @Nested
+    class ThePlanetsPhase {
+
+        private static Stream<Arguments> eachMoonPhaseAndItsOpposite() {
+            return Stream.of(
+                    Arguments.of(MoonPhase.NEW_MOON, MoonPhase.FULL_MOON),
+                    Arguments.of(MoonPhase.FULL_MOON, MoonPhase.NEW_MOON),
+                    Arguments.of(MoonPhase.WANING_GIBBOUS, MoonPhase.WAXING_CRESCENT),
+                    Arguments.of(MoonPhase.THIRD_QUARTER, MoonPhase.FIRST_QUARTER),
+                    Arguments.of(MoonPhase.WANING_CRESCENT, MoonPhase.WAXING_GIBBOUS),
+                    Arguments.of(MoonPhase.WAXING_CRESCENT, MoonPhase.WANING_GIBBOUS),
+                    Arguments.of(MoonPhase.FIRST_QUARTER, MoonPhase.THIRD_QUARTER),
+                    Arguments.of(MoonPhase.WAXING_GIBBOUS, MoonPhase.WANING_CRESCENT));
+        }
+
+        @ParameterizedTest
+        @MethodSource("eachMoonPhaseAndItsOpposite")
+        void thePlanetShowsTheMoonsOppositePhase(MoonPhase moon, MoonPhase planet) {
+            assertEquals(planet, LunarSight.planetPhase(moon));
         }
     }
 }

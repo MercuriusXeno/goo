@@ -190,7 +190,7 @@ public final class AstralLunarTests {
                     caster.level().dimension(), caster.position()));
             arrivedInLunarAt[0] = caster.getData(GooAttachments.LUNAR_ARRIVAL).arrivedAt();
             dropRemainders(caster);
-            face(caster, Lunar.OVERWORLD_STAR_DIRECTION);
+            face(caster, moonFrom(caster));
         });
         holdFor(helper, caster, starFrom + 1, LET_GO_AFTER);
         int fullFrom = starFrom + LET_GO_AFTER + INSIDE_THE_FIXATION;

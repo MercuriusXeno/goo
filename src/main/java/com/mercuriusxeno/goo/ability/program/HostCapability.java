@@ -115,7 +115,7 @@ public enum HostCapability {
      */
     ZONE(ZoneHost.class),
     /**
-     * A player Lunar can fix on the moon or the blue overworld star
+     * A player Lunar can fix on the moon or the blue planet
      * (decision gate-fixates-your-view-on-the-moon-until-it-takes-you).
      */
     ASTRAL_LUNAR(AstralLunarHost.class),

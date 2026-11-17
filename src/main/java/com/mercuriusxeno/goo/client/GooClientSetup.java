@@ -513,7 +513,7 @@ public final class GooClientSetup {
     public static void registerCustomSkies(RegisterCustomEnvironmentEffectRendererEvent event) {
         event.registerSkyboxRenderer(PocketStarSky.ID, new PocketStarSkyRenderer());
         // decision astral-sky-is-the-void-with-one-bright-blue-overworld-star
-        event.registerSkyboxRenderer(LunarSky.ID, new LunarSkyRenderer());
+        event.registerSkyboxRenderer(LunarSky.ID, new LunarSkyRenderer(true));
     }
 
     /**

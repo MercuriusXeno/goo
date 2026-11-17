@@ -814,17 +814,13 @@ public final class GooRenderTypes {
             .build();
 
     /**
-     * Lunar's blue overworld star, drawn added over the sky in its own color, on the pocket sky's vertex shader.
-     * decision astral-sky-is-the-void-with-one-bright-blue-overworld-star
+     * Lunar's blue planet: vanilla's celestial draw of its lit face, blended over the sky so its lit pixels hide the
+     * stars behind them and its unlit pixels, clear, draw nothing.
+     * decision blue-star-is-a-planet-four-moons-wide-drawn-in-phases
      */
-    public static final RenderPipeline OVERWORLD_STAR = RenderPipeline.builder(
-                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
-                    RenderPipelines.GLOBALS_SNIPPET)
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "overworld_star"))
-            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "pocket_sky"))
-            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "overworld_star"))
-            .withColorTargetState(new ColorTargetState(BlendFunction.ADDITIVE))
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+    public static final RenderPipeline LUNAR_PLANET = RenderPipelines.CELESTIAL.toBuilder()
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "lunar_planet"))
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .build();
 
     /**
@@ -850,12 +846,12 @@ public final class GooRenderTypes {
             .build();
 
     /**
-     * The Lunar trip home's swelling blue star: lunar's star draw passing every depth test, so the star swells over
-     * the darkened land as well as the sky.
+     * The Lunar trip home's swelling blue planet: lunar's planet draw passing every depth test, so the planet swells
+     * over the darkened land as well as the sky.
      * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
      */
-    public static final RenderPipeline LUNAR_STAR = OVERWORLD_STAR.toBuilder()
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "lunar_star"))
+    public static final RenderPipeline LUNAR_PLANET_TRIP = LUNAR_PLANET.toBuilder()
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "lunar_planet_trip"))
             .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(false)
             .build();
@@ -1692,10 +1688,10 @@ public final class GooRenderTypes {
         event.registerPipeline(BLOCK_MINGLE_TRANSLUCENT);
         event.registerPipeline(VOIDSTONE);
         event.registerPipeline(POCKET_SKY);
-        event.registerPipeline(OVERWORLD_STAR);
+        event.registerPipeline(LUNAR_PLANET);
         event.registerPipeline(LUNAR_SKY_VEIL);
         event.registerPipeline(LUNAR_MOON);
-        event.registerPipeline(LUNAR_STAR);
+        event.registerPipeline(LUNAR_PLANET_TRIP);
         event.registerPipeline(SKY_FUNNEL);
         event.registerPipeline(PETRIFY_FOG);
         event.registerPipeline(FIRE_FIELD);
