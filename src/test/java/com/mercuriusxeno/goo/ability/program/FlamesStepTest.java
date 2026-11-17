@@ -105,7 +105,7 @@ class FlamesStepTest {
             when(ice.asItem()).thenReturn(mock(Item.class));
             when(sand.asItem()).thenReturn(sandItem);
             when(glassItem.getBlock()).thenReturn(glass);
-            heats = FlamesStep.heatedInto(meltables, false,
+            heats = BlockCooking.heatedInto(meltables, false,
                     item -> item == sandItem ? Optional.of(glassItem) : Optional.empty(), air);
         }
 
@@ -135,7 +135,7 @@ class FlamesStepTest {
             BlockState waterState = mock(BlockState.class);
             when(water.defaultBlockState()).thenReturn(waterState);
 
-            FlamesStep.finishHeated(host, pos, ice, water, raw -> BlockCooking.meltedBlock(raw, meltables, false),
+            BlockCooking.finishHeated(host, pos, ice, water, raw -> BlockCooking.meltedBlock(raw, meltables, false),
                     item -> Optional.empty(), mock(BlockState.class));
 
             verify(host).transformBlock(pos, waterState);
