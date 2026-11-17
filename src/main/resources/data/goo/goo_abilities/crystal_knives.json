@@ -16,5 +16,5 @@
     { "type": "particles", "id": "minecraft:crit", "at": "target", "count": 2, "spread": 0.3, "speed": 0.1 }
   ],
   "tags": ["entity"],
-  "pose": "shoulder_cast"
+  "pose": "resting"
 }

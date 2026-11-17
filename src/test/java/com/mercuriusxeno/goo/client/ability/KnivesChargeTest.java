@@ -1,81 +1,43 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.ArmPoseKind;
-import com.mercuriusxeno.goo.ability.Charge;
+import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Knives' hold: the glove's palm blob swelling with the charge, and the blob
- * held afloat through the wind-up alone (decisions charge-swells-the-palm-blob,
- * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives).
+ * Knives' hold: the lifted blob rests where every other ability's does.
  */
 class KnivesChargeTest {
 
-    private static final Charge KNIVES = KnivesCharging.KNIVES;
-    private static final float TOLERANCE = 1e-5f;
+    private static final long NOW = 400L;
+    private static final double NEAR = 1e-6;
 
+    /**
+     * Through a Knives hold the lifted blob cube rests at the steady point by
+     * the glove that Goop and Slick lift theirs to, the hand left at its side
+     * in the arm pose crystal_knives.json names
+     * (decision knives-hand-stays-at-its-side-off-the-screen-center).
+     */
     @Nested
-    class PalmBlobScale {
+    class RestsAtTheSteadyPoint {
 
         @Test
-        void thePalmBlobRestsAtItsOwnSizeWithNoCharge() {
-            assertEquals(KnivesCharge.PALM_REST, KnivesCharge.palmScaleAt(0f), TOLERANCE);
-        }
+        void theCubeRestsWhereBlobRestPutsTheLiftThroughAKnivesHold() {
+            ArmPoseKind held = AbilityJson.decode("crystal_knives").pose().holdFrame();
+            try (SprayingClient client = SprayingClient.another(GooTypes.CRYSTAL);
+                 KnivesCharging knives = KnivesCharging.heldTo(0f)) {
+                long last = NOW + PalmBlobHop.LIFT_TICKS;
+                knives.holdIn(client, held, NOW, last);
 
-        @Test
-        void thePalmBlobSitsMidwayAtHalfACharge() {
-            assertEquals((KnivesCharge.PALM_REST + KnivesCharge.PALM_FULLEST) / 2f,
-                    KnivesCharge.palmScaleAt(0.5f), TOLERANCE);
-        }
-
-        @Test
-        void thePalmBlobSwellsToItsFullestAtFullChargeAndNoFurther() {
-            assertEquals(KnivesCharge.PALM_FULLEST, KnivesCharge.palmScaleAt(1f), TOLERANCE);
-            assertEquals(KnivesCharge.PALM_FULLEST, KnivesCharge.palmScaleAt(2f), TOLERANCE);
-        }
-    }
-
-    @Nested
-    class FloatsTheBlob {
-
-        @Test
-        void theWindUpFloatsTheBlob() {
-            assertTrue(KnivesCharge.floatsAt(new AbilityPoses.Posed(ArmPoseKind.WIND_UP, 0, true, 0f)));
-        }
-
-        @Test
-        void aDroppedArmFloatsTheBlobNoLonger() {
-            assertFalse(KnivesCharge.floatsAt(new AbilityPoses.Posed(ArmPoseKind.NONE, 0, true, 0f)));
-        }
-
-        @Test
-        void aWindUpLetGoFloatsTheBlobNoLonger() {
-            assertFalse(KnivesCharge.floatsAt(new AbilityPoses.Posed(ArmPoseKind.WIND_UP, 0, true, 0.5f, true)));
-        }
-    }
-
-    @Nested
-    class PalmShare {
-
-        @Test
-        void noKnifeFormingChargeHeldShowsNoShare() {
-            assertEquals(0f, KnivesCharge.palmShareOf(null, true, 0.7f), TOLERANCE);
-        }
-
-        @Test
-        void anArmNotWoundUpShowsNoShare() {
-            assertEquals(0f, KnivesCharge.palmShareOf(KNIVES, false, 0.7f), TOLERANCE);
-        }
-
-        @Test
-        void aWoundUpKnifeFormingChargeShowsTheShareItReached() {
-            assertEquals(0.7f, KnivesCharge.palmShareOf(KNIVES, true, 0.7f), TOLERANCE);
-            assertEquals(1f, KnivesCharge.palmShareOf(KNIVES, true, 1.5f), TOLERANCE);
+                Vec3 place = LiftedPalmBlob.blobOf(SprayingClient.CASTER, 0f).orElseThrow().place();
+                Vec3 rest = BlobRest.of(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, 0f);
+                assertTrue(place.distanceTo(rest) < NEAR, "the cube should rest at " + rest + ", rests at " + place);
+            }
         }
     }
 }

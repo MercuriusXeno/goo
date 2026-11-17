@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.AbilityBadge;
-import com.mercuriusxeno.goo.ability.crystal.KnifeRain;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.client.throwing.BlobShape;
@@ -58,7 +57,9 @@ class LiftedPalmBlobTest {
     /** A stream tick every game tick from the spray's start until the blob has reached the source. */
     private static final long EASED = NOW + PalmBlobHop.LIFT_TICKS;
     /** The palm blob at rest: pressed, at rest size. */
-    private static final BlobShape REST = PalmBlobHop.pressed().scaled(KnivesCharge.PALM_REST);
+    private static final BlobShape REST = PalmBlobHop.pressed();
+    /** The palm blob's rest size, the size every other size is against. */
+    private static final float PALM_REST = 1f;
 
     private static void assertNear(Vec3 expected, Vec3 actual) {
         assertTrue(expected.distanceTo(actual) <= DELTA, "expected " + expected + ", was " + actual);
@@ -171,8 +172,8 @@ class LiftedPalmBlobTest {
                 assertEquals(size, LiftedPalmBlob.liftedSizeAt(time + LiftedPalmBlob.BEAT_TICKS), 1e-4,
                         "the size a beat later should be the size now");
             }
-            assertTrue(greatest < KnivesCharge.PALM_REST, "the greatest lifted size " + greatest
-                    + " should be below the palm blob's rest size " + KnivesCharge.PALM_REST);
+            assertTrue(greatest < PALM_REST, "the greatest lifted size " + greatest
+                    + " should be below the palm blob's rest size " + PALM_REST);
             assertTrue(greatest > least, "the lifted size should beat, from " + least + " to " + greatest);
         }
 
@@ -367,7 +368,7 @@ class LiftedPalmBlobTest {
             float share = LiftedPalmBlob.Lift.beginning(NOW, SprayingClient.SENT_GLOVE).shareAt(NOW);
 
             assertNear(PALM, LiftedPalmBlob.placeAt(share, PALM, SOURCE));
-            assertEquals(KnivesCharge.PALM_REST, LiftedPalmBlob.sizeAt(share, NOW), DELTA);
+            assertEquals(PALM_REST, LiftedPalmBlob.sizeAt(share, NOW), DELTA);
         }
 
         @Test
@@ -377,7 +378,7 @@ class LiftedPalmBlobTest {
 
             assertStrictlyBetween(LiftedPalmBlob.placeAt(share, PALM, SOURCE), PALM, SOURCE);
             float size = LiftedPalmBlob.sizeAt(share, partWay);
-            assertTrue(size < KnivesCharge.PALM_REST && size > LiftedPalmBlob.liftedSizeAt(partWay),
+            assertTrue(size < PALM_REST && size > LiftedPalmBlob.liftedSizeAt(partWay),
                     "part way through the ease the size " + size + " should lie between rest and lifted");
         }
 
@@ -408,7 +409,7 @@ class LiftedPalmBlobTest {
             float share = sprayedThrough(NOW, EASED).shareAt(settled);
 
             assertNear(PALM, LiftedPalmBlob.placeAt(share, PALM, SOURCE));
-            assertEquals(KnivesCharge.PALM_REST, LiftedPalmBlob.sizeAt(share, settled), DELTA);
+            assertEquals(PALM_REST, LiftedPalmBlob.sizeAt(share, settled), DELTA);
         }
 
         @Test
@@ -561,7 +562,7 @@ class LiftedPalmBlobTest {
         void bothPassesDrawTheCompression(Pass pass) {
             long ticks = PalmBlobHop.COMPRESS_TICKS;
 
-            assertShape(PalmBlobHop.hopPoseAt(ticks).shape().scaled(KnivesCharge.PALM_REST),
+            assertShape(PalmBlobHop.hopPoseAt(ticks).shape().scaled(PALM_REST),
                     pass.drawnAt(NOW + ticks, NOW + ticks));
         }
 
@@ -687,127 +688,18 @@ class LiftedPalmBlobTest {
         }
     }
 
-    /** The tick the lift from the wind-up's first tick has reached the float point. */
-    private static final long FLOATED = NOW + PalmBlobHop.LIFT_TICKS;
-    /** Part way through the lift, the hop done and the rise half way. */
-    private static final long PART_WAY_UP = NOW + PalmBlobHop.HOP_TICKS + PalmBlobHop.EASE_TICKS / 2;
-    /** The tick the hold from {@link #NOW} is let go. */
-    private static final long LET_GO = NOW + 20;
-    /** The last tick the hold kept the blob afloat. */
-    private static final long LAST_HELD = LET_GO - 1;
-    /** The tick the lift held through the hold reads ended, a tick past the gap, and its settle begins. */
-    private static final double SETTLE_BEGINS = endedAt(LAST_HELD);
-
-    private static SprayingClient clientOf(boolean local, ResourceKey<GooTypeDefinition> selected) {
-        return local ? SprayingClient.local(selected) : SprayingClient.another(selected);
-    }
-
-    /** The look the client's caster holds. */
-    private static Vec3 look() {
-        return Vec3.directionFromRotation(SprayingClient.PITCH, SprayingClient.YAW);
-    }
-
-    /** Where the caster's blob floats with the hand eased a share across the chest. */
-    private static Vec3 floatPointAcross(float across) {
-        return KnifeRain.floatPoint(SprayingClient.EYE, SprayingClient.YAW,
-                look(), true, across);
-    }
-
     /**
-     * Knives' charge lifts the blob off the palm from its first tick for the
-     * local player and another alike, floats it at the float point ahead of
-     * the hand facing the look, swells it with the charge, draws it as the
-     * one blob, and settles it home once the hold is let go (decisions
-     * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives, charge-swells-the-palm-blob,
-     * knives-form-on-right-click-and-throw-on-left-click).
+     * The level's pass faces every caster's lifted blob along the caster's
+     * look, whatever the hand's turn.
      */
-    @Nested
-    class FloatsThroughKnivesCharge {
+    @Test
+    void theLevelsPassFacesTheBlobAlongTheCastersLook() {
+        try (SprayingClient client = SprayingClient.another(GooTypes.FROST)) {
+            client.at(NOW);
+            Player caster = (Player) Minecraft.getInstance().level.getEntity(SprayingClient.CASTER);
 
-        @ParameterizedTest
-        @ValueSource(booleans = {true, false})
-        void theChargeLiftsTheBlobFromItsFirstTickAndPartWayUpItsBottomIsOffThePalm(boolean local) {
-            try (SprayingClient client = clientOf(local, GooTypes.CRYSTAL);
-                 KnivesCharging knives = KnivesCharging.heldTo(0f)) {
-                knives.windUp(client, NOW, NOW);
-
-                assertTrue(LiftedPalmBlob.standsOff(SprayingClient.CASTER, NOW), "the lift should stand from the "
-                        + "wind-up's first tick");
-                knives.holdThrough(client, NOW + 1, PART_WAY_UP);
-                assertTrue(LiftedPalmBlob.poseOf(SprayingClient.CASTER, PART_WAY_UP).orElseThrow()
-                        .bottomOffThePalm() > 0f, "part way up the blob's bottom should be off the palm");
-            }
-        }
-
-        @Test
-        void theBlobFloatsAtTheFloatPointInTheGlovesTypeAsTheOneBlobTheLevelDraws() {
-            try (SprayingClient client = SprayingClient.another(GooTypes.FROST);
-                 KnivesCharging knives = KnivesCharging.heldTo(0f)) {
-                knives.windUp(client, NOW, FLOATED);
-
-                LiftedPalmBlob.Blob blob = LiftedPalmBlob.blobOf(SprayingClient.CASTER, 0f).orElseThrow();
-
-                float across = KnivesCharge.acrossOf(SprayingClient.CASTER, FLOATED);
-                assertTrue(across > 0f, "the wind-up should have eased the hand across, " + across);
-                assertNear(floatPointAcross(across), blob.place());
-                assertEquals(GooTypes.FROST, blob.type());
-                assertTrue(LiftedPalmBlob.drawsInTheLevel(SprayingClient.CASTER), "the level should draw it");
-            }
-        }
-
-        @Test
-        void theLevelsPassFacesTheBlobAlongTheCastersLookWhateverTheHandsTurn() {
-            try (SprayingClient client = SprayingClient.another(GooTypes.FROST);
-                 KnivesCharging knives = KnivesCharging.heldTo(0f)) {
-                knives.windUp(client, NOW, FLOATED);
-                Player caster = (Player)
-                        Minecraft.getInstance().level.getEntity(SprayingClient.CASTER);
-
-                assertEquals(LiftedPalmBlob.facingTheLook(SprayingClient.PITCH, SprayingClient.YAW),
-                        LiftedPalmBlob.facingOf(caster, 0f));
-            }
-        }
-
-        @Test
-        void theFloatingBlobSwellsWithTheChargeFromRestSizeToItsFullest() {
-            float empty = floatedSizeAt(0f);
-            float half = floatedSizeAt(0.5f);
-            float full = floatedSizeAt(1f);
-
-            assertEquals(KnivesCharge.PALM_REST, empty, DELTA, "as the charge begins the blob should be rest size");
-            assertEquals(KnivesCharge.PALM_FULLEST, full, DELTA, "at full charge the blob should be its fullest");
-            assertTrue(half > empty && half < full, "at half a charge the size " + half + " should lie between");
-        }
-
-        /** The size the local player's floating blob draws at once the lift has ended, at a share of a charge. */
-        private static float floatedSizeAt(float share) {
-            try (SprayingClient client = SprayingClient.local(GooTypes.CRYSTAL);
-                 KnivesCharging knives = KnivesCharging.heldTo(share)) {
-                knives.windUp(client, NOW, FLOATED);
-                return LiftedPalmBlob.blobOf(SprayingClient.CASTER, 0f).orElseThrow().shape().width();
-            }
-        }
-
-        @Test
-        void lettingGoSettlesTheBlobFromTheFloatPointToThePalm() {
-            try (SprayingClient client = SprayingClient.another(GooTypes.CRYSTAL);
-                 KnivesCharging knives = KnivesCharging.heldTo(1f)) {
-                knives.windUp(client, NOW, LAST_HELD);
-                long partWayDown = (long) SETTLE_BEGINS + PalmBlobHop.EASE_TICKS / 2;
-                knives.letGo(client, LET_GO, partWayDown);
-
-                assertTrue(LiftedPalmBlob.standsOff(SprayingClient.CASTER, LAST_HELD), "the lift should stand at the "
-                        + "hold's last tick");
-                Vec3 place = LiftedPalmBlob.blobOf(SprayingClient.CASTER, 0f).orElseThrow().place();
-                Vec3 floating = floatPointAcross(KnivesCharge.acrossOf(SprayingClient.CASTER, partWayDown));
-                Vec3 palm = KnivesCharge.handAt((Player)
-                        Minecraft.getInstance().level.getEntity(SprayingClient.CASTER), true,
-                        KnivesCharge.acrossOf(SprayingClient.CASTER, partWayDown), 0f);
-                double span = floating.distanceTo(palm);
-                assertTrue(place.distanceTo(floating) > DELTA && place.distanceTo(floating) < span
-                        && place.distanceTo(palm) > DELTA && place.distanceTo(palm) < span, "part way down the "
-                        + "blob " + place + " should lie between the float point " + floating + " and the palm " + palm);
-            }
+            assertEquals(LiftedPalmBlob.facingTheLook(SprayingClient.PITCH, SprayingClient.YAW),
+                    LiftedPalmBlob.facingOf(caster, 0f));
         }
     }
 

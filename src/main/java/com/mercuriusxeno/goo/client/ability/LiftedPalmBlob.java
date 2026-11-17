@@ -49,12 +49,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * the glove press; another caster's reads the held ticks the server passes
  * on. The local first-person player's blob draws in the hand's pass, over
  * the glove and turned with it; every other caster's draws in the level,
- * turned with that caster's look. Knives' charge floats the blob instead
- * ahead of and above the glove hand through the wind-up and the backhand's
- * sweep, facing the look in both passes, at the palm blob's rest size for
- * the charge to swell.
+ * turned with that caster's look.
  * palm-blob-lifts-as-the-spray-source
- * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
  * every-ability-casts-from-the-lifted-palm-blob
  * centered-abilities-float-the-blob-below-the-crosshair
  */
@@ -112,10 +108,8 @@ public final class LiftedPalmBlob {
      * @param hops           whether the lift began on the palm, so it hops
      * @param lastStreamTick the game time of the caster's last stream tick that threw drips
      * @param sentGlove      the glove the server sent with that tick
-     * @param floats         whether Knives' charge holds it, floating it ahead of the hand at its rest size
      */
-    record Lift(long began, PalmBlobHop.Pose from, boolean hops, long lastStreamTick, Vec3 sentGlove,
-                boolean floats) {
+    record Lift(long began, PalmBlobHop.Pose from, boolean hops, long lastStreamTick, Vec3 sentGlove) {
 
         /**
          * A lift from the palm as a spray begins.
@@ -125,18 +119,7 @@ public final class LiftedPalmBlob {
          * @return the lift
          */
         static Lift beginning(long gameTime, Vec3 sentGlove) {
-            return new Lift(gameTime, PalmBlobHop.Pose.ON_THE_PALM, true, gameTime, sentGlove, false);
-        }
-
-        /**
-         * This lift held by Knives' charge, which floats the blob ahead of the
-         * hand, following the hand, until it settles home.
-         * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
-         *
-         * @return the lift, floating
-         */
-        Lift floating() {
-            return new Lift(began, from, hops, lastStreamTick, sentGlove, true);
+            return new Lift(gameTime, PalmBlobHop.Pose.ON_THE_PALM, true, gameTime, sentGlove);
         }
 
         /**
@@ -152,10 +135,10 @@ public final class LiftedPalmBlob {
          */
         Lift sprayedAt(long gameTime, Vec3 sentGlove) {
             if (runningAt(lastStreamTick, gameTime)) {
-                return new Lift(began, from, hops, gameTime, sentGlove, floats);
+                return new Lift(began, from, hops, gameTime, sentGlove);
             }
             if (standsAt(gameTime)) {
-                return new Lift(gameTime, poseAt(gameTime), false, gameTime, sentGlove, floats);
+                return new Lift(gameTime, poseAt(gameTime), false, gameTime, sentGlove);
             }
             return beginning(gameTime, sentGlove);
         }
@@ -242,23 +225,6 @@ public final class LiftedPalmBlob {
      */
     public static void liftAfresh(int casterId, Vec3 sentGlove, long gameTime) {
         LIFTS.put(casterId, Lift.beginning(gameTime, sentGlove));
-    }
-
-    /**
-     * Marks a caster's Knives charge held at a tick, floating the blob ahead
-     * of the hand: a blob resting on the palm hops off it from the tick the
-     * charge began, so the lift stands from the wind-up's first tick.
-     * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
-     *
-     * @param casterId    the caster's entity id
-     * @param sentGlove   the glove the tick came with
-     * @param chargeBegan the game time the caster's wind-up began
-     * @param gameTime    the level's game time now
-     */
-    public static void floated(int casterId, Vec3 sentGlove, long chargeBegan, long gameTime) {
-        LIFTS.compute(casterId, (id, lift) -> (standsOffThePalm(lift, gameTime) ? lift
-                : Lift.beginning(Math.min(chargeBegan, gameTime), sentGlove))
-                .sprayedAt(gameTime, sentGlove).floating());
     }
 
     /**
@@ -406,7 +372,7 @@ public final class LiftedPalmBlob {
      * @return the size against the palm blob's rest size
      */
     static float sizeAt(float share, double time) {
-        return Mth.lerp(share, KnivesCharge.PALM_REST, liftedSizeAt(time));
+        return Mth.lerp(share, 1f, liftedSizeAt(time));
     }
 
     /**
@@ -422,24 +388,9 @@ public final class LiftedPalmBlob {
     }
 
     /**
-     * The box a lift's blob in a pose draws in: a spray's beats at its
-     * lifted size, and Knives' floating blob keeps the palm blob's rest size
-     * for the charge to swell.
-     * charge-swells-the-palm-blob
-     *
-     * @param lift the lift
-     * @param pose the blob's pose
-     * @param time the game time in ticks, with the frame's partial tick
-     * @return the box, against the palm blob's rest cube
-     */
-    static BlobShape drawnShapeAt(Lift lift, PalmBlobHop.Pose pose, double time) {
-        return lift.floats() ? pose.shape().scaled(KnivesCharge.PALM_REST) : drawnShapeAt(pose, time);
-    }
-
-    /**
-     * Where a lift's blob rises to: the float point ahead of the hand for
-     * Knives' charge, the place Bore's blob eases to from its rest while a
-     * bore runs, and the rest point the selected ability names otherwise.
+     * Where a lift's blob rises to: the place Bore's blob eases to from its
+     * rest while a bore runs, and the rest point the selected ability names
+     * otherwise.
      *
      * @param casterId    the caster's entity id
      * @param lift        the caster's lift
@@ -448,12 +399,9 @@ public final class LiftedPalmBlob {
      * @return the source, in the world
      */
     private static Vec3 sourceOf(int casterId, Lift lift, float partialTick, double now) {
-        // knives-blob-floats-ahead-of-the-hand-and-spews-the-knives: the blob follows the hand, backhand and all
-        return lift.floats() ? BlobRest.floatingOf(casterId, lift.sentGlove(), partialTick,
-                KnivesCharge.acrossOf(casterId, now))
-                // centered-abilities-float-the-blob-below-the-crosshair: a centered ability rests on the center line
-                // bore-blob-eases-to-place-the-drill-at-the-crosshair: Bore's blob eases forward from that rest
-                : BoreBlobPlace.of(casterId, BlobRest.of(casterId, lift.sentGlove(), partialTick), partialTick, now);
+        // centered-abilities-float-the-blob-below-the-crosshair: a centered ability rests on the center line
+        // bore-blob-eases-to-place-the-drill-at-the-crosshair: Bore's blob eases forward from that rest
+        return BoreBlobPlace.of(casterId, BlobRest.of(casterId, lift.sentGlove(), partialTick), partialTick, now);
     }
 
     /**
@@ -515,10 +463,9 @@ public final class LiftedPalmBlob {
             return Optional.empty();
         }
         PalmBlobHop.Pose pose = lift.poseAt(now);
-        Vec3 palm = palmOf(mc, caster, partialTick, KnivesCharge.acrossOf(casterId, now));
+        Vec3 palm = palmOf(mc, caster, partialTick);
         return Optional.of(new Standing(caster, placeAt(pose, palm, upOf(caster, partialTick),
-                sourceOf(casterId, lift, partialTick, now)), drawnShapeAt(lift, pose, now), swellOf(caster, now),
-                pose.share()));
+                sourceOf(casterId, lift, partialTick, now)), drawnShapeAt(pose, now), pose.share()));
     }
 
     /**
@@ -540,22 +487,10 @@ public final class LiftedPalmBlob {
      *
      * @param caster the caster
      * @param place  where the blob stands in the world
-     * @param shape  its box against the palm blob's rest cube, before the swell
-     * @param swell  how far it swells against its lifted size
+     * @param shape  its box against the palm blob's rest cube
      * @param share  the share it has lifted off the palm, 0 to 1
      */
-    private record Standing(Player caster, Vec3 place, BlobShape shape, float swell, float share) {
-    }
-
-    /**
-     * How far a caster's lifted blob swells: as Knives' charge grows.
-     *
-     * @param caster the caster
-     * @param now    the game time, with the frame's partial tick
-     * @return the swell against the blob's lifted size
-     */
-    private static float swellOf(Player caster, double now) {
-        return KnivesCharge.liftedSwellOf(caster, now);
+    private record Standing(Player caster, Vec3 place, BlobShape shape, float share) {
     }
 
     /**
@@ -600,7 +535,7 @@ public final class LiftedPalmBlob {
             float javelin = PalmJavelin.morphAt(delivery, standing.share());
             TravelForm form = PalmJavelin.formOf(delivery);
             return Optional.ofNullable(GooGloveItem.getSelectedType(glove)).map(type -> new Blob(standing.place(),
-                    type, standing.shape().scaled(standing.swell()), form, javelin));
+                    type, standing.shape(), form, javelin));
         });
     }
 
@@ -670,24 +605,21 @@ public final class LiftedPalmBlob {
         Delivery delivery = PalmJavelin.selectedDelivery(gloveOf(mc.player));
         float javelin = PalmJavelin.morphAt(delivery, pose.share());
         return Optional.of(new HandLift(pose.share(), HandPassView.toHandPass(source, camera.rotation(),
-                camera.getFov(), HandPassView.frameBob(mc)), drawnShapeAt(lift, pose, now)
-                .scaled(swellOf(mc.player, now)), pose.stand(), facingInView(lift, javelin, camera),
-                PalmJavelin.formOf(delivery), javelin));
+                camera.getFov(), HandPassView.frameBob(mc)), drawnShapeAt(pose, now), pose.stand(),
+                facingInView(javelin, camera), PalmJavelin.formOf(delivery), javelin));
     }
 
     /**
      * The turn facing a lifted blob along the look in the hand pass, where
-     * it floats ahead of the hand or has begun to become Dart's javelin.
-     * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
+     * it has begun to become Dart's javelin.
      * shriek-bloom-portal-mitosis-and-dart-still-throw-a-blob
      *
-     * @param lift    the local player's lift
      * @param javelin how far the blob has become its travel form, 0 to 1
      * @param camera  the main camera
      * @return the turn, or null where the blob turns with the glove
      */
-    private static @Nullable Quaternionf facingInView(Lift lift, float javelin, Camera camera) {
-        return lift.floats() || javelin > 0f ? facingTheLook(camera.xRot(), camera.yRot()) : null;
+    private static @Nullable Quaternionf facingInView(float javelin, Camera camera) {
+        return javelin > 0f ? facingTheLook(camera.xRot(), camera.yRot()) : null;
     }
 
     /**
@@ -711,17 +643,16 @@ public final class LiftedPalmBlob {
      * @param mc          the client
      * @param caster      the caster
      * @param partialTick the frame's partial tick
-     * @param across      how far the caster's hand has eased across the chest, 0 to 1
      * @return the palm's place in the world
      */
-    private static Vec3 palmOf(Minecraft mc, Player caster, float partialTick, float across) {
+    private static Vec3 palmOf(Minecraft mc, Player caster, float partialTick) {
         Vec3 drawn = GloveSpecialRenderer.getLastGooCenterCamRel();
         if (caster == mc.player && mc.options.getCameraType().isFirstPerson() && drawn != null) {
             Camera camera = mc.gameRenderer.getMainCamera();
             return camera.position().add(HandPassView.fromHandPass(drawn, camera.rotation(), camera.getFov(),
                     HandPassView.frameBob(mc)));
         }
-        return KnivesCharge.handAt(caster, KnifeRainSling.gloveOnTheRight(caster), across, partialTick);
+        return KnivesCharge.handAt(caster, KnifeRainSling.gloveOnTheRight(caster), partialTick);
     }
 
     /**
