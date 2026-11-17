@@ -124,6 +124,13 @@ public final class GooSoundIds {
      */
     public static final Identifier VACUUM_SLURP = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.vacuum_slurp");
 
+    /**
+     * Lunar's rising tone: sent to the caster as the fixation begins, rising over the whole trip to peak as
+     * the white floods the view and Lunar carries them
+     * (decision gate-fixates-your-view-on-the-moon-until-it-takes-you).
+     */
+    public static final Identifier LUNAR_TONE = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.lunar_tone");
+
     private GooSoundIds() {
     }
 }

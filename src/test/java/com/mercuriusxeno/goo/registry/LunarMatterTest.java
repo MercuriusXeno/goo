@@ -30,10 +30,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Lunar's matter, anorthosite, regolith, the iron core and molten iron, registers under the mod's id with the
- * textures its models name, and the shipped base values answer astral and xeno for each, iron for the core and the
- * molten iron.
+ * Lunar's matter, anorthosite, regolith, the iron core, molten iron, meteoric iron, impact glass, breccia and
+ * crater ice, registers under the mod's id with the textures its models name, and the shipped base values answer astral and xeno for each, iron
+ * for the stone, the core, the molten iron and the meteoric iron, crystal for the regolith and the impact glass.
  * decision lunar-matter-is-anorthosite-basalt-regolith-and-an-iron-core
+ * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
  * decision astral-matter-values-carry-the-dimensions-types
  */
 class LunarMatterTest {
@@ -79,7 +80,8 @@ class LunarMatterTest {
         @Test
         void lunarBlocksRegisterUnderTheModId() {
             assertTrue(registeredIds(GooBlocks.BLOCKS).containsAll(List.of(
-                    goo("anorthosite"), goo("regolith"), goo("iron_core"), goo("molten_iron"))),
+                    goo("anorthosite"), goo("regolith"), goo("iron_core"), goo("molten_iron"), goo("meteoric_iron"),
+                    goo("impact_glass"), goo("breccia"), goo("crater_ice"))),
                     String.valueOf(registeredIds(GooBlocks.BLOCKS)));
         }
 
@@ -94,7 +96,9 @@ class LunarMatterTest {
         @Test
         void lunarBlocksAndTheMoltenIronBucketRegisterAsItems() {
             assertTrue(registeredIds(GooItems.ITEMS).containsAll(List.of(
-                    goo("anorthosite"), goo("regolith"), goo("iron_core"), goo("molten_iron_bucket"))),
+                    goo("anorthosite"), goo("regolith"), goo("iron_core"), goo("molten_iron_bucket"),
+                    goo("meteoric_iron"), goo("impact_glass"), goo("breccia"),
+                    goo("crater_ice"))),
                     String.valueOf(registeredIds(GooItems.ITEMS)));
         }
     }
@@ -103,7 +107,8 @@ class LunarMatterTest {
     class Textures {
 
         @ParameterizedTest
-        @ValueSource(strings = {"anorthosite", "regolith", "iron_core"})
+        @ValueSource(strings = {"anorthosite", "regolith", "iron_core", "meteoric_iron", "impact_glass", "breccia",
+            "crater_ice"})
         void eachLunarBlockDrawsATextureOnTheClasspath(String block) throws IOException {
             List<String> models = modelsOf(block);
             assertEquals("goo:block/" + block, models.getFirst());
@@ -182,27 +187,30 @@ class LunarMatterTest {
         }
 
         @ParameterizedTest
-        @ValueSource(strings = {"anorthosite", "regolith", "iron_core", "molten_iron_bucket"})
+        @ValueSource(strings = {"anorthosite", "regolith", "iron_core", "molten_iron_bucket", "meteoric_iron",
+            "impact_glass", "breccia", "crater_ice"})
         void eachLunarMatterCarriesAstral(String item) throws IOException {
             assertCarries(item, GooTypes.ASTRAL);
         }
 
         @ParameterizedTest
-        @ValueSource(strings = {"anorthosite", "regolith", "iron_core", "molten_iron_bucket"})
+        @ValueSource(strings = {"anorthosite", "regolith", "iron_core", "molten_iron_bucket", "meteoric_iron",
+            "impact_glass", "breccia", "crater_ice"})
         void eachLunarMatterCarriesXeno(String item) throws IOException {
             assertCarries(item, GooTypes.XENO);
         }
 
         @ParameterizedTest
-        @ValueSource(strings = {"anorthosite", "iron_core", "molten_iron_bucket"})
+        @ValueSource(strings = {"anorthosite", "iron_core", "molten_iron_bucket", "meteoric_iron"})
         void theStoneTheCoreAndTheMoltenIronCarryIron(String item) throws IOException {
             assertCarries(item, GooTypes.METAL);
         }
 
-        /** Regolith is glass dust, so it carries crystal. */
-        @Test
-        void regolithCarriesCrystal() throws IOException {
-            assertCarries("regolith", GooTypes.CRYSTAL);
+        /** Regolith is glass dust and impact glass is the regolith melted, so both carry crystal. */
+        @ParameterizedTest
+        @ValueSource(strings = {"regolith", "impact_glass"})
+        void theGlassMatterCarriesCrystal(String item) throws IOException {
+            assertCarries(item, GooTypes.CRYSTAL);
         }
     }
 }

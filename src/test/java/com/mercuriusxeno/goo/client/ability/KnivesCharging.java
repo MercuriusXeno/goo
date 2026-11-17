@@ -15,14 +15,14 @@ import static org.mockito.Mockito.when;
 /**
  * Every player's glove selecting Knives, its charge Knives' own, the local
  * hold reaching a set share of a full charge, and the caster of a
- * {@link SprayingClient} winding up and releasing it tick by tick, each tick
+ * {@link SprayingClient} winding up and letting it go tick by tick, each tick
  * holding the floating blob as the client tick does. Close it to restore the
  * statics it swaps.
  */
 public final class KnivesCharging implements AutoCloseable {
 
-    /** Knives' charge, as crystal_knives.json gives it. */
-    public static final Charge KNIVES = new Charge(30, 27, 45, 8, 3, 5);
+    /** Knives' charge, as crystal_knives.json gives it: 5 stages of 12 ticks. */
+    public static final Charge KNIVES = new Charge(60, 5, 12);
 
     private final MockedStatic<GloveThrowSender> sender;
 
@@ -60,17 +60,18 @@ public final class KnivesCharging implements AutoCloseable {
     }
 
     /**
-     * Releases the caster's charge at a tick, backhanding the arm, and runs
-     * the client's ticks through another.
+     * Lets the caster's hold go at a tick, dropping the arm as letting go of
+     * right click does, and runs the client's ticks through another.
+     * decision knives-form-on-right-click-and-throw-on-left-click
      *
-     * @param client   the client
-     * @param released the tick the charge is released
-     * @param last     the last tick run
+     * @param client the client
+     * @param letGo  the tick the hold is let go
+     * @param last   the last tick run
      */
-    public void release(SprayingClient client, long released, long last) {
-        client.at(released);
-        AbilityPoses.pose(SprayingClient.CASTER, ArmPoseKind.FLING, true);
-        holdThrough(client, released, last);
+    public void letGo(SprayingClient client, long letGo, long last) {
+        client.at(letGo);
+        AbilityPoses.pose(SprayingClient.CASTER, ArmPoseKind.NONE, true);
+        holdThrough(client, letGo, last);
     }
 
     /**

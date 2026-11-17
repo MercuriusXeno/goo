@@ -82,6 +82,7 @@ public final class GooNetworking {
         r.playToClient(BlockTransformPayload.TYPE, BlockTransformPayload.STREAM_CODEC);
         r.playToClient(BlockExposurePayload.TYPE, BlockExposurePayload.STREAM_CODEC);
         r.playToClient(RedHotPayload.TYPE, RedHotPayload.STREAM_CODEC);
+        r.playToClient(FallingDripPayload.TYPE, FallingDripPayload.STREAM_CODEC);
         r.playToClient(AfterimagePayload.TYPE, AfterimagePayload.STREAM_CODEC);
         r.playToClient(ScanWavePayload.TYPE, ScanWavePayload.STREAM_CODEC);
         r.playToClient(TransformationPayload.TYPE, TransformationPayload.STREAM_CODEC);
@@ -113,6 +114,7 @@ public final class GooNetworking {
         r.playToClient(OreRevealPayload.TYPE, OreRevealPayload.STREAM_CODEC);
         r.playToClient(MeteorScorchPayload.TYPE, MeteorScorchPayload.STREAM_CODEC);
         r.playToClient(GlassKnifePayload.TYPE, GlassKnifePayload.STREAM_CODEC);
+        r.playToClient(KnivesFormedPayload.TYPE, KnivesFormedPayload.STREAM_CODEC);
         r.playToClient(ArmPosePayload.TYPE, ArmPosePayload.STREAM_CODEC);
         r.playToClient(PalmBlobLiftPayload.TYPE, PalmBlobLiftPayload.STREAM_CODEC);
     }
@@ -131,6 +133,8 @@ public final class GooNetworking {
         r.playToServer(GooChargePayload.TYPE, GooChargePayload.STREAM_CODEC, GooThrowHandler::handleCharge);
         r.playToServer(GlovePosePayload.TYPE, GlovePosePayload.STREAM_CODEC, GooThrowHandler::handleGlovePose);
         r.playToServer(PalmBlobChargePayload.TYPE, PalmBlobChargePayload.STREAM_CODEC, PalmBlobChargePayload::handle);
+        r.playToServer(KnivesHoldPayload.TYPE, KnivesHoldPayload.STREAM_CODEC, KnivesHoldHandler::handle);
+        r.playToServer(KnivesThrowPayload.TYPE, KnivesThrowPayload.STREAM_CODEC, KnivesThrowHandler::handle);
         r.playToServer(GloveSelectPayload.TYPE, GloveSelectPayload.STREAM_CODEC, GloveSelectHandler::handle);
         r.playToServer(PlexerTargetPickPayload.TYPE, PlexerTargetPickPayload.STREAM_CODEC, PlexerTargetPickHandler::handle);
         r.playToServer(WorkbenchRequestPayload.TYPE, WorkbenchRequestPayload.STREAM_CODEC,

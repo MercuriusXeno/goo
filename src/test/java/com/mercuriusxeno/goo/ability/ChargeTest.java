@@ -8,8 +8,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Knives' shipped charge slings flecks, and only a charge naming flecks slings
- * (decision knives-sling-then-morph-to-flechettes); Blast's shipped charge
+ * Knives ships held, its charge forming knives in 5 stages of 12 ticks, and
+ * only a charge naming stages forms knives (decisions
+ * held-badge-marks-abilities-that-prepare-and-throw, knives-form-in-fibonacci-stages-to-twelve,
+ * knives-stage-takes-twelve-ticks-with-no-cooldown); Blast's shipped charge
  * opens at 2 blocks and gains a block every 12 ticks of hold up to 9
  * (decisions blast-charges-from-two-to-seven-blocks, blast-eases-between-stages-at-a-second-each).
  */
@@ -17,13 +19,21 @@ class ChargeTest {
 
     private static final double DELTA = 1e-9;
 
-    private final Charge knives = AbilityJson.decode("crystal_knives").delivery().charge();
+    private final AbilityDefinition knivesAbility = AbilityJson.decode("crystal_knives");
+    private final Charge knives = knivesAbility.delivery().charge();
     private final Charge blast = AbilityJson.decode("unstable_blast").delivery().charge();
 
     @Test
-    void onlyAChargeNamingFlecksSlings() {
-        assertTrue(knives.slings());
-        assertFalse(Charge.of(30).slings());
+    void shippedKnivesWearsHeldAndFormsInFiveStagesOfTwelveTicks() {
+        assertEquals(AbilityBadge.HELD, knivesAbility.badge());
+        assertEquals(5, knives.stages());
+        assertEquals(12, knives.stageTicks());
+    }
+
+    @Test
+    void onlyAChargeNamingStagesFormsKnives() {
+        assertTrue(knives.formsInStages());
+        assertFalse(Charge.of(30).formsInStages());
         assertEquals(Charge.NONE, Charge.of(0));
     }
 

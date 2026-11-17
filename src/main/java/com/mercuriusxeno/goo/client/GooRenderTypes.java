@@ -828,6 +828,39 @@ public final class GooRenderTypes {
             .build();
 
     /**
+     * The Lunar trip's veil over the overworld's sky: black quads round the camera, alpha blended at the sky's dim
+     * through vanilla's position-color shader, passing every depth test, so the day sky fades to the star void.
+     * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
+     */
+    public static final RenderPipeline LUNAR_SKY_VEIL = RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "lunar_sky_veil"))
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+            .withCull(false)
+            .build();
+
+    /**
+     * The Lunar trip's swelling moon: vanilla's celestial draw, the moon sprite added onto the frame, passing every
+     * depth test, so the moon swells over the darkened land as well as the sky.
+     * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
+     */
+    public static final RenderPipeline LUNAR_MOON = RenderPipelines.CELESTIAL.toBuilder()
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "lunar_moon"))
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+            .withCull(false)
+            .build();
+
+    /**
+     * The Lunar trip home's swelling blue star: lunar's star draw passing every depth test, so the star swells over
+     * the darkened land as well as the sky.
+     * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
+     */
+    public static final RenderPipeline LUNAR_STAR = OVERWORLD_STAR.toBuilder()
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "lunar_star"))
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+            .withCull(false)
+            .build();
+
+    /**
      * The render type voidstone's faces draw through, its texture transform
      * handing the shader the room the field wraps at.
      * decision voidstone-starfield-tiles-in-either-direction
@@ -1660,6 +1693,9 @@ public final class GooRenderTypes {
         event.registerPipeline(VOIDSTONE);
         event.registerPipeline(POCKET_SKY);
         event.registerPipeline(OVERWORLD_STAR);
+        event.registerPipeline(LUNAR_SKY_VEIL);
+        event.registerPipeline(LUNAR_MOON);
+        event.registerPipeline(LUNAR_STAR);
         event.registerPipeline(SKY_FUNNEL);
         event.registerPipeline(PETRIFY_FOG);
         event.registerPipeline(FIRE_FIELD);
