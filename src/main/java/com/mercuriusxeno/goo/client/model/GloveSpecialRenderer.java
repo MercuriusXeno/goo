@@ -236,7 +236,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         // phased-things-draw-as-a-ghostly-image: a phased player's own bare arm draws under the phase fade
         boolean ghost = PhasedHands.ghosting();
         Identifier texture = skin.body().texturePath();
-        RenderType type = ghost ? PhaseLook.bodyType(texture) : GooSubmitter.livingBodyOn(texture, false, false, false);
+        RenderType type = bareArmType(texture, ghost);
         int tint = ghost ? PhaseLook.bodyTint(COLOR_WHITE) : COLOR_WHITE;
         poseStack.pushPose();
         arm.standInGloveBody(poseStack);
@@ -245,6 +245,22 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         nodeCollector.submitModelPart(arm.sleeve(), poseStack, type, packedLight, OverlayTexture.NO_OVERLAY, null,
                 tint, null);
         poseStack.popPose();
+    }
+
+    /**
+     * The render type the bare arm submits on: cutout on the skin, opaque, so
+     * the hand pass draws it with the solid geometry before any translucent
+     * face, as the glove body does; on a translucent type the lifted blob,
+     * beating between two sizes, sorted ahead of the sleeve on some frames and
+     * hid it (decision diagnose-and-correct-the-palm-core-cull). A phased arm
+     * keeps the phase fade.
+     *
+     * @param skin  the skin's texture
+     * @param ghost whether the arm draws under the phase fade
+     * @return the render type
+     */
+    static RenderType bareArmType(Identifier skin, boolean ghost) {
+        return ghost ? PhaseLook.bodyType(skin) : GooSubmitter.cutoutOn(skin);
     }
 
     /**
