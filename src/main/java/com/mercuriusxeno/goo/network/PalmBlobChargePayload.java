@@ -41,7 +41,7 @@ public record PalmBlobChargePayload() implements CustomPacketPayload {
      */
     public static void handle(PalmBlobChargePayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
-            if (context.player() instanceof ServerPlayer player && GooThrowHandler.validateGlove(player)) {
+            if (context.player() instanceof ServerPlayer player && GooThrowHandler.validateCaster(player)) {
                 sendLift(player);
             }
         });

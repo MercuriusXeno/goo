@@ -3,6 +3,8 @@ package com.mercuriusxeno.goo.block.ability;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
+import org.jspecify.annotations.Nullable;
+import java.util.UUID;
 
 /**
  * A block entity a marker host stands at: the ability block a lingering
@@ -31,4 +33,12 @@ public interface MarkerAnchor {
      * @return the state the anchor's program keeps between ticks
      */
     MarkerProgramState programState();
+
+    /**
+     * The player a hit the anchor's field deals credits.
+     * standing-goo-thing-credits-whoever-placed-it
+     *
+     * @return the player who stood the anchor's field, or null where no player stood it
+     */
+    @Nullable UUID placer();
 }

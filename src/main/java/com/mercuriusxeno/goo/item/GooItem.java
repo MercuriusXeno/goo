@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.item;
 
+import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.network.EntityVisuals;
@@ -10,6 +11,8 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypeNames;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.SlotAccess;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
@@ -17,6 +20,7 @@ import net.minecraft.world.inventory.ClickAction;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.NonNull;
@@ -29,6 +33,8 @@ import java.util.Map;
  * Goo: the one goo item at every volume (decision one-goo-item-at-every-amount),
  * a single-type, uncapped-capacity container carrying its type in the GOO_TYPE
  * data component (decision generic-goo-items) and its volume in GOO_VOLUME.
+ * Held in the main hand with no glove, it casts its own type's abilities as
+ * the glove casts (decision raw-goo-items-work-bare-handed-for-the-held-type).
  */
 public class GooItem extends Item implements IGooItemInteraction, GooCarrierItem {
 
@@ -77,6 +83,48 @@ public class GooItem extends Item implements IGooItemInteraction, GooCarrierItem
      */
     public GooItem(Properties properties) {
         super(properties);
+    }
+
+    /**
+     * Hands the press to the client's input gate where this goo is the
+     * player's caster, as the glove's use does, and answers PASS, so a held
+     * glove in the other hand takes the press instead and the goo is never
+     * eaten or re-equipped (decision use-animation-only-when-goo-throws).
+     * A block that takes goo, a canister, crucible, hub or vat, takes the
+     * click before this runs.
+     * decision raw-goo-items-work-bare-handed-for-the-held-type
+     *
+     * @param level  the world
+     * @param player the player using the item
+     * @param hand   the hand holding the goo
+     * @return PASS
+     */
+    @Override
+    public @NonNull InteractionResult use(@NonNull Level level, @NonNull Player player,
+            @NonNull InteractionHand hand) {
+        if (level.isClientSide() && GooCasters.casterHand(player) == hand) {
+            ISidedProxy.get().pressGlove(hand);
+        }
+        return InteractionResult.PASS;
+    }
+
+    /**
+     * Replays the equip animation only for goo of another type in the hand or
+     * a changed slot: a bare-handed cast drains the held stack every tick it
+     * runs, and a drained stack replaying the equip would flicker the palm
+     * blob, as a glove's stack, never drained, does not.
+     * decision raw-goo-items-work-bare-handed-for-the-held-type
+     *
+     * @param oldStack    the stack the hand held
+     * @param newStack    the stack the hand holds now
+     * @param slotChanged whether the selected slot changed
+     * @return true where the equip animation replays
+     */
+    @Override
+    public boolean shouldCauseReequipAnimation(@NonNull ItemStack oldStack, @NonNull ItemStack newStack,
+            boolean slotChanged) {
+        return slotChanged || !(newStack.getItem() instanceof GooItem)
+                || GooStacks.keyOf(oldStack) != GooStacks.keyOf(newStack);
     }
 
     /**

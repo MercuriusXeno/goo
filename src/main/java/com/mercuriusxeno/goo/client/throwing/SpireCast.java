@@ -8,7 +8,7 @@ import com.mercuriusxeno.goo.ability.SpireGrowth;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.data.GooValues;
-import com.mercuriusxeno.goo.item.GooGloveItem;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.GooSpirePayload;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
@@ -55,7 +55,7 @@ public final class SpireCast {
      * @return true for a Spire selection
      */
     public static boolean selected(LocalPlayer player) {
-        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        GloveSelection selection = GooCasters.heldSelection(player);
         ClientAbility ability = selection == null ? null : AbilitySyncHandler.findAbility(selection.abilityId());
         return ability != null && ability.tags().contains(AbilityTags.FOOTPRINT);
     }
@@ -68,7 +68,7 @@ public final class SpireCast {
      * @param hand   the hand holding the glove
      */
     public static void press(LocalPlayer player, InteractionHand hand) {
-        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        GloveSelection selection = GooCasters.heldSelection(player);
         if (selection == null || selection.getGooType() == null) {
             return;
         }
@@ -106,8 +106,8 @@ public final class SpireCast {
     }
 
     private static boolean stillCasting(LocalPlayer player) {
-        GloveSelection selection = GloveThrowSender.heldSelection(player);
-        return player.getItemInHand(castHand).getItem() instanceof GooGloveItem && selection != null
+        GloveSelection selection = GooCasters.heldSelection(player);
+        return GooCasters.casterHand(player) == castHand && selection != null
                 && selection.abilityId().equals(castAbility);
     }
 
@@ -140,7 +140,7 @@ public final class SpireCast {
      *         or nothing it covers grows
      */
     public static Optional<SpireGrowth> plannedGrowth(LocalPlayer player) {
-        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        GloveSelection selection = GooCasters.heldSelection(player);
         Optional<SpireFootprint> footprint = CAST.footprint();
         if (selection == null || selection.getGooType() == null || footprint.isEmpty()) {
             return Optional.empty();

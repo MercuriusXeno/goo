@@ -5,12 +5,10 @@ import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.crystal.KnifeRain;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
-import com.mercuriusxeno.goo.item.GooGloveItem;
-import com.mercuriusxeno.goo.network.KnifeRainSling;
+import com.mercuriusxeno.goo.item.GooCasters;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.Optional;
@@ -66,7 +64,7 @@ public final class BlobRest {
      */
     public static Vec3 of(int casterId, Vec3 sentGlove, float partialTick) {
         return viewOf(casterId, partialTick).map(view -> inView(view.eye(), view.xRot(), view.yRot(),
-                KnifeRainSling.gloveOnTheRight(view.caster()), selectsCentered(view.caster()))).orElse(sentGlove);
+                GooCasters.casterOnTheRight(view.caster()), selectsCentered(view.caster()))).orElse(sentGlove);
     }
 
     /**
@@ -82,7 +80,7 @@ public final class BlobRest {
      */
     public static Vec3 floatingOf(int casterId, Vec3 sentGlove, float partialTick, float across) {
         return viewOf(casterId, partialTick).map(view -> KnifeRain.floatPoint(view.eye(), view.yRot(),
-                Vec3.directionFromRotation(view.xRot(), view.yRot()), KnifeRainSling.gloveOnTheRight(view.caster()),
+                Vec3.directionFromRotation(view.xRot(), view.yRot()), GooCasters.casterOnTheRight(view.caster()),
                 across)).orElse(sentGlove);
     }
 
@@ -112,7 +110,7 @@ public final class BlobRest {
     }
 
     /**
-     * Whether the ability a caster's glove selects is tagged centered.
+     * Whether the ability a caster selects is tagged centered.
      *
      * @param caster the caster
      * @return true for a centered selection, false with none or no synced copy
@@ -123,15 +121,15 @@ public final class BlobRest {
     }
 
     /**
-     * The synced copy of the ability a caster's glove selects.
+     * The synced copy of the ability a caster's glove, or raw goo held bare
+     * handed, selects.
+     * decision raw-goo-items-work-bare-handed-for-the-held-type
      *
      * @param caster the caster
-     * @return the ability, or null with no glove, no selection or no synced copy
+     * @return the ability, or null with no caster, no selection or no synced copy
      */
     static @Nullable ClientAbility selectedAbility(Player caster) {
-        ItemStack main = caster.getMainHandItem();
-        ItemStack glove = main.getItem() instanceof GooGloveItem ? main : caster.getOffhandItem();
-        GloveSelection selection = glove.getItem() instanceof GooGloveItem ? GooGloveItem.getSelection(glove) : null;
+        GloveSelection selection = GooCasters.heldSelection(caster);
         return selection == null ? null : AbilitySyncHandler.findAbility(selection.abilityId());
     }
 }
