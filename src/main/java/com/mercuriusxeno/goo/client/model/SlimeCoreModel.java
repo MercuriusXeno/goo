@@ -113,42 +113,52 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core,
     public void collectParts(BlockAndTintGetter level, BlockPos pos, BlockState state, RandomSource random,
                              List<BlockStateModelPart> parts) {
         LayersAround around = layersAround(level, pos, state);
-        List<BakedQuad> drawn = new ArrayList<>();
-        Map<Direction, List<BakedQuad>> rims = new EnumMap<>(Direction.class);
+        Slabs slabs = new Slabs(new ArrayList<>(), new EnumMap<>(Direction.class), new ArrayList<>());
         SlimeTop floor = SlimeTop.of(around);
         if (around.floorShareAt(0, 0, 0) > 0) {
             // goo-block-top-slopes-to-the-average-with-the-adjoining-block
-            addSlab(floor, drawn, rims);
+            addSlab(floor, slabs);
         }
         if (VolumeCellBlock.attachedSidesOf(state) == 0) {
             collectDrips(new Placement(level, pos, state, random), floor, parts);
-            List<BakedQuad> inside = SlimeCoreQuads.quadsOf(around, core);
-            if (!inside.isEmpty()) {
-                parts.add(new CorePart(inside, shell.particleMaterial(level, pos, state)));
-            }
         } else {
             // attached-goo-draws-per-attachment-and-divides-its-volume: each surface draws its share as a slab
             sharesOf(level, pos, state).sides().keySet()
-                    .forEach(surface -> addSlab(SlimeTop.onSurface(around, surface), drawn, rims));
+                    .forEach(surface -> addSlab(SlimeTop.onSurface(around, surface), slabs));
         }
-        drawn.addAll(SlimeFilmQuads.streaksOf(sidesHolding(state, SideCoat.RUNNY), film));
-        if (!drawn.isEmpty() || !rims.isEmpty()) {
-            parts.add(new ShellPart(drawn, rims, shell.particleMaterial(level, pos, state)));
+        slabs.shell().addAll(SlimeFilmQuads.streaksOf(sidesHolding(state, SideCoat.RUNNY), film));
+        if (!slabs.core().isEmpty()) {
+            parts.add(new CorePart(slabs.core(), shell.particleMaterial(level, pos, state)));
+        }
+        if (!slabs.shell().isEmpty() || !slabs.rims().isEmpty()) {
+            parts.add(new ShellPart(slabs.shell(), slabs.rims(), shell.particleMaterial(level, pos, state)));
         }
     }
 
     /**
-     * Adds one sloped slab's patches and rims to what the shell draws.
+     * What a block's slabs draw, gathered slab by slab.
+     *
+     * @param shell the shell's quads drawn whatever the neighbours
+     * @param rims  the shell's rims under each side
+     * @param core  the cores' quads
+     */
+    private record Slabs(List<BakedQuad> shell, Map<Direction, List<BakedQuad>> rims, List<BakedQuad> core) {
+    }
+
+    /**
+     * Adds one sloped slab's patches, rims and joins to what the shell
+     * draws, and the slab's core to the cores.
      *
      * @param slab  the slab's heights
-     * @param drawn the quads the shell draws whatever its neighbours
-     * @param rims  the rims the shell draws under each side
+     * @param slabs what the block's slabs draw
      */
-    private void addSlab(SlimeTop slab, List<BakedQuad> drawn, Map<Direction, List<BakedQuad>> rims) {
-        drawn.addAll(SlimeTopQuads.topOf(slab, film));
-        drawn.addAll(SlimeTopQuads.joinsOf(slab, film));
+    private void addSlab(SlimeTop slab, Slabs slabs) {
+        slabs.shell().addAll(SlimeTopQuads.topOf(slab, film));
+        slabs.shell().addAll(SlimeTopQuads.joinsOf(slab, film));
         SlimeTopQuads.rimsOf(slab, film).forEach((side, quads) ->
-                rims.computeIfAbsent(side, any -> new ArrayList<>()).addAll(quads));
+                slabs.rims().computeIfAbsent(side, any -> new ArrayList<>()).addAll(quads));
+        // operator UAT 2026-11-17: goo on a wall or under a ceiling holds a slime core as goo on a floor does
+        slabs.core().addAll(SlimeCoreQuads.quadsOf(slab, core));
     }
 
     /**

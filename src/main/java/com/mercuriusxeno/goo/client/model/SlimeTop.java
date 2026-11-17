@@ -41,14 +41,16 @@ public final class SlimeTop {
     private final Set<Direction> rims;
     private final Set<Direction> joins;
     private final boolean covered;
+    private final Column column;
 
-    private SlimeTop(LayersAround around, Plane plane, double[] heights, Edges edges, boolean covered) {
+    private SlimeTop(LayersAround around, Plane plane, double[] heights, Edges edges, Column column) {
         this.around = around;
         this.plane = plane;
         this.heights = heights;
         this.rims = edges.rims();
         this.joins = edges.joins();
-        this.covered = covered;
+        this.covered = column.covered();
+        this.column = column;
     }
 
     /**
@@ -95,10 +97,35 @@ public final class SlimeTop {
                         stepAt(b)));
             }
         }
-        if (covered) {
-            fillUnder(of(around.shiftedBy(0, 1, 0)), heights);
+        return new SlimeTop(around, plane, heights, edgesOf(around, plane, column),
+                columnOf(around, heights, column, covered));
+    }
+
+    /**
+     * Where a block stands in its column, the pile's surface over it read
+     * from the column's base: its own heights for a block on no goo, the
+     * full block's depth more for a column's top, and the surface the block
+     * above draws for a full block under goo, whose own heights then become
+     * that surface's.
+     * stacked-goo-cells-share-one-slime-core
+     *
+     * @param around  the cells around the block
+     * @param heights the block's heights, replaced for a full block under goo
+     * @param column  whether the block stands on a full block of its goo
+     * @param covered whether goo of its type stands on it
+     * @return where it stands in the column
+     */
+    private static Column columnOf(LayersAround around, double[] heights, boolean column, boolean covered) {
+        int base = column ? FULL : 0;
+        double[] surface = new double[heights.length];
+        SlimeTop above = covered ? of(around.shiftedBy(0, 1, 0)) : null;
+        if (above != null) {
+            fillUnder(above, heights);
         }
-        return new SlimeTop(around, plane, heights, edgesOf(around, plane, column), covered);
+        for (int at = 0; at < heights.length; at++) {
+            surface[at] = (above != null ? above.column.surface()[at] : heights[at]) + base;
+        }
+        return new Column(covered, base, surface);
     }
 
     /**
@@ -162,6 +189,36 @@ public final class SlimeTop {
         double low = heightAt(i, j) + (heightAt(i + 1, j) - heightAt(i, j)) * across;
         double high = heightAt(i, j + 1) + (heightAt(i + 1, j + 1) - heightAt(i, j + 1)) * across;
         return low + (high - low) * down;
+    }
+
+    /**
+     * The pile's surface over a point, measured from the base of the column
+     * the block stands in, its own floor for a block on no goo: a column's
+     * blocks read one surface, so its core runs through them unbroken.
+     * stacked-goo-cells-share-one-slime-core
+     *
+     * @param a model pixels along the surface's first axis from its low end
+     * @param b model pixels along its second axis
+     * @return the surface there, in layers above the column's base
+     */
+    public double surfaceAtPixel(float a, float b) {
+        int i = segmentOf(a);
+        int j = segmentOf(b);
+        double[] surface = column.surface();
+        double across = (a - GRID[i]) / (GRID[i + 1] - GRID[i]);
+        double down = (b - GRID[j]) / (GRID[j + 1] - GRID[j]);
+        double low = surface[i * GRID.length + j]
+                + (surface[(i + 1) * GRID.length + j] - surface[i * GRID.length + j]) * across;
+        double high = surface[i * GRID.length + j + 1]
+                + (surface[(i + 1) * GRID.length + j + 1] - surface[i * GRID.length + j + 1]) * across;
+        return low + (high - low) * down;
+    }
+
+    /**
+     * @return the layers between the column's base and this block's own floor, 0 for a block on no goo
+     */
+    public int base() {
+        return column.base();
     }
 
     /**
@@ -453,6 +510,16 @@ public final class SlimeTop {
                 case Z -> pixels.z();
             };
         }
+    }
+
+    /**
+     * Where a block stands in a column of its goo.
+     *
+     * @param covered whether goo of its type stands on it, the column going on up
+     * @param base    the layers between the column's base and the block's floor
+     * @param surface the pile's surface over each grid point, in layers above the column's base
+     */
+    private record Column(boolean covered, int base, double[] surface) {
     }
 
     /**

@@ -11,6 +11,7 @@ import net.minecraft.core.Direction;
 import net.neoforged.neoforge.client.model.ExtraFaceData;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -60,8 +61,8 @@ public final class SlimeCoreQuads {
     private static final float CORE_FLOOR = (1 - CORE_SHARE) / 2;
     /** The core's margin in from each side no goo continues past, in model pixels: 2 px of a block's 16. */
     private static final float SIDE_MARGIN = WHOLE * CORE_FLOOR;
-    /** The offset to the cell below. */
-    private static final int BELOW = -1;
+    /** Model pixels in one layer. */
+    private static final float PIXELS_PER_LAYER = WHOLE / VolumeCellBlock.MAX_LAYERS;
     /** The least room a corner holds a core in, in blocks, against rounding. */
     private static final float ROOM_SLACK = 1e-4f;
 
@@ -69,7 +70,7 @@ public final class SlimeCoreQuads {
     }
 
     /**
-     * The quads a cell's core draws as.
+     * The quads a cell's floor slab's core draws as.
      *
      * @param around   the layers the cells of the goo hold around the cell
      * @param material the core's material: the goo type's fluid sprite, on the translucent layer
@@ -79,50 +80,62 @@ public final class SlimeCoreQuads {
         if (around.layersAt(0, 0, 0) == 0) {
             return List.of();
         }
-        boolean column = around.layersAt(0, BELOW, 0) == VolumeCellBlock.MAX_LAYERS;
-        return new CoreShape(SlimeTop.of(around), column).quadsOf(material);
+        return quadsOf(SlimeTop.of(around), material);
     }
 
     /**
-     * The core's plan cut into patches at the shell's splits, each patch
-     * held where the shell over all four of its corners holds goo.
+     * The quads one slab's core draws as, the floor's, a wall's or the
+     * ceiling's alike: the slab's body at the slime's 3/4, centred in it.
+     *
+     * @param slab     the slab's heights
+     * @param material the core's material
+     * @return the core's faces
+     */
+    public static List<BakedQuad> quadsOf(SlimeTop slab, BakedQuad.MaterialInfo material) {
+        return new CoreShape(slab).quadsOf(material);
+    }
+
+    /**
+     * A slab's core's plan cut into patches at the shell's splits, each
+     * patch held where the slab over all four of its corners holds room for
+     * the core. Distances are in model pixels: along the slab's plane by its
+     * two axes, and out from its surface.
      */
     private static final class CoreShape {
 
-        private final SlimeTop top;
-        private final boolean column;
-        private final float[] xs;
-        private final float[] zs;
+        private final SlimeTop slab;
+        private final SlimeTop.Plane plane;
+        private final float[] firsts;
+        private final float[] seconds;
         private final boolean[][] held;
 
         /**
-         * @param top    the shell's top over the core
-         * @param column whether the block stands on a full block of its goo, its core running on down
+         * @param slab the slab the core stands in
          */
-        CoreShape(SlimeTop top, boolean column) {
-            this.top = top;
-            this.column = column;
-            this.xs = cutsWithin(inset(Direction.WEST), WHOLE - inset(Direction.EAST));
-            this.zs = cutsWithin(inset(Direction.NORTH), WHOLE - inset(Direction.SOUTH));
-            this.held = new boolean[xs.length - 1][zs.length - 1];
-            for (int x = 0; x < held.length; x++) {
-                for (int z = 0; z < held[x].length; z++) {
-                    held[x][z] = roomAt(xs[x], zs[z]) && roomAt(xs[x + 1], zs[z]) && roomAt(xs[x], zs[z + 1])
-                            && roomAt(xs[x + 1], zs[z + 1]);
+        CoreShape(SlimeTop slab) {
+            this.slab = slab;
+            this.plane = slab.plane();
+            this.firsts = cutsWithin(inset(plane.first().getOpposite()), WHOLE - inset(plane.first()));
+            this.seconds = cutsWithin(inset(plane.second().getOpposite()), WHOLE - inset(plane.second()));
+            this.held = new boolean[firsts.length - 1][seconds.length - 1];
+            for (int a = 0; a < held.length; a++) {
+                for (int b = 0; b < held[a].length; b++) {
+                    held[a][b] = roomAt(firsts[a], seconds[b]) && roomAt(firsts[a + 1], seconds[b])
+                            && roomAt(firsts[a], seconds[b + 1]) && roomAt(firsts[a + 1], seconds[b + 1]);
                 }
             }
         }
 
         /**
          * @param material the core's material
-         * @return each held patch's top and floor, and a side wherever the core ends
+         * @return each held patch's faces, and a side wherever the core ends
          */
         List<BakedQuad> quadsOf(BakedQuad.MaterialInfo material) {
             List<BakedQuad> quads = new ArrayList<>();
-            for (int x = 0; x < held.length; x++) {
-                for (int z = 0; z < held[x].length; z++) {
-                    if (held[x][z]) {
-                        quads.addAll(patchOf(x, z, material));
+            for (int a = 0; a < held.length; a++) {
+                for (int b = 0; b < held[a].length; b++) {
+                    if (held[a][b]) {
+                        quads.addAll(patchOf(a, b, material));
                     }
                 }
             }
@@ -130,141 +143,174 @@ public final class SlimeCoreQuads {
         }
 
         /**
-         * One held patch's faces: its top unless goo of its type covers the
-         * block, its floor unless it stands on a full block of its goo, and its
-         * sides where the core ends.
+         * One held patch's faces: its outer face, save where the column runs
+         * on up through it, its face toward the surface, save in a block on a
+         * full block of its goo, whose core runs on down, and its sides where
+         * the core ends.
          *
-         * @param x        the patch's index west to east
-         * @param z        its index north to south
+         * @param a        the patch's index along the plane's first axis
+         * @param b        its index along the second
          * @param material the core's material
          * @return the patch's faces
          */
-        private List<BakedQuad> patchOf(int x, int z, BakedQuad.MaterialInfo material) {
+        private List<BakedQuad> patchOf(int a, int b, BakedQuad.MaterialInfo material) {
             List<BakedQuad> quads = new ArrayList<>();
-            if (!top.covered()) {
-                quads.add(spanned(faceOf(new Vector3f(xs[x], WHOLE, zs[z]), new Vector3f(xs[x + 1], WHOLE,
-                        zs[z + 1]), Direction.UP, material)));
+            if (!slab.covered() || !atTheTop(a, b)) {
+                quads.add(spanned(face(a, b, WHOLE, plane.surface().getOpposite(), material)));
             }
-            if (!column) {
-                quads.add(spanned(faceOf(new Vector3f(xs[x], 0, zs[z]), new Vector3f(xs[x + 1], 0, zs[z + 1]),
-                        Direction.DOWN, material)));
+            if (slab.base() == 0) {
+                quads.add(spanned(face(a, b, 0, plane.surface(), material)));
             }
-            quads.addAll(wallsOf(x, z, material));
+            for (Direction edge : edges()) {
+                if (endsAcross(a, b, edge)) {
+                    quads.add(spanned(sideOf(a, b, edge, material)));
+                }
+            }
             return quads;
         }
 
         /**
-         * A held patch's sides on each edge where the core ends.
+         * A patch's face parallel to the slab's surface, baked flat at a distance out from it.
          *
-         * @param x        the patch's index west to east
-         * @param z        its index north to south
+         * @param a        the patch's index along the first axis
+         * @param b        its index along the second
+         * @param out      the distance out, in model pixels
+         * @param facing   the side the face draws as
          * @param material the core's material
-         * @return the patch's sides
+         * @return the face
          */
-        private List<BakedQuad> wallsOf(int x, int z, BakedQuad.MaterialInfo material) {
-            List<BakedQuad> walls = new ArrayList<>();
-            for (Direction side : Direction.Plane.HORIZONTAL) {
-                if (endsAcross(x, z, side)) {
-                    walls.add(spanned(sideOf(x, z, side, material)));
-                }
+        private BakedQuad face(int a, int b, float out, Direction facing, BakedQuad.MaterialInfo material) {
+            Vector3f from = SlimeTopQuads.pointOn(plane, firsts[a], seconds[b], out);
+            Vector3f to = SlimeTopQuads.pointOn(plane, firsts[a + 1], seconds[b + 1], out);
+            return SlimeTopQuads.faceOf(SlimeTopQuads.lowCorner(from, to), SlimeTopQuads.highCorner(from, to),
+                    facing, material);
+        }
+
+        /**
+         * A patch's side on one edge, baked flat from the surface to a block out from it.
+         *
+         * @param a        the patch's index along the first axis
+         * @param b        its index along the second
+         * @param edge     the edge, in the slab's plane
+         * @param material the core's material
+         * @return the side
+         */
+        private BakedQuad sideOf(int a, int b, Direction edge, BakedQuad.MaterialInfo material) {
+            boolean acrossFirst = edge.getAxis() == plane.first().getAxis();
+            float[] alongFirst = spanOf(firsts, a, acrossFirst ? edge : null);
+            float[] alongSecond = spanOf(seconds, b, acrossFirst ? null : edge);
+            Vector3f from = SlimeTopQuads.pointOn(plane, alongFirst[0], alongSecond[0], 0);
+            Vector3f to = SlimeTopQuads.pointOn(plane, alongFirst[1], alongSecond[1], WHOLE);
+            return SlimeTopQuads.faceOf(SlimeTopQuads.lowCorner(from, to), SlimeTopQuads.highCorner(from, to), edge,
+                    material);
+        }
+
+        /**
+         * A patch's span along one axis, or the one cut its edge stands at.
+         *
+         * @param cuts  the cuts along the axis
+         * @param index the patch's index along it
+         * @param edge  the edge across this axis, or null for the whole span
+         * @return the span's low and high bounds, one cut twice for an edge
+         */
+        private static float[] spanOf(float[] cuts, int index, @Nullable Direction edge) {
+            if (edge == null) {
+                return new float[] {cuts[index], cuts[index + 1]};
             }
-            return walls;
+            float at = cuts[edge.getAxisDirection() == Direction.AxisDirection.POSITIVE ? index + 1 : index];
+            return new float[] {at, at};
+        }
+
+        private BakedQuad spanned(BakedQuad flat) {
+            return SlimeTopQuads.spannedOn(flat, plane, this::floorAt, this::topAt);
+        }
+
+        private List<Direction> edges() {
+            return List.of(plane.first(), plane.first().getOpposite(), plane.second(), plane.second().getOpposite());
         }
 
         /**
          * Whether the core ends across one edge of a patch: the patch beside
          * it holds no core, or the edge is the core's own bound on a side no
-         * goo continues past.
+         * slab of its goo continues past.
          *
-         * @param x    the patch's index west to east
-         * @param z    its index north to south
-         * @param side the edge
+         * @param a    the patch's index along the first axis
+         * @param b    its index along the second
+         * @param edge the edge
          * @return true where the patch draws a side there
          */
-        private boolean endsAcross(int x, int z, Direction side) {
-            int besideX = x + side.getStepX();
-            int besideZ = z + side.getStepZ();
-            if (besideX < 0 || besideZ < 0 || besideX >= held.length || besideZ >= held[0].length) {
-                return top.rims().contains(side);
-            }
-            return !held[besideX][besideZ];
+        private boolean endsAcross(int a, int b, Direction edge) {
+            boolean acrossFirst = edge.getAxis() == plane.first().getAxis();
+            int step = edge.getAxisDirection().getStep();
+            int besideA = acrossFirst ? a + step : a;
+            int besideB = acrossFirst ? b : b + step;
+            return inPlan(besideA, besideB) ? !held[besideA][besideB] : opensAt(edge);
+        }
+
+        private boolean inPlan(int a, int b) {
+            return a >= 0 && b >= 0 && a < held.length && b < held[0].length;
         }
 
         /**
-         * A patch's side on one edge, baked flat over the block's height.
+         * Whether all four corners of a patch stand at the core's whole-block
+         * top, inside a column that runs on up past it.
          *
-         * @param x        the patch's index west to east
-         * @param z        its index north to south
-         * @param side     the edge
-         * @param material the core's material
-         * @return the side, its lower vertices to stand on the core's floor and its upper on its top
+         * @param a the patch's index along the first axis
+         * @param b its index along the second
+         * @return true where the patch's outer face lies inside the column's core
          */
-        private BakedQuad sideOf(int x, int z, Direction side, BakedQuad.MaterialInfo material) {
-            float west = side == Direction.EAST ? xs[x + 1] : xs[x];
-            float east = side == Direction.WEST ? xs[x] : xs[x + 1];
-            float north = side == Direction.SOUTH ? zs[z + 1] : zs[z];
-            float south = side == Direction.NORTH ? zs[z] : zs[z + 1];
-            return faceOf(new Vector3f(west, 0, north), new Vector3f(east, WHOLE, south), side, material);
+        private boolean atTheTop(int a, int b) {
+            return topAt(firsts[a], seconds[b]) >= WHOLE - ROOM_SLACK
+                    && topAt(firsts[a + 1], seconds[b]) >= WHOLE - ROOM_SLACK
+                    && topAt(firsts[a], seconds[b + 1]) >= WHOLE - ROOM_SLACK
+                    && topAt(firsts[a + 1], seconds[b + 1]) >= WHOLE - ROOM_SLACK;
         }
 
         /**
-         * A face baked flat between the block's floor and top, its vertices
-         * moved onto the core: those at the floor to its floor, those at the
-         * top to its top.
+         * The core's outer face at a point: 7/8 of the pile's surface over
+         * it, measured from the column's base, a whole block at the most.
          *
-         * @param flat the face baked flat
-         * @return the face standing on the core
+         * @param first  model pixels along the first axis
+         * @param second model pixels along the second
+         * @return the distance out from the slab's surface, in model pixels
          */
-        private BakedQuad spanned(BakedQuad flat) {
-            return SlimeTopQuads.spanned(flat, this::floorAt, this::topAt);
+        private float topAt(float first, float second) {
+            float surface = (float) slab.surfaceAtPixel(first, second);
+            return Math.min(WHOLE, (surface * CORE_TOP - slab.base()) * PIXELS_PER_LAYER);
         }
 
         /**
-         * The core's top at a point: 7/8 of the shell's height there, the
-         * whole block where goo of its type covers it and the column's surface
-         * stands over the block, so the column's core runs on up.
+         * The core's face toward the surface at a point: 1/8 of the pile's
+         * surface over it, measured from the column's base, none under the
+         * block's own floor.
          *
-         * @param x model pixels east of the block's west side
-         * @param z model pixels south of its north side
-         * @return the top, in blocks above the block's floor
+         * @param first  model pixels along the first axis
+         * @param second model pixels along the second
+         * @return the distance out from the slab's surface, in model pixels
          */
-        private float topAt(float x, float z) {
-            float shell = shellAt(x, z);
-            // stacked-goo-cells-share-one-slime-core: where the column runs on up its core does too
-            return top.covered() && shell >= 1 - ROOM_SLACK ? 1 : shell * CORE_TOP;
+        private float floorAt(float first, float second) {
+            float surface = (float) slab.surfaceAtPixel(first, second);
+            return Math.max(0, (surface * CORE_FLOOR - slab.base()) * PIXELS_PER_LAYER);
+        }
+
+        private boolean roomAt(float first, float second) {
+            return topAt(first, second) - floorAt(first, second) > ROOM_SLACK;
         }
 
         /**
-         * The core's floor at a point: 1/8 of the shell's height there, the
-         * block's own floor where the column runs on down.
-         *
-         * @param x model pixels east of the block's west side
-         * @param z model pixels south of its north side
-         * @return the floor, in blocks above the block's floor
+         * @param edge an edge of the slab
+         * @return true where no slab of its goo continues past it on its surface
          */
-        private float floorAt(float x, float z) {
-            return column ? 0 : shellAt(x, z) * CORE_FLOOR;
+        private boolean opensAt(Direction edge) {
+            return slab.rims().contains(edge) || slab.joins().contains(edge);
         }
 
         /**
-         * @param x model pixels east of the block's west side
-         * @param z model pixels south of its north side
-         * @return the shell's height there, in blocks
+         * @param edge an edge of the slab
+         * @return how far in the core stands from it: its margin where it opens, else none
          */
-        private float shellAt(float x, float z) {
-            return (float) top.heightAtPixel(x, z) / VolumeCellBlock.MAX_LAYERS;
-        }
-
-        private boolean roomAt(float x, float z) {
-            return topAt(x, z) - floorAt(x, z) > ROOM_SLACK;
-        }
-
-        /**
-         * @param side a side of the block
-         * @return how far in the core stands from it: its margin where no goo continues past, else none
-         */
-        private float inset(Direction side) {
-            return top.rims().contains(side) ? SIDE_MARGIN : 0;
+        private float inset(Direction edge) {
+            return opensAt(edge) ? SIDE_MARGIN : 0;
         }
     }
 
