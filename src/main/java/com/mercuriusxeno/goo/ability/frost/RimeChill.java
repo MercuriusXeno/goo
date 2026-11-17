@@ -10,8 +10,9 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * A Rime cell's pass over its reach: the water and lava sources in it
- * freeze, water to Rime ice and lava to obsidian, nearest first, each
+ * A Rime cell's pass over its reach: the water and lava type sources in it
+ * freeze, water to Rime ice and each lava type to what the molten groups
+ * pair it with, nearest first, each
  * spending the layers Rime's step prices a freeze at, for as many as the
  * cell's layers pay for; what freezes stays frozen for good, kept by no
  * record, so nothing turns it back once the Rime is gone.
@@ -68,14 +69,14 @@ public final class RimeChill {
         List<BlockPos> sources = new ArrayList<>();
         for (BlockPos pos : BlockPos.betweenClosed(cell.offset(-reach, -reach, -reach),
                 cell.offset(reach, reach, reach))) {
-            if (RimeFreeze.of(level.getBlockState(pos)).flatMap(RimeFreeze::freeze).isPresent()) {
+            if (RimeFreeze.frozenForm(level.getBlockState(pos)).isPresent()) {
                 sources.add(pos.immutable());
             }
         }
         Paid paid = paidFor(cell, layers, rime.layersPerFreeze(), sources);
         for (BlockPos pos : paid.frozen()) {
-            RimeFreeze.of(level.getBlockState(pos)).flatMap(RimeFreeze::freeze)
-                    .ifPresent(frozen -> level.setBlock(pos, frozen.state(), Block.UPDATE_ALL));
+            RimeFreeze.frozenForm(level.getBlockState(pos))
+                    .ifPresent(frozen -> level.setBlock(pos, frozen, Block.UPDATE_ALL));
         }
         return paid.layersLeft();
     }
