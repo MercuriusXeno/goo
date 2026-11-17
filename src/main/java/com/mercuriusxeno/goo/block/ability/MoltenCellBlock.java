@@ -3,7 +3,11 @@ package com.mercuriusxeno.goo.block.ability;
 import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.ability.program.MoltenStep;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.InsideBlockEffectApplier;
@@ -21,12 +25,25 @@ import org.jspecify.annotations.NonNull;
  * each hit that lands takes a layer off the cell. A thing fire cannot hurt
  * takes no hit and costs no layer, and an item is never touched, so drops
  * and the items a cook rests survive. The hit names the player who placed
- * the cell.
+ * the cell. On the client it sizzles, spits a little fire and smokes, now
+ * and then.
  * molten-burns-mobs-as-hard-as-lava-and-a-hit-spends-a-layer
+ * molten-sizzles-spits-sparse-fire-particles-and-smokes
  * molten-deals-no-fire-damage-to-items
  * standing-goo-thing-credits-whoever-placed-it
  */
 public class MoltenCellBlock extends VolumeCellBlock {
+
+    /** How fast a spat flame rises, in blocks a tick. */
+    private static final double FLAME_RISE = 0.04;
+    /** How fast a smoke puff rises, in blocks a tick. */
+    private static final double SMOKE_RISE = 0.02;
+    /** The sizzle's volume, a soft hiss. */
+    private static final float SIZZLE_VOLUME = 0.2f;
+    /** The sizzle's lowest pitch, vanilla's fizz pitched up. */
+    private static final float SIZZLE_PITCH = 2.0f;
+    /** How far above its lowest pitch a sizzle may play. */
+    private static final float SIZZLE_PITCH_SPREAD = 0.6f;
 
     /**
      * Creates a Molten cell.
@@ -89,6 +106,29 @@ public class MoltenCellBlock extends VolumeCellBlock {
                     creditedPlayerAt(server, pos));
             if (living.hurtServer(server, fire, molten.damage())) {
                 spendALayer(server, pos);
+            }
+        });
+    }
+
+    /**
+     * Shows the cell's heat on the client: now and then a little flame, a
+     * puff of smoke or a sizzle from its top surface, as MoltenSizzle picks.
+     * The server sends nothing for it.
+     * molten-sizzles-spits-sparse-fire-particles-and-smokes
+     */
+    @Override
+    public void animateTick(@NonNull BlockState state, @NonNull Level level, @NonNull BlockPos pos,
+                            @NonNull RandomSource random) {
+        super.animateTick(state, level, pos, random);
+        MoltenSizzle.pick(random, state.getValue(LAYERS)).ifPresent(puff -> {
+            double x = pos.getX() + random.nextDouble();
+            double y = pos.getY() + puff.height();
+            double z = pos.getZ() + random.nextDouble();
+            switch (puff.emission()) {
+                case FLAME -> level.addParticle(ParticleTypes.SMALL_FLAME, x, y, z, 0, FLAME_RISE, 0);
+                case SMOKE -> level.addParticle(ParticleTypes.SMOKE, x, y, z, 0, SMOKE_RISE, 0);
+                case SIZZLE -> level.playLocalSound(x, y, z, SoundEvents.LAVA_EXTINGUISH, SoundSource.BLOCKS,
+                        SIZZLE_VOLUME, SIZZLE_PITCH + random.nextFloat() * SIZZLE_PITCH_SPREAD, false);
             }
         });
     }
