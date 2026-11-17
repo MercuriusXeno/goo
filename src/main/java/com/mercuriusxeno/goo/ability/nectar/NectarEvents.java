@@ -21,7 +21,8 @@ public final class NectarEvents {
     }
 
     /**
-     * Gives a living thing its gravity back the tick after it leaves a Nectar coated wall.
+     * Sticks a living thing touching Nectar goo taller than a step, and gives
+     * a living thing its gravity back the tick after it leaves Nectar on a wall.
      * operator UAT 2026-11-17: on Nectar you are temporarily Spider-Man; gravity is off while you are stuck
      *
      * @param event the entity tick event, after the entity's tick
@@ -29,6 +30,8 @@ public final class NectarEvents {
     @SubscribeEvent
     public static void onEntityTick(EntityTickEvent.Post event) {
         if (event.getEntity() instanceof LivingEntity living) {
+            // operator UAT 2026-11-17: touching the side of Nectar goo taller than a step counts as Nectar on a wall
+            NectarStick.stickToTallGoo(living.level(), living);
             NectarStick.unstickIfClear(living.level(), living);
         }
     }
