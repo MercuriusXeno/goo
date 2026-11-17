@@ -10,29 +10,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Knives' hold: a chime at each stage of knives formed, never past the
- * stages the charge names, the glove's palm blob swelling with the charge,
- * and the blob held afloat through the wind-up alone (decisions
- * knives-form-in-fibonacci-stages-to-twelve, charge-swells-the-palm-blob,
+ * Knives' hold: the glove's palm blob swelling with the charge, and the blob
+ * held afloat through the wind-up alone (decisions charge-swells-the-palm-blob,
  * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives).
  */
 class KnivesChargeTest {
 
     private static final Charge KNIVES = KnivesCharging.KNIVES;
     private static final float TOLERANCE = 1e-5f;
-
-    @Nested
-    class ChimeSteps {
-
-        @Test
-        void eachStageOfTwelveTicksChimesOnceUpToTheStagesTheChargeNames() {
-            assertEquals(0, KnivesCharge.stagesFormedAt(KNIVES, 11));
-            assertEquals(1, KnivesCharge.stagesFormedAt(KNIVES, 12));
-            assertEquals(4, KnivesCharge.stagesFormedAt(KNIVES, 59));
-            assertEquals(5, KnivesCharge.stagesFormedAt(KNIVES, 60));
-            assertEquals(5, KnivesCharge.stagesFormedAt(KNIVES, 600));
-        }
-    }
 
     @Nested
     class PalmBlobScale {

@@ -14,12 +14,12 @@ import java.util.function.IntPredicate;
 
 /**
  * Tells the server when the local player's Knives hold begins and ends, so
- * the server's stage clock forms the knives: a hold begins with the press's
+ * the server's clock forms the knives: a hold begins with the press's
  * first held tick and ends as right click comes up or the press drops. While
  * the hold stands, each mob the outline picks is painted, and letting go
  * clears the paint.
  * decision knives-form-on-right-click-and-throw-on-left-click
- * decision knives-form-in-fibonacci-stages-to-twelve
+ * decision knives-charge-one-per-three-ticks-up-to-ten
  * decision knives-paint-mobs-by-hovering-while-forming
  */
 public final class KnivesHoldSender {
@@ -33,7 +33,7 @@ public final class KnivesHoldSender {
     }
 
     /**
-     * Whether a player's glove selection forms knives in stages on a held press.
+     * Whether a player's glove selection forms knives on a held press.
      *
      * @param player the player
      * @return true for a held throw whose charge forms knives
@@ -46,7 +46,7 @@ public final class KnivesHoldSender {
     private static boolean formsKnives(GloveSelection selection) {
         Delivery delivery = GloveThrowSender.selectedDelivery(selection.abilityId());
         return HeldRoute.throwsOnAttack(delivery, GloveThrowSender.selectedBadge(selection.abilityId()))
-                && delivery.charge().formsInStages();
+                && delivery.charge().formsKnives();
     }
 
     /**

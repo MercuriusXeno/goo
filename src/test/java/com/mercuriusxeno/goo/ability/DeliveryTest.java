@@ -117,11 +117,11 @@ class DeliveryTest {
             assertEquals(60, delivery.chargeTicks());
         }
 
-        // knives-form-in-fibonacci-stages-to-twelve
+        // knives-charge-one-per-three-ticks-up-to-ten
         @Test
-        void crystalKnivesFormsItsKnivesInStages() {
+        void crystalKnivesFormsKnives() {
             Delivery knives = AbilityJson.decode("crystal_knives").delivery();
-            assertTrue(knives.charge().formsInStages());
+            assertTrue(knives.charge().formsKnives());
         }
 
         // knives-aims-a-spread-fan-not-a-blob-line

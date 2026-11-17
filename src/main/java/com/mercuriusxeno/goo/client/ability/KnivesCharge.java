@@ -26,13 +26,13 @@ import org.jspecify.annotations.Nullable;
  * Knives' hold, seen and heard while right click holds it: the glove's
  * blob hops off the palm as the hold begins and floats ahead of and above
  * the hand as it eases left across the chest, swelling as the hold grows,
- * with a chime climbing in pitch at each stage of knives formed and a ring
- * of resonance at the last. Letting go settles the blob back onto the palm.
+ * with a chime climbing in pitch at each knife formed and a ring of
+ * resonance at the last. Letting go settles the blob back onto the palm.
  * The glove press poses the arm, so the players watching see it wound up
  * with the blob afloat.
  * decision knives-sling-then-morph-to-flechettes
  * decision knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
- * decision knives-form-in-fibonacci-stages-to-twelve
+ * decision knives-charge-one-per-three-ticks-up-to-ten
  * decision charge-swells-the-palm-blob
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -60,23 +60,10 @@ public final class KnivesCharge {
     private static final float FULL_PITCH = 1.5f;
     private static final float RIGHT_ANGLE = 90f;
 
-    /** The stages the local hold has chimed, so a new one chimes. */
+    /** The knives the local hold has chimed, so a new one chimes. */
     private static int shownLocally;
 
     private KnivesCharge() {
-    }
-
-    /**
-     * The stages of knives a hold has formed some ticks in, never more than
-     * the charge names.
-     * decision knives-stage-takes-twelve-ticks-with-no-cooldown
-     *
-     * @param charge    the charge block
-     * @param heldTicks the ticks the hold has run
-     * @return the stages formed, 0 before the first
-     */
-    static int stagesFormedAt(Charge charge, int heldTicks) {
-        return charge.stageTicks() <= 0 ? 0 : Math.min(charge.stages(), heldTicks / charge.stageTicks());
     }
 
     /**
@@ -200,11 +187,11 @@ public final class KnivesCharge {
     private static void chime(ClientLevel level, LocalPlayer player, Charge charge, Delivery delivery,
                               int heldTicks) {
         float share = delivery.chargeShare(heldTicks);
-        int shown = stagesFormedAt(charge, heldTicks);
+        int shown = charge.knivesFormedAt(heldTicks);
         if (shown > shownLocally) {
             level.playLocalSound(player.getX(), player.getEyeY(), player.getZ(), SoundEvents.AMETHYST_BLOCK_CHIME,
                     SoundSource.PLAYERS, CHIME_VOLUME, CHIME_PITCH_LOW + share * CHIME_PITCH_SPAN, false);
-            if (shown >= charge.stages()) {
+            if (shown >= charge.knives()) {
                 level.playLocalSound(player.getX(), player.getEyeY(), player.getZ(),
                         SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.PLAYERS, FULL_VOLUME, FULL_PITCH, false);
             }
@@ -229,7 +216,7 @@ public final class KnivesCharge {
             return null;
         }
         Charge charge = GloveThrowSender.selectedDelivery(selection.abilityId()).charge();
-        return charge.formsInStages() ? charge : null;
+        return charge.formsKnives() ? charge : null;
     }
 
     private static float localChargeShare(Player local) {

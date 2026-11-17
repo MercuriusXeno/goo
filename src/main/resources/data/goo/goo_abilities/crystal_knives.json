@@ -8,7 +8,7 @@
   "requires": ["minecraft:amethyst_shard"],
   "delivery": {
     "kind": "arc",
-    "charge": { "max_ticks": 60, "stages": 5, "stage_ticks": 12 }
+    "charge": { "max_ticks": 30, "knives": 10, "knife_ticks": 3 }
   },
   "behaviors": [
     { "type": "damage", "amount": 2, "source": "attack", "knockback": false },

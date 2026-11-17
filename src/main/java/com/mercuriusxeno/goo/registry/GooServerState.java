@@ -80,7 +80,7 @@ public final class GooServerState {
 
     /**
      * Each player's Knives hold and the knives it has formed
-     * (decision knives-form-in-fibonacci-stages-to-twelve).
+     * (decision knives-charge-one-per-three-ticks-up-to-ten).
      *
      * @return the Knives holds
      */

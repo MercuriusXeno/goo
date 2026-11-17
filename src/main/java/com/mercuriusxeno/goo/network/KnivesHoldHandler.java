@@ -16,12 +16,12 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Server-side handler for a Knives hold beginning or ending: a hold begins
- * for a held glove naming a known ability whose charge forms knives in
- * stages, which the player may use and holds every reagent of, its reagents
+ * for a held glove naming a known ability whose charge forms knives,
+ * which the player may use and holds every reagent of, its reagents
  * taken once for the hold and its cost the price of each knife; letting go
  * ends it, throwing nothing, as logging out does.
  * decision knives-form-on-right-click-and-throw-on-left-click
- * decision knives-form-in-fibonacci-stages-to-twelve
+ * decision knives-charge-one-per-three-ticks-up-to-ten
  * decision knives-pay-per-knife-as-each-forms
  */
 @EventBusSubscriber(modid = Goo.MODID)
@@ -72,7 +72,7 @@ public final class KnivesHoldHandler {
      */
     private static void begin(ServerPlayer player, KnifeHolds holds, ResourceKey<GooTypeDefinition> gooType,
                               @Nullable AbilityDefinition ability) {
-        if (ability == null || !ability.delivery().charge().formsInStages()
+        if (ability == null || !ability.delivery().charge().formsKnives()
                 || !GooThrowHandler.holdsReagents(player, ability)) {
             return;
         }

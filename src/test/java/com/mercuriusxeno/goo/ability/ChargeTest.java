@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.ability;
 
+import com.google.gson.JsonParser;
+import com.mojang.serialization.JsonOps;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -8,10 +11,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Knives ships held, its charge forming knives in 5 stages of 12 ticks, and
- * only a charge naming stages forms knives (decisions
- * held-badge-marks-abilities-that-prepare-and-throw, knives-form-in-fibonacci-stages-to-twelve,
- * knives-stage-takes-twelve-ticks-with-no-cooldown); Blast's shipped charge
+ * A knife-forming charge forms one knife per the ticks its block names up to
+ * the knives it names, refilling at that rate after a throw, and Knives ships
+ * held at one knife per 3 ticks up to 10 (decisions
+ * held-badge-marks-abilities-that-prepare-and-throw, knives-charge-one-per-three-ticks-up-to-ten,
+ * knives-refill-from-the-stage-the-fan-rounds-up-to); Blast's shipped charge
  * opens at 2 blocks and gains a block every 12 ticks of hold up to 9
  * (decisions blast-charges-from-two-to-seven-blocks, blast-eases-between-stages-at-a-second-each).
  */
@@ -23,17 +27,49 @@ class ChargeTest {
     private final Charge knives = knivesAbility.delivery().charge();
     private final Charge blast = AbilityJson.decode("unstable_blast").delivery().charge();
 
-    @Test
-    void shippedKnivesWearsHeldAndFormsInFiveStagesOfTwelveTicks() {
-        assertEquals(AbilityBadge.HELD, knivesAbility.badge());
-        assertEquals(5, knives.stages());
-        assertEquals(12, knives.stageTicks());
+    private static Charge chargeOf(String block) {
+        return Charge.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(block)).getOrThrow();
+    }
+
+    @Nested
+    class KnivesRefillAtTheRateTheBlockNames {
+
+        private final Charge threeTicksToTen = chargeOf("{\"max_ticks\": 30, \"knives\": 10, \"knife_ticks\": 3}");
+        private final Charge fiveTicksToFour = chargeOf("{\"max_ticks\": 20, \"knives\": 4, \"knife_ticks\": 5}");
+
+        @Test
+        void sixHeldRefillToTenTwelveTicksLater() {
+            assertEquals(10, threeTicksToTen.knivesSinceThrow(6, 12));
+            assertEquals(9, threeTicksToTen.knivesSinceThrow(6, 11));
+        }
+
+        @Test
+        void aRefillHoldsAtTheCap() {
+            assertEquals(10, threeTicksToTen.knivesSinceThrow(6, 600));
+        }
+
+        @Test
+        void anotherBlockRefillsByItsOwnNumbers() {
+            assertEquals(1, fiveTicksToFour.knivesSinceThrow(1, 4));
+            assertEquals(3, fiveTicksToFour.knivesSinceThrow(1, 10));
+            assertEquals(4, fiveTicksToFour.knivesSinceThrow(1, 600));
+            assertEquals(2, fiveTicksToFour.knivesFormedAt(10));
+        }
     }
 
     @Test
-    void onlyAChargeNamingStagesFormsKnives() {
-        assertTrue(knives.formsInStages());
-        assertFalse(Charge.of(30).formsInStages());
+    void shippedKnivesWearsHeldAndFormsOnePerThreeTicksUpToTen() {
+        assertEquals(AbilityBadge.HELD, knivesAbility.badge());
+        assertEquals(0, knives.knivesFormedAt(2));
+        assertEquals(1, knives.knivesFormedAt(3));
+        assertEquals(10, knives.knivesFormedAt(30));
+        assertEquals(10, knives.knivesFormedAt(60));
+    }
+
+    @Test
+    void onlyAChargeNamingKnivesFormsKnives() {
+        assertTrue(knives.formsKnives());
+        assertFalse(Charge.of(30).formsKnives());
         assertEquals(Charge.NONE, Charge.of(0));
     }
 
