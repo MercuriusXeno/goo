@@ -125,13 +125,14 @@ class AbilityLoaderTest {
     }
 
     /**
-     * Molten ships its melts_into map: lava from the meltable stone tag, molten iron from iron core alone (decision
-     * molten-melts-by-a-meltable-group-and-its-parallel-melted-group).
+     * Molten ships its melts_into map: lava from obsidian and magma, molten iron from iron core alone (decisions
+     * molten-melts-by-a-meltable-group-and-its-parallel-melted-group,
+     * molten-melts-only-obsidian-magma-and-iron-core-one-layer-each).
      */
     @Test
-    void shippedMoltenMeltsStoneToLavaAndIronCoreToMoltenIron() {
+    void shippedMoltenMeltsObsidianAndMagmaToLavaAndIronCoreToMoltenIron() {
         AbilityDefinition molten = shippedById().get(Identifier.parse("goo:blaze_molten"));
-        assertEquals(Map.of(Identifier.parse("minecraft:lava"), List.of("#goo:meltable"),
+        assertEquals(Map.of(Identifier.parse("minecraft:lava"), List.of("minecraft:obsidian", "minecraft:magma_block"),
                         Identifier.parse("goo:molten_iron"), List.of("goo:iron_core")),
                 MoltenStep.in(molten.behaviors()).orElseThrow().meltsInto());
     }
