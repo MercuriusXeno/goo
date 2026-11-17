@@ -8,7 +8,6 @@ import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.core.BlockPos;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -102,13 +101,13 @@ public record RimeStep(int reach, int chillTicks, int layersPerFreeze, int freez
     }
 
     @Override
-    public Optional<BlockPos> cellFed(ChannelHost host, CoatRay.BlockStrike strike) {
+    public Optional<CellFed> cellFed(ChannelHost host, CoatRay.BlockStrike strike) {
         return CellLanding.cellFed(host, strike, GooBlocks.FROST_RIME.get());
     }
 
     @Override
-    public void feed(ChannelHost host, BlockPos cell) {
-        CellLanding.feed(host, cell, GooBlocks.FROST_RIME.get());
+    public void feed(ChannelHost host, CellFed fed) {
+        CellLanding.feed(host, fed, GooBlocks.FROST_RIME.get());
     }
 
     /**

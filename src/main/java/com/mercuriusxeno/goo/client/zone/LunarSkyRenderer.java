@@ -31,16 +31,28 @@ public final class LunarSkyRenderer implements CustomSkyboxRenderer {
             Matrix4fc modelViewMatrix, Runnable setupFog) {
         sea.renderSky(levelRenderState, skyRenderState, modelViewMatrix, setupFog);
         if (overworldStar == null) {
-            overworldStar = PocketStarSkyRenderer.buildQuads(LABEL, HALO_SCALES.length, builder -> {
-                LunarSky.OverworldStar star = LunarSky.OVERWORLD_STAR;
-                for (int halo = 0; halo < HALO_SCALES.length; halo++) {
-                    Vector3f color = new Vector3f(star.red(), star.green(), star.blue()).mul(HALO_STRENGTHS[halo]);
-                    PocketStarSkyRenderer.addFacingQuad(builder, star.direction(), star.halfSize() * HALO_SCALES[halo],
-                            halo * HALO_TURN, color);
-                }
-            });
+            overworldStar = buildOverworldStar(LABEL);
         }
         PocketStarSkyRenderer.drawQuads(GooRenderTypes.OVERWORLD_STAR, overworldStar, modelViewMatrix, LABEL);
         return true;
+    }
+
+    /**
+     * Builds the blue overworld star's core and halos at the sky's distance along its direction, as lunar's sky
+     * draws it; the Lunar trip home draws the same star swelling.
+     * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
+     *
+     * @param label the buffer's debug label
+     * @return the built quads
+     */
+    public static PocketStarSkyRenderer.SkyQuads buildOverworldStar(String label) {
+        return PocketStarSkyRenderer.buildQuads(label, HALO_SCALES.length, builder -> {
+            LunarSky.OverworldStar star = LunarSky.OVERWORLD_STAR;
+            for (int halo = 0; halo < HALO_SCALES.length; halo++) {
+                Vector3f color = new Vector3f(star.red(), star.green(), star.blue()).mul(HALO_STRENGTHS[halo]);
+                PocketStarSkyRenderer.addFacingQuad(builder, star.direction(), star.halfSize() * HALO_SCALES[halo],
+                        halo * HALO_TURN, color);
+            }
+        });
     }
 }

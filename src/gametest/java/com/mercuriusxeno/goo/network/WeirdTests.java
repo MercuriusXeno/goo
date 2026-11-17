@@ -115,14 +115,16 @@ public final class WeirdTests {
     private static final int FLOW_SETTLE_TICKS = 60;
     /** The layers the levelling cell starts at, even so it settles into two equal halves. */
     private static final int EIGHT_LAYERS = 8;
-    private static final int FOUR_LAYERS = 4;
+    /** The layers the ledge's cell starts at, so it pours five off and holds five over the open ledge. */
+    private static final int LEDGE_LAYERS = 10;
     /** The layers a whole block of slime holds. */
     private static final int WHOLE_BLOCK_LAYERS = 15;
     private static final String FULL_CELL_SETTLES = "a_full_slime_cell_settles_across_open_floor";
     /** Ticks watched past the settle, several pours' worth at any pace, for a cell that still changes. */
     private static final int SETTLED_WATCH_TICKS = 20;
-    private static final String NOT_SETTLED = "The cross of cells should stand within one layer of its middle"
-            + " and hold fifteen layers, holds %s, the middle first";
+    /** A full cell's cross at rest, the middle first: the middle holds Goop's step over each side. */
+    private static final List<Integer> FULL_CELL_AT_REST = List.of(7, 2, 2, 2, 2);
+    private static final String NOT_SETTLED = "The cross of cells should rest as %s, the middle first, holds %s";
     private static final String STILL_POURING = "A settled cross should change no cell, held %s, later %s";
     /** The slime cell the flow tests fill, on a stone top in the bay's floor row. */
     private static final BlockPos FLOW_CELL = new BlockPos(2, 1, 2);
@@ -142,6 +144,17 @@ public final class WeirdTests {
     private static final String PLACING_KEEPS_GOO = "placing_a_block_keeps_the_slimes_goo";
     private static final String PLACED_OVER_SLIME = "A block placed against a slime cell should leave it at %d layers"
             + " or drop %d mb of weird goo; the cell holds %s and %d mb dropped";
+
+    private static final String GOOP_MOUND_HOLDS_ITS_STEP = "goop_mound_holds_its_step_on_open_floor";
+    private static final String ONE_GOOP_LAYER_HOLDS = "one_goop_layer_holds_beside_a_drop";
+    /** The open floor's middle cell the mound tests raise, clear of the streamer's stand. */
+    private static final BlockPos MOUND_CELL = new BlockPos(3, 1, 3);
+    /** The drips landed on the mound's cell. */
+    private static final int MOUND_DRIPS = 10;
+    /** The mound at rest, its cell then north, east, south and west: the cell holds Goop's step over each side. */
+    private static final List<Integer> MOUND_AT_REST = List.of(6, 1, 1, 1, 1);
+    private static final String MOUND_WRONG = "Ten Goop drips on open floor should rest as %s, the middle first,"
+            + " rest as %s";
 
     private WeirdTests() {
     }
@@ -167,15 +180,19 @@ public final class WeirdTests {
         GooTestFunctions.registerTest(registrar, SLIME_POURS_OFF_A_LEDGE, WeirdTests::slimePoursOffALedge);
         GooTestFunctions.registerTest(registrar, DRIPS_DRAIN_A_LAYER_EACH, WeirdTests::goopDripsDrainALayersPriceEach);
         GooTestFunctions.registerTest(registrar, FULL_CELL_SETTLES, WeirdTests::aFullCellSettlesAcrossOpenFloor);
+        GooTestFunctions.registerTest(registrar, GOOP_MOUND_HOLDS_ITS_STEP, WeirdTests::goopMoundHoldsItsStepOnOpenFloor);
+        GooTestFunctions.registerTest(registrar, ONE_GOOP_LAYER_HOLDS, WeirdTests::oneGoopLayerHoldsBesideADrop);
     }
 
     /**
      * A full slime cell of fifteen layers, open floor on its four sides and
-     * stone walling that cross in, pours until each neighbour stands within
-     * one layer of it, the five cells holding the fifteen layers it held, and
-     * once settled a later tick changes no cell.
+     * stone walling that cross in, pours until it holds Goop's step of five
+     * over each neighbour, seven layers in the middle and two in each side,
+     * the five cells holding the fifteen layers it held, and once settled a
+     * later tick changes no cell.
      * slime-is-a-layered-cell-that-levels-out
      * spread-decreases-the-cell-it-leaves
+     * cohesion-is-the-step-the-goo-holds
      *
      * @param helper the gametest helper
      */
@@ -195,10 +212,7 @@ public final class WeirdTests {
         helper.runAfterDelay(FLOW_SETTLE_TICKS, () -> {
             List<Integer> settled = cross.stream().map(cell -> VolumeCellBlock.layersOf(helper.getBlockState(cell)))
                     .toList();
-            int middle = settled.getFirst();
-            helper.assertTrue(settled.stream().allMatch(layers -> Math.abs(layers - middle) <= 1)
-                    && settled.stream().mapToInt(Integer::intValue).sum() == WHOLE_BLOCK_LAYERS,
-                    String.format(NOT_SETTLED, settled));
+            helper.assertTrue(settled.equals(FULL_CELL_AT_REST), String.format(NOT_SETTLED, FULL_CELL_AT_REST, settled));
             helper.runAfterDelay(SETTLED_WATCH_TICKS, () -> {
                 List<Integer> later = cross.stream()
                         .map(cell -> VolumeCellBlock.layersOf(helper.getBlockState(cell))).toList();
@@ -235,6 +249,47 @@ public final class WeirdTests {
         helper.succeed();
     }
 
+    /**
+     * Ten Goop drips landed through the real landing on one cell of open
+     * stone floor come to rest as a mound holding Goop's step: six layers in
+     * the cell and one in each of its four side cells, since a side takes a
+     * pour only standing two layers plus Goop's cohesion of four below.
+     * cohesion-is-the-step-the-goo-holds
+     *
+     * @param helper the gametest helper
+     */
+    public static void goopMoundHoldsItsStepOnOpenFloor(GameTestHelper helper) {
+        OpenFloor.layAround(helper, MOUND_CELL);
+        ServerPlayer caster = goopStreamerAt(helper, 0);
+        LandedDrips.landOn(helper, caster, goop(helper), MOUND_CELL, MOUND_DRIPS);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        helper.runAfterDelay(FLOW_SETTLE_TICKS, () -> {
+            List<Integer> rest = OpenFloor.layersIn(helper, OpenFloor.crossAt(MOUND_CELL));
+            helper.assertTrue(rest.equals(MOUND_AT_REST), String.format(MOUND_WRONG, MOUND_AT_REST, rest));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * One Goop drip landed through the real landing on a pillar's top beside
+     * a drop keeps its layer there, since Goop's adhesion holds tops, and
+     * the foot of the drop stays open.
+     * adhesion-is-a-ladder-of-holds
+     *
+     * @param helper the gametest helper
+     */
+    public static void oneGoopLayerHoldsBesideADrop(GameTestHelper helper) {
+        LedgeDrop.lay(helper);
+        ServerPlayer caster = goopStreamerAt(helper, 0);
+        LandedDrips.landOn(helper, caster, goop(helper), LedgeDrop.ON_THE_PILLAR, 1);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        helper.runAfterDelay(FLOW_SETTLE_TICKS, () -> {
+            assertLayers(helper, LedgeDrop.ON_THE_PILLAR, 1);
+            helper.assertBlockPresent(Blocks.AIR, LedgeDrop.BELOW_THE_DROP);
+            helper.succeed();
+        });
+    }
+
     private static AbilityDefinition goop(GameTestHelper helper) {
         AbilityDefinition goop = AbilityRegistry.of(helper.getLevel()).getAbility(GOOP);
         helper.assertTrue(goop != null, ABILITY_REQUIRED);
@@ -243,8 +298,10 @@ public final class WeirdTests {
 
     /**
      * Eight layers of slime set beside an open stone top, the pair walled in
-     * on every other side, level out to four and four.
+     * on every other side, pour until the cell holds Goop's step of five over
+     * its neighbour: six and two.
      * slime-is-a-layered-cell-that-levels-out
+     * cohesion-is-the-step-the-goo-holds
      *
      * @param helper the gametest helper
      */
@@ -257,17 +314,19 @@ public final class WeirdTests {
         helper.setBlock(open, Blocks.AIR);
         helper.setBlock(FLOW_CELL, slimeOf(EIGHT_LAYERS));
         helper.runAfterDelay(FLOW_SETTLE_TICKS, () -> {
-            assertLayers(helper, FLOW_CELL, FOUR_LAYERS);
-            assertLayers(helper, open, FOUR_LAYERS);
+            assertLayers(helper, FLOW_CELL, EIGHT_LAYERS - 2);
+            assertLayers(helper, open, 2);
             helper.succeed();
         });
     }
 
     /**
-     * Four layers of slime on a stone pillar, open to the east over a drop
-     * of one block onto a walled stone top: the layers pour off the ledge
-     * onto that top, the pillar's cell keeping its last layer.
+     * Ten layers of slime on a stone pillar, open to the east over a drop of
+     * one block onto a walled stone top: the layers pour off the ledge onto
+     * that top until the pillar's cell holds Goop's step of five over the
+     * open ledge, five on the pillar and five below.
      * slime-is-a-layered-cell-that-levels-out
+     * cohesion-is-the-step-the-goo-holds
      *
      * @param helper the gametest helper
      */
@@ -278,10 +337,10 @@ public final class WeirdTests {
         stoneUnder(helper, BELOW_THE_LEDGE);
         wallSidesBut(helper, BELOW_THE_LEDGE, Direction.WEST);
         helper.setBlock(BELOW_THE_LEDGE, Blocks.AIR);
-        helper.setBlock(LEDGE_CELL, slimeOf(FOUR_LAYERS));
+        helper.setBlock(LEDGE_CELL, slimeOf(LEDGE_LAYERS));
         helper.runAfterDelay(FLOW_SETTLE_TICKS, () -> {
-            assertLayers(helper, LEDGE_CELL, 1);
-            assertLayers(helper, BELOW_THE_LEDGE, FOUR_LAYERS - 1);
+            assertLayers(helper, LEDGE_CELL, LEDGE_LAYERS / 2);
+            assertLayers(helper, BELOW_THE_LEDGE, LEDGE_LAYERS / 2);
             helper.succeed();
         });
     }
@@ -532,15 +591,21 @@ public final class WeirdTests {
 
     /**
      * A Goop hold aimed straight up at a bottom slab over the streamer's
-     * head, whose top holds no coat, so no cell the stream reaches can take
-     * one, lasting three sprays of the whole fan, drains no weird goo.
+     * head, clear of the bay's walls, lasting three sprays of the whole fan, over a floor of bottom
+     * slabs: its drips strike the slab's underside and drop, and no top they
+     * fall to holds a coat, so no cell takes one and the hold drains no weird goo.
      * goop-drains-per-cubic-meter-of-slime-placed
+     * drip-striking-a-ceiling-runs-down-a-wall-or-drops
      *
      * @param helper the gametest helper
      */
     public static void goopLayingNoLayerDrainsNoGoo(GameTestHelper helper) {
-        helper.setBlock(STREAMER_POS.above(OVERHEAD), Blocks.STONE_SLAB);
+        BlockPos stand = SlabFloor.CLEAR_STAND;
+        helper.setBlock(stand.above(OVERHEAD), Blocks.STONE_SLAB);
+        SlabFloor.layUnder(helper, stand);
         ServerPlayer streamer = goopStreamerAt(helper, STRAIGHT_UP);
+        Vec3 feet = Vec3.atBottomCenterOf(helper.absolutePos(stand));
+        streamer.setPos(feet.x, feet.y, feet.z);
         int before = weirdHeld(streamer);
         int held = SPRAY_HOLD_TICKS * 3;
         holdGoopFor(helper, streamer, held);

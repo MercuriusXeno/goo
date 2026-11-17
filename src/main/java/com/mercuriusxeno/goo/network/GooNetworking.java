@@ -82,6 +82,7 @@ public final class GooNetworking {
         r.playToClient(BlockTransformPayload.TYPE, BlockTransformPayload.STREAM_CODEC);
         r.playToClient(BlockExposurePayload.TYPE, BlockExposurePayload.STREAM_CODEC);
         r.playToClient(RedHotPayload.TYPE, RedHotPayload.STREAM_CODEC);
+        r.playToClient(FallingDripPayload.TYPE, FallingDripPayload.STREAM_CODEC);
         r.playToClient(AfterimagePayload.TYPE, AfterimagePayload.STREAM_CODEC);
         r.playToClient(ScanWavePayload.TYPE, ScanWavePayload.STREAM_CODEC);
         r.playToClient(TransformationPayload.TYPE, TransformationPayload.STREAM_CODEC);

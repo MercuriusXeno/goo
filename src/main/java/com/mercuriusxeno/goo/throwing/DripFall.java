@@ -17,4 +17,28 @@ public final class DripFall {
 
     private DripFall() {
     }
+
+    /**
+     * The ticks a drip falling from rest takes to drop a height, stepped as
+     * the falling drip particle steps, gravity then the move then the drag
+     * each tick, so a fall's server-side arrival and its drawn drip's landing
+     * share one tick.
+     * falling-layer-lands-when-its-drip-arrives
+     * goo-moving-downward-falls-as-drips
+     *
+     * @param height the height to drop, in blocks
+     * @return the ticks, at least one
+     */
+    public static int ticksToFall(double height) {
+        double velocity = 0;
+        double fallen = 0;
+        int ticks = 0;
+        do {
+            velocity -= GRAVITY;
+            fallen -= velocity;
+            velocity *= DRAG;
+            ticks++;
+        } while (fallen < height);
+        return ticks;
+    }
 }

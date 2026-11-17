@@ -18,7 +18,7 @@ class AbilityPoseTableTest {
 
     /** The ruled table: each shipped ability by file name and the pose it resolves to. */
     private static final Map<String, ArmPose> RULED = Map.ofEntries(
-            Map.entry("astral_gate", ArmPose.HELD_OUT),
+            Map.entry("astral_lunar", ArmPose.HELD_OUT),
             Map.entry("astral_meteo", ArmPose.RESTING),
             Map.entry("astral_scry", ArmPose.HELD_UP),
             Map.entry("blaze_flames", ArmPose.HELD_OUT),

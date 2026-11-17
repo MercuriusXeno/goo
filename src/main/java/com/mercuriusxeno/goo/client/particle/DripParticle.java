@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.particle;
 
 import com.mercuriusxeno.goo.client.GooRenderUtil;
+import com.mercuriusxeno.goo.lunar.LunarGravity;
 import com.mercuriusxeno.goo.throwing.DripFall;
 import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -8,6 +9,7 @@ import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.ParticleProvider;
 import net.minecraft.client.particle.SingleQuadParticle;
 import net.minecraft.client.renderer.state.level.QuadParticleRenderState;
+import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
@@ -58,6 +60,8 @@ public abstract class DripParticle extends SingleQuadParticle {
 
     private final Layer layer;
     private final GooRenderUtil.UvRect uv;
+    /** Whether the drip keeps its launch velocity, a wall run's steady pace. */
+    private boolean paced;
 
     /**
      * Creates a goo drip drawing the given look on the given layer.
@@ -72,7 +76,8 @@ public abstract class DripParticle extends SingleQuadParticle {
     private DripParticle(ClientLevel level, double x, double y, double z, DripLook look, Layer layer) {
         super(level, x, y, z, look.sprite());
         this.setSize(DRIP_SIZE, DRIP_SIZE);
-        this.gravity = DRIP_GRAVITY;
+        // decision lunar-gravity-is-one-sixth-of-the-overworlds: a drip falls under its level's gravity
+        this.gravity = DRIP_GRAVITY * (float) LunarGravity.scaleIn(level.dimension());
         this.layer = layer;
         this.uv = look.uv();
         this.rCol = ARGB.redFloat(look.rgb());
@@ -125,12 +130,23 @@ public abstract class DripParticle extends SingleQuadParticle {
         return false;
     }
 
+    /**
+     * Moves the drip at the velocity it was launched with, unpulled by
+     * gravity and undamped by drag, as a drip running down a wall at its
+     * run's pace moves.
+     * goo-moving-downward-falls-as-drips
+     */
+    public void moveAtAPace() {
+        this.gravity = 0f;
+        this.paced = true;
+    }
+
     /** Applies gravity, moves the particle, runs post-move hooks, and damps velocity. */
     private void applyPhysics() {
         this.yd -= this.gravity;
         this.move(this.xd, this.yd, this.zd);
         this.postMoveUpdate();
-        if (!this.removed) {
+        if (!this.removed && !this.paced) {
             this.xd *= DRAG;
             this.yd *= DRAG;
             this.zd *= DRAG;
@@ -305,22 +321,24 @@ public abstract class DripParticle extends SingleQuadParticle {
     }
 
     /**
-     * Ground splat that lies flat and spreads out while fading.
-     * Overrides the billboard orientation so the quad faces upward,
-     * giving the visual impression of a drip flattening on impact.
+     * A splat lying on the face its drip struck, a top, a side or an
+     * underside, at its own clearance out from it, spreading out while it
+     * fades: the quad draws turned onto that face rather than facing the camera.
+     * diagnose-and-correct-the-spray-splat-lying-flat-and-z-fighting
      */
     private static final class LandParticle extends DripParticle {
 
-        /** Quaternion that lays the quad flat on the XZ plane (normal facing +Y). */
-        private static final Quaternionf FLAT_ROTATION =
-                new Quaternionf().rotateX((float) (-Math.PI / 2.0));
-
+        private final Quaternionf onTheFace;
         private final int maxLifetime;
 
-        LandParticle(ClientLevel level, double x, double y, double z, DripLook look, Layer layer) {
-            super(level, x, y, z, look, layer);
-            this.y = DripQuadPlacement.landQuadY(this.y);
+        LandParticle(ClientLevel level, Vec3 struck, Direction face, double clearance, DripLook look, Layer layer) {
+            super(level, struck.x, struck.y, struck.z, look, layer);
+            Vec3 center = SplatPlacement.center(struck, face, clearance);
+            this.setPos(center.x, center.y, center.z);
+            this.xo = this.x;
             this.yo = this.y;
+            this.zo = this.z;
+            this.onTheFace = SplatPlacement.rotation(face);
             this.quadSize *= LAND_QUAD_SCALE;
             this.lifetime = (int) (LAND_LIFETIME_DIVISOR / (level.getRandom().nextFloat() * LIFETIME_RANGE + LIFETIME_MIN_FACTOR));
             this.maxLifetime = this.lifetime;
@@ -334,7 +352,7 @@ public abstract class DripParticle extends SingleQuadParticle {
         }
 
         /**
-         * Renders as a flat, ground-facing quad instead of a camera billboard.
+         * Renders as a quad lying on its face instead of a camera billboard.
          *
          * @param reusedState the reusable render state for quad particles
          * @param camera the active camera for view transform
@@ -343,8 +361,7 @@ public abstract class DripParticle extends SingleQuadParticle {
         @Override
         public void extract(QuadParticleRenderState reusedState, Camera camera,
                 float partialTick) {
-            this.extractRotatedQuad(reusedState, camera,
-                    new Quaternionf(FLAT_ROTATION), partialTick);
+            this.extractRotatedQuad(reusedState, camera, new Quaternionf(onTheFace), partialTick);
         }
 
         /**
@@ -455,6 +472,9 @@ public abstract class DripParticle extends SingleQuadParticle {
      */
     public abstract static class LandProvider<T extends ParticleOptions> implements ParticleProvider<T> {
 
+        /** The splats this provider has laid, each taking the next clearance so overlapping ones share no plane. */
+        private int splatsLaid;
+
         /**
          * @param options the option the splat was spawned with
          * @param random  the random source
@@ -476,16 +496,17 @@ public abstract class DripParticle extends SingleQuadParticle {
         }
 
         /**
-         * Creates a ground splat particle.
+         * Creates a splat lying on the face its drip struck, at the next clearance in turn.
+         * diagnose-and-correct-the-spray-splat-lying-flat-and-z-fighting
          *
          * @param options the option the splat was spawned with
          * @param level the client level to spawn in
-         * @param x the x spawn coordinate
-         * @param y the y spawn coordinate
-         * @param z the z spawn coordinate
-         * @param xSpeed the x velocity (unused for land splats)
-         * @param ySpeed the y velocity (unused for land splats)
-         * @param zSpeed the z velocity (unused for land splats)
+         * @param x the x of the struck point
+         * @param y the y of the struck point
+         * @param z the z of the struck point
+         * @param xSpeed the struck face's normal, x; all three 0 for a splat lying on a top
+         * @param ySpeed the struck face's normal, y
+         * @param zSpeed the struck face's normal, z
          * @param random the random source
          * @return the new land splat particle
          */
@@ -495,7 +516,9 @@ public abstract class DripParticle extends SingleQuadParticle {
                 double x, double y, double z,
                 double xSpeed, double ySpeed, double zSpeed,
                 RandomSource random) {
-            LandParticle splat = new LandParticle(level, x, y, z, look(options, random), layer());
+            LandParticle splat = new LandParticle(level, new Vec3(x, y, z),
+                    SplatPlacement.faceOf(xSpeed, ySpeed, zSpeed), SplatPlacement.clearance(splatsLaid++),
+                    look(options, random), layer());
             splat.quadSize = quadHalfSize(splat.quadSize);
             return splat;
         }
