@@ -100,6 +100,9 @@ public final class ShatterTests {
     /**
      * A pig walking through the shards over a one layer Shatter cell is cut
      * until a cut's roll depletes the layer, and air stands where the cell stood.
+     * The roll is the shipped 2%, and a run lands about 118 cuts in 1600
+     * ticks, so the test instance waits 6400 ticks: about 471 cuts, which
+     * all miss in 0.98^471, under one run in ten thousand.
      *
      * @param helper the gametest helper
      */
