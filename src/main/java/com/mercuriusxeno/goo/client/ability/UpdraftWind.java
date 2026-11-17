@@ -1,15 +1,12 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.program.LiftStep;
-import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.Step;
-import com.mercuriusxeno.goo.ability.program.UpdraftStep;
 import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Map;
@@ -19,12 +16,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 /**
- * Updraft's and Lift's look: while an updraft's blob stands, frost's wind
- * lines without snowflakes rise from it up through its column and curl out
- * near the top, the column sized from the ability's updraft step, the blob
- * itself staying drawn at the column's foot by the marker's own visual; and
- * a lift prism's wind spirals out around it from its base (LiftWind).
- * updraft-blob-stands-a-column-of-wind
+ * Lift's look: a lift prism's wind spirals out around it from its base
+ * (LiftWind), blowing one line a tick however many frames draw the prism.
  * lift-prism-levitates-the-block-above
  */
 public final class UpdraftWind {
@@ -37,36 +30,6 @@ public final class UpdraftWind {
     private static final long FORGET_AFTER_TICKS = 40;
 
     private UpdraftWind() {
-    }
-
-    /**
-     * A column's size.
-     *
-     * @param radius the column's half width in blocks
-     * @param height the column's height in blocks
-     */
-    record Column(double radius, double height) {
-    }
-
-    /**
-     * Notes a standing marker as the renderer reads it: an updraft's blows
-     * this tick's line up its column.
-     *
-     * @param pos       the marker's block
-     * @param abilityId the marker's ability
-     * @param gameTime  the game time
-     */
-    public static void see(BlockPos pos, String abilityId, long gameTime) {
-        AbilitySyncHandler.ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
-        Optional<Column> column = ability == null ? Optional.empty() : columnOf(ability.behaviors());
-        if (column.isEmpty() || !blowsNow(pos.immutable(), gameTime)) {
-            return;
-        }
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level != null) {
-            WindLines.CLIENT.rise(mc.level.getRandom(), Vec3.atBottomCenterOf(pos), column.get().radius(),
-                    column.get().height(), gameTime);
-        }
     }
 
     /**
@@ -101,18 +64,6 @@ public final class UpdraftWind {
     static Optional<LiftStep> liftOf(List<Step> behaviors) {
         return behaviors.stream().flatMap(UpdraftWind::withDescendants).filter(LiftStep.class::isInstance)
                 .map(LiftStep.class::cast).findFirst();
-    }
-
-    /**
-     * The column an ability's lingering body stands, read from its updraft step.
-     *
-     * @param behaviors the ability's program
-     * @return the column, or empty for an ability with no updraft
-     */
-    static Optional<Column> columnOf(List<Step> behaviors) {
-        return LingerStep.bodyOf(behaviors).flatMap(body -> body.stream().flatMap(UpdraftWind::withDescendants)
-                .filter(UpdraftStep.class::isInstance).map(UpdraftStep.class::cast).findFirst())
-                .map(updraft -> new Column(updraft.radius().evaluate(NONE), updraft.height().evaluate(NONE)));
     }
 
     /**

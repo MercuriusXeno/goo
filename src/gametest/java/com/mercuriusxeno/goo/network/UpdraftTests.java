@@ -1,28 +1,81 @@
 package com.mercuriusxeno.goo.network;
 
-import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
-import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.KnownRecipes;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
-import com.mercuriusxeno.goo.gametest.GooTestFunctions;
-import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
- * Gametest for typhoon Updraft landed through the real effect path: its
- * column carries a zombie standing in it upward, and its blob is gone once
- * the duration ends (decision updraft-blob-stands-a-column-of-wind). The bay's
- * ceiling stands below the column's top, so the test watches the climb.
+ * Typhoon's Updraft as a world goo through the real paths: its stream's
+ * drips lay a layer of an Updraft cell each, a cell lifts what stands on it
+ * a block for each of its layers and leaves what stands beside it, and a
+ * cell lifting spends none of its layers. Each test walls its cells in
+ * stone so no cell pours its layers away, and each lift test opens the
+ * bay's sky, whose barrier roof would stop a rider six blocks up.
+ * updraft-is-typhoons-world-goo-that-lifts-the-entities-above-it
+ * updraft-goo-lifts-one-block-per-layer
+ * updraft-goo-is-semi-permanent-and-does-not-deplete
  */
 @RegistersGameTests
 public final class UpdraftTests {
-    private static final String UPDRAFT_LIFTS_A_ZOMBIE = "updraft_lifts_a_zombie";
+
+    private static final String DRIPS_LAY_A_LAYER_EACH = "updraft_drips_lay_a_layer_each";
+    private static final String LIFTS_BY_ITS_LAYERS = "updraft_lifts_by_its_layers";
+    private static final String KEEPS_ITS_LAYERS_WHILE_LIFTING = "updraft_keeps_its_layers_while_lifting";
+    private static final Identifier UPDRAFT = Identifier.parse("goo:typhoon_updraft");
+    /** The stone the walled tests lay, two blocks deep across the bay. */
+    private static final int STONE_TOP_Y = 2;
+    private static final int BAY_SPAN = 6;
+    /** The floor block the drips strike, walled on its four sides one block up. */
+    private static final BlockPos DRIP_FLOOR = new BlockPos(2, 1, 2);
+    private static final int DRIPS = 4;
+    /** A full cell, lifting fifteen blocks. */
+    private static final BlockPos TALL_CELL = new BlockPos(1, STONE_TOP_Y, 1);
+    private static final int TALL_LAYERS = 15;
+    /** A thin cell, lifting four blocks. */
+    private static final BlockPos SHORT_CELL = new BlockPos(4, STONE_TOP_Y, 1);
+    private static final int SHORT_LAYERS = 4;
+    /** The stone beside the tall cell, outside its column. */
+    private static final BlockPos BESIDE = TALL_CELL.east();
+    /** The ticks the lift test watches: a fifteen-block rise at the shipped pace and a while hovering. */
+    private static final int LIFT_WATCH_TICKS = 100;
+    /** The cell the long test stands a zombie on. */
+    private static final BlockPos KEPT_CELL = new BlockPos(2, STONE_TOP_Y, 2);
+    private static final int KEPT_LAYERS = 6;
+    /** Twice the old column's life of two hundred ticks. */
+    private static final int KEPT_TICKS = 400;
+    /** How far from its cell's layer count a lifted zombie's highest feet may stand. */
+    private static final double RISE_SLACK = 1.0;
+    /** The most the zombie beside the column may rise and still stand on the ground. */
+    private static final double GROUNDED_SLACK = 0.1;
+    private static final double SPAWN_OVER_THE_TOP = 0.01;
+    private static final String ABILITY_REQUIRED = "The ability registry must hold typhoon_updraft";
+    private static final String DRIP_LAYERS_WRONG = "The cell over the floor should be Updraft of %d layers, stands %s";
+    private static final String RISE_WRONG = "A zombie on a %d-layer Updraft cell should rise %d blocks over its top"
+            + " within %.1f, rose %.2f";
+    private static final String BESIDE_ROSE = "The zombie beside the column should stay on the ground, rose %.2f";
+    private static final String LAYERS_SPENT = "The Updraft cell should keep its %d layers while lifting, stands %s";
+    private static final String NOT_LIFTED = "After %d ticks the zombie should stand above the cell's top %.2f, stands at %.2f";
+
+    private UpdraftTests() {
+    }
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -30,45 +83,133 @@ public final class UpdraftTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, UPDRAFT_LIFTS_A_ZOMBIE, UpdraftTests::updraftLiftsAZombie);
-    }
-
-
-    /** Marks a pending effect aimed at a block rather than an entity. */
-    private static final int NO_ENTITY = -1;
-    private static final String UPDRAFT = "goo:typhoon_updraft";
-    private static final BlockPos FLOOR = new BlockPos(2, 0, 2);
-    /** Where the blob stands, on the floor's top face. */
-    private static final BlockPos BLOB = FLOOR.above();
-    /** Beside the blob, inside the column's width. */
-    private static final BlockPos ZOMBIE_POS = BLOB.east();
-    private static final int CLIMB_TICKS = 15;
-    /** The least the zombie climbs in those ticks, short of the bay's ceiling. */
-    private static final double LEAST_CLIMB = 2.5;
-    private static final String BLOB_STANDS = "The updraft's blob should stand where it landed";
-    private static final String SHOULD_CLIMB = "The column should carry the zombie up %.1f blocks in %d ticks, climbed %.2f";
-
-    private UpdraftTests() {
+        GooTestFunctions.registerTest(registrar, DRIPS_LAY_A_LAYER_EACH, UpdraftTests::dripsLayALayerEach);
+        GooTestFunctions.registerTest(registrar, LIFTS_BY_ITS_LAYERS, UpdraftTests::liftsByItsLayers);
+        GooTestFunctions.registerTest(registrar, KEEPS_ITS_LAYERS_WHILE_LIFTING, UpdraftTests::keepsItsLayersWhileLifting);
     }
 
     /**
-     * An updraft lands on the floor beside a zombie: within fifteen ticks the
-     * zombie has climbed two and a half blocks.
+     * Four Updraft drips striking a walled stone floor, from a typhoon-holding
+     * caster who pays for their layers, lay an Updraft cell of four layers.
      *
      * @param helper the gametest helper
      */
-    public static void updraftLiftsAZombie(GameTestHelper helper) {
-        helper.setBlock(FLOOR, Blocks.STONE);
-        helper.setBlock(ZOMBIE_POS.below(), Blocks.STONE);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
-        double startY = zombie.getY();
-        GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.TYPHOON,
-                NO_ENTITY, helper.absolutePos(FLOOR), Direction.UP, UPDRAFT));
-        helper.assertTrue(helper.getBlockState(BLOB).is(GooBlocks.ABILITY_BLOCK.get()), BLOB_STANDS);
-        helper.runAfterDelay(CLIMB_TICKS, () -> {
-            double climbed = zombie.getY() - startY;
-            helper.assertTrue(climbed >= LEAST_CLIMB, String.format(SHOULD_CLIMB, LEAST_CLIMB, CLIMB_TICKS, climbed));
+    public static void dripsLayALayerEach(GameTestHelper helper) {
+        BlockPos cell = DRIP_FLOOR.above();
+        helper.setBlock(DRIP_FLOOR, Blocks.STONE);
+        helper.setBlock(cell, Blocks.AIR);
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            helper.setBlock(cell.relative(side), Blocks.STONE);
+        }
+        AbilityDefinition updraft = AbilityRegistry.of(helper.getLevel()).getAbility(UPDRAFT);
+        helper.assertTrue(updraft != null, ABILITY_REQUIRED);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.TYPHOON);
+        KnownRecipes.teachRequires(caster, updraft);
+        LandedDrips.landOn(helper, caster, updraft, DRIP_FLOOR, DRIPS);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        BlockState state = helper.getBlockState(cell);
+        helper.assertTrue(standsUpdraft(state, DRIPS), String.format(DRIP_LAYERS_WRONG, DRIPS, state));
+        helper.succeed();
+    }
+
+    /**
+     * A zombie on a fifteen-layer cell rises fifteen blocks over its top and
+     * one on a four-layer cell four, each within a block, while a zombie on
+     * the stone beside the tall cell never leaves the ground.
+     *
+     * @param helper the gametest helper
+     */
+    public static void liftsByItsLayers(GameTestHelper helper) {
+        layStone(helper);
+        Rider tall = new Rider(helper, TALL_CELL, TALL_LAYERS);
+        Rider low = new Rider(helper, SHORT_CELL, SHORT_LAYERS);
+        Mob beside = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, Vec3.atBottomCenterOf(BESIDE.above()));
+        double besideStart = beside.getY();
+        double[] besideHighest = {besideStart};
+        helper.onEachTick(() -> {
+            tall.watch();
+            low.watch();
+            besideHighest[0] = Math.max(besideHighest[0], beside.getY());
+        });
+        helper.runAfterDelay(LIFT_WATCH_TICKS, () -> {
+            tall.assertRose();
+            low.assertRose();
+            double rose = besideHighest[0] - besideStart;
+            helper.assertTrue(rose < GROUNDED_SLACK, String.format(BESIDE_ROSE, rose));
             helper.succeed();
         });
+    }
+
+    /**
+     * A six-layer cell lifting a zombie for four hundred ticks still holds
+     * its six layers, and the zombie still stands above its top.
+     *
+     * @param helper the gametest helper
+     */
+    public static void keepsItsLayersWhileLifting(GameTestHelper helper) {
+        layStone(helper);
+        Rider rider = new Rider(helper, KEPT_CELL, KEPT_LAYERS);
+        int laid = VolumeCellBlock.layersOf(helper.getBlockState(KEPT_CELL));
+        helper.runAfterDelay(KEPT_TICKS, () -> {
+            BlockState state = helper.getBlockState(KEPT_CELL);
+            helper.assertTrue(laid == KEPT_LAYERS && standsUpdraft(state, laid),
+                    String.format(LAYERS_SPENT, KEPT_LAYERS, state));
+            double feet = rider.zombie.getY();
+            helper.assertTrue(feet > rider.top, String.format(NOT_LIFTED, KEPT_TICKS, rider.top, feet));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Lays stone two blocks deep across the bay, so a cell set into its top
+     * course stands walled on every side.
+     *
+     * @param helper the gametest helper
+     */
+    private static void layStone(GameTestHelper helper) {
+        BlockPos.betweenClosed(0, 1, 0, BAY_SPAN - 1, STONE_TOP_Y, BAY_SPAN - 1)
+                .forEach(pos -> helper.setBlock(pos.immutable(), Blocks.STONE));
+    }
+
+    private static boolean standsUpdraft(BlockState state, int layers) {
+        return BuiltInRegistries.BLOCK.getKey(state.getBlock()).equals(UPDRAFT)
+                && state.getValue(VolumeCellBlock.LAYERS) == layers;
+    }
+
+    private static Block updraftCell() {
+        return BuiltInRegistries.BLOCK.getValue(UPDRAFT);
+    }
+
+    /** A zombie stood on an Updraft cell of a count of layers, its highest feet watched. */
+    private static final class Rider {
+
+        private final GameTestHelper helper;
+        private final int layers;
+        private final Mob zombie;
+        /** The cell's top, absolute, where the zombie's feet start. */
+        private final double top;
+        private double highest;
+
+        Rider(GameTestHelper helper, BlockPos cell, int layers) {
+            this.helper = helper;
+            this.layers = layers;
+            Block updraft = updraftCell();
+            helper.setBlock(cell, updraft == Blocks.AIR ? Blocks.AIR.defaultBlockState()
+                    : updraft.defaultBlockState().setValue(VolumeCellBlock.LAYERS, layers));
+            double over = (double) layers / VolumeCellBlock.MAX_LAYERS + SPAWN_OVER_THE_TOP;
+            this.zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, Vec3.atBottomCenterOf(cell).add(0, over, 0));
+            this.top = helper.absolutePos(cell).getY() + (double) layers / VolumeCellBlock.MAX_LAYERS;
+            this.highest = zombie.getY();
+        }
+
+        void watch() {
+            highest = Math.max(highest, zombie.getY());
+        }
+
+        void assertRose() {
+            double rose = highest - top;
+            helper.assertTrue(Math.abs(rose - layers) <= RISE_SLACK,
+                    String.format(RISE_WRONG, layers, layers, RISE_SLACK, rose));
+        }
     }
 }
