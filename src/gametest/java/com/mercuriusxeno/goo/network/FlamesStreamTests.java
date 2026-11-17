@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -17,7 +18,9 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
@@ -25,7 +28,9 @@ import java.util.function.Consumer;
 /**
  * Gametest for blaze flames cooking: a held flame burns away the leaves its
  * aim line meets, turns the sand under the crosshair into glass, and lights
- * no fire (decision flames-absorbs-broil-and-cooks-blocks).
+ * no fire (decision flames-absorbs-broil-and-cooks-blocks), and melts
+ * obsidian, magma and iron core into the sources Molten melts them into.
+ * flames-melts-obsidian-magma-and-iron-core-as-molten-does
  */
 @RegistersGameTests
 public final class FlamesStreamTests {
@@ -49,6 +54,10 @@ public final class FlamesStreamTests {
     private static final double ITEM_SEARCH_RADIUS = 4;
     private static final Identifier BLAZE_FLAMES = Identifier.parse("goo:blaze_flames");
     private static final String ABILITY_REQUIRED = "Ability registry must hold blaze_flames";
+    private static final String FLAMES_MELTS_OBSIDIAN = "flames_melts_obsidian_into_lava";
+    private static final String FLAMES_MELTS_MAGMA = "flames_melts_magma_into_lava";
+    private static final String FLAMES_MELTS_IRON_CORE = "flames_melts_iron_core_into_molten_iron";
+    private static final String NOT_MELTED = "Flames held on %s should leave a %s source, stands %s";
 
     private FlamesStreamTests() {
     }
@@ -62,6 +71,10 @@ public final class FlamesStreamTests {
         GooTestFunctions.registerTest(registrar, FLAMES_COOKS_SAND, FlamesStreamTests::flamesCooksSand);
         GooTestFunctions.registerTest(registrar, FLAMES_RESTS_CHARCOAL_WHERE_THE_LOG_STOOD,
                 FlamesStreamTests::flamesRestsCharcoalWhereTheLogStood);
+        GooTestFunctions.registerTest(registrar, FLAMES_MELTS_OBSIDIAN, FlamesStreamTests::flamesMeltsObsidianIntoLava);
+        GooTestFunctions.registerTest(registrar, FLAMES_MELTS_MAGMA, FlamesStreamTests::flamesMeltsMagmaIntoLava);
+        GooTestFunctions.registerTest(registrar, FLAMES_MELTS_IRON_CORE,
+                FlamesStreamTests::flamesMeltsIronCoreIntoMoltenIron);
     }
 
     /**
@@ -87,6 +100,54 @@ public final class FlamesStreamTests {
                             && Math.abs(item.getX() - center.x) < AT_REST
                             && Math.abs(item.getZ() - center.z) < AT_REST
                             && item.getDeltaMovement().horizontalDistance() < AT_REST), CHARCOAL_AT_REST);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A mock player holds flames on obsidian for its cook ticks, and a lava
+     * source stands where the obsidian stood, as Molten melts it.
+     * flames-melts-obsidian-magma-and-iron-core-as-molten-does
+     *
+     * @param helper the gametest helper
+     */
+    public static void flamesMeltsObsidianIntoLava(GameTestHelper helper) {
+        meltsUnderTheFlame(helper, Blocks.OBSIDIAN, Blocks.LAVA);
+    }
+
+    /**
+     * A mock player holds flames on a magma block for its cook ticks, and a
+     * lava source stands where it stood.
+     * flames-melts-obsidian-magma-and-iron-core-as-molten-does
+     *
+     * @param helper the gametest helper
+     */
+    public static void flamesMeltsMagmaIntoLava(GameTestHelper helper) {
+        meltsUnderTheFlame(helper, Blocks.MAGMA_BLOCK, Blocks.LAVA);
+    }
+
+    /**
+     * A mock player holds flames on iron core for its cook ticks, and a
+     * molten iron source stands where it stood.
+     * flames-melts-obsidian-magma-and-iron-core-as-molten-does
+     *
+     * @param helper the gametest helper
+     */
+    public static void flamesMeltsIronCoreIntoMoltenIron(GameTestHelper helper) {
+        meltsUnderTheFlame(helper, GooBlocks.IRON_CORE.get(), GooBlocks.MOLTEN_IRON.get());
+    }
+
+    private static void meltsUnderTheFlame(GameTestHelper helper, Block raw, Block meltedInto) {
+        helper.setBlock(SAND_POS.below(), Blocks.BEDROCK);
+        helper.setBlock(SAND_POS, raw);
+        ServerPlayer player = flamer(helper);
+        int holdTicks = holdTicks(helper);
+        hold(helper, player, holdTicks);
+        helper.runAfterDelay(holdTicks + 2, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            BlockState melted = helper.getBlockState(SAND_POS);
+            helper.assertTrue(melted.is(meltedInto) && melted.getFluidState().isSource(),
+                    String.format(NOT_MELTED, raw, meltedInto, melted));
             helper.succeed();
         });
     }

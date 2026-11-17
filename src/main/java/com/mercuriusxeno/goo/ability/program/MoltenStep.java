@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.block.ability.CellBinding;
 import com.mercuriusxeno.goo.block.ability.FluidFooting;
 import com.mercuriusxeno.goo.data.GooGroups;
@@ -12,12 +14,15 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiPredicate;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -28,25 +33,36 @@ import java.util.stream.Stream;
  * lava source lays its layer on the lava's surface, where the goo pools. Its
  * melts_into map names what the goo melts: each key is the block a melt
  * leaves, and its array what melts into it, loose blocks, #groups and #tags:
- * {@code molten melts_into={minecraft:lava: [#goo:meltable], goo:molten_iron: [goo:iron_core]} heat_ticks=40}.
+ * {@code molten melts_into={minecraft:lava: [minecraft:obsidian, minecraft:magma_block],
+ * goo:molten_iron: [goo:iron_core]} heat_ticks=40 damage=4 burn_seconds=15}.
  * A cell melting a block heats it red hot for the heat's ticks before it
- * becomes the key's source block.
+ * becomes the key's source block. A living thing touching a cell takes the
+ * step's fire damage a hit and burns for its seconds, as vanilla lava's 4
+ * damage and 15 seconds.
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+ * molten-melts-only-obsidian-magma-and-iron-core-one-layer-each
  * molten-melts-by-a-meltable-group-and-its-parallel-melted-group
  * stone-goes-red-hot-before-molten-turns-it-to-lava
  * melt-blob-absorbs-into-lava
+ * molten-burns-mobs-as-hard-as-lava-and-a-hit-spends-a-layer
+ * flames-melts-obsidian-magma-and-iron-core-as-molten-does
  * slime-and-slick-are-one-volume-cell-tech
  * drip-creates-a-volume-cell-immediately
  * drip-on-a-standing-cell-increases-it
  *
- * @param meltsInto each block a melt leaves, with the loose blocks, #groups and #tags that melt into it
- * @param heatTicks the ticks a melting block stands red hot before it melts
+ * @param meltsInto   each block a melt leaves, with the loose blocks, #groups and #tags that melt into it
+ * @param heatTicks   the ticks a melting block stands red hot before it melts
+ * @param damage      the fire damage a cell's hit deals a living thing touching it
+ * @param burnSeconds the seconds a cell's hit sets the thing alight for
  */
-public record MoltenStep(Map<Identifier, List<String>> meltsInto, int heatTicks) implements TakesNoEntity, DripLanding {
+public record MoltenStep(Map<Identifier, List<String>> meltsInto, int heatTicks, float damage, int burnSeconds)
+        implements TakesNoEntity, DripLanding {
 
     private static final String NAME = "molten";
     private static final String FIELD_MELTS_INTO = "melts_into";
     private static final String FIELD_HEAT_TICKS = "heat_ticks";
+    private static final String FIELD_DAMAGE = "damage";
+    private static final String FIELD_BURN_SECONDS = "burn_seconds";
     private static final String MARK = "#";
 
     /**
@@ -55,7 +71,9 @@ public record MoltenStep(Map<Identifier, List<String>> meltsInto, int heatTicks)
     public static final MapCodec<MoltenStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             Codec.unboundedMap(Identifier.CODEC, Codec.STRING.listOf()).fieldOf(FIELD_MELTS_INTO)
                     .forGetter(MoltenStep::meltsInto),
-            Codec.intRange(1, Integer.MAX_VALUE).fieldOf(FIELD_HEAT_TICKS).forGetter(MoltenStep::heatTicks)
+            Codec.intRange(1, Integer.MAX_VALUE).fieldOf(FIELD_HEAT_TICKS).forGetter(MoltenStep::heatTicks),
+            Codec.floatRange(0, Float.MAX_VALUE).fieldOf(FIELD_DAMAGE).forGetter(MoltenStep::damage),
+            Codec.intRange(0, Integer.MAX_VALUE).fieldOf(FIELD_BURN_SECONDS).forGetter(MoltenStep::burnSeconds)
     ).apply(inst, MoltenStep::new));
 
     /**
@@ -83,6 +101,50 @@ public record MoltenStep(Map<Identifier, List<String>> meltsInto, int heatTicks)
         return meltedFormOf(meltsInto, BuiltInRegistries.BLOCK.getKey(block.getBlock()),
                 tag -> block.is(TagKey.create(Registries.BLOCK, tag)), GooGroups.current())
                 .flatMap(BuiltInRegistries.BLOCK::getOptional).map(Block::defaultBlockState);
+    }
+
+    /**
+     * The melts the loaded Molten ability names, the ones Flames melts too, so
+     * a datapack changing Molten's melts_into changes Flames with it.
+     * flames-melts-obsidian-magma-and-iron-core-as-molten-does
+     *
+     * @param level the level whose server loads the abilities
+     * @return the block each block melts into, empty for every block where Molten does not load
+     */
+    public static Function<Block, Optional<Block>> meltsIn(Level level) {
+        AbilityDefinition molten = AbilityRegistry.of(level).getAbility(CellBinding.MOLTEN_ABILITY);
+        return molten == null ? raw -> Optional.empty()
+                : in(molten.behaviors()).map(MoltenStep::melts).orElse(raw -> Optional.empty());
+    }
+
+    /**
+     * The block each block melts into under this step's map, its key's source block.
+     *
+     * @return the block a block melts into, empty where nothing melts it
+     */
+    public Function<Block, Optional<Block>> melts() {
+        return meltsOf(meltsInto, BuiltInRegistries.BLOCK::getKey,
+                (raw, tag) -> raw.defaultBlockState().is(TagKey.create(Registries.BLOCK, tag)), GooGroups.current(),
+                BuiltInRegistries.BLOCK::getOptional);
+    }
+
+    /**
+     * The block each block melts into under a melts_into map, read by block id.
+     *
+     * @param meltsInto each block a melt leaves, with what melts into it
+     * @param idOf      a block's id
+     * @param inTag     whether a block stands in a block tag, by the tag's id
+     * @param groups    the base values' custom groups by name
+     * @param blockOf   the block an id names, empty where none is registered
+     * @return the block a block melts into, empty where no array names it
+     */
+    static Function<Block, Optional<Block>> meltsOf(Map<Identifier, List<String>> meltsInto,
+                                                    Function<Block, Identifier> idOf,
+                                                    BiPredicate<Block, Identifier> inTag,
+                                                    Map<String, List<Identifier>> groups,
+                                                    Function<Identifier, Optional<Block>> blockOf) {
+        return raw -> meltedFormOf(meltsInto, idOf.apply(raw), tag -> inTag.test(raw, tag), groups)
+                .flatMap(blockOf);
     }
 
     /**
