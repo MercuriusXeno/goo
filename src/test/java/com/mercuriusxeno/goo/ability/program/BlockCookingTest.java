@@ -9,6 +9,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.List;
 import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
@@ -105,8 +106,55 @@ class BlockCookingTest {
             when(stone.asItem()).thenReturn(mock(Item.class));
 
             assertEquals(Optional.empty(), BlockCooking.meltedBlock(stone, meltables, false));
-            assertEquals(Optional.empty(), FlamesStep.heatedInto(meltables, false, item -> Optional.empty(), air)
-                    .apply(stone));
+        }
+    }
+
+    /**
+     * The one heated-into rule Flames and a Molten cell both read: a block's melt where it melts, its furnace result
+     * otherwise, and nothing for a block that does neither
+     * (decisions molten-cooks-the-block-below-it-as-flames-cooks-blocks,
+     * flames-melts-vanilla-meltable-ice-and-snow-over-the-hold).
+     */
+    @Nested
+    class HeatedInto {
+
+        private final Block cobblestone = mock(Block.class);
+        private final BlockItem stoneItem = mock(BlockItem.class);
+        private final Block stone = mock(Block.class);
+        private final Block sand = mock(Block.class);
+        private final BlockItem glassItem = mock(BlockItem.class);
+        private final Block glass = mock(Block.class);
+        private final Block ice = mock(Block.class);
+        private final Block water = mock(Block.class);
+        private final Block dirt = mock(Block.class);
+        private final Block air = mock(Block.class);
+        private final BlockCooking.Meltables meltables =
+                new BlockCooking.Meltables(ice, mock(Block.class), mock(Block.class), water, air);
+
+        HeatedInto() {
+            Item cobblestoneItem = mock(Item.class);
+            Item sandItem = mock(Item.class);
+            when(cobblestone.asItem()).thenReturn(cobblestoneItem);
+            when(sand.asItem()).thenReturn(sandItem);
+            when(ice.asItem()).thenReturn(mock(Item.class));
+            when(dirt.asItem()).thenReturn(mock(Item.class));
+            when(stoneItem.getBlock()).thenReturn(stone);
+            when(glassItem.getBlock()).thenReturn(glass);
+        }
+
+        private Optional<Block> heated(Block raw) {
+            return BlockCooking.heatedInto(meltables, false, item -> {
+                if (item == cobblestone.asItem()) {
+                    return Optional.of(stoneItem);
+                }
+                return item == sand.asItem() ? Optional.of(glassItem) : Optional.empty();
+            }, air).apply(raw);
+        }
+
+        @Test
+        void cobblestoneSandIceAndDirtHeatIntoStoneGlassWaterAndNothing() {
+            assertEquals(List.of(Optional.of(stone), Optional.of(glass), Optional.of(water), Optional.empty()),
+                    List.of(heated(cobblestone), heated(sand), heated(ice), heated(dirt)));
         }
     }
 

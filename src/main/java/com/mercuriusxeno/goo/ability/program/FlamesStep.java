@@ -10,14 +10,12 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.TagKey;
-import net.minecraft.world.attribute.EnvironmentAttributes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
@@ -97,23 +95,22 @@ public record FlamesStep(Expr damage, int every, int burnSeconds, int cookTicks,
      * Heats the block under the crosshair, burning foliage away and painting
      * a block that melts or has a furnace result, then builds every block the
      * hold painted toward its melt or result, each finishing through
-     * {@link #finishHeated}. Whether water evaporates is read at the eye, the
-     * painted blocks standing within the stream's reach of it.
+     * BlockCooking's one heated finish. Whether water evaporates is read at
+     * the eye, the painted blocks standing within the stream's reach of it.
      * decision flames-absorbs-broil-and-cooks-blocks
      * decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold
+     * molten-cooks-the-block-below-it-as-flames-cooks-blocks
      *
      * @param host the channel host
      * @param aim  the stream's aim
      */
     private void cookLookedAt(ChannelHost host, ChannelAim aim) {
         Function<Item, Optional<ItemStack>> results = BlockCooking.resultsIn(host.level());
-        boolean waterEvaporates = host.level().environmentAttributes()
-                .getValue(EnvironmentAttributes.WATER_EVAPORATES, BlockPos.containing(host.eye()));
-        BlockCooking.Meltables meltables = new BlockCooking.Meltables(Blocks.ICE, Blocks.FROSTED_ICE, Blocks.SNOW,
-                Blocks.WATER, Blocks.AIR);
+        BlockPos eye = BlockPos.containing(host.eye());
+        boolean waterEvaporates = BlockCooking.waterEvaporatesAt(host.level(), eye);
+        BlockCooking.Meltables meltables = BlockCooking.Meltables.vanilla();
         Function<Block, Optional<Block>> melts = raw -> BlockCooking.meltedBlock(raw, meltables, waterEvaporates);
-        Function<Block, Optional<Block>> cooks = heatedInto(meltables, waterEvaporates,
-                item -> results.apply(item).map(ItemStack::getItem), Blocks.AIR);
+        Function<Block, Optional<Block>> cooks = BlockCooking.heatedIntoAt(host.level(), results, eye);
         HoldMarks marks = host.holdMarks();
         PaintedHold.lookedAtBlock(host, aim).ifPresent(looked -> {
             if (host.blockIn(looked, burns)) {
@@ -123,25 +120,8 @@ public record FlamesStep(Expr damage, int every, int burnSeconds, int cookTicks,
             }
         });
         PaintedHold.buildPainted(host, cooks, marks, 1f / cookTicks, exposureMark(melts),
-                (pos, raw, into) -> finishHeated(host, pos, raw, into, melts, results,
+                (pos, raw, into) -> BlockCooking.finishHeated(host, pos, raw, into, melts, results,
                         Blocks.AIR.defaultBlockState()));
-    }
-
-    /**
-     * The block a block in the flame becomes: its melt where it melts, its
-     * furnace result otherwise.
-     * decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold
-     *
-     * @param meltables       the blocks that melt and what they melt into
-     * @param waterEvaporates whether the dimension evaporates water
-     * @param smelt           the furnace result of an item, empty where no recipe smelts it
-     * @param emptied         the block left where a block cooks into an item, air in play
-     * @return the block each block becomes, empty where it neither melts nor cooks
-     */
-    static Function<Block, Optional<Block>> heatedInto(BlockCooking.Meltables meltables, boolean waterEvaporates,
-                                                       Function<Item, Optional<Item>> smelt, Block emptied) {
-        return raw -> BlockCooking.meltedBlock(raw, meltables, waterEvaporates)
-                .or(() -> BlockCooking.cookedBlock(raw, smelt, emptied));
     }
 
     /**
@@ -156,30 +136,6 @@ public record FlamesStep(Expr damage, int every, int burnSeconds, int cookTicks,
      */
     static Function<Block, OptionalInt> exposureMark(Function<Block, Optional<Block>> melts) {
         return raw -> melts.apply(raw).isPresent() ? OptionalInt.of(BlockExposures.MELTS_AWAY) : OptionalInt.empty();
-    }
-
-    /**
-     * Finishes a block the flame filled: a melting block becomes its melt
-     * with no item rested, and any other takes the one cooking finish.
-     * decision flames-melts-vanilla-meltable-ice-and-snow-over-the-hold
-     *
-     * @param host    the host the block heats under
-     * @param pos     the block
-     * @param raw     the block painted there
-     * @param into    the block it becomes
-     * @param melts   the block a block melts into, empty where it does not melt
-     * @param results the furnace result of an item, empty where no recipe smelts it
-     * @param emptied the state left where a block cooks into an item, air in play
-     */
-    static void finishHeated(BlockBreakHost host, BlockPos pos, Block raw, Block into,
-                             Function<Block, Optional<Block>> melts, Function<Item, Optional<ItemStack>> results,
-                             BlockState emptied) {
-        if (melts.apply(raw).isPresent()) {
-            host.transformBlock(pos, into.defaultBlockState());
-        } else {
-            results.apply(raw.asItem()).ifPresent(result ->
-                    BlockCooking.finishCooked(host, pos, result.copy(), emptied));
-        }
     }
 
     /**

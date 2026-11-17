@@ -16,10 +16,14 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -63,6 +67,19 @@ public final class MoltenTests {
     private static final String LAYERS_LEFT_WRONG = "The Molten cell should rest on the melt at one layer, stands %s";
     private static final String HEAT_LEFT_STANDING = "The melt should end the cell's heat";
     private static final String MELTED_INTO_LAVA = "Fifteen layers of Molten should leave %s unmelted, stands %s";
+    private static final String MOLTEN_COOKS_COBBLESTONE = "molten_over_cobblestone_cooks_it_to_smooth_stone";
+    private static final String MOLTEN_COOKS_AN_OAK_LOG = "molten_over_an_oak_log_cooks_it_to_charcoal";
+    private static final String MOLTEN_PERSISTS_ON_DIRT = "molten_over_dirt_persists_whole";
+    /** The layers the cobblestone test lays, one for each of its two cook steps and one left. */
+    private static final int THREE_LAYERS = 3;
+    /** The heats the cobblestone test waits out, one for each layer it lays. */
+    private static final int THREE_HEATS = 3;
+    private static final String NOT_COOKED_TO_SMOOTH_STONE = "Three layers of Molten should cook cobblestone to"
+            + " smooth stone under one layer, stands %s under %s";
+    private static final String NOT_COOKED_TO_CHARCOAL = "Two layers of Molten should cook the oak log to one"
+            + " charcoal and keep one layer, stands %s with %s charcoal and %s layers";
+    private static final String DIRT_SPENT_GOO = "Fifteen layers of Molten should stand whole on dirt, stands %s"
+            + " under %s";
 
     private MoltenTests() {
     }
@@ -82,6 +99,9 @@ public final class MoltenTests {
         GooTestFunctions.registerTest(registrar, MOLTEN_LEAVES_COBBLESTONE, MoltenTests::moltenLeavesCobblestoneUnmelted);
         GooTestFunctions.registerTest(registrar, MOLTEN_LEAVES_DEEPSLATE, MoltenTests::moltenLeavesDeepslateUnmelted);
         GooTestFunctions.registerTest(registrar, MOLTEN_LEAVES_NETHERRACK, MoltenTests::moltenLeavesNetherrackUnmelted);
+        GooTestFunctions.registerTest(registrar, MOLTEN_COOKS_COBBLESTONE, MoltenTests::moltenOverCobblestoneCooksItToSmoothStone);
+        GooTestFunctions.registerTest(registrar, MOLTEN_COOKS_AN_OAK_LOG, MoltenTests::moltenOverAnOakLogCooksItToCharcoal);
+        GooTestFunctions.registerTest(registrar, MOLTEN_PERSISTS_ON_DIRT, MoltenTests::moltenOverDirtPersistsWhole);
     }
 
     /**
@@ -185,6 +205,73 @@ public final class MoltenTests {
      */
     public static void moltenLeavesNetherrackUnmelted(GameTestHelper helper) {
         leavesUnmelted(helper, Blocks.NETHERRACK);
+    }
+
+    /**
+     * Three layers of Molten over cobblestone cook it to stone for one layer,
+     * then the stone to smooth stone for a second, and smooth stone, having
+     * no furnace result, spends the last layer on nothing.
+     * molten-cooks-the-block-below-it-as-flames-cooks-blocks
+     *
+     * @param helper the gametest helper
+     */
+    public static void moltenOverCobblestoneCooksItToSmoothStone(GameTestHelper helper) {
+        int heatTicks = layMoltenOn(helper, Blocks.COBBLESTONE, THREE_LAYERS);
+        helper.runAfterDelay(heatTicks * THREE_HEATS + PAST_THE_POUR, () -> {
+            BlockState cooked = helper.getBlockState(FLOOR);
+            helper.assertTrue(cooked.is(Blocks.SMOOTH_STONE) && holdsLayers(helper, 1),
+                    String.format(NOT_COOKED_TO_SMOOTH_STONE, cooked, helper.getBlockState(OVER_THE_FLOOR)));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Two layers of Molten over an oak log cook it as Flames does into its
+     * furnace result, an item: the log is gone, one charcoal rests where it
+     * stood, and one layer is spent, the other fallen into the log's space.
+     * The log stands on dirt, which cooks into nothing, so the fallen layer
+     * stays.
+     * molten-cooks-the-block-below-it-as-flames-cooks-blocks
+     *
+     * @param helper the gametest helper
+     */
+    public static void moltenOverAnOakLogCooksItToCharcoal(GameTestHelper helper) {
+        int heatTicks = layMoltenOn(helper, Blocks.OAK_LOG, TWO_LAYERS);
+        helper.setBlock(FLOOR.below(), Blocks.DIRT);
+        helper.runAfterDelay(heatTicks + PAST_THE_POUR, () -> {
+            BlockState log = helper.getBlockState(FLOOR);
+            AABB logSpace = new AABB(helper.absolutePos(FLOOR));
+            List<ItemEntity> charcoal = helper.getLevel().getEntitiesOfClass(ItemEntity.class, logSpace,
+                    item -> item.getItem().is(Items.CHARCOAL));
+            int charcoalCount = charcoal.stream().mapToInt(item -> item.getItem().getCount()).sum();
+            int layers = layersAt(helper, FLOOR) + layersAt(helper, OVER_THE_FLOOR);
+            helper.assertTrue(!log.is(Blocks.OAK_LOG) && charcoalCount == 1 && layers == 1,
+                    String.format(NOT_COOKED_TO_CHARCOAL, log, charcoalCount, layers));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Fifteen layers of Molten over dirt, which neither melts nor cooks,
+     * stand whole after several heats.
+     * molten-cooks-the-block-below-it-as-flames-cooks-blocks
+     * placed-goo-persists-and-piles-high
+     *
+     * @param helper the gametest helper
+     */
+    public static void moltenOverDirtPersistsWhole(GameTestHelper helper) {
+        int heatTicks = layMoltenOn(helper, Blocks.DIRT, VolumeCellBlock.MAX_LAYERS);
+        helper.runAfterDelay(heatTicks * SEVERAL_HEATS, () -> {
+            BlockState under = helper.getBlockState(FLOOR);
+            helper.assertTrue(under.is(Blocks.DIRT) && holdsLayers(helper, VolumeCellBlock.MAX_LAYERS),
+                    String.format(DIRT_SPENT_GOO, under, helper.getBlockState(OVER_THE_FLOOR)));
+            helper.succeed();
+        });
+    }
+
+    private static int layersAt(GameTestHelper helper, BlockPos pos) {
+        BlockState state = helper.getBlockState(pos);
+        return state.is(GooBlocks.BLAZE_MOLTEN.get()) ? state.getValue(VolumeCellBlock.LAYERS) : 0;
     }
 
     // Two layers over the floor block heat it red hot for the heat's ticks, then leave the melted block's source under
