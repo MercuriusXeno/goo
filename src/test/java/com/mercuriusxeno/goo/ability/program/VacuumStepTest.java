@@ -8,6 +8,8 @@ import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.network.HoldMarks;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -32,9 +34,11 @@ import java.util.function.IntSupplier;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.clearInvocations;
@@ -48,9 +52,9 @@ import static org.mockito.Mockito.withSettings;
 
 /**
  * Vacuum's drain and reach: every residual cell in the cone loses one layer
- * each held tick from the first tick the cone reaches it, near and far alike,
- * and the hold reaches every residual inside its cone that the eye sees past
- * other residuals
+ * each time the ticks its distance sets have run, 3 at the eye rising to 6 at
+ * the reach's far end, and the hold reaches every residual inside its cone
+ * that the eye sees past other residuals
  * (decisions vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave,
  * vacuum-breaks-a-cell-the-tick-the-wave-reaches-it).
  */
@@ -75,13 +79,25 @@ class VacuumStepTest {
             assertTrue(VacuumStep.slurpPitch(4, SHIPPED_RANGE) < VacuumStep.slurpPitch(SHIPPED_RANGE, SHIPPED_RANGE));
         }
 
-        // vacuum-breaks-a-cell-the-tick-the-wave-reaches-it: no distance pace, so the step takes no params
+        // vacuum-breaks-a-cell-the-tick-the-wave-reaches-it: the pace and the memory are the step's data
         @Test
-        void theShippedVacuumBehaviorIsTheBareType() {
+        void theShippedVacuumBehaviorNamesThePaceAndTheMemory() {
             JsonObject behavior = shippedVacuumBehavior();
 
-            assertEquals(Set.of("type"), behavior.keySet());
-            assertNotNull(shippedVacuum());
+            assertEquals(3, behavior.get("near_layer_ticks").getAsInt());
+            assertEquals(6, behavior.get("far_layer_ticks").getAsInt());
+            assertEquals(20, behavior.get("count_memory_ticks").getAsInt());
+            assertEquals(new VacuumStep(3, 6, 20), shippedVacuum());
+        }
+
+        // vacuum-breaks-a-cell-the-tick-the-wave-reaches-it
+        @Test
+        void aLayerTakesThreeTicksAtTheEyeSixAtTheReachAndFourHalfWayFloored() {
+            VacuumStep vacuum = shippedVacuum();
+
+            assertEquals(3, vacuum.layerTicks(0, SHIPPED_RANGE));
+            assertEquals(6, vacuum.layerTicks(SHIPPED_RANGE, SHIPPED_RANGE));
+            assertEquals(4, vacuum.layerTicks(SHIPPED_RANGE / 2, SHIPPED_RANGE));
         }
 
         // vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
@@ -111,11 +127,12 @@ class VacuumStepTest {
     }
 
     /**
-     * A reached residual loses one layer each held tick from the hold's first
-     * tick, near the eye and far along the reach alike, with no crack drawn;
-     * each layer taken throws three break particles, and the break sound and
-     * the slurp play once, on the tick the last layer goes; the cone turned
-     * off a cell leaves it at the layers it has left
+     * A reached residual loses one layer each time the ticks its distance
+     * sets have run, the first once they have run after the cone reaches it,
+     * with no crack drawn; each layer taken throws three break particles, and
+     * the break sound and the slurp play once, on the tick the last layer
+     * goes; the cone turned off a cell leaves it at the layers it has left and
+     * keeps its count for 20 ticks
      * (decisions vacuum-breaks-a-cell-the-tick-the-wave-reaches-it,
      * vacuum-throws-three-break-particles-a-layer,
      * vacuum-sounds-a-suction-wind-and-rising-slurps).
@@ -123,34 +140,42 @@ class VacuumStepTest {
     @Nested
     class Drain {
 
-        /** Four blocks east of the eye, on the look. */
+        /** Four blocks east of the eye, on the look, where a layer takes 4 ticks. */
         private static final BlockPos CELL = new BlockPos(4, 2, 0);
-        /** Two blocks east of the eye, on the look. */
+        private static final int CELL_PACE = 4;
+        /** Two blocks east of the eye, on the look, where a layer takes 3 ticks. */
         private static final BlockPos NEAR = new BlockPos(2, 2, 0);
-        /** Nine blocks east of the eye, on the look, near the reach's far end. */
+        private static final int NEAR_PACE = 3;
+        /** Nine blocks east of the eye, on the look, near the reach's far end, where a layer takes 5 ticks. */
         private static final BlockPos FAR = new BlockPos(9, 2, 0);
+        private static final int FAR_PACE = 5;
         /** A full cell's layers. */
         private static final int FULL = VolumeCellBlock.MAX_LAYERS;
         /** A shallow cell's layers. */
         private static final int SHALLOW = 3;
-        /** The layers the single cell tests lay, more than any old break pace ran ticks. */
+        /** The layers the single cell tests lay. */
         private static final int DEEP = 10;
         private static final int PARTICLES_PER_LAYER = 3;
+        /** The ticks the cone stays off a cell inside its count's 20 ticks of memory. */
+        private static final int OFF_INSIDE_THE_MEMORY = 10;
+        /** The ticks the cone stays off a cell past its count's 20 ticks of memory. */
+        private static final int OFF_PAST_THE_MEMORY = 25;
         private final VacuumStep vacuum = shippedVacuum();
         private final AtomicInteger held = new AtomicInteger();
         private final Map<BlockPos, BlockState> cells = new HashMap<>();
         private final Map<BlockPos, Integer> emptiedOn = new LinkedHashMap<>();
+        private final VacuumCounts counts = new VacuumCounts();
 
         @Test
-        void everyReachedCellLosesOneLayerEachHeldTickNearAndFarAlike() {
+        void aReachedCellLosesALayerEachTimeTheTicksItsDistanceSetsHaveRun() {
             ChannelHost host = drainingHost(Map.of(NEAR, WorldGooHosts.worldGoo(FULL),
                     FAR, WorldGooHosts.worldGoo(SHALLOW)), () -> LOOK_EAST);
             List<String> wrong = new ArrayList<>();
 
-            for (int tick = 1; tick <= FULL; tick++) {
+            for (int tick = 1; tick <= FULL * NEAR_PACE; tick++) {
                 holdFor(host, 1);
-                int near = Math.max(0, FULL - tick);
-                int far = Math.max(0, SHALLOW - tick);
+                int near = Math.max(0, FULL - tick / NEAR_PACE);
+                int far = Math.max(0, SHALLOW - tick / FAR_PACE);
                 if (layersAt(NEAR) != near || layersAt(FAR) != far) {
                     wrong.add(tick + ": near " + layersAt(NEAR) + " owed " + near + ", far " + layersAt(FAR)
                             + " owed " + far);
@@ -158,7 +183,7 @@ class VacuumStepTest {
             }
 
             assertEquals(List.of(), wrong);
-            assertEquals(Map.of(FAR, SHALLOW, NEAR, FULL), emptiedOn);
+            assertEquals(Map.of(FAR, SHALLOW * FAR_PACE, NEAR, FULL * NEAR_PACE), emptiedOn);
         }
 
         @Test
@@ -169,22 +194,37 @@ class VacuumStepTest {
             List<Integer> cracked = new ArrayList<>();
             doAnswer(call -> cracked.add(held.get())).when(host).crackBlock(any(), anyInt());
 
-            holdFor(host, DEEP);
+            holdFor(host, DEEP * CELL_PACE);
 
-            assertEquals(DEEP, emptiedOn.get(CELL));
+            assertEquals(DEEP * CELL_PACE, emptiedOn.get(CELL));
             verifyNoInteractions(gradualBreak);
             assertEquals(List.of(), cracked);
+        }
+
+        @Test
+        void anEmptiedCellLeavesNoCountInTheStore() {
+            ChannelHost host = drainingHost(Map.of(CELL, WorldGooHosts.worldGoo(SHALLOW)), () -> LOOK_EAST);
+
+            holdFor(host, SHALLOW * CELL_PACE);
+
+            assertEquals(SHALLOW * CELL_PACE, emptiedOn.get(CELL));
+            assertFalse(counts.holds(WorldGooHosts.DIMENSION, CELL));
         }
 
         @Test
         void eachLayerTakenThrowsThreeBreakParticles() {
             ChannelHost host = drainingHost(Map.of(CELL, WorldGooHosts.worldGoo(DEEP)), () -> LOOK_EAST);
 
-            for (int layers = DEEP; layers >= 1; layers--) {
-                BlockState taken = cells.get(CELL);
+            for (int tick = 1; tick <= DEEP * CELL_PACE; tick++) {
+                BlockState before = cells.get(CELL);
+                int layers = layersAt(CELL);
                 holdFor(host, 1);
-                verify(host).scatterBreakParticles(CELL, taken, PARTICLES_PER_LAYER,
-                        (double) layers / VolumeCellBlock.MAX_LAYERS);
+                if (tick % CELL_PACE == 0) {
+                    verify(host).scatterBreakParticles(CELL, before, PARTICLES_PER_LAYER,
+                            (double) layers / VolumeCellBlock.MAX_LAYERS);
+                } else {
+                    verify(host, never()).scatterBreakParticles(any(), any(), anyInt(), anyDouble());
+                }
             }
         }
 
@@ -192,7 +232,7 @@ class VacuumStepTest {
         void theBreakSoundAndTheSlurpPlayOnceOnTheTickTheLastLayerGoes() {
             ChannelHost host = drainingHost(Map.of(CELL, WorldGooHosts.worldGoo(DEEP)), () -> LOOK_EAST);
 
-            for (int tick = 1; tick < DEEP; tick++) {
+            for (int tick = 1; tick < DEEP * CELL_PACE; tick++) {
                 holdFor(host, 1);
                 verify(host, never()).playBreakSound(any(), any());
                 verify(host, never()).slurpAt(any(), anyFloat());
@@ -205,22 +245,38 @@ class VacuumStepTest {
         }
 
         @Test
-        void aCellTheConeTurnsOffKeepsTheLayersItHasLeftAndLosesOneATickWhenReachedAgain() {
+        void aCellTheConeTurnsOffInsideTheMemoryTakesItsNextLayerOnceTheTicksLeftHaveRun() {
             AtomicReference<Vec3> look = new AtomicReference<>(LOOK_EAST);
             ChannelHost host = drainingHost(Map.of(CELL, WorldGooHosts.worldGoo(DEEP)), look::get);
-            int partWay = 4;
+            int counted = CELL_PACE + 2;
 
-            holdFor(host, partWay);
+            holdFor(host, counted);
             look.set(LOOK_NORTH);
-            holdFor(host, 2);
+            holdFor(host, OFF_INSIDE_THE_MEMORY);
 
-            assertEquals(DEEP - partWay, layersAt(CELL));
+            assertEquals(DEEP - 1, layersAt(CELL));
 
             look.set(LOOK_EAST);
-            int reachedAgainOn = held.get() + 1;
-            holdFor(host, DEEP - partWay);
+            holdFor(host, CELL_PACE - 2 - 1);
+            assertEquals(DEEP - 1, layersAt(CELL), "the ticks left of the pace have not run");
+            holdFor(host, 1);
+            assertEquals(DEEP - 2, layersAt(CELL), "the kept count reached the pace");
+        }
 
-            assertEquals(reachedAgainOn + DEEP - partWay - 1, emptiedOn.get(CELL));
+        @Test
+        void aCellTheConeTurnsOffPastTheMemoryCountsFromZeroWhenReachedAgain() {
+            AtomicReference<Vec3> look = new AtomicReference<>(LOOK_EAST);
+            ChannelHost host = drainingHost(Map.of(CELL, WorldGooHosts.worldGoo(DEEP)), look::get);
+
+            holdFor(host, CELL_PACE + 2);
+            look.set(LOOK_NORTH);
+            holdFor(host, OFF_PAST_THE_MEMORY);
+            look.set(LOOK_EAST);
+            holdFor(host, CELL_PACE - 1);
+
+            assertEquals(DEEP - 1, layersAt(CELL), "a count past its memory starts over");
+            holdFor(host, 1);
+            assertEquals(DEEP - 2, layersAt(CELL));
         }
 
         /** Ticks the hold on from the tick it last read, as many ticks as named; a verify reads the last tick's calls. */
@@ -242,7 +298,7 @@ class VacuumStepTest {
          */
         private ChannelHost drainingHost(Map<BlockPos, BlockState> laid, Supplier<Vec3> look) {
             cells.putAll(laid);
-            ChannelHost host = WorldGooHosts.holding(cells, held::get, look);
+            ChannelHost host = WorldGooHosts.holding(cells, held::get, look, counts);
             doAnswer(call -> {
                 BlockPos cell = call.getArgument(0);
                 int left = layersAt(cell) - 1;
@@ -272,14 +328,21 @@ class VacuumStepTest {
         private static final BlockPos STONE = new BlockPos(4, 2, 1);
         private final VacuumStep vacuum = shippedVacuum();
 
+        /** The ticks a layer of the world goo four blocks out takes. */
+        private static final int PACE = 4;
+
         @Test
         void aWorldGooOnTheVolumeCellLosesALayerAndStoneStands() {
+            AtomicInteger held = new AtomicInteger();
             ChannelHost host = WorldGooHosts.holding(Map.of(WORLD_GOO, WorldGooHosts.worldGoo(WorldGooHosts.LAYERS),
-                    STONE, WorldGooHosts.stone()));
+                    STONE, WorldGooHosts.stone()), held::get, () -> LOOK_EAST, new VacuumCounts());
             List<BlockPos> taken = new ArrayList<>();
             doAnswer(call -> taken.add(call.getArgument(0))).when(host).takeLayer(any());
 
-            WorldGooHosts.tick(vacuum, host);
+            for (int tick = 1; tick <= PACE; tick++) {
+                held.set(tick);
+                WorldGooHosts.tick(vacuum, host);
+            }
 
             assertEquals(List.of(WORLD_GOO), taken);
         }
@@ -319,6 +382,8 @@ class VacuumStepTest {
 
         /** The layers each world goo cell holds. */
         static final int LAYERS = 6;
+        /** The level every cell stands in. */
+        static final ResourceKey<Level> DIMENSION = Level.OVERWORLD;
 
         private WorldGooHosts() {
         }
@@ -333,11 +398,12 @@ class VacuumStepTest {
             vacuum.tick(new StepContext(host, 0, 0));
         }
 
-        static ChannelHost holding(Map<BlockPos, BlockState> cells) {
-            return holding(cells, () -> ChannelAim.FIRST_TICK, () -> LOOK_EAST);
-        }
-
-        static ChannelHost holding(Map<BlockPos, BlockState> cells, IntSupplier held, Supplier<Vec3> look) {
+        /**
+         * A host over the cells whose Vacuum counts land in the store, the
+         * hold's tick standing as the server's clock.
+         */
+        static ChannelHost holding(Map<BlockPos, BlockState> cells, IntSupplier held, Supplier<Vec3> look,
+                                   VacuumCounts counts) {
             ChannelHost host = mock(ChannelHost.class);
             BlockState air = state(mock(Block.class), Shapes.empty());
             when(host.channelAim()).thenAnswer(call -> Optional.of(new ChannelAim(EYE.add(look.get()), null, CONE,
@@ -345,6 +411,12 @@ class VacuumStepTest {
             when(host.eye()).thenReturn(EYE);
             when(host.holdMarks()).thenReturn(new HoldMarks());
             when(host.stateAt(any())).thenAnswer(call -> cells.getOrDefault(call.getArgument(0), air));
+            when(host.countVacuumTick(any(), anyInt())).thenAnswer(call -> counts.countTick(DIMENSION,
+                    call.getArgument(0), held.getAsInt(), call.getArgument(1)));
+            doAnswer(call -> {
+                counts.forget(DIMENSION, call.getArgument(0));
+                return null;
+            }).when(host).forgetVacuumCount(any());
             return host;
         }
 
