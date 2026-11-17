@@ -437,7 +437,7 @@ final class CellLanding {
         if (fed.falls()) {
             // falling-layer-lands-when-its-drip-arrives: the layer is paid once, as the strike starts its fall
             if (host.placementPrice().pay(VolumeCellBlock.MAX_LAYERS)) {
-                cell.beginFall(host.level(), pos, pos.getY() + 1.0);
+                cell.beginFall(host.level(), pos, pos.getY() + 1.0, host.placingPlayer());
             }
         } else if (fed.side().isPresent()) {
             feedSide(host, pos, fed.side().get(), fed.coat(), cell);
@@ -466,7 +466,10 @@ final class CellLanding {
         }
         VolumeCellBlock.stuck(host.stateAt(pos), cell, side)
                 .filter(into -> host.placementPrice().pay(VolumeCellBlock.MAX_LAYERS))
-                .ifPresent(into -> host.transformBlock(pos, into));
+                .ifPresent(into -> {
+                    host.transformBlock(pos, into);
+                    cell.creditPlacer(host.level(), pos, host.placingPlayer());
+                });
     }
 
     /**
@@ -486,6 +489,8 @@ final class CellLanding {
                 .filter(into -> host.placementPrice().pay(VolumeCellBlock.MAX_LAYERS))
                 .ifPresent(into -> {
                     host.transformBlock(pos, into);
+                    // standing-goo-thing-credits-whoever-placed-it: credited before the spread carries it on
+                    cell.creditPlacer(host.level(), pos, host.placingPlayer());
                     cell.spreadAtOnce(host.level(), pos);
                 });
     }

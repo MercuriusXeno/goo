@@ -67,9 +67,10 @@ public record PotionStep(Identifier effect, Expr duration, Expr amplifier, boole
         }
         TargetHost host = context.hostAs(TargetHost.class);
         if (Goo.MODID.equals(effect.getNamespace())) {
-            // lingering-goo-effect-credits-whoever-applied-it: a goo effect's later ticks, Mycosis's among them,
-            // name this thrower
-            LingeringAppliers.remember(host.target(), effect, host.thrower());
+            // a goo effect's later ticks, Mycosis's among them, name this thrower or the field's placer
+            // lingering-goo-effect-credits-whoever-applied-it
+            // standing-goo-thing-credits-whoever-placed-it
+            LingeringAppliers.remember(host.target(), effect, host.creditedTo());
         }
         host.target().addEffect(new MobEffectInstance(holder.get(), ticks, level, false, visible));
         return true;
