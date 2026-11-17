@@ -39,6 +39,8 @@ public final class UpdraftTests {
     private static final String DRIPS_LAY_A_LAYER_EACH = "updraft_drips_lay_a_layer_each";
     private static final String LIFTS_BY_ITS_LAYERS = "updraft_lifts_by_its_layers";
     private static final String KEEPS_ITS_LAYERS_WHILE_LIFTING = "updraft_keeps_its_layers_while_lifting";
+    private static final String LEAVES_A_PLAYER_TO_ITS_CLIENT = "updraft_leaves_a_players_motion_to_its_client";
+    private static final String GLIDES_A_FALLING_MOB_DOWN = "updraft_glides_a_falling_mob_down";
     private static final Identifier UPDRAFT = Identifier.parse("goo:typhoon_updraft");
     /** The stone the walled tests lay, two blocks deep across the bay. */
     private static final int STONE_TOP_Y = 2;
@@ -61,6 +63,21 @@ public final class UpdraftTests {
     private static final int KEPT_LAYERS = 6;
     /** Twice the old column's life of two hundred ticks. */
     private static final int KEPT_TICKS = 400;
+    /** The cell the player test stands its player on. */
+    private static final BlockPos PLAYER_CELL = new BlockPos(2, STONE_TOP_Y, 2);
+    /** The motion the player test hands its player, as its client would have moved it: walking east, falling. */
+    private static final Vec3 CLIENTS_MOTION = new Vec3(0.2, -0.1, 0);
+    private static final int PLAYER_WATCH_TICKS = 10;
+    /** A short cell, whose glide zone a zombie falls through. */
+    private static final BlockPos SHORT_GLIDE_CELL = new BlockPos(2, STONE_TOP_Y, 2);
+    private static final int SHORT_GLIDE_LAYERS = 2;
+    /** How far over the short cell's push column the zombie starts, inside its glide zone. */
+    private static final double GLIDE_START_OVER_THE_PUSH = 8;
+    private static final int GLIDE_WATCH_TICKS = 40;
+    /** The fastest a fall through the glide zone may run: the shipped fall cap, with a little slack. */
+    private static final double GLIDE_FALL_SLACK = 0.02;
+    /** typhoon_updraft.json's fall cap, the fastest a fall over an Updraft cell runs. */
+    private static final double GLIDE_FALL_CAP = 0.15;
     /** How far from its cell's layer count a lifted zombie's highest feet may stand. */
     private static final double RISE_SLACK = 1.0;
     /** The most the zombie beside the column may rise and still stand on the ground. */
@@ -72,6 +89,10 @@ public final class UpdraftTests {
             + " within %.1f, rose %.2f";
     private static final String BESIDE_ROSE = "The zombie beside the column should stay on the ground, rose %.2f";
     private static final String LAYERS_SPENT = "The Updraft cell should keep its %d layers while lifting, stands %s";
+    private static final String PLAYER_MOTION_WRITTEN = "The server should leave a player's motion to its client,"
+            + " held %s, stands %s";
+    private static final String GLIDE_TOO_FAST = "A zombie falling through the glide zone should fall at most %.2f a tick,"
+            + " fell %.2f";
     private static final String NOT_LIFTED = "After %d ticks the zombie should stand above the cell's top %.2f, stands at %.2f";
 
     private UpdraftTests() {
@@ -86,6 +107,8 @@ public final class UpdraftTests {
         GooTestFunctions.registerTest(registrar, DRIPS_LAY_A_LAYER_EACH, UpdraftTests::dripsLayALayerEach);
         GooTestFunctions.registerTest(registrar, LIFTS_BY_ITS_LAYERS, UpdraftTests::liftsByItsLayers);
         GooTestFunctions.registerTest(registrar, KEEPS_ITS_LAYERS_WHILE_LIFTING, UpdraftTests::keepsItsLayersWhileLifting);
+        GooTestFunctions.registerTest(registrar, LEAVES_A_PLAYER_TO_ITS_CLIENT, UpdraftTests::leavesAPlayersMotionToItsClient);
+        GooTestFunctions.registerTest(registrar, GLIDES_A_FALLING_MOB_DOWN, UpdraftTests::glidesAFallingMobDown);
     }
 
     /**
@@ -156,6 +179,68 @@ public final class UpdraftTests {
                     String.format(LAYERS_SPENT, KEPT_LAYERS, state));
             double feet = rider.zombie.getY();
             helper.assertTrue(feet > rider.top, String.format(NOT_LIFTED, KEPT_TICKS, rider.top, feet));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A player standing on an Updraft cell keeps the motion its client gave
+     * it: the server writes no lift onto a player, whose own client moves it,
+     * so walking over the goo is never stalled or hitched.
+     * updraft-is-typhoons-world-goo-that-lifts-the-entities-above-it
+     *
+     * @param helper the gametest helper
+     */
+    public static void leavesAPlayersMotionToItsClient(GameTestHelper helper) {
+        layStone(helper);
+        Block updraft = updraftCell();
+        helper.setBlock(PLAYER_CELL, updraft == Blocks.AIR ? Blocks.AIR.defaultBlockState()
+                : updraft.defaultBlockState().setValue(VolumeCellBlock.LAYERS, KEPT_LAYERS));
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.TYPHOON);
+        Vec3 feet = Vec3.atBottomCenterOf(helper.absolutePos(PLAYER_CELL))
+                .add(0, (double) KEPT_LAYERS / VolumeCellBlock.MAX_LAYERS, 0);
+        player.setPos(feet.x, feet.y, feet.z);
+        player.setDeltaMovement(CLIENTS_MOTION);
+        double[] highestRise = {CLIENTS_MOTION.y};
+        // read what the server's tick left before handing the client's motion back for the next
+        helper.onEachTick(() -> {
+            highestRise[0] = Math.max(highestRise[0], player.getDeltaMovement().y);
+            player.setDeltaMovement(CLIENTS_MOTION);
+        });
+        helper.runAfterDelay(PLAYER_WATCH_TICKS, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(highestRise[0] == CLIENTS_MOTION.y,
+                    String.format(PLAYER_MOTION_WRITTEN, CLIENTS_MOTION, highestRise[0]));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A zombie starting high over a two-layer cell, inside the glide zone
+     * above its push column, falls no faster than the shipped fall cap on its
+     * way down to the push.
+     * updraft-is-typhoons-world-goo-that-lifts-the-entities-above-it
+     *
+     * @param helper the gametest helper
+     */
+    public static void glidesAFallingMobDown(GameTestHelper helper) {
+        layStone(helper);
+        Block updraft = updraftCell();
+        helper.setBlock(SHORT_GLIDE_CELL, updraft == Blocks.AIR ? Blocks.AIR.defaultBlockState()
+                : updraft.defaultBlockState().setValue(VolumeCellBlock.LAYERS, SHORT_GLIDE_LAYERS));
+        double over = (double) SHORT_GLIDE_LAYERS / VolumeCellBlock.MAX_LAYERS + SHORT_GLIDE_LAYERS
+                + GLIDE_START_OVER_THE_PUSH;
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE,
+                Vec3.atBottomCenterOf(SHORT_GLIDE_CELL).add(0, over, 0));
+        double[] last = {zombie.getY()};
+        double[] fastest = {0};
+        helper.onEachTick(() -> {
+            fastest[0] = Math.max(fastest[0], last[0] - zombie.getY());
+            last[0] = zombie.getY();
+        });
+        helper.runAfterDelay(GLIDE_WATCH_TICKS, () -> {
+            helper.assertTrue(fastest[0] <= GLIDE_FALL_CAP + GLIDE_FALL_SLACK,
+                    String.format(GLIDE_TOO_FAST, GLIDE_FALL_CAP, fastest[0]));
             helper.succeed();
         });
     }

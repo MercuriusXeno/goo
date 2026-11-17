@@ -35,6 +35,19 @@ class UpdraftWindTest {
         assertEquals(shipped.halfWidth(), column.radius(), EPSILON);
     }
 
+    @ParameterizedTest
+    @ValueSource(longs = {0L, 7L, 1000L})
+    void aCellBlowsOneLineInEverySixTicks(long from) {
+        for (BlockPos cell : new BlockPos[] {new BlockPos(0, 64, 0), new BlockPos(3, 70, -9), new BlockPos(-41, 5, 12)}) {
+            int blown = 0;
+            for (long tick = from; tick < from + UpdraftWind.WIND_EVERY_TICKS; tick++) {
+                blown += UpdraftWind.blowsOnCadence(cell, tick) ? 1 : 0;
+            }
+
+            assertEquals(1, blown, cell + " from " + from);
+        }
+    }
+
     @Test
     void aColumnBlowsOnceATickHoweverManyFramesSeeIt() {
         BlockPos pos = new BlockPos(40, 70, -12);
