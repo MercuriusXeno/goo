@@ -271,6 +271,22 @@ public final class SlimeTopQuads {
     }
 
     /**
+     * A quad moved up or down whole, its texture kept.
+     *
+     * @param quad the quad
+     * @param rise how far it moves up, in blocks, down where below 0
+     * @return the moved quad
+     */
+    static BakedQuad risen(BakedQuad quad, float rise) {
+        List<Vertex> moved = new ArrayList<>();
+        for (int vertex = 0; vertex < BakedQuad.VERTEX_COUNT; vertex++) {
+            Vector3fc at = quad.position(vertex);
+            moved.add(new Vertex(new Vector3f(at.x(), at.y() + rise, at.z()), quad.packedUV(vertex)));
+        }
+        return quadOf(moved, quad.direction(), quad.materialInfo());
+    }
+
+    /**
      * @param quad a quad
      * @return the height of its highest vertex, in blocks
      */

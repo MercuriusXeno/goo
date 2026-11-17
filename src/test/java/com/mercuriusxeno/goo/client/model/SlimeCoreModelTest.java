@@ -13,6 +13,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import org.joml.Vector3f;
 import org.joml.Vector3fc;
 import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
@@ -36,6 +37,7 @@ class SlimeCoreModelTest {
 
     private static final BlockPos CELL = new BlockPos(4, 64, 4);
     private static final float EPSILON = 1e-5f;
+    private static final float LAYER_PIXELS = 16f / 15;
 
     private static BlockState cellOf(Block goo, int layers) {
         BlockState state = mock(BlockState.class);
@@ -103,6 +105,45 @@ class SlimeCoreModelTest {
             assertTrue(shellTops.stream().anyMatch(shellPiece -> sameExtentAbove(shellPiece, coreTop)),
                     "no shell top piece stands over the core top at " + extentList(coreTop));
         }
+    }
+
+    /**
+     * The drips over an edge hang from the sloped top's edge, not from the
+     * flat layer height their model stands at: a block of 8 alone hangs its
+     * north drips from 4 layers, the height its top slopes to at that edge.
+     * goo-block-top-slopes-to-the-average-with-the-adjoining-block
+     */
+    @Test
+    void dripsHangFromTheSlopedTopsEdge() {
+        BlockState cell = cellOf(mock(VolumeCellBlock.class), 8);
+        BlockAndTintGetter level = mock(BlockAndTintGetter.class);
+        when(level.getBlockState(any())).thenReturn(mock(BlockState.class));
+        BakedQuad.MaterialInfo drip = new BakedQuad.MaterialInfo(mock(TextureAtlasSprite.class),
+                ChunkSectionLayer.TRANSLUCENT, null, 0, true, 0, false);
+        BakedQuad band = SlimeCoreQuads.faceOf(new Vector3f(0, 8 * LAYER_PIXELS - 3, -0.05f),
+                new Vector3f(16, 8 * LAYER_PIXELS, -0.05f), Direction.NORTH, drip);
+        BlockStateModelPart dripPart = mock(BlockStateModelPart.class);
+        when(dripPart.getQuads(any())).thenReturn(List.of());
+        when(dripPart.getQuads(null)).thenReturn(List.of(band));
+        BlockStateModel drips = mock(BlockStateModel.class);
+        doAnswer(call -> call.<List<BlockStateModelPart>>getArgument(4).add(dripPart))
+                .when(drips).collectParts(any(), any(), any(), any(), any());
+        BakedQuad.MaterialInfo film = new BakedQuad.MaterialInfo(mock(TextureAtlasSprite.class),
+                ChunkSectionLayer.TRANSLUCENT, null, 0, true, 0, false);
+        List<BlockStateModelPart> parts = new ArrayList<>();
+
+        new SlimeCoreModel(mock(BlockStateModel.class), film, film, Map.of(Direction.NORTH, drips))
+                .collectParts(level, CELL, cell, RandomSource.create(0), parts);
+
+        float top = 0;
+        for (BlockStateModelPart part : parts) {
+            for (BakedQuad quad : part.getQuads(null)) {
+                for (int vertex = 0; quad.materialInfo() == drip && vertex < BakedQuad.VERTEX_COUNT; vertex++) {
+                    top = Math.max(top, quad.position(vertex).y());
+                }
+            }
+        }
+        assertEquals(4f / 15, top, EPSILON, "the drips' top should stand at the edge's 4 layers");
     }
 
     private static boolean sameExtentAbove(BakedQuad shell, BakedQuad core) {
