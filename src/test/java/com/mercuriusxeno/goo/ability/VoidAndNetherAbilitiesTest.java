@@ -48,12 +48,12 @@ class VoidAndNetherAbilitiesTest {
     }
 
     @Test
-    void netherShipsDecayAndUndead() {
+    void netherShipsDecayInfestAndUndead() {
         Set<String> nether = AbilityJson.files().stream().map(AbilityJson::decode)
                 .filter(ability -> ability.gooType() == GooTypes.NETHER)
                 .map(ability -> ability.id().getPath())
                 .collect(Collectors.toSet());
 
-        assertEquals(Set.of("nether_decay", "nether_undead"), nether);
+        assertEquals(Set.of("nether_decay", "nether_infest", "nether_undead"), nether);
     }
 }

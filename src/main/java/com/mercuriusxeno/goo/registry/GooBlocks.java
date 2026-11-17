@@ -340,6 +340,25 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
+     * Infest: the volume cell bound to Nether's goo, the dark red goo Infest
+     * sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot and sounding as goo does, dropping the nether goo its layers
+     * cost through VolumeCellBlock.getDrops, no loot table
+     * (decisions infest-is-nethers-goo-the-decay-effect-localized-around-the-goo,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VolumeCellBlock> NETHER_INFEST = BLOCKS.registerBlock(
+            "nether_infest", properties -> new VolumeCellBlock(properties, CellBinding.INFEST),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.NETHER)
+                    .friction(CellBinding.INFEST.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
      * Prism: the milky quartz crystal Crystal's Prism grows, the host every
      * prism combo grows on (decision prism-blob-becomes-a-milky-quartz-crystal).
      */
