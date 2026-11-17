@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.RimeCellBlock;
+import com.mercuriusxeno.goo.block.ability.UpdraftCellBlock;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.block.ability.WispBlock;
 import com.mercuriusxeno.goo.block.ability.ZapPulseBlock;
@@ -309,6 +310,26 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_PURPLE)
                     .friction(CellBinding.LEECH.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
+     * Updraft: the volume cell bound to Typhoon's goo, the pale green goo
+     * Updraft sprays onto a block's top, one to fifteen layers, ordinary
+     * ground underfoot and sounding as goo does, lifting what stands above it
+     * a block for each layer, dropping the typhoon goo its layers cost
+     * through VolumeCellBlock.getDrops, no loot table
+     * (decisions updraft-is-typhoons-world-goo-that-lifts-the-entities-above-it,
+     * updraft-goo-lifts-one-block-per-layer, each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<UpdraftCellBlock> TYPHOON_UPDRAFT = BLOCKS.registerBlock(
+            "typhoon_updraft", properties -> new UpdraftCellBlock(properties, CellBinding.UPDRAFT),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_LIGHT_GREEN)
+                    .friction(CellBinding.UPDRAFT.surface().friction())
                     .sound(SoundType.SLIME_BLOCK)
                     .instabreak()
                     .noOcclusion()

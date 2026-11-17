@@ -110,6 +110,15 @@ public class GooParticles {
         PARTICLE_TYPES.register("leech_spray_drip", () -> new SimpleParticleType(false));
 
     /**
+     * Updraft's spray drip: the mod's blocky goo drip in typhoon's pale
+     * greens, flying its arc until it strikes a block's top, where it splats
+     * and the Updraft goo lands.
+     * updraft-is-typhoons-world-goo-that-lifts-the-entities-above-it
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> UPDRAFT_SPRAY_DRIP =
+        PARTICLE_TYPES.register("updraft_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
      * A snowflake crystal flitting weightlessly along Cold's wind (decision
      * cold-streams-wind-lines-and-snowflakes).
      */

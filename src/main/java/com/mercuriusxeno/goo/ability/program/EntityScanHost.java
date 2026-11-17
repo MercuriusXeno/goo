@@ -44,16 +44,6 @@ public interface EntityScanHost extends StepHost {
     void forEntity(int entityId, Consumer<TargetHost> body);
 
     /**
-     * Carries every entity standing in a column of air above the anchor
-     * upward (decision updraft-blob-stands-a-column-of-wind).
-     *
-     * @param radius the column's half width in blocks
-     * @param height the column's height in blocks
-     * @param speed  the rise the column carries at, in blocks per tick
-     */
-    void liftEntitiesInColumn(double radius, double height, double speed);
-
-    /**
      * Rides every entity standing in the one-block shaft rising from the
      * block above the host's own, up to the first block that stops movement
      * (decision lift-prism-levitates-the-block-above).
