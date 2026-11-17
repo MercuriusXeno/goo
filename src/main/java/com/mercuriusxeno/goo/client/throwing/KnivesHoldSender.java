@@ -3,7 +3,9 @@ package com.mercuriusxeno.goo.client.throwing;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
+import com.mercuriusxeno.goo.client.ability.HoveringKnives;
 import com.mercuriusxeno.goo.network.KnivesHoldPayload;
+import com.mercuriusxeno.goo.network.KnivesThrowPayload;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import org.jspecify.annotations.Nullable;
@@ -73,6 +75,23 @@ public final class KnivesHoldSender {
             PAINTED.dropGone(stands);
             PAINTED.hovered(hovered);
         }
+    }
+
+    /**
+     * Throws the knives in the local player's fan at the mobs the hold
+     * painted, in painted order, and clears the paint; the server splits them.
+     * decision knives-form-on-right-click-and-throw-on-left-click
+     *
+     * @param player the local player
+     * @return true where a hold stood with a knife in its fan
+     */
+    static boolean throwKnives(Player player) {
+        if (begun == null || HoveringKnives.formedBy(player.getId()) <= 0) {
+            return false;
+        }
+        GloveThrowSender.sendPayload(new KnivesThrowPayload(PAINTED.painted()));
+        PAINTED.thrown();
+        return true;
     }
 
     /**

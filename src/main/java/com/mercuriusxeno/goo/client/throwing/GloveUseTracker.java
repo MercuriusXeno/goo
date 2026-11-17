@@ -367,6 +367,11 @@ public final class GloveUseTracker {
         }
 
         @Override
+        public boolean throwKnives() {
+            return KnivesHoldSender.throwKnives(player);
+        }
+
+        @Override
         public void javelinTurned(JavelinTurn turn) {
             // knives-form-on-right-click-and-throw-on-left-click: the server forms the knives from the hold's first tick
             if (turn == JavelinTurn.FORMS) {

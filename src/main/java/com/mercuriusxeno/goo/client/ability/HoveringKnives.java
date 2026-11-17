@@ -97,6 +97,17 @@ public final class HoveringKnives {
         return FANS.get(casterId);
     }
 
+    /**
+     * The knives in a caster's fan, as the server last counted them.
+     *
+     * @param casterId the caster's entity id
+     * @return the knives, 0 for a caster holding none
+     */
+    public static int formedBy(int casterId) {
+        Fan fan = FANS.get(casterId);
+        return fan == null ? 0 : fan.count();
+    }
+
     /** Drops every fan, as a disconnect does. */
     public static void clear() {
         FANS.clear();

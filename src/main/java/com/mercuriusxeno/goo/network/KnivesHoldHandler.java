@@ -77,7 +77,7 @@ public final class KnivesHoldHandler {
             return;
         }
         GooThrowHandler.consumeReagents(player, ability.id().toString(), gooType);
-        holds.begin(player, ability.delivery().charge(), gooType, ability.cost().exactIn(GooValues.of(player.level())));
+        holds.begin(player, new KnifeHolds.Held(gooType, ability), ability.cost().exactIn(GooValues.of(player.level())));
     }
 
     /**

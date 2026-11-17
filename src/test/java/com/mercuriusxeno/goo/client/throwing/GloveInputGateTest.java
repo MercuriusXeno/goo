@@ -42,6 +42,8 @@ class GloveInputGateTest {
         private int lastHeldTicks = -1;
         private final boolean throwsOnAttack;
         private boolean formsKnives;
+        private boolean knifeInTheFan = true;
+        private int knivesThrows;
         private int nextJavelins;
         private final List<JavelinTurn> turns = new ArrayList<>();
 
@@ -63,6 +65,12 @@ class GloveInputGateTest {
         @Override
         public boolean formsKnives() {
             return formsKnives;
+        }
+
+        @Override
+        public boolean throwKnives() {
+            knivesThrows++;
+            return knifeInTheFan;
         }
 
         @Override
@@ -113,8 +121,9 @@ class GloveInputGateTest {
 
     /**
      * Knives' press: right click held turns the hold's first tick into a
-     * hold begun, left click sends nothing, and letting go ends the hold,
-     * throwing nothing (decision knives-form-on-right-click-and-throw-on-left-click).
+     * hold begun, left click throws the knives formed with the press still
+     * armed, and letting go ends the hold, throwing nothing
+     * (decision knives-form-on-right-click-and-throw-on-left-click).
      */
     @Nested
     class KnivesForming {
@@ -123,16 +132,29 @@ class GloveInputGateTest {
         private final GloveInputGate gate = new GloveInputGate();
 
         @Test
-        void theHoldBeginsOnItsFirstTickAndLeftClickSendsNothing() {
+        void leftClickWithAKnifeInTheFanThrowsTheKnivesAndLeavesThePressArmed() {
             actions.formsKnives = true;
             gate.arm();
             for (int tick = 0; tick <= LONG_HOLD_TICKS; tick++) {
                 gate.tick(true, actions);
             }
 
-            assertFalse(gate.throwHeld(actions));
-            assertEquals(0, actions.throwsSent);
+            assertTrue(gate.throwHeld(actions));
+            assertEquals(1, actions.knivesThrows);
+            assertEquals(0, actions.throwsSent, "a knives throw sends no javelin");
+            assertTrue(gate.isArmed(), "the throw leaves right click's press standing");
             assertEquals(List.of(JavelinTurn.FORMS), actions.turns);
+        }
+
+        @Test
+        void leftClickWithAnEmptyFanThrowsNothing() {
+            actions.formsKnives = true;
+            actions.knifeInTheFan = false;
+            gate.arm();
+            gate.tick(true, actions);
+
+            assertFalse(gate.throwHeld(actions));
+            assertTrue(gate.isArmed());
         }
 
         @Test
