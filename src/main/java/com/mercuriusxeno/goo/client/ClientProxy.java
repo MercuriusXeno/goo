@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client;
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.client.ability.HunkCrumbles;
+import com.mercuriusxeno.goo.client.ability.UpdraftWind;
 import com.mercuriusxeno.goo.client.knownitems.KnownItemsOverlay;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -38,6 +39,11 @@ public final class ClientProxy implements ISidedProxy {
     @Override
     public void hunkShattered(BlockHunk hunk) {
         HunkCrumbles.begin(hunk);
+    }
+
+    @Override
+    public void seeUpdraftCell(BlockPos cell) {
+        UpdraftWind.seeCell(cell);
     }
 
     @Override

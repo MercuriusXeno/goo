@@ -1,14 +1,9 @@
 package com.mercuriusxeno.goo.network;
 
-import com.mercuriusxeno.goo.ability.AbilityDefinition;
-import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
-import com.mercuriusxeno.goo.gametest.KnownRecipes;
-import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
@@ -21,12 +16,10 @@ import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
- * Gametests for the lift combo Updraft grows on a prism: Updraft thrown at a
- * bare prism through the real throw path grows the lift for a spend of
- * typhoon goo and stands no wind column, what stands on the block above the prism
- * rises up the shaft while what stands beside it stays, and a rider sneaking
- * in the shaft sinks gently instead
- * (decisions lift-prism-levitates-the-block-above and thrown-hosts-absorb-their-prism-combos).
+ * Gametests for the lift combo Updraft grows on a prism: Updraft's stream
+ * held on a bare prism through the real stream path for its hold grows the
+ * lift, and what stands on the block above the prism rises up the shaft
+ * (decisions lift-prism-levitates-the-block-above and channeled-hosts-convert-prisms-over-the-hold).
  */
 @RegistersGameTests
 public final class LiftTests {
@@ -41,46 +34,35 @@ public final class LiftTests {
         GooTestFunctions.registerTest(registrar, LIFT_RAISES, LiftTests::updraftOnAPrismRaisesWhatStandsAbove);
     }
 
-
     private static final Identifier TYPHOON_UPDRAFT = Identifier.parse("goo:typhoon_updraft");
-    private static final int NO_ENTITY = -1;
     private static final BlockPos PRISM_POS = new BlockPos(2, 1, 2);
     /** The block above the prism, the shaft's floor. */
     private static final BlockPos RIDER_POS = PRISM_POS.above();
-    /** The least the rider climbs, short of the bay's ceiling. */
+    /** Three blocks south of the prism, where the player holds Updraft on it. */
+    private static final BlockPos STAND_POS = new BlockPos(2, 1, 5);
+    /** The least the rider climbs once the lift stands. */
     private static final double LEAST_RISE = 1.5;
-    private static final String ABILITY_REQUIRED = "The ability registry must hold typhoon_updraft";
     private static final String SHOULD_HOLD_COMBO = "The prism should hold Updraft's lift as its combo, held '%s'";
-    private static final String SHOULD_CHARGE = "The throw should spend typhoon goo, spent %d";
     private static final String SHOULD_RISE = "The zombie on the lift should rise %.1f blocks, rose %.2f";
 
     private LiftTests() {
     }
 
     /**
-     * Updraft thrown at a bare prism with a zombie standing on it: the throw
-     * spends typhoon goo, the prism takes the lift combo sourced from
-     * Updraft, and the rider climbs a block and a half.
+     * Updraft held on a bare prism with a zombie standing on it: once the
+     * hold converts it, the prism holds the lift combo sourced from Updraft,
+     * and the rider climbs a block and a half.
      *
      * @param helper the gametest helper
      */
     public static void updraftOnAPrismRaisesWhatStandsAbove(GameTestHelper helper) {
-        AbilityDefinition updraft = AbilityRegistry.of(helper.getLevel()).getAbility(TYPHOON_UPDRAFT);
-        helper.assertTrue(updraft != null, ABILITY_REQUIRED);
         standPrism(helper);
         Mob rider = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, RIDER_POS);
         double riderStart = rider.getY();
-        ServerPlayer thrower = SelfDeliveryTests.invoker(helper, GooTypes.TYPHOON);
-        KnownRecipes.teachRequires(thrower, updraft);
-        int heldBefore = typhoonHeld(thrower);
-
-        GooThrowHandler.execute(thrower, new GooThrowPayload(GooTypes.id(GooTypes.TYPHOON), NO_ENTITY,
-                helper.absolutePos(PRISM_POS), Direction.UP.ordinal(), false, TYPHOON_UPDRAFT.toString(),
-                thrower.getEyePosition()));
-        int spent = heldBefore - typhoonHeld(thrower);
-        helper.getLevel().getServer().getPlayerList().remove(thrower);
-        helper.assertTrue(spent > 0, String.format(SHOULD_CHARGE, spent));
-
+        int hold = PrismChanneler.hold(helper, TYPHOON_UPDRAFT);
+        ServerPlayer holder = PrismChanneler.holdOn(helper, GooTypes.TYPHOON, TYPHOON_UPDRAFT, PRISM_POS, STAND_POS,
+                hold);
+        helper.runAfterDelay(hold + 1, () -> helper.getLevel().getServer().getPlayerList().remove(holder));
         helper.succeedWhen(() -> {
             String combo = helper.getBlockEntity(PRISM_POS, PrismBlockEntity.class).getCombo();
             helper.assertTrue(TYPHOON_UPDRAFT.toString().equals(combo), String.format(SHOULD_HOLD_COMBO, combo));
@@ -92,9 +74,5 @@ public final class LiftTests {
     private static void standPrism(GameTestHelper helper) {
         helper.setBlock(PRISM_POS.below(), Blocks.STONE);
         helper.setBlock(PRISM_POS, GooBlocks.PRISM.get());
-    }
-
-    private static int typhoonHeld(ServerPlayer player) {
-        return GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.TYPHOON, 0);
     }
 }

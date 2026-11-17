@@ -773,7 +773,7 @@ class AbilityLoaderTest {
     }
 
     /**
-     * Vacuum ships among Void's abilities as a held stream of 8 blocks and a 40 degree cone, costing 1 mb of void
+     * Vacuum ships among Void's abilities as a held stream of 10 blocks and a 60 degree cone, costing 1 mb of void
      * goo each 20 held ticks and requiring no item.
      * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
      * vacuum-costs-one-mb-of-void-a-second

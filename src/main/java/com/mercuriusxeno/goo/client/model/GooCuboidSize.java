@@ -13,15 +13,14 @@ final class GooCuboidSize {
 
     /**
      * The cuboid's size at 1 mB and under, a little fleck of goo.
-     * decision fleck-is-one-and-a-half-and-the-cap-rises-by-the-same
+     * decision fleck-is-one-and-the-cap-is-three
      */
-    static final float FLECK_SIZE = 1.5f;
+    static final float FLECK_SIZE = 1.0f;
     /**
-     * The cuboid's size at the cap volume and above, raised by the fleck's
-     * own rise so each tenfold of volume keeps its step.
-     * decision fleck-is-one-and-a-half-and-the-cap-rises-by-the-same
+     * The cuboid's size at the cap volume and above, the largest a goo item draws.
+     * decision fleck-is-one-and-the-cap-is-three
      */
-    static final float CAPPED_SIZE = 4.5f;
+    static final float CAPPED_SIZE = 3.0f;
     /** The volume in mB at which the cuboid stops growing, the largest sprite tier's. */
     static final double CAP_VOLUME = 1_000_000_000d;
 
