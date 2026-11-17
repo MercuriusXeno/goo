@@ -10,6 +10,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -196,6 +198,37 @@ class AimStateTest {
         @Override
         public Vec3 entityPoint(Entity entity) {
             return entity.getBoundingBox().getCenter();
+        }
+    }
+
+    /**
+     * Every item a Grab press locked draws the glove outline while its lock
+     * stands, the aim resting elsewhere; once its lock ends, it draws the
+     * outline only while the aim rests on it
+     * (decision sweeping-grab-locks-every-item-the-highlight-passes).
+     */
+    @Nested
+    class LockedItemOutline {
+
+        private final ItemEntity first = mock(ItemEntity.class);
+        private final ItemEntity second = mock(ItemEntity.class);
+        private final Mob aimedAt = mob(new AABB(0, 0, 0, 1, 1, 1));
+
+        @Test
+        void twoLockedItemsAreOutlinedWithTheAimOnNeither() {
+            Set<Entity> locked = Set.of(first, second);
+            Set<Entity> outlined = java.util.stream.Stream.of(first, second, aimedAt)
+                    .filter(entity -> AimState.outlines(entity, aimedAt, locked::contains))
+                    .collect(java.util.stream.Collectors.toSet());
+            assertEquals(Set.of(first, second, aimedAt), outlined);
+        }
+
+        @Test
+        void anItemWhoseLockEndedIsOutlinedOnlyWhileTheAimRestsOnIt() {
+            Set<Entity> locked = Set.of();
+            assertTrue(AimState.outlines(first, first, locked::contains));
+            assertFalse(AimState.outlines(first, aimedAt, locked::contains));
+            assertFalse(AimState.outlines(first, null, locked::contains));
         }
     }
 

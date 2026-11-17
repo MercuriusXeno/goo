@@ -2,7 +2,9 @@ package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.client.TargetResult;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.item.ItemEntity;
 import org.jspecify.annotations.Nullable;
+import java.util.function.Predicate;
 
 /**
  * The glove's aim as one frame resolved it, read by everything that needs
@@ -70,7 +72,8 @@ public final class AimState {
         Resolution resolution = resolver.resolve(hit);
         target = resolution.target();
         hit = resolution.hit();
-        outlineColor = target instanceof TargetResult.EntityTarget ? entityOutlineColor : 0;
+        // A locked item keeps its outline while the aim rests on a block, so the color stands whatever the target.
+        outlineColor = entityOutlineColor;
     }
 
     /**
@@ -83,14 +86,14 @@ public final class AimState {
     }
 
     /**
-     * The outline an entity takes when it is the aimed-at one.
+     * The outline an entity takes: the aimed-at one's, or a locked item's.
      *
-     * @param entity the entity being rendered
-     * @return the opaque outline color, or 0 when the entity is not aimed at
+     * @param entity    the entity being rendered
+     * @param lockedNow whether a Grab locks an entity now, as this client sees its ailment
+     * @return the opaque outline color, or 0 when the glove outlines the entity not
      */
-    int outlineFor(Entity entity) {
-        boolean aimed = hit instanceof AimAssistResolver.AimHit.EntityHit eh && eh.entity() == entity;
-        return aimed ? outlineColor : 0;
+    int outlineFor(Entity entity, Predicate<Entity> lockedNow) {
+        return outlines(entity, aimedMob(), lockedNow) ? outlineColor : 0;
     }
 
     /**
@@ -102,6 +105,21 @@ public final class AimState {
     @Nullable Entity aimedMob() {
         return target instanceof TargetResult.EntityTarget && hit instanceof AimAssistResolver.AimHit.EntityHit eh
                 ? eh.entity() : null;
+    }
+
+    /**
+     * Whether the glove outlines an entity: the one the aim rests on, and
+     * every item a Grab press locked while its lock stands, so a sweep shows
+     * each item it took though the aim moved on.
+     * decision sweeping-grab-locks-every-item-the-highlight-passes
+     *
+     * @param entity    the entity being rendered
+     * @param aimed     the entity the aim rests on, or null
+     * @param lockedNow whether a Grab locks an entity now
+     * @return true where the glove outlines it
+     */
+    static boolean outlines(Entity entity, @Nullable Entity aimed, Predicate<Entity> lockedNow) {
+        return entity == aimed || entity instanceof ItemEntity && lockedNow.test(entity);
     }
 
     /**
