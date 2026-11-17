@@ -55,8 +55,6 @@ class InventoryRenamedAbilitiesTest {
         return Stream.of(
                 Arguments.of("ender_seal", "Seal"),
                 Arguments.of("void_zone", "Zone"),
-                Arguments.of("quantum_phase_self", "Phase Self"),
-                Arguments.of("quantum_phase_other", "Phase Other"),
                 Arguments.of("blaze_molten", "Molten"),
                 Arguments.of("crystal_shatter", "Shatter"),
                 Arguments.of("crystal_glimmer", "Glimmer"),

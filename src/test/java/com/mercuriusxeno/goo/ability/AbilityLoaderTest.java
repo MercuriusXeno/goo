@@ -192,11 +192,15 @@ class AbilityLoaderTest {
                     .map(def -> def.id().getPath()).collect(Collectors.toSet());
         }
 
+        /**
+         * phase-self-and-phase-other-leave-for-one-phase-goo
+         * goo-type-ships-without-a-durative-ability
+         */
         @Test
-        void quantumShipsItsPhasesAndPortalsAlone() {
-            assertEquals(Set.of("quantum_phase", "quantum_phase_other", "quantum_phase_self", "quantum_portal",
-                            "quantum_tunnel"),
+        void quantumShipsTunnelPortalAndPhaseAndNoDurative() {
+            assertEquals(Set.of("quantum_tunnel", "quantum_portal", "quantum_phase"),
                     shippedPathsOf(GooTypes.QUANTUM));
+            assertNull(new AbilityRegistry(shippedById()).durativeAbilityFor(GooTypes.QUANTUM));
         }
 
         /** decision goo-type-ships-without-a-durative-ability */

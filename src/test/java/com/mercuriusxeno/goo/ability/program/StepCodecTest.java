@@ -195,7 +195,6 @@ class StepCodecTest {
                     List.of(new RootStep(Expr.literal(60), Expr.literal(4), Expr.literal(1), Expr.literal(1.5))),
                     List.of(new LingerStep(List.of(LeafSteps.DISCARD.step(Unit.INSTANCE)))))),
             Map.entry("charm", new CharmStep()),
-            Map.entry("phase", new PhaseStep(Optional.of(Expr.literal(600)))),
             Map.entry("quantum_portal", new PortalStep()),
             Map.entry("wormhole", new WormholeStep(Expr.literal(16), Expr.literal(200))),
             Map.entry("enchant_book", LeafSteps.ENCHANT_BOOK.step(Unit.INSTANCE)),
