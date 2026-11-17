@@ -98,13 +98,27 @@ public final class GoopArcTests {
     private static final String BLOCK_FALLS_WHOLE = "goop_block_falls_whole_when_its_last_wall_breaks";
     private static final String HELD_BLOCK_FALLS_WHOLE = "goop_block_holding_its_walls_layers_falls_whole";
     private static final String RESTING_BESIDE_A_WALL_ADHERES = "goop_resting_beside_a_wall_adheres_to_it";
+    private static final String ON_FULL_GOO_NEVER_FLOATS = "goop_on_a_full_block_of_goop_never_floats_above_it";
+    private static final String HELD_DRAINS_INTO_GOO_BELOW = "goop_held_on_a_wall_drains_into_its_goo_below";
+    /** The layers the Goop a held block drains into holds, its sum with the held block's under Goop's pour gap. */
+    private static final int DRAINED_INTO = 1;
+    /** The layers a block of Goop held on a wall over goo holds. */
+    private static final int HELD_ABOVE = 3;
+    /** Ticks a column of Goop on an open floor is watched while its full block pours away. */
+    private static final int COLUMN_WATCH_TICKS = 120;
     /** The layers a block of Goop resting beside a wall holds, under Goop's pour gap so it stays put. */
     private static final int RESTING_VOLUME = 4;
     /** Ticks a resting block's first tick comes within. */
     private static final int ADHERE_TICKS = 20;
     private static final String CEILING_BLOCK_FALLS_WHOLE = "goop_on_a_ceiling_falls_whole_when_its_ceiling_breaks";
     /** The lowest face of the wall over open air, a block over the floor cells at its foot. */
-    private static final int OPEN_AIR_WALL_BOTTOM = 2;
+    private static final int OPEN_AIR_WALL_BOTTOM = 4;
+    /**
+     * Where the streamer stands to spray the wall over open air: raised on a
+     * stone block, so its drips strike the wall over an open cell clear of
+     * the fill gathering at the wall's foot, which held goo would drain into.
+     */
+    private static final BlockPos OPEN_AIR_STREAMER_POS = new BlockPos(0, 3, 8);
     /** A wall standing over open air, three blocks east of the streamer. */
     private static final int OPEN_AIR_WALL_EAST = 3;
     /** The volume of the Goop block whose last wall breaks. */
@@ -212,6 +226,10 @@ public final class GoopArcTests {
         GooTestFunctions.registerTest(registrar, BLOCK_FALLS_WHOLE, GoopArcTests::goopBlockFallsWholeWhenItsLastWallBreaks);
         GooTestFunctions.registerTest(registrar, CEILING_BLOCK_FALLS_WHOLE,
                 GoopArcTests::goopOnACeilingFallsWholeWhenItsCeilingBreaks);
+        GooTestFunctions.registerTest(registrar, HELD_DRAINS_INTO_GOO_BELOW,
+                GoopArcTests::goopHeldOnAWallDrainsIntoItsGooBelow);
+        GooTestFunctions.registerTest(registrar, ON_FULL_GOO_NEVER_FLOATS,
+                GoopArcTests::goopOnAFullBlockOfGoopNeverFloatsAboveIt);
         GooTestFunctions.registerTest(registrar, RESTING_BESIDE_A_WALL_ADHERES,
                 GoopArcTests::goopRestingBesideAWallAdheresToIt);
         GooTestFunctions.registerTest(registrar, HELD_BLOCK_FALLS_WHOLE,
@@ -829,7 +847,68 @@ public final class GoopArcTests {
      *
      * @param helper the gametest helper
      */
-    public static void goopRestingBesideAWallAdheresToIt(GameTestHelper helper) {
+    /**
+     * Goop held on a stone wall over a block of Goop with room drains down
+     * into it, so goo piles and joins the goo under it in place of hanging
+     * on the wall over a gap.
+     * operator UAT 2026-11-17: goo needs to pile and connect with goo below it
+     * stacked-goo-cells-share-one-slime-core
+     *
+     * @param helper the gametest helper
+     */
+    public static void goopHeldOnAWallDrainsIntoItsGooBelow(GameTestHelper helper) {
+        BlockPos lower = new BlockPos(OPEN_AIR_WALL_EAST - 1, 1, LEVEL_STREAMER_POS.getZ());
+        helper.setBlock(lower.below(), Blocks.STONE);
+        helper.setBlock(lower.east(), Blocks.STONE);
+        helper.setBlock(lower.above().east(), Blocks.STONE);
+        helper.setBlock(lower, GooBlocks.SLIME_COAT.get().defaultBlockState().setValue(VolumeCellBlock.LAYERS,
+                DRAINED_INTO));
+        helper.setBlock(lower.above(), GooBlocks.SLIME_COAT.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, HELD_ABOVE)
+                .setValue(VolumeCellBlock.coatProperty(Direction.EAST), SideCoat.ATTACHED));
+        helper.runAfterDelay(ADHERE_TICKS, () -> {
+            helper.assertBlockPresent(Blocks.AIR, lower.above());
+            int below = VolumeCellBlock.layersOf(helper.getBlockState(lower));
+            helper.assertTrue(below == DRAINED_INTO + HELD_ABOVE, "the goo below should hold "
+                    + (DRAINED_INTO + HELD_ABOVE) + " layers, holds " + below);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A block of Goop on a full block of Goop over an open floor: while the
+     * full block pours its layers away, the block on it never stands over it
+     * short of full longer than a tick, so goo never hangs in midair over goo.
+     * stacked-goo-cells-share-one-slime-core
+     *
+     * @param helper the gametest helper
+     */
+    public static void goopOnAFullBlockOfGoopNeverFloatsAboveIt(GameTestHelper helper) {
+        BlockPos lower = new BlockPos(1, 1, LEVEL_STREAMER_POS.getZ());
+        for (int x = -1; x <= 1; x++) {
+            for (int z = -1; z <= 1; z++) {
+                helper.setBlock(lower.offset(x, -1, z), Blocks.STONE);
+            }
+        }
+        helper.setBlock(lower, GooBlocks.SLIME_COAT.get().defaultBlockState().setValue(VolumeCellBlock.LAYERS,
+                VolumeCellBlock.MAX_LAYERS));
+        helper.setBlock(lower.above(), GooBlocks.SLIME_COAT.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, RESTING_VOLUME));
+        int[] floated = {0};
+        helper.onEachTick(() -> {
+            boolean upper = helper.getBlockState(lower.above()).is(GooBlocks.SLIME_COAT.get());
+            if (upper && VolumeCellBlock.layersOf(helper.getBlockState(lower)) < VolumeCellBlock.MAX_LAYERS) {
+                floated[0]++;
+            }
+        });
+        helper.runAfterDelay(COLUMN_WATCH_TICKS, () -> {
+            helper.assertTrue(floated[0] <= 1, "Goop stood over a block of Goop short of full for " + floated[0]
+                    + " ticks: a block of goo on goo should fall into it the tick it loses its footing");
+            helper.succeed();
+        });
+    }
+
+        public static void goopRestingBesideAWallAdheresToIt(GameTestHelper helper) {
         BlockPos block = new BlockPos(OPEN_AIR_WALL_EAST - 1, 1, LEVEL_STREAMER_POS.getZ());
         helper.setBlock(block.below(), Blocks.STONE);
         helper.setBlock(block.east(), Blocks.STONE);
@@ -855,7 +934,8 @@ public final class GoopArcTests {
             }
         }
         int holds = 1 + cohesionOfGoop(helper);
-        ServerPlayer streamer = goopStreamerAt(helper, LEVEL_STREAMER_POS, LEVEL);
+        helper.setBlock(OPEN_AIR_STREAMER_POS.below(), Blocks.STONE);
+        ServerPlayer streamer = goopStreamerAt(helper, OPEN_AIR_STREAMER_POS, LEVEL);
         holdGoopFor(helper, streamer, WALL_HOLD_TICKS);
         helper.runAfterDelay(WALL_HOLD_TICKS + FALL_TICKS, () -> {
             helper.getLevel().getServer().getPlayerList().remove(streamer);

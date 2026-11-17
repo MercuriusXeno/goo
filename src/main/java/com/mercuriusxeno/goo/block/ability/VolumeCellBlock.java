@@ -932,15 +932,27 @@ public class VolumeCellBlock extends Block {
             return;
         }
         BlockState held = runRunnyLayers(level, pos, adhereToWalls(level, pos, shed));
-        if (!held.is(this)) {
+        if (held.is(this) && !drainsDown(level, pos, held)) {
+            settle(level, pos, held);
+        }
+    }
+
+    /**
+     * Lets a block that holds its goo stand or fall: a block unable to stand
+     * falls whole, and one standing pours a layer, or sheds a wisp where it
+     * pours none.
+     *
+     * @param level the level
+     * @param pos   the block
+     * @param state the block's state
+     */
+    private void settle(ServerLevel level, BlockPos pos, BlockState state) {
+        if (!canSurvive(state, level, pos)) {
+            fallWhole(level, pos, state);
             return;
         }
-        if (!canSurvive(held, level, pos)) {
-            fallWhole(level, pos, held);
-            return;
-        }
-        if (!pourOnce(level, pos, held)) {
-            shedWisp(level, pos, held);
+        if (!pourOnce(level, pos, state)) {
+            shedWisp(level, pos, state);
         }
     }
 
@@ -1258,6 +1270,37 @@ public class VolumeCellBlock extends Block {
             return Below.WALL_ENDS;
         }
         return coatOn(under, side) == SideCoat.BARE ? Below.WALL_GOES_ON : Below.SIDE_TAKEN;
+    }
+
+    /**
+     * Drains the block's goo down into goo of its type below with room, as
+     * much as that block takes, a whole block on a floor and its hold with
+     * none, whatever walls hold this one: goo piles onto goo
+     * and joins it, and never hangs over it with a gap between.
+     * operator UAT 2026-11-17: goo needs to pile and connect with goo below it
+     * stacked-goo-cells-share-one-slime-core
+     *
+     * @param level the level
+     * @param pos   the block
+     * @param state the block's state
+     * @return true where goo drained down, the block changed or gone
+     */
+    private boolean drainsDown(ServerLevel level, BlockPos pos, BlockState state) {
+        BlockPos below = pos.below();
+        BlockState under = level.getBlockState(below);
+        if (!under.is(this)) {
+            return false;
+        }
+        // a block with no floor takes no layer past its hold, as a runny layer reaching it finds
+        int room = onAFloor(level, below) ? MAX_LAYERS : holdOf(cohesionAt(level), attachedSidesOf(under));
+        if (under.getValue(LAYERS) >= room) {
+            return false;
+        }
+        int moved = Math.min(state.getValue(LAYERS), room - under.getValue(LAYERS));
+        int left = state.getValue(LAYERS) - moved;
+        level.setBlock(pos, left > 0 ? state.setValue(LAYERS, left) : Blocks.AIR.defaultBlockState(), UPDATE_ALL);
+        level.setBlock(below, under.setValue(LAYERS, under.getValue(LAYERS) + moved), UPDATE_ALL);
+        return true;
     }
 
     /**

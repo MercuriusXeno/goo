@@ -261,12 +261,65 @@ class SlimeCoreQuadsTest {
                     "the full block draws a core top");
         }
 
-        /** stacked-goo-cells-share-one-slime-core */
+        /**
+         * A column's core is its pile's at the slime's 3/4, measured from the
+         * column's base: under a block of 1 on a full block the column stands
+         * 16 layers, so its core's top stands at 14, in the full block.
+         * stacked-goo-cells-share-one-slime-core
+         */
         @Test
-        void aColumnsTopCellOfOneLayerDrawsItsCoreTopAtSevenEighthsOfItsSurface() {
-            List<BakedQuad> quads = coreOf(new SameGooCells().at(0, 0, 0, 1).at(0, -1, 0, 15));
-            assertTrue(quads.stream().anyMatch(inPlaneY(FIFTEENTH * CORE_TOP)
-                    .and(quad -> quad.direction() == Direction.UP)));
+        void aColumnsCoreTopStandsAtSevenEighthsOfTheColumn() {
+            SameGooCells column = new SameGooCells().at(0, 0, 0, 1).at(0, -1, 0, 15);
+            assertTrue(coreOf(column.shiftedBy(0, -1, 0)).stream().anyMatch(inPlaneY(16 * FIFTEENTH * CORE_TOP)
+                    .and(quad -> quad.direction() == Direction.UP)), "the column's core top at 14 layers");
+        }
+
+        /**
+         * A column's core runs unbroken from the full block into the block on
+         * it: where the block on top holds a core, the full block's core
+         * reaches its own top under it, and its outer face draws only where
+         * the column's core top dips into it.
+         * stacked-goo-cells-share-one-slime-core
+         */
+        @Test
+        void aColumnsCoreRunsUnbrokenThroughBothBlocks() {
+            SameGooCells column = new SameGooCells().at(0, 0, 0, 8).at(0, -1, 0, 15);
+            List<BakedQuad> upper = coreOf(column);
+            List<BakedQuad> lower = coreOf(column.shiftedBy(0, -1, 0));
+            assertFalse(upper.isEmpty(), "the block on top holds a core");
+            assertTrue(upper.stream().noneMatch(quad -> quad.direction() == Direction.DOWN),
+                    "the block on top draws no core floor");
+            assertTrue(lower.stream().noneMatch(inPlaneY(1f)), "the full block draws no core top at its own top");
+            assertTrue(lower.stream().anyMatch(quad -> quad.direction() == Direction.UP),
+                    "the full block draws the core top where the column's core dips into it");
+        }
+    }
+
+    @Nested
+    class Slabs {
+
+        /**
+         * Goo on a wall holds a core as goo on a floor does: a block of 6
+         * attached to its north wall alone draws a core standing between 1/8
+         * and 7/8 of its slab's thickness out from the wall.
+         * operator UAT 2026-11-17: no slime core
+         */
+        @Test
+        void aWallSlabHoldsACoreInsideIt() {
+            SameGooCells wall = new SameGooCells().at(0, 0, 0, 6).share(0, 0, 0, Direction.DOWN, 0)
+                    .share(0, 0, 0, Direction.NORTH, 6);
+            SlimeTop slab = SlimeTop.onSurface(wall, Direction.NORTH);
+            List<BakedQuad> quads = SlimeCoreQuads.quadsOf(slab, coreMaterial(mock(TextureAtlasSprite.class)));
+
+            assertFalse(quads.isEmpty(), "the wall slab should hold a core");
+            for (BakedQuad quad : quads) {
+                for (int vertex = 0; vertex < BakedQuad.VERTEX_COUNT; vertex++) {
+                    Vector3fc at = quad.position(vertex);
+                    float thickness = (float) slab.heightAtPixel(at.x() * 16, at.y() * 16) * FIFTEENTH;
+                    assertTrue(at.z() <= thickness * CORE_TOP + EPSILON && at.z() >= thickness * CORE_FLOOR - EPSILON,
+                            "a wall core vertex at " + at + " stands outside 1/8 to 7/8 of its slab");
+                }
+            }
         }
     }
 

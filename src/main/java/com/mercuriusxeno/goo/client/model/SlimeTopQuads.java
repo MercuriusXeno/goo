@@ -273,19 +273,23 @@ public final class SlimeTopQuads {
     }
 
     /**
-     * A flat face baked between the block's floor and top with its vertices
-     * moved onto two height fields: those at the floor onto the low one,
-     * those at the top onto the high one.
+     * A flat face baked between a slab's surface and a whole block out from
+     * it, its vertices moved onto two fields of distance out from the
+     * surface: those on the surface onto the low one, those a block out onto
+     * the high one.
      *
-     * @param flat the face baked flat
-     * @param low  the height each floor vertex moves to, in blocks
-     * @param high the height each top vertex moves to, in blocks
+     * @param flat  the face baked flat
+     * @param plane the slab's surface and axes
+     * @param low   how far out each vertex on the surface moves, in model pixels
+     * @param high  how far out each vertex a block out moves, in model pixels
      * @return the moved face
      */
-    static BakedQuad spanned(BakedQuad flat, HeightField low, HeightField high) {
+    static BakedQuad spannedOn(BakedQuad flat, SlimeTop.Plane plane, OutField low, OutField high) {
         return reshaped(flat, at -> {
-            HeightField field = at.y() >= WHOLE - ON_THE_PLANE ? high : low;
-            return new Vector3f(at.x(), field.heightAt(at.x(), at.z()) * WHOLE, at.z());
+            float first = plane.firstOf(at);
+            float second = plane.secondOf(at);
+            boolean outmost = Math.abs(alongTheSurfaceAxis(at, plane) - surfaceOf(plane)) >= WHOLE - ON_THE_PLANE;
+            return pointOn(plane, first, second, (outmost ? high : low).outAt(first, second));
         });
     }
 
@@ -314,7 +318,7 @@ public final class SlimeTopQuads {
      * @param out    model pixels out from the surface into the block
      * @return the point, in model pixels
      */
-    private static Vector3f pointOn(SlimeTop.Plane plane, float first, float second, float out) {
+    static Vector3f pointOn(SlimeTop.Plane plane, float first, float second, float out) {
         float[] coordinates = new float[Direction.Axis.values().length];
         coordinates[plane.first().getAxis().ordinal()] = first;
         coordinates[plane.second().getAxis().ordinal()] = second;
@@ -379,15 +383,15 @@ public final class SlimeTopQuads {
         return -plane.surface().getAxisDirection().getStep();
     }
 
-    private static Vector3f lowCorner(Vector3fc one, Vector3fc other) {
+    static Vector3f lowCorner(Vector3fc one, Vector3fc other) {
         return new Vector3f(one).min(other);
     }
 
-    private static Vector3f highCorner(Vector3fc one, Vector3fc other) {
+    static Vector3f highCorner(Vector3fc one, Vector3fc other) {
         return new Vector3f(one).max(other);
     }
 
-    private static BakedQuad faceOf(Vector3fc from, Vector3fc to, Direction face, BakedQuad.MaterialInfo material) {
+    static BakedQuad faceOf(Vector3fc from, Vector3fc to, Direction face, BakedQuad.MaterialInfo material) {
         return FaceBakery.bakeQuad(SlimeCoreQuads.UNSHARED, from, to, FaceBakery.defaultFaceUV(from, to, face),
                 Quadrant.R0, material, face, BlockModelRotation.IDENTITY, null, ExtraFaceData.DEFAULT);
     }
@@ -478,16 +482,16 @@ public final class SlimeTopQuads {
     }
 
     /**
-     * A height over each point of a block's plan.
+     * A distance out from a slab's surface over each point of its plane.
      */
     @FunctionalInterface
-    interface HeightField {
+    interface OutField {
 
         /**
-         * @param x model pixels east of the block's west side
-         * @param z model pixels south of its north side
-         * @return the height there, in blocks above the block's floor
+         * @param first  model pixels along the plane's first axis
+         * @param second model pixels along its second axis
+         * @return the distance out from the surface there, in model pixels
          */
-        float heightAt(float x, float z);
+        float outAt(float first, float second);
     }
 }
