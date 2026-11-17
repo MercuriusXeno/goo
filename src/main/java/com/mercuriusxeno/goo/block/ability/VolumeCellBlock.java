@@ -1036,7 +1036,7 @@ public class VolumeCellBlock extends Block {
     @Override
     protected void tick(@NonNull BlockState state, @NonNull ServerLevel level, @NonNull BlockPos pos,
                         @NonNull RandomSource random) {
-        if (heatBelow(level, pos, state)) {
+        if (heatTouched(level, pos, state)) {
             return;
         }
         shedLooseFilms(level, pos, state);
@@ -1089,85 +1089,120 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
-     * Melts or cooks the block under a cell whose laying ability carries a
-     * molten step: a block the step's melts_into map names melts into its
-     * source block, and any other block Flames would heat cooks one furnace
-     * step, by the rule Flames reads. The block heats red hot over the molten
-     * step's heat, the cell resting still meanwhile, then melts or cooks; a
-     * cell over a block that does neither stays pooled, and one whose block
+     * A block a Molten cell heats, and what it becomes once its heat has run.
+     *
+     * @param heated the heated block's position
+     * @param finish melts or cooks it
+     */
+    private record Heating(BlockPos heated, Runnable finish) {
+    }
+
+    /**
+     * Melts or cooks every block a cell whose laying ability carries a
+     * molten step touches: a block the step's melts_into map names melts
+     * into its source block, and any other block Flames would heat cooks one
+     * furnace step, by the rule Flames reads. Each block heats red hot over
+     * the molten step's heat, the cell resting still meanwhile, then melts or
+     * cooks for one layer apiece; a cell short on layers heats as many as its
+     * layers pay for, the block below first, and cools the rest. A cell
+     * touching no block that melts or cooks stays pooled, and one whose block
      * stopped heating part way cools it as it was.
      * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
      * molten-cooks-the-block-below-it-as-flames-cooks-blocks
      * stone-goes-red-hot-before-molten-turns-it-to-lava
+     * molten-heats-every-block-its-cell-touches
      *
      * @param level the level
      * @param pos   the cell
      * @param state the cell's state
-     * @return true where the block under the cell is heating, melted or cooked
+     * @return true where a block the cell touches is heating, melted or cooked
      */
-    private boolean heatBelow(ServerLevel level, BlockPos pos, BlockState state) {
+    private boolean heatTouched(ServerLevel level, BlockPos pos, BlockState state) {
         Optional<MoltenStep> molten = MoltenStep.in(layingProgram(level));
-        Optional<Runnable> finish = molten.flatMap(step -> heatFinishBelow(level, pos, step));
-        int spent = MoltenMelt.layersSpent(state.getValue(LAYERS), finish.isPresent());
-        if (spent == 0) {
-            coolBelow(level, pos);
+        List<Heating> heatable = molten.map(step -> touchedBy(pos, state).stream().flatMap(heated ->
+                heatFinishOf(level, heated, step).map(finish -> new Heating(heated, finish)).stream()).toList())
+                .orElse(List.of());
+        List<Heating> paid = MoltenMelt.paidFor(state.getValue(LAYERS), heatable);
+        coolAllBut(level, pos, paid.stream().map(Heating::heated).toList());
+        if (paid.isEmpty()) {
             return false;
         }
-        if (stillHeating(level, pos, molten.orElseThrow().heatTicks())) {
-            return true;
+        int heatTicks = molten.orElseThrow().heatTicks();
+        List<Heating> finished = paid.stream().filter(heating -> !stillHeating(level, pos, heating.heated(),
+                heatTicks)).toList();
+        finished.forEach(heating -> heating.finish().run());
+        if (!finished.isEmpty()) {
+            spendLayers(level, pos, state, finished.size() * MoltenMelt.LAYERS_PER_BLOCK);
         }
-        finish.orElseThrow().run();
-        spendLayers(level, pos, state, spent);
         return true;
     }
 
     /**
-     * What the block under a Molten cell becomes once its heat has run: the
+     * The blocks a cell touches, in the order its layers pay for them: the
+     * block below it, the block behind each side it is attached to, and the
+     * block above where its ceiling is attached.
+     * molten-heats-every-block-its-cell-touches
+     *
+     * @param pos   the cell
+     * @param state the cell's state
+     * @return each touched block's position
+     */
+    static List<BlockPos> touchedBy(BlockPos pos, BlockState state) {
+        List<BlockPos> touched = new ArrayList<>();
+        touched.add(pos.below());
+        filmedSides(state).forEach(side -> touched.add(pos.relative(side)));
+        return touched;
+    }
+
+    /**
+     * What a block a Molten cell touches becomes once its heat has run: the
      * source block the molten step's melts_into map names for it, or the
      * block or item Flames' heat would leave of it.
      * molten-cooks-the-block-below-it-as-flames-cooks-blocks
      * molten-melts-by-a-meltable-group-and-its-parallel-melted-group
+     * molten-heats-every-block-its-cell-touches
      *
      * @param level  the level
-     * @param pos    the cell
+     * @param heated the touched block
      * @param molten the cell's laying ability's molten step
      * @return the finish that melts or cooks the block, empty where it does neither
      */
-    private static Optional<Runnable> heatFinishBelow(ServerLevel level, BlockPos pos, MoltenStep molten) {
-        BlockPos below = pos.below();
-        BlockState raw = level.getBlockState(below);
+    private static Optional<Runnable> heatFinishOf(ServerLevel level, BlockPos heated, MoltenStep molten) {
+        BlockState raw = level.getBlockState(heated);
         Optional<BlockState> melted = molten.meltedFormOf(raw);
         if (melted.isPresent()) {
-            return Optional.of(() -> level.setBlock(below, melted.get(), UPDATE_ALL));
+            return Optional.of(() -> level.setBlock(heated, melted.get(), UPDATE_ALL));
         }
         Function<Item, Optional<ItemStack>> results = BlockCooking.resultsIn(level);
-        return BlockCooking.heatedIntoAt(level, molten.melts(), results, below).apply(raw.getBlock()).map(into ->
-                () -> BlockCooking.finishHeatedAt(() -> level, below, raw.getBlock(), into, results));
+        return BlockCooking.heatedIntoAt(level, molten.melts(), results, heated).apply(raw.getBlock()).map(into ->
+                () -> BlockCooking.finishHeatedAt(() -> level, heated, raw.getBlock(), into, results));
     }
 
     /**
-     * Runs a cell's heat on the block below it: the heat starts red hot the
-     * first tick, and the cell ticks again when it is due to end.
+     * Runs a cell's heat on one block it touches: the heat starts red hot
+     * the first tick, and the cell ticks again when it is due to end.
      * stone-goes-red-hot-before-molten-turns-it-to-lava
+     * molten-heats-every-block-its-cell-touches
      *
      * @param level     the level
      * @param pos       the cell
+     * @param heated    the touched block
      * @param heatTicks the ticks the heat runs
      * @return true while the heat has ticks left, false the tick it ends
      */
-    private boolean stillHeating(ServerLevel level, BlockPos pos, int heatTicks) {
+    private boolean stillHeating(ServerLevel level, BlockPos pos, BlockPos heated, int heatTicks) {
         MoltenHeats heats = GooServerState.of(level.getServer()).moltenHeats();
-        OptionalLong started = heats.startedAt(level, pos);
+        OptionalLong started = heats.startedAt(level, pos, heated);
         if (started.isEmpty()) {
-            heats.start(level, pos, level.getGameTime());
-            BlockVisuals.sendToWatchers(level, pos.below(), new RedHotPayload(pos.below(), heatTicks));
+            heats.start(level, pos, heated, level.getGameTime());
+            BlockVisuals.sendToWatchers(level, heated, new RedHotPayload(heated, heatTicks));
         }
         long left = started.orElse(level.getGameTime()) + heatTicks - level.getGameTime();
         if (left > 0) {
             level.scheduleTick(pos, this, (int) left);
             return true;
         }
-        heats.end(level, pos);
+        heats.end(level, pos, heated);
         return false;
     }
 
@@ -1189,28 +1224,46 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
-     * Ends a cell's heat with no layer spent, the block below cooling as it
-     * was, where the cell was heating it.
+     * Ends a cell's heat on every block it heats but those named, each
+     * cooling as it was, no layer spent.
      * stone-goes-red-hot-before-molten-turns-it-to-lava
+     * molten-heats-every-block-its-cell-touches
      *
      * @param level the level
      * @param pos   the cell
+     * @param kept  the blocks whose heat runs on
      */
-    private static void coolBelow(ServerLevel level, BlockPos pos) {
-        if (GooServerState.of(level.getServer()).moltenHeats().end(level, pos)) {
-            BlockVisuals.sendToWatchers(level, pos.below(), new RedHotPayload(pos.below(), 0));
+    private static void coolAllBut(ServerLevel level, BlockPos pos, List<BlockPos> kept) {
+        GooServerState.of(level.getServer()).moltenHeats().heatedBy(level, pos).stream()
+                .filter(heated -> !kept.contains(heated)).forEach(heated -> coolAt(level, pos, heated));
+    }
+
+    /**
+     * Ends a cell's heat on one block with no layer spent, the block cooling
+     * as it was, where the cell was heating it.
+     * stone-goes-red-hot-before-molten-turns-it-to-lava
+     * molten-heats-every-block-its-cell-touches
+     *
+     * @param level  the level
+     * @param pos    the cell
+     * @param heated the block it heated
+     */
+    private static void coolAt(ServerLevel level, BlockPos pos, BlockPos heated) {
+        if (GooServerState.of(level.getServer()).moltenHeats().end(level, pos, heated)) {
+            BlockVisuals.sendToWatchers(level, heated, new RedHotPayload(heated, 0));
         }
     }
 
     /**
-     * A cell broken or carried off while it heats the block below cools it
-     * as it was, no layer spent.
+     * A cell broken or carried off while it heats the blocks it touches
+     * cools every one as it was, no layer spent.
      * stone-goes-red-hot-before-molten-turns-it-to-lava
+     * molten-heats-every-block-its-cell-touches
      */
     @Override
     protected void affectNeighborsAfterRemoval(@NonNull BlockState state, @NonNull ServerLevel level,
                                                @NonNull BlockPos pos, boolean movedByPiston) {
-        coolBelow(level, pos);
+        coolAllBut(level, pos, List.of());
         if (creditsItsPlacer()) {
             CellPlacers.of(level).forget(pos);
         }
@@ -1514,8 +1567,10 @@ public class VolumeCellBlock extends Block {
     /**
      * Lets go of each wall that has lost the face holding the block's goo,
      * that side left bare; the side kept no layers of its own, so the
-     * volume stays whole, and a block left unable to stand falls whole.
+     * volume stays whole, and a block left unable to stand falls whole. A
+     * Molten cell cools the block a shed side leaves.
      * goo-cell-holds-a-fill-and-a-state-per-side
+     * molten-heats-every-block-its-cell-touches
      *
      * @param level the level
      * @param pos   the cell
@@ -1527,6 +1582,7 @@ public class VolumeCellBlock extends Block {
         BlockState shed = state;
         for (Direction side : loose) {
             shed = withCoat(shed, side, SideCoat.BARE);
+            coolAt(level, pos, pos.relative(side));
         }
         if (loose.isEmpty()) {
             return state;

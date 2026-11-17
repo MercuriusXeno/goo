@@ -60,6 +60,8 @@ class GooTypeDefinitionTest {
     private static final int WEIRD_ADHESION = 3;
     private static final int LEAF_ADHESION = 3;
     private static final int GLOW_ADHESION = 4;
+    private static final int BLAZE_COHESION = 4;
+    private static final int BLAZE_ADHESION = 4;
     private static final int COMMON_ADHESION = 1;
 
     static Stream<ResourceKey<GooTypeDefinition>> bundledKeys() {
@@ -273,27 +275,31 @@ class GooTypeDefinitionTest {
     }
 
     /**
-     * Every bundled type states a cohesion: weird holds a step of 4 and every other type, kinetic among them, 0.
+     * Every bundled type states a cohesion: weird holds a step of 4, blaze the thick rung of 4, and every
+     * other type, kinetic among them, 0.
      * cohesion-is-the-step-the-goo-holds
+     * blaze-goo-is-adhesion-four-and-cohesion-five
      */
     @ParameterizedTest
     @MethodSource("bundledKeys")
     void bundledCohesionMatchesDecision(ResourceKey<GooTypeDefinition> key) throws Exception {
-        int expected = key == GooTypes.WEIRD ? WEIRD_COHESION : 0;
+        int expected = key == GooTypes.WEIRD ? WEIRD_COHESION : key == GooTypes.BLAZE ? BLAZE_COHESION : 0;
         assertEquals(expected, decodeBundled(key).cohesion(), key::toString);
     }
 
     /**
      * Every bundled type states an adhesion: kinetic clings to nothing, weird and leaf hold a side
-     * where they strike, glow holds an underside, and every other type holds tops.
+     * where they strike, glow and blaze hold an underside, and every other type holds tops.
      * adhesion-is-a-ladder-of-holds
      * vines-goo-on-walls-places-goologged-vines-and-depletes
+     * blaze-goo-is-adhesion-four-and-cohesion-five
      */
     @ParameterizedTest
     @MethodSource("bundledKeys")
     void bundledAdhesionMatchesDecision(ResourceKey<GooTypeDefinition> key) throws Exception {
         int expected = key == GooTypes.KINETIC ? 0 : key == GooTypes.WEIRD ? WEIRD_ADHESION
-                : key == GooTypes.LEAF ? LEAF_ADHESION : key == GooTypes.GLOW ? GLOW_ADHESION : COMMON_ADHESION;
+                : key == GooTypes.LEAF ? LEAF_ADHESION : key == GooTypes.GLOW ? GLOW_ADHESION
+                : key == GooTypes.BLAZE ? BLAZE_ADHESION : COMMON_ADHESION;
         assertEquals(expected, decodeBundled(key).adhesion(), key::toString);
     }
 

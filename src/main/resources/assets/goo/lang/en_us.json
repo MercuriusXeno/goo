@@ -331,7 +331,7 @@
   "goo.ability.typhoon.gust.description": "Channel a wind that pushes mobs in its cone away along your aim.",
   "goo.ability.typhoon.updraft": "Updraft",
   "goo.ability.typhoon.updraft.cost_mechanics": "Costs %s per block of Updraft laid, a fifteenth of it per layer.",
-  "goo.ability.typhoon.updraft.description": "Held stream sprays Updraft, a breezy goo that lifts whatever stands above it a block for each layer; prisms become Floatstones.",
+  "goo.ability.typhoon.updraft.description": "Held stream sprays Updraft, a breezy goo that lifts whatever stands above it a block for each layer.",
   "goo.ability.unstable.blast": "Blast",
   "goo.ability.unstable.blast.description": "Explodes where the goo lands; hold on a block face and drag for a bigger blast.",
   "goo.ability.unstable.lurker": "Lurker",
