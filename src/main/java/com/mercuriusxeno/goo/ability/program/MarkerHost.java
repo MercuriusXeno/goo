@@ -82,13 +82,14 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
      * Explodes at the marker with Goo's explosion in the look the step
      * wrote, beside the marker's burnout its goo type draws (decision
      * elemental-explosion-per-type), sent here as it explodes rather than
-     * when the blob landed.
+     * when the blob landed. Each hit names the player who stood the marker.
+     * standing-goo-thing-credits-whoever-placed-it
      */
     @Override
     public void explode(float power, double reach, boolean gathers, ExplosionMode mode, ExplosionLook look) {
         burnout().sendToTracking(level);
         GooExplosion.detonate(level, Vec3.atCenterOf(pos), power, new GooExplosion.Cut(reach, gathers), mode,
-                look.shown());
+                look.shown(), placer());
     }
 
     /**
