@@ -35,6 +35,13 @@ class GloveAttackTrackerTest {
     }
 
     @Test
+    void anAttackKeyDuringAKnivesHoldResolvesToTheHeldThrow() {
+        // knives-form-on-right-click-and-throw-on-left-click: a Knives hold is a held throw's press
+        assertEquals(GloveAttackTracker.AttackOutcome.THROW_JAVELIN, GloveAttackTracker.outcomeOf(true, true, false,
+                false));
+    }
+
+    @Test
     void anAttackKeyWhileRightClickHoldsAJavelinThrowsItAndCancelsNothing() {
         assertEquals(GloveAttackTracker.AttackOutcome.THROW_JAVELIN, GloveAttackTracker.outcomeOf(true, true, false, true));
     }

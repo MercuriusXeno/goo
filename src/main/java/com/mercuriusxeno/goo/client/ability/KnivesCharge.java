@@ -23,24 +23,23 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Knives' charge, seen and heard while right click holds it: the glove's
- * blob hops off the palm as the charge begins and floats ahead of and above
- * the hand as it eases left across the chest, swelling as the charge grows,
- * with a chime climbing in pitch at each step of the charge and a ring of
- * resonance once it is full. The blob stays up through the backhand's sweep
- * as the knives leave it, then settles back onto the palm. The glove press
- * poses the arm, so the players watching see it wound up with the blob afloat.
+ * Knives' hold, seen and heard while right click holds it: the glove's
+ * blob hops off the palm as the hold begins and floats ahead of and above
+ * the hand as it eases left across the chest, swelling as the hold grows,
+ * with a chime climbing in pitch at each stage of knives formed and a ring
+ * of resonance at the last. Letting go settles the blob back onto the palm.
+ * The glove press poses the arm, so the players watching see it wound up
+ * with the blob afloat.
  * decision knives-sling-then-morph-to-flechettes
  * decision knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
+ * decision knives-form-in-fibonacci-stages-to-twelve
  * decision charge-swells-the-palm-blob
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class KnivesCharge {
 
-    /** The steps a charge chimes at, however many flecks the release throws. */
-    static final int MOST_SHOWN = 9;
     /** A remote player's blob fills over this many ticks, the charge it cannot read. */
-    private static final float REMOTE_FULL_TICKS = 30f;
+    private static final float REMOTE_FULL_TICKS = 60f;
     /** The hand's place in the world: chest height, ahead of the body, eased across from the glove side. */
     private static final double CHEST_HEIGHT = 1.05;
     private static final double CROUCH_DROP = 0.3;
@@ -61,22 +60,23 @@ public final class KnivesCharge {
     private static final float FULL_PITCH = 1.5f;
     private static final float RIGHT_ANGLE = 90f;
 
-    /** The charge steps the local hold has chimed, so a new one chimes. */
+    /** The stages the local hold has chimed, so a new one chimes. */
     private static int shownLocally;
 
     private KnivesCharge() {
     }
 
     /**
-     * The step a charge has reached at a share of a full charge, one more as
-     * the release's fleck count grows, capped at the steps it chimes.
+     * The stages of knives a hold has formed some ticks in, never more than
+     * the charge names.
+     * decision knives-stage-takes-twelve-ticks-with-no-cooldown
      *
-     * @param charge the charge block
-     * @param share  the share of a full charge, 0 to 1
-     * @return the step, at least one
+     * @param charge    the charge block
+     * @param heldTicks the ticks the hold has run
+     * @return the stages formed, 0 before the first
      */
-    static int shownAt(Charge charge, float share) {
-        return Math.min(MOST_SHOWN, charge.fleckCount(share));
+    static int stagesFormedAt(Charge charge, int heldTicks) {
+        return charge.stageTicks() <= 0 ? 0 : Math.min(charge.stages(), heldTicks / charge.stageTicks());
     }
 
     /**
@@ -95,7 +95,7 @@ public final class KnivesCharge {
      * The share of a full charge the palm blob shows: none unless a slinging
      * charge is held with the arm wound up.
      *
-     * @param slinging    the held selection's slinging charge, or null where it does not sling
+     * @param slinging    the held selection's knife-forming charge, or null where it forms none
      * @param woundUp     whether the glove arm holds its wind-up
      * @param chargeShare the share the held ticks reach, 0 to 1
      * @return the share, 0 to 1
@@ -143,12 +143,13 @@ public final class KnivesCharge {
             shownLocally = 0;
             return;
         }
-        chime(mc.level, player, charge, GloveThrowSender.selectedDelivery(selectedAbility(player)));
+        chime(mc.level, player, charge, GloveThrowSender.selectedDelivery(selectedAbility(player)),
+                GloveUseTracker.heldTicks());
     }
 
     /**
-     * Holds the blob of every player whose Knives charge stands afloat this
-     * tick, from the wind-up's first tick through the backhand's sweep.
+     * Holds the blob of every player whose Knives hold stands afloat this
+     * tick, through the wind-up.
      * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
      *
      * @param now the level's game time
@@ -167,25 +168,21 @@ public final class KnivesCharge {
     }
 
     private static void holdTheFloatingBlob(Player player, AbilityPoses.Posed posed, long now) {
-        Charge charge = chargeOf(player);
-        double age = now - posed.since();
-        if (floatsAt(posed, age, charge == null ? 0 : charge.sweepTicks())) {
+        if (floatsAt(posed)) {
             LiftedPalmBlob.floated(player.getId(), player.getEyePosition(), (long) posed.since(), now);
         }
     }
 
     /**
-     * Whether a pose holds the blob afloat an age into it: through the wind-up,
-     * and through the backhand until its sweep has launched the last knife.
+     * Whether a pose holds the blob afloat: through the wind-up the held
+     * right click keeps, the blob settling once it is let go.
      * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
      *
-     * @param posed      the pose
-     * @param age        ticks since it began
-     * @param sweepTicks the ticks the release launches its knives over
+     * @param posed the pose
      * @return true while the blob floats
      */
-    static boolean floatsAt(AbilityPoses.Posed posed, double age, int sweepTicks) {
-        return posed.holding(ArmPoseKind.WIND_UP) || posed.kind() == ArmPoseKind.FLING && age <= sweepTicks;
+    static boolean floatsAt(AbilityPoses.Posed posed) {
+        return posed.holding(ArmPoseKind.WIND_UP);
     }
 
     /**
@@ -200,13 +197,14 @@ public final class KnivesCharge {
         return posed == null ? 0f : AbilityPoses.acrossAt(posed, now - posed.since());
     }
 
-    private static void chime(ClientLevel level, LocalPlayer player, Charge charge, Delivery delivery) {
-        float share = delivery.chargeShare(GloveUseTracker.heldTicks());
-        int shown = shownAt(charge, share);
+    private static void chime(ClientLevel level, LocalPlayer player, Charge charge, Delivery delivery,
+                              int heldTicks) {
+        float share = delivery.chargeShare(heldTicks);
+        int shown = stagesFormedAt(charge, heldTicks);
         if (shown > shownLocally) {
             level.playLocalSound(player.getX(), player.getEyeY(), player.getZ(), SoundEvents.AMETHYST_BLOCK_CHIME,
                     SoundSource.PLAYERS, CHIME_VOLUME, CHIME_PITCH_LOW + share * CHIME_PITCH_SPAN, false);
-            if (share >= 1f) {
+            if (shown >= charge.stages()) {
                 level.playLocalSound(player.getX(), player.getEyeY(), player.getZ(),
                         SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.PLAYERS, FULL_VOLUME, FULL_PITCH, false);
             }
@@ -220,10 +218,10 @@ public final class KnivesCharge {
     }
 
     /**
-     * The charge block of a player's slinging selection.
+     * The charge block of a player's knife-forming selection.
      *
      * @param player the player
-     * @return the charge, or null where the selection does not sling
+     * @return the charge, or null where the selection forms no knives
      */
     private static @Nullable Charge chargeOf(Player player) {
         GloveSelection selection = GloveThrowSender.heldSelection(player);
@@ -231,7 +229,7 @@ public final class KnivesCharge {
             return null;
         }
         Charge charge = GloveThrowSender.selectedDelivery(selection.abilityId()).charge();
-        return charge.slings() ? charge : null;
+        return charge.formsInStages() ? charge : null;
     }
 
     private static float localChargeShare(Player local) {
@@ -239,11 +237,9 @@ public final class KnivesCharge {
     }
 
     /**
-     * How far a caster's charge swells the floating blob: by the share of the
-     * charge it holds while its arm is wound up, spending back to rest size
-     * over the backhand's sweep as the knives leave it, and not at all otherwise.
+     * How far a caster's hold swells the floating blob: by the share of the
+     * charge it holds while its arm is wound up, and not at all otherwise.
      * decision charge-swells-the-palm-blob
-     * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives: the blob spews the knives as the backhand lands
      *
      * @param caster the caster
      * @param now    the game time, with the frame's partial tick
@@ -255,28 +251,8 @@ public final class KnivesCharge {
         if (posed == null || local == null) {
             return PALM_REST;
         }
-        double age = now - posed.since();
-        if (posed.holding(ArmPoseKind.WIND_UP)) {
-            return palmScaleAt(shareFor(caster, local, age));
-        }
-        return posed.kind() == ArmPoseKind.FLING ? spentSwellOf(caster, posed, age) : PALM_REST;
-    }
-
-    /**
-     * How far the floating blob still swells an age into the backhand: from
-     * where the wind-up got to, back to rest size by the sweep's last knife.
-     *
-     * @param caster the caster
-     * @param fling  the caster's backhand
-     * @param age    ticks since the release
-     * @return the swell against the blob's size
-     */
-    private static float spentSwellOf(Player caster, AbilityPoses.Posed fling, double age) {
-        Charge charge = chargeOf(caster);
-        if (charge == null || charge.sweepTicks() <= 0) {
-            return PALM_REST;
-        }
-        return palmScaleAt(fling.from() * (1f - Math.min(1f, (float) age / charge.sweepTicks())));
+        return posed.holding(ArmPoseKind.WIND_UP) ? palmScaleAt(shareFor(caster, local, now - posed.since()))
+                : PALM_REST;
     }
 
     /**

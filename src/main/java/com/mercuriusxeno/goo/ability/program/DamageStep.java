@@ -9,11 +9,13 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.damagesource.CombatRules;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageSources;
 import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
@@ -143,6 +145,22 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
             target.invulnerableTime = invulnerableTicks.map(ticks -> ticks.evaluateInt(context)).orElse(0);
         }
         return true;
+    }
+
+    /**
+     * The damage the step lands on a target once its armor has taken its
+     * share, read with no program variables bound, which Knives' knives-to-kill
+     * counts by. Enchantment protection and resistance are left out.
+     * decision knives-split-evenly-capped-at-the-kill
+     *
+     * @param target  the entity the hit reaches
+     * @param thrower the player whose hit it is, or null
+     * @return the damage landed
+     */
+    public float landedOn(LivingEntity target, @Nullable Entity thrower) {
+        return CombatRules.getDamageAfterAbsorb(target, amount.evaluateFloat(Variables.NONE),
+                damageSource(target, thrower), target.getArmorValue(),
+                (float) target.getAttributeValue(Attributes.ARMOR_TOUGHNESS));
     }
 
     /**
