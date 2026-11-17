@@ -28,10 +28,12 @@ import java.util.stream.Stream;
  * lava source lays its layer on the lava's surface, where the goo pools. Its
  * melts_into map names what the goo melts: each key is the block a melt
  * leaves, and its array what melts into it, loose blocks, #groups and #tags:
- * {@code molten melts_into={minecraft:lava: [#goo:meltable], goo:molten_iron: [goo:iron_core]} heat_ticks=40}.
+ * {@code molten melts_into={minecraft:lava: [minecraft:obsidian, minecraft:magma_block],
+ * goo:molten_iron: [goo:iron_core]} heat_ticks=40}.
  * A cell melting a block heats it red hot for the heat's ticks before it
  * becomes the key's source block.
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+ * molten-melts-only-obsidian-magma-and-iron-core-one-layer-each
  * molten-melts-by-a-meltable-group-and-its-parallel-melted-group
  * stone-goes-red-hot-before-molten-turns-it-to-lava
  * melt-blob-absorbs-into-lava

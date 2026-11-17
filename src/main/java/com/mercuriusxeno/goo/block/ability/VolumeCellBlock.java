@@ -1048,11 +1048,12 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
-     * Melts the block under a cell whose laying ability names a meltable tag,
-     * where the melt would spend layers of it: the block heats red hot over
-     * the molten step's heat, the cell resting still meanwhile, then becomes
-     * a lava source; a cell the melt spends nothing of stays pooled, and one
-     * whose block stopped melting part way cools it as it was.
+     * Melts the block under a cell whose laying ability's molten step names
+     * that block in its melts_into map: the block heats red hot over the
+     * molten step's heat, the cell resting still meanwhile, then becomes the
+     * source block it melts into; a cell over a block that melts into nothing
+     * stays pooled, and one whose block stopped melting part way cools it as
+     * it was.
      * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
      * stone-goes-red-hot-before-molten-turns-it-to-lava
      *
@@ -1088,9 +1089,10 @@ public class VolumeCellBlock extends Block {
 
     /**
      * Turns the block under a cell into the source block it melts into, lava
-     * for stone and molten iron for iron core, the cell resting on it lower by
-     * the layers the melt spends and gone where that empties it.
+     * for obsidian and magma and molten iron for iron core, the cell resting
+     * on it lower by the layer the melt spends and gone where that empties it.
      * molten-spends-three-layers-per-stone-block-priced-at-lava-minus-mundane-block
+     * molten-melts-only-obsidian-magma-and-iron-core-one-layer-each
      * molten-melts-by-a-meltable-group-and-its-parallel-melted-group
      *
      * @param level  the level
