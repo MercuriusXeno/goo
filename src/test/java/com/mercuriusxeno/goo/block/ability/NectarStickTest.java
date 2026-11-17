@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.block.ability;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.program.NectarGooStep;
 import org.junit.jupiter.api.Test;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -22,6 +23,19 @@ class NectarStickTest {
     void anEntityTouchingNectarJumpsAndMovesAtTheShippedFactors() {
         assertEquals(new NectarStick.Multipliers(SHIPPED.jumpFactor(), SHIPPED.speedFactor()),
                 NectarStick.multipliersFor(true, SHIPPED));
+    }
+
+    /**
+     * operator UAT 2026-11-17: on Nectar you are temporarily Spider-Man, gravity off while stuck; jumping ascends,
+     * sneaking descends
+     */
+    @Test
+    void anEntityStuckOnAWallRisesWhileJumpingSinksWhileSneakingAndHangsOtherwise() {
+        double climb = SHIPPED.climbSpeed();
+
+        assertEquals(List.of(climb, -climb, 0.0, 0.0), List.of(NectarStick.climbVelocity(true, false, climb),
+                NectarStick.climbVelocity(false, true, climb), NectarStick.climbVelocity(false, false, climb),
+                NectarStick.climbVelocity(true, true, climb)));
     }
 
     @Test

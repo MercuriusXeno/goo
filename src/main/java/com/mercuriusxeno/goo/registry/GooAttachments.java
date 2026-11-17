@@ -214,6 +214,15 @@ public final class GooAttachments {
             ATTACHMENT_TYPES.register("nectar_touched_at", () -> AttachmentType.builder(() -> -1L).build());
 
     /**
+     * The game time an entity was last stuck on a Nectar coated wall, its
+     * gravity off, so the tick after it leaves the coat gives its gravity
+     * back; never saved.
+     * operator UAT 2026-11-17: on Nectar you are temporarily Spider-Man; gravity is off while you are stuck
+     */
+    public static final Supplier<AttachmentType<Long>> NECTAR_STUCK_AT =
+            ATTACHMENT_TYPES.register("nectar_stuck_at", () -> AttachmentType.builder(() -> -1L).build());
+
+    /**
      * Where an entity stood before its latest goo teleport, kept for the
      * steps after the teleport in the same program, a ghost trail among
      * them, and never saved (decision ghost-trail-spans-the-blink).

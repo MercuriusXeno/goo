@@ -48,7 +48,7 @@ public final class NectarTests {
     private static final String COURTS_AN_ADULT_COW = "nectar_goo_courts_an_adult_cow_for_a_layer";
     private static final String SETS_TWO_ZOMBIES_FIGHTING = "nectar_goo_sets_two_zombies_fighting";
     private static final String DRIP_FEEDS_A_STRUCK_CALF = "nectar_drip_feeds_a_struck_calf";
-    private static final String COATS_A_WALL_AND_CLIMBS = "nectar_drip_on_a_wall_coats_it_and_climbs";
+    private static final String COATS_A_WALL_AND_HOLDS = "nectar_drip_on_a_wall_coats_it_and_holds_what_hangs_there";
     private static final String WALL_COAT_STAYS = "nectar_on_a_wall_stays_on_it";
     private static final String COATS_A_CLIMBABLE_COLUMN = "nectar_coats_a_wall_column_to_climb";
     private static final String COAT_OVER_FLOOR_GOO_STAYS = "nectar_on_a_wall_over_floor_goo_stays_on_it";
@@ -106,7 +106,12 @@ public final class NectarTests {
     private static final String ZOMBIES_NOT_FIGHTING = "Two zombies at Nectar goo should target each other: %s and %s";
     private static final String WALL_NOT_COATED = "The cell east of the wall should be Nectar attached to its west side,"
             + " stands %s";
-    private static final String NOT_CLIMBING = "A zombie in the coated space should read on a climbable";
+    private static final String DROPPED_OFF_THE_WALL = "A zombie hanging in the coated space should stay put with"
+            + " no gravity, dropped %.2f in %d ticks";
+    /** The ticks the hang test watches a zombie in the coated space: long enough for a ladder's slide to show. */
+    private static final int HANG_TICKS = 20;
+    /** How far a hanging zombie may drift and still read as stuck: a fraction of a ladder slide's first tick. */
+    private static final double HANG_SLACK = 0.05;
     private static final String WALL_COAT_RAN = "The wall should keep %d of the %d layers landed on it, the cell"
             + " there stands %s";
     private static final String COLUMN_GAP = "Every face of the wall should keep Nectar attached so the run can"
@@ -132,7 +137,7 @@ public final class NectarTests {
         GooTestFunctions.registerTest(registrar, COURTS_AN_ADULT_COW, NectarTests::courtsAnAdultCowForALayer);
         GooTestFunctions.registerTest(registrar, SETS_TWO_ZOMBIES_FIGHTING, NectarTests::setsTwoZombiesFighting);
         GooTestFunctions.registerTest(registrar, DRIP_FEEDS_A_STRUCK_CALF, NectarTests::dripFeedsAStruckCalf);
-        GooTestFunctions.registerTest(registrar, COATS_A_WALL_AND_CLIMBS, NectarTests::coatsAWallAndClimbs);
+        GooTestFunctions.registerTest(registrar, COATS_A_WALL_AND_HOLDS, NectarTests::coatsAWallAndHoldsWhatHangsThere);
         GooTestFunctions.registerTest(registrar, WALL_COAT_STAYS, NectarTests::wallCoatStaysOnIt);
         GooTestFunctions.registerTest(registrar, COATS_A_CLIMBABLE_COLUMN, NectarTests::coatsAWallColumnToClimb);
         GooTestFunctions.registerTest(registrar, COAT_OVER_FLOOR_GOO_STAYS, NectarTests::coatOverFloorGooStays);
@@ -221,12 +226,14 @@ public final class NectarTests {
     /**
      * One Nectar drip striking a stone wall's east side, from a
      * jelly-holding caster, coats that side: the cell east of the wall
-     * stands Nectar attached to its west side, and a zombie in that cell
-     * reads on a climbable.
+     * stands Nectar attached to its west side, and a zombie hanging in that
+     * cell, over open air, stays where it hangs with no gravity, stuck to the
+     * wall as Spider-Man would be.
+     * operator UAT 2026-11-17: on Nectar you are temporarily Spider-Man; gravity is off while you are stuck
      *
      * @param helper the gametest helper
      */
-    public static void coatsAWallAndClimbs(GameTestHelper helper) {
+    public static void coatsAWallAndHoldsWhatHangsThere(GameTestHelper helper) {
         helper.setBlock(WALL, Blocks.STONE);
         BlockPos coated = WALL.east();
         helper.setBlock(coated, Blocks.AIR);
@@ -239,9 +246,13 @@ public final class NectarTests {
         BlockState cell = helper.getBlockState(coated);
         helper.assertTrue(cell.is(GooBlocks.JELLY_NECTAR.get())
                 && cell.getValue(VolumeCellBlock.WEST) == SideCoat.ATTACHED, String.format(WALL_NOT_COATED, cell));
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, coated);
-        helper.assertTrue(zombie.onClimbable(), NOT_CLIMBING);
-        helper.succeed();
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, Vec3.atBottomCenterOf(coated).add(0, 0.2, 0));
+        double hungAt = zombie.getY();
+        helper.runAfterDelay(HANG_TICKS, () -> {
+            double dropped = hungAt - zombie.getY();
+            helper.assertTrue(Math.abs(dropped) <= HANG_SLACK, String.format(DROPPED_OFF_THE_WALL, dropped, HANG_TICKS));
+            helper.succeed();
+        });
     }
 
     /**

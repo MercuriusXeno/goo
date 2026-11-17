@@ -7,6 +7,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingEvent;
+import net.neoforged.neoforge.event.tick.EntityTickEvent;
 
 /**
  * Holds down each jump pushing off Nectar goo by the jump share Nectar's
@@ -17,6 +18,19 @@ import net.neoforged.neoforge.event.entity.living.LivingEvent;
 public final class NectarEvents {
 
     private NectarEvents() {
+    }
+
+    /**
+     * Gives a living thing its gravity back the tick after it leaves a Nectar coated wall.
+     * operator UAT 2026-11-17: on Nectar you are temporarily Spider-Man; gravity is off while you are stuck
+     *
+     * @param event the entity tick event, after the entity's tick
+     */
+    @SubscribeEvent
+    public static void onEntityTick(EntityTickEvent.Post event) {
+        if (event.getEntity() instanceof LivingEntity living) {
+            NectarStick.unstickIfClear(living.level(), living);
+        }
     }
 
     /**
