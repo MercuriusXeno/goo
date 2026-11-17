@@ -73,7 +73,8 @@ public final class KnivesThrowHandler {
             }
             Vec3 look = player.getViewVector(1f);
             state.thrownKnives().launch(player, held.gooType(), held.ability().id().toString(),
-                    ThrownKnife.launchPointOf(player.getEyePosition(), look, inTheHold),
+                    ThrownKnife.launchPointOf(player.getEyePosition(), player.getViewXRot(1f), player.getViewYRot(1f),
+                            KnifeRainSling.gloveOnTheRight(player), inTheHold, delivery.stacksJavelins()),
                     ThrownKnife.launchVelocityAlong(look, delivery.throwSpeed()), delivery.stacksJavelins());
             holds.threw(player, 1);
         });

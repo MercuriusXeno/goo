@@ -1,9 +1,10 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.crystal.KnifeFan;
+import com.mercuriusxeno.goo.ability.crystal.StackHover;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.network.KnifeRainSling;
 import com.mercuriusxeno.goo.network.StackFormedPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -19,23 +20,22 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Knives' formed knives on this client, hovering in a fan ahead of each
- * caster as the server counts them: each new knife emerges from the inner
- * side of the lifted palm blob, the side toward the view's center, growing
- * as it eases out to its slot, and the knives already formed ease from their
- * old slots to the wider fan's. A count of 0 drops the fan, so the knives
- * vanish as right click is let go.
- * decision knives-emerge-from-the-blob-and-hover-in-a-fan
+ * Knives' formed knives on this client, hovering in an upside-down pyramid
+ * over each caster's lifted blob cube as the server counts them: each new
+ * knife spawns at the cube's top, growing as it rises to its slot, and the
+ * knives already formed stand at theirs. A count of 0 drops the pyramid, so
+ * the knives vanish as right click is let go.
+ * decision knives-hover-in-an-upside-down-bowling-pin-pyramid
+ * decision knives-hover-above-the-blob-cube-over-the-hand
  * decision knives-sling-then-morph-to-flechettes
  * decision knives-form-on-right-click-and-throw-on-left-click
- */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
+ */@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class HoveringKnives {
 
     /** Ticks a knife takes to ease from the blob, or from its old slot, to its slot. */
     static final double EASE_TICKS = 6;
-    /** Blocks from the blob's center to its inner side, where a knife emerges. */
-    static final double BLOB_REACH = 0.08;
+    /** The knives a full pyramid holds. */
+    private static final int KNIVES = 10;
     private static final float SMOOTH_SQUARE = 3f;
     private static final float SMOOTH_CUBE = 2f;
 
@@ -114,40 +114,27 @@ public final class HoveringKnives {
     }
 
     /**
-     * Where a knife emerges: the blob's side toward the view's center line,
-     * the look's line through the eye.
+     * Where a knife of the pyramid stands an age after its last change over
+     * the cube: at its slot for a knife formed before the change, and for a
+     * knife the change formed, rising from the cube's top as it forms to its slot.
+     * knives-hover-above-the-blob-cube-over-the-hand
      *
-     * @param blob the blob's center
-     * @param eye  the caster's eye
-     * @param look the caster's look, a unit vector
-     * @return the point on the blob's inner side
-     */
-    static Vec3 innerSideOf(Vec3 blob, Vec3 eye, Vec3 look) {
-        Vec3 nearestOnTheLook = eye.add(look.scale(blob.subtract(eye).dot(look)));
-        Vec3 inward = nearestOnTheLook.subtract(blob);
-        return inward.lengthSqr() > 0 ? blob.add(inward.normalize().scale(BLOB_REACH)) : blob;
-    }
-
-    /**
-     * Where a knife of a fan stands an age after the fan's last change: eased
-     * from its old slot, or from the blob's inner side for a knife the change
-     * formed, to its slot.
-     *
-     * @param fan    the fan
-     * @param index  the knife's index
-     * @param eye    the caster's eye
-     * @param look   the caster's look, a unit vector
-     * @param inner  the blob's inner side
-     * @param age    ticks since the change, with the partial tick
+     * @param fan   the pyramid's count
+     * @param index the knife's index
+     * @param cube  the lifted blob cube's center
+     * @param xRot  the caster's view pitch in degrees
+     * @param yRot  the caster's view yaw in degrees
+     * @param age   ticks since the change, with the partial tick
      * @return the knife's point
      */
-    static Vec3 knifeAt(Fan fan, int index, Vec3 eye, Vec3 look, Vec3 inner, double age) {
-        Vec3 slot = KnifeFan.pointOf(eye, look, KnifeFan.slotOf(index, fan.count()));
-        Vec3 from = index < fan.previous() ? KnifeFan.pointOf(eye, look, KnifeFan.slotOf(index, fan.previous()))
-                : inner;
-        return from.lerp(slot, easedAt(age));
+    static Vec3 knifeAt(Fan fan, int index, Vec3 cube, float xRot, float yRot, double age) {
+        Vec3 slot = StackHover.pointOf(cube, xRot, yRot, StackHover.knifeSlot(index));
+        if (index < fan.previous()) {
+            return slot;
+        }
+        Vec3 spawn = StackHover.pointOf(cube, xRot, yRot, StackHover.spawnSlot(index, KNIVES));
+        return spawn.lerp(slot, easedAt(age));
     }
-
     /**
      * A knife's size an age after the fan's last change: whole for a knife
      * formed before it, growing out of the blob for one the change formed.
@@ -194,12 +181,14 @@ public final class HoveringKnives {
 
     private static void drawFan(FlatQuadContext quads, Player caster, Fan fan, double age, float partial,
                                 Vec3 camera) {
-        Vec3 eye = caster.getEyePosition(partial);
         Vec3 look = caster.getViewVector(partial);
-        Vec3 blob = LiftedPalmBlob.blobOf(caster.getId(), partial).map(LiftedPalmBlob.Blob::place).orElse(eye);
-        Vec3 inner = innerSideOf(blob, eye, look);
+        float xRot = caster.getViewXRot(partial);
+        float yRot = caster.getViewYRot(partial);
+        Vec3 cube = LiftedPalmBlob.blobOf(caster.getId(), partial).map(LiftedPalmBlob.Blob::place)
+                .orElseGet(() -> StackHover.cubeCenterInView(caster.getEyePosition(partial), xRot, yRot,
+                        KnifeRainSling.gloveOnTheRight(caster)));
         for (int index = 0; index < fan.count(); index++) {
-            GlassKunai.emit(quads, knifeAt(fan, index, eye, look, inner, age).subtract(camera), look, 0f,
+            GlassKunai.emit(quads, knifeAt(fan, index, cube, xRot, yRot, age).subtract(camera), look, 0f,
                     knifeScaleAt(fan, index, age));
         }
     }

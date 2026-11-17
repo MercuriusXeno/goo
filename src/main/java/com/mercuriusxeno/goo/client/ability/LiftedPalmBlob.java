@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.TravelForm;
+import com.mercuriusxeno.goo.ability.crystal.StackHover;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.model.GloveSpecialRenderer;
 import com.mercuriusxeno.goo.client.throwing.BlobShape;
@@ -376,6 +377,25 @@ public final class LiftedPalmBlob {
     }
 
     /**
+     * The cube a caster's held stack leaves standing, against its full size:
+     * a step smaller for each knife or javelin the server counts held, gone once
+     * the stack is full, and whole for a caster holding none.
+     * decision knives-blob-shrinks-per-knife-and-vanishes-on-the-last
+     * decision dart-javelins-hover-over-the-shrinking-blob-cube
+     *
+     * @param casterId the caster's entity id
+     * @return the share of the full cube
+     */
+    static float stackShareOf(int casterId) {
+        int knives = HoveringKnives.formedBy(casterId);
+        if (knives > 0) {
+            return StackHover.cubeShareAt(knives, StackHover.KNIVES);
+        }
+        int javelins = HeldJavelins.formedBy(casterId);
+        return javelins > 0 ? StackHover.cubeShareAt(javelins, StackHover.JAVELINS) : 1f;
+    }
+
+    /**
      * The box a blob in a pose draws in: its shape at its size.
      * palm-blob-rests-pressed-and-stands-into-the-cube
      *
@@ -465,7 +485,8 @@ public final class LiftedPalmBlob {
         PalmBlobHop.Pose pose = lift.poseAt(now);
         Vec3 palm = palmOf(mc, caster, partialTick);
         return Optional.of(new Standing(caster, placeAt(pose, palm, upOf(caster, partialTick),
-                sourceOf(casterId, lift, partialTick, now)), drawnShapeAt(pose, now), pose.share()));
+                sourceOf(casterId, lift, partialTick, now)), drawnShapeAt(pose, now).scaled(stackShareOf(casterId)),
+                pose.share()));
     }
 
     /**
@@ -605,7 +626,8 @@ public final class LiftedPalmBlob {
         Delivery delivery = PalmJavelin.selectedDelivery(gloveOf(mc.player));
         float javelin = PalmJavelin.morphAt(delivery, pose.share());
         return Optional.of(new HandLift(pose.share(), HandPassView.toHandPass(source, camera.rotation(),
-                camera.getFov(), HandPassView.frameBob(mc)), drawnShapeAt(pose, now), pose.stand(),
+                camera.getFov(), HandPassView.frameBob(mc)),
+                drawnShapeAt(pose, now).scaled(stackShareOf(mc.player.getId())), pose.stand(),
                 facingInView(javelin, camera), PalmJavelin.formOf(delivery), javelin));
     }
 
