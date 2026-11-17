@@ -60,10 +60,10 @@ class LunarWhiteoutTest {
     }
 
     @Nested
-    class StarReturn {
+    class PlanetReturn {
         @Test
         void whiteStaysFullFromTheFloodThroughTheCrossing() {
-            assertFullWhiteAcrossTheCarry(LunarSight.Sky.OVERWORLD_STAR);
+            assertFullWhiteAcrossTheCarry(LunarSight.Sky.BLUE_PLANET);
         }
     }
 

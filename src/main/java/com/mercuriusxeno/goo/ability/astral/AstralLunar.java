@@ -25,10 +25,10 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Lunar on the server, a hold. Held looking at the moon in the overworld, or at the blue overworld star in
+ * Lunar on the server, a hold. Held looking at the moon in the overworld, or at the blue planet in
  * lunar, it fixes the caster's gaze, sends them its rising tone, and holds them still where they stand while the moon
- * or the star swells to fill their view; held until the fixation runs out, the moon carries them to lunar over the
- * column they stood on, keeping where they left from, and the star carries them back to exactly that place and
+ * or the planet swells to fill their view; held until the fixation runs out, the moon carries them to lunar over the
+ * column they stood on, keeping where they left from, and the planet carries them back to exactly that place and
  * facing, each taking the astral then and leaving the arrival mark their client's white clears on. Let go early, it
  * releases them where they stand and takes nothing. Held looking at neither, it refuses with a tell. Lunar places
  * nothing.
@@ -39,7 +39,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class AstralLunar {
 
     /**
-     * The tell a cast looking at neither the moon nor the star shows, "That's no moon!", once a press.
+     * The tell a cast looking at neither the moon nor the planet shows, "That's no moon!", once a press.
      * decision lunar-refusal-says-thats-no-moon
      */
     static final String TELL_REFUSED = "goo.ability.astral.lunar.refused";
@@ -66,8 +66,8 @@ public final class AstralLunar {
     }
 
     /**
-     * Begins the fixation the first held tick of a cast asks for, when the caster looks at the moon or the star and
-     * stands in no fixation already. Nothing is paid yet: the moon or the star takes the cost at the carry.
+     * Begins the fixation the first held tick of a cast asks for, when the caster looks at the moon or the planet and
+     * stands in no fixation already. Nothing is paid yet: the moon or the planet takes the cost at the carry.
      *
      * @param caster   the caster
      * @param duration the ticks the fixation runs
@@ -84,7 +84,7 @@ public final class AstralLunar {
             return false;
         }
         caster.setData(GooAttachments.LUNAR_FIXATION, LunarFixation.held(sky.get(),
-                LunarSight.directionOf(sky.get(), moonAngle), caster.position(), caster.level().getGameTime(), duration));
+                LunarSight.moonDirection(moonAngle), caster.position(), caster.level().getGameTime(), duration));
         HOLDS.put(caster.getUUID(), new Hold(caster.level().getServer().getTickCount(), cost));
         sendTone(caster);
         return true;
@@ -113,7 +113,7 @@ public final class AstralLunar {
     }
 
     /**
-     * Whether a cast would find the moon or the star along the caster's look.
+     * Whether a cast would find the moon or the planet along the caster's look.
      *
      * @param caster the caster
      * @return true when the look holds either
@@ -134,7 +134,7 @@ public final class AstralLunar {
 
     /**
      * Runs one server tick of every standing fixation: a caster still holding the cast stands held, one holding it
-     * as the fixation runs out is carried, and one who let go, or cannot pay as the moon or the star takes them, is
+     * as the fixation runs out is carried, and one who let go, or cannot pay as the moon or the planet takes them, is
      * released where they stand, paying nothing.
      * decision holding-right-click-pulls-the-moon-and-early-release-cancels
      *
@@ -194,7 +194,7 @@ public final class AstralLunar {
     }
 
     /**
-     * Carries the caster by the moon or the star, marking them arrived once they stand at the far end.
+     * Carries the caster by the moon or the planet, marking them arrived once they stand at the far end.
      *
      * @param caster the caster
      * @param sky    what carries them

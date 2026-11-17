@@ -277,7 +277,7 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * Where a caster left the overworld from when the moon took them, saved with the player until the blue star
+     * Where a caster left the overworld from when the moon took them, saved with the player until the blue planet
      * carries them back.
      * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
      */

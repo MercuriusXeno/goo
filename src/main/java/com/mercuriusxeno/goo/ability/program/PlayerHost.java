@@ -331,7 +331,7 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
         }
     }
 
-    /** Fixes the player's gaze on the moon or the blue star on a press's first held tick and keeps the pull on each
+    /** Fixes the player's gaze on the moon or the blue planet on a press's first held tick and keeps the pull on each
      * tick after (decisions gate-fixates-your-view-on-the-moon-until-it-takes-you,
      * gate-on-the-blue-star-returns-you-exactly-where-you-left,
      * holding-right-click-pulls-the-moon-and-early-release-cancels). */

@@ -1,7 +1,12 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.astral.LunarSight;
+import com.mercuriusxeno.goo.client.zone.LunarSky;
+import net.minecraft.world.phys.Vec3;
+import org.joml.Vector3f;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.List;
 import java.util.function.DoubleUnaryOperator;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -132,23 +137,46 @@ class LunarTripTest {
         }
     }
 
+    /**
+     * decision blue-star-is-a-planet-four-moons-wide-drawn-in-phases
+     */
     @Nested
-    class StarSize {
+    class PlanetSize {
+        /** A fixation's direction the planet stood along as the trip home began: well up in the west. */
+        private static final Vec3 FIXATION_DIRECTION = LunarSight.moonDirection(40F);
+        private static final double QUAD_TOLERANCE = 1e-5;
+
         @Test
-        void blueStarStandsAtItsRestingSizeAtTheStart() {
-            assertEquals(LunarTrip.RESTING_STAR_HALF_TANGENT, LunarTrip.starHalfTangent(0F), EXACT);
+        void bluePlanetStandsAtItsSizeInLunarsSkyAtTheStart() {
+            assertEquals(LunarSky.PLANET_HALF_SIZE / LunarTrip.SKY_DISTANCE, LunarTrip.planetHalfTangent(0F), EXACT);
         }
 
         @Test
-        void blueStarCoversTheWidestViewAtTheEnd() {
-            assertTrue(LunarTrip.starHalfTangent(1F) >= LunarTrip.WIDEST_VIEW_HALF_TANGENT,
-                    "the swollen star's half width " + LunarTrip.starHalfTangent(1F)
+        void bluePlanetCoversTheWidestViewAtTheEnd() {
+            assertTrue(LunarTrip.planetHalfTangent(1F) >= LunarTrip.WIDEST_VIEW_HALF_TANGENT,
+                    "the swollen planet's half width " + LunarTrip.planetHalfTangent(1F)
                             + " should reach the widest view's half diagonal " + LunarTrip.WIDEST_VIEW_HALF_TANGENT);
         }
 
         @Test
-        void blueStarSwellsAcrossTheFixation() {
-            assertTrue(rises(progress -> LunarTrip.starHalfTangent((float) progress)));
+        void bluePlanetSwellsAcrossTheFixation() {
+            assertTrue(rises(progress -> LunarTrip.planetHalfTangent((float) progress)));
+        }
+
+        @Test
+        void theTripHomeDrawsThePlanetDiscAtTheFixationsDirectionAtItsSwollenSize() {
+            for (float progress : new float[] {0F, 0.5F, 0.9F}) {
+                double halfTangent = LunarTrip.planetHalfTangent(progress);
+                List<Vector3f> corners = LunarTripBodies.planetCorners(FIXATION_DIRECTION, halfTangent);
+                Vector3f center = new Vector3f();
+                corners.forEach(center::add);
+                center.div(corners.size());
+                assertEquals(FIXATION_DIRECTION.x(), center.x(), QUAD_TOLERANCE, "at " + progress);
+                assertEquals(FIXATION_DIRECTION.y(), center.y(), QUAD_TOLERANCE, "at " + progress);
+                assertEquals(FIXATION_DIRECTION.z(), center.z(), QUAD_TOLERANCE, "at " + progress);
+                assertEquals(halfTangent * Math.sqrt(2), corners.get(0).distance(center), QUAD_TOLERANCE,
+                        "at " + progress);
+            }
         }
     }
 
