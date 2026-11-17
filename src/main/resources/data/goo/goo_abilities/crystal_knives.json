@@ -4,6 +4,7 @@
   "badge": "held",
   "order": 10,
   "cost": 1000,
+  "cost_formula": "%s/knife",
   "requires": ["minecraft:amethyst_shard"],
   "delivery": {
     "kind": "arc",

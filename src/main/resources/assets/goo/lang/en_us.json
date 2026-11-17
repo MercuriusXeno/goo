@@ -357,6 +357,8 @@
 
   "goo.ability.param.cost.cost": "Cost",
   "goo.ability.param.cost.cost.description": "Goo in mB that one use of the ability costs.",
+  "goo.ability.param.cost_per_knife.cost": "Cost per knife",
+  "goo.ability.param.cost_per_knife.cost.description": "Goo in mB that each knife costs as it forms, returned for every knife still hovering when the hold is let go.",
   "goo.ability.param.cost_per_block.cost_per_block": "Cost per block",
   "goo.ability.param.cost_per_block.cost_per_block.description": "Goo in mB added to the cost for each block the blink travels.",
   "goo.ability.param.node_percent.node_percent": "Oculus percent",
