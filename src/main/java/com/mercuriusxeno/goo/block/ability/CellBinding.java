@@ -10,23 +10,28 @@ import net.minecraft.resources.ResourceKey;
  * What one goo type's world goo binds the volume cell to: the goo type the
  * cell holds and drops when broken, the ability laying it, whose cost prices
  * a whole block of it and whose program names what the cell's surface does,
- * that surface, and whether the goo lies on a lava source's surface as well
- * as on a sturdy top. Weird's slime, Kinetic's slick, Blaze's molten,
- * Crystal's shatter and Deep's host are bound so far, and another goo type
- * ships its world goo as another binding.
+ * that surface, and the fluid sources the goo's drips stop at and its cell
+ * lies on as on a sturdy top. Weird's slime, Kinetic's slick, Blaze's molten,
+ * Crystal's shatter, Deep's host, Frost's rime, Glow's wisps and Hex's leech
+ * are bound so far, and another goo type ships its world goo as another
+ * binding.
  * slime-and-slick-are-one-volume-cell-tech
  * each-goo-type-ships-a-world-goo-on-the-volume-cell
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
  * shatter-is-splattered-goo-and-shards-form-over-the-splatters
  * host-is-a-sculky-slime-that-sculk-spreads-eagerly-through
+ * iceborn-is-dropped-for-rime-a-frost-goo-that-keeps-what-is-around-it-frozen
+ * rime-drips-stop-at-a-water-or-lava-surface
+ * glow-world-goo-is-named-wisps-and-takes-the-holds-place
+ * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
  *
  * @param gooType       the goo type the cell holds and drops when broken
  * @param layingAbility the ability laying the goo, whose cost prices a whole block of it
  * @param surface       what the cell does to things on it
- * @param liesOnLava    whether the cell lies on a lava source's surface as well as on a sturdy top
+ * @param fluidFooting  the fluid sources the drips stop at and the cell lies on as on a sturdy top
  */
 public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier layingAbility, CellSurface surface,
-                          boolean liesOnLava) {
+                          FluidFooting fluidFooting) {
 
     /** The ability laying Weird's slime, Goop, whose cost prices a whole block of slime. */
     public static final Identifier GOOP_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "weird_goop");
@@ -39,16 +44,41 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
 
     /** The ability laying Deep's sculky slime, Host, whose cost prices a whole block of it. */
     public static final Identifier HOST_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "deep_host");
+    /** The ability laying Frost's endothermic goo, Rime, whose cost prices a whole block of it. */
+    public static final Identifier RIME_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "frost_rime");
+    /** The ability laying Hex's goo, Leech, whose cost prices a whole block of it and whose step names its slow. */
+    public static final Identifier LEECH_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "hex_leech");
+
+    /** The ability laying Glow's goo, Wisps, whose cost prices a whole block of it. */
+    public static final Identifier WISPS_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "glow_wisps");
 
     /** Weird's slime: Goop lays it, and it bounces what lands on it. */
-    public static final CellBinding SLIME = new CellBinding(GooTypes.WEIRD, GOOP_ABILITY, CellSurface.BOUNCE, false);
+    public static final CellBinding SLIME = new CellBinding(GooTypes.WEIRD, GOOP_ABILITY, CellSurface.BOUNCE,
+            FluidFooting.NONE);
     /** Kinetic's slick: Slick lays it, and it ramps a thing trying to move on it. */
-    public static final CellBinding SLICK = new CellBinding(GooTypes.KINETIC, SLICK_ABILITY, CellSurface.RAMP, false);
+    public static final CellBinding SLICK = new CellBinding(GooTypes.KINETIC, SLICK_ABILITY, CellSurface.RAMP,
+            FluidFooting.NONE);
     /** Blaze's molten goo: Molten lays it, it stands as ordinary ground, and it pools on lava. */
-    public static final CellBinding MOLTEN = new CellBinding(GooTypes.BLAZE, MOLTEN_ABILITY, CellSurface.POOL, true);
+    public static final CellBinding MOLTEN = new CellBinding(GooTypes.BLAZE, MOLTEN_ABILITY, CellSurface.POOL,
+            FluidFooting.LAVA);
     /** Crystal's shatter goo: Shatter lays it, and glass shards hang over it. */
     public static final CellBinding SHATTER = new CellBinding(GooTypes.CRYSTAL, SHATTER_ABILITY, CellSurface.SHARDS,
-            false);
+            FluidFooting.NONE);
     /** Deep's sculky slime: Host lays it, and it stands as ordinary ground. */
-    public static final CellBinding HOST = new CellBinding(GooTypes.DEEP, HOST_ABILITY, CellSurface.POOL, false);
+    public static final CellBinding HOST = new CellBinding(GooTypes.DEEP, HOST_ABILITY, CellSurface.POOL,
+            FluidFooting.NONE);
+    /**
+     * Frost's endothermic goo: Rime lays it, it is as slippery as ice, and it
+     * lies on water and lava, freezing what it lands on.
+     * rime-goo-is-slippery-to-walk-on
+     * rime-drips-stop-at-a-water-or-lava-surface
+     */
+    public static final CellBinding RIME = new CellBinding(GooTypes.FROST, RIME_ABILITY, CellSurface.GLAZE,
+            FluidFooting.WATER_AND_LAVA);
+    /** Glow's goo: Wisps lays it, it shines at its layers, and it smites the undead touching it. */
+    public static final CellBinding WISPS = new CellBinding(GooTypes.GLOW, WISPS_ABILITY, CellSurface.SMITE,
+            FluidFooting.NONE);
+    /** Hex's goo: Leech lays it, and it slows what it catches. */
+    public static final CellBinding LEECH = new CellBinding(GooTypes.HEX, LEECH_ABILITY, CellSurface.SLOW,
+            FluidFooting.NONE);
 }

@@ -1,14 +1,22 @@
 package com.mercuriusxeno.goo.client.workbench;
 
 import com.google.gson.JsonElement;
+import com.mercuriusxeno.goo.type.GooTypes;
+import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
+import com.mercuriusxeno.goo.workbench.WorkbenchPaths;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.lwjgl.glfw.GLFW;
 import org.mockito.ArgumentCaptor;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -581,6 +589,89 @@ class GroupsPaneTest {
             List<String> detail = inDetail(tag).stream().map(DrawnFrame.Text::text).toList();
             assertTrue(detail.containsAll(List.of("Tag members", "#minecraft:logs")), detail.toString());
             assertTrue(tag.find("#minecraft:logs").y() < tag.find("minecraft:oak_log").y(), tag.drawn().toString());
+        }
+    }
+
+    /**
+     * The shipped molten groups, described by the workbench over the shipped base_values.json, list in the Groups
+     * pane numbered in file order, lava and molten iron, blocks with no item form, drawn by their block names as
+     * known members (decision this-becomes-that-is-two-parallel-groups-in-the-goo-workbench).
+     */
+    @Nested
+    class ShippedMoltenGroups {
+        private static final String SHIPPED = "/data/goo/goo_values/base_values.json";
+        private static final String INVENTORY = """
+                {"items": [{"id": "minecraft:obsidian", "name": "Obsidian"}, {"id": "goo:iron_core", "name": "Iron Core"}],
+                 "item_tags": [], "goo_types": [], "recipes": []}""";
+        private static final GroupsPane.Bounds PANE = new GroupsPane.Bounds(0, 0, 500, 300);
+        private static final int DETAIL_LEFT = GroupsPane.listWidth(PANE) + 12;
+
+        @TempDir
+        Path temp;
+
+        private String describedShipped() throws IOException {
+            byte[] shipped;
+            try (InputStream in = GroupsPaneTest.class.getResourceAsStream(SHIPPED)) {
+                shipped = java.util.Objects.requireNonNull(in, SHIPPED).readAllBytes();
+            }
+            WorkbenchPaths paths = new WorkbenchPaths(temp.resolve("base_values.json"), temp.resolve("goo_inventory.json"),
+                    temp.resolve("goo_audit.txt"), temp.resolve("goo_cliques.txt"), temp.resolve("goo_audit.json"),
+                    temp.resolve("goo_abilities"), temp.resolve("ability_drafts"));
+            Files.write(paths.baseValues(), shipped);
+            WorkbenchOperations operations = new WorkbenchOperations(paths, () -> shipped,
+                    () -> Files.writeString(paths.inventoryFile(), INVENTORY), (draft, progress) -> 0,
+                    () -> GooTypes.BUNDLED);
+            String model = operations.answer(WorkbenchOperations.MODEL, "").text();
+            return operations.answer(WorkbenchOperations.DESCRIBE_GROUPS, model).text();
+        }
+
+        private GroupsTab shippedGroups() throws IOException {
+            ManagerDraft draft = new ManagerDraft();
+            GroupsTab groups = new GroupsTab(draft);
+            groups.readDescribed(describedShipped());
+            return groups;
+        }
+
+        private List<DrawnFrame.Text> membersDrawn(GroupsTab groups, String group, List<String> names) {
+            ValuesTab values = new ValuesTab(new ManagerDraft());
+            values.readEntries(new ListedEntrySource(List.of(new ManagerEntrySource.ItemName("minecraft:obsidian",
+                    "Obsidian"), new ManagerEntrySource.ItemName("goo:iron_core", "Iron Core")), List.of(),
+                    List.of(new ManagerEntrySource.BlockName("minecraft:lava", "Lava"),
+                            new ManagerEntrySource.BlockName("goo:molten_iron", "Molten Iron"))));
+            ManagerActions actions = mock(ManagerActions.class);
+            when(actions.addWidget(any(AbstractWidget.class))).thenAnswer(call -> call.getArgument(0));
+            ItemIcons icons = mock(ItemIcons.class);
+            when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+            GroupsPane pane = new GroupsPane(groups, values, icons, actions,
+                    new ExpressionBuilderPane(actions, icons, List::of, List::of));
+            pane.init(DrawnFrame.font());
+            pane.show(true);
+            groups.selectGroup(group);
+            DrawnFrame frame = new DrawnFrame();
+            ScreenDraw.extract(pane, frame.graphics, DrawnFrame.font(), PANE, frame.targets);
+            List<String> wanted = new ArrayList<>(List.of("1", "2"));
+            wanted.addAll(names);
+            return frame.drawn().stream().filter(text -> text.x() >= DETAIL_LEFT && wanted.contains(text.text()))
+                    .sorted(java.util.Comparator.comparingInt(DrawnFrame.Text::y).thenComparingInt(DrawnFrame.Text::x))
+                    .toList();
+        }
+
+        private void assertNumberedInOrder(String group, String first, String second) throws IOException {
+            List<DrawnFrame.Text> drawn = membersDrawn(shippedGroups(), group, List.of(first, second));
+            assertEquals(List.of("1", first, "2", second), drawn.stream().map(DrawnFrame.Text::text).toList(),
+                    drawn.toString());
+            drawn.stream().filter(text -> !text.text().matches("\\d")).forEach(name ->
+                    assertEquals(Palette.TEXT, name.color(), name + " should draw as a known member"));
+        }
+
+        @Test
+        void moltenBlocksListLavaThenMoltenIron() throws IOException {
+            assertNumberedInOrder("molten_blocks", "Lava", "Molten Iron");
+        }
+
+        @Test
+        void moltenCooledBlocksListObsidianThenIronCore() throws IOException {
+            assertNumberedInOrder("molten_cooled_blocks", "Obsidian", "Iron Core");
         }
     }
 

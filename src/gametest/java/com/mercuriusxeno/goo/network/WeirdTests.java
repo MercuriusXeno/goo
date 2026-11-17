@@ -51,20 +51,22 @@ public final class WeirdTests {
     private static final int NO_ENTITY = -1;
     private static final Identifier GOOP = Identifier.parse("goo:weird_goop");
     private static final String ABILITY_REQUIRED = "Ability registry must hold goo:weird_goop";
-    private static final String GOOP_COOLS_LAVA = "goop_cools_lava_to_magma";
+    private static final String GOOP_LEAVES_LAVA = "goop_leaves_lava_and_coats_the_block_beside";
     private static final String SOFTEN_TRADES_DAMAGE = "goop_softens_the_mob_it_hits";
     private static final BlockPos POOL_FLOOR = new BlockPos(2, 0, 2);
     private static final BlockPos STREAMER_POS = new BlockPos(0, 1, 2);
     private static final float FACING_EAST = -90f;
-    /**
-     * Past the far lava cell's east side, low in the floor, where the axis drip is aimed, so its arc ends beyond
-     * both lava cells and both stand in the cone out to it.
-     */
-    private static final Vec3 PAST_THE_LAVA = new Vec3(4.9, 0.1, 2.5);
     /** Pitched a little down at a zombie four blocks east. */
     private static final float AT_THE_ZOMBIE = 8f;
-    /** Two floor cells three and four blocks east of the streamer, inside Goop's cone pitched at the floor. */
-    private static final List<BlockPos> LAVA_CELLS = List.of(new BlockPos(3, 0, 2), new BlockPos(4, 0, 2));
+    /** A floor cell three blocks east of the streamer, inside Goop's cone aimed at the floor block past it. */
+    private static final BlockPos STREAMED_LAVA = new BlockPos(3, 0, 2);
+    /** The stone floor block east of the lava, which the stream's drips coat. */
+    private static final BlockPos BESIDE_THE_LAVA = STREAMED_LAVA.east();
+    /**
+     * Past the stone's east side, low in the floor, where the axis drip is aimed, so its arc ends on the stone
+     * and the lava stands in the cone out to it.
+     */
+    private static final Vec3 PAST_THE_LAVA = new Vec3(4.9, 0.1, 2.5);
     private static final BlockPos ZOMBIE_POS = new BlockPos(4, 1, 2);
     private static final int GOOP_HOLD_TICKS = 10;
     private static final String GOOP_LAYS_A_COAT = "goop_lays_a_slime_coat_over_the_block";
@@ -80,7 +82,7 @@ public final class WeirdTests {
     private static final int SPRAY_HOLD_TICKS = CoatRay.FAN_SHARES + 5;
     /** Ticks a hold's last drips take to fall onto a cell three blocks off, with room to spare. */
     private static final int DRIP_FLIGHT_TICKS = 10;
-    private static final String LAVA_LEFT = "Goop's stream should leave magma where the lava stood at ";
+    private static final String LAVA_CHANGED = "Goop's stream should leave the lava source standing, found ";
     private static final String PAD_BREAKS_THE_FALL = "weird_pad_breaks_the_fall";
     private static final String BOUNCES_ITEM_AND_ARROW = "slime_bounces_an_item_and_an_arrow";
     /** Ticks the item and the arrow are watched falling onto the coat and leaving it. */
@@ -163,7 +165,7 @@ public final class WeirdTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, GOOP_COOLS_LAVA, WeirdTests::goopCoolsLavaToMagma);
+        GooTestFunctions.registerTest(registrar, GOOP_LEAVES_LAVA, WeirdTests::goopLeavesLavaAndCoatsTheBlockBeside);
         GooTestFunctions.registerTest(registrar, GOOP_LAYS_A_COAT, WeirdTests::goopLaysASlimeCoatOverTheBlock);
         GooTestFunctions.registerTest(registrar, GOOP_LAYING_NOTHING_DRAINS_NOTHING,
                 WeirdTests::goopLayingNoLayerDrainsNoGoo);
@@ -545,21 +547,26 @@ public final class WeirdTests {
     }
 
     /**
-     * Goop's stream held over two lava cells in a stone floor cools both to
-     * magma blocks.
+     * Goop's stream held over a lava source in the floor, aimed past the
+     * stone floor block beside it, leaves the lava source standing and lays a
+     * slime coat on the stone.
+     * goop-stops-turning-lava-into-magma
      *
      * @param helper the gametest helper
      */
-    public static void goopCoolsLavaToMagma(GameTestHelper helper) {
-        for (BlockPos cell : LAVA_CELLS) {
-            helper.setBlock(cell, Blocks.LAVA);
-        }
-        ServerPlayer streamer = streamerAt(helper, 0);
+    public static void goopLeavesLavaAndCoatsTheBlockBeside(GameTestHelper helper) {
+        helper.setBlock(STREAMED_LAVA, Blocks.LAVA);
+        helper.setBlock(BESIDE_THE_LAVA, Blocks.STONE);
+        ServerPlayer streamer = goopStreamerAt(helper, 0);
         aimDripAt(helper, streamer, helper.absoluteVec(PAST_THE_LAVA));
-        holdGoop(helper, streamer, () -> {
-            for (BlockPos cell : LAVA_CELLS) {
-                helper.assertTrue(helper.getBlockState(cell).is(Blocks.MAGMA_BLOCK), LAVA_LEFT + cell);
-            }
+        int hold = SPRAY_HOLD_TICKS;
+        holdGoopFor(helper, streamer, hold);
+        helper.runAfterDelay(hold + DRIP_FLIGHT_TICKS, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
+            BlockState lava = helper.getBlockState(STREAMED_LAVA);
+            helper.assertTrue(lava.is(Blocks.LAVA) && lava.getFluidState().isSource(), LAVA_CHANGED + lava);
+            helper.assertBlockPresent(GooBlocks.SLIME_COAT.get(), BESIDE_THE_LAVA.above());
+            helper.succeed();
         });
     }
 

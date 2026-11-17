@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.particle;
 
+import com.mercuriusxeno.goo.block.ability.FluidFooting;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.network.DripFlights;
@@ -50,8 +51,8 @@ public final class SprayDripParticle extends SingleQuadParticle {
 
     private final GooRenderUtil.UvRect uv;
     private final int rgb;
-    /** Whether the drip splats on a lava source's surface, as its server drip strikes it there. */
-    private final boolean landsOnLava;
+    /** The fluid sources the drip splats on the surface of, as its server drip strikes them there. */
+    private final FluidFooting footing;
     private Source source;
     private DripArc.LivingNear living = DripArc.NO_LIVING;
     private boolean thrown;
@@ -72,9 +73,9 @@ public final class SprayDripParticle extends SingleQuadParticle {
     }
 
     private SprayDripParticle(ClientLevel level, Vec3 apex, TextureAtlasSprite sprite, SprayDrip drip,
-                              boolean landsOnLava) {
+                              FluidFooting footing) {
         super(level, apex.x, apex.y, apex.z, sprite);
-        this.landsOnLava = landsOnLava;
+        this.footing = footing;
         this.uv = GooSubmitter.spriteUv(sprite);
         this.rgb = drip.rgb();
         this.source = partialTick -> apex;
@@ -117,7 +118,7 @@ public final class SprayDripParticle extends SingleQuadParticle {
         this.zo = this.z;
         this.age++;
         SprayDrip.Step step = drip.step(new Vec3(this.x, this.y, this.z), new Vec3(this.xd, this.yd, this.zd),
-                CoatRay.clippingFor(this.level, landsOnLava), living, DripFlights.airspaceOf(this.level));
+                CoatRay.clippingFor(this.level, footing), living, DripFlights.airspaceOf(this.level));
         this.setPos(step.position().x, step.position().y, step.position().z);
         this.xd = step.velocity().x;
         this.yd = step.velocity().y;
@@ -207,7 +208,7 @@ public final class SprayDripParticle extends SingleQuadParticle {
 
         private final SpriteSet sprites;
         private final BlendPalette palette;
-        private final boolean landsOnLava;
+        private final FluidFooting footing;
 
         /**
          * Creates a provider over the trail-drip sprite in an ability's palette.
@@ -216,22 +217,23 @@ public final class SprayDripParticle extends SingleQuadParticle {
          * @param palette the colors its drips blend between
          */
         public Provider(SpriteSet sprites, BlendPalette palette) {
-            this(sprites, palette, false);
+            this(sprites, palette, FluidFooting.NONE);
         }
 
         /**
          * Creates a provider over the trail-drip sprite in an ability's palette,
-         * its drips splatting on a lava source's surface where the ability's goo pools on lava.
+         * its drips splatting on the surface of the fluid sources the ability's goo lies on.
          * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+         * rime-drips-stop-at-a-water-or-lava-surface
          *
-         * @param sprites     the sprite set from the spray drip's definition
-         * @param palette     the colors its drips blend between
-         * @param landsOnLava whether its drips splat on a lava source's surface
+         * @param sprites the sprite set from the spray drip's definition
+         * @param palette the colors its drips blend between
+         * @param footing the fluid sources its drips splat on
          */
-        public Provider(SpriteSet sprites, BlendPalette palette, boolean landsOnLava) {
+        public Provider(SpriteSet sprites, BlendPalette palette, FluidFooting footing) {
             this.sprites = sprites;
             this.palette = palette;
-            this.landsOnLava = landsOnLava;
+            this.footing = footing;
         }
 
         @Override
@@ -239,7 +241,7 @@ public final class SprayDripParticle extends SingleQuadParticle {
                                                           double y, double z, double xSpeed, double ySpeed,
                                                           double zSpeed, RandomSource random) {
             return new SprayDripParticle(level, new Vec3(x, y, z), sprites.get(0, 1),
-                    SprayDrip.launch(new Vec3(xSpeed, ySpeed, zSpeed), palette, random), landsOnLava);
+                    SprayDrip.launch(new Vec3(xSpeed, ySpeed, zSpeed), palette, random), footing);
         }
     }
 }

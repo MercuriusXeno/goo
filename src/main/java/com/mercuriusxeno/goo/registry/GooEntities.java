@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.registry;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.entity.BlockHunk;
 import com.mercuriusxeno.goo.entity.CompressionSphere;
+import com.mercuriusxeno.goo.entity.DriftingWisp;
 import com.mercuriusxeno.goo.entity.EldritchMonstrosity;
 import com.mercuriusxeno.goo.entity.Meteor;
 import com.mercuriusxeno.goo.entity.NectarPile;
@@ -40,6 +41,8 @@ public final class GooEntities {
     /** Chunks out to which clients track a rolling goo. */
     private static final int ROLLING_GOO_TRACKING_RANGE = 8;
     private static final float SPHERE_SIZE = 0.25f;
+    private static final float WISP_SIZE = 0.3f;
+    private static final int WISP_TRACKING_CHUNKS = 8;
     private static final int SPHERE_TRACKING_CHUNKS = 6;
     private static final int SPHERE_UPDATE_TICKS = 20;
     private static final float METEOR_SIZE = 1.0f;
@@ -108,6 +111,20 @@ public final class GooEntities {
         ENTITIES.register("meteor", id -> EntityType.Builder.<Meteor>of(Meteor::new, MobCategory.MISC)
             .sized(METEOR_SIZE, METEOR_SIZE)
             .clientTrackingRange(METEOR_TRACKING_CHUNKS)
+            .updateInterval(1)
+            .noLootTable()
+            .build(ResourceKey.create(Registries.ENTITY_TYPE, id)));
+
+    /**
+     * A wisp drifting off Wisps goo to the dark spot it settles in
+     * (decisions wisps-goo-sheds-a-wisp-toward-nearby-dark,
+     * wisps-travel-as-entities-then-settle-as-glowy-air-blocks).
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<DriftingWisp>> DRIFTING_WISP =
+        ENTITIES.register("drifting_wisp", id -> EntityType.Builder
+            .<DriftingWisp>of(DriftingWisp::new, MobCategory.MISC)
+            .sized(WISP_SIZE, WISP_SIZE)
+            .clientTrackingRange(WISP_TRACKING_CHUNKS)
             .updateInterval(1)
             .noLootTable()
             .build(ResourceKey.create(Registries.ENTITY_TYPE, id)));

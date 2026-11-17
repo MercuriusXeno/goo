@@ -109,8 +109,9 @@ class VolumeCellBlockTest {
         /** molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava: Molten alone pools on lava */
         @Test
         void moltenAlonePoolsOnLava() {
-            assertEquals(List.of(false, false, true), List.of(CellBinding.SLIME.liesOnLava(),
-                    CellBinding.SLICK.liesOnLava(), CellBinding.MOLTEN.liesOnLava()));
+            assertEquals(List.of(FluidFooting.NONE, FluidFooting.NONE, FluidFooting.LAVA),
+                    List.of(CellBinding.SLIME.fluidFooting(), CellBinding.SLICK.fluidFooting(),
+                            CellBinding.MOLTEN.fluidFooting()));
         }
 
         /**
@@ -469,6 +470,84 @@ class VolumeCellBlockTest {
             assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.DEEP,
                             cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
                     VolumeCellBlock.reclaimedBy(CellBinding.HOST, LAYERS, cost));
+        }
+    }
+
+    /**
+     * A broken Rime cell gives back frost goo, each layer a fifteenth of
+     * Rime's cost as frost_rime.json ships it
+     * (decision iceborn-is-dropped-for-rime-a-frost-goo-that-keeps-what-is-around-it-frozen).
+     */
+    @Nested
+    class RimeReclaim {
+
+        private static final int LAYERS = 7;
+
+        @Test
+        void rimeIsFrostGooLaidByFrostsRime() {
+            assertEquals(List.of(GooTypes.FROST, AbilityJson.idOf("frost_rime.json")),
+                    List.of(CellBinding.RIME.gooType(), CellBinding.RIME.layingAbility()));
+        }
+
+        @Test
+        void aBrokenRimeCellDropsFrostGooAtFifteenthsOfRimesCost() {
+            GooFraction cost = AbilityJson.decode("frost_rime").cost().exactIn(GooValueTable.EMPTY);
+
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.FROST,
+                            cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.RIME, LAYERS, cost));
+        }
+    }
+
+    /**
+     * A broken Wisps cell gives back glow goo, each layer a fifteenth of
+     * Wisps' cost as glow_wisps.json ships it
+     * (decision glow-world-goo-is-named-wisps-and-takes-the-holds-place).
+     */
+    @Nested
+    class WispsReclaim {
+
+        private static final int LAYERS = 9;
+
+        @Test
+        void wispsIsGlowGooLaidByGlowsWisps() {
+            assertEquals(List.of(GooTypes.GLOW, AbilityJson.idOf("glow_wisps.json")),
+                    List.of(CellBinding.WISPS.gooType(), CellBinding.WISPS.layingAbility()));
+        }
+
+        @Test
+        void aBrokenWispsCellDropsGlowGooAtFifteenthsOfWispsCost() {
+            GooFraction cost = AbilityJson.decode("glow_wisps").cost().exactIn(GooValueTable.EMPTY);
+
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.GLOW,
+                            cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.WISPS, LAYERS, cost));
+        }
+    }
+
+    /**
+     * A broken Leech cell gives back hex goo, each layer a fifteenth of
+     * Leech's cost as hex_leech.json ships it.
+     * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
+     */
+    @Nested
+    class LeechReclaim {
+
+        private static final int LAYERS = 7;
+
+        @Test
+        void leechIsHexGooLaidByHexsLeech() {
+            assertEquals(List.of(GooTypes.HEX, AbilityJson.idOf("hex_leech.json")),
+                    List.of(CellBinding.LEECH.gooType(), CellBinding.LEECH.layingAbility()));
+        }
+
+        @Test
+        void aBrokenLeechCellDropsHexGooAtFifteenthsOfLeechsCost() {
+            GooFraction cost = AbilityJson.decode("hex_leech").cost().exactIn(GooValueTable.EMPTY);
+
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.HEX,
+                            cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.LEECH, LAYERS, cost));
         }
     }
 

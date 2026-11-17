@@ -32,7 +32,7 @@ class AbilitiesModelTest {
               "delivery": { "kind": "self" },
               "behaviors": [
                 { "type": "damage", "amount": 4, "source": "magic" },
-                { "type": "grab", "range": 16, "hold_distance": 3, "throw_speed": 1.5, "pull_speed": 1, "pick_cone": 10 }
+                { "type": "grab", "range": 16, "hold_distance": 3, "throw_speed": 1.5, "pull_speed": 1, "pick_cone": 10, "pull_acceleration": 0.15, "group_radius": 4, "stream_lead": 2, "hold_acceleration": 0.4, "reference_volume": 0.7 }
               ]
             }
             """;
@@ -74,7 +74,10 @@ class AbilitiesModelTest {
         @Test
         void everyNumericLeafIsListedAndNoOther() {
             assertEquals(java.util.Set.of("cost", "upkeep", "behaviors/0/amount", "behaviors/1/range",
-                    "behaviors/1/hold_distance", "behaviors/1/throw_speed", "behaviors/1/pull_speed", "behaviors/1/pick_cone"),
+                    "behaviors/1/hold_distance", "behaviors/1/throw_speed", "behaviors/1/pull_speed", "behaviors/1/pick_cone",
+                    "behaviors/1/pull_acceleration", "behaviors/1/group_radius",
+                    "behaviors/1/stream_lead",
+                    "behaviors/1/hold_acceleration", "behaviors/1/reference_volume"),
                     kindsByPath().keySet());
         }
 

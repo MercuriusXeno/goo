@@ -604,6 +604,14 @@
             "copper_nautilus_armor",
             "diamond_nautilus_armor",
             "netherite_nautilus_armor"
+        ],
+        "molten_blocks": [
+            "lava",
+            "goo:molten_iron"
+        ],
+        "molten_cooled_blocks": [
+            "obsidian",
+            "goo:iron_core"
         ]
     },
     "#creative_only": "denied",

@@ -11,12 +11,12 @@ import com.mercuriusxeno.goo.ability.program.AirbornStep;
 import com.mercuriusxeno.goo.ability.program.ChannelHost;
 import com.mercuriusxeno.goo.ability.program.CharmStep;
 import com.mercuriusxeno.goo.ability.program.CoatStep;
-import com.mercuriusxeno.goo.ability.program.CoolLavaStep;
 import com.mercuriusxeno.goo.ability.program.EntityFilter;
 import com.mercuriusxeno.goo.ability.program.GhostTrailStep;
 import com.mercuriusxeno.goo.ability.program.GluttonyStep;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
+import com.mercuriusxeno.goo.ability.program.MoltenStep;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
@@ -125,6 +125,18 @@ class AbilityLoaderTest {
     }
 
     /**
+     * Molten ships its melts_into map: lava from the meltable stone tag, molten iron from iron core alone (decision
+     * molten-melts-by-a-meltable-group-and-its-parallel-melted-group).
+     */
+    @Test
+    void shippedMoltenMeltsStoneToLavaAndIronCoreToMoltenIron() {
+        AbilityDefinition molten = shippedById().get(Identifier.parse("goo:blaze_molten"));
+        assertEquals(Map.of(Identifier.parse("minecraft:lava"), List.of("#goo:meltable"),
+                        Identifier.parse("goo:molten_iron"), List.of("goo:iron_core")),
+                MoltenStep.in(molten.behaviors()).orElseThrow().meltsInto());
+    }
+
+    /**
      * Typhoon's abilities after the flight merge: Shulk levitates the struck
      * mob, and Float is typhoon's brew carrying the flight.
      * decision mob-float-renamed-shulk
@@ -192,11 +204,43 @@ class AbilityLoaderTest {
             assertNull(new AbilityRegistry(shippedById()).durativeAbilityFor(GooTypes.UNSTABLE));
         }
 
+        /**
+         * lifetap-leaves-and-hex-loses-its-durative-ability
+         * goo-type-ships-without-a-durative-ability
+         */
+        @Test
+        void hexShipsCharmEnchantFuseDrainAndLeechAndNoDurative() {
+            assertEquals(Set.of("hex_charm", "hex_enchant", "hex_fuse", "hex_drain", "hex_leech"),
+                    shippedPathsOf(GooTypes.HEX));
+            assertNull(new AbilityRegistry(shippedById()).durativeAbilityFor(GooTypes.HEX));
+        }
+
         @Test
         void voidShipsCancelHoleZoneAndVacuum() {
             assertEquals(Set.of("void_cancel", "void_hole", "void_zone", "void_vacuum"),
                     shippedPathsOf(GooTypes.VOID));
         }
+
+        /**
+         * decision iceborn-is-dropped-for-rime-a-frost-goo-that-keeps-what-is-around-it-frozen
+         * decision goo-type-ships-without-a-durative-ability
+         */
+        @Test
+        void frostShipsNovaColdOrbAndRimeAndNoDurative() {
+            assertEquals(Set.of("frost_nova", "frost_cold", "frost_orb", "frost_rime"),
+                    shippedPathsOf(GooTypes.FROST));
+            assertNull(new AbilityRegistry(shippedById()).durativeAbilityFor(GooTypes.FROST));
+        }
+    }
+
+    /**
+     * Rime sprays a goo in world and so wears the residual badge, sorting in the tier that leads the fan.
+     * decision rime-wears-the-residual-badge
+     */
+    @Test
+    void rimeWearsTheResidualBadge() {
+        assertEquals(AbilityBadge.RESIDUAL,
+                shippedById().get(Identifier.fromNamespaceAndPath("goo", "frost_rime")).badge());
     }
 
     // decision lingering-abilities-place-their-own-thing
@@ -674,13 +718,14 @@ class AbilityLoaderTest {
         }
 
         @Test
-        void goopStreamsCoolingLavaAndCoatingBlocksInTheBlockPass() {
+        void goopStreamsCoatingBlocksAloneInTheBlockPass() {
             AbilityDefinition goop = AbilityJson.decode("weird_goop");
             List<Step> blockPass = ChannelHost.passSteps(goop.behaviors(), true);
 
             assertEquals(DeliveryKind.STREAM, goop.delivery().kind());
             // coat-is-a-green-slime-film-over-the-blocks-own-texture
-            assertEquals(List.of(CoolLavaStep.class, CoatStep.class), blockPass.stream().map(Object::getClass).toList());
+            // goop-stops-turning-lava-into-magma
+            assertEquals(List.of(CoatStep.class), blockPass.stream().map(Object::getClass).toList());
             assertTrue(ProgramBehavior.serves(blockPass, HostKind.PLAYER), "the channeling player runs the block pass");
         }
 
