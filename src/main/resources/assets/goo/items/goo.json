@@ -4,7 +4,17 @@
     "property": "minecraft:display_context",
     "cases": [
       {
-        "when": ["ground", "fixed", "firstperson_lefthand", "firstperson_righthand", "thirdperson_lefthand", "thirdperson_righthand"],
+        "when": ["firstperson_lefthand", "firstperson_righthand", "thirdperson_lefthand", "thirdperson_righthand"],
+        "model": {
+          "type": "minecraft:special",
+          "base": "goo:item/goo_glove",
+          "model": {
+            "type": "goo:glove_goo"
+          }
+        }
+      },
+      {
+        "when": ["ground", "fixed"],
         "model": {
           "type": "minecraft:special",
           "base": "goo:item/goo",

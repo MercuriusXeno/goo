@@ -8,7 +8,7 @@ import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
-import com.mercuriusxeno.goo.network.KnifeRainSling;
+import com.mercuriusxeno.goo.item.GooCasters;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
@@ -189,7 +189,7 @@ public final class BoreDrill {
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         ConeSections.Volume full = volume(CastOrigin.ofLocal(mc).subtract(camera),
                 pointAhead(mc.level, CameraEye.of(mc, player, partialTick), lastStep,
-                        KnifeRainSling.gloveOnTheRight(player), lastReach).subtract(camera),
+                        GooCasters.casterOnTheRight(player), lastReach).subtract(camera),
                 lastStep.shape(), player.getViewYRot(partialTick));
         double poured = held ? emergedShare(GloveUseTracker.channelTicks() + partialTick) : 1;
         BoreDrillPass.draw(emerged(full, poured), presence, event.getModelViewMatrix());

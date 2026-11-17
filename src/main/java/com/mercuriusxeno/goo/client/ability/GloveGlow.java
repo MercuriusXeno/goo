@@ -3,8 +3,8 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.client.ber.WispRenderer;
-import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -83,7 +83,7 @@ public final class GloveGlow {
      * @return true while a glow hold runs
      */
     private static boolean holdsGlow(LocalPlayer player) {
-        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        GloveSelection selection = GooCasters.heldSelection(player);
         return selection != null && selection.getGooType() == GooTypes.GLOW && GloveUseTracker.runsHeld(player);
     }
 
@@ -111,7 +111,8 @@ public final class GloveGlow {
      * @return true when either hand holds it
      */
     private static boolean inHand(ItemStack stack, LocalPlayer player) {
-        return heldBy(stack, player.getMainHandItem()) || heldBy(stack, player.getOffhandItem());
+        return GooCasters.drawnInHand(player, stack) || heldBy(stack, player.getMainHandItem())
+                || heldBy(stack, player.getOffhandItem());
     }
 
     /**

@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
+import com.mercuriusxeno.goo.item.GooCasters;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -113,7 +114,7 @@ public final class KnivesCharge {
      */
     public static float localPalmShare(ItemStack glove) {
         LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null || glove != player.getMainHandItem() && glove != player.getOffhandItem()) {
+        if (player == null || !GooCasters.drawnInHand(player, glove)) {
             return 0f;
         }
         AbilityPoses.Posed posed = AbilityPoses.posedAt(player.getId());
@@ -213,7 +214,7 @@ public final class KnivesCharge {
     }
 
     private static @Nullable String selectedAbility(Player player) {
-        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        GloveSelection selection = GooCasters.heldSelection(player);
         return selection == null ? null : selection.abilityId();
     }
 
@@ -224,7 +225,7 @@ public final class KnivesCharge {
      * @return the charge, or null where the selection forms no knives
      */
     private static @Nullable Charge chargeOf(Player player) {
-        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        GloveSelection selection = GooCasters.heldSelection(player);
         if (selection == null) {
             return null;
         }
