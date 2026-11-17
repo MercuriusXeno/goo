@@ -10,20 +10,26 @@ import java.util.stream.Stream;
  * above the host carries every entity inside it upward; then the step ends
  * and the lingering blob goes with it. The streaming client draws frost's
  * wind lines rising through the column, which it sizes from this step:
- * {@code updraft radius=1 height=8 speed=0.4 duration=200}.
+ * {@code updraft radius=1 height=8 speed=0.4 air=10 duration=200}. Each
+ * living entity the column carries breathes again as it rides, its air
+ * raised by the step's air each tick up to its maximum, faster than lunar
+ * drains it.
  * updraft-blob-stands-a-column-of-wind
+ * updraft-refills-the-air-of-entities-it-propels
  *
  * @param radius   the column's half width in blocks, evaluated when the step runs
  * @param height   the column's height in blocks, evaluated when the step runs
  * @param speed    the rise it carries at, in blocks per tick, evaluated when the step runs
+ * @param air      the air it refills each living entity it carries, per tick, evaluated when the step runs
  * @param duration the ticks the column stands, evaluated when the step runs
  */
-public record UpdraftStep(Expr radius, Expr height, Expr speed, Expr duration) implements Step {
+public record UpdraftStep(Expr radius, Expr height, Expr speed, Expr air, Expr duration) implements Step {
 
     private static final String NAME = "updraft";
     private static final String FIELD_RADIUS = "radius";
     private static final String FIELD_HEIGHT = "height";
     private static final String FIELD_SPEED = "speed";
+    private static final String FIELD_AIR = "air";
     private static final String FIELD_DURATION = "duration";
 
     /**
@@ -33,6 +39,7 @@ public record UpdraftStep(Expr radius, Expr height, Expr speed, Expr duration) i
             Expr.CODEC.fieldOf(FIELD_RADIUS).forGetter(UpdraftStep::radius),
             Expr.CODEC.fieldOf(FIELD_HEIGHT).forGetter(UpdraftStep::height),
             Expr.CODEC.fieldOf(FIELD_SPEED).forGetter(UpdraftStep::speed),
+            Expr.CODEC.fieldOf(FIELD_AIR).forGetter(UpdraftStep::air),
             Expr.CODEC.fieldOf(FIELD_DURATION).forGetter(UpdraftStep::duration)
     ).apply(inst, UpdraftStep::new));
 
@@ -52,13 +59,13 @@ public record UpdraftStep(Expr radius, Expr height, Expr speed, Expr duration) i
             return true;
         }
         context.hostAs(EntityScanHost.class).liftEntitiesInColumn(radius.evaluate(context), height.evaluate(context),
-                speed.evaluate(context));
+                speed.evaluate(context), air.evaluateInt(context));
         return false;
     }
 
     @Override
     public Stream<Expr> expressions() {
-        return Stream.of(radius, height, speed, duration);
+        return Stream.of(radius, height, speed, air, duration);
     }
 
     @Override
