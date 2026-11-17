@@ -81,13 +81,15 @@ final class ThrowAim {
     private static double crossingHeight(ServerPlayer caster, float pitch, float yaw, Stack stack, double speed,
                                          Vec3 target) {
         look(caster, pitch, yaw);
-        Vec3 position = ThrownKnife.launchPointOf(caster.getEyePosition(), pitch, yaw, stack.gloveRight(), stack.held(),
+        Vec3 slot = ThrownKnife.launchPointOf(caster.getEyePosition(), pitch, yaw, stack.gloveRight(), stack.held(),
                 stack.javelins());
+        Vec3 crosshair = ThrownKnife.crosshairPointOf(caster, 1f);
+        Vec3 position = ThrownKnife.drawnFromOf(slot, ThrownKnife.headingFrom(slot, crosshair), stack.javelins(), 1f);
         Vec3 across = new Vec3(target.x - position.x, 0, target.z - position.z);
         Vec3 ground = across.normalize();
         double reach = across.length();
         Vec3 launch = position;
-        Vec3 velocity = ThrownKnife.launchVelocityToward(position, KnivesThrowHandler.crosshairPointOf(caster), speed);
+        Vec3 velocity = ThrownKnife.launchVelocityToward(position, crosshair, speed);
         for (int tick = 0; tick < MOST_AIM_TICKS; tick++) {
             DripArc.Step step = ProjectileFlight.step(position, velocity, ProjectileFlight.ARROW, OPEN_AIR,
                     DripArc.NO_LIVING, point -> true);

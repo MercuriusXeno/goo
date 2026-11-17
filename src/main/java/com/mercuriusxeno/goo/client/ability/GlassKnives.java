@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.TravelForm;
-import com.mercuriusxeno.goo.ability.crystal.StackHover;
 import com.mercuriusxeno.goo.ability.crystal.ThrownKnife;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
@@ -255,33 +254,6 @@ public final class GlassKnives {
         buffers.endBatch(GooSubmitter.renderType());
     }
 
-    /** Ticks a thrown knife or javelin takes to grow from its hover size to its flight size. */
-    static final double GROW_TICKS = 6;
-
-    /**
-     * The size one hovers at against its flight size.
-     *
-     * @param javelin whether it is Dart's javelin rather than a knife
-     * @return the share of its flight size
-     */
-    static float hoverShareOf(boolean javelin) {
-        return (float) (javelin ? StackHover.javelinHoverShare()
-                : StackHover.KNIFE_HOVER_LENGTH / GlassKunai.WHOLE_LENGTH);
-    }
-
-    /**
-     * The size a thrown one draws at an age into its flight: its hover size
-     * as it leaves, eased to its flight size over the grow's ticks.
-     *
-     * @param age     ticks into its flight, with the partial tick
-     * @param javelin whether it is Dart's javelin rather than a knife
-     * @return its size, 1 its flight size
-     */
-    static float flightScaleAt(double age, boolean javelin) {
-        float hover = hoverShareOf(javelin);
-        return hover + (1f - hover) * HoveringKnives.easedAt(age * HoveringKnives.EASE_TICKS / GROW_TICKS);
-    }
-
     /**
      * Draws one knife an age into its flight, a tick behind the points it has
      * flown so it eases between them: flying, or sunk at its end while it
@@ -297,7 +269,7 @@ public final class GlassKnives {
         Placement placement = placementAt(knife.path, Math.max(0, age));
         Vec3 point = stuck ? placement.point().add(placement.heading().scale(SINK)) : placement.point();
         GlassKunai.emit(quads, point.subtract(camera), placement.heading(),
-                (float) Math.min(Math.max(0, age), knife.ticks()) * ROLL_PER_TICK, flightScaleAt(Math.max(0, age), false));
+                (float) Math.min(Math.max(0, age), knife.ticks()) * ROLL_PER_TICK, 1f);
     }
 
     /**
@@ -318,7 +290,7 @@ public final class GlassKnives {
         poseStack.pushPose();
         poseStack.translate(at.x, at.y, at.z);
         GooFlightRenderer.emitTravelForm(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()),
-                knife.javelin, TravelForm.DART, placement.heading(), flightScaleAt(Math.max(0, age), true));
+                knife.javelin, TravelForm.DART, placement.heading(), 1f);
         poseStack.popPose();
     }
 

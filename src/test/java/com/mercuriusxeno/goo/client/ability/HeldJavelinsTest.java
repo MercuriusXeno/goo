@@ -48,12 +48,6 @@ class HeldJavelinsTest {
                 HeldJavelins.EASE_TICKS)), WITHIN, "and eases sideways as the pile widens");
     }
 
-    @Test
-    void eachJavelinPointsAlongTheLook() {
-        Vec3 look = Vec3.directionFromRotation(PITCH, YAW);
-        assertEquals(0, look.distanceTo(HeldJavelins.headingOf(PITCH, YAW)), FLOAT_WITHIN);
-    }
-
     // dart-javelins-hover-over-the-shrinking-blob-cube: the server throws each javelin from the slot it hovers at
     @Test
     void eachJavelinIsThrownFromTheSlotItHoversAt() {

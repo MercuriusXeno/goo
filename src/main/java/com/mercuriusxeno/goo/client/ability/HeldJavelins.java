@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.FormSounds;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.TravelForm;
 import com.mercuriusxeno.goo.ability.crystal.StackHover;
+import com.mercuriusxeno.goo.ability.crystal.ThrownKnife;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
@@ -169,7 +170,7 @@ public final class HeldJavelins {
     }
 
     /**
-     * The size a hovering javelin is drawn at against a thrown javelin's, about its middle.
+     * The size a hovering javelin is drawn at against a thrown javelin's: whole once formed.
      *
      * @param stack the stack
      * @param index the javelin's index
@@ -177,18 +178,7 @@ public final class HeldJavelins {
      * @return the drawn size, 1 a thrown javelin's
      */
     static float javelinDrawnScaleAt(Stack stack, int index, double age) {
-        return (index < stack.previous() ? 1f : HoveringKnives.easedAt(age)) * GlassKnives.hoverShareOf(true);
-    }
-
-    /**
-     * The heading every javelin of a stack points along: the caster's look.
-     *
-     * @param xRot the caster's view pitch in degrees
-     * @param yRot the caster's view yaw in degrees
-     * @return the unit heading
-     */
-    static Vec3 headingOf(float xRot, float yRot) {
-        return Vec3.directionFromRotation(xRot, yRot);
+        return index < stack.previous() ? 1f : HoveringKnives.easedAt(age);
     }
 
     /** Drops every stack, as a disconnect does. */
@@ -229,16 +219,18 @@ public final class HeldJavelins {
                                   double now, float partial, Vec3 camera) {
         float xRot = caster.getViewXRot(partial);
         float yRot = caster.getViewYRot(partial);
-        Vec3 cube = LiftedPalmBlob.blobOf(caster.getId(), partial).map(LiftedPalmBlob.Blob::place)
-                .orElseGet(() -> StackHover.cubeCenterInView(caster.getEyePosition(partial), xRot, yRot,
-                        GooCasters.casterOnTheRight(caster)));
+        Vec3 cube = StackAnchor.cubeOf(caster, partial);
+        Vec3 crosshair = ThrownKnife.crosshairPointOf(caster, partial);
         double age = now - stack.changedAt();
         for (int index = 0; index < stack.count(); index++) {
-            Vec3 at = javelinAt(stack, index, cube, xRot, yRot, age).subtract(camera);
+            Vec3 tail = javelinAt(stack, index, cube, xRot, yRot, age);
+            Vec3 heading = ThrownKnife.headingFrom(tail, crosshair);
+            float scale = javelinDrawnScaleAt(stack, index, age);
+            Vec3 at = ThrownKnife.drawnFromOf(tail, heading, true, scale).subtract(camera);
             poseStack.pushPose();
             poseStack.translate(at.x, at.y, at.z);
             GooFlightRenderer.emitTravelForm(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()),
-                    gooTypeOf(caster), TravelForm.DART, headingOf(xRot, yRot), javelinDrawnScaleAt(stack, index, age));
+                    gooTypeOf(caster), TravelForm.DART, heading, scale);
             poseStack.popPose();
         }
     }

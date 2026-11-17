@@ -3,10 +3,10 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.FormSounds;
 import com.mercuriusxeno.goo.ability.crystal.StackHover;
+import com.mercuriusxeno.goo.ability.crystal.ThrownKnife;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
-import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.network.StackFormedPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -180,22 +180,8 @@ public final class HoveringKnives {
     }
 
     /**
-     * Where a hovering knife's point is drawn.
-     *
-     * @param fan   the pyramid's count
-     * @param index the knife's index
-     * @param cube  the lifted blob cube's center
-     * @param xRot  the caster's view pitch in degrees
-     * @param yRot  the caster's view yaw in degrees
-     * @param age   ticks since the change, with the partial tick
-     * @return the knife's point
-     */
-    static Vec3 knifePointAt(Fan fan, int index, Vec3 cube, float xRot, float yRot, double age) {
-        return knifeAt(fan, index, cube, xRot, yRot, age);
-    }
-
-    /**
-     * The size a hovering knife is drawn at against a thrown knife's.
+     * The size a hovering knife is drawn at against a thrown knife's: whole
+     * once formed, as large hovering as thrown.
      *
      * @param fan   the pyramid's count
      * @param index the knife's index
@@ -203,7 +189,7 @@ public final class HoveringKnives {
      * @return the drawn size, 1 a thrown knife's
      */
     static float knifeDrawnScaleAt(Fan fan, int index, double age) {
-        return knifeScaleAt(fan, index, age) * GlassKnives.hoverShareOf(false);
+        return knifeScaleAt(fan, index, age);
     }
 
     static float easedAt(double age) {
@@ -213,7 +199,8 @@ public final class HoveringKnives {
 
     /**
      * Draws every caster's pyramid after the level, clouds included, so no
-     * cloud shows through a knife, each knife pointing along its caster's look.
+     * cloud shows through a knife, each knife its butt on its slot and its
+     * point running forward at the crosshair's point, the line it flies along.
      *
      * @param event the level render stage event
      */
@@ -243,15 +230,16 @@ public final class HoveringKnives {
 
     private static void drawFan(FlatQuadContext quads, Player caster, Fan fan, double age, float partial,
                                 Vec3 camera) {
-        Vec3 look = caster.getViewVector(partial);
         float xRot = caster.getViewXRot(partial);
         float yRot = caster.getViewYRot(partial);
-        Vec3 cube = LiftedPalmBlob.blobOf(caster.getId(), partial).map(LiftedPalmBlob.Blob::place)
-                .orElseGet(() -> StackHover.cubeCenterInView(caster.getEyePosition(partial), xRot, yRot,
-                        GooCasters.casterOnTheRight(caster)));
+        Vec3 cube = StackAnchor.cubeOf(caster, partial);
+        Vec3 crosshair = ThrownKnife.crosshairPointOf(caster, partial);
         for (int index = 0; index < fan.count(); index++) {
-            GlassKunai.emit(quads, knifePointAt(fan, index, cube, xRot, yRot, age).subtract(camera), look, 0f,
-                    knifeDrawnScaleAt(fan, index, age));
+            Vec3 butt = knifeAt(fan, index, cube, xRot, yRot, age);
+            Vec3 heading = ThrownKnife.headingFrom(butt, crosshair);
+            float scale = knifeDrawnScaleAt(fan, index, age);
+            GlassKunai.emit(quads, ThrownKnife.drawnFromOf(butt, heading, false, scale).subtract(camera), heading,
+                    0f, scale);
         }
     }
 }
