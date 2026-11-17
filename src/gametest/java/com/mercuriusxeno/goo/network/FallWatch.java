@@ -127,6 +127,6 @@ final class FallWatch {
     }
 
     private static int layersAt(BlockState state) {
-        return state.getBlock() instanceof VolumeCellBlock ? VolumeCellBlock.layersHeldIn(state) : 0;
+        return state.getBlock() instanceof VolumeCellBlock ? VolumeCellBlock.layersHeld(state) : 0;
     }
 }

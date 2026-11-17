@@ -13,8 +13,8 @@ public enum SideCoat implements StringRepresentable {
 
     /** Nothing against that wall. */
     BARE("bare"),
-    /** One layer clinging to that wall, a film. */
-    FILM("film"),
+    /** The block's goo attached to that wall, clinging to it. */
+    ATTACHED("attached"),
     /** One layer running down that wall. */
     RUNNY("runny");
 

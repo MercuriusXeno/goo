@@ -67,24 +67,43 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core,
     @Override
     public void collectParts(BlockAndTintGetter level, BlockPos pos, BlockState state, RandomSource random,
                              List<BlockStateModelPart> parts) {
-        List<BlockStateModelPart> layers = new ArrayList<>();
-        shell.collectParts(level, pos, state, random, layers);
-        layers.forEach(part -> parts.add(new BandedShellPart(part)));
-        if (VolumeCellBlock.layersOf(state) > 0) {
-            drips.forEach((side, drip) -> {
-                if (!level.getBlockState(pos.relative(side)).is(state.getBlock())) {
-                    drip.collectParts(level, pos, state, random, parts);
-                }
-            });
+        List<BakedQuad> coats = new ArrayList<>();
+        if (sidesHolding(state, SideCoat.ATTACHED).isEmpty()) {
+            collectFill(level, pos, state, random, parts);
+        } else {
+            // attached-goo-draws-per-attachment-and-divides-its-volume: the volume divides between its surfaces
+            boolean onAFloor = state.getBlock() instanceof VolumeCellBlock goo && goo.onAFloor(level, pos);
+            coats.addAll(SlimeFilmQuads.quadsOf(VolumeCellBlock.sharesOf(state, onAFloor), film));
         }
-        List<BakedQuad> quads = SlimeCoreQuads.quadsOf(layersAround(level, pos, state), core);
-        if (!quads.isEmpty()) {
-            parts.add(new CorePart(quads, shell.particleMaterial(level, pos, state)));
-        }
-        List<BakedQuad> coats = new ArrayList<>(SlimeFilmQuads.quadsOf(sidesHolding(state, SideCoat.FILM), film));
         coats.addAll(SlimeFilmQuads.streaksOf(sidesHolding(state, SideCoat.RUNNY), film));
         if (!coats.isEmpty()) {
             parts.add(new CorePart(coats, shell.particleMaterial(level, pos, state)));
+        }
+    }
+
+    /**
+     * Draws a block attached to no side as its fill: the layered shell, the
+     * drips over each edge no block of its goo continues, and the core inside.
+     *
+     * @param level  the level the section meshes from
+     * @param pos    the block
+     * @param state  the block's state
+     * @param random the random source
+     * @param parts  the parts drawn
+     */
+    private void collectFill(BlockAndTintGetter level, BlockPos pos, BlockState state, RandomSource random,
+                             List<BlockStateModelPart> parts) {
+        List<BlockStateModelPart> layers = new ArrayList<>();
+        shell.collectParts(level, pos, state, random, layers);
+        layers.forEach(part -> parts.add(new BandedShellPart(part)));
+        drips.forEach((side, drip) -> {
+            if (!level.getBlockState(pos.relative(side)).is(state.getBlock())) {
+                drip.collectParts(level, pos, state, random, parts);
+            }
+        });
+        List<BakedQuad> quads = SlimeCoreQuads.quadsOf(layersAround(level, pos, state), core);
+        if (!quads.isEmpty()) {
+            parts.add(new CorePart(quads, shell.particleMaterial(level, pos, state)));
         }
     }
 

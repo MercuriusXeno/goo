@@ -34,7 +34,7 @@ public record CellFed(BlockPos cell, Optional<Direction> side, SideCoat coat, bo
      * @return the layer coating that wall as a film
      */
     public static CellFed film(BlockPos cell, Direction side) {
-        return new CellFed(cell, Optional.of(side), SideCoat.FILM, false);
+        return new CellFed(cell, Optional.of(side), SideCoat.ATTACHED, false);
     }
 
     /**

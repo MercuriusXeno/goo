@@ -1,6 +1,5 @@
 {
   "multipart": [
-    {"when": {"layers": "0"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/frost_rime_layers_0"}}},
     {"when": {"layers": "1"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/frost_rime_layers_1"}, "drips": {"model": "goo:block/frost_rime_drips_1"}}},
     {"when": {"layers": "2"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/frost_rime_layers_2"}, "drips": {"model": "goo:block/frost_rime_drips_2"}}},
     {"when": {"layers": "3"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/frost_rime_layers_3"}, "drips": {"model": "goo:block/frost_rime_drips_3"}}},

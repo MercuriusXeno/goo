@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.block.ability.SideCoat;
+import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.throwing.CoatRay;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -57,7 +58,7 @@ class CellLandingTest {
                 return Optional.empty();
             }
             boolean filmed = cell.equals(FILMED_WALL.west()) && side == Direction.EAST;
-            return Optional.of(filmed ? SideCoat.FILM : SideCoat.BARE);
+            return Optional.of(filmed ? SideCoat.ATTACHED : SideCoat.BARE);
         }
 
         @Override
@@ -123,19 +124,19 @@ class CellLandingTest {
 
         @Test
         void adhesionTwoHoldsOnlyOverGooOfItsType() {
-            assertEquals(SideCoat.FILM, CellLanding.sideCoatFor(2, SideCoat.BARE, true));
+            assertEquals(SideCoat.ATTACHED, CellLanding.sideCoatFor(2, SideCoat.BARE, true));
             assertEquals(SideCoat.RUNNY, CellLanding.sideCoatFor(2, SideCoat.BARE, false));
         }
 
         @Test
         void adhesionThreeHoldsWhereItStrikes() {
-            assertEquals(SideCoat.FILM, CellLanding.sideCoatFor(HOLDS_WHERE_IT_STRIKES, SideCoat.BARE, false));
+            assertEquals(SideCoat.ATTACHED, CellLanding.sideCoatFor(HOLDS_WHERE_IT_STRIKES, SideCoat.BARE, false));
         }
 
         @ParameterizedTest
         @ValueSource(ints = {0, 1, 2, 3})
         void aSideAlreadyHoldingItsLayerRunsAtAnyAdhesion(int adhesion) {
-            assertEquals(SideCoat.RUNNY, CellLanding.sideCoatFor(adhesion, SideCoat.FILM, true));
+            assertEquals(SideCoat.RUNNY, CellLanding.sideCoatFor(adhesion, SideCoat.ATTACHED, true));
         }
     }
 
@@ -193,6 +194,18 @@ class CellLandingTest {
     @Test
     void aStrikeOnTheSideOfItsGoosFillJoinsThatFill() {
         assertEquals(Optional.of(CellFed.fill(CELL)), CellLanding.cellFedBy(strike(CELL, Direction.WEST), 0, cells));
+    }
+
+    /**
+     * A drip sticking to a side adds its layer to the volume of the block
+     * beside that side: beside an empty space it stands a block of volume 1,
+     * and beside a block of volume 6 it leaves volume 7
+     * (decision goo-cell-holds-a-fill-and-a-state-per-side).
+     */
+    @Test
+    void aDripStickingToASideAddsItsLayerToTheVolumeBesideIt() {
+        assertEquals(1, VolumeCellBlock.volumeOnceStuck(0));
+        assertEquals(7, VolumeCellBlock.volumeOnceStuck(6));
     }
 
     @Test

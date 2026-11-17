@@ -50,11 +50,11 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.Set;
 import java.util.function.ToIntFunction;
 
 /**
@@ -103,11 +103,12 @@ public class VolumeCellBlock extends Block {
     /** How far a wall run's drip stands off its wall, as the runny streak stands: a tenth of a model pixel. */
     static final double WALL_DRIP_OFF = 0.1 / 16;
     /**
-     * The fill the cell holds on its floor, each layer a fifteenth of a block
-     * of goo; a cell of fill 0 holds its goo in films alone.
+     * The block's volume, all the goo it holds, each layer a fifteenth of a
+     * block of goo; no side keeps layers of its own.
      * goo-cell-holds-a-fill-and-a-state-per-side
+     * world-goo-fills-a-block-space-in-one-to-fifteen-layers
      */
-    public static final IntegerProperty LAYERS = IntegerProperty.create("layers", 0, MAX_LAYERS);
+    public static final IntegerProperty LAYERS = IntegerProperty.create("layers", 1, MAX_LAYERS);
 
     private static final Map<Direction, EnumProperty<SideCoat>> COATS = Map.of(Direction.NORTH, NORTH,
             Direction.EAST, EAST, Direction.SOUTH, SOUTH, Direction.WEST, WEST);
@@ -115,12 +116,6 @@ public class VolumeCellBlock extends Block {
             Direction.WEST);
     /** Each fill's box, indexed by the fill, none at 0. */
     private static final VoxelShape[] LAYER_BOXES = new VoxelShape[MAX_LAYERS + 1];
-    /** Each side's film, a slab one layer thick against that side's wall. */
-    private static final Map<Direction, VoxelShape> FILM_BOXES = Map.of(
-            Direction.NORTH, Shapes.box(0, 0, 0, 1, 1, 1.0 / MAX_LAYERS),
-            Direction.SOUTH, Shapes.box(0, 0, 1 - 1.0 / MAX_LAYERS, 1, 1, 1),
-            Direction.WEST, Shapes.box(0, 0, 0, 1.0 / MAX_LAYERS, 1, 1),
-            Direction.EAST, Shapes.box(1 - 1.0 / MAX_LAYERS, 0, 0, 1, 1, 1));
 
     static {
         LAYER_BOXES[0] = Shapes.empty();
@@ -168,36 +163,63 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
-     * Every layer a cell holds: its fill and one for each side holding a layer.
+     * The volume a block holds once a drip sticks to one of its sides: the
+     * drip's layer joins the volume of the block beside the struck face, a
+     * block of volume 1 standing where that space was empty.
      * goo-cell-holds-a-fill-and-a-state-per-side
+     * drip-striking-a-side-sticks-or-runs-by-adhesion
      *
-     * @param fill  the fill on its floor
-     * @param sides what its four sides hold
-     * @return the layers
+     * @param volumeBeside the volume the block beside the face holds, 0 for an empty space
+     * @return the volume it holds once the drip sticks
      */
-    static int layersHeld(int fill, Collection<SideCoat> sides) {
-        return fill + (int) sides.stream().filter(SideCoat::holdsALayer).count();
+    public static int volumeOnceStuck(int volumeBeside) {
+        return volumeBeside + 1;
     }
 
     /**
-     * Whether a cell stands: a cell holding fill lies on a top, and a cell of
-     * fill 0 stands on its films, every one clinging to its wall, and while a
-     * runny layer passes through it on its way down.
+     * Whether a block stands: a block on a floor stands, and a block with no
+     * floor stands on the walls it is attached to, every one with a face to
+     * hold it, and while a runny layer passes through it on its way down.
      * goo-cell-holds-a-fill-and-a-state-per-side
      * runny-goo-runs-down-the-wall-to-the-first-top-below
      *
-     * @param fill            the fill on its floor
-     * @param liesOnATop      whether the block under it has a sturdy top
-     * @param filmsClinging   for each film it holds, whether its wall has a face to hold it
-     * @param holdsARunnyLayer whether a side holds a runny layer
-     * @return true where the cell stands
+     * @param onAFloor          whether the block stands on a floor
+     * @param attachedClinging  for each side it is attached to, whether its wall has a face to hold it
+     * @param holdsARunnyLayer  whether a side holds a runny layer
+     * @return true where the block stands
      */
-    static boolean stands(int fill, boolean liesOnATop, List<Boolean> filmsClinging, boolean holdsARunnyLayer) {
-        if (fill > 0) {
-            return liesOnATop;
+    static boolean stands(boolean onAFloor, List<Boolean> attachedClinging, boolean holdsARunnyLayer) {
+        if (onAFloor) {
+            return true;
         }
-        boolean holdsGoo = holdsARunnyLayer || !filmsClinging.isEmpty();
-        return holdsGoo && filmsClinging.stream().allMatch(Boolean::booleanValue);
+        boolean holdsGoo = holdsARunnyLayer || !attachedClinging.isEmpty();
+        return holdsGoo && attachedClinging.stream().allMatch(Boolean::booleanValue);
+    }
+
+    /**
+     * Whether a block stands on a floor: the block under it has a sturdy
+     * top, a lava source for a goo pooling on lava, or is a full block of its goo.
+     * attached-goo-draws-per-attachment-and-divides-its-volume
+     *
+     * @param level the level
+     * @param pos   the block
+     * @return true where the block stands on a floor
+     */
+    public boolean onAFloor(BlockGetter level, BlockPos pos) {
+        BlockState under = level.getBlockState(pos.below());
+        return liesOn(level, pos) || under.is(this) && under.getValue(LAYERS) == MAX_LAYERS;
+    }
+
+    /**
+     * How a block's volume divides between the surfaces it is attached to.
+     * attached-goo-draws-per-attachment-and-divides-its-volume
+     *
+     * @param state    the block's state
+     * @param onAFloor whether it stands on a floor
+     * @return each surface's share
+     */
+    public static GooShares sharesOf(BlockState state, boolean onAFloor) {
+        return GooShares.of(state.getValue(LAYERS), onAFloor, Set.copyOf(filmedSides(state)));
     }
 
     /**
@@ -207,7 +229,7 @@ public class VolumeCellBlock extends Block {
      * @return each side holding a film
      */
     static List<Direction> filmedSides(BlockState state) {
-        return SIDES.stream().filter(side -> coatOn(state, side) == SideCoat.FILM).toList();
+        return SIDES.stream().filter(side -> coatOn(state, side) == SideCoat.ATTACHED).toList();
     }
 
     /**
@@ -234,13 +256,15 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
-     * Every layer a cell holds, read from its state.
+     * Every layer a block holds: its volume, whichever sides are attached or
+     * runny, since no side keeps layers of its own.
+     * goo-cell-holds-a-fill-and-a-state-per-side
      *
-     * @param state the cell's state
-     * @return its fill and its sides' layers
+     * @param state the block's state
+     * @return its volume
      */
-    public static int layersHeldIn(BlockState state) {
-        return layersHeld(state.getValue(LAYERS), SIDES.stream().map(side -> coatOn(state, side)).toList());
+    public static int layersHeld(BlockState state) {
+        return state.getValue(LAYERS);
     }
 
     /**
@@ -340,7 +364,7 @@ public class VolumeCellBlock extends Block {
     @Override
     protected @NonNull List<ItemStack> getDrops(@NonNull BlockState state, LootParams.@NonNull Builder builder) {
         return LoadedAbilityCost.of(builder.getLevel(), binding.layingAbility())
-                .flatMap(cost -> reclaimedBy(binding, layersHeldIn(state), cost))
+                .flatMap(cost -> reclaimedBy(binding, layersHeld(state), cost))
                 .map(reclaim -> List.of(GooStacks.createForOutput(reclaim.gooType(), reclaim.mb())))
                 .orElse(List.of());
     }
@@ -389,13 +413,14 @@ public class VolumeCellBlock extends Block {
      * @return the filmed state, empty where the side can take no film
      */
     public static Optional<BlockState> filmed(BlockState standing, Block cell, Direction side) {
-        return coated(standing, cell, side, SideCoat.FILM);
+        return coated(standing, cell, side, SideCoat.ATTACHED);
     }
 
     /**
-     * What a cell becomes when a layer of a goo lands on one of its sides:
-     * air takes a cell of fill 0 holding that layer there, a cell of that goo
-     * whose side stands bare takes it, anything else nothing.
+     * What a block becomes when a layer of a goo lands on one of its sides:
+     * the layer joins the block's volume and the side takes the coat, an
+     * empty space standing a block of volume 1 there; a block of that goo
+     * whose side is not bare, or which is full, or anything else takes nothing.
      * goo-cell-holds-a-fill-and-a-state-per-side
      *
      * @param standing the cell's state
@@ -406,10 +431,13 @@ public class VolumeCellBlock extends Block {
      */
     static Optional<BlockState> coated(BlockState standing, Block cell, Direction side, SideCoat coat) {
         if (standing.isAir()) {
-            return Optional.of(cell.defaultBlockState().setValue(LAYERS, 0).setValue(coatProperty(side), coat));
+            return Optional.of(cell.defaultBlockState().setValue(LAYERS, volumeOnceStuck(0))
+                    .setValue(coatProperty(side), coat));
         }
-        return standing.is(cell) && coatOn(standing, side) == SideCoat.BARE
-                ? Optional.of(standing.setValue(coatProperty(side), coat)) : Optional.empty();
+        boolean takes = standing.is(cell) && coatOn(standing, side) == SideCoat.BARE
+                && standing.getValue(LAYERS) < MAX_LAYERS;
+        return takes ? Optional.of(standing.setValue(LAYERS, volumeOnceStuck(standing.getValue(LAYERS)))
+                .setValue(coatProperty(side), coat)) : Optional.empty();
     }
 
     /**
@@ -684,7 +712,7 @@ public class VolumeCellBlock extends Block {
      * @param pos   the cell
      * @return true where this world goo can lie
      */
-    public boolean liesOn(LevelReader level, BlockPos pos) {
+    public boolean liesOn(BlockGetter level, BlockPos pos) {
         BlockPos under = pos.below();
         BlockState footing = level.getBlockState(under);
         return footing.isFaceSturdy(level, under, Direction.UP)
@@ -697,30 +725,47 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
-     * The cell's box: its fill's, and a slab one layer thick on each wall it holds a film on.
-     * goo-cell-holds-a-fill-and-a-state-per-side
+     * The block's box: its floor's share as a fill, and each attached side's
+     * share as a slab standing out from that wall.
+     * attached-goo-draws-per-attachment-and-divides-its-volume
      *
-     * @param state the cell's state
+     * @param shares how the block's volume divides between its surfaces
      * @return the box
      */
-    static VoxelShape boxOf(BlockState state) {
-        VoxelShape box = LAYER_BOXES[state.getValue(LAYERS)];
-        for (Direction side : filmedSides(state)) {
-            box = Shapes.or(box, FILM_BOXES.get(side));
+    static VoxelShape boxOf(GooShares shares) {
+        VoxelShape box = shares.floor() > 0 ? Shapes.box(0, 0, 0, 1, shares.floor() / MAX_LAYERS, 1) : Shapes.empty();
+        for (Map.Entry<Direction, Double> side : shares.sides().entrySet()) {
+            box = Shapes.or(box, slabOn(side.getKey(), side.getValue() / MAX_LAYERS));
         }
         return box;
+    }
+
+    /**
+     * A slab standing out from one side's wall.
+     *
+     * @param side  the side whose wall it stands on
+     * @param depth its depth from the wall, in blocks
+     * @return the slab
+     */
+    private static VoxelShape slabOn(Direction side, double depth) {
+        return switch (side) {
+            case NORTH -> Shapes.box(0, 0, 0, 1, 1, depth);
+            case SOUTH -> Shapes.box(0, 0, 1 - depth, 1, 1, 1);
+            case WEST -> Shapes.box(0, 0, 0, depth, 1, 1);
+            default -> Shapes.box(1 - depth, 0, 0, 1, 1, 1);
+        };
     }
 
     @Override
     protected @NonNull VoxelShape getShape(@NonNull BlockState state, @NonNull BlockGetter level,
                                            @NonNull BlockPos pos, @NonNull CollisionContext ctx) {
-        return boxOf(state);
+        return boxOf(sharesOf(state, onAFloor(level, pos)));
     }
 
     @Override
     protected @NonNull VoxelShape getCollisionShape(@NonNull BlockState state, @NonNull BlockGetter level,
                                                     @NonNull BlockPos pos, @NonNull CollisionContext ctx) {
-        return boxOf(state);
+        return boxOf(sharesOf(state, onAFloor(level, pos)));
     }
 
     /**
@@ -730,7 +775,7 @@ public class VolumeCellBlock extends Block {
      */
     @Override
     protected boolean canSurvive(@NonNull BlockState state, @NonNull LevelReader level, @NonNull BlockPos pos) {
-        return stands(state.getValue(LAYERS), liesOn(level, pos),
+        return stands(onAFloor(level, pos),
                 filmedSides(state).stream().map(side -> clingsTo(level, pos, side)).toList(),
                 !runnySides(state).isEmpty());
     }
@@ -758,7 +803,7 @@ public class VolumeCellBlock extends Block {
                            @NonNull BlockState oldState, boolean movedByPiston) {
         super.onPlace(state, level, pos, oldState, movedByPiston);
         if (!canSurvive(state, level, pos)) {
-            level.destroyBlock(pos, true);
+            fallWhole(level, pos, state);
             return;
         }
         level.scheduleTick(pos, this, pourTicksAt(level));
@@ -783,12 +828,18 @@ public class VolumeCellBlock extends Block {
         if (meltBelow(level, pos, state)) {
             return;
         }
-        BlockState held = runRunnyLayers(level, pos, shedLooseFilms(level, pos, state));
+        shedLooseFilms(level, pos, state);
+        // shedding a wall places the block anew, which lets a block left unable to stand fall whole at once
+        BlockState shed = level.getBlockState(pos);
+        if (!shed.is(this)) {
+            return;
+        }
+        BlockState held = runRunnyLayers(level, pos, shed);
         if (!held.is(this)) {
             return;
         }
         if (!canSurvive(held, level, pos)) {
-            level.destroyBlock(pos, true);
+            fallWhole(level, pos, held);
             return;
         }
         if (!pourOnce(level, pos, held)) {
@@ -911,6 +962,9 @@ public class VolumeCellBlock extends Block {
     private BlockState runRunnyLayers(ServerLevel level, BlockPos pos, BlockState state) {
         BlockState left = state;
         for (Direction side : runnySides(state)) {
+            if (!left.is(this)) {
+                break;
+            }
             RunStep stepping = stepFor(level, pos, left, side);
             Optional<Placement> step = runFrom(level, pos, left, side);
             if (step.isPresent()) {
@@ -918,9 +972,6 @@ public class VolumeCellBlock extends Block {
                         .ifPresent(drip -> drawWallDrip(level, pos, drip));
                 left = stepRunnyLayer(level, pos, left, side, step.get());
             }
-        }
-        if (layersHeldIn(left) == 0) {
-            left = Blocks.AIR.defaultBlockState();
         }
         if (left != state) {
             level.setBlock(pos, left, UPDATE_ALL);
@@ -940,16 +991,28 @@ public class VolumeCellBlock extends Block {
      */
     private BlockState stepRunnyLayer(ServerLevel level, BlockPos pos, BlockState state, Direction side,
                                       Placement landing) {
+        BlockState bare = state.setValue(coatProperty(side), SideCoat.BARE);
+        if (landing.pos().equals(pos)) {
+            // the running layer is the block's own, so joining its own fill leaves the volume as it was
+            return bare;
+        }
         if (landing.state().isEmpty()) {
             // falling-layer-lands-when-its-drip-arrives: where the wall ends the layer falls, landing on arrival
-            return beginFall(level, landing.pos(), landing.pos().getY() + 1.0)
-                    ? state.setValue(coatProperty(side), SideCoat.BARE) : state;
-        }
-        if (landing.pos().equals(pos)) {
-            return landing.state().get().setValue(coatProperty(side), SideCoat.BARE);
+            return beginFall(level, landing.pos(), landing.pos().getY() + 1.0) ? lessALayer(bare) : state;
         }
         level.setBlock(landing.pos(), landing.state().get(), UPDATE_ALL);
-        return state.setValue(coatProperty(side), SideCoat.BARE);
+        return lessALayer(bare);
+    }
+
+    /**
+     * A block's state once a layer of its volume leaves it, open where that was its last.
+     *
+     * @param state the block's state
+     * @return the state it is left in
+     */
+    private static BlockState lessALayer(BlockState state) {
+        int layers = state.getValue(LAYERS);
+        return layers > 1 ? state.setValue(LAYERS, layers - 1) : Blocks.AIR.defaultBlockState();
     }
 
     /**
@@ -1099,9 +1162,9 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
-     * Drops the layer of each film whose wall has lost the face holding it
-     * as goo, its side left bare, where the cell stands on what else it
-     * holds; a cell holding nothing else breaks whole, its films among its drops.
+     * Lets go of each wall that has lost the face holding the block's goo,
+     * that side left bare; the side kept no layers of its own, so the
+     * volume stays whole, and a block left unable to stand falls whole.
      * goo-cell-holds-a-fill-and-a-state-per-side
      *
      * @param level the level
@@ -1115,14 +1178,37 @@ public class VolumeCellBlock extends Block {
         for (Direction side : loose) {
             shed = shed.setValue(coatProperty(side), SideCoat.BARE);
         }
-        if (loose.isEmpty() || !canSurvive(shed, level, pos)) {
+        if (loose.isEmpty()) {
             return state;
         }
         level.setBlock(pos, shed, UPDATE_ALL);
-        LoadedAbilityCost.of(level, binding.layingAbility()).map(cost -> reclaimed(loose.size(), cost))
-                .filter(mb -> mb > 0)
-                .ifPresent(mb -> popResource(level, pos, GooStacks.createForOutput(binding.gooType(), mb)));
         return shed;
+    }
+
+    /**
+     * A block left with no floor and no wall to cling to falls whole: its
+     * space stands open and each layer of its volume falls to the first top
+     * below, landing there when its drip arrives, or comes back as its goo
+     * where no top stands below.
+     * goo-cell-holds-a-fill-and-a-state-per-side
+     * falling-layer-lands-when-its-drip-arrives
+     *
+     * @param level the level
+     * @param pos   the block
+     * @param state the block's state
+     */
+    private void fallWhole(Level level, BlockPos pos, BlockState state) {
+        if (!(level instanceof ServerLevel server)) {
+            return;
+        }
+        level.setBlock(pos, Blocks.AIR.defaultBlockState(), UPDATE_ALL);
+        for (int layer = 0; layer < layersHeld(state); layer++) {
+            if (!beginFall(server, pos, pos.getY() + HALF)) {
+                LoadedAbilityCost.of(server, binding.layingAbility()).map(cost -> reclaimed(1, cost))
+                        .filter(mb -> mb > 0)
+                        .ifPresent(mb -> popResource(server, pos, GooStacks.createForOutput(binding.gooType(), mb)));
+            }
+        }
     }
 
     /**
@@ -1189,7 +1275,7 @@ public class VolumeCellBlock extends Block {
      */
     private Side sideOf(LevelReader level, BlockPos cell, Direction side) {
         BlockState standing = level.getBlockState(cell);
-        if (standing.is(this) && standing.getValue(LAYERS) > 0) {
+        if (standing.is(this)) {
             return Side.holds(side, standing.getValue(LAYERS));
         }
         return opens(standing) ? openSideOf(level, cell, side) : Side.blocked(side);
@@ -1223,11 +1309,11 @@ public class VolumeCellBlock extends Block {
      * @return true where the cell holds no fill
      */
     private boolean opens(BlockState state) {
-        return state.isAir() || state.is(this) && state.getValue(LAYERS) == 0;
+        return state.isAir();
     }
 
     private boolean unfilled(BlockState state) {
-        return state.is(this) && state.getValue(LAYERS) > 0 && state.getValue(LAYERS) < MAX_LAYERS;
+        return state.is(this) && state.getValue(LAYERS) < MAX_LAYERS;
     }
 
     /**
@@ -1311,8 +1397,7 @@ public class VolumeCellBlock extends Block {
             return;
         }
         int layers = state.getValue(LAYERS);
-        BlockState left = state.setValue(LAYERS, layers - 1);
-        level.setBlock(pos, layersHeldIn(left) == 0 ? Blocks.AIR.defaultBlockState() : left, UPDATE_ALL);
+        level.setBlock(pos, lessALayer(state), UPDATE_ALL);
         beginFall(level, ledge, pos.getY() + (double) layers / MAX_LAYERS);
     }
 
@@ -1335,10 +1420,7 @@ public class VolumeCellBlock extends Block {
         if (takesThePour(level, landing, taking, poured)) {
             BlockState into = taking.isAir() ? defaultBlockState() : taking;
             level.setBlock(landing, into.setValue(LAYERS, poured.taker()), UPDATE_ALL);
-            level.setBlock(pos, state.setValue(LAYERS, poured.giver()), UPDATE_ALL);
-            if (poured.giver() == 0 && filmedSides(state).isEmpty()) {
-                level.setBlock(pos, Blocks.AIR.defaultBlockState(), UPDATE_ALL);
-            }
+            level.setBlock(pos, lessALayer(state), UPDATE_ALL);
         }
     }
 
