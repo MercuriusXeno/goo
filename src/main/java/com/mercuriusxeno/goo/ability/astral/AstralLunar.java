@@ -15,6 +15,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.attribute.EnvironmentAttributes;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.MoonPhase;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec3;
@@ -79,7 +80,8 @@ public final class AstralLunar {
             return false;
         }
         float moonAngle = moonAngleAt(caster);
-        Optional<LunarSight.Sky> sky = LunarSight.skyAt(caster.level().dimension(), caster.getLookAngle(), moonAngle);
+        Optional<LunarSight.Sky> sky = LunarSight.skyAt(caster.level().dimension(), caster.getLookAngle(), moonAngle,
+                planetPhaseAt(caster));
         if (sky.isEmpty()) {
             return false;
         }
@@ -119,8 +121,8 @@ public final class AstralLunar {
      * @return true when the look holds either
      */
     public static boolean findsTheSky(ServerPlayer caster) {
-        return LunarSight.skyAt(caster.level().dimension(), caster.getLookAngle(), moonAngleAt(caster))
-                .isPresent();
+        return LunarSight.skyAt(caster.level().dimension(), caster.getLookAngle(), moonAngleAt(caster),
+                planetPhaseAt(caster)).isPresent();
     }
 
     /**
@@ -256,6 +258,18 @@ public final class AstralLunar {
         int z = (int) Math.floor(spot.z);
         level.getChunk(SectionPos.blockToSectionCoord(x), SectionPos.blockToSectionCoord(z));
         return new Vec3(spot.x, level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z), spot.z);
+    }
+
+    /**
+     * The blue planet's phase over the caster: their dimension's moon phase turned half a cycle.
+     * decision lunar-refuses-the-return-while-the-blue-star-is-hidden
+     *
+     * @param caster the caster
+     * @return the planet's phase
+     */
+    private static MoonPhase planetPhaseAt(ServerPlayer caster) {
+        return LunarSight.planetPhase(caster.level().environmentAttributes().getValue(EnvironmentAttributes.MOON_PHASE,
+                caster.position()));
     }
 
     private static float moonAngleAt(ServerPlayer caster) {
