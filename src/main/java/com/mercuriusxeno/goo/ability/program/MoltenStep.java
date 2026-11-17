@@ -29,26 +29,34 @@ import java.util.stream.Stream;
  * melts_into map names what the goo melts: each key is the block a melt
  * leaves, and its array what melts into it, loose blocks, #groups and #tags:
  * {@code molten melts_into={minecraft:lava: [minecraft:obsidian, minecraft:magma_block],
- * goo:molten_iron: [goo:iron_core]} heat_ticks=40}.
+ * goo:molten_iron: [goo:iron_core]} heat_ticks=40 damage=4 burn_seconds=15}.
  * A cell melting a block heats it red hot for the heat's ticks before it
- * becomes the key's source block.
+ * becomes the key's source block. A living thing touching a cell takes the
+ * step's fire damage a hit and burns for its seconds, as vanilla lava's 4
+ * damage and 15 seconds.
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
  * molten-melts-only-obsidian-magma-and-iron-core-one-layer-each
  * molten-melts-by-a-meltable-group-and-its-parallel-melted-group
  * stone-goes-red-hot-before-molten-turns-it-to-lava
  * melt-blob-absorbs-into-lava
+ * molten-burns-mobs-as-hard-as-lava-and-a-hit-spends-a-layer
  * slime-and-slick-are-one-volume-cell-tech
  * drip-creates-a-volume-cell-immediately
  * drip-on-a-standing-cell-increases-it
  *
- * @param meltsInto each block a melt leaves, with the loose blocks, #groups and #tags that melt into it
- * @param heatTicks the ticks a melting block stands red hot before it melts
+ * @param meltsInto   each block a melt leaves, with the loose blocks, #groups and #tags that melt into it
+ * @param heatTicks   the ticks a melting block stands red hot before it melts
+ * @param damage      the fire damage a cell's hit deals a living thing touching it
+ * @param burnSeconds the seconds a cell's hit sets the thing alight for
  */
-public record MoltenStep(Map<Identifier, List<String>> meltsInto, int heatTicks) implements TakesNoEntity, DripLanding {
+public record MoltenStep(Map<Identifier, List<String>> meltsInto, int heatTicks, float damage, int burnSeconds)
+        implements TakesNoEntity, DripLanding {
 
     private static final String NAME = "molten";
     private static final String FIELD_MELTS_INTO = "melts_into";
     private static final String FIELD_HEAT_TICKS = "heat_ticks";
+    private static final String FIELD_DAMAGE = "damage";
+    private static final String FIELD_BURN_SECONDS = "burn_seconds";
     private static final String MARK = "#";
 
     /**
@@ -57,7 +65,9 @@ public record MoltenStep(Map<Identifier, List<String>> meltsInto, int heatTicks)
     public static final MapCodec<MoltenStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             Codec.unboundedMap(Identifier.CODEC, Codec.STRING.listOf()).fieldOf(FIELD_MELTS_INTO)
                     .forGetter(MoltenStep::meltsInto),
-            Codec.intRange(1, Integer.MAX_VALUE).fieldOf(FIELD_HEAT_TICKS).forGetter(MoltenStep::heatTicks)
+            Codec.intRange(1, Integer.MAX_VALUE).fieldOf(FIELD_HEAT_TICKS).forGetter(MoltenStep::heatTicks),
+            Codec.floatRange(0, Float.MAX_VALUE).fieldOf(FIELD_DAMAGE).forGetter(MoltenStep::damage),
+            Codec.intRange(0, Integer.MAX_VALUE).fieldOf(FIELD_BURN_SECONDS).forGetter(MoltenStep::burnSeconds)
     ).apply(inst, MoltenStep::new));
 
     /**

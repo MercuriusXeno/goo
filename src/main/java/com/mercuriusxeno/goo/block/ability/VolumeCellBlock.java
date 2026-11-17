@@ -1069,27 +1069,60 @@ public class VolumeCellBlock extends Block {
      */
     private boolean heatBelow(ServerLevel level, BlockPos pos, BlockState state) {
         Optional<MoltenStep> molten = MoltenStep.in(layingProgram(level));
-        if (molten.isEmpty()) {
-            coolBelow(level, pos);
-            return false;
-        }
-        BlockPos below = pos.below();
-        BlockState raw = level.getBlockState(below);
-        Optional<BlockState> melted = molten.get().meltedFormOf(raw);
-        Function<Item, Optional<ItemStack>> results = BlockCooking.resultsIn(level);
-        Optional<Block> cooked = melted.isPresent() ? Optional.empty()
-                : BlockCooking.heatedIntoAt(level, results, below).apply(raw.getBlock());
-        int spent = MoltenMelt.layersSpent(state.getValue(LAYERS), melted.isPresent() || cooked.isPresent());
+        Optional<Runnable> finish = molten.flatMap(step -> heatFinishBelow(level, pos, step));
+        int spent = MoltenMelt.layersSpent(state.getValue(LAYERS), finish.isPresent());
         if (spent == 0) {
             coolBelow(level, pos);
             return false;
         }
+        if (stillHeating(level, pos, molten.orElseThrow().heatTicks())) {
+            return true;
+        }
+        finish.orElseThrow().run();
+        spendLayers(level, pos, state, spent);
+        return true;
+    }
+
+    /**
+     * What the block under a Molten cell becomes once its heat has run: the
+     * source block the molten step's melts_into map names for it, or the
+     * block or item Flames' heat would leave of it.
+     * molten-cooks-the-block-below-it-as-flames-cooks-blocks
+     * molten-melts-by-a-meltable-group-and-its-parallel-melted-group
+     *
+     * @param level  the level
+     * @param pos    the cell
+     * @param molten the cell's laying ability's molten step
+     * @return the finish that melts or cooks the block, empty where it does neither
+     */
+    private static Optional<Runnable> heatFinishBelow(ServerLevel level, BlockPos pos, MoltenStep molten) {
+        BlockPos below = pos.below();
+        BlockState raw = level.getBlockState(below);
+        Optional<BlockState> melted = molten.meltedFormOf(raw);
+        if (melted.isPresent()) {
+            return Optional.of(() -> level.setBlock(below, melted.get(), UPDATE_ALL));
+        }
+        Function<Item, Optional<ItemStack>> results = BlockCooking.resultsIn(level);
+        return BlockCooking.heatedIntoAt(level, results, below).apply(raw.getBlock()).map(into ->
+                () -> BlockCooking.finishHeatedAt(() -> level, below, raw.getBlock(), into, results));
+    }
+
+    /**
+     * Runs a cell's heat on the block below it: the heat starts red hot the
+     * first tick, and the cell ticks again when it is due to end.
+     * stone-goes-red-hot-before-molten-turns-it-to-lava
+     *
+     * @param level     the level
+     * @param pos       the cell
+     * @param heatTicks the ticks the heat runs
+     * @return true while the heat has ticks left, false the tick it ends
+     */
+    private boolean stillHeating(ServerLevel level, BlockPos pos, int heatTicks) {
         MoltenHeats heats = GooServerState.of(level.getServer()).moltenHeats();
-        int heatTicks = molten.get().heatTicks();
         OptionalLong started = heats.startedAt(level, pos);
         if (started.isEmpty()) {
             heats.start(level, pos, level.getGameTime());
-            BlockVisuals.sendToWatchers(level, below, new RedHotPayload(below, heatTicks));
+            BlockVisuals.sendToWatchers(level, pos.below(), new RedHotPayload(pos.below(), heatTicks));
         }
         long left = started.orElse(level.getGameTime()) + heatTicks - level.getGameTime();
         if (left > 0) {
@@ -1097,13 +1130,7 @@ public class VolumeCellBlock extends Block {
             return true;
         }
         heats.end(level, pos);
-        if (melted.isPresent()) {
-            level.setBlock(below, melted.get(), UPDATE_ALL);
-        } else {
-            BlockCooking.finishHeatedAt(() -> level, below, raw.getBlock(), cooked.orElseThrow(), results);
-        }
-        spendLayers(level, pos, state, spent);
-        return true;
+        return false;
     }
 
     /**

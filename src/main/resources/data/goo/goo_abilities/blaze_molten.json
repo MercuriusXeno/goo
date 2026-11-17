@@ -24,7 +24,9 @@
         "minecraft:lava": ["minecraft:obsidian", "minecraft:magma_block"],
         "goo:molten_iron": ["goo:iron_core"]
       },
-      "heat_ticks": 40
+      "heat_ticks": 40,
+      "damage": 4,
+      "burn_seconds": 15
     }
   ],
   "tags": ["stream"]
