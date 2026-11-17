@@ -190,13 +190,16 @@ public final class MoltenBurnTests {
     }
 
     /**
-     * A dirt floor walled in stone with open air over it, so the cell's goo
-     * cannot pour off and a mob stood in the cell stays on it.
+     * A dirt floor walled in smooth stone with open air over it, so the
+     * cell's goo cannot pour off and a mob stood in the cell stays on it.
+     * The cell clings to its walls, and smooth stone neither melts nor
+     * cooks, so the cell spends no layer heating them.
+     * molten-heats-every-block-its-cell-touches
      */
     private static void pit(GameTestHelper helper) {
         helper.setBlock(FLOOR, Blocks.DIRT);
         for (Direction side : Direction.Plane.HORIZONTAL) {
-            helper.setBlock(CELL.relative(side), Blocks.STONE);
+            helper.setBlock(CELL.relative(side), Blocks.SMOOTH_STONE);
         }
         helper.setBlock(CELL, Blocks.AIR);
     }
