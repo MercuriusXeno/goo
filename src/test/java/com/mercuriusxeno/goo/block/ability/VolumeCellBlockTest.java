@@ -143,9 +143,10 @@ class VolumeCellBlockTest {
     @Nested
     class OneImplementation {
 
+        /** molten-burns-mobs-as-hard-as-lava-and-a-hit-spends-a-layer: Molten's cell is the volume cell, burning */
         @Test
         void gooBlocksRegistersSlimeSlickMoltenAndShatterAsTheOneVolumeCell() throws ReflectiveOperationException {
-            assertEquals(List.of(VolumeCellBlock.class, VolumeCellBlock.class, VolumeCellBlock.class,
+            assertEquals(List.of(VolumeCellBlock.class, VolumeCellBlock.class, MoltenCellBlock.class,
                             VolumeCellBlock.class),
                     List.of(registeredBlockClass("SLIME_COAT"), registeredBlockClass("KINETIC_SLICK"),
                             registeredBlockClass("BLAZE_MOLTEN"), registeredBlockClass("CRYSTAL_SHATTER")));
