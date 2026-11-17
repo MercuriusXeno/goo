@@ -48,15 +48,18 @@ import static org.mockito.Mockito.withSettings;
 /**
  * Vacuum's break and reach: a residual cell cracks from the first tick of a
  * hold and breaks whole once the ticks its distance from the eye sets have
- * run, 6 at the eye to 30 at the reach's far end, and the hold reaches every
+ * run, 4 at the eye to 8 at the reach's far end, and the hold reaches every
  * residual inside its cone that the eye sees past other residuals
  * (decisions vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave,
  * vacuum-breaks-a-cell-the-tick-the-wave-reaches-it).
  */
 class VacuumStepTest {
 
-    private static final double SHIPPED_RANGE = 8;
-    private static final double CONE = 40;
+    private static final double SHIPPED_RANGE = 10;
+    /** The cone's apex angle, 30 degrees each side of the look. */
+    private static final double CONE = 60;
+    private static final double SHIPPED_NEAR_BREAK_TICKS = 4;
+    private static final double SHIPPED_FAR_BREAK_TICKS = 8;
     /** The eye, looking east along x across the reach. */
     private static final Vec3 EYE = new Vec3(0.5, 2.5, 0.5);
     private static final Vec3 LOOK_EAST = new Vec3(SHIPPED_RANGE, 0, 0);
@@ -79,9 +82,22 @@ class VacuumStepTest {
             JsonObject behavior = shippedVacuumBehavior();
 
             assertEquals(Set.of("type", "near_break_ticks", "far_break_ticks"), behavior.keySet());
-            assertEquals(4, behavior.get("near_break_ticks").getAsDouble());
-            assertEquals(12, behavior.get("far_break_ticks").getAsDouble());
             assertNotNull(shippedVacuum());
+        }
+
+        // vacuum-breaks-a-cell-the-tick-the-wave-reaches-it
+        // vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
+        @Test
+        void theShippedVacuumReachesTenBlocksInASixtyDegreeConeAndBreaksInFourToEightTicks() {
+            AbilityDefinition shipped = AbilityJson.decode("void_vacuum");
+            VacuumStep vacuum = shippedVacuum();
+
+            assertEquals(SHIPPED_RANGE, shipped.delivery().range());
+            assertEquals(CONE, shipped.delivery().coneDegrees());
+            assertEquals(SHIPPED_RANGE, shipped.area().size());
+            assertEquals(CONE, shipped.area().angle());
+            assertEquals(SHIPPED_NEAR_BREAK_TICKS, vacuum.nearBreakTicks());
+            assertEquals(SHIPPED_FAR_BREAK_TICKS, vacuum.farBreakTicks());
         }
 
     }
@@ -381,12 +397,12 @@ class VacuumStepTest {
 
         @Test
         void aResidualPastTheReachIsNotReached() {
-            assertEquals(List.of(), reached(Set.of(new BlockPos(10, 2, 0)), Set.of()));
+            assertEquals(List.of(), reached(Set.of(new BlockPos(11, 2, 0)), Set.of()));
         }
 
         @Test
         void aResidualOutsideTheConesAngleIsNotReached() {
-            // four ahead and three aside stands near 37 degrees off the look, past the cone's 20
+            // four ahead and three aside stands near 37 degrees off the look, past the cone's 30
             assertEquals(List.of(), reached(Set.of(new BlockPos(4, 2, 3)), Set.of()));
         }
 

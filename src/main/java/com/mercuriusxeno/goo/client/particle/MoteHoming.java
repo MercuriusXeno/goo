@@ -12,8 +12,8 @@ import net.minecraft.world.phys.Vec3;
 final class MoteHoming {
 
     /** The most ticks a mote flies, from the cone's far end. */
-    static final int MOTE_FLIGHT_TICKS = 8;
-    /** Blocks a mote covers each tick: the cone's 8-block reach inside its flight. */
+    static final int MOTE_FLIGHT_TICKS = 10;
+    /** Blocks a mote covers each tick: the cone's 10-block reach inside its flight. */
     private static final double MOTE_SPEED = 1.0;
 
     private MoteHoming() {
