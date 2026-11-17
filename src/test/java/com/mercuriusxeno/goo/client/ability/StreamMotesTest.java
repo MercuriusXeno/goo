@@ -92,6 +92,10 @@ class StreamMotesTest {
     /** The spray's axis, south and down. */
     private static final Vec3 SPRAY_AXIS = new Vec3(0, -0.5, 1).normalize();
     private static final double CONE_DEGREES = 16;
+    /** The hold's tick the spray tick is sent on, which seeds the tick's drips' places in the cone. */
+    private static final int SPRAY_HELD = 9;
+    /** The drips the server throws on the spray tick. */
+    private static final int SPRAY_DRIPS = 6;
     /** How far a drawn drip's launch may stray from its share's: double rounding. */
     private static final double SAME_LAUNCH = 1e-9;
     /** A sprint-jumping player's average speed, about 7.1 blocks a second, in blocks a tick. */
@@ -192,7 +196,7 @@ class StreamMotesTest {
         ArgumentCaptor<Double> z = ArgumentCaptor.forClass(Double.class);
         verify(minecraft.particleEngine, atLeastOnce()).createParticle(any(), anyDouble(), anyDouble(), anyDouble(),
                 x.capture(), y.capture(), z.capture());
-        List<Vec3> shareLaunches = CoatRay.coneFan().stream()
+        List<Vec3> shareLaunches = CoatRay.scatteredShares(SPRAY_HELD, SPRAY_DRIPS).stream()
                 .map(share -> DripArc.launch(SPRAY_AXIS, CONE_DEGREES, share, THROW_SPEED)).toList();
         for (int i = 0; i < x.getAllValues().size(); i++) {
             Vec3 drawn = new Vec3(x.getAllValues().get(i), y.getAllValues().get(i), z.getAllValues().get(i));
@@ -200,6 +204,34 @@ class StreamMotesTest {
                     "a drawn drip should launch at its share's launch, one of " + shareLaunches + ", launches at "
                             + drawn);
         }
+    }
+
+    /**
+     * operator UAT 2026-11-17: every drawn drip lands; a drip you see splat lays its layer where it splats
+     */
+    @Test
+    void everyDrawnDripFliesOneOfTheServersDripsArcsOnceEach() {
+        Caster caster = moving(Vec3.ZERO);
+        Minecraft minecraft = clientDrawing(new ArrayList<>(), caster, true, new double[] {0});
+        whileDrawing(minecraft, new ArrayList<>(), () -> StreamMotes.handle(sprayTick(caster), runningAtOnce()));
+
+        ArgumentCaptor<Double> x = ArgumentCaptor.forClass(Double.class);
+        ArgumentCaptor<Double> y = ArgumentCaptor.forClass(Double.class);
+        ArgumentCaptor<Double> z = ArgumentCaptor.forClass(Double.class);
+        verify(minecraft.particleEngine, atLeastOnce()).createParticle(any(), anyDouble(), anyDouble(), anyDouble(),
+                x.capture(), y.capture(), z.capture());
+        List<Vec3> unmatched = new ArrayList<>(CoatRay.scatteredShares(SPRAY_HELD, SPRAY_DRIPS).stream()
+                .map(share -> DripArc.launch(SPRAY_AXIS, CONE_DEGREES, share, THROW_SPEED)).toList());
+        List<Vec3> strays = new ArrayList<>();
+        for (int i = 0; i < x.getAllValues().size(); i++) {
+            Vec3 drawn = new Vec3(x.getAllValues().get(i), y.getAllValues().get(i), z.getAllValues().get(i));
+            if (!unmatched.removeIf(launch -> launch.distanceTo(drawn) <= SAME_LAUNCH)) {
+                strays.add(drawn);
+            }
+        }
+        assertTrue(unmatched.isEmpty() && strays.isEmpty(), "the drawn drips should fly the server's "
+                + SPRAY_DRIPS + " arcs once each; unmatched server arcs " + unmatched + ", drawn drips the server"
+                + " throws none on " + strays);
     }
 
     @Test
@@ -308,13 +340,14 @@ class StreamMotesTest {
     private static StreamMotesPayload sporeTick(Caster caster) {
         return new StreamMotesPayload(CASTER, sourceOf(caster, -1), SPRAY_AXIS,
                 Identifier.fromNamespaceAndPath("goo", "spore"), 50, GooStreamHandler.restingSpeed(3),
-                Delivery.NO_THROW_SPEED, false);
+                Delivery.NO_THROW_SPEED, false, 0, 0);
     }
 
     /** The stream's tick as the server sends it for a caster, its glove a tick before the tick reaches the client. */
     private static StreamMotesPayload sprayTick(Caster caster) {
         return new StreamMotesPayload(CASTER, sourceOf(caster, -1), SPRAY_AXIS,
-                Identifier.fromNamespaceAndPath("goo", "goop_spray_drip"), CONE_DEGREES, 0, THROW_SPEED, false);
+                Identifier.fromNamespaceAndPath("goo", "goop_spray_drip"), CONE_DEGREES, 0, THROW_SPEED, false,
+                SPRAY_HELD, SPRAY_DRIPS);
     }
 
     /**

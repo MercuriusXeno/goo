@@ -84,6 +84,8 @@ public final class GooStreamHandler {
     public static final double LAUNCH_SPEED_PER_BLOCK = 0.1;
     /** Below this squared gap the crosshair sits on the hand and the look aims instead. */
     private static final double MIN_AIM_LENGTH_SQUARED = 1e-6;
+    /** The drips a tick of motes off the arc carries: none. */
+    private static final int NO_DRIPS = 0;
     /** Rays the spray casts each tick to find the floors it lands on. */
     private static final int FLOOR_RAYS_PER_TICK = 12;
     /** Reads which living things a tick's program healed. */
@@ -356,7 +358,7 @@ public final class GooStreamHandler {
                     exitSpeedOf(player, delivery));
             runBlockPass(cast, apex, thrown, delivery, ability, held, true);
             boolean strikesLiving = throwDrips(player, apex, thrown, ability, held);
-            sprayDrips(player, apex, thrown, delivery, strikesLiving);
+            sprayDrips(player, apex, thrown, ability, strikesLiving, held);
             return List.of();
         }
         // decay-gnats-degrade-each-block-once: what the stream strikes follows the look; only its motes
@@ -730,26 +732,30 @@ public final class GooStreamHandler {
      */
     static void sprayParticles(ServerPlayer player, Vec3 apex, Vec3 axis, Delivery delivery, double speed) {
         delivery.particle().ifPresent(particle -> EntityVisuals.sendToWatchers(player, motesOf(player.getId(), apex,
-                axis, particle, delivery, speed, exitSpeedOf(player, delivery), false)));
+                axis, particle, delivery, speed, exitSpeedOf(player, delivery), false, NO_DRIPS, NO_DRIPS)));
     }
 
     /**
-     * Tells the caster's watchers to draw this tick's drips, launched about
-     * the look as the server's drips are, naming whether a drawn drip ends
-     * on a living thing it meets.
+     * Tells the caster's watchers to draw this tick's drips, the very drips
+     * the server threw this tick, each on its own arc about the look, naming
+     * whether a drawn drip ends on a living thing it meets.
      * goop-wobbles-a-mob-its-drip-strikes
      * goo-spray-scatters-in-a-cone-around-the-look-vector
+     * operator UAT 2026-11-17: every drawn drip lands; a drip you see splat lays its layer where it splats
      *
      * @param player        the spraying player
      * @param apex          the cone's apex
      * @param look          the player's look
-     * @param delivery      the stream delivery
+     * @param ability       the stream ability
      * @param strikesLiving whether the stream's drips end on the living they meet
+     * @param held          the hold's tick count, which seeds the tick's drips' places in the cone
      */
-    private static void sprayDrips(ServerPlayer player, Vec3 apex, Vec3 look, Delivery delivery,
-                                   boolean strikesLiving) {
+    private static void sprayDrips(ServerPlayer player, Vec3 apex, Vec3 look, AbilityDefinition ability,
+                                   boolean strikesLiving, int held) {
+        Delivery delivery = ability.delivery();
+        int drips = dripsThisTick(player, delivery, DripLanding.in(channelSteps(ability.behaviors(), true)), held);
         delivery.particle().ifPresent(particle -> EntityVisuals.sendToWatchers(player, dripMotesOf(player.getId(),
-                apex, look, particle, delivery, exitSpeedOf(player, delivery), strikesLiving)));
+                apex, look, particle, delivery, exitSpeedOf(player, delivery), strikesLiving, held, drips)));
     }
 
     /**
@@ -765,11 +771,13 @@ public final class GooStreamHandler {
      * @param delivery      the stream delivery
      * @param exitSpeed     a drawn drip's exit speed, blocks per tick
      * @param strikesLiving whether a drawn drip ends on the living it meets
+     * @param held          the hold's tick count, which seeds the tick's drips' places in the cone
+     * @param drips         the drips the server threw this tick
      * @return the payload
      */
     static StreamMotesPayload dripMotesOf(int casterId, Vec3 apex, Vec3 look, Identifier particle, Delivery delivery,
-                                          double exitSpeed, boolean strikesLiving) {
-        return motesOf(casterId, apex, look, particle, delivery, 0, exitSpeed, strikesLiving);
+                                          double exitSpeed, boolean strikesLiving, int held, int drips) {
+        return motesOf(casterId, apex, look, particle, delivery, 0, exitSpeed, strikesLiving, held, drips);
     }
 
     /**
@@ -783,12 +791,14 @@ public final class GooStreamHandler {
      * @param speed         each mote's launch speed along its heading, blocks per tick
      * @param exitSpeed     a drawn drip's exit speed, blocks per tick
      * @param strikesLiving whether a drawn drip ends on the living it meets
+     * @param held          the hold's tick count, which seeds a tick's drips' places in the cone
+     * @param drips         the drips the server threw this tick, none for motes off the arc
      * @return the payload
      */
     static StreamMotesPayload motesOf(int casterId, Vec3 apex, Vec3 axis, Identifier particle, Delivery delivery,
-                                      double speed, double exitSpeed, boolean strikesLiving) {
+                                      double speed, double exitSpeed, boolean strikesLiving, int held, int drips) {
         return new StreamMotesPayload(casterId, apex, axis, particle, delivery.coneDegrees(), speed, exitSpeed,
-                strikesLiving);
+                strikesLiving, held, drips);
     }
 
     /**

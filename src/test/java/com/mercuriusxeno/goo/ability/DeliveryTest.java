@@ -396,6 +396,23 @@ class DeliveryTest {
     class ExitSpeed {
 
         private static final double RAMPED = 1.0;
+        /** The drips a spray throws, and draws, each tick. */
+        private static final int SIX_DRIPS = 6;
+        /** The drips Slick throws, and draws, each tick. */
+        private static final int SLICK_DRIPS = 2;
+
+        /**
+         * operator UAT 2026-11-17: every drawn drip lands, so each spray throws the six drips a tick it draws;
+         * Slick keeps the two a tick its ramp and spread are tuned to, drawing two
+         */
+        @Test
+        void eachSprayThrowsTheSixDripsATickItDraws() {
+            assertEquals(SLICK_DRIPS, AbilityJson.decode("kinetic_slick").delivery().dripsPerTick());
+            for (String spray : Set.of("weird_goop", "blaze_molten", "crystal_shatter",
+                    "deep_host", "frost_rime", "glow_wisps", "hex_leech", "typhoon_updraft", "jelly_nectar")) {
+                assertEquals(SIX_DRIPS, AbilityJson.decode(spray).delivery().dripsPerTick(), spray);
+            }
+        }
 
         @Test
         void eachSprayLeavesFasterByTheCastersSpeed() {
