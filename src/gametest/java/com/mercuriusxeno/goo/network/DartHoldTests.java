@@ -69,9 +69,9 @@ public final class DartHoldTests {
     /** Ticks past the throw by which a javelin's flight has ended. */
     private static final int FLIGHT_TICKS = 30;
     /** Where the caster stands before the fence line: in block 8's west rail arm, clear of each post. */
-    private static final Vec3 FENCE_CASTER = new Vec3(8.2, 1, 1.5);
+    private static final Vec3 FENCE_CASTER = new Vec3(8.3, 1, 1.5);
     /** The pig behind the fence, on the javelin's path. */
-    private static final Vec3 FENCE_PIG = new Vec3(8.2, 1, 5.5);
+    private static final Vec3 FENCE_PIG = new Vec3(8.1, 1, 5.5);
     private static final int FENCE_Z = 4;
     private static final int FENCE_WEST = 6;
     private static final int FENCE_EAST = 10;

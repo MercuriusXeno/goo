@@ -21,16 +21,22 @@ public final class ThrownKnife {
     }
 
     /**
-     * Where the knife a throw takes leaves from: the hover slot of the knife
-     * formed last.
+     * Where the one a throw takes leaves from: the hover slot of the one
+     * formed last, over the cube at the steady point by the glove.
+     * decision knives-hover-above-the-blob-cube-over-the-hand
      *
-     * @param eye  the thrower's eye
-     * @param look the thrower's look, a unit vector
-     * @param held the knives held as the throw leaves, at least 1
+     * @param eye        the thrower's eye
+     * @param xRot       the thrower's view pitch in degrees
+     * @param yRot       the thrower's view yaw in degrees
+     * @param gloveRight whether the glove is in the right hand
+     * @param held       the count held as the throw leaves, at least 1
+     * @param javelins   whether the stack is Dart's javelins rather than Knives' knives
      * @return the point
      */
-    public static Vec3 launchPointOf(Vec3 eye, Vec3 look, int held) {
-        return KnifeFan.pointOf(eye, look, KnifeFan.slotOf(held - 1, held));
+    public static Vec3 launchPointOf(Vec3 eye, float xRot, float yRot, boolean gloveRight, int held,
+                                     boolean javelins) {
+        return StackHover.pointOf(StackHover.cubeCenterInView(eye, xRot, yRot, gloveRight), xRot, yRot,
+                StackHover.slotOf(held - 1, javelins));
     }
 
     /**
