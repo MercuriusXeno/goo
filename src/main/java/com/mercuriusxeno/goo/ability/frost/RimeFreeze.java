@@ -1,74 +1,62 @@
 package com.mercuriusxeno.goo.ability.frost;
 
-import com.mercuriusxeno.goo.registry.GooBlocks;
-import net.minecraft.world.level.block.Blocks;
+import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.program.FreezeBlocksStep;
+import com.mercuriusxeno.goo.data.GooGroups;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
- * The blocks Rime goo freezes, warm and frozen: a water source freezes to
- * Rime ice and a lava source to obsidian, and what stands frozen stays so,
- * the change running one way, so the water or lava under someone crossing on
- * it never comes back.
+ * What Rime goo freezes a source to: a water source to Rime ice and each lava
+ * type's source to the block the molten groups pair it with, lava obsidian
+ * and molten iron iron core. What stands frozen is no source, so it freezes
+ * to nothing and the change runs one way: the water or lava under someone
+ * crossing on it never comes back.
  * rime-freezes-water-and-lava-and-freezes-and-damages-the-shoeless
  * rime-freezing-is-permanent-with-no-restore-on-removal
+ * frost-cools-molten-blocks-into-molten-cooled-blocks
+ * every-frost-freeze-turns-a-molten-iron-source-to-iron-core
  */
-public enum RimeFreeze {
+public final class RimeFreeze {
 
-    /** A water source, freezing to Rime ice. */
-    WATER,
-    /** A lava source, freezing to obsidian. */
-    LAVA,
-    /** Rime ice, standing frozen for good. */
-    ICE,
-    /** Obsidian, standing frozen for good. */
-    OBSIDIAN;
+    private static final Identifier WATER = Identifier.withDefaultNamespace("water");
+    private static final Identifier RIME_ICE = Identifier.fromNamespaceAndPath(Goo.MODID, "rime_ice");
 
-    /**
-     * What a block freezes to.
-     *
-     * @return Rime ice for water, obsidian for lava, empty for what already stands frozen
-     */
-    public Optional<RimeFreeze> freeze() {
-        return switch (this) {
-            case WATER -> Optional.of(ICE);
-            case LAVA -> Optional.of(OBSIDIAN);
-            case ICE, OBSIDIAN -> Optional.empty();
-        };
+    private RimeFreeze() {
     }
 
     /**
-     * The form a block stands in: a water or lava source, Rime ice or
-     * obsidian.
+     * What a block freezes into under Rime.
      *
      * @param state the block
-     * @return its form, empty for any other block, flowing water and lava among them
+     * @return its frozen form, empty for anything other than a water or lava type source
      */
-    static Optional<RimeFreeze> of(BlockState state) {
-        if (state.is(GooBlocks.RIME_ICE.get())) {
-            return Optional.of(ICE);
-        }
-        if (state.is(Blocks.OBSIDIAN)) {
-            return Optional.of(OBSIDIAN);
-        }
+    static Optional<BlockState> frozenForm(BlockState state) {
         if (!state.getFluidState().isSource()) {
             return Optional.empty();
         }
-        if (state.is(Blocks.WATER)) {
-            return Optional.of(WATER);
-        }
-        return state.is(Blocks.LAVA) ? Optional.of(LAVA) : Optional.empty();
+        return frozenFormOf(GooGroups.current(), BuiltInRegistries.BLOCK.getKey(state.getBlock()))
+                .flatMap(BuiltInRegistries.BLOCK::getOptional).map(Block::defaultBlockState);
     }
 
     /**
-     * @return the block this form stands as
+     * The block a source freezes into, by block id: Rime ice for water, the
+     * molten cooled group's member at the lava type's position in the molten
+     * group for a lava type.
+     *
+     * @param groups each group's members by group name
+     * @param source the source's block id
+     * @return the frozen block's id, empty where the source neither is water nor stands paired in the molten groups
      */
-    BlockState state() {
-        return switch (this) {
-            case WATER -> Blocks.WATER.defaultBlockState();
-            case LAVA -> Blocks.LAVA.defaultBlockState();
-            case ICE -> GooBlocks.RIME_ICE.get().defaultBlockState();
-            case OBSIDIAN -> Blocks.OBSIDIAN.defaultBlockState();
-        };
+    static Optional<Identifier> frozenFormOf(Map<String, List<Identifier>> groups, Identifier source) {
+        if (source.equals(WATER)) {
+            return Optional.of(RIME_ICE);
+        }
+        return FreezeBlocksStep.cooledFormOf(groups, source);
     }
 }

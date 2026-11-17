@@ -101,6 +101,12 @@ public final class RimeTests {
     private static final String SHOULD_STAND_ON_RIME = "The zombie's friction should come from the Rime cell, comes from %s";
     private static final String SHOULD_STAY_ICE = "The Rime ice should stand once the Rime is gone, stands %s";
     private static final String SHOULD_STAY_OBSIDIAN = "The obsidian should stand once the Rime is gone, stands %s";
+    private static final String RIME_COOLS_MOLTEN_IRON =
+            "rime_cell_cools_molten_iron_to_iron_core_and_lava_to_obsidian";
+    /** A molten iron source sunk into the floor where the water pool stands in the other tests. */
+    private static final BlockPos MOLTEN_IRON_POOL = WATER_POOL;
+    private static final String SHOULD_IRON_CORE =
+            "The molten iron in the Rime cell's reach should stand as iron core, stands %s";
 
     private RimeTests() {
     }
@@ -124,6 +130,33 @@ public final class RimeTests {
         GooTestFunctions.registerTest(registrar, RIME_STAYS_FROZEN, RimeTests::rimeIceAndObsidianStayFrozenOnceTheRimeIsGone);
         GooTestFunctions.registerTest(registrar, RIME_FREEZES_THE_SHOELESS, RimeTests::rimeFreezesAndHurtsABarefootZombie);
         GooTestFunctions.registerTest(registrar, RIME_HOLDS_THE_FEET, RimeTests::thinRimeSetsTheFrictionUnderfoot);
+        GooTestFunctions.registerTest(registrar, RIME_COOLS_MOLTEN_IRON,
+                RimeTests::rimeCellCoolsMoltenIronToIronCoreAndLavaToObsidian);
+    }
+
+    /**
+     * A three-layer Rime cell walled in on stone, once it has ticked, cools
+     * the molten iron source in reach to iron core and the lava source in
+     * reach to obsidian, each by the molten groups, and stands one layer
+     * lower for each, at one layer.
+     * every-frost-freeze-turns-a-molten-iron-source-to-iron-core
+     * frost-cools-molten-blocks-into-molten-cooled-blocks
+     * rime-goo-depletes-on-freezing
+     *
+     * @param helper the gametest helper
+     */
+    public static void rimeCellCoolsMoltenIronToIronCoreAndLavaToObsidian(GameTestHelper helper) {
+        basin(helper, MOLTEN_IRON_POOL, GooBlocks.MOLTEN_IRON.get());
+        basin(helper, LAVA_POOL, Blocks.LAVA);
+        layWalledRime(helper, LAYERS_FOR_TWO_FREEZES_AND_ONE_LEFT);
+        helper.runAfterDelay(CHILL_WAIT_TICKS, () -> {
+            BlockState iron = helper.getBlockState(MOLTEN_IRON_POOL);
+            helper.assertTrue(iron.is(GooBlocks.IRON_CORE.get()), String.format(SHOULD_IRON_CORE, iron));
+            BlockState lava = helper.getBlockState(LAVA_POOL);
+            helper.assertTrue(lava.is(Blocks.OBSIDIAN), String.format(SHOULD_OBSIDIAN, lava));
+            assertLayers(helper, LAYERS_FOR_TWO_FREEZES_AND_ONE_LEFT - 2);
+            helper.succeed();
+        });
     }
 
     /**
