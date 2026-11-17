@@ -36,6 +36,7 @@ import com.mercuriusxeno.goo.network.BlockExposurePayload;
 import com.mercuriusxeno.goo.network.BlockTransformPayload;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.network.ConjuredDoorPayload;
+import com.mercuriusxeno.goo.network.FallingDripPayload;
 import com.mercuriusxeno.goo.network.GateCarriedPayload;
 import com.mercuriusxeno.goo.network.GhostTrailPayload;
 import com.mercuriusxeno.goo.network.GlassKnifePayload;
@@ -146,6 +147,7 @@ public final class GooClientNetworking {
         event.register(BlockTransformPayload.TYPE, BlockTransformHandler::handle);
         event.register(BlockExposurePayload.TYPE, BlockTransformHandler::handleExposure);
         event.register(RedHotPayload.TYPE, BlockTransformHandler::handleRedHot);
+        event.register(FallingDripPayload.TYPE, FallingDripHandler::handle);
         event.register(AfterimagePayload.TYPE, AfterimageHandler::handle);
         event.register(TransformationPayload.TYPE, TransformationHandler::handle);
         event.register(ModelShrinkPayload.TYPE, TransformationHandler::handleShrink);

@@ -121,12 +121,4 @@ public final class DripQuadPlacement {
     static DripCuboid.Extent fallingCuboid(double particleY, float halfSize) {
         return new DripCuboid.Extent(particleY + SURFACE_MARGIN, halfSize, (float) (HALVES_PER_QUAD * halfSize));
     }
-
-    /**
-     * @param landingY the y the drip's collision box landed at
-     * @return the y the splat's flat quad lies at
-     */
-    static double landQuadY(double landingY) {
-        return landingY + SURFACE_MARGIN;
-    }
 }
