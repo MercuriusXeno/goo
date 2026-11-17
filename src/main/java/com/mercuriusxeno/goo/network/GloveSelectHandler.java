@@ -73,7 +73,7 @@ public final class GloveSelectHandler {
             return;
         }
         ResourceKey<GooTypeDefinition> type = GooTypes.known(payload.gooTypeId());
-        if (type == null || !GooCasters.castsType(player, type)) { return; }
+        if (type == null || !GooCasters.stackCastsType(glove, type)) { return; }
         if (payload.abilityId().isEmpty()) {
             Goo.LOGGER.warn(LOG_NO_ABILITY, payload.gooTypeId());
             return;

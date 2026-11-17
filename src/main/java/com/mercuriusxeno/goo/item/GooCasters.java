@@ -92,7 +92,17 @@ public final class GooCasters {
      * @return true where the player's caster casts the type
      */
     public static boolean castsType(Player player, ResourceKey<GooTypeDefinition> type) {
-        ItemStack caster = casterOf(player);
+        return stackCastsType(casterOf(player), type);
+    }
+
+    /**
+     * Whether a caster stack casts a goo type: a glove every type, raw goo only its own.
+     *
+     * @param caster the caster stack, or null for none
+     * @param type   the goo type
+     * @return true where the stack casts the type
+     */
+    public static boolean stackCastsType(@Nullable ItemStack caster, ResourceKey<GooTypeDefinition> type) {
         if (caster == null) {
             return false;
         }
