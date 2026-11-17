@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.ability.astral.LunarFixation;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.phys.Vec2;
 import net.neoforged.api.distmarker.Dist;
@@ -15,16 +14,17 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.MovementInputUpdateEvent;
 
 /**
- * The caster's hold while Lunar takes them: the gaze turns onto the moon or the blue star and cannot look
- * away, and the body takes no step. The field of view stays as it stands; the moon comes to the caster
- * (LunarTripView) rather than the view closing in on it.
+ * The caster's hold while Lunar takes them: the look stays where the caster held it on the moon or the blue star
+ * as the fixation began and cannot look away, and the body takes no step and no turn. The field of view stays as it
+ * stands; the moon comes to the caster (LunarTripView) rather than the view closing in on it.
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
+ * decision lunar-just-looks-at-the-moon-without-turning-your-body
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class LunarFixationView {
 
-    /** The share of the remaining turn the gaze makes each tick, so it settles onto its target in a few ticks. */
-    private static final float TURN_SHARE = 0.35F;
+    /** The look the local caster held as their standing fixation began. */
+    private static HeldLook heldLook = HeldLook.NONE;
 
     private LunarFixationView() {
     }
@@ -43,7 +43,7 @@ public final class LunarFixationView {
     }
 
     /**
-     * Turns the held caster's gaze onto the fixation, whatever the mouse does.
+     * Holds the held caster's look where it stood as the fixation began, whatever the mouse does.
      *
      * @param event the client tick event
      */
@@ -57,9 +57,39 @@ public final class LunarFixationView {
         if (!fixation.stands()) {
             return;
         }
-        Vec2 facing = fixation.direction().rotation();
-        player.setXRot(Mth.rotLerp(TURN_SHARE, player.getXRot(), facing.x));
-        player.setYRot(Mth.rotLerp(TURN_SHARE, player.getYRot(), facing.y));
-        player.setYHeadRot(player.getYRot());
+        heldLook = lookOnTick(heldLook, fixation, player.getXRot(), player.getYRot());
+        player.setXRot(heldLook.pitch());
+        player.setYRot(heldLook.yaw());
+        player.setYHeadRot(heldLook.yaw());
+    }
+
+    /**
+     * The look a held caster keeps, and the fixation it was taken for.
+     *
+     * @param startedAt the game time of the fixation the look was taken for
+     * @param pitch     the pitch held, in degrees
+     * @param yaw       the yaw held, in degrees
+     */
+    record HeldLook(long startedAt, float pitch, float yaw) {
+        /** No look held yet. */
+        static final HeldLook NONE = new HeldLook(Long.MIN_VALUE, 0F, 0F);
+    }
+
+    /**
+     * The look a held caster ends a tick on: the one they held on the fixation's first tick, so Lunar turns
+     * neither the view nor the body.
+     * decision lunar-just-looks-at-the-moon-without-turning-your-body
+     *
+     * @param kept     the look kept from the tick before
+     * @param fixation the fixation that holds the caster
+     * @param pitch    the caster's pitch this tick, in degrees
+     * @param yaw      the caster's yaw this tick, in degrees
+     * @return the look to set
+     */
+    static HeldLook lookOnTick(HeldLook kept, LunarFixation fixation, float pitch, float yaw) {
+        if (kept.startedAt() == fixation.startedAt()) {
+            return kept;
+        }
+        return new HeldLook(fixation.startedAt(), pitch, yaw);
     }
 }
