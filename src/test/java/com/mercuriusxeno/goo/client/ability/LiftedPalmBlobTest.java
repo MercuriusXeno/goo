@@ -303,10 +303,12 @@ class LiftedPalmBlobTest {
     @Nested
     class LiftsWhileAnyAbilityIsHeld {
 
-        @Test
-        void aStreamingPressLiftsTheBlob() {
+        // residual-badge-marks-the-four-goo-sprays
+        @ParameterizedTest
+        @EnumSource(value = AbilityBadge.class, names = {"CHANNELED", "RESIDUAL"})
+        void aStreamingPressLiftsTheBlob(AbilityBadge badge) {
             assertTrue(LiftedPalmBlob.pressLifts(heldThroughTicks(new HeldPress(Delivery.of(DeliveryKind.STREAM),
-                    AbilityBadge.CHANNELED))), "a stream held should lift the blob");
+                    badge))), "a stream held should lift the blob");
         }
 
         @Test

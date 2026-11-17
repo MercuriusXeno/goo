@@ -1,8 +1,10 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.LingeringAppliers;
 import com.mercuriusxeno.goo.ability.aging.AgingBlocks;
 import com.mercuriusxeno.goo.ability.deep.Sculker;
+import com.mercuriusxeno.goo.ability.end.EndWayBack;
 import com.mercuriusxeno.goo.ability.frost.Frozen;
 import com.mercuriusxeno.goo.ability.gate.GateFixation;
 import com.mercuriusxeno.goo.ability.gate.WayHome;
@@ -10,7 +12,6 @@ import com.mercuriusxeno.goo.ability.gluttony.Gluttony;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
 import com.mercuriusxeno.goo.ability.hex.Charmed;
-import com.mercuriusxeno.goo.ability.hex.Lifetap;
 import com.mercuriusxeno.goo.ability.kinetic.GrabHold;
 import com.mercuriusxeno.goo.ability.kinetic.Grabbed;
 import com.mercuriusxeno.goo.ability.nether.Undead;
@@ -82,6 +83,17 @@ public final class GooAttachments {
             ATTACHMENT_TYPES.register("entity_counters",
                     () -> AttachmentType.builder(() -> EntityCounters.EMPTY)
                             .serialize(EntityCounters.CODEC)
+                            .build());
+
+    /**
+     * The players who applied the lingering goo effects an afflicted entity holds, one per effect, saved with the
+     * entity while any stands so each later tick names its applier after a reload.
+     * lingering-goo-effect-credits-whoever-applied-it
+     */
+    public static final Supplier<AttachmentType<LingeringAppliers>> LINGERING_APPLIERS =
+            ATTACHMENT_TYPES.register("lingering_appliers",
+                    () -> AttachmentType.builder(() -> LingeringAppliers.NONE)
+                            .serialize(LingeringAppliers.CODEC, LingeringAppliers::stands)
                             .build());
 
     /**
@@ -180,6 +192,15 @@ public final class GooAttachments {
             ATTACHMENT_TYPES.register("pocket_floor_laid",
                     () -> AttachmentType.builder(() -> false)
                             .serialize(Codec.BOOL.fieldOf("laid"), laid -> laid).build());
+
+    /**
+     * The game time Leech goo last slowed an entity, so a thing caught by
+     * several cells or by both of a cell's hooks in one tick is slowed once,
+     * as soul sand slows it once a move; never saved.
+     * leech-goo-slows-the-way-soul-sand-does
+     */
+    public static final Supplier<AttachmentType<Long>> LEECH_SLOWED_AT =
+            ATTACHMENT_TYPES.register("leech_slowed_at", () -> AttachmentType.builder(() -> -1L).build());
 
     /**
      * Where an entity stood before its latest goo teleport, kept for the
@@ -396,17 +417,6 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The lifetap a player holds, its leech fraction and when it fades,
-     * saved with the player while it stands.
-     * lifetap-trades-regen-for-leech
-     */
-    public static final Supplier<AttachmentType<Lifetap>> LIFETAP =
-            ATTACHMENT_TYPES.register("lifetap",
-                    () -> AttachmentType.builder(() -> Lifetap.NONE)
-                            .serialize(Lifetap.CODEC, lifetap -> lifetap.expiresAt() > 0L)
-                            .build());
-
-    /**
      * A mob's frozen gauge, saved with the mob and synced to every client
      * drawing it, which spreads frost over it and holds its pose at full
      * (decision frozen-gauge-per-mob-encases-when-full).
@@ -494,6 +504,20 @@ public final class GooAttachments {
                             .serialize(Breath.CODEC, Breath::stands)
                             .sync(GooAttachments::syncsToOwner, Breath.STREAM_CODEC)
                             .build());
+    /**
+     * Where a player the End gate carried to the End portalled in from,
+     * saved with the player so the gate they summon there leads back, and
+     * synced to them, whose client grays End out in the End without it.
+     * decision end-gate-in-the-end-is-free-and-returns-you-where-you-portalled-in
+     * decision end-is-grayed-out-in-the-end-unless-you-came-by-the-ability
+     */
+    public static final Supplier<AttachmentType<EndWayBack>> END_WAY_BACK =
+            ATTACHMENT_TYPES.register("end_way_back",
+                    () -> AttachmentType.builder(() -> EndWayBack.NONE)
+                            .serialize(EndWayBack.CODEC.fieldOf("end_way_back"), EndWayBack::stands)
+                            .sync(GooAttachments::syncsToOwner, EndWayBack.STREAM_CODEC)
+                            .build());
+
     private GooAttachments() {
     }
 

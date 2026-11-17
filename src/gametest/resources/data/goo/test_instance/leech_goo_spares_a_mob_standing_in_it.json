@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:leech_goo_spares_a_mob_standing_in_it",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 140,
+  "setup_ticks": 0,
+  "required": true
+}

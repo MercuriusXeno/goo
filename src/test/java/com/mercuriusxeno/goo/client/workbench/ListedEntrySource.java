@@ -6,10 +6,20 @@ import java.util.stream.IntStream;
 /**
  * A fake entry source answering the lists a test hands it.
  *
- * @param items    the items it lists
- * @param itemTags the item tags it lists
+ * @param items          the items it lists
+ * @param itemTags       the item tags it lists
+ * @param itemlessBlocks the blocks with no item form it lists
  */
-record ListedEntrySource(List<ItemName> items, List<ItemTag> itemTags) implements ManagerEntrySource {
+record ListedEntrySource(List<ItemName> items, List<ItemTag> itemTags, List<BlockName> itemlessBlocks)
+        implements ManagerEntrySource {
+
+    /**
+     * @param items    the items it lists
+     * @param itemTags the item tags it lists
+     */
+    ListedEntrySource(List<ItemName> items, List<ItemTag> itemTags) {
+        this(items, itemTags, List.of());
+    }
 
     /**
      * @param id      the tag's namespaced id, without #

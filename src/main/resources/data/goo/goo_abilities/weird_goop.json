@@ -2,7 +2,7 @@
   "gooType": "weird",
   "displayName": "goo.ability.weird.goop",
   "cost_mechanics": "goo.ability.weird.goop.cost_mechanics",
-  "badge": "channeled",
+  "badge": "residual",
   "order": 0,
   "cost": 96,
   "cost_formula": "%s/m³",
@@ -17,7 +17,6 @@
     "sound": { "id": "minecraft:block.honey_block.slide", "every": 10, "volume": 1.0, "pitch": 1.0, "pitch_spread": 0.1 }
   },
   "behaviors": [
-    { "type": "cool_lava" },
     { "type": "coat" },
     {
       "type": "target",

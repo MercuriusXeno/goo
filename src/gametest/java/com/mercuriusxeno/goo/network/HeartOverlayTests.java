@@ -202,7 +202,7 @@ public final class HeartOverlayTests {
      * @param player the player whose overlay primed
      * @return the player
      */
-    static ServerPlayer crawledWhole(ServerPlayer player) {
+    public static ServerPlayer crawledWhole(ServerPlayer player) {
         HeartOverlay primed = player.getData(GooAttachments.HEART_OVERLAY);
         List<Integer> whole = Collections.nCopies(HeartOverlay.filledSlots(player.getHealth()), HeartOverlay.FULL_SHIELD);
         player.setData(GooAttachments.HEART_OVERLAY, new HeartOverlay(primed.kind(), whole, primed.expiresAt(),

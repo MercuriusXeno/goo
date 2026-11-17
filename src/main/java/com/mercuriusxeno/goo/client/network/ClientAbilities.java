@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
 /**
  * The abilities one client connection was synced, by goo type and by id. The
@@ -99,8 +100,24 @@ public record ClientAbilities(Map<ResourceKey<GooTypeDefinition>, List<ClientAbi
      * @return the type's abilities with their required items, in fan order
      */
     public List<OfferedAbility> offeredForType(ResourceKey<GooTypeDefinition> type, KnownItems known) {
+        return offeredForType(type, known, ability -> false);
+    }
+
+    /**
+     * Every ability of the type as the radial offers it, each carrying whether
+     * it stands grayed out where the player stands.
+     * decision end-is-grayed-out-in-the-end-unless-you-came-by-the-ability
+     *
+     * @param type      the goo type
+     * @param known     the items the player knows
+     * @param grayedOut whether an ability stands grayed out
+     * @return the type's abilities with their required items, in fan order
+     */
+    public List<OfferedAbility> offeredForType(ResourceKey<GooTypeDefinition> type, KnownItems known,
+                                               Predicate<ClientAbility> grayedOut) {
         return forType(type).stream().map(ability -> new OfferedAbility(ability, ability.requires().stream()
-                .map(item -> new OfferedAbility.RequiredItem(item, known.contains(item))).toList())).toList();
+                .map(item -> new OfferedAbility.RequiredItem(item, known.contains(item))).toList(),
+                grayedOut.test(ability))).toList();
     }
 
     /**

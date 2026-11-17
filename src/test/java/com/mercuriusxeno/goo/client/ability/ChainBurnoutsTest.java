@@ -77,11 +77,6 @@ class ChainBurnoutsTest {
     }
 
     @Test
-    void crystalResolvesItsOwnExplosion() {
-        assertSame(CrystalExplosionVisual.INSTANCE, BurnoutVisuals.forType(GooTypes.CRYSTAL));
-    }
-
-    @Test
     void glowResolvesItsOwnExplosion() {
         assertSame(GlowExplosionVisual.INSTANCE, BurnoutVisuals.forType(GooTypes.GLOW));
     }

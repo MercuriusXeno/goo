@@ -2,7 +2,7 @@
   "gooType": "kinetic",
   "displayName": "goo.ability.kinetic.slick",
   "cost_mechanics": "goo.ability.kinetic.slick.cost_mechanics",
-  "badge": "channeled",
+  "badge": "residual",
   "order": 0,
   "cost": 15,
   "cost_formula": "%s/m³",

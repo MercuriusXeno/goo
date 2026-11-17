@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:a_drained_strike_depletes_the_cell_under_its_victim",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 40,
+  "setup_ticks": 0,
+  "required": true
+}
