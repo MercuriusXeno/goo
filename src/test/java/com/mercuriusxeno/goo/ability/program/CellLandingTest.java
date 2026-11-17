@@ -140,6 +140,29 @@ class CellLandingTest {
         }
     }
 
+    /**
+     * A block with no floor holds one layer plus its goo's cohesion for each
+     * side it is attached to, 15 at the most: a strike on its attached side
+     * joins the volume while it holds fewer, and the strike past that runs
+     * (decisions drip-striking-a-side-sticks-or-runs-by-adhesion,
+     * attached-goo-draws-per-attachment-and-divides-its-volume).
+     */
+    @ParameterizedTest
+    @ValueSource(ints = {0, 1, 4, 15})
+    void aWallHoldsALayerPerPointOfCohesionThenRuns(int cohesion) {
+        int holds = Math.min(VolumeCellBlock.MAX_LAYERS, 1 + cohesion);
+        assertEquals(SideCoat.ATTACHED, CellLanding.sideCoatFor(HOLDS_WHERE_IT_STRIKES, cohesion,
+                new CellLanding.Beside(SideCoat.BARE, 0, 0, false, false)), "the first strike on a bare wall");
+        for (int volume = 1; volume < holds; volume++) {
+            assertEquals(SideCoat.ATTACHED, CellLanding.sideCoatFor(HOLDS_WHERE_IT_STRIKES, cohesion,
+                    new CellLanding.Beside(SideCoat.ATTACHED, volume, 1, false, false)),
+                    "a strike on a block holding " + volume + " at cohesion " + cohesion);
+        }
+        assertEquals(SideCoat.RUNNY, CellLanding.sideCoatFor(HOLDS_WHERE_IT_STRIKES, cohesion,
+                new CellLanding.Beside(SideCoat.ATTACHED, holds, 1, false, false)),
+                "the strike past " + holds + " at cohesion " + cohesion);
+    }
+
     @Test
     void aSideStrikeAtAdhesionZeroRunsDownTheWallInTheCellBesideIt() {
         assertEquals(Optional.of(CellFed.runny(WALL.west(), Direction.EAST)),

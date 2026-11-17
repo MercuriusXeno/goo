@@ -49,6 +49,7 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -177,6 +178,44 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
+     * The most a block with no floor holds: one layer plus one per point of
+     * its goo's cohesion for each side it is attached to, a whole block at
+     * the most; goo past that slips.
+     * attached-goo-draws-per-attachment-and-divides-its-volume
+     * drip-striking-a-side-sticks-or-runs-by-adhesion
+     *
+     * @param cohesion      the goo's cohesion
+     * @param attachedSides the sides the block is attached to
+     * @return the layers it holds at the most
+     */
+    public static int holdOf(int cohesion, int attachedSides) {
+        return Math.min(MAX_LAYERS, (1 + cohesion) * attachedSides);
+    }
+
+    /**
+     * What a block becomes when a drip sticks to one of its sides: the
+     * drip's layer joins its volume and the side is attached, an empty space
+     * standing a block of volume 1 there; a full block, or anything but this
+     * goo, takes nothing.
+     * goo-cell-holds-a-fill-and-a-state-per-side
+     * drip-striking-a-side-sticks-or-runs-by-adhesion
+     *
+     * @param standing the block's state
+     * @param cell     the goo's volume cell block
+     * @param side     the side the drip sticks to
+     * @return the stuck state, empty where the block takes no layer
+     */
+    public static Optional<BlockState> stuck(BlockState standing, Block cell, Direction side) {
+        if (standing.isAir()) {
+            return Optional.of(cell.defaultBlockState().setValue(LAYERS, volumeOnceStuck(0))
+                    .setValue(coatProperty(side), SideCoat.ATTACHED));
+        }
+        return standing.is(cell) && standing.getValue(LAYERS) < MAX_LAYERS
+                ? Optional.of(standing.setValue(LAYERS, volumeOnceStuck(standing.getValue(LAYERS)))
+                .setValue(coatProperty(side), SideCoat.ATTACHED)) : Optional.empty();
+    }
+
+    /**
      * Whether a block stands: a block on a floor stands, and a block with no
      * floor stands on the walls it is attached to, every one with a face to
      * hold it, and while a runny layer passes through it on its way down.
@@ -216,10 +255,33 @@ public class VolumeCellBlock extends Block {
      *
      * @param state    the block's state
      * @param onAFloor whether it stands on a floor
+     * @param cohesion its goo's cohesion
      * @return each surface's share
      */
-    public static GooShares sharesOf(BlockState state, boolean onAFloor) {
-        return GooShares.of(state.getValue(LAYERS), onAFloor, Set.copyOf(filmedSides(state)));
+    public static GooShares sharesOf(BlockState state, boolean onAFloor, int cohesion) {
+        return GooShares.of(state.getValue(LAYERS), onAFloor, Set.copyOf(filmedSides(state)), cohesion);
+    }
+
+    /**
+     * The sides a block is attached to.
+     *
+     * @param state the block's state
+     * @return how many
+     */
+    public static int attachedSidesOf(BlockState state) {
+        return filmedSides(state).size();
+    }
+
+    /**
+     * This block's goo's cohesion, read through a level holding the goo type
+     * registry, 0 where none is to hand.
+     * cohesion-is-the-step-the-goo-holds
+     *
+     * @param level a level holding the registries, or null
+     * @return the cohesion
+     */
+    public int cohesionIn(@Nullable BlockGetter level) {
+        return level instanceof LevelReader reader ? cohesionAt(reader) : 0;
     }
 
     /**
@@ -759,13 +821,13 @@ public class VolumeCellBlock extends Block {
     @Override
     protected @NonNull VoxelShape getShape(@NonNull BlockState state, @NonNull BlockGetter level,
                                            @NonNull BlockPos pos, @NonNull CollisionContext ctx) {
-        return boxOf(sharesOf(state, onAFloor(level, pos)));
+        return boxOf(sharesOf(state, onAFloor(level, pos), cohesionIn(level)));
     }
 
     @Override
     protected @NonNull VoxelShape getCollisionShape(@NonNull BlockState state, @NonNull BlockGetter level,
                                                     @NonNull BlockPos pos, @NonNull CollisionContext ctx) {
-        return boxOf(sharesOf(state, onAFloor(level, pos)));
+        return boxOf(sharesOf(state, onAFloor(level, pos), cohesionIn(level)));
     }
 
     /**
@@ -1133,8 +1195,10 @@ public class VolumeCellBlock extends Block {
      */
     private Below belowFor(LevelReader level, BlockPos below, Direction side) {
         BlockState under = level.getBlockState(below);
-        if (under.is(this) && under.getValue(LAYERS) > 0) {
-            return under.getValue(LAYERS) < MAX_LAYERS ? Below.FILL_ROOM : Below.FILL_FULL;
+        if (under.is(this)) {
+            // a block with no floor takes no layer past its hold, the goo past it slipping
+            int room = onAFloor(level, below) ? MAX_LAYERS : holdOf(cohesionAt(level), attachedSidesOf(under));
+            return under.getValue(LAYERS) < room ? Below.FILL_ROOM : Below.FILL_FULL;
         }
         return opens(under) ? openBelowFor(level, below, under, side) : Below.BLOCKED;
     }
@@ -1340,7 +1404,7 @@ public class VolumeCellBlock extends Block {
      * @param level the level, whose registries hold the goo type
      * @return the cohesion
      */
-    private int cohesionAt(LevelReader level) {
+    public int cohesionAt(LevelReader level) {
         return level.registryAccess().get(binding.gooType()).map(type -> type.value().cohesion()).orElse(0);
     }
 

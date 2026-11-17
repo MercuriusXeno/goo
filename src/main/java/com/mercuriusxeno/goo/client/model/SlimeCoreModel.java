@@ -7,6 +7,7 @@ import com.mojang.blaze3d.platform.Transparency;
 import com.mojang.math.Quadrant;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
@@ -72,13 +73,25 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core,
             collectFill(level, pos, state, random, parts);
         } else {
             // attached-goo-draws-per-attachment-and-divides-its-volume: the volume divides between its surfaces
-            boolean onAFloor = state.getBlock() instanceof VolumeCellBlock goo && goo.onAFloor(level, pos);
-            coats.addAll(SlimeFilmQuads.quadsOf(VolumeCellBlock.sharesOf(state, onAFloor), film));
+            VolumeCellBlock goo = state.getBlock() instanceof VolumeCellBlock cell ? cell : null;
+            boolean onAFloor = goo != null && goo.onAFloor(level, pos);
+            int cohesion = goo == null ? 0 : goo.cohesionIn(clientLevel());
+            coats.addAll(SlimeFilmQuads.quadsOf(VolumeCellBlock.sharesOf(state, onAFloor, cohesion), film));
         }
         coats.addAll(SlimeFilmQuads.streaksOf(sidesHolding(state, SideCoat.RUNNY), film));
         if (!coats.isEmpty()) {
             parts.add(new CorePart(coats, shell.particleMaterial(level, pos, state)));
         }
+    }
+
+    /**
+     * The client's level, whose registries hold the goo types, where a client runs.
+     *
+     * @return the level, null with no client or no level loaded
+     */
+    private static @Nullable BlockGetter clientLevel() {
+        Minecraft client = Minecraft.getInstance();
+        return client == null ? null : client.level;
     }
 
     /**
