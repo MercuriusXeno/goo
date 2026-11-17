@@ -1351,11 +1351,31 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
+     * The layers a block drains down into goo of its type below: what its
+     * walls do not hold, as much as the block below has room for. A block
+     * no wall holds drains whole; one its adhesion attaches to a wall keeps
+     * its hold there and drains only what slips past it.
+     * drip-striking-a-side-sticks-or-runs-by-adhesion
+     * operator UAT 2026-11-17: adhesion must apply, so goo a wall holds stays on it over goo below
+     *
+     * @param layers    the block's layers
+     * @param held      the layers its walls hold, 0 where none holds it
+     * @param roomBelow the layers the block below has room for
+     * @return the layers that drain down
+     */
+    static int layersDrained(int layers, int held, int roomBelow) {
+        return Math.max(0, Math.min(layers - held, roomBelow));
+    }
+
+    /**
      * Drains the block's goo down into goo of its type below with room, as
      * much as that block takes, a whole block on a floor and its hold with
-     * none, whatever walls hold this one: goo piles onto goo
-     * and joins it, and never hangs over it with a gap between.
+     * none, past what the walls holding this one keep: goo piles onto goo
+     * and joins it, and never hangs over it with a gap between, while a
+     * wall's coat stays on the wall.
      * operator UAT 2026-11-17: goo needs to pile and connect with goo below it
+     * operator UAT 2026-11-17: adhesion must apply, so goo a wall holds stays on it over goo below
+     * drip-striking-a-side-sticks-or-runs-by-adhesion
      * stacked-goo-cells-share-one-slime-core
      *
      * @param level the level
@@ -1371,10 +1391,12 @@ public class VolumeCellBlock extends Block {
         }
         // a block with no floor takes no layer past its hold, as a runny layer reaching it finds
         int room = onAFloor(level, below) ? MAX_LAYERS : holdOf(cohesionAt(level), attachedSidesOf(under));
-        if (under.getValue(LAYERS) >= room) {
+        int attached = attachedSidesOf(state);
+        int held = attached == 0 ? 0 : holdOf(cohesionAt(level), attached);
+        int moved = layersDrained(state.getValue(LAYERS), held, room - under.getValue(LAYERS));
+        if (moved == 0) {
             return false;
         }
-        int moved = Math.min(state.getValue(LAYERS), room - under.getValue(LAYERS));
         int left = state.getValue(LAYERS) - moved;
         level.setBlock(pos, left > 0 ? state.setValue(LAYERS, left) : Blocks.AIR.defaultBlockState(), UPDATE_ALL);
         level.setBlock(below, under.setValue(LAYERS, under.getValue(LAYERS) + moved), UPDATE_ALL);

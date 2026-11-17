@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:goop_held_on_a_wall_drains_into_its_goo_below",
+  "function": "goo:goop_held_on_a_wall_keeps_its_hold_over_its_goo_below",
   "environment": "minecraft:default",
   "structure": "goo:light_bay",
   "max_ticks": 100,
