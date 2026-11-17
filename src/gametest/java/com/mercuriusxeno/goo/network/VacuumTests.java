@@ -467,8 +467,8 @@ public final class VacuumTests {
 
     /**
      * A block of Goop of volume 6 attached to the stone wall north of it,
-     * walled in by stone and, on the vacuum's side, a slick cell, so nothing
-     * pours, is vacuumed, and the goo returned is six
+     * walled in by stone and, on the vacuum's side, an open cell over a
+     * bottom slab, so nothing pours, is vacuumed, and the goo returned is six
      * layers' worth: the volume is all the goo the block holds.
      * goo-cell-holds-a-fill-and-a-state-per-side
      * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
@@ -481,8 +481,9 @@ public final class VacuumTests {
         helper.setBlock(block.north(), Blocks.STONE);
         helper.setBlock(block.south(), Blocks.STONE);
         helper.setBlock(block.east(), Blocks.STONE);
-        // a slick cell on the vacuum's side takes no pour from goop, and stands in the cone's way of nothing
-        helper.setBlock(block.west(), GooBlocks.KINETIC_SLICK.get());
+        // an open cell on the vacuum's side over a bottom slab, whose top holds no goop, takes no pour and leaves the
+        // line from the eye clear; a slick there broke before the block and let a layer pour in
+        helper.setBlock(block.west().below(), Blocks.STONE_SLAB);
         helper.setBlock(block, GooBlocks.SLIME_COAT.get().defaultBlockState()
                 .setValue(VolumeCellBlock.LAYERS, ATTACHED_VOLUME)
                 .setValue(VolumeCellBlock.coatProperty(Direction.NORTH), SideCoat.ATTACHED));
