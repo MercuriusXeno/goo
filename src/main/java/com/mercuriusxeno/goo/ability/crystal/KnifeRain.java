@@ -4,19 +4,12 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * Knives' glove hand and the blob floating ahead of it, shared by the
- * server and the client that draws them, and the arc a glass knife flies
- * under gravity once it leaves the blob.
+ * server and the client that draws them.
  * decision knives-sling-then-morph-to-flechettes
  * decision knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
  */
 public final class KnifeRain {
 
-    /** Blocks per tick squared a knife falls by. */
-    public static final double GRAVITY = 0.05;
-    /** The share of its speed a knife keeps each tick. */
-    public static final double DRAG = 0.99;
-    /** The most ticks a knife flies before it is gone. */
-    public static final int MOST_FLIGHT_TICKS = 60;
     /** Blocks below the eye the knives leave from, the glove hand's height. */
     private static final double HAND_DROP = 0.3;
     /** Blocks toward the glove side the knives leave from. */
@@ -129,48 +122,5 @@ public final class KnifeRain {
     private static float smooth(double share) {
         float clamped = (float) Math.clamp(share, 0.0, 1.0);
         return clamped * clamped * (SMOOTH_SQUARE - SMOOTH_CUBE * clamped);
-    }
-
-    /**
-     * Where a knife is a number of ticks into its flight.
-     *
-     * @param start    where it left the hand
-     * @param velocity its velocity leaving the hand
-     * @param ticks    ticks into the flight
-     * @return its position
-     */
-    public static Vec3 positionAt(Vec3 start, Vec3 velocity, int ticks) {
-        Vec3 position = start;
-        Vec3 moving = velocity;
-        for (int tick = 0; tick < ticks; tick++) {
-            position = position.add(moving);
-            moving = nextVelocity(moving);
-        }
-        return position;
-    }
-
-    /**
-     * A knife's velocity a number of ticks into its flight.
-     *
-     * @param velocity its velocity leaving the hand
-     * @param ticks    ticks into the flight
-     * @return its velocity then
-     */
-    public static Vec3 velocityAt(Vec3 velocity, int ticks) {
-        Vec3 moving = velocity;
-        for (int tick = 0; tick < ticks; tick++) {
-            moving = nextVelocity(moving);
-        }
-        return moving;
-    }
-
-    /**
-     * A knife's velocity a tick on: slowed by the air and pulled down.
-     *
-     * @param velocity its velocity now
-     * @return its velocity a tick on
-     */
-    public static Vec3 nextVelocity(Vec3 velocity) {
-        return velocity.scale(DRAG).subtract(0, GRAVITY, 0);
     }
 }

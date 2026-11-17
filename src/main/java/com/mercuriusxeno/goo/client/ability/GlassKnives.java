@@ -1,13 +1,10 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.crystal.KnifeRain;
+import com.mercuriusxeno.goo.ability.crystal.KnifeHoming;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
-import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.network.GlassKnifePayload;
-import com.mercuriusxeno.goo.type.GooTypes;
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -16,39 +13,40 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.CollisionContext;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
- * Knives' glass knives in flight on this client: each leaves the hand as a
- * little fleck of goo, with no drips, and turns into a glass kunai a few
- * ticks into its flight, then flies its server's arc point first, rolling
- * as it goes, and ends as the server
- * found: one stuck in a block stands there a moment, then shatters; one
- * striking a mob, or spent in the air, shatters at once, with a tinkle of
- * glass, cracking into splinters that tumble down and melt away.
+ * Knives' glass knives in flight on this client: each leaves its fan slot as
+ * the glass kunai it hovered as and homes on its mob tick by tick, point
+ * first, rolling as it goes, turning toward where the mob stands on this
+ * client. One meeting a block stands stuck there a moment, then shatters;
+ * one reaching its mob shatters at once, and one whose mob is gone flies on
+ * to where the mob last stood and shatters there, with a tinkle of glass,
+ * cracking into splinters that tumble down and melt away.
  * decision knives-sling-then-morph-to-flechettes
+ * decision knives-home-on-their-painted-mob
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class GlassKnives {
 
     /** Ticks a knife stuck in a block stands before it shatters. */
     static final int STUCK_TICKS = 30;
-    /** Ticks a knife flies as a goo fleck before it turns to glass, unless its flight is shorter. */
-    static final double FLECK_TICKS = 4;
-    /** Ticks the fleck takes to turn into the kunai. */
-    static final double MORPH_TICKS = 2;
-    /** A fleck's size against a flying goo blob's: a little drop. */
-    static final float FLECK_SCALE = 0.35f;
-    /** The share of a short flight a knife flies as a fleck, so it turns to glass before it lands. */
-    private static final double FLECK_SHARE_OF_SHORT_FLIGHT = 0.5;
     /** Radians a knife rolls about its heading each tick it flies. */
     private static final float ROLL_PER_TICK = 0.9f;
     /** How deep a stuck knife's point sinks into the block, in blocks. */
@@ -68,42 +66,92 @@ public final class GlassKnives {
     private GlassKnives() {
     }
 
-    /**
-     * One knife: the points it passes each tick, how it ends, and when.
-     *
-     * @param path      its point each tick of its flight, the last where it ends
-     * @param ending    how it ends
-     * @param startTick the game time it left the hand
-     * @param landed    whether it has landed and made its sound
-     */
-    private record Knife(List<Vec3> path, GlassKnifePayload.Ending ending, long startTick, boolean[] landed) {
+    /** One knife: the points it has passed each tick, its mob, how its flight ended, and when it left. */
+    private static final class Knife {
+        private final List<Vec3> path = new ArrayList<>();
+        private final int mobId;
+        private final long startTick;
+        private Vec3 lastKnown;
+        private GlassKnifePayload.@Nullable Ending ending;
+
+        Knife(Vec3 start, int mobId, Vec3 lastKnown, long startTick) {
+            path.add(start);
+            this.mobId = mobId;
+            this.lastKnown = lastKnown;
+            this.startTick = startTick;
+        }
 
         int ticks() {
             return path.size() - 1;
         }
+
+        /**
+         * Flies the knife one tick, or lets a stuck one stand and shatter.
+         *
+         * @param level the client level
+         * @param now   the game time
+         * @return true once the knife is gone
+         */
+        boolean tick(ClientLevel level, long now) {
+            if (ending == null) {
+                fly(level);
+                return ending != null && ending != GlassKnifePayload.Ending.STUCK;
+            }
+            boolean gone = now - startTick >= ticks() + STUCK_TICKS;
+            if (gone) {
+                shatter(level, path.getLast(), SoundEvents.GLASS_BREAK, SHATTER_VOLUME);
+            }
+            return gone;
+        }
+
+        private void fly(ClientLevel level) {
+            Vec3 from = path.getLast();
+            LivingEntity mob = level.getEntity(mobId) instanceof LivingEntity living && living.isAlive()
+                    ? living : null;
+            if (mob != null) {
+                lastKnown = mob.getBoundingBox().getCenter();
+            }
+            Vec3 next = from.add(KnifeHoming.velocityToward(from, lastKnown));
+            BlockHitResult wall = level.clip(new ClipContext(from, next, ClipContext.Block.COLLIDER,
+                    ClipContext.Fluid.NONE, CollisionContext.empty()));
+            boolean meetsAWall = wall.getType() == HitResult.Type.BLOCK;
+            path.add(meetsAWall ? wall.getLocation() : next);
+            endingOf(from, next, mob == null ? null : mob.getBoundingBox(), lastKnown, meetsAWall, ticks())
+                    .ifPresent(ended -> {
+                        ending = ended;
+                        land(level, ended, path.getLast());
+                    });
+        }
     }
 
     /**
-     * The points a knife passes each tick of its flight, ending where the
-     * server found it ends.
+     * How a knife's step ends its flight: in a block it meets, on its mob
+     * where the step reaches the mob's box, or spent where its mob is gone
+     * and the step reached where the mob last stood or its flight ran out.
      *
-     * @param start    where it leaves the hand
-     * @param velocity its velocity leaving the hand
-     * @param ticks    the ticks it flies
-     * @param end      where it ends
-     * @return ticks plus one points, the first the start and the last the end
+     * @param from      where the step starts
+     * @param next      where it stops
+     * @param mob       the standing mob's box, or null where the mob is gone
+     * @param lastKnown where the mob last stood
+     * @param wall      whether the step meets a block
+     * @param ticks     the ticks the knife has flown, this step included
+     * @return how the flight ends, empty while it flies on
      */
-    static List<Vec3> pathOf(Vec3 start, Vec3 velocity, int ticks, Vec3 end) {
-        List<Vec3> path = new ArrayList<>(ticks + 1);
-        Vec3 position = start;
-        Vec3 moving = velocity;
-        for (int tick = 0; tick < ticks; tick++) {
-            path.add(position);
-            position = position.add(moving);
-            moving = KnifeRain.nextVelocity(moving);
+    static Optional<GlassKnifePayload.Ending> endingOf(Vec3 from, Vec3 next, @Nullable AABB mob, Vec3 lastKnown,
+                                                       boolean wall, int ticks) {
+        if (wall) {
+            return Optional.of(GlassKnifePayload.Ending.STUCK);
         }
-        path.add(end);
-        return path;
+        if (mob != null && KnifeHoming.arrives(from, next, mob)) {
+            return Optional.of(GlassKnifePayload.Ending.STRUCK);
+        }
+        return spent(mob == null, next, lastKnown, ticks) ? Optional.of(GlassKnifePayload.Ending.SPENT)
+                : Optional.empty();
+    }
+
+    // A knife whose mob is gone is spent where the mob last stood; any knife is spent once its flight runs out.
+    private static boolean spent(boolean mobGone, Vec3 next, Vec3 lastKnown, int ticks) {
+        return mobGone && next.equals(lastKnown) || ticks >= KnifeHoming.MOST_FLIGHT_TICKS;
     }
 
     /**
@@ -116,8 +164,7 @@ public final class GlassKnives {
         context.enqueueWork(() -> {
             ClientLevel level = Minecraft.getInstance().level;
             if (level != null) {
-                LIVE.add(new Knife(pathOf(payload.start(), payload.velocity(), payload.ticks(), payload.end()),
-                        GlassKnifePayload.Ending.values()[payload.ending()], level.getGameTime(), new boolean[1]));
+                LIVE.add(new Knife(payload.start(), payload.mobId(), payload.lastKnown(), level.getGameTime()));
             }
         });
     }
@@ -129,8 +176,8 @@ public final class GlassKnives {
     }
 
     /**
-     * Client tick: a knife reaching its end sounds and, unless it sticks,
-     * shatters; a stuck knife shatters once it has stood its while.
+     * Client tick: flies every knife a tick, landing one whose flight ends;
+     * a stuck knife shatters once it has stood its while.
      *
      * @param event the client tick event
      */
@@ -142,36 +189,11 @@ public final class GlassKnives {
             return;
         }
         long now = level.getGameTime();
-        LIVE.removeIf(knife -> tickKnife(level, knife, now - knife.startTick()));
+        LIVE.removeIf(knife -> knife.tick(level, now));
     }
 
-    /**
-     * Lands a knife reaching its end, and shatters a stuck one that has
-     * stood its while.
-     *
-     * @param level the client level
-     * @param knife the knife
-     * @param age   ticks since it left the hand
-     * @return true once the knife is gone
-     */
-    private static boolean tickKnife(ClientLevel level, Knife knife, long age) {
-        if (age >= knife.ticks() && !knife.landed()[0]) {
-            knife.landed()[0] = true;
-            land(level, knife);
-        }
-        if (knife.ending() != GlassKnifePayload.Ending.STUCK) {
-            return age >= knife.ticks();
-        }
-        boolean gone = age >= knife.ticks() + STUCK_TICKS;
-        if (gone) {
-            shatter(level, knife.path().getLast(), SoundEvents.GLASS_BREAK, SHATTER_VOLUME);
-        }
-        return gone;
-    }
-
-    private static void land(ClientLevel level, Knife knife) {
-        Vec3 end = knife.path().getLast();
-        switch (knife.ending()) {
+    private static void land(ClientLevel level, GlassKnifePayload.Ending ending, Vec3 end) {
+        switch (ending) {
             case STUCK -> level.playLocalSound(end.x, end.y, end.z, SoundEvents.AMETHYST_CLUSTER_HIT,
                     SoundSource.PLAYERS, STICK_VOLUME, pitch(level.getRandom()), false);
             case STRUCK -> shatter(level, end, SoundEvents.GLASS_BREAK, STRIKE_VOLUME);
@@ -207,81 +229,34 @@ public final class GlassKnives {
         FlatQuadContext quads = new FlatQuadContext(event.getPoseStack().last(),
                 buffers.getBuffer(GooRenderTypes.CRYSTAL_SHARD_TYPE));
         for (Knife knife : LIVE) {
-            drawKnife(quads, knife, now - knife.startTick(), camera);
+            drawKnife(quads, knife, now - knife.startTick - 1, camera);
         }
         SLIVERS.draw(quads, now, camera);
         buffers.endBatch(GooRenderTypes.CRYSTAL_SHARD_TYPE);
-        drawFlecks(event.getPoseStack(), buffers, now, camera);
     }
 
     /**
-     * Draws the knives still flying as goo flecks, shrinking away as they
-     * turn into glass.
-     *
-     * @param pose    the pose stack
-     * @param buffers the buffer source
-     * @param now     the game time with its partial tick
-     * @param camera  the camera's position
-     */
-    private static void drawFlecks(PoseStack pose, MultiBufferSource.BufferSource buffers, double now, Vec3 camera) {
-        for (Knife knife : LIVE) {
-            double age = now - knife.startTick();
-            float glass = glassAt(age, knife.ticks());
-            if (age >= 0 && age < knife.ticks() && glass < 1f) {
-                Vec3 at = placementAt(knife.path(), age).point().subtract(camera);
-                pose.pushPose();
-                pose.translate(at.x, at.y, at.z);
-                GooFlightRenderer.renderBlob(pose, buffers, GooTypes.CRYSTAL, (float) now, FLECK_SCALE * (1f - glass));
-                pose.popPose();
-            }
-        }
-        buffers.endBatch();
-    }
-
-    /**
-     * How far a knife has turned from goo to glass an age into its flight:
-     * a fleck for its first ticks, or half of a shorter flight, then glass
-     * over the morph; glass whole once it has landed.
-     *
-     * @param age   ticks since it left the hand, with the partial tick
-     * @param ticks the ticks it flies
-     * @return the share turned to glass, 0 a fleck and 1 a kunai
-     */
-    static float glassAt(double age, int ticks) {
-        if (age >= ticks) {
-            return 1f;
-        }
-        double fleck = Math.min(FLECK_TICKS, ticks * FLECK_SHARE_OF_SHORT_FLIGHT);
-        return (float) Math.clamp((age - fleck) / MORPH_TICKS, 0, 1);
-    }
-
-    /**
-     * Draws one knife an age into its flight: growing out of its fleck and
-     * flying, or sunk at its end while it stands stuck; a knife that
-     * shattered draws nothing.
+     * Draws one knife an age into its flight, a tick behind the points it has
+     * flown so it eases between them: flying, or sunk at its end while it
+     * stands stuck.
      *
      * @param quads  the context the faces emit through
      * @param knife  the knife
-     * @param age    ticks since it left the hand, with the partial tick
+     * @param age    ticks into its flight, with the partial tick
      * @param camera the camera's position
      */
     private static void drawKnife(FlatQuadContext quads, Knife knife, double age, Vec3 camera) {
-        boolean ended = age >= knife.ticks();
-        boolean stuck = knife.ending() == GlassKnifePayload.Ending.STUCK;
-        float glass = glassAt(age, knife.ticks());
-        if (age < 0 || ended && !stuck || glass <= 0f) {
-            return;
-        }
-        Placement placement = placementAt(knife.path(), age);
-        Vec3 point = ended ? placement.point().add(placement.heading().scale(SINK)) : placement.point();
+        boolean stuck = knife.ending == GlassKnifePayload.Ending.STUCK && age >= knife.ticks();
+        Placement placement = placementAt(knife.path, Math.max(0, age));
+        Vec3 point = stuck ? placement.point().add(placement.heading().scale(SINK)) : placement.point();
         GlassKunai.emit(quads, point.subtract(camera), placement.heading(),
-                (float) Math.min(age, knife.ticks()) * ROLL_PER_TICK, glass);
+                (float) Math.min(Math.max(0, age), knife.ticks()) * ROLL_PER_TICK, 1f);
     }
 
     /**
      * Where a knife's point is and where it heads an age into its flight:
      * between the tick points it passes, heading along the segment it is on,
-     * held at its end once there.
+     * held at its last point once there.
      *
      * @param path its tick points
      * @param age  ticks since it left the hand, with the partial tick

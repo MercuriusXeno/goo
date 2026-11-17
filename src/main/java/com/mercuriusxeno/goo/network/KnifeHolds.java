@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.Charge;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -8,6 +9,7 @@ import net.minecraft.server.level.ServerPlayer;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -16,35 +18,48 @@ import java.util.UUID;
  * count, read off the server's own clock rather than any client's. Each knife
  * the clock forms is paid as it forms, and a knife the player cannot cover
  * does not form. Each tick a count that changed goes to the caster and the
- * players watching; a hold ends when the client lets go, the player leaves,
- * or the glove leaves the hand, refunding the price of every knife it holds,
- * and its end sends a count of 0.
+ * players watching. A throw takes knives out of the fan, their prices spent.
+ * A hold ends when the client lets go, the player leaves, or the glove leaves
+ * the hand, refunding the price of every knife still in the fan, and its end
+ * sends a count of 0.
  * decision knives-form-in-fibonacci-stages-to-twelve
  * decision knives-stage-takes-twelve-ticks-with-no-cooldown
  * decision knives-form-on-right-click-and-throw-on-left-click
  * decision knives-pay-per-knife-as-each-forms
+ * decision knives-form-on-right-click-and-throw-on-left-click
  */
 public final class KnifeHolds {
 
     private final Map<UUID, Hold> holds = new HashMap<>();
 
-    /** One player's hold, the knives it has paid for counted as they form. */
+    /**
+     * What a standing hold throws with.
+     *
+     * @param gooType the held ability's goo type
+     * @param ability the held ability
+     */
+    public record Held(ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability) {
+    }
+
+    /** One player's hold, the knives it has paid for counted as they form, and those it threw. */
     private static final class Hold {
         private final ServerPlayer player;
         private final int beganAt;
-        private final Charge charge;
-        private final ResourceKey<GooTypeDefinition> gooType;
+        private final Held held;
         private final GooFraction price;
         private int paid;
+        private int thrown;
         private int synced;
 
-        Hold(ServerPlayer player, int beganAt, Charge charge, ResourceKey<GooTypeDefinition> gooType,
-             GooFraction price) {
+        Hold(ServerPlayer player, int beganAt, Held held, GooFraction price) {
             this.player = player;
             this.beganAt = beganAt;
-            this.charge = charge;
-            this.gooType = gooType;
+            this.held = held;
             this.price = price;
+        }
+
+        Charge charge() {
+            return held.ability().delivery().charge();
         }
 
         /**
@@ -52,21 +67,33 @@ public final class KnifeHolds {
          * for yet, stopping at the first the player cannot cover.
          *
          * @param now the server tick
-         * @return the knives formed, every one paid for
+         * @return the knives in the fan, every one paid for
          */
         int settle(int now) {
-            int clocked = charge.knivesFormedAt(now - beganAt);
-            while (paid < clocked && AbilityCharges.charge(player, gooType, price)) {
+            int clocked = charge().knivesFormedAt(now - beganAt);
+            while (paid < clocked && AbilityCharges.charge(player, held.gooType(), price)) {
                 paid++;
             }
-            return paid;
+            return paid - thrown;
         }
 
-        /** Returns the price of every knife the hold holds. */
+        /**
+         * Records a count to send where it differs from the last sent.
+         *
+         * @param formed the knives in the fan now
+         * @return true where the count changed and goes to the watchers
+         */
+        boolean syncs(int formed) {
+            boolean changed = formed != synced;
+            synced = formed;
+            return changed;
+        }
+
+        /** Returns the price of every knife still in the fan. */
         void refund() {
-            if (paid > 0) {
-                AbilityCharges.refund(player, gooType, price.times(paid));
-                paid = 0;
+            if (paid > thrown) {
+                AbilityCharges.refund(player, held.gooType(), price.times(paid - thrown));
+                thrown = paid;
             }
         }
     }
@@ -74,15 +101,13 @@ public final class KnifeHolds {
     /**
      * Begins a hold for the player on this tick, refunding any it held.
      *
-     * @param player  the holding player
-     * @param charge  the held ability's charge
-     * @param gooType the goo type a knife is paid in
-     * @param price   the exact price of one knife
+     * @param player the holding player
+     * @param held   the held ability and its goo type, which a knife is paid in
+     * @param price  the exact price of one knife
      */
-    public void begin(ServerPlayer player, Charge charge, ResourceKey<GooTypeDefinition> gooType,
-                      GooFraction price) {
+    public void begin(ServerPlayer player, Held held, GooFraction price) {
         Hold was = holds.put(player.getUUID(),
-                new Hold(player, player.level().getServer().getTickCount(), charge, gooType, price));
+                new Hold(player, player.level().getServer().getTickCount(), held, price));
         if (was != null) {
             was.refund();
         }
@@ -104,7 +129,30 @@ public final class KnifeHolds {
     }
 
     /**
-     * The knives the player's hold has formed now, each paid for.
+     * What the player's standing hold throws with.
+     *
+     * @param player the player
+     * @return the held ability and its goo type, empty for a player holding none
+     */
+    public Optional<Held> heldBy(ServerPlayer player) {
+        return Optional.ofNullable(holds.get(player.getUUID())).map(hold -> hold.held);
+    }
+
+    /**
+     * Takes thrown knives out of the player's fan, their prices spent.
+     *
+     * @param player the throwing player
+     * @param knives the knives thrown, never more than the fan holds
+     */
+    public void threw(ServerPlayer player, int knives) {
+        Hold hold = holds.get(player.getUUID());
+        if (hold != null) {
+            hold.thrown += Math.min(knives, hold.paid - hold.thrown);
+        }
+    }
+
+    /**
+     * The knives in the player's fan now, each paid for.
      *
      * @param player the player
      * @return the knives, 0 for a player holding none
@@ -131,8 +179,7 @@ public final class KnifeHolds {
                 continue;
             }
             int formed = hold.settle(now);
-            if (formed != hold.synced) {
-                hold.synced = formed;
+            if (hold.syncs(formed)) {
                 syncCount(hold.player, formed);
             }
         }

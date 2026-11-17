@@ -11,13 +11,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Knives' glove hand eases across the chest through the wind-up with the
- * blob floating ahead of and above it, sweeps out through the backhand, and
- * a glass knife arcs under gravity (decisions knives-sling-then-morph-to-flechettes,
+ * blob floating ahead of and above it, and sweeps out through the backhand
+ * (decisions knives-sling-then-morph-to-flechettes,
  * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives).
  */
 class KnifeRainTest {
 
-    private static final double TOLERANCE = 1e-9;
     /** Facing south, level. */
     private static final float SOUTH = 0f;
 
@@ -95,17 +94,5 @@ class KnifeRainTest {
             }
         }
 
-    }
-
-    @Test
-    void aKnifeArcsDownUnderGravity() {
-        Vec3 start = new Vec3(0, 10, 0);
-        Vec3 velocity = new Vec3(0, 0.2, 1);
-
-        Vec3 next = KnifeRain.velocityAt(velocity, 1);
-        assertEquals(0.2 * KnifeRain.DRAG - KnifeRain.GRAVITY, next.y, TOLERANCE);
-        assertEquals(0, start.add(velocity).add(next).distanceTo(KnifeRain.positionAt(start, velocity, 2)), TOLERANCE);
-        assertTrue(KnifeRain.positionAt(start, velocity, 30).y < start.y, "the knife falls below where it left");
-        assertTrue(KnifeRain.positionAt(start, velocity, 30).z > 20, "the knife carries well ahead as it falls");
     }
 }

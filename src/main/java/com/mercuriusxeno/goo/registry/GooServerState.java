@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.block.ability.WispClaims;
 import com.mercuriusxeno.goo.network.DripFlights;
 import com.mercuriusxeno.goo.network.FleckLaunches;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
+import com.mercuriusxeno.goo.network.HomingKnives;
 import com.mercuriusxeno.goo.network.KnifeHolds;
 import com.mercuriusxeno.goo.network.ScanWaves;
 import com.mercuriusxeno.goo.network.StreamHolds;
@@ -29,6 +30,7 @@ public final class GooServerState {
     private final GooEffectScheduler gooEffects = new GooEffectScheduler();
     private final FleckLaunches fleckLaunches = new FleckLaunches();
     private final KnifeHolds knifeHolds = new KnifeHolds();
+    private final HomingKnives homingKnives = new HomingKnives();
     private final MorphBirths morphBirths = new MorphBirths();
     private final BlockExposures blockExposures = new BlockExposures();
     private final AbilityBlockFallScheduler markerFalls = new AbilityBlockFallScheduler();
@@ -93,6 +95,15 @@ public final class GooServerState {
      */
     public KnifeHolds knifeHolds() {
         return knifeHolds;
+    }
+
+    /**
+     * Knives' thrown knives in flight (decision knives-home-on-their-painted-mob).
+     *
+     * @return the homing knives
+     */
+    public HomingKnives homingKnives() {
+        return homingKnives;
     }
 
     /**
@@ -214,6 +225,7 @@ public final class GooServerState {
         blockExposures.decay(server);
         streamHolds.releaseLapsed(currentTick);
         knifeHolds.tick(currentTick);
+        homingKnives.tick(currentTick);
     }
 
     /**
@@ -223,6 +235,7 @@ public final class GooServerState {
         gooEffects.clear();
         fleckLaunches.clear();
         knifeHolds.clear();
+        homingKnives.clear();
         blockExposures.clear();
         markerFalls.clear();
         streamHolds.clear();

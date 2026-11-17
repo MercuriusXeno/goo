@@ -17,7 +17,8 @@ import org.jspecify.annotations.Nullable;
  * that sent a payload; a blob thrown swings there instead. A held throw,
  * Dart's javelin, forms while the key is held, throws on the attack key once
  * whole, and sends nothing on release. Knives' held press takes the same
- * turns, forming knives in place of a javelin, and its attack key sends nothing.
+ * turns, forming knives in place of a javelin, and its attack key throws the
+ * knives formed, the press standing on.
  * decision right-click-held-previews-release-throws
  * decision dart-forms-on-right-click-and-throws-on-left-click
  * decision knives-form-on-right-click-and-throw-on-left-click
@@ -77,6 +78,16 @@ public final class GloveInputGate {
          * @return true for a held throw forming knives
          */
         default boolean formsKnives() {
+            return false;
+        }
+
+        /**
+         * Throws the knives a Knives hold has formed at the mobs it painted.
+         * decision knives-form-on-right-click-and-throw-on-left-click
+         *
+         * @return true where a knife stood in the fan to throw
+         */
+        default boolean throwKnives() {
             return false;
         }
 
@@ -210,16 +221,19 @@ public final class GloveInputGate {
      * Throws the javelin a held press has formed, the attack key's turn for
      * an ability formed on right click and thrown on left: a javelin whole in
      * the hand is sent and its release plays, and with right click still held
-     * the palm blob lifts afresh to form the next. A javelin still forming,
-     * a press forming knives, or a press throwing on release, sends nothing.
+     * the palm blob lifts afresh to form the next. A press forming knives
+     * throws the knives it has formed, standing on to form more. A javelin
+     * still forming, or a press throwing on release, sends nothing.
      * decision dart-forms-on-right-click-and-throws-on-left-click
      *
      * @param actions the throw and arm pose the press resolves to
      * @return true where a javelin was sent
      */
     public boolean throwHeld(PressActions actions) {
-        if (!holdsAJavelin(actions) || actions.formsKnives() || formShare() < 1f
-                || !actions.sendThrow(heldTicks)) {
+        if (holdsAJavelin(actions) && actions.formsKnives()) {
+            return actions.throwKnives();
+        }
+        if (!holdsAJavelin(actions) || formShare() < 1f || !actions.sendThrow(heldTicks)) {
             return false;
         }
         actions.releasePose();
