@@ -36,13 +36,13 @@ class HeldDomeRendererTest {
     @Nested
     class ShowPredicate {
         @Test
-        void urchinWithAnArmedPressShowsTheDome() {
-            assertTrue(shows("metal_urchin", true));
+        void lurkerWithAnArmedPressShowsTheDome() {
+            assertTrue(shows("unstable_lurker", true));
         }
 
         @Test
-        void urchinWithNoPressShowsNoDome() {
-            assertFalse(shows("metal_urchin", false));
+        void lurkerWithNoPressShowsNoDome() {
+            assertFalse(shows("unstable_lurker", false));
         }
 
         @ParameterizedTest

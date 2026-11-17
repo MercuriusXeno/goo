@@ -6,7 +6,7 @@ import net.minecraft.world.phys.Vec3;
 /**
  * One strike a field effect has in flight: the entity it chose, the point
  * it aims at, and the ticks since. The point follows the entity's body
- * center each tick, so Urchin's spear lands where the mob stands when its
+ * center each tick, so the metal trap's spear lands where the mob stands when its
  * damage lands rather than where the mob stood when it was picked.
  * urchin-rests-bristled-and-spears
  *

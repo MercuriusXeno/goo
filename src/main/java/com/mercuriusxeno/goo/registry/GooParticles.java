@@ -119,6 +119,15 @@ public class GooParticles {
         PARTICLE_TYPES.register("updraft_spray_drip", () -> new SimpleParticleType(false));
 
     /**
+     * Spikes' spray drip: the mod's blocky goo drip in metal's silvers,
+     * flying its arc until it strikes a block's top, where it splats and the
+     * Spikes goo lands.
+     * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> SPIKES_SPRAY_DRIP =
+        PARTICLE_TYPES.register("spikes_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
      * A snowflake crystal flitting weightlessly along Cold's wind (decision
      * cold-streams-wind-lines-and-snowflakes).
      */

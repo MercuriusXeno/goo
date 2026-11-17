@@ -45,7 +45,7 @@ public final class GloveRecollectTests {
 
     private static final String REMOVAL = "removal";
     private static final BlockPos MARKER_POS = new BlockPos(1, 1, 1);
-    private static final Identifier METAL_URCHIN = Identifier.fromNamespaceAndPath(Goo.MODID, "metal_urchin");
+    private static final Identifier SPIKE_TRAP = Identifier.fromNamespaceAndPath(Goo.MODID, "test_spike_trap");
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
     private static final String NOT_SUCCESS = "Shift-click with the glove on a marker should succeed";
     private static final String GOO_MISSING = "Shift-click recollect should give the marker's stacked goo to the player";
@@ -62,10 +62,10 @@ public final class GloveRecollectTests {
     @SuppressWarnings(REMOVAL) // vanilla marks the mock server player helper for removal and names no replacement
     public static void shiftClickRecollectsMarker(GameTestHelper helper) {
         helper.setBlock(MARKER_POS.below(), Blocks.STONE);
-        AbilityDefinition metalUrchin = AbilityRegistry.of(helper.getLevel()).getAbility(METAL_URCHIN);
-        helper.assertTrue(metalUrchin != null, ABILITIES_REQUIRED);
+        AbilityDefinition spikeTrap = AbilityRegistry.of(helper.getLevel()).getAbility(SPIKE_TRAP);
+        helper.assertTrue(spikeTrap != null, ABILITIES_REQUIRED);
         AbilityImpact.land(helper.getLevel(), helper.absolutePos(MARKER_POS.below()), GooTypes.METAL, Direction.UP,
-                metalUrchin);
+                spikeTrap);
         helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
         ItemStack expected = GooStacks.createForOutput(GooTypes.METAL, GooStacks.THOUSAND);
 

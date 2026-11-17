@@ -84,7 +84,7 @@ class AbilityLoaderTest {
     /** The one brew that starts silent (decision rally-drops-its-sound-and-gets-its-sprite). */
     private static final Identifier SILENT_BREW = Identifier.fromNamespaceAndPath(Goo.MODID, "zoo_rally");
     /** The proving example of a world ability that stays after its blob lands. */
-    private static final String LINGERING = "metal_urchin";
+    private static final String LINGERING = "deep_shriek";
     /** The ability whose program ends the tick it lands. */
     private static final String BLAST = "unstable_blast";
 
@@ -214,6 +214,15 @@ class AbilityLoaderTest {
             assertEquals(Set.of("hex_charm", "hex_enchant", "hex_fuse", "hex_drain", "hex_leech"),
                     shippedPathsOf(GooTypes.HEX));
             assertNull(new AbilityRegistry(shippedById()).durativeAbilityFor(GooTypes.HEX));
+        }
+
+        /**
+         * metal-world-goo-is-named-spikes
+         * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
+         */
+        @Test
+        void metalShipsDartMagnetAndSpikes() {
+            assertEquals(Set.of("metal_dart", "metal_magnet", "metal_spikes"), shippedPathsOf(GooTypes.METAL));
         }
 
         @Test

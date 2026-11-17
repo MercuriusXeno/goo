@@ -340,6 +340,25 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
+     * Spikes: the volume cell bound to Metal's goo, the silver goo Spikes
+     * sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot and sounding as goo does, dropping the metal goo its layers
+     * cost through VolumeCellBlock.getDrops, no loot table
+     * (decisions spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VolumeCellBlock> METAL_SPIKES = BLOCKS.registerBlock(
+            "metal_spikes", properties -> new VolumeCellBlock(properties, CellBinding.SPIKES),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.METAL)
+                    .friction(CellBinding.SPIKES.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
      * Prism: the milky quartz crystal Crystal's Prism grows, the host every
      * prism combo grows on (decision prism-blob-becomes-a-milky-quartz-crystal).
      */

@@ -48,11 +48,11 @@ class AbilityImpactTest {
     }
 
     /**
-     * Urchin's field lingers and never explodes, so its burnout plays at the landing.
+     * Shriek's trap lingers and never explodes, so its burnout plays at the landing.
      */
     @Test
     void aLingeringFieldNeverExplodesLater() {
-        assertFalse(AbilityImpact.explodesLater(AbilityJson.decode("metal_urchin")));
+        assertFalse(AbilityImpact.explodesLater(AbilityJson.decode("deep_shriek")));
     }
 
     /**
