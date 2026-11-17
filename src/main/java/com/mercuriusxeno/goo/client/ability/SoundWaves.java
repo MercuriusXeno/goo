@@ -1,15 +1,18 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.client.sound.ListenerSounds;
 import com.mercuriusxeno.goo.network.ScanWavePayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -115,8 +118,11 @@ public final class SoundWaves {
         if (due > travelling.echoesSounded) {
             travelling.echoesSounded = due;
             float share = wave.ticks() <= 0 ? 1f : Math.min(1f, (float) age / wave.ticks());
-            wave.trail().flatMap(SoundWaves::soundOf).ifPresent(sound -> level.playLocalSound(at.x, at.y, at.z,
-                    sound, SoundSource.BLOCKS, reverbVolume(share), REVERB_PITCH - REVERB_PITCH_FALL * share, false));
+            Player local = Minecraft.getInstance().player;
+            if (local != null) {
+                wave.trail().flatMap(SoundWaves::soundOf).ifPresent(sound ->
+                        ListenerSounds.play(echoOf(sound, at, share, local.getEyePosition())));
+            }
         }
     }
 
@@ -153,6 +159,23 @@ public final class SoundWaves {
      */
     static float reverbVolume(float share) {
         return REVERB_LOUDEST + (REVERB_QUIETEST - REVERB_LOUDEST) * share;
+    }
+
+    /**
+     * One echo of the trailing click where the wave stands: at the listener
+     * for the local player when it sounds at their head, as the first echo
+     * does leaving their own glove hand, and at its point for anyone else.
+     * goo-sound-at-the-listener-reaches-both-ears
+     *
+     * @param sound    the trailing click
+     * @param at       where the wave stands
+     * @param share    how far along the line the wave stands, 0 to 1
+     * @param localEye the local player's eye
+     * @return the echo
+     */
+    static SimpleSoundInstance echoOf(SoundEvent sound, Vec3 at, float share, Vec3 localEye) {
+        return ListenerSounds.heardAt(sound, SoundSource.BLOCKS, reverbVolume(share),
+                REVERB_PITCH - REVERB_PITCH_FALL * share, at, ListenerSounds.besideHead(at, localEye));
     }
 
     private static Optional<SoundEvent> soundOf(Identifier id) {
