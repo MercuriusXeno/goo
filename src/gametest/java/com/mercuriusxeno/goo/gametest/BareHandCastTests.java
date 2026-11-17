@@ -1,11 +1,16 @@
 package com.mercuriusxeno.goo.gametest;
 
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.gate.GateSight;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.item.GooItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.lunar.Lunar;
+import com.mercuriusxeno.goo.network.GloveSelectHandler;
+import com.mercuriusxeno.goo.network.GloveSelectPayload;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -29,7 +34,8 @@ import java.util.function.Consumer;
 /**
  * Gametests for casting bare handed: a player with no glove who holds raw goo casts that goo type's abilities
  * through the server's throw entry, paying as a glove cast pays, and is refused a cast of any other type or a cast
- * holding neither glove nor raw goo. Astral's gate is the ability cast, its cost a flat 1000 mB.
+ * holding neither glove nor raw goo. Astral's gate is the ability cast, its cost a flat 1000 mB. The selection the
+ * server takes for raw goo is the ability the next bare-handed cast casts.
  * decision raw-goo-items-work-bare-handed-for-the-held-type
  */
 @RegistersGameTests
@@ -37,8 +43,11 @@ public final class BareHandCastTests {
     private static final String RAW_GOO_CASTS_ITS_TYPE = "raw_goo_bare_handed_casts_its_type";
     private static final String BARE_HAND_REFUSES_ANOTHER_TYPE = "bare_hand_refuses_another_type_and_an_empty_hand";
     private static final String RAW_ASTRAL_CARRIES_YOU_HOME = "raw_astral_bare_handed_carries_you_home_from_lunar";
+    private static final String BARE_HAND_SELECTION_CASTS = "bare_hand_selection_is_what_the_next_cast_casts";
 
     private static final Identifier ASTRAL_GATE = Identifier.parse("goo:astral_gate");
+    /** Astral's first ability on the radial, ahead of the gate. */
+    private static final Identifier ASTRAL_SCRY = Identifier.parse("goo:astral_scry");
     /** Two gate casts' worth of goo, in mB. */
     private static final int HELD_MB = 2 * GooStacks.THOUSAND;
     /** The gate's cost, astral_gate.json's behavior cost. */
@@ -57,6 +66,8 @@ public final class BareHandCastTests {
             "A gloveless cast of astral while holding raw zoo goo should run nothing";
     private static final String EMPTY_HAND_REFUSED = "A cast holding neither glove nor raw goo should run nothing";
     private static final String NOTHING_SPENT = "A refused cast should spend nothing: astral %d of %d, zoo %d of %d";
+    private static final String SELECTED = "The bare hand's selection should name %s once selected, names %s";
+    private static final String SELECTION_RAN = "The cast the selection names, the gate, should run";
     private static final String HOME = "The gate should carry the gloveless caster from lunar to %s, stands in %s";
 
     private BareHandCastTests() {
@@ -73,6 +84,8 @@ public final class BareHandCastTests {
                 BareHandCastTests::bareHandRefusesAnotherTypeAndAnEmptyHand);
         GooTestFunctions.registerTest(registrar, RAW_ASTRAL_CARRIES_YOU_HOME,
                 BareHandCastTests::rawAstralCarriesYouHomeFromLunar);
+        GooTestFunctions.registerTest(registrar, BARE_HAND_SELECTION_CASTS,
+                BareHandCastTests::bareHandSelectionIsWhatTheNextCastCasts);
     }
 
     /**
@@ -144,6 +157,36 @@ public final class BareHandCastTests {
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.succeed();
         });
+    }
+
+    /**
+     * A gloveless player holding raw astral goo selects Scry, then the gate, through the selection the server takes;
+     * the cast the held selection names is the gate, and it runs.
+     *
+     * @param helper the gametest helper
+     */
+    public static void bareHandSelectionIsWhatTheNextCastCasts(GameTestHelper helper) {
+        ServerPlayer caster = gloveless(helper);
+        caster.setItemInHand(InteractionHand.MAIN_HAND, GooStacks.createForOutput(GooTypes.ASTRAL, HELD_MB));
+        AbilityDefinition scry = AbilityRegistry.of(helper.getLevel()).getAbility(ASTRAL_SCRY);
+        if (scry != null) {
+            KnownRecipes.teachRequires(caster, scry);
+        }
+        GloveSelectHandler.select(caster, new GloveSelectPayload(GooTypes.id(GooTypes.ASTRAL), ASTRAL_SCRY.toString()));
+        GloveSelectHandler.select(caster, new GloveSelectPayload(GooTypes.id(GooTypes.ASTRAL), ASTRAL_GATE.toString()));
+        GloveSelection selected = GooCasters.heldSelection(caster);
+        String named = selected == null ? "nothing" : selected.abilityId();
+        face(caster, moonFrom(caster));
+        if (selected != null) {
+            GooThrowHandler.execute(caster, new GooThrowPayload(selected.gooTypeId(), NO_ENTITY,
+                    caster.blockPosition(), NO_ENTITY, false, selected.abilityId(), caster.getEyePosition()));
+            caster.removeData(GooAttachments.REMAINDERS);
+        }
+        boolean ran = caster.getData(GooAttachments.GATE_FIXATION).stands();
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        helper.assertTrue(ASTRAL_GATE.toString().equals(named), String.format(SELECTED, ASTRAL_GATE, named));
+        helper.assertTrue(ran, SELECTION_RAN);
+        helper.succeed();
     }
 
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement

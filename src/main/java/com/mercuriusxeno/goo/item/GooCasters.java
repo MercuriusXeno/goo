@@ -63,6 +63,28 @@ public final class GooCasters {
     }
 
     /**
+     * Whether the player's caster is a glove, which casts every type.
+     *
+     * @param player the player
+     * @return true for a glove in either hand
+     */
+    public static boolean castsFromAGlove(Player player) {
+        ItemStack caster = casterOf(player);
+        return caster != null && caster.getItem() instanceof GooGloveItem;
+    }
+
+    /**
+     * The goo type of the raw goo a player casts from bare handed.
+     *
+     * @param player the player
+     * @return the held goo's type, or null where the player holds a glove or no caster
+     */
+    public static @Nullable ResourceKey<GooTypeDefinition> bareHandedType(Player player) {
+        ItemStack caster = casterOf(player);
+        return caster != null && caster.getItem() instanceof GooItem ? GooStacks.keyOf(caster) : null;
+    }
+
+    /**
      * Whether a player may cast an ability of a goo type: any type from a glove, only the held type from raw goo.
      *
      * @param player the player
