@@ -151,6 +151,8 @@
   "death.attack.goo.expire": "%1$s expired",
   "death.attack.goo.expire.player": "%1$s was expired by %2$s",
   "death.attack.goo.holy": "%1$s was burned away by holy light",
+  "death.attack.goo.molten_iron": "%1$s wanted a cast of molten metal",
+  "death.attack.goo.molten_iron.player": "%1$s wanted a cast of molten metal",
   "subtitles.goo.earth_rumble": "Earth rumbles",
   "subtitles.goo.boing": "Slime boings",
   "subtitles.goo.vacuum_slurp": "Goo slurps",
