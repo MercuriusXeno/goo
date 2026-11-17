@@ -98,11 +98,11 @@ public final class KnifeHolds {
          * @param now the server tick
          */
         private void runTheClock(int now) {
-            int reached = charge().knivesSinceThrow(clocked, now - clockedFrom);
-            if (reached >= charge().knives()) {
+            int reached = charge().stackedSinceThrow(clocked, now - clockedFrom);
+            if (reached >= charge().stack()) {
                 clockedFrom = now;
             } else {
-                clockedFrom += (reached - clocked) * charge().knifeTicks();
+                clockedFrom += (reached - clocked) * charge().stackTicks();
             }
             clocked = reached;
         }
@@ -181,7 +181,7 @@ public final class KnifeHolds {
         if (ended != null) {
             ended.refund();
             if (ended.synced > 0) {
-                syncCount(player, 0);
+                syncCount(ended, 0);
             }
         }
     }
@@ -259,7 +259,7 @@ public final class KnifeHolds {
             if (hold.player.isRemoved() || !GooThrowHandler.validateGlove(hold.player)) {
                 live.remove();
                 hold.refund();
-                syncCount(hold.player, 0);
+                syncCount(hold, 0);
                 continue;
             }
             if (hold.throwsAt(now)) {
@@ -267,13 +267,14 @@ public final class KnifeHolds {
             }
             int formed = hold.settle(now);
             if (hold.syncs(formed)) {
-                syncCount(hold.player, formed);
+                syncCount(hold, formed);
             }
         }
     }
 
-    private static void syncCount(ServerPlayer player, int formed) {
-        EntityVisuals.sendToWatchers(player, new KnivesFormedPayload(player.getId(), formed));
+    private static void syncCount(Hold hold, int formed) {
+        EntityVisuals.sendToWatchers(hold.player, new StackFormedPayload(hold.player.getId(), formed,
+                hold.held.ability().delivery().stacksJavelins()));
     }
 
     /** Drops every hold, as a server stop does. */

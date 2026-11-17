@@ -55,7 +55,8 @@ public final class TouchDeliveryTests {
     private static final BlockPos FAR_MOB_POS = new BlockPos(11, 1, 8);
     /** Eight blocks west of the far mob, beyond a player's reach of three. */
     private static final BlockPos FAR_PLAYER_POS = FAR_MOB_POS.west(8);
-    private static final int SETTLE_TICKS = 1;
+    /** The ticks Dart's hold takes to form its first javelin, which a throw takes. */
+    private static final int ONE_JAVELIN_TICKS = 10;
     private static final int NO_ENTITY = -1;
     private static final int HELD_GOO = 4;
     private static final Identifier METAL_DART = Identifier.parse("goo:metal_dart");
@@ -86,7 +87,8 @@ public final class TouchDeliveryTests {
         dart(helper);
         Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, NEAR_MOB_POS);
         ServerPlayer player = thrower(helper, NEAR_PLAYER_POS);
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
+        formAJavelin(player);
+        helper.runAfterDelay(ONE_JAVELIN_TICKS, () -> {
             float healthBefore = husk.getHealth();
             int heldBefore = metalHeld(player);
             GooThrowHandler.execute(player, dartPayload(player, husk));
@@ -111,7 +113,8 @@ public final class TouchDeliveryTests {
         dart(helper);
         Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, FAR_MOB_POS);
         ServerPlayer player = thrower(helper, FAR_PLAYER_POS);
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
+        formAJavelin(player);
+        helper.runAfterDelay(ONE_JAVELIN_TICKS, () -> {
             float healthBefore = husk.getHealth();
             int heldBefore = metalHeld(player);
             GooEffectScheduler effects = GooServerState.of(helper.getLevel().getServer()).gooEffects();
@@ -135,6 +138,11 @@ public final class TouchDeliveryTests {
         AbilityDefinition dart = AbilityRegistry.of(helper.getLevel()).getAbility(METAL_DART);
         helper.assertTrue(dart != null, ABILITY_REQUIRED);
         return dart;
+    }
+
+    // Begins a Dart hold, which forms the javelin a throw takes (dart-stacks-three-javelins-one-per-ten-ticks).
+    private static void formAJavelin(ServerPlayer player) {
+        KnivesHoldHandler.hold(player, new KnivesHoldPayload(true, GooTypes.id(GooTypes.METAL), METAL_DART.toString()));
     }
 
     private static GooThrowPayload dartPayload(ServerPlayer player, Mob target) {

@@ -26,6 +26,7 @@ import com.mercuriusxeno.goo.client.ability.FrozenPoses;
 import com.mercuriusxeno.goo.client.ability.GhostTrails;
 import com.mercuriusxeno.goo.client.ability.GlassKnives;
 import com.mercuriusxeno.goo.client.ability.GrabFlail;
+import com.mercuriusxeno.goo.client.ability.HeldJavelins;
 import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
 import com.mercuriusxeno.goo.client.ability.HoveringKnives;
 import com.mercuriusxeno.goo.client.ability.KinOutline;
@@ -638,6 +639,7 @@ public final class GooClientSetup {
         MeteorScorches.clear();
         GlassKnives.clear();
         HoveringKnives.clear();
+        HeldJavelins.clear();
         AbilityPoses.clear();
         PrismFormingSounds.CLIENT.clear();
     }

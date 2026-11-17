@@ -173,7 +173,7 @@ class AbilityBadgeTest {
                     ? EnumSet.of(AbilityBadge.DURATIVE)
                     : holds ? EnumSet.of(AbilityBadge.CHANNELED, AbilityBadge.HELD) : EnumSet.of(AbilityBadge.SELF);
             // held-badge-marks-abilities-that-prepare-and-throw: a charge forming knives prepares and throws
-            default -> definition.delivery().charge().formsKnives() ? EnumSet.of(AbilityBadge.HELD)
+            default -> definition.delivery().charge().stacks() ? EnumSet.of(AbilityBadge.HELD)
                     : holds ? EnumSet.of(AbilityBadge.CHANNELED, AbilityBadge.HELD) : releasedBadges(definition);
         };
     }

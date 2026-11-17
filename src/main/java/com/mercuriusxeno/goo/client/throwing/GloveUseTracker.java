@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
+import com.mercuriusxeno.goo.client.ability.HeldJavelins;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.item.GooGloveItem;
@@ -372,6 +373,11 @@ public final class GloveUseTracker {
         }
 
         @Override
+        public boolean holdsAFormedJavelin() {
+            return HeldJavelins.formedBy(player.getId()) > 0;
+        }
+
+        @Override
         public void javelinTurned(JavelinTurn turn) {
             // knives-form-on-right-click-and-throw-on-left-click: the server forms the knives from the hold's first tick
             if (turn == JavelinTurn.FORMS) {
@@ -383,7 +389,10 @@ public final class GloveUseTracker {
                 // dart-forms-on-right-click-and-throws-on-left-click: the next javelin forms from the blob behind it
                 LiftedPalmBlob.liftAfresh(player.getId(), player.getEyePosition(), player.level().getGameTime());
             }
-            shink(player, turn);
+            // dart-shinks-as-it-forms-and-pitched-down-as-it-reverts: each javelin's shink plays as the server forms it
+            if (turn != JavelinTurn.FORMS) {
+                shink(player, turn);
+            }
         }
     }
 
@@ -395,7 +404,7 @@ public final class GloveUseTracker {
      * @param player the local player
      * @param turn   the javelin's turn
      */
-    private static void shink(LocalPlayer player, JavelinTurn turn) {
+    public static void shink(LocalPlayer player, JavelinTurn turn) {
         GloveSelection selection = GloveThrowSender.heldSelection(player);
         if (selection == null) {
             return;

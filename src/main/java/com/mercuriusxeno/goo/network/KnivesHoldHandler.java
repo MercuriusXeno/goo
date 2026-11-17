@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -15,14 +16,16 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Server-side handler for a Knives hold beginning or ending: a hold begins
- * for a held glove naming a known ability whose charge forms knives,
- * which the player may use and holds every reagent of, its reagents
- * taken once for the hold and its cost the price of each knife; letting go
+ * Server-side handler for a stacking hold beginning or ending, Knives' or
+ * Dart's: a hold begins for a held glove naming a known ability whose charge
+ * stacks, which the player may use and holds every reagent of, its reagents
+ * taken once for the hold; a knife's price is the ability's cost, paid as it
+ * forms, and a javelin forms free, its cost spent at its throw. Letting go
  * ends it, throwing nothing, as logging out does.
  * decision knives-form-on-right-click-and-throw-on-left-click
  * decision knives-charge-one-per-three-ticks-up-to-ten
  * decision knives-pay-per-knife-as-each-forms
+ * decision dart-stacks-three-javelins-one-per-ten-ticks
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class KnivesHoldHandler {
@@ -72,12 +75,15 @@ public final class KnivesHoldHandler {
      */
     private static void begin(ServerPlayer player, KnifeHolds holds, ResourceKey<GooTypeDefinition> gooType,
                               @Nullable AbilityDefinition ability) {
-        if (ability == null || !ability.delivery().charge().formsKnives()
+        if (ability == null || !ability.delivery().charge().stacks()
                 || !GooThrowHandler.holdsReagents(player, ability)) {
             return;
         }
         GooThrowHandler.consumeReagents(player, ability.id().toString(), gooType);
-        holds.begin(player, new KnifeHolds.Held(gooType, ability), ability.cost().exactIn(GooValues.of(player.level())));
+        // dart-stacks-three-javelins-one-per-ten-ticks: a javelin costs nothing to form, its cost spent at its throw
+        GooFraction price = ability.delivery().stacksJavelins() ? GooFraction.ZERO
+                : ability.cost().exactIn(GooValues.of(player.level()));
+        holds.begin(player, new KnifeHolds.Held(gooType, ability), price);
     }
 
     /**

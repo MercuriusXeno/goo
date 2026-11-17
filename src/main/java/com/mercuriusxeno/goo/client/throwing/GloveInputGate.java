@@ -93,6 +93,16 @@ public final class GloveInputGate {
         }
 
         /**
+         * Whether the server has formed a javelin of the press's hold, which a left click throws.
+         * decision dart-stacks-three-javelins-one-per-ten-ticks
+         *
+         * @return true while a javelin stands formed
+         */
+        default boolean holdsAFormedJavelin() {
+            return false;
+        }
+
+        /**
          * Answers a turn the press's javelin takes: it begins forming, leaves the hand, or begins reverting.
          * decision dart-forms-on-right-click-and-throws-on-left-click
          *
@@ -234,7 +244,7 @@ public final class GloveInputGate {
         if (holdsAJavelin(actions) && actions.formsKnives()) {
             return actions.throwKnives();
         }
-        if (!holdsAJavelin(actions) || formShare() < 1f || !actions.sendThrow(heldTicks)) {
+        if (!holdsAJavelin(actions) || !actions.holdsAFormedJavelin() || !actions.sendThrow(heldTicks)) {
             return false;
         }
         actions.releasePose();

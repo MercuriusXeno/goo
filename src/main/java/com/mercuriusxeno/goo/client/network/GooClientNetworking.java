@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.client.ability.ClientRoomEdges;
 import com.mercuriusxeno.goo.client.ability.GlassKnives;
 import com.mercuriusxeno.goo.client.ability.GnatSeek;
 import com.mercuriusxeno.goo.client.ability.HeaterFlames;
+import com.mercuriusxeno.goo.client.ability.HeldJavelins;
 import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
 import com.mercuriusxeno.goo.client.ability.HoveringKnives;
 import com.mercuriusxeno.goo.client.ability.LaserVisual;
@@ -46,7 +47,6 @@ import com.mercuriusxeno.goo.network.GooValueSyncPayload;
 import com.mercuriusxeno.goo.network.HeaterFlamePayload;
 import com.mercuriusxeno.goo.network.HeldSweepPayload;
 import com.mercuriusxeno.goo.network.HolesSyncPayload;
-import com.mercuriusxeno.goo.network.KnivesFormedPayload;
 import com.mercuriusxeno.goo.network.KnownItemLearnedPayload;
 import com.mercuriusxeno.goo.network.KnownItemsSyncPayload;
 import com.mercuriusxeno.goo.network.LaserPayload;
@@ -71,6 +71,7 @@ import com.mercuriusxeno.goo.network.RoomEdgesSyncPayload;
 import com.mercuriusxeno.goo.network.ScanWavePayload;
 import com.mercuriusxeno.goo.network.SculkerHeardPayload;
 import com.mercuriusxeno.goo.network.SculkerVibrationPayload;
+import com.mercuriusxeno.goo.network.StackFormedPayload;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
 import com.mercuriusxeno.goo.network.StreamMotesPayload;
 import com.mercuriusxeno.goo.network.TomePayload;
@@ -177,7 +178,14 @@ public final class GooClientNetworking {
         event.register(OreRevealPayload.TYPE, OreRevealHandler::handle);
         event.register(MeteorScorchPayload.TYPE, MeteorScorches::onPayload);
         event.register(GlassKnifePayload.TYPE, GlassKnives::onPayload);
-        event.register(KnivesFormedPayload.TYPE, HoveringKnives::onPayload);
+        // dart-stacks-three-javelins-one-per-ten-ticks: a stack of javelins draws no knives
+        event.register(StackFormedPayload.TYPE, (payload, context) -> {
+            if (payload.javelins()) {
+                HeldJavelins.onPayload(payload, context);
+            } else {
+                HoveringKnives.onPayload(payload, context);
+            }
+        });
         event.register(ArmPosePayload.TYPE, AbilityPoses::onPayload);
         event.register(PalmBlobLiftPayload.TYPE, LiftedPalmBlob::onPayload);
         event.register(ScanWavePayload.TYPE, ScanVisuals::onPayload);

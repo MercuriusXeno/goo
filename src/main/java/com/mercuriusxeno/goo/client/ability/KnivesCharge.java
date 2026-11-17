@@ -187,11 +187,11 @@ public final class KnivesCharge {
     private static void chime(ClientLevel level, LocalPlayer player, Charge charge, Delivery delivery,
                               int heldTicks) {
         float share = delivery.chargeShare(heldTicks);
-        int shown = charge.knivesFormedAt(heldTicks);
+        int shown = charge.stackedAt(heldTicks);
         if (shown > shownLocally) {
             level.playLocalSound(player.getX(), player.getEyeY(), player.getZ(), SoundEvents.AMETHYST_BLOCK_CHIME,
                     SoundSource.PLAYERS, CHIME_VOLUME, CHIME_PITCH_LOW + share * CHIME_PITCH_SPAN, false);
-            if (shown >= charge.knives()) {
+            if (shown >= charge.stack()) {
                 level.playLocalSound(player.getX(), player.getEyeY(), player.getZ(),
                         SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.PLAYERS, FULL_VOLUME, FULL_PITCH, false);
             }
@@ -215,8 +215,8 @@ public final class KnivesCharge {
         if (selection == null) {
             return null;
         }
-        Charge charge = GloveThrowSender.selectedDelivery(selection.abilityId()).charge();
-        return charge.formsKnives() ? charge : null;
+        Delivery delivery = GloveThrowSender.selectedDelivery(selection.abilityId());
+        return delivery.formsKnives() ? delivery.charge() : null;
     }
 
     private static float localChargeShare(Player local) {
