@@ -162,13 +162,14 @@ public final class HeldJavelins {
     }
 
     /**
-     * Draws every caster's stack after translucent blocks, each javelin as
-     * the dart form in its caster's goo, pointing along the caster's look.
+     * Draws every caster's stack after the level, clouds included, so no cloud
+     * shows through a javelin, each as the dart form in its caster's goo,
+     * pointing along the caster's look.
      *
      * @param event the level render stage event
      */
     @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void onAfterLevel(RenderLevelStageEvent.AfterLevel event) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || STACKS.isEmpty()) {
             return;
