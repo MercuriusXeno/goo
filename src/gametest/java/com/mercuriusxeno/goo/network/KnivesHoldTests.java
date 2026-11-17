@@ -146,7 +146,7 @@ public final class KnivesHoldTests {
             int formed = state.knifeHolds().formed(caster);
             KnivesHoldHandler.hold(caster, new KnivesHoldPayload(false, crystal, CRYSTAL_KNIVES.toString()));
             int afterLettingGo = state.knifeHolds().formed(caster);
-            boolean queued = state.fleckLaunches().hasPending();
+            boolean queued = state.homingKnives().hasPending();
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.assertTrue(formed == TWO_KNIVES, String.format(SHOULD_FORM, TWO_KNIVES, formed));
             helper.assertTrue(afterLettingGo == 0, String.format(SHOULD_END, afterLettingGo));
