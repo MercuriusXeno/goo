@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.SoundPlays;
+import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.network.SpikesRisePayload;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -9,7 +10,6 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -24,13 +24,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Spikes goo's strike as this client sees it: one rigid chrome triangular
- * pyramid shoots up out of the goo under the struck thing and fully through
- * it, its tip standing out over the thing's head, holds, and sinks back into
- * the goo on the retract frame metal_spikes.json names, sounding the retract
- * shink as it goes. The pyramid keeps its size and moves, rather than
- * stretching. Client-only: the server's strike already landed its damage and
- * its shink out.
+ * Spikes goo's strike as this client sees it: one steel triangular pyramid
+ * grows out of the blob's midline under the struck thing, keeping its
+ * shape, and runs fully through it, its tip standing out over the thing's
+ * head; it holds, and shrinks back into the goo on the retract frame
+ * metal_spikes.json names, sounding the retract shink as it goes.
+ * Client-only: the server's strike already landed its damage and its shink
+ * out (operator UAT 2026-11-17).
  * urchin-rests-bristled-and-spears
  * urchin-spikes-shink-out-and-shink-back
  */
@@ -47,8 +47,6 @@ public final class SpikesRise {
     private static final float BASE_SHARE = 0.4f;
     /** The thinnest the impaling pyramid's base stands, in blocks, so a small thing is still run through. */
     private static final float LEAST_BASE_RADIUS = 0.16f;
-    /** Ticks the chrome band takes to sweep down a spike once. */
-    private static final float SWEEP_TICKS = 20f;
     /** The smoothstep's cubic coefficients, 3t^2 - 2t^3. */
     private static final float SMOOTH_SQUARE = 3f;
     private static final float SMOOTH_CUBE = 2f;
@@ -137,22 +135,21 @@ public final class SpikesRise {
         float partial = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         double now = level.getGameTime() + partial;
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        Frame frame = new Frame(event.getPoseStack().last(), buffers.getBuffer(GooRenderTypes.METAL_CHROME_TYPE),
-                mc.gameRenderer.getMainCamera().position(), partial,
-                ColorBytes.toByte(Mth.frac((float) (now / SWEEP_TICKS))));
+        Frame frame = new Frame(event.getPoseStack().last(), buffers.getBuffer(GooRenderTypes.SPIKES_STEEL_TYPE),
+                mc.gameRenderer.getMainCamera().position(), partial);
         for (Rise rise : RISES) {
             drawRise(level, rise, extension((float) (now - rise.startedAt), rise.payload.retractFrame()), frame);
         }
-        buffers.endBatch(GooRenderTypes.METAL_CHROME_TYPE);
+        buffers.endBatch(GooRenderTypes.SPIKES_STEEL_TYPE);
     }
 
     /**
-     * Draws one strike's pyramid risen its share of the way, where any of it
-     * stands out of the goo and the cell and the struck thing both still stand.
+     * Draws one strike's pyramid grown its share out of the blob's midline,
+     * where the cell and the struck thing both still stand.
      *
      * @param level the client's level
      * @param rise  the strike
-     * @param share how far the pyramid has risen, {@link #extension}
+     * @param share how far the pyramid has grown, {@link #extension}
      * @param frame what this frame draws with
      */
     private static void drawRise(ClientLevel level, Rise rise, float share, Frame frame) {
@@ -161,20 +158,19 @@ public final class SpikesRise {
         if (share <= 0f || struck == null || !SpikesBristle.isSpikes(cell)) {
             return;
         }
-        double gooTop = SpikesBristle.gooTop(rise.payload.cell(), cell);
+        double mid = SpikesBristle.midline(rise.payload.cell(), VolumeCellBlock.layersOf(cell));
         Vec3 feet = struck.getPosition(frame.partial());
-        float height = impaleHeight(gooTop, feet.y + struck.getBbHeight());
-        Vec3 base = new Vec3(feet.x, gooTop - (1f - share) * height, feet.z);
+        float height = impaleHeight(mid, feet.y + struck.getBbHeight());
         float radius = Math.max(LEAST_BASE_RADIUS, struck.getBbWidth() * BASE_SHARE);
-        SpikesBristle.emitPyramid(frame.pose(), frame.chrome(), relative(base, frame.camera()), height, radius,
-                frame.sweep());
+        SpikesBristle.emitPyramid(frame.pose(), frame.steel(), relative(new Vec3(feet.x, mid, feet.z), frame.camera()),
+                height * share, radius * share);
     }
 
     /**
-     * How tall the impaling pyramid stands: from the goo's surface through
+     * How tall the impaling pyramid stands: from the blob's midline through
      * the struck thing to past the top of its head.
      *
-     * @param gooTop  the goo surface's height
+     * @param gooTop  the blob midline's height
      * @param headTop the top of the struck thing's body
      * @return the pyramid's height in blocks
      */
@@ -190,12 +186,11 @@ public final class SpikesRise {
      * What one frame draws every strike's spikes with.
      *
      * @param pose    the pose, camera-relative
-     * @param chrome  Metal's chrome vertex consumer
+     * @param steel   the steel vertex consumer
      * @param camera  the camera's position
      * @param partial the partial tick
-     * @param sweep   the chrome band's place, a byte
      */
-    private record Frame(PoseStack.Pose pose, VertexConsumer chrome, Vec3 camera, float partial, int sweep) {
+    private record Frame(PoseStack.Pose pose, VertexConsumer steel, Vec3 camera, float partial) {
     }
 
     /** One strike's spikes this client draws, from the tick its payload arrived. */

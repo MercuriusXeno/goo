@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.DamageStep;
 import com.mercuriusxeno.goo.ability.program.SpikesStep;
 import com.mercuriusxeno.goo.ability.program.Variables;
+import com.mercuriusxeno.goo.block.ability.CellPlacers;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
@@ -61,6 +62,9 @@ public final class SpikesTests {
     private static final int STANDING_TICKS = 100;
     private static final String NOT_IMPALED_STANDING = "A player standing still on a full Spikes cell for %d ticks"
             + " should have lost at least %.2f health: %.2f at the start, %.2f now";
+    private static final String SPIKES_SPARE_THEIR_SPRAYER = "spikes_spare_the_player_who_sprayed_them";
+    private static final String SPRAYER_HURT = "The player who sprayed the Spikes goo should stand on it unhurt for %d"
+            + " ticks: %.2f at the start, %.2f now";
     private static final String NOT_CROSSED = "The zombie has not crossed the Spikes cell yet";
     private static final String NOT_IMPALED = "A zombie that crossed a full Spikes cell should have lost at least %.2f"
             + " health: %.2f at the start, %.2f now";
@@ -78,6 +82,8 @@ public final class SpikesTests {
         GooTestFunctions.registerTest(registrar, SPIKES_IMPALE_A_WALKER, SpikesTests::spikesImpaleAZombieWalkingAcrossThem);
         GooTestFunctions.registerTest(registrar, SPIKES_IMPALE_A_STANDER,
                 SpikesTests::spikesImpaleAPlayerStandingStillOnThem);
+        GooTestFunctions.registerTest(registrar, SPIKES_SPARE_THEIR_SPRAYER,
+                SpikesTests::spikesSpareThePlayerWhoSprayedThem);
     }
 
     /**
@@ -162,6 +168,34 @@ public final class SpikesTests {
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertTrue(now <= started - strikeDamage,
                     String.format(NOT_IMPALED_STANDING, STANDING_TICKS, strikeDamage, started, now));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * The survival player who sprayed a full Spikes cell stands still on it
+     * past spawn immunity and several cooldowns and keeps every point of
+     * health: the goo never hurts the player who sprayed it.
+     * operator ruling 2026-11-17: an ability never attacks its caster
+     *
+     * @param helper the gametest helper
+     */
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    public static void spikesSpareThePlayerWhoSprayedThem(GameTestHelper helper) {
+        BlockPos cell = STAND_FLOOR;
+        sinkInStone(helper, cell);
+        helper.setBlock(cell, GooBlocks.METAL_SPIKES.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        player.setGameMode(GameType.SURVIVAL);
+        CellPlacers.of(helper.getLevel()).place(helper.absolutePos(cell), player.getUUID());
+        Vec3 onTheGoo = Vec3.atBottomCenterOf(helper.absolutePos(cell.above()));
+        player.setPos(onTheGoo.x, onTheGoo.y, onTheGoo.z);
+        float started = player.getHealth();
+        helper.runAfterDelay(STANDING_TICKS, () -> {
+            float now = player.getHealth();
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(now >= started, String.format(SPRAYER_HURT, STANDING_TICKS, started, now));
             helper.succeed();
         });
     }

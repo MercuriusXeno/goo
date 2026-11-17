@@ -243,22 +243,6 @@ public final class MetalExplosionVisual implements BurnoutVisual, HeldGhostVisua
      * @param alpha        the spike's opacity as a byte
      */
     static void emitSpike(PoseStack.Pose pose, VertexConsumer c, Spike spike, int progressByte, int alpha) {
-        emitSpike(pose, c, spike, progressByte, alpha, SPIKE_SIDES);
-    }
-
-    /**
-     * Emits one chrome spike with as many sides as asked: a triangular
-     * pyramid at three, the urchin's own spine at four.
-     *
-     * @param pose         the pose entry
-     * @param c            the vertex consumer
-     * @param spike        where the spike stands and its size
-     * @param progressByte where the specular band sits, a byte
-     * @param alpha        the spike's opacity as a byte
-     * @param sides        the spike's sides
-     */
-    static void emitSpike(PoseStack.Pose pose, VertexConsumer c, Spike spike, int progressByte, int alpha,
-                          int sides) {
         Vector3f from = spike.base();
         Vector3f dir = spike.dir();
         ConeGeometry.Cone cone = new ConeGeometry.Cone(from.x(), from.y(), from.z(), dir.x(), dir.y(), dir.z(),
@@ -267,8 +251,8 @@ public final class MetalExplosionVisual implements BurnoutVisual, HeldGhostVisua
         int base = ARGB.color(alpha, progressByte, 0, 0);
         int tip = ARGB.color(alpha, progressByte, OPAQUE, 0);
         FlatQuadContext quads = new FlatQuadContext(pose, c);
-        for (int side = 0; side < sides; side++) {
-            emitSpikeSide(quads, cone, basis, side, sides, base, tip);
+        for (int side = 0; side < SPIKE_SIDES; side++) {
+            emitSpikeSide(quads, cone, basis, side, base, tip);
         }
     }
 
@@ -291,14 +275,13 @@ public final class MetalExplosionVisual implements BurnoutVisual, HeldGhostVisua
      * @param cone  the spike's cone
      * @param basis the cone's orthonormal basis
      * @param side  which side, counted around the cone
-     * @param sides the spike's sides
      * @param base  the packed color at the base
      * @param tip   the packed color at the tip
      */
     private static void emitSpikeSide(FlatQuadContext quads, ConeGeometry.Cone cone, float[] basis, int side,
-                                      int sides, int base, int tip) {
-        float a0 = (float) (TWO_PI * side / sides);
-        float a1 = (float) (TWO_PI * (side + 1) / sides);
+                                      int base, int tip) {
+        float a0 = (float) (TWO_PI * side / SPIKE_SIDES);
+        float a1 = (float) (TWO_PI * (side + 1) / SPIKE_SIDES);
         float[] normal = ConeGeometry.segmentNormal(basis, (a0 + a1) * HALF);
         float nx = normal[ConeGeometry.PERP_X];
         float ny = normal[ConeGeometry.PERP_Y];
