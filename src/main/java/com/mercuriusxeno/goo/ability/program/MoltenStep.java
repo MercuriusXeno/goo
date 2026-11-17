@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.block.ability.CellBinding;
+import com.mercuriusxeno.goo.block.ability.FluidFooting;
 import com.mercuriusxeno.goo.data.GooGroups;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.throwing.CoatRay;
@@ -143,8 +144,8 @@ public record MoltenStep(Map<Identifier, List<String>> meltsInto, int heatTicks)
      * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
      */
     @Override
-    public boolean landsOnLava() {
-        return CellBinding.MOLTEN.liesOnLava();
+    public FluidFooting fluidFooting() {
+        return CellBinding.MOLTEN.fluidFooting();
     }
 
     @Override

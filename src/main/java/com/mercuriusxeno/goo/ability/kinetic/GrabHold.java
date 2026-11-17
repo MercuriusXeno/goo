@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.ability.kinetic;
 
+import net.minecraft.world.phys.Vec3;
+
 /**
  * What a player's Grab holds: the held entity, the speed a left click
  * throws it at, and the last game time the hold stands without another
@@ -11,14 +13,15 @@ package com.mercuriusxeno.goo.ability.kinetic;
  * @param throwSpeed the speed a throw launches the entity at, in blocks per tick
  * @param heldUntil  the last game time the hold, or the spent press, stands
  * @param spent      whether a throw spent this press, so it lifts nothing more
+ * @param velocity   how far the held entity moved on the hold's last tick, the speed it carries into the next
  */
-public record GrabHold(int entityId, double throwSpeed, long heldUntil, boolean spent) {
+public record GrabHold(int entityId, double throwSpeed, long heldUntil, boolean spent, Vec3 velocity) {
 
     /** The entity id of a hold holding nothing. */
     public static final int NO_ENTITY = -1;
 
     /** A player holding nothing. */
-    public static final GrabHold NONE = new GrabHold(NO_ENTITY, 0, 0L, false);
+    public static final GrabHold NONE = new GrabHold(NO_ENTITY, 0, 0L, false, Vec3.ZERO);
 
     /**
      * A press a throw spent, standing until a game time.
@@ -28,7 +31,7 @@ public record GrabHold(int entityId, double throwSpeed, long heldUntil, boolean 
      * @return the spent press
      */
     public static GrabHold spentUntil(long until) {
-        return new GrabHold(NO_ENTITY, 0, until, true);
+        return new GrabHold(NO_ENTITY, 0, until, true, Vec3.ZERO);
     }
 
     /**

@@ -22,7 +22,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.tags.FluidTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.InsideBlockEffectApplier;
@@ -336,8 +335,7 @@ public class VolumeCellBlock extends Block {
         BlockPos under = pos.below();
         BlockState footing = level.getBlockState(under);
         return footing.isFaceSturdy(level, under, Direction.UP)
-                || binding.liesOnLava() && footing.getFluidState().is(FluidTags.LAVA)
-                && footing.getFluidState().isSource();
+                || binding.fluidFooting().liesOn(footing);
     }
 
     @Override
