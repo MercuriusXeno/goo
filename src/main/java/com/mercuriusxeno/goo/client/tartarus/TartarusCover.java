@@ -31,6 +31,8 @@ public final class TartarusCover {
     static final double COVERS_WITHIN = 0.35;
     /** The cover's tiles across the screen's height: the artifact draft's texel size. */
     private static final double TILES_DOWN = 6.25;
+    /** Layers of the sprite the cover draws, so its translucent texels come near opaque. */
+    private static final int LAYERS = 2;
 
     private static final Identifier LAYER_ID = Identifier.fromNamespaceAndPath(Goo.MODID, "tartarus_cover");
 
@@ -78,9 +80,12 @@ public final class TartarusCover {
         TextureAtlasSprite sprite = GooSubmitter.blockSprite(TartarusGateRenderer.TEXTURE);
         int tile = Math.max(1, (int) Math.round(graphics.guiHeight() / TILES_DOWN));
         int color = ARGB.white((float) alpha);
-        for (int y = 0; y < graphics.guiHeight(); y += tile) {
-            for (int x = 0; x < graphics.guiWidth(); x += tile) {
-                graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, tile, tile, color);
+        // the draft covers with the texture's texels opaque; two layers of the translucent sprite come near it
+        for (int layer = 0; layer < LAYERS; layer++) {
+            for (int y = 0; y < graphics.guiHeight(); y += tile) {
+                for (int x = 0; x < graphics.guiWidth(); x += tile) {
+                    graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, tile, tile, color);
+                }
             }
         }
     }
