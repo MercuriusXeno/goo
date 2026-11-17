@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.block.ability.WispClaims;
 import com.mercuriusxeno.goo.network.DripFlights;
 import com.mercuriusxeno.goo.network.FleckLaunches;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
+import com.mercuriusxeno.goo.network.KnifeHolds;
 import com.mercuriusxeno.goo.network.ScanWaves;
 import com.mercuriusxeno.goo.network.StreamHolds;
 import net.minecraft.server.MinecraftServer;
@@ -27,6 +28,7 @@ public final class GooServerState {
 
     private final GooEffectScheduler gooEffects = new GooEffectScheduler();
     private final FleckLaunches fleckLaunches = new FleckLaunches();
+    private final KnifeHolds knifeHolds = new KnifeHolds();
     private final MorphBirths morphBirths = new MorphBirths();
     private final BlockExposures blockExposures = new BlockExposures();
     private final AbilityBlockFallScheduler markerFalls = new AbilityBlockFallScheduler();
@@ -81,6 +83,16 @@ public final class GooServerState {
      */
     public FleckLaunches fleckLaunches() {
         return fleckLaunches;
+    }
+
+    /**
+     * Each player's Knives hold and the knives it has formed
+     * (decision knives-form-in-fibonacci-stages-to-twelve).
+     *
+     * @return the Knives holds
+     */
+    public KnifeHolds knifeHolds() {
+        return knifeHolds;
     }
 
     /**
@@ -201,6 +213,7 @@ public final class GooServerState {
         morphBirths.bearArrived(currentTick);
         blockExposures.decay(server);
         streamHolds.releaseLapsed(currentTick);
+        knifeHolds.tick(currentTick);
     }
 
     /**
@@ -209,6 +222,7 @@ public final class GooServerState {
     public void clear() {
         gooEffects.clear();
         fleckLaunches.clear();
+        knifeHolds.clear();
         blockExposures.clear();
         markerFalls.clear();
         streamHolds.clear();

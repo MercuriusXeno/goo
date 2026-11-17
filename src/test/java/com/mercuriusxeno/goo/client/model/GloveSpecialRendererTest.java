@@ -346,16 +346,15 @@ class GloveSpecialRendererTest {
         }
 
         @Test
-        void fromTheSettlesEndAfterTheSweepThePalmCarriesItsBlobAtRestSize() {
-            long released = SPRAYED + 20;
-            long swept = released + KnivesCharging.KNIVES.sweepTicks();
-            long settled = swept + LiftedPalmBlob.STREAM_GAP_TICKS + 1 + PalmBlobHop.SETTLE_TICKS;
+        void fromTheSettlesEndAfterLettingGoThePalmCarriesItsBlobAtRestSize() {
+            long letGo = SPRAYED + 20;
+            long settled = letGo - 1 + LiftedPalmBlob.STREAM_GAP_TICKS + 1 + PalmBlobHop.SETTLE_TICKS;
             try (SprayingClient client = SprayingClient.local(GooTypes.CRYSTAL);
                  KnivesCharging knives = KnivesCharging.heldTo(1f);
                  MockedStatic<GloveUseTracker> tracker = mockStatic(GloveUseTracker.class)) {
                 tracker.when(GloveUseTracker::isSelectedTypeAvailable).thenReturn(true);
-                knives.windUp(client, SPRAYED, released - 1);
-                knives.release(client, released, settled);
+                knives.windUp(client, SPRAYED, letGo - 1);
+                knives.letGo(client, letGo, settled);
 
                 GloveSpecialRenderer.GloveData data = new GloveSpecialRenderer().extractArgument(client.glove());
 

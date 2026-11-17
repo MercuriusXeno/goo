@@ -16,9 +16,11 @@ import org.jspecify.annotations.Nullable;
  * release. A press plays the ability's pose, its release only for a throw
  * that sent a payload; a blob thrown swings there instead. A held throw,
  * Dart's javelin, forms while the key is held, throws on the attack key once
- * whole, and sends nothing on release.
+ * whole, and sends nothing on release. Knives' held press takes the same
+ * turns, forming knives in place of a javelin, and its attack key sends nothing.
  * decision right-click-held-previews-release-throws
  * decision dart-forms-on-right-click-and-throws-on-left-click
+ * decision knives-form-on-right-click-and-throw-on-left-click
  * decision durative-self-abilities-wash-over-the-view-in-place-of-eating
  * decision use-animation-only-when-goo-throws
  * decision use-key-throw-swings-no-more
@@ -64,6 +66,17 @@ public final class GloveInputGate {
          * @return true for a held throw
          */
         default boolean throwsOnAttack() {
+            return false;
+        }
+
+        /**
+         * Whether the selected held throw forms Knives' knives in stages
+         * rather than one javelin.
+         * decision knives-form-on-right-click-and-throw-on-left-click
+         *
+         * @return true for a held throw forming knives
+         */
+        default boolean formsKnives() {
             return false;
         }
 
@@ -198,14 +211,15 @@ public final class GloveInputGate {
      * an ability formed on right click and thrown on left: a javelin whole in
      * the hand is sent and its release plays, and with right click still held
      * the palm blob lifts afresh to form the next. A javelin still forming,
-     * or a press throwing on release, sends nothing.
+     * a press forming knives, or a press throwing on release, sends nothing.
      * decision dart-forms-on-right-click-and-throws-on-left-click
      *
      * @param actions the throw and arm pose the press resolves to
      * @return true where a javelin was sent
      */
     public boolean throwHeld(PressActions actions) {
-        if (!holdsAJavelin(actions) || formShare() < 1f || !actions.sendThrow(heldTicks)) {
+        if (!holdsAJavelin(actions) || actions.formsKnives() || formShare() < 1f
+                || !actions.sendThrow(heldTicks)) {
             return false;
         }
         actions.releasePose();

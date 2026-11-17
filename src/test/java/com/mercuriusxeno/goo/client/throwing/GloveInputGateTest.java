@@ -7,6 +7,8 @@ import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.client.ability.PalmBlobHop;
 import org.junit.jupiter.api.Nested;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -39,7 +41,9 @@ class GloveInputGateTest {
         private int holds;
         private int lastHeldTicks = -1;
         private final boolean throwsOnAttack;
+        private boolean formsKnives;
         private int nextJavelins;
+        private final List<JavelinTurn> turns = new ArrayList<>();
 
         RecordingActions(boolean payloadSent, boolean stream) {
             this(payloadSent, stream, false);
@@ -57,7 +61,13 @@ class GloveInputGateTest {
         }
 
         @Override
+        public boolean formsKnives() {
+            return formsKnives;
+        }
+
+        @Override
         public void javelinTurned(JavelinTurn turn) {
+            turns.add(turn);
             if (turn == JavelinTurn.THROWN) {
                 nextJavelins++;
             }
@@ -99,6 +109,45 @@ class GloveInputGateTest {
 
     private static RecordingActions thrown() {
         return new RecordingActions(true, false);
+    }
+
+    /**
+     * Knives' press: right click held turns the hold's first tick into a
+     * hold begun, left click sends nothing, and letting go ends the hold,
+     * throwing nothing (decision knives-form-on-right-click-and-throw-on-left-click).
+     */
+    @Nested
+    class KnivesForming {
+
+        private final RecordingActions actions = new RecordingActions(true, false, true);
+        private final GloveInputGate gate = new GloveInputGate();
+
+        @Test
+        void theHoldBeginsOnItsFirstTickAndLeftClickSendsNothing() {
+            actions.formsKnives = true;
+            gate.arm();
+            for (int tick = 0; tick <= LONG_HOLD_TICKS; tick++) {
+                gate.tick(true, actions);
+            }
+
+            assertFalse(gate.throwHeld(actions));
+            assertEquals(0, actions.throwsSent);
+            assertEquals(List.of(JavelinTurn.FORMS), actions.turns);
+        }
+
+        @Test
+        void lettingGoEndsTheHoldThrowingNothing() {
+            actions.formsKnives = true;
+            gate.arm();
+            gate.tick(true, actions);
+
+            gate.tick(false, actions);
+
+            assertEquals(List.of(JavelinTurn.FORMS, JavelinTurn.REVERTS), actions.turns);
+            assertEquals(0, actions.throwsSent);
+            assertEquals(1, actions.poseDrops);
+            assertFalse(gate.isArmed());
+        }
     }
 
     /**
