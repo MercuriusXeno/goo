@@ -5,7 +5,7 @@
   "order": 10,
   "cost": 1000,
   "delivery": { "kind": "arc", "transform_at": 0, "form": "dart", "throw_speed": 2.5,
-    "charge": { "max_ticks": 0, "stack": 3, "stack_ticks": 10 },
+    "charge": { "max_ticks": 0, "stack": 3, "stack_ticks": 10, "throw_ticks": 5 },
     "form_sound": { "id": "minecraft:item.axe.scrape", "volume": 0.8, "pitch": 1.5 },
     "revert_sound": { "id": "minecraft:item.axe.scrape", "volume": 0.8, "pitch": 1.0 } },
   "behaviors": [
