@@ -104,6 +104,7 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core,
      */
     private void addSlab(SlimeTop slab, List<BakedQuad> drawn, Map<Direction, List<BakedQuad>> rims) {
         drawn.addAll(SlimeTopQuads.topOf(slab, film));
+        drawn.addAll(SlimeTopQuads.joinsOf(slab, film));
         SlimeTopQuads.rimsOf(slab, film).forEach((side, quads) ->
                 rims.computeIfAbsent(side, any -> new ArrayList<>()).addAll(quads));
     }

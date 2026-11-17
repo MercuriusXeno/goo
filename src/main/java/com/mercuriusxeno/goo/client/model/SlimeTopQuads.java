@@ -12,6 +12,7 @@ import net.neoforged.neoforge.client.model.ExtraFaceData;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Iterator;
 import java.util.List;
@@ -115,6 +116,143 @@ public final class SlimeTopQuads {
         Vector3f high = acrossFirst ? pointOn(plane, at, to, WHOLE) : pointOn(plane, to, at, WHOLE);
         BakedQuad flat = faceOf(lowCorner(low, high), highCorner(low, high), edge, material);
         return reshaped(flat, corner -> onTheSurface(corner, plane) ? corner : standOut(corner, top));
+    }
+
+    /**
+     * The faces joining this slab to the slab round each outside edge it
+     * joins: along the edge one sloped face from this slab's edge to the
+     * other's, outside the block's cube, and a triangle closing each end
+     * where the slab draws a rim. Of the two slabs one draws them, the one
+     * whose edge's direction comes later, so they draw once.
+     * attached-goo-draws-per-attachment-and-divides-its-volume
+     *
+     * @param top      the slab's heights and joins
+     * @param material the shell's material
+     * @return the joining faces
+     */
+    public static List<BakedQuad> joinsOf(SlimeTop top, BakedQuad.MaterialInfo material) {
+        List<BakedQuad> quads = new ArrayList<>();
+        Direction surface = top.plane().surface();
+        for (Direction edge : top.joins()) {
+            if (edge.ordinal() > surface.getOpposite().ordinal()) {
+                quads.addAll(joinAlong(top, top.across(edge), edge, material));
+            }
+        }
+        return quads;
+    }
+
+    /**
+     * The faces along one joined edge.
+     *
+     * @param mine     this slab's heights
+     * @param theirs   the slab round the edge, read in its own block
+     * @param edge     the edge, in this slab's plane
+     * @param material the shell's material
+     * @return the sloped faces along the edge and the triangles closing its ends
+     */
+    private static List<BakedQuad> joinAlong(SlimeTop mine, SlimeTop theirs, Direction edge,
+                                             BakedQuad.MaterialInfo material) {
+        SlimeTop.Plane plane = mine.plane();
+        Direction along = edge.getAxis() == plane.first().getAxis() ? plane.second() : plane.first();
+        Vector3f outward = new Vector3f(plane.surface().getOpposite().getUnitVec3f());
+        Vector3f turned = new Vector3f(edge.getUnitVec3f());
+        Vector3f offset = new Vector3f(edge.getUnitVec3f()).add(plane.surface().getUnitVec3f()).mul(WHOLE);
+        List<BakedQuad> quads = new ArrayList<>();
+        Vector3f[] lastMine = null;
+        for (float cut : CUTS) {
+            Vector3f corner = edgePoint(plane, edge, along, cut);
+            float myHeight = heightThere(mine, corner) * PIXELS_PER_LAYER;
+            float theirHeight = heightThere(theirs, new Vector3f(corner).sub(offset)) * PIXELS_PER_LAYER;
+            Vector3f[] here = {new Vector3f(corner).fma(myHeight, outward), new Vector3f(corner).fma(theirHeight,
+                    turned), corner};
+            if (lastMine != null) {
+                quads.add(quadThrough(List.of(lastMine[0], here[0], here[1], lastMine[1]),
+                        new Vector3f(turned).add(outward), edge, material));
+            }
+            lastMine = here;
+        }
+        quads.addAll(endsOf(mine, edge, along, material, outward, turned, offset, theirs));
+        return quads;
+    }
+
+    /**
+     * The triangles closing a joined edge's ends, each where this slab draws
+     * a rim on the edge it meets there.
+     *
+     * @param mine     this slab's heights
+     * @param edge     the joined edge
+     * @param along    the axis the edge runs along, by its positive direction
+     * @param material the shell's material
+     * @param outward  the unit out from this slab's surface
+     * @param turned   the unit out from the slab round the edge
+     * @param offset   the block round the edge, in model pixels
+     * @param theirs   the slab round the edge
+     * @return the closing triangles
+     */
+    private static List<BakedQuad> endsOf(SlimeTop mine, Direction edge, Direction along,
+                                          BakedQuad.MaterialInfo material, Vector3fc outward, Vector3fc turned,
+                                          Vector3fc offset, SlimeTop theirs) {
+        List<BakedQuad> ends = new ArrayList<>();
+        for (Direction end : List.of(along.getOpposite(), along)) {
+            if (mine.rims().contains(end)) {
+                float at = end == along ? WHOLE : 0;
+                Vector3f corner = edgePoint(mine.plane(), edge, along, at);
+                Vector3f myEdge = new Vector3f(corner).fma(heightThere(mine, corner) * PIXELS_PER_LAYER, outward);
+                Vector3f theirEdge = new Vector3f(corner).fma(heightThere(theirs, new Vector3f(corner).sub(offset))
+                        * PIXELS_PER_LAYER, turned);
+                ends.add(quadThrough(List.of(corner, myEdge, theirEdge, theirEdge), end.getUnitVec3f(), end,
+                        material));
+            }
+        }
+        return ends;
+    }
+
+    /**
+     * A point on a slab's edge, on the slab's surface.
+     *
+     * @param plane the slab's surface and axes
+     * @param edge  the edge
+     * @param along the axis the edge runs along, by its positive direction
+     * @param at    where along it, in model pixels
+     * @return the point, in model pixels
+     */
+    private static Vector3f edgePoint(SlimeTop.Plane plane, Direction edge, Direction along, float at) {
+        float onTheEdge = edge.getAxisDirection() == Direction.AxisDirection.POSITIVE ? WHOLE : 0;
+        return along == plane.first() ? pointOn(plane, at, onTheEdge, 0) : pointOn(plane, onTheEdge, at, 0);
+    }
+
+    /**
+     * @param slab   a slab's heights
+     * @param pixels a point on its surface in its own block, in model pixels
+     * @return the slab's height there, in layers
+     */
+    private static float heightThere(SlimeTop slab, Vector3fc pixels) {
+        return (float) slab.heightAtPixel(slab.plane().firstOf(pixels), slab.plane().secondOf(pixels));
+    }
+
+    /**
+     * A quad through four points, wound to face one way.
+     *
+     * @param corners  the points, in model pixels, in order round the quad
+     * @param facing   the way the quad should face
+     * @param face     the side it draws as
+     * @param material the shell's material
+     * @return the quad
+     */
+    private static BakedQuad quadThrough(List<Vector3f> corners, Vector3fc facing, Direction face,
+                                         BakedQuad.MaterialInfo material) {
+        Vector3f across = new Vector3f(corners.get(1)).sub(corners.getFirst());
+        Vector3f down = new Vector3f(corners.getLast()).sub(corners.getFirst());
+        boolean facesAway = new Vector3f(across).cross(down).dot(facing) < 0;
+        List<Vector3f> wound = new ArrayList<>(corners);
+        if (facesAway) {
+            Collections.reverse(wound);
+        }
+        List<Vertex> vertices = new ArrayList<>();
+        for (Vector3f corner : wound) {
+            vertices.add(new Vertex(new Vector3f(corner).div(WHOLE), uvOf(face, corner, material.sprite())));
+        }
+        return quadOf(vertices, face, material);
     }
 
     /**
@@ -247,13 +385,23 @@ public final class SlimeTopQuads {
             moved.add(new Vertex(new Vector3f(at).div(WHOLE), uvOf(flat.direction(), at,
                     flat.materialInfo().sprite())));
         }
-        Iterator<Vertex> inOrder = moved.iterator();
+        return quadOf(moved, flat.direction(), flat.materialInfo());
+    }
+
+    /**
+     * @param vertices the quad's four vertices, in order
+     * @param face     the side it draws as
+     * @param material its material
+     * @return the quad
+     */
+    private static BakedQuad quadOf(List<Vertex> vertices, Direction face, BakedQuad.MaterialInfo material) {
+        Iterator<Vertex> inOrder = vertices.iterator();
         Vertex first = inOrder.next();
         Vertex second = inOrder.next();
         Vertex third = inOrder.next();
         Vertex fourth = inOrder.next();
         return new BakedQuad(first.position(), second.position(), third.position(), fourth.position(), first.uv(),
-                second.uv(), third.uv(), fourth.uv(), flat.direction(), flat.materialInfo());
+                second.uv(), third.uv(), fourth.uv(), face, material);
     }
 
     /**
