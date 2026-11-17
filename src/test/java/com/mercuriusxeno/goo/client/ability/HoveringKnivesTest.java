@@ -96,5 +96,6 @@ class HoveringKnivesTest {
 
         assertEquals(2, played.size(), "two knives formed for the local player should chime twice, " + played);
         played.forEach(cue -> assertEquals("minecraft:block.amethyst_block.chime", cue.sound().toString()));
+        played.forEach(cue -> assertEquals(1f, cue.volume(), 1e-6f, "the chime should play at full volume, heard clearly"));
     }
 }

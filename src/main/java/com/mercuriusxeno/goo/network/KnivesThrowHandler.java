@@ -77,7 +77,7 @@ public final class KnivesThrowHandler {
                     ThrownKnife.launchPointOf(player.getEyePosition(), player.getViewXRot(1f), player.getViewYRot(1f),
                             GooCasters.casterOnTheRight(player), inTheHold, delivery.stacksJavelins()),
                     ThrownKnife.launchVelocityAlong(look, delivery.throwSpeed()), delivery.stacksJavelins(),
-                    delivery.formSounds().thrown());
+                    delivery.formSounds().thrownWith(player.getRandom()));
             holds.threw(player, 1);
         });
     }
