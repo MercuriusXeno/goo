@@ -580,6 +580,32 @@ class VolumeCellBlockTest {
     }
 
     /**
+     * A broken Updraft cell gives back typhoon goo, each layer a fifteenth of
+     * Updraft's cost as typhoon_updraft.json ships it.
+     * updraft-is-typhoons-world-goo-that-lifts-the-entities-above-it
+     */
+    @Nested
+    class UpdraftReclaim {
+
+        private static final int LAYERS = 7;
+
+        @Test
+        void updraftIsTyphoonGooLaidByTyphoonsUpdraft() {
+            assertEquals(List.of(GooTypes.TYPHOON, AbilityJson.idOf("typhoon_updraft.json")),
+                    List.of(CellBinding.UPDRAFT.gooType(), CellBinding.UPDRAFT.layingAbility()));
+        }
+
+        @Test
+        void aBrokenUpdraftCellDropsTyphoonGooAtFifteenthsOfUpdraftsCost() {
+            GooFraction cost = AbilityJson.decode("typhoon_updraft").cost().exactIn(GooValueTable.EMPTY);
+
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.TYPHOON,
+                            cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.UPDRAFT, LAYERS, cost));
+        }
+    }
+
+    /**
      * A broken Wisps cell gives back glow goo, each layer a fifteenth of
      * Wisps' cost as glow_wisps.json ships it
      * (decision glow-world-goo-is-named-wisps-and-takes-the-holds-place).

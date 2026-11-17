@@ -9,7 +9,6 @@ import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.ability.ChargeMotes;
-import com.mercuriusxeno.goo.client.ability.HeldColumnRenderer;
 import com.mercuriusxeno.goo.client.ability.HeldDomeRenderer;
 import com.mercuriusxeno.goo.client.ability.PortalView;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -183,8 +182,7 @@ public final class GooTargetHighlighter {
             return;
         }
         ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
-        if (ability == null || renderHeldColumn(target, ability, frame)
-                || !HeldDomeRenderer.showsDome(ability.delivery(), ability.badge(), ability.area(),
+        if (ability == null || !HeldDomeRenderer.showsDome(ability.delivery(), ability.badge(), ability.area(),
                 GloveUseTracker.showsArea())) {
             return;
         }
@@ -226,26 +224,6 @@ public final class GooTargetHighlighter {
             return true;
         }
         return false;
-    }
-
-    /**
-     * Draws a column ability's held column at the aim point while right click
-     * holds an armed press.
-     * updraft-blob-stands-a-column-of-wind
-     *
-     * @param target  the aim target
-     * @param ability the selected ability
-     * @param frame   what the frame draws with
-     * @return true when the ability previews a column, which then drew
-     */
-    private static boolean renderHeldColumn(TargetResult target, ClientAbility ability, HighlightFrame frame) {
-        if (!HeldColumnRenderer.showsColumn(ability.delivery(), ability.badge(), ability.area(),
-                GloveUseTracker.showsArea())) {
-            return false;
-        }
-        HeldColumnRenderer.render(frame.ps(), frame.buf(), frame.camera().position(), target, ability.area(),
-                ClientGooTypes.highlight(frame.selectedType()));
-        return true;
     }
 
     /**
