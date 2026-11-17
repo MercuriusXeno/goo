@@ -11,17 +11,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * An updraft's column lifts what stands inside its width from its floor up
  * to below its top and leaves the rest alone; a lift raises a rise to the
- * column's speed and keeps the sideways motion
- * (decision updraft-blob-stands-a-column-of-wind).
+ * column's speed, cut near the top to land on it, and keeps the sideways
+ * motion.
+ * updraft-is-typhoons-world-goo-that-lifts-the-entities-above-it
+ * updraft-goo-lifts-one-block-per-layer
  */
 class EntityLiftTest {
 
     private static final double EPSILON = 1e-9;
     private static final Vec3 BASE = new Vec3(2.5, 1, 2.5);
-    /** typhoon_updraft.json's column. */
+    /** A column a block wide each way, eight blocks tall. */
     private static final double RADIUS = 1;
     private static final double HEIGHT = 8;
     private static final double SPEED = 0.4;
+    private static final double FALL_CAP = 0.15;
 
     @Nested
     class Bounds {
@@ -98,6 +101,35 @@ class EntityLiftTest {
         @Test
         void aFasterRiseIsKept() {
             assertEquals(0.9, EntityLift.lifted(new Vec3(0, 0.9, 0), SPEED).y, EPSILON);
+        }
+
+        @Test
+        void aRiseNearTheTopIsCutToWhatIsLeftOfTheColumn() {
+            double left = 0.1;
+
+            assertEquals(new Vec3(0.1, left, -0.2), EntityLift.risen(new Vec3(0.1, -0.6, -0.2), SPEED, left));
+        }
+
+        @Test
+        void aFallOverThePushIsCappedAtTheFallCapKeepingItsSidewaysMotion() {
+            Vec3 carried = EntityLift.carried(new Vec3(0.1, -0.6, -0.2), -2, SPEED, FALL_CAP);
+
+            assertEquals(new Vec3(0.1, -FALL_CAP, -0.2), carried);
+        }
+
+        @Test
+        void aRiseOverThePushStays() {
+            assertEquals(0.3, EntityLift.carried(new Vec3(0, 0.3, 0), -1, SPEED, FALL_CAP).y, EPSILON);
+        }
+
+        @Test
+        void aFallInsideThePushTurnsIntoTheRise() {
+            assertEquals(SPEED, EntityLift.carried(new Vec3(0, -0.6, 0), HEIGHT, SPEED, FALL_CAP).y, EPSILON);
+        }
+
+        @Test
+        void aRiseFarBelowTheTopKeepsTheColumnsSpeed() {
+            assertEquals(SPEED, EntityLift.risen(new Vec3(0, -0.6, 0), SPEED, HEIGHT).y, EPSILON);
         }
     }
 

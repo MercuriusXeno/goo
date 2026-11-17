@@ -1,32 +1,51 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.program.LingerStep;
-import com.mercuriusxeno.goo.ability.program.Step;
-import com.mercuriusxeno.goo.ability.program.WindStep;
+import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.ability.program.UpdraftStep;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
-import java.util.List;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Updraft's rising wind: the column is sized from the ability's updraft step,
- * a column blows once a tick however many frames draw it, and its lines leave
- * the floor inside its width and rise straight up through its height
- * (decision updraft-blob-stands-a-column-of-wind).
+ * Updraft's rising wind: an Updraft cell's column stands a block tall for
+ * each of its layers and as wide as the shipped updraft step names, a column
+ * blows once a tick however many frames draw it, and its lines leave the
+ * floor inside its width and rise straight up through its height.
+ * updraft-blob-stands-a-column-of-wind
+ * updraft-goo-lifts-one-block-per-layer
  */
 class UpdraftWindTest {
 
     private static final double EPSILON = 1e-9;
     private static final Vec3 BASE = new Vec3(2.5, 1, 2.5);
 
-    @Test
-    void anAbilityWithNoUpdraftStandsNoColumn() {
-        List<Step> program = List.of(new LingerStep(List.of(new WindStep(false))));
+    @ParameterizedTest
+    @ValueSource(ints = {1, 4, 15})
+    void aCellsColumnIsAsTallAsItsLayersAndAsWideAsTheStepNames(int layers) {
+        UpdraftStep shipped = UpdraftStep.in(AbilityJson.decode("typhoon_updraft").behaviors()).orElseThrow();
 
-        assertTrue(UpdraftWind.columnOf(program).isEmpty());
+        UpdraftWind.Column column = UpdraftWind.columnOf(shipped, layers);
+
+        assertEquals(layers, column.height(), EPSILON);
+        assertEquals(shipped.halfWidth(), column.radius(), EPSILON);
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = {0L, 7L, 1000L})
+    void aCellBlowsOneLineInEverySixTicks(long from) {
+        for (BlockPos cell : new BlockPos[] {new BlockPos(0, 64, 0), new BlockPos(3, 70, -9), new BlockPos(-41, 5, 12)}) {
+            int blown = 0;
+            for (long tick = from; tick < from + UpdraftWind.WIND_EVERY_TICKS; tick++) {
+                blown += UpdraftWind.blowsOnCadence(cell, tick) ? 1 : 0;
+            }
+
+            assertEquals(1, blown, cell + " from " + from);
+        }
     }
 
     @Test
